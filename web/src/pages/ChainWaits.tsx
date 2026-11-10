@@ -18,7 +18,7 @@ export function ChainWaits({ project, waits, className, compact = false }: { pro
         <WaitLine wait={wait} compact={compact} />
       </p>
       {wait.kind === 'packages' && !wait.passing && <FixButton project={project} fix={{ to: 'packages' }} />}
-      {wait.kind === 'slot' && <NoticeFixButton project={project} notice={wait.notice} />}
+      {(wait.kind === 'slot' || wait.kind === 'folder') && <NoticeFixButton project={project} notice={wait.notice} />}
     </Fragment>
   ))
 }
@@ -43,6 +43,7 @@ function WaitLine({ wait, compact }: { wait: ChainWait; compact: boolean }) {
       return wait.passing ? t.banner.packagesHold(named) : t.banner.packagesSilentHold(named)
     }
     case 'slot':
+    case 'folder':
       return <Said notice={compact ? { ...wait.notice, items: [] } : wait.notice} />
   }
 }

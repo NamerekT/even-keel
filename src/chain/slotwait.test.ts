@@ -63,6 +63,15 @@ describe('Dispatcher with no free slot', () => {
     expect(chain.slotWait?.notice.items?.[0]?.code).toBe('slot.busyStart')
   })
 
+  it('waits for the turn of a released session in the folder of a project without git, attended too (BTN-962)', async () => {
+    const busy = fail('folder.busy', { tasks: ['ABC-9'], task: 'ABC-1' })
+    const { dispatcher } = await started({ unattended: false, refuse: { 'ABC-1': busy } })
+    const chain = dispatcher.state.active[0]!
+    expect(chain.paused).toBe(false)
+    expect(chain.current).toBeNull()
+    expect(chain.slotWait?.notice).toEqual(busy.notice)
+  })
+
   it('pauses outside the unattended mode, as before, and says so in the log', async () => {
     const { dispatcher, log } = await started({ unattended: false })
     const chain = dispatcher.state.active[0]!

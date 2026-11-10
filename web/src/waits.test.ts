@@ -28,6 +28,12 @@ describe('chainWaits', () => {
     expect(chainWaits(stateOf(chain), 'ABC').map((each) => each.kind)).toEqual(['closing', 'ci', 'limits', 'limit', 'slot'])
   })
 
+  it('calls a released session in the folder of a project without git a wait for the folder, not for a slot', () => {
+    const busy = notice('folder.busy', { tasks: ['ABC-9'], task: 'ABC-2' })
+    const chain = running({ slotWait: { notice: busy, at: '2026-11-01T04:00:00.000Z' } })
+    expect(chainWaits(stateOf(chain), 'ABC')).toEqual([{ kind: 'folder', notice: busy }])
+  })
+
   it('names the model whose own week holds the chain, and whether its reset is known', () => {
     const chain = running({ modelWeek: { model: 'Fable', until: '2026-11-01T05:00:00.000Z' } })
     expect(chainWaits(stateOf(chain), 'ABC')).toEqual([{ kind: 'model', model: 'Fable', until: '2026-11-01T05:00:00.000Z' }])

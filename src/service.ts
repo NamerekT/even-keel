@@ -808,7 +808,7 @@ function occupantsOf(slot: string, task: string): { idle: import("./sessions/occ
 
 function slotUse(slot: string, task: string): SlotUse { return chainService.slotUse(context, slot, task) }
 
-function vacateSlot(slot: string, task: string): Promise<void> { return chainService.vacateSlot(context, slot, task) }
+function vacateSlot(slot: string, task: string, shared = false): Promise<void> { return chainService.vacateSlot(context, slot, task, shared) }
 
 function stopTaskSessions(project: string, repo: string, task: string, count: number, shared = false): ReturnType<typeof chainService.stopTaskSessions> { return chainService.stopTaskSessions(context, project, repo, task, count, shared) }
 

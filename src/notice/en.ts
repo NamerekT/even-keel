@@ -214,6 +214,10 @@ export const en = {
     `the slot ${p.slot} is in use by ${list(p.sessions)} mid-turn, ${p.task} was not started; let it finish or stop it, then resume`,
   'slot.stopFailed': (p: { session: string; owner: string; slot: string; task: string }) =>
     `the session ${p.session} of ${p.owner} in the slot ${p.slot} was not stopped, ${p.task} was not started`,
+  'folder.busy': (p: { tasks: string[]; task: string }) =>
+    `the project's folder is in use by the session of ${list(p.tasks)} mid-turn; ${p.task} starts once that turn ends`,
+  'folder.stopFailed': (p: { session: string; owner: string; task: string }) =>
+    `the session ${p.session} of ${p.owner} in the project's folder was not stopped, ${p.task} was not started`,
 
   'setup.failed': (p: { task: string; command: string; code: number }) =>
     `setup: "${p.command}" before the start of ${p.task} exited with code ${p.code}; the session was not started, fix it and resume`,

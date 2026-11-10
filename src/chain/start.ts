@@ -46,6 +46,8 @@ export async function startTask(
     const failure = noticeOf(error)
     // The CLI check holds the account folder for minutes and lets it go by itself (BTN-569): a wait in any mode.
     if (failure.code === 'cliCheck.busy') waitForSlot(state, deps, chain, notice('cliCheck.chainWaits', { task, account: failure.params.account }))
+    // A released task's turn in the folder of a project without git ends by itself (BTN-962): a wait in any mode.
+    else if (failure.code === 'folder.busy') waitForSlot(state, deps, chain, failure)
     else if (state.unattended && SLOT_REFUSALS.has(failure.code)) waitForSlot(state, deps, chain, notice('slot.waiting', { task }, { items: failure.items ?? [failure] }))
     else halt(failure)
   }

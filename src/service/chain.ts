@@ -223,6 +223,8 @@ export function wirePlaces(ctx: ChainContext): TaskPlaces {
       const repo = ctx.configStore.current.projects[project]!
       if (isPlain(ctx.configStore.current, project)) {
         await mkdir(repo, { recursive: true })
+        // One session at a time in the folder: what released tasks left in it goes before the launch (exception 5).
+        if (!ahead) await ctx.vacateSlot(repo, task, true)
         return { path: repo, branch: null }
       }
       const main = ctx.branchOf(project)
@@ -689,16 +691,26 @@ export function slotUse(ctx: ChainContext, slot: string, task: string): SlotUse 
   return { idle: idle.length > 0, busy: busy.map((each) => `${each.task} (${each.agent.sessionId})`) }
 }
 
-export async function vacateSlot(ctx: ChainContext, slot: string, task: string): Promise<void> {
+/**
+ * Stops the live sessions other tasks left in the slot before `task` takes it, refusing while one is mid-turn.
+ * `shared` — the folder of a project without git, which every task works in (BTN-962): the same stop, its own notices.
+ */
+export async function vacateSlot(ctx: ChainContext, slot: string, task: string, shared = false): Promise<void> {
   const { idle, busy } = ctx.occupantsOf(slot, task)
-  if (busy.length > 0) throw fail('slot.busyStart', { slot, sessions: busy.map((each) => `${each.task} (${each.agent.sessionId})`), task })
+  if (busy.length > 0) {
+    if (shared) throw fail('folder.busy', { tasks: [...new Set(busy.map((each) => each.task))], task })
+    throw fail('slot.busyStart', { slot, sessions: busy.map((each) => `${each.task} (${each.agent.sessionId})`), task })
+  }
   for (const { agent, task: owner } of idle) {
     try {
       await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id!, sessionId: agent.sessionId })
     } catch (error) {
-      throw fail('slot.stopFailed', { session: agent.sessionId, owner, slot, task }, { cause: noticeOf(error) }, { cause: error })
+      const params = { session: agent.sessionId, owner, task }
+      throw shared
+        ? fail('folder.stopFailed', params, { cause: noticeOf(error) }, { cause: error })
+        : fail('slot.stopFailed', { ...params, slot }, { cause: noticeOf(error) }, { cause: error })
     }
-    console.log(`slot: stopped the session ${agent.sessionId} of ${owner} before ${task} took ${slot}`)
+    console.log(`${shared ? 'folder' : 'slot'}: stopped the session ${agent.sessionId} of ${owner} before ${task} took ${slot}`)
   }
 }
 

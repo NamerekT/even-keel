@@ -301,7 +301,7 @@ export const en: Messages = {
     idle: 'not started',
     position: (position: number) => `#${position}`,
     waiting: 'waiting',
-    waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', model: 'model week', gateway: 'MCP gateway', packages: 'packages', slot: 'slot' },
+    waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', model: 'model week', gateway: 'MCP gateway', packages: 'packages', slot: 'slot', folder: 'folder' },
   },
   lamp: {
     done: 'done',

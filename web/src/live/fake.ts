@@ -457,6 +457,10 @@ export function createFakeSource(search: string): LiveSource {
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
+  if (params.get('chain') === 'folder' && active) {
+    const slotWait = { notice: notice('folder.busy', { tasks: ['ABC-9'], task: 'ABC-12' }), at: new Date().toISOString() }
+    current.state!.chain.active = [{ ...active, current: null, slotWait }]
+  }
   if (params.get('chain') === 'closing' && active) current.state!.chain.active = [{ ...active, current: null, closing: 'ABC-4' }]
   const packageWaits: Record<string, string> = { packages: 'probing', packagesSilent: 'silent', gateway: 'gateway' }
   const packageWait = packageWaits[params.get('chain') ?? '']

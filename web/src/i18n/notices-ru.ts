@@ -234,6 +234,8 @@ export const noticesRu: NoticeTexts = {
   'slot.busyStart': (p) =>
     `слот ${p.slot} занят посреди хода: ${list(p.sessions)}, ${p.task} не запущена — дождитесь или остановите, затем снимите с паузы`,
   'slot.stopFailed': (p) => `сессия ${p.session} задачи ${p.owner} в слоте ${p.slot} не остановлена, ${p.task} не запущена`,
+  'folder.busy': (p) => `в папке проекта посреди хода работает сессия ${list(p.tasks)} — ${p.task} запустится, когда этот ход закончится`,
+  'folder.stopFailed': (p) => `сессия ${p.session} задачи ${p.owner} в папке проекта не остановлена, ${p.task} не запущена`,
 
   'setup.failed': (p) => `команда «${p.command}» перед стартом ${p.task} завершилась с кодом ${p.code} — сессия не запущена, исправьте и снимите с паузы`,
 

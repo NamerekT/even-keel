@@ -305,7 +305,7 @@ export const ru = {
     idle: 'не запущена',
     position: (position: number) => `${position}-я`,
     waiting: 'ждёт',
-    waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', model: 'неделя модели', gateway: 'шлюз MCP', packages: 'пакеты', slot: 'слот' },
+    waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', model: 'неделя модели', gateway: 'шлюз MCP', packages: 'пакеты', slot: 'слот', folder: 'папка' },
   },
   lamp: {
     done: 'готово',

@@ -25,7 +25,8 @@ export type ChainWait =
   | { kind: 'model'; model: string; until: string | null }
   | { kind: 'gateway'; error: Notice }
   | { kind: 'packages'; packages: WaitedPackage[]; passing: boolean }
-  | { kind: 'slot'; notice: Notice }
+  /** `folder` — a released task's session works in the shared folder of a project without git (BTN-962). */
+  | { kind: 'slot' | 'folder'; notice: Notice }
 
 /** In the order the dispatcher checks them (`Dispatcher.step`): the first is what the chip names. */
 export function chainWaits(state: Pick<EvenKeelState, 'chain' | 'packages'>, project: string): ChainWait[] {
@@ -39,7 +40,7 @@ export function chainWaits(state: Pick<EvenKeelState, 'chain' | 'packages'>, pro
   if (chain.modelWeek !== undefined) waits.push({ kind: 'model', model: chain.modelWeek.model, until: chain.modelWeek.until })
   const packages = chain.closing === undefined && chain.fixOnly !== true ? packagesWait(state.packages, project) : null
   if (packages !== null) waits.push(packages)
-  if (chain.slotWait !== undefined) waits.push({ kind: 'slot', notice: chain.slotWait.notice })
+  if (chain.slotWait !== undefined) waits.push({ kind: chain.slotWait.notice.code === 'folder.busy' ? 'folder' : 'slot', notice: chain.slotWait.notice })
   return waits
 }
 
