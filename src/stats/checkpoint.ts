@@ -56,6 +56,8 @@ export interface SessionCheckpoint {
   late: number | null
   hard: number | null
   context: number | null
+  /** The note the hook asks the session for (`noteFileOf`): one of the task's own in a project without git (BTN-964). */
+  note: string
 }
 
 /**

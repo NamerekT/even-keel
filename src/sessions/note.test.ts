@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { noteAtEnd } from './note.js'
+import { noteAtEnd, noteFileOf, noteWritten } from './note.js'
 import type { FeedLine } from './transcript.js'
 import { RolloutFold } from '../codex/rollout.js'
 
@@ -70,5 +70,21 @@ describe('noteAtEnd', () => {
   it('ignores other files named handoff and reads of the note', () => {
     expect(noteAtEnd([prompt('x'), note('docs/handoff.md')])).toBe(false)
     expect(noteAtEnd([prompt('x'), tool('Read', '.temp/handoff.md')])).toBe(false)
+  })
+})
+
+describe('the note of a task (BTN-964)', () => {
+  it('is the shared name in a git project and one of its own per task in a project without git', () => {
+    expect(noteFileOf('ABC-12', true)).toBe('.temp/handoff.md')
+    expect(noteFileOf('ABC-12', false)).toBe('.temp/handoff-ABC-12.md')
+    expect(noteFileOf('octo/app#7', false)).toBe('.temp/handoff-octo-app-7.md')
+  })
+
+  it('is recognized by its own name and given back as written', () => {
+    expect(noteWritten([prompt('x'), note('C:\\data\\notes\\.temp\\handoff-ABC-12.md')])).toBe('.temp/handoff-ABC-12.md')
+    expect(noteWritten([prompt('x'), { ...tool('Shell'), detail: `Set-Content .temp/handoff-ABC-3.md ready` }])).toBe('.temp/handoff-ABC-3.md')
+    expect(noteWritten([prompt('x'), note()])).toBe('.temp/handoff.md')
+    expect(noteWritten([prompt('x'), note('.temp/handoff-ABC-12.md.bak')])).toBeNull()
+    expect(noteWritten([prompt('x'), tool('Bash', 'test')])).toBeNull()
   })
 })

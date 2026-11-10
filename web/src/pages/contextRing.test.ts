@@ -33,7 +33,7 @@ describe('ringFacts', () => {
 })
 
 describe('checkpointMark', () => {
-  const found: SessionCheckpoint = { project: 'p', task: 'ABC-1', handoffs: 0, first: 180_000, source: 'calibrated', late: null, hard: null, context: null }
+  const found: SessionCheckpoint = { project: 'p', task: 'ABC-1', handoffs: 0, first: 180_000, source: 'calibrated', late: null, hard: null, context: null, note: '.temp/handoff.md' }
 
   it('is the first threshold the hook asks for a handoff at', () => {
     expect(checkpointMark(found)).toBe(180_000)

@@ -226,7 +226,7 @@ A project with `git: false` runs its tasks in one folder that is no repository a
 - a folder inside another repository is left alone: no branch, worktree or `info/exclude` entry appears in that repository;
 - on a machine without git the setup's Git step is skipped and such a project is added and started;
 - a skipped task's resting session is stopped before the next task starts in the folder, and one mid-turn holds the next launch until its turn ends (BTN-962; scripted only, and the mid-turn hold only in the dispatcher's unit test);
-- the unattended prompt still names commits and the git hook, and two tasks' handoff notes share `.temp/handoff.md` of the one folder — known gaps with tasks of their own.
+- each task's handoff goes through its own `.temp/handoff-<task>.md` (BTN-964; unit tests only): the nudge names that file, the `Stop` hook marks it, and the next session reads it rather than another task's note.
 
 If wrong, a session refuses to start in the folder (Codex refusing one outside a repository), the task stays waiting after `TASK DONE`, or the comment is refused and the chain pauses on the task. **Check:** add a project "Without git" with a blank folder, give it two small "find out and answer" tasks, run them on Claude Code (skip the first once its turn ends on a remark and see its session stopped before the second starts), then one on Codex, OpenCode and Copilot each; read the comments, the Done and the log; repeat with the folder inside another repository and look at that repository's `git status` and `.git/info/exclude`. **Workaround:** close the task in the tracker by hand, or "Accept as answer" in the session panel; for an agent that refuses the folder, run the project on Claude Code.
 

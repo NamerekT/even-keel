@@ -1,9 +1,11 @@
 import type { Language } from '../language.js'
-import { mailMessage, mailPrompt, type Mail, type MailEvent } from './mail.js'
+import { mailMessage, mailPrompt, type Mail, type MailEvent, type NoteOf } from './mail.js'
 import { mailOutcome, type Mailbox } from './mailbox.js'
 
 /** What the service gives the mailbox to settle messages and answer the hooks. */
 export interface MailRelay {
+  /** The task's handoff note, for a `/handoff` among the messages (BTN-964); absent — the shared one. */
+  note?: NoteOf
   mailbox: Mailbox
   /** The task's live session: its id, whether it is in the middle of a turn, whether it waits on a question. */
   live: (task: string) => { sessionId: string; midTurn: boolean; asking: boolean } | undefined
@@ -46,7 +48,7 @@ async function resumed(relay: MailRelay, task: string, sessionId: string, waitin
   const mails = relay.mailbox.claim(waiting)
   if (mails.length === 0) return
   if (await closedFor(relay, task, sessionId, mails)) return
-  const prompt = mails.map((mail) => mailPrompt(mail, relay.language())).join('\n')
+  const prompt = mails.map((mail) => mailPrompt(mail, relay.language(), relay.note)).join('\n')
   let delivered = false
   try {
     delivered = await relay.resume(task, sessionId, prompt)
@@ -86,7 +88,7 @@ export async function mailFor(relay: MailRelay, sessionId: string, event: MailEv
   if (await closedFor(relay, taken[0]!.task, sessionId, taken)) return null
   let finished = false
   return {
-    message: mailMessage(taken, event, relay.language()),
+    message: mailMessage(taken, event, relay.language(), relay.note),
     finish: (delivered) => {
       if (finished) return
       finished = true

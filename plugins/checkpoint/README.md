@@ -10,6 +10,8 @@ After every tool call the hook asks Even Keel for the size of the main thread's 
 CHECKPOINT: .temp/handoff.md
 ```
 
+In a project without git every task works in the project's one folder, so each task gets a note of its own, `.temp/handoff-<task>.md` (characters of the task outside `A-Z a-z 0-9 . _ -` become `-`); Even Keel's `/checkpoint` answer names it in `note`, and the nudge and the mark use that name.
+
 The first nudge lets the session pick the moment: before a loop of checks or the wrap-up, not in the middle of a change that does not build yet or of a step that needs what is loaded. Sessions used that last clause to carry on through every nudge, so the later ones drop it: checkpoint now or as soon as the current change builds, unless all that is left is the merge and the final report. Subagents are not nudged.
 
 Sessions sometimes write the note and then close the turn with a report, without the line. A second hook, on `Stop`, catches that: if the last line of the last message is not the mark and Even Keel says `.temp/handoff.md` was written or edited among the last three tool calls of the turn (`/api/sessions/<id>/note`), it sends the session back to reply with the line alone. It asks once per stop, so a session that still refuses is let go.

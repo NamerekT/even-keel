@@ -59,17 +59,21 @@ const LEADS: Record<Language, Record<'turn' | 'Stop' | 'AskUserQuestion', string
 
 const MARK = /<even-keel-message id="(\d+)">\n([\s\S]*?)\n<\/even-keel-message>/g
 
+/** The handoff note of a task (`noteFileOf`), for a `/handoff` among the messages; absent — the shared one. */
+export type NoteOf = (task: string) => string
+
 /** What a hook gives the session for its messages: a lead for the event, then each message in its mark. */
-export function mailMessage(mails: Mail[], event: MailEvent, language: Language): string {
+export function mailMessage(mails: Mail[], event: MailEvent, language: Language, noteOf?: NoteOf): string {
   const leads = LEADS[language]
   const lead = event === 'Stop' || event === 'AskUserQuestion' ? leads[event] : leads.turn
-  const blocks = mails.map((mail) => `<even-keel-message id="${mail.id}">\n${mailPrompt(mail, language)}</even-keel-message>`)
+  const blocks = mails.map((mail) => `<even-keel-message id="${mail.id}">\n${mailPrompt(mail, language, noteOf)}</even-keel-message>`)
   return [lead, ...blocks].join('\n\n')
 }
 
 /** A message as the reply prompt of a resume would carry it: the user's words and the files. */
-export function mailPrompt(mail: Pick<Mail, 'text' | 'files'>, language: Language): string {
-  return replyPrompt({ from: 'page', answers: {}, text: mail.text, files: mail.files }, null, language)
+export function mailPrompt(mail: Pick<Mail, 'text' | 'files'> & Partial<Pick<Mail, 'task'>>, language: Language, noteOf?: NoteOf): string {
+  const note = mail.task === undefined ? undefined : noteOf?.(mail.task)
+  return replyPrompt({ from: 'page', answers: {}, text: mail.text, files: mail.files }, null, language, note)
 }
 
 /** A message a hook handed to the session, for a transcript that may not hold it: Copilot's `preToolUse` writes no text (BTN-519). */
@@ -81,10 +85,10 @@ export interface DeliveredMail {
 }
 
 /** The messages of `mails` a hook delivered, as a transcript fold takes them. */
-export function deliveredMail(mails: Mail[], language: Language): DeliveredMail[] {
+export function deliveredMail(mails: Mail[], language: Language, noteOf?: NoteOf): DeliveredMail[] {
   return mails.flatMap((mail) =>
     mail.fate === 'delivered' && mail.event !== null && HOOK_EVENTS.includes(mail.event) && mail.settledAt !== null
-      ? [{ id: mail.id, at: mail.settledAt, prompt: mailPrompt(mail, language) }]
+      ? [{ id: mail.id, at: mail.settledAt, prompt: mailPrompt(mail, language, noteOf) }]
       : [],
   )
 }

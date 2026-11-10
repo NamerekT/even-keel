@@ -291,8 +291,8 @@ export interface ServerDeps {
   sharedFile: (sessionId: string, tool: string, index: number) => Promise<TaskFile | undefined>
   /** For the checkpoint hook; `undefined` for a session the chain did not start. */
   checkpoint: (sessionId: string) => Promise<SessionCheckpoint | undefined>
-  /** For the checkpoint mark hook: the turn wrote the handoff note near its end (`noteAtEnd`); `undefined` as above. */
-  handoffNote: (sessionId: string) => Promise<boolean | undefined>
+  /** For the checkpoint mark hook: the note the turn wrote near its end (`noteWritten`), `null` — none; `undefined` as above. */
+  handoffNote: (sessionId: string) => Promise<string | null | undefined>
   /**
    * For the merge hook: the project's check commands to run before the merge, empty — none, its main branch and its
    * standards (BTN-359), which the standards hook reads too; `undefined` for a session the chain did not start.
@@ -532,7 +532,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   if (request.method === 'GET' && handoffNote !== null) {
     const note = await deps.handoffNote(decodeURIComponent(handoffNote[1]!))
     if (note === undefined) response.writeHead(404).end()
-    else sendJson(response, 200, { note })
+    else sendJson(response, 200, note === null ? { note: false } : { note: true, path: note })
     return
   }
 

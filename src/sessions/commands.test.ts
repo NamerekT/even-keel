@@ -60,6 +60,15 @@ describe('commandPrompt', () => {
     expect(en.endsWith('\npick option 1')).toBe(true)
   })
 
+  it('names the note of the task it is given, in both languages (BTN-964)', () => {
+    for (const language of ['en', 'ru'] as const) {
+      const prompt = commandPrompt('/handoff', language, '.temp/handoff-ABC-12.md')
+      expect(prompt).toContain('`.temp/handoff-ABC-12.md`')
+      expect(prompt).toContain('`CHECKPOINT: .temp/handoff-ABC-12.md`')
+      expect(prompt).not.toContain('.temp/handoff.md')
+    }
+  })
+
   it('leaves anything else as written', () => {
     expect(commandPrompt('/huidoff now', 'en')).toBe('/huidoff now')
     expect(commandPrompt('please /handoff', 'ru')).toBe('please /handoff')
@@ -71,6 +80,8 @@ describe('typedText', () => {
     for (const language of ['en', 'ru'] as const) {
       expect(typedText(commandPrompt('/handoff', language))).toBe('/handoff')
       expect(typedText(commandPrompt('/handoff выбираю вариант 1.', language))).toBe('/handoff выбираю вариант 1.')
+      expect(typedText(commandPrompt('/handoff', language, '.temp/handoff-ABC-12.md'))).toBe('/handoff')
+      expect(typedText(commandPrompt('/handoff later', language, '.temp/handoff-ABC-12.md'))).toBe('/handoff later')
     }
   })
 
@@ -89,6 +100,11 @@ describe('a chat command on its way', () => {
       text: '/handoff выбираю вариант 1.',
       files: ['C:/w/.temp/inbox/a.png'],
     })
+  })
+
+  it('carries the note of the task the reply goes to', () => {
+    const prompt = replyPrompt({ from: 'page', answers: {}, text: '/handoff', files: [] }, null, 'en', '.temp/handoff-ABC-12.md')
+    expect(prompt).toContain('CHECKPOINT: .temp/handoff-ABC-12.md')
   })
 
   it('stays as written in a tracker comment', () => {

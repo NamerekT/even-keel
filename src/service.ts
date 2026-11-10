@@ -30,7 +30,7 @@ import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
 import { ProtectionAudit } from './ci/protection-audit.js'
 import { type CiTarget, type Remote } from './ci/remote.js'
 import type { IntakeEntry } from './intake/model.js'
-import { DEFAULT_BRANCH, gitProjects, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, gitProjects, isPlain, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { type SlotUse } from './git/slot.js'
@@ -43,6 +43,7 @@ import { Packages } from './packages/service.js'
 import { type ChainControl } from './server.js'
 import { Approvals } from './sessions/approvals.js'
 import { createChat } from './sessions/chat.js'
+import { noteFileOf } from './sessions/note.js'
 import { Mailbox } from './sessions/mailbox.js'
 import { settleMail } from './sessions/mailRelay.js'
 import { type AgentEntry } from './sessions/agents.js'
@@ -320,6 +321,7 @@ const context = {
   set tallyRestarts(value: typeof tallyRestarts) { tallyRestarts = value },
   get tallyRuns() { return tallyRuns },
   set tallyRuns(value: typeof tallyRuns) { tallyRuns = value },
+  get taskNote() { return taskNote },
   get taskRun() { return taskRun },
   get taskSource() { return taskSource },
   get tasksByProject() { return tasksByProject },
@@ -799,6 +801,7 @@ const { mailRelay, answerSession } = createChat({
   steering,
   steer,
   language: promptLanguage,
+  note: taskNote,
   changed: stateChanged,
   log: (line) => console.log(line),
   now: () => new Date(),
@@ -863,6 +866,12 @@ async function inHomes<T>(read: (home: AccountHome) => Promise<T | undefined>): 
  * project, or on one Linear team, share a prefix that is not their key (BTN-172); a feed's ids name its project (BTN-66).
  */
 function configuredProject(task: string): string | undefined { return trackersService.configuredProject(context, task) }
+
+/** The handoff note a session of the task writes: one of its own in a project without git, whose folder is shared (BTN-964). */
+function taskNote(task: string): string {
+  const project = configuredProject(task)
+  return noteFileOf(task, project === undefined || !isPlain(configStore.current, project))
+}
 
 const postedQuestions = await loadQuestions(db)
 const questions = trackersService.wireQuestions(context)

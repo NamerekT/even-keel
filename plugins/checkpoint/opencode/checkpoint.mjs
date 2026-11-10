@@ -11,23 +11,21 @@
 // subagent runs in a session of its own, which Even Keel does not know, so it is left alone. Only `server` is
 // exported: OpenCode takes the module's exports for plugins.
 import { checkOf, checkpointNote, mailOf, noteAtEnd, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
-import { hasMark } from "../hooks/handoff.mjs";
+import { hasMark, isNotePath } from "../hooks/handoff.mjs";
 import { mergeRefusal } from "../hooks/merges.mjs";
 import { callOf, clearGiven, due, givenStore, standardsAt } from "../hooks/standards.mjs";
 
-const MARK = "CHECKPOINT: .temp/handoff.md";
 const WRITES = new Set(["write", "edit", "multiedit"]);
-// Even Keel counts the note when it is among the turn's last three tool calls (`noteAtEnd` in src/sessions/note.ts).
+// Even Keel counts the note when it is among the turn's last three tool calls (`noteWritten` in src/sessions/note.ts).
 const NEAR_END = 3;
 
 const reminder = (text) => `\n\n<system-reminder>\n${text}\n</system-reminder>`;
-const isNote = (path) => typeof path === "string" && /(^|\/)\.temp\/handoff\.md$/.test(path.replace(/\\/g, "/"));
 
 export const server = async ({ directory }) => {
   // Per session, the tool calls since this process saw it write the note: Even Keel is asked only then.
   const sinceNote = new Map();
   const counted = (input) => {
-    if (WRITES.has(input.tool) && isNote(input.args?.filePath)) sinceNote.set(input.sessionID, 0);
+    if (WRITES.has(input.tool) && isNotePath(input.args?.filePath)) sinceNote.set(input.sessionID, 0);
     else if (sinceNote.has(input.sessionID)) {
       const calls = sinceNote.get(input.sessionID) + 1;
       if (calls < NEAR_END) sinceNote.set(input.sessionID, calls);
@@ -74,8 +72,9 @@ export const server = async ({ directory }) => {
     // Fires for every text part, also one followed by more tool calls: the line it adds there is not the turn's last.
     "experimental.text.complete": async (input, output) => {
       if (!sinceNote.has(input?.sessionID) || typeof output?.text !== "string" || hasMark(output.text)) return;
-      if (!(await noteAtEnd(input.sessionID).catch(() => false))) return;
-      output.text = `${output.text.trimEnd()}\n\n${MARK}`;
+      const note = await noteAtEnd(input.sessionID).catch(() => null);
+      if (note === null) return;
+      output.text = `${output.text.trimEnd()}\n\nCHECKPOINT: ${note}`;
     },
     event: async ({ event }) => {
       const session = event?.properties?.sessionID;

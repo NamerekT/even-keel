@@ -251,8 +251,8 @@ with own as (
   where c.agent_id is null and c.entrypoint is distinct from 'tally-classify'
 ), marks as (
   select r.session_id,
-    min(r.n) filter (where t.brief not like '%.temp/handoff.md') as edit_n,
-    min(r.n) filter (where t.brief like '%.temp/handoff.md') as note_n
+    min(r.n) filter (where t.brief not like '%.temp/handoff%.md') as edit_n,
+    min(r.n) filter (where t.brief like '%.temp/handoff%.md') as note_n
   from tool_calls t
   join reqs r on r.message_id = t.message_id
   where t.name in ('Edit', 'Write', 'MultiEdit', 'NotebookEdit')

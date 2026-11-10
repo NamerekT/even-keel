@@ -17,6 +17,8 @@ interface ChatDeps {
   steering: (sessionId: string) => boolean
   steer: (task: string, session: HandoffSession, prompt: string) => Promise<boolean>
   language: (project?: string) => Language
+  /** The task's handoff note (`noteFileOf`), for a `/handoff` from the page (BTN-964); absent — the shared one. */
+  note?: (task: string) => string
   changed: () => void
   log: (line: string) => void
   now: () => Date
@@ -26,6 +28,7 @@ export function createChat(deps: ChatDeps) {
   const { dispatcher, mailbox } = deps
   const mailRelay: MailRelay = {
     mailbox,
+    ...(deps.note === undefined ? {} : { note: deps.note }),
     live: (task) => {
       const view = deps.liveView(task)
       return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: deps.midTurn(task), asking: view.asking }
@@ -69,7 +72,7 @@ export function createChat(deps: ChatDeps) {
     } catch (error) {
       throw fail('answer.file', { name: reply.files.map((file) => file.name).join(', ') }, { detail: (error as Error).message }, { cause: error })
     }
-    const prompt = replyPrompt({ ...reply, files }, question, deps.language(project))
+    const prompt = replyPrompt({ ...reply, files }, question, deps.language(project), deps.note?.(task))
     if (midTurn) {
       if (deps.steering(sessionId) && (await deps.steer(task, session, prompt))) {
         deps.log(`chain: ${task}: the user's message from the page went into the working session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)

@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { noteIn } from "./handoff.mjs";
 import { markOf, nudge, planOf } from "./nudges.mjs";
 
 export const STATE_DIR = join(tmpdir(), "claude-context-checkpoint");
@@ -97,10 +98,15 @@ export async function standardsOf(sessionId) {
   return response.ok ? standardsIn(await response.json()) : [];
 }
 
-/** Whether the session's turn wrote `.temp/handoff.md` among its last tool calls; Even Keel reads the transcript of any agent. */
+/**
+ * The note the session's turn wrote among its last tool calls, as `.temp/handoff….md`, or null: none, or no Even Keel.
+ * Even Keel reads the transcript of any agent; one before BTN-964 names no path, and its note is the shared one.
+ */
 export async function noteAtEnd(sessionId) {
   const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/note`, { signal: AbortSignal.timeout(5000) });
-  return response.ok && (await response.json())?.note === true;
+  if (!response.ok) return null;
+  const answer = await response.json();
+  return answer?.note === true ? noteIn(answer.path) : null;
 }
 
 /**

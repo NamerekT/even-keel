@@ -16,7 +16,7 @@ import { ciViews } from '../ci/wiring.js'
 import { pullReadiness } from '../review/open.js'
 import { archivedShown } from '../chain/archive.js'
 import { ConfigStore } from '../config-store.js'
-import { DEFAULT_BRANCH, idPrefixOf, listenOf, projectLabel, projectLabels, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
+import { DEFAULT_BRANCH, idPrefixOf, isPlain, listenOf, projectLabel, projectLabels, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
 import { withDismissed } from '../notice/kinds.js'
@@ -35,7 +35,7 @@ import { inboxImage } from '../sessions/inbox.js'
 import { sharedFile } from '../sessions/shareFile.js'
 import { deliveredMail, type SessionMail } from '../sessions/mail.js'
 import { mailFor } from '../sessions/mailRelay.js'
-import { noteAtEnd } from '../sessions/note.js'
+import { noteFileOf, noteWritten } from '../sessions/note.js'
 import { root, source, stateDirOf } from '../locations.js'
 import { profileFor } from '../profiles/model.js'
 import { cleanRules, projectRules, rulesWith } from '../profiles/rules.js'
@@ -140,6 +140,7 @@ type HostingContext = Pick<ServiceContext,
   | 'steering'
   | 'tally'
   | 'tallyMode'
+  | 'taskNote'
   | 'tasksByProject'
   | 'token'
   | 'trackers'
@@ -274,7 +275,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
 }
 
 export function wireServer(ctx: HostingContext): import("http").Server<typeof import("http").IncomingMessage, typeof import("http").ServerResponse> {
-  const mailOf = (sessionId: string) => deliveredMail(ctx.mailbox.delivered(sessionId), ctx.configStore.current.language ?? ctx.promptLanguage())
+  const mailOf = (sessionId: string) => deliveredMail(ctx.mailbox.delivered(sessionId), ctx.configStore.current.language ?? ctx.promptLanguage(), ctx.taskNote)
   const builtin = builtinControl({
     db: ctx.db,
     places: () => builtinPlaces(ctx.configStore.current),
@@ -546,12 +547,13 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const shares = settings?.checkpointShares ?? ctx.configStore.current.stats.checkpointShares
       const threshold = withinWindow({ first, source }, window, shares, view?.agent ?? null, ctx.monitor.compactAtOf(sessionId))
       const off = !(settings?.contextHandoffs ?? ctx.configStore.current.contextHandoffs)
-      return { ...run, ...threshold, ...(off ? { source: 'off' as const } : {}), context: ctx.monitor.contextOf(sessionId) ?? null }
+      const note = noteFileOf(run.task, !isPlain(ctx.configStore.current, run.project))
+      return { ...run, ...threshold, ...(off ? { source: 'off' as const } : {}), context: ctx.monitor.contextOf(sessionId) ?? null, note }
     },
     handoffNote: async (sessionId) => {
       if (handoffsOf(ctx.launches, sessionId) === undefined) return undefined
       const feed = await ctx.inHomes((home) => ctx.agentOf(home).feed(home, sessionId, 0))
-      return feed !== undefined && noteAtEnd(feed.lines)
+      return feed === undefined ? null : noteWritten(feed.lines)
     },
     mail: (sessionId, event) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : mailFor(ctx.mailRelay, sessionId, event)),
     mailContext: (sessionId, event) => (event === 'PreToolUse' || event === 'PostToolUse' ? ctx.badges.statusAsk(sessionId) : null),

@@ -15,6 +15,7 @@ describe("planOf", () => {
       handoffs: 0,
       held: false,
       off: false,
+      note: ".temp/handoff.md",
     });
   });
 
@@ -104,5 +105,17 @@ describe("nudge", () => {
     expect(text).toMatch(/already been handed over 4 times/);
     expect(text).not.toMatch(/next stable point/);
     expect(nudge(326_000, 300_000, plan)).toMatch(/You were already asked/);
+  });
+
+  it("names the note Even Keel gives for the task, the shared one otherwise (BTN-964)", () => {
+    const own = planOf({}, { first: 200_000, source: "default", handoffs: 0, note: ".temp/handoff-ABC-12.md" });
+    for (const last of [0, 200_000]) {
+      const text = nudge(251_000, last, own);
+      expect(text).toContain("write `.temp/handoff-ABC-12.md`");
+      expect(text).toContain("`CHECKPOINT: .temp/handoff-ABC-12.md`");
+      expect(text).not.toContain(".temp/handoff.md");
+    }
+    expect(nudge(201_000, 0, planOf({}, null))).toContain("`CHECKPOINT: .temp/handoff.md`");
+    expect(planOf({}, { first: 200_000, source: "default", handoffs: 0, note: "../../secrets.md" }).note).toBe(".temp/handoff.md");
   });
 });
