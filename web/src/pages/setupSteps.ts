@@ -22,8 +22,8 @@ export const stepPath = (step: SetupStep): string => `${SETUP}?step=${step}`
 export const STATS_SERVER = `${stepPath('stats')}&db=server`
 
 /**
- * The steps that can be left for later: the page says "Skip for now" on them. Git is one while it is not ready: a
- * project without git needs none.
+ * The steps that can be left for later: the page says "Skip for now" on them. Git is one while it is not ready: git can
+ * be installed later.
  */
 export const OPTIONAL_STEPS: readonly SetupStep[] = ['git', 'tracker', 'stats']
 
@@ -61,6 +61,21 @@ interface AccountPool {
 /** "Next" on the Git step: git starts from the service and has a name and an e-mail to commit with. */
 export function gitReady(git: GitSetupView | undefined): boolean {
   return git !== undefined && git.version !== null && git.name !== null && git.email !== null
+}
+
+/**
+ * The Git step's answer to "Use git?" as shown (BTN-886): the `defaultGit` setting once given, before that "Yes" where git
+ * starts and nothing where it does not.
+ */
+export function gitChoice(defaultGit: boolean | null, git: GitSetupView | undefined): boolean | null {
+  if (defaultGit !== null) return defaultGit
+  return git !== undefined && git.version !== null ? true : null
+}
+
+/** "Next" on the Git step: "No" goes on at once, "Yes" once git is ready (`gitReady`). */
+export function gitStepReady(defaultGit: boolean | null, git: GitSetupView | undefined): boolean {
+  const choice = gitChoice(defaultGit, git)
+  return choice === false || (choice === true && gitReady(git))
 }
 
 /**

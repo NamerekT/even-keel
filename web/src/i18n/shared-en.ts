@@ -41,6 +41,12 @@ export const sharedEn = {
   cliLocked: 'Execution is Agent SDK, and the Agent SDK runs only on the checked copy: the version stays Checked until Execution changes.',
   cliHint:
     "Yours — the CLI on this machine, on whatever version it updated itself to; nothing is downloaded. Checked — Even Keel downloads the version it was last checked against into its own folder, after asking, and runs sessions on it; until the download ends the chain waits. Claude Code sessions move to another version once no session of the account folder is live: a running daemon keeps its own. Saved with the form, for every project.",
+  defaultGit: 'New projects',
+  defaultGitAuto: 'Git if it is installed',
+  defaultGitOn: 'In a git repository',
+  defaultGitOff: 'Without git',
+  defaultGitHint:
+    "What the project wizard starts on: in a git repository every task gets its own folder and branch and is merged; without git sessions work in the project's folder and write their answer into the task. Each project still picks its own. The setup's Git step asks it first.",
   cliCheck: 'Check new CLI versions on this machine',
   cliCheckHint:
     "When an agent's CLI releases a new version, and weekly on the checked one, Even Keel runs a short live check of it in the folder of the account the projects run on, on a cheap model. The check waits until the folder has no live session, and the folder's chains wait while it runs. The result shows at the top of the page. Spends the account's limits.",

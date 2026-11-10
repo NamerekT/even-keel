@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
-import { accountShortName, agentReady, gitDownload, gitReady, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
+import { accountShortName, agentReady, gitChoice, gitDownload, gitReady, gitStepReady, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
 
 describe('gitReady', () => {
   it('goes on once git is installed and has a name and an e-mail to commit with (BTN-731)', () => {
@@ -12,6 +12,41 @@ describe('gitReady', () => {
 
   it('holds the step until the service has read git', () => {
     expect(gitReady(undefined)).toBe(false)
+  })
+})
+
+const READY = { version: '2.47.1', name: 'John Doe', email: 'john@example.com' }
+const ABSENT = { version: null, name: null, email: null }
+
+describe('gitChoice', () => {
+  it('shows the answer once given, whether git starts or not (BTN-886)', () => {
+    expect(gitChoice(false, READY)).toBe(false)
+    expect(gitChoice(true, ABSENT)).toBe(true)
+  })
+
+  it('picks "Yes" before an answer when git starts, nothing when it does not or is not read yet', () => {
+    expect(gitChoice(null, READY)).toBe(true)
+    expect(gitChoice(null, { ...READY, name: null, email: null })).toBe(true)
+    expect(gitChoice(null, ABSENT)).toBe(null)
+    expect(gitChoice(null, undefined)).toBe(null)
+  })
+})
+
+describe('gitStepReady', () => {
+  it('goes on at once without git, even when git does not start (BTN-886)', () => {
+    expect(gitStepReady(false, ABSENT)).toBe(true)
+    expect(gitStepReady(false, undefined)).toBe(true)
+  })
+
+  it('with git, waits for git with a name and an e-mail', () => {
+    expect(gitStepReady(true, READY)).toBe(true)
+    expect(gitStepReady(true, ABSENT)).toBe(false)
+    expect(gitStepReady(null, READY)).toBe(true)
+    expect(gitStepReady(null, { ...READY, email: null })).toBe(false)
+  })
+
+  it('holds the step while nothing is picked', () => {
+    expect(gitStepReady(null, ABSENT)).toBe(false)
   })
 })
 

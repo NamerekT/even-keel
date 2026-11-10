@@ -217,6 +217,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     }
     return value
   } },
+  // The project wizard's mode for a new project, the setup's Git step answer (BTN-886); `null` — not asked yet.
+  { key: 'defaultGit', kind: 'boolean', scopes: ['global'], lands: ['defaultGit'], default: null, check: (value, place) => (value === null ? null : boolean('defaultGit')(value, place)) },
   // Off for users: each run spends the account's limits (BTN-569).
   { key: 'cliCheck', kind: 'boolean', scopes: ['global'], lands: ['cliCheck'], default: false, check: boolean('cliCheck') },
   { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },

@@ -30,7 +30,7 @@ If downloading fails, **CLI version** switches to **Yours** for that provider an
 
 ## Projects
 
-Git is needed only for projects that live in a repository. If every project of yours is [a project without git](features.md#the-chain), press **Skip for now** on the setup's **Git** step and choose "Without git" in the project wizard; the step can be finished later.
+Git is needed only for projects that live in a repository. The setup's **Git** step first asks **Use git?**: **Yes** goes on to the check of git and the name and e-mail for commits; **No** is for [projects without git](features.md#the-chain) and goes on at once, asking nothing of git. Where git is already installed, **Yes** is picked in advance. The answer is what the project wizard starts on for a new project, each project still picking its own; change it later on the Git step or in Settings → Chain → **New projects**.
 
 On macOS, the setup's **Git** step always offers `xcode-select --install`, even when Homebrew is installed.
 It installs only Command Line Tools; Xcode from the App Store is not needed. After installation, press **Check again**.

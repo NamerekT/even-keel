@@ -663,6 +663,7 @@
   "parallel": 2,
   "keepWarm": 3,
   "attachmentLimit": 50,
+  "defaultGit": false,
   "cliCheck": true,
   "unattended": true,
   "trimTools": false,

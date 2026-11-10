@@ -13,7 +13,7 @@ import { providerName } from './settingsRun.js'
 import { AgentStep } from './SetupAgent.js'
 import { Cards, type Save } from './SetupChoices.js'
 import { GitStep } from './SetupGit.js'
-import { accountShortName, agentReady, gitReady, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
+import { accountShortName, agentReady, gitChoice, gitStepReady, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
 import { trackerProfiles, TrackerStep } from './SetupTracker.js'
 import { StatsStep } from './StatsSetup.js'
 import { listSummary } from './wizard.js'
@@ -47,13 +47,15 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   // The page's language shown is only a guess until it is written: "Next" keeps it.
   const onward = async () => {
     if (step === 'language' && shared.language === null && !(await save({ language, promptLanguage: language }))) return
+    // "Yes" picked in advance where git starts is an answer only once "Next" keeps it (BTN-886).
+    if (step === 'git' && shared.defaultGit === null && gitChoice(null, state.git) === true && !(await save({ defaultGit: true }))) return
     if (next !== null) void navigate(stepPath(next))
   }
 
   // Nothing to go on with on the tracker step but a profile: without one, skipping is the way on.
   // The stats step goes on by its cards; skipped, it is asked again once there is a project, so with one it is not skipped.
   const ahead = step === 'tracker' && trackerProfiles(state).length === 0 ? null : next
-  const gitHeld = step === 'git' && !gitReady(state.git)
+  const gitHeld = step === 'git' && !gitStepReady(shared.defaultGit, state.git)
   const skippable = OPTIONAL_STEPS.includes(step) && (ahead === null || gitHeld) && !(step === 'stats' && own > 0)
   const skip = !skippable ? undefined : step === 'stats' ? done : () => void onward()
   const held =
@@ -109,6 +111,7 @@ function summaryOf(step: SetupStep, state: EvenKeelState): string | null {
   }
   if (step === 'git') {
     const git = state.git
+    if (shared.defaultGit === false) return t.shared.defaultGitOff
     if (git === undefined || git.version === null) return null
     return git.name === null ? `Git ${git.version}` : `Git ${git.version} · ${git.name}`
   }
@@ -163,7 +166,7 @@ function StepBody({ step, state, save, sending, onDone, onPicked }: BodyProps) {
       </div>
     )
   }
-  if (step === 'git') return <GitStep state={state} />
+  if (step === 'git') return <GitStep state={state} save={save} sending={sending} onPicked={onPicked} />
   if (step === 'agent') return <AgentStep state={state} save={save} sending={sending} />
   if (step === 'tracker') return <TrackerStep state={state} />
   if (step === 'updates') {

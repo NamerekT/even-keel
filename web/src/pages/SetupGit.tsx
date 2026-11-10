@@ -5,16 +5,48 @@ import { useCommand } from '../live/useCommand.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { PartDot } from './SetupAgent.js'
 import { Row, Section } from './settingsParts.js'
-import { gitDownload } from './setupSteps.js'
+import { Cards, type Save } from './SetupChoices.js'
+import { gitChoice, gitDownload } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
 import '../layout/cliCopies.css'
 
+interface StepProps {
+  state: EvenKeelState
+  save: Save
+  sending: boolean
+  /** "No" was picked: the setup goes on. */
+  onPicked: () => void
+}
+
 /**
- * The setup's Git step (BTN-731): whether git starts from the service; where it does not, the command of the package
- * manager the service found and always the download link (EKR-54); then the name and e-mail its commits are made as,
- * written into git's global config. Git itself is never installed.
+ * The setup's Git step: first "Use git?" (BTN-886), its answer the `defaultGit` setting the project wizard starts from;
+ * "No" goes on at once and asks nothing of git. "Yes" (BTN-731): whether git starts from the service; where it does
+ * not, the command of the package manager the service found and always the download link (EKR-54); then the name and
+ * e-mail its commits are made as, written into git's global config. Git itself is never installed.
  */
-export function GitStep({ state }: { state: EvenKeelState }) {
+export function GitStep({ state, save, sending, onPicked }: StepProps) {
+  const choice = gitChoice(state.config.shared.defaultGit, state.git)
+  const text = t.setup.git
+  const pick = async (on: boolean) => {
+    if ((await save({ defaultGit: on })) && !on) onPicked()
+  }
+  return (
+    <>
+      <Section title={text.question} mark={<PartDot check={choice === null ? 'empty' : 'passed'} first />} className="project-add__step">
+        <Cards
+          items={(['yes', 'no'] as const).map((each) => ({ id: each, title: text.choices[each], hint: text.choiceHints[each] }))}
+          chosen={choice === null ? '' : choice ? 'yes' : 'no'}
+          disabled={sending}
+          onPick={(value) => void pick(value === 'yes')}
+        />
+      </Section>
+      {choice === true && <GitCheck state={state} />}
+    </>
+  )
+}
+
+/** Whether git starts, how to install it, and the name and e-mail of its commits. */
+function GitCheck({ state }: { state: EvenKeelState }) {
   const { send, sending, failure } = useCommand()
   const git = state.git
   const text = t.setup.git

@@ -77,7 +77,7 @@ const SCOPE = SHARED_SCOPE
 const EXECUTED = Object.keys(EXECUTION_MODES)
 
 const GROUPS = [
-  { id: 'chain', keys: ['parallel', 'brief', 'fillMilestone'] },
+  { id: 'chain', keys: ['parallel', 'brief', 'fillMilestone', 'defaultGit'] },
   // The connections before the rules over them (BTN-355); a profile is applied on its own and never kept in a draft.
   { id: 'trackers', keys: [] },
   // The shared rules, together with a switch to the rules of each tracker profile, which are saved apart (BTN-66).
@@ -142,6 +142,7 @@ const valuesOf = (form: SharedForm): Values => ({
   updatesCheck: form.updates.check,
   updatesNotify: form.updates.notify,
   fillMilestone: form.fillMilestone,
+  defaultGit: form.defaultGit === null ? '' : String(form.defaultGit),
   cliCheck: form.cliCheck,
   guard: form.ci.guard,
   kinds: form.ci.kinds,
@@ -198,6 +199,7 @@ function formOf(values: Values): SharedForm | undefined {
     contextHandoffs: values.contextHandoffs as boolean,
     keepWarm: keepWarm!,
     attachmentLimit: attachmentLimit!,
+    defaultGit: text('defaultGit') === '' ? null : text('defaultGit') === 'true',
     cliCheck: values.cliCheck as boolean,
     allowedHosts: linesOf(text('allowedHosts')),
     context: { window: window!, warn, danger },
@@ -398,6 +400,16 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             t.settings.briefHint,
           )}
           {check('fillMilestone', t.settings.fillMilestone, `${t.settings.fillMilestoneHint} ${t.shared.forProjects}`)}
+          {select(
+            'defaultGit',
+            t.shared.defaultGit,
+            [
+              { value: '', label: t.shared.defaultGitAuto },
+              { value: 'true', label: t.shared.defaultGitOn },
+              { value: 'false', label: t.shared.defaultGitOff },
+            ],
+            t.shared.defaultGitHint,
+          )}
         </Section>
       </>
     ),

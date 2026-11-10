@@ -608,7 +608,13 @@ export const setupEN: Messages['setup'] = {
       off: 'The service does not go to GitHub. Changed in Settings → Interface.',
     },
     git: {
-      lead: 'In a repository every task is a git branch: sessions commit and merge. Only a project without git, for tasks that change no code, works without it: for such a project alone, skip this step.',
+      question: 'Use git?',
+      choices: { yes: 'Yes', no: 'No' },
+      choiceHints: {
+        yes: 'A history of changes, a folder or slot per task, a merge into the main branch, parallel sessions.',
+        no: "Sessions work in the project's folder and write their answer into the task; git is not needed. It can be turned on for a project later.",
+      },
+      lead: 'In a repository every task is a git branch: sessions commit and merge.',
       checking: 'Checking git…',
       installed: (version: string) => `Git ${version} is installed.`,
       absent: 'Git is not found on this machine. Even Keel does not install it: install git, then check again.',

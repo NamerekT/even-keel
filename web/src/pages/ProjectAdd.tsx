@@ -502,8 +502,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 function firstFields(state: EvenKeelState): WizardFields {
   const trackers = new Set(state.profiles.kinds.filter((kind) => kind.tracker).map((kind) => kind.kind))
   const own = state.profiles.profiles.filter((profile) => trackers.has(profile.kind))
-  // The Git step was skipped and git does not start: only a project without git can be added.
-  const empty: WizardFields = { ...EMPTY_FIELDS, git: state.git?.version !== null }
+  // The setup's answer to "Use git?" (BTN-886); before one, without git only where git does not start.
+  const empty: WizardFields = { ...EMPTY_FIELDS, git: state.config.shared.defaultGit ?? state.git?.version !== null }
   if (own.length === 0) return switchBuiltin(empty)
   return own.length === 1 ? switchProfile(empty, own[0]!) : empty
 }

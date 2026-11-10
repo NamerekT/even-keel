@@ -218,6 +218,15 @@ describe('withSharedForm', () => {
     expect(withSharedForm(set, { ...sharedOf(set), prompt: ' ' }, sharedOf(set))).toEqual(raw)
   })
 
+  it("writes the Git step's answer for new projects and removes it when set back to not asked (BTN-886)", () => {
+    const raw = { projects: [abc()] }
+    const off = withSharedForm(raw, { ...sharedOf(raw), defaultGit: false }, sharedOf(raw))
+    expect(off).toEqual({ projects: [abc()], defaultGit: false })
+    expect(parseConfig(off).defaultGit).toBe(false)
+    expect(parseConfig(withSharedForm(off, { ...sharedOf(off), defaultGit: true }, sharedOf(off))).defaultGit).toBe(true)
+    expect(withSharedForm(off, { ...sharedOf(off), defaultGit: null }, sharedOf(off))).toEqual(raw)
+  })
+
   it('keeps shared keys the form leaves as they were', () => {
     const raw = { projects: [], models: { claude: 'opus' }, parallel: 1, promptLanguage: 'en' }
     expect(withSharedForm(raw, sharedOf(raw), sharedOf(raw))).toEqual(raw)

@@ -80,6 +80,7 @@ export const FAKE_SHARED: SharedForm = {
   contextHandoffs: true,
   keepWarm: 0,
   attachmentLimit: 25,
+  defaultGit: null,
   cliCheck: false,
   allowedHosts: [],
   context: { window: 600_000, warn: 50, danger: 80 },

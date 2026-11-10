@@ -309,6 +309,8 @@ export interface SharedForm {
   keepWarm: number
   /** The largest attachment of a built-in task, megabytes (BTN-773). */
   attachmentLimit: number
+  /** The project wizard's mode for a new project (BTN-886); `null` — not asked yet. */
+  defaultGit: boolean | null
   /** The service checks a new CLI version and the checked one weekly (BTN-569). */
   cliCheck: boolean
   /** What a project without its own `ci` keys or `fillMilestone` runs on. */

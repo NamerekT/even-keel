@@ -136,6 +136,7 @@ describe('parseConfig', () => {
       parallel: 1,
       keepWarm: 0,
       attachmentLimit: 25,
+      defaultGit: null,
       cliCheck: false,
       updates: { check: true, notify: true },
       unattended: false,

@@ -106,6 +106,8 @@ export interface EvenKeelConfig {
   keepWarm: number
   /** The largest attachment of a built-in task, megabytes (BTN-773). */
   attachmentLimit: number
+  /** The mode the project wizard offers a new project (BTN-886): `false` — without git; `null` — not asked yet, by whether git starts. */
+  defaultGit: boolean | null
   /** Run `cli-check` in the service on a new CLI version and weekly (BTN-569); off by default — it spends limits. */
   cliCheck: boolean
   /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
@@ -338,6 +340,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     parallel: shared.parallel as number,
     keepWarm: shared.keepWarm as number,
     attachmentLimit: shared.attachmentLimit as number,
+    defaultGit: shared.defaultGit as boolean | null,
     cliCheck: shared.cliCheck as boolean,
     unattended: shared.unattended as boolean,
     trimTools: shared.trimTools as boolean,
