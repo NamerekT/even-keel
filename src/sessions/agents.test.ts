@@ -261,6 +261,14 @@ describe('turnStatus', () => {
     expect(turnStatus('busy', '2026-09-26T11:59:00.000Z', now, false, true)).toBe('busy')
   })
 
+  it('takes a session whose turn ended on a handover mark for idle, whatever its background command does', () => {
+    expect(turnStatus('shell', '2026-09-26T11:59:00.000Z', now, false, false, true)).toBe('idle')
+    expect(turnStatus('shell', null, now, false, false, true)).toBe('idle')
+    expect(turnStatus('shell', '2026-09-26T11:59:00.000Z', now, false, true, true)).toBe('idle')
+    expect(turnStatus('busy', '2026-09-26T11:59:00.000Z', now, false, false, true)).toBe('busy')
+    expect(turnStatus('waiting', '2026-09-26T11:59:00.000Z', now, false, false, true)).toBe('waiting')
+  })
+
   it('leaves the other statuses as they are', () => {
     expect(turnStatus('busy', '2026-09-26T08:00:00.000Z', now)).toBe('busy')
     expect(turnStatus('waiting', null, now)).toBe('waiting')
