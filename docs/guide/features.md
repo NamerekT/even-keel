@@ -417,7 +417,7 @@ Several projects in separate clones of one repository, on the same main branch, 
 
 ## README badge
 
-A project can show its chain in its README the way a CI badge shows a build: the tasks in work and what the agent is doing, the context fill, the chain as chips, the milestone and the last 30 days' numbers. Even Keel pushes the project's state to a small Cloudflare Worker you deploy once for all your projects ([`deploy/badge`](../../deploy/badge/README.md)); the README shows the Worker's picture, so the page itself stays private.
+A project can show its chain in its README the way a CI badge shows a build: the tasks in work and what the agent is doing, the context fill, the chain as chips with the time each done task was closed (by your machine's clock), the milestone and the last 30 days' numbers. The milestone's card splits its tasks into done, queued for the agent and waiting for you, and says when the agent's part should be through at the chain's pace of the last week, next to the milestone's own date in the tracker. Even Keel pushes the project's state to a small Cloudflare Worker you deploy once for all your projects ([`deploy/badge`](../../deploy/badge/README.md)); the README shows the Worker's picture, so the page itself stays private.
 
 Set it up in the project's settings → **Repository** → **README badge**:
 

@@ -101,6 +101,16 @@ describe('POST /push/<slug>', () => {
     expect(await (await show(env)).text()).toContain('waiting for the usage limit')
   })
 
+  it('accepts close times and the milestone\'s split, forecast and target, and refuses them malformed (BTN-970)', async () => {
+    const env = envOf()
+    const dated = { ...state, chain: { ...state.chain, tasks: [{ key: 'ABC-14', state: 'done', doneAt: '2026-11-09T03:40:00+01:00' }] }, milestone: { name: 'v1', done: 4, left: 5, queued: 2, eta: '2026-11-11', target: '2026-11-20' } }
+    expect((await push(env, dated)).status).toBe(204)
+    expect(await (await show(env)).text()).toContain('queued for the agent')
+    expect((await push(env, { ...dated, chain: { ...dated.chain, tasks: [{ key: 'ABC-14', state: 'done', doneAt: 'last night' }] } })).status).toBe(400)
+    expect((await push(env, { ...dated, milestone: { ...dated.milestone, queued: '2' } })).status).toBe(400)
+    expect((await push(env, { ...dated, milestone: { ...dated.milestone, eta: 'soon' } })).status).toBe(400)
+  })
+
   it('does not know a bad slug', async () => {
     const env = envOf()
     expect((await push(env, state, SECRET, 'Bad_Slug')).status).toBe(404)

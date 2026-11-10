@@ -83,7 +83,7 @@ describe('badgeStateOf', () => {
           { key: 'ABC-6', state: 'queued' },
         ],
       },
-      milestone: { name: 'v1', done: 2, left: 2 },
+      milestone: { name: 'v1', done: 2, left: 2, queued: 2 },
       stats: { sessions: 3, medianCost: 1.5, medianMinutes: 12 },
     })
   })
@@ -168,5 +168,48 @@ describe('badgeStateOf', () => {
     expect(of(stateWith({ paused: true })).state).toBe('paused')
     expect(of(stateWith({ current: false }))).toEqual({ state: 'idle', next: 'ABC-4' })
     expect(of({ ...stateWith(), chain: { active: [], projects: {} } } as unknown as EvenKeelState)).toEqual({ state: 'stopped', next: null })
+  })
+
+  describe('close times and the milestone\'s parts (BTN-970)', () => {
+    const tz = 'Europe/Berlin'
+    const closedAt = (task: string, at: string) => ({ task, closedAt: at })
+
+    it('picks the last done chips by the time the chain closed them, in the service\'s zone; undated ones stand first', () => {
+      const closed = [closedAt('ABC-12', '2026-11-08T10:00:00Z'), closedAt('ABC-2', '2026-11-08T23:30:00Z'), closedAt('ABC-1', '2026-11-09T02:40:00Z')]
+      const chips = badgeStateOf(stateWith(), ABC, { now, fields: ['chain'], stats: null, closed, tz }).chain.tasks!.filter((chip) => chip.state === 'done')
+      expect(chips).toEqual([
+        { key: 'ABC-14', state: 'done' },
+        { key: 'ABC-15', state: 'done' },
+        { key: 'ABC-12', state: 'done', doneAt: '2026-11-08T11:00:00+01:00' },
+        { key: 'ABC-2', state: 'done', doneAt: '2026-11-09T00:30:00+01:00' },
+        { key: 'ABC-1', state: 'done', doneAt: '2026-11-09T03:40:00+01:00' },
+      ])
+    })
+
+    it('splits the open tasks into those the chain takes and those with the maintainer, with the forecast and the target', () => {
+      const state = stateWith()
+      state.tasks.push(task('ABC-7', 'Unstarted') as never)
+      const target = state.tasks.find((each) => each.id === 'ABC-4')!
+      target.milestone = { label: 'v1', targetDate: Date.parse('2026-11-20T09:00:00Z') } as never
+      const closed = Array.from({ length: 7 }, (_, index) => closedAt(`ABC-${30 + index}`, new Date(now.getTime() - (index + 1) * 20 * 3_600_000).toISOString()))
+      closed.push(closedAt('ABC-40', '2026-10-01T00:00:00Z'))
+      const milestone = badgeStateOf(state, ABC, { now, fields: ['milestone'], stats: null, closed, tz }).milestone
+      expect(milestone).toEqual({ name: 'v1', done: 2, left: 3, queued: 2, eta: '2026-11-11', target: '2026-11-20' })
+    })
+
+    it('has no forecast without a task closed in the last 7 days, and none to make once the queue is empty', () => {
+      const old = [closedAt('ABC-1', '2026-10-01T00:00:00Z')]
+      expect(badgeStateOf(stateWith(), ABC, { now, fields: ['milestone'], stats: null, closed: old, tz }).milestone).toEqual({ name: 'v1', done: 2, left: 2, queued: 2 })
+      const idle = { ...stateWith({ current: false }), chain: { active: [{ project: ABC, paused: false, current: null }], projects: { [ABC]: { order: ['ABC-6'] } } } } as unknown as EvenKeelState
+      const recent = [closedAt('ABC-1', '2026-11-09T10:00:00Z')]
+      expect(badgeStateOf(idle, ABC, { now, fields: ['milestone'], stats: null, closed: recent, tz }).milestone).toEqual({ name: 'v2', done: 0, left: 1, queued: 1, eta: '2026-11-16' })
+    })
+
+    it('shows the milestone the chain closed last once it has nothing to take: every open task is with the maintainer', () => {
+      const empty = { ...stateWith({ current: false }), chain: { active: [{ project: ABC, paused: false, current: null }], projects: { [ABC]: { order: [] } } } } as unknown as EvenKeelState
+      const closed = [closedAt('ABC-11', '2026-11-08T10:00:00Z'), closedAt('ABC-2', '2026-11-09T10:00:00Z')]
+      expect(badgeStateOf(empty, ABC, { now, fields: ['milestone'], stats: null, closed, tz }).milestone).toEqual({ name: 'v1', done: 2, left: 2, queued: 0 })
+      expect(badgeStateOf(empty, ABC, { now, fields: ['milestone'], stats: null, tz }).milestone).toBeNull()
+    })
   })
 })

@@ -1,10 +1,20 @@
 import type { EvenKeelState, SessionView } from '../state.js'
 import type { Task } from '../tracker/model.js'
+import { localDay, localStamp } from './dates.js'
 import { STATUS_FRESH_MS } from './status.js'
 import { BADGE_FIELDS, BADGE_VERSION, type BadgeAction, type BadgeChain, type BadgeField, type BadgeState, type BadgeStats, type BadgeTask } from './model.js'
 
 const DONE_CHIPS = 5
 const QUEUED_CHIPS = 12
+const DAY_MS = 86_400_000
+/** The agent's pace is counted over this many last days. */
+const PACE_DAYS = 7
+
+/** A task of the project the chain ran and saw closed, from its archive (`closed_tasks`). */
+export interface BadgeClosed {
+  task: string
+  closedAt: string
+}
 
 export interface BadgeInputs {
   now: Date
@@ -16,6 +26,10 @@ export interface BadgeInputs {
   titleEn?: (task: string) => string | undefined
   /** Whether a session's own status line may be published (the filter of private data); none — every line may. */
   statusOk?: (text: string) => boolean
+  /** The project's tasks the chain closed, with the time (BTN-970); none — no chip has a time and there is no forecast. */
+  closed?: readonly BadgeClosed[]
+  /** The zone the badge's dates and times are written in: the service's own by default. */
+  tz?: string
 }
 
 /** The project's badge state from the service's state (BTN-915): only what `fields` picks, never a task's own title. */
@@ -29,9 +43,12 @@ export function badgeStateOf(state: EvenKeelState, project: string, inputs: Badg
   const working = new Set(active.map((task) => task.key))
   const next = order.find((id) => !working.has(id)) ?? null
   const chain: BadgeChain = { state: chains.length === 0 ? 'stopped' : chains.every((each) => each.paused) ? 'paused' : active.length === 0 ? 'idle' : 'running', next }
-  if (on.has('chain')) chain.tasks = chipsOf(tasks, active, order)
+  const tz = inputs.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const closed = inputs.closed ?? []
+  if (on.has('chain')) chain.tasks = chipsOf(tasks, active, order, closed, tz)
   const result: BadgeState = { v: BADGE_VERSION, at: inputs.now.toISOString(), project: { key, name: state.config.projects[project]?.name ?? key }, active, chain }
-  if (on.has('milestone')) result.milestone = milestoneOf(tasks, active[0]?.key ?? next)
+  const anchor = active[0]?.key ?? next ?? lastClosed(tasks, closed)
+  if (on.has('milestone')) result.milestone = milestoneOf(tasks, anchor, new Set([...order, ...working]), { closed, tz, now: inputs.now })
   const stats = statsOf(inputs.stats, on)
   if (stats !== null) result.stats = stats
   return result
@@ -98,27 +115,61 @@ function withStatus(action: BadgeAction | null, session: SessionView, inputs: Ba
   return { tool: action.tool, text: status.text }
 }
 
-function chipsOf(tasks: Task[], active: BadgeTask[], order: string[]): NonNullable<BadgeChain['tasks']> {
+/**
+ * The last done tasks by the time the chain closed them (BTN-970), written in the service's zone; one closed past the
+ * chain has no time and stands before those that have, by its number.
+ */
+function chipsOf(tasks: Task[], active: BadgeTask[], order: string[], closed: readonly BadgeClosed[], tz: string): NonNullable<BadgeChain['tasks']> {
   const working = new Set(active.map((task) => task.key))
+  const times = new Map(closed.flatMap((each) => (Number.isNaN(Date.parse(each.closedAt)) ? [] : [[each.task, Date.parse(each.closedAt)] as const])))
   const done = tasks
     .filter((task) => task.status.category === 'Won')
     .map((task) => task.id)
-    .sort(byNumber)
+    .sort((a, b) => (times.get(a) ?? -Infinity) - (times.get(b) ?? -Infinity) || byNumber(a, b))
     .slice(-DONE_CHIPS)
   return [
-    ...done.map((key) => ({ key, state: 'done' as const })),
+    ...done.map((key) => {
+      const at = times.get(key)
+      return at === undefined ? { key, state: 'done' as const } : { key, state: 'done' as const, doneAt: localStamp(new Date(at), tz) }
+    }),
     ...active.map((task) => ({ key: task.key, state: task.state })),
     ...order.filter((id) => !working.has(id)).slice(0, QUEUED_CHIPS).map((key) => ({ key, state: 'queued' as const })),
   ]
 }
 
-function milestoneOf(tasks: Task[], anchor: string | null): BadgeState['milestone'] {
-  const label = tasks.find((task) => task.id === anchor)?.milestone?.label
-  if (label === undefined) return null
-  const of = tasks.filter((task) => task.milestone?.label === label)
-  const done = of.filter((task) => task.status.category === 'Won').length
-  const left = of.filter((task) => task.status.category !== 'Won' && task.status.category !== 'Lost').length
-  return { name: label, done, left }
+/**
+ * The task of a milestone the chain closed last: what the milestone's card shows once the chain has nothing to take,
+ * so an idle badge still tells the agent's part is done and the rest waits for the maintainer.
+ */
+function lastClosed(tasks: Task[], closed: readonly BadgeClosed[]): string | null {
+  const known = new Set(tasks.filter((task) => task.milestone !== null && task.milestone !== undefined).map((task) => task.id))
+  let last: { task: string; at: number } | null = null
+  for (const each of closed) {
+    const at = Date.parse(each.closedAt)
+    if (known.has(each.task) && !Number.isNaN(at) && (last === null || at > last.at)) last = { task: each.task, at }
+  }
+  return last?.task ?? null
+}
+
+/**
+ * The milestone of `anchor` (BTN-970): its done tasks, the open ones, and those of them the chain takes — `queue`, the
+ * chain's own order and the tasks in work. The forecast is the queue over the chain's pace of the last 7 days.
+ */
+function milestoneOf(tasks: Task[], anchor: string | null, queue: Set<string>, when: { closed: readonly BadgeClosed[]; tz: string; now: Date }): BadgeState['milestone'] {
+  const milestone = tasks.find((task) => task.id === anchor)?.milestone
+  if (milestone === undefined || milestone === null) return null
+  const of = tasks.filter((task) => task.milestone?.label === milestone.label)
+  const open = of.filter((task) => task.status.category !== 'Won' && task.status.category !== 'Lost')
+  const queued = open.filter((task) => queue.has(task.id)).length
+  const result: NonNullable<BadgeState['milestone']> = { name: milestone.label, done: of.filter((task) => task.status.category === 'Won').length, left: open.length, queued }
+  const now = when.now.getTime()
+  const recent = when.closed.filter((each) => {
+    const age = now - Date.parse(each.closedAt)
+    return age >= 0 && age <= PACE_DAYS * DAY_MS
+  }).length
+  if (queued > 0 && recent > 0) result.eta = localDay(new Date(now + (queued / (recent / PACE_DAYS)) * DAY_MS), when.tz)
+  if (milestone.targetDate) result.target = localDay(new Date(milestone.targetDate), when.tz)
+  return result
 }
 
 function statsOf(stats: BadgeStats | null, on: Set<BadgeField>): BadgeStats | null {

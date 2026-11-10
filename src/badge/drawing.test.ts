@@ -27,7 +27,7 @@ function reached(): { modules: string[]; outside: string[] } {
 describe('the npm package even-keel-badge (packages/badge)', () => {
   it('holds the drawing alone: no module of the service, no Node and no outside import', () => {
     const { modules, outside } = reached()
-    expect(modules).toEqual(['drawing.ts', 'fonts.generated.ts', 'model.ts', 'render.ts', 'text.ts', 'theme.ts'])
+    expect(modules).toEqual(['dates.ts', 'drawing.ts', 'fonts.generated.ts', 'model.ts', 'render.ts', 'text.ts', 'theme.ts'])
     expect(outside).toEqual([])
   })
 

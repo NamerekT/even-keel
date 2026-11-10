@@ -828,6 +828,7 @@ const badges = wireBadges({
   state: getState,
   period: (query) => stats.period(query),
   read: (project) => agentsRead && readerIds(configStore.current, project).every((reader) => readerTasks.has(reader)),
+  closed: (project) => archive.filter((each) => each.project === project),
 })
 hub.watch('state', () => void badges.tick(), 2_000)
 setInterval(() => void badges.tick(), 30_000).unref()

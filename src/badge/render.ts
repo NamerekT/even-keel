@@ -1,5 +1,6 @@
 import { BADGE_FONTS } from './fonts.generated.js'
-import type { BadgeChain, BadgeChipState, BadgeState, BadgeStats, BadgeTask } from './model.js'
+import { printed } from './dates.js'
+import type { BadgeChain, BadgeChipState, BadgeMilestone, BadgeState, BadgeStats, BadgeTask } from './model.js'
 import { escapeXml, fit, measure, type BadgeFace } from './text.js'
 import { BADGE_THEMES, toolIcon, type BadgeTheme } from './theme.js'
 
@@ -25,6 +26,12 @@ const OFFLINE_MIN = 60
 const CHIP_HEIGHT = 26
 const CHIP_MIN = 86
 const CHIP_GAP = 8
+/** The row of close times under the chips. */
+const DATE_ROW = 18
+const CARD_HEIGHT = 92
+const CARD_GAP = 12
+const TILE_WIDTH = 100
+const BAR_GAP = 3
 const LABEL_SPACING = 1.5
 const AGENT_TITLES: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot' }
 
@@ -54,8 +61,7 @@ export function renderBadge(state: BadgeState | null, options: RenderOptions): s
       y = drawTask(draw, task, { mode, single, at: state.at, now: options.now }, y + (index > 0 ? 32 : single ? 43 : 41))
     })
     y = drawChain(draw, state, y)
-    const footer = drawFooter(draw, state.stats, y)
-    height = footer === null ? y + 18 : footer + 14
+    height = drawPanels(draw, state, y) + 18
   }
   height = Math.ceil(height)
   const label = [state === null ? null : projectLabel(state), header.label, ...(state?.active ?? []).map(spoken)].filter((each) => each !== null).join('. ')
@@ -294,18 +300,18 @@ function chipWidth(label: string, state: BadgeChipState): number {
   return Math.max(CHIP_MIN, chipContent(label, state) + 28)
 }
 
-/** The chips of the chain and the milestone's summary, from the bottom of what is above; returns the chips' bottom. */
+/**
+ * The chips of the chain, from the bottom of what is above, a done one with the day and time the chain closed it under
+ * it (BTN-970); returns the row's bottom.
+ */
 function drawChain(draw: Drawing, state: BadgeState, top: number): number {
   const { theme } = draw
   const { chain } = state
-  const milestone = state.milestone ?? null
-  if (chain.tasks === undefined && milestone === null) return top
+  if (chain.tasks === undefined || chain.tasks.length === 0) return top
   const y = top + 22
   const base = y + 17
-  const summary = milestone === null ? null : `${milestone.name} · ${milestone.done} done · ${milestone.left} to go`
-  const summaryShown = summary === null ? null : fit(summary, 'sans', 12.5, INNER / 2)
-  const room = INNER - (summaryShown === null ? 0 : measure(summaryShown, 'sans', 12.5) + 16)
-  const chips = (chain.tasks ?? []).map((chip) => ({ ...chip, label: chipLabel(chip.key, state.project.key) }))
+  const room = INNER
+  const chips = chain.tasks.map((chip) => ({ ...chip, label: chipLabel(chip.key, state.project.key) }))
   let more = 0
   const total = () => chips.reduce((sum, chip) => sum + chipWidth(chip.label, chip.state) + CHIP_GAP, 0) + (more > 0 ? measure(`+${more}`, 'mono', 12) + 8 : 0)
   while (chips.length > 0 && total() > room) {
@@ -318,6 +324,7 @@ function drawChain(draw: Drawing, state: BadgeState, top: number): number {
   }
   const asked = new Set(state.active.filter((task) => task.state !== 'working').map((task) => task.key))
   let x = PAD
+  let dated = false
   for (const chip of chips) {
     const width = chipWidth(chip.label, chip.state)
     const look = chipLook(theme, chip.state, asked.has(chip.key))
@@ -328,11 +335,16 @@ function drawChain(draw: Drawing, state: BadgeState, top: number): number {
       at += 14
     }
     draw.text(at, base, chip.label, 'mono', 12, look.ink)
+    const closed = chip.state === 'done' && chip.doneAt !== undefined ? printed(chip.doneAt) : null
+    if (closed !== null) {
+      dated = true
+      const time = closed.time === null ? '' : `<tspan fill="${theme.done}" fill-opacity="0.9"> ${closed.time}</tspan>`
+      draw.add(`<text x="${n(x + width / 2)}" y="${y + CHIP_HEIGHT + 15}" class="m" font-size="10.5" text-anchor="middle"><tspan fill="${theme.fgMuted}" fill-opacity="0.8">${closed.day}</tspan>${time}</text>`)
+    }
     x += width + CHIP_GAP
   }
   if (more > 0) draw.text(x, base, `+${more}`, 'mono', 12, theme.fgMuted)
-  if (summaryShown !== null) draw.text(WIDTH - PAD, base, summaryShown, 'sans', 12.5, theme.fgMuted, ' text-anchor="end"')
-  return y + CHIP_HEIGHT
+  return y + CHIP_HEIGHT + (dated ? DATE_ROW : 0)
 }
 
 function chipLook(theme: BadgeTheme, state: BadgeChipState, asked: boolean): { box: string; ink: string } {
@@ -354,20 +366,115 @@ function chipIcon(state: BadgeChipState, cx: number, cy: number, color: string):
   return `<text x="${n(cx)}" y="${cy + 4.5}" class="s" font-size="12" font-weight="600" fill="${color}" text-anchor="middle">?</text>`
 }
 
-/** The stats' small print, one line on the right; returns its baseline, `null` — nothing to print. */
-function drawFooter(draw: Drawing, stats: BadgeStats | undefined, top: number): number | null {
-  if (stats === undefined) return null
-  const median = [stats.medianCost === undefined ? null : `${usd(stats.medianCost)}*`, stats.medianMinutes === undefined ? null : duration(stats.medianMinutes)].filter((each) => each !== null)
-  const parts = [stats.sessions === undefined ? null : `${grouped(stats.sessions)} ${stats.sessions === 1 ? 'session' : 'sessions'}`, median.length === 0 ? null : `median task ${median.join(' · ')}`].filter(
-    (each) => each !== null,
+interface Tile {
+  value: string
+  label: string
+  sub: string
+}
+
+function tilesOf(stats: BadgeStats | undefined): Tile[] {
+  if (stats === undefined) return []
+  return [
+    stats.sessions === undefined ? null : { value: grouped(stats.sessions), label: stats.sessions === 1 ? 'session' : 'sessions', sub: 'last 30 days' },
+    stats.medianCost === undefined ? null : { value: `${usd(stats.medianCost)}*`, label: 'per task', sub: 'median' },
+    stats.medianMinutes === undefined ? null : { value: duration(stats.medianMinutes), label: 'per task', sub: 'median' },
+  ].filter((each) => each !== null)
+}
+
+/**
+ * The milestone's card and, right of it, the stats' card (BTN-970), from the bottom of what is above; returns their
+ * bottom. A card with nothing to show is not drawn, and the milestone's takes the room the stats' leaves.
+ */
+function drawPanels(draw: Drawing, state: BadgeState, top: number): number {
+  const { theme } = draw
+  const milestone = state.milestone ?? null
+  const tiles = tilesOf(state.stats)
+  if (milestone === null && tiles.length === 0) return top
+  const y = top + 18
+  const statsWidth = tiles.length * TILE_WIDTH
+  const card = (x: number, width: number) => draw.add(`<rect x="${x + 0.5}" y="${y + 0.5}" width="${width - 1}" height="${CARD_HEIGHT - 1}" rx="10" fill="${theme.surface}" stroke="${theme.border}"/>`)
+  if (milestone !== null) {
+    const width = INNER - (tiles.length === 0 ? 0 : statsWidth + CARD_GAP)
+    card(PAD, width)
+    drawMilestone(draw, milestone, PAD + 16, y, width - 32)
+  }
+  if (tiles.length === 0) return y + CARD_HEIGHT
+  const x = WIDTH - PAD - statsWidth
+  card(x, statsWidth)
+  tiles.forEach((tile, index) => {
+    const cx = x + TILE_WIDTH * index + TILE_WIDTH / 2
+    if (index > 0) draw.add(`<rect x="${x + TILE_WIDTH * index}" y="${y + 18}" width="1" height="${CARD_HEIGHT - 36}" fill="${theme.border}"/>`)
+    const size = measure(tile.value, 'sans-bold', 19) > TILE_WIDTH - 12 ? 15 : 19
+    draw.text(cx, y + 40, fit(tile.value, 'sans-bold', size, TILE_WIDTH - 8), 'sans-bold', size, theme.fg, ' text-anchor="middle"')
+    draw.text(cx, y + 59, tile.label, 'sans', 11.5, theme.fgMuted, ' text-anchor="middle"')
+    draw.text(cx, y + 74, tile.sub, 'sans', 10.5, theme.faint, ' text-anchor="middle"')
+  })
+  if (state.stats?.medianCost === undefined) return y + CARD_HEIGHT
+  draw.text(WIDTH - PAD, y + CARD_HEIGHT + 16, '* at API list prices', 'sans', 10.5, theme.faint, ' text-anchor="end"')
+  return y + CARD_HEIGHT + 16
+}
+
+/** When the milestone is due: the forecast of the agent's part and the tracker's own date. The maintainer's part has none. */
+function whenOf(milestone: BadgeMilestone): { forecast: string | null; target: string | null } {
+  const eta = milestone.eta === undefined ? null : printed(milestone.eta)
+  const forecast = milestone.queued === undefined ? null : milestone.queued <= 0 ? "agent's part done" : eta === null ? null : `agent's part ≈ ${eta.day}`
+  return { forecast, target: (milestone.target === undefined ? null : printed(milestone.target))?.day ?? null }
+}
+
+/**
+ * The milestone's card: its name, when it is due, the bar of its parts — done, queued for the agent and with the
+ * maintainer — and their legend. A part of no task has neither a piece of the bar nor a legend entry.
+ */
+function drawMilestone(draw: Drawing, milestone: BadgeMilestone, x: number, y: number, width: number): void {
+  const { theme } = draw
+  const base = y + 25
+  const { forecast, target } = whenOf(milestone)
+  const targetLead = forecast === null ? 'target ' : ' · target '
+  const whenWidth = (forecast === null ? 0 : measure(forecast, 'sans', 11.5)) + (target === null ? 0 : measure(`${targetLead}${target}`, 'sans', 11.5))
+  const room = width - (whenWidth === 0 ? 0 : whenWidth + 12)
+  const name = fit(milestone.name, 'sans-bold', 14, room)
+  draw.text(x, base, name, 'sans-bold', 14, theme.fg)
+  const after = measure(name, 'sans-bold', 14) + 8
+  if (after + measure('next release', 'sans', 11.5) <= room) draw.text(x + after, base, 'next release', 'sans', 11.5, theme.faint)
+  if (whenWidth > 0) {
+    const spans = [
+      forecast === null ? '' : `<tspan fill="${theme.fgMuted}">${escapeXml(forecast)}</tspan>`,
+      target === null ? '' : `<tspan fill="${theme.faint}">${targetLead}</tspan><tspan fill="${theme.fg}">${target}</tspan>`,
+    ]
+    draw.add(`<text x="${n(x + width)}" y="${base}" class="s" font-size="11.5" text-anchor="end" xml:space="preserve">${spans.join('')}</text>`)
+  }
+  const split = milestone.queued !== undefined
+  const queued = Math.max(0, Math.min(milestone.left, milestone.queued ?? 0))
+  const hatch = `fill="url(#ek-hold)" stroke="${theme.waiting}" stroke-opacity="0.6"`
+  const parts = [
+    { count: milestone.done, label: 'done', bar: `fill="${theme.done}" fill-opacity="0.85"` },
+    { count: queued, label: 'queued for the agent', bar: `fill="${theme.working}" fill-opacity="0.9"` },
+    { count: milestone.left - queued, label: split ? 'with the maintainer' : 'to go', bar: split ? hatch : `fill="${theme.idle}" fill-opacity="0.6"` },
+  ].filter((part) => part.count > 0)
+  const barTop = y + 40
+  const barHeight = 10
+  draw.add(
+    `<defs><pattern id="ek-hold" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="${theme.waiting}" fill-opacity="0.1"/><rect width="2.2" height="6" fill="${theme.waiting}" fill-opacity="0.55"/></pattern><clipPath id="ek-parts"><rect x="${n(x)}" y="${barTop}" width="${n(width)}" height="${barHeight}" rx="5"/></clipPath></defs>`,
   )
-  if (parts.length === 0) return null
-  const y = top + 16
-  const note = stats.medianCost === undefined ? null : '* at API list prices'
-  const room = INNER - (note === null ? 0 : measure(note, 'sans', 11) + 14)
-  const line = escapeXml(fit(parts.join(' · '), 'sans', 11, room))
-  draw.add(`<text x="${WIDTH - PAD}" y="${y}" class="s" font-size="11" fill="${draw.theme.faint}" text-anchor="end">${line}${note === null ? '' : `<tspan dx="14">${note}</tspan>`}</text>`)
-  return y
+  if (parts.length === 0) draw.add(`<rect x="${n(x)}" y="${barTop}" width="${n(width)}" height="${barHeight}" rx="5" fill="${theme.surfaceMuted}"/>`)
+  const total = parts.reduce((sum, part) => sum + part.count, 0)
+  const usable = width - BAR_GAP * (parts.length - 1)
+  let at = x
+  parts.forEach((part, index) => {
+    const piece = index === parts.length - 1 ? x + width - at : Math.max(6, (usable * part.count) / total)
+    draw.add(`<rect x="${n(at)}" y="${barTop}" width="${n(piece)}" height="${barHeight}" ${part.bar} clip-path="url(#ek-parts)"/>`)
+    at += piece + BAR_GAP
+  })
+  const legend = barTop + barHeight + 22
+  let lx = x
+  for (const part of parts) {
+    const count = grouped(part.count)
+    draw.add(`<rect x="${n(lx)}" y="${legend - 9}" width="10" height="10" rx="3" ${part.bar}/>`)
+    draw.text(lx + 16, legend, count, 'mono', 12, theme.fg)
+    const labelX = lx + 16 + measure(count, 'mono', 12) + 5
+    draw.text(labelX, legend, part.label, 'sans', 11.5, theme.fgMuted)
+    lx = labelX + measure(part.label, 'sans', 11.5) + 18
+  }
 }
 
 function styles(fonts: boolean): string {

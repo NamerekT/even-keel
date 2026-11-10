@@ -2,6 +2,16 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: The page](../verified/page.md).
 
+## The badge's close times and milestone card (BTN-970)
+
+Unit tests cover the state (the last done chips by the archive's close time in the service's zone, the milestone's
+queued part, the forecast by the last 7 days' pace, the tracker's date, the milestone of the last closed task on an idle
+chain), the drawing in both themes and the Worker's parser; the picture was compared with the task's mockup. Not checked
+live: a Worker with a new `even-keel-badge` drawing a real project's pushes on GitHub — that the hatch and the bar show
+in GitHub's image proxy and the times read as the maintainer's clock. **If it is wrong:** the bar or the hatch is blank,
+or the times are off by the zone; a Worker of an older package draws the old picture, nothing breaks; turn "The chain as
+chips" or "Milestone progress" off.
+
 ## The badge's warm-up after a start (BTN-973)
 
 Unit tests cover the wait: no push until the project's trackers, the sessions, the stats (when a stats field is picked)
