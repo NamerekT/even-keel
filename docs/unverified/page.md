@@ -2,6 +2,16 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: The page](../verified/page.md).
 
+## The badge's warm-up after a start (BTN-973)
+
+Unit tests cover the wait: no push until the project's trackers, the sessions, the stats (when a stats field is picked)
+and the git identity are read once, the whole state in the first push, a push with what there is after 2 min, the
+preview and "Check" not waiting. Not checked live: a restart of the service with a chain running and its badge
+published — that the first push after it carries the agent, the queue, the milestone and the numbers, and that the
+Worker's picture does not turn stale meanwhile. **If it is wrong:** after a restart the badge shows a task without its
+agent and an empty chain for two minutes, as before, or keeps the old picture for two minutes with a line `badge: … is
+pushed before the warm-up ended` in the log; nothing to do, the next push corrects it.
+
 ## The badge of a session on a spent limit (BTN-969)
 
 Unit tests cover the state of a task whose session stands on a limit (the reset's time from the chain's hold, no action,
