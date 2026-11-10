@@ -218,6 +218,20 @@ export function turnStatus(
   return now.getTime() - Date.parse(lastActivityAt) >= SHELL_HANG_MS ? 'idle' : 'busy'
 }
 
+/** A session whose turn has ended while its background command runs: the command and when it is taken for hung (BTN-960). */
+export interface BackgroundWait {
+  /** The transcript's last command started in the background (`TranscriptSummary.backgroundCommand`); `null` — none found. */
+  command: string | null
+  /** An hour past the transcript's last line, the moment `turnStatus` takes the session for idle; `null` — no line yet. */
+  hangsAt: string | null
+}
+
+/** The wait of a session with a `working` lamp in `shell`; `null` for any other. */
+export function backgroundWait(agent: AgentEntry | undefined, lamp: Lamp, lastActivityAt: string | null, command: string | null): BackgroundWait | null {
+  if (agent?.status !== 'shell' || lamp !== 'working') return null
+  return { command, hangsAt: lastActivityAt === null ? null : new Date(Date.parse(lastActivityAt) + SHELL_HANG_MS).toISOString() }
+}
+
 function isAgentEntry(value: unknown): value is AgentEntry {
   if (typeof value !== 'object' || value === null) return false
   const entry = value as Record<string, unknown>

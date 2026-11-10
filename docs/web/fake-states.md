@@ -48,6 +48,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?chain=checkpoint` | two checkpoint handoffs and a compaction on the current task |
 | `?chain=dialog` | the current session hangs on a startup dialog before its first turn |
 | `?chain=hung` | the current session is OpenCode's, its turn written nothing for 35 minutes and taken for hung |
+| `?chain=background\|background-hung` | the current session's turn ended 12 or 70 minutes ago while its background command runs: the card's lamp tip, the drawer's "waiting for its background command" with the command and the hang time in its tip, the chat's turn line (BTN-960) |
 | `?chain=silent-short\|silent` | a working turn quiet for one or six minutes: below the two-minute note a quiet hint only, then the amber "Silent for …" band and the replacement times; at six minutes early replacement with confirmation; Skip stays held |
 | `?chain=apiError\|apiRetry&agent=codex\|claude\|opencode\|copilot` | ABC-5 stopped on an API error and accepts a reply (`apiError`), or is still retrying and keeps "Send" locked (`apiRetry`). The agent defaults to Codex |
 | `?chain=transient&agent=codex\|claude\|opencode\|copilot` | ABC-5 waits on a temporary model refusal, with an amber waiting lamp and a same-session retry scheduled in 15 minutes; chat and "New session" remain available |

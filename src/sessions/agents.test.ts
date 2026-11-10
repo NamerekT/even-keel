@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockedAsk, blockedOn, isLive, launchedModel, launchedSettings, lampOf, parseAgents, parseSessionRecord, sessionsByTask, steadyJobs, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
+import { backgroundWait, blockedAsk,blockedOn, isLive, launchedModel, launchedSettings, lampOf, parseAgents, parseSessionRecord, sessionsByTask, steadyJobs, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -273,6 +273,21 @@ describe('turnStatus', () => {
     expect(turnStatus('busy', '2026-09-26T08:00:00.000Z', now)).toBe('busy')
     expect(turnStatus('waiting', null, now)).toBe('waiting')
     expect(turnStatus(undefined, null, now)).toBeUndefined()
+  })
+})
+
+describe('backgroundWait', () => {
+  const shell = { status: 'shell' } as AgentEntry
+
+  it('names the command a working session waits on and when it is taken for hung: an hour after its last line (BTN-960)', () => {
+    expect(backgroundWait(shell, 'working', '2026-09-26T11:01:00.000Z', 'npm test')).toEqual({ command: 'npm test', hangsAt: '2026-09-26T12:01:00.000Z' })
+    expect(backgroundWait(shell, 'working', null, null)).toEqual({ command: null, hangsAt: null })
+  })
+
+  it('knows no wait for a session mid-turn or one whose lamp is not working', () => {
+    expect(backgroundWait({ status: 'busy' } as AgentEntry, 'working', null, 'npm test')).toBeNull()
+    expect(backgroundWait(shell, 'waiting', null, 'npm test')).toBeNull()
+    expect(backgroundWait(undefined, 'working', null, 'npm test')).toBeNull()
   })
 })
 

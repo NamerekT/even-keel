@@ -32,6 +32,7 @@ export const composerEn = {
     filter: 'Type to filter',
   },
   thinking: 'Thinking',
+  background: (command: string | null) => (command === null ? 'Waiting for its background command' : `Waiting for its background command: ${command}`),
   running: (tool: string) => `Running: ${tool}`,
   delivering: 'Delivering the answer, the session is starting up',
   finished: 'The session has finished — it cannot be replied to.',

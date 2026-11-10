@@ -14,15 +14,19 @@ export interface TurnFacts {
   answers: string[]
   /** The service is delivering an answer to the session now. */
   delivering: boolean
+  /** The turn has ended and the session waits for its background command (`SessionView.background`); `since` — the turn's last line. */
+  background?: { command: string | null; since: string | null } | null
 }
 
 /**
  * What the chat's turn line says: an answer on its way — the session is stopped and respawned with it, the
  * transcript still ends in the turn before; then the turn: thinking or running a tool. The clock runs from the send of
- * the answer into the turn it began, so it does not jump back when the answer's prompt lands.
+ * the answer into the turn it began, so it does not jump back when the answer's prompt lands. A turn that has ended
+ * while its background command runs waits for that command, not thinks (BTN-960).
  */
 export type TurnPhase =
   | { kind: 'delivering'; since: string }
+  | { kind: 'background'; command: string | null; since: string | null }
   | { kind: 'thinking'; since: string | null }
   | { kind: 'running'; tool: string; since: string | null }
 
@@ -39,6 +43,7 @@ export function turnPhase(facts: TurnFacts, now: number): TurnPhase | null {
       ((turnAt !== null && turnAt >= answer) || (facts.lastReplyAt !== null && Date.parse(facts.lastReplyAt) >= answer) || now - latest > DELIVERY_MS)
     if (!landed) return { kind: 'delivering', since: new Date(answer).toISOString() }
   }
+  if (facts.background !== undefined && facts.background !== null) return { kind: 'background', ...facts.background }
   if (facts.turn === null) return null
   const since = turnAt === null ? null : answer !== null && turnAt <= answer + DELIVERY_MS ? new Date(answer).toISOString() : facts.turn.startedAt
   return facts.turn.tool === null ? { kind: 'thinking', since } : { kind: 'running', tool: facts.turn.tool, since }

@@ -10,7 +10,7 @@ import type { Language } from './language.js'
 import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
 import type { Notice } from './notice/notice.js'
-import type { Lamp } from './sessions/agents.js'
+import type { BackgroundWait, Lamp } from './sessions/agents.js'
 import type { Protection } from './sessions/protection.js'
 import type { Ask } from './sessions/ask.js'
 import type { SessionMail } from './sessions/mail.js'
@@ -43,6 +43,8 @@ export interface SessionView {
   hungSince: string | null
   /** Last write of a live working turn; shared by the countdown and the confirmed early restart. */
   silentSince?: string | null
+  /** Its turn has ended and it waits for its own background command, the lamp still `working`; absent or `null` — it does not. */
+  background?: BackgroundWait | null
   /** The session waits on an `AskUserQuestion` the user has not answered. */
   asking: boolean
   /** That `AskUserQuestion`, for the answer panel of the chat window: from the transcript, or from the job file while the CLI has not written it there. */

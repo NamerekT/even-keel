@@ -71,6 +71,10 @@
   font-weight: 600;
 }
 
+.panel__state .panel__total {
+  text-align: inherit;
+}
+
 .panel__state--working {
   color: var(--lamp-working);
 }

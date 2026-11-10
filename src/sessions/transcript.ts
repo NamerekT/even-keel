@@ -139,9 +139,15 @@ export interface TranscriptSummary {
    * the last one cannot be drawn; absent — the agent's transcript is not read for it, so it is never asked.
    */
   badgeStatus?: BadgeStatus | null
+  /**
+   * The command of the last call started in the background (a shell's `run_in_background`, a `Monitor`), flattened;
+   * `null` — none; absent — the agent's transcript is not read for it (only Claude's `shell` status waits on one).
+   */
+  backgroundCommand?: string | null
 }
 
 const FEED_SIZE = 30
+const BACKGROUND_LIMIT = 200
 const TEXT_LIMIT = 500
 /** The most of a session's last message that is kept: an answer goes to the tracker as one comment (BTN-883). */
 export const MESSAGE_LIMIT = 30_000
@@ -194,6 +200,7 @@ export class TranscriptFold {
   /** A hook asked for a `status: …` line in this turn and none came yet. */
   private statusAsked = false
   private badgeStatus: BadgeStatus | null = null
+  private backgroundCommand: string | null = null
   /** The tool lines of the turn's calls that have no result yet, by call id. */
   private readonly runningTools = new Map<string, string>()
   /** The CLI's queue of messages for the session, in order; `line` — `null` for one that is not the user's. */
@@ -298,6 +305,7 @@ export class TranscriptFold {
       workdir: this.workdir,
       model: this.model,
       badgeStatus: this.badgeStatus,
+      backgroundCommand: this.backgroundCommand,
     }
   }
 
@@ -362,6 +370,8 @@ export class TranscriptFold {
           this.strayAsk = null
           if (this.whole) line.ask = this.openAsk
         }
+        const background = backgroundCommandOf(block.name, input)
+        if (background !== null) this.backgroundCommand = background
         if (typeof block.id === 'string') this.runningTools.set(block.id, line.text)
         this.addAction(line)
         this.advanceStage(stageOf(block.name, input))
@@ -513,6 +523,12 @@ export function userLine(at: string, prompt: string, answered: Ask | null, textO
   if (Object.keys(reply.answers).length > 0) return { at, kind: 'answer', text, answers: { answers: reply.answers }, ...files }
   if (text === '' && reply.files.length === 0) return null
   return { at, kind: 'prompt', text, ...files }
+}
+
+function backgroundCommandOf(name: string, input: Record<string, unknown>): string | null {
+  if (typeof input.command !== 'string') return null
+  const background = name === 'Monitor' || (SHELLS.has(name) && input.run_in_background === true)
+  return background ? flatten(input.command, BACKGROUND_LIMIT) : null
 }
 
 /** The name, the subject and the size of an edit of a call, for a tool line of a whole transcript. */

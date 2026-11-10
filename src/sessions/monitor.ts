@@ -4,7 +4,7 @@ import type { Agent, SessionTail } from '../agent/contract.js'
 import type { HandoffSession, LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
 import { SESSION_WINDOWS_KEPT } from '../storage/context-windows.js'
-import { isLive, lampOf, sessionsByTask, steadyJobs, type AgentEntry, type JobIds } from './agents.js'
+import { backgroundWait, isLive, lampOf, sessionsByTask, steadyJobs, type AgentEntry, type JobIds } from './agents.js'
 import type { Ask } from './ask.js'
 import { WARM_CACHE_MS } from './cache.js'
 import { ResumeHolds } from './holds.js'
@@ -269,6 +269,7 @@ function toView(
     now,
   })
   const ask = present ? (approval ?? summary.ask ?? agent.ask ?? null) : null
+  const lamp = lampOf(present ? agent : undefined, summary.apiError?.kind ?? null, now)
   return {
     task,
     sessionId: agent.sessionId,
@@ -276,7 +277,8 @@ function toView(
     model: summary.model,
     cwd: agent.cwd,
     branch: summary.gitBranch,
-    lamp: lampOf(present ? agent : undefined, summary.apiError?.kind ?? null, now),
+    lamp,
+    background: backgroundWait(present ? agent : undefined, lamp, summary.lastActivityAt, summary.backgroundCommand ?? null),
     checkpoint: summary.checkpoint !== null,
     waitingFor: present && agent.status === 'waiting' ? (agent.waitingFor ?? null) : null,
     startupDialog: present ? (agent.startupDialog ?? null) : null,

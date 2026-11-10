@@ -34,7 +34,7 @@ import { Loading } from '../ui/Loader.js'
 import { offersAccept } from './acceptAnswer.js'
 import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
-import { sessionStatus } from './sessionStatus.js'
+import { backgroundTip, sessionStatus } from './sessionStatus.js'
 import { LimitNotice } from './LimitNotice.js'
 import { NoticeFixButton } from './FixButtons.js'
 import type { LimitRefusal } from './limitMessages.js'
@@ -389,7 +389,13 @@ function SessionBody({ session, limit, refusal = null, scale, task, onChat }: Se
       <LimitNotice active={limited} session={session} hold={limit} refusal={refusal} />
       <FactList>
         <Fact label={t.session.session}>
-          <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>
+          {session.background != null && !refused ? (
+            <TipValue className={`panel__state panel__state--${session.lamp}`} value={sessionStatus(session)}>
+              {backgroundTip(session.background, now).split('\n').map((line) => <span key={line} className="panel__tip-note">{line}</span>)}
+            </TipValue>
+          ) : (
+            <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>
+          )}
         </Fact>
         <Fact label={t.session.time}>
           <TipValue value={formatClock(sessionElapsed(session, now, limited))}>
@@ -516,10 +522,10 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
 }
 
 /** A fact's value whose details are a tip under it, opened by pointing at the value or pressing it. */
-function TipValue({ value, children }: { value: ReactNode; children: ReactNode }) {
+function TipValue({ value, className = 'panel__value', children }: { value: ReactNode; className?: string; children: ReactNode }) {
   const { shown, anchor, tip, show, point, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
   return (
-    <dd className="panel__value">
+    <dd className={className}>
       <button
         ref={anchor}
         type="button"

@@ -83,6 +83,16 @@ describe('turnPhase', () => {
     expect(turnPhase(facts({ turn, lastReplyAt: second(600), answers: [second(36)] }), at(610))).toEqual({ kind: 'thinking', since: second(600) })
   })
 
+  it('waits for the background command of an ended turn instead of thinking, the clock from the turn end (BTN-960)', () => {
+    const background = { command: 'npm test', since: second(20) }
+    expect(turnPhase(facts({ background }), at(40))).toEqual({ kind: 'background', command: 'npm test', since: second(20) })
+    expect(turnPhase(facts({ background, turn: null }), at(40))).toEqual({ kind: 'background', command: 'npm test', since: second(20) })
+  })
+
+  it('delivers an answer before waiting for a background command', () => {
+    expect(turnPhase(facts({ background: { command: null, since: null }, answers: [second(36)] }), at(40))).toEqual({ kind: 'delivering', since: second(36) })
+  })
+
   it('skips a moment that is not a time', () => {
     expect(turnPhase(facts({ answers: [''] }), at(10))).toEqual({ kind: 'thinking', since: second(0) })
   })

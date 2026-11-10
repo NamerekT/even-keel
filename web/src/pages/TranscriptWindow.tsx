@@ -355,6 +355,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
                     lastReplyAt: lines?.findLast(isReply)?.at ?? null,
                     answers: [chat.answeredAt, sent.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
                     delivering: chat.delivering,
+                    background: chat.session.background == null ? null : { command: chat.session.background.command, since: chat.session.lastActivityAt },
                   }}
                 />
               )}
@@ -399,7 +400,14 @@ function TurnLine({ facts }: { facts: TurnFacts }) {
   const phase = turnPhase(facts, now.getTime())
   if (phase === null) return null
   const elapsed = phase.since === null ? null : formatElapsed(now.getTime() - Date.parse(phase.since))
-  const doing = phase.kind === 'delivering' ? t.session.chat.delivering : phase.kind === 'thinking' ? t.session.chat.thinking : t.session.chat.running(phase.tool)
+  const doing =
+    phase.kind === 'delivering'
+      ? t.session.chat.delivering
+      : phase.kind === 'background'
+        ? t.session.chat.background(phase.command)
+        : phase.kind === 'thinking'
+          ? t.session.chat.thinking
+          : t.session.chat.running(phase.tool)
   return (
     <span className="transcript__turn">
       <span className="lamp lamp--working" aria-hidden="true" />

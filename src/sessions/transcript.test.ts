@@ -267,6 +267,18 @@ describe('TranscriptFold', () => {
     expect(fold(lines).summary().turn).toMatchObject({ tool: null })
   })
 
+  it('keeps the command of the last call started in the background, for a session that waits on it (BTN-960)', () => {
+    const lines = [assistant('m1', [tool('Bash', { command: 'npm run lint' })])]
+    expect(fold(lines).summary().backgroundCommand).toBeNull()
+
+    lines.push(assistant('m2', [{ type: 'tool_use', id: 'toolu_bg', name: 'Bash', input: { command: 'npm test\n  -- --run', run_in_background: true } }]))
+    lines.push(toolResult('toolu_bg', [text('Command running in background with ID: b1')]), assistant('m3', [tool('Read', { file_path: 'a.ts' })]))
+    expect(fold(lines).summary().backgroundCommand).toBe('npm test -- --run')
+
+    lines.push(assistant('m4', [{ type: 'tool_use', id: 'toolu_mon', name: 'Monitor', input: { command: 'tail -f build.log', description: 'build' } }]))
+    expect(fold(lines).summary().backgroundCommand).toBe('tail -f build.log')
+  })
+
   it('knows no turn before the first prompt', () => {
     expect(fold([assistant('m1', [text('hello')])]).summary().turn).toBeNull()
   })

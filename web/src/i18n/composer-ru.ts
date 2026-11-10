@@ -32,6 +32,7 @@ export const composerRu = {
     filter: 'Введите для фильтра',
   },
   thinking: 'Думает',
+  background: (command: string | null) => (command === null ? 'Ждёт фоновую команду' : `Ждёт фоновую команду: ${command}`),
   running: (tool: string) => `Выполняет: ${tool}`,
   delivering: 'Передаю ответ, сессия поднимается',
   finished: 'Сессия завершена — ответить ей нельзя.',

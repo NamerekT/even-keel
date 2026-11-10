@@ -102,6 +102,13 @@ export const sessionEn = {
     `The session hangs on a Claude Code dialog before its first turn, and nobody answers it in the background: ${what}. Remove the cause and press "New session".`,
   hung: (since: string) =>
     `The turn has written nothing since ${since} while its process lives on: it is taken for hung. Write to the session or press "New session" — either stops the turn first.`,
+  background: {
+    status: 'waiting on background',
+    command: (command: string) => `Its turn is over; the command still runs: ${command}`,
+    hangs: (at: string) => `With no new line in its transcript, Even Keel takes the command for hung at ${at}.`,
+    hung: (at: string) => `No new line in its transcript: Even Keel took it for hung at ${at}.`,
+    unknown: 'Even Keel takes the command for hung after an hour with no new line in its transcript.',
+  },
   session: 'Session',
   time: 'Time',
   cache: 'Cache',

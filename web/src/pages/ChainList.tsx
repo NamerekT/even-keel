@@ -22,7 +22,7 @@ import { AddGhost } from './AddGhost.js'
 import { placeLeaving, type Mark } from '../ui/motion.js'
 import { PullChip } from '../ui/PullChip.js'
 import { WorkChip } from '../ui/WorkChip.js'
-import { sessionStatus } from './sessionStatus.js'
+import { cardAction, lampLabel } from './sessionStatus.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
@@ -504,6 +504,7 @@ function Block(props: BlockProps) {
   const badge = relation?.badge === true ? relation.role : null
   const metered = block.start === null && blockMetered(block) ? block.session : null
   const acting = metered !== null && showsAction(tier, metered.lamp)
+  const action = metered === null ? null : cardAction(metered)
   if (acting) classes.push('block--acting')
   // The ring takes the place of the current row's ▶, or the empty one of a row without a number.
   const ring = metered?.cache != null && (block.current || number === undefined) ? metered.cache : null
@@ -564,7 +565,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
-        {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} label={block.lamp === 'waiting' && block.session?.apiErrorKind === 'transient' ? sessionStatus(block.session) : undefined} />}
+        {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} label={lampLabel(block.lamp, block.session, new Date())} />}
         {block.locked ? (
           // A blocker outside the chain has no session to show: a press anywhere on its row opens its card, which links to the tracker.
           <button type="button" className="block__key" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
@@ -589,10 +590,10 @@ function Block(props: BlockProps) {
       </p>
       {acting && (
         <ActionMeter project={project} session={metered} sessions={block.sessions} scale={scale}>
-          {metered.action === null ? (
+          {action === null ? (
             <div className="block__action" />
           ) : (
-            <ActionScreen line={metered.action} delay={marks.has('take') ? marks.get('take')! + FRAME_MS : 0} />
+            <ActionScreen line={action} delay={marks.has('take') ? marks.get('take')! + FRAME_MS : 0} />
           )}
         </ActionMeter>
       )}

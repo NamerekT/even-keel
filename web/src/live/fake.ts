@@ -646,6 +646,16 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? quiet : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: quiet.sessionId, since: ago(80) } }]
   }
+  // A turn that ended while its background command runs (BTN-960); `background-hung` — past the hour without a line.
+  if (params.get('chain')?.startsWith('background') && current.state !== null && active) {
+    const since = ago(params.get('chain') === 'background-hung' ? 70 : 12)
+    const base = session('ABC-5', contextTokens, 'working')
+    const feed = base.feed.filter((line) => line.at <= since)
+    const hangsAt = new Date(Date.parse(since) + 60 * 60_000).toISOString()
+    const waits: SessionView = { ...base, lastActivityAt: since, feed, action: feed.at(-1) ?? null, background: { command: 'npm run test:e2e -- --reporter=dot', hangsAt } }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? waits : each))
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: waits.sessionId, since: ago(80) } }]
+  }
   if (params.get('chain') === 'hung' && current.state !== null && active) {
     const hung: SessionView = { ...session('ABC-5', contextTokens, 'waiting'), agent: OPENCODE, waitingFor: null, hungSince: ago(35), lastActivityAt: ago(35) }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? hung : each))

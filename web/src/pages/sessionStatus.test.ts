@@ -3,7 +3,7 @@ import type { LimitHold } from '../../../src/chain/relay.js'
 import { setLanguage, t } from '../i18n/index.js'
 import { fakeAccount, FAKE_LIMITS } from '../live/fakeAccounts.js'
 import { session } from '../live/fakeSessions.js'
-import { limitPlan, sessionStatus } from './sessionStatus.js'
+import { backgroundTip, cardAction, limitPlan, sessionStatus } from './sessionStatus.js'
 import { formatMoment } from '../format.js'
 
 const now = new Date('2026-01-01T12:00:00Z')
@@ -37,6 +37,19 @@ describe('session limit text', () => {
     const view = { ...session('ABC-5', 0, 'limit'), agent: 'copilot', account: 'ci-key' }
     const copilot = accounts.map((entry) => (entry.key === 'ci-key' ? { ...entry, agent: 'copilot' } : entry))
     expect(limitPlan(hold, now, view, copilot)).toBe(t.session.limitUnknown)
+  })
+
+  it.each(['en', 'ru'] as const)('tells a session waiting for its background command from a working one, with the command and the hang time (%s)', (language) => {
+    setLanguage(language)
+    const view = { ...session('ABC-5', 0, 'working'), background: { command: 'npm test', hangsAt: '2026-01-01T12:30:00Z' } }
+    expect(sessionStatus(view)).toBe(language === 'en' ? 'waiting on background' : 'ждёт фоновую команду')
+    expect(cardAction(view)).toMatchObject({ kind: 'text', text: t.session.chat.background('npm test') })
+    expect(cardAction({ ...view, background: null })).toBe(view.action)
+    const tip = backgroundTip(view.background, now)
+    expect(tip).toContain('npm test')
+    expect(tip).toContain(formatMoment('2026-01-01T12:30:00Z', now))
+    expect(backgroundTip({ command: null, hangsAt: '2026-01-01T11:30:00Z' }, now)).toContain(language === 'en' ? 'took it for hung' : 'сочёл её зависшей')
+    expect(backgroundTip({ command: null, hangsAt: null }, now)).not.toContain('npm test')
   })
 
   it('keeps a known monthly reset for a Copilot key', () => {
