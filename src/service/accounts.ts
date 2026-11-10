@@ -768,7 +768,8 @@ export function wireChoiceFor(ctx: AccountsContext): (project: string | undefine
 
 export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string, project?: string | undefined) => LaunchPlan {
   return (task: string, prompt: string, project = ctx.projectOf(task)): LaunchPlan => {
-    const full = withUnattended(prompt, ctx.dispatcher.state.unattended, ctx.promptLanguage(project))
+    const git = project === undefined || !isPlain(ctx.configStore.current, project)
+    const full = withUnattended(prompt, ctx.dispatcher.state.unattended, ctx.promptLanguage(project), git)
     const plan = launchPlan(ctx.knownTask(task), full, runOf(ctx, project), ctx.configStore.current.modelPrompts, ctx.hasAccount)
     if (plan.warning !== null) console.warn(plan.warning)
     return plan

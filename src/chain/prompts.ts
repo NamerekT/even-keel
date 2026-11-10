@@ -53,6 +53,8 @@ export interface PlainTexts {
   answer: string
   /** In place of `begin` in a handoff. */
   begin: string
+  /** In place of `PromptTexts.unattended` (BTN-961): a task that needs an answer is parked with nothing of git. */
+  unattended: string
 }
 
 /** `main` in the texts is the project's main branch, whatever it is called. */
@@ -144,6 +146,17 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       answer:
         '- Когда задача сделана, напиши результат целиком в последнем сообщении хода и закончи ход последней строкой `TASK DONE`. Even Keel запишет это сообщение комментарием к задаче и закроет её; статус задачи сам не трогай. Если без ответа пользователя не обойтись — задай вопрос и закончи ход без этой строки: задача останется ждать ответа.',
       begin: '- Начни с описания задачи.',
+      unattended: [
+        'Режим без присмотра: пользователь недоступен, на вопросы до утра никто не ответит. Это правило важнее правил навыков о вопросах и статусах и строки выше о вопросе пользователю.',
+        '- Вопросов не задавай и ответа не жди: AskUserQuestion не вызывай, ход вопросом не заканчивай.',
+        '- Сделай в задаче всё, что можно сделать без ответа. Вопрос держит только ту часть, которую решает; остальное доведи до конца.',
+        '- Вопрос с разумным вариантом по умолчанию тебя не держит: возьми вариант, который дешевле всего откатить, доведи задачу на нём и закончи ход, как обычно: результат в последнем сообщении и строка `TASK DONE`. В результате назови взятый вариант, а вопрос заведи отдельной задачей.',
+        '- Если без ответа задачу не закончить:',
+        '  1. Доделай всё, что от ответа не зависит. Файлы в папке проекта оставь как есть.',
+        '  2. Комментарием к задаче: что сделано, что осталось, вопрос с вариантами ответа и что меняет каждый. Повесь на задачу ярлык вопроса (Question или Вопрос — какой уже есть в трекере).',
+        '  3. Последним шагом переведи задачу в Backlog.',
+        '  4. Закончи ход коротким отчётом без строки `TASK DONE`: по ней Even Keel закрыл бы задачу. Следующую задачу Even Keel возьмёт сам, утром пользователь ответит в задаче или в этой сессии.',
+      ].join('\n'),
     },
     pullRequest: (main) =>
       [
@@ -278,6 +291,17 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       answer:
         '- When the task is done, write the whole result in the last message of the turn and end the turn with the last line `TASK DONE`. Even Keel puts that message on the task as a comment and closes it; do not move the task\'s status yourself. If you cannot go on without the user\'s answer, ask the question and end the turn without that line: the task stays waiting for the answer.',
       begin: '- Start with the task description.',
+      unattended: [
+        'Unattended mode: the user is away, and nobody will answer a question until morning. This rule outranks what the skills say about questions and statuses, and the line above about a question to the user.',
+        '- Ask nothing and wait for no answer: do not call AskUserQuestion, do not end the turn with a question.',
+        '- Do everything in the task that can be done without an answer. A question holds only the part it decides; finish the rest.',
+        '- A question with a sensible default does not hold you: take the option that is cheapest to undo, finish the task on it and end the turn as usual: the result in the last message and the line `TASK DONE`. Name the option you took in the result, and file the question as its own task.',
+        '- If the task cannot be finished without an answer:',
+        '  1. Finish everything that does not depend on the answer. Leave the files in the project folder as they are.',
+        '  2. Comment on the task: what is done, what is left, the question with its options and what each would change. Put the question label on the task (Question or Вопрос — whichever the tracker already has).',
+        '  3. As the last step, move the task to Backlog.',
+        '  4. End the turn with a short report and without the line `TASK DONE`: on it Even Keel would close the task. Even Keel takes the next task itself; in the morning the user answers in the task or in this session.',
+      ].join('\n'),
     },
     pullRequest: (main) =>
       [

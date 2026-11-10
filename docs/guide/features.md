@@ -318,7 +318,7 @@ It covers the current session of each running chain that is not paused and not o
 
 ## Unattended mode
 
-For when nobody will answer — a switch in **Settings → Chain** (the gear in the header). Sessions are told to ask nothing, to do everything a question does not hold, and to park a task held by one: committed on its branch, unmerged, the question left in the task, the task moved to Backlog. A session that sits 10 minutes without the task done is skipped, and the session of a done task that stays busy for 10 quiet minutes is no longer waited for, so one stuck session does not stop the whole run.
+For when nobody will answer — a switch in **Settings → Chain** (the gear in the header). Sessions are told to ask nothing, to do everything a question does not hold, and to park a task held by one: committed on its branch, unmerged, the question left in the task, the task moved to Backlog. In a project without git a parked task leaves the folder's files as they are and its turn ends without `TASK DONE`. A session that sits 10 minutes without the task done is skipped, and the session of a done task that stays busy for 10 quiet minutes is no longer waited for, so one stuck session does not stop the whole run.
 
 ## Lean sessions
 
