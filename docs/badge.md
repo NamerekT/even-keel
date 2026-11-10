@@ -297,7 +297,10 @@ the settings tab kept (`BadgeDialog.tsx`, lazy). Four cards, each change written
   (`agent`, `model`, `time`, `action` together), context, the chain, the milestone, sessions, median cost, median time,
   English titles. The dialog always writes the full list.
 - **Preview** — the picture from the preview route above, dark or light, fetched again as the state moves but at most
-  every 5 s, and at once when a field changes.
+  every 5 s, and at once when a field changes. "Download PNG" (BTN-920) fetches the same picture with `still=1` and
+  rasterizes it in the browser (`badgePng` in `web/src/pages/badgePng.ts`: an `<img>` of the SVG drawn on a canvas at
+  twice the size; the embedded fonts draw there too), saved as `<slug>-badge-<YYYY-MM-DD-HHmm>-<theme>.png`
+  (`badgePngName`, local time). A failure is `t.badge.pngFailed` under the button.
 - **For the README** — the link a press on the badge leads to, guessed from the project's remotes (`releasesLink`:
   a GitHub remote's releases first, then GitLab's `/-/releases`, then any other hosted one), editable and not saved;
   under it the snippet (`badgeMarkdown`): a `<picture>` with the light theme for a light reader and the dark one
@@ -311,7 +314,17 @@ The commands: `project/badge` `{ project, badge }` — `badge.url`/`badge.slug` 
 ## Preview
 
 `GET /api/projects/<id>/badge.svg?theme=dark|light` draws the badge of the service's current state (anything but
-`light` is dark), `no-store`; an unknown project is 404. It does not need the badge to be on.
+`light` is dark), `no-store`; an unknown project is 404. It does not need the badge to be on. `still=1` draws it
+without animation whatever the mode (`RenderOptions.still`): one frame for the PNG.
+
+### No PNG from the Worker (BTN-920)
+
+A post on Reddit or LinkedIn takes neither SVG nor a picture by link, so it needs a snapshot; the dialog's button gives
+one. The Worker has no `/<slug>.png`: rasterizing there would need resvg as wasm, a large part of the free plan's 3 MB
+script limit, and a render of the 840 px badge at twice its size with embedded fonts against the free plan's 10 ms of
+CPU per request (neither measured). A snapshot is taken once by the maintainer for a post, which the button covers
+without a Worker; a live PNG link would only matter for a site that loads pictures by link yet refuses SVG — none is
+known (how dev.to treats a picture by link is not checked).
 
 ## The Worker
 

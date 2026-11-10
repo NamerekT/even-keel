@@ -90,6 +90,15 @@ describe('renderBadge', () => {
     for (const name of ['offline', 'paused', 'stopped', 'idle', 'unpublished']) expect(animated(STATES[name]!)).toBe(false)
   })
 
+  it('freezes a live badge for a snapshot (BTN-920) and keeps its texts and its live header', () => {
+    const still = renderBadge(live, { theme: 'dark', now, fonts: false, still: true })
+    const moving = renderBadge(live, { theme: 'dark', now, fonts: false })
+    expect(still).not.toMatch(/class="(ring|breathe|blink|glow)"/)
+    const texts = (svg: string) => [...svg.matchAll(/<text[^>]*>(.*?)<\/text>/g)].map((match) => match[1])
+    expect(texts(still)).toEqual(texts(moving))
+    expect(still).toContain('>LIVE<')
+  })
+
   it('names the state and the tasks for screen readers and says "was working on" offline', () => {
     const svg = renderBadge(STATES.offline!, { theme: 'dark', now, fonts: false })
     expect(svg).toMatch(/<title>ABC · Example\. OFFLINE · last seen 3 h ago/)

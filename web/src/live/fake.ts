@@ -817,7 +817,7 @@ export function createFakeSource(search: string): LiveSource {
     imageUrl: (_sessionId, tool, index) => fakeImageUrl(tool, index),
     sentFileUrl: (_sessionId, name) => fakeSentFileUrl(name),
     sharedUrl: (_sessionId, tool, index) => fakeSharedUrl(tool, index),
-    badgeUrl: (project, theme) => fakeBadgeUrl(current.state, project, theme),
+    badgeUrl: (project, theme, still) => fakeBadgeUrl(current.state, project, theme, still),
     tools: async (project) => {
       await answer()
       return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools'), current.state.config.projects[project]?.git === false) : null

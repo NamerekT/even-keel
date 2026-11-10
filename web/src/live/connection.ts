@@ -53,8 +53,11 @@ export interface LiveSource {
   sentFileUrl(sessionId: string, name: string): string
   /** The address of file `index` the session sent the user by call `tool` (`SendUserFile`). */
   sharedUrl(sessionId: string, tool: string, index: number): string
-  /** The address of the project's README badge as the service draws it now, for the badge dialog's preview (BTN-917). */
-  badgeUrl(project: string, theme: 'dark' | 'light'): string
+  /**
+   * The address of the project's README badge as the service draws it now, for the badge dialog's preview (BTN-917);
+   * `still` — without animation, for its PNG (BTN-920).
+   */
+  badgeUrl(project: string, theme: 'dark' | 'light', still?: boolean): string
   tools(project: string): Promise<ToolsView | null>
   card(task: string): Promise<TaskCard | null>
   /** The statuses and labels the project's tracker names, by the project's id; `null` — it names none. */
@@ -175,8 +178,8 @@ export class LiveConnection implements LiveSource {
     return `/api/sessions/${encodeURIComponent(sessionId)}/shared/${encodeURIComponent(tool)}/${index}`
   }
 
-  badgeUrl(project: string, theme: 'dark' | 'light'): string {
-    return `/api/projects/${encodeURIComponent(project)}/badge.svg?theme=${theme}`
+  badgeUrl(project: string, theme: 'dark' | 'light', still = false): string {
+    return `/api/projects/${encodeURIComponent(project)}/badge.svg?theme=${theme}${still ? '&still=1' : ''}`
   }
 
   tools(project: string): Promise<ToolsView | null> {

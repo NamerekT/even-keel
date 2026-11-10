@@ -108,7 +108,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
     secrets: { set: record('secretSet'), remove: record('secretRemove'), update: record('secretUpdate') },
     tally: { set: async (mode, server) => record('tally')(mode, server) },
     launches: () => [{ task: 'ABC-1' }],
-    badge: (project, theme) => (project === 'p 1' ? `<svg data-theme="${theme}"/>` : undefined),
+    badge: (project, theme, still) => (project === 'p 1' ? `<svg data-theme="${theme}"${still ? ' data-still=""' : ''}/>` : undefined),
     sessionRecord: async (id) => {
       if (id === 'bad') throw new Error('sessions: bad is not a session id')
       return id === '0a1b2c3d' ? { sessionId: id } : undefined

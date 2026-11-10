@@ -335,8 +335,8 @@ export interface ServerDeps {
   /** "Resolve with the agent": a session resolves the release project's held conflict (BTN-369). */
   resolveCarry: (project: string) => Promise<void>
   stats: StatsSource
-  /** The project's README badge as SVG, for the page's preview (BTN-915); `undefined` — no such project. */
-  badge?: (project: string, theme: 'dark' | 'light') => string | undefined
+  /** The project's README badge as SVG, for the page's preview (BTN-915), `still` for its PNG (BTN-920); `undefined` — no such project. */
+  badge?: (project: string, theme: 'dark' | 'light', still: boolean) => string | undefined
   /** Read per request: `allowedHosts` is live. */
   guard: () => GuardSettings
 }
@@ -525,7 +525,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   const badge = /^\/api\/projects\/([^/]+)\/badge\.svg$/.exec(path)
   if (request.method === 'GET' && badge !== null) {
-    const svg = deps.badge?.(decodeURIComponent(badge[1]!), url.searchParams.get('theme') === 'light' ? 'light' : 'dark')
+    const svg = deps.badge?.(decodeURIComponent(badge[1]!), url.searchParams.get('theme') === 'light' ? 'light' : 'dark', url.searchParams.get('still') === '1')
     if (svg === undefined) response.writeHead(404).end()
     else response.writeHead(200, { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'no-store' }).end(svg)
     return

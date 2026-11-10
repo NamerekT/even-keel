@@ -70,8 +70,8 @@ export interface BadgeWiring {
   statusAsk: (sessionId: string) => string | null
   /** Looks at every project's badge: on each state change and on a timer. */
   tick: () => Promise<void>
-  /** The project's badge as the page previews it; `undefined` — no such project. */
-  svg: (project: string, theme: 'dark' | 'light') => string | undefined
+  /** The project's badge as the page previews it, `still` without animation; `undefined` — no such project. */
+  svg: (project: string, theme: 'dark' | 'light', still?: boolean) => string | undefined
   /** The badge dialog's "Check": the project's state pushed to the address and name, its picture read back. */
   check: (project: string, url: string, slug: string) => Promise<BadgeCheck>
 }
@@ -226,9 +226,9 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
       return asks.due(sessionId, session.badgeStatus, now()) ? statusRequest() : null
     },
     tick: () => pusher.tick(),
-    svg: (project, theme) => {
+    svg: (project, theme, still = false) => {
       const state = stateOf(project, fieldsOf(project))
-      return state === undefined ? undefined : renderBadge(state, { theme, now: new Date(now()) })
+      return state === undefined ? undefined : renderBadge(state, { theme, now: new Date(now()), still })
     },
     check: async (project, url, slug) => {
       const state = stateOf(project, fieldsOf(project))

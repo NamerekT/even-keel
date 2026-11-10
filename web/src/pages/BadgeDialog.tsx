@@ -13,7 +13,8 @@ import { Band, CommandBlock } from '../ui/blocks.js'
 import { GoToIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
 import { Tipped } from '../ui/Tipped.js'
-import { badgeDraft, badgeMarkdown, BADGE_GROUPS, groupOn, releasesLink, withGroup } from './badgeParts.js'
+import { badgeDraft, badgeMarkdown, BADGE_GROUPS, badgePngName, defaultSlug, groupOn, releasesLink, withGroup } from './badgeParts.js'
+import { badgePng, download } from './badgePng.js'
 import { ErrorStrip, Row, Section, SwitchField } from './settingsParts.js'
 import './settings.css'
 import '../tools/addPackage.css'
@@ -81,7 +82,7 @@ export function BadgeDialog({ state, project, onClose }: { state: EvenKeelState;
               />
             ))}
           </Section>
-          <Preview project={project} label={label} fields={badge.fields.join()} />
+          <Preview project={project} label={label} fields={badge.fields.join()} slug={badge.slug === '' ? defaultSlug(key) : badge.slug} />
           <Snippet state={state} project={project} badge={badge} name={form?.name ?? key} />
         </div>
         <footer className="add-package__foot">
@@ -257,10 +258,26 @@ function SecretRow({ state }: { state: EvenKeelState }) {
   )
 }
 
-/** The badge as the service draws it now, drawn again as the state moves, no more often than every 5 s. */
-function Preview({ project, label, fields }: { project: string; label: string; fields: string }) {
+/**
+ * The badge as the service draws it now, drawn again as the state moves, no more often than every 5 s; under it a still
+ * PNG of the picked theme to download for a post (BTN-920).
+ */
+function Preview({ project, label, fields, slug }: { project: string; label: string; fields: string; slug: string }) {
   const { badgeUrl, state } = useLive()
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [saving, setSaving] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const savePng = async () => {
+    setSaving(true)
+    setFailed(false)
+    try {
+      download(await badgePng(badgeUrl(project, theme, true)), badgePngName(slug, theme, new Date()))
+    } catch {
+      setFailed(true)
+    } finally {
+      setSaving(false)
+    }
+  }
   const [stamp, setStamp] = useState(() => Date.now())
   const last = useRef(stamp)
   useEffect(() => {
@@ -294,6 +311,18 @@ function Preview({ project, label, fields }: { project: string; label: string; f
     <Section title={t.badge.preview} hint={t.badge.previewHint} aside={pick}>
       <div className={`badge-dialog__preview badge-dialog__preview--${theme}`}>
         <img src={src} alt={t.badge.previewAlt(label)} />
+      </div>
+      <div className="badge-dialog__check">
+        <Tipped tip={t.badge.pngTip} inline>
+          <button type="button" className="button" aria-disabled={saving} onClick={() => !saving && void savePng()}>
+            {t.badge.png}
+          </button>
+        </Tipped>
+        {failed && (
+          <Band tone="error" className="badge-dialog__result">
+            {t.badge.pngFailed}
+          </Band>
+        )}
       </div>
     </Section>
   )

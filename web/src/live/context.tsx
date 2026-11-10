@@ -24,7 +24,7 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
     imageUrl: (sessionId, tool, index) => source.imageUrl(sessionId, tool, index),
     sentFileUrl: (sessionId, name) => source.sentFileUrl(sessionId, name),
     sharedUrl: (sessionId, tool, index) => source.sharedUrl(sessionId, tool, index),
-    badgeUrl: (project, theme) => source.badgeUrl(project, theme),
+    badgeUrl: (project, theme, still) => source.badgeUrl(project, theme, still),
     tools: (project) => activity.track(source.tools(project)),
     card: (task) => activity.track(source.card(task)),
     vocabulary: (projectId) => source.vocabulary(projectId),

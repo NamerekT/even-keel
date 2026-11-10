@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { BADGE_FIELDS } from '../../../src/badge/model.js'
-import { badgeDraft, badgeMarkdown, BADGE_GROUPS, defaultSlug, groupOn, releasesLink, withGroup } from './badgeParts.js'
+import { badgeDraft, badgeMarkdown, BADGE_GROUPS, badgePngName, defaultSlug, groupOn, releasesLink, withGroup } from './badgeParts.js'
+
+describe('badgePngName', () => {
+  it('names the snapshot by the slug, the local minute and the theme, padded', () => {
+    expect(badgePngName('abc', 'dark', new Date(2026, 10, 3, 4, 5))).toBe('abc-badge-2026-11-03-0405-dark.png')
+    expect(badgePngName('my-app', 'light', new Date(2026, 0, 31, 23, 59))).toBe('my-app-badge-2026-01-31-2359-light.png')
+  })
+})
 
 describe('badge groups', () => {
   it('cover every field once', () => {

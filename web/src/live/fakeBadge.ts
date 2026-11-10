@@ -43,7 +43,7 @@ export function fakeBadgeCheck(body: Record<string, unknown>, mode: string | nul
 }
 
 /** The preview drawn in the page from a made-up state: the fake has no service to ask. */
-export function fakeBadgeUrl(state: EvenKeelState | null, project: string, theme: 'dark' | 'light'): string {
+export function fakeBadgeUrl(state: EvenKeelState | null, project: string, theme: 'dark' | 'light', still = false): string {
   const key = state?.projectKeys[project] ?? project
   const now = new Date()
   const badge: BadgeState = {
@@ -76,5 +76,5 @@ export function fakeBadgeUrl(state: EvenKeelState | null, project: string, theme
     milestone: { name: 'v0.3', done: 11, left: 4 },
     stats: { sessions: 128, medianCost: 1.84, medianMinutes: 22 },
   }
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(renderBadge(badge, { theme, now }))}`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(renderBadge(badge, { theme, now, still }))}`
 }

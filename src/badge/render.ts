@@ -9,6 +9,8 @@ export interface RenderOptions {
   now: Date
   /** The embedded fonts; tests leave them out to keep their snapshots short. */
   fonts?: boolean
+  /** No animation whatever the mode: a snapshot for a post is one frame (BTN-920). */
+  still?: boolean
 }
 
 /**
@@ -50,7 +52,7 @@ export function badgeMode(state: BadgeState | null, now: Date): BadgeMode {
 export function renderBadge(state: BadgeState | null, options: RenderOptions): string {
   const theme = BADGE_THEMES[options.theme]
   const mode = badgeMode(state, options.now)
-  const draw = new Drawing(theme, mode === 'live' || mode === 'stale')
+  const draw = new Drawing(theme, options.still !== true && (mode === 'live' || mode === 'stale'))
   const header = headerOf(state, mode, theme, options.now)
   let y = drawHeader(draw, header)
   let height = y + 29

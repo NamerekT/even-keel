@@ -804,6 +804,7 @@ describe('Even Keel HTTP server', () => {
     expect(await dark.text()).toBe('<svg data-theme="dark"/>')
     expect(await (await fetch(base + '/api/projects/p%201/badge.svg?theme=light')).text()).toBe('<svg data-theme="light"/>')
     expect(await (await fetch(base + '/api/projects/p%201/badge.svg?theme=pink')).text()).toBe('<svg data-theme="dark"/>')
+    expect(await (await fetch(base + '/api/projects/p%201/badge.svg?theme=light&still=1')).text()).toBe('<svg data-theme="light" data-still=""/>')
     expect((await fetch(base + '/api/projects/nope/badge.svg')).status).toBe(404)
   })
 })

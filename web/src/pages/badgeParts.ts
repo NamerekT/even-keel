@@ -60,3 +60,9 @@ export function badgeMarkdown(input: { url: string; slug: string; name: string; 
   const link = input.releases.trim()
   return link === '' ? picture : `<a href="${escape(link)}">${picture}</a>`
 }
+
+/** The file name of the badge's PNG snapshot (BTN-920): the badge's name, the local minute it was taken and the theme. */
+export function badgePngName(slug: string, theme: 'dark' | 'light', at: Date): string {
+  const two = (value: number) => String(value).padStart(2, '0')
+  return `${slug}-badge-${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}-${two(at.getHours())}${two(at.getMinutes())}-${theme}.png`
+}
