@@ -24,9 +24,7 @@
       "Canceled"
     ],
     "requiredLabels": [],
-    "excludedLabels": [
-      "Manual"
-    ],
+    "excludedLabels": [],
     "requiredMilestones": [],
     "excludedMilestones": []
   },
@@ -42,9 +40,7 @@
         "Canceled"
       ],
       "requiredLabels": [],
-      "excludedLabels": [
-        "Manual"
-      ],
+      "excludedLabels": [],
       "requiredMilestones": [],
       "excludedMilestones": []
     },
@@ -61,9 +57,7 @@
       "requiredLabels": [
         "Auto"
       ],
-      "excludedLabels": [
-        "Manual"
-      ],
+      "excludedLabels": [],
       "requiredMilestones": [],
       "excludedMilestones": []
     },
@@ -79,9 +73,7 @@
       "requiredLabels": [
         "ready"
       ],
-      "excludedLabels": [
-        "Manual"
-      ],
+      "excludedLabels": [],
       "requiredMilestones": [],
       "excludedMilestones": []
     }

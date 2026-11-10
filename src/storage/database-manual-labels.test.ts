@@ -86,7 +86,7 @@ describe('step 28: no built-in excluded label (BTN-758)', () => {
     expect(currentConfig({ version: SCHEMA_VERSION, projects: [] })).toEqual({ version: SCHEMA_VERSION, projects: [] })
   })
 
-  it('writes nothing into a fresh database: it keeps the default `["Manual"]`', { timeout: 120_000 }, async () => {
+  it('writes nothing into a fresh database',{ timeout: 120_000 }, async () => {
     const made = await openDatabase(undefined)
     try {
       expect((await made.query("select value from setting_values where key = 'chain.excludedLabels'")).rows).toEqual([])

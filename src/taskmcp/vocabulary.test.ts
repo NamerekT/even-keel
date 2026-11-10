@@ -39,6 +39,10 @@ describe('rolesLine', () => {
     expect(line).toBe('chain: into it — Todo with the label agent; skip — none; question — none; no milestones; priority: yes; estimate: yes')
   })
 
+  it('names no skip label under the default rules: none is excluded (BTN-971)', () => {
+    expect(rolesLine({ ...terms(), rules: DEFAULT_RULES, known: { ...KNOWN, labels: ['Manual', 'Вручную', 'Вопрос'] } })).toMatch(/; skip — none; question — Вопрос; /)
+  })
+
   it('a status the active list names but the tracker lacks leaves nothing to put the task into', () => {
     expect(rolesLine(terms({ active: ['Queued'] }))).toMatch(/^chain: into it — none; /)
   })

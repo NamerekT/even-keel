@@ -13,7 +13,7 @@ function context(down: string[] = []) {
     configStore: { current: { feeds: { p1: [{ id: 'f1' }, { id: 'f2' }] } } },
     readers: () => ({ projects: {}, keys: { p1: 'BTN', f1: 'BTNGH', f2: 'OLD' }, trackers: { p1: 'huly', f1: 'github', f2: 'removed' }, trackerProjects: {}, owners: {} }),
     linkOf: (id: string) => ({ page: async <T>(call: (each: Tracker) => Promise<T>) => (down.includes(id) ? Promise.reject(new Error('down')) : call(tracker)) }),
-    readerRules: (id: string) => (id === 'f1' ? { ...DEFAULT_RULES, active: ['Backlog'] } : DEFAULT_RULES),
+    readerRules: (id: string) => ({ ...DEFAULT_RULES, excludedLabels: ['Manual'], ...(id === 'f1' && { active: ['Backlog'] }) }),
   } as never
 }
 

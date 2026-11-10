@@ -56,7 +56,7 @@ export function chainOrdered(subtasks: readonly SubtaskRef[], order: readonly st
 
 export interface LabelOffer {
   name: string
-  /** One Even Keel gives a meaning (Manual, Question, Bug, Rework). */
+  /** One Even Keel gives a meaning (Question, Bug, Rework). */
   builtin: boolean
   /** Not a label of the project yet: picking it creates it. */
   create: boolean

@@ -504,7 +504,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.tasks = [
       ...tasks.map((each) => (each.id === 'ABC-10' ? { ...each, blockedBy: ['ABC-16', 'ABC-22', 'DEMO-31'] } : each)),
       task('ABC-16', 'Схема базы статистики', 'Backlog', 'UnStarted'),
-      task('ABC-22', 'Выпустить ключ API для стенда', 'Todo', 'ToDo', [], 'v0.2 — удобство', { labels: ['Manual'] }),
+      task('ABC-22', 'Выпустить ключ API для стенда', 'Todo', 'ToDo', [], 'v0.2 — удобство', { labels: ['Later'] }),
       other,
     ]
     const order = chain.projects['ABC']!

@@ -27,8 +27,8 @@ export const BUILTIN_MOVES = { start: 'In Progress', review: 'In Review', done: 
 
 export const BUILTIN_PRIORITIES: readonly TaskPriority[] = ['none', 'low', 'medium', 'high', 'urgent']
 
-/** Labels every project has, with a meaning ready: kept out of the chain, a question, a bug, a rework of a done task. */
-export const BUILTIN_LABELS = ['Manual', 'Question', 'Bug', 'Rework'] as const
+/** Labels every project has, with a meaning ready: a question, a bug, a rework of a done task. */
+export const BUILTIN_LABELS = ['Question', 'Bug', 'Rework'] as const
 
 /** Huly's palette has 24 colors; a label's color is picked by its name. */
 export const LABEL_COLORS = 24

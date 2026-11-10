@@ -56,7 +56,7 @@ When the code is written and the checks the project's `CLAUDE.md` names pass:
 - **Priority** moves the issue in the chain: `High` for a bug that breaks the current work or stops the chain, or when the user says it goes next; `Medium` for ordinary work; `Low` for ideas and polish. Never set `Highest` yourself. What the user says about urgency wins.
 - **Where to look** — add a `## Where to look` section naming the files, types and functions the work will touch, when you can name them honestly. Symbols, not line numbers. A guessed pointer is worse than none.
 - **Model** — a run label `<Provider>|<model>` (`Claude|sonnet`, `Codex|gpt-6.1-sol`) or a bare provider (`Codex`) picks what Even Keel starts the issue's session on, only in projects with run labels on (`modelLabels`). Set one only when the user named a model or a provider for the issue; otherwise leave it unlabeled. Jira refuses a label with spaces, so write the run label without them; if the project already has one, use its spelling.
-- **Run by hand** — an issue the user does themselves gets the label the project's chain does not take (`Manual` by default): the chain skips it.
+- **Run by hand** — an issue the user does themselves gets the label the project's chain does not take (its excluded labels are in its chain rules; none by default): the chain skips it.
 - **Order** between issues — `Blocks` links (§3), not prose. Issues of a later fix version go after all issues of an earlier one; a blocker must not sit in a later version than the issue it blocks — Even Keel cannot order that and stops the chain.
 - **Parts of a bigger issue** — child issues with the `parent` field, or subtasks. An issue with children never enters the chain itself.
 - Estimates are not read by Even Keel.

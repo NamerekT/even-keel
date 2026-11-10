@@ -122,9 +122,10 @@ describe('labelRows', () => {
     expect(labelRows(DEFAULT_RULES, { requiredLabels: 'shared', excludedLabels: 'shared' }, ['Claude | opus'], false).some((row) => row.rule === 'run')).toBe(false)
   })
 
-  it('shows `Manual` of the default list as an ordinary excluded row, nothing built in about it (BTN-758)', () => {
-    const rows = labelRows(DEFAULT_RULES, { requiredLabels: 'shared', excludedLabels: 'shared' }, [], false)
+  it('shows `Manual` of a list as an ordinary excluded row, and no row under the default rules (BTN-758, BTN-971)', () => {
+    const rows = labelRows(rules({ excludedLabels: ['Manual'] }), { requiredLabels: 'shared', excludedLabels: 'shared' }, [], false)
     expect(rows.filter((row) => row.origin !== 'builtin')).toEqual([{ name: 'Manual', rule: 'excluded', origin: 'shared' }])
+    expect(labelRows(DEFAULT_RULES, { requiredLabels: 'shared', excludedLabels: 'shared' }, [], false).filter((row) => row.origin !== 'builtin')).toEqual([])
   })
 })
 
@@ -139,9 +140,11 @@ describe('withLabel', () => {
     expect(withLabel(now, 'agent-ok', null)).toEqual({ requiredLabels: [], excludedLabels: ['wip'] })
   })
 
-  it('starts a level’s own list from the inherited one, `Manual` kept', () => {
-    expect(withLabel(DEFAULT_RULES, 'wip', 'excluded')).toEqual({ requiredLabels: [], excludedLabels: ['Manual', 'wip'] })
-    expect(withLabel(DEFAULT_RULES, 'Manual', null)).toEqual({ requiredLabels: [], excludedLabels: [] })
+  it('starts a level’s own list from the inherited one, its labels kept', () => {
+    const inherited = rules({ excludedLabels: ['Manual'] })
+    expect(withLabel(inherited, 'wip', 'excluded')).toEqual({ requiredLabels: [], excludedLabels: ['Manual', 'wip'] })
+    expect(withLabel(inherited, 'Manual', null)).toEqual({ requiredLabels: [], excludedLabels: [] })
+    expect(withLabel(DEFAULT_RULES, 'wip', 'excluded')).toEqual({ requiredLabels: [], excludedLabels: ['wip'] })
   })
 })
 

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
-import { cliChecked, feedsRuled, manualKept, sdkChecked, trackerGroupsOwned, trackersOwned } from '../storage/migrations.js'
+import { cliChecked, feedsRuled, manualDefaultKept, manualKept, sdkChecked, trackerGroupsOwned, trackersOwned } from '../storage/migrations.js'
 import { FULL } from './full.fixture.js'
 
 // The output of `parseConfig` as it was before the settings registry (BTN-186): the registry changes the way from the
@@ -12,7 +12,7 @@ import { FULL } from './full.fixture.js'
 // one older than v21 has `checked` written for each provider its `cli` left out (BTN-603); one older than v22 has
 // `cli.claude: checked` written under the Agent SDK of Claude (BTN-610); one older than v23 has the project's own chain
 // rules copied into each of its feeds (BTN-553); one older than v28 has `Manual` and `Вручную` in every list of
-// excluded labels (BTN-758).
+// excluded labels (BTN-758); one older than v36 has Even Keel's `["Manual"]` written where it left the list out (BTN-971).
 const fixtures = join(root, 'test', 'fixtures')
 const samples = readdirSync(fixtures).filter((name) => name.startsWith('schema-v'))
 const json = (file: string) => JSON.parse(readFileSync(file, 'utf8'))
@@ -22,7 +22,8 @@ const owned = (raw: { version?: number }) => {
   const cli = (raw.version ?? 1) < 21 ? cliChecked(groups) : groups
   const sdk = (raw.version ?? 1) < 22 ? sdkChecked(cli) : cli
   const feeds = (raw.version ?? 1) < 23 ? feedsRuled(sdk) : sdk
-  return (raw.version ?? 1) < 28 ? manualKept(feeds) : feeds
+  const kept = (raw.version ?? 1) < 28 ? manualKept(feeds) : feeds
+  return (raw.version ?? 1) < 36 ? manualDefaultKept(kept) : kept
 }
 const golden = (name: string) => `./golden/${name}.json`
 const text = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`

@@ -251,7 +251,7 @@ export const chainEN: Messages['chain'] = {
     linksHint: 'The selected task or the task under the cursor highlights its blockers and the tasks waiting for it.',
     dragHint: 'Reorder by dragging a card, on a phone — after a long press.',
     lockedHint:
-      'A lock instead of the state lamp marks a blocker outside the chain. Use “Move to Todo” in its number slot or change its status in the tracker. A blocker with a label the chain does not take, such as Manual, must be completed by you.',
+      'A lock instead of the state lamp marks a blocker outside the chain. Use “Move to Todo” in its number slot or change its status in the tracker. A blocker with a label the chain does not take must be completed by you.',
     readyRefused: (reason: string) => `Taking it into the chain would stop the chain: ${reason}`,
     tasks,
     noMilestone: 'No milestone',

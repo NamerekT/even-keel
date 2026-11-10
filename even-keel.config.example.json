@@ -1,5 +1,5 @@
 {
-  "version": 35,
+  "version": 36,
   "autoCompactWindow": null,
   "codexAutoCompactWindow": null,
   "openCodeAutoCompactWindow": null,
@@ -10,7 +10,7 @@
     "active": ["Todo", "In Progress", "In Review"],
     "terminal": ["Done", "Canceled"],
     "requiredLabels": [],
-    "excludedLabels": ["Manual"]
+    "excludedLabels": []
   },
   "projects": [
     {

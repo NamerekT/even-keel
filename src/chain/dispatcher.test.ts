@@ -42,7 +42,7 @@ describe('Dispatcher', () => {
   })
 
   it('leaves a task labelled for a manual run out of the chain', async () => {
-    const { dispatcher, launched } = setup()
+    const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, excludedLabels: ['Manual'] } } })
     dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['Manual'] }, task('ABC-2')])
     dispatcher.start('ABC')
     await dispatcher.idle()

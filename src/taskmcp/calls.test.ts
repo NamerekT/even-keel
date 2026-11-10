@@ -108,13 +108,13 @@ describe('tasks_create', () => {
     const core = await call('task_read', { key: 'abc-2' })
     expect(core.split('\n\n')[1]!.split('\n')).toEqual([
       'Todo · priority high · milestone v0.3 · labels Bug · estimate 20 min · parent ABC-1 · blocks ABC-3 · rev 0',
-      'chain: into it — Todo; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: yes',
+      'chain: into it — Todo; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes',
     ])
     expect(refreshed).toEqual([ABC])
   })
 
   it('refuses an unknown label or milestone with the existing ones, before anything is created', async () => {
-    expect(await refusal(call('tasks_create', { tasks: [{ title: 'A' }, { title: 'B', labels: ['Вопрос'] }] }))).toMatch(/no label "Вопрос"; the labels are Manual, Question, Bug, Rework\. Only the user makes a new one/)
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'A' }, { title: 'B', labels: ['Вопрос'] }] }))).toMatch(/no label "Вопрос"; the labels are Question, Bug, Rework\. Only the user makes a new one/)
     expect(await refusal(call('tasks_create', { tasks: [{ title: 'A', milestone: 'v9' }] }))).toMatch(/no milestone "v9"; the milestones are v0.3/)
     expect((await store.list([ABC])).length).toBe(1)
   })
@@ -387,7 +387,7 @@ describe('task_update of fields', () => {
     const refused = await refusal(call('task_update', { key: 'ABC-1', status: 'Ready' }))
     expect(refused.split('\n')).toEqual([
       'there is no status "Ready"; the statuses are Backlog, Todo, In Progress, In Review, Done, Canceled, Duplicate',
-      'chain: into it — Backlog; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: yes',
+      'chain: into it — Backlog; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes',
     ])
   })
 
@@ -633,7 +633,7 @@ describe("the project's feeds (BTN-892)", () => {
   it("gives each tracker's roles line by its own rules", async () => {
     rules.set(GHI, { ...DEFAULT_RULES, active: ['In Progress'], excludedLabels: [] })
     const roles = async (key: string) => (await call('task_read', { key }, FEED)).split('\n\n')[1]!.split('\n')[1]
-    expect(await roles('ABC-1')).toBe('chain: into it — Todo; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: yes')
+    expect(await roles('ABC-1')).toBe('chain: into it — Todo; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes')
     expect(await roles('GHI-1')).toBe('chain: into it — In Progress; skip — none; question — Question; no milestones; priority: yes; estimate: yes')
   })
 

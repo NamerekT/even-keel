@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **No label is kept out of the chain by default.** `chain.excludedLabels` starts empty and the built-in tracker no longer offers `Manual`: name the label you mark your own tasks with in the chain rules. An installation that relied on the default keeps `Manual` in its shared list after the update, so the same tasks stay out.
 - **The main branch field offers the repository's branches, and saving another branch switches the main checkout to it**, in a project's settings and in the wizard that adds one: a branch the repository lacks is created from where the checkout stands, one only on a remote is taken from there, and the line under the field says which before you save. The wizard fills in the checkout's current branch and no longer refuses a branch the repository lacks. A checkout switched by hand is shown in the settings and on the chain's card, with buttons to make its branch the main one or to put the folder back, instead of only when a task fails to start.
 
 ### Fixed

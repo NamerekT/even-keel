@@ -117,7 +117,7 @@ describe('the built-in tracker over HTTP', () => {
     const leaf = await source.card!('ABC-3')
     expect(leaf.edit!.ancestors.map((task) => task.id)).toEqual(['ABC-1', 'ABC-2'])
     expect(leaf.edit!.labels).toEqual([
-      { name: 'Manual', builtin: true }, { name: 'Question', builtin: true }, { name: 'Bug', builtin: true }, { name: 'Rework', builtin: true },
+      { name: 'Question', builtin: true }, { name: 'Bug', builtin: true }, { name: 'Rework', builtin: true },
       { name: 'Later', builtin: false },
     ])
     expect((await source.card!('ABC-1')).edit!.subtasks).toEqual([{ id: 'ABC-2', title: 'Middle', status: { name: 'Todo', category: 'ToDo' }, milestone: 'v0.3' }])

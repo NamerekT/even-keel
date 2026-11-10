@@ -109,7 +109,10 @@ describe('the built-in tracker as a task source', () => {
       ['ABC-2', 'Done: child.'],
     ])
     const { labels } = await source.vocabulary!(ABC)
-    expect(labels).toEqual(['Manual', 'Question', 'Bug', 'Rework'])
+    expect(labels).toEqual(['Question', 'Bug', 'Rework'])
+    await store.relabel({ project: ABC, number: 1 }, { add: ['Manual'], remove: [] })
+    expect((await source.vocabulary!(ABC)).labels).toEqual(['Question', 'Bug', 'Rework', 'Manual'])
+    expect((await source.card!('ABC-1'))?.edit?.labels.find((label) => label.name === 'Manual')).toEqual({ name: 'Manual', builtin: false })
   })
 
   it('gives the attachments on the card with their paths, in the brief while their files are there, and serves them', async () => {

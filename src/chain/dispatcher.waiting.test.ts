@@ -181,7 +181,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
   })
 
   it('holds a task on an open blocker that the labels keep out of the chain', async () => {
-    const { dispatcher, launched } = setup()
+    const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, excludedLabels: ['Manual'] } } })
     dispatcher.setTasks('ABC', [{ ...task('ABC-1', todo), labels: ['Manual'] }, task('ABC-2', todo, 'ABC-1'), task('ABC-3')])
     dispatcher.start('ABC')
     await dispatcher.idle()
@@ -233,7 +233,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
   })
 
   it('postpones the current task once a manual blocker is added to it', async () => {
-    const { dispatcher, launched } = setup()
+    const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, excludedLabels: ['Manual'] } } })
     dispatcher.setTasks('ABC', [task('ABC-2'), task('ABC-3')])
     dispatcher.start('ABC')
     await dispatcher.idle()

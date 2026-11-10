@@ -4,7 +4,7 @@ export interface ChainRules {
   active: string[] | null
   terminal: string[] | null
   requiredLabels: string[]
-  /** Kept out: `Manual` by default, removable like any other (BTN-758). */
+  /** Kept out; none by default: no label is built in (BTN-758, BTN-971). */
   excludedLabels: string[]
   /**
    * Split the tasks of one tracker project between Even Keel projects (BTN-172): a project takes only tasks in one of the
@@ -15,7 +15,7 @@ export interface ChainRules {
   excludedMilestones: string[]
 }
 
-export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: ['Manual'], requiredMilestones: [], excludedMilestones: [] }
+export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: [], requiredMilestones: [], excludedMilestones: [] }
 
 const ACTIVE_CATEGORIES: readonly StatusCategory[] = ['ToDo', 'Active']
 const TERMINAL_CATEGORIES: readonly StatusCategory[] = ['Won', 'Lost']

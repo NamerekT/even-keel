@@ -38,6 +38,9 @@ export const FAKE_PULL_READINESS: EvenKeelState['pullReadiness'] = {
   OPS: notice('review.noRemote', { project: 'OPS' }),
 }
 
+/** The fake's shared chain rules: one label of the user's own that the chain does not take. */
+const FAKE_RULES = { ...DEFAULT_RULES, excludedLabels: ['Later'] }
+
 /** What the fake tracker names for every project: some of it no fake task carries (`?vocabulary=none|fail`). */
 export const FAKE_VOCABULARY: TrackerVocabulary = {
   statuses: [
@@ -49,7 +52,7 @@ export const FAKE_VOCABULARY: TrackerVocabulary = {
     { name: 'Canceled', category: 'Lost' },
     { name: 'Blocked', category: 'Active' },
   ],
-  labels: ['Bug', 'Feature', 'Docs', 'Manual', 'Question', 'Research', 'UI'],
+  labels: ['Bug', 'Feature', 'Docs', 'Later', 'Question', 'Research', 'UI'],
   milestones: ['v1.0', 'v1.1', 'v2.0'],
 }
 
@@ -58,7 +61,7 @@ const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github', 'g
 export const FAKE_SHARED: SharedForm = {
   parallel: 1,
   brief: null,
-  chain: DEFAULT_RULES,
+  chain: FAKE_RULES,
   provider: 'claude',
   models: { claude: 'opus' },
   accounts: { claude: 'global', codex: 'codex' },
@@ -96,7 +99,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   slot: 0,
   color: null,
   brief: null,
-  chain: DEFAULT_RULES,
+  chain: FAKE_RULES,
   ownRules: [],
   prompt: null,
   beforeStart: [],
@@ -147,7 +150,7 @@ export function fakeConfig(account?: string | null): ConfigView {
         own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 15, 'ci.fixTask': true, promptLanguage: 'ru', 'stats.checkpointTokens': 180_000 },
       }),
       XYZ: project('D:/Projects/xyz', {
-        ...{ color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'], terminal: ['Done', 'Canceled', 'Wont do'] }, ownRules: ['requiredLabels', 'terminal'], provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } },
+        ...{ color: 3, slot: 2, chain: { ...FAKE_RULES, requiredLabels: ['Auto'], terminal: ['Done', 'Canceled', 'Wont do'] }, ownRules: ['requiredLabels', 'terminal'], provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } },
         checkpointShares: { first: 65, late: 80, hard: 90 },
         own: { 'stats.checkpointShares.first': 65, 'stats.checkpointShares.late': 80, 'stats.checkpointShares.hard': 90 },
       }),

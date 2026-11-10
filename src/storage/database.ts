@@ -566,6 +566,18 @@ export const STEPS: readonly string[] = [
     message    text not null
   );
   `,
+  // `Manual` is no longer the default excluded label (BTN-971): an existing database that kept no shared list relied on
+  // it and gets `["Manual"]` written, so the same tasks stay out; a list it keeps is left alone, a fresh one gets nothing.
+  `
+  insert into setting_definitions (key, kind, spec, default_value, scopes)
+    select 'chain.excludedLabels', 'list', '{}', '[]', 'global,project,profile'
+     where current_setting('even_keel.migration_from', true)::integer > 0
+    on conflict (key) do nothing;
+  insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
+    select 'chain.excludedLabels', null, '', '["Manual"]', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'service'
+     where current_setting('even_keel.migration_from', true)::integer > 0
+       and not exists (select 1 from setting_values where key = 'chain.excludedLabels' and project_id is null and qualifier = '');
+  `,
 ]
 
 /** The version this code reads and writes. */

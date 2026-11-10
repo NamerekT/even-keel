@@ -164,7 +164,19 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   // v34 → v35: a project's optional `badge` (BTN-915); omitted means no badge is pushed, so only the version changes.
   const feeds = version < 23 ? feedsRuled(sdk) : sdk
   const trusted = version < 26 ? automaticTrust(feeds) : feeds
-  return version < 28 ? manualKept(trusted) : trusted
+  const kept = version < 28 ? manualKept(trusted) : trusted
+  return version < 36 ? manualDefaultKept(kept) : kept
+}
+
+/**
+ * v35 → v36: `Manual` is no longer the default excluded label (BTN-971); a file that left Even Keel's list out and so
+ * relied on it gets `["Manual"]` written, so the same tasks stay out. A list the file names is left as it is.
+ */
+export function manualDefaultKept(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  if ('chain' in raw && !isRecord(raw.chain)) return stamped(raw)
+  const chain = isRecord(raw.chain) ? raw.chain : {}
+  return stamped('excludedLabels' in chain ? raw : { ...raw, chain: { ...chain, excludedLabels: ['Manual'] } })
 }
 
 const MANUAL_LABELS = ['Manual', 'Вручную']
