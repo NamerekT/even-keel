@@ -42,6 +42,8 @@ A message the user writes from Even Keel's chat window to a session in the middl
 - on `Stop` — the stop is blocked with the message as its reason, and the turn goes on;
 - on `PreToolUse` of `AskUserQuestion` — the question is turned down with the message, and the session asks again only if it still needs to.
 
+The same answer may hold a note of Even Keel's own (`context`), which the hook adds to the context of a tool call only, after the message: for a project that publishes a README badge, a request for one `status: …` line in the session's next message, at most every two minutes. Even Keel reads the line from the transcript; no tool is called for it.
+
 Each message comes inside `<even-keel-message id="N">…</even-keel-message>`, so the chat shows it as the user's message. The hook says nothing in a subagent (the message waits for the main thread), for a session Even Keel did not start, or when Even Keel does not answer within two seconds (five on `Stop`). Even Keel counts a session as listening only once its hook has asked: a session of an older version of the plugin is answered only between turns.
 
 ## Permission dialogs

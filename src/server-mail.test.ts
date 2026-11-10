@@ -45,6 +45,29 @@ async function fixture() {
   return { post, mailbox, relay, blocked: blocked.promise, reopened }
 }
 
+describe('the service\'s own note in the mailbox hook\'s answer (BTN-932)', { timeout: 30_000 }, () => {
+  it('rides next to the mail for a chain session, and is not even asked for any other', async () => {
+    const asked: string[] = []
+    const { server, base, publicDir, close } = await serverFixture({
+      mailContext: (id, event) => {
+        asked.push(`${id} ${event}`)
+        return event === 'Stop' ? null : 'Add a status line.'
+      },
+    })
+    onTestFinished(async () => {
+      server.closeAllConnections()
+      await close()
+      rmSync(publicDir, { recursive: true, force: true })
+    })
+    const post = (id: string, event: string) => fetch(`${base}/api/sessions/${id}/mail`, { method: 'POST', body: JSON.stringify({ event }) })
+    expect(await (await post('chain-session', 'PostToolUse')).json()).toEqual({ message: 'mail on PostToolUse', context: 'Add a status line.' })
+    expect(await (await post('chain-session', 'PreToolUse')).json()).toEqual({ message: null, context: 'Add a status line.' })
+    expect(await (await post('chain-session', 'Stop')).json()).toEqual({ message: null })
+    expect((await post('by-hand', 'PostToolUse')).status).toBe(404)
+    expect(asked).toEqual(['chain-session PostToolUse', 'chain-session PreToolUse', 'chain-session Stop'])
+  })
+})
+
 describe('mail delivery over HTTP', { timeout: 30_000 }, () => {
   it('keeps mail waiting until the response finishes, then persists delivery', async () => {
     const { post, mailbox, relay, blocked, reopened } = await fixture()

@@ -103,15 +103,25 @@ export async function noteAtEnd(sessionId) {
   return response.ok && (await response.json())?.note === true;
 }
 
-/** The text of what waited for the session, now delivered on `event`, or null: nothing waits, or Even Keel did not start it. */
-export async function mailOf(sessionId, event) {
+/**
+ * What Even Keel has for the session on `event`: `message` — the text of what waited in the chat, now delivered;
+ * `context` — a note of Even Keel's own for the context at a tool call (the request for the README badge's status
+ * line). Each null when there is none, both when Even Keel did not start the session.
+ */
+export async function hookMailOf(sessionId, event) {
   const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/mail`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ event }),
     signal: AbortSignal.timeout(5000),
   });
-  if (!response.ok) return null;
-  const message = (await response.json())?.message;
-  return typeof message === "string" && message !== "" ? message : null;
+  if (!response.ok) return { message: null, context: null };
+  const body = await response.json();
+  const text = (value) => (typeof value === "string" && value !== "" ? value : null);
+  return { message: text(body?.message), context: text(body?.context) };
+}
+
+/** The text of what waited for the session, now delivered on `event`, or null: nothing waits, or Even Keel did not start it. */
+export async function mailOf(sessionId, event) {
+  return (await hookMailOf(sessionId, event)).message;
 }

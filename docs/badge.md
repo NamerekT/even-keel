@@ -37,13 +37,43 @@ title (`translate.ts`); without it the badge shows the key alone.
 The text is cut to 60 characters. A line of an agent whose parser sets no `badge` (Codex and the rest) shows the first
 word of its feed line, the tool.
 
+### The agent's own status line (BTN-932)
+
+The default text is what the agent writes anyway. A more human one ("Writing tests for the Linear scale") comes from
+the agent itself, without a tool and without a word in the task's prompt:
+
+- **The request.** The `checkpoint` plugin's mailbox hook calls `POST /api/sessions/<id>/mail` on every tool call
+  (`docs/sessions/chat.md`). On `PreToolUse` and `PostToolUse` the answer may carry `context` next to `message` —
+  `statusRequest()` (`src/badge/status.ts`), which the hook (plugin 0.15.0) puts into `additionalContext` after the
+  mail: add one line `status: …` next to the next tool call, in English, up to 60 characters, no names, paths or
+  addresses. An older plugin ignores the key.
+- **When** (`BadgeWiring.statusAsk`, `src/service/badge.ts`) — only if all hold: the chain runs this session now (a
+  session the chain did not start gets a 404 before that); its project's badge pushes and shows the `action` field;
+  the project's last push went through (`BadgePusher.pushed`: none yet, no secret or a failure — no request, the
+  status would go nowhere); the session's agent writes a status (`SessionView.badgeStatus` is not absent: Claude Code
+  only); and both the last status and the last request are 2 min old or more (`STATUS_ASK_MS`, `StatusAsks`, in
+  memory). The config is read at every call, so a badge turned off mid-task stops the requests at the next one.
+- **Not a tool.** A `badge_status` tool would be one more API request per status, each rereading the whole context;
+  the line rides in the answer that makes the next call anyway.
+- **Reading it.** `TranscriptFold` sees the request's mark in a hook attachment, as it sees mail, and takes the last
+  `status: …` line of the next assistant text of the same turn (`statusLineIn`): one line per request, none after a
+  new prompt of the user. A line nobody asked for is ordinary text. The taken line is hidden from the chat's feed.
+  `statusTextOf` flattens it, cuts it to 60 characters and refuses anything but printable ASCII — the badge's fonts
+  hold nothing else; a refused line clears the status.
+- **Showing it.** `badgeStateOf` puts the status in place of the action's text, the tool kept for the icon, while it
+  is younger than 5 min (`STATUS_FRESH_MS`) and passes the filter below (`BadgeInputs.statusOk`, the log's field "the
+  status line"). Otherwise the badge shows the default action: it is never empty for want of a status.
+
+Never run live ([unverified](unverified/page.md#the-badges-status-line-from-the-agent-btn-932)).
+
 ## The filter of private data
 
 The badge is the one place where the chain's state leaves the machine for a public picture, and two of its texts are
 free: a command's `description` (the agent writes it) and `titleEn` (a model translates it). `stateOf` in
 `src/service/badge.ts` — the one state the push, the preview and "Check" all take — passes it through `withoutPrivate`
 (`src/badge/privacy.ts`, BTN-931), so the preview shows exactly what would be pushed. A new free text of the state gets a
-`PrivacyField` and a branch there.
+`PrivacyField` and a branch there. The agent's status line is judged earlier, while the state is built (`statusOk`
+with the same list and layers): a caught one must give way to the default action, not to the bare tool.
 
 **Layer 1, the service's own strings** (`bannedFor`, `src/service/badge-private.ts`), built anew for each state, so a
 changed setting applies at the next push:

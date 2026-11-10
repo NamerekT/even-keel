@@ -2,6 +2,17 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: The page](../verified/page.md).
 
+## The badge's status line from the agent (BTN-932)
+
+Unit tests cover when the service asks (no badge, a badge without the action, no push yet, a failed push, a session the
+chain does not run, a badge turned off mid-task, once per two minutes), the hook's output, the transcript's fold (a
+line asked for, one nobody asked for, one of an earlier turn) and the filter. Not checked live: whether a Claude Code
+session writes the line at all on a request in `additionalContext`, how often it ignores it, answers it in other words
+or keeps writing `status:` unasked, whether the request's mark reaches the transcript in a `hook_additional_context`
+attachment when it comes alone and next to mail, and what the line costs in output tokens over a task. BTN-919 owns
+the run. **If it is wrong:** the badge shows the default action; a session distracted by the requests — turn "Tasks in
+work and the current action" off in the badge's dialog, which stops them at the next tool call.
+
 ## The badge's filter of private data (BTN-931)
 
 Unit tests cover every shape of layer 2 with its false alarms, the list of the service's own strings from a made-up

@@ -5,8 +5,12 @@ import type { BadgeState, BadgeTask } from './model.js'
  * its list of strings is not read yet.
  */
 export type PrivacyLayer = 'identifier' | 'pattern' | 'error' | 'unready'
-/** The free texts of the state the filter reads. A new one gets a name here and a branch in `withoutPrivate`. */
-export type PrivacyField = 'titleEn' | 'action.text' | 'action.tool'
+/**
+ * The free texts of the state the filter reads. A new one gets a name here and a branch in `withoutPrivate`;
+ * `action.status`, the session's own status line, is judged while the state is built (`BadgeInputs.statusOk`), since a
+ * caught one gives way to the default action, and then once more here as the action's text.
+ */
+export type PrivacyField = 'titleEn' | 'action.text' | 'action.tool' | 'action.status'
 
 const MIN_LENGTH = 3
 /** Words too common to forbid: an account folder called `work` must not empty every badge. */

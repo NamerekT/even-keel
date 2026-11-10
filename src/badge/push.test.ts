@@ -103,10 +103,26 @@ describe('BadgePusher', () => {
     expect(r.log).toHaveLength(3)
   })
 
+  it('says whether the last push of a project went through', async () => {
+    const r = rig()
+    expect(r.pusher.pushed('p-1')).toBe(false)
+    await r.pusher.tick()
+    expect(r.pusher.pushed('p-1')).toBe(true)
+    r.fail(async () => ({ ok: false, status: 401 }))
+    r.set('ABC-2')
+    r.wait(BADGE_MIN_GAP_MS)
+    await r.pusher.tick()
+    expect(r.pusher.pushed('p-1')).toBe(false)
+    r.off()
+    await r.pusher.tick()
+    expect(r.pusher.pushed('p-1')).toBe(false)
+  })
+
   it('pushes nothing without the secret and says so once', async () => {
     const r = rig()
     r.noSecret()
     await r.pusher.tick()
+    expect(r.pusher.pushed('p-1')).toBe(false)
     r.wait(BADGE_PULSE_MS)
     await r.pusher.tick()
     expect(r.posts).toHaveLength(0)

@@ -1,6 +1,7 @@
 import { cloudErrorNotice } from '../account/cloud-errors.js'
 import { badgeActionOf } from '../badge/action.js'
 import type { BadgeAction } from '../badge/model.js'
+import { statusAsked, statusLineIn, statusTextOf, withoutStatusLine, type BadgeStatus } from '../badge/status.js'
 import { isSpendingLimit } from '../limits/spending.js'
 import type { Notice } from '../notice/notice.js'
 import { isTransientError } from './transient.js'
@@ -133,6 +134,11 @@ export interface TranscriptSummary {
   workdir: string | null
   /** The model of the last answer (Claude) or turn (Codex), as the agent names it; `null` — none yet. */
   model: string | null
+  /**
+   * The last `status: …` line the session wrote on a hook's request, for the README badge (BTN-932); `null` — none, or
+   * the last one cannot be drawn; absent — the agent's transcript is not read for it, so it is never asked.
+   */
+  badgeStatus?: BadgeStatus | null
 }
 
 const FEED_SIZE = 30
@@ -182,6 +188,9 @@ export class TranscriptFold {
   private readonly readFiles = new Map<string, string>()
   private turnStartedAt: string | null = null
   private readonly mailSeen = new Set<number>()
+  /** A hook asked for a `status: …` line in this turn and none came yet. */
+  private statusAsked = false
+  private badgeStatus: BadgeStatus | null = null
   /** The tool lines of the turn's calls that have no result yet, by call id. */
   private readonly runningTools = new Map<string, string>()
   /** The CLI's queue of messages for the session, in order; `line` — `null` for one that is not the user's. */
@@ -217,7 +226,9 @@ export class TranscriptFold {
       return
     }
     if (entry.type === 'attachment' && entry.attachment?.type?.startsWith('hook_') === true) {
-      this.pushMail(entry.timestamp ?? '', stringsOf(entry.attachment).join('\n'))
+      const text = stringsOf(entry.attachment).join('\n')
+      if (statusAsked(text)) this.statusAsked = true
+      this.pushMail(entry.timestamp ?? '', text)
       return
     }
     if (entry.type === 'attachment' && entry.attachment?.type === 'queued_command') {
@@ -283,6 +294,7 @@ export class TranscriptFold {
       gitBranch: this.gitBranch,
       workdir: this.workdir,
       model: this.model,
+      badgeStatus: this.badgeStatus,
     }
   }
 
@@ -320,7 +332,7 @@ export class TranscriptFold {
 
     for (const block of blocks) {
       if (block.type === 'text') {
-        const text = this.textOf(block.text ?? '')
+        const text = this.textOf(this.withoutStatus(at, block.text ?? ''))
         if (text === '') continue
         this.addAction({ at, kind: 'text', text })
         this.lastMessage = (block.text ?? '').trim().slice(0, MESSAGE_LIMIT)
@@ -385,6 +397,7 @@ export class TranscriptFold {
       this.pullRequest = null
       this.noChanges = null
       this.turnStartedAt = entry.timestamp ?? ''
+      this.statusAsked = false
       this.runningTools.clear()
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
       const answered = this.openAsk ?? this.strayAsk
@@ -446,6 +459,20 @@ export class TranscriptFold {
     if (entry.operation !== 'dequeue' && entry.operation !== 'remove') return
     const index = content === undefined ? 0 : Math.max(0, this.queue.findIndex((each) => each.content === content))
     this.queue.splice(index, 1)
+  }
+
+  /**
+   * Takes the `status: …` line a hook asked for in this turn and returns the text without it; a line nobody asked for
+   * is ordinary text (BTN-932).
+   */
+  private withoutStatus(at: string, text: string): string {
+    if (!this.statusAsked) return text
+    const line = statusLineIn(text)
+    if (line === null) return text
+    this.statusAsked = false
+    const status = statusTextOf(line)
+    this.badgeStatus = status === null ? null : { text: status, at }
+    return withoutStatusLine(text)
   }
 
   private textOf(text: string): string {

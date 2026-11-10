@@ -7,7 +7,8 @@ import { renderBadge } from '../badge/render.js'
 import { badgePushes } from '../badge/settings.js'
 import { badgeStatsOf, badgeStatsRange } from '../badge/stats.js'
 import { BadgeTranslations } from '../badge/translate.js'
-import { withoutPrivate, type PrivacyField, type PrivacyLayer } from '../badge/privacy.js'
+import { privateLayer, withoutPrivate, type PrivacyField, type PrivacyLayer } from '../badge/privacy.js'
+import { StatusAsks, statusRequest } from '../badge/status.js'
 import { runGit } from '../git/run.js'
 import { bannedFor, machineFacts, type GitIdentity, type MachineFacts } from './badge-private.js'
 import { readerOf, readersOf, readKeyOf, type EvenKeelConfig } from '../config.js'
@@ -35,7 +36,7 @@ export interface BadgeWiringDeps {
   identity?: (repo: string) => Promise<GitIdentity>
 }
 
-const LEFT_OUT: Record<PrivacyField, string> = { titleEn: 'the English title', 'action.text': 'the action text', 'action.tool': 'the action' }
+const LEFT_OUT: Record<PrivacyField, string> = { titleEn: 'the English title', 'action.text': 'the action text', 'action.tool': 'the action', 'action.status': 'the status line' }
 const LAYERS: Record<Exclude<PrivacyLayer, 'unready'>, string> = {
   identifier: 'it names this machine, an account, a profile or another project (layer 1)',
   pattern: 'it looks like a secret, a contact, an address or a path (layer 2)',
@@ -51,6 +52,12 @@ async function readIdentity(repo: string): Promise<GitIdentity> {
 }
 
 export interface BadgeWiring {
+  /**
+   * The request for a `status: …` line to put into the context of a chain's session at its tool call (BTN-932), or
+   * `null`: the project's badge is off or shows no action, its last push did not go through, the chain does not run
+   * this session, its agent writes no status, or the last status or request is younger than two minutes.
+   */
+  statusAsk: (sessionId: string) => string | null
   /** Looks at every project's badge: on each state change and on a timer. */
   tick: () => Promise<void>
   /** The project's badge as the page previews it; `undefined` — no such project. */
@@ -132,16 +139,22 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
   const stateOf = (project: string, fields: readonly BadgeField[]) => {
     const state = deps.state()
     if (!state.projects.includes(project)) return undefined
-    const built = badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project), titleEn: (id) => titleOf(state, project, id) })
+    const key = state.projectKeys[project] ?? project
     const config = deps.config()
     const identity = identityOf(config.projects[project])
     let banned: string[] | null = null
     try {
       if (identity !== undefined) banned = bannedFor(state, config, project, machine, identity)
     } catch {
-      report(built.project.key, 'action.text', 'error')
+      report(key, 'action.text', 'error')
     }
-    return withoutPrivate(built, banned, (field, layer) => report(built.project.key, field, layer))
+    const statusOk = (text: string) => {
+      const layer = privateLayer(text, banned)
+      if (layer !== null) report(key, 'action.status', layer)
+      return layer === null
+    }
+    const built = badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project), titleEn: (id) => titleOf(state, project, id), statusOk })
+    return withoutPrivate(built, banned, (field, layer) => report(key, field, layer))
   }
 
   const secret = deps.secret ?? (() => process.env[BADGE_SECRET])
@@ -158,7 +171,19 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     log,
   })
 
+  const asks = new StatusAsks()
+
   return {
+    statusAsk: (sessionId) => {
+      const state = deps.state()
+      asks.keep(new Set(state.sessions.map((session) => session.sessionId)))
+      const chain = state.chain.active.find((each) => each.current?.sessionId === sessionId)
+      const session = state.sessions.find((each) => each.sessionId === sessionId)
+      if (chain === undefined || session === undefined || session.badgeStatus === undefined) return null
+      const badge = deps.config().settings[chain.project]?.badge
+      if (!badgePushes(badge) || !badge.fields.includes('action') || !pusher.pushed(chain.project)) return null
+      return asks.due(sessionId, session.badgeStatus, now()) ? statusRequest() : null
+    },
     tick: () => pusher.tick(),
     svg: (project, theme) => {
       const state = stateOf(project, fieldsOf(project))

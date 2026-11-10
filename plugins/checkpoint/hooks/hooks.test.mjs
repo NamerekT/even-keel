@@ -147,6 +147,19 @@ describe.each(Object.entries(agents))("hooks on %s input", (_agent, input) => {
     expect(posted.get(mail).map((body) => body.event)).toEqual(["Stop", "Stop", "AskUserQuestion"]);
   });
 
+  it("puts Even Keel's own note into the context of a tool call, after a chat message, and nowhere else", async () => {
+    const session = sessionOf();
+    const mail = `/api/sessions/${session}/mail`;
+    answers.set(mail, { message: null, context: "Add a status line." });
+    expect(JSON.parse((await run("mailbox.mjs", toolUse(session))).stdout)).toEqual({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "Add a status line." } });
+    expect(await run("mailbox.mjs", stop(session, "Done."))).toEqual({ code: 0, stdout: "" });
+    expect(await run("mailbox.mjs", input(session, "PreToolUse", { tool_name: "AskUserQuestion", tool_input: {} }))).toEqual({ code: 0, stdout: "" });
+    answers.set(mail, { message: "Use the other parser.", context: "Add a status line." });
+    const both = JSON.parse((await run("mailbox.mjs", input(session, "PreToolUse", { tool_name: "Read", tool_input: {} }))).stdout);
+    expect(both.hookSpecificOutput.additionalContext).toBe("Use the other parser.\n\nAdd a status line.");
+    expect(JSON.parse((await run("mailbox.mjs", stop(session, "Done."))).stdout)).toEqual({ decision: "block", reason: "Use the other parser." });
+  });
+
   it("stays silent when nothing waits, without Even Keel, and in a subagent", async () => {
     const session = sessionOf();
     expect(await run("mailbox.mjs", toolUse(session))).toEqual({ code: 0, stdout: "" });

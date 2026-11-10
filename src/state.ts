@@ -1,4 +1,5 @@
 import type { AccountView } from './account/model.js'
+import type { BadgeStatus } from './badge/status.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { FixEpisode, LaunchDay, TaskSession } from './chain/launches.js'
 import type { MainCiView } from './chain/model.js'
@@ -59,6 +60,8 @@ export interface SessionView {
   stage: Stage | null
   action: FeedLine | null
   feed: FeedLine[]
+  /** The session's own status line for the README badge (`TranscriptSummary.badgeStatus`); absent — its agent writes none. */
+  badgeStatus?: BadgeStatus | null
   remoteUrl: string | null
   remoteOff: RemoteOff | null
   account: string | null

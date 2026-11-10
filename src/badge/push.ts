@@ -63,6 +63,12 @@ export class BadgePusher {
     return this.running
   }
 
+  /** Whether the project's last push went through: without one, nothing a session writes for the badge is shown. */
+  pushed(project: string): boolean {
+    const sent = this.sent.get(project)
+    return sent !== undefined && sent.sentKey !== null && sent.failure === null
+  }
+
   private async pass(): Promise<void> {
     const now = this.deps.now()
     const targets = this.deps.targets()

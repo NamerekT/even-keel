@@ -214,6 +214,83 @@ describe('wireBadges', () => {
     })
   })
 
+  describe('the request for a status line (BTN-932)', () => {
+    const fields: BadgeSettings = { ...on, fields: ['action'] }
+    const chained = (status: { text: string; at: string } | null | 'none' = null, sessionId = 's1'): EvenKeelState => ({
+      ...state,
+      tasks: [{ project: ABC, id: 'ABC-1', title: 'Task', status: { category: 'Started' }, milestone: null }],
+      chain: { ...state.chain, active: [{ project: ABC, current: { task: 'ABC-1', sessionId: 's1', since: '2026-11-09T12:00:00Z' } }] },
+      sessions: [{
+        sessionId, task: 'ABC-1', agent: 'claude', model: null, asking: false, lamp: 'working', contextTokens: 0, contextWindow: null, action: null,
+        feed: [{ kind: 'tool', text: 'Bash npm test', badge: { tool: 'Bash', text: 'Bash Run the tests' } }],
+        ...(status === 'none' ? {} : { badgeStatus: status }),
+      }],
+    }) as unknown as EvenKeelState
+    const pushed = async (snapshot: EvenKeelState, badge: BadgeSettings | null = fields) => {
+      const r = rig(snapshot)
+      r.set(badge)
+      await r.wiring.tick()
+      return r
+    }
+
+    it('asks a chain session of a project whose badge pushes, at most every two minutes', async () => {
+      const r = await pushed(chained())
+      expect(r.wiring.statusAsk('s1')).toContain('status: ')
+      expect(r.wiring.statusAsk('s1')).toBeNull()
+      r.wait(2 * 60_000 - 1)
+      expect(r.wiring.statusAsk('s1')).toBeNull()
+      r.wait(1)
+      expect(r.wiring.statusAsk('s1')).not.toBeNull()
+    })
+
+    it('asks nobody without a badge, or with one that shows no action', async () => {
+      expect((await pushed(chained(), null)).wiring.statusAsk('s1')).toBeNull()
+      expect((await pushed(chained(), { ...fields, on: false })).wiring.statusAsk('s1')).toBeNull()
+      expect((await pushed(chained(), on)).wiring.statusAsk('s1')).toBeNull()
+    })
+
+    it('asks nobody while the pushes fail or before the first one', async () => {
+      const before = rig(chained())
+      before.set(fields)
+      expect(before.wiring.statusAsk('s1')).toBeNull()
+      const r = rig(chained())
+      r.set(fields)
+      r.down()
+      await r.wiring.tick()
+      expect(r.wiring.statusAsk('s1')).toBeNull()
+    })
+
+    it('asks neither a session the chain does not run nor one whose agent writes no status', async () => {
+      expect((await pushed(chained(null, 'by-hand'))).wiring.statusAsk('by-hand')).toBeNull()
+      expect((await pushed(chained('none'))).wiring.statusAsk('s1')).toBeNull()
+    })
+
+    it('stops asking from the next call once the badge is turned off mid-task', async () => {
+      const r = await pushed(chained())
+      expect(r.wiring.statusAsk('s1')).not.toBeNull()
+      r.wait(2 * 60_000)
+      r.set({ ...fields, on: false })
+      expect(r.wiring.statusAsk('s1')).toBeNull()
+    })
+
+    it('publishes the status only when it passes the filter, else the default action', async () => {
+      const at = '2026-11-09T12:01:00Z'
+      const of = async (text: string) => {
+        const r = rig(chained({ text, at }))
+        r.set(fields)
+        r.wiring.svg(ABC, 'dark')
+        await settle()
+        r.wait(2 * 60_000)
+        await r.wiring.tick()
+        return r
+      }
+      expect((await of('Writing tests for the scale')).posts.at(-1)!.active[0]!.action).toEqual({ tool: 'Bash', text: 'Writing tests for the scale' })
+      const caught = await of('Copying the build to FAKE-PC')
+      expect(caught.posts.at(-1)!.active[0]!.action).toEqual({ tool: 'Bash', text: 'Bash Run the tests' })
+      expect(caught.lines).toEqual(['badge: ABC: the status line is left out, it names this machine, an account, a profile or another project (layer 1)'])
+    })
+  })
+
   it('logs why a Worker did not answer and gives the page only the notice', async () => {
     const r = rig()
     r.down()

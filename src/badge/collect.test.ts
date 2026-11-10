@@ -82,6 +82,26 @@ describe('badgeStateOf', () => {
     expect(state.active[0]?.action).toEqual({ tool: 'Edit', text: 'Edit src/a.ts' })
   })
 
+  describe('the session\'s own status line (BTN-932)', () => {
+    const withStatus = (at: string): EvenKeelState => {
+      const state = stateWith({ feed: [tool('Bash npm test', { tool: 'Bash', text: 'Bash Run the tests' })] })
+      Object.assign(state.sessions[0]!, { badgeStatus: { text: 'Writing tests for the scale', at } })
+      return state
+    }
+    const actionOf = (state: EvenKeelState, statusOk?: (text: string) => boolean) => badgeStateOf(state, ABC, { now, fields: ['action'], stats: null, statusOk }).active[0]?.action
+
+    it('shows a fresh status in place of the action\'s text and keeps the tool', () => {
+      expect(actionOf(withStatus('2026-11-09T11:58:00Z'))).toEqual({ tool: 'Bash', text: 'Writing tests for the scale' })
+    })
+
+    it('goes back to the default action when the status is stale or the filter catches it', () => {
+      expect(actionOf(withStatus('2026-11-09T11:55:00Z'))).toEqual({ tool: 'Bash', text: 'Bash Run the tests' })
+      const seen: string[] = []
+      expect(actionOf(withStatus('2026-11-09T11:58:00Z'), (text) => (seen.push(text), false))).toEqual({ tool: 'Bash', text: 'Bash Run the tests' })
+      expect(seen).toEqual(['Writing tests for the scale'])
+    })
+  })
+
   it('leaves out every field not picked: no key at all, never null; never the tracker\'s own title', () => {
     const state = badgeStateOf(stateWith(), ABC, { now, fields: [], stats: { sessions: 3, medianCost: 1 }, titleEn: () => 'Draw the badge' })
     expect(state).toEqual({ v: 1, at: '2026-11-09T12:00:00.000Z', project: { key: 'ABC', name: 'Example' }, active: [{ key: 'ABC-4', state: 'working' }], chain: { state: 'running', next: 'ABC-5' } })

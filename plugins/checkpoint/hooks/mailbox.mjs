@@ -4,7 +4,7 @@
 // going; before AskUserQuestion it turns the question down, so that the question does not hang next to an
 // unread message. Subagents are left alone: the message waits for the main thread.
 import { readFileSync } from "node:fs";
-import { contextOutput, mailOf } from "./evenkeel.mjs";
+import { contextOutput, hookMailOf } from "./evenkeel.mjs";
 
 function readInput() {
   try {
@@ -28,8 +28,11 @@ async function main() {
   const hookEvent = input.hook_event_name;
   if (hookEvent !== "PreToolUse" && hookEvent !== "PostToolUse" && hookEvent !== "Stop") return;
   const event = hookEvent === "PreToolUse" && input.tool_name === "AskUserQuestion" ? "AskUserQuestion" : hookEvent;
-  const message = await mailOf(input.session_id, event);
-  if (message !== null) process.stdout.write(JSON.stringify(outputOf(hookEvent, event, message)));
+  const { message, context } = await hookMailOf(input.session_id, event);
+  // Even Keel's own note rides only with a tool call's context: it must neither keep a turn going nor turn a question down.
+  const note = hookEvent === "Stop" || event === "AskUserQuestion" ? null : context;
+  const text = [message, note].filter((each) => each !== null).join("\n\n");
+  if (text !== "") process.stdout.write(JSON.stringify(outputOf(hookEvent, event, text)));
 }
 
 // No Even Keel, or no answer in time, must never break the tool call or keep the session from stopping.

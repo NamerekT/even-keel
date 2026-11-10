@@ -296,6 +296,7 @@ function toView(
     stage: summary.stage,
     action: summary.action,
     feed: summary.feed,
+    ...(summary.badgeStatus === undefined ? {} : { badgeStatus: summary.badgeStatus }),
     remoteUrl: remote.url,
     remoteOff: remote.off,
     account: email,

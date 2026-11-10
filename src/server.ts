@@ -304,6 +304,11 @@ export interface ServerDeps {
    */
   mail: (sessionId: string, event: MailEvent) => Promise<HookMail | null> | undefined
   /**
+   * What else the mailbox hook puts into the context at a tool call, asked only for a session `mail` knows: the
+   * request for the README badge's status line (BTN-932); `null` — nothing.
+   */
+  mailContext?: (sessionId: string, event: MailEvent) => string | null
+  /**
    * For the permission hook started at `since` (ms): the user's decision on the tool call the session waits to have
    * approved; `null` — not yet; `undefined` for a session the chain did not start, or a call whose dialog is gone (BTN-269).
    */
@@ -699,10 +704,12 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   const mail = /^\/api\/sessions\/([^/]+)\/mail$/.exec(path)
   if (request.method === 'POST' && mail !== null) {
     let delivery: HookMail | null | undefined
+    let context: string | null = null
     try {
       const body = await readJsonBody(request, MAX_BODY_BYTES)
       if (!HOOK_EVENTS.includes(body.event as MailEvent)) throw fail('request.required', { field: 'event' })
       delivery = await deps.mail(decodeURIComponent(mail[1]!), body.event as MailEvent)
+      if (delivery !== undefined) context = deps.mailContext?.(decodeURIComponent(mail[1]!), body.event as MailEvent) ?? null
     } catch (error) {
       sendFailure(response, error)
       return
@@ -723,7 +730,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       if (response.destroyed) closed()
       else {
         try {
-          sendJson(response, 200, { message: delivery?.message ?? null })
+          sendJson(response, 200, { message: delivery?.message ?? null, ...(context === null ? {} : { context }) })
         } catch (error) {
           closed()
           throw error

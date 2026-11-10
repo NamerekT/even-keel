@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { statusRequest } from '../badge/status.js'
 import { mailMessage } from './mail.js'
 import { shareOf } from './share.js'
 import { noChangesOf, TranscriptFold } from './transcript.js'
@@ -826,6 +827,46 @@ describe('TranscriptFold', () => {
         { at: expect.any(String), kind: 'prompt', text: 'Use the other parser.', files: ['C:/w/.temp/inbox/a.png'] },
         { at: expect.any(String), kind: 'prompt', text: 'And skip the cache.' },
       ])
+    })
+
+    describe('the badge status line (BTN-932)', () => {
+      const human = (content: string) => JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content }, origin: { kind: 'human' } })
+
+      it('takes the line a hook asked for in this turn and hides it from the chat', () => {
+        const summary = whole([
+          assistant('m1', [tool('Read', { file_path: 'a.ts' })]),
+          hookContext(statusRequest()),
+          assistant('m2', [text('Now the tests.\nstatus: Writing tests for the Linear scale'), tool('Bash', { command: 'npm test' })]),
+        ]).summary()
+        expect(summary.badgeStatus).toEqual({ text: 'Writing tests for the Linear scale', at: expect.any(String) })
+        expect(summary.feed.filter((line) => line.kind === 'text').map((line) => line.text)).toEqual(['Now the tests.'])
+      })
+
+      it('leaves a line nobody asked for as ordinary text', () => {
+        const summary = whole([assistant('m1', [text('status: Writing tests')])]).summary()
+        expect(summary.badgeStatus).toBeNull()
+        expect(summary.feed.map((line) => line.text)).toEqual(['status: Writing tests'])
+      })
+
+      it('takes one line per request, and none for a request of an earlier turn', () => {
+        const fold = whole([
+          hookContext(statusRequest()),
+          assistant('m1', [text('status: Reading the parser')]),
+          assistant('m2', [text('status: Not asked again')]),
+          hookContext(statusRequest()),
+          human('Go on.'),
+          assistant('m3', [text('status: Asked a turn ago')]),
+        ])
+        expect(fold.summary().badgeStatus?.text).toBe('Reading the parser')
+        expect(fold.summary().feed.filter((line) => line.kind === 'text').map((line) => line.text)).toEqual(['status: Not asked again', 'status: Asked a turn ago'])
+      })
+
+      it('drops the status when the asked line cannot be drawn, and reads no request from a tool result', () => {
+        const fold = whole([hookContext(statusRequest()), assistant('m1', [text('status: Reading')]), hookContext(statusRequest()), assistant('m2', [text('status: Пишу тесты')])])
+        expect(fold.summary().badgeStatus).toBeNull()
+        const read = whole([toolResult('toolu_Read', [{ type: 'text', text: statusRequest() }]), assistant('m1', [text('status: Reading')])])
+        expect(read.summary().badgeStatus).toBeNull()
+      })
     })
 
     it('ignores other attachments that happen to hold the mark', () => {

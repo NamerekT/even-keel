@@ -554,6 +554,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       return feed !== undefined && noteAtEnd(feed.lines)
     },
     mail: (sessionId, event) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : mailFor(ctx.mailRelay, sessionId, event)),
+    mailContext: (sessionId, event) => (event === 'PreToolUse' || event === 'PostToolUse' ? ctx.badges.statusAsk(sessionId) : null),
     permission: (sessionId, tool, input, since) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : ctx.approvals.poll(sessionId, tool, input, since)),
     mergeCheck: (sessionId) => {
       const run = handoffsOf(ctx.launches, sessionId)
