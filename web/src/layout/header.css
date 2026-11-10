@@ -144,12 +144,19 @@
   stroke-linecap: round;
 }
 
+/* The percent and the reset share one line, so they share a baseline whatever their sizes; the line is trimmed to the letters,
+   so the flex centring puts the digits, not the font's line box, level with the ring (Segoe UI sits low). */
+.limit__text {
+  text-box: trim-both cap alphabetic;
+}
+
 .limit__value {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
 .limit__reset {
+  margin-left: 7px;
   color: var(--fg-muted);
   font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
