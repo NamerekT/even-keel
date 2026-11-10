@@ -384,8 +384,11 @@ export interface DispatcherDeps {
   modelWeek?: (project: string, task?: string) => ModelWeekHold | null
   /** When the limit hit at `at` resets; a key's recovery may precede the spending reset in `text`. */
   limitResetAfter: (account: string, at: string, text?: string) => string | null
-  /** When a poll after the limit hit at `at` showed the account open before `resetsAt` (BTN-530); `null` — it did not. */
-  limitReopenedAt: (account: string, at: string, resetsAt: string) => string | null
+  /**
+   * When a poll after the limit hit at `at` showed the account open before `resetsAt` for the model `task` runs on now
+   * (BTN-530); `null` — it did not.
+   */
+  limitReopenedAt: (account: string, at: string, resetsAt: string, project: string, task: string) => string | null
   /**
    * The account the project's session (or `task`'s) would start on has not answered its first limits poll since the
    * service started: until then a spent limit looks like no limit at all (BTN-595). `undefined` — it has answered.

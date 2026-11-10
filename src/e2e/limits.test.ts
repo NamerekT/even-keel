@@ -63,6 +63,38 @@ describe('limits end to end', { timeout: 60_000 }, () => {
     expect(launches()).toHaveLength(1)
   })
 
+  it('resumes a session the week of Fable refused once a reset empties that week, its end kept in place', async () => {
+    const pressed = Date.parse('2026-10-01T09:40:00Z')
+    let fable = 93
+    run.project.models = { claude: 'fable' }
+    run.agent.windows = (_account, at) => {
+      const reset = Date.parse(at) >= pressed
+      return {
+        fiveHour: reset ? null : hours(30, '2026-10-01T13:00:00.000Z'),
+        sevenDay: week(reset ? 21 : 67),
+        models: { weeks: [{ model: 'Fable', usedPercentage: reset ? 0 : fable, resetsAt: WEEK_RESET }], updatedAt: at },
+      }
+    }
+    run.board.add('ABC-1')
+    run.agent.script(
+      'ABC-1',
+      async () => {
+        fable = 100
+        return { limit: "You've hit your Fable limit · resets Oct 5, 9am (UTC)" }
+      },
+      commitAndMerge(),
+    )
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.log.some((line) => line.includes('ABC-1') && line.includes(`resets at ${WEEK_RESET}`)), 'the week named')
+
+    await run.until(() => Date.now() >= pressed, 'the reset pressed', { step: 60_000, limitMs: 60 * 60_000 })
+    expect(resumes()).toEqual([])
+    await run.until(() => resumes().length === 1, 'the session resumed', { step: 10_000, limitMs: 10 * 60_000 })
+    expect(Date.now()).toBeLessThanOrEqual(pressed + 5 * 60_000 + 30_000)
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+  })
+
   it('after a restart, holds the next task until the first poll answers, and keeps it out of a spent window', async () => {
     const reset = '2026-10-01T11:00:00.000Z'
     run.agent.windows = (_account, at) => (at < reset ? { fiveHour: hours(100, reset), sevenDay: week(40) } : { fiveHour: null, sevenDay: week(40) })

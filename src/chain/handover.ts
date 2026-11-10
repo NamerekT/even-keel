@@ -93,7 +93,7 @@ export class Handovers {
       }
     }
     const now = this.deps.now()
-    if (overage === undefined) this.reopenEarly(current, session, now)
+    if (overage === undefined) this.reopenEarly(chain.project, current, session, now)
     const hold = current.limit
     const spentUntil = overage === undefined ? null : this.deps.limitReset(chain.project, current.task)
     if (spentUntil !== null && Date.parse(spentUntil) > now.getTime()) return true
@@ -115,12 +115,12 @@ export class Handovers {
   }
 
   /** A poll after the refusal found the spent window open before the named reset: the wait ends as if it had come. */
-  private reopenEarly(current: CurrentTask, session: LimitedSession, now: Date): void {
+  private reopenEarly(project: string, current: CurrentTask, session: LimitedSession, now: Date): void {
     const hold = current.limit!
     if (hold.acted !== null || hold.credit === true || hold.resetsAt === null || isSpendingLimit(session.limit.text)) return
     if (Date.parse(hold.resetsAt) <= now.getTime()) return
     const named = hold.resetsAt
-    const open = this.deps.limitReopenedAt(session.account, hold.at, named)
+    const open = this.deps.limitReopenedAt(session.account, hold.at, named, project, current.task)
     if (open === null || Date.parse(open) >= Date.parse(named)) return
     current.limit = withReset(hold, open, session.warmMs)
     this.deps.save(this.state)

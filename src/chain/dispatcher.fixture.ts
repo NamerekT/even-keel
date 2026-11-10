@@ -46,7 +46,7 @@ export interface SetupOptions {
   failStop?: boolean
   limitReset?: string | null
   limitResetAfter?: (account: string, at: string, text?: string) => string | null
-  limitReopenedAt?: (account: string, at: string, resetsAt: string) => string | null
+  limitReopenedAt?: (account: string, at: string, resetsAt: string, project: string, task: string) => string | null
   /** The model's own week used up on the account the task would start on (BTN-816). */
   modelWeek?: ModelWeekHold | null
   /** The account has not answered its first limits poll; absent — it has. */

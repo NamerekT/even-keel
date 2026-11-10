@@ -387,7 +387,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       return week === null ? null : { model: week.model, until: week.resetsAt }
     },
     limitResetAfter: ctx.retryAfterLimit,
-    limitReopenedAt: (key, at, resetsAt) => limitReopenedAt(ctx.limits.limits(key), at, resetsAt),
+    limitReopenedAt: (key, at, resetsAt, project, task) => limitReopenedAt(ctx.limits.limits(key), at, resetsAt, ctx.choiceFor(project, task).model),
     limitsUnread: (project, task) => {
       const { account } = ctx.choiceFor(project, task)
       return ctx.limits.unread(account) ? { account, next: ctx.limits.nextPoll() } : undefined

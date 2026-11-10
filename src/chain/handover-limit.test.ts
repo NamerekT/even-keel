@@ -83,8 +83,8 @@ describe('Limit lifecycle in the service log', () => {
     const polled = { at: null as string | null }
     const asked: string[][] = []
     const { dispatcher, clock, log } = await running({
-      limitReopenedAt: (account, at, resetsAt) => {
-        asked.push([account, at, resetsAt])
+      limitReopenedAt: (account, at, resetsAt, project, task) => {
+        asked.push([account, at, resetsAt, project, task])
         return polled.at
       },
     })
@@ -92,7 +92,7 @@ describe('Limit lifecycle in the service log', () => {
     clock.now = new Date('2026-09-26T12:10:00Z')
     await check(dispatcher)
     expect(log).toHaveLength(1)
-    expect(asked.at(-1)).toEqual(['global', '2026-09-26T12:00:00.000Z', '2026-09-26T15:00:00.000Z'])
+    expect(asked.at(-1)).toEqual(['global', '2026-09-26T12:00:00.000Z', '2026-09-26T15:00:00.000Z', 'ABC', 'ABC-1'])
 
     polled.at = '2026-09-26T12:12:00.000Z'
     clock.now = new Date('2026-09-26T12:14:00Z')

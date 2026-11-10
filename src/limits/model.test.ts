@@ -258,6 +258,30 @@ describe('limitReopenedAt', () => {
     expect(limitReopenedAt(claude(window(10, '2026-10-28T15:00:00.000Z'), window(97, '2026-11-01T08:40:00.000Z')), HIT, NAMED)).toBeNull()
   })
 
+  describe('a reset that keeps the week on its date', () => {
+    // A Fable refusal names the week of the model, which ends with the account's week; a reset by hand or a reset of
+    // everyone's limits empties the meters and leaves the week's end where it was.
+    const week = (all: number, fable: number) => ({
+      ...claude(window(0, '2026-10-28T15:00:00.000Z'), window(all, NAMED)),
+      models: { weeks: [{ model: 'Fable', usedPercentage: fable, resetsAt: NAMED }], updatedAt: POLLED },
+    })
+
+    it('takes the account open once the week of the same date dropped far below full', () => {
+      expect(limitReopenedAt(week(21, 0), HIT, NAMED, 'fable')).toBe(POLLED)
+      expect(limitReopenedAt(claude(window(0, '2026-10-28T15:00:00.000Z'), window(0, NAMED)), HIT, NAMED)).toBe(POLLED)
+    })
+
+    it('keeps waiting while the own week of the task model is spent', () => {
+      expect(limitReopenedAt(week(67, 100), HIT, NAMED, 'claude-fable-5')).toBeNull()
+      expect(limitReopenedAt({ ...week(21, 0), models: { weeks: [{ model: 'Fable', usedPercentage: 95, resetsAt: NAMED }], updatedAt: POLLED } }, HIT, NAMED, 'fable')).toBeNull()
+    })
+
+    it('takes the account open for another model while the week of Fable is spent', () => {
+      expect(limitReopenedAt(week(67, 100), HIT, NAMED, 'opus')).toBe(POLLED)
+      expect(limitReopenedAt(week(67, 100), HIT, NAMED)).toBe(POLLED)
+    })
+  })
+
   it('does not read a statusline or a session event as a poll', () => {
     expect(limitReopenedAt(claude(null, window(2, '2026-11-04T10:00:00.000Z'), 'statusline'), HIT, NAMED)).toBeNull()
     expect(limitReopenedAt(claude(null, window(2, '2026-11-04T10:00:00.000Z'), 'sdk'), HIT, NAMED)).toBeNull()
