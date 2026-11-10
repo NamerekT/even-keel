@@ -23,14 +23,18 @@ export interface BadgeTask {
   agent?: string
   model?: string
   startedAt?: string
-  state: 'working' | 'waiting'
+  /** `waiting` — for the maintainer's answer; `limit` — for the usage limit to reset (BTN-969). */
+  state: BadgeTaskState
+  /** When the limit a `limit` task waits for resets; absent — not known. Never the account it is of. */
+  until?: string
   action?: BadgeAction | null
   /** How full the context is, whole percents. */
   context?: number
 }
 
 export type BadgeChainState = 'running' | 'paused' | 'stopped' | 'idle'
-export type BadgeChipState = 'done' | 'working' | 'waiting' | 'queued'
+export type BadgeTaskState = 'working' | 'waiting' | 'limit'
+export type BadgeChipState = 'done' | BadgeTaskState | 'queued'
 
 export interface BadgeChain {
   state: BadgeChainState

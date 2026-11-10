@@ -9,4 +9,5 @@ export {
   type BadgeState,
   type BadgeStats,
   type BadgeTask,
+  type BadgeTaskState,
 } from './model.js'

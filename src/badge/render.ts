@@ -110,10 +110,15 @@ function headerOf(state: BadgeState | null, mode: BadgeMode, theme: BadgeTheme, 
     return { label, color: theme.fgMuted, dot: theme.idle, motion: null, subtitle: name, right }
   }
   const count = state.active.length
-  const waiting = count > 0 && state.active.every((task) => task.state === 'waiting')
+  const waiting = count > 0 && state.active.every((task) => task.state !== 'working')
   const stale = mode === 'stale'
   if (waiting) {
-    const subtitle = count === 1 ? 'the agent asked the maintainer and waits for the answer' : 'the agents asked the maintainer and wait for the answers'
+    const limited = state.active.filter((task) => task.state === 'limit').length
+    const subtitle =
+      limited === count ? `${name} waits for the usage limit to reset`
+      : limited > 0 ? 'the agents wait for the usage limit and for the maintainer'
+      : count === 1 ? 'the agent asked the maintainer and waits for the answer'
+      : 'the agents asked the maintainer and wait for the answers'
     return { label: 'WAITING', color: theme.waiting, dot: stale ? theme.idle : theme.waiting, motion: stale ? null : 'breathe', subtitle, right }
   }
   const subtitle = count === 0 ? name : `${name} is being built right now${count > 1 ? ` · ${count} tasks at once` : ''}`
@@ -180,7 +185,7 @@ function drawTask(draw: Drawing, task: BadgeTask, layout: TaskLayout, base: numb
   const meta = metaOf(task, offline ? new Date(layout.at) : layout.now, single)
   const metaWidth = single || meta === '' ? 0 : measure(meta, 'sans', 12) + 16
   const titleSize = single ? 18 : 16
-  const title = task.titleEn ?? (task.state === 'waiting' ? 'waiting' : 'working')
+  const title = task.titleEn ?? (task.state === 'working' ? 'working' : 'waiting')
   const face: BadgeFace = task.titleEn === undefined ? 'sans' : 'sans-bold'
   draw.text(x, base, fit(title, face, titleSize, WIDTH - PAD - x - metaWidth), face, titleSize, task.titleEn === undefined ? theme.fgMuted : theme.fg)
   if (meta !== '') {
@@ -188,23 +193,32 @@ function drawTask(draw: Drawing, task: BadgeTask, layout: TaskLayout, base: numb
     else draw.text(WIDTH - PAD, base, meta, 'sans', 12, theme.fgMuted, ' text-anchor="end"')
   }
   const bar: Bar = single ? { top: base + 46, height: 30, size: 13 } : { top: base + 22, height: 26, size: 12.5 }
-  if (task.state === 'waiting') drawWaiting(draw, task, bar)
+  if (task.state === 'waiting') drawWaiting(draw, task, bar, "waiting for the maintainer's answer")
+  else if (task.state === 'limit') drawWaiting(draw, task, bar, limitLine(task, layout.now))
   else drawBar(draw, task, layout.mode, bar)
   return bar.top + bar.height
+}
+
+/** The reset is counted when the picture is shown; one that has passed or is not known is not named. */
+function limitLine(task: BadgeTask, now: Date): string {
+  const minutes = task.until === undefined ? NaN : (Date.parse(task.until) - now.getTime()) / 60_000
+  return minutes > 0 ? `waiting for the usage limit · resets in ${duration(minutes)}` : 'waiting for the usage limit'
 }
 
 function textBase(bar: Bar): number {
   return bar.top + bar.height / 2 + bar.size * 0.36
 }
 
-function drawWaiting(draw: Drawing, task: BadgeTask, bar: Bar): void {
+function drawWaiting(draw: Drawing, task: BadgeTask, bar: Bar, line: string): void {
   const { theme } = draw
   draw.add(
     `<rect x="${PAD + 0.5}" y="${bar.top + 0.5}" width="${INNER - 1}" height="${bar.height - 1}" rx="${bar.height === 30 ? 8 : 7}" fill="${theme.waiting}" fill-opacity="0.08" stroke="${theme.waiting}" stroke-opacity="0.5" stroke-dasharray="5 4"/>`,
   )
   const y = textBase(bar)
-  draw.text(PAD + 14, y, '?', 'sans-bold', bar.size, theme.waiting)
-  draw.text(PAD + 30, y, "waiting for the maintainer's answer", 'mono', bar.size, theme.warnFg)
+  if (task.state === 'limit') draw.add(pauseIcon(PAD + 17.5, bar.top + bar.height / 2, theme.waiting))
+  else draw.text(PAD + 14, y, '?', 'sans-bold', bar.size, theme.waiting)
+  const label = contextLabel(task)
+  draw.text(PAD + 30, y, fit(line, 'mono', bar.size, INNER - 30 - (label === null ? 0 : measure(label, 'mono', 12) + 28) - 14), 'mono', bar.size, theme.warnFg)
   drawContext(draw, task, theme.warnFg, y)
 }
 
@@ -303,7 +317,7 @@ function drawChain(draw: Drawing, state: BadgeState, top: number): number {
       more++
     }
   }
-  const asked = new Set(state.active.filter((task) => task.state === 'waiting').map((task) => task.key))
+  const asked = new Set(state.active.filter((task) => task.state !== 'working').map((task) => task.key))
   let x = PAD
   for (const chip of chips) {
     const width = chipWidth(chip.label, chip.state)
@@ -326,13 +340,18 @@ function chipLook(theme: BadgeTheme, state: BadgeChipState, asked: boolean): { b
   const plain = `fill="${theme.surfaceMuted}" stroke="${theme.border}"`
   if (state === 'done') return { box: `fill="${theme.done}" fill-opacity="0.12" stroke="${theme.done}" stroke-opacity="0.45"`, ink: theme.done }
   if (state === 'working') return { box: `fill="${theme.working}" fill-opacity="0.14" stroke="${theme.accent}"`, ink: theme.accent }
-  if (state === 'waiting') return { box: asked ? `fill="${theme.waiting}" fill-opacity="0.12" stroke="${theme.waiting}"` : plain, ink: theme.waiting }
+  if (state === 'waiting' || state === 'limit') return { box: asked ? `fill="${theme.waiting}" fill-opacity="0.12" stroke="${theme.waiting}"` : plain, ink: theme.waiting }
   return { box: plain, ink: theme.fgMuted }
+}
+
+function pauseIcon(cx: number, cy: number, color: string): string {
+  return `<path d="M${n(cx - 2.5)} ${n(cy - 4)}v8 M${n(cx + 2.5)} ${n(cy - 4)}v8" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`
 }
 
 function chipIcon(state: BadgeChipState, cx: number, cy: number, color: string): string {
   if (state === 'done') return `<path d="M${n(cx - 4)} ${cy}l2.7 2.7 5-5.4" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`
   if (state === 'working') return `<circle cx="${n(cx)}" cy="${cy}" r="3.5" fill="${color}"/>`
+  if (state === 'limit') return pauseIcon(cx, cy, color)
   return `<text x="${n(cx)}" y="${cy + 4.5}" class="s" font-size="12" font-weight="600" fill="${color}" text-anchor="middle">?</text>`
 }
 
@@ -377,7 +396,7 @@ function projectLabel(state: BadgeState): string {
 }
 
 function spoken(task: BadgeTask): string {
-  const what = task.state === 'waiting' ? 'waits for an answer' : 'in work'
+  const what = task.state === 'waiting' ? 'waits for an answer' : task.state === 'limit' ? 'waits for the usage limit' : 'in work'
   return `${task.key}${task.titleEn === undefined ? '' : ` ${task.titleEn}`} ${what}`
 }
 

@@ -38,11 +38,18 @@ const two: BadgeState = {
 }
 const waiting: BadgeState = { ...live, active: [{ ...live.active[0]!, state: 'waiting' }] }
 const at = (minutesAgo: number) => new Date(now.getTime() - minutesAgo * 60_000).toISOString()
+const { action: _action, ...quiet } = live.active[0]!
+const limit: BadgeState = {
+  ...live,
+  active: [{ ...quiet, state: 'limit', until: '2026-11-09T14:00:00Z' }],
+  chain: { ...live.chain, tasks: live.chain.tasks!.map((chip) => (chip.state === 'working' ? { ...chip, state: 'limit' as const } : chip)) },
+}
 
 const STATES: Record<string, BadgeState | null> = {
   live,
   two,
   waiting,
+  limit,
   stale: { ...live, at: at(20) },
   offline: { ...live, at: at(180) },
   paused: { ...live, active: [], chain: { ...live.chain, state: 'paused' } },
@@ -65,6 +72,7 @@ describe('renderBadge', () => {
       live: 'live',
       two: 'live',
       waiting: 'live',
+      limit: 'live',
       stale: 'stale',
       offline: 'offline',
       paused: 'still',
@@ -129,6 +137,35 @@ describe('renderBadge', () => {
     expect(texts(live)).toContain('Claude Code · opus · started 42 min ago')
     expect(texts(two)).toContain('Claude Code · opus · 42 min')
     expect(texts(two)).toContain('Codex · gpt-5 · 8 min')
+  })
+
+  describe('a task on a spent limit (BTN-969)', () => {
+    const textsAt = (state: BadgeState, when: Date) => [...renderBadge(state, { theme: 'dark', now: when, fonts: false }).matchAll(/<text[^>]*>(.*?)<\/text>/g)].map((match) => match[1]!.replace(/<[^>]+>/g, ''))
+
+    it('has a waiting bar with the reset counted from the request\'s time, and no cursor', () => {
+      expect(texts(limit)).toContain('waiting for the usage limit · resets in 2 h')
+      expect(textsAt({ ...limit, at: '2026-11-09T13:34:30Z' }, new Date('2026-11-09T13:35:00Z'))).toContain('waiting for the usage limit · resets in 25 min')
+      const svg = renderBadge(limit, { theme: 'dark', now, fonts: false })
+      expect(svg).toContain('stroke-dasharray="5 4"')
+      expect(svg).not.toContain('class="blink"')
+      expect(texts(limit)).toContain('context 48%')
+    })
+
+    it('names no reset that is unknown or has passed', () => {
+      const { until: _until, ...unknown } = limit.active[0]!
+      expect(texts({ ...limit, active: [unknown] })).toContain('waiting for the usage limit')
+      expect(textsAt({ ...limit, at: '2026-11-09T14:04:30Z' }, new Date('2026-11-09T14:05:00Z'))).toContain('waiting for the usage limit')
+    })
+
+    it('does not say the project is being built while no task works', () => {
+      expect(texts(limit).join('\n')).not.toContain('being built')
+      expect(texts(limit)).toContain('WAITING')
+      expect(texts(limit)).toContain('Example waits for the usage limit to reset')
+      const mixed: BadgeState = { ...limit, active: [limit.active[0]!, { key: 'ABC-17', state: 'waiting' }] }
+      expect(texts(mixed)).toContain('the agents wait for the usage limit and for the maintainer')
+      expect(texts({ ...limit, active: [limit.active[0]!, two.active[1]!] })).toContain('Example is being built right now · 2 tasks at once')
+      expect(renderBadge(limit, { theme: 'dark', now, fonts: false })).toMatch(/<title>[^<]*ABC-15 [^<]* waits for the usage limit/)
+    })
   })
 
   it('shows the context of a waiting task next to the waiting line', () => {

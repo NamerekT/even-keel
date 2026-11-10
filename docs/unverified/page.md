@@ -2,6 +2,16 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: The page](../verified/page.md).
 
+## The badge of a session on a spent limit (BTN-969)
+
+Unit tests cover the state of a task whose session stands on a limit (the reset's time from the chain's hold, no action,
+no status line, nothing of the account; plain work again once the chain went on), the drawing (the dashed bar, "resets
+in …" counted at the request, a header that does not say "being built") and the Worker's parser. Not checked live: a
+real session hitting its limit while its badge is published, and the deployed Worker taking that push. A Worker
+deployed before this state answers 400 to a push that has such a task, and only to those. **If it is wrong:** the badge
+keeps the last picture or says the project is being built while the session waits; update the Worker (`npm update
+even-keel-badge`, `npx wrangler deploy`, `deploy/badge/README.md`).
+
 ## The badge's status line from the agent (BTN-932)
 
 Unit tests cover when the service asks (no badge, a badge without the action, no push yet, a failed push, a session the

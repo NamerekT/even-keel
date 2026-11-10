@@ -13,8 +13,19 @@ const task = (id: string, category: string, milestone: string | null = 'v1') => 
 })
 const tool = (text: string, badge?: FeedLine['badge']): FeedLine => ({ kind: 'tool', at: now.toISOString(), text, ...(badge === undefined ? {} : { badge }) }) as FeedLine
 
-function stateWith(overrides: { asking?: boolean; paused?: boolean; current?: boolean; feed?: FeedLine[] } = {}): EvenKeelState {
+interface Overrides {
+  asking?: boolean
+  paused?: boolean
+  current?: boolean
+  feed?: FeedLine[]
+  lamp?: string
+  /** The chain's hold of the current task on a limit. */
+  limit?: Record<string, unknown>
+}
+
+function stateWith(overrides: Overrides = {}): EvenKeelState {
   const current = overrides.current ?? true
+  const hold = overrides.limit === undefined ? {} : { limit: overrides.limit }
   return {
     projects: [ABC],
     projectKeys: { [ABC]: 'ABC' },
@@ -30,7 +41,7 @@ function stateWith(overrides: { asking?: boolean; paused?: boolean; current?: bo
       ...Array.from({ length: 6 }, (_, index) => task(`ABC-${10 + index}`, 'Won', 'old')),
     ],
     chain: {
-      active: [{ project: ABC, paused: overrides.paused ?? false, current: current ? { task: 'ABC-4', sessionId: 's-1', since: '2026-11-09T11:30:00Z' } : null }],
+      active: [{ project: ABC, paused: overrides.paused ?? false, current: current ? { task: 'ABC-4', sessionId: 's-1', since: '2026-11-09T11:30:00Z', ...hold } : null }],
       projects: { [ABC]: { order: ['ABC-4', 'ABC-5', 'ABC-6'] } },
     },
     sessions: [
@@ -39,7 +50,7 @@ function stateWith(overrides: { asking?: boolean; paused?: boolean; current?: bo
         task: 'ABC-4',
         agent: 'claude',
         model: 'opus',
-        lamp: 'working',
+        lamp: overrides.lamp ?? 'working',
         asking: overrides.asking ?? false,
         contextTokens: 50_000,
         contextWindow: null,
@@ -119,6 +130,37 @@ describe('badgeStateOf', () => {
     const state = badgeStateOf(stateWith({ asking: true }), ABC, { now, fields: ['chain'], stats: null })
     expect(state.active[0]?.state).toBe('waiting')
     expect(state.chain.tasks).toContainEqual({ key: 'ABC-4', state: 'waiting' })
+  })
+
+  describe('a session on a spent limit (BTN-969)', () => {
+    const hold = { at: '2026-11-09T11:50:00Z', account: 'john.doe@example.com', resetsAt: '2026-11-09T14:00:00Z', lastReplyAt: null, then: 'resume', acted: null }
+    const limited = (limit: Record<string, unknown> | undefined, lamp = 'limit') => {
+      const state = stateWith({ lamp, limit })
+      Object.assign(state.sessions[0]!, { account: 'john.doe@example.com', badgeStatus: { text: 'Writing tests', at: '2026-11-09T11:59:00Z' } })
+      return badgeStateOf(state, ABC, { now, fields: ALL_BADGE_FIELDS, stats: null })
+    }
+
+    it('waits for the reset: its time, no action, no status line, no account', () => {
+      const state = limited(hold)
+      expect(state.active).toEqual([{ key: 'ABC-4', agent: 'claude', model: 'opus', startedAt: '2026-11-09T11:30:00Z', state: 'limit', until: '2026-11-09T14:00:00Z', context: 25 }])
+      expect(state.chain.tasks).toContainEqual({ key: 'ABC-4', state: 'limit' })
+      expect(JSON.stringify(state)).not.toMatch(/john|example\.com|account|Writing tests/)
+    })
+
+    it('leaves the reset out when nobody knows it', () => {
+      expect(limited({ ...hold, resetsAt: null }).active[0]).not.toHaveProperty('until')
+      expect(limited(undefined).active[0]).toMatchObject({ state: 'limit' })
+      expect(limited(undefined).active[0]).not.toHaveProperty('until')
+    })
+
+    it('is plain work again once the chain went on: after the reset or on another account', () => {
+      expect(limited({ ...hold, acted: 'relay' }, 'working').active[0]).toMatchObject({ state: 'working', action: { tool: 'mcp__x__y', text: 'Writing tests' } })
+      expect(limited(undefined, 'working').active[0]).not.toHaveProperty('until')
+    })
+
+    it('does not take a retry after an overload for a limit', () => {
+      expect(limited({ ...hold, transient: true }, 'waiting').active[0]?.state).toBe('waiting')
+    })
   })
 
   it('tells a paused, an idle and a stopped chain apart', () => {

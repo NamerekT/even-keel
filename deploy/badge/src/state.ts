@@ -1,8 +1,8 @@
 import { BADGE_VERSION, type BadgeState } from 'even-keel-badge'
 
-const TASK_STATES = ['working', 'waiting']
+const TASK_STATES = ['working', 'waiting', 'limit']
 const CHAIN_STATES = ['running', 'paused', 'stopped', 'idle']
-const CHIP_STATES = ['done', 'working', 'waiting', 'queued']
+const CHIP_STATES = ['done', ...TASK_STATES, 'queued']
 
 type Fields = Record<string, unknown>
 
@@ -41,6 +41,7 @@ function isTask(task: unknown): boolean {
     optional(task.agent, isString) &&
     optional(task.model, isString) &&
     optional(task.startedAt, isTime) &&
+    optional(task.until, isTime) &&
     optional(task.action, action) &&
     optional(task.context, isNumber)
   )

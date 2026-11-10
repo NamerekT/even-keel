@@ -14,15 +14,28 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
 
 - `v`, `at` (ISO time of the push), `project` (`key`, `name`).
 - `active` — the tasks with a live session: `key`, `titleEn`, `agent`, `model`, `startedAt`, `state` (`working` |
-  `waiting`), `action` (`{ tool, text }`), `context` (whole percents).
+  `waiting` | `limit`), `until` (of a `limit` task: when its limit resets), `action` (`{ tool, text }`), `context`
+  (whole percents).
 - `chain` — `state` (`running` | `paused` | `stopped` | `idle`), `next` (the task the chain takes next, `null` — none),
-  `tasks` (chips: the last done ones, the working, the waiting and the queue).
+  `tasks` (chips: the last done ones, the working, the waiting, the ones on a limit and the queue).
 - `milestone` — `{ name, done, left }` or `null`.
 - `stats` — `sessions`, `medianCost`, `medianMinutes`.
 
 The project picks its fields (`BADGE_FIELDS`); a field not picked leaves **no key**, never `null`
 (`badgeStateOf` in `src/badge/collect.ts`). A task's tracker title never reaches the Worker: only `titleEn`, the English
 title (`translate.ts`); without it the badge shows the key alone.
+
+### A task on a spent limit (BTN-969)
+
+A task is `limit` while the chain holds it on a usage limit it has not acted on yet (`CurrentTask.limit`, not a retry
+after an overload) or its session's lamp is `limit`. `until` is the hold's reset time, an absolute one: the Worker
+counts "resets in …" when it draws, like the age of the push; a reset nobody knows (a key out of money) leaves no key.
+Such a task has no `action` and its status line is not read: the session makes no call. Nothing of the account, its
+switch or the pool is in the state — when the chain goes on earlier, on another account, the task is `working` again
+and the badge explains nothing.
+
+The value was added to contract v1 without a new `BADGE_VERSION`, before the first release with the badge: a Worker
+deployed earlier refuses a push that has such a task until it is updated ("The Worker" below).
 
 ### The action text
 
@@ -135,7 +148,9 @@ at once", "the agent asked the maintainer…") and the age of the push; one task
 "agent · model · started N min ago" under it, several share rows with that line on the right; the action bar is the
 tool's icon, the action in the agent's colour (yellow for Claude, blue for the rest), a blinking cursor, the context
 fill with a glowing edge and `context N%`; a waiting task has a dashed "waiting for the maintainer's answer" bar
-instead. The chain's chips name a task of the project by its number (`895`), one of another project by its key; the
+instead, and one on a limit the same bar with a pause mark and "waiting for the usage limit · resets in 2 h" (the reset
+is left out once it has passed); while no task works and one is on a limit the header says "WAITING · <project> waits
+for the usage limit to reset". The chain's chips name a task of the project by its number (`895`), one of another project by its key; the
 stats are one line of small print on the right. The colours are the page's tokens
 from `web/src/styles.css`, copied into `src/badge/theme.ts` for the dark and the light theme. Animations are CSS in the
 SVG's own `<style>`, off under `prefers-reduced-motion`. `<title>` and `aria-label` carry the full text; a cut title is

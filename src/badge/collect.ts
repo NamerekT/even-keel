@@ -24,7 +24,7 @@ export function badgeStateOf(state: EvenKeelState, project: string, inputs: Badg
   const key = state.projectKeys[project] ?? project
   const tasks = state.tasks.filter((task) => task.project === project)
   const chains = state.chain.active.filter((chain) => chain.project === project)
-  const active = chains.flatMap((chain) => (chain.current === null ? [] : [taskOf(state, chain.current.task, chain.current.sessionId, chain.current.since, on, inputs)]))
+  const active = chains.flatMap((chain) => (chain.current === null ? [] : [taskOf(state, chain.current, on, inputs)]))
   const order = state.chain.projects[project]?.order ?? []
   const working = new Set(active.map((task) => task.key))
   const next = order.find((id) => !working.has(id)) ?? null
@@ -40,11 +40,21 @@ export function badgeStateOf(state: EvenKeelState, project: string, inputs: Badg
 /** Every field: what a project publishes until its settings pick (BTN-917). */
 export const ALL_BADGE_FIELDS: readonly BadgeField[] = BADGE_FIELDS
 
-function taskOf(state: EvenKeelState, id: string, sessionId: string | null, since: string, on: Set<BadgeField>, inputs: BadgeInputs): BadgeTask {
+type Current = NonNullable<EvenKeelState['chain']['active'][number]['current']>
+
+/**
+ * A task on a spent limit (BTN-969) says only that and when the limit resets: no action, since the session makes no
+ * call, and nothing of the account. The chain going on earlier, on another account, is plain work again.
+ */
+function taskOf(state: EvenKeelState, current: Current, on: Set<BadgeField>, inputs: BadgeInputs): BadgeTask {
   const { titleEn } = inputs
-  const session = state.sessions.find((each) => each.sessionId === sessionId) ?? state.sessions.find((each) => each.task === id)
+  const { task: id, since } = current
+  const session = state.sessions.find((each) => each.sessionId === current.sessionId) ?? state.sessions.find((each) => each.task === id)
+  const hold = current.limit !== undefined && current.limit.acted === null && current.limit.transient !== true ? current.limit : undefined
+  const limited = hold !== undefined || session?.lamp === 'limit'
   const waiting = session !== undefined && (session.asking || session.lamp === 'waiting')
-  const task: BadgeTask = { key: id, state: waiting ? 'waiting' : 'working' }
+  const task: BadgeTask = { key: id, state: limited ? 'limit' : waiting ? 'waiting' : 'working' }
+  if (hold !== undefined && hold.resetsAt !== null) task.until = hold.resetsAt
   const title = on.has('title') ? titleEn?.(id) : undefined
   if (title !== undefined && title.trim() !== '') task.titleEn = title.trim()
   if (session === undefined) {
@@ -54,7 +64,7 @@ function taskOf(state: EvenKeelState, id: string, sessionId: string | null, sinc
   if (on.has('agent')) task.agent = session.agent
   if (on.has('model') && session.model !== null) task.model = session.model
   if (on.has('time')) task.startedAt = since
-  if (on.has('action')) task.action = withStatus(actionOf(session), session, inputs)
+  if (on.has('action') && !limited) task.action = withStatus(actionOf(session), session, inputs)
   if (on.has('context')) {
     const window = session.contextWindow ?? state.context.window
     task.context = window > 0 ? Math.min(100, Math.round((session.contextTokens / window) * 100)) : 0
@@ -88,7 +98,7 @@ function withStatus(action: BadgeAction | null, session: SessionView, inputs: Ba
   return { tool: action.tool, text: status.text }
 }
 
-function chipsOf(tasks: Task[], active: BadgeTask[], order: string[]): { key: string; state: 'done' | 'working' | 'waiting' | 'queued' }[] {
+function chipsOf(tasks: Task[], active: BadgeTask[], order: string[]): NonNullable<BadgeChain['tasks']> {
   const working = new Set(active.map((task) => task.key))
   const done = tasks
     .filter((task) => task.status.category === 'Won')

@@ -92,6 +92,15 @@ describe('POST /push/<slug>', () => {
     expect((await push(env, bare)).status).toBe(204)
   })
 
+  it('accepts a task that waits for its usage limit, with or without the reset time', async () => {
+    const env = envOf()
+    const limited = (task: Record<string, unknown>) => ({ ...state, active: [{ key: 'ABC-15', state: 'limit', ...task }], chain: { ...state.chain, tasks: [{ key: 'ABC-15', state: 'limit' }] } })
+    expect((await push(env, limited({ until: at(-120) }))).status).toBe(204)
+    expect((await push(env, limited({}))).status).toBe(204)
+    expect((await push(env, limited({ until: 'soon' }))).status).toBe(400)
+    expect(await (await show(env)).text()).toContain('waiting for the usage limit')
+  })
+
   it('does not know a bad slug', async () => {
     const env = envOf()
     expect((await push(env, state, SECRET, 'Bad_Slug')).status).toBe(404)
