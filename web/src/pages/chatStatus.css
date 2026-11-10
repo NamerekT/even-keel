@@ -80,6 +80,7 @@
   position: relative;
   flex: none;
   display: inline-flex;
+  --context-meter: var(--lamp-done);
 }
 
 .context-ring__button {
@@ -92,7 +93,6 @@
   border-radius: 50%;
   background: none;
   cursor: pointer;
-  --context-meter: var(--lamp-done);
 }
 
 .context-ring__button:hover {
