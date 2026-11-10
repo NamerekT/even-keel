@@ -28,7 +28,7 @@ export function parseBadgeState(body: string): BadgeState | null {
   if (!isObject(project) || !isString(project.key) || !isString(project.name)) return null
   if (!Array.isArray(active) || !active.every(isTask)) return null
   if (!isChain(chain)) return null
-  if (!optional(milestone, (item) => item === null || (isObject(item) && isString(item.name) && isNumber(item.done) && isNumber(item.left)))) return null
+  if (!optional(milestone, isMilestone)) return null
   if (!optional(stats, (item) => isObject(item) && ['sessions', 'medianCost', 'medianMinutes'].every((key) => optional(item[key], isNumber)))) return null
   return value as unknown as BadgeState
 }
@@ -47,9 +47,15 @@ function isTask(task: unknown): boolean {
   )
 }
 
+function isMilestone(item: unknown): boolean {
+  if (item === null) return true
+  if (!isObject(item) || !isString(item.name) || !isNumber(item.done) || !isNumber(item.left)) return false
+  return optional(item.queued, isNumber) && optional(item.eta, isTime) && optional(item.target, isTime)
+}
+
 function isChain(chain: unknown): boolean {
   if (!isObject(chain) || !CHAIN_STATES.includes(chain.state as string)) return false
   if (chain.next !== null && !isString(chain.next)) return false
-  const chip = (item: unknown) => isObject(item) && isString(item.key) && CHIP_STATES.includes(item.state as string)
+  const chip = (item: unknown) => isObject(item) && isString(item.key) && CHIP_STATES.includes(item.state as string) && optional(item.doneAt, isTime)
   return optional(chain.tasks, (tasks) => Array.isArray(tasks) && tasks.every(chip))
 }

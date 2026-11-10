@@ -1,5 +1,5 @@
 import { checkBadge, getBadge, type BadgeCheck, type BadgeCheckDeps } from '../badge/check.js'
-import { ALL_BADGE_FIELDS, badgeStateOf } from '../badge/collect.js'
+import { ALL_BADGE_FIELDS, badgeStateOf, type BadgeClosed } from '../badge/collect.js'
 import { englishOf, fail } from '../notice/notice.js'
 import { BADGE_SECRET, type BadgeField, type BadgeStats } from '../badge/model.js'
 import { BadgePusher, postBadge, type BadgePushDeps } from '../badge/push.js'
@@ -32,6 +32,8 @@ export interface BadgeWiringDeps {
   period: (query: PeriodQuery) => Promise<StatsAnswer<StatsPeriod>>
   /** Whether the project's trackers and the sessions were read once since the start; none — they always were. */
   read?: (project: string) => boolean
+  /** The project's tasks the chain closed, from its archive (BTN-970); none — no close times and no forecast. */
+  closed?: (project: string) => readonly BadgeClosed[]
   now?: () => number
   tz?: string
   post?: BadgePushDeps['post']
@@ -163,7 +165,7 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
       if (layer !== null) report(key, 'action.status', layer)
       return layer === null
     }
-    const built = badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project), titleEn: (id) => titleOf(state, project, id), statusOk })
+    const built = badgeStateOf(state, project, { now: new Date(now()), fields, stats: statsOf(project), titleEn: (id) => titleOf(state, project, id), statusOk, closed: deps.closed?.(project) ?? [], tz })
     return withoutPrivate(built, banned, (field, layer) => report(key, field, layer))
   }
 

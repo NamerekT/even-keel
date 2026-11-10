@@ -5,6 +5,8 @@ export {
   type BadgeAction,
   type BadgeChain,
   type BadgeChainState,
+  type BadgeChip,
+  type BadgeMilestone,
   type BadgeChipState,
   type BadgeState,
   type BadgeStats,

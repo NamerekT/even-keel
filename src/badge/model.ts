@@ -40,7 +40,29 @@ export interface BadgeChain {
   state: BadgeChainState
   /** The task the chain takes next; `null` — none. */
   next: string | null
-  tasks?: { key: string; state: BadgeChipState }[]
+  tasks?: BadgeChip[]
+}
+
+export interface BadgeChip {
+  key: string
+  state: BadgeChipState
+  /** When the chain closed a `done` task, as the service's clock showed it (`localStamp`); absent — not known. */
+  doneAt?: string
+}
+
+/**
+ * `left` is every open task of the milestone, `queued` those of them the chain takes; the rest wait for the maintainer.
+ * A state without `queued` is of a service before BTN-970.
+ */
+export interface BadgeMilestone {
+  name: string
+  done: number
+  left: number
+  queued?: number
+  /** The day the chain gets through `queued` at its pace of the last 7 days, `YYYY-MM-DD`; absent — no pace to count by. */
+  eta?: string
+  /** The milestone's own date in the tracker, `YYYY-MM-DD`; absent — the tracker has none. */
+  target?: string
 }
 
 export interface BadgeStats {
@@ -56,7 +78,7 @@ export interface BadgeState {
   project: { key: string; name: string }
   active: BadgeTask[]
   chain: BadgeChain
-  milestone?: { name: string; done: number; left: number } | null
+  milestone?: BadgeMilestone | null
   stats?: BadgeStats
 }
 

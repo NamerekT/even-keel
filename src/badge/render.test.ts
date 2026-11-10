@@ -24,12 +24,13 @@ const live: BadgeState = {
     state: 'running',
     next: 'ABC-16',
     tasks: [
-      { key: 'ABC-14', state: 'done' },
+      { key: 'ABC-13', state: 'done' },
+      { key: 'ABC-14', state: 'done', doneAt: '2026-11-09T03:40:00+01:00' },
       { key: 'ABC-15', state: 'working' },
       { key: 'ABC-16', state: 'queued' },
     ],
   },
-  milestone: { name: 'v1', done: 4, left: 2 },
+  milestone: { name: 'v1', done: 4, left: 5, queued: 2, eta: '2026-11-11', target: '2026-11-20' },
   stats: { sessions: 12, medianCost: 1.2, medianMinutes: 18 },
 }
 const two: BadgeState = {
@@ -54,7 +55,7 @@ const STATES: Record<string, BadgeState | null> = {
   offline: { ...live, at: at(180) },
   paused: { ...live, active: [], chain: { ...live.chain, state: 'paused' } },
   stopped: { ...live, active: [], chain: { ...live.chain, state: 'stopped' } },
-  idle: { ...live, active: [], chain: { ...live.chain, state: 'idle' } },
+  idle: { ...live, active: [], chain: { ...live.chain, state: 'idle', next: null, tasks: live.chain.tasks!.filter((chip) => chip.state === 'done') }, milestone: { name: 'v1', done: 6, left: 3, queued: 0 } },
   unpublished: null,
 }
 
@@ -188,8 +189,53 @@ describe('renderBadge', () => {
     expect(chips).not.toContain('ABC-14')
   })
 
-  it('writes the footer as one line with thousands separated', () => {
-    expect(texts({ ...live, stats: { sessions: 1667, medianCost: 2.15, medianMinutes: 12 } })).toContain('1,667 sessions · median task $2.15* · 12 min* at API list prices')
+  describe('the close times, the milestone\'s card and the stats\' card (BTN-970)', () => {
+    it('puts the day and time the chain closed a done chip under it, nothing under one without a time', () => {
+      const svg = renderBadge(live, { theme: 'dark', now })
+      expect(svg).toMatch(/>Nov 9<\/tspan><tspan[^>]*> 03:40<\/tspan>/)
+      expect(svg.match(/>Nov \d+<\/tspan><tspan[^>]*> \d\d:\d\d</g)).toHaveLength(1)
+      const undated = { ...live, chain: { ...live.chain, tasks: live.chain.tasks!.map(({ doneAt: _doneAt, ...chip }) => chip) } }
+      expect(Number(/height="(\d+)"/.exec(renderBadge(undated, { theme: 'dark', now }))![1])).toBe(Number(/height="(\d+)"/.exec(svg)![1]) - 18)
+    })
+
+    it('splits the milestone into done, queued for the agent and with the maintainer, and says when', () => {
+      const all = texts(live)
+      expect(all).toEqual(expect.arrayContaining(['v1', 'next release', 'done', 'queued for the agent', 'with the maintainer', '4', '2', '3']))
+      const svg = renderBadge(live, { theme: 'dark', now })
+      expect(svg).toContain('agent&apos;s part ≈ Nov 11')
+      expect(svg).toMatch(/> · target <\/tspan><tspan[^>]*>Nov 20<\/tspan>/)
+      expect(all).not.toContain('to go')
+    })
+
+    it('leaves a part of no task out of the legend, says the agent\'s part is done and draws no forecast it lacks', () => {
+      const svg = renderBadge(STATES.idle!, { theme: 'dark', now })
+      expect(texts(STATES.idle!)).not.toContain('queued for the agent')
+      expect(svg).toContain('agent&apos;s part done')
+      expect(svg).not.toContain('target')
+      const unpaced = renderBadge({ ...live, milestone: { name: 'v1', done: 4, left: 5, queued: 2 } }, { theme: 'dark', now })
+      expect(unpaced).not.toContain('agent&apos;s part')
+    })
+
+    it('draws a state of an older service, without the split, as done and to go', () => {
+      expect(texts({ ...live, milestone: { name: 'v1', done: 4, left: 2 } })).toEqual(expect.arrayContaining(['done', 'to go']))
+    })
+
+    it('draws a tile for each number, thousands separated, the footnote only with a cost', () => {
+      const all = texts({ ...live, stats: { sessions: 1667, medianCost: 2.15, medianMinutes: 12 } })
+      expect(all).toEqual(expect.arrayContaining(['1,667', 'sessions', 'last 30 days', '$2.15*', '12 min', 'per task', 'median', '* at API list prices']))
+      const plain = texts({ ...live, stats: { sessions: 1 } })
+      expect(plain).toEqual(expect.arrayContaining(['1', 'session']))
+      expect(plain).not.toContain('per task')
+      expect(plain).not.toContain('* at API list prices')
+    })
+
+    it('gives the milestone the whole width without stats, and draws neither card with neither', () => {
+      const { stats: _stats, ...bare } = live
+      const wide = renderBadge(bare, { theme: 'dark', now })
+      expect(wide.match(/rx="10"/g)).toHaveLength(1)
+      const { milestone: _milestone, ...none } = bare
+      expect(renderBadge(none, { theme: 'dark', now })).not.toMatch(/rx="10"/)
+    })
   })
 })
 
