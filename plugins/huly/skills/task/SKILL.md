@@ -41,7 +41,7 @@ Two neighbouring skills: `huly:split` — when a task is too big or holds an unc
 
 When the code is written and the checks the project's `CLAUDE.md` names pass:
 
-1. Commit to the task branch.
+1. Commit to the task branch. A test that was already red before this session's changes does not hold the merge, but it is someone else's bug: find the task about it or file a new one (§5) and name it in the closing comment. Do not fix it in this task.
 2. `add_comment(project, issueIdentifier, body)` — what was done, in a few lines. Anything left undone becomes its own task or a question task (§3), not a line in the comment: no later session reads comments. If the code turned out to live elsewhere than the description's `## Where to look` said, fix that section now.
 3. Before the merge: copy anything worth keeping out of the worktree (its `.temp/` and the like) into the main checkout, and stop every background process this session started there — dev servers, watchers, a second instance of the app. Stop them by process tree: on Windows a shell wrapper dies and leaves its child holding the folder.
 4. Merge: in the main checkout, which must be on `main`, `git merge --no-edit <branch>`. If it is not on `main`, or git refuses because of local changes there, stop and report — never stash, reset or force over someone else's work. If the project's `CLAUDE.md` says the user merges, hand them the command instead, with the cleanup of step 6 in it. If Even Keel's prompt says the project is in PR mode, its rule outranks this step: do not merge.

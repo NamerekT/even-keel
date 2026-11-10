@@ -38,7 +38,7 @@ Even Keel orders the open issues, starts a session for the first, closes it once
 
 ## 4. Finishing
 
-1. Run the project's checks and commit on the task branch.
+1. Run the project's checks and commit on the task branch. A test that was already red before this session's changes does not hold the merge, but it is someone else's bug: find the issue about it or file a new one (§5) and name it in the closing note. Do not fix it in this issue.
 2. `create_issue_note(project_id, issue_iid, body)` — what changed and how it was checked, briefly. Any unfinished work gets an issue of its own.
 3. Copy useful artifacts from the worktree to the main checkout and stop background processes this session started, including their children.
 4. In the main checkout, on the project's main branch, `git merge --no-edit <task branch>`. Stop and report if it is on another branch or local changes prevent the merge; never stash, reset or force over someone else's work. A project whose instructions say the user merges gets the command instead. In PR mode follow the launch prompt and end for a pull request rather than merging locally.

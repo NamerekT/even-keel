@@ -37,7 +37,7 @@ Even Keel runs the chain: it starts a session on the first open task, closes it 
 
 ## 4. Finishing
 
-1. Commit to the task branch once the project's checks pass.
+1. Commit to the task branch once the project's checks pass. A test that was already red before this session's changes does not hold the merge, but it is someone else's bug: find the task about it or file a new one (§5) and name it in the closing comment. Do not fix it in this task.
 2. `task_comment(key, text)` — what was done, in a few lines. What is left undone becomes its own task, not a line in the comment.
 3. Copy what is worth keeping out of the worktree's `.temp/`, stop every background process this session started.
 4. Merge in the main checkout: `git merge --no-edit <branch>`. Local changes there or another branch checked out — stop and report, never stash or reset. In PR mode the prompt's rule wins.
