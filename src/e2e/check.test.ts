@@ -46,17 +46,18 @@ describe('the check of main without a CI end to end (EKR-103)', { timeout: 60_00
 
   const runs = () => (existsSync(marks) ? readFileSync(marks, 'utf8').split('\n').filter(Boolean) : [])
   const launched = () => run.agent.calls.filter((call) => call.kind === 'launch').map((call) => call.task)
-  // ABC-2 works on without merging: a merge of its own would move main past the push the asserts name.
-  const working = (): Turn => parked(new Gate(), commitAndMerge('two.txt'))
 
   it('checks main in the next task place before its launch when the session merged without the check hook', async () => {
     run.agent.script('ABC-1', commitAndMerge('one.txt'))
-    run.agent.script('ABC-2', working())
+    // ABC-2 merges only after main is read: a fast session would move it past the commit the check took.
+    const read = new Gate()
+    run.agent.script('ABC-2', parked(read, commitAndMerge('two.txt')))
     await run.start()
     await run.startChain(PROJECT_ID)
 
     await run.until(() => launched().includes('ABC-2'), 'ABC-2 launched')
     const main = run.gitIn(run.repo, 'rev-parse', '--short=7', 'main')
+    read.open()
     expect(run.log).toContain(`ci: ABC: ${main} is checked in the next task's place before it starts: the check before the merge did not report`)
     expect(run.log).toContain(`ci: ABC: ${main} passed the check in the place of ABC-2`)
     expect(runs()).toHaveLength(1)
@@ -65,12 +66,14 @@ describe('the check of main without a CI end to end (EKR-103)', { timeout: 60_00
 
   it('counts main green by the report of the check before the merge, and runs nothing more', async () => {
     run.agent.script('ABC-1', reportedMerge('one.txt'))
-    run.agent.script('ABC-2', working())
+    const read = new Gate()
+    run.agent.script('ABC-2', parked(read, reportedMerge('two.txt')))
     await run.start()
     await run.startChain(PROJECT_ID)
 
     await run.until(() => launched().includes('ABC-2'), 'ABC-2 launched')
     const main = run.gitIn(run.repo, 'rev-parse', '--short=7', 'main')
+    read.open()
     expect(run.log).toContain(`ci: ABC: ${main} is the tree the check before the merge reported`)
     expect(runs()).toEqual([])
   })
