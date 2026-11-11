@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -23,6 +23,36 @@ describe('a project without git', { timeout: 60_000 }, () => {
   })
 
   const launches = () => run.agent.calls.filter((call) => call.kind === 'launch')
+
+  it('switches git on for an existing repository, persists it over a restart and launches in a worktree, then switches off', async () => {
+    Object.assign(run.project, { repo: run.repo, slot: 3 })
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', ends({ noChanges: 'checked the worktree' }))
+    await run.start()
+    await run.post('project/git', { project: PROJECT_ID, on: true, slot: 0 })
+    expect(run.service.configStore.view().projects[PROJECT_ID]).toMatchObject({ git: true, slot: 0 })
+    await run.post('project/git', { project: PROJECT_ID, on: true, slot: 0 })
+    await run.restart()
+    expect(run.service.configStore.view().projects[PROJECT_ID]).toMatchObject({ git: true, slot: 0 })
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'worktree task done')
+    expect(launches()[0]!.cwd).not.toBe(run.repo)
+    expect(launches()[0]!.cwd).toContain('worktrees')
+    await run.until(() => run.service.dispatcher.state.active.every((chain) => chain.current === null), 'no task held')
+    await run.until(() => run.service.sessions.every((session) => session.lamp === 'finished'), 'no live session')
+    await run.post('project/git', { project: PROJECT_ID, on: false, force: true })
+    expect(run.service.configStore.view().projects[PROJECT_ID]!.git).toBe(false)
+    await run.restart()
+    expect(run.service.configStore.view().projects[PROJECT_ID]!.git).toBe(false)
+    expect(existsSync(join(run.repo, '.git'))).toBe(true)
+  })
+
+  it('initializes a plain folder and saves the chosen slots', async () => {
+    await run.start(() => mkdirSync(folder))
+    await run.post('project/git', { project: PROJECT_ID, on: true, slot: 2 })
+    expect(run.service.configStore.view().projects[PROJECT_ID]).toMatchObject({ git: true, slot: 2 })
+    expect(existsSync(join(folder, '.git'))).toBe(true)
+  })
 
   it('runs its tasks one after another in the one folder and closes each by its mark with the answer as the comment', async () => {
     run.board.add('ABC-1')

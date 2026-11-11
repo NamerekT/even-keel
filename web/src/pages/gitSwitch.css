@@ -2,3 +2,9 @@
 .git-on__body {
   container-type: inline-size;
 }
+
+.git-on__failure {
+  flex-shrink: 0;
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+}

@@ -112,6 +112,7 @@ export function withProjectForm(
     // Written even when it is the default, so that no change of the default moves the project (BTN-345).
     { group: 'tracker', key: 'tracker', qualifier: '', value: form.tracker },
     inherited('brief', form.brief),
+    value('git', 'git', form.git),
     ...RULE_KEYS.map((rule) => inherited(`chain.${rule}`, rules[rule], profile[rule] !== undefined ? profile[rule] : shared[`chain.${rule}`])),
     { group: 'slot', key: 'slot', qualifier: '', value: form.slot === 0 ? undefined : form.slot },
     { group: 'color', key: 'color', qualifier: '', value: form.color ?? undefined },

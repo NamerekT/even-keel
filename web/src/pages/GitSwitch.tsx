@@ -73,8 +73,13 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
   const count = Number(slots)
   const slotCount = place === 'worktree' ? 0 : Number.isInteger(count) && count >= 1 ? count : null
   const ready = named && slotCount !== null && !gitSwitchBusy(state, project)
+  const reason = gitSwitchBusy(state, project) ? text.busy
+    : git === undefined ? t.setup.git.checking
+    : !installed ? text.needGit
+    : !named ? text.needIdentity
+    : slotCount === null ? text.needSlots : null
   const turnOn = async () => {
-    if (ready && (await send('project/git', { project, on: true, slot: slotCount }))) onClose()
+    if (ready && !sending && (await send('project/git', { project, on: true, slot: slotCount }))) onClose()
   }
 
   return createPortal(
@@ -143,16 +148,18 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
               />
             )}
           </Section>
-          {failure !== null && <p className="notice notice--error add-package__failure">{say(failure)}</p>}
         </div>
+        {failure !== null && <p role="alert" className="notice notice--error add-package__failure git-on__failure">{say(failure)}</p>}
         <footer className="add-package__foot">
           <span className="add-package__spacer" />
           <button type="button" className="button" disabled={sending} onClick={onClose}>
             {t.common.cancel}
           </button>
-          <button type="button" className="button button--primary" aria-disabled={!ready || sending || undefined} onClick={() => void turnOn()}>
-            {text.on}
-          </button>
+          <Tipped tip={reason} off={reason === null} inline>
+            <button type="button" className="button button--primary" disabled={sending} aria-disabled={!ready || undefined} onClick={() => void turnOn()}>
+              {text.on}
+            </button>
+          </Tipped>
         </footer>
       </div>
     </dialog>,
