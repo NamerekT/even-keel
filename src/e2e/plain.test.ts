@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -48,7 +48,13 @@ describe('a project without git', { timeout: 60_000 }, () => {
   })
 
   it('initializes a plain folder and saves the chosen slots', async () => {
-    await run.start(() => mkdirSync(folder))
+    await run.start(() => {
+      mkdirSync(folder)
+      // The first commit needs an identity, and a CI runner has none in its global config; the harness restores the variable.
+      const config = join(parent, '.gitconfig')
+      writeFileSync(config, '[user]\n\tname = John Doe\n\temail = john@example.com\n')
+      process.env.GIT_CONFIG_GLOBAL = config
+    })
     await run.post('project/git', { project: PROJECT_ID, on: true, slot: 2 })
     expect(run.service.configStore.view().projects[PROJECT_ID]).toMatchObject({ git: true, slot: 2 })
     expect(existsSync(join(folder, '.git'))).toBe(true)
