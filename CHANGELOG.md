@@ -18,6 +18,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The Forgejo plugin's `forgejo:task` skill loads again: its description is quoted, so the skill's frontmatter parses and chain sessions on Forgejo, Gitea and Codeberg projects get the skill (plugin 0.1.1). A test now parses the frontmatter of every bundled skill.
 - **`npx even-keel` on macOS and Linux says what to do when npm cannot write its global folder**, as with Node from the nodejs.org installer, whose folder under `/usr/local` belongs to root: it installs nothing and prints the commands that move the folder into your home, also after an `EACCES` of npm itself. It refuses to run as root, since the service would then be installed for root.
 
+## [0.2.4] - 2026-11-11
+
+### Fixed
+
+- A project without a counted CI no longer takes main for green when the session merged without running its check. Main counts as green only when the check hook reports it passed on the merged tree (`checkpoint` plugin 0.14.1). A merge without that report, made by a session without the `checkpoint` package for one, is checked in the next task's folder before that task starts.
+
 ## [0.2.3] - 2026-11-07
 
 ### Fixed
