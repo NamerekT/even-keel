@@ -445,6 +445,9 @@ export const settingsEN: Messages['settings'] = {
       onHint:
         'The folder becomes a git repository: a history of changes, a folder of its own or a lasting folder per task, branches and merges. Whatever the folder holds goes into the first commit. It switches only between tasks.',
       on: 'Turn on git',
+      needGit: 'Install git, then press “Check again” in the Git section.',
+      needIdentity: 'Fill in and save the name and e-mail for commits.',
+      needSlots: 'Enter a whole number of folders, at least 1.',
       busy: 'Not now: the chain works on a task or the project has a live session. Wait until the task ends or stop the chain.',
       title: (project: string) => `Turn on git for ${project}`,
       lead: 'A folder that is already a repository keeps its history: Even Keel only checks that it has the project’s main branch.',
