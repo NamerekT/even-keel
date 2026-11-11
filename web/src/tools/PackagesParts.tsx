@@ -55,7 +55,9 @@ export function ImportOffers({ view, projects }: { view: PackagesView; projects:
             </>
           }
         >
-          {t.packages.import(label(project), servers.join(', '))} <HelpTip text={t.packages.importTip} />
+          <span>
+            {t.packages.import(label(project), servers.join(', '))} <HelpTip text={t.packages.importTip} />
+          </span>
         </Band>
       ))}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
