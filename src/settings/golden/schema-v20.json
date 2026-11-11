@@ -1,347 +1,119 @@
 {
-  "allowedHosts": [],
-  "projects": {
-    "11111111-1111-4111-8111-111111111111": "C:\\repos\\example-project",
-    "22222222-2222-4222-8222-222222222222": "C:\\repos\\other-project"
-  },
-  "keys": {
-    "11111111-1111-4111-8111-111111111111": "ABC",
-    "22222222-2222-4222-8222-222222222222": "XYZ"
-  },
-  "names": {
-    "22222222-2222-4222-8222-222222222222": "Other project"
-  },
-  "chain": {
-    "active": null,
-    "terminal": null,
-    "requiredLabels": [],
-    "excludedLabels": [
+  "changed": {
+    "/accounts/claude": "team-api",
+    "/autoCompactWindow": 300000,
+    "/chain/excludedLabels": [
       "Manual",
       "Вручную"
     ],
-    "requiredMilestones": [],
-    "excludedMilestones": []
-  },
-  "rules": {
-    "11111111-1111-4111-8111-111111111111": {
-      "active": null,
-      "terminal": null,
-      "requiredLabels": [],
-      "excludedLabels": [
-        "Manual",
-        "Вручную"
-      ],
-      "requiredMilestones": [],
-      "excludedMilestones": []
-    },
-    "22222222-2222-4222-8222-222222222222": {
-      "active": null,
-      "terminal": null,
-      "requiredLabels": [],
-      "excludedLabels": [
-        "Manual",
-        "Вручную"
-      ],
-      "requiredMilestones": [],
-      "excludedMilestones": []
-    }
-  },
-  "ownRules": {
-    "11111111-1111-4111-8111-111111111111": {},
-    "22222222-2222-4222-8222-222222222222": {}
-  },
-  "slots": {
-    "22222222-2222-4222-8222-222222222222": 2
-  },
-  "colors": {
-    "11111111-1111-4111-8111-111111111111": 1,
-    "22222222-2222-4222-8222-222222222222": 2
-  },
-  "trackers": {
-    "11111111-1111-4111-8111-111111111111": "huly",
-    "22222222-2222-4222-8222-222222222222": "huly"
-  },
-  "trackerProjects": {},
-  "feeds": {},
-  "moves": {},
-  "brief": null,
-  "briefs": {
-    "11111111-1111-4111-8111-111111111111": null,
-    "22222222-2222-4222-8222-222222222222": null
-  },
-  "settings": {
-    "11111111-1111-4111-8111-111111111111": {
-      "branch": "main",
-      "prompt": null,
-      "beforeStart": [],
-      "check": [
-        "npm test"
-      ],
-      "afterGreen": [
-        "npm run build",
-        "pwsh -File service/restart.ps1"
-      ],
-      "ci": {
-        "guard": true,
-        "kinds": [
-          "forgejo",
-          "github",
-          "gitlab"
-        ],
-        "waitMinutes": null,
-        "recheckMain": true,
-        "fixTask": false,
-        "rerunFailed": true
-      },
-      "remoteProfiles": {},
-      "pullRequests": false,
-      "git": true,
-      "testProject": false,
-      "intakeLabel": null,
-      "mergeInto": null,
-      "carryAgent": false,
-      "fillMilestone": false,
-      "milestoneOrder": [],
-      "badge": null,
-      "changelog": "CHANGELOG.md",
-      "standards": [],
-      "provider": null,
-      "models": {},
-      "accounts": {},
-      "modelLabels": null,
-      "cacheTtl": null,
-      "autoCompactWindow": 400000,
-      "codexAutoCompactWindow": null,
-      "openCodeAutoCompactWindow": null,
-      "contextHandoffs": true,
-      "protection": {
-        "disabled": [
-          "forcePush"
-        ],
-        "claude": [
-          "Write(.env)"
-        ],
-        "codex": [
-          [
-            "terraform",
-            "destroy"
-          ]
-        ],
-        "copilot": [
-          "write(.env)"
-        ],
-        "opencode": [
-          "git reset --hard*"
-        ]
-      },
-      "checkpointTokens": null,
-      "checkpointShares": {
-        "first": 72,
-        "late": 85,
-        "hard": 95
-      },
-      "notices": {},
-      "own": {
-        "protection": {
-          "disabled": [
-            "forcePush"
-          ],
-          "opencode": [
-            "git reset --hard*"
-          ]
-        },
-        "autoCompactWindow": 400000
-      },
-      "promptLanguage": "en"
-    },
-    "22222222-2222-4222-8222-222222222222": {
-      "branch": "master",
-      "prompt": null,
-      "beforeStart": [],
-      "check": [],
-      "afterGreen": [],
-      "ci": {
-        "guard": true,
-        "kinds": [
-          "forgejo",
-          "github",
-          "gitlab"
-        ],
-        "waitMinutes": null,
-        "recheckMain": true,
-        "fixTask": false,
-        "rerunFailed": true
-      },
-      "remoteProfiles": {},
-      "pullRequests": false,
-      "git": true,
-      "testProject": false,
-      "intakeLabel": null,
-      "mergeInto": null,
-      "carryAgent": false,
-      "fillMilestone": false,
-      "milestoneOrder": [],
-      "badge": null,
-      "changelog": "CHANGELOG.md",
-      "standards": [],
-      "provider": "codex",
-      "models": {
-        "codex": "gpt-5.6-luna"
-      },
-      "accounts": {
-        "claude": "global"
-      },
-      "modelLabels": false,
-      "cacheTtl": null,
-      "autoCompactWindow": null,
-      "codexAutoCompactWindow": null,
-      "openCodeAutoCompactWindow": null,
-      "contextHandoffs": true,
-      "protection": {
-        "disabled": [
-          "deleteGithub",
-          "deleteJira"
-        ],
-        "claude": [
-          "Write(.env)"
-        ],
-        "codex": [
-          [
-            "terraform",
-            "destroy"
-          ]
-        ],
-        "copilot": [
-          "write(.env)"
-        ],
-        "opencode": [
-          "terraform destroy*"
-        ]
-      },
-      "checkpointTokens": null,
-      "checkpointShares": {
-        "first": 72,
-        "late": 85,
-        "hard": 95
-      },
-      "notices": {},
-      "own": {
-        "autoCompactWindow": null
-      },
-      "promptLanguage": "en"
-    }
-  },
-  "context": {
-    "window": 600000,
-    "warn": 50,
-    "danger": 80
-  },
-  "provider": "claude",
-  "models": {
-    "claude": "sonnet"
-  },
-  "accounts": {
-    "claude": "team-api",
-    "codex": "codex"
-  },
-  "execution": {
-    "claude": "sdk",
-    "codex": "bypass"
-  },
-  "cli": {
-    "claude": "checked",
-    "codex": "checked",
-    "opencode": "checked",
-    "copilot": "checked"
-  },
-  "modelLabels": true,
-  "modelPrompts": {
-    "Claude | sonnet*": "Check every change.",
-    "Codex": "Use the project rules."
-  },
-  "prompt": null,
-  "stats": {
-    "compare": {
-      "minTasks": 5,
-      "minSessions": 10,
-      "days": 7
-    },
-    "moves": {},
-    "otherBelow": 0,
-    "checkpointTokens": null,
-    "checkpointShares": {
-      "first": 72,
-      "late": 85,
-      "hard": 95
-    }
-  },
-  "language": "en",
-  "promptLanguage": "en",
-  "hiddenSkills": [
-    "update-config",
-    "keybindings-help",
-    "fewer-permission-prompts",
-    "loop",
-    "schedule",
-    "init",
-    "claude-api",
-    "claude-in-chrome",
-    "plugin-authoring",
-    "artifact-design",
-    "artifact-diagramming",
-    "artifact-capabilities",
-    "dataviz"
-  ],
-  "protection": {
-    "disabled": [
-      "deleteGithub",
-      "deleteJira"
-    ],
-    "claude": [
+    "/cli/claude": "checked",
+    "/cli/codex": "checked",
+    "/cli/copilot": "checked",
+    "/cli/opencode": "checked",
+    "/colors/11111111-1111-4111-8111-111111111111": 1,
+    "/colors/22222222-2222-4222-8222-222222222222": 2,
+    "/execution/claude": "sdk",
+    "/execution/codex": "bypass",
+    "/keys/11111111-1111-4111-8111-111111111111": "ABC",
+    "/keys/22222222-2222-4222-8222-222222222222": "XYZ",
+    "/language": "en",
+    "/modelLabels": true,
+    "/modelPrompts/Claude | sonnet*": "Check every change.",
+    "/modelPrompts/Codex": "Use the project rules.",
+    "/models/claude": "sonnet",
+    "/names/22222222-2222-4222-8222-222222222222": "Other project",
+    "/projects/11111111-1111-4111-8111-111111111111": "C:\\repos\\example-project",
+    "/projects/22222222-2222-4222-8222-222222222222": "C:\\repos\\other-project",
+    "/protection/claude": [
       "Write(.env)"
     ],
-    "codex": [
+    "/protection/codex": [
       [
         "terraform",
         "destroy"
       ]
     ],
-    "copilot": [
+    "/protection/copilot": [
       "write(.env)"
     ],
-    "opencode": [
-      "terraform destroy*"
-    ]
-  },
-  "cacheTtl": null,
-  "autoCompactWindow": 300000,
-  "codexAutoCompactWindow": null,
-  "openCodeAutoCompactWindow": null,
-  "contextHandoffs": true,
-  "ci": {
-    "guard": true,
-    "kinds": [
-      "forgejo",
-      "github",
-      "gitlab"
+    "/protection/disabled": [
+      "deleteGithub",
+      "deleteJira"
     ],
-    "waitMinutes": null,
-    "recheckMain": true,
-    "fixTask": false,
-    "rerunFailed": true
+    "/protection/opencode": [
+      "terraform destroy*"
+    ],
+    "/rules/11111111-1111-4111-8111-111111111111/excludedLabels": [
+      "Manual",
+      "Вручную"
+    ],
+    "/rules/22222222-2222-4222-8222-222222222222/excludedLabels": [
+      "Manual",
+      "Вручную"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/afterGreen": [
+      "npm run build",
+      "pwsh -File service/restart.ps1"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/autoCompactWindow": 400000,
+    "/settings/11111111-1111-4111-8111-111111111111/check": [
+      "npm test"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/own/autoCompactWindow": 400000,
+    "/settings/11111111-1111-4111-8111-111111111111/own/protection": {
+      "disabled": [
+        "forcePush"
+      ],
+      "opencode": [
+        "git reset --hard*"
+      ]
+    },
+    "/settings/11111111-1111-4111-8111-111111111111/protection/claude": [
+      "Write(.env)"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/protection/codex": [
+      [
+        "terraform",
+        "destroy"
+      ]
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/protection/copilot": [
+      "write(.env)"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/protection/disabled": [
+      "forcePush"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/protection/opencode": [
+      "git reset --hard*"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/accounts/claude": "global",
+    "/settings/22222222-2222-4222-8222-222222222222/branch": "master",
+    "/settings/22222222-2222-4222-8222-222222222222/modelLabels": false,
+    "/settings/22222222-2222-4222-8222-222222222222/models/codex": "gpt-5.6-luna",
+    "/settings/22222222-2222-4222-8222-222222222222/own/autoCompactWindow": null,
+    "/settings/22222222-2222-4222-8222-222222222222/protection/claude": [
+      "Write(.env)"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/protection/codex": [
+      [
+        "terraform",
+        "destroy"
+      ]
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/protection/copilot": [
+      "write(.env)"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/protection/disabled": [
+      "deleteGithub",
+      "deleteJira"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/protection/opencode": [
+      "terraform destroy*"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/provider": "codex",
+    "/slots/22222222-2222-4222-8222-222222222222": 2,
+    "/trackers/11111111-1111-4111-8111-111111111111": "huly",
+    "/trackers/22222222-2222-4222-8222-222222222222": "huly"
   },
-  "fillMilestone": false,
-  "parallel": 1,
-  "keepWarm": 0,
-  "attachmentLimit": 25,
-  "defaultGit": null,
-  "cliCheck": false,
-  "unattended": false,
-  "trimTools": true,
-  "tally": null,
-  "updates": {
-    "check": true,
-    "notify": true
-  },
-  "notices": {}
+  "missing": []
 }

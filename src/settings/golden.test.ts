@@ -5,9 +5,10 @@ import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
 import { cliChecked, feedsRuled, manualDefaultKept, manualKept, sdkChecked, trackerGroupsOwned, trackersOwned } from '../storage/migrations.js'
 import { FULL } from './full.fixture.js'
+import { configDifference } from './difference.fixture.js'
 
-// The output of `parseConfig` as it was before the settings registry (BTN-186): the registry changes the way from the
-// file to `EvenKeelConfig`, not the result. A sample older than v13 is read as its upgrade leaves it: its shared tracker
+// Compact differences from the independently asserted defaults, preserving the old full `parseConfig` snapshots.
+// A sample older than v13 is read as its upgrade leaves it: its shared tracker
 // moved into its projects (BTN-345); one older than v20 has its tracker group of Protection split per tracker (BTN-541);
 // one older than v21 has `checked` written for each provider its `cli` left out (BTN-603); one older than v22 has
 // `cli.claude: checked` written under the Agent SDK of Claude (BTN-610); one older than v23 has the project's own chain
@@ -26,7 +27,7 @@ const owned = (raw: { version?: number }) => {
   return (raw.version ?? 1) < 36 ? manualDefaultKept(kept) : kept
 }
 const golden = (name: string) => `./golden/${name}.json`
-const text = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`
+const text = (value: ReturnType<typeof parseConfig>) => `${JSON.stringify(configDifference(value), null, 2)}\n`
 
 describe('the config of the file', () => {
   for (const name of samples) {

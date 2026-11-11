@@ -253,8 +253,22 @@ code in `src/settings/`; since BTN-199 the source is the database:
 
 `parseConfig` is `fileRows` + `checkRows` + `resolve` + the cross-setting checks; the forms' writers (`withSharedForm`,
 `withProjectForm`, `withProjectSettings`, `withUpdates`, `withChainSwitches`, `withRunAccount`) map their fields to
-`FormValue`s and write through `withRows` on the format (`ConfigStore.raw()`), which the store turns back into rows. `src/settings/golden/` holds the output of `parseConfig` from before the registry for every frozen
-sample, the example config and `full.fixture.ts`; a difference there is a change of behaviour.
+`FormValue`s and write through `withRows` on the format (`ConfigStore.raw()`), which the store turns back into rows.
+
+The config tests share their independent expected defaults in `src/settings/expectations.fixture.ts`: config,
+project settings and forms. Add an expected setting there once, in `common` when both levels share it. The fixture
+does not call the parser or read the registry, so a wrong default still fails the defaults test. Store and HTTP
+tests specify only their overrides and still compare the whole result. Tests already checking a single field
+need no fixture.
+
+`src/settings/golden/` holds the output of `parseConfig` for every frozen sample, the example config and
+`full.fixture.ts`, as differences from those defaults (`difference.fixture.ts`). `changed` maps JSON-pointer paths
+to non-default values; `missing` lists absent default fields, including fields lost inside a project. Project
+identities and repositories stay in `changed`. The compact snapshots were derived from the previous full
+snapshots, not regenerated from the parser. A new default needs no snapshot edits; changing an expected default
+in the fixture is still a deliberate change of behaviour. Sample-specific changes and migrations still change
+their snapshots; inspect those before accepting a snapshot update. Never change the frozen inputs in
+`test/fixtures/` to make these tests pass.
 
 The service does not read task labels through `resolve` yet: launches still go through `runChoice`, which also falls
 back when the pool has no account for the label's provider.

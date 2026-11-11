@@ -1,396 +1,83 @@
 {
-  "allowedHosts": [],
-  "projects": {
-    "00000000-0000-4000-8000-000000000001": "C:\\repos\\example-project",
-    "00000000-0000-4000-8000-000000000002": "/home/john/repos/other-project",
-    "00000000-0000-4000-8000-000000000003": "/Users/john/repos/github-project"
-  },
-  "keys": {
-    "00000000-0000-4000-8000-000000000001": "ABC",
-    "00000000-0000-4000-8000-000000000002": "XYZ",
-    "00000000-0000-4000-8000-000000000003": "GHB"
-  },
-  "names": {
-    "00000000-0000-4000-8000-000000000002": "Other project"
-  },
-  "chain": {
-    "active": [
+  "changed": {
+    "/briefs/00000000-0000-4000-8000-000000000002": false,
+    "/chain/active": [
       "Todo",
       "In Progress",
       "In Review"
     ],
-    "terminal": [
+    "/chain/terminal": [
       "Done",
       "Canceled"
     ],
-    "requiredLabels": [],
-    "excludedLabels": [],
-    "requiredMilestones": [],
-    "excludedMilestones": []
-  },
-  "rules": {
-    "00000000-0000-4000-8000-000000000001": {
-      "active": [
-        "Todo",
-        "In Progress",
-        "In Review"
-      ],
-      "terminal": [
-        "Done",
-        "Canceled"
-      ],
-      "requiredLabels": [],
-      "excludedLabels": [],
-      "requiredMilestones": [],
-      "excludedMilestones": []
-    },
-    "00000000-0000-4000-8000-000000000002": {
-      "active": [
-        "Todo",
-        "In Progress",
-        "In Review"
-      ],
-      "terminal": [
-        "Done",
-        "Canceled"
-      ],
-      "requiredLabels": [
-        "Auto"
-      ],
-      "excludedLabels": [],
-      "requiredMilestones": [],
-      "excludedMilestones": []
-    },
-    "00000000-0000-4000-8000-000000000003": {
-      "active": [
-        "Open"
-      ],
-      "terminal": [
-        "Completed",
-        "Not planned",
-        "Duplicate"
-      ],
-      "requiredLabels": [
-        "ready"
-      ],
-      "excludedLabels": [],
-      "requiredMilestones": [],
-      "excludedMilestones": []
-    }
-  },
-  "ownRules": {
-    "00000000-0000-4000-8000-000000000001": {},
-    "00000000-0000-4000-8000-000000000002": {
-      "requiredLabels": [
-        "Auto"
-      ]
-    },
-    "00000000-0000-4000-8000-000000000003": {
-      "active": [
-        "Open"
-      ],
-      "terminal": [
-        "Completed",
-        "Not planned",
-        "Duplicate"
-      ],
-      "requiredLabels": [
-        "ready"
-      ]
-    }
-  },
-  "slots": {
-    "00000000-0000-4000-8000-000000000002": 1
-  },
-  "colors": {
-    "00000000-0000-4000-8000-000000000001": 1,
-    "00000000-0000-4000-8000-000000000002": 2,
-    "00000000-0000-4000-8000-000000000003": 3
-  },
-  "trackers": {
-    "00000000-0000-4000-8000-000000000001": "huly",
-    "00000000-0000-4000-8000-000000000002": "huly",
-    "00000000-0000-4000-8000-000000000003": "github"
-  },
-  "trackerProjects": {
-    "00000000-0000-4000-8000-000000000003": "octo-org/github-project"
-  },
-  "feeds": {},
-  "moves": {},
-  "brief": null,
-  "briefs": {
-    "00000000-0000-4000-8000-000000000001": null,
-    "00000000-0000-4000-8000-000000000002": false,
-    "00000000-0000-4000-8000-000000000003": null
-  },
-  "settings": {
-    "00000000-0000-4000-8000-000000000001": {
-      "branch": "main",
-      "prompt": null,
-      "beforeStart": [],
-      "check": [],
-      "afterGreen": [],
-      "ci": {
-        "guard": true,
-        "kinds": [
-          "forgejo",
-          "github",
-          "gitlab"
-        ],
-        "waitMinutes": null,
-        "recheckMain": true,
-        "fixTask": false,
-        "rerunFailed": true
-      },
-      "remoteProfiles": {},
-      "pullRequests": false,
-      "git": true,
-      "testProject": false,
-      "intakeLabel": null,
-      "mergeInto": null,
-      "carryAgent": false,
-      "fillMilestone": false,
-      "milestoneOrder": [],
-      "badge": null,
-      "changelog": "CHANGELOG.md",
-      "standards": [],
-      "provider": null,
-      "models": {},
-      "accounts": {},
-      "modelLabels": null,
-      "cacheTtl": null,
-      "autoCompactWindow": null,
-      "codexAutoCompactWindow": null,
-      "openCodeAutoCompactWindow": null,
-      "contextHandoffs": true,
-      "protection": {
-        "disabled": [],
-        "claude": [],
-        "codex": [],
-        "copilot": [],
-        "opencode": []
-      },
-      "checkpointTokens": null,
-      "checkpointShares": {
-        "first": 72,
-        "late": 85,
-        "hard": 95
-      },
-      "notices": {},
-      "own": {},
-      "promptLanguage": "en"
-    },
-    "00000000-0000-4000-8000-000000000002": {
-      "branch": "master",
-      "prompt": "Run npm test before merging.",
-      "beforeStart": [
-        "npm ci"
-      ],
-      "check": [],
-      "afterGreen": [],
-      "ci": {
-        "guard": true,
-        "kinds": [
-          "forgejo",
-          "github",
-          "gitlab"
-        ],
-        "waitMinutes": null,
-        "recheckMain": true,
-        "fixTask": false,
-        "rerunFailed": true
-      },
-      "remoteProfiles": {},
-      "pullRequests": false,
-      "git": true,
-      "testProject": false,
-      "intakeLabel": null,
-      "mergeInto": null,
-      "carryAgent": false,
-      "fillMilestone": false,
-      "milestoneOrder": [],
-      "badge": null,
-      "changelog": "CHANGELOG.md",
-      "standards": [],
-      "provider": null,
-      "models": {},
-      "accounts": {},
-      "modelLabels": null,
-      "cacheTtl": null,
-      "autoCompactWindow": null,
-      "codexAutoCompactWindow": null,
-      "openCodeAutoCompactWindow": null,
-      "contextHandoffs": true,
-      "protection": {
-        "disabled": [],
-        "claude": [],
-        "codex": [],
-        "copilot": [],
-        "opencode": []
-      },
-      "checkpointTokens": null,
-      "checkpointShares": {
-        "first": 72,
-        "late": 85,
-        "hard": 95
-      },
-      "notices": {},
-      "own": {},
-      "promptLanguage": "en"
-    },
-    "00000000-0000-4000-8000-000000000003": {
-      "branch": "main",
-      "prompt": null,
-      "beforeStart": [],
-      "check": [],
-      "afterGreen": [],
-      "ci": {
-        "guard": true,
-        "kinds": [
-          "forgejo",
-          "github",
-          "gitlab"
-        ],
-        "waitMinutes": null,
-        "recheckMain": true,
-        "fixTask": false,
-        "rerunFailed": true
-      },
-      "remoteProfiles": {},
-      "pullRequests": false,
-      "git": true,
-      "testProject": false,
-      "intakeLabel": null,
-      "mergeInto": null,
-      "carryAgent": false,
-      "fillMilestone": false,
-      "milestoneOrder": [],
-      "badge": null,
-      "changelog": "CHANGELOG.md",
-      "standards": [],
-      "provider": null,
-      "models": {},
-      "accounts": {},
-      "modelLabels": null,
-      "cacheTtl": null,
-      "autoCompactWindow": null,
-      "codexAutoCompactWindow": null,
-      "openCodeAutoCompactWindow": null,
-      "contextHandoffs": true,
-      "protection": {
-        "disabled": [],
-        "claude": [],
-        "codex": [],
-        "copilot": [],
-        "opencode": []
-      },
-      "checkpointTokens": null,
-      "checkpointShares": {
-        "first": 72,
-        "late": 85,
-        "hard": 95
-      },
-      "notices": {},
-      "own": {},
-      "promptLanguage": "en"
-    }
-  },
-  "context": {
-    "window": 400000,
-    "warn": 50,
-    "danger": 80
-  },
-  "provider": "claude",
-  "models": {
-    "claude": "opus"
-  },
-  "accounts": {
-    "claude": "global",
-    "codex": "codex"
-  },
-  "execution": {
-    "claude": "auto",
-    "codex": "sandbox"
-  },
-  "cli": {
-    "claude": "system",
-    "codex": "system",
-    "opencode": "system",
-    "copilot": "system"
-  },
-  "modelLabels": false,
-  "modelPrompts": {
-    "* | *sonnet*": "You are Sonnet. Do not split the task into subtasks and do not put model labels on tasks. If the task turns out bigger than it looked, stop and write what you found; Opus or the user will split it. File question tasks and bugs found on the way as usual, without a model label."
-  },
-  "prompt": null,
-  "stats": {
-    "compare": {
-      "minTasks": 5,
-      "minSessions": 10,
-      "days": 7
-    },
-    "moves": {},
-    "otherBelow": 0,
-    "checkpointTokens": null,
-    "checkpointShares": {
-      "first": 72,
-      "late": 85,
-      "hard": 95
-    }
-  },
-  "language": null,
-  "promptLanguage": "en",
-  "hiddenSkills": [
-    "update-config",
-    "keybindings-help",
-    "fewer-permission-prompts",
-    "loop",
-    "schedule",
-    "init",
-    "claude-api",
-    "claude-in-chrome",
-    "plugin-authoring",
-    "artifact-design",
-    "artifact-diagramming",
-    "artifact-capabilities",
-    "dataviz"
-  ],
-  "protection": {
-    "disabled": [],
-    "claude": [],
-    "codex": [],
-    "copilot": [],
-    "opencode": []
-  },
-  "cacheTtl": null,
-  "autoCompactWindow": null,
-  "codexAutoCompactWindow": null,
-  "openCodeAutoCompactWindow": null,
-  "contextHandoffs": true,
-  "ci": {
-    "guard": true,
-    "kinds": [
-      "forgejo",
-      "github",
-      "gitlab"
+    "/colors/00000000-0000-4000-8000-000000000001": 1,
+    "/colors/00000000-0000-4000-8000-000000000002": 2,
+    "/colors/00000000-0000-4000-8000-000000000003": 3,
+    "/context/window": 400000,
+    "/keys/00000000-0000-4000-8000-000000000001": "ABC",
+    "/keys/00000000-0000-4000-8000-000000000002": "XYZ",
+    "/keys/00000000-0000-4000-8000-000000000003": "GHB",
+    "/modelPrompts/* | *sonnet*": "You are Sonnet. Do not split the task into subtasks and do not put model labels on tasks. If the task turns out bigger than it looked, stop and write what you found; Opus or the user will split it. File question tasks and bugs found on the way as usual, without a model label.",
+    "/names/00000000-0000-4000-8000-000000000002": "Other project",
+    "/ownRules/00000000-0000-4000-8000-000000000002/requiredLabels": [
+      "Auto"
     ],
-    "waitMinutes": null,
-    "recheckMain": true,
-    "fixTask": false,
-    "rerunFailed": true
+    "/ownRules/00000000-0000-4000-8000-000000000003/active": [
+      "Open"
+    ],
+    "/ownRules/00000000-0000-4000-8000-000000000003/requiredLabels": [
+      "ready"
+    ],
+    "/ownRules/00000000-0000-4000-8000-000000000003/terminal": [
+      "Completed",
+      "Not planned",
+      "Duplicate"
+    ],
+    "/projects/00000000-0000-4000-8000-000000000001": "C:\\repos\\example-project",
+    "/projects/00000000-0000-4000-8000-000000000002": "/home/john/repos/other-project",
+    "/projects/00000000-0000-4000-8000-000000000003": "/Users/john/repos/github-project",
+    "/rules/00000000-0000-4000-8000-000000000001/active": [
+      "Todo",
+      "In Progress",
+      "In Review"
+    ],
+    "/rules/00000000-0000-4000-8000-000000000001/terminal": [
+      "Done",
+      "Canceled"
+    ],
+    "/rules/00000000-0000-4000-8000-000000000002/active": [
+      "Todo",
+      "In Progress",
+      "In Review"
+    ],
+    "/rules/00000000-0000-4000-8000-000000000002/requiredLabels": [
+      "Auto"
+    ],
+    "/rules/00000000-0000-4000-8000-000000000002/terminal": [
+      "Done",
+      "Canceled"
+    ],
+    "/rules/00000000-0000-4000-8000-000000000003/active": [
+      "Open"
+    ],
+    "/rules/00000000-0000-4000-8000-000000000003/requiredLabels": [
+      "ready"
+    ],
+    "/rules/00000000-0000-4000-8000-000000000003/terminal": [
+      "Completed",
+      "Not planned",
+      "Duplicate"
+    ],
+    "/settings/00000000-0000-4000-8000-000000000002/beforeStart": [
+      "npm ci"
+    ],
+    "/settings/00000000-0000-4000-8000-000000000002/branch": "master",
+    "/settings/00000000-0000-4000-8000-000000000002/prompt": "Run npm test before merging.",
+    "/slots/00000000-0000-4000-8000-000000000002": 1,
+    "/trackerProjects/00000000-0000-4000-8000-000000000003": "octo-org/github-project",
+    "/trackers/00000000-0000-4000-8000-000000000001": "huly",
+    "/trackers/00000000-0000-4000-8000-000000000002": "huly",
+    "/trackers/00000000-0000-4000-8000-000000000003": "github"
   },
-  "fillMilestone": false,
-  "parallel": 1,
-  "keepWarm": 0,
-  "attachmentLimit": 25,
-  "defaultGit": null,
-  "cliCheck": false,
-  "unattended": false,
-  "trimTools": true,
-  "tally": null,
-  "updates": {
-    "check": true,
-    "notify": true
-  },
-  "notices": {}
+  "missing": []
 }

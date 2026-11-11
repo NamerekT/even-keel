@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
-import { DEFAULT_PROTECTION } from './sessions/protection.js'
 import {
   DEFAULT_CI,
   gitProjects,
@@ -23,7 +22,7 @@ import {
 } from './config.js'
 import { DEFAULT_SHARES as SHARES } from './stats/checkpoint.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
-import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
+import { configDefaults, projectDefaults } from './settings/expectations.fixture.js'
 
 import { parse } from './config.fixture.js'
 
@@ -94,55 +93,7 @@ describe('withIds', () => {
 describe('parseConfig', () => {
   it('fills defaults when only projects are given', () => {
     const config = parse({ projects: { ABC: 'C:\\repos\\abc' } })
-    expect(config).toEqual({
-      allowedHosts: [],
-      projects: { ABC: 'C:\\repos\\abc' },
-      keys: { ABC: 'ABC' },
-      names: {},
-      notices: {},
-      rules: { ABC: DEFAULT_RULES },
-      ownRules: { ABC: {} },
-      slots: {},
-      colors: { ABC: 1 },
-      chain: DEFAULT_RULES,
-      trackers: { ABC: 'huly' },
-      trackerProjects: {},
-      feeds: {},
-      moves: {},
-      brief: null,
-      briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, git: true, fillMilestone: false, milestoneOrder: [], badge: null, changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, codexAutoCompactWindow: null, openCodeAutoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} } },
-      ci: DEFAULT_CI,
-      fillMilestone: false,
-      context: { window: 600_000, warn: 50, danger: 80 },
-      provider: 'claude',
-      models: { claude: 'opus' },
-      accounts: { claude: 'global', codex: 'codex' },
-      execution: { claude: 'auto', codex: 'sandbox' },
-      cli: { claude: 'system', codex: 'system', opencode: 'system', copilot: 'system' },
-      modelLabels: false,
-      modelPrompts: {},
-      prompt: null,
-      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: SHARES },
-      language: null,
-      promptLanguage: 'en',
-      hiddenSkills: DEFAULT_HIDDEN_SKILLS,
-      protection: DEFAULT_PROTECTION,
-      cacheTtl: null,
-      autoCompactWindow: null,
-      codexAutoCompactWindow: null,
-      openCodeAutoCompactWindow: null,
-      contextHandoffs: true,
-      parallel: 1,
-      keepWarm: 0,
-      attachmentLimit: 25,
-      defaultGit: null,
-      cliCheck: false,
-      updates: { check: true, notify: true },
-      unattended: false,
-      trimTools: true,
-      tally: null,
-    })
+    expect(config).toEqual({ ...configDefaults({ ABC: 'C:\\repos\\abc' }), trackers: { ABC: 'huly' } })
   })
 
   it('takes the release check and its toasts from updates', () => {
@@ -326,45 +277,13 @@ describe('parseConfig', () => {
       },
     })
     expect(config.settings).toEqual({
-      ABC: {
-        branch: 'main',
+      ABC: projectDefaults({
         prompt: 'Run npm test before merging.',
         beforeStart: ['npm ci', 'npm run build'],
         check: ['npm test'],
         afterGreen: ['npm run build'],
-        ci: DEFAULT_CI,
-        remoteProfiles: {},
-        pullRequests: false,
-        testProject: false,
-        intakeLabel: null,
-        mergeInto: null,
-        carryAgent: false,
-        git: true,
-        fillMilestone: false,
-        milestoneOrder: [],
-        badge: null,
-        changelog: 'CHANGELOG.md',
-        standards: [],
-        provider: null,
-        models: {},
-        accounts: {},
-        modelLabels: null,
-        promptLanguage: 'en',
-        cacheTtl: null,
-        autoCompactWindow: null,
-        codexAutoCompactWindow: null,
-        openCodeAutoCompactWindow: null,
-        contextHandoffs: true,
-        protection: DEFAULT_PROTECTION,
-        checkpointTokens: null,
-        checkpointShares: SHARES,
-        notices: {},
-        own: {},
-      },
-      XYZ: {
-        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, testProject: false, intakeLabel: null, mergeInto: null, carryAgent: false, git: true, fillMilestone: false, milestoneOrder: [], badge: null, changelog: 'CHANGELOG.md', standards: [] },
-        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, codexAutoCompactWindow: null, openCodeAutoCompactWindow: null, contextHandoffs: true, protection: DEFAULT_PROTECTION, checkpointTokens: null, checkpointShares: SHARES, notices: {}, own: {} },
-      },
+      }),
+      XYZ: projectDefaults(),
     })
   })
 

@@ -2,6 +2,7 @@ import type { PGlite } from '@electric-sql/pglite'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ConfigStore } from './config-store.js'
 import { settingsDrafts } from './event-log/watch.js'
+import { projectDefaults } from './settings/expectations.fixture.js'
 import { fileOf } from './settings/file.js'
 import { importConfig } from './settings/import.js'
 import { mirrorDefinitions, putSettings, readSettings } from './settings/store.js'
@@ -105,41 +106,18 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
         ],
       }),
     )
-    expect(config.current.settings['id-abc']).toEqual({
+    const defaults = projectDefaults()
+    expect(config.current.settings['id-abc']).toEqual(projectDefaults({
       branch: 'master',
       prompt: 'Mind Library.',
-      protection: { disabled: [], claude: [], codex: [], copilot: [], opencode: [] },
       beforeStart: ['npm ci'],
       check: ['npm test'],
-      afterGreen: [],
-      ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false, rerunFailed: true },
+      ci: { ...defaults.ci, kinds: ['github'], waitMinutes: 20 },
       remoteProfiles: { github: 'org' },
-      standards: [],
-      mergeInto: null,
-      git: true,
       carryAgent: true,
-      pullRequests: false,
-      testProject: false,
-      intakeLabel: null,
       fillMilestone: true,
-      milestoneOrder: [],
-      badge: null,
-      changelog: 'CHANGELOG.md',
-      provider: null,
-      models: {},
-      notices: {},
-      accounts: {},
-      modelLabels: null,
-      promptLanguage: 'en',
-      cacheTtl: null,
-      autoCompactWindow: null,
-      codexAutoCompactWindow: null,
-      openCodeAutoCompactWindow: null,
-      contextHandoffs: true,
-      checkpointTokens: null,
-      checkpointShares: { first: 72, late: 85, hard: 95 },
       own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 20, fillMilestone: true },
-    })
+    }))
   })
 
   it('removes the rows of cleared settings', async () => {
