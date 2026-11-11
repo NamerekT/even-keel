@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commitAndMerge, type Turn } from './agent.fixture.js'
+import { commitAndMerge, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 
 // The scripted agent hands the shell an empty environment: on macOS /bin/sh then finds no `node` on its default PATH.
@@ -49,12 +49,15 @@ describe('the check of main without a CI end to end (EKR-103)', { timeout: 60_00
 
   it('checks main in the next task place before its launch when the session merged without the check hook', async () => {
     run.agent.script('ABC-1', commitAndMerge('one.txt'))
-    run.agent.script('ABC-2', commitAndMerge('two.txt'))
+    // ABC-2 merges only after main is read: a fast session would move it past the commit the check took.
+    const read = new Gate()
+    run.agent.script('ABC-2', parked(read, commitAndMerge('two.txt')))
     await run.start()
     await run.startChain(PROJECT_ID)
 
     await run.until(() => launched().includes('ABC-2'), 'ABC-2 launched')
     const main = run.gitIn(run.repo, 'rev-parse', '--short=7', 'main')
+    read.open()
     expect(run.log).toContain(`ci: ABC: ${main} is checked in the next task's place before it starts: the check before the merge did not report`)
     expect(run.log).toContain(`ci: ABC: ${main} passed the check in the place of ABC-2`)
     expect(runs()).toHaveLength(1)
@@ -63,12 +66,14 @@ describe('the check of main without a CI end to end (EKR-103)', { timeout: 60_00
 
   it('counts main green by the report of the check before the merge, and runs nothing more', async () => {
     run.agent.script('ABC-1', reportedMerge('one.txt'))
-    run.agent.script('ABC-2', reportedMerge('two.txt'))
+    const read = new Gate()
+    run.agent.script('ABC-2', parked(read, reportedMerge('two.txt')))
     await run.start()
     await run.startChain(PROJECT_ID)
 
     await run.until(() => launched().includes('ABC-2'), 'ABC-2 launched')
     const main = run.gitIn(run.repo, 'rev-parse', '--short=7', 'main')
+    read.open()
     expect(run.log).toContain(`ci: ABC: ${main} is the tree the check before the merge reported`)
     expect(runs()).toEqual([])
   })
