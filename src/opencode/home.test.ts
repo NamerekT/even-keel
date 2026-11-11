@@ -15,6 +15,22 @@ describe('parseAuth', () => {
     const both = parseAuth(JSON.stringify({ openai: { type: 'oauth', access: 'a' }, anthropic: { type: 'api', key: 'k' } }))
     expect(both).toMatchObject({ authMethod: 'oauth', subscriptionType: 'openai, anthropic' })
   })
+
+  it.each(['free', 'plus', 'pro'])('reads the ChatGPT %s plan and profile without replacing the provider list', plan => {
+    const access = `header.${Buffer.from(JSON.stringify({
+      'https://api.openai.com/auth': { chatgpt_plan_type: plan },
+      'https://api.openai.com/profile': { email: 'john@example.com' },
+    })).toString('base64url')}.signature`
+    expect(parseAuth(JSON.stringify({ openai: { type: 'oauth', access }, 'github-copilot': { type: 'oauth' } }))).toMatchObject({
+      email: 'john@example.com', chatgptPlan: plan, subscriptionType: 'openai, github-copilot',
+    })
+  })
+
+  it.each(['broken', 'a.bnVsbA.c', 'a.W10.c', 'a.e30.c'])('leaves an unreadable ChatGPT profile unknown: %s', access => {
+    expect(parseAuth(JSON.stringify({ openai: { type: 'oauth', access } }))).toMatchObject({
+      email: null, chatgptPlan: null, subscriptionType: 'openai',
+    })
+  })
 })
 
 describe('the key of an OpenCode folder', () => {

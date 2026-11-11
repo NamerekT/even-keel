@@ -28,6 +28,8 @@ export interface AccountStatus {
   email: string | null
   orgName: string | null
   subscriptionType: string | null
+  /** OpenCode keeps its provider list in `subscriptionType`; this is the plan of its ChatGPT OAuth sign-in. */
+  chatgptPlan?: string | null
 }
 
 export interface CredentialTimes {
@@ -321,13 +323,17 @@ export function launchBlock(view: AccountView, key = view.active): Notice | unde
 }
 
 /**
- * The keys of the Codex accounts on the free plan past the first in the folders' order: OpenAI's terms forbid several
- * free accounts to get round the limits, so only the first of them works (BTN-176).
+ * Free ChatGPT folders past the first identity in folder order. That identity may have one folder per agent.
  */
 export function extraFree(accounts: AccountEntry[]): string[] {
-  return freeCodex(accounts)
-    .slice(1)
-    .map((entry) => entry.key)
+  const [first, ...rest] = freeChatGpt(accounts)
+  if (first === undefined) return []
+  const agents = new Set([first.agent])
+  return rest.filter(entry => {
+    if (!sameEmail(first.status!, entry.status!) || agents.has(entry.agent)) return true
+    agents.add(entry.agent)
+    return false
+  }).map(entry => entry.key)
 }
 
 /**
@@ -348,30 +354,37 @@ export function missingNotice(agent: string): Notice {
 }
 
 /**
- * Why a Codex sign-in on the free plan is not added: another account already holds the one free plan, or the sign-in
- * is that very account again.
+ * Why a free ChatGPT sign-in is not added. The same identity in another agent shares its allowance.
  */
 export function secondFreeProblem(accounts: AccountEntry[], agent: string, status: AccountStatus): Notice | undefined {
-  if (agent !== CODEX || !isFree(status)) return undefined
-  const first = freeCodex(accounts)[0]
+  if (!isFree(agent, status)) return undefined
+  const free = freeChatGpt(accounts)
+  const first = free[0]
   if (first === undefined) return undefined
   const account = first.status?.email ?? first.key
-  const same = status.email !== null && first.status?.email?.toLowerCase() === status.email.toLowerCase()
+  const same = sameEmail(first.status!, status)
+  if (same && !free.some(entry => entry.agent === agent && sameEmail(entry.status!, status))) return undefined
   return notice(same ? 'account.sameFree' : 'account.secondFree', { account })
 }
 
 function freeHeld(accounts: AccountEntry[], key: string): Notice | undefined {
-  const [first, ...rest] = freeCodex(accounts)
-  if (first === undefined || !rest.some((entry) => entry.key === key)) return undefined
+  const first = freeChatGpt(accounts)[0]
+  if (first === undefined || !extraFree(accounts).includes(key)) return undefined
   return notice('account.extraFree', { account: first.status?.email ?? first.key })
 }
 
-function freeCodex(accounts: AccountEntry[]): AccountEntry[] {
-  return accounts.filter((entry) => entry.agent === CODEX && isFree(entry.status))
+function freeChatGpt(accounts: AccountEntry[]): AccountEntry[] {
+  return accounts.filter((entry) => isFree(entry.agent, entry.status))
 }
 
-function isFree(status: AccountStatus | null): boolean {
-  return status?.loggedIn === true && status.subscriptionType === FREE_PLAN
+function isFree(agent: string, status: AccountStatus | null): boolean {
+  if (status?.loggedIn !== true) return false
+  if (agent === CODEX) return status.subscriptionType === FREE_PLAN && !isApiKey(status)
+  return agent === OPENCODE && status.authMethod === 'oauth' && status.chatgptPlan === FREE_PLAN
+}
+
+function sameEmail(left: AccountStatus, right: AccountStatus): boolean {
+  return !!left.email && !!right.email && left.email.toLowerCase() === right.email.toLowerCase()
 }
 
 function stringOf(value: unknown): string | null {

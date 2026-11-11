@@ -42,7 +42,7 @@ export const addAccount = {
         gets: "Your ChatGPT plan's 5-hour and weekly limits",
         tip: 'Signs a new Codex account in with ChatGPT, in a folder of its own: Codex gives a link and a one-time code — open the link, sign in and enter the code there.',
         next: 'Next: a link and a one-time code — open the link, sign in and enter the code there.',
-        rule: "One free Codex account at most: OpenAI's terms do not allow several free accounts to get round the limits. Paid plans — as many as you need.",
+        rule: "One free ChatGPT account across Codex and OpenCode; the same e-mail can be used in both. OpenAI's terms do not allow several free accounts to get round the limits. Paid plans — as many as you need.",
         action: 'Sign in with ChatGPT',
       },
       apiKey: {
@@ -60,7 +60,7 @@ export const addAccount = {
         gets: "The ChatGPT plan's limits: 5 hours and a week",
         tip: "OpenCode signs in with ChatGPT in a new folder and spends your ChatGPT plan's limits — the same ones Codex spends on that account.",
         next: 'Next: a link and a one-time code — open the link, sign in and enter the code there.',
-        rule: '',
+        rule: 'One free ChatGPT account across Codex and OpenCode; the same e-mail can be used in both. Paid plans — as many as you need.',
         action: 'Sign in with ChatGPT',
       },
       free: {

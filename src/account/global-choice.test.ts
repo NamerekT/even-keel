@@ -1,10 +1,13 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
 import { afterEach, expect, it, vi } from 'vitest'
 import { parseConfig, poolEntries, projectsByAccount } from '../config.js'
 import { AccountHomes } from './homes.js'
 import { AccountWatcher, type AccountWatcherOptions } from './watcher.js'
+import type { AccountHome } from './homes.js'
 
 let root: string
 afterEach(() => rmSync(root, { recursive: true, force: true }))
@@ -15,7 +18,7 @@ function setup(loggedIn = true) {
   mkdirSync(dir)
   const homes = new AccountHomes({ CLAUDE_CONFIG_DIR: join(root, 'none'), CODEX_HOME: dir }, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'), join(root, 'copilot'))
   const authStatus = vi.fn(async () => ({ loggedIn, email: 'john@example.com', authMethod: 'chatgpt', orgName: null, subscriptionType: 'plus' }))
-  const logout = vi.fn()
+  const logout = vi.fn(async () => {})
   const makeShared = vi.fn()
   const options = {
     homes, agentOf: () => ({ authStatus, logout }), active: () => 'other',
@@ -64,6 +67,41 @@ it('refuses to register a second free Codex account', async () => {
   await expect(accounts.useGlobal('codex')).rejects.toMatchObject({ notice: { code: 'account.sameFree' } })
   expect(homes.find('codex')).toBeUndefined()
   expect(makeShared).not.toHaveBeenCalled()
+})
+
+it.each([
+  ['codex', 'jane@example.com', 'free', true],
+  ['opencode', 'jane@example.com', 'free', true],
+  ['codex', 'john@example.com', 'free', false],
+  ['codex', 'jane@example.com', 'plus', false],
+])('adds OpenCode after %s with e-mail %s and plan %s (refused: %s)', async (existingAgent, email, plan, refused) => {
+  const { accounts, homes, options, logout, makeShared } = setup()
+  const first = homes.place(homes.pending(new Date(), existingAgent as string), 'john@example.com')
+  const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough() })
+  options.loginTimeoutMs = 60_000
+  options.agentOf = (() => ({
+    authStatus: async (home: AccountHome) => ({
+      loggedIn: true, email: home.key === first.key ? 'john@example.com' : email, orgName: null,
+      authMethod: home.agent === 'codex' ? 'chatgpt' : 'oauth',
+      subscriptionType: home.agent === 'codex' ? 'free' : 'openai',
+      ...(home.agent === 'opencode' ? { chatgptPlan: home.key === first.key ? 'free' : plan } : {}),
+    }),
+    logout, login: () => child,
+  })) as never
+  await accounts.refresh()
+  accounts.add('opencode', 'chatgpt')
+  child.emit('close', 0)
+  if (refused) {
+    await vi.waitFor(() => expect(accounts.view.login?.error?.code).toBe('account.secondFree'))
+    expect(logout).toHaveBeenCalledOnce()
+    expect(homes.list().map(home => home.key)).toEqual([first.key])
+    expect(makeShared).not.toHaveBeenCalled()
+  } else {
+    await vi.waitFor(() => expect(accounts.view.login).toBeNull())
+    expect(homes.list()).toHaveLength(2)
+    expect(logout).not.toHaveBeenCalled()
+    expect(makeShared).toHaveBeenCalledWith('opencode', expect.any(String))
+  }
 })
 
 it('removes a global account without logging out or deleting the CLI folder', async () => {

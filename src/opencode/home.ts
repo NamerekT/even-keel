@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AccountStatus } from '../account/model.js'
+import { chatGptProfileOf } from '../limits/chatgpt.js'
 
 /**
  * An OpenCode account folder holds the four XDG folders OpenCode keeps its files in: `data` (`opencode/auth.json`, the
@@ -69,13 +70,19 @@ export function keyOf(dir: string): string | null {
 
 /**
  * The account as `auth.json` has it. A folder with no credential still runs OpenCode's free models, so it counts as
- * signed in, with the method `none`; the providers it holds go where Claude's plan goes, the e-mail is not known.
+ * signed in, with the method `none`. The providers stay in `subscriptionType`; ChatGPT's profile is read separately.
  */
 export function parseAuth(text: string | undefined): AccountStatus {
   const held = Object.entries(credentials(text))
   const types = new Set(held.map(([, credential]) => credential.type))
   const authMethod = held.length === 0 ? 'none' : types.size === 1 && types.has('api') ? 'api_key' : 'oauth'
-  return { loggedIn: true, authMethod, email: null, orgName: null, subscriptionType: held.length === 0 ? null : held.map(([name]) => name).join(', ') }
+  const openai = held.find(([name, credential]) => name === 'openai' && credential.type === 'oauth')?.[1]
+  const profile = openai === undefined ? undefined : chatGptProfileOf(typeof openai.access === 'string' ? openai.access : '')
+  return {
+    loggedIn: true, authMethod, email: profile?.email ?? null, orgName: null,
+    subscriptionType: held.length === 0 ? null : held.map(([name]) => name).join(', '),
+    ...(profile === undefined ? {} : { chatgptPlan: profile.plan }),
+  }
 }
 
 export function readAuth(dir: string): string | undefined {

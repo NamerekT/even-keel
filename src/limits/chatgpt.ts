@@ -54,6 +54,18 @@ export function chatGptAccountOf(token: string): string | null {
   return typeof id === 'string' && id !== '' ? id : null
 }
 
+/** Profile claims of an OpenCode access token; missing claims remain unknown, without a usage request. */
+export function chatGptProfileOf(token: string): { email: string | null; plan: string | null } {
+  const claims = claimsOf(token)
+  const auth = claims?.[AUTH_CLAIM]
+  const profile = claims?.['https://api.openai.com/profile']
+  const text = (value: unknown) => typeof value === 'string' && value !== '' ? value : null
+  return {
+    email: text(isRecord(profile) ? profile.email : undefined),
+    plan: text(isRecord(auth) ? auth.chatgpt_plan_type : undefined),
+  }
+}
+
 /** The ChatGPT account a Codex folder's `auth.json` is signed in to; `null` — an API key or no sign-in. */
 export function chatGptAccountIn(codexAuth: string | undefined): string | null {
   try {

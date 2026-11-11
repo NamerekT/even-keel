@@ -465,7 +465,7 @@ describe('free Codex accounts', () => {
     const accounts = [entry({}), codex('codex', free('john@example.com'))]
     const refused = secondFreeProblem(accounts, 'codex', free('jane@example.com'))
     expect(refused?.code).toBe('account.secondFree')
-    expect(say(refused)).toMatch(/sign-in went through.*john@example\.com.*signed out and removed.*nothing was added.*paid/)
+    expect(say(refused)).toMatch(/sign-in was refused.*john@example\.com.*signed out and removed.*paid/)
     expect(secondFreeProblem([entry({})], 'codex', free('jane@example.com'))).toBeUndefined()
   })
 
@@ -480,13 +480,53 @@ describe('free Codex accounts', () => {
     const accounts = [entry({}), codex('codex', free('john@example.com')), codex('work', free('jane@example.com'))]
     expect(extraFree(accounts)).toEqual(['work'])
     const held = view({ accounts })
-    expect(say(launchBlock(held, 'work'))).toMatch(/second free Codex account next to john@example\.com/)
+    expect(say(launchBlock(held, 'work'))).toMatch(/second free ChatGPT account next to john@example\.com/)
     expect(launchBlock(held, 'codex')).toBeUndefined()
     expect(say(switchProblem(held, 'work'))).toMatch(/second free/)
   })
 
   it('does not count a free account that is signed out', () => {
     expect(extraFree([codex('codex', { ...free('john@example.com'), loggedIn: false }), codex('work', free('jane@example.com'))])).toEqual([])
+  })
+})
+
+describe('one free ChatGPT account across agents', () => {
+  const free = (email: string | null): AccountStatus => ({ ...signedIn(email), authMethod: 'chatgpt', subscriptionType: 'free' })
+  const codex = (key: string, email: string | null) => entry({ key, agent: 'codex', status: free(email) })
+  const openCodeStatus = (email: string | null, plan: string | null = 'free'): AccountStatus => ({
+    ...signedIn(email), authMethod: 'oauth', subscriptionType: 'openai', chatgptPlan: plan,
+  })
+  const openCode = (key: string, email: string | null) => entry({ key, agent: 'opencode', status: openCodeStatus(email) })
+
+  it('refuses a second free OpenCode after Codex or OpenCode, and Codex after OpenCode', () => {
+    const status = openCodeStatus('jane@example.com')
+    expect(secondFreeProblem([codex('codex', 'john@example.com')], 'opencode', status)?.code).toBe('account.secondFree')
+    expect(secondFreeProblem([openCode('oc', 'john@example.com')], 'opencode', status)?.code).toBe('account.secondFree')
+    expect(secondFreeProblem([openCode('oc', 'john@example.com')], 'codex', free('jane@example.com'))?.code).toBe('account.secondFree')
+  })
+
+  it('allows the first free identity in both agents, case insensitively, but keeps same-agent duplicate refusal', () => {
+    expect(secondFreeProblem([codex('codex', 'john@example.com')], 'opencode', openCodeStatus('John@Example.com'))).toBeUndefined()
+    expect(secondFreeProblem([openCode('oc', 'john@example.com')], 'codex', free('John@Example.com'))).toBeUndefined()
+    expect(secondFreeProblem([openCode('oc', 'john@example.com')], 'opencode', openCodeStatus('John@Example.com'))?.code).toBe('account.sameFree')
+  })
+
+  it('holds later identities in both agents, including their matching folders, in the given order', () => {
+    const accounts = [openCode('oc', 'john@example.com'), codex('codex', 'John@Example.com'), openCode('other', 'jane@example.com'), codex('work', 'jane@example.com'), openCode('duplicate', 'john@example.com')]
+    expect(extraFree(accounts)).toEqual(['other', 'work', 'duplicate'])
+    expect(launchBlock(view({ accounts }), 'other')?.code).toBe('account.extraFree')
+    expect(switchProblem(view({ accounts }), 'work')?.code).toBe('account.extraFree')
+    expect(launchBlock(view({ accounts }), 'codex')).toBeUndefined()
+    expect(extraFree(accounts.slice(2, 4))).toEqual([])
+  })
+
+  it('does not guess a missing identity or plan and excludes signed-out and paid accounts', () => {
+    expect(secondFreeProblem([codex('codex', null)], 'opencode', openCodeStatus(null))?.code).toBe('account.secondFree')
+    for (const plan of [null, 'plus', 'pro']) {
+      expect(secondFreeProblem([codex('codex', 'john@example.com')], 'opencode', openCodeStatus('jane@example.com', plan))).toBeUndefined()
+    }
+    expect(extraFree([entry({ ...openCode('oc', 'john@example.com'), status: { ...openCodeStatus('john@example.com'), loggedIn: false } }), codex('codex', 'jane@example.com')])).toEqual([])
+    expect(extraFree([entry({ ...openCode('oc', 'john@example.com'), status: openCodeStatus('john@example.com', 'plus') }), codex('codex', 'jane@example.com')])).toEqual([])
   })
 })
 
