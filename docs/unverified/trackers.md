@@ -101,13 +101,9 @@ If one is wrong, a session cannot file or edit tasks of the built-in tracker, or
 
 ## A reply in a Huly thread as the answer to a question (BTN-897)
 
-A session's question posted as a Huly comment is answered by a reply in that comment's thread, and the reply reaches the session (`docs/trackers.md`, "Huly"). Tests cover the order of the later comments and the replies (`answersAfter`) and the card; the Huly source read a reply added through the API live (the [verified log](../verified/trackers.md)). Assumed:
+A session's question posted as a Huly comment is answered by a reply in that comment's thread, and the reply reaches the session (`docs/trackers.md`, "Huly"). Tests cover the order of the later comments and the replies (`answersAfter`) and the card. Seen live on 2026-11-11 (BTN-908, [verified](../verified/trackers.md)): a reply typed in Huly's interface reached a waiting chain session as its answer. Its file did not: the answer came without it, and the adapter's `file()` finds no attachment for it although `commentsAfter` lists it afterwards (BTN-1019). Assumed still: once found, the reply's file is downloaded into `.temp/inbox/` with the answer, and a file attached in the same reply is there when the chain reads the answer.
 
-- a reply typed in Huly's own interface is a `chunter:class:ThreadMessage` attached to the comment, as the one the API added;
-- a file attached to such a reply is an `attachment` of the reply, so it is downloaded with the answer;
-- the chain passes such an answer on like any later comment: `TrackerQuestions` sees no difference.
-
-If wrong, an answer in the thread does not reach the session, which keeps waiting on its question. **Workaround:** answer with a comment on the task itself, not in the question's thread. To check: on the Huly bench HIN, let a chain session ask a question, reply in the question's thread in Huly's interface with a file attached, and see the session continue on the answer with the file in `.temp/inbox/`.
+If wrong, the session gets the reply's text without its file. **Workaround:** put the file into the task's description or a comment on the task, and say so in the reply. To check, after BTN-1019: reply in the question's thread with a file and see the file in `.temp/inbox/`.
 
 ## Operation markers on GitHub, GitLab, Forgejo and Jira (BTN-907)
 
