@@ -44,6 +44,10 @@ The projects and the settings live in Even Keel's database and are edited on the
 
 When you add the project, Even Keel checks the repository again before saving it. A folder inside a repository is saved as the repository's root folder.
 
+Leaving the project wizard and returning keeps the fields you changed yourself. Untouched Git and tracker choices
+follow the current setup settings on each visit; a choice you made in the form takes precedence. A failed check or
+add keeps your edits. Adding the project or reloading the browser page clears the draft.
+
 The folder accepts `~` for the home folder of the user Even Keel runs as. On Windows it also accepts environment
 variables such as `%USERPROFILE%\Projects\example`, with any letter case. They come from Even Keel's own environment:
 a service running as another user uses that user's values. Unknown or empty variables stay as typed; values are

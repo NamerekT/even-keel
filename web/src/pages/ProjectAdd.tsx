@@ -16,7 +16,6 @@ import { BranchField, BranchMoveLine } from './BranchField.js'
 import { NoticeFixButton } from './FixButtons.js'
 import {
   draftOfFields,
-  EMPTY_FIELDS,
   entryField,
   keyOfTyped,
   keyTyped,
@@ -25,8 +24,6 @@ import {
   shapeOf,
   stepChecks,
   suggestOfRepo,
-  switchBuiltin,
-  switchProfile,
   trackerBasis,
   typedIn,
   WIZARD_STEPS,
@@ -34,6 +31,7 @@ import {
   type WizardFields,
   type WizardStepId,
 } from './projectWizard.js'
+import { firstFields, keepFields } from './projectWizardDraft.js'
 import { ProjectSummary } from './ProjectSummary.js'
 import { FieldHead, Row, Section } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
@@ -77,7 +75,7 @@ function MakeRepository({ repo, branch, exists, onMade }: { repo: string; branch
 }
 
 /** The fields typed, kept while the page is left and come back to (BTN-310); a project added clears them. */
-let kept: WizardFields | null = null
+let kept: Partial<WizardFields> = {}
 let keptTables: Draft = { base: {}, edit: {} }
 
 interface Checked {
@@ -101,7 +99,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const { checkProject } = useLive()
   const navigate = useNavigate()
   const { send, sending, failure } = useCommand()
-  const [fields, setFields] = useState<WizardFields>(() => kept ?? firstFields(state))
+  const [fields, setFields] = useState<WizardFields>(() => firstFields(state, kept))
   const [tableDraft, setTableDraft] = useState<Draft>(() => keptTables)
   const [checked, setChecked] = useState<Checked | null>(null)
   const [heldTracker, setHeldTracker] = useState<HeldTracker | null>(null)
@@ -129,14 +127,21 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     checked !== null && draft !== undefined && checked.draft.repo === draft.repo && checked.draft.branch === draft.branch && checked.draft.git === draft.git
       ? checked.result
       : null
-  const set = (change: Partial<WizardFields>) => setFields((before) => ({ ...before, ...change }))
+  const changeFields = (change: (before: WizardFields) => WizardFields) => setFields((before) => {
+    const after = change(before)
+    kept = keepFields(kept, before, after)
+    return after
+  })
+  const set = (change: Partial<WizardFields>) => {
+    kept = { ...kept, ...change }
+    setFields((before) => ({ ...before, ...change }))
+  }
   const shared = state.config.shared.provider
   const agent = fields.provider || shared
 
   useEffect(() => {
-    kept = fields
     keptTables = tableDraft
-  }, [fields, tableDraft])
+  }, [tableDraft])
 
   useEffect(() => {
     if (draft === undefined || (draft.repo === '' && draft.git !== false) || basis === null) return
@@ -215,7 +220,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     const before = state.projects
     if (!(await send('project/add', { ...draft }))) return
     if (dropDemo && state.demo !== null) void send('demo/remove')
-    kept = null
+    kept = {}
     keptTables = { base: {}, edit: {} }
     setAdded({ key: draft.key.trim(), before })
   }
@@ -351,7 +356,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
           </Section>
           <Section title={t.wizard.stepTracker} mark={dot('tracker')} className="project-add__step">
-            <TrackerStep state={state} fields={fields} shape={shape} check={check} tracker={tracker} onChange={setFields} />
+            <TrackerStep state={state} fields={fields} shape={shape} check={check} tracker={tracker} onChange={changeFields} />
           </Section>
           <Section title={t.wizard.stepProject} mark={dot('project')} className="project-add__step">
             {keyTyped(shape) && (
@@ -370,7 +375,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                     value={fields.key}
                     placeholder="ABC"
                     aria-invalid={keyRefused || undefined}
-                    onChange={(event) => setFields((before) => typedIn(before, 'key', keyOfTyped(event.target.value)))}
+                  onChange={(event) => changeFields((before) => typedIn(before, 'key', keyOfTyped(event.target.value)))}
                   />
                 }
                 error={keyRefused ? check!.entry! : null}
@@ -388,7 +393,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                   autoComplete="off"
                   value={fields.name}
                   placeholder={fields.key || t.wizard.namePlaceholder}
-                  onChange={(event) => setFields((before) => typedIn(before, 'name', event.target.value))}
+                  onChange={(event) => changeFields((before) => typedIn(before, 'name', event.target.value))}
                 />
               }
             />
@@ -496,16 +501,6 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
       </TableDraft>
     </div>
   )
-}
-
-/** No tracker profile: the built-in tracker is chosen at once; the only one is; with several the user picks. */
-function firstFields(state: EvenKeelState): WizardFields {
-  const trackers = new Set(state.profiles.kinds.filter((kind) => kind.tracker).map((kind) => kind.kind))
-  const own = state.profiles.profiles.filter((profile) => trackers.has(profile.kind))
-  // The setup's answer to "Use git?" (BTN-886); before one, without git only where git does not start.
-  const empty: WizardFields = { ...EMPTY_FIELDS, git: state.config.shared.defaultGit ?? state.git?.version !== null }
-  if (own.length === 0) return switchBuiltin(empty)
-  return own.length === 1 ? switchProfile(empty, own[0]!) : empty
 }
 
 function missingText(missing: Exclude<Missing, 'checking'>, fields: WizardFields, state: EvenKeelState): string {
