@@ -8,6 +8,7 @@ const none: WatchInput = {
   config: { shared: { ci: { guard: true, kinds: ['forgejo'] } }, projects: {} },
   chain: { active: [], projects: {}, leftovers: {}, skipped: {} },
   ci: {},
+  mainCi: {},
   fixes: {},
   sessions: [],
   tasks: [],
@@ -93,6 +94,30 @@ describe('observe', () => {
     expect(step(none, optional).map((each) => [each.notice.code, each.level])).toEqual([['eventLog.ciRed', 'warning']])
     expect(step(optional, both).map((each) => [each.notice.code, each.level])).toEqual([['eventLog.red', 'error']])
     expect(step(both, optional)).toEqual([])
+  })
+
+  it('writes one red main after the rerun verdict and none while the old red is still visible', () => {
+    const red = { ...none, ci: { p1: [{ kind: 'forgejo', current: { commit: 'abc1234', runs: [{ run: { status: 'failure' } }] } }] } } as unknown as WatchInput
+    const judging = { ...red, mainCi: { p1: { pushes: {}, judging: 'abc1234' } } }
+    let memory = observe(null, watchedOf(none), at(0)).memory
+    for (const [minute, state] of [[1, judging], [2, none], [3, judging]] as const) {
+      const next = observe(memory, watchedOf(state), at(minute))
+      expect(next.drafts).toEqual([])
+      memory = next.memory
+    }
+    const verdict = observe(memory, watchedOf(red), at(4))
+    expect(verdict.drafts.map((draft) => draft.notice.code)).toEqual(['eventLog.red'])
+    expect(observe(verdict.memory, watchedOf(red), at(5)).drafts).toEqual([])
+  })
+
+  it('keeps an uncounted CI failure quiet on repeated polls, and reports a later failure anew', () => {
+    const red = { ...none, ci: { p1: [{ kind: 'github', current: { commit: 'abc1234', runs: [{ run: { status: 'failure' } }] } }] } } as unknown as WatchInput
+    const first = observe(observe(null, watchedOf(none), at(0)).memory, watchedOf(red), at(1))
+    expect(first.drafts.map((draft) => draft.notice.code)).toEqual(['eventLog.ciRed'])
+    expect(observe(first.memory, watchedOf(red), at(2)).drafts).toEqual([])
+    const gone = observe(first.memory, watchedOf(none), at(2))
+    const expired = observe(gone.memory, watchedOf(none), at(3))
+    expect(observe(expired.memory, watchedOf(red), at(4)).drafts.map((draft) => draft.notice.code)).toEqual(['eventLog.ciRed'])
   })
 
   it('writes a chain started, paused, resumed and stopped, and a pause on an error as one', () => {

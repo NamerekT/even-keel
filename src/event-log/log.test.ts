@@ -8,6 +8,7 @@ const quiet: WatchInput = {
   config: { shared: { ci: { guard: true, kinds: [] } }, projects: {} },
   chain: { active: [], projects: {}, leftovers: {}, skipped: {} },
   ci: {},
+  mainCi: {},
   fixes: {},
   sessions: [],
   tasks: [],

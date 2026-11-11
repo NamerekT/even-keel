@@ -17,6 +17,7 @@ const rerunning = (prepare: (ci: ReturnType<typeof fakeMain>['ci']) => void = ()
 describe('MainCheck and the rerun of failed jobs (BTN-846)', () => {
   it('reruns the failed jobs on the first red and waits instead of fixing', async () => {
     const { dispatcher, launched, log, ci } = await rerunning()
+    expect(dispatcher.main!.view('ABC').judging).toBe('bbbbbbbbbb')
     ci.verdict = red
     dispatcher.check()
     await dispatcher.idle()
@@ -25,6 +26,7 @@ describe('MainCheck and the rerun of failed jobs (BTN-846)', () => {
     expect(ci.reports).toEqual([])
     expect(dispatcher.state.ci.ABC?.check?.commit).toBe('bbbbbbbbbb')
     expect(dispatcher.state.ci.ABC?.rerun).toEqual({ commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', runs: ['7:2026-09-26T12:02:00Z'] })
+    expect(dispatcher.main!.view('ABC').judging).toBe('bbbbbbbbbb')
     expect(launched).toEqual(['ABC/ABC-1'])
     expect(ci.looks).toContain('ABC')
     expect(ci.events.map((event) => event.notice)).toEqual([notice('eventLog.ciRerun', { project: 'ABC', commit: 'bbbbbbb', cis: ['github'] })])
@@ -49,6 +51,7 @@ describe('MainCheck and the rerun of failed jobs (BTN-846)', () => {
     expect(ci.created).toEqual([])
     expect(dispatcher.state.ci.ABC?.green).toBe('bbbbbbbbbb')
     expect(dispatcher.state.ci.ABC?.check).toBeUndefined()
+    expect(dispatcher.main!.view('ABC').judging).toBeUndefined()
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(ci.events.at(-1)?.notice).toEqual(notice('eventLog.ciRerunGreen', { project: 'ABC', commit: 'bbbbbbb' }))
   })
@@ -63,6 +66,7 @@ describe('MainCheck and the rerun of failed jobs (BTN-846)', () => {
     await dispatcher.idle()
     expect(ci.reruns).toHaveLength(1)
     expect(ci.created).toHaveLength(1)
+    expect(dispatcher.main!.view('ABC').judging).toBeUndefined()
     expect(ci.reports[0]?.failure).toEqual({ ci: [{ kind: 'github', run: rerun }], reran: true })
     expect(ci.events.at(-1)?.notice).toEqual(notice('eventLog.ciRerunRed', { project: 'ABC', commit: 'bbbbbbb' }))
   })
@@ -108,6 +112,7 @@ describe('MainCheck and the rerun of failed jobs (BTN-846)', () => {
     expect(ci.reruns).toEqual([])
     expect(ci.created).toHaveLength(1)
     expect(ci.reports[0]?.failure).toEqual({ ci: red.failed })
+    expect(dispatcher.main!.view('ABC').judging).toBeUndefined()
   })
 
   it('fixes at once when the CI cannot rerun, with only a log line', async () => {
@@ -119,6 +124,7 @@ describe('MainCheck and the rerun of failed jobs (BTN-846)', () => {
     await dispatcher.idle()
     expect(ci.created).toHaveLength(1)
     expect(dispatcher.state.ci.ABC?.rerun).toBeUndefined()
+    expect(dispatcher.main!.view('ABC').judging).toBeUndefined()
     expect(ci.events).toEqual([])
     expect(log.some((line) => line.startsWith('ci: ABC: bbbbbbb is red; its failed jobs were not rerun:'))).toBe(true)
   })
@@ -134,6 +140,7 @@ describe('MainCheck and the rerun of failed jobs (BTN-846)', () => {
     expect(ci.events).toHaveLength(1)
     expect(ci.events[0]).toMatchObject({ level: 'warning', place: { view: 'settings', project: null } })
     expect(ci.events[0]?.notice.code).toBe('eventLog.ciRerunFailed')
+    expect(dispatcher.main!.view('ABC').judging).toBeUndefined()
   })
 
   it('lets the old red decide once RERUN_MS runs out', async () => {

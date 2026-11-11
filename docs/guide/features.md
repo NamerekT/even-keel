@@ -413,6 +413,11 @@ After a task is merged and `main` is pushed, the next task waits for the CI's ve
 
 If the CI turns red just as a session starts, Even Keel waits until it can tell whether the session is working or waiting before making room for the fix. A session waiting for an answer keeps its question and is set aside without being stopped.
 
+While Even Keel decides whether to rerun the failed jobs and waits for their result, the log shows the rerun's
+info entries without a red main notification. A green rerun produces no red alert; a red rerun produces one.
+If rerunning is off, unsupported or refused, the red notification follows the first verdict. A CI marked
+"not counted" still warns independently.
+
 OpenCode and Copilot accounts on the machine's sign-in can continue without an e-mail address. Continuing the same session requires the same account folder and a warm cache; a changed folder starts a new session with a handoff. An account that is signed out waits until it is ready again.
 
 Several projects in separate clones of one repository, on the same main branch, share a red `main`: while one of them fixes it, the others start no new task and start no second fix of the same break; their sessions already at work go on. Once the fix is green, they all go on.

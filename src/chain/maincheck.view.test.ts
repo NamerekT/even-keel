@@ -18,6 +18,16 @@ async function settled(dispatcher: { idle(): Promise<void> }): Promise<void> {
 }
 
 describe('MainCheck.view: what the CI panel shows of main (BTN-829)', () => {
+  it('keeps a restored push quiet until its verdict, but not a completed rerun mark', () => {
+    const { deps } = fakeMain(0)
+    const { dispatcher } = setup({ main: deps })
+    const rerun = { commit: 'bbbbbbbbbb', at: NOW, runs: ['7:2026-09-26T12:02:00Z'] }
+    dispatcher.state.ci.ABC = { check: { commit: rerun.commit, at: NOW, tasks: ['ABC-1'] }, rerun }
+    expect(dispatcher.main!.view('ABC').judging).toBe(rerun.commit)
+    delete dispatcher.state.ci.ABC.check
+    expect(dispatcher.main!.view('ABC').judging).toBeUndefined()
+  })
+
   it('shows the commands after a green main going on, then done, and keeps their start and end in the state', async () => {
     const after = held()
     const { dispatcher, ci } = await afterDone(null, (ci) => {
@@ -94,10 +104,12 @@ describe('MainCheck.view: what the CI panel shows of main (BTN-829)', () => {
     dispatcher.check()
     await dispatcher.idle()
     expect(dispatcher.main!.view('ABC').late).toEqual({ commit: 'bbbbbbbbbb', until: '2026-09-26T13:00:00.000Z' })
+    expect(dispatcher.main!.view('ABC').judging).toBe('bbbbbbbbbb')
 
     ci.verdict = { state: 'green' }
     dispatcher.check()
     await dispatcher.idle()
     expect(dispatcher.main!.view('ABC').late).toBeUndefined()
+    expect(dispatcher.main!.view('ABC').judging).toBeUndefined()
   })
 })

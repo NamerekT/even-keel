@@ -530,6 +530,8 @@ export type PushBy = 'chain' | 'hand'
  * memory only, so a restart forgets them as it ends their effect.
  */
 export interface MainCiView {
+  /** The chain is still judging this push, including the request and wait for a rerun; its raw CI red is not final. */
+  judging?: string
   /** A push no runner took in time that a run taken later still judges (BTN-719), and until when. */
   late?: { commit: string; until: string }
   /** Only for a project with `commands.afterGreen`; `running` — the run is going on now. */

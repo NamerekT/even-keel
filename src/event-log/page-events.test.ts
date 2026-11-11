@@ -3,7 +3,7 @@ import { notice } from '../notice/notice.js'
 import type { CiView } from '../ci/model.js'
 import { pageEvents, type EventsInput } from './page-events.js'
 
-const none: EventsInput = { config: { shared: { ci: { guard: true, kinds: ['forgejo', 'github'] } }, projects: {} }, chain: { active: [], projects: {}, leftovers: {}, skipped: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
+const none: EventsInput = { config: { shared: { ci: { guard: true, kinds: ['forgejo', 'github'] } }, projects: {} }, chain: { active: [], projects: {}, leftovers: {}, skipped: {} }, ci: {}, mainCi: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
 const chain = (fields: object) => ({ project: 'p1', current: null, paused: false, error: null, ...fields })
 const view = (status: 'failure' | 'success', commit = 'abc1234'): CiView =>
   ({
@@ -13,6 +13,22 @@ const view = (status: 'failure' | 'success', commit = 'abc1234'): CiView =>
   }) as unknown as CiView
 
 describe('pageEvents', () => {
+  it('waits for the chain verdict before reporting a counted red CI, including the initial rerun request', () => {
+    const input = { ...none, mainCi: { p1: { pushes: {}, judging: 'abc1234' } }, ci: { p1: [view('failure')], p2: [view('failure')] } }
+    expect(pageEvents(input)).toEqual([{ key: 'red|p2|abc1234', kind: 'red', project: 'p2', cis: ['forgejo'], commit: 'abc1234' }])
+    expect(pageEvents({ ...input, ci: { p1: [view('failure', 'def5678')] } })).toHaveLength(1)
+    expect(pageEvents({ ...input, mainCi: {}, ci: { p1: [view('failure')] } })).toHaveLength(1)
+    expect(pageEvents({ ...input, ci: {} })).toEqual([])
+  })
+
+  it('keeps uncounted CI warnings during a counted rerun, using the current settings', () => {
+    const config = { ...none.config, projects: { p1: { ci: { guard: true, kinds: ['forgejo'] as const } } } }
+    const input = { ...none, config, mainCi: { p1: { pushes: {}, judging: 'abc1234' } }, ci: { p1: [view('failure'), { ...view('failure'), kind: 'github' as const }] } }
+    expect(pageEvents(input)).toEqual([{ key: 'red|p1|abc1234', kind: 'ciRed', project: 'p1', cis: ['github'], commit: 'abc1234' }])
+    const off = { ...config, projects: { p1: { ci: { guard: false, kinds: ['forgejo'] as const } } } }
+    expect(pageEvents({ ...input, config: off })).toEqual([{ key: 'red|p1|abc1234', kind: 'ciRed', project: 'p1', cis: ['forgejo', 'github'], commit: 'abc1234' }])
+  })
+
   it('reports an uncounted red CI without promising that the next task waits', () => {
     const config = { ...none.config, projects: { p1: { ci: { guard: true, kinds: ['forgejo'] as const } } } }
     const github = { ...view('failure'), kind: 'github' as const, remote: 'github' }

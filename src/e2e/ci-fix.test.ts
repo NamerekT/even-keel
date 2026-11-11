@@ -175,6 +175,9 @@ describe('the fix of a red main end to end', { timeout: 60_000 }, () => {
     expect(calls('stop', 'ABC-2')).toEqual([])
     expect(calls('launch', fix)).toEqual([])
 
+    await run.restart()
+    expect(run.service.getState().mainCi[PROJECT_ID]?.judging).toBe(run.ci.runOf('ABC-1')!.commit)
+
     run.ci.finish('ABC-1', 'success')
     await run.until(() => run.log.some((line) => line.includes('is green on a rerun of its failed jobs')), 'main green on the rerun')
     gate.open()
@@ -182,6 +185,7 @@ describe('the fix of a red main end to end', { timeout: 60_000 }, () => {
     expect(calls('launch', fix)).toEqual([])
     expect(calls('launch', 'ABC-2')).toHaveLength(1)
     expect(run.ci.reran).toHaveLength(1)
+    expect(run.service.getState().eventLog.filter((entry) => entry.notice.code === 'eventLog.red')).toEqual([])
   })
 
   it('fixes a red main as before once the rerun is red too, telling the fix session (BTN-846)', async () => {
@@ -191,8 +195,9 @@ describe('the fix of a red main end to end', { timeout: 60_000 }, () => {
 
     run.ci.finish('ABC-1', 'failure')
     await run.until(() => run.ci.reran.length === 1, 'the failed jobs rerun')
-    await run.pass(5_000)
+    await run.pass(60_000)
     expect(calls('stop', 'ABC-2')).toEqual([])
+    expect(run.service.getState().eventLog.filter((entry) => entry.notice.code === 'eventLog.red')).toEqual([])
     run.ci.finish('ABC-1', 'failure')
     await run.until(() => calls('launch', fix).length === 1, 'the fix session launched')
     expect(calls('stop', 'ABC-2').map((call) => call.sessionId)).toEqual([session])
@@ -201,5 +206,7 @@ describe('the fix of a red main end to end', { timeout: 60_000 }, () => {
     await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
     expect(run.ci.reran).toHaveLength(1)
     expect(calls('launch', fix)).toHaveLength(1)
+    await run.until(() => run.service.getState().eventLog.some((entry) => entry.notice.code === 'eventLog.red'), 'one red main event')
+    expect(run.service.getState().eventLog.filter((entry) => entry.notice.code === 'eventLog.red')).toHaveLength(1)
   })
 })

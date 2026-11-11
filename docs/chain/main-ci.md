@@ -11,6 +11,11 @@ After a cleanup whose `git sync` succeeded (the current task or a released one),
 - **Red after the fix** (the push holds the fix) — the chain is halted with `ci.fixFailed` and no new fix is made. A project without an active chain (it ended while waiting) gets one, paused with the notice, out of the queue.
 - **Commands after green** (`commands.afterGreen`, BTN-156, `docs/ci.md`). A green verdict starts them in the main checkout; while they run, `heldByMain` holds the next launch with `ciWait = { commit, since, after: true }` (its own yellow line), so a command that restarts Even Keel does not cut off the launch of the next session. The run lives in memory only (`MainCheck.afterGreenRun`): after a restart nothing waits, and the mark `ci[<project>].afterGreen` keeps the commands from running again. A fix session does not wait for them.
 
+The event log waits for the dispatcher's verdict on an awaited push, including the rerun request and its result
+(BTN-1001). `MainCheck.view().judging` names that commit from `gate.check` or the late watch. A raw red CI of the
+same commit writes no counted error meanwhile: a green rerun has no red alert, and a red rerun has one after the
+verdict. Uncounted CIs still warn independently ([event log](../web/event-log.md)).
+
 ### The fix session (BTN-115, `src/chain/mainfix.ts`)
 
 With `ci.fixTask` off nothing is created in the tracker, and the adapter needs no `create`.

@@ -75,9 +75,11 @@ export class MainCheck {
   /** What the CI panel shows of the project's main (BTN-829). */
   view(project: string): MainCiView {
     const late = this.late.get(project)
+    const judging = this.state.ci[project]?.check?.commit ?? late?.commit
     const record = this.state.ci[project]?.afterGreenRun
     const after = record !== undefined && this.deps.afterGreen(project) ? { ...record, running: this.afterRuns.get(project)?.commit === record.commit } : undefined
     return {
+      ...(judging !== undefined && { judging }),
       ...(late !== undefined && { late: { commit: late.commit, until: new Date(Date.parse(late.at) + LATE_MS).toISOString() } }),
       ...(after !== undefined && { afterGreen: after }),
       pushes: Object.fromEntries(this.pushers.get(project) ?? []),

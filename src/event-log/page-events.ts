@@ -3,7 +3,7 @@ import { pushStatus, type CiKind } from '../ci/model.js'
 import { isCarryName } from '../chain/fix.js'
 import { shownWork, type WorkInput } from '../shown-work.js'
 
-export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'forwards'> &
+export type EventsInput = Pick<EvenKeelState, 'ci' | 'mainCi' | 'fixes' | 'forwards'> &
   WorkInput & {
     chain: Pick<EvenKeelState['chain'], 'active'>
     config: {
@@ -51,7 +51,9 @@ export function pageEvents(state: EventsInput): PageEvent[] {
     for (const view of views) {
       const current = view.current
       if (current === null || pushStatus(current.runs.map((each) => each.run)) !== 'failure') continue
-      red(project, current.commit, settings.guard && settings.kinds.includes(view.kind), view.kind)
+      const counted = settings.guard && settings.kinds.includes(view.kind)
+      if (counted && state.mainCi[project]?.judging === current.commit) continue
+      red(project, current.commit, counted, view.kind)
     }
   }
   for (const [project, episodes] of Object.entries(state.fixes)) {
