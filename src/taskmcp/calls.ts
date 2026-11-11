@@ -6,7 +6,7 @@ import type { Tracker } from '../tracker/source.js'
 import { didNotAnswer } from '../tracker/link.js'
 import type { TaskComment, TrackerCard } from '../tracker/card.js'
 import { sameName, type ChainRules } from '../chain/rules.js'
-import { Args } from './args.js'
+import { Args, checkToolArgs } from './args.js'
 import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 import { rolesLine, termsOf, vocabularyFor, type TrackerTerms } from './vocabulary.js'
 import { readUploads } from './files.js'
@@ -72,6 +72,7 @@ export class TasksTools {
   }
 
   async call(name: string, raw: Record<string, unknown>, scope: TasksScope): Promise<string> {
+    checkToolArgs(name, raw)
     const args = new Args(raw)
     switch (name) {
       case 'tasks_list':

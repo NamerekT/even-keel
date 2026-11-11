@@ -1,5 +1,39 @@
 import { EditRefused, type TextPatch } from '../tracker/editor.js'
 import { PRIORITIES, type TaskPriority } from '../tracker/model.js'
+import { toolSpecs } from './tools.js'
+
+interface ArgumentSchema {
+  properties?: Record<string, ArgumentSchema>
+  items?: ArgumentSchema
+}
+
+// The unscoped schema with every capability contains all names known to any session.
+const schemas = new Map(toolSpecs(false).map((tool) => [tool.name, tool.inputSchema as ArgumentSchema]))
+
+/** Checks names before any tracker, file or retry access, without changing the existing type coercions. */
+export function checkToolArgs(name: string, raw: Record<string, unknown>): void {
+  const schema = schemas.get(name)
+  if (schema === undefined) throw new EditRefused(`there is no tool ${name}`)
+  const refused: string[] = []
+  const check = (value: unknown, properties: Record<string, ArgumentSchema>, prefix: string, singular: string, plural: string, allowed: string) => {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return
+    const known = Object.keys(properties)
+    const unknown = Object.keys(value).filter((key) => !Object.hasOwn(properties, key))
+    if (unknown.length > 0) {
+      refused.push(`${prefix}${unknown.map((key) => JSON.stringify(key)).join(', ')} ${unknown.length === 1 ? singular : plural}; ${allowed} ${known.join(', ')}`)
+    }
+  }
+  const properties = schema.properties!
+  check(raw, properties, '', `is not a parameter of ${name}`, `are not parameters of ${name}`, 'its parameters are')
+  for (const [field, spec] of Object.entries(properties)) {
+    if (spec.items?.properties === undefined || raw[field] === undefined) continue
+    const value = raw[field]
+    const items = Array.isArray(value) ? value : [value]
+    const noun = field === 'tasks' ? 'task' : 'replacement'
+    items.forEach((item, index) => check(item, spec.items!.properties!, `${field} #${index + 1}: `, `is not a field of a ${noun}`, `are not fields of a ${noun}`, 'its fields are'))
+  }
+  if (refused.length > 0) throw new EditRefused(refused.join('\n'))
+}
 
 /** A tool's arguments as the agent sent them; each getter refuses a wrong type with a line the agent can act on. */
 export class Args {
