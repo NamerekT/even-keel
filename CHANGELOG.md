@@ -4,6 +4,12 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-11-11
+
+### Fixed
+
+- A project without a counted CI no longer takes main for green when the session merged without running its check. Main counts as green only when the check hook reports it passed on the merged tree (`checkpoint` plugin 0.14.1). A merge without that report, made by a session without the `checkpoint` package for one, is checked in the next task's folder before that task starts.
+
 ## [0.2.3] - 2026-11-07
 
 ### Fixed
