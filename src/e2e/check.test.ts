@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commitAndMerge, type Turn } from './agent.fixture.js'
+import { commitAndMerge, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 
 // The scripted agent hands the shell an empty environment: on macOS /bin/sh then finds no `node` on its default PATH.
@@ -46,10 +46,12 @@ describe('the check of main without a CI end to end (EKR-103)', { timeout: 60_00
 
   const runs = () => (existsSync(marks) ? readFileSync(marks, 'utf8').split('\n').filter(Boolean) : [])
   const launched = () => run.agent.calls.filter((call) => call.kind === 'launch').map((call) => call.task)
+  // ABC-2 works on without merging: a merge of its own would move main past the push the asserts name.
+  const working = (): Turn => parked(new Gate(), commitAndMerge('two.txt'))
 
   it('checks main in the next task place before its launch when the session merged without the check hook', async () => {
     run.agent.script('ABC-1', commitAndMerge('one.txt'))
-    run.agent.script('ABC-2', commitAndMerge('two.txt'))
+    run.agent.script('ABC-2', working())
     await run.start()
     await run.startChain(PROJECT_ID)
 
@@ -63,7 +65,7 @@ describe('the check of main without a CI end to end (EKR-103)', { timeout: 60_00
 
   it('counts main green by the report of the check before the merge, and runs nothing more', async () => {
     run.agent.script('ABC-1', reportedMerge('one.txt'))
-    run.agent.script('ABC-2', reportedMerge('two.txt'))
+    run.agent.script('ABC-2', working())
     await run.start()
     await run.startChain(PROJECT_ID)
 
