@@ -47,7 +47,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
       { ...base, name: 'github@even-keel', kind: 'plugin', version: '0.2.0', default: false, settings: {}, servers: ['github'], extras: true, keys: [] },
       { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
       // Built in (BTN-986): every project has it, with no switches.
-      { ...base, name: 'checkpoint@even-keel', kind: 'plugin', version: '0.9.1', default: true, settings: {}, servers: [], extras: true, keys: [], builtIn: true },
+      { ...base, name: 'agent-bridge@even-keel', kind: 'plugin', version: '1.0.0', default: true, settings: {}, servers: [], extras: true, keys: [], builtIn: true },
       { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com' }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
     ],
     choices: {

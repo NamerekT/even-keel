@@ -29,7 +29,7 @@ interface Row {
 }
 
 /**
- * The chat's messages to sessions in the middle of a turn, in the `mailbox` table: a hook of the `checkpoint` plugin
+ * The chat's messages to sessions in the middle of a turn, in the `mailbox` table: a hook of the `agent-bridge` plugin
  * takes them on the session's next tool call or stop (BTN-181). Which sessions' hooks ask is known only since the start.
  * The rows are kept in memory as well, read at the start: a message is settled once, by whoever comes first, without
  * waiting on the database; each change is written behind (`Writes`).

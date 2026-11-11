@@ -45,7 +45,7 @@ export function fakeRecord(state: EvenKeelState, sessionId: string): SessionReco
   }
 }
 
-/** The thresholds the checkpoint hook gets for a session: two thirds of its window, as a calibrated project might have. */
+/** The thresholds the agent-bridge hook gets for a session: two thirds of its window, as a calibrated project might have. */
 export function fakeCheckpoint(view: SessionView): SessionCheckpoint {
   const first = Math.round(((view.contextWindow ?? 200_000) * 2) / 3 / 1000) * 1000
   return { project: 'example', task: view.task, handoffs: 0, first, source: 'calibrated', late: null, hard: null, context: view.contextTokens, note: '.temp/handoff.md' }

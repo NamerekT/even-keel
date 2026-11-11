@@ -23,7 +23,7 @@ export function ringFacts(tokens: number, own: number | null, scale: ContextScal
   return { tokens, window, percent, level, mark }
 }
 
-/** The context size the checkpoint hook first asks the session for a handoff at; `null` — it asks at none. */
+/** The context size the agent-bridge hook first asks the session for a handoff at; `null` — it asks at none. */
 export function checkpointMark(found: SessionCheckpoint | null): number | null {
   return found === null || found.source === 'off' ? null : found.first
 }

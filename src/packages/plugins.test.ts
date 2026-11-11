@@ -151,7 +151,7 @@ describe('pluginServers', () => {
 describe('seedPackages', () => {
   it('builds the catalog from what sessions get today', () => {
     const file = seedPackages({
-      globalSettings: { enabledPlugins: { 'checkpoint@even-keel': true, 'playwright@official': true, 'old@official': false } },
+      globalSettings: { enabledPlugins: { 'agent-bridge@even-keel': true, 'playwright@official': true, 'old@official': false } },
       projects: [
         { key: 'ABC', settings: [{ enabledPlugins: { 'huly@even-keel': true } }, { enabledPlugins: { 'playwright@official': false } }] },
         { key: 'XYZ', settings: [] },
@@ -159,7 +159,7 @@ describe('seedPackages', () => {
       userServers: { strata: { command: 'strata', env: { MODE: 'fast' } } },
     })
     expect(file.packages).toEqual({
-      'checkpoint@even-keel': { kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] },
+      'agent-bridge@even-keel': { kind: 'plugin', plugin: { name: 'agent-bridge', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] },
       'playwright@official': { kind: 'plugin', plugin: { name: 'playwright', marketplace: 'official' }, default: true, settings: {}, installs: [] },
       'huly@even-keel': { kind: 'plugin', plugin: { name: 'huly', marketplace: 'even-keel' }, default: false, settings: {}, installs: [] },
       strata: { kind: 'mcp', server: { command: 'strata', env: { MODE: 'fast' } }, default: true, settings: {}, installs: [] },
@@ -168,32 +168,32 @@ describe('seedPackages', () => {
   })
 
   it('gives the built-in package to every project without any enabledPlugins (BTN-986)', () => {
-    const file = seedPackages({ globalSettings: undefined, projects: [{ key: 'ABC', settings: [] }], userServers: {}, builtIn: 'checkpoint@even-keel' })
+    const file = seedPackages({ globalSettings: undefined, projects: [{ key: 'ABC', settings: [] }], userServers: {}, builtIn: 'agent-bridge@even-keel' })
     expect(file.packages).toEqual({
-      'checkpoint@even-keel': { kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] },
+      'agent-bridge@even-keel': { kind: 'plugin', plugin: { name: 'agent-bridge', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] },
     })
     expect(file.projects).toEqual({})
   })
 
   it('keeps the built-in package on where the settings turn it off', () => {
     const file = seedPackages({
-      globalSettings: { enabledPlugins: { 'checkpoint@even-keel': false } },
-      projects: [{ key: 'ABC', settings: [{ enabledPlugins: { 'checkpoint@even-keel': false, 'huly@even-keel': true } }] }],
+      globalSettings: { enabledPlugins: { 'agent-bridge@even-keel': false } },
+      projects: [{ key: 'ABC', settings: [{ enabledPlugins: { 'agent-bridge@even-keel': false, 'huly@even-keel': true } }] }],
       userServers: {},
-      builtIn: 'checkpoint@even-keel',
+      builtIn: 'agent-bridge@even-keel',
     })
-    expect(file.packages['checkpoint@even-keel']?.default).toBe(true)
+    expect(file.packages['agent-bridge@even-keel']?.default).toBe(true)
     expect(file.projects).toEqual({ ABC: { on: ['huly@even-keel'], off: [], settings: {} } })
   })
 })
 
 describe('builtInPackage', () => {
-  it('names the checkpoint plugin of the checkout marketplace, and nothing without one', () => {
+  it('names the agent-bridge plugin of the checkout marketplace, and nothing without one', () => {
     dir = mkdtempSync(join(tmpdir(), 'even-keel-plugins-'))
     expect(builtInPackage(dir)).toBeUndefined()
     write(join(dir, '.claude-plugin', 'marketplace.json'), { name: 'my-fork', plugins: [{ name: 'huly', source: './plugins/huly' }] })
     expect(builtInPackage(dir)).toBeUndefined()
-    write(join(dir, '.claude-plugin', 'marketplace.json'), { name: 'my-fork', plugins: [{ name: 'checkpoint', source: './plugins/checkpoint' }] })
-    expect(builtInPackage(dir)).toBe('checkpoint@my-fork')
+    write(join(dir, '.claude-plugin', 'marketplace.json'), { name: 'my-fork', plugins: [{ name: 'agent-bridge', source: './plugins/agent-bridge' }] })
+    expect(builtInPackage(dir)).toBe('agent-bridge@my-fork')
   })
 })

@@ -1,4 +1,4 @@
-// The checkpoint package's hooks for OpenCode, whose hooks are JS plugins run inside its own process: Even Keel
+// The agent-bridge package's hooks for OpenCode, whose hooks are JS plugins run inside its own process: Even Keel
 // loads every script of this folder into a chain session's config. After each tool call the plugin asks Even Keel
 // what the hook commands of Claude Code and Codex ask (../hooks/evenkeel.mjs) — the checkpoint nudge due and the
 // chat's waiting messages — and puts them after the tool's output, the only way into the context in the middle of

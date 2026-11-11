@@ -1,6 +1,8 @@
-# checkpoint
+# agent-bridge
 
-A hook that keeps long sessions cheap. Every turn re-reads the whole context, so a session that goes through a loop of checks (test runs, debugging, screenshots) or the wrap-up (docs, review, merge) with a big context pays for it again and again. A fresh session that starts from a short note costs a fraction of that.
+A bridge between an agent session and Even Keel: context handoffs, chat messages mid-turn, permission questions, the check before a merge, project standards, badge status and MCP schema hints.
+
+Context handoffs keep long sessions cheap. Every turn re-reads the whole context, so a session that goes through a loop of checks (test runs, debugging, screenshots) or the wrap-up (docs, review, merge) with a big context pays for it again and again. A fresh session that starts from a short note costs a fraction of that.
 
 The hooks work in Even Keel's chain sessions of Claude Code and Codex, and of OpenCode through a plugin of its own (see [OpenCode](#opencode)): they read no transcript and ask Even Keel, which reads every agent's (`EVEN_KEEL_URL`, by default `http://127.0.0.1:4747`). A session Even Keel did not start, or no Even Keel at all, and they stay silent.
 
@@ -58,7 +60,7 @@ Claude Code defers MCP tools: until a session loads a tool's schema with `ToolSe
 
 ## OpenCode
 
-OpenCode runs no hook commands: its hooks are JS plugins loaded into its own process. Even Keel loads every script of this plugin's `opencode/` folder into a chain session's config, and `opencode/checkpoint.mjs` does after each tool call what `context-checkpoint.mjs` and `mailbox.mjs` do on `PostToolUse` (both ask Even Keel through `hooks/evenkeel.mjs`). OpenCode has no way into the context in the middle of a turn but the tool's result, so the nudge and the chat's messages come after the tool's output, each in a `<system-reminder>` block; a delivered message is also kept in the call's metadata, where Even Keel's chat finds it (a tool that prints the mark from a file fakes no message). A subagent runs in a session of its own, which Even Keel does not know, so it is left alone.
+OpenCode runs no hook commands: its hooks are JS plugins loaded into its own process. Even Keel loads every script of this plugin's `opencode/` folder into a chain session's config, and `opencode/agent-bridge.mjs` does after each tool call what `context-checkpoint.mjs` and `mailbox.mjs` do on `PostToolUse` (both ask Even Keel through `hooks/evenkeel.mjs`). OpenCode has no way into the context in the middle of a turn but the tool's result, so the nudge and the chat's messages come after the tool's output, each in a `<system-reminder>` block; a delivered message is also kept in the call's metadata, where Even Keel's chat finds it (a tool that prints the mark from a file fakes no message). A subagent runs in a session of its own, which Even Keel does not know, so it is left alone.
 
 The merge check runs on `tool.execute.before` of the `bash` tool, with the same rules as the hook (`mergeRefusal` in `hooks/merges.mjs`), the worktree being the session's folder: the commands run asynchronously, so OpenCode's process is not blocked while they run, and a failed one throws, which keeps the call from running and gives the session the same text as its error.
 

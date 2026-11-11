@@ -16,7 +16,7 @@ export interface HookRequest {
 
 export function checkHookRequests(requests: HookRequest[], sessions: string[]): string {
   const found = requests.filter((request) => sessions.includes(request.session))
-  if (found.length === 0) throw new Error(`no checkpoint package hook request for ${sessions.join(', ')}; received ${JSON.stringify(requests)}`)
+  if (found.length === 0) throw new Error(`no agent-bridge package hook request for ${sessions.join(', ')}; received ${JSON.stringify(requests)}`)
   return found.map((request) => `${request.session}${request.path}`).join(', ')
 }
 
@@ -66,10 +66,10 @@ export function checkRolloutUsage(text: string): string {
 }
 
 /** The real package, installed and pinned by the same service the chain uses, in the check's own catalog. */
-export async function checkpointPackages(work: string, agent: string, log: (line: string) => void): Promise<Packages> {
+export async function bridgePackages(work: string, agent: string, log: (line: string) => void): Promise<Packages> {
   const file = join(work, 'packages.json')
   if (!existsSync(file)) savePackages(file, {
-    packages: { 'checkpoint@even-keel': { kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] } },
+    packages: { 'agent-bridge@even-keel': { kind: 'plugin', plugin: { name: 'agent-bridge', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] } },
     projects: {}, pins: {},
   })
   const packages = new Packages({
@@ -80,7 +80,7 @@ export async function checkpointPackages(work: string, agent: string, log: (line
     baseEnv: () => ({}), poolOf: () => ({}), port: 0, log, onChange: () => {},
   })
   packages.release('cli-check', 'cli-check')
-  await packages.install('checkpoint@even-keel')
+  await packages.install('agent-bridge@even-keel')
   return packages
 }
 

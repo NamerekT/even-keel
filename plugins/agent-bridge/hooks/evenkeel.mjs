@@ -1,5 +1,5 @@
 // What the hooks ask Even Keel about a session, shared by the hook commands of Claude Code, Codex and Copilot and by
-// OpenCode's plugin (../opencode/checkpoint.mjs): the checkpoint nudge due now, the chat's waiting messages, the
+// OpenCode's plugin (../opencode/agent-bridge.mjs): the checkpoint nudge due now, the chat's waiting messages, the
 // check before a merge, the project's standards and whether the turn wrote the handoff note at its end.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

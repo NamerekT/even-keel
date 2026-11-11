@@ -68,6 +68,25 @@ export function pluginKey(plugin: string, marketplace: string): string {
   return `${plugin}@${marketplace}`
 }
 
+/** The old built-in package in the same marketplace; other marketplaces keep their own plugins. */
+export function checkpointPackage(bridge?: string): string | undefined {
+  return bridge?.startsWith('agent-bridge@') ? `checkpoint@${bridge.slice('agent-bridge@'.length)}` : undefined
+}
+
+/** Retires the old bridge without touching installs or pins; normal pruning reclaims them after the tasks finish. */
+export function retireCheckpoint(file: PackagesFile, bridge: string): string | undefined {
+  const name = checkpointPackage(bridge)
+  const record = name === undefined ? undefined : file.packages[name]
+  if (name === undefined || record === undefined || record.removed === true) return undefined
+  record.removed = true
+  for (const [project, set] of Object.entries(file.projects)) {
+    set.on = set.on.filter((each) => each !== name)
+    set.off = set.off.filter((each) => each !== name)
+    if (set.on.length === 0 && set.off.length === 0 && Object.keys(set.settings).length === 0) delete file.projects[project]
+  }
+  return name
+}
+
 /**
  * Puts the built-in plugin package (BTN-986) back as every project gets it: in the catalog, not removed, on by default,
  * in no project's own set. Answers what it had to repair, empty when nothing.
@@ -137,10 +156,14 @@ export function settingsOf(file: PackagesFile, project: string, name: string): R
  * What a session of the task runs on: every package the project has on now (BTN-706), each on the install the task is
  * pinned to while that install is there, else on the current one. A pin holds versions, not the set.
  */
-export function installsFor(file: PackagesFile, project: string, task: string): Record<string, string> {
+export function installsFor(file: PackagesFile, project: string, task: string, builtIn?: string): Record<string, string> {
   const pinned = file.pins[project]?.[task] ?? {}
   const installs: Record<string, string> = {}
+  const old = checkpointPackage(builtIn)
+  const held = old === undefined ? undefined : file.packages[old]?.installs.find((each) => each.id === pinned[old])
+  if (old !== undefined && held !== undefined) installs[old] = held.id
   for (const name of enabledPackages(file, project)) {
+    if (held !== undefined && name === builtIn) continue
     const record = file.packages[name]!
     const install = record.installs.find((each) => each.id === pinned[name]) ?? current(record)
     if (install !== undefined) installs[name] = install.id

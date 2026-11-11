@@ -47,7 +47,7 @@ describe('turnArgs', () => {
   })
 
   it("leaves the agent's own servers alone when the project has no packages, and passes plugins as folders", () => {
-    const plugin = { dir: 'C:\\cache\\checkpoint', name: 'checkpoint', marketplace: 'ek-1', marketplaceFile: 'x', servers: [] }
+    const plugin = { dir: 'C:\\cache\\agent-bridge', name: 'agent-bridge', marketplace: 'ek-1', marketplaceFile: 'x', servers: [] }
     const args = turnArgs({ name: 'DEMO-1', model: null, plugins: [plugin] }, 'DEMO-1', place, { id: 'abc', resume: false })
     expect(args).not.toContain('--disable-builtin-mcps')
     expect(args.slice(args.indexOf('--plugin-dir'), args.indexOf('--plugin-dir') + 2)).toEqual(['--plugin-dir', plugin.dir])

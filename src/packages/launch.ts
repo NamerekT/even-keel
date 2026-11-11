@@ -13,6 +13,8 @@ export interface LaunchPlaces {
   cache: string
   /** The id of the project: a route outlives a rename of its key. */
   projectId: string
+  /** The built-in bridge whose retired predecessor may still be pinned by this task. */
+  builtIn?: string
 }
 
 /** What a session of the task gets: the gateway's servers, the plugin folders, and the install of each package. */
@@ -71,7 +73,7 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
   const mcp: SessionMcp[] = []
   const plugins: SessionPlugin[] = []
   const installs: Record<string, string> = {}
-  for (const [name, id] of Object.entries(installsFor(file, project, task))) {
+  for (const [name, id] of Object.entries(installsFor(file, project, task, places.builtIn))) {
     const record = file.packages[name]
     const install = record?.installs.find((each) => each.id === id)
     if (record === undefined || install === undefined) continue

@@ -32,7 +32,7 @@ interface Pending {
 }
 
 /**
- * The tool calls Claude sessions of the chain wait to have approved (BTN-269). The `checkpoint` plugin's
+ * The tool calls Claude sessions of the chain wait to have approved (BTN-269). The `agent-bridge` plugin's
  * `PermissionRequest` hook asks about its call every second while the CLI shows its dialog; the oldest call not yet
  * decided is the session's question on the page, and the answer to it is handed to the hook's next poll. The CLI
  * leaves the hook running when the dialog is answered elsewhere (Remote Control), so a call of a session seen no

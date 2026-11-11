@@ -27,7 +27,7 @@ const cell = (enabled: boolean, problems: PackageCell['problems'] = []): Package
 
 const view = (cells: Record<string, PackageCell>): PackagesView => ({
   gateway: null,
-  packages: [pkg('tasks@even-keel'), pkg('checkpoint@even-keel'), pkg('forgejo'), pkg('db')],
+  packages: [pkg('tasks@even-keel'), pkg('agent-bridge@even-keel'), pkg('forgejo'), pkg('db')],
   projects: { ABC: { cells, problems: [], blocked: false, tracker: null } },
   keys: [],
   available: [],
@@ -41,8 +41,8 @@ const render = (packages: PackagesView) =>
 
 describe('PackagesButton', () => {
   it('names the enabled packages without their marketplace and opens the packages over the open settings', () => {
-    const html = render(view({ 'tasks@even-keel': cell(true), 'checkpoint@even-keel': cell(true), forgejo: cell(false) }))
-    expect(html).toContain('>checkpoint, tasks<')
+    const html = render(view({ 'tasks@even-keel': cell(true), 'agent-bridge@even-keel': cell(true), forgejo: cell(false) }))
+    expect(html).toContain('>agent-bridge, tasks<')
     expect(html).toContain('href="/p/ABC?pkg=1#settings"')
     expect(html).not.toContain('packages-button__link--warn')
   })

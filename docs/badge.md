@@ -77,7 +77,7 @@ word of its feed line, the tool.
 The default text is what the agent writes anyway. A more human one ("Writing tests for the Linear scale") comes from
 the agent itself, without a tool and without a word in the task's prompt:
 
-- **The request.** The `checkpoint` plugin's mailbox hook calls `POST /api/sessions/<id>/mail` on every tool call
+- **The request.** The `agent-bridge` plugin's mailbox hook calls `POST /api/sessions/<id>/mail` on every tool call
   (`docs/sessions/chat.md`). On `PreToolUse` and `PostToolUse` the answer may carry `context` next to `message` —
   `statusRequest()` (`src/badge/status.ts`), which the hook (plugin 0.15.0) puts into `additionalContext` after the
   mail: add one line `status: …` next to the next tool call, in English, up to 60 characters, no names, paths or

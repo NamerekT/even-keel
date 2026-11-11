@@ -107,8 +107,8 @@ describe('sessionConfig', () => {
   })
 
   it("loads the plugin packages' OpenCode plugins", () => {
-    const config = JSON.parse(sessionConfig({}, [], [], ['file:///packages/checkpoint/opencode/checkpoint.mjs']))
-    expect(config.plugin[0]).toBe('file:///packages/checkpoint/opencode/checkpoint.mjs')
+    const config = JSON.parse(sessionConfig({}, [], [], ['file:///packages/agent-bridge/opencode/agent-bridge.mjs']))
+    expect(config.plugin[0]).toBe('file:///packages/agent-bridge/opencode/agent-bridge.mjs')
     expect(config.plugin).toHaveLength(2)
   })
 
@@ -124,8 +124,8 @@ describe('sessionConfig', () => {
     expect(custom.plugin.at(-1)[1]).toEqual({ bash: ['echo BLOCK_*'], tools: [] })
     const off = JSON.parse(sessionConfig({ protection: { ...protection, opencode: [] } }, [], []))
     expect(off.plugin).toBeUndefined()
-    const packagesOnly = JSON.parse(sessionConfig({ protection: { ...protection, opencode: [] } }, [], [], ['file:///packages/checkpoint.mjs']))
-    expect(packagesOnly.plugin).toEqual(['file:///packages/checkpoint.mjs'])
+    const packagesOnly = JSON.parse(sessionConfig({ protection: { ...protection, opencode: [] } }, [], [], ['file:///packages/agent-bridge.mjs']))
+    expect(packagesOnly.plugin).toEqual(['file:///packages/agent-bridge.mjs'])
   })
 
   it("sets the session's window over the model's limit, and leaves the model's own without one", () => {
@@ -144,14 +144,14 @@ describe('pluginFiles', () => {
   it("takes the scripts of a package's opencode folder as file URLs, and nothing of a package without one", () => {
     const root = mkdtempSync(join(tmpdir(), 'ek-opencode-'))
     try {
-      const checkpoint = join(root, 'checkpoint')
-      mkdirSync(join(checkpoint, 'opencode'), { recursive: true })
-      for (const file of ['checkpoint.mjs', 'notes.md', 'old.js']) writeFileSync(join(checkpoint, 'opencode', file), '')
+      const bridge = join(root, 'agent-bridge')
+      mkdirSync(join(bridge, 'opencode'), { recursive: true })
+      for (const file of ['agent-bridge.mjs', 'notes.md', 'old.js']) writeFileSync(join(bridge, 'opencode', file), '')
       mkdirSync(join(root, 'huly'))
       const plugin = (dir: string, name: string) => ({ dir, name, marketplace: `ek-${name}`, marketplaceFile: '', servers: [] })
-      expect(pluginFiles({ plugins: [plugin(checkpoint, 'checkpoint'), plugin(join(root, 'huly'), 'huly')] })).toEqual([
-        pathToFileURL(join(checkpoint, 'opencode', 'checkpoint.mjs')).href,
-        pathToFileURL(join(checkpoint, 'opencode', 'old.js')).href,
+      expect(pluginFiles({ plugins: [plugin(bridge, 'agent-bridge'), plugin(join(root, 'huly'), 'huly')] })).toEqual([
+        pathToFileURL(join(bridge, 'opencode', 'agent-bridge.mjs')).href,
+        pathToFileURL(join(bridge, 'opencode', 'old.js')).href,
       ])
       expect(pluginFiles({})).toEqual([])
     } finally {

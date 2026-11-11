@@ -35,6 +35,23 @@ describe('pluginArgs', () => {
   it('turns the folder plugins off when the set has none', () => {
     expect(pluginArgs([], {}, ['browser@openai-bundled'])).toEqual(['-c', 'plugins.browser@openai-bundled.enabled=false'])
   })
+
+  it('disables the old bridge and trusts hooks under the new plugin name', () => {
+    const bridge = { ...huly, package: 'agent-bridge@even-keel', name: 'agent-bridge', servers: [] }
+    const id = pluginId(bridge)
+    const key = `${id}:hooks/hooks.json:stop:0:0`
+    const hooks = pluginHooks({ data: [{ hooks: [
+      { pluginId: id, key, currentHash: 'sha256:new/sha256:contents' },
+      { pluginId: 'checkpoint@ek-a', key: 'old-key', currentHash: 'sha256:old' },
+    ] }] }, id)
+    expect(id).toBe('agent-bridge@ek-b')
+    expect(hooks).toEqual({ [key]: 'sha256:new' })
+    const old = 'checkpoint@ek-a'
+    const args = pluginArgs([bridge], hooks, [old, id])
+    expect(args).toContain(`plugins.${old}.enabled=false`)
+    expect(args).toContain(`plugins.${id}.enabled=true`)
+    expect(args).toContain(`hooks.state={"${key}"={trusted_hash="sha256:new"}}`)
+  })
 })
 
 describe('configPlugins', () => {

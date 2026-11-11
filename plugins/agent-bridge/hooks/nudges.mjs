@@ -1,4 +1,4 @@
-// When the checkpoint hook nudges and what it says: the thresholds from the environment, what Even Keel
+// When the agent-bridge hook nudges and what it says: the thresholds from the environment, what Even Keel
 // answered about the session, and the mark a context size falls on.
 import { NOTE, noteIn } from "./handoff.mjs";
 

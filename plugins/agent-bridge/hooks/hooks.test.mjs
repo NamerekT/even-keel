@@ -362,7 +362,7 @@ describe("the OpenCode plugin", () => {
     process.env.EVEN_KEEL_URL = url;
     repo = mkdtempSync(join(tmpdir(), "merge-check-"));
     execFileSync("git", ["init", "-q", "-b", "abc-12/task"], { cwd: repo });
-    const { server } = await import("../opencode/checkpoint.mjs");
+    const { server } = await import("../opencode/agent-bridge.mjs");
     hooks = await server({ directory: repo });
     before = hooks["tool.execute.before"];
     after = hooks["tool.execute.after"];

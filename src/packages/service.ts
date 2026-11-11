@@ -9,7 +9,7 @@ import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
-import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
+import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { copyPinned, installPinned, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
 import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
@@ -87,9 +87,11 @@ export class Packages {
     this.builtIn = builtInPackage(deps.ownDir)
     const loaded = loadPackages(deps.file)
     this.file = loaded ?? this.seed()
+    const retired = this.builtIn === undefined ? undefined : retireCheckpoint(this.file, this.builtIn)
+    if (retired !== undefined) deps.log(`packages: ${retired} replaced by ${this.builtIn}`)
     const repaired = loaded === undefined || this.builtIn === undefined ? [] : keepBuiltIn(this.file, this.builtIn)
     if (repaired.length > 0) deps.log(`packages: ${this.builtIn} is built in and restored: ${repaired.join(', ')}`)
-    if (loaded === undefined || repaired.length > 0) savePackages(deps.file, this.file)
+    if (loaded === undefined || retired !== undefined || repaired.length > 0) savePackages(deps.file, this.file)
     this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks })
     this.probes = new Probes({
       urlOf: (project, name, install, server) => `${this.gateway.origin}${routeOf(project, name, install, server)}`,
@@ -275,7 +277,7 @@ export class Packages {
    * Claude Code goes without the user's wrapped skills: it reads them from its account folder.
    */
   startOf(project: string, task: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
-    const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project }
+    const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project, builtIn: this.builtIn }
     const found = sessionPackages(this.file, project, task, places)
     if (!sameInstalls(this.file.pins[project]?.[task] ?? {}, found.installs)) {
       if (Object.keys(found.installs).length > 0) (this.file.pins[project] ??= {})[task] = found.installs
@@ -293,7 +295,7 @@ export class Packages {
 
   /** `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring. */
   otherPlugins(project: string, task: string, settings: (Record<string, unknown> | undefined)[]): Record<string, false> {
-    const set = Object.keys(installsFor(this.file, project, task)).flatMap((name) => {
+    const set = Object.keys(installsFor(this.file, project, task, this.builtIn)).flatMap((name) => {
       const plugin = this.file.packages[name]?.plugin
       return plugin === undefined ? [] : [pluginKey(plugin.name, plugin.marketplace)]
     })
@@ -594,6 +596,8 @@ export class Packages {
       const record = this.file.packages[name]!
       rmSync(join(this.deps.cache, name, id), { recursive: true, force: true })
       record.installs = record.installs.filter((each) => each.id !== id)
+    }
+    for (const [name, record] of Object.entries(this.file.packages)) {
       if (record.removed === true && record.installs.length === 0) delete this.file.packages[name]
     }
   }

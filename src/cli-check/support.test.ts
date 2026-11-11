@@ -43,15 +43,15 @@ describe('CLI check limits', () => {
 
 describe('CLI check hook evidence', () => {
   it('requires every listed Codex hook to be trusted, with a diagnostic for an empty list', () => {
-    const list = (trustStatus: string) => ({ data: [{ hooks: [{ pluginId: 'checkpoint@ek-check', key: 'stop-hook', trustStatus }] }] })
-    expect(checkCodexHookList(list('trusted'), 'checkpoint@ek-check')).toContain('1 trusted')
-    expect(() => checkCodexHookList(list('modified'), 'checkpoint@ek-check')).toThrow('stop-hook modified')
-    expect(() => checkCodexHookList({ data: [] }, 'checkpoint@ek-check')).toThrow('received {"data":[]}')
+    const list = (trustStatus: string) => ({ data: [{ hooks: [{ pluginId: 'agent-bridge@ek-check', key: 'stop-hook', trustStatus }] }] })
+    expect(checkCodexHookList(list('trusted'), 'agent-bridge@ek-check')).toContain('1 trusted')
+    expect(() => checkCodexHookList(list('modified'), 'agent-bridge@ek-check')).toThrow('stop-hook modified')
+    expect(() => checkCodexHookList({ data: [] }, 'agent-bridge@ek-check')).toThrow('received {"data":[]}')
   })
 
   it('requires a hook request for one of the checked session ids', () => {
     expect(() => checkHookRequests([{ session: 'other', path: '/checkpoint' }], ['checked'])).toThrow('other')
-    expect(() => checkHookRequests([], ['checked'])).toThrow('no checkpoint package hook request')
+    expect(() => checkHookRequests([], ['checked'])).toThrow('no agent-bridge package hook request')
     expect(checkHookRequests([{ session: 'checked', path: '/mail' }], ['checked'])).toContain('/mail')
   })
 })

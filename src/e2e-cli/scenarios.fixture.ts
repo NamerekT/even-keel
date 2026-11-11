@@ -11,7 +11,7 @@ import { ScriptedModel, type LateReply, type ModelRequest, type Reply } from './
 const PACE_MS = 100
 /** The service's time a scenario's turn may take: the first start of an account installs or starts what it needs. */
 const TURN_LIMIT_MS = 30 * 60_000
-/** The words `merge-check` opens its refusal with (`plugins/checkpoint/hooks/merges.mjs`, `refusal`). */
+/** The words `merge-check` opens its refusal with (`plugins/agent-bridge/hooks/merges.mjs`, `refusal`). */
 const REFUSED = "Even Keel's check before the merge failed"
 /** Words of a project's `AGENTS.md` and `CLAUDE.md` that nothing else in a request says. */
 const AGENTS_WORD = 'ZEBRAFINCH'
@@ -21,7 +21,7 @@ const MAIL_WORD = 'PANGOLIN'
 /** The project's pinned checkpoint threshold (the least the setting takes) and a context past it, short of the late one. */
 const CHECKPOINT_AT = 100_000
 const FULL_CONTEXT = 120_000
-/** How the checkpoint hook's nudge opens (`plugins/checkpoint/hooks/nudges.mjs`, `nudge`) and what it asks for. */
+/** How the agent-bridge hook's nudge opens (`plugins/agent-bridge/hooks/nudges.mjs`, `nudge`) and what it asks for. */
 const NUDGED = `Context is now ~${FULL_CONTEXT / 1000}k tokens`
 const CHECKPOINT_LINE = 'CHECKPOINT: .temp/handoff.md'
 /** The real time a scripted turn keeps working while it waits for a hook's word. */
@@ -90,9 +90,9 @@ export function chainOnRealCli(kit: CliKit): void {
      */
     const playedOut = (task: string) => run.until(() => model.left(task) === 0, `the last reply of ${task} taken`, { limitMs: TURN_LIMIT_MS })
 
-    /** Waits for Even Keel's built-in `checkpoint` plugin, which every project has (BTN-986), to install. */
-    async function checkpointInstalled(): Promise<void> {
-      await run.until(() => run.service.packages.unready(PROJECT_ID).length === 0, 'the checkpoint package installed', { limitMs: TURN_LIMIT_MS })
+    /** Waits for Even Keel's built-in `agent-bridge` plugin, which every project has (BTN-986), to install. */
+    async function bridgeInstalled(): Promise<void> {
+      await run.until(() => run.service.packages.unready(PROJECT_ID).length === 0, 'the agent-bridge package installed', { limitMs: TURN_LIMIT_MS })
     }
 
     /**
@@ -178,7 +178,7 @@ export function chainOnRealCli(kit: CliKit): void {
       expect(asked('ABC-1').find((request) => request.tools.some((tool) => tool.endsWith('_note')))?.tools.filter((tool) => tool.endsWith('_note'))).toHaveLength(1)
     })
 
-    it("holds the merge until the project's check passes, by the checkpoint plugin's hook", async () => {
+    it("holds the merge until the project's check passes, by the agent-bridge plugin's hook", async () => {
       run.board.add('ABC-1')
       run.project.commands = { check: ['node check.mjs'] }
       const fix: LateReply = (_tools, result) => (result.includes(REFUSED) ? commit('ABC-1', 'Fix') : { text: `The merge was not refused: ${result.slice(0, 300)}` })
@@ -188,7 +188,7 @@ export function chainOnRealCli(kit: CliKit): void {
         run.git('add', 'check.mjs')
         run.git('commit', '-q', '-m', 'Add the check')
       })
-      await checkpointInstalled()
+      await bridgeInstalled()
       await run.startChain(PROJECT_ID)
 
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
@@ -201,11 +201,11 @@ export function chainOnRealCli(kit: CliKit): void {
      * A session that steers (`AgentEntry.steers`, an SDK session) takes the message on its stdin at once, so the mailbox
      * stays empty and the CLI hands the message to the model within the same turn.
      */
-    it("hands a chat message to the working session mid-turn, by the checkpoint plugin's mailbox hook or the session's own input", async () => {
+    it("hands a chat message to the working session mid-turn, by the agent-bridge plugin's mailbox hook or the session's own input", async () => {
       run.board.add('ABC-1')
       model.script('ABC-1', awaiting(MAIL_WORD, 'the chat message', commit('ABC-1')), merge('ABC-1'), { text: 'Merged ABC-1.' })
       await start()
-      await checkpointInstalled()
+      await bridgeInstalled()
       await run.startChain(PROJECT_ID)
 
       // The page's chat sends into the mailbox once the session's hook has asked for mail and its turn is on.
@@ -227,13 +227,13 @@ export function chainOnRealCli(kit: CliKit): void {
       await playedOut('ABC-1')
     })
 
-    it("asks the session for a checkpoint once its context passes the project's threshold, by the checkpoint plugin's hook", async () => {
+    it("asks the session for a checkpoint once its context passes the project's threshold, by the agent-bridge plugin's hook", async () => {
       run.board.add('ABC-1')
       run.project.stats = { checkpointTokens: CHECKPOINT_AT }
       // Even Keel reads the context from the transcript at its poll: the hook nudges at the first tool call after it.
       model.script('ABC-1', awaiting(NUDGED, 'the checkpoint nudge', commit('ABC-1'), FULL_CONTEXT), merge('ABC-1'), { text: 'Merged ABC-1.' })
       await start()
-      await checkpointInstalled()
+      await bridgeInstalled()
       await run.startChain(PROJECT_ID)
 
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })

@@ -2,7 +2,7 @@ import type { Language } from '../language.js'
 import { replyPrompt } from './ask.js'
 
 /**
- * Where a chat message reached the session: a hook of the `checkpoint` plugin in the middle of a turn (`AskUserQuestion` —
+ * Where a chat message reached the session: a hook of the `agent-bridge` plugin in the middle of a turn (`AskUserQuestion` —
  * the hook turned the question down for it), or `resume` — the turn had ended without the hook taking it.
  */
 export type MailEvent = 'PreToolUse' | 'PostToolUse' | 'Stop' | 'AskUserQuestion' | 'resume'

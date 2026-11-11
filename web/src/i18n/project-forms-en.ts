@@ -334,7 +334,7 @@ export const settingsEN: Messages['settings'] = {
     },
     standards: {
       title: 'Standards',
-      hint: 'A document of the repository that guards some of its files. A session gets it at its first read of such a file, and its first edit of one before that is refused with the document; after a compaction it comes again. Sessions of Claude Code, Codex, Copilot and OpenCode get it through the checkpoint package.',
+      hint: 'A document of the repository that guards some of its files. A session gets it at its first read of such a file, and its first edit of one before that is refused with the document; after a compaction it comes again. Sessions of Claude Code, Codex, Copilot and OpenCode get it through the agent-bridge package.',
       doc: 'Document',
       docHint: "A Markdown file committed on the project's branch.",
       docHintPlain: "A Markdown file of the project's folder.",

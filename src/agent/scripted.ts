@@ -27,11 +27,11 @@ export interface TurnContext {
   live(): boolean
   /** Shows a step of the turn, as a transcript line would: the action, the stage and how full the context is. */
   show(step: TurnStep): void
-  /** Asks the service for the chat's mail on `event`, as the `checkpoint` plugin's mailbox hook does; `null` — none. */
+  /** Asks the service for the chat's mail on `event`, as the `agent-bridge` plugin's mailbox hook does; `null` — none. */
   mail(event: MailEvent): Promise<string | null>
   /**
    * Reports the check before the merge passed on the folder's `HEAD`, with the commands the service gives, as the
-   * `checkpoint` plugin's merge hook does once they pass (EKR-103); the hook's own run is `merges.test.mjs`'s.
+   * `agent-bridge` plugin's merge hook does once they pass (EKR-103); the hook's own run is `merges.test.mjs`'s.
    */
   reportCheck(): Promise<void>
   /** Starts a background command that outlives the turn: the turn ends in `shell`, its process alive until a stop. */

@@ -76,20 +76,20 @@ describe('packageGroups', () => {
 describe('isTrackerPlugin', () => {
   it('is a plugin of Even Keel’s marketplace named for a tracker’s server', () => {
     expect(isTrackerPlugin(pkg('huly@even-keel'), 'even-keel')).toBe(true)
-    expect(isTrackerPlugin(pkg('checkpoint@even-keel'), 'even-keel')).toBe(false)
+    expect(isTrackerPlugin(pkg('agent-bridge@even-keel'), 'even-keel')).toBe(false)
     expect(isTrackerPlugin(pkg('github@claude-plugins-official'), 'even-keel')).toBe(false)
     expect(isTrackerPlugin(pkg('huly@even-keel'), null)).toBe(false)
   })
 })
 
 describe('projectGroups', () => {
-  const packages = [pkg('huly@even-keel'), pkg('linear@even-keel'), pkg('github@even-keel'), pkg('checkpoint@even-keel'), pkg('forgejo'), pkg('old', { removed: true })]
+  const packages = [pkg('huly@even-keel'), pkg('linear@even-keel'), pkg('github@even-keel'), pkg('agent-bridge@even-keel'), pkg('forgejo'), pkg('old', { removed: true })]
 
   it('shows the project’s tracker plugin and the enabled ones, folds the other trackers’ plugins and drops a removed package', () => {
-    const projects = { ABC: project({ 'huly@even-keel': cell(false), 'linear@even-keel': cell(false), 'github@even-keel': cell(true), 'checkpoint@even-keel': cell(false), forgejo: cell(true), old: cell(true) }, { tracker: { server: 'huly', brought: false } }) }
+    const projects = { ABC: project({ 'huly@even-keel': cell(false), 'linear@even-keel': cell(false), 'github@even-keel': cell(true), 'agent-bridge@even-keel': cell(false), forgejo: cell(true), old: cell(true) }, { tracker: { server: 'huly', brought: false } }) }
     const groups = projectGroups(view({ packages, projects }), 'ABC')
     expect(groups.map((group) => [group.kind, group.packages.map((each) => each.name), group.folded.map((each) => each.name)])).toEqual([
-      ['own', ['checkpoint@even-keel', 'github@even-keel', 'huly@even-keel'], ['linear@even-keel']],
+      ['own', ['agent-bridge@even-keel', 'github@even-keel', 'huly@even-keel'], ['linear@even-keel']],
       ['mcp', ['forgejo'], []],
     ])
   })
@@ -101,8 +101,8 @@ describe('projectGroups', () => {
   })
 
   it('folds every tracker plugin that is off for a project without a tracker server', () => {
-    const projects = { ABC: project({ 'huly@even-keel': cell(false), 'linear@even-keel': cell(false), 'github@even-keel': cell(false), 'checkpoint@even-keel': cell(true), forgejo: cell(false) }) }
-    expect(projectGroups(view({ packages, projects }), 'ABC')[0]).toMatchObject({ packages: [{ name: 'checkpoint@even-keel' }], folded: [{ name: 'github@even-keel' }, { name: 'huly@even-keel' }, { name: 'linear@even-keel' }] })
+    const projects = { ABC: project({ 'huly@even-keel': cell(false), 'linear@even-keel': cell(false), 'github@even-keel': cell(false), 'agent-bridge@even-keel': cell(true), forgejo: cell(false) }) }
+    expect(projectGroups(view({ packages, projects }), 'ABC')[0]).toMatchObject({ packages: [{ name: 'agent-bridge@even-keel' }], folded: [{ name: 'github@even-keel' }, { name: 'huly@even-keel' }, { name: 'linear@even-keel' }] })
   })
 
   it('shows nothing for a project the view does not know', () => {
@@ -148,9 +148,9 @@ describe('projectIssues', () => {
 
 describe('enabledPackages', () => {
   it('lists the project’s enabled packages by name, without the ones off or removed', () => {
-    const packages = [pkg('tasks@even-keel'), pkg('forgejo'), pkg('old@even-keel', { removed: true }), pkg('checkpoint@even-keel'), pkg('idle@even-keel')]
-    const projects = { ABC: project({ 'tasks@even-keel': cell(true), forgejo: cell(true), 'old@even-keel': cell(true), 'checkpoint@even-keel': cell(true), 'idle@even-keel': cell(false) }) }
-    expect(enabledPackages(view({ packages, projects }), 'ABC').map(shortName)).toEqual(['checkpoint', 'forgejo', 'tasks'])
+    const packages = [pkg('tasks@even-keel'), pkg('forgejo'), pkg('old@even-keel', { removed: true }), pkg('agent-bridge@even-keel'), pkg('idle@even-keel')]
+    const projects = { ABC: project({ 'tasks@even-keel': cell(true), forgejo: cell(true), 'old@even-keel': cell(true), 'agent-bridge@even-keel': cell(true), 'idle@even-keel': cell(false) }) }
+    expect(enabledPackages(view({ packages, projects }), 'ABC').map(shortName)).toEqual(['agent-bridge', 'forgejo', 'tasks'])
   })
 
   it('has none for a project the view does not know', () => {

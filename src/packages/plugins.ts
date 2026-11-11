@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fail } from '../notice/notice.js'
-import { emptyPackages, keepBuiltIn, pluginKey, type PackagesFile, type ServerEntry } from './model.js'
+import { checkpointPackage, emptyPackages, keepBuiltIn, pluginKey, type PackagesFile, type ServerEntry } from './model.js'
 
 type Json = Record<string, unknown>
 
@@ -31,7 +31,7 @@ export function ownMarketplace(root: string): string | undefined {
 }
 
 /** The plugin of Even Keel's own marketplace every project has, never turned off or removed (BTN-986). */
-export const BUILT_IN_PLUGIN = 'checkpoint'
+export const BUILT_IN_PLUGIN = 'agent-bridge'
 
 /** The built-in plugin's package name in the checkout's marketplace; `undefined` when the checkout has no such plugin. */
 export function builtInPackage(root: string): string | undefined {
@@ -156,7 +156,9 @@ export interface SeedInput {
 export function seedPackages(input: SeedInput): PackagesFile {
   const file = emptyPackages()
   const global = enabledOf(input.globalSettings)
+  const old = checkpointPackage(input.builtIn)
   const addPlugin = (key: string, on: boolean) => {
+    if (key === old) return
     if (key in file.packages) return
     const at = key.lastIndexOf('@')
     if (at <= 0) return

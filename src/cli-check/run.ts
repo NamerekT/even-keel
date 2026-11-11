@@ -28,7 +28,7 @@ import { OPENCODE } from '../opencode/name.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { replyPrompt, type Ask } from '../sessions/ask.js'
 import type { FeedLine } from '../sessions/transcript.js'
-import { checkCodexHookList, checkHookRequests, checkpointPackages, checkRolloutUsage, checkUsage, hookService, type HookRequest } from './support.js'
+import { checkCodexHookList, checkHookRequests, bridgePackages, checkRolloutUsage, checkUsage, hookService, type HookRequest } from './support.js'
 
 const NAME = 'cli-check'
 const QUESTION = 'Which colour?'
@@ -244,7 +244,7 @@ async function checkVersion<S>(options: CliCheckOptions<S>, steps: Steps): Promi
   let report: CliCheckReport<S> | undefined
   let hooks: Awaited<ReturnType<typeof hookService>> | undefined
   try {
-    const packages = await step('the checkpoint package', () => checkpointPackages(work, options.agent, (line) => say(`      ${line}`)))
+    const packages = await step('the agent-bridge package', () => bridgePackages(work, options.agent, (line) => say(`      ${line}`)))
     hooks = await step('the hook service', () => hookService(), (service) => service.url)
     hookUrl = hooks.url
     const set = packages.startOf(NAME, NAME, options.agent)
@@ -372,7 +372,7 @@ async function check<S>(
     if ((await agent.record(home, resumed)) === undefined) throw new Error('no record')
     if (!(await agent.transcripts(home)).includes(resumed)) throw new Error('not among the transcripts')
   })
-  await step('the checkpoint package hook ran', () => until('a hook request from the checked session', async () => {
+  await step('the agent-bridge package hook ran', () => until('a hook request from the checked session', async () => {
     try {
       return checkHookRequests(hookRequests, [launched, resumed])
     } catch {

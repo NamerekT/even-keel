@@ -110,7 +110,7 @@ export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'pro
 
 /**
  * The OpenCode plugins of the project's plugin packages: the scripts in a package's `opencode/` folder, as the file
- * URLs OpenCode's `plugin` key loads (the `checkpoint` package's hooks, BTN-274).
+ * URLs OpenCode's `plugin` key loads (the `agent-bridge` package's hooks, BTN-274).
  */
 export function pluginFiles(start: Pick<SessionStart, 'plugins'>): string[] {
   return (start.plugins ?? []).flatMap((plugin) => {

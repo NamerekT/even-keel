@@ -99,7 +99,7 @@ export interface TrackerUrls {
 /**
  * A project's standard (BTN-359): a document of its repository and the files it guards. A session gets the document
  * at its first read of such a file and cannot edit one before; with `shots`, the merge of a branch that changed them
- * waits for shots and the answers to the document's "The check" (`plugins/checkpoint/hooks/standards.mjs`).
+ * waits for shots and the answers to the document's "The check" (`plugins/agent-bridge/hooks/standards.mjs`).
  */
 export interface Standard {
   /** The document, relative to the repository's root. */
@@ -175,9 +175,9 @@ export interface ProjectSettings {
   openCodeAutoCompactWindow: number | null
   /** The resolved native deny rules; omitted by older clients. */
   protection?: Protection
-  /** The checkpoint hook asks for handoffs by context size (BTN-255), the shared one filled in; `false` — the agent's own compaction keeps the context. */
+  /** The agent-bridge hook asks for handoffs by context size (BTN-255), the shared one filled in; `false` — the agent's own compaction keeps the context. */
   contextHandoffs: boolean
-  /** The checkpoint hook's first threshold for the project, the shared one filled in; `null` — calibrated. */
+  /** The agent-bridge hook's first threshold for the project, the shared one filled in; `null` — calibrated. */
   checkpointTokens: number | null
   /** The shares of the session's window the checkpoint thresholds come at, at most; each the shared one unless the project has its own. */
   checkpointShares: CheckpointShares
@@ -241,7 +241,7 @@ export interface StatsConfig {
   moves: Record<string, string>
   /** A folder group costing less than this in all goes to Other on /stats. */
   otherBelow: number
-  /** The checkpoint hook's first threshold for every project without its own; null leaves it to the calibration. */
+  /** The agent-bridge hook's first threshold for every project without its own; null leaves it to the calibration. */
   checkpointTokens: number | null
   /** The shares of the session's window the checkpoint thresholds come at, for every project without its own. */
   checkpointShares: CheckpointShares

@@ -41,7 +41,7 @@ function shellTarget(tokens: string[], i: number, token: string): string | null 
 
 /**
  * The note the turn wrote among its last few tool calls, as `.temp/handoff….md`, the latest one first; null — none.
- * With no `CHECKPOINT` line after it, the checkpoint plugin's Stop hook sends the session back to add the line for
+ * With no `CHECKPOINT` line after it, the agent-bridge plugin's Stop hook sends the session back to add the line for
  * this note. `feed` is a whole transcript's.
  */
 export function noteWritten(feed: readonly FeedLine[]): string | null {

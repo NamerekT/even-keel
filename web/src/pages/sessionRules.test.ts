@@ -22,11 +22,11 @@ const plugin = (name: string, extras: boolean): PackageView => ({
 
 const packages: PackagesView = {
   gateway: null,
-  packages: [plugin('checkpoint', true), plugin('servers-only', false), plugin('off', true)],
+  packages: [plugin('agent-bridge', true), plugin('servers-only', false), plugin('off', true)],
   projects: {
     ABC: {
       cells: {
-        checkpoint: { choice: null, enabled: true, settings: {}, problems: [] },
+        'agent-bridge': { choice: null, enabled: true, settings: {}, problems: [] },
         'servers-only': { choice: null, enabled: true, settings: {}, problems: [] },
         off: { choice: 'off', enabled: false, settings: {}, problems: [] },
       },
@@ -54,7 +54,7 @@ describe('sessionGets', () => {
       prompts: { shared: true, project: false },
       skills: ['review'],
       missed: [],
-      packages: [{ name: 'checkpoint', hooks: true }],
+      packages: [{ name: 'agent-bridge', hooks: true }],
       none: false,
     })
   })
@@ -71,7 +71,7 @@ describe('sessionGets', () => {
     const gets = sessionGets('opencode', { files: ['CLAUDE.md', 'AGENTS.md'], skills: [] }, noPrompts, packages, 'ABC')
     expect(gets.files).toEqual(['AGENTS.md'])
     expect(gets.unread).toEqual(['CLAUDE.md'])
-    expect(gets.packages).toEqual([{ name: 'checkpoint', hooks: false }])
+    expect(gets.packages).toEqual([{ name: 'agent-bridge', hooks: false }])
   })
 
   it('says there are no rules when nothing of the project reaches the session', () => {

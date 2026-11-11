@@ -1,4 +1,4 @@
-// The context size of the checkpoint hook's first nudge for one project (BTN-86). A handoff pays off when the
+// The context size of the agent-bridge hook's first nudge for one project (BTN-86). A handoff pays off when the
 // cache reads it saves over the work left outweigh the note and the successor's recovery, so the threshold is
 // the successor's context plus the handoff's cost in cache reads of the work left. Only what does not depend
 // on the threshold itself is measured: the work left is a constant, or a higher threshold would shorten the

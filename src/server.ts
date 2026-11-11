@@ -296,7 +296,7 @@ export interface ServerDeps {
   inboxFile: (sessionId: string, name: string) => Promise<TaskFile | undefined>
   /** File `index` the session sent the user by call `tool` (`SendUserFile`); `undefined` — no such file, outside its folders, or gone. */
   sharedFile: (sessionId: string, tool: string, index: number) => Promise<TaskFile | undefined>
-  /** For the checkpoint hook; `undefined` for a session the chain did not start. */
+  /** For the agent-bridge hook; `undefined` for a session the chain did not start. */
   checkpoint: (sessionId: string) => Promise<SessionCheckpoint | undefined>
   /** For the checkpoint mark hook: the note the turn wrote near its end (`noteWritten`), `null` — none; `undefined` as above. */
   handoffNote: (sessionId: string) => Promise<string | null | undefined>

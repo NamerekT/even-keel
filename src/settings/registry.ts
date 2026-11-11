@@ -94,7 +94,7 @@ const percent = (value: unknown) => {
 }
 
 const COMPARE_LIMITS = { minTasks: 10_000, minSessions: 10_000, days: 365 } as const
-/** The checkpoint hook asks the service for its threshold only from this context size on. */
+/** The agent-bridge hook asks the service for its threshold only from this context size on. */
 const CHECKPOINT_ASK_FROM = 100_000
 
 const compare = (key: keyof typeof COMPARE_LIMITS): SettingDefinition => ({
@@ -320,7 +320,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw fail('config.otherBelow', { value: json(value) })
     return value
   } },
-  // Off — the checkpoint hook asks for no handoff by context size, the agent's own compaction keeps the context (BTN-255).
+  // Off — the agent-bridge hook asks for no handoff by context size, the agent's own compaction keeps the context (BTN-255).
   { key: 'contextHandoffs', kind: 'boolean', scopes: ['global', 'project'], lands: ['contextHandoffs', 'settings'], default: true, check: boolean('contextHandoffs') },
   { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global', 'project'], taskLabel: 'checkpoint', lands: ['stats', 'settings'], default: null, check: (value) => {
     if (value !== null && (!Number.isInteger(value) || (value as number) < CHECKPOINT_ASK_FROM)) throw fail('config.checkpointTokens', { from: CHECKPOINT_ASK_FROM, value: json(value) })
@@ -408,7 +408,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (path === null) throw fail('config.changelogPath', { where: at(place, 'changelog'), value: json(value) })
     return path
   } },
-  // The project's standards (BTN-359): a document of the repository and the files it guards; read by the `checkpoint` plugin's hooks.
+  // The project's standards (BTN-359): a document of the repository and the files it guards; read by the `agent-bridge` plugin's hooks.
   { key: 'standards', kind: 'json', scopes: ['project'], lands: ['settings'], default: [], check: (value, place) => {
     const found = standardsOf(value)
     if (found === null) throw fail('config.standards', { where: at(place, 'standards') })
