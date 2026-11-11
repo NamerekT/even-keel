@@ -111,6 +111,9 @@ export const packagesEN: Messages['packages'] = {
     group: { own: 'Even Keel', mcp: 'MCP servers' },
     byDefault: 'Default',
     byDefaultTip: 'On in every project that does not turn it off.',
+    builtIn: 'built in',
+    builtInTip:
+      'Part of Even Keel: every project has it, and it is neither turned off nor removed. It brings only hooks — handoffs by context size, chat messages mid-turn, the check before a merge, the standards, the status line of the badge — and each of them is turned off by its own setting. In a session started by hand the hooks stay silent.',
     byDefaultLabel: (name: string) => `${name} on by default`,
     inProject: 'In the project',
     onLabel: (name: string) => `${name} in this project`,

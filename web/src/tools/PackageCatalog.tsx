@@ -9,7 +9,7 @@ import { Band, EmptyState } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
 import { catalogIssues, looseKeys, PACKAGE_PARAM, packageGroups, packageKeys } from './packageGroups.js'
-import { GroupBox, ImportOffers, IssueBands, KeyList, PackageBrings, PackageLine, PackageSettings, rowId } from './PackagesParts.js'
+import { BuiltInTag, GroupBox, ImportOffers, IssueBands, KeyList, PackageBrings, PackageLine, PackageSettings, rowId } from './PackagesParts.js'
 import { passes } from './packageView.js'
 import { useRowFocus } from './useRowFocus.js'
 
@@ -113,9 +113,13 @@ function CatalogLine({ pkg, view, open, alert, onToggle }: { pkg: PackageView; v
           {t.packages.update}
         </button>
       )}
-      <Tipped tip={t.packages.byDefaultTip} inline>
-        <Switch checked={pkg.default} disabled={sending} label={t.packages.byDefaultLabel(pkg.name)} onChange={(on) => void send('packages/default', { name: pkg.name, on })} />
-      </Tipped>
+      {pkg.builtIn ? (
+        <BuiltInTag />
+      ) : (
+        <Tipped tip={t.packages.byDefaultTip} inline>
+          <Switch checked={pkg.default} disabled={sending} label={t.packages.byDefaultLabel(pkg.name)} onChange={(on) => void send('packages/default', { name: pkg.name, on })} />
+        </Tipped>
+      )}
     </>
   )
 
@@ -137,9 +141,11 @@ function CatalogLine({ pkg, view, open, alert, onToggle }: { pkg: PackageView; v
                   </button>
                 </Tipped>
               )}
-              <button type="button" className="button button--small button--danger" disabled={sending} onClick={() => void send('packages/remove', { name: pkg.name })}>
-                {t.packages.remove}
-              </button>
+              {!pkg.builtIn && (
+                <button type="button" className="button button--small button--danger" disabled={sending} onClick={() => void send('packages/remove', { name: pkg.name })}>
+                  {t.packages.remove}
+                </button>
+              )}
             </div>
           )}
           {failure !== null && <p className="packages__error">{say(failure)}</p>}

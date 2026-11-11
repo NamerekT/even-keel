@@ -28,7 +28,7 @@ interface Catalog {
 const SKILLS_PACKAGE = 'my-skills@even-keel-skills'
 const TASKS_PACKAGE = 'tasks@even-keel'
 
-const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false }
+const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false, builtIn: false }
 const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
 
 /**
@@ -46,6 +46,8 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
       // Another tracker's plugin, off by default: a project's packages fold it under "1 more".
       { ...base, name: 'github@even-keel', kind: 'plugin', version: '0.2.0', default: false, settings: {}, servers: ['github'], extras: true, keys: [] },
       { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
+      // Built in (BTN-986): every project has it, with no switches.
+      { ...base, name: 'checkpoint@even-keel', kind: 'plugin', version: '0.9.1', default: true, settings: {}, servers: [], extras: true, keys: [], builtIn: true },
       { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com' }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
     ],
     choices: {
@@ -133,6 +135,7 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
   const target = catalog.packages.find((each) => each.name === body.name)
   const project = typeof body.project === 'string' ? body.project : undefined
   if (name === 'packages/server' && target !== undefined) throw fail('packages.exists', { name: target.name })
+  if (['packages/remove', 'packages/project', 'packages/default'].includes(name) && target?.builtIn === true) throw fail('packages.builtIn', { name: target.name })
   if (name === 'packages/install' && target !== undefined) target.installed = true
   else if (name === 'packages/update' && target !== undefined) {
     if (target.latest === null) target.note = notice('packages.upToDate', { name: target.name })

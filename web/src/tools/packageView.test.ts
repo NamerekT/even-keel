@@ -75,7 +75,7 @@ describe('passes', () => {
 describe('trackerPackageOf', () => {
   const pkg = (name: string, over: Partial<PackageView>): PackageView => ({
     name, kind: 'plugin', installed: true, version: '1', latest: null, fetched: null, installing: false, error: null, note: null,
-    default: false, settings: {}, servers: [], extras: false, removed: false, ...over,
+    default: false, settings: {}, servers: [], extras: false, removed: false, builtIn: false, ...over,
   })
 
   it('names the installed package that brings the server, not one still to install or removed', () => {
@@ -98,7 +98,7 @@ describe('importOffers', () => {
 
 describe('trackerPackage', () => {
   const marketplace = { name: 'even-keel', dir: 'C:\\even-keel', known: true }
-  const base = { kind: 'plugin' as const, installed: true, version: '1.0.0', latest: null, fetched: null, installing: false, error: null, note: null, default: true, settings: {}, extras: true, removed: false }
+  const base = { kind: 'plugin' as const, installed: true, version: '1.0.0', latest: null, fetched: null, installing: false, error: null, note: null, default: true, settings: {}, extras: true, removed: false, builtIn: false }
   const tracked = (brought: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({
     cells: { 'huly@even-keel': { choice: null, enabled: brought, settings: {}, problems: [] } },
     problems,
@@ -201,7 +201,7 @@ describe('problemCount', () => {
 
 describe('shownPackages', () => {
   it('keeps a removed package only while it is held, after the others', () => {
-    const base = { kind: 'mcp' as const, installed: true, version: null, latest: null, fetched: null, installing: false, error: null, note: null, default: true, settings: {}, servers: [], extras: false }
+    const base = { kind: 'mcp' as const, installed: true, version: null, latest: null, fetched: null, installing: false, error: null, note: null, default: true, settings: {}, servers: [], extras: false, builtIn: false }
     const packages = [
       { ...base, name: 'old', removed: true },
       { ...base, name: 'web', removed: false },

@@ -9,9 +9,9 @@ import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
-import { current, defaultsOf, installsFor, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
+import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { copyPinned, installPinned, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
-import { availablePlugins, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
+import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
 import { isNewer } from './version.js'
@@ -80,10 +80,16 @@ export class Packages {
   private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace']; skills: PackagesView['skills']['list'] } | undefined
   private offers: { at: number; byName: Map<string, Offer> } | undefined
 
+  /** The package every project has (BTN-986); `undefined` when the checkout's marketplace lacks the plugin. */
+  private readonly builtIn: string | undefined
+
   constructor(private readonly deps: PackagesDeps) {
+    this.builtIn = builtInPackage(deps.ownDir)
     const loaded = loadPackages(deps.file)
     this.file = loaded ?? this.seed()
-    if (loaded === undefined) savePackages(deps.file, this.file)
+    const repaired = loaded === undefined || this.builtIn === undefined ? [] : keepBuiltIn(this.file, this.builtIn)
+    if (repaired.length > 0) deps.log(`packages: ${this.builtIn} is built in and restored: ${repaired.join(', ')}`)
+    if (loaded === undefined || repaired.length > 0) savePackages(deps.file, this.file)
     this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks })
     this.probes = new Probes({
       urlOf: (project, name, install, server) => `${this.gateway.origin}${routeOf(project, name, install, server)}`,
@@ -133,6 +139,7 @@ export class Packages {
         servers: Object.keys(install?.servers ?? {}),
         extras: install?.extras ?? false,
         removed: record.removed === true,
+        builtIn: name === this.builtIn,
       }
     })
     const projects = Object.fromEntries(Object.keys(this.deps.repos).map((project) => [project, this.check(project)]))
@@ -339,6 +346,7 @@ export class Packages {
   }
 
   remove(name: string): void {
+    this.notBuiltIn(name)
     this.recordOf(name).removed = true
     for (const set of Object.values(this.file.projects)) {
       set.on = set.on.filter((each) => each !== name)
@@ -391,6 +399,7 @@ export class Packages {
   choose(project: string, name: string, choice: 'on' | 'off' | null): void {
     this.projectKnown(project)
     this.recordOf(name)
+    this.notBuiltIn(name)
     const set = (this.file.projects[project] ??= { on: [], off: [], settings: {} })
     set.on = set.on.filter((each) => each !== name)
     set.off = set.off.filter((each) => each !== name)
@@ -399,6 +408,7 @@ export class Packages {
   }
 
   setDefault(name: string, on: boolean): void {
+    this.notBuiltIn(name)
     this.recordOf(name).default = on
     this.save()
   }
@@ -595,6 +605,7 @@ export class Packages {
       globalSettings: readJson(join(this.deps.globalDir, 'settings.json')),
       projects: Object.entries(this.deps.repos).map(([key, repo]) => ({ key, settings: settingsOf(repo) })),
       userServers,
+      builtIn: this.builtIn,
     })
     this.deps.log(`packages: no ${this.deps.file}; the catalog is seeded with ${Object.keys(seeded.packages).join(', ') || 'nothing'}`)
     return seeded
@@ -623,6 +634,11 @@ export class Packages {
     const record = this.file.packages[name]
     if (record === undefined || record.removed === true) throw fail('packages.unknown', { name })
     return record
+  }
+
+  /** The built-in package has no switches and no removal: every project has it. */
+  private notBuiltIn(name: string): void {
+    if (name === this.builtIn) throw fail('packages.builtIn', { name })
   }
 
   private projectKnown(project: string | undefined): void {

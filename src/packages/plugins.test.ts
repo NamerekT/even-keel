@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { availablePlugins, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, seedPackages } from './plugins.js'
+import { availablePlugins, builtInPackage, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, seedPackages } from './plugins.js'
 
 let dir: string | undefined
 afterEach(() => {
@@ -165,5 +165,35 @@ describe('seedPackages', () => {
       strata: { kind: 'mcp', server: { command: 'strata', env: { MODE: 'fast' } }, default: true, settings: {}, installs: [] },
     })
     expect(file.projects).toEqual({ ABC: { on: ['huly@even-keel'], off: ['playwright@official'], settings: {} } })
+  })
+
+  it('gives the built-in package to every project without any enabledPlugins (BTN-986)', () => {
+    const file = seedPackages({ globalSettings: undefined, projects: [{ key: 'ABC', settings: [] }], userServers: {}, builtIn: 'checkpoint@even-keel' })
+    expect(file.packages).toEqual({
+      'checkpoint@even-keel': { kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'even-keel' }, default: true, settings: {}, installs: [] },
+    })
+    expect(file.projects).toEqual({})
+  })
+
+  it('keeps the built-in package on where the settings turn it off', () => {
+    const file = seedPackages({
+      globalSettings: { enabledPlugins: { 'checkpoint@even-keel': false } },
+      projects: [{ key: 'ABC', settings: [{ enabledPlugins: { 'checkpoint@even-keel': false, 'huly@even-keel': true } }] }],
+      userServers: {},
+      builtIn: 'checkpoint@even-keel',
+    })
+    expect(file.packages['checkpoint@even-keel']?.default).toBe(true)
+    expect(file.projects).toEqual({ ABC: { on: ['huly@even-keel'], off: [], settings: {} } })
+  })
+})
+
+describe('builtInPackage', () => {
+  it('names the checkpoint plugin of the checkout marketplace, and nothing without one', () => {
+    dir = mkdtempSync(join(tmpdir(), 'even-keel-plugins-'))
+    expect(builtInPackage(dir)).toBeUndefined()
+    write(join(dir, '.claude-plugin', 'marketplace.json'), { name: 'my-fork', plugins: [{ name: 'huly', source: './plugins/huly' }] })
+    expect(builtInPackage(dir)).toBeUndefined()
+    write(join(dir, '.claude-plugin', 'marketplace.json'), { name: 'my-fork', plugins: [{ name: 'checkpoint', source: './plugins/checkpoint' }] })
+    expect(builtInPackage(dir)).toBe('checkpoint@my-fork')
   })
 })

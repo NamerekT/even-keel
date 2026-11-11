@@ -11,7 +11,7 @@ import { Band, EmptyState } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage, AddPlugin } from './AddPackage.js'
 import { PACKAGE_PARAM, projectGroups,projectIssues, type PackageIssue, type ProjectGroup } from './packageGroups.js'
-import { GroupBox, IssueBands, PackageBrings, PackageLine, PackageSettings, problemTip, rowId } from './PackagesParts.js'
+import { BuiltInTag, GroupBox, IssueBands, PackageBrings, PackageLine, PackageSettings, problemTip, rowId } from './PackagesParts.js'
 import { choiceLabel, choiceTip, passes, problemText, trackerDoubled, trackerPackage, type TrackerChoice } from './packageView.js'
 import { useRowFocus } from './useRowFocus.js'
 import '../pages/settings.css'
@@ -202,8 +202,14 @@ function ProjectLine({ pkg, cell, project, open, alert, onToggle }: LineProps) {
           <span className="packages__spinner" role="img" aria-label={t.packages.problem.probing} />
         </Tipped>
       )}
-      <Inherit own={cell.choice !== null} shared={pkg.default ? t.settings.on : t.settings.off} disabled={sending} onReset={() => choose(null)} />
-      <Switch checked={cell.enabled} disabled={sending} label={t.packages.onLabel(pkg.name)} onChange={(on) => choose(on ? 'on' : 'off')} />
+      {pkg.builtIn ? (
+        <BuiltInTag />
+      ) : (
+        <>
+          <Inherit own={cell.choice !== null} shared={pkg.default ? t.settings.on : t.settings.off} disabled={sending} onReset={() => choose(null)} />
+          <Switch checked={cell.enabled} disabled={sending} label={t.packages.onLabel(pkg.name)} onChange={(on) => choose(on ? 'on' : 'off')} />
+        </>
+      )}
     </>
   )
 

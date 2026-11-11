@@ -491,6 +491,7 @@ export const en = {
   'storage.importFailed': (p: { file: string }) => `storage: could not move the state files into ${p.file}; no database was made and the files are as they were`,
   'packages.unknown': (p: { name: string }) => `packages: there is no package ${p.name}`,
   'packages.exists': (p: { name: string }) => `packages: ${p.name} is already in the catalog`,
+  'packages.builtIn': (p: { name: string }) => `packages: ${p.name} is built into Even Keel: every project has it, it is neither turned off nor removed; each of its features has its own setting`,
   'packages.busy': (p: { name: string }) => `packages: ${p.name} is being installed; wait until it is done`,
   'packages.noMarketplace': (p: { marketplace: string }) => `packages: Claude Code knows no marketplace ${p.marketplace}`,
   'packages.noPlugin': (p: { plugin: string; marketplace: string }) => `packages: the marketplace ${p.marketplace} has no plugin ${p.plugin}`,

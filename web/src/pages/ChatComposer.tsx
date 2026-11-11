@@ -3,7 +3,6 @@ import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
-import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
 import { SendIcon } from '../ui/icons.js'
 import { FoldPresence } from '../ui/Fold.js'
@@ -11,9 +10,8 @@ import { Tipped } from '../ui/Tipped.js'
 import { AskPanel } from './AskPanel.js'
 import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
 import { holdKey, sendAhead, shownAsk } from './composerHold.js'
-import { checkpointOffer, lockReason } from './composerLock.js'
+import { lockReason } from './composerLock.js'
 import { ComposerBox, useChatDraft, type DraftOwner } from './ComposerBox.js'
-import { FixButton } from './FixButtons.js'
 import { ChatMail } from './ChatMail.js'
 import { ColdReplyDialog } from './ColdReplyDialog.js'
 import { coldReply } from './coldReply.js'
@@ -101,8 +99,6 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   const mailing = midTurn && !steering
   const locked = closed ? t.session.chat.closed : midTurn ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
   const disabled = locked !== null || sending || sent.on
-  // A working session that takes no message mid-turn: the project may lack the package that would let later ones (BTN-879).
-  const offer = checkpointOffer(useLive().state?.packages ?? null, project)
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   // A question may be skipped: any answer, words or file is a reply.
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
@@ -189,13 +185,6 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
       {status}
       {failure !== null ? (
         <p className="notice notice--error">{say(failure)}</p>
-      ) : !sent.on && locked === t.session.chat.working && offer !== null ? (
-        <div className="chat__hint chat__hint--fix">
-          <p>
-            {locked} {t.session.chat.workingCheckpoint(offer)}
-          </p>
-          <FixButton project={project} fix={{ to: 'packages', plugin: offer }} className="button button--small" />
-        </div>
       ) : (
         hint !== '' && <p className="chat__hint">{hint}</p>
       )}

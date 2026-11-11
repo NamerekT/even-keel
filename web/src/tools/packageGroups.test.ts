@@ -18,6 +18,7 @@ const base: PackageView = {
   servers: [],
   extras: false,
   removed: false,
+  builtIn: false,
 }
 const pkg = (name: string, over: Partial<PackageView> = {}): PackageView => ({ ...base, name, kind: name.includes('@') ? 'plugin' : 'mcp', ...over })
 const cell = (enabled: boolean, over: Partial<PackageCell> = {}): PackageCell => ({ choice: null, enabled, settings: {}, problems: [], ...over })

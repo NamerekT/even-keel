@@ -90,9 +90,8 @@ export function chainOnRealCli(kit: CliKit): void {
      */
     const playedOut = (task: string) => run.until(() => model.left(task) === 0, `the last reply of ${task} taken`, { limitMs: TURN_LIMIT_MS })
 
-    /** Adds Even Keel's `checkpoint` plugin to the project and waits for it to install. */
-    async function addCheckpoint(): Promise<void> {
-      await run.post('packages/plugin', { plugin: 'checkpoint', marketplace: 'even-keel', project: PROJECT_ID })
+    /** Waits for Even Keel's built-in `checkpoint` plugin, which every project has (BTN-986), to install. */
+    async function checkpointInstalled(): Promise<void> {
       await run.until(() => run.service.packages.unready(PROJECT_ID).length === 0, 'the checkpoint package installed', { limitMs: TURN_LIMIT_MS })
     }
 
@@ -189,7 +188,7 @@ export function chainOnRealCli(kit: CliKit): void {
         run.git('add', 'check.mjs')
         run.git('commit', '-q', '-m', 'Add the check')
       })
-      await addCheckpoint()
+      await checkpointInstalled()
       await run.startChain(PROJECT_ID)
 
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
@@ -206,7 +205,7 @@ export function chainOnRealCli(kit: CliKit): void {
       run.board.add('ABC-1')
       model.script('ABC-1', awaiting(MAIL_WORD, 'the chat message', commit('ABC-1')), merge('ABC-1'), { text: 'Merged ABC-1.' })
       await start()
-      await addCheckpoint()
+      await checkpointInstalled()
       await run.startChain(PROJECT_ID)
 
       // The page's chat sends into the mailbox once the session's hook has asked for mail and its turn is on.
@@ -234,7 +233,7 @@ export function chainOnRealCli(kit: CliKit): void {
       // Even Keel reads the context from the transcript at its poll: the hook nudges at the first tool call after it.
       model.script('ABC-1', awaiting(NUDGED, 'the checkpoint nudge', commit('ABC-1'), FULL_CONTEXT), merge('ABC-1'), { text: 'Merged ABC-1.' })
       await start()
-      await addCheckpoint()
+      await checkpointInstalled()
       await run.startChain(PROJECT_ID)
 
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })

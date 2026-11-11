@@ -17,6 +17,7 @@ const plugin = (name: string, extras: boolean): PackageView => ({
   servers: [],
   extras,
   removed: false,
+  builtIn: false,
 })
 
 const packages: PackagesView = {

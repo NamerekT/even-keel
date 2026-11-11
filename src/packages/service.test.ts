@@ -234,3 +234,61 @@ describe('adding the manual Claude marketplace', () => {
     await expect(packages.addMarketplace()).resolves.toBeUndefined()
   })
 })
+
+describe('the built-in checkpoint package (BTN-986)', () => {
+  const CHECKPOINT = 'checkpoint@example'
+
+  /** The fixture's marketplace with the checkpoint plugin next to `tools`, and the catalog as `catalog` leaves it. */
+  function withCheckpoint(catalog: (file: ReturnType<typeof loadPackages> & object) => void) {
+    const { deps, file, lines } = fixture()
+    const home = dirname(deps.ownDir)
+    const put = (path: string, value: unknown) => {
+      mkdirSync(dirname(join(home, path)), { recursive: true })
+      writeFileSync(join(home, path), JSON.stringify(value))
+    }
+    put('own/.claude-plugin/marketplace.json', { name: 'example', plugins: [{ name: 'tools', source: './plugin' }, { name: 'checkpoint', source: './checkpoint' }] })
+    put('own/checkpoint/.claude-plugin/plugin.json', { name: 'checkpoint', version: '1.0.0' })
+    put('own/checkpoint/hooks/hooks.json', { hooks: {} })
+    const saved = loadPackages(file)!
+    catalog(saved)
+    savePackages(file, saved)
+    return { packages: new Packages(deps), file, lines }
+  }
+
+  it('joins a catalog that lacks it, on in every project, with a line in the log', () => {
+    const { packages, file, lines } = withCheckpoint(() => {})
+    expect(loadPackages(file)!.packages[CHECKPOINT]).toMatchObject({ kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'example' }, default: true })
+    expect(packages.reach('project').plugins).toContain(CHECKPOINT)
+    expect(lines.filter((line) => line.includes(CHECKPOINT))).toHaveLength(1)
+  })
+
+  it('comes back when removed, off by default or off in a project, keeping its installs', () => {
+    const install = { id: 'a1', version: '1.0.0', at: '2026-11-01T00:00:00.000Z', servers: {}, extras: true }
+    const { packages, file } = withCheckpoint((saved) => {
+      saved.packages[CHECKPOINT] = { kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'example' }, default: false, settings: {}, installs: [install], removed: true }
+      saved.projects.project = { on: [], off: [CHECKPOINT], settings: {} }
+    })
+    const restored = loadPackages(file)!
+    expect(restored.packages[CHECKPOINT]).toMatchObject({ default: true, installs: [install] })
+    expect(restored.packages[CHECKPOINT]!.removed).toBeUndefined()
+    expect(restored.projects.project).toBeUndefined()
+    expect(packages.reach('project').plugins).toContain(CHECKPOINT)
+  })
+
+  it('leaves a catalog that already has it as it was, without a log line', () => {
+    const { lines } = withCheckpoint((saved) => {
+      saved.packages[CHECKPOINT] = { kind: 'plugin', plugin: { name: 'checkpoint', marketplace: 'example' }, default: true, settings: {}, installs: [] }
+    })
+    expect(lines.filter((line) => line.includes(CHECKPOINT))).toEqual([])
+  })
+
+  it('refuses to turn it off in a project, by default or to remove it', () => {
+    const { packages } = withCheckpoint(() => {})
+    const builtIn = { notice: expect.objectContaining({ code: 'packages.builtIn' }) }
+    expect(() => packages.choose('project', CHECKPOINT, 'off')).toThrow(expect.objectContaining(builtIn))
+    expect(() => packages.setDefault(CHECKPOINT, false)).toThrow(expect.objectContaining(builtIn))
+    expect(() => packages.remove(CHECKPOINT)).toThrow(expect.objectContaining(builtIn))
+    expect(packages.view().packages.find((each) => each.name === CHECKPOINT)?.builtIn).toBe(true)
+    expect(packages.view().packages.find((each) => each.name === 'tools@example')?.builtIn).toBe(false)
+  })
+})

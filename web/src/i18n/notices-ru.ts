@@ -488,6 +488,7 @@ export const noticesRu: NoticeTexts = {
   'storage.importFailed': (p) => `не удалось перенести файлы состояния в ${p.file}; база не создана, файлы остались как были`,
   'packages.unknown': (p) => `пакета ${p.name} нет`,
   'packages.exists': (p) => `${p.name} уже есть в каталоге`,
+  'packages.builtIn': (p) => `${p.name} встроен в Even Keel: он есть у каждого проекта и не выключается и не удаляется; каждая его функция выключается своей настройкой`,
   'packages.busy': (p) => `${p.name} ещё ставится — дождитесь конца установки`,
   'packages.noMarketplace': (p) => `Claude Code не знает маркетплейс ${p.marketplace}`,
   'packages.noPlugin': (p) => `в маркетплейсе ${p.marketplace} нет плагина ${p.plugin}`,

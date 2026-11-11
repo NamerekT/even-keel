@@ -700,6 +700,8 @@ export interface PackageView {
   extras: boolean
   /** Removed, still held by a running task. */
   removed: boolean
+  /** Even Keel's own `checkpoint` (BTN-986): every project has it, with no switches and no removal. */
+  builtIn: boolean
 }
 
 export interface ProjectPackages {

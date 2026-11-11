@@ -68,6 +68,37 @@ export function pluginKey(plugin: string, marketplace: string): string {
   return `${plugin}@${marketplace}`
 }
 
+/**
+ * Puts the built-in plugin package (BTN-986) back as every project gets it: in the catalog, not removed, on by default,
+ * in no project's own set. Answers what it had to repair, empty when nothing.
+ */
+export function keepBuiltIn(file: PackagesFile, name: string): string[] {
+  const repaired: string[] = []
+  const record = file.packages[name]
+  const at = name.lastIndexOf('@')
+  if (record === undefined) {
+    file.packages[name] = { kind: 'plugin', plugin: { name: name.slice(0, at), marketplace: name.slice(at + 1) }, default: true, settings: {}, installs: [] }
+    repaired.push('added')
+  } else {
+    if (record.removed === true) {
+      delete record.removed
+      repaired.push('was removed')
+    }
+    if (!record.default) {
+      record.default = true
+      repaired.push('was off by default')
+    }
+  }
+  for (const [project, set] of Object.entries(file.projects)) {
+    if (!set.on.includes(name) && !set.off.includes(name)) continue
+    if (set.off.includes(name)) repaired.push(`was off in ${project}`)
+    set.on = set.on.filter((each) => each !== name)
+    set.off = set.off.filter((each) => each !== name)
+    if (set.on.length === 0 && set.off.length === 0 && Object.keys(set.settings).length === 0) delete file.projects[project]
+  }
+  return repaired
+}
+
 export function current(record: PackageRecord): PackageInstall | undefined {
   return record.installs.at(-1)
 }

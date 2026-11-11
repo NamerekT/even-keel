@@ -21,6 +21,7 @@ const pkg = (name: string): PackageView => ({
   servers: [],
   extras: false,
   removed: false,
+  builtIn: false,
 })
 const cell = (enabled: boolean, problems: PackageCell['problems'] = []): PackageCell => ({ choice: null, enabled, settings: {}, problems })
 

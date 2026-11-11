@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fail } from '../notice/notice.js'
-import { emptyPackages, pluginKey, type PackagesFile, type ServerEntry } from './model.js'
+import { emptyPackages, keepBuiltIn, pluginKey, type PackagesFile, type ServerEntry } from './model.js'
 
 type Json = Record<string, unknown>
 
@@ -28,6 +28,16 @@ interface Marketplace {
 export function ownMarketplace(root: string): string | undefined {
   const name = readJson(join(root, '.claude-plugin', 'marketplace.json'))?.name
   return typeof name === 'string' ? name : undefined
+}
+
+/** The plugin of Even Keel's own marketplace every project has, never turned off or removed (BTN-986). */
+export const BUILT_IN_PLUGIN = 'checkpoint'
+
+/** The built-in plugin's package name in the checkout's marketplace; `undefined` when the checkout has no such plugin. */
+export function builtInPackage(root: string): string | undefined {
+  const name = ownMarketplace(root)
+  if (name === undefined || !pluginsOf(root).some((each) => each.name === BUILT_IN_PLUGIN)) return undefined
+  return pluginKey(BUILT_IN_PLUGIN, name)
 }
 
 /** Whether the global configuration knows the marketplace: sessions started by hand install plugins only from those. */
@@ -134,11 +144,14 @@ export interface SeedInput {
   projects: { key: string; settings: Json[] }[]
   /** User scope servers of the `.claude.json` files sessions read. */
   userServers: Record<string, ServerEntry>
+  /** The built-in package: on in every project whatever the settings say. */
+  builtIn?: string
 }
 
 /**
  * The first catalog, from what chain sessions get without it: the globally enabled plugins and the user scope servers
- * for every project, a plugin a project enables for that project only, and one it disables off for it.
+ * for every project, a plugin a project enables for that project only, and one it disables off for it; the built-in
+ * package everywhere.
  */
 export function seedPackages(input: SeedInput): PackagesFile {
   const file = emptyPackages()
@@ -164,6 +177,7 @@ export function seedPackages(input: SeedInput): PackagesFile {
   for (const [name, server] of Object.entries(input.userServers)) {
     if (!(name in file.packages)) file.packages[name] = { kind: 'mcp', server, default: true, settings: {}, installs: [] }
   }
+  if (input.builtIn !== undefined) keepBuiltIn(file, input.builtIn)
   return file
 }
 

@@ -175,6 +175,15 @@ function PackageMeta({ pkg }: { pkg: PackageView }) {
   )
 }
 
+/** In place of a built-in package's switches (BTN-986): every project has it. */
+export function BuiltInTag() {
+  return (
+    <Tipped className="tag" tip={t.packages.builtInTip} focusable inline>
+      {t.packages.builtIn}
+    </Tipped>
+  )
+}
+
 /** What a package brings, the first line of its details. */
 export function PackageBrings({ pkg }: { pkg: PackageView }) {
   return (
