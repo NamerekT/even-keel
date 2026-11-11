@@ -16,23 +16,35 @@ describe('Dispatcher and the project check of main', () => {
     expect(dispatcher.state.ci.ABC).toEqual({})
   })
 
-  it('trusts the check before the merge when main has the tree of the task branch', async () => {
+  it('trusts the check before the merge when it reported the tree main has', async () => {
     const { dispatcher, launched, log, ci } = await afterDone(null, (ci) => {
       ci.verdict = { state: 'none' }
       ci.commands = ['npm test']
-      ci.taskTrees = { 'ABC-1': 'tree-bbbbbbbbbb' }
+      ci.reportedTrees = { 'ABC-1': 'tree-bbbbbbbbbb' }
     })
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(ci.checked).toEqual([])
     expect(dispatcher.state.ci.ABC).toEqual({ green: 'bbbbbbbbbb' })
-    expect(log).toContain('ci: ABC: bbbbbbb is the tree the check passed before the merge')
+    expect(log).toContain('ci: ABC: bbbbbbb is the tree the check before the merge reported')
+  })
+
+  it('checks main in the next task place when the check before the merge did not report, even with the check of main off', async () => {
+    const { dispatcher, launched, log, ci } = await afterDone(null, (ci) => {
+      ci.verdict = { state: 'none' }
+      ci.commands = ['npm test']
+      ci.recheck = false
+    })
+    expect(ci.checked).toEqual(['ABC/ABC-2@bbbbbbbbbb'])
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(dispatcher.state.ci.ABC).toEqual({ green: 'bbbbbbbbbb' })
+    expect(log).toContain("ci: ABC: bbbbbbb is checked in the next task's place before it starts: the check before the merge did not report")
   })
 
   it('runs the check on a moved main in the next task place before launching it', async () => {
     const { dispatcher, launched, saved, ci } = await afterDone(null, (ci) => {
       ci.verdict = { state: 'none' }
       ci.commands = ['npm test']
-      ci.taskTrees = { 'ABC-1': 'tree-of-the-branch' }
+      ci.reportedTrees = { 'ABC-1': 'tree-of-the-branch' }
     })
     expect(ci.checked).toEqual(['ABC/ABC-2@bbbbbbbbbb'])
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
@@ -46,6 +58,7 @@ describe('Dispatcher and the project check of main', () => {
       ci.verdict = { state: 'none' }
       ci.commands = ['npm test']
       ci.recheck = false
+      ci.reportedTrees = { 'ABC-1': 'tree-of-the-branch' }
     })
     expect(ci.checked).toEqual([])
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
@@ -74,7 +87,7 @@ describe('Dispatcher and the project check of main', () => {
       ci.runs = { bbbbbbbbbb: { state: 'red', failure }, cccccccccc: { state: 'red', failure } }
     })
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(ci.reports).toEqual([{ push: { commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', tasks: ['ABC-1'] }, failure: { check: failure }, greens: [] }])
+    expect(ci.reports).toEqual([{ push: { commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', tasks: ['ABC-1'], unreported: true }, failure: { check: failure }, greens: [] }])
     expect(ci.created).toHaveLength(1)
     expect(dispatcher.state.ci.ABC?.fix?.task).toBe('ABC-9')
 

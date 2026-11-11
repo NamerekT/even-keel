@@ -85,8 +85,10 @@ export function runCommand(command, cwd, timeoutMs = COMMAND_TIMEOUT_MS) {
  * What stops `command` when it merges the task branch of the worktree at `cwd` and the project's check fails, or the
  * check of a standard whose files the branch changed is not done (`standardsRefusal`): the refusal text, or null — no
  * such merge, no check, or every command passed. `checkOf` asks Even Keel; when it fails, the merge goes on.
+ * Once every command passed, `report` tells Even Keel the tree they passed on (EKR-103): only that report counts main
+ * as checked after the push. A worktree with changes to tracked files is no tree of a commit, so it is not reported.
  */
-export async function mergeRefusal(command, cwd, checkOf) {
+export async function mergeRefusal(command, cwd, checkOf, report = async () => {}) {
   if (!String(command ?? "").includes("merge")) return null;
   const root = await git(cwd, ["rev-parse", "--show-toplevel"]);
   const branch = root === "" ? "" : await git(root, ["branch", "--show-current"]);
@@ -99,5 +101,16 @@ export async function mergeRefusal(command, cwd, checkOf) {
     const run = await runCommand(step, root);
     if (run.code !== 0) return refusal(step, run.code, run.output);
   }
+  if (check.commands.length > 0) await reportTree(root, check.commands, report);
   return null;
+}
+
+async function reportTree(root, commands, report) {
+  const changes = await new Promise((resolve) => {
+    execFile("git", ["status", "--porcelain", "--untracked-files=no"], { cwd: root, encoding: "utf8", windowsHide: true }, (error, stdout) => resolve(error ? null : stdout.trim()));
+  });
+  if (changes !== "") return;
+  const tree = await git(root, ["rev-parse", "HEAD^{tree}"]);
+  // Even Keel not taking the report leaves main unchecked, never the merge blocked.
+  if (tree !== "") await Promise.resolve(report(tree, commands)).catch(() => {});
 }

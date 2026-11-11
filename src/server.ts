@@ -38,6 +38,7 @@ import {
   type StatsCompare,
   type StatsRules,
 } from './stats/rules.js'
+import { checkReportOf, type CheckReport } from './chain/checkreports.js'
 import { statusMovesOf, type StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
@@ -304,6 +305,8 @@ export interface ServerDeps {
    * standards (BTN-359), which the standards hook reads too; `undefined` for a session the chain did not start.
    */
   mergeCheck: (sessionId: string) => { commands: string[]; branch: string; standards: Standard[] } | undefined
+  /** For the merge hook: the check before the merge passed on a tree (EKR-103); `false` for a session the chain did not start. */
+  checkReport: (sessionId: string, report: CheckReport) => boolean
   /**
    * For the mailbox hook: reserves the chat's messages until the response finishes, as one text;
    * `null` — none wait, or the task is over (BTN-558); `undefined` for a session the chain did not start (BTN-181).
@@ -552,6 +555,20 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     const check = deps.mergeCheck(decodeURIComponent(mergeCheck[1]!))
     if (check === undefined) response.writeHead(404).end()
     else sendJson(response, 200, check)
+    return
+  }
+  if (request.method === 'POST' && mergeCheck !== null) {
+    let known: boolean
+    try {
+      const report = checkReportOf(await readJsonBody(request, MAX_BODY_BYTES))
+      if (report === null) throw fail('request.required', { field: 'tree' })
+      known = deps.checkReport(decodeURIComponent(mergeCheck[1]!), report)
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (known) sendJson(response, 200, { ok: true })
+    else response.writeHead(404).end()
     return
   }
 

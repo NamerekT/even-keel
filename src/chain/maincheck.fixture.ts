@@ -31,8 +31,8 @@ export function fakeMain(wait: number | null = null) {
     reports: [] as { push: MainPush; failure: MainFailure; greens: string[] }[],
     canCreate: true,
     next: 9,
-    /** Branch trees by task; a task missing here has no branch. */
-    taskTrees: {} as Record<string, string>,
+    /** The trees the check before the merge reported, by task (EKR-103); a task missing here had no report. */
+    reportedTrees: {} as Record<string, string>,
     trees: {} as Record<string, string>,
     commands: [] as string[],
     recheck: true,
@@ -94,7 +94,7 @@ export function fakeMain(wait: number | null = null) {
     prepare: async (project, id) => {
       ci.prepared.push(`${project}/${id}`)
     },
-    taskTree: async (_project, id) => ci.taskTrees[id] ?? null,
+    reportedTree: (_project, id) => ci.reportedTrees[id] ?? null,
     tree: async (_project, commit) => ci.trees[commit] ?? `tree-${commit}`,
     checking: () => ({ commands: ci.commands, recheck: ci.recheck }),
     checkMain: async (project, id, commit) => {

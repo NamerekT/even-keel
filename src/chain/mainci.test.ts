@@ -58,7 +58,6 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
       return branch === '' ? { code: 1, out: '' } : { code: 0, out: `${branch}\n` }
     }
     if (args[0] === 'merge-base') return { code: heads[`${cwd} ${args[2]} not before ${args[3]}`] === undefined ? 0 : 1, out: '' }
-    if (args[0] === 'for-each-ref') return { code: 0, out: args.at(-1) === 'refs/heads/abc-1' ? 'b1\n' : '' }
     return { code: 0, out: 'c2abc [ABC-2] Second\nc1abc [ABC-1] First\n' }
   }
   const watches: MainCiWatch[] | null =
@@ -80,6 +79,8 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
     watches: () => watches,
     settings: () => settings,
     commands: () => ['npm test'],
+    reported: (_project, task) =>
+      ({ 'ABC-1': { tree: 'tree-b1', commands: ['npm test'] }, 'ABC-3': { tree: 'tree-b3', commands: ['npm run lint'] } })[task],
     language: () => 'en',
     promptLanguage: () => 'ru',
     create: async () => 'ABC-9',
@@ -230,17 +231,17 @@ describe('mainCheckDeps', () => {
   it('runs no git in the folder of a project without git (BTN-883)', async () => {
     const { deps, gitCalls } = setup(unguarded([]), [])
     expect(await deps.head('NOTE')).toBeNull()
-    expect(await deps.taskTree('NOTE', 'NOTE-1')).toBeNull()
+    expect(deps.reportedTree('NOTE', 'NOTE-1')).toBeNull()
     expect(await deps.tree('NOTE', 'c2')).toBeNull()
     expect(await deps.merged('NOTE', 'NOTE-1')).toBe(false)
     expect(gitCalls).toEqual([])
   })
 
-  it('reads the tree of the task branch, whatever its tail', async () => {
-    const { deps, gitCalls } = setup(all([]), [])
-    expect(await deps.taskTree('ABC', 'ABC-1')).toBe('tree-b1')
-    expect(gitCalls[0]).toEqual(['for-each-ref', '--format=%(objectname)', 'refs/heads/abc-1'])
-    expect(await deps.taskTree('ABC', 'ABC-2')).toBeNull()
+  it('takes the tree the check before the merge reported only for the commands the project checks with now', async () => {
+    const { deps } = setup(all([]), [])
+    expect(deps.reportedTree('ABC', 'ABC-1')).toBe('tree-b1')
+    expect(deps.reportedTree('ABC', 'ABC-2')).toBeNull()
+    expect(deps.reportedTree('ABC', 'ABC-3')).toBeNull()
     expect(await deps.tree('ABC', 'c2')).toBe('tree-c2')
   })
 

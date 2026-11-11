@@ -29,6 +29,11 @@ export interface TurnContext {
   show(step: TurnStep): void
   /** Asks the service for the chat's mail on `event`, as the `checkpoint` plugin's mailbox hook does; `null` — none. */
   mail(event: MailEvent): Promise<string | null>
+  /**
+   * Reports the check before the merge passed on the folder's `HEAD`, with the commands the service gives, as the
+   * `checkpoint` plugin's merge hook does once they pass (EKR-103); the hook's own run is `merges.test.mjs`'s.
+   */
+  reportCheck(): Promise<void>
   /** Starts a background command that outlives the turn: the turn ends in `shell`, its process alive until a stop. */
   background(): void
   /** Reports the account's windows mid-turn, as a Claude SDK session's `rate_limit_event` does (`AgentOptions.onLimits`). */
@@ -308,6 +313,17 @@ export class ScriptedAgent implements Agent {
         })
         if (!response.ok) throw new Error(`script: mail on ${event}: ${response.status}`)
         return ((await response.json()) as { message: string | null }).message
+      },
+      reportCheck: async () => {
+        if (this.address === undefined) throw new Error('script: no address for the check report')
+        const { host, port } = this.address()
+        const url = `http://${host}:${port}/api/sessions/${sessionId}/check`
+        const asked = await fetch(url)
+        if (!asked.ok) throw new Error(`script: check asked: ${asked.status}`)
+        const { commands } = (await asked.json()) as { commands: string[] }
+        const tree = (await runGit(cwd, ['rev-parse', 'HEAD^{tree}'])).out.trim()
+        const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tree, commands }) })
+        if (!response.ok) throw new Error(`script: check report: ${response.status}`)
       },
       background: () => void (background = true),
       limits: (reported) => this.onLimits?.(session.entry.account!, reported),

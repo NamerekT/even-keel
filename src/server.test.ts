@@ -323,6 +323,15 @@ describe('Even Keel HTTP server', () => {
     expect((await fetch(base + '/api/sessions/other/check')).status).toBe(404)
   })
 
+  it('takes the report of a passed check before the merge from a chain session, 404 for any other, 400 without a tree', async () => {
+    const report = { tree: 'a'.repeat(40), commands: ['npm test'] }
+    const post = (id: string, body: unknown) => fetch(base + `/api/sessions/${id}/check`, { method: 'POST', body: JSON.stringify(body) })
+    expect((await post('chain-session', report)).status).toBe(200)
+    expect(calls).toContainEqual(['checkReport', 'chain-session', report])
+    expect((await post('other', report)).status).toBe(404)
+    expect((await post('chain-session', { tree: 'HEAD', commands: [] })).status).toBe(400)
+  })
+
   it('gives the standards hook the standards of a chain session and 404 for any other', async () => {
     const found = await fetch(base + '/api/sessions/chain-session/standards')
     expect(found.status).toBe(200)

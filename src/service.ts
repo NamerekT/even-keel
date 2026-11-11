@@ -42,6 +42,7 @@ import { ProjectRemotes } from './projects/remotes.js'
 import { Packages } from './packages/service.js'
 import { type ChainControl } from './server.js'
 import { Approvals } from './sessions/approvals.js'
+import { CheckReports } from './chain/checkreports.js'
 import { createChat } from './sessions/chat.js'
 import { noteFileOf } from './sessions/note.js'
 import { Mailbox } from './sessions/mailbox.js'
@@ -174,6 +175,7 @@ const context = {
   get changelogs() { return changelogs },
   get chatTitles() { return chatTitles },
   get checkMergeTarget() { return checkMergeTarget },
+  get checkReports() { return checkReports },
   get choiceFor() { return choiceFor },
   get ciOn() { return ciOn },
   get ciTokenOf() { return ciTokenOf },
@@ -510,6 +512,7 @@ const packages: Packages = accountsService.wirePackages(context)
  */
 function briefOn(project: string, reader = project): boolean { return accountsService.briefOn(context, project, reader) }
 const approvals = new Approvals({ language: () => configStore.current.language ?? promptLanguage(), unattended: () => configStore.current.unattended })
+const checkReports = new CheckReports()
 const runtimes = accountsService.wireRuntimes(context)
 /** The agent of an account folder: every session of the folder runs on it. */
 const agentOf = accountsService.wireAgentOf(context)

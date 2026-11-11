@@ -122,8 +122,10 @@ export interface MainPush {
   at: string
   /** The tasks it brought, with those of earlier pushes not judged before it came. */
   tasks: string[]
-  /** Main's tree is the tree of the last task's branch, which the project's check ran on before the merge. */
+  /** Main's tree is the tree the project's check before the merge of the last task reported it passed on (EKR-103). */
   checked?: true
+  /** The check before the merge of the last task sent no report: nothing shows it ran (EKR-103). */
+  unreported?: true
 }
 
 export interface MainGate {
@@ -488,8 +490,8 @@ export interface MainCheckDeps {
   comment: (task: string, body: string) => Promise<void>
   /** Prepares the place of the next task while the chain waits; its launch then reuses it. */
   prepare: (project: string, task: string) => Promise<void>
-  /** The tree of the task's branch, read before the cleanup deletes it; `null` — no branch. */
-  taskTree: (project: string, task: string) => Promise<string | null>
+  /** The tree the check before the task's merge reported it passed on, with the project's commands now; `null` — no such report. */
+  reportedTree: (project: string, task: string) => string | null
   tree: (project: string, commit: string) => Promise<string | null>
   /** The project's check (BTN-104): no commands — none; `recheck` — run it on main when main is not what it ran on. */
   checking: (project: string) => { commands: string[]; recheck: boolean }

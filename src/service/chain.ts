@@ -71,6 +71,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'branchOf'
   | 'briefOn'
   | 'briefed'
+  | 'checkReports'
   | 'choiceFor'
   | 'ciTokenOf'
   | 'ciWatches'
@@ -554,6 +555,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       watches: (project) => (ctx.ciWatches.found ? ctx.ciWatches.shown(project) : null),
       settings: (project) => ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI,
       commands: (project) => ctx.configStore.current.settings[project]?.check ?? [],
+      reported: (project, task) => ctx.checkReports.of(project, task),
       language: () => ctx.configStore.current.language ?? ctx.promptLanguage(),
       promptLanguage: ctx.promptLanguage,
       create: async (task) => (await ctx.linkOf(task.project)?.run(async (tracker) => tracker.create?.(task))) ?? null,

@@ -11,7 +11,7 @@ const SYNC_RETRY_MS = [30_000, 120_000]
 /** A sync of main after a done task that could not reach a remote, awaiting its next try. */
 interface SyncRetry {
   task: string
-  /** The task's tree, for the CI's verdict once main is pushed (`MainCheck.taskTree`). */
+  /** The tree the check before the task's merge reported, for the verdict once main is pushed (`MainCheck.reportedTree`). */
   tree: string | null
   /** The tries after the cleanup's own one. */
   tries: number
@@ -69,7 +69,7 @@ export class Cleanups {
 
   /** Cleans up after a done task and, once main is pushed, awaits the CI's verdict on it. */
   async closeUp(project: string, task: string): Promise<void> {
-    const tree = (await this.main?.taskTree(project, task)) ?? null
+    const tree = this.main?.reportedTree(project, task) ?? null
     const outcome = await this.cleanUp(project, task, this.reviews.cleanupOf(project, task))
     this.reviews.closedUp(project, task)
     this.syncRetries.delete(project)
