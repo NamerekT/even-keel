@@ -333,6 +333,14 @@ export const chainRU = {
         .filter((part) => part !== '')
         .join(', ')}`,
     family: (parent: string, title: string | null) => `Подзадачи ${parent}${title === null ? '' : ` ${title}`}`,
+    familyOpen: (parent: string) => `Открыть ${parent} среди родителей`,
+    views: {
+      label: 'Что показывает список',
+      chain: 'Цепочка: задачи по порядку',
+      parents: 'Родители: задачи с подзадачами и их сессии',
+      calls: 'Цепочка ждёт вас: вопрос или пауза',
+    },
+    subtasksClosed: (closed: number, total: number) => `Закрыто подзадач: ${closed} из ${total}`,
     shapes: {
       urgent: 'срочно',
       high: 'высокий приоритет',

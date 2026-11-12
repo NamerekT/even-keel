@@ -114,6 +114,26 @@ describe('startTracker', () => {
     expect(closed).toBe(true)
   })
 
+  it('hands the page the parents, open, closed and those the chain ran, and keeps a ran parent out of the chain (BTN-1041)', async () => {
+    const done = { name: 'Done', category: 'Won' as const }
+    const setParents = vi.fn()
+    const { deps } = start(['APP'], async () => ({
+      chainTasks: async () => ({
+        tasks: [{ ...task('APP-1'), subtasks: 2 }, { ...task('APP-2'), parent: 'APP-1' }, { ...task('APP-3'), subtasks: 1, status: done }],
+        statuses: ['Todo', 'Done'],
+      }),
+      tasks: async () => [{ ...task('APP-4'), subtasks: 1, status: done }, { ...task('APP-5'), status: done }],
+      close: async () => {},
+    }), { ranSince: () => ['APP-4', 'APP-5'], parents: { setParents } })
+    await vi.waitFor(() => expect(setParents).toHaveBeenCalled())
+    expect(setParents.mock.calls[0]![1].map((row: { id: string; closedSubtasks: number }) => [row.id, row.closedSubtasks])).toEqual([
+      ['APP-1', 1],
+      ['APP-3', 1],
+      ['APP-4', 1],
+    ])
+    expect((deps.tasksByProject.get('APP') ?? []).map((each) => each.id)).toEqual(['APP-2', 'APP-5'])
+  })
+
   it('tells the chain which released tasks it read, not those released while the read was on its way', async () => {
     const released = ['APP-2']
     const setReleased = vi.fn()

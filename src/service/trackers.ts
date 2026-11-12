@@ -44,6 +44,7 @@ type TrackersContext = Pick<ServiceContext,
   | 'mergeMarks'
   | 'ownerOfReader'
   | 'packages'
+  | 'parentsByProject'
   | 'postedQuestions'
   | 'profileStatuses'
   | 'profiles'
@@ -133,6 +134,7 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
           return ranSince(own, project, since).filter((task) => ctx.readerFor(project, task) === reader)
         },
         dispatcher: ctx.readerTasks,
+        parents: ctx.readerTasks,
         doneOf: (reader) => {
           const plan = ctx.readerMoves(reader)
           return plan === undefined ? undefined : doneMove(plan.rules, plan.profile, plan.source)
@@ -226,6 +228,7 @@ export function projectsChanged(ctx: TrackersContext, before: EvenKeelConfig): v
     }
     ctx.dispatcher.forget(project)
     ctx.tasksByProject.delete(project)
+    ctx.parentsByProject.delete(project)
     console.log(`config: ${projectLabel(before, project)} is gone from the config; its chain is let go, its sessions are left as they are`)
   }
   for (const project of Object.keys(after.projects)) if (!Object.hasOwn(before.projects, project)) console.log(`config: ${projectLabel(after, project)} joined`)
@@ -275,6 +278,7 @@ export function wireReaderTasks(ctx: TrackersContext): ReaderTasks {
     readers: (project) => readerIds(ctx.configStore.current, project),
     belongs: (reader, task) => ctx.readerFor(ctx.ownerOfReader(reader), task) === reader,
     tasksByProject: ctx.tasksByProject,
+    parentsByProject: ctx.parentsByProject,
     get dispatcher() {
       return ctx.dispatcher
     },

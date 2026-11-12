@@ -91,6 +91,8 @@ export interface ChainBlock {
   work?: TaskWork
   /** What the cleanup after the closed task said; the row keeps it in view until the user dismisses it. */
   leftovers?: Notice[]
+  /** A row of the "Parents" view (BTN-1041): how many of its subtasks are closed, of how many. */
+  subtasks?: { closed: number; total: number }
 }
 
 /**
@@ -764,7 +766,7 @@ export function issueLink(urls: TrackerUrls, task: string): string | null {
   return template === null ? null : template.replaceAll('{id}', task).replaceAll('{number}', task.slice(prefix.length + 1))
 }
 
-function taskSession(sessions: SessionView[], task: string): SessionView | undefined {
+export function taskSession(sessions: SessionView[], task: string): SessionView | undefined {
   const own = sessions.filter((view) => view.task === task)
   return own.find((view) => view.lamp !== 'finished') ?? own.at(-1)
 }

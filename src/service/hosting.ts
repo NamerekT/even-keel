@@ -148,6 +148,7 @@ type HostingContext = Pick<ServiceContext,
   | 'tallyMode'
   | 'taskNote'
   | 'tasksByProject'
+  | 'parentsByProject'
   | 'token'
   | 'trackers'
   | 'transcriptWatch'
@@ -185,6 +186,10 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       const archived = archivedShown(ctx.archive, project, listed, new Date(Date.now() - RAN_SHOWN_MS))
       return [...listed, ...archived].map((task) => ({ ...task, project }))
     }),
+    parents: Object.fromEntries(Object.keys(ctx.configStore.current.projects).flatMap((project) => {
+      const parents = ctx.parentsByProject.get(project)
+      return parents === undefined ? [] : [[project, parents]]
+    })),
     // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
     // chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
     sessions: ctx.sessions.map((view) =>

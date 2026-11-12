@@ -48,6 +48,12 @@ export interface Task extends TrackerTask {
   runLabels: RunLabel[]
 }
 
+/** A task with subtasks as the page's "Parents" view shows it (BTN-1041). */
+export interface ParentTask extends Task {
+  /** Its direct subtasks that are closed: all of them less the open ones the read gave. */
+  closedSubtasks: number
+}
+
 /** A label `<provider> | <model>`, or a bare `<provider>` that leaves the model to the config. */
 export interface RunLabel {
   provider: string

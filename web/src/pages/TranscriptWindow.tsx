@@ -74,6 +74,8 @@ export interface WindowTask {
   title: string | null
   project?: string
   closed?: boolean
+  /** A parent task's session, shown from the "Parents" view: it is only read, never answered (BTN-1041). */
+  parent?: boolean
 }
 
 interface Props {
@@ -340,7 +342,15 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
                 <ShutComposer
                   owner={owner}
                   sessionId={sessionId}
-                  reason={task?.closed === true ? t.session.chat.closed : live ? t.session.chat.elsewhere : t.session.chat.finished}
+                  reason={
+                    task?.parent === true
+                      ? t.session.chat.parent
+                      : task?.closed === true
+                        ? t.session.chat.closed
+                        : live
+                          ? t.session.chat.elsewhere
+                          : t.session.chat.finished
+                  }
                   status={status}
                 />
               )}

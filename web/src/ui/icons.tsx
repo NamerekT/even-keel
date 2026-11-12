@@ -354,6 +354,27 @@ export function GridIcon() {
   )
 }
 
+/** The project's feed as the chain: numbered rows in their order. */
+export function OrderIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.5 2.75v2.5M2 7.25h1.25L2 9.75h1.5M6.5 4h7M6.5 8.5h7M6.5 13h7" />
+    </svg>
+  )
+}
+
+/** The project's feed as its parents: a task with its subtasks hanging under it. */
+export function TreeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2" y="2" width="5" height="3.5" rx="1" />
+      <rect x="8.5" y="7" width="5.5" height="3" rx="1" />
+      <rect x="8.5" y="11.5" width="5.5" height="3" rx="1" />
+      <path d="M4.5 5.5v7.5h4M4.5 8.5h4" />
+    </svg>
+  )
+}
+
 /** Home grouped by remote: one repository above two clones of it. */
 export function ClonesIcon() {
   return (

@@ -386,6 +386,8 @@ export interface ChainTasks {
   tasks: Task[]
   /** Tasks with subtasks that are open by the rules; they never enter the chain. */
   parents: Task[]
+  /** The closed tasks with subtasks the read gave: the page's "Parents" view shows them (BTN-1041). */
+  closedParents: Task[]
   unknownStatuses: string[]
 }
 
@@ -424,6 +426,7 @@ export function trackerOf(source: TaskSource): Tracker {
       return {
         tasks: tasks.filter(isLeaf).map(toTask),
         parents: tasks.filter((task) => !isLeaf(task) && !isTerminal(rules, task.status)).map(toTask),
+        closedParents: tasks.filter((task) => !isLeaf(task) && isTerminal(rules, task.status)).map(toTask),
         unknownStatuses: unknownStatuses(rules, statuses),
       }
     },

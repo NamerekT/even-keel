@@ -8,8 +8,9 @@ import { MergeCloser } from './closer.js'
 import type { MergeMarks } from './closes.js'
 import { worthBroadcast, type TrackerView } from './health.js'
 import { errorText, TrackerLink } from './link.js'
-import { isOpen, type Task } from './model.js'
-import { ParentCloser } from './parents.js'
+import { isLeaf, isOpen, type Task } from './model.js'
+import { ParentCloser, parentRows } from './parents.js'
+import type { ReaderTasks } from './readers.js'
 import { StatusPoller } from './poller.js'
 import { trackerOf, type ChainTasks, type TrackerSetup } from './source.js'
 
@@ -34,6 +35,8 @@ export interface TrackerStartDeps {
   /** The tasks of the reader the chain started since then, closed ones included. */
   ranSince: (project: string, since: Date) => string[]
   dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'preview'>
+  /** Takes the reader's parents, open and closed, for the page's "Parents" view (BTN-1041). */
+  parents?: Pick<ReaderTasks, 'setParents'>
   /** The done status the reader's source closes into (BTN-554); none — the tracker's first. */
   doneOf?: (project: string) => DoneMove | undefined
   /** The tasks the merge closer closed, of every tracker and kept in the state database (BTN-689); none — in memory. */
@@ -214,20 +217,23 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const read = await chainTasks(project, rules)
       const tasks = read.tasks.filter((task) => ownsMilestone(rules, task))
       const parents = read.parents.filter((task) => ownsMilestone(rules, task))
+      const closedParents = read.closedParents.filter((task) => ownsMilestone(rules, task))
       const { unknownStatuses } = read
       const unknown = unknownStatuses.join('", "')
       if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
         console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)
       }
       unknownByProject.set(project, unknown)
-      const listed = new Set([...tasks, ...parents].map((task) => task.id))
+      const listed = new Set([...tasks, ...parents, ...closedParents].map((task) => task.id))
       const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
       const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing), JSON.stringify(['tasks', ...missing]))
       const unlisted = ranSince(project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
       const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted), JSON.stringify(['tasks', ...unlisted]))).filter((task) => !isOpen(task.status))
       if (stopped) return
       dispatcher.setOutside(project, [...parents, ...others])
-      const shown = await withMilestones(project, [...tasks, ...ran])
+      // A task the chain ran that has subtasks since stands among the parents, not in the chain's archive.
+      deps.parents?.setParents(project, parentRows([...parents, ...closedParents, ...ran.filter((task) => !isLeaf(task))], [...read.tasks, ...read.parents]))
+      const shown = await withMilestones(project, [...tasks, ...ran.filter(isLeaf)])
       if (stopped) return
       tasksByProject.set(project, shown)
       dispatcher.setTasks(project, shown)

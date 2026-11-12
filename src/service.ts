@@ -74,7 +74,7 @@ import { attachBuiltin } from './builtin/adapter.js'
 import { attachmentsDirOf, SWEEP_EVERY_MS, sweepAttachments } from './builtin/files.js'
 import { BuiltinStore } from './builtin/store.js'
 import type { TrackerLink } from './tracker/link.js'
-import { type Task } from './tracker/model.js'
+import { type ParentTask, type Task } from './tracker/model.js'
 import { profileStatusesOf } from './tracker/statuses.js'
 import { KeptReads, Vocabularies } from './tracker/vocabulary.js'
 import { updatesView } from './updates/release.js'
@@ -328,6 +328,7 @@ const context = {
   get taskRun() { return taskRun },
   get taskSource() { return taskSource },
   get tasksByProject() { return tasksByProject },
+  get parentsByProject() { return parentsByProject },
   get token() { return token },
   set token(value: typeof token) { token = value },
   get trackerPlace() { return trackerPlace },
@@ -532,6 +533,7 @@ const resumeIn = accountsService.wireResumeIn(context)
 const stopIn = accountsService.wireStopIn(context)
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, Task[]>()
+const parentsByProject = new Map<string, ParentTask[]>()
 const refreshers = new Map<string, () => Promise<void>>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ChainView } from '../chain/milestones.js'
 import { fakeTask as task } from './fixture.js'
-import type { Task } from './model.js'
+import type { ParentTask, Task } from './model.js'
 import { ReaderTasks } from './readers.js'
 
 /** ABC reads its own tasks and those of the feed `gh`, whose ids are `ABCGH-<n>`. */
@@ -13,12 +13,14 @@ function setup(released: string[] = []) {
     preview: [],
   }
   const tasksByProject = new Map<string, Task[]>()
+  const parentsByProject = new Map<string, ParentTask[]>()
   const view: ChainView = { tasks: [task('ABC-1'), task('ABCGH-2')], blockers: [task('ABCGH-3')], current: 'ABCGH-2' }
   const join = new ReaderTasks({
     owner: (reader) => (reader === 'gh' ? 'ABC' : reader),
     readers: (project) => (project === 'ABC' ? ['ABC', 'gh'] : [project]),
     belongs: (reader, id) => (reader === 'gh') === id.startsWith('ABCGH-'),
     tasksByProject,
+    parentsByProject,
     dispatcher: {
       setTasks: (project, tasks) => void calls.setTasks.push([project, tasks.map((each) => each.id)]),
       setOutside: (project, tasks) => void calls.setOutside.push([project, tasks.map((each) => each.id)]),
@@ -32,7 +34,7 @@ function setup(released: string[] = []) {
       },
     },
   })
-  return { join, calls, tasksByProject }
+  return { join, calls, tasksByProject, parentsByProject }
 }
 
 describe('ReaderTasks', () => {
@@ -57,6 +59,15 @@ describe('ReaderTasks', () => {
     join.setOutside('ABC', [task('XYZ-1')])
     join.setOutside('gh', [task('XYZ-2')])
     expect(calls.setOutside.at(-1)).toEqual(['ABC', ['XYZ-1', 'XYZ-2']])
+  })
+
+  it("gives the page a project's parents of all its readers and forgets those of a reader that goes", () => {
+    const { join, parentsByProject } = setup()
+    join.setParents('gh', [{ ...task('ABCGH-7', { subtasks: 2 }), closedSubtasks: 1 }])
+    join.setParents('ABC', [{ ...task('ABC-6', { subtasks: 3 }), closedSubtasks: 0 }])
+    expect(parentsByProject.get('ABC')?.map((each) => each.id)).toEqual(['ABC-6', 'ABCGH-7'])
+    join.delete('gh')
+    expect(parentsByProject.get('ABC')?.map((each) => each.id)).toEqual(['ABC-6'])
   })
 
   it("splits the released, held and the chain's view by reader", () => {

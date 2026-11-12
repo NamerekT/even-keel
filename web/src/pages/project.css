@@ -252,8 +252,15 @@
 
 @media (max-width: 760px) {
   .project__tools,
-  .project__buttons {
+  .project__buttons,
+  .project__head .feed-switch {
     height: 38px;
+  }
+
+  /* The feed's view switch rides in the head on a phone, as tall as the tools beside it (BTN-1041). */
+  .project__head .feed-switch .segmented__item {
+    align-items: center;
+    padding-inline: var(--space-12);
   }
 }
 

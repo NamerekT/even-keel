@@ -82,7 +82,13 @@ export function SessionPanel({ block, scale, ci, onCard, onClose, onChatting }: 
   // A press on the feed opens what the panel answers the session in: the chat, else the whole transcript with the field shut.
   const openChat = chat ? () => setChatting(true) : undefined
   // The session windows name the task as this panel's head does, and share its draft.
-  const windowTask: WindowTask = { key: block.id, title: block.title, project: taskProject(state, block.id), closed: !block.open }
+  const windowTask: WindowTask = {
+    key: block.id,
+    title: block.title,
+    project: taskProject(state, block.id),
+    closed: !block.open,
+    ...(block.subtasks !== undefined && { parent: true }),
+  }
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 

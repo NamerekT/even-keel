@@ -1,4 +1,13 @@
-import { isOpen, type Task } from './model.js'
+import { isOpen, type ParentTask, type Task } from './model.js'
+
+/**
+ * The parents with how many of their subtasks are closed: all of them less the open ones among `parents` and `tasks`.
+ * A read gives every open task, so the subtasks it lacks are closed.
+ */
+export function parentRows(parents: Task[], tasks: Task[]): ParentTask[] {
+  const open = [...parents, ...tasks].filter((task) => task.parent !== null && isOpen(task.status))
+  return parents.map((parent) => ({ ...parent, closedSubtasks: Math.max(0, parent.subtasks - open.filter((task) => task.parent === parent.id).length) }))
+}
 
 export interface ParentCloserOptions {
   children: (parent: string) => Promise<Task[]>

@@ -331,6 +331,14 @@ export const chainEN: Messages['chain'] = {
         .filter((part) => part !== '')
         .join(', ')}`,
     family: (parent: string, title: string | null) => `Subtasks of ${parent}${title === null ? '' : ` ${title}`}`,
+    familyOpen: (parent: string) => `Open ${parent} among the parents`,
+    views: {
+      label: 'What the list shows',
+      chain: 'Chain: the tasks in their order',
+      parents: 'Parents: the tasks with subtasks and their sessions',
+      calls: 'The chain needs you: a question or a pause',
+    },
+    subtasksClosed: (closed: number, total: number) => `Subtasks closed: ${closed} of ${total}`,
     shapes: {
       urgent: 'urgent',
       high: 'high priority',

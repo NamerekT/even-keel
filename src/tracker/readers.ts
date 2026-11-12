@@ -1,6 +1,6 @@
 import type { Dispatcher } from '../chain/dispatcher.js'
 import type { ChainView } from '../chain/milestones.js'
-import type { Task } from './model.js'
+import type { ParentTask, Task } from './model.js'
 
 type Chain = Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'view' | 'preview'>
 
@@ -13,6 +13,8 @@ export interface ReaderTasksDeps {
   belongs: (reader: string, task: string) => boolean
   /** By project: what the page and the rest of the service see. */
   tasksByProject: Map<string, Task[]>
+  /** By project: the parents the page's "Parents" view shows (BTN-1041). */
+  parentsByProject?: Map<string, ParentTask[]>
   dispatcher: Chain
 }
 
@@ -24,6 +26,7 @@ export class ReaderTasks implements Chain {
   private readonly listed = new Map<string, Task[]>()
   private readonly chained = new Map<string, Task[]>()
   private readonly outside = new Map<string, Task[]>()
+  private readonly parents = new Map<string, ParentTask[]>()
   /** By reader: its released tasks the tracker gave and the ids it was asked about. */
   private readonly releasedRead = new Map<string, { tasks: Task[]; asked: string[] }>()
   /** The project each reader was last read for. */
@@ -53,6 +56,7 @@ export class ReaderTasks implements Chain {
     this.outside.delete(reader)
     this.releasedRead.delete(reader)
     const had = this.chained.delete(reader)
+    if (this.parents.delete(reader)) this.publishParents(project)
     this.publish(project)
     if (had && this.has(project)) this.deps.dispatcher.setTasks(project, this.union(this.chained, project))
   }
@@ -67,6 +71,11 @@ export class ReaderTasks implements Chain {
     this.outside.set(reader, tasks)
     const project = this.ownerOf(reader)
     this.deps.dispatcher.setOutside(project, this.union(this.outside, project))
+  }
+
+  setParents(reader: string, parents: ParentTask[]): void {
+    this.parents.set(reader, parents)
+    this.publishParents(this.ownerOf(reader))
   }
 
   released(reader: string): string[] {
@@ -120,7 +129,13 @@ export class ReaderTasks implements Chain {
     this.deps.tasksByProject.set(project, this.union(this.listed, project))
   }
 
-  private union(parts: Map<string, Task[]>, project: string): Task[] {
+  private publishParents(project: string): void {
+    const parents = this.union(this.parents, project)
+    if (parents.length === 0) this.deps.parentsByProject?.delete(project)
+    else this.deps.parentsByProject?.set(project, parents)
+  }
+
+  private union<T extends Task>(parts: Map<string, T[]>, project: string): T[] {
     return this.deps.readers(project).flatMap((reader) => parts.get(reader) ?? [])
   }
 }

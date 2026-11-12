@@ -63,7 +63,7 @@ export function railsOf(blocks: { id: string; parent: string | null }[]): Map<st
     if (lane < 0) lane = busyUntil.length
     if (lane >= LANES) continue
     busyUntil[lane] = last
-    const hue = hueOf(family)
+    const hue = familyHue(family)
     for (let index = first; index <= last; index++) {
       const part: Rail['part'] = index === first ? 'start' : index === last ? 'end' : indexes.includes(index) ? 'middle' : 'pass'
       const id = blocks[index]!.id
@@ -77,7 +77,8 @@ export function isRework(labels: string[]): boolean {
   return labels.some((label) => REWORK_LABELS.includes(label.trim().toLocaleLowerCase()))
 }
 
-function hueOf(family: string): number {
+/** The colour of a family of subtasks, its rail's and its parent's chip in the "Parents" view. */
+export function familyHue(family: string): number {
   let hash = 0
   for (const char of family) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
   return hash % HUES

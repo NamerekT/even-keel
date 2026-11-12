@@ -43,6 +43,8 @@ import { Tipped } from '../ui/Tipped.js'
 import { chainWaits } from '../waits.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList, type Adding } from './ChainList.js'
+import { FeedSwitch } from './FeedSwitch.js'
+import { chainCalls, parentBlocks, parentsTo, parentView } from '../parents.js'
 import { BUILTIN } from '../../../src/builtin/model.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { emptyMilestones } from '../ui/addGhost.js'
@@ -87,23 +89,27 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const hash = decodeURIComponent(location.hash.slice(1))
   const close = useCallback(() => navigate({ search: location.search, hash: '' }), [navigate, location.search])
   const blocks = useMemo(() => chainBlocks(state, key), [state, key])
+  const parents = useMemo(() => parentBlocks(state, key), [state, key])
+  // The feed shows the chain or, by the address, the project's parents (BTN-1041); the panel follows what it shows.
+  const showParents = parentView(location.search, parents.length > 0)
+  const shown = showParents ? parents : blocks
   const entered = useRef<string | null>(null)
   // Once per arrival, so the cross keeps the panel closed; not where the panel would cover the whole page.
   // A link to the fix of main by its name opens the row of its episode.
-  const entry = fixBlockOf(blocks, hash) ?? (entered.current === key || isNarrow() ? null : focusOnEntry(blocks, hash))
+  const entry = fixBlockOf(shown, hash) ?? (entered.current === key || isNarrow() ? null : focusOnEntry(shown, hash))
   // Already the first frame shows the panel, the address catches up after it.
   const focus = entry ?? hash
   useEffect(() => {
     entered.current = key
     if (entry !== null) navigate({ search: location.search, hash: entry }, { replace: true })
   })
-  const previous = useRef(blocks)
+  const previous = useRef(shown)
   // The task whose chat window is open, and whether its close moved the panel on while the chat held it there.
   const chatting = useRef<string | null>(null)
   const held = useRef(false)
   useEffect(() => {
-    const next = focusAfterClose(previous.current, blocks, focus)
-    previous.current = blocks
+    const next = focusAfterClose(previous.current, shown, focus)
+    previous.current = shown
     if (next === null) return
     if (chatting.current === focus) held.current = true
     else navigate({ search: location.search, hash: next }, { replace: true })
@@ -145,7 +151,9 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
 
   const order = state.chain.projects[key]
   const flight = arrival.flight
-  const selected = blocks.find((block) => block.id === focus && !block.locked)
+  const selected = shown.find((block) => block.id === focus && !block.locked)
+  const status = chainStatus(state.chain, key)
+  const switcher = parents.length === 0 ? undefined : <FeedSwitch parents={showParents} calls={chainCalls(blocks, status)} />
   const backlog = backlogTasks(state, key)
   const backlogWorks = backlogWork(state, key)
   // The built-in tracker's backlog always has its tab: its ghost makes the first task there.
@@ -177,6 +185,9 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
       <HelpChip open={helpOpen} look={look} onToggle={toggle(HELP_HASH, helpOpen)} />
     </>
   )
+  // On a narrow screen the switch sits in the head, beside the tools.
+  const feedSwitcher = narrow ? undefined : switcher
+  const feedFocus = focus === BACKLOG_HASH || focus === SETTINGS_HASH || helpOpen || ciAt.open ? '' : focus
   const question = questionPath(state, [key])
   const tracker = state.trackers.find((view) => view.projects.includes(key))
   const links = taskLinks(state.tasks, state.sessions)
@@ -213,6 +224,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
           {narrow && <div className="hblock project__tools">{tools}</div>}
+          {narrow && switcher}
           <ChainControls
             state={state}
             project={key}
@@ -226,27 +238,51 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         {/* The built-in tracker's empty state is the chain's own ghost. */}
         {!builtin && <EmptyCall state={state} project={key} />}
         {blocks.length > 0 && order === undefined && <TrackerDown project={key} tracker={tracker} />}
-        <Loading busy={blocks.length === 0 && order === undefined && tracker?.health.state !== 'down' && tracker?.health.state !== 'off'} label={t.project.chainLoading}>
-          {blocks.length === 0 && (adding === null || order === undefined) ? (
-            emptyCall(state, key) === null && (order === undefined ? <NotLoaded project={key} tracker={tracker} /> : <p className="placeholder">{t.project.chainEmpty}</p>)
-          ) : (
-            <ChainList
-              key={key}
-              project={key}
-              chain={blocks}
-              scale={state.context}
-              focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || helpOpen || ciAt.open ? '' : focus}
-              ghost={arrival.ghost}
-              arrival={arrival.arrival}
-              incoming={arrival.incoming}
-              links={links}
-              ready={(block) => readyButton(state, key, block)}
-              unready={(block) => block.open && !block.locked && canUnready(state, key, block)}
-              onCard={openCard}
-              adding={adding}
-            />
-          )}
-        </Loading>
+        {showParents ? (
+          // The parents are out of the chain's order: no ghosts, no moves, no buttons that put a task in or out of the chain.
+          <ChainList
+            key={`parents-${key}`}
+            project={key}
+            chain={parents}
+            scale={state.context}
+            focus={feedFocus}
+            ghost={null}
+            arrival={null}
+            incoming={null}
+            links={links}
+            ready={() => null}
+            unready={() => false}
+            onCard={openCard}
+            switcher={feedSwitcher}
+            rowSearch={parentsTo('').search}
+          />
+        ) : (
+          <Loading busy={blocks.length === 0 && order === undefined && tracker?.health.state !== 'down' && tracker?.health.state !== 'off'} label={t.project.chainLoading}>
+            {blocks.length === 0 && (adding === null || order === undefined) ? (
+              <>
+                {feedSwitcher !== undefined && <div className="chain__top">{feedSwitcher}</div>}
+                {emptyCall(state, key) === null && (order === undefined ? <NotLoaded project={key} tracker={tracker} /> : <p className="placeholder">{t.project.chainEmpty}</p>)}
+              </>
+            ) : (
+              <ChainList
+                key={key}
+                project={key}
+                chain={blocks}
+                scale={state.context}
+                focus={feedFocus}
+                ghost={arrival.ghost}
+                arrival={arrival.arrival}
+                incoming={arrival.incoming}
+                links={links}
+                ready={(block) => readyButton(state, key, block)}
+                unready={(block) => block.open && !block.locked && canUnready(state, key, block)}
+                onCard={openCard}
+                adding={adding}
+                switcher={feedSwitcher}
+              />
+            )}
+          </Loading>
+        )}
         <StatsStrip project={statsKey} strip={strip} onCard={openCard} />
       </div>
       {column && (

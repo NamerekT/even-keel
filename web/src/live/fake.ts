@@ -169,7 +169,16 @@ function fakeState(
           session('ABC-8', 74_000, 'limit'),
           { ...session('ABC-9', 350_000, 'finished'), contextWindow: null },
           { ...session('DEMO-7', 142_000, 'waiting'), agent: 'codex', model: 'gpt-6.1-sol', contextWindow: 258_400, remoteUrl: null, remoteOff: null },
+          session('ABC-16', 118_000, 'finished'),
         ],
+    // The tasks of the "Parents" view (BTN-1041): two open families of the chain's rows and one closed parent.
+    parents: {
+      ABC: [
+        { ...task('ABC-16', 'Ядро цепочки', 'In Progress', 'Active', [], 'v0.1 — каркас', { subtasks: 4 }), closedSubtasks: 1 },
+        { ...task('ABC-17', 'Удобство страницы', 'Todo', 'ToDo', [], 'v0.2 — удобство', { subtasks: 3 }), closedSubtasks: 0 },
+        { ...task('ABC-21', 'Первый запуск', 'Done', 'Won', [], 'v0.1 — каркас', { subtasks: 2 }), closedSubtasks: 2 },
+      ],
+    },
     limits: FAKE_LIMITS,
     usage: fakeUsage(usage),
     account: (() => {
@@ -205,6 +214,7 @@ function fakeState(
             { sessionId: '00000000-0000-4000-8000-000000000104', at: ago(960), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' },
           ],
           'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, answers: 0, account: 'jane.roe@example.com' }],
+          'ABC-16': [{ sessionId: session('ABC-16', 0).sessionId, at: ago(1_200), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
           'ABC-FIX.1': [{ sessionId: '00000000-0000-4000-8000-000000000f01', at: ago(1_400), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
           'ABC-FIX.2': [{ sessionId: '00000000-0000-4000-8000-000000000f02', at: ago(700), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
         },

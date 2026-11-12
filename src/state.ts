@@ -20,7 +20,7 @@ import type { TallyHealth, TallyMode } from './stats/mode.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { ApiErrorKind, CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 import type { TrackerView } from './tracker/health.js'
-import type { Task } from './tracker/model.js'
+import type { ParentTask, Task } from './tracker/model.js'
 import type { UpdatesView } from './updates/release.js'
 
 export interface SessionView {
@@ -232,6 +232,8 @@ export interface EvenKeelState {
   }
   /** The tasks of every project with its project: a task of a tracker project two projects share is here for each. */
   tasks: ProjectTask[]
+  /** The tasks with subtasks of each project, open and closed, for the "Parents" view (BTN-1041); a project without any has no key. */
+  parents?: Record<string, ParentTask[]>
   sessions: SessionView[]
   limits: RateLimits | null
   usage: UsageHealth

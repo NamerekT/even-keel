@@ -15,7 +15,8 @@ import { runLabelsOn } from './runPick.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
-import { estimateShare, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
+import { estimateShare, familyHue, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
+import { parentsTo } from '../parents.js'
 import { milestoneView, type EmptyMilestones, type Section } from '../ui/milestones.js'
 import { chainPlace, looseGhost, takesGhost, type MilestoneRules } from '../ui/addGhost.js'
 import { AddGhost } from './AddGhost.js'
@@ -55,6 +56,10 @@ interface Props {
   onCard: (task: string) => void
   /** The built-in tracker's add ghosts (BTN-770); `null` — the project is on another tracker. */
   adding?: Adding | null
+  /** The feed's view switch, at the right of its top row (BTN-1041). */
+  switcher?: ReactNode
+  /** The address search a row's link keeps, so a row of the parents view opens its panel there. */
+  rowSearch?: string
 }
 
 export interface Adding {
@@ -77,7 +82,8 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard, adding = null }: Props) {
+export function ChainList(props: Props) {
+  const { project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard, adding = null, switcher, rowSearch } = props
   const { ghost, leaving } = useLingering(aimed, chain)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
@@ -101,7 +107,8 @@ export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival,
   const numbers = new Map(openIds(blocks).map((id, index) => [id, index + 1]))
   const [hovered, setHovered] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  const motion = useChainMotion(project, ordered, shown, incoming)
+  // Each view of the feed keeps its own last frame: a switch of the view is no motion of the chain.
+  const motion = useChainMotion(rowSearch === undefined ? project : `${project}?${rowSearch}`, ordered, shown, incoming)
   const real = blocks.filter((block) => block.id !== ghost?.id)
   const tiers = tiersOf(real.map((block) => ({ ...block, live: blockMetered(block) })))
   // The ghost takes the size the task will have where it lands, so the swap for the real block does not jump.
@@ -157,17 +164,22 @@ export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival,
   return (
     <div className="chain" style={{ '--key-chars': keyChars(ordered) } as CSSProperties}>
       {archive.shown === 0
-        ? archive.hidden > 0 && (
-            <Divider
-              name={t.chain.archive}
-              count={t.chain.archived(archive.hidden - archive.hiddenFixes, archive.hiddenFixes)}
-              hidden
-              bump={motion.bump ?? undefined}
-              toggle={{ expanded: false, title: t.chain.openArchive, run: () => setPages(1) }}
-            />
+        ? (archive.hidden > 0 || switcher !== undefined) && (
+            <TopRow switcher={switcher}>
+              {archive.hidden > 0 && (
+                <Divider
+                  name={t.chain.archive}
+                  count={t.chain.archived(archive.hidden - archive.hiddenFixes, archive.hiddenFixes)}
+                  hidden
+                  bump={motion.bump ?? undefined}
+                  toggle={{ expanded: false, title: t.chain.openArchive, run: () => setPages(1) }}
+                />
+              )}
+            </TopRow>
           )
         : (
             <section className="chain__archive">
+              <TopRow switcher={switcher}>
               <Divider
                 name={t.chain.archive}
                 count={
@@ -190,11 +202,13 @@ export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival,
                   )
                 }
               />
+              </TopRow>
               <ol className="chain__archived">
                 {archive.archived.map((block, index) => (
                   <ArchivedRow
                     key={block.id}
                     block={block}
+                    search={rowSearch}
                     milestone={block.milestone !== archive.archived[index - 1]?.milestone ? block.milestone : null}
                     focused={block.id === focus}
                   />
@@ -238,6 +252,7 @@ export function ChainList({ project, chain, scale, focus, ghost: aimed, arrival,
                     key={block.id}
                     project={project}
                     block={block}
+                    search={rowSearch}
                     number={numbers.get(block.id)}
                     waits={block.blockedBy.filter((id) => open.has(id))}
                     links={links(block.id)}
@@ -392,12 +407,12 @@ function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: 
 }
 
 /** A row of the unfolded archive: one quiet line, its context resets and its milestone, named only where the milestone changes. */
-function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milestone: string | null; focused: boolean }) {
+function ArchivedRow({ block, search, milestone, focused }: { block: ChainBlock; search: string | undefined; milestone: string | null; focused: boolean }) {
   return (
     <li id={block.id} className={`archived archived--${block.lamp}${focused ? ' archived--focus' : ''}`} data-block={block.id}>
       <span className="archived__head">
         <Lamp lamp={block.lamp} />
-        <Link to={{ hash: block.id }} className="archived__key" draggable={false} aria-current={focused ? 'true' : undefined}>
+        <Link to={{ search, hash: block.id }} className="archived__key" draggable={false} aria-current={focused ? 'true' : undefined}>
           {block.id}
         </Link>
       </span>
@@ -406,10 +421,35 @@ function ArchivedRow({ block, milestone, focused }: { block: ChainBlock; milesto
         {isOwnName(block.id) && <Forge lamp={block.lamp} />}
       </span>
       <span className="archived__side">
+        {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
         <ResetsBadge sessions={block.sessions} />
         {milestone !== null && <span className="archived__milestone">{milestone}</span>}
       </span>
     </li>
+  )
+}
+
+/** The feed's first row: the archive line, the view switch at its right. */
+function TopRow({ switcher, children }: { switcher: ReactNode; children: ReactNode }) {
+  if (switcher === undefined) return children
+  return (
+    <div className="chain__top">
+      {children}
+      <span className="chain__switch">{switcher}</span>
+    </div>
+  )
+}
+
+/** A parent's count of closed subtasks, in the colour of its subtasks' rail. */
+function SubtasksChip({ family, subtasks }: { family: string; subtasks: { closed: number; total: number } }) {
+  return (
+    <span
+      className="chip block__subtasks"
+      style={{ '--family': `var(--family-${familyHue(family)})` } as CSSProperties}
+      title={t.chain.subtasksClosed(subtasks.closed, subtasks.total)}
+    >
+      {subtasks.closed}/{subtasks.total}
+    </span>
   )
 }
 
@@ -458,6 +498,7 @@ function Divider({ name, count, hidden = false, bump, toggle, action }: DividerP
 interface BlockProps {
   project: string
   block: ChainBlock
+  search: string | undefined
   number: number | undefined
   waits: string[]
   links: TaskLinks
@@ -483,7 +524,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { project, block, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, ready, onReady, onUnready, onCard } =
+  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, ready, onReady, onUnready, onCard } =
     props
   const { state } = useLive()
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
@@ -534,13 +575,7 @@ function Block(props: BlockProps) {
       }}
     >
       {rails.map((rail) => (
-        <span
-          key={rail.family}
-          className={`block__rail block__rail--${rail.part}`}
-          style={{ '--lane': rail.lane, '--family': `var(--family-${rail.hue})` } as CSSProperties}
-          title={rail.part === 'start' ? t.chain.family(rail.family, taskTitle(state?.tasks, project, rail.family)) : undefined}
-          aria-hidden="true"
-        />
+        <RailLink key={rail.family} project={project} rail={rail} />
       ))}
       {block.priority === 'urgent' && <span className="block__hazard" aria-hidden="true" />}
       {block.question && <span className="block__corner" aria-hidden="true" />}
@@ -573,7 +608,7 @@ function Block(props: BlockProps) {
           </button>
         ) : (
           <Link
-            to={{ hash: block.id }}
+            to={{ search, hash: block.id }}
             className="block__key"
             draggable={false}
             aria-current={focused ? 'true' : undefined}
@@ -598,6 +633,7 @@ function Block(props: BlockProps) {
         </ActionMeter>
       )}
       <div className="block__side">
+        {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
         {block.runLabels.map((label) => (
           <RunLabelTag key={label} label={label} off={!runLabelsOn(state?.config, project)} />
         ))}
@@ -641,6 +677,35 @@ function Block(props: BlockProps) {
         <Links links={links} onCard={onCard} />
       </div>
     </li>
+  )
+}
+
+/** A row's piece of its family's rail; while the parent is known, a press on the rail opens it among the parents (BTN-1041). */
+function RailLink({ project, rail }: { project: string; rail: Rail }) {
+  const { state } = useLive()
+  const location = useLocation()
+  const parent = state?.parents?.[project]?.find((task) => task.id === rail.family)
+  const name = t.chain.family(rail.family, parent?.title ?? taskTitle(state?.tasks, project, rail.family))
+  const style = { '--lane': rail.lane, '--family': `var(--family-${rail.hue})` } as CSSProperties
+  return (
+    <>
+      {parent !== undefined && (
+        <Link
+          to={parentsTo(location.search, rail.family)}
+          className="block__rail-hit"
+          style={style}
+          title={`${name}\n${t.chain.familyOpen(rail.family)}`}
+          aria-label={t.chain.familyOpen(rail.family)}
+          draggable={false}
+        />
+      )}
+      <span
+        className={`block__rail block__rail--${rail.part}`}
+        style={style}
+        title={parent === undefined && rail.part === 'start' ? name : undefined}
+        aria-hidden="true"
+      />
+    </>
   )
 }
 

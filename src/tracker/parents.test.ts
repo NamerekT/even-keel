@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fakeTask } from './fixture.js'
 import type { Task, TaskStatus } from './model.js'
-import { ParentCloser } from './parents.js'
+import { ParentCloser, parentRows } from './parents.js'
 
 const done: TaskStatus = { name: 'Done', category: 'Won' }
 const canceled: TaskStatus = { name: 'Canceled', category: 'Lost' }
@@ -78,5 +78,23 @@ describe('ParentCloser', () => {
     })
     expect(await closer.sweep([parent('ABC-1'), parent('ABC-5')], [])).toEqual(['ABC-5'])
     expect(errors).toHaveLength(1)
+  })
+})
+
+describe('parentRows', () => {
+  it('counts the closed subtasks of each parent as all of them less the open ones it knows', () => {
+    const top = fakeTask('ABC-1', { subtasks: 4 })
+    const nested = fakeTask('ABC-4', { parent: 'ABC-1', subtasks: 1 })
+    const rows = parentRows([top, nested], [child('ABC-2', review), child('ABC-3', done), fakeTask('ABC-5', { parent: 'ABC-4', status: done })])
+    // Of the four subtasks of ABC-1 two are open: ABC-2 and the nested parent ABC-4; the done ABC-3 and one unread are closed.
+    expect(rows.map((row) => [row.id, row.closedSubtasks])).toEqual([
+      ['ABC-1', 2],
+      ['ABC-4', 1],
+    ])
+  })
+
+  it('never counts below zero when the tracker gave more open subtasks than it counted', () => {
+    const one = fakeTask('ABC-1', { subtasks: 1 })
+    expect(parentRows([one], [child('ABC-2', review), child('ABC-3', review)])[0]!.closedSubtasks).toBe(0)
   })
 })

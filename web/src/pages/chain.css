@@ -481,8 +481,33 @@
   background-color: color-mix(in srgb, var(--fg) 4%, var(--surface));
 }
 
-.chain .block--kin .block__rail {
+.chain .block--kin .block__rail,
+.chain .block__rail-hit:hover + .block__rail {
   opacity: 1;
+}
+
+/* A rail is 2px: a wider strip over it takes the press that opens the parent among the parents. */
+.chain .block__rail-hit {
+  position: absolute;
+  z-index: 1;
+  top: -5px;
+  bottom: -5px;
+  left: calc(-12px - var(--lane) * 6px);
+  width: 8px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.chain .block__rail-hit:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+/* A parent's closed subtasks in the parents view, in its family's colour. */
+.chain .block__subtasks {
+  border-color: color-mix(in srgb, var(--family) 55%, transparent);
+  background: color-mix(in srgb, var(--family) 18%, transparent);
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 760px) {
@@ -490,9 +515,50 @@
     left: calc(1px + var(--lane) * 4px);
   }
 
+  .chain .block__rail-hit {
+    left: calc(-2px + var(--lane) * 4px);
+  }
+
   .chain .block--acting {
     grid-template-areas: 'number head' '. title' '. action' '. side';
   }
+}
+
+/* The feed's view switch: at the right of the archive line, or alone at the top (BTN-1041) */
+
+.chain__top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-12);
+}
+
+.chain__top > .chain__milestone {
+  flex: 1;
+  min-width: 0;
+}
+
+.chain__switch {
+  flex: none;
+  display: flex;
+}
+
+.feed-switch .segmented__item {
+  position: relative;
+  display: inline-flex;
+  padding: 5px 8px;
+}
+
+/* The chain needs the user while the parents are shown: a question or a pause. */
+.feed-switch__dot {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lamp-waiting);
+  box-shadow: 0 0 0 1.5px var(--surface);
 }
 
 /* Motion: a new task, a finished one, a handover, a task leaving for the archive */

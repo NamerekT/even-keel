@@ -135,9 +135,11 @@ describe('trackerOf', () => {
     expect((await trackerOf(source([raw('ABC-1', { subtasks: 2 })])).tasks(['ABC-1'])).map((task) => task.id)).toEqual(['ABC-1'])
   })
 
-  it('leaves closed parents out of the parents', async () => {
+  it('leaves closed parents out of the parents and gives them apart for the page', async () => {
     const adapter = source([raw('ABC-1', { subtasks: 2, status: done })])
-    expect((await trackerOf(adapter).chainTasks('ABC', DEFAULT_RULES)).parents).toEqual([])
+    const read = await trackerOf(adapter).chainTasks('ABC', DEFAULT_RULES)
+    expect(read.parents).toEqual([])
+    expect(read.closedParents.map((task) => task.id)).toEqual(['ABC-1'])
   })
 
   it('passes the optional brief, completion and subtasks through only when the adapter has them', async () => {
