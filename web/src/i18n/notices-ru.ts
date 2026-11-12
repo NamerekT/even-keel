@@ -430,6 +430,8 @@ export const noticesRu: NoticeTexts = {
   'usage.copilotMachine': () => 'Even Keel не удалось прочитать вход Copilot на этой машине; чтобы читать запас, добавьте аккаунт Copilot с собственным токеном',
   'usage.copilotUnlimited': () => 'у плана Copilot нет месячного лимита',
   'usage.copilotUnread': () => 'в ответе GitHub о Copilot нет читаемого запаса',
+  'usage.copilotNoQuota': () => 'GitHub не сообщил запас Copilot для этого аккаунта; проверьте его тариф на GitHub',
+  'usage.copilotBillingEmpty': () => 'GitHub не вернул данные о расходе Copilot; проверьте страницу биллинга GitHub',
   'usage.copilotSignIn': () => 'GitHub не принял вход Copilot, войдите заново',
   'usage.planRead': () => 'токен не может читать расход Copilot: дайте ему право «Plan» (чтение) в настройках токена на GitHub',
 

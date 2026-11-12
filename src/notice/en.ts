@@ -429,6 +429,8 @@ export const en = {
   'usage.copilotMachine': () => "Even Keel could not read this machine's Copilot sign-in; add a Copilot account with its own token to read its allowance",
   'usage.copilotUnlimited': () => 'the Copilot plan has no monthly limit',
   'usage.copilotUnread': () => "GitHub's Copilot answer has no readable allowance",
+  'usage.copilotNoQuota': () => 'GitHub did not provide a Copilot allowance for this account; check its plan on GitHub',
+  'usage.copilotBillingEmpty': () => 'GitHub returned no Copilot usage data; check its billing page',
   'usage.copilotSignIn': () => 'GitHub refused the Copilot sign-in; sign in again',
   'usage.planRead': () => 'the token may not read its Copilot usage: give it the "Plan" permission (read) in GitHub\'s settings of the token',
 

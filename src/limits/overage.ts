@@ -43,10 +43,14 @@ export function copilotOverage(quota: Record<string, unknown>, at: string): Over
 }
 
 export function githubOverage(items: unknown[], at: string): Overage | undefined {
-  const copilot = items.filter((item) => isRecord(item) && typeof item.product === 'string' && item.product.toLowerCase() === 'copilot')
+  const copilot = items.filter((item) => isRecord(item) && isCopilotBillingProduct(item.product))
   if (copilot.length === 0 || !copilot.every((item) => isRecord(item) && typeof item.netAmount === 'number' && Number.isFinite(item.netAmount) && item.netAmount >= 0)) return undefined
   const used = copilot.reduce((sum: number, item) => sum + (item as { netAmount: number }).netAmount, 0)
   return { source: 'github-billing', updatedAt: at, unit: 'USD', used: Math.round(used * 100) / 100 }
+}
+
+export function isCopilotBillingProduct(product: unknown): boolean {
+  return typeof product === 'string' && ['copilot', 'copilot ai credits', 'ai credits'].includes(product.trim().toLowerCase())
 }
 
 /** A current spend indicator, not a historical receipt or an inference from an idle session's exhausted window. */
