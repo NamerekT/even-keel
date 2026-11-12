@@ -9,7 +9,7 @@ export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', 
 /** The agents of the account folders by their registry name, as their adapters' `title`. */
 export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot', demo: 'Demo' }
 
-export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch'
+export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch' | 'commit'
 
 export const list = (items: string[]) => items.join(', ')
 /** The service's user and home in brackets, when known (`cloudErrorNotice`). */
@@ -51,6 +51,7 @@ export const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
   addSlot: () => 'add the slot to',
   clean: () => 'clean',
   switch: (branch) => `switch to ${branch} in`,
+  commit: () => 'commit the changes of',
 }
 
 export const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {

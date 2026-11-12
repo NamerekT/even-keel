@@ -38,6 +38,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'copilot.binaryMissing': { to: 'shared', tab: 'models' },
   'git.noBranch': { to: 'project', tab: 'repo' },
   'git.wrongBranch': { to: 'project', tab: 'repo' },
+  'project.gitDirty': { to: 'project', tab: 'repo' },
   'forward.foreign': { to: 'project', tab: 'repo' },
   'chain.emptyLabels': { to: 'project', tab: 'tracker' },
   'chain.emptyStatus': { to: 'project', tab: 'tracker' },

@@ -154,6 +154,15 @@ export function fakeProjectCommand(state: EvenKeelState, name: string, body: Rec
   return { ...state, projects: state.projects.filter((each) => each !== id), ...mapsOf(keys, projects), config: { ...state.config, projects } }
 }
 
+/** `?gitChanges=<n>`: the folder of a project without git holds n uncommitted changes, as a repository added so (BTN-1054). */
+export function fakeGitChanges(count: string | null): { files: string[] } {
+  const total = Math.max(0, Number(count) || 0)
+  const files = Array.from({ length: total }, (_, index) =>
+    index === 0 ? 'M README.md' : index === 1 ? '?? notes/' : index === 2 ? 'R docs/old-name.md → docs/a-much-longer-new-name-for-the-guide.md' : `M src/module-${index}.ts`,
+  )
+  return { files }
+}
+
 /** `project/git` turns git on or off between tasks; a running chain refuses as the service would. */
 function withGit(state: EvenKeelState, body: Record<string, unknown>): EvenKeelState {
   const id = String(body.project)

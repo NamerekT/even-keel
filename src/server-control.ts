@@ -156,10 +156,13 @@ export interface SettingsControl {
   remove(project: string): void
   /**
    * Turns git on or off for the project (BTN-884), only between its tasks. On: the folder made a repository on the
-   * project's branch, `slot` — how many slots its tasks take, 0 — a worktree each. Off: refused while task worktrees are
-   * left, unless `force`.
+   * project's branch, `slot` — how many slots its tasks take, 0 — a worktree each; work done in a repository while git was
+   * off goes into one commit with `commit`, or refuses the switch (BTN-1054). Off: refused while task worktrees are left,
+   * unless `force`.
    */
-  switchGit(project: string, on: boolean, options: { slot: number; force: boolean }): Promise<void>
+  switchGit(project: string, on: boolean, options: { slot: number; force: boolean; commit: boolean }): Promise<void>
+  /** What turning git on would commit as work done without git: `git status --porcelain` lines, none for a fresh repository. */
+  gitChanges(project: string): Promise<{ files: string[] }>
   /** Adds an extra task feed to the project (BTN-66); refuses one the config would not parse. */
   addFeed(project: string, draft: FeedDraft): void
   /** Drops the project's feed; the archive keeps the closed tasks it gave. */

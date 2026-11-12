@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
+import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectLabel } from '../state.js'
 import { Segmented } from '../stats/common.js'
@@ -64,6 +65,10 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
     if (dialog.current?.open === false) dialog.current.showModal()
   }, [])
   const { send, sending, failure } = useCommand()
+  const read = useGitChanges(project)
+  // A refusal for changes the press found carries the fresh list (BTN-1054): it stands over the one read at opening.
+  const files = failure?.code === 'project.gitDirty' ? failure.params.files : read
+  const [commit, setCommit] = useState(true)
   const [place, setPlace] = useState<Place>('worktree')
   const [slots, setSlots] = useState('1')
   const text = t.settings.gitSwitch
@@ -79,7 +84,7 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
     : !named ? text.needIdentity
     : slotCount === null ? text.needSlots : null
   const turnOn = async () => {
-    if (ready && !sending && (await send('project/git', { project, on: true, slot: slotCount }))) onClose()
+    if (ready && !sending && (await send('project/git', { project, on: true, slot: slotCount, commit }))) onClose()
   }
 
   return createPortal(
@@ -107,6 +112,7 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
           <p className="setup__lead">{text.lead}</p>
           <GitInstall state={state} />
           {installed && <Identity key={`${git.name}\n${git.email}`} git={git} />}
+          {files.length > 0 && <GitChanges files={files} commit={commit} onCommit={setCommit} />}
           <Section title={text.place} mark={<PartDot check={slotCount === null ? 'failed' : 'passed'} first />} className="project-add__step">
             <p className="setup__lead">{text.placeLead}</p>
             <Row
@@ -164,6 +170,49 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
       </div>
     </dialog>,
     document.body,
+  )
+}
+
+const SHOWN_CHANGES = 20
+
+/** The uncommitted changes of a repository with commits, read once the dialog opens; none until read or when it fails. */
+function useGitChanges(project: string): string[] {
+  const { query } = useLive()
+  const [files, setFiles] = useState<string[]>([])
+  useEffect(() => {
+    let live = true
+    query<{ files: string[] }>('project/git/changes', { project }).then(
+      (read) => live && setFiles(read.files),
+      () => live && setFiles([]),
+    )
+    return () => {
+      live = false
+    }
+  }, [project])
+  return files
+}
+
+/** Work done in the repository outside git (BTN-1054): the first lines of it and whether it goes into one commit. */
+function GitChanges({ files, commit, onCommit }: { files: string[]; commit: boolean; onCommit: (commit: boolean) => void }) {
+  const text = t.settings.gitSwitch
+  const shown = files.slice(0, SHOWN_CHANGES)
+  return (
+    <Section title={text.changes} mark={<PartDot check={commit ? 'passed' : 'failed'} first />} className="project-add__step">
+      <p className="setup__lead">{text.changesLead(files.length)}</p>
+      <ul className="git-on__files">
+        {shown.map((file) => (
+          <li key={file}>{file}</li>
+        ))}
+        {files.length > shown.length && <li className="git-on__more">{text.changesMore(files.length - shown.length)}</li>}
+      </ul>
+      <div className="git-on__commit">
+        <label className="settings__check">
+          <input id="git-on-commit" type="checkbox" checked={commit} onChange={(event) => onCommit(event.target.checked)} />
+          {text.commit}
+        </label>
+        <span className="settings__hint">{commit ? text.commitHint : text.noCommitHint}</span>
+      </div>
+    </Section>
   )
 }
 

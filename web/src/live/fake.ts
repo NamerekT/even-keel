@@ -38,7 +38,7 @@ import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withProfileOff, withScopeRefusal, withTrackerDown } from './fakeTrackers.js'
-import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
+import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
@@ -850,6 +850,7 @@ export function createFakeSource(search: string): LiveSource {
       if (current.state === null) throw new Error('fake: no state yet')
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account), params.get('models')) as T
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
+      if (name === 'project/git/changes') return fakeGitChanges(params.get('gitChanges')) as T
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
       const builtin = fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
       if (builtin !== null) {

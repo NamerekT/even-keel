@@ -27,7 +27,7 @@ import { guardHosts, guardToken } from '../guard.js'
 import { readJson } from '../packages/plugins.js'
 import { checkDraft, isTrusted } from '../projects/check.js'
 import { addProject } from '../projects/add.js'
-import { gitSwitchBlock, taskWorktrees, turnGitOn } from '../projects/git-mode.js'
+import { gitSwitchBlock, taskWorktrees, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
 import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
 import { createEvenKeelServer } from '../server.js'
@@ -381,7 +381,13 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         ctx.configStore.removeProject(project)
         console.log(`page: the project ${project} is removed from the config; its repository, worktrees and branches are left as they are`)
       },
-      switchGit: async (project, on, { slot, force }) => {
+      gitChanges: async (project) => {
+        const repo = ctx.configStore.current.projects[project]
+        if (repo === undefined) throw fail('config.unknownProject', { key: project })
+        if (ctx.configStore.view().projects[project]!.git) return { files: [] }
+        return { files: await uncommittedChanges(runGit, repo) }
+      },
+      switchGit: async (project, on, { slot, force, commit }) => {
         const config = ctx.configStore.current
         const repo = config.projects[project]
         if (repo === undefined) throw fail('config.unknownProject', { key: project })
@@ -395,10 +401,11 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         const write = (form: typeof base, from: typeof base) =>
           ctx.configStore.saveProject(project, form, from, profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules)
         if (on) {
-          const { made } = await turnGitOn(runGit, repo, label, base.branch.trim() || DEFAULT_BRANCH)
+          const { made, committed } = await turnGitOn(runGit, repo, label, base.branch.trim() || DEFAULT_BRANCH, { commit })
           // The entry may still carry a slot count the mode without git ignored: the chosen one is written over it.
           write({ ...base, git: true, slot }, { ...base, slot: -1 })
-          console.log(`page: git is on for ${label}${made ? ', its folder made a repository with a first commit' : ''}`)
+          const how = made ? ', its folder made a repository with a first commit' : committed ? ', the work done without git committed' : ''
+          console.log(`page: git is on for ${label}${how}`)
           return
         }
         const worktrees = await taskWorktrees(runGit, repo)

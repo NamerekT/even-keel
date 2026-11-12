@@ -28,6 +28,7 @@ const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
   addSlot: () => 'добавить слот в',
   clean: () => 'очистить',
   switch: (branch) => `переключиться на ${branch} в`,
+  commit: () => 'закоммитить изменения в',
 }
 
 const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
@@ -700,6 +701,8 @@ export const noticesRu: NoticeTexts = {
   'project.gitTaskInHand': (p) => `цепочка работает над ${p.task}`,
   'project.gitOffWorktrees': (p) =>
     `в этих worktree ещё лежит работа задач, а без git Even Keel их больше не смержит и не уберёт: ${list(p.worktrees)}`,
+  'project.gitDirty': (p) =>
+    `в папке ${p.project} есть незакоммиченные изменения, сделанные без git (${p.files.length}): отметьте «Закоммитить их одним коммитом» в «Включить git» или закоммитьте их сами`,
   'eventLog.limit': () => 'цепочка встала на лимите',
   'eventLog.red': (p) => `main красный на ${p.commit}${p.cis.length > 0 ? ` (${list(p.cis.map((ci) => FORGES[ci]))})` : ''}`,
   'eventLog.ciRed': (p) => `${list(p.cis.map((ci) => FORGES[ci]))} красный на ${p.commit}, цепочка идёт дальше`,

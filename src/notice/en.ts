@@ -734,6 +734,9 @@ export const en = {
   'project.gitTaskInHand': (p: { task: string }) => `the chain works on ${p.task}`,
   'project.gitOffWorktrees': (p: { worktrees: string[] }) =>
     `these worktrees still hold work of tasks, and once git is off Even Keel no longer merges or removes them: ${list(p.worktrees)}`,
+  // `files` are `git status --porcelain` lines: the "Turn on git" dialog lists them itself (BTN-1054).
+  'project.gitDirty': (p: { project: string; files: string[] }) =>
+    `the folder of ${p.project} has ${p.files.length} uncommitted changes made while git was off: tick “Commit them in one commit” in “Turn on git”, or commit them yourself`,
   // The event log's entries (BTN-350, `src/event-log/`). The task or project they are about is not in the text: the log
   // shows it in a column of its own, a toast before the text (`subjectOf`, BTN-852).
   'eventLog.limit': (_: { project: string }) => 'the chain stopped on the usage limit',
