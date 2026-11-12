@@ -56,6 +56,19 @@ describe('observe', () => {
     ])
   })
 
+  it('names the folder of left work relative to the project, whole when it lies outside', () => {
+    const left = (path: string): WatchInput =>
+      ({
+        ...none,
+        config: { ...none.config, projects: { p1: { ci: none.config.shared.ci, repo: 'D:/Projects/repo' } } },
+        chain: { ...none.chain, projects: { p1: { order: [], waiting: [], backlog: [], error: null } } },
+        works: { p1: { 'ABC-1': { path, branch: 'b', files: 0, ahead: 1 } } },
+      }) as unknown as WatchInput
+    const text = (path: string) => [...watchedOf(left(path)).conditions.values()][0]?.notice
+    expect(text('d:\\projects\\repo\\.claude\\worktrees\\abc-1')).toEqual(notice('eventLog.unmerged', { task: 'ABC-1', path: '.claude/worktrees/abc-1' }))
+    expect(text('E:\\slots\\abc-1')).toEqual(notice('eventLog.unmerged', { task: 'ABC-1', path: 'E:\\slots\\abc-1' }))
+  })
+
   it('writes the same question again only when the session asks a new one', () => {
     const first = observe(null, watchedOf(asking('q1')), at(0))
     const quiet = observe(first.memory, watchedOf(none), at(1))

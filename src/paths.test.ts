@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { binaryPath, findBinary, isInside, pathKey, samePath, spelledUnder, workingFolder } from './paths.js'
+import { binaryPath, findBinary, isInside, pathKey, relativeUnder, samePath, spelledUnder, workingFolder } from './paths.js'
 
 describe('a folder behind a link', () => {
   let root: string
@@ -38,6 +38,23 @@ describe('a folder behind a link', () => {
 
   it('leaves a path outside it as it is', () => {
     expect(spelledUnder(join(root, 'elsewhere'), join(link, 'repo'))).toBe(join(root, 'elsewhere'))
+  })
+})
+
+describe('relativeUnder', () => {
+  it('gives forward slashes, ignoring drive letter case and slash direction on Windows', () => {
+    expect(relativeUnder('d:\\Projects\\repo\\.claude\\worktrees\\abc-1', 'D:/Projects/repo', 'win32')).toBe('.claude/worktrees/abc-1')
+  })
+
+  it('gives null for the folder itself and for a path outside it', () => {
+    expect(relativeUnder('D:\\Projects\\repo', 'D:\\Projects\\repo', 'win32')).toBeNull()
+    expect(relativeUnder('D:\\Projects\\repo-slot-1', 'D:\\Projects\\repo', 'win32')).toBeNull()
+    expect(relativeUnder('/srv/other/abc-1', '/srv/repo', 'linux')).toBeNull()
+  })
+
+  it('keeps case on Linux', () => {
+    expect(relativeUnder('/srv/repo/.claude/worktrees/abc-1', '/srv/repo', 'linux')).toBe('.claude/worktrees/abc-1')
+    expect(relativeUnder('/srv/Repo/abc-1', '/srv/repo', 'linux')).toBeNull()
   })
 })
 

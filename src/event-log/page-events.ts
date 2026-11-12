@@ -8,7 +8,7 @@ export type EventsInput = Pick<EvenKeelState, 'ci' | 'mainCi' | 'fixes' | 'forwa
     chain: Pick<EvenKeelState['chain'], 'active'>
     config: {
       shared: { ci: { guard: boolean; kinds: readonly CiKind[] } }
-      projects: Record<string, { ci: { guard: boolean; kinds: readonly CiKind[] } }>
+      projects: Record<string, { ci: { guard: boolean; kinds: readonly CiKind[] }; repo?: string }>
     }
   }
 

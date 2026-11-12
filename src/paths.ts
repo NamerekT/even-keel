@@ -52,6 +52,18 @@ export function spelledUnder(path: string, folder: string, platform: NodeJS.Plat
   return paths.join(paths.resolve(folder), inner.slice(outer.length + 1))
 }
 
+/**
+ * `path` relative to `folder` with forward slashes on any platform, when it lies strictly inside it, links and case of
+ * the drive letter aside; `null` — the folder itself or a path outside it.
+ */
+export function relativeUnder(path: string, folder: string, platform: NodeJS.Platform = process.platform): string | null {
+  const paths = pathsOf(platform)
+  const inner = realOf(path, platform)
+  const outer = realOf(folder, platform)
+  if (!foldCase(inner, platform).startsWith(`${foldCase(outer, platform)}${paths.sep}`)) return null
+  return inner.slice(outer.length + 1).split(paths.sep).join('/')
+}
+
 export function samePath(a: string, b: string, platform: NodeJS.Platform = process.platform): boolean {
   return pathKey(a, platform) === pathKey(b, platform)
 }
