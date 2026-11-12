@@ -49,7 +49,7 @@ function deps(path: string | null, fields: Partial<CreationDeps> = {}, repo: Par
     folderOf: () => path ?? join(dir, 'own'),
     trustFiles: () => ['C:\\home\\.claude.json'],
     trust: (file, folder) => void seen.trusted.push(`${file} ${folder}`),
-    packages: { installingOf: () => [], unready: () => [] },
+    packages: { turnOnTasks: () => {}, installingOf: () => [], unready: () => [] },
     wait: async () => {},
     ...fields,
   }
@@ -153,6 +153,13 @@ describe('creationPlan', () => {
     expect(made.seen.added).toEqual([{ ...base, repo: 'D:\\shop' }])
   })
 
+  it("turns on the tasks package for the project as soon as its entry is written, before the packages' wait (BTN-1028)", async () => {
+    const order: string[] = []
+    const made = deps(null, { packages: { turnOnTasks: (project) => void order.push(`tasks ${project}`), installingOf: () => (order.push('wait'), []), unready: () => [] } }, { root: 'D:\\shop' })
+    await run(made, { ...base, repo: 'D:\\shop' })
+    expect(order).toEqual(['tasks project-1', 'wait'])
+  })
+
   it("trusts Even Keel's own folder of a project without git", async () => {
     const made = deps(null, {}, { root: dir })
     const { view } = await run(made, { ...base, git: false })
@@ -162,7 +169,7 @@ describe('creationPlan', () => {
 
   it('waits for the packages still installing, then fails on those only the user can make ready, the project kept', async () => {
     let asked = 0
-    const made = deps(null, { packages: { installingOf: () => (asked++ < 2 ? ['tasks'] : []), unready: () => ['huly'] } }, { root: 'D:\\shop' })
+    const made = deps(null, { packages: { turnOnTasks: () => {}, installingOf: () => (asked++ < 2 ? ['tasks'] : []), unready: () => ['huly'] } }, { root: 'D:\\shop' })
     const { view } = await run(made, { ...base, repo: 'D:\\shop' })
     expect(asked).toBe(3)
     expect(view.failure).toEqual(expect.objectContaining({ code: 'job.packagesUnready', params: { packages: ['huly'] } }))

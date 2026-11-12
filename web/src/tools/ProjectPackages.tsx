@@ -108,7 +108,20 @@ export function ProjectPackages({ state, project, adding, onAdded, onClose }: Pr
               {t.tools.trackerAdvice(advice)}
             </Band>
           )}
-          {doubled !== null && <Band tone="warn">{t.packages.trackerDoubled(doubled.server, doubled.also)}</Band>}
+          {doubled !== null && (
+            <Band
+              tone="warn"
+              action={
+                doubled.by === null ? undefined : (
+                  <button type="button" className="button button--small" disabled={sending} onClick={() => void send('packages/project', { project, name: doubled.by, choice: 'off' })}>
+                    {t.packages.trackerOff(doubled.also)}
+                  </button>
+                )
+              }
+            >
+              {t.packages.trackerDoubled(doubled.server, doubled.also)}
+            </Band>
+          )}
           {empty ? (
             <EmptyState action={<AddPackage view={view} project={project} label={t.packages.addToProject} className="button" />}>{t.packages.projectNone}</EmptyState>
           ) : (

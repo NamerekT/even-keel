@@ -134,6 +134,7 @@ export const packagesRU = {
     addToProject: 'Добавить в проект',
     trackerAdd: (name: string) => `Добавить ${name}`,
     trackerOn: (name: string) => `Включить ${name}`,
+    trackerOff: (name: string) => `Выключить ${name}`,
     trackerChoice: {
       tasks: 'Сервер задач Even Keel: пять инструментов с короткими ответами, статусы и метки по имени; ручной сессии нужна запущенная служба Even Keel.',
       own: 'Свой MCP-сервер трекера: больше инструментов и больше контекста, работает без службы Even Keel.',

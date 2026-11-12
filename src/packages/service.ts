@@ -5,13 +5,14 @@ import { promisify } from 'node:util'
 import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
+import { TASKS_SERVER } from '../taskmcp/server.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { copyPinned, installPinned, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
-import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
+import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn, TASKS_PLUGIN } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
 import { isNewer } from './version.js'
@@ -252,6 +253,28 @@ export class Packages {
   /** Whether a package the project's sessions get brings the server. */
   bringsServer(project: string, server: string): boolean {
     return bringsServer(this.file, project, server)
+  }
+
+  /**
+   * A new project whose tracker Even Keel's tasks server serves gets it on (BTN-1028): the catalog's package of the
+   * `tasks` plugin, else another one that brings the server, else the plugin added from the checkout's marketplace and
+   * installed in the background. An ordinary package: the user turns it off or removes it like any other.
+   */
+  turnOnTasks(project: string): void {
+    const tracker = this.deps.tracker(project)
+    if (tracker?.server !== TASKS_SERVER && tracker?.also !== TASKS_SERVER) return
+    if (this.bringsServer(project, TASKS_SERVER)) return
+    const plugin = ownPackage(this.deps.ownDir, TASKS_PLUGIN)
+    const live = Object.entries(this.file.packages).filter(([, record]) => record.removed !== true)
+    const known = live.find(([name]) => name === plugin)?.[0] ?? live.find(([, record]) => current(record)?.servers[TASKS_SERVER] !== undefined)?.[0]
+    try {
+      if (known !== undefined) this.choose(project, known, 'on')
+      else if (plugin !== undefined) this.addPlugin(TASKS_PLUGIN, ownMarketplace(this.deps.ownDir)!, project)
+      else this.deps.log(`packages: no ${TASKS_PLUGIN} plugin in ${this.deps.ownDir}; the new project ${project} gets no ${TASKS_SERVER} server`)
+    } catch (error) {
+      // The project is written already: it stays, and the page's tracker buttons offer the package as for any project.
+      this.deps.log(`packages: ${TASKS_PLUGIN} not turned on for the new project ${project}: ${(error as Error).message}`)
+    }
   }
 
   /** The tracker's MCP server the project's sessions need and no package brings (`noTrackerMcp`); `undefined` — none missing. */

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { settingsOf, type ServerEntry } from './model.js'
 import { installPinned, type NpxSpec } from './npm.js'
-import { Packages } from './service.js'
+import { Packages, type PackagesDeps } from './service.js'
 import { loadPackages, savePackages } from './store.js'
 
 vi.mock('./npm.js', async (importOriginal) => {
@@ -232,6 +232,85 @@ describe('adding the manual Claude marketplace', () => {
     const packages = new Packages(deps)
     await expect(packages.addMarketplace()).rejects.toMatchObject({ notice: { code: 'packages.marketplaceAdd', detail: 'permission denied' } })
     await expect(packages.addMarketplace()).resolves.toBeUndefined()
+  })
+})
+
+describe('a new project gets the tasks package on (BTN-1028)', () => {
+  const TASKS = 'tasks@example'
+
+  /** The fixture's marketplace with the tasks plugin next to `tools` when `offered`, and the catalog as `catalog` leaves it. */
+  function withTasks(offered: boolean, catalog: (file: ReturnType<typeof loadPackages> & object) => void = () => {}, tracker: ReturnType<PackagesDeps['tracker']> | null = { server: 'huly', required: true, also: 'tasks' }) {
+    const { deps: base, file, lines } = fixture()
+    const deps = { ...base, tracker: () => tracker ?? undefined }
+    const home = dirname(deps.ownDir)
+    const put = (path: string, value: unknown) => {
+      mkdirSync(dirname(join(home, path)), { recursive: true })
+      writeFileSync(join(home, path), JSON.stringify(value))
+    }
+    if (offered) {
+      put('own/.claude-plugin/marketplace.json', { name: 'example', plugins: [{ name: 'tools', source: './plugin' }, { name: 'tasks', source: './tasks' }] })
+      put('own/tasks/.claude-plugin/plugin.json', { name: 'tasks', version: '1.0.0' })
+      put('own/tasks/.mcp.json', { mcpServers: { tasks: { type: 'http', url: 'http://127.0.0.1:4748/tasks' } } })
+    }
+    const saved = loadPackages(file)!
+    catalog(saved)
+    savePackages(file, saved)
+    return { packages: new Packages(deps), file, lines }
+  }
+  const tasksInstall = { id: 't1', version: '1.0.0', at: '2026-11-01T00:00:00.000Z', extras: true, servers: { tasks: { entry: { url: 'http://127.0.0.1:4748/tasks' }, npm: null } } }
+
+  it('adds the plugin of the own marketplace to the catalog, off by default and on in the project, installing it', async () => {
+    const { packages, file } = withTasks(true)
+    packages.turnOnTasks('project')
+    const saved = loadPackages(file)!
+    expect(saved.packages[TASKS]).toMatchObject({ kind: 'plugin', plugin: { name: 'tasks', marketplace: 'example' }, default: false })
+    expect(saved.projects.project?.on).toEqual([TASKS])
+    await vi.waitFor(() => expect(packages.bringsServer('project', 'tasks')).toBe(true))
+  })
+
+  it('turns on the package the catalog has already, adding none', () => {
+    const { packages, file } = withTasks(true, (saved) => {
+      saved.packages[TASKS] = { kind: 'plugin', plugin: { name: 'tasks', marketplace: 'example' }, default: false, settings: {}, installs: [tasksInstall] }
+    })
+    packages.turnOnTasks('project')
+    expect(loadPackages(file)!.projects.project?.on).toEqual([TASKS])
+    expect(packages.bringsServer('project', 'tasks')).toBe(true)
+  })
+
+  it('turns on another package of the catalog that brings the server when the plugin is not there', () => {
+    const { packages, file } = withTasks(false, (saved) => {
+      saved.packages['own-tasks'] = { kind: 'mcp', server: { url: 'http://127.0.0.1:4748/tasks' }, default: false, settings: {}, installs: [tasksInstall] }
+    })
+    packages.turnOnTasks('project')
+    expect(loadPackages(file)!.projects.project?.on).toEqual(['own-tasks'])
+  })
+
+  it('leaves the set as it is when a package already brings the server', () => {
+    const { packages, file } = withTasks(true, (saved) => {
+      saved.packages['own-tasks'] = { kind: 'mcp', server: { url: 'http://127.0.0.1:4748/tasks' }, default: true, settings: {}, installs: [tasksInstall] }
+    })
+    packages.turnOnTasks('project')
+    expect(loadPackages(file)!.projects.project).toBeUndefined()
+    expect(loadPackages(file)!.packages[TASKS]).toBeUndefined()
+  })
+
+  it('turns it on for the built-in tracker, whose own server it is', () => {
+    const { packages, file } = withTasks(true, () => {}, { server: 'tasks', required: true })
+    packages.turnOnTasks('project')
+    expect(loadPackages(file)!.projects.project?.on).toEqual([TASKS])
+  })
+
+  it.each([null, { server: 'other', required: true }])('leaves a project whose tracker it does not serve as it is: %o', (tracker) => {
+    const { packages, file } = withTasks(true, () => {}, tracker)
+    packages.turnOnTasks('project')
+    expect(loadPackages(file)!.projects.project).toBeUndefined()
+  })
+
+  it('leaves the set as it is, with a log line, when nothing brings the server', () => {
+    const { packages, file, lines } = withTasks(false)
+    packages.turnOnTasks('project')
+    expect(loadPackages(file)!.projects.project).toBeUndefined()
+    expect(lines.some((line) => line.includes('tasks'))).toBe(true)
   })
 })
 

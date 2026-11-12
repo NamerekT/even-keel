@@ -144,10 +144,16 @@ export function choiceLabel(choice: TrackerChoice): string {
   return choice.plugin !== null ? t.packages.trackerAdd(choice.plugin) : t.packages.trackerOn(choice.name ?? choice.server)
 }
 
-/** Both the tracker's own server and Even Keel's tasks server reach the project's sessions: two tool sets of one tracker (BTN-874). */
-export function trackerDoubled(view: PackagesView, project: string): { server: string; also: string } | null {
-  const tracker = view.projects[project]?.tracker
-  return tracker?.both === true && tracker.also !== undefined ? { server: tracker.server, also: tracker.also } : null
+/**
+ * Both the tracker's own server and Even Keel's tasks server reach the project's sessions: two tool sets of one tracker
+ * (BTN-874); `by` — the enabled package that brings the tasks server, which one press turns off (BTN-1028).
+ */
+export function trackerDoubled(view: PackagesView, project: string): { server: string; also: string; by: string | null } | null {
+  const found = view.projects[project]
+  const tracker = found?.tracker
+  if (tracker?.both !== true || tracker.also === undefined) return null
+  const by = view.packages.find((each) => each.servers.includes(tracker.also!) && found!.cells[each.name]?.enabled === true)
+  return { server: tracker.server, also: tracker.also, by: by?.name ?? null }
 }
 
 /** The catalog's installed package that brings the server, for one press to turn it on for a project; `null` — it is to be added first. */

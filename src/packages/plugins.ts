@@ -33,11 +33,19 @@ export function ownMarketplace(root: string): string | undefined {
 /** The plugin of Even Keel's own marketplace every project has, never turned off or removed (BTN-986). */
 export const BUILT_IN_PLUGIN = 'agent-bridge'
 
+/** The plugin of Even Keel's own marketplace that brings its tasks server; a new project gets it on (BTN-1028). */
+export const TASKS_PLUGIN = 'tasks'
+
 /** The built-in plugin's package name in the checkout's marketplace; `undefined` when the checkout has no such plugin. */
 export function builtInPackage(root: string): string | undefined {
+  return ownPackage(root, BUILT_IN_PLUGIN)
+}
+
+/** The package name of a plugin of the checkout's marketplace; `undefined` when the checkout has no such plugin. */
+export function ownPackage(root: string, plugin: string): string | undefined {
   const name = ownMarketplace(root)
-  if (name === undefined || !pluginsOf(root).some((each) => each.name === BUILT_IN_PLUGIN)) return undefined
-  return pluginKey(BUILT_IN_PLUGIN, name)
+  if (name === undefined || !pluginsOf(root).some((each) => each.name === plugin)) return undefined
+  return pluginKey(plugin, name)
 }
 
 /** Whether the global configuration knows the marketplace: sessions started by hand install plugins only from those. */

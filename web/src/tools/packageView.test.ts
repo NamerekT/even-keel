@@ -168,10 +168,18 @@ describe('trackerPackage', () => {
 describe('trackerDoubled', () => {
   it('names both servers while the project’s sessions get both, nothing otherwise', () => {
     const both: ProjectPackages = { cells: {}, problems: [], blocked: false, tracker: { server: 'huly', brought: true, also: 'tasks', both: true } }
-    expect(trackerDoubled(view({ projects: { ABC: both } }), 'ABC')).toEqual({ server: 'huly', also: 'tasks' })
+    expect(trackerDoubled(view({ projects: { ABC: both } }), 'ABC')).toEqual({ server: 'huly', also: 'tasks', by: null })
     const one: ProjectPackages = { ...both, tracker: { server: 'huly', brought: true, also: 'tasks' } }
     expect(trackerDoubled(view({ projects: { ABC: one } }), 'ABC')).toBeNull()
     expect(trackerDoubled(view(), 'ABC')).toBeNull()
+  })
+
+  it('names the enabled package that brings the tasks server, for one press to turn it off (BTN-1028)', () => {
+    const base = { kind: 'plugin' as const, installed: true, version: '1.0.0', latest: null, fetched: null, installing: false, error: null, note: null, default: false, settings: {}, extras: true, removed: false, builtIn: false }
+    const packages = [{ ...base, name: 'huly@even-keel', servers: ['huly'] }, { ...base, name: 'tasks@even-keel', servers: ['tasks'] }]
+    const cell = { choice: 'on' as const, enabled: true, settings: {}, problems: [] }
+    const both: ProjectPackages = { cells: { 'huly@even-keel': cell, 'tasks@even-keel': cell }, problems: [], blocked: false, tracker: { server: 'huly', brought: true, also: 'tasks', both: true } }
+    expect(trackerDoubled(view({ packages, projects: { ABC: both } }), 'ABC')).toEqual({ server: 'huly', also: 'tasks', by: 'tasks@even-keel' })
   })
 })
 

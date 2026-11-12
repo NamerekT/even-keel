@@ -25,8 +25,8 @@ export interface CreationDeps {
   /** The `.claude.json` of each account the draft's sessions may run on; none — Claude Code never runs it, and the step is left out. */
   trustFiles: (draft: ProjectDraft) => string[]
   trust: (file: string, folder: string) => void
-  /** The project's packages still installing, and those only the user can make ready. */
-  packages: { installingOf(project: string): string[]; unready(project: string): string[] }
+  /** Even Keel's tasks server turned on for the new project; the project's packages still installing, and those only the user can make ready. */
+  packages: { turnOnTasks(project: string): void; installingOf(project: string): string[]; unready(project: string): string[] }
   wait?: (ms: number) => Promise<void>
 }
 
@@ -122,6 +122,7 @@ export async function creationPlan(deps: CreationDeps, draft: ProjectDraft): Pro
     run: async () => {
       const { source: _source, remote: _remote, folder: _folder, ...rest } = draft
       project = await deps.add(path === null ? rest : { ...rest, repo: path })
+      deps.packages.turnOnTasks(project)
     },
   }
 

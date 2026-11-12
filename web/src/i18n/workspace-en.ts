@@ -132,6 +132,7 @@ export const packagesEN: Messages['packages'] = {
     addToProject: 'Add to the project',
     trackerAdd: (name: string) => `Add ${name}`,
     trackerOn: (name: string) => `Turn on ${name}`,
+    trackerOff: (name: string) => `Turn off ${name}`,
     trackerChoice: {
       tasks: 'Even Keel’s tasks server: five tools with short answers, statuses and labels by name; a session started by hand needs the Even Keel service running.',
       own: 'The tracker’s own MCP server: more tools and more context, works without the Even Keel service.',
