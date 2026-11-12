@@ -17,10 +17,12 @@ interface Props {
   send: Send
   children: ReactNode
   fresh?: boolean
+  /** Items before the roles, rendered only while the menu is open. */
+  head?: ReactNode
 }
 
 /** A real button covers the row; the independent details sit above it, never inside another button. */
-export function AccountRowMenu({ entry, view, sending, send, children, fresh = false }: Props) {
+export function AccountRowMenu({ entry, view, sending, send, children, fresh = false, head }: Props) {
   const clickX = useRef<number | undefined>(undefined)
   const { open, setOpen, root, button, menu, onKeyDown } = usePopoverMenu<HTMLUListElement>(
     (element, at) => placeRowMenu(element, at, clickX.current),
@@ -53,6 +55,7 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
       {children}
       <ul ref={menu} popover="manual" role="menu" className="roles__menu account-row__menu" onKeyDown={onKeyDown}>
         {open && <>
+          {head}
           <li role="none" className="account-row__menu-title">{t.account.usedByLabel}</li>
           {roles.map((role) => (
             <li key={role.label} role="none">

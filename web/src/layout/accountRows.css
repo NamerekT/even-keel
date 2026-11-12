@@ -106,6 +106,11 @@
 .account-row__check { margin-left: auto; color: var(--accent); }
 .account-row__separator { border-top: 1px solid var(--border); margin: var(--space-4) 0; }
 .account-row__remove { color: var(--error-fg); }
+/* The narrow row's counters at the head of its menu (BTN-1043): full window names, no tips. */
+.account-row__meters { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-8); }
+.account-row__menu .account-row__meters .account-meter__long { display: inline; }
+.account-row__menu .account-row__meters .account-meter__short { display: none; }
+.account-row__meters-note { color: var(--fg-muted); font-size: var(--text-11); }
 .account-rename { display: flex; flex-direction: column; gap: var(--space-8); }
 .account-compact { display: none; font-variant-numeric: tabular-nums; font-weight: 600; }
 .account-compact__none { color: var(--fg-muted); }
@@ -130,7 +135,8 @@
   .account-who__name { flex: 1; min-width: 0; }
   .account-who .accounts__email { font-size: var(--text-13); }
   .account-who .account-mark__agent { display: none; }
-  .account-compact { display: block; flex: none; }
+  .account-compact { display: flex; align-items: center; gap: var(--space-4); flex: none; }
+  .account-compact__model { font-size: var(--text-11); font-weight: 400; }
   .account-role-chips { flex: none; max-width: 45%; gap: var(--space-2); }
   .account-role { font-size: var(--text-11); padding: var(--space-4); overflow: hidden; text-overflow: ellipsis; }
   .account-problems__row { flex-wrap: wrap; }

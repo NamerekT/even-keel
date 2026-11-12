@@ -13,6 +13,7 @@ import { Card, Band } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AccountRowMenu } from './AccountRowMenu.js'
+import { useNarrow } from './useNarrow.js'
 import { OwnSettings } from './accountSettings.js'
 import { AccountMarketplace } from './AccountMarketplace.js'
 import { AccountWork, rolesOf } from './AccountRoles.js'
@@ -124,7 +125,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
   const tip = entry.cloud !== undefined ? t.account.cloudSpendTitle : spendsByKey(entry) ? t.account.spendTitle : <>{limitsNote(entry)} · {t.account.tokensTitle}
     {entry.lastLimitAt != null && <span>{t.account.lastLimit(formatAgo(entry.lastLimitAt, now))}</span>}</>
   const loaded = spendsByKey(entry) ? spend !== null : tokens !== null
-  return <AccountRowMenu entry={entry} view={view} send={send} sending={sending} fresh={fresh.includes(entry.key)}>
+  return <AccountRowMenu entry={entry} view={view} send={send} sending={sending} fresh={fresh.includes(entry.key)} head={<NarrowMenuHead entry={entry} now={now} />}>
     <div className="account-grid">
       <div className="account-who">
         <div className="account-who__name"><AccountMark entry={entry} now={now} dot /><AccountName entry={entry} accounts={view.accounts} whole={!page} />
@@ -154,7 +155,10 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         </>}
       </div>
       {page && <><OverageValue entry={entry} now={now} /><div className="account-detail"><AccountWork entry={entry} view={view} /></div><div className="account-detail"><TransportNote entry={entry} brief /></div></>}
-      <div className="account-compact"><CompactLimit entry={entry} now={now} /></div>
+      <div className="account-compact">
+        {!counted && entry.limits?.models?.weeks.map((week) => <span key={week.model} className="tag account-compact__model">{week.model}</span>)}
+        <CompactLimit entry={entry} now={now} bare />
+      </div>
     </div>
     <OverageWarning entry={entry} view={view} />
     {page && <OwnSettings entry={entry} send={send} sending={sending} />}
@@ -191,14 +195,42 @@ function Balance({ entry, now }: { entry: AccountEntry; now: Date }) {
 }
 
 /** One window, named in its own row: the plan decides which windows a row has (variant 2 of BTN-575). */
-function AccountMeter({ entry, span, now }: { entry: AccountEntry; span: LimitSpan; now: Date }) {
+function AccountMeter({ entry, span, now, plain }: { entry: AccountEntry; span: LimitSpan; now: Date; plain?: boolean }) {
   const { label, title } = spanNames(span)
-  return <Meter entry={entry} now={now} window={entry.limits?.[span] ?? null} label={label} short={t.limits.short[span]} title={title} />
+  return <Meter entry={entry} now={now} window={entry.limits?.[span] ?? null} label={label} short={t.limits.short[span]} title={title} plain={plain} />
 }
 
 /** A model's own week (BTN-805), after the plan's windows and named by the model the server gave. */
-function ModelMeter({ entry, week, now }: { entry: AccountEntry; week: ModelWeek; now: Date }) {
-  return <Meter entry={entry} now={now} window={week} label={t.limits.modelWeek(week.model)} short={week.model} title={t.limits.modelWeekTitle(week.model)} />
+function ModelMeter({ entry, week, now, plain }: { entry: AccountEntry; week: ModelWeek; now: Date; plain?: boolean }) {
+  return <Meter entry={entry} now={now} window={week} label={t.limits.modelWeek(week.model)} short={week.model} title={t.limits.modelWeekTitle(week.model)} plain={plain} />
+}
+
+/**
+ * The counters a narrow row hides, at the head of its menu (BTN-1043): the plan's windows and the models' weeks with
+ * their resets, then the reading's source and age and its notes. No control and no tips: the tap opens only the menu.
+ */
+export function MenuMeters({ entry, now }: { entry: AccountEntry; now: Date }) {
+  if (!metered(entry) || entry.limits === null) return null
+  const read = t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
+  return <div className="account-row__meters">
+    {limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} plain />)}
+    {entry.limits.models?.weeks.map((week) => <ModelMeter key={`model:${week.model}`} entry={entry} week={week} now={now} plain />)}
+    <span className="account-row__meters-note">{[read, outdatedText(entry, now), staleText(entry)].filter(Boolean).join(' · ')}</span>
+  </div>
+}
+
+function metered(entry: AccountEntry): boolean {
+  return entry.limits !== null && limitsNote(entry) === null && !spendsByKey(entry)
+}
+
+/** `MenuMeters` as the menu's first item on a narrow screen; a wide row shows the counters itself. */
+function NarrowMenuHead({ entry, now }: { entry: AccountEntry; now: Date }) {
+  const narrow = useNarrow()
+  if (!narrow || !metered(entry)) return null
+  return <>
+    <li role="none" className="account-row__menu-head"><MenuMeters entry={entry} now={now} /></li>
+    <li role="separator" className="account-row__separator" />
+  </>
 }
 
 interface MeterProps {
@@ -208,9 +240,11 @@ interface MeterProps {
   label: string
   short: string
   title: string
+  /** Without its tip, where the source and notes are written once under all the windows. */
+  plain?: boolean
 }
 
-function Meter({ entry, now, window, label, short, title }: MeterProps) {
+function Meter({ entry, now, window, label, short, title, plain = false }: MeterProps) {
   const percent = window === null ? 0 : Math.round(Math.max(0, Math.min(100, window.usedPercentage)))
   const heat = entry.limitsOutdated ? ' account-value--outdated' : percent >= FULL_PERCENT ? ' account-value--full' : percent >= WARM_PERCENT ? ' account-value--warm' : ''
   const reset = window?.resetsAt == null ? '' : formatSpan(window.resetsAt, now)
@@ -218,7 +252,7 @@ function Meter({ entry, now, window, label, short, title }: MeterProps) {
   const count = window === null || (window.left === undefined && window.used === undefined) ? null : windowValue(window, percent)
   const when = window === null ? t.account.noLimits : window.resetsAt === null ? t.limits.noReset(title) : t.limits.reset(title, reset, '')
   const tip = [when, count, source, outdatedText(entry, now), staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
-  return <Tipped className={`account-meter${heat}`} tip={tip} align="start" focusable>
+  const body = <>
     <span className="account-meter__top">
       <span className="account-meter__what"><span className="account-meter__name">
         <span className="account-meter__long">{label}</span><span className="account-meter__short">{short}</span>
@@ -228,16 +262,19 @@ function Meter({ entry, now, window, label, short, title }: MeterProps) {
       {reset !== '' && <span>{reset}</span>}
     </span>
     <span className="account-meter__bar" aria-hidden="true"><i style={{ width: `${percent}%` }} /></span>
-  </Tipped>
+  </>
+  return plain ? <span className={`account-meter${heat}`}>{body}</span> : <Tipped className={`account-meter${heat}`} tip={tip} align="start" focusable>{body}</Tipped>
 }
 
-export function CompactLimit({ entry, now }: { entry: AccountEntry | undefined; now: Date }) {
+/** `bare` — in an account row, whose menu holds what the tip would say (`MenuMeters`), so a tap opens one thing. */
+export function CompactLimit({ entry, now, bare = false }: { entry: AccountEntry | undefined; now: Date; bare?: boolean }) {
   const tightest = entry === undefined || limitsNote(entry) !== null ? null : tightestWindow(entry.limits)
   if (tightest === null) return <span className="account-compact__none">—</span>
   const used = 100 - tightest.free
   const heat = entry?.limitsOutdated ? ' account-value--outdated' : used >= FULL_PERCENT ? ' account-value--full' : used >= WARM_PERCENT ? ' account-value--warm' : ''
   const summary = t.account.freeTip(spanNames(tightest.span).title, tightest.free, formatSpan(tightest.window.resetsAt, now))
   const source = entry?.limits == null ? '' : t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
+  if (bare) return <span className={`account-compact__value${heat}`}>{used}%</span>
   const notes = entry === undefined ? [] : [outdatedText(entry, now), staleText(entry)]
   return <Tipped inline focusable className={`account-compact__value${heat}`} tip={[summary, source, ...notes].filter(Boolean).join(' · ')}>{used}%</Tipped>
 }
