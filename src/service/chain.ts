@@ -1,6 +1,7 @@
+export { wireChangelogs, wireBriefed, wireWithProject } from './chain-prompts.js'
 import { deferLeftFolder, midTurn, type stopTaskSessions } from './cleanup.js'
 export { deferLeftFolder, STOP_RETRY_MS, stopLingering, stopTaskSessions } from './cleanup.js'
-import { mkdir, readFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type AccountHome } from '../account/homes.js'
 import { accountAt } from '../account/ledger.js'
@@ -11,22 +12,18 @@ import { Dispatcher, type LaunchEntry } from '../chain/dispatcher.js'
 import { carryNameOf, fixNameOf, isCarryName, isFixName, isOwnName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { chainQuiet, ForwardMerger } from '../chain/forward.js'
 import { PROMPTS } from '../chain/prompts.js'
-import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withPrompts, withTracker, withVocabulary, type HandoffSession } from '../chain/relay.js'
+import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, type HandoffSession } from '../chain/relay.js'
 import { launchLine } from '../chain/log.js'
 import { mainCheckDeps } from '../chain/mainci.js'
 import { TaskPlaces } from '../chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from '../chain/snapshots.js'
 import { reviewDeps } from '../review/wiring.js'
 import { appendLaunch, loadChainState, saveChainState, saveClosedTask } from '../chain/store.js'
-import { ChangelogDrafts } from '../changelog/drafts.js'
-import { DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { changesOf } from '../git/changes.js'
 import { TaskWorks, worksOf } from '../git/work.js'
-import { commitChangelog } from '../git/changelog.js'
 import { gitlabUrls } from '../ci/adapters.js'
 import { createCiWatches } from '../ci/wiring.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, idPrefixOf, isPlain, mergeTargetOf, projectLabel, readerIds } from '../config.js'
-import { promptLines } from '../taskmcp/vocabulary.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, isPlain, mergeTargetOf, projectLabel, readerIds } from '../config.js'
 import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
 import { fastForwardMain, syncMain } from '../git/sync.js'
@@ -51,7 +48,6 @@ import { issueLink } from '../tracker/model.js'
 import { readFresh } from '../tracker/health.js'
 import type { ServiceContext } from '../service.js'
 import { disabledBlock } from './accounts.js'
-import { promptTrackers } from './vocabulary.js'
 
 export type ChainContext = Pick<ServiceContext,
   | 'CHANGELOG_TIMEOUT_MS'
@@ -144,76 +140,6 @@ export type ChainContext = Pick<ServiceContext,
   | 'works'
   | 'writes'
 >
-
-export function wireChangelogs(ctx: ChainContext): ChangelogDrafts {
-  return new ChangelogDrafts({
-    tasks: async (project, milestone) => {
-      const link = ctx.linkOf(project)
-      if (link === undefined) throw fail('tracker.noProject', { project })
-      const tasks = await link.page(async (tracker) => tracker.milestoneTasks?.(project, milestone))
-      if (tasks === undefined) throw fail('changelog.cannotList', { project })
-      return tasks
-    },
-    write: async (project, prompt) => {
-      const { account, model } = ctx.choiceFor(project)
-      const home = ctx.homeOf(account)
-      const agent = ctx.agentOf(home)
-      if (agent.write === undefined) throw fail('changelog.noAgent', { project })
-      console.log(`changelog: ${project} writes a draft on ${home.key}`)
-      try {
-        const { text, spend } = await agent.write(home, { cwd: ctx.configStore.current.projects[project]!, prompt, model, timeoutMs: ctx.CHANGELOG_TIMEOUT_MS })
-        console.log(`changelog: ${project} draft on ${home.key} cost ${spend.cost === null ? 'unknown' : `$${spend.cost.toFixed(2)}`}`)
-        return { text, spend: { ...spend, account: home.key } }
-      } catch (error) {
-        throw fail('changelog.failed', { project }, { detail: error instanceof Error ? error.message : String(error) }, { cause: error })
-      }
-    },
-    file: async (project) => {
-      const path = ctx.configStore.current.settings[project]?.changelog ?? DEFAULT_CHANGELOG
-      const file = join(ctx.configStore.current.projects[project]!, ...path.split('/'))
-      const text = await readFile(file, 'utf8').catch((error: NodeJS.ErrnoException) => {
-        if (error.code === 'ENOENT') return null
-        throw error
-      })
-      return { path, text: text?.replace(/\r\n/g, '\n') ?? null }
-    },
-    tags: async (project) => {
-      if (isPlain(ctx.configStore.current, project)) return []
-      const listed = await runGit(ctx.configStore.current.projects[project]!, ['tag', '--list'])
-      return listed.code === 0 ? listed.out.split('\n').map((tag) => tag.trim()).filter(Boolean) : []
-    },
-    commit: async (project, path, message, change) => {
-      if (isPlain(ctx.configStore.current, project)) throw fail('branch.noRepo', { project: projectLabel(ctx.configStore.current, project) })
-      const sha = await commitChangelog(runGit, ctx.configStore.current.projects[project]!, { branch: ctx.branchOf(project), path, message, change })
-      console.log(sha === null ? `changelog: ${project} ${path} is already as written` : `changelog: ${project} committed ${path} as ${sha.slice(0, 7)}`)
-      return sha
-    },
-    db: ctx.db,
-    now: () => new Date(),
-  })
-}
-
-export function wireBriefed(ctx: ChainContext): (task: string, given: string, project?: string | undefined) => Promise<string> {
-  return async (task: string, given: string, project = ctx.projectOf(task)): Promise<string> => {
-    if (project === undefined) return given
-    const reader = ctx.readerFor(project, task)
-    const language = ctx.promptLanguage(project)
-    const own = idPrefixOf(ctx.readers(), reader).toUpperCase()
-    const vocabulary = promptLines(await promptTrackers(ctx, project), own)
-    const prompt = withVocabulary(withTracker(given, ctx.trackerPlace(reader), language), vocabulary, language)
-    if (!ctx.briefOn(project, reader)) return prompt
-    const link = ctx.linkOf(reader)
-    return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), ctx.promptLanguage(project))
-  }
-}
-
-export function wireWithProject(ctx: ChainContext): (prompt: string, project: string | undefined) => string {
-  return (prompt: string, project: string | undefined): string => {
-    const config = ctx.configStore.current
-    const own = project === undefined ? null : (config.settings[project]?.prompt ?? null)
-    return withPrompts(prompt, { shared: config.prompt, project: own }, ctx.promptLanguage(project))
-  }
-}
 
 export function wirePlaces(ctx: ChainContext): TaskPlaces {
   return new TaskPlaces({

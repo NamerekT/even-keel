@@ -42,6 +42,8 @@ The service's side is `Approvals` (`src/sessions/approvals.ts`), in memory: a ca
 
 ## One-off turns (BTN-142, `Agent.write`)
 
+`wireChangelogs` in `src/service/chain-prompts.ts` connects `ChangelogDrafts` to the service's tracker, account and repository operations; `src/service/chain.ts` re-exports the entry point.
+
 The optional `Agent.write(home, turn)` (`OneTurn`: `cwd`, `prompt`, `model`, `timeoutMs`) runs one turn that keeps no session and answers with its text; `runWithInput` (`src/agent/oneturn.ts`) feeds the prompt on stdin, so a long one never meets the Windows command-line limit, and kills the process tree on the timeout. Only reading tools, no MCP, nothing to approve:
 
 - Claude: `claude -p --output-format json --no-session-persistence --strict-mcp-config --disable-slash-commands --tools Read,Glob,Grep [--model <m>]` (`writeArgs` in `src/claude/cli.ts`); `parseWriteAnswer` takes `result` and throws with the CLI's own words when `is_error` is set or there is no result. The cost is `total_cost_usd`, the tokens the sum of `modelUsage` (every call of the turn by model; the top `usage` counts only the last call), the model the costliest key of `modelUsage`.
