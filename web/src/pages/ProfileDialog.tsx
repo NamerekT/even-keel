@@ -313,11 +313,11 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
           {(id) => <input id={id} className="add-package__input" value={name} autoComplete="off" onChange={(event) => setName(event.target.value)} />}
         </Field>
         {fresh && checked.result.duplicate !== null && <p className="notice notice--warn">{t.profiles.duplicate(checked.result.duplicate)}</p>}
-        {asked && blank.length > 0 && <p className="notice notice--error">{t.profiles.unfilled(blank)}</p>}
-        {failure !== null && <div className="notice notice--error">{say(failure)}
-          {(failure.code === 'jira.mcpSite' || failure.code === 'jira.mcpToken') && <p><a href="https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&appId=mcp-v2&selectedScopes=all" target="_blank" rel="noreferrer">{t.profiles.createMcpToken}</a></p>}
-          {failure.code === 'profiles.isGitlab' && onGitlab !== undefined && <p><button type="button" className="button button--small" onClick={() => onGitlab(typed.FORGEJO_URL ?? '')}>{t.profiles.addGitlab}</button></p>}</div>}
       </div>
+      {asked && blank.length > 0 && <p role="alert" className="notice notice--error add-package__failure">{t.profiles.unfilled(blank)}</p>}
+      {failure !== null && <div role="alert" className="notice notice--error add-package__failure">{say(failure)}
+        {(failure.code === 'jira.mcpSite' || failure.code === 'jira.mcpToken') && <p><a href="https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&appId=mcp-v2&selectedScopes=all" target="_blank" rel="noreferrer">{t.profiles.createMcpToken}</a></p>}
+        {failure.code === 'profiles.isGitlab' && onGitlab !== undefined && <p><button type="button" className="button button--small" onClick={() => onGitlab(typed.FORGEJO_URL ?? '')}>{t.profiles.addGitlab}</button></p>}</div>}
       <footer className="add-package__foot">
         {onBack !== undefined && (
           <button type="button" className="button" onClick={onBack}>

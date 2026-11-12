@@ -39,8 +39,8 @@ export function ProfileMovesStep({ id, name, onClose }: { id: string; name: stri
         {text !== null && rules !== undefined && (
           <MoveFields rules={rules} statuses={statuses} text={text} idPrefix={id} marks={PLAIN} onEdit={(key, value) => setText({ ...text, [key]: value })} />
         )}
-        {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       </div>
+      {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
       <footer className="add-package__foot">
         <span className="add-package__spacer" />
         <button type="button" className="button" onClick={onClose}>

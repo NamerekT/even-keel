@@ -302,8 +302,15 @@
   line-height: 1.5;
 }
 
-/* A refusal may list several reasons, one per line (the project still held by the chain, a session, a folder). */
+/* A refusal stands between the scrolling body and the foot, so a long body cannot keep it below the fold;
+   it may list several reasons, one per line (the project still held by the chain, a session, a folder). */
 .add-package__failure {
+  flex-shrink: 0;
+  max-height: 30dvh;
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  border-radius: 0;
+  overflow-y: auto;
   white-space: pre-line;
 }
 

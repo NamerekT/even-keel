@@ -80,7 +80,6 @@ export function HotkeysDialog({ onClose }: { onClose: () => void }) {
         </header>
         <div className="add-package__body">
           <p className="add-package__note">{t.hotkeys.lead}</p>
-          {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
           <ul className="hotkeys__list">
             {HOTKEY_ACTIONS.map((action) => (
               <li key={action} className="hotkeys__row">
@@ -117,6 +116,7 @@ export function HotkeysDialog({ onClose }: { onClose: () => void }) {
             </li>
           </ul>
         </div>
+        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         <footer className="add-package__foot">
           <button type="button" className="button" disabled={sending || Object.keys(own).length === 0} onClick={() => save({})}>
             {t.hotkeys.resetAll}

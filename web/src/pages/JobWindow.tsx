@@ -90,14 +90,14 @@ export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
               </li>
             ))}
           </ol>
-          {job.failure !== null && (
-            <p className="notice notice--error add-package__failure">
-              {say(job.failure)} <NoticeFixButton project={null} notice={job.failure} />
-            </p>
-          )}
-          {failure !== null && <p className="notice notice--error add-package__failure">{say(failure)}</p>}
           {!job.done && <p className="settings__hint job-window__note">{job.undoable ? t.creation.window.undoable : t.creation.window.kept}</p>}
         </div>
+        {job.failure !== null && (
+          <p role="alert" className="notice notice--error add-package__failure">
+            {say(job.failure)} <NoticeFixButton project={null} notice={job.failure} />
+          </p>
+        )}
+        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         <footer className="add-package__foot">
           <span className="add-package__spacer" />
           {!job.done && !openable && (

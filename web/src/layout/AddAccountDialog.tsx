@@ -215,8 +215,8 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
           <>
             <div className="add-package__body">
               <LoginSteps login={login} device={deviceLogin(account)} sending={sending} send={send} />
-              {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
             </div>
+            {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
             {running && (
               <footer className="add-package__foot">
                 <button type="button" className="button" disabled={sending} onClick={() => setAsking('stopBack')}>
@@ -235,8 +235,8 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
             <div className="add-package__body">
               <p className="add-package__note">{t.addAccount.existingCli}</p>
               <p className="add-package__label account-add__identity">{candidate.status.email ?? candidate.status.orgName ?? t.account.agents[provider]}</p>
-              {failure !== null && <p className="notice notice--error" role="alert">{say(failure)}</p>}
             </div>
+            {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
             <footer className="add-package__foot account-add__cli-foot">
               {picked && <button type="button" className="button" disabled={sending} onClick={() => void navigate(-1)}>← {t.account.back}</button>}
               <span className="add-package__spacer" />
@@ -402,12 +402,6 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
   const key = way.kind === 'key'
   const cloud = way.kind === 'cloud'
   const ready = !sending && (key ? draft.key.trim() !== '' : cloud ? cloudReady(draft.cloud ?? EMPTY_CLOUD) : true)
-  // The cloud form is taller than the dialog: its check's answer lands below the fold unless brought into view.
-  const alert = useRef<HTMLParagraphElement>(null)
-  useEffect(() => {
-    if (failure !== null) alert.current?.scrollIntoView?.({ block: 'nearest' })
-  }, [failure])
-
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (ready) void onSubmit(way, draft)
@@ -481,12 +475,12 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
             {t.addAccount.cloud.checking}
           </p>
         )}
-        {failure !== null && !key && (
-          <p ref={alert} className="notice notice--error" role="alert">
-            {failure}
-          </p>
-        )}
       </div>
+      {failure !== null && !key && (
+        <p role="alert" className="notice notice--error add-package__failure">
+          {failure}
+        </p>
+      )}
       <footer className="add-package__foot">
         {back !== null && (
           <button type="button" className="button" disabled={sending} onClick={back}>

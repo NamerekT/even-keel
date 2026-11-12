@@ -49,8 +49,8 @@ export function ConfirmDialog({ title, question, confirm, cancel, busy, failure,
         </header>
         <div className="add-package__body">
           <p className="add-package__question">{question}</p>
-          {failure !== undefined && <p className="notice notice--error add-package__failure">{failure}</p>}
         </div>
+        {failure !== undefined && <p role="alert" className="notice notice--error add-package__failure">{failure}</p>}
         <footer className="add-package__foot">
           <span className="add-package__spacer" />
           <button type="button" className="button" disabled={busy} onClick={onClose}>

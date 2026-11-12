@@ -132,8 +132,8 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, i
           aria-labelledby={tabs.length > 1 ? `settings-tab-${tab.id}` : undefined}
         >
           {tab.render()}
-          {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         </div>
+        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         <footer className="add-package__foot">
           {dirty && <span className="settings__bar-text">{t.settings.sourceUnsaved}</span>}
           <span className="add-package__spacer" />

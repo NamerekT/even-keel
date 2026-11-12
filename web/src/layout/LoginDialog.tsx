@@ -49,8 +49,8 @@ export function LoginDialog({ account }: { account: AccountView }) {
         </header>
         <div className="add-package__body">
           <LoginSteps login={login} device={deviceLogin(account)} sending={sending} send={send} />
-          {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         </div>
+        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         {login.error === null && (
           <footer className="add-package__foot">
             <span className="add-package__spacer" />

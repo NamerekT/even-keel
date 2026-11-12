@@ -247,8 +247,8 @@ function UpdateDialog({ updates }: { updates: UpdatesView }) {
               </p>
             </section>
           )}
-          {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         </div>
+        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         {(available !== null && blocked === null) || previous?.blocked === null ? (
           <footer className="add-package__foot">
             {previous !== null && previous.blocked === null && (

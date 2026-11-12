@@ -48,8 +48,8 @@ function CliConsentDialog({ provider, onClose }: { provider: string; onClose: ()
       </header>
       <div className="add-package__body">
         <p className="add-package__question">{text.askNote}</p>
-        {failure && <p className="notice notice--error">{say(failure)}</p>}
       </div>
+      {failure && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
       <footer className="add-package__foot">
         <span className="add-package__spacer" />
         <button type="button" className="button" disabled={sending} onClick={onClose}>{t.common.cancel}</button>

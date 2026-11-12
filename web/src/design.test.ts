@@ -10,10 +10,38 @@ const sheets = Object.fromEntries(
   ]),
 )
 
+const sources = import.meta.glob<string>('./**/*.tsx', { query: '?raw', import: 'default', eager: true })
+
+/** The lines of every `add-package__body` div of a source, matched to its closing tag by counting divs. */
+function dialogBodies(source: string): { line: number; text: string }[] {
+  const found: { line: number; text: string }[] = []
+  for (const open of source.matchAll(/<div\b[^>]*?className=["{`][^"]*\badd-package__body\b/g)) {
+    const tags = /<div\b|<\/div>/g
+    tags.lastIndex = open.index
+    let depth = 0
+    let end = source.length
+    for (const tag of source.matchAll(tags)) {
+      depth += tag[0] === '</div>' ? -1 : 1
+      if (depth === 0) {
+        end = tag.index + tag[0].length
+        break
+      }
+    }
+    const first = source.slice(0, open.index).split('\n').length
+    source.slice(open.index, end).split('\n').forEach((text, index) => found.push({ line: first + index, text }))
+  }
+  return found
+}
+
 describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
   it('in-flow disclosures use Fold rather than native details', () => {
-    const sources = import.meta.glob<string>('./**/*.tsx', { query: '?raw', import: 'default', eager: true })
     expect(Object.keys(sources).filter((path) => /<details\b/.test(sources[path]!))).toEqual([])
+  })
+  it('a dialog refusal sits next to its buttons, never inside the scrolling body where it can stay below the fold', () => {
+    const inside = Object.entries(sources).flatMap(([path, source]) =>
+      dialogBodies(source).filter(({ text }) => /\bnotice--error\b/.test(text)).map(({ line }) => `${path}:${line}`),
+    )
+    expect(inside, 'Put the refusal between add-package__body and the footer with class add-package__failure (docs/design.md)').toEqual([])
   })
   it('no stylesheet has more violations than the baseline, and the baseline is not above what is left', () => {
     const baseline = JSON.parse(baselineText) as Record<string, number>

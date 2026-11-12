@@ -154,7 +154,7 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
             )}
           </Section>
         </div>
-        {failure !== null && <p role="alert" className="notice notice--error add-package__failure git-on__failure">{say(failure)}</p>}
+        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         <footer className="add-package__foot">
           <span className="add-package__spacer" />
           <button type="button" className="button" disabled={sending} onClick={onClose}>

@@ -122,8 +122,8 @@ function MarketplaceStep({ name, onDone }: { name: string; onDone: () => void })
     <div className="add-package__form">
       <div className="add-package__body">
         <p className="add-package__question">{t.packages.marketplaceQuestion(name)}</p>
-        {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       </div>
+      {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
       <footer className="add-package__foot">
         <span className="add-package__spacer" />
         <button type="button" className="button" onClick={onDone}>
@@ -353,8 +353,8 @@ function StepForm({ failure, ready, submit = t.packages.add, onSubmit, onBack, o
     <form className="add-package__form" onSubmit={(event) => void onSubmit(event)}>
       <div className="add-package__body">
         {children}
-        {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       </div>
+      {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
       <footer className="add-package__foot">
         <button type="button" className="button" onClick={onBack}>
           ← {t.packages.back}

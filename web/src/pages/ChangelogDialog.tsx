@@ -233,8 +233,8 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
               </>
             )}
           </Loading>
-          {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         </div>
+        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         <footer className="add-package__foot changelog__foot">
           {view === null && busy === 'open' ? null : version === null ? (
             <>
