@@ -5,7 +5,7 @@ import { activeMilestone } from './milestones.js'
 import { chainOrder, checkOrder, compareMilestones, milestoneComparator } from './order.js'
 
 const m = (label: string, targetDate: number | null = null): TaskMilestone => ({ label, targetDate })
-const ordered = (label: string, value: number, source = 'jira:ABC'): TaskMilestone =>
+const ordered = (label: string, value: number, source = 'linear:project-1'): TaskMilestone =>
   ({ ...m(label), trackerOrder: { source, value } })
 const tasksOf = (milestones: TaskMilestone[]) => milestones.map((milestone, i) => fakeTask(`ABC-${i + 1}`, { milestone }))
 

@@ -5,51 +5,53 @@ import { connectJira } from './source.js'
 const settings = { values: { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john.doe@example.com', JIRA_TOKEN: 'fake' }, projects: { p: { key: 'ABC' } } }
 const signIn = [{ body: { accountId: 'fake' } }, { body: { issueLinkTypes: [{ name: 'Blocks' }] } }]
 const priorities = { body: { values: [] } }
-const versions = [{ id: '20', name: 'GA', releaseDate: '2026-11-01' }, { id: '10', name: 'MVP', releaseDate: '2026-12-01' }]
-const page = (values: unknown[], isLast = true) => ({ body: { values, isLast } })
+// In creation order, as the version catalog's `sequence` gives them; the Releases page shows them by release date.
+const versions = [
+  { id: '10', name: 'v1' },
+  { id: '11', name: 'Pilot', releaseDate: '2027-03-01' },
+  { id: '12', name: 'Launch', releaseDate: '2027-01-15' },
+  { id: '13', name: 'Growth', releaseDate: '2026-12-01' },
+]
 
-describe('Jira native milestone positions', () => {
-  it('paginates by sequence, selects the earliest native fix version and reloads on the next read', async () => {
-    const raw = () => issue('ABC-1', { fixVersions: [...versions].reverse() })
-    const fake = fakeFetch([...signIn, { body: { issues: [raw()] } }, priorities, page([versions[0]], false), page([versions[1]]),
-      { body: { issues: [raw()] } }, page([...versions].reverse())])
+describe('Jira milestone order', () => {
+  it('takes the earliest fix version by release date and reads no version catalog', async () => {
+    const fake = fakeFetch([...signIn, { body: { issues: [issue('ABC-1', { fixVersions: versions })] } }, priorities])
     const source = await connectJira(settings, 1000, fake.fetch)
-    expect((await source.tasks(['ABC-1']))[0]!.milestone).toEqual({
-      label: 'GA', targetDate: Date.parse('2026-11-01'), trackerOrder: { source: 'jira:ABC', value: 0 },
-    })
-    expect(fake.calls[4]!.url).toContain('/project/ABC/version?orderBy=sequence&startAt=0&maxResults=100')
-    expect(fake.calls[5]!.url).toContain('startAt=1')
-    expect((await source.tasks(['ABC-1']))[0]!.milestone?.label).toBe('MVP')
+    expect((await source.tasks(['ABC-1']))[0]!.milestone).toEqual({ label: 'Growth', targetDate: Date.parse('2026-12-01') })
+    expect(fake.calls.some((call) => call.url.includes('orderBy=sequence'))).toBe(false)
     expect(fake.remaining()).toBe(0)
   })
 
-  it('keeps positions through released and archived versions in the picker and current card', async () => {
-    const catalog = [{ ...versions[0]!, archived: true }, versions[1]!]
-    const fake = fakeFetch([...signIn,
-      { body: { fields: { fixVersions: versions } } }, page(catalog),
-      { body: issue('ABC-1', { fixVersions: versions }) }, { body: { comments: [], total: 0 } }, priorities, page(catalog)])
+  it('puts an undated version after the dated ones', async () => {
+    const fake = fakeFetch([...signIn, { body: { issues: [issue('ABC-1', { fixVersions: [versions[0]!, versions[1]!] })] } }, priorities])
     const source = await connectJira(settings, 1000, fake.fetch)
-    const pick = await source.milestones!('ABC-1')
-    expect(pick.current).toBe('20')
-    expect(pick.choices.map((each) => [each.id, each.trackerOrder?.value])).toEqual([['10', 1], ['20', 0]])
-    expect((await source.card!('ABC-1')).milestone?.trackerOrder?.value).toBe(0)
-  })
-
-  it('propagates catalog errors and retries without stale positions', async () => {
-    const raw = () => ({ body: { issues: [issue('ABC-1', { fixVersions: versions })] } })
-    const fake = fakeFetch([...signIn, raw(), priorities, { status: 403 }, raw(), page([])])
-    const source = await connectJira(settings, 1000, fake.fetch)
-    await expect(source.tasks(['ABC-1'])).rejects.toThrow()
-    expect((await source.tasks(['ABC-1']))[0]!.milestone?.trackerOrder).toBeUndefined()
+    expect((await source.tasks(['ABC-1']))[0]!.milestone?.label).toBe('Pilot')
     expect(fake.remaining()).toBe(0)
   })
 
-  it('reads a project catalog once for all tasks in a chain poll', async () => {
+  it('gives the chain no tracker position for a version', async () => {
     const fake = fakeFetch([...signIn, { body: [{ statuses: [TODO] }] },
-      { body: { issues: [issue('ABC-1', { fixVersions: versions }), issue('ABC-2', { fixVersions: [versions[1]!] })] } }, priorities, page(versions)])
+      { body: { issues: [issue('ABC-1', { fixVersions: [versions[1]!] }), issue('ABC-2', { fixVersions: [versions[3]!] })] } }, priorities])
     const source = await connectJira(settings, 1000, fake.fetch)
     const result = await source.chainTasks('p', () => true)
-    expect(result.tasks.map((task) => task.milestone?.trackerOrder?.value)).toEqual([0, 1])
+    expect(result.tasks.map((task) => task.milestone)).toEqual([
+      { label: 'Pilot', targetDate: Date.parse('2027-03-01') },
+      { label: 'Growth', targetDate: Date.parse('2026-12-01') },
+    ])
+    expect(fake.remaining()).toBe(0)
+  })
+
+  it('offers the open versions without positions and keeps the current one in the picker and the card', async () => {
+    const catalog = [versions[0]!, versions[1]!, versions[2]!, { ...versions[3]!, archived: true }]
+    const fake = fakeFetch([...signIn,
+      { body: { fields: { fixVersions: [versions[1]!, versions[3]!] } } }, { body: catalog },
+      { body: issue('ABC-1', { fixVersions: [versions[1]!, versions[3]!] }) }, { body: { comments: [], total: 0 } }, priorities])
+    const source = await connectJira(settings, 1000, fake.fetch)
+    const pick = await source.milestones!('ABC-1')
+    expect(pick.current).toBe('13')
+    expect(fake.calls[3]!.url).toContain('/project/ABC/versions')
+    expect(pick.choices.map((each) => [each.id, each.trackerOrder])).toEqual([['10', undefined], ['11', undefined], ['12', undefined], ['13', undefined]])
+    expect((await source.card!('ABC-1')).milestone).toEqual({ label: 'Growth', targetDate: Date.parse('2026-12-01') })
     expect(fake.remaining()).toBe(0)
   })
 })

@@ -27,8 +27,6 @@ export interface JiraLink {
 export interface JiraVersion {
   id: string
   name: string
-  /** Added from the project's sequence-ordered version catalog, not the issue response. */
-  trackerOrder?: TaskMilestone['trackerOrder']
   releaseDate?: string
   released?: boolean
   archived?: boolean
@@ -126,12 +124,12 @@ export function earliestVersion(versions: readonly JiraVersion[] | undefined): J
     .sort((a, b) => compare(a.milestone, b.milestone))[0]?.version ?? null
 }
 
+/**
+ * No tracker position: the catalog's `sequence` is the creation order, which Jira's pages never show (the Releases
+ * page goes by release date), so versions go by date, number and name like a tracker without an order of its own.
+ */
 export function milestoneOf(version: JiraVersion | null): TaskMilestone | null {
-  return version === null ? null : {
-    label: version.name,
-    targetDate: version.releaseDate ? Date.parse(version.releaseDate) : null,
-    ...(version.trackerOrder === undefined ? {} : { trackerOrder: version.trackerOrder }),
-  }
+  return version === null ? null : { label: version.name, targetDate: version.releaseDate ? Date.parse(version.releaseDate) : null }
 }
 
 const isBlocks = (link: JiraLink) => sameName(link.type.name, BLOCKS)

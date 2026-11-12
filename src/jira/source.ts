@@ -89,7 +89,6 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
   async function converted(issues: JiraIssue[], catalogs?: Map<string, Promise<JiraStatus[]>>): Promise<TrackerTask[]> {
     const names = await order()
     await resolveStatuses(issues, catalogs)
-    await resolveVersions(issues)
     const epics = issues.filter(hasChildIssues).map((issue) => issue.key)
     const children = new Map<string, number>()
     for (let at = 0; at < epics.length; at += PARENTS_CHUNK) {
@@ -124,38 +123,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
 
   const versionsOf = (key: string) => api.rest<JiraVersion[]>(`/project/${encodeURIComponent(key)}/versions`)
   const componentsOf = (key: string) => api.rest<{ id: string; name: string }[]>(`/project/${encodeURIComponent(key)}/components`)
-  async function orderedVersionsOf(key: string): Promise<JiraVersion[]> {
-    const versions: JiraVersion[] = []
-    for (let startAt = 0; ; ) {
-      const page = await api.rest<{ values: JiraVersion[]; isLast?: boolean; total?: number }>(`/project/${encodeURIComponent(key)}/version?orderBy=sequence&startAt=${startAt}&maxResults=${PAGE}`)
-      versions.push(...page.values)
-      startAt += page.values.length
-      if (page.values.length === 0 || page.isLast === true || (page.total !== undefined && startAt >= page.total)) break
-    }
-    return versions.map((version, value) => ({ ...version, trackerOrder: { source: `jira:${key}`, value } }))
-  }
-
-  const rankedVersions = (versions: readonly JiraVersion[], catalog: readonly JiraVersion[]) =>
-    versions.map((version) => ({ ...version, ...catalog.find((each) => each.id === version.id) }))
-
-  async function resolveVersions(issues: readonly JiraIssue[]): Promise<void> {
-    const catalogs = new Map<string, JiraVersion[]>()
-    for (const issue of issues) {
-      if (!issue.fields.fixVersions?.length) continue
-      const key = parseTaskId(issue.key)!.project
-      let catalog = catalogs.get(key)
-      if (catalog === undefined) {
-        catalog = await orderedVersionsOf(key)
-        catalogs.set(key, catalog)
-      }
-      issue.fields.fixVersions = rankedVersions(issue.fields.fixVersions, catalog)
-    }
-  }
-
-  async function fixVersionOf(id: string): Promise<JiraVersion | null> {
-    const versions = (await issueOf(id, ['fixVersions'])).fields.fixVersions ?? []
-    return earliestVersion(versions.length > 1 ? rankedVersions(versions, await orderedVersionsOf(parseTaskId(id)!.project)) : versions)
-  }
+  const fixVersionOf = async (id: string) => earliestVersion((await issueOf(id, ['fixVersions'])).fields.fixVersions)
   const openVersions = (versions: JiraVersion[]) => versions.filter((version) => version.released !== true && version.archived !== true)
   const issueOf = (id: string, fields: readonly string[]) => api.rest<JiraIssue>(`${issuePath(id)}?fields=${fields.join(',')}`)
   const transitionsOf = async (id: string) => (await api.rest<{ transitions: Transition[] }>(`${issuePath(id)}/transitions`)).transitions
@@ -268,9 +236,7 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       const [issue, comments] = await Promise.all([issueOf(id, CARD_FIELDS), commentsOf(id)])
       const links = issue.fields.issuelinks ?? []
       await resolveStatuses([issue, ...[issue.fields.parent, ...links.flatMap((link) => [link.inwardIssue, link.outwardIssue])].filter((ref): ref is JiraRef => ref != null)])
-      const names = await order()
-      await resolveVersions([issue])
-      return toCard(issue, comments, names)
+      return toCard(issue, comments, await order())
     },
 
     async file(id, file) {
@@ -353,10 +319,8 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
     },
 
     async milestones(id) {
-      const versions = (await issueOf(id, ['fixVersions'])).fields.fixVersions ?? []
-      const catalog = await orderedVersionsOf(parseTaskId(id)!.project)
-      const own = earliestVersion(rankedVersions(versions, catalog))
-      const choices = openVersions(catalog)
+      const own = await fixVersionOf(id)
+      const choices = openVersions(await versionsOf(parseTaskId(id)!.project))
       if (own !== null && !choices.some((each) => each.id === own.id)) choices.push(own)
       return {
         current: own?.id ?? null,
