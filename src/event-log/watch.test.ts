@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from '../chain/model.js'
 import { notice } from '../notice/notice.js'
+import { relativeUnder } from '../paths.js'
 import type { EventsInput } from './page-events.js'
 import { BLINK_MS, GRACE_MS, launchDraft, observe, settingsDrafts, stopDraft, watchedOf, type WatchInput } from './watch.js'
 
@@ -64,7 +65,7 @@ describe('observe', () => {
         chain: { ...none.chain, projects: { p1: { order: [], waiting: [], backlog: [], error: null } } },
         works: { p1: { 'ABC-1': { path, branch: 'b', files: 0, ahead: 1 } } },
       }) as unknown as WatchInput
-    const text = (path: string) => [...watchedOf(left(path)).conditions.values()][0]?.notice
+    const text = (path: string) => [...watchedOf(left(path), (inner, outer) => relativeUnder(inner, outer, 'win32')).conditions.values()][0]?.notice
     expect(text('d:\\projects\\repo\\.claude\\worktrees\\abc-1')).toEqual(notice('eventLog.unmerged', { task: 'ABC-1', path: '.claude/worktrees/abc-1' }))
     expect(text('E:\\slots\\abc-1')).toEqual(notice('eventLog.unmerged', { task: 'ABC-1', path: 'E:\\slots\\abc-1' }))
   })

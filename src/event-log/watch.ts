@@ -3,7 +3,6 @@ import { isLaunch } from '../chain/launches.js'
 import type { LaunchEntry } from '../chain/model.js'
 import type { ContinuedWhy, LoggedPackageProblem } from '../notice/en.js'
 import { notice, type Notice } from '../notice/notice.js'
-import { relativeUnder } from '../paths.js'
 import type { EvenKeelState, PackageProblem, ProjectPackages } from '../state.js'
 import type { EventDraft, EventLevel } from './model.js'
 import { pageEvents, type EventsInput, type PageEvent } from './page-events.js'
@@ -61,12 +60,15 @@ const UNLOGGED = new Set<PackageProblem['kind']>(['installing', 'probing', 'unsu
 /** A chain paused on the limit or a red main: its event says so (`pageEvents`), the chain's own entry would repeat it. */
 const toldElsewhere = (error: Notice) => error.code === 'chain.limitSpent' || (/^(ci|check)\./.test(error.code) && 'commit' in error.params)
 
-export function watchedOf(state: WatchInput): Watched {
+/** A path relative to a folder, `null` outside it; the server passes `relativeUnder`, which the page's bundle cannot load. */
+export type RelativeOf = (path: string, folder: string) => string | null
+
+export function watchedOf(state: WatchInput, relative: RelativeOf = () => null): Watched {
   const conditions = new Map<string, EventDraft>()
   const quiet: string[] = []
   for (const event of pageEvents(state)) {
     if (event.kind === 'red') quiet.push(`${event.key}|ciRed`)
-    conditions.set(event.kind === 'red' || event.kind === 'ciRed' ? `${event.key}|${event.kind}` : event.key, draftOf(event, state.config.projects[event.project ?? '']?.repo))
+    conditions.set(event.kind === 'red' || event.kind === 'ciRed' ? `${event.key}|${event.kind}` : event.key, draftOf(event, relative, state.config.projects[event.project ?? '']?.repo))
   }
   // The installed CLI's way back to the checked version is its source in the settings; a daemon has none to press.
   for (const view of state.cliVersions) {
@@ -116,7 +118,7 @@ function packageDrafts(project: string, found: ProjectPackages): [string, EventD
   })
 }
 
-function draftOf(event: PageEvent, repo?: string): EventDraft {
+function draftOf(event: PageEvent, relative: RelativeOf, repo?: string): EventDraft {
   if (event.kind === 'limit') return { level: 'warning', notice: notice('eventLog.limit', { project: event.project }), place: { view: 'project', project: event.project } }
   if (event.kind === 'red' || event.kind === 'ciRed') {
     const params = { project: event.project, commit: event.commit, cis: event.cis }
@@ -128,7 +130,7 @@ function draftOf(event: PageEvent, repo?: string): EventDraft {
   if (event.kind === 'conflict') {
     return { level: 'error', notice: notice('eventLog.conflict', { project: event.project, into: event.into }), place: { view: 'project', project: event.project } }
   }
-  const params = { task: event.task, path: (repo === undefined ? null : relativeUnder(event.path, repo)) ?? event.path }
+  const params = { task: event.task, path: (repo === undefined ? null : relative(event.path, repo)) ?? event.path }
   return {
     level: 'warning',
     notice: event.files > 0 ? notice('eventLog.uncommitted', params) : notice('eventLog.unmerged', params),

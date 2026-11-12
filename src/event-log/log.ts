@@ -1,5 +1,6 @@
 import type { LaunchEntry } from '../chain/model.js'
 import { asNotice } from '../notice/notice.js'
+import { relativeUnder } from '../paths.js'
 import type { Queryable } from '../storage/database.js'
 import { setStateValue, stateValue } from '../storage/service-state.js'
 import type { EventDraft, EventEntry, EventLevel, EventPlace } from './model.js'
@@ -58,7 +59,7 @@ export class EventLog {
   }
 
   observe(state: WatchInput): void {
-    const step = observe(this.memory, watchedOf(state), this.now(), this.restored)
+    const step = observe(this.memory, watchedOf(state, relativeUnder), this.now(), this.restored)
     this.memory = step.memory
     if (step.changed) this.store.remember(step.memory)
     for (const draft of step.drafts) this.add(draft)
