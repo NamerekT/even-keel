@@ -31,6 +31,17 @@ export function staleReaders(tracker: TrackerView, now: Date): Map<string, strin
   return new Map(stale)
 }
 
+/**
+ * Whether the project head shows when its tasks were last read (BTN-1042): only while the connection is down or the
+ * project was not read for longer than `STALE_READ_MS`; otherwise the time is the refresh button's tip alone.
+ */
+export function readLate(tracker: TrackerView, project: string, now: Date): boolean {
+  if (tracker.health.state === 'down') return true
+  if (tracker.health.state !== 'live') return false
+  const read = tracker.readAt[project]
+  return read === undefined || now.getTime() - Date.parse(read) > STALE_READ_MS
+}
+
 /** The projects whose read reads the connection's readers anew: a project itself, a task feed's project for a feed. */
 export function refreshedProjects(state: Pick<EvenKeelState, 'projects' | 'config'>, tracker: TrackerView): string[] {
   const owners = tracker.projects.map((reader) => {

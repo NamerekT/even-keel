@@ -117,6 +117,7 @@ export const wizardRU = {
 
 export const projectRU = {
     name: 'Название проекта',
+    nameHint: 'Показывается на странице после ключа проекта. Сохраняется сразу, без кнопки «Сохранить».',
     nameAdd: 'Добавить название',
     rename: (key: string) => `Переименовать проект ${key}`,
     refresh: (tracker: string) => `Перечитать задачи из ${tracker} сейчас`,

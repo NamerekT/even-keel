@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerHealth, TrackerView } from '../../../src/tracker/health.js'
 import type { Check, Level } from '../layout/system.js'
-import { openTasks, problemsOf, refreshedProjects, staleReaders, trackerProblem, trackerReason } from './status.js'
+import { openTasks, problemsOf, readLate, refreshedProjects, staleReaders, trackerProblem, trackerReason } from './status.js'
 
 const now = new Date('2026-10-24T12:00:00Z')
 const live: TrackerHealth = { state: 'live', lastOkAt: '2026-10-24T12:00:00Z', error: null }
@@ -44,6 +44,27 @@ describe('staleReaders', () => {
   it('marks nothing while the connection is down: its head says so', () => {
     const down: TrackerHealth = { state: 'down', lastOkAt: '2026-10-24T11:48:00Z', error: 'timed out' }
     expect(staleReaders(tracker({ 'p-abc': '2026-10-24T11:48:00Z' }, down), now).size).toBe(0)
+  })
+})
+
+describe('readLate', () => {
+  it('is quiet for a project read within three minutes', () => {
+    expect(readLate(tracker({ 'p-abc': '2026-10-24T11:57:00Z' }), 'p-abc', now)).toBe(false)
+  })
+
+  it('marks a project not read for over three minutes, or never read by a live connection', () => {
+    expect(readLate(tracker({ 'p-abc': '2026-10-24T11:48:00Z' }), 'p-abc', now)).toBe(true)
+    expect(readLate(tracker({}), 'p-abc', now)).toBe(true)
+  })
+
+  it('marks any project of a connection that is down, however fresh its last read', () => {
+    const down: TrackerHealth = { state: 'down', lastOkAt: '2026-10-24T11:59:00Z', error: 'timed out' }
+    expect(readLate(tracker({ 'p-abc': '2026-10-24T11:59:00Z' }, down), 'p-abc', now)).toBe(true)
+  })
+
+  it('is quiet while the connection is still starting or off', () => {
+    expect(readLate(tracker({}, { state: 'connecting', lastOkAt: null, error: null }), 'p-abc', now)).toBe(false)
+    expect(readLate(tracker({}, { state: 'off', lastOkAt: null, error: null }), 'p-abc', now)).toBe(false)
   })
 })
 

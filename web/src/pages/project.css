@@ -17,6 +17,14 @@
   font-family: var(--mono);
 }
 
+/* The key and its name, one hover area with the gap between them. */
+.project__ident {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
 /* The name after the key: plain text until clicked, then a field of the same size. */
 .project__name,
 .project__name-input {
@@ -48,6 +56,56 @@
 .project__name--empty {
   font-size: var(--text-13);
   opacity: 0.7;
+}
+
+/* In the head "Add a name" waits for the key to be pointed at (BTN-1042): folded to nothing, its gap taken back, yet
+   still in the Tab order, so the keyboard reaches it too. Kept room would leave a hole after the key. */
+.project__head .project__name--empty {
+  max-width: 0;
+  margin-left: -12px;
+  padding-inline: 0;
+  border-width: 0;
+  opacity: 0;
+}
+
+.project__ident:hover .project__name--empty,
+.project__head .project__name--empty:focus-visible {
+  max-width: 40ch;
+  margin-left: -4px;
+  padding-inline: 6px;
+  border-width: 1px;
+  opacity: 0.7;
+}
+
+/* In the settings the name is a field like its neighbours, the empty one with its placeholder's look. */
+.settings__control > .project__name,
+.settings__control > .project__name-input {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  padding: 8px 10px;
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: var(--text-14);
+  line-height: 1.45;
+  text-align: left;
+}
+
+.settings__control > .project__name-input {
+  border-color: var(--accent);
+}
+
+.settings__control > .project__name--empty {
+  color: var(--fg-muted);
+  opacity: 1;
+}
+
+/* A touch screen points at nothing: the name is added in the project's settings. */
+@media (hover: none) {
+  .project__head .project__name--empty {
+    display: none;
+  }
 }
 
 .project__name-input {
@@ -125,6 +183,10 @@
   color: var(--error-fg);
 }
 
+.project__read-at--late {
+  color: var(--warn-fg);
+}
+
 .project__wait {
   flex-basis: 100%;
   margin: 0;
@@ -170,7 +232,8 @@
   }
 }
 
-/* The narrow head: the panels' block ends the title row, the status and the buttons' block make the next one. */
+/* The chain's block at any width: the status, a segment tinted as its chip, then the two buttons (BTN-1042).
+   The narrow head: the panels' block ends the title row, the chain's block ends the next one. */
 .project__tools {
   margin-left: auto;
 }
@@ -179,9 +242,19 @@
   margin-left: auto;
 }
 
-.project__tools,
-.project__buttons {
-  height: 38px;
+.hblock__seg.project__status {
+  padding: 0 11px;
+  border: 0;
+  border-radius: 0;
+  font-size: var(--text-13);
+  line-height: normal;
+}
+
+@media (max-width: 760px) {
+  .project__tools,
+  .project__buttons {
+    height: 38px;
+  }
 }
 
 .seg-button {

@@ -63,6 +63,7 @@ import { SETTINGS_HASH } from './settingsStore.js'
 import { ProjectNotices } from './ProjectNotices.js'
 import { DemoNotice } from './Demo.js'
 import { FixButton, NoticeFixButton } from './FixButtons.js'
+import { readLate } from './status.js'
 import { unreadWhy } from './trackerDown.js'
 import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
@@ -205,15 +206,16 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
     <section className={side ? 'project project--panel' : 'project'}>
       <div className="page">
         <header className="project__head">
-          <h1 className="page__title project__title">{settings?.name == null ? projectLabel(state, key) : (state.projectKeys[key] ?? key)}</h1>
-          {settings !== undefined && <ProjectName project={key} form={settings} />}
+          <div className="project__ident">
+            <h1 className="page__title project__title">{settings?.name == null ? projectLabel(state, key) : (state.projectKeys[key] ?? key)}</h1>
+            {settings !== undefined && <ProjectName project={key} form={settings} />}
+          </div>
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
           {narrow && <div className="hblock project__tools">{tools}</div>}
           <ChainControls
             state={state}
             project={key}
-            narrow={narrow}
             beside={<ToolsChip key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />}
           >
             {look === 'tag' && tools}
@@ -343,29 +345,43 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   )
 }
 
-/** The tracker is read every 30 seconds; the button reads it now, for a change made there a moment ago. */
+/**
+ * The tracker is read every 30 seconds; the button reads it now, for a change made there a moment ago. When it was last
+ * read is the button's tip, and a line beside it only while the read fails or is late (BTN-1042).
+ */
 function TrackerRead({ project, tracker }: { project: string; tracker: TrackerView }) {
   const { send, sending, failure } = useCommand()
   const now = useNow(5_000)
   const at = tracker.readAt[project]
+  const when = at === undefined ? t.project.notRead : t.project.readAt(formatAgo(at, now))
 
   return (
     <span className="project__read">
-      <button
-        type="button"
-        className="project__refresh"
-        aria-label={t.project.refresh(tracker.title)}
-        title={t.project.refresh(tracker.title)}
-        disabled={sending}
-        aria-busy={sending ? true : undefined}
-        onClick={() => void send('chain/refresh', { project })}
+      <Tipped
+        inline
+        tip={
+          <>
+            {t.project.refresh(tracker.title)}
+            <br />
+            {when}
+          </>
+        }
       >
-        <RefreshIcon />
-      </button>
+        <button
+          type="button"
+          className="project__refresh"
+          aria-label={t.project.refresh(tracker.title)}
+          disabled={sending}
+          aria-busy={sending ? true : undefined}
+          onClick={() => void send('chain/refresh', { project })}
+        >
+          <RefreshIcon />
+        </button>
+      </Tipped>
       {failure !== null ? (
         <span className="project__read-at project__read-at--failed">{say(failure)}</span>
       ) : (
-        <span className="project__read-at">{at === undefined ? t.project.notRead : t.project.readAt(formatAgo(at, now))}</span>
+        readLate(tracker, project, now) && <span className="project__read-at project__read-at--late">{when}</span>
       )}
     </span>
   )
@@ -405,17 +421,18 @@ function EmptyCall({ state, project }: { state: EvenKeelState; project: string }
 }
 
 
-/** On a narrow screen the two buttons are one block of segments, like the head's other blocks. `beside` follows the status chip. */
+/**
+ * The chain's status and its two buttons are one block of segments at any width, the primary button filled (BTN-1042).
+ * `beside` (the problem chips) stands before it.
+ */
 function ChainControls({
   state,
   project,
-  narrow,
   beside,
   children,
 }: {
   state: EvenKeelState
   project: string
-  narrow: boolean
   beside?: ReactNode
   children?: ReactNode
 }) {
@@ -432,11 +449,10 @@ function ChainControls({
   })
 
   const active = status.kind === 'running' || status.kind === 'paused'
-  const base = narrow ? SEG_CLASS : 'button'
   const button = (label: ReactNode, name: ChainControl, onClick = () => void send(`chain/${name}`, { project })) => (
     <button
       type="button"
-      className={controls.primary === name ? `${base} ${narrow ? 'seg-button--primary' : 'button--primary'}` : base}
+      className={controls.primary === name ? `${SEG_CLASS} seg-button--primary` : SEG_CLASS}
       disabled={sending || !controls.enabled.includes(name)}
       title={controls.enabled.includes(name) ? undefined : off}
       onClick={onClick}
@@ -463,20 +479,13 @@ function ChainControls({
   return (
     <>
       <div className="project__controls">
-        <StatusChip status={status} wait={waits[0]} />
-        {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
         {beside}
-        {narrow ? (
-          <div className="hblock project__buttons">
-            {first}
-            {stop}
-          </div>
-        ) : (
-          <>
-            {first}
-            {stop}
-          </>
-        )}
+        {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
+        <div className="hblock project__buttons">
+          <StatusChip status={status} wait={waits[0]} className="hblock__seg project__status" />
+          {first}
+          {stop}
+        </div>
         {children}
       </div>
       <ChainWaits project={project} waits={waits} className="project__wait" />

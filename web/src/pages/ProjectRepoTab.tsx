@@ -6,6 +6,7 @@ import { seriesStyle } from '../ui/series.js'
 import { BadgeButton } from './BadgeButton.js'
 import { BranchDriftBand, BranchField, BranchMoveLine } from './BranchField.js'
 import { GitOnSection } from './GitSwitch.js'
+import { ProjectName } from './ProjectName.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import type { PanelFields } from './projectSettingsFields.js'
 import { ErrorStrip, FieldHead, fieldId, Row, Section, SwitchField, wholeOf } from './settingsParts.js'
@@ -106,12 +107,18 @@ export function ProjectRepoTab({
             {notes('carryAgent')}
           </SwitchField>
         )}
+        <NameField project={project} form={form} />
         <ColorField fields={fields} />
       </Section>
       <BadgeButton project={project} badge={form.badge} />
       <ProjectRemove project={project} />
     </>
   )
+}
+
+/** The name is no draft field: it saves at once, as in the head, where a touch screen has no "Add a name" (BTN-1042). */
+function NameField({ project, form }: { project: string; form: ProjectForm }) {
+  return <Row className="settings__field" label={t.project.name} hint={t.project.nameHint} control={<ProjectName project={project} form={form} />} />
 }
 
 /**
@@ -140,6 +147,7 @@ function PlainRepoTab({ fields, project, form, state }: { fields: PanelFields; p
           {notes('testProject')}
         </SwitchField>
         <Row className="settings__field" label={t.settings.slot} hint={text.slotHint} control={<span>{text.slotValue}</span>} />
+        <NameField project={project} form={form} />
         <ColorField fields={fields} />
       </Section>
       <GitOnSection state={state} project={project} />

@@ -8,7 +8,7 @@ export const helpEn = {
   priority: 'Priority and card marks',
   session: 'Session strip',
   open: 'Select a task row to open its session. The title in the session panel opens the task card.',
-  samples: { action: 'Reading files', updated: 'updated 16 s ago' },
+  samples: { action: 'Reading files', updated: 'updated 4 min ago' },
   card: {
     number: 'Position among the open tasks in the chain. Its colour shows priority, not session state.',
     current: 'The triangle replaces the position number on the current task.',
@@ -32,7 +32,7 @@ export const helpEn = {
     menu: 'Stats, the queue, the accounts, settings, tools and the state of the service; its dot is amber or red when a check warns or fails or the account needs a sign-in.',
     bars: 'The two lines along the bottom of the header: the five-hour limit at the left, the weekly one at the right; amber from 80%, red at 100%.',
     questions: 'Tasks labelled Question that wait for an answer; opens the session of the first one.',
-    read: "Reads the project's tasks from the tracker now; it is read every 30 seconds anyway. Beside it — when it was last read.",
+    read: "Reads the project's tasks from the tracker now; it is read every 30 seconds anyway. Its tip says when it was last read; beside it, in amber, only when reading fails or is late.",
     ci: 'The CI on the main branch: green — passed, blue — running, red — failed, amber — stuck. Opens its runs.',
     backlog: 'The tasks the chain does not take yet and their count. Opens the backlog.',
     settings: "The project's settings. They apply at once, with no restart: the project's next session gets them.",

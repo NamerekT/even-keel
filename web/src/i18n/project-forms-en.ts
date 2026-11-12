@@ -118,6 +118,7 @@ export const wizardEN: Messages['wizard'] = {
 
 export const projectEN: Messages['project'] = {
     name: 'Project name',
+    nameHint: 'Shown on the page after the project key. Saved at once, without the Save button.',
     nameAdd: 'Add a name',
     rename: (key: string) => `Rename project ${key}`,
     refresh: (tracker: string) => `Read the tasks from ${tracker} now`,

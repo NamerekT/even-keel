@@ -46,7 +46,7 @@ export function HeaderSigns({ narrow }: { narrow: boolean }) {
 export function ProjectSigns() {
   return <>
     <Sign sample={<QuestionsChip count={2} />}>{t.help.signs.questions}</Sign>
-    <Sign wide sample={<span className="project__read"><span className="project__refresh"><RefreshIcon /></span><span className="project__read-at">{t.help.samples.updated}</span></span>}>{t.help.signs.read}</Sign>
+    <Sign wide sample={<span className="project__read"><span className="project__refresh"><RefreshIcon /></span><span className="project__read-at project__read-at--late">{t.help.samples.updated}</span></span>}>{t.help.signs.read}</Sign>
   </>
 }
 
