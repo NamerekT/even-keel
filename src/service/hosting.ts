@@ -590,7 +590,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const settings = ctx.configStore.current.settings[run.project]
       const views = ctx.ciWatches.shown(run.project).map((watch) => watch.view)
       const commands = settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
-      return { commands, branch: ctx.branchOf(run.project), standards: settings?.standards ?? [] }
+      return { commands, branch: ctx.branchOf(run.project), standards: settings?.standards ?? [], ...(isPlain(ctx.configStore.current, run.project) ? { git: false as const } : {}) }
     },
     checkReport: (sessionId, report) => {
       const run = handoffsOf(ctx.launches, sessionId)

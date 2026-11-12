@@ -104,7 +104,10 @@ export interface SessionStart {
    * turns. Claude's window goes in `settings`; Copilot's CLI takes none.
    */
   contextWindow?: number
-  /** Optional. The session's folder is no git repository (a project without git): Codex needs a flag to run there. */
+  /**
+   * Optional. A project without git, whose folder is not its repository: Codex needs a flag to run there, and every
+   * agent but Claude takes the ban on git from it (`protectionRules`); Claude's is in `settings`.
+   */
   outsideRepo?: boolean
 }
 

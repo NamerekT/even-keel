@@ -145,7 +145,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     },
     plain: {
       folder: (path) =>
-        fill`- Папка проекта: ${path} — работай в ней. Это не git-репозиторий: веток, коммитов, worktree и слияния здесь нет, git не вызывай. Папка общая для всех задач проекта: заметки прошлых задач в ней — не твои изменения.`,
+        fill`- Папка проекта: ${path} — работай в ней. Git для этого проекта выключен: веток, коммитов, worktree и слияния у задачи нет. Не вызывай git: вызов будет отклонён. Папка общая для всех задач проекта: заметки прошлых задач в ней — не твои изменения.`,
       answer:
         '- Когда задача сделана, напиши результат целиком в последнем сообщении хода и закончи ход последней строкой `TASK DONE`. Even Keel запишет это сообщение комментарием к задаче и закроет её; статус задачи сам не трогай. Если без ответа пользователя не обойтись — задай вопрос и закончи ход без этой строки: задача останется ждать ответа.',
       begin: '- Начни с описания задачи.',
@@ -289,7 +289,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     },
     plain: {
       folder: (path) =>
-        fill`- Project folder: ${path} — work in it. It is not a git repository: there are no branches, commits, worktrees or merges here, do not call git. The folder is shared by all the project's tasks: notes of earlier tasks in it are not your changes.`,
+        fill`- Project folder: ${path} — work in it. Git is turned off for this project: the task has no branch, commit, worktree or merge. Do not call git: the call will be refused. The folder is shared by all the project's tasks: notes of earlier tasks in it are not your changes.`,
       answer:
         '- When the task is done, write the whole result in the last message of the turn and end the turn with the last line `TASK DONE`. Even Keel puts that message on the task as a comment and closes it; do not move the task\'s status yourself. If you cannot go on without the user\'s answer, ask the question and end the turn without that line: the task stays waiting for the answer.',
       begin: '- Start with the task description.',

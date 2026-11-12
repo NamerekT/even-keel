@@ -12,6 +12,16 @@
         ]
       },
       {
+        "matcher": "Bash|PowerShell|bash|powershell|shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/git-ban.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit|apply_patch|edit|create|write|str_replace",
         "hooks": [
           {

@@ -70,10 +70,21 @@ const refspec = (forms: string[], remotes: readonly string[], copilot: boolean):
 const merge = (...parts: Rules[]): Rules => ({ claude: parts.flatMap(part => part.claude), codex: parts.flatMap(part => part.codex), copilot: parts.flatMap(part => part.copilot), opencode: { bash: parts.flatMap(part => part.opencode.bash), tools: parts.flatMap(part => part.opencode.tools) } })
 
 /**
+ * Any call of git, for a project whose git is off (BTN-1052): its folder may still lie in a repository. A one-word
+ * prefix covers every argument and global option; Claude's PowerShell tool takes the same patterns as its Bash.
+ */
+const gitBan = (): Rules => {
+  const patterns = ['git', 'git.exe'].flatMap(git => [git, `${git} *`])
+  const rules = commands(patterns, [['git'], ['git.exe']])
+  return { ...rules, claude: [...rules.claude, ...patterns.map(pattern => `PowerShell(${pattern})`)] }
+}
+
+/**
  * Codex and Copilot match literal command prefixes; the remote names cover the usual `git push <remote> <flag>` order too,
  * and with the project's main branch both get force-refspecs; Codex also gets deletion refspecs.
+ * `noGit` — a project without git: the ban on git itself, no group of `disabled` and not a setting.
  */
-export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = [], branch?: string, hulyServers: readonly string[] = ['plugin_huly_huly', 'huly']): Rules {
+export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = [], branch?: string, hulyServers: readonly string[] = ['plugin_huly_huly', 'huly'], noGit = false): Rules {
   const refspecs = (forms: (branch: string) => string[], copilot = false) => refspec(branch === undefined ? [] : forms(branch), remotes, copilot)
   // Only Huly has native rules too; the other trackers' deletes are refused by the gateway alone (native ones: BTN-611).
   const gateway = (): Rules => ({ claude: [], codex: [], copilot: [], opencode: { bash: [], tools: [] } })
@@ -97,7 +108,7 @@ export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes:
     groups.forcePush.opencode.bash.push(`${git} push * +*`)
     groups.deleteRemote.opencode.bash.push(`${git} push * :*`)
   }
-  const enabled = PROTECTION_GROUPS.filter(group => !value.disabled.includes(group)).map(group => groups[group])
+  const enabled = [...PROTECTION_GROUPS.filter(group => !value.disabled.includes(group)).map(group => groups[group]), ...(noGit ? [gitBan()] : [])]
   const unique = <T>(values: T[]): T[] => [...new Map(values.map(value => [JSON.stringify(value), value])).values()]
   return {
     claude: unique([...enabled.flatMap(group => group.claude), ...value.claude]),

@@ -12,12 +12,12 @@ export const PROTECTION_FILE = 'even-keel.generated.rules'
 /**
  * A worktree's own config layer keeps different projects and accounts from changing each other's deny rules.
  * `outsideRepo` — the folder of a project without git: git is not asked, since the folder may lie inside a repository
- * that is not the project's, whose remotes and `info/exclude` are not ours.
+ * that is not the project's, whose remotes and `info/exclude` are not ours, and the session is forbidden git itself.
  */
 export async function writeProtection(cwd: string, value: Protection, mainBranch?: string, outsideRepo = false): Promise<void> {
   const call = (args: string[]) => run('git', ['-C', cwd, ...args], { timeout: 10_000, windowsHide: true })
   const remotes = outsideRepo ? [] : await call(['remote']).then(answer => answer.stdout.trim().split(/\r?\n/).filter(Boolean), () => [])
-  const rules = protectionRules(value, remotes, mainBranch).codex
+  const rules = protectionRules(value, remotes, mainBranch, undefined, outsideRepo).codex
   const dir = join(cwd, '.codex', 'rules')
   const path = join(dir, PROTECTION_FILE)
   const previous = await readFile(path, 'utf8').catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return ''; throw error })

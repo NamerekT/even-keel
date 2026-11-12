@@ -3,6 +3,7 @@ import { DEFAULT_PROTECTION, deletesRecord, PROTECTION_GROUPS, protectionRules, 
 import { chainSettings } from '../tools/panel.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import { turnArgs as copilotArgs } from '../copilot/cli.js'
+import { sessionConfig as openCodeConfig } from '../opencode/cli.js'
 
 describe('session protection', () => {
   it('passes native deny rules with trimming both on and off and with Copilot allow-all enabled', () => {
@@ -133,6 +134,49 @@ describe('session protection', () => {
       expect(rules.codex).toContainEqual(['git', ...global, 'push', 'origin', '-d'])
       expect(rules.copilot).toContain(`shell(git ${global.join(' ')} push origin --mirror:*)`)
     }
+  })
+
+  describe('a project without git (BTN-1052)', () => {
+    const matches = (value: string, pattern: string) => new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\?]/g, '\\$&').replaceAll('*', '.*') + '$').test(value)
+    const allOff = { ...DEFAULT_PROTECTION, disabled: [...PROTECTION_GROUPS] }
+    const banned = (rules: ReturnType<typeof protectionRules>, command: string) => {
+      const argv = command.split(' ')
+      return {
+        claude: rules.claude.some(rule => rule.startsWith('Bash(') && matches(command, rule.slice(5, -1))),
+        powershell: rules.claude.some(rule => rule.startsWith('PowerShell(') && matches(command, rule.slice(11, -1))),
+        codex: rules.codex.some(prefix => prefix.every((word, index) => argv[index] === word)),
+        copilot: rules.copilot.some(rule => rule.startsWith('shell(') && rule.endsWith(':*)') && (command + ' ').startsWith(rule.slice(6, -3) + ' ')),
+        opencode: rules.opencode.bash.some(pattern => matches(command, pattern)),
+      }
+    }
+    const every = { claude: true, powershell: true, codex: true, copilot: true, opencode: true }
+    const none = { claude: false, powershell: false, codex: false, copilot: false, opencode: false }
+
+    it('denies every agent any git call, whatever the Protection groups say', () => {
+      const rules = protectionRules(allOff, [], undefined, undefined, true)
+      for (const command of ['git', 'git status', 'git -C x status', 'git --no-pager log', 'git -c core.x=y --git-dir=.git commit -m x', 'git.exe status', 'git.exe -C x status']) {
+        expect(banned(rules, command), command).toEqual(every)
+      }
+      for (const command of ['gitk', 'github status', 'npm run git', 'cat .git/config']) expect(banned(rules, command), command).toEqual(none)
+    })
+
+    it('has no such rule for a project with git', () => {
+      for (const rules of [protectionRules(DEFAULT_PROTECTION, ['origin'], 'main'), protectionRules(allOff)]) {
+        for (const command of ['git status', 'git -C x status', 'git --no-pager log']) expect(banned(rules, command), command).toEqual(none)
+      }
+    })
+
+    it('reaches Claude\'s settings, Copilot\'s arguments and OpenCode\'s config only with git off', () => {
+      const claude = (noGit: boolean) => JSON.parse(chainSettings('example', {}, false, [], 'home', null, [], allOff, null, noGit)).permissions.deny as string[]
+      expect(claude(true)).toEqual(expect.arrayContaining(['Bash(git *)', 'PowerShell(git *)']))
+      expect(claude(false)).toEqual([])
+      const copilot = (outsideRepo: boolean) => copilotArgs({ name: 'ABC-1', model: null, protection: allOff, outsideRepo }, 'task', { cwd: 'example', dirs: [], disabled: [], remotes: [] }, { id: 'session', resume: false })
+      expect(copilot(true)).toContain('shell(git:*)')
+      expect(copilot(false)).not.toContain('--deny-tool')
+      const opencode = (outsideRepo: boolean) => JSON.parse(openCodeConfig({ protection: allOff, outsideRepo }, [], [])).permission.bash as Record<string, string> | undefined
+      expect(opencode(true)).toMatchObject({ 'git *': 'deny', git: 'deny' })
+      expect(opencode(false)).toBeUndefined()
+    })
   })
 
   it('disables one group, keeps the rest and adds native rules without duplicates', () => {

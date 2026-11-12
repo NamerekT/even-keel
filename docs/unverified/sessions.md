@@ -230,6 +230,18 @@ A project with `git: false` runs its tasks in one folder that is no repository a
 
 If wrong, a session refuses to start in the folder (Codex refusing one outside a repository), the task stays waiting after `TASK DONE`, or the comment is refused and the chain pauses on the task. **Check:** add a project "Without git" with a blank folder, give it two small "find out and answer" tasks, run them on Claude Code (skip the first once its turn ends on a remark and see its session stopped before the second starts), then one on Codex, OpenCode and Copilot each; read the comments, the Done and the log; repeat with the folder inside another repository and look at that repository's `git status` and `.git/info/exclude`. **Workaround:** close the task in the tracker by hand, or "Accept as answer" in the session panel; for an agent that refuses the folder, run the project on Claude Code.
 
+## Git refused in a project without git (BTN-1052)
+
+A session of a project without git gets native deny rules on git and the `agent-bridge` hook `git-ban.mjs` (`docs/sessions/protection.md`, "Git off"). Covered by unit tests of the rules for each agent (`src/sessions/protection.test.ts`), of the command parsing (`plugins/agent-bridge/hooks/gitban.test.mjs`) and of the hook process and OpenCode's plugin against a fake Even Keel (`hooks.test.mjs`); no real agent was run. Assumed:
+
+- Claude Code takes `Bash(git *)` and `PowerShell(git *)` in the `permissions.deny` of `--settings`, refuses the call with them under any permission mode, and a `PowerShell(…)` rule does no harm where the session has no such tool;
+- a one-word Codex prefix `["git"]` forbids `git` with any arguments, and Copilot's `shell(git:*)` does the same, `git -C x status` included;
+- OpenCode matches `git *` against each command of a compound one;
+- the hook runs on the shell tool of Codex and Copilot under the names in its matcher (`Bash`, `PowerShell`, `bash`, `powershell`, `shell`) with the command in `tool_input.command`, and its denial reaches the model as the reason;
+- the session's `agent-bridge` package is 1.1.0 or later — an older one has no such hook, and the native rules stand alone.
+
+If wrong, a session that ignores the prompt runs git in a folder that is a repository after all or lies inside someone else's: commits, a changed index or branch there. **Check:** a project "Without git" whose folder is an existing repository, and one whose folder lies inside another repository; a task that asks for `git status`, `git -C . log` and `cd . && git status` on Claude Code, then on Codex, OpenCode and Copilot; the session reports refusals, the repository's `git status`, branches and `info/exclude` are as before; after "Turn on git" a new session runs git again. **Workaround:** keep the folder of a project without git outside any repository — leave it blank and Even Keel makes one in its data folder.
+
 ## A stop that does not lose the mark in a project without git (BTN-1044)
 
 In a sandbox run of 0.3.0-rc.1 on Claude Code (2026-11-11) "Stop after the turn" left a task whose turn ended with `TASK DONE` open, and the next start ran it a second time. Since BTN-1044 the ended turn's mark closes the task before the chain stops, a session just launched counts as mid-turn for a minute, and a start on a task whose finished session ended with the mark closes it without a new launch (`docs/chain/worktrees.md`, "A stop does not lose the mark"). Covered by unit tests (`src/chain/stopafter-plain.test.ts`) and the scripted scenarios of `src/e2e/plain.test.ts`; not run on a real agent. Assumed:

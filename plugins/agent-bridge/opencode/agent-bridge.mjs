@@ -4,7 +4,8 @@
 // chat's waiting messages — and puts them after the tool's output, the only way into the context in the middle of
 // a turn. A delivered message is also kept in the call's metadata, where Even Keel's feed finds it. Before a shell
 // call that merges the task branch it runs the project's check, and an error thrown there keeps the call from running;
-// a passed check is reported to Even Keel with the tree it ran on, as the hook command does.
+// a passed check is reported to Even Keel with the tree it ran on, as the hook command does. A shell call of git in a
+// project whose git is off is refused the same way (../hooks/gitban.mjs).
 // The project's standards (../hooks/standards.mjs) work as in the hook commands: a read of a guarded file gets the
 // document after its output, a first edit before it is refused by an error, and a compaction forgets what was given.
 // `opencode run` has no Stop to block, so a turn that wrote the handoff note and ends without the CHECKPOINT line gets
@@ -12,6 +13,7 @@
 // subagent runs in a session of its own, which Even Keel does not know, so it is left alone. Only `server` is
 // exported: OpenCode takes the module's exports for plugins.
 import { checkOf, checkpointNote, mailOf, noteAtEnd, reportCheck, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
+import { gitRefusal } from "../hooks/gitban.mjs";
 import { hasMark, isNotePath } from "../hooks/handoff.mjs";
 import { mergeRefusal } from "../hooks/merges.mjs";
 import { callOf, clearGiven, due, givenStore, standardsAt } from "../hooks/standards.mjs";
@@ -50,6 +52,8 @@ export const server = async ({ directory }) => {
         if (found?.deny !== undefined) throw new Error(found.deny);
         return;
       }
+      const banned = await gitRefusal(output?.args?.command, () => checkOf(input.sessionID));
+      if (banned !== null) throw new Error(banned);
       // Even Keel not answering, or git failing, must never block a merge.
       const text = await mergeRefusal(
         output?.args?.command,

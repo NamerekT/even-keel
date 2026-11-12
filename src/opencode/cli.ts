@@ -85,9 +85,9 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model'>, prompt: st
  * session's window, if Even Keel sets one (`windowConfig`). The built-in config hook reapplies Protection after
  * agent-specific permissions have been merged.
  */
-export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'protection'>, projectServers: string[], skillDirs: string[], plugins: string[] = [], window?: SessionWindow): string {
+export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'protection' | 'outsideRepo'>, projectServers: string[], skillDirs: string[], plugins: string[] = [], window?: SessionWindow): string {
   const huly = start.mcp?.filter(server => server.plugin === 'huly' || server.name === 'huly').map(gatewayName)
-  const rules = protectionRules(start.protection, [], undefined, huly).opencode
+  const rules = protectionRules(start.protection, [], undefined, huly, start.outsideRepo === true).opencode
   const permission = {
     external_directory: 'allow',
     ...(rules.bash.length > 0 ? { bash: Object.fromEntries(rules.bash.map(pattern => [pattern, 'deny'])) } : {}),

@@ -348,6 +348,33 @@ describe.each(Object.entries(agents))("the merge check on %s input", (_agent, in
   });
 });
 
+describe.each(Object.entries(agents))("the git ban on %s input", (_agent, input) => {
+  const shell = (session, command, tool = "Bash") => input(session, "PreToolUse", { tool_name: tool, tool_input: { command } });
+
+  it("denies a git call of a project whose git is off, in Bash and in PowerShell", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main", git: false });
+    for (const tool of ["Bash", "PowerShell"]) {
+      const denied = await run("git-ban.mjs", shell(session, "cd sub && git -C x status", tool));
+      expect(denied.code).toBe(0);
+      expect(JSON.parse(denied.stdout).hookSpecificOutput).toEqual({
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: expect.stringMatching(/git is turned off for this project/),
+      });
+    }
+    expect(await run("git-ban.mjs", shell(session, "grep -r git ."))).toEqual({ code: 0, stdout: "" });
+  });
+
+  it("stays silent in a project with git, for a session Even Keel did not start and without Even Keel", async () => {
+    const session = sessionOf();
+    expect(await run("git-ban.mjs", shell(session, "git status"))).toEqual({ code: 0, stdout: "" });
+    answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main" });
+    expect(await run("git-ban.mjs", shell(session, "git status"))).toEqual({ code: 0, stdout: "" });
+    expect(await run("git-ban.mjs", shell(session, "git status"), "http://127.0.0.1:9")).toEqual({ code: 0, stdout: "" });
+  });
+});
+
 // OpenCode's plugin as OpenCode calls it, in its own process: the hooks with the call and their mutable output, the
 // session's folder (a task's worktree) given once when the plugin is made.
 describe("the OpenCode plugin", () => {
@@ -425,6 +452,15 @@ describe("the OpenCode plugin", () => {
     await expect(shell(session, "git merge main")).resolves.toBeUndefined();
     answers.set(`/api/sessions/${session}/check`, { commands: ['node -e "process.exit(0)"'], branch: "main" });
     await expect(shell(session, merge)).resolves.toBeUndefined();
+  });
+
+  it("refuses a git call of a project whose git is off before it runs", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main", git: false });
+    await expect(shell(session, "cd sub && git status")).rejects.toThrow(/git is turned off for this project/);
+    await expect(shell(session, "grep -r git .")).resolves.toBeUndefined();
+    answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main" });
+    await expect(shell(session, "cd sub && git status")).resolves.toBeUndefined();
   });
 
   it("lets the merge go for a session Even Keel did not start, without Even Keel, and for other tools", async () => {

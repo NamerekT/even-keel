@@ -91,6 +91,32 @@ Only Codex gets deletion refspecs (`:<branch>`, `:refs/heads/<branch>`) and the 
 force forms. Other argument orders, refspecs of other branches, expanded paths, shell variants and MCP are not covered.
 Additional prefixes can cover a project's commands. Remaining live checks are in `docs/unverified.md`.
 
+### Git off (BTN-1052)
+
+A session of a project without git (`docs/chain/worktrees.md`) is forbidden git itself. `protectionRules` takes
+`noGit` and adds one more set of rules (`gitBan`) beside the groups: it is no group, so `disabled` does not lift it,
+the page does not show it, and a project with git never has it. `createSessionSettings` passes `isPlain` for Claude;
+the other agents read `SessionStart.outsideRepo`.
+
+| Agent | Native rule | What it misses |
+| --- | --- | --- |
+| Claude | `Bash(git)`, `Bash(git *)`, `Bash(git.exe)`, `Bash(git.exe *)` and the same four as `PowerShell(…)` in `permissions.deny` | a wrapper (`env git`), another shell (`bash -c "git …"`), git by its path |
+| Codex | the prefixes `["git"]` and `["git.exe"]`: one word, so any argument and global option (`-C <dir>`, `-c k=v`, `--git-dir=…`) is under it | a compound command, a wrapper, a path |
+| Copilot | `shell(git:*)`, `shell(git.exe:*)` | the same |
+| OpenCode | `permission.bash`: `git`, `git *`, `git.exe`, `git.exe *`, reapplied by the protection plugin | a wrapper, another shell, a path |
+
+What a rule misses the `agent-bridge` plugin refuses, from 1.1.0: `git-ban.mjs` on `PreToolUse` of the shell tools
+(`Bash`, `PowerShell`, and the lowercase names) and the same check on `tool.execute.before` of OpenCode's plugin.
+`callsGit` (`hooks/gitban.mjs`) finds git in the place of a command in any part of a compound command (`&&`, `||`,
+`;`, `|`, `&`, a new line, `$(…)`, backticks, brackets), after variable assignments and `env`, `sudo`, `command`,
+`exec`, `time`, `nohup`, `xargs`, by any path and as `git.exe`, and at the start of the text given to `bash -c`,
+`sh -c`, `cmd /c`, `pwsh -Command`. A command that only names git (`grep git`, `cat .git/config`, `echo "git status"`)
+is not a call. Only for a command that calls git the hook asks `GET /api/sessions/<id>/check`, whose answer has
+`git: false` for such a project, and denies with a reason (`permissionDecision: deny`; OpenCode — a thrown error).
+Even Keel not answering leaves the call to the native rule. Not caught anywhere: git run by a script or a program the
+session wrote, a shell alias or function, a renamed copy of the binary, `eval` of a built string. Unit tests only
+([unverified.md](../unverified/sessions.md#git-refused-in-a-project-without-git-btn-1052)).
+
 ## Project rules for every agent (BTN-340, `src/agent/projectRules.ts`)
 
 A project set up for one agent keeps its rules when a run profile switches to another. The table of what each agent reads is `READS` in `src/agent/projectRules.ts`, shared by the adapters, the packages check (`pluginReach`) and the page's "What the session gets" (`docs/web.md`). Checked live on 2026-10-24 on Windows, with a scratch repository per case (only `CLAUDE.md`, only `AGENTS.md`, both; each file with its own secret word, a skill in each of `.claude/skills`, `.agents/skills`, `.codex/skills`, `.github/skills`, `.opencode/skills`), asking the session for the words and the skills in its context: Claude Code 2.1.309 (`claude -p` and `--bg`, Haiku), codex-cli 0.164.0 (`gpt-5.6-luna`), OpenCode 1.18.25 (`big-pickle`, with the account folder and flags of a chain session), Copilot CLI 1.0.103 (`copilot instruction list`, `copilot skill list`). Claude Code's row was checked again on 2026-11-08 (CLI 2.1.309–2.1.319, the bullet below).

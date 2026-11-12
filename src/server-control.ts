@@ -268,7 +268,8 @@ export interface ServerDeps {
    * For the merge hook: the project's check commands to run before the merge, empty — none, its main branch and its
    * standards (BTN-359), which the standards hook reads too; `undefined` for a session the chain did not start.
    */
-  mergeCheck: (sessionId: string) => { commands: string[]; branch: string; standards: Standard[] } | undefined
+  /** `git: false` — a project without git: the `agent-bridge` hook refuses its sessions' calls of git (BTN-1052). */
+  mergeCheck: (sessionId: string) => { commands: string[]; branch: string; standards: Standard[]; git?: false } | undefined
   /** For the merge hook: the check before the merge passed on a tree (EKR-103); `false` for a session the chain did not start. */
   checkReport: (sessionId: string, report: CheckReport) => boolean
   /**

@@ -38,6 +38,10 @@ A third hook, on `PreToolUse` of Bash, guards the merge of a chain session. When
 
 The refusal is an explicit `permissionDecision: deny`, which also blocks nested shell calls from Codex code mode. Codex 0.164.0 was seen to ignore exit code 2 alone for those calls.
 
+## Git in a project without git
+
+A project added to Even Keel "Without git" works in a folder that may still be a repository or lie inside someone else's. Its sessions get the agent's own deny rules on git from Even Keel; `git-ban.mjs` on `PreToolUse` of the shell tools refuses what those rules miss: git in any part of a compound command (`cd sub && git status`), behind `env`, `sudo` and the like, by its path, and in the text given to another shell (`bash -c "git …"`). A command that only names git (`grep git`, `cat .git/config`) goes through. The hook asks Even Keel (`/api/sessions/<id>/check`, `git: false`) only for a command that calls git, and stays silent for a project with git, a session Even Keel did not start and without Even Keel.
+
 ## Messages from the chat
 
 A message the user writes from Even Keel's chat window to a session in the middle of a turn waits in Even Keel's mailbox; the fourth hook, `mailbox.mjs`, takes it (`POST /api/sessions/<id>/mail` with the event) and hands it to the session without stopping it:
@@ -62,7 +66,7 @@ Claude Code defers MCP tools: until a session loads a tool's schema with `ToolSe
 
 OpenCode runs no hook commands: its hooks are JS plugins loaded into its own process. Even Keel loads every script of this plugin's `opencode/` folder into a chain session's config, and `opencode/agent-bridge.mjs` does after each tool call what `context-checkpoint.mjs` and `mailbox.mjs` do on `PostToolUse` (both ask Even Keel through `hooks/evenkeel.mjs`). OpenCode has no way into the context in the middle of a turn but the tool's result, so the nudge and the chat's messages come after the tool's output, each in a `<system-reminder>` block; a delivered message is also kept in the call's metadata, where Even Keel's chat finds it (a tool that prints the mark from a file fakes no message). A subagent runs in a session of its own, which Even Keel does not know, so it is left alone.
 
-The merge check runs on `tool.execute.before` of the `bash` tool, with the same rules as the hook (`mergeRefusal` in `hooks/merges.mjs`), the worktree being the session's folder: the commands run asynchronously, so OpenCode's process is not blocked while they run, and a failed one throws, which keeps the call from running and gives the session the same text as its error.
+The ban on git of a project without git (`gitRefusal` in `hooks/gitban.mjs`) and the merge check run on `tool.execute.before` of the `bash` tool; the check has the same rules as the hook (`mergeRefusal` in `hooks/merges.mjs`), the worktree being the session's folder: the commands run asynchronously, so OpenCode's process is not blocked while they run, and a failed one throws, which keeps the call from running and gives the session the same text as its error.
 
 `opencode run` has no stop that a plugin can block: the turn ends on the session's first idle, and a prompt sent from inside a hook hung the turn. So the stop guard works the other way round: once the session has written `.temp/handoff.md` (`write`, `edit`), for the next three tool calls each text part that completes (`experimental.text.complete`) is checked as the `Stop` hook checks the last message — no mark on its last line and Even Keel's `/note` says yes — and gets the line `CHECKPOINT: .temp/handoff.md` added at its end. The session is not asked anything; the transcript Even Keel reads ends with the line. A text followed by more tool calls in the same step gets the line too, which does no harm: Even Keel reads only the turn's last message.
 
