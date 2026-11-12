@@ -20,17 +20,16 @@ import './gitSwitch.css'
 type Place = 'worktree' | 'slots'
 
 /** A switch button greyed with the reason in a tip while the project is busy (`gitSwitchBusy`). */
-function SwitchButton({ busy, label, danger = false, onClick }: { busy: boolean; label: string; danger?: boolean; onClick: () => void }) {
-  const className = danger ? 'button button--small' : 'button'
+function SwitchButton({ busy, label, onClick }: { busy: boolean; label: string; onClick: () => void }) {
   if (!busy)
     return (
-      <button type="button" className={className} onClick={onClick}>
+      <button type="button" className="button" onClick={onClick}>
         {label}
       </button>
     )
   return (
     <Tipped tip={t.settings.gitSwitch.busy} inline>
-      <button type="button" className={className} aria-disabled="true">
+      <button type="button" className="button" aria-disabled="true">
         {label}
       </button>
     </Tipped>
@@ -213,43 +212,5 @@ function GitChanges({ files, commit, onCommit }: { files: string[]; commit: bool
         <span className="settings__hint">{commit ? text.commitHint : text.noCommitHint}</span>
       </div>
     </Section>
-  )
-}
-
-/** The Repository tab's card of a git project: "Turn off git" behind a confirmation; left task worktrees ask once more. */
-export function GitOffSection({ state, project }: { state: EvenKeelState | null; project: string }) {
-  const [open, setOpen] = useState(false)
-  const text = t.settings.gitSwitch
-  const busy = state === null || gitSwitchBusy(state, project)
-  return (
-    <Section title={text.offSection} hint={text.offHint}>
-      <div className="account__actions">
-        <SwitchButton busy={busy} label={text.off} danger onClick={() => setOpen(true)} />
-      </div>
-      {open && state !== null && <GitOffConfirm state={state} project={project} onClose={() => setOpen(false)} />}
-    </Section>
-  )
-}
-
-/** Its own command, so a refusal shown in one opening is gone in the next. */
-function GitOffConfirm({ state, project, onClose }: { state: EvenKeelState; project: string; onClose: () => void }) {
-  const { send, sending, failure } = useCommand()
-  const text = t.settings.gitSwitch
-  // The service named the worktrees left with work: the next press turns git off over them.
-  const warned = failure?.code === 'project.gitOffWorktrees'
-  const turnOff = async () => {
-    if (await send('project/git', { project, on: false, force: warned })) onClose()
-  }
-  return (
-    <ConfirmDialog
-      title={text.off}
-      question={text.offQuestion(projectLabel(state, project))}
-      confirm={warned ? text.offAnyway : text.off}
-      cancel={t.common.cancel}
-      busy={sending}
-      failure={failure !== null ? say(failure) : undefined}
-      onConfirm={() => void turnOff()}
-      onClose={onClose}
-    />
   )
 }

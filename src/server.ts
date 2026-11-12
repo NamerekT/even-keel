@@ -58,12 +58,14 @@ const COMMANDS: Record<string, Command> = {
   'project/branch/adopt': ({ settings }, body) => settings.adoptBranch(projectOf(body)),
   'project/branch/restore': ({ settings }, body) => settings.restoreBranch(projectOf(body)),
   'project/remove': ({ settings }, body) => settings.remove(projectOf(body)),
-  'project/git': ({ settings }, body) =>
-    settings.switchGit(projectOf(body), switchOf(body.on, 'on'), {
+  // Git is only turned on (BTN-1063): a tab open since before that, or a hand call, may still ask to turn it off.
+  'project/git': ({ settings }, body) => {
+    if (!switchOf(body.on, 'on')) throw fail('project.gitStaysOn', {})
+    return settings.turnGitOn(projectOf(body), {
       slot: body.slot === undefined ? 0 : numberOf(body.slot, 'slot'),
-      force: body.force === true,
       commit: body.commit === true,
-    }),
+    })
+  },
   'project/feed/add': ({ settings }, body) => settings.addFeed(projectOf(body), feedDraftOf(body)),
   'project/feed/remove': ({ settings }, body) => settings.removeFeed(projectOf(body), textOf(body.feed, 'feed')),
   'project/feed/profile': ({ settings }, body) =>

@@ -24,7 +24,7 @@ describe('a project without git', { timeout: 60_000 }, () => {
 
   const launches = () => run.agent.calls.filter((call) => call.kind === 'launch')
 
-  it('switches git on for an existing repository, persists it over a restart and launches in a worktree, then switches off', async () => {
+  it('switches git on for an existing repository, persists it over a restart and launches in a worktree', async () => {
     Object.assign(run.project, { repo: run.repo, slot: 3 })
     run.board.add('ABC-1')
     run.agent.script('ABC-1', ends({ noChanges: 'checked the worktree' }))
@@ -38,12 +38,16 @@ describe('a project without git', { timeout: 60_000 }, () => {
     await run.until(() => run.board.status('ABC-1') === 'Done', 'worktree task done')
     expect(launches()[0]!.cwd).not.toBe(run.repo)
     expect(launches()[0]!.cwd).toContain('worktrees')
-    await run.until(() => run.service.dispatcher.state.active.every((chain) => chain.current === null), 'no task held')
-    await run.until(() => run.service.sessions.every((session) => session.lamp === 'finished'), 'no live session')
-    await run.post('project/git', { project: PROJECT_ID, on: false, force: true })
-    expect(run.service.configStore.view().projects[PROJECT_ID]!.git).toBe(false)
-    await run.restart()
-    expect(run.service.configStore.view().projects[PROJECT_ID]!.git).toBe(false)
+  })
+
+  it('refuses to turn git off and changes nothing', async () => {
+    // The harness's own git project, as the other files have it.
+    for (const key of ['git', 'repo']) delete run.project[key]
+    await run.start()
+    const before = run.service.configStore.view().projects[PROJECT_ID]
+    const refusal = await run.refused('project/git', { project: PROJECT_ID, on: false, force: true })
+    expect(refusal.code).toBe('project.gitStaysOn')
+    expect(run.service.configStore.view().projects[PROJECT_ID]).toEqual(before)
     expect(existsSync(join(run.repo, '.git'))).toBe(true)
   })
 

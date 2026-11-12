@@ -27,7 +27,7 @@ import { guardHosts, guardToken } from '../guard.js'
 import { readJson } from '../packages/plugins.js'
 import { checkDraft, isTrusted } from '../projects/check.js'
 import { addProject } from '../projects/add.js'
-import { gitSwitchBlock, taskWorktrees, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
+import { gitSwitchBlock, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
 import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
 import { createEvenKeelServer } from '../server.js'
@@ -387,7 +387,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         if (ctx.configStore.view().projects[project]!.git) return { files: [] }
         return { files: await uncommittedChanges(runGit, repo) }
       },
-      switchGit: async (project, on, { slot, force, commit }) => {
+      turnGitOn: async (project, { slot, commit }) => {
         const config = ctx.configStore.current
         const repo = config.projects[project]
         if (repo === undefined) throw fail('config.unknownProject', { key: project })
@@ -397,21 +397,13 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         const blocked = gitSwitchBlock({ ...ctx.removalFacts(project, repo), project: label }, inHand)
         if (blocked !== null) throw new NoticeError(blocked)
         const base = ctx.configStore.view().projects[project]!
-        if (base.git === on) return
-        const write = (form: typeof base, from: typeof base) =>
-          ctx.configStore.saveProject(project, form, from, profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules)
-        if (on) {
-          const { made, committed } = await turnGitOn(runGit, repo, label, base.branch.trim() || DEFAULT_BRANCH, { commit })
-          // The entry may still carry a slot count the mode without git ignored: the chosen one is written over it.
-          write({ ...base, git: true, slot }, { ...base, slot: -1 })
-          const how = made ? ', its folder made a repository with a first commit' : committed ? ', the work done without git committed' : ''
-          console.log(`page: git is on for ${label}${how}`)
-          return
-        }
-        const worktrees = await taskWorktrees(runGit, repo)
-        if (worktrees.length > 0 && !force) throw fail('project.gitOffWorktrees', { worktrees })
-        write({ ...base, git: false }, base)
-        console.log(`page: git is off for ${label}; its .git and ${worktrees.length} task worktrees are left as they are`)
+        if (base.git) return
+        const { made, committed } = await turnGitOn(runGit, repo, label, base.branch.trim() || DEFAULT_BRANCH, { commit })
+        // The entry may still carry a slot count the mode without git ignored: the chosen one is written over it.
+        const rules = profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules
+        ctx.configStore.saveProject(project, { ...base, git: true, slot }, { ...base, slot: -1 }, rules)
+        const how = made ? ', its folder made a repository with a first commit' : committed ? ', the work done without git committed' : ''
+        console.log(`page: git is on for ${label}${how}`)
       },
       addFeed: (project, { profile, ...draft }) => {
         const chosen = profile === null ? undefined : ctx.profiles.current().profiles.find((each) => each.id === profile)

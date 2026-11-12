@@ -729,11 +729,10 @@ export const en = {
   'project.removeSessions': (p: { sessions: string[] }) => `live sessions: ${list(p.sessions)}`,
   'project.removePlaces': (p: { tasks: string[] }) => `the chain holds the worktree or slot of ${list(p.tasks)}`,
   'project.removeLeftovers': (p: { tasks: string[] }) => `the cleanup after Done left the place of ${list(p.tasks)}`,
-  // Turning git on or off for a project (BTN-884, `src/projects/git-mode.ts`).
-  'project.gitBusy': (p: { project: string }) => `git of ${p.project} is not switched now: wait until the task ends, or stop the chain`,
+  // Turning git on for a project (BTN-884, `src/projects/git-mode.ts`); it is never turned off (BTN-1063).
+  'project.gitBusy': (p: { project: string }) => `git of ${p.project} is not turned on now: wait until the task ends, or stop the chain`,
   'project.gitTaskInHand': (p: { task: string }) => `the chain works on ${p.task}`,
-  'project.gitOffWorktrees': (p: { worktrees: string[] }) =>
-    `these worktrees still hold work of tasks, and once git is off Even Keel no longer merges or removes them: ${list(p.worktrees)}`,
+  'project.gitStaysOn': () => 'git of a project is no longer turned off: reload the page, it no longer offers that',
   // `files` are `git status --porcelain` lines: the "Turn on git" dialog lists them itself (BTN-1054).
   'project.gitDirty': (p: { project: string; files: string[] }) =>
     `the folder of ${p.project} has ${p.files.length} uncommitted changes made while git was off: tick “Commit them in one commit” in “Turn on git”, or commit them yourself`,

@@ -163,8 +163,9 @@ export function fakeGitChanges(count: string | null): { files: string[] } {
   return { files }
 }
 
-/** `project/git` turns git on or off between tasks; a running chain refuses as the service would. */
+/** `project/git` turns git on between tasks and never off; a running chain refuses as the service would. */
 function withGit(state: EvenKeelState, body: Record<string, unknown>): EvenKeelState {
+  if (body.on !== true) throw fail('project.gitStaysOn', {})
   const id = String(body.project)
   const form = state.config.projects[id]
   if (form === undefined) throw fail('config.unknownProject', { key: id })
@@ -173,7 +174,7 @@ function withGit(state: EvenKeelState, body: Record<string, unknown>): EvenKeelS
     const label = state.projectKeys[id] ?? id
     throw new NoticeError(notice('project.gitBusy', { project: label }, { items: [notice('project.gitTaskInHand', { task: inHand })] }))
   }
-  const next: ProjectForm = body.on === true ? { ...form, git: true, slot: typeof body.slot === 'number' ? body.slot : 0 } : { ...form, git: false }
+  const next: ProjectForm = { ...form, git: true, slot: typeof body.slot === 'number' ? body.slot : 0 }
   return { ...state, config: { ...state.config, projects: { ...state.config.projects, [id]: next } } }
 }
 

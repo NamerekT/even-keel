@@ -5,7 +5,7 @@ import { CommandBlock } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { BadgeButton } from './BadgeButton.js'
 import { BranchDriftBand, BranchField, BranchMoveLine } from './BranchField.js'
-import { GitOffSection, GitOnSection } from './GitSwitch.js'
+import { GitOnSection } from './GitSwitch.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import type { PanelFields } from './projectSettingsFields.js'
 import { ErrorStrip, FieldHead, fieldId, Row, Section, SwitchField, wholeOf } from './settingsParts.js'
@@ -109,7 +109,6 @@ export function ProjectRepoTab({
         <ColorField fields={fields} />
       </Section>
       <BadgeButton project={project} badge={form.badge} />
-      <GitOffSection state={state} project={project} />
       <ProjectRemove project={project} />
     </>
   )

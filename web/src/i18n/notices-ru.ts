@@ -697,10 +697,9 @@ export const noticesRu: NoticeTexts = {
   'project.removeSessions': (p) => `живые сессии: ${list(p.sessions)}`,
   'project.removePlaces': (p) => `цепочка держит worktree или слот задач ${list(p.tasks)}`,
   'project.removeLeftovers': (p) => `после Done остались несобранные места задач ${list(p.tasks)}`,
-  'project.gitBusy': (p) => `git у ${p.project} сейчас не переключить: дождитесь конца задачи или остановите цепочку`,
+  'project.gitBusy': (p) => `git у ${p.project} сейчас не включить: дождитесь конца задачи или остановите цепочку`,
   'project.gitTaskInHand': (p) => `цепочка работает над ${p.task}`,
-  'project.gitOffWorktrees': (p) =>
-    `в этих worktree ещё лежит работа задач, а без git Even Keel их больше не смержит и не уберёт: ${list(p.worktrees)}`,
+  'project.gitStaysOn': () => 'git у проекта больше не выключается: обновите страницу, на ней этого уже нет',
   'project.gitDirty': (p) =>
     `в папке ${p.project} есть незакоммиченные изменения, сделанные без git (${p.files.length}): отметьте «Закоммитить их одним коммитом» в «Включить git» или закоммитьте их сами`,
   'eventLog.limit': () => 'цепочка встала на лимите',

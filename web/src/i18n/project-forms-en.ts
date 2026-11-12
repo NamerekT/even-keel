@@ -443,7 +443,7 @@ export const settingsEN: Messages['settings'] = {
     gitSwitch: {
       onSection: 'History of changes',
       onHint:
-        'The folder becomes a git repository: a history of changes, a folder of its own or a lasting folder per task, branches and merges. Whatever the folder holds goes into the first commit. It switches only between tasks.',
+        'The folder becomes a git repository: a history of changes, a folder of its own or a lasting folder per task, branches and merges. Whatever the folder holds goes into the first commit. It turns on only between tasks and is not turned off later.',
       on: 'Turn on git',
       needGit: 'Install git, then press “Check again” in the Git section.',
       needIdentity: 'Fill in and save the name and e-mail for commits.',
@@ -460,11 +460,6 @@ export const settingsEN: Messages['settings'] = {
       noCommitHint: 'Git turns on only once the folder has no uncommitted changes: commit them yourself first.',
       place: 'How tasks work',
       placeLead: 'Optional: left as it is, each task gets a folder of its own.',
-      offSection: 'Git',
-      offHint: 'Even Keel stops making worktrees, branches and merges: tasks go in one folder and close by the session’s answer. The .git folder and the history stay. It switches only between tasks.',
-      off: 'Turn off git',
-      offQuestion: (project: string) => `Turn off git for ${project}? Tasks go one at a time in the main folder; the repository and its history stay.`,
-      offAnyway: 'Turn off anyway',
     },
     branch: 'Main branch',
     branchHint: 'Tasks branch off it and merge into it, the CI checks it. Saving another branch switches the main checkout to it, and one the repository lacks is created.',

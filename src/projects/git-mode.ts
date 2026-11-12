@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs'
 import { requireStarted } from '../git/setup.js'
 import type { Git } from '../git/types.js'
-import { ensureIgnored, must, parseWorktrees, requireBranch, requireCheckedOut } from '../git/worktree.js'
+import { ensureIgnored, must, requireBranch, requireCheckedOut } from '../git/worktree.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { RemovalFacts } from './removal.js'
@@ -95,17 +95,8 @@ async function requireIdentity(git: Git, folder: string): Promise<void> {
   if (name === null || email === null) throw fail('git.noIdentity', {})
 }
 
-/** The worktrees of the project's repository besides its main checkout: work of tasks that turning git off leaves behind. */
-export async function taskWorktrees(git: Git, folder: string): Promise<string[]> {
-  const listed = await git(folder, ['worktree', 'list', '--porcelain'])
-  if (listed.code !== 0) return []
-  return parseWorktrees(listed.out)
-    .map((each) => each.path)
-    .filter((path) => !samePath(path, folder))
-}
-
 /**
- * Why the project's git mode cannot be switched now, each reason an item; `null` — it can. A chain may run, but only
+ * Why git cannot be turned on for the project now, each reason an item; `null` — it can. A chain may run, but only
  * between tasks: no task in hand, no live session, no worktree or slot it holds.
  */
 export function gitSwitchBlock(facts: Pick<RemovalFacts, 'project' | 'sessions' | 'held'>, inHand: string | null): Notice | null {

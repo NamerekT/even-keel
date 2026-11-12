@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runGit } from '../git/run.js'
 import type { Git } from '../git/types.js'
-import { gitSwitchBlock, taskWorktrees, turnGitOn, uncommittedChanges } from './git-mode.js'
+import { gitSwitchBlock, turnGitOn, uncommittedChanges } from './git-mode.js'
 
 const IDENTITY = ['-c', 'user.name=John Doe', '-c', 'user.email=john@example.com']
 /** Real git with a name and e-mail of its own and no hooks, whatever the machine's config says. */
@@ -146,19 +146,6 @@ describe('turnGitOn', { timeout: 30_000 }, () => {
     const path = folder()
     await expect(turnGitOn(git, path, 'ABC', 'a..b')).rejects.toMatchObject({ notice: { code: 'wizard.branchName' } })
     await expect(turnGitOn(git, join(path, 'gone'), 'ABC', 'main')).rejects.toMatchObject({ notice: { code: 'wizard.noFolder' } })
-  })
-})
-
-describe('taskWorktrees', { timeout: 30_000 }, () => {
-  it('lists the worktrees besides the main checkout, none for a folder without git', async () => {
-    const path = folder()
-    expect(await taskWorktrees(git, path)).toEqual([])
-    await turnGitOn(git, path, 'ABC', 'main')
-    expect(await taskWorktrees(git, path)).toEqual([])
-    await git(path, ['worktree', 'add', '-q', '-b', 'abc-1/task', join(path, '.claude', 'worktrees', 'abc-1')])
-    const found = await taskWorktrees(git, path)
-    expect(found).toHaveLength(1)
-    expect(found[0]!.replaceAll('\\', '/')).toMatch(/\/\.claude\/worktrees\/abc-1$/)
   })
 })
 
