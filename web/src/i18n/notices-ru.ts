@@ -697,7 +697,8 @@ export const noticesRu: NoticeTexts = {
   'wizard.folderName': (p) => `«${p.value}» — не имя папки: одно имя, без косых черт и знаков < > : " | ? *`,
   'wizard.folderFilled': (p) => `${p.path} не пуста: клону нужна пустая папка или та, которой ещё нет`,
   'wizard.folderIsFile': (p) => `${p.path} — файл, а не папка`,
-  'wizard.alreadyRepo': (p) => `${p.path} — уже git-репозиторий: выберите источник «Существующий»`,  'wizard.keyShape': (p) => `ключ — латинская заглавная буква и до 4 заглавных, цифр или _, а не «${p.value}»`,
+  'wizard.alreadyRepo': (p) => `${p.path} — уже git-репозиторий: выберите источник «Существующий»`,
+  'wizard.keyShape': (p) => `ключ — латинская заглавная буква и до 4 заглавных, цифр или _, а не «${p.value}»`,
   'wizard.branchName': (p) => `«${p.value}» — не имя ветки`,
   'wizard.trackerPlace': (p) => `назовите проект в трекере так: ${p.example}`,
   'wizard.trackerShared': (p) =>

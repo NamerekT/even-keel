@@ -266,6 +266,11 @@ export class Packages {
     return cells.filter(([, cell]) => cell.enabled && cell.problems.some((problem) => NEEDS_USER.has(problem.kind))).map(([name]) => name)
   }
 
+  /** The enabled packages of the project being installed right now: a new project's window waits for them (BTN-1048). */
+  installingOf(project: string): string[] {
+    return Object.entries(this.check(project).cells).filter(([name, cell]) => cell.enabled && this.installing.has(name)).map(([name]) => name)
+  }
+
   /** The chain waits while the project's set has a problem that holds it. */
   blocked(project: string): boolean {
     return this.gatewayError !== null || this.check(project).blocked

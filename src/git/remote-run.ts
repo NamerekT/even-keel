@@ -116,6 +116,9 @@ export function remoteReader(git: RemoteGit = runRemoteGit, now: () => number = 
   }
 }
 
+/** The reader the wizard's checks and the creation of a project share: a remote checked is not asked again on "Create". */
+export const sharedRemoteReader = remoteReader()
+
 export interface CloneRequest {
   remote: string
   path: string

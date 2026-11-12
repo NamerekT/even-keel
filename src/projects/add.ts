@@ -23,13 +23,14 @@ export interface AddDeps {
  * The checkout goes onto the draft's branch first, created or taken from a remote (BTN-754); the entry is written once
  * it stands there. A project without git has no checkout: its folder, typed or Even Keel's own, is made once the entry is in.
  */
-export async function addProject(deps: AddDeps, draft: ProjectDraft): Promise<void> {
+export async function addProject(deps: AddDeps, draft: ProjectDraft): Promise<string> {
   const ownDir = deps.projectsDir ?? projectsDir()
   const repo = await checkRepo(deps.git, draft, deps.configStore.raw(), process.platform, undefined, {}, deps.folders, ownDir)
   if (repo.notice !== null) throw new NoticeError(repo.notice)
   const id = draft.git === false ? await addPlain(deps, draft, draft.repo.trim() === '' ? null : repo.root!, ownDir) : await addCheckout(deps, draft, repo)
   if (draft.profile !== null) deps.profiles.link(id, draft.profile)
   console.log(`page: the project ${draft.key.trim()} is added to the config`)
+  return id
 }
 
 async function addCheckout(deps: AddDeps, draft: ProjectDraft, repo: Awaited<ReturnType<typeof checkRepo>>): Promise<string> {

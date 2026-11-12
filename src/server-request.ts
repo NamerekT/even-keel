@@ -90,7 +90,21 @@ export function draftOf(body: Record<string, unknown>): ProjectDraft {
   // A page open since before the agent field sends none: the shared provider.
   const provider = body.provider === undefined || body.provider === null ? null : text('provider')
   if (body.git !== undefined && typeof body.git !== 'boolean') throw fail('request.required', { field: 'git' })
-  return { ...fields, profile, slot: slot as number, milestones: milestones as string[], provider, ...(body.git === false ? { git: false } : {}) }
+  // A page open since before the source (BTN-1048) sends none: a checkout already there.
+  const { source } = body
+  if (source !== undefined && source !== 'clone' && source !== 'new' && source !== 'existing') throw fail('request.required', { field: 'source' })
+  const optional = (field: 'remote' | 'folder') => (body[field] === undefined ? {} : { [field]: textOf(body[field], field) })
+  return {
+    ...fields,
+    profile,
+    slot: slot as number,
+    milestones: milestones as string[],
+    provider,
+    ...(body.git === false ? { git: false } : {}),
+    ...(source === undefined ? {} : { source }),
+    ...optional('remote'),
+    ...optional('folder'),
+  }
 }
 
 export function feedDraftOf(body: Record<string, unknown>): FeedDraft {

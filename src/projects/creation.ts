@@ -26,7 +26,7 @@ export interface CreationDeps {
   trustFiles: (draft: ProjectDraft) => string[]
   trust: (file: string, folder: string) => void
   /** The project's packages still installing, and those only the user can make ready. */
-  packages: { installing(project: string): string[]; unready(project: string): string[] }
+  packages: { installingOf(project: string): string[]; unready(project: string): string[] }
   wait?: (ms: number) => Promise<void>
 }
 
@@ -56,7 +56,9 @@ export async function creationPlan(deps: CreationDeps, draft: ProjectDraft): Pro
   const made: Made = { folder: false, contents: false, git: false }
   const wait = deps.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   let project: string | undefined
-  const trustFiles = deps.trustFiles(draft)
+  // A folder that was there already is trusted by the user, as the wizard asks; one Even Keel makes is trusted here.
+  const ours = path !== null || (plain && draft.repo.trim() === '')
+  const trustFiles = ours ? deps.trustFiles(draft) : []
 
   const folder: StepDef = {
     id: 'folder',
@@ -135,7 +137,7 @@ export async function creationPlan(deps: CreationDeps, draft: ProjectDraft): Pro
     id: 'packages',
     run: async ({ signal }) => {
       const until = Date.now() + PACKAGES_WAIT_MS
-      while (deps.packages.installing(project!).length > 0 && Date.now() < until && !signal.aborted) await wait(PACKAGES_POLL_MS)
+      while (deps.packages.installingOf(project!).length > 0 && Date.now() < until && !signal.aborted) await wait(PACKAGES_POLL_MS)
       const unready = deps.packages.unready(project!)
       if (unready.length > 0 && !signal.aborted) throw fail('job.packagesUnready', { packages: unready })
     },

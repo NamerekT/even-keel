@@ -121,6 +121,11 @@ export class StepJobs {
     this.changed?.()
   }
 
+  /** Waits for the job's current run: tests and a shutdown. */
+  async settled(id: string): Promise<void> {
+    await this.jobs.get(id)?.run
+  }
+
   private job(id: string): Running {
     const job = this.jobs.get(id)
     if (job === undefined) throw fail('job.unknown', {})
@@ -174,3 +179,6 @@ export class StepJobs {
     this.changed?.()
   }
 }
+
+/** The service's jobs: the page shows each in a window (`EvenKeelState.jobs`). */
+export const stepJobs = new StepJobs()

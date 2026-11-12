@@ -100,6 +100,9 @@ const COMMANDS: Record<string, Command> = {
   'git/check': ({ git }) => git?.check(),
   'git/identity': ({ git }, body) => git?.identity(textOf(body.name, 'name'), textOf(body.email, 'email')),
   'git/init': ({ git }, body) => git?.init(textOf(body.repo, 'repo').trim(), textOf(body.branch, 'branch').trim() || DEFAULT_BRANCH),
+  'job/retry': ({ jobs }, body) => jobs?.retry(textOf(body.id, 'id')),
+  'job/cancel': ({ jobs }, body) => jobs?.cancel(textOf(body.id, 'id')),
+  'job/close': ({ jobs }, body) => jobs?.close(textOf(body.id, 'id')),
   'account/global': ({ account }, body) => account.useGlobal(textOf(body.agent, 'agent')),
   'account/api': ({ account }, body) =>
     account.addApiKey(

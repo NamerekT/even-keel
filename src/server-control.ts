@@ -150,7 +150,10 @@ export interface SettingsControl {
   adoptBranch(project: string): Promise<void>
   /** "Put the folder back": the main checkout goes onto the project's branch. */
   restoreBranch(project: string): Promise<void>
-  /** Adds the wizard's project to the config, the checkout moved onto its branch first; refuses one the config would not parse. */
+  /**
+   * Starts the job that creates the wizard's project (BTN-1048): the folder, the clone or the first commit, the entry on
+   * its main branch, the trust and the packages; the page follows it in `state.jobs`. A draft the check refuses starts none.
+   */
   add(draft: ProjectDraft): void | Promise<void>
   /** Drops the project from the config; refuses while its chain, sessions or places still hold it. */
   remove(project: string): void
@@ -234,6 +237,8 @@ export interface ServerDeps {
   hulyClient?: { install(): void }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
+  /** The windows of step jobs (BTN-1048): "Retry" of a failed step, "Cancel", closing a finished one. */
+  jobs?: { retry(id: string): void; cancel(id: string): Promise<void>; close(id: string): void }
   /** The demo on the first run (BTN-776): its project goes into the state's `demo`. */
   demo?: { start(language?: Language): Promise<unknown>; again(language?: Language): Promise<unknown>; remove(): Promise<void> }
   hub: EventHub

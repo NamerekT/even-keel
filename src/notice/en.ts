@@ -728,7 +728,8 @@ export const en = {
   'wizard.folderName': (p: { value: string }) => `"${p.value}" is not a folder name: one name, without slashes or the characters < > : " | ? *`,
   'wizard.folderFilled': (p: { path: string }) => `${p.path} is not empty: a clone needs an empty folder or one that is not there yet`,
   'wizard.folderIsFile': (p: { path: string }) => `${p.path} is a file, not a folder`,
-  'wizard.alreadyRepo': (p: { path: string }) => `${p.path} is a git repository already: choose "Existing" as the source`,  'wizard.keyShape': (p: { value: string }) => `the key is a capital Latin letter, then up to 4 capitals, digits or _, not "${p.value}"`,
+  'wizard.alreadyRepo': (p: { path: string }) => `${p.path} is a git repository already: choose "Existing" as the source`,
+  'wizard.keyShape': (p: { value: string }) => `the key is a capital Latin letter, then up to 4 capitals, digits or _, not "${p.value}"`,
   'wizard.branchName': (p: { value: string }) => `"${p.value}" is not a branch name`,
   'wizard.trackerPlace': (p: { example: string }) => `name the project in the tracker like ${p.example}`,
   'wizard.trackerShared': (p: { project: string }) =>

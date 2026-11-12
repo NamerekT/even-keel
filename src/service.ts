@@ -56,6 +56,7 @@ import { TranscriptWatch } from './sessions/watch.js'
 import { loadEnv, root, source, stateDirOf } from './locations.js'
 import { hulyClient, installForProfiles } from './huly/client.js'
 import { gitSetup } from './git/setup.js'
+import { stepJobs } from './jobs/runner.js'
 import { profileKinds } from './profiles/model.js'
 import { Profiles } from './profiles/service.js'
 import { importForgejo, importProfiles } from './profiles/store.js'
@@ -650,6 +651,7 @@ const secrets = accountsService.wireSecrets(context)
 const profiles: Profiles = accountsService.wireProfiles(context)
 hulyClient.changed = stateChanged
 gitSetup.changed = stateChanged
+stepJobs.changed = stateChanged
 void gitSetup.check().catch((error: unknown) => console.error(`git: could not read its version and identity: ${englishOf(noticeOf(error))}`))
 installForProfiles(profiles.current().profiles)
 /** The tracker refused the credentials of the profile the project runs on: its chain waits (BTN-200). */

@@ -241,6 +241,15 @@ describe('checkDraft', () => {
     expect(check.repo.notice).toEqual(expect.objectContaining({ code: 'wizard.branchName', params: { value: 'bad..name' } }))
   })
 
+  it("refuses an existing repository whose commits would have no name or e-mail, even in its own config (BTN-1048)", async () => {
+    const unset = { 'D:\\new config --get user.email': { code: 1, out: '' } }
+    const check = await checkDraft(deps({}, unset), draft)
+    expect(check.repo.notice).toEqual(expect.objectContaining({ code: 'git.noIdentity' }))
+    expect(check.tracker).toBeNull()
+    const named = { 'D:\\new config --get user.name': { code: 0, out: 'John Doe' }, 'D:\\new config --get user.email': { code: 0, out: 'john@example.com' } }
+    expect((await checkDraft(deps({}, named), draft)).repo.notice).toBeNull()
+  })
+
   it('says a repository without a commit needs one, whatever the branch, and asks no tracker', async () => {
     const empty = { [`D:\\new ${REFS}`]: { code: 0, out: '' } }
     for (const branch of ['', 'main']) {

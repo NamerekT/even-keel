@@ -5,7 +5,7 @@ import { parseRemote, remotesOf } from '../ci/remote.js'
 import { withNewProject, yieldedMilestones } from '../config-form.js'
 import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels, runSettings } from '../config.js'
 import { currentBranch, isBranchName, readBranches } from '../git/branches.js'
-import { remoteReader, type ReadRemote } from '../git/remote-run.js'
+import { sharedRemoteReader, type ReadRemote } from '../git/remote-run.js'
 import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath, sameSpelling, workingFolder } from '../paths.js'
@@ -93,7 +93,7 @@ export async function checkRepo(
   env: Readonly<Record<string, string | undefined>> = {},
   folders: Folders = REAL_FOLDERS,
   ownDir: string = projectsDir(),
-  readRemote: ReadRemote = sharedReader,
+  readRemote: ReadRemote = sharedRemoteReader,
 ): Promise<ProjectCheck['repo']> {
   const typed = draft.repo.trim()
   const none = { root: null, current: null, suggested: null, branches: null }
@@ -132,8 +132,6 @@ export async function checkRepo(
   if (await lacksIdentity(git, root)) return { ...found, branches, notice: notice('git.noIdentity', {}) }
   return { ...found, branches, notice: null }
 }
-
-const sharedReader = remoteReader()
 
 /** `git config --get` ends with 1 for a value that is unset; any other failure is not taken for one. */
 async function lacksIdentity(git: Git, root: string): Promise<boolean> {

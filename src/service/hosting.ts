@@ -25,8 +25,12 @@ import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice
 import { isBadgeSlug, isHttp } from '../badge/settings.js'
 import { guardHosts, guardToken } from '../guard.js'
 import { readJson } from '../packages/plugins.js'
-import { checkDraft, isTrusted } from '../projects/check.js'
+import { checkDraft, checkRepo, isTrusted } from '../projects/check.js'
 import { addProject } from '../projects/add.js'
+import { creationPlan } from '../projects/creation.js'
+import { cloner, sharedRemoteReader } from '../git/remote-run.js'
+import { stepJobs } from '../jobs/runner.js'
+import { trustFolder } from '../claude/trust.js'
 import { gitSwitchBlock, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
 import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
@@ -256,6 +260,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     cliCopies: Object.fromEntries(Object.entries(ctx.cliCopies.view()).map(([name, copy]) => [name, { ...copy, installed: ctx.cliVersions.installedOf(name) }])),
     cliChecks: ctx.cliChecks.view(),
     git: gitSetup.view(),
+    jobs: stepJobs.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,
       task,
@@ -301,6 +306,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     cli: ctx.cliCopies,
     hulyClient,
     git: gitSetup,
+    jobs: stepJobs,
     demo: ctx.demo,
     hub: ctx.hub,
     publicDir: join(root, 'dist', 'web'),
@@ -372,7 +378,26 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       branches: (project) => ctx.branches.branches(project),
       adoptBranch: (project) => ctx.branches.adopt(project),
       restoreBranch: (project) => ctx.branches.restore(project),
-      add: (draft) => addProject({ configStore: ctx.configStore, profiles: ctx.profiles, git: runGit }, draft),
+      add: async (draft) => {
+        const plan = await creationPlan(
+          {
+            git: runGit,
+            clone: cloner(),
+            readRemote: sharedRemoteReader,
+            check: (each) => checkRepo(runGit, each, ctx.configStore.raw(), process.platform),
+            add: (each) => addProject({ configStore: ctx.configStore, profiles: ctx.profiles, git: runGit }, each),
+            folderOf: (project) => ctx.configStore.current.projects[project]!,
+            trustFiles: (each) => {
+              const run = runSettings(ctx.configStore.current, undefined)
+              return (each.provider ?? run.provider) === CLAUDE || run.labels ? ctx.claudeConfigs() : []
+            },
+            trust: (file, folder) => trustFolder(file, folder),
+            packages: ctx.packages,
+          },
+          draft,
+        )
+        stepJobs.start(plan)
+      },
       remove: (project) => {
         const repo = ctx.configStore.current.projects[project]
         if (repo === undefined) throw fail('config.unknownProject', { key: project })
