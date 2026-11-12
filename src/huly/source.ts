@@ -148,8 +148,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   const findStatuses = () => client.findAll<HulyStatusDoc>(tracker.class.IssueStatus, {})
   const findIssues = (query: Query) => client.findAll<HulyIssueDoc>(tracker.class.Issue, query, { projection: ISSUE_FIELDS })
   const findAttachments = (query: Query) => client.findAll<HulyAttachmentDoc>(ATTACHMENT, query, { projection: ATTACHMENT_FIELDS })
-  const repliesTo = async (comments: { _id: string }[], options?: { projection: Record<string, 1> }): Promise<ChatMessageDoc[]> =>
-    comments.length === 0 ? [] : client.findAll<ChatMessageDoc>(THREAD_MESSAGE, { attachedTo: { $in: comments.map((doc) => doc._id) } }, options)
+  const repliesTo = async (comments: { _id: string }[]): Promise<ChatMessageDoc[]> =>
+    comments.length === 0 ? [] : client.findAll<ChatMessageDoc>(THREAD_MESSAGE, { attachedTo: { $in: comments.map((doc) => doc._id) } })
 
   let storage: Promise<StorageClient> | null = null
   // The storage token may expire while the service runs: a failed call connects anew once.
@@ -370,8 +370,9 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     },
     async file(identifier, file) {
       const issue = await findIssue(identifier)
-      const messages = await client.findAll<{ _id: string }>(CHAT_MESSAGE, { attachedTo: issue._id }, { projection: { _id: 1 } })
-      const replies = await repliesTo(messages, { projection: { _id: 1 } })
+      // No projection here: Huly answers a projected query on comments or replies with no documents (BTN-1019).
+      const messages = await client.findAll<{ _id: string }>(CHAT_MESSAGE, { attachedTo: issue._id })
+      const replies = await repliesTo(messages)
       const [doc] = await findAttachments({ attachedTo: { $in: [issue._id, ...[...messages, ...replies].map((each) => each._id)] }, file })
       if (doc === undefined) return null
       return { type: doc.type ?? '', size: doc.size ?? null, body: await readFile(file) }
