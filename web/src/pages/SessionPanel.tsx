@@ -26,6 +26,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { Loading } from '../ui/Loader.js'
 import { offersAccept } from './acceptAnswer.js'
+import { chatSessionOf } from './chatSession.js'
 import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
 import { backgroundTip, sessionStatus } from './sessionStatus.js'
@@ -199,11 +200,10 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
   const aside = block.aside === true
   // Once the chain stopped, the session that lives on is still answered from the chat.
   const talking = live ?? (aside || block.loose === true ? session : null)
-  // A reply stops the session and resumes it: for those seconds it is gone from the state, the open chat stays on its last view.
-  // So does a handoff until the new session is up, and the task's close: the chat stays open on the last session, shut.
+  // The task's close keeps the chat open on the last session, shut (`chatSessionOf`).
   const lastTalking = useRef(talking)
   if (talking !== null) lastTalking.current = talking
-  const chatSession = talking ?? (chatting ? lastTalking.current : null)
+  const { session: chatSession, live: chatLive } = chatSessionOf({ talking, last: lastTalking.current, chatting, open: block.open, sessions: state?.sessions ?? [] })
   const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
   const quietSince = live === null ? null : shownSilence(live.lamp, live.waitingFor, live.silentSince, now.getTime())
   const quietAt = quietSince === null ? null : Date.parse(quietSince)
@@ -330,7 +330,7 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
           <TranscriptWindow
             sessionId={chatSession.sessionId}
             account={chatSession.account}
-            live={block.open && (chatSession.lamp !== 'finished' || talking === null)}
+            live={chatLive}
             task={task}
             chat={{
               project: body.project,
