@@ -142,6 +142,7 @@ export function setup(options: SetupOptions = {}) {
       return { sessionId: `session-${++counter}`, ...(options.fallback?.[id] !== undefined && { fallback: options.fallback[id] }) }
     },
     liveSession: (id) => live[id],
+    lastSession: (project, id) => journal.findLast((entry) => entry.project === project && entry.task === id)?.sessionId,
     blocked: (project, id) => {
       const blocked = options.blocked
       if (typeof blocked === 'function') return blocked(project, id)

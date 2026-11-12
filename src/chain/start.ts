@@ -3,6 +3,22 @@ import type { ActiveChain, CarrySession, ChainState, CurrentTask, DispatcherDeps
 
 const SLOT_REFUSALS = new Set(['slot.noneFree', 'slot.busyStart'])
 
+/** How long a session the chain has just started may go unseen by the monitor and still count as mid-turn. */
+const LAUNCH_SEEN_MS = 60_000
+
+/**
+ * Whether "Stop after the turn" has a turn to wait out: a session seen working, or one the chain started within the
+ * last minute that has not replied yet and waits on no question — the monitor shows it working seconds later (BTN-1044).
+ */
+export function inTurn(deps: DispatcherDeps, current: CurrentTask): boolean {
+  if (deps.midTurn(current.task)) return true
+  const fresh = (at: string) => deps.now().getTime() - Date.parse(at) < LAUNCH_SEEN_MS
+  if (current.starting !== undefined) return fresh(current.starting)
+  if (current.sessionId === null || !fresh(current.since) || deps.busy(current.task)) return false
+  const session = deps.handoff(current.task)
+  return session === undefined || session.sessionId !== current.sessionId || session.lastReplyAt === null
+}
+
 /** Starts the prepared task and records its session, or leaves an unattended chain waiting for a slot. */
 export async function startTask(
   state: ChainState,

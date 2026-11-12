@@ -1,7 +1,7 @@
 import type { Changes } from '../git/types.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { MESSAGE_LIMIT, withoutMark } from '../sessions/transcript.js'
-import { isFixName } from './fix.js'
+import { isFixName, isOwnName } from './fix.js'
 import type { Handovers } from './handover.js'
 import type { ActiveChain, CurrentTask, DispatcherDeps } from './model.js'
 import { PROMPTS } from './prompts.js'
@@ -46,12 +46,30 @@ export class Unchanged {
         await this.deps.unchanged!.complete(project, task, texts.comment(mark.reason))
       }
     } catch (error) {
+      // Nothing else closes a task of a folder without git, so Resume tries the same mark again (BTN-1044).
+      if (this.closesByMark(task)) this.tried.delete(task)
       this.hold(chain, notice('chain.unchangedNotCompleted', { task }, { cause: noticeOf(error) }))
       return true
     }
     this.deps.log(`chain: ${task} is moved to done in the tracker`)
     await this.deps.refresh(project).catch(() => undefined)
     return true
+  }
+
+  /** The task is closed by its session's mark alone, with no merge or tracker move of the session's own: a project without git. */
+  closesByMark(task: string): boolean {
+    return this.deps.unchanged !== undefined && this.deps.plain?.(task) === true && !isOwnName(task)
+  }
+
+  /**
+   * The session the chain launched last on the task, now over, whose last turn ended with the mark (BTN-1044): the
+   * task is closed by it instead of being run again. A turn after the mark without one has cleared it in the transcript.
+   */
+  left(project: string, task: string): string | undefined {
+    if (!this.closesByMark(task)) return undefined
+    const session = this.deps.handoff(task)
+    if (session === undefined || (session.noChanges ?? null) === null) return undefined
+    return this.deps.lastSession?.(project, task) === session.sessionId ? session.sessionId : undefined
   }
 
   /**

@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { done, setup, task } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
 
+/** Past the minute a just-launched session counts as mid-turn before the monitor sees it (BTN-1044). */
+const SEEN_MS = 61_000
+
 describe('Dispatcher stopping after the session turn', () => {
   it('waits out the turn, then stops and takes nothing further', async () => {
     const busy = new Set<string>(['ABC-1'])
-    const { dispatcher, launched } = setup({ busy })
+    const { dispatcher, launched, clock } = setup({ busy })
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     dispatcher.start('ABC')
     await dispatcher.idle()
@@ -15,6 +18,7 @@ describe('Dispatcher stopping after the session turn', () => {
     expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1' }, stopAfter: true })
 
     busy.clear()
+    clock.now = new Date(clock.now.getTime() + SEEN_MS)
     dispatcher.check()
     await dispatcher.idle()
     expect(dispatcher.state.active).toEqual([])
@@ -89,13 +93,14 @@ describe('Dispatcher stopping after the session turn', () => {
   })
 
   it('gives the place to the next project of the queue', async () => {
-    const { dispatcher, launched } = setup()
+    const { dispatcher, launched, clock } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     dispatcher.setTasks('XYZ', [task('XYZ-1')])
     dispatcher.start('ABC')
     dispatcher.start('XYZ')
     await dispatcher.idle()
     expect(dispatcher.state.queue).toEqual(['XYZ'])
+    clock.now = new Date(clock.now.getTime() + SEEN_MS)
 
     dispatcher.stopAfter('ABC', true)
     await dispatcher.idle()

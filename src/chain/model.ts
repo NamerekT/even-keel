@@ -339,6 +339,8 @@ export interface DispatcherDeps {
    */
   launch: (project: string, task: string, extra?: string) => Promise<Launched>
   liveSession: (task: string) => string | undefined
+  /** The session of the task's newest entry in the launch journal; absent — the journal is not read. */
+  lastSession?: (project: string, task: string) => string | undefined
   /**
    * Why no session of the project starts now; `task` — the one about to start, its label may pick another agent.
    * Without a task only the project's own requirements are checked, not an agent or account (BTN-521).

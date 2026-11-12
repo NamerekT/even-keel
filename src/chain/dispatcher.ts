@@ -32,7 +32,7 @@ import type { HandoffSession } from './relay.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { guardRestart } from './restartGuard.js'
 import { requireLimit, waitsForLimits } from './limitNotice.js'
-import { startTask } from './start.js'
+import { inTurn, startTask } from './start.js'
 import { OverageStops } from './overage.js'
 import { LaunchPauses } from './pauses.js'
 
@@ -254,7 +254,10 @@ export class Dispatcher {
   stopAfter(project: string, on: boolean): void {
     const chain = this.chainOf(project)
     if (chain === undefined || (chain.stopAfter === true) === on) return
-    if (on && chain.closing === undefined && !(chain.current !== null && this.deps.midTurn(chain.current.task))) {
+    const { current } = chain
+    // A mark the ended turn may carry is the step's to follow first.
+    const waits = current !== null && (inTurn(this.deps, current) || (current.sessionId !== null && this.unchanged.closesByMark(current.task)))
+    if (on && chain.closing === undefined && !waits) {
       // Nothing to wait out: stop now instead of flashing "stops after the turn" until the next step.
       this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
       this.stop(project)
@@ -678,7 +681,19 @@ export class Dispatcher {
       if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return
       // Asked to stop, the chain only waits out the session's turn: no Done, handoff or relay is followed meanwhile.
       if (chain.stopAfter) {
-        if (chain.current !== null && this.deps.midTurn(chain.current.task)) return
+        const current = chain.current
+        if (current !== null && inTurn(this.deps, current)) return
+        // Only the dispatcher closes a task of a project without git, so the mark the turn ended with is still followed (BTN-1044).
+        const closes = current !== null && current.sessionId !== null && this.unchanged.closesByMark(current.task) && tasks.some((open) => open.id === current.task)
+        if (closes && (await this.unchanged.follow(chain, current))) {
+          if (chain.paused) return
+          if (this.lists.done.get(chain.project)?.has(current.task)) {
+            chain.current = null
+            chain.closing = current.task
+            this.deps.save(this.state)
+            continue
+          }
+        }
         this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
         this.stop(chain.project)
         return
@@ -793,6 +808,14 @@ export class Dispatcher {
         // The feedback on the task's pull request goes to the session at once.
         if (own === undefined && this.reviews.feedbackOf(chain.project, task) !== undefined) continue
         return
+      }
+
+      const left = own === undefined && live === undefined ? this.unchanged.left(chain.project, task) : undefined
+      if (left !== undefined) {
+        this.deps.log(`chain: ${task} is not started again: its session ${left} is over and its last turn ended with the mark`)
+        this.take(chain, { task, sessionId: left, since })
+        this.deps.save(this.state)
+        continue
       }
 
       // A handover keeps the task's place and branch: like a relay after a limit, it does not wait for main.

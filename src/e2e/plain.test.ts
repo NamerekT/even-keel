@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ends } from './agent.fixture.js'
+import { ends, Gate, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 
 describe('a project without git', { timeout: 60_000 }, () => {
@@ -106,5 +106,91 @@ describe('a project without git', { timeout: 60_000 }, () => {
     expect(stopped).toBeLessThan(second)
     expect(launches().map((call) => call.cwd)).toEqual([folder, folder])
     expect(run.board.status('ABC-1')).toBe('Todo')
+  })
+
+  // BTN-1044: only the dispatcher closes a task here, so "Stop after the turn" must not skip the mark.
+  describe('asked to stop after the turn', () => {
+    const stopAfter = () => run.post('chain/stopAfter', { project: PROJECT_ID, on: true })
+    const stopped = () => run.service.dispatcher.state.active.length === 0
+
+    beforeEach(() => {
+      run.board.add('ABC-1')
+      run.board.add('ABC-2', 'ABC-1')
+      run.agent.script('ABC-2', ends({ noChanges: 'the second answer' }))
+    })
+
+    it('closes the task by the mark its turn ends with and does not start the next one', async () => {
+      const gate = new Gate()
+      run.agent.script('ABC-1', parked(gate, ends({ noChanges: 'the first answer' })))
+      await run.start()
+      await run.startChain(PROJECT_ID)
+      await run.until(() => run.service.agentStatus('ABC-1') === 'busy', 'the session of ABC-1 seen working')
+
+      await stopAfter()
+      expect(stopped()).toBe(false)
+      gate.open()
+      await run.until(stopped, 'the chain stopped')
+
+      expect(run.board.status('ABC-1')).toBe('Done')
+      expect(run.board.commentsOf('ABC-1').join('\n')).toContain('the first answer')
+      await run.pass(30_000)
+      expect(launches().map((call) => call.task)).toEqual(['ABC-1'])
+      expect(run.board.status('ABC-2')).toBe('Todo')
+    })
+
+    it('waits for the turn of a session it has just launched, before the monitor sees it working', async () => {
+      const gate = new Gate()
+      run.agent.script('ABC-1', parked(gate, ends({ noChanges: 'the first answer' })))
+      await run.start()
+      await run.startChain(PROJECT_ID)
+      await run.until(() => launches().length === 1, 'ABC-1 launched', { step: 100 })
+
+      await stopAfter()
+      expect(run.service.dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1' }, stopAfter: true })
+      // Longer than the minute a session may go unseen: by then the monitor shows the turn itself.
+      await run.pass(90_000)
+      expect(stopped()).toBe(false)
+      gate.open()
+      await run.until(stopped, 'the chain stopped')
+
+      expect(run.board.status('ABC-1')).toBe('Done')
+      expect(launches().map((call) => call.task)).toEqual(['ABC-1'])
+    })
+
+    it('closes a task on the next start by the mark of its finished session, with no new session', async () => {
+      run.agent.script('ABC-1', ends({ noChanges: 'the first answer' }))
+      await run.start()
+      await run.startChain(PROJECT_ID)
+      await run.until(() => launches().length === 1, 'ABC-1 launched', { step: 100 })
+      // "Stop": the session is not waited for and its mark is not read until the chain runs again.
+      await run.post('chain/stop', { project: PROJECT_ID })
+      await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.state === 'done', 'the turn of ABC-1 ended')
+      await run.pass(10_000)
+      expect(run.board.status('ABC-1')).not.toBe('Done')
+      run.agent.leaves(launches()[0]!.sessionId)
+      await run.pass(10_000)
+
+      await run.startChain(PROJECT_ID)
+      await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+      expect(run.board.status('ABC-1')).toBe('Done')
+      expect(run.board.commentsOf('ABC-1').join('\n')).toContain('the first answer')
+      expect(launches().map((call) => call.task)).toEqual(['ABC-1', 'ABC-2'])
+    })
+
+    it('closes it the same way after a restart of the service', async () => {
+      run.agent.script('ABC-1', ends({ noChanges: 'the first answer' }))
+      await run.start()
+      await run.startChain(PROJECT_ID)
+      await run.until(() => launches().length === 1, 'ABC-1 launched', { step: 100 })
+      await run.post('chain/stop', { project: PROJECT_ID })
+      await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.state === 'done', 'the turn of ABC-1 ended')
+      run.agent.leaves(launches()[0]!.sessionId)
+      await run.restart()
+
+      await run.startChain(PROJECT_ID)
+      await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+      expect(run.board.status('ABC-1')).toBe('Done')
+      expect(launches().map((call) => call.task)).toEqual(['ABC-1', 'ABC-2'])
+    })
   })
 })

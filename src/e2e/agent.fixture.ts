@@ -48,6 +48,14 @@ export class ScriptedAgent extends ScriptCore {
     session.entry = { ...session.entry, pid: SCRIPT_PID, status: 'waiting', state: 'blocked' }
   }
 
+  /** The process of a session at rest ends by itself, as a CLI's does some time after the turn: the service sees it finished. */
+  leaves(sessionId: string): void {
+    const session = this.known.get(sessionId)!
+    const { pid: _, resting: __, status: ___, ...rest } = session.entry
+    session.entry = { ...rest, state: 'done' }
+    this.changed()
+  }
+
   /** A session ended or stopped: its process left, so the service sees it finished. */
   isGone(sessionId: string): boolean {
     const entry = this.known.get(sessionId)?.entry

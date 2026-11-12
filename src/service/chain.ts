@@ -253,6 +253,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       return { sessionId, fallback }
     },
     liveSession: (task) => ctx.sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
+    lastSession: (project, task) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
     modelRefusal: (task, sessionId) => ctx.sessions.find(view => view.task === task && view.sessionId === sessionId && view.apiErrorKind === 'model')?.apiErrorNotice,
     modelBlock: async (project, task) => {
       const choice = ctx.choiceFor(project, task)
