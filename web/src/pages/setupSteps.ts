@@ -72,6 +72,14 @@ export function gitChoice(defaultGit: boolean | null, git: GitSetupView | undefi
   return git !== undefined && git.version !== null ? true : null
 }
 
+/**
+ * Whether going on from the Git step writes the "Yes" shown in advance (BTN-886): only "Next" keeps it. A pick has
+ * already written its answer, and the page's settings may not show it yet: a first "No" must not turn into "Yes" (BTN-1034).
+ */
+export function gitYesToKeep(defaultGit: boolean | null, git: GitSetupView | undefined, picked: boolean): boolean {
+  return !picked && defaultGit === null && gitChoice(null, git) === true
+}
+
 /** "Next" on the Git step: "No" goes on at once, "Yes" once git is ready (`gitReady`). */
 export function gitStepReady(defaultGit: boolean | null, git: GitSetupView | undefined): boolean {
   const choice = gitChoice(defaultGit, git)

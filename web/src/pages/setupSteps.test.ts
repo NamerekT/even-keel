@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
-import { accountShortName, agentReady, gitChoice, gitDownload, gitReady, gitStepReady, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
+import { accountShortName, agentReady, gitChoice, gitDownload, gitReady, gitStepReady, gitYesToKeep, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
 
 describe('gitReady', () => {
   it('goes on once git is installed and has a name and an e-mail to commit with (BTN-731)', () => {
@@ -29,6 +29,22 @@ describe('gitChoice', () => {
     expect(gitChoice(null, { ...READY, name: null, email: null })).toBe(true)
     expect(gitChoice(null, ABSENT)).toBe(null)
     expect(gitChoice(null, undefined)).toBe(null)
+  })
+})
+
+describe('gitYesToKeep', () => {
+  it('has "Next" write the "Yes" shown before an answer (BTN-886)', () => {
+    expect(gitYesToKeep(null, READY, false)).toBe(true)
+  })
+
+  it('writes nothing after a pick: the first "No" stays "No" (BTN-1034)', () => {
+    expect(gitYesToKeep(null, READY, true)).toBe(false)
+  })
+
+  it('writes nothing once an answer is kept or without git', () => {
+    expect(gitYesToKeep(false, READY, false)).toBe(false)
+    expect(gitYesToKeep(true, READY, false)).toBe(false)
+    expect(gitYesToKeep(null, ABSENT, false)).toBe(false)
   })
 })
 

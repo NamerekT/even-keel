@@ -13,7 +13,7 @@ import { providerName } from './settingsRun.js'
 import { AgentStep } from './SetupAgent.js'
 import { Cards, type Save } from './SetupChoices.js'
 import { GitStep } from './SetupGit.js'
-import { accountShortName, agentReady, gitChoice, gitStepReady, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
+import { accountShortName, agentReady, gitStepReady, gitYesToKeep, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
 import { trackerProfiles, TrackerStep } from './SetupTracker.js'
 import { StatsStep } from './StatsSetup.js'
 import { listSummary } from './wizard.js'
@@ -45,10 +45,10 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   const done = () => void navigate(own === 0 ? ADD_PROJECT : '/', { replace: true })
 
   // The page's language shown is only a guess until it is written: "Next" keeps it.
-  const onward = async () => {
+  // `picked`: a card on the step has already written its answer, which `shared` of this render does not hold yet.
+  const onward = async (picked = false) => {
     if (step === 'language' && shared.language === null && !(await save({ language, promptLanguage: language }))) return
-    // "Yes" picked in advance where git starts is an answer only once "Next" keeps it (BTN-886).
-    if (step === 'git' && shared.defaultGit === null && gitChoice(null, state.git) === true && !(await save({ defaultGit: true }))) return
+    if (step === 'git' && gitYesToKeep(shared.defaultGit, state.git, picked) && !(await save({ defaultGit: true }))) return
     if (next !== null) void navigate(stepPath(next))
   }
 
@@ -63,7 +63,7 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
     (step === 'agent' && !agentReady(shared.provider, state.cliCopies?.[shared.provider], state.account, shared.accounts[shared.provider] ?? ''))
   // The Git and agent steps are parts of their own, each in its card with a dot, as in the project wizard (BTN-603).
   const parts = step === 'agent' || step === 'git'
-  const body = <StepBody step={step} state={state} save={save} sending={sending} onDone={done} onPicked={() => void onward()} />
+  const body = <StepBody step={step} state={state} save={save} sending={sending} onDone={done} onPicked={() => void onward(true)} />
   const foot = (
     <>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
