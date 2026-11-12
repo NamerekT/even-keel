@@ -15,7 +15,7 @@ export function fakeTranscript(open: Ask | null): FeedLine[] {
     {
       at: at(30),
       kind: 'text',
-      text: 'Порядок строится топологической сортировкой.\n\n- цикл сейчас роняет сервер;\n- сначала тест на цикл, потом правка.\n\n' + 'Длинное объяснение. '.repeat(40),
+      text: 'Порядок строится топологической сортировкой.\n\n- цикл сейчас роняет сервер;\n- сначала тест на цикл, потом правка.\n\n```\nError: cycle in the chain order: ABC-5 → ABC-7 → ABC-9 → ABC-5, the tasks of the cycle are left out of the order until a blocks link is removed\n    at chainOrder (C:\\repos\\example-project\\.claude\\worktrees\\abc-5\\src\\chain\\order.ts:42:11)\n```\n\nФайл `C:\\repos\\example-project\\.claude\\worktrees\\abc-5\\src\\chain\\order.ts`.\n\n' + 'Длинное объяснение. '.repeat(40),
     },
     ...fakeShots(at),
     { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },

@@ -52,8 +52,10 @@
   font-size: 0.9em;
 }
 
+/* A long line wraps softly instead of scrolling: on a phone a sideways scroll hides the end of it. */
 .markdown pre {
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   padding: 10px 12px;
   border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--fg) 6%, transparent);

@@ -38,7 +38,7 @@ const COMMENTS = [
       { author: 'John Doe', text: 'Then a task for it once someone asks.', ago: 1.2 * HOUR },
     ],
   },
-  { author: null, text: 'Checked on a narrow screen:\n\n```\nnpm run dev:fake\n```', replies: [] },
+  { author: null, text: 'Checked on a narrow screen:\n\n```\nnpm run dev:fake\n  npm run shot -- \'?card=full\' .card --size 390x844 --name card-narrow-screen-with-a-long-name\nhttps://example.com/a/very/long/address/without/any/space/that/must/wrap/inside/the/block/0123456789abcdef\n```\n\nThe shots are in `.temp/shot/card-narrow-screen-with-a-long-name/1-card.png`.', replies: [] },
 ]
 
 export const picture = (width: number, height: number, from: string, to: string, text: string): string =>
