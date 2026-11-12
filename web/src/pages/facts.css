@@ -115,6 +115,14 @@
   grid-column: span 2;
 }
 
+/* On a narrow screen two columns leave the bar no room (BTN-1059): the context and Tokens after it take a row each. */
+@media (max-width: 760px) {
+  .ui-fact.panel__context:not(.ui-fact--wide),
+  .ui-fact.panel__context:not(.ui-fact--wide) + .panel__inline {
+    grid-column: 1 / -1;
+  }
+}
+
 /*
  * The context on one line, as the CLI download meter (`docs/design.md`, "Dividers in a segmented box"):
  * a full-height divider after the label, from the box's edge to edge, and a short one before the figures.
