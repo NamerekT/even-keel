@@ -85,6 +85,7 @@ export function accessOf(entry: AccountEntry): Access {
   if (entry.agent === CODEX) return entry.apiKey ? 'openaiKey' : 'chatgpt'
   if (entry.agent !== OPENCODE) return 'other'
   const held = entry.status?.subscriptionType?.split(',').map((name) => name.trim()) ?? []
+  if (entry.status?.authMethod === 'subscription_key') return 'zen'
   if (entry.apiKey) {
     if (held.includes('anthropic')) return 'anthropicKey'
     if (held.includes('openai')) return 'openaiKey'

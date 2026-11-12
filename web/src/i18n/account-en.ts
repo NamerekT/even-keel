@@ -15,7 +15,7 @@ export const accountEn = {
       chatgpt: 'ChatGPT',
       openaiKey: 'OpenAI key',
       openrouterKey: 'OpenRouter key',
-      zen: 'OpenCode Zen',
+      zen: 'OpenCode Zen / Go',
       github: 'GitHub',
       bedrock: 'Amazon Bedrock',
       vertex: 'Google Vertex AI',

@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { resetTimeOf } from './reset.js'
 
 describe('resetTimeOf', () => {
+  it('anchors an OpenCode Go relative reset to the refusal, including on reread', () => {
+    const text = 'weekly usage limit reached. It will reset in 5 days 10 hours. To continue using this model now, enable usage from your available balance'
+    expect(resetTimeOf(text, '2030-01-01T00:00:00Z')).toBe('2030-01-06T10:00:00.000Z')
+    expect(resetTimeOf('usage limit reached. It will reset in 1 hour 2 minutes 3 seconds.', '2030-01-01T00:00:00Z')).toBe('2030-01-01T01:02:03.000Z')
+    expect(resetTimeOf('usage limit reached. It will reset in soon.', '2030-01-01T00:00:00Z')).toBeNull()
+    expect(resetTimeOf(text, 'bad date')).toBeNull()
+  })
   it('reads a clock time in the named zone on the day of the limit', () => {
     expect(resetTimeOf("You've hit your session limit · resets 7:20pm (Europe/Berlin)", '2026-09-27T14:39:02.453Z')).toBe(
       '2026-09-27T17:20:00.000Z',

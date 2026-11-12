@@ -49,6 +49,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'copilot.notSignedIn': ACCOUNTS,
   'chain.limitSpent': { to: 'project', tab: 'sessions' },
   'account.signedOut': ACCOUNTS,
+  'usage.goKeyExpired': ACCOUNTS,
   'account.loginExpired': ACCOUNTS,
   'account.activeGone': ACCOUNTS,
   'account.sharedPool': { to: 'shared', tab: 'models' },

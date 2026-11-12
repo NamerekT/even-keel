@@ -2,6 +2,8 @@
 
 ## Screenshots (`npm run shot`)
 
+`?account=go` supplies an OpenCode Go account with all three windows, an expired Console key and a Console key without Go; `go-long` lengthens the healthy account's name. Open the expired row to see its warning and Replace key, then the replacement dialog. `?addAccount=opencode&addWay=go` opens the explicit Go add form. Fake Go keys containing `rejected` or `offline` exercise its error strip; replacement restores the three windows.
+
 `/accounts?packages=marketplace` shows the Claude Code marketplace button, `?packages=marketplace-missing-cli` its missing-CLI error after a press, and the default its registered check mark. The tooltip has copyable commands. Combine with `account=codex-only` to check that neither the account page nor `/p/DEMO?pkg=1&add=linear@even-keel&packages=marketplace` asks a Codex-only installation to register a Claude marketplace.
 
 `?header=sessionAccounts` supplies Claude and Codex accounts with the same e-mail and distinct names, with ABC-5 running on Codex by e-mail. Open ABC-5's session list, its session record and its chat to check account pills. Suffixes `-long`, `-missing` and `-empty` exercise a long OpenAI name, a missing Codex account and a session without an account.

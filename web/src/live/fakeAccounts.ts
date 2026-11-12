@@ -206,6 +206,20 @@ function rawEntry(patch: Partial<AccountEntry>): AccountEntry {
 }
 
 export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): AccountView {
+  if (mode === 'go' || mode === 'go-long') {
+    const base = fakeAccount('opencode', idle, limits)
+    const go = (key: string, patch: Partial<AccountEntry> = {}) => fakeEntry({
+      key, agent: OPENCODE, global: false, name: 'OpenCode Go', loginExpiresAt: null, keyReplaceable: true,
+      status: { ...OPENCODE_STATUS, authMethod: 'subscription_key', subscriptionType: 'opencode-go' },
+      ...patch,
+    })
+    return { ...base, active: 'go', accounts: [
+      go('go', { name: mode === 'go-long' ? 'Example organization Go subscription with a very long display name' : 'OpenCode Go',
+        limits: { ...limits, source: 'api', month: { usedPercentage: 82, resetsAt: inDays(20) } } }),
+      go('go-expired', { name: 'Expired Go key', usage: stale(notice('usage.goKeyExpired', {})) }),
+      go('zen', { name: 'Console without Go', usage: stale(notice('usage.openCodeNone', {})) }),
+    ] }
+  }
   if (mode === 'codex-only') {
     const view = fakeAccount('codex', idle, limits)
     return { ...view, accounts: view.accounts.filter((entry) => entry.agent === CODEX) }
@@ -548,20 +562,27 @@ export function accountCommand(account: AccountView, name: string, body: Record<
   if (name === 'account/api' || name === 'account/key') {
     const agent = name === 'account/key' ? (account.accounts.find((entry) => entry.key === key)?.agent ?? CLAUDE) : body.agent
     const value = String(body.key).trim()
+    const saved = account.accounts.find(entry => entry.key === key)
+    const go = agent === OPENCODE && (body.provider === 'opencode-go' || saved?.status?.authMethod === 'subscription_key')
     const kind = agent === COPILOT ? 'copilotToken' : agent === CODEX ? 'codexKey' : 'apiKey'
     const token = kind !== 'copilotToken' || /^(github_pat_|gho_|ghu_)/.test(value)
     if (!/^\S{21,}$/.test(value) || !token) throw fail(`account.${kind}Invalid`, {})
-    if (value.includes('rejected')) throw fail(`account.${kind}Rejected`, {})
-    if (value.includes('offline')) throw fail(`account.${kind}Unchecked`, { reason: 'fetch failed' })
+    if (value.includes('rejected')) throw go ? fail('account.goKeyRejected', {}) : fail(`account.${kind}Rejected`, {})
+    if (value.includes('offline')) throw go ? fail('account.goKeyUnchecked', { reason: 'fetch failed' }) : fail(`account.${kind}Unchecked`, { reason: 'fetch failed' })
     // A key of another organization than the account's is another account (BTN-418).
     if (name === 'account/key') {
       if (value.includes('other-org')) throw fail('account.keyOtherOrganization', { agent: String(agent) })
       const working = { needsLogin: false, status: { loggedIn: true, authMethod: 'api_key', email: key, orgName: null, subscriptionType: null } }
-      return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, ...working } : entry)) }
+      return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? go
+        ? { ...entry, needsLogin: false, usage: { state: 'ok', reason: null, since: ago(0) }, limits: { ...FAKE_LIMITS, source: 'api', month: { usedPercentage: 25, resetsAt: inDays(20) } } }
+        : { ...entry, ...working } : entry)) }
     }
     const given = String(body.name ?? '').trim()
     const folder = folderName(given || 'api', account.accounts.map((entry) => entry.key))
-    const entry = apiEntry(folder, { name: given || null, agent: String(body.agent ?? CLAUDE) })
+    const entry = apiEntry(folder, { name: given || null, agent: String(body.agent ?? CLAUDE), ...(go ? {
+      apiKey: false, status: { ...OPENCODE_STATUS, authMethod: 'subscription_key', subscriptionType: 'opencode-go' },
+      limits: { ...FAKE_LIMITS, source: 'api', month: { usedPercentage: 25, resetsAt: inDays(20) } },
+    } : {}) })
     return { ...account, accounts: [...account.accounts, entry] }
   }
   if (name === 'account/aws') return { ...account, aws: FAKE_AWS }

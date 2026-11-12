@@ -37,6 +37,12 @@ const entry = (key: string, email: string | null): AccountEntry => ({
 
 const view = (accounts: AccountEntry[]): AccountView => ({ active: 'global', accounts, login: null, loginBlock: null, apps: [], pool: [], missing: [] })
 
+it('groups Console subscription keys with Zen/Go even alongside per-token provider keys', () => {
+  const go = { ...entry('go', null), agent: 'opencode', status: { loggedIn: true, authMethod: 'subscription_key', email: null, orgName: null, subscriptionType: 'openai, opencode-go' } }
+  expect(accessOf(go)).toBe('zen')
+  expect(connectionOf(go)).toBe('cli')
+})
+
 describe('accountSlot', () => {
   const accounts = view([entry('work', 'jane@example.com'), entry('global', 'john@example.com'), entry('spare', null)])
 

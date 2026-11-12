@@ -55,6 +55,14 @@ export const addAccount = {
       },
     },
     opencode: {
+      go: {
+        title: 'OpenCode Go',
+        gets: 'Go subscription: 5 hours, week and month',
+        tip: 'A key from OpenCode Console for your Go subscription. Its limits are read every five minutes. Without Go, the folder can use Zen models.',
+        next: 'Paste your key from OpenCode Console.',
+        rule: '',
+        action: 'Check and add key',
+      },
       chatgpt: {
         title: 'ChatGPT',
         gets: "The ChatGPT plan's limits: 5 hours and a week",

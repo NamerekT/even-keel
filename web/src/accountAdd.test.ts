@@ -22,7 +22,8 @@ describe('WAYS', () => {
   })
 
   it('has a key way for every provider and no Agent SDK', () => {
-    for (const provider of PROVIDERS) expect(WAYS[provider].filter((way) => way.kind === 'key')).toHaveLength(1)
+    for (const provider of PROVIDERS) expect(WAYS[provider].filter((way) => way.kind === 'key')).toHaveLength(provider === 'opencode' ? 2 : 1)
+    expect(WAYS.opencode.filter(way => way.kind === 'key').map(way => way.id)).toEqual(['go', 'apiKey'])
     expect(PROVIDERS.flatMap((provider) => WAYS[provider].map((way) => way.id))).not.toContain('sdk')
   })
 })
@@ -93,6 +94,7 @@ describe('legacyAdd', () => {
     expect(legacyAdd(search('provider=claude&connection=apiKey'))).toBe('/accounts?addAccount=claude&addWay=apiKey')
     expect(legacyAdd(search('provider=copilot&connection=apiKey'))).toBe('/accounts?addAccount=copilot&addWay=token')
     expect(legacyAdd(search('provider=opencode&connection=cli'))).toBe('/accounts?addAccount=opencode')
+    expect(legacyAdd(search('provider=opencode&connection=apiKey'))).toBe('/accounts?addAccount=opencode&addWay=apiKey')
     expect(legacyAdd(search('provider=gemini&connection=apiKey'))).toBe('/accounts?addAccount=')
   })
 })

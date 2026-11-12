@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { parseAuth, readAuth } from '../opencode/home.js'
+import { GO_USAGE_URL } from '../opencode/go.js'
 import type { CloudConnection } from './cloud.js'
 import { OPENCODE } from '../opencode/name.js'
 import { AccountHomes, type AccountHome } from './homes.js'
@@ -16,7 +18,10 @@ const API_STATUS = { loggedIn: true, authMethod: 'api_key', email: null, orgName
 
 describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
   let root: string
-  afterEach(() => rmSync(root, { recursive: true, force: true }))
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    rmSync(root, { recursive: true, force: true })
+  })
 
   /** A watcher over one Claude API account `work` whose provider answers `answer` for each key. */
   async function watcher(answer: (key: string) => KeyVerdict, known: Record<string, string> = {}) {
@@ -67,6 +72,35 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
   }
 
   const refusal = (code: string) => expect.objectContaining({ notice: expect.objectContaining({ code }) })
+
+  it('adds and replaces a Go subscription key only through Console, preserving its provider and folder', async () => {
+    const { accounts, homes, options, checked } = await watcher(() => ({ state: 'ok' }))
+    options.name = () => {}
+    options.makeShared = () => {}
+    options.agentOf = ((home: AccountHome) => ({ authStatus: async () => home.agent === OPENCODE ? parseAuth(readAuth(home.dir)) : API_STATUS })) as never
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 403 }))
+    vi.stubGlobal('fetch', fetchImpl)
+    const go = 'sk-fake-go-example-000000000000'
+    await accounts.addApiKey('Go', go, OPENCODE, 'opencode-go')
+    const entry = accounts.view.accounts.find(each => each.agent === OPENCODE)!
+    const home = homes.find(entry.key)!
+    expect(entry).toMatchObject({ apiKey: false, keyReplaceable: true, needsLogin: false })
+    expect(accounts.apiKey(entry.key)).toBe(false)
+    await accounts.replaceApiKey(entry.key, 'oc_fake-go-example-111111111111')
+    expect(JSON.parse(readAuth(home.dir)!)).toEqual({ 'opencode-go': { type: 'api', key: 'oc_fake-go-example-111111111111' } })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(fetchImpl.mock.calls.every(call => (call as unknown[])[0] === GO_USAGE_URL)).toBe(true)
+    expect(checked).toEqual([OLD])
+    expect(JSON.stringify(accounts.view)).not.toContain(go)
+  })
+
+  it.each([[401, 'account.goKeyRejected'], [500, 'account.goKeyUnchecked']] as const)('does not add a Go folder after HTTP %s', async (status, code) => {
+    const { accounts, homes, checked } = await watcher(() => ({ state: 'ok' }))
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status })))
+    await expect(accounts.addApiKey('Go', 'sk-fake-go-example-000000000000', OPENCODE, 'opencode-go')).rejects.toThrow(refusal(code))
+    expect(homes.list().some(home => home.agent === OPENCODE)).toBe(false)
+    expect(checked).toEqual([OLD])
+  })
 
   it('checks sign-in without constructing the view that asks for usage', async () => {
     const { accounts, options } = await watcher(() => ({ state: 'ok' }))

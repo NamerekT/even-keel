@@ -302,10 +302,17 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
   const held = launchBlock(view, entry.key)
   const spendAt = entry.spendingLimit?.resetsAt == null ? null : formatMoment(entry.spendingLimit.resetsAt, now)
   const mixup = signInMixup(entry, view.accounts)
+  const goExpired = entry.usage.reason?.code === 'usage.goKeyExpired'
 
   return (
     <>
-      {!brief && stale !== null && <p className="accounts__note">{stale}</p>}
+      {!brief && !goExpired && stale !== null && <p className="accounts__note">{stale}</p>}
+      {goExpired && (
+        <div className="accounts__note accounts__note--warn">
+          <span>{say(entry.usage.reason!)}</span>
+          {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
+        </div>
+      )}
       {entry.status?.loggedIn === null && <p className="accounts__note">{t.account.authUnknownNote}</p>}
       {mixup !== null && (
         <div className="accounts__note accounts__note--warn">
@@ -331,7 +338,7 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
           <CommandBlock command={entry.terminalLogin} />
         </div>
       )}
-      {!paysPerToken(entry) && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
+      {!goExpired && !paysPerToken(entry) && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
         <div className="accounts__note accounts__note--warn">
           <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
           {actions(<RenewButton entry={entry} view={view} sending={sending} send={send} />)}
@@ -362,11 +369,12 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
 /** The buttons `AccountNotes` leaves out when `bare`: renew the sign-in, replace a refused key, keep a folder being removed. */
 export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps, 'bare' | 'quiet'>) {
   const left = loginLeft(entry.loginExpiresAt, now)
+  const goExpired = entry.usage.reason?.code === 'usage.goKeyExpired'
   return (
     <>
-      {!paysPerToken(entry) && entry.terminalLogin === undefined && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
+      {!goExpired && !paysPerToken(entry) && entry.terminalLogin === undefined && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
         <RenewButton entry={entry} view={view} sending={sending} send={send} again={!left.renew} />}
-      {entry.apiKey && entry.needsLogin && entry.keyReplaceable === true && <ReplaceKeyButton entry={entry} view={view} sending={sending} />}
+      {((entry.apiKey && entry.needsLogin) || goExpired) && entry.keyReplaceable === true && <ReplaceKeyButton entry={entry} view={view} sending={sending} />}
       {entry.removing && <KeepButton entry={entry} sending={sending} send={send} />}
     </>
   )

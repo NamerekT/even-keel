@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { foldSession, type MessageRow, type PartRow } from './transcript.js'
+import { resetTimeOf } from '../limits/reset.js'
 
 const T0 = Date.parse('2026-10-22T10:00:00.000Z')
 const CWD = '/work/demo'
@@ -101,6 +102,17 @@ describe('foldSession', () => {
     expect(summary.action).toMatchObject({ kind: 'error', text: 'Rate limit reached for requests' })
     const other = foldSession([prompt, message('msg_02', 2, step({ input: 10 }, { error: { name: 'UnknownError', data: {} } }))], [promptText])
     expect(other.apiError).toMatchObject({ kind: 'error', text: 'UnknownError' })
+  })
+
+  it('keeps the Go relative reset anchored to the refusal from the database or terminal', () => {
+    const text = 'weekly usage limit reached. It will reset in 5 days 10 hours. To continue using this model now, enable usage from your available balance'
+    const error = { name: 'APIError', data: { message: JSON.stringify({ error: { type: 'GoUsageLimitError', message: text } }) } }
+    const stored = foldSession([prompt, message('msg_02', 2, step({ input: 10 }, { error }))], [promptText])
+    const terminal = foldSession([prompt], [promptText], 30, false, [{ at: T0 + 2000, error }])
+    for (const summary of [stored, terminal]) {
+      expect(summary.apiError).toEqual({ kind: 'limit', text, at: '2026-10-22T10:00:02.000Z' })
+      expect(resetTimeOf(summary.apiError!.text, summary.apiError!.at)).toBe('2026-10-27T20:00:02.000Z')
+    }
   })
 
   it("takes OpenCode Zen's 429 for a limit by its status or its error type, whatever the message says", () => {

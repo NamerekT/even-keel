@@ -1,70 +1,34 @@
-import { sendJson, sendFailure, sendFile, readJsonBody, serveStatic, eventWriter } from './server-response.js'
-import type { LabelChange } from './tracker/labels.js'
-import { restartConfirmation } from './sessions/silence.js'
-import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, editChoiceOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList, browserOf, hotkeysOf } from './server-request.js'
-import type { NoticeKind } from './notice/kinds.js'
-import type { HotkeyBindings } from './hotkeys.js'
-import { cloudConnectionOf, type CloudConnection } from './account/cloud.js'
+import type { CloudConnection } from './account/cloud.js'
 import type { EditChoice } from './account/settingsLayer.js'
-import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import type { ModelList } from './agent/contract.js'
 import type { BadgeCheck } from './badge/check.js'
 import type { BadgeSettings } from './badge/model.js'
-import { formatEvent, type EventHub } from './events.js'
-import type { GuardSettings } from './guard.js'
-import { guardedServer } from './server-guard.js'
-import { englishOf, fail, type Notice, type NoticeCode } from './notice/notice.js'
-import {
-  isTaskId,
-  parsePeriodQuery,
-  parseStatsFilter,
-  type AccountSpend,
-  type AccountTokens,
-  type PeriodQuery,
-  type StatsAnswer,
-  type StatsFilter,
-  type StatsHistory,
-  type StatsPeriod,
-  type StatsTaskDetail,
-} from './stats/model.js'
-import {
-  parseChangeIds,
-  parseCompareQuery,
-  parseRulesQuery,
-  type CompareQuery,
-  type RuleDiffFile,
-  type RulesQuery,
-  type StatsCompare,
-  type StatsRules,
-} from './stats/rules.js'
-import { checkReportOf, type CheckReport } from './chain/checkreports.js'
-import { statusMovesOf, type StatusMoves } from './chain/moves.js'
+import type { BuiltinControl } from './builtin/control.js'
+import type { CheckReport } from './chain/checkreports.js'
+import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
-import { DEFAULT_CHANGELOG } from './changelog/file.js'
-import { DEFAULT_CI } from './settings/defaults.js'
-import { OWN_KEYS } from './settings/registry.js'
-import { CLAUDE } from './claude/name.js'
-import { isLanguage, type Language } from './language.js'
-import type { ApprovalDecision } from './sessions/approvals.js'
-import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { HookMail } from './sessions/mailRelay.js'
-import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, ProjectTrust, SharedForm, Standard, StatsConfig } from './state.js'
+import type { EventHub } from './events.js'
+import type { GuardSettings } from './guard.js'
+import type { HotkeyBindings } from './hotkeys.js'
+import type { Language } from './language.js'
+import type { NoticeKind } from './notice/kinds.js'
+import type { ProfilesControl } from './profiles/routes.js'
 import type { RepoBranches } from './projects/branch.js'
-import type { CompareSettings } from './stats/rules.js'
-import { CI_KINDS, type CiKind } from './ci/model.js'
+import type { ApprovalDecision } from './sessions/approvals.js'
+import type { MailEvent } from './sessions/mail.js'
+import type { HookMail } from './sessions/mailRelay.js'
+import type { ChangelogOp, ChangelogView, FeedDraft, ProjectCheck, ProjectDraft, ProjectForm, ProjectTrust, SharedForm, Standard } from './state.js'
 import type { Calibration } from './stats/calibration.js'
-import { DEFAULT_SHARES, type CheckpointThreshold, type SessionCheckpoint } from './stats/checkpoint.js'
+import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
 import type { TallyServerDraft } from './stats/connect.js'
-import { isTallyMode, type TallyMode } from './stats/mode.js'
+import type { TallyMode } from './stats/mode.js'
+import type { AccountSpend, AccountTokens, PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from './stats/model.js'
+import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './stats/rules.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
+import type { LabelChange } from './tracker/labels.js'
 import type { TaskStatus } from './tracker/model.js'
-import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
-import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
-import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
-import { oauthCallback, PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
-import { BUILTIN_QUERIES, BUILTIN_UPLOAD, builtinUpload } from './builtin/routes.js'
-import type { BuiltinControl } from './builtin/control.js'
+import type { TaskFile, TrackerVocabulary } from './tracker/source.js'
 
 export interface StatsSource {
   history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
@@ -105,7 +69,7 @@ export interface AccountControl {
   /** `method` — the agent's way to sign in, for an agent with several (`Agent.login`). */
   add(agent: string, method?: string): void
   /** An account of the agent paying from a key: Anthropic's for Claude, OpenAI's for Codex, either for OpenCode. */
-  addApiKey(name: string, key: string, agent: string): Promise<void>
+  addApiKey(name: string, key: string, agent: string, provider?: string): Promise<void>
   /** A Claude account on a cloud, checked by one short turn before it is kept (BTN-822). */
   addCloud(name: string, connection: CloudConnection): Promise<void>
   /** The AWS profiles of the service's user into `AccountView.aws`, for the cloud form. */

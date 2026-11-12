@@ -1,75 +1,33 @@
-import { sendJson, sendFailure, sendFile, readJsonBody, serveStatic, eventWriter } from './server-response.js'
-import type { LabelChange } from './tracker/labels.js'
-import { restartConfirmation } from './sessions/silence.js'
-import { projectOf, commandTarget, flagOf, taskOf, answerOf, baseOf, draftOf, feedDraftOf, projectFormOf, ownOf, sharedFormOf, updatesOf, statsOf, sharesOf, rulesOf, profileRulesOf, linesOf, textOf, numberOf, switchOf, briefOf, mapOf, ciOf, accountOf, appOf, editChoiceOf, nameOf, secretValuesOf, optionalProjectOf, choiceOf, tallyModeOf, tallyDraftOf, serverOf, codeOf, skillsOf, listOf, noticeKindOf, labelList, browserOf, hotkeysOf } from './server-request.js'
-import type { NoticeKind } from './notice/kinds.js'
-import type { HotkeyBindings } from './hotkeys.js'
-import { cloudConnectionOf, type CloudConnection } from './account/cloud.js'
-import type { EditChoice } from './account/settingsLayer.js'
-export { answerOf } from './server-request.js'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
-import type { ModelList } from './agent/contract.js'
-import type { BadgeCheck } from './badge/check.js'
+import { cloudConnectionOf } from './account/cloud.js'
 import type { BadgeSettings } from './badge/model.js'
-import { formatEvent, type EventHub } from './events.js'
-import type { GuardSettings } from './guard.js'
-import { guardedServer } from './server-guard.js'
-import { englishOf, fail, type Notice, type NoticeCode } from './notice/notice.js'
-import {
-  isTaskId,
-  parsePeriodQuery,
-  parseStatsFilter,
-  type AccountSpend,
-  type AccountTokens,
-  type PeriodQuery,
-  type StatsAnswer,
-  type StatsFilter,
-  type StatsHistory,
-  type StatsPeriod,
-  type StatsTaskDetail,
-} from './stats/model.js'
-import {
-  parseChangeIds,
-  parseCompareQuery,
-  parseRulesQuery,
-  type CompareQuery,
-  type RuleDiffFile,
-  type RulesQuery,
-  type StatsCompare,
-  type StatsRules,
-} from './stats/rules.js'
-import { checkReportOf, type CheckReport } from './chain/checkreports.js'
-import { statusMovesOf, type StatusMoves } from './chain/moves.js'
-import type { ChainRules } from './chain/rules.js'
-import { DEFAULT_CHANGELOG } from './changelog/file.js'
-import { DEFAULT_CI } from './settings/defaults.js'
-import { OWN_KEYS } from './settings/registry.js'
+import { BUILTIN_QUERIES, BUILTIN_UPLOAD, builtinUpload } from './builtin/routes.js'
+import { checkReportOf } from './chain/checkreports.js'
+import { statusMovesOf } from './chain/moves.js'
 import { CLAUDE } from './claude/name.js'
-import { isLanguage, type Language } from './language.js'
+import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
+import { formatEvent } from './events.js'
+import type { GuardSettings } from './guard.js'
+import { isLanguage } from './language.js'
+import { englishOf, fail, type Notice } from './notice/notice.js'
+import { oauthCallback, PROFILE_QUERIES } from './profiles/routes.js'
+import { guardedServer } from './server-guard.js'
+import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, labelList, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
+import { eventWriter, readJsonBody, sendFailure, sendFile, sendJson, serveStatic } from './server-response.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
 import type { HookMail } from './sessions/mailRelay.js'
-import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, ProjectTrust, SharedForm, Standard, StatsConfig } from './state.js'
-import type { RepoBranches } from './projects/branch.js'
-import type { CompareSettings } from './stats/rules.js'
-import { CI_KINDS, type CiKind } from './ci/model.js'
-import type { Calibration } from './stats/calibration.js'
-import { DEFAULT_SHARES, type CheckpointThreshold, type SessionCheckpoint } from './stats/checkpoint.js'
-import type { TallyServerDraft } from './stats/connect.js'
-import { isTallyMode, type TallyMode } from './stats/mode.js'
-import type { StatsSteps } from './stats/steps.js'
+import { restartConfirmation } from './sessions/silence.js'
+import type { ProjectCheck } from './state.js'
+import { isTaskId, parsePeriodQuery, parseStatsFilter, type StatsAnswer } from './stats/model.js'
+import { parseChangeIds, parseCompareQuery, parseRulesQuery } from './stats/rules.js'
 import type { TaskCard } from './tracker/card.js'
-import type { TaskStatus } from './tracker/model.js'
-import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
-import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
-import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
-import { oauthCallback, PROFILE_QUERIES, type ProfilesControl } from './profiles/routes.js'
+import type { TaskFile, TrackerVocabulary } from './tracker/source.js'
 export type { ProfilesControl } from './profiles/routes.js'
-import { BUILTIN_QUERIES, BUILTIN_UPLOAD, builtinUpload } from './builtin/routes.js'
-import type { BuiltinControl } from './builtin/control.js'
+export type { AccountControl, AnswerRequest, ChainControl, PackagesControl, SecretsControl, ServerDeps, SessionControl, SettingsControl, StatsSource, TallyControl, TaskControl } from './server-control.js'
+export { answerOf } from './server-request.js'
 
-import type { StatsSource, ChainControl, AccountControl, TaskControl, AnswerRequest, SessionControl, SettingsControl, PackagesControl, SecretsControl, TallyControl, ServerDeps } from './server-control.js'
-export type { StatsSource, ChainControl, AccountControl, TaskControl, AnswerRequest, SessionControl, SettingsControl, PackagesControl, SecretsControl, TallyControl, ServerDeps } from './server-control.js'
+import type { ServerDeps } from './server-control.js'
 
 type Command = (deps: ServerDeps, body: Record<string, unknown>) => void | Promise<void>
 
@@ -145,6 +103,7 @@ const COMMANDS: Record<string, Command> = {
       typeof body.name === 'string' ? body.name : '',
       textOf(body.key, 'key'),
       body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'),
+      ...(body.provider === undefined ? [] : [textOf(body.provider, 'provider')]),
     ),
   'account/cloud': ({ account }, body) => account.addCloud(typeof body.name === 'string' ? body.name : '', cloudConnectionOf(body)),
   'account/aws': ({ account }) => account.readAws(),

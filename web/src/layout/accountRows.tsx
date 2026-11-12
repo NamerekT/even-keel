@@ -38,7 +38,7 @@ export interface RowsProps {
 /** One actionable band, outside the provider rows, for every exception that needs attention. */
 export function AccountProblems(props: Pick<RowsProps, 'view' | 'now' | 'send' | 'sending'>) {
   const { view, now, send, sending } = props
-  const entries = view.accounts.filter((entry) => entry.needsLogin || entry.error !== null || entry.removing ||
+  const entries = view.accounts.filter((entry) => entry.needsLogin || entry.usage.reason?.code === 'usage.goKeyExpired' || entry.error !== null || entry.removing ||
     entry.spendingLimit != null || launchBlock(view, entry.key)?.code === 'account.extraFree' || signInMixup(entry, view.accounts) !== null ||
     (entry.loginExpiresAt !== null && new Date(entry.loginExpiresAt).getTime() - now.getTime() < 86_400_000))
   if (entries.length === 0) return null

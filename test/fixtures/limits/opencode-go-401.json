@@ -1,0 +1,1 @@
+{ "error": { "type": "authentication_error", "code": "api_key_expired", "message": "Example key has expired; replace it in OpenCode Console." } }

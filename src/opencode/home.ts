@@ -49,19 +49,33 @@ export function keyVendor(key: string): 'anthropic' | 'openai' | 'openrouter' {
 }
 
 /** The key into `auth.json` the way `opencode providers login` writes it: `{ "<provider>": { "type": "api", "key" } }`. */
-export function writeKey(dir: string, key: string): void {
+export function writeKey(dir: string, key: string, provider: string = keyVendor(key)): void {
   mkdirSync(join(dir, 'data', 'opencode'), { recursive: true })
-  writeFileSync(authFile(dir), JSON.stringify({ [keyVendor(key)]: { type: 'api', key } }, null, 2))
+  writeFileSync(authFile(dir), JSON.stringify({ [provider]: { type: 'api', key } }, null, 2))
   keepOwnInstructions(dir)
 }
 
 /** A new key under its provider's entry of `auth.json`, the other providers' entries as they are (BTN-418). */
 export function replaceKey(dir: string, key: string): void {
-  writeFileSync(authFile(dir), JSON.stringify({ ...credentials(readAuth(dir)), [keyVendor(key)]: { type: 'api', key } }, null, 2))
+  const auth = readAuth(dir)
+  const provider = consoleKey(auth)?.provider ?? keyVendor(key)
+  writeFileSync(authFile(dir), JSON.stringify({ ...credentials(auth), [provider]: { type: 'api', key } }, null, 2))
+}
+
+/** Console keys have no distinct prefix; the saved provider, including legacy Zen, is authoritative. */
+export function consoleKey(auth: string | undefined): { provider: 'opencode-go' | 'opencode'; key: string } | null {
+  const held = credentials(auth)
+  for (const provider of ['opencode-go', 'opencode'] as const) {
+    const entry = held[provider]
+    if (entry?.type === 'api' && typeof entry.key === 'string' && entry.key.trim() !== '') return { provider, key: entry.key }
+  }
+  return null
 }
 
 /** The first API key of `auth.json`; `null` for a folder signed in otherwise or not at all. */
 export function keyOf(dir: string): string | null {
+  const console = consoleKey(readAuth(dir))
+  if (console !== null) return console.key
   for (const credential of Object.values(credentials(readAuth(dir)))) {
     if (credential.type === 'api' && typeof credential.key === 'string' && credential.key !== '') return credential.key
   }
@@ -75,7 +89,8 @@ export function keyOf(dir: string): string | null {
 export function parseAuth(text: string | undefined): AccountStatus {
   const held = Object.entries(credentials(text))
   const types = new Set(held.map(([, credential]) => credential.type))
-  const authMethod = held.length === 0 ? 'none' : types.size === 1 && types.has('api') ? 'api_key' : 'oauth'
+  const authMethod = held.length === 0 ? 'none' : types.size === 1 && types.has('api')
+    ? consoleKey(text) === null ? 'api_key' : 'subscription_key' : 'oauth'
   const openai = held.find(([name, credential]) => name === 'openai' && credential.type === 'oauth')?.[1]
   const profile = openai === undefined ? undefined : chatGptProfileOf(typeof openai.access === 'string' ? openai.access : '')
   return {

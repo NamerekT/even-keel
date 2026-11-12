@@ -55,6 +55,14 @@ export const addAccount = {
       },
     },
     opencode: {
+      go: {
+        title: 'OpenCode Go',
+        gets: 'Подписка Go: 5 часов, неделя и месяц',
+        tip: 'Ключ из OpenCode Console для подписки Go. Лимиты читаются раз в пять минут. Без Go папка может использовать модели Zen.',
+        next: 'Вставьте ключ из OpenCode Console.',
+        rule: '',
+        action: 'Проверить и добавить ключ',
+      },
       chatgpt: {
         title: 'ChatGPT',
         gets: 'Лимиты плана ChatGPT: 5 часов и неделя',

@@ -6,7 +6,7 @@ import { CODEX } from '../codex/name.js'
 import { tokenOf, writeToken } from '../copilot/home.js'
 import { COPILOT } from '../copilot/name.js'
 import { fail } from '../notice/notice.js'
-import { keyOf, keyVendor, replaceKey, writeKey } from '../opencode/home.js'
+import { consoleKey, readAuth, keyOf, keyVendor, replaceKey, writeKey } from '../opencode/home.js'
 import { OPENCODE } from '../opencode/name.js'
 import { samePath } from '../paths.js'
 import { shortLivedProfile } from './aws.js'
@@ -196,7 +196,8 @@ export class AccountHomes {
    * `codex login --with-api-key` writes it (BTN-177). OpenCode's: an `auth.json` under the provider the key is of (BTN-214).
    * Copilot's: the GitHub token in `even-keel.json` (BTN-215).
    */
-  addApiKey(name: string, key: string, agent: string = CLAUDE): AccountHome {
+  addApiKey(name: string, key: string, agent: string = CLAUDE, provider?: string): AccountHome {
+    if (provider !== undefined && (agent !== OPENCODE || provider !== 'opencode-go')) throw fail('request.required', { field: 'provider' })
     const value = assertApiKey(key, agent)
     const home = this.home(agent, folderName(name.trim() === '' ? (agent === COPILOT ? 'github' : 'api') : name, this.taken()))
     mkdirSync(home.dir, { recursive: true })
@@ -206,7 +207,7 @@ export class AccountHomes {
       return home
     }
     if (agent === OPENCODE) {
-      writeKey(home.dir, value)
+      writeKey(home.dir, value, provider)
       return home
     }
     if (agent === CODEX) {
@@ -250,6 +251,7 @@ export class AccountHomes {
     const value = assertApiKey(key, home.agent)
     const held = home.global ? null : this.apiKeyOf(home)
     if (held === null) throw fail('account.keyNotHeld', { agent: home.agent })
+    if (home.agent === OPENCODE && consoleKey(readAuth(home.dir)) !== null) return value
     const provider = keyProvider(home.agent, held)
     if (keyProvider(home.agent, value) !== provider) throw fail('account.keyOtherProvider', { provider })
     return value

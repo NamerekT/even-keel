@@ -5,7 +5,7 @@ import { cloudDirty, type CloudDraft } from './cloudDraft.js'
 import { t } from './i18n/index.js'
 
 export const providerHint = (provider: Provider): string => provider === 'opencode'
-  ? ['chatgpt', 'free', 'apiKey'].map(way => t.addAccount.way.opencode[way as 'chatgpt' | 'free' | 'apiKey'].title).join(' · ')
+  ? ['chatgpt', 'go', 'free', 'apiKey'].map(way => t.addAccount.way.opencode[way as 'chatgpt' | 'go' | 'free' | 'apiKey'].title).join(' · ')
   : t.account.providerHints[provider]
 
 /** How a way adds the account: a sign-in through the agent's CLI, a folder placed at once, a key checked first, or a cloud checked by one turn. */
@@ -31,6 +31,7 @@ export const WAYS: Record<Provider, readonly Way[]> = {
   ],
   opencode: [
     { id: 'chatgpt', kind: 'login', method: 'chatgpt' },
+    { id: 'go', kind: 'key' },
     { id: 'free', kind: 'instant', method: NO_SIGN_IN },
     { id: 'apiKey', kind: 'key' },
   ],
@@ -95,7 +96,7 @@ export function withoutAdd(search: string): string {
 /** Where an address of the old add page goes: the accounts list with the dialog, its key connection as the provider's key way. */
 export function legacyAdd(search: URLSearchParams): string {
   const provider = providerOf(search.get('provider'))
-  const key = provider === null || search.get('connection') !== 'apiKey' ? undefined : WAYS[provider].find((way) => way.kind === 'key')?.id
+  const key = provider === null || search.get('connection') !== 'apiKey' ? undefined : WAYS[provider].find((way) => way.kind === 'key' && way.id !== 'go')?.id
   return `/accounts${withAdd('', provider, key)}`
 }
 

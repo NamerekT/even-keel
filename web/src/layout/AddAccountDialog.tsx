@@ -273,7 +273,7 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
                 return
               }
               if (way.kind === 'key') {
-                if (await send('account/api', { name: draft.name, key: draft.key, agent: provider })) done()
+                if (await send('account/api', { name: draft.name, key: draft.key, agent: provider, ...(way.id === 'go' && { provider: 'opencode-go' }) })) done()
                 return
               }
               const added = await send('account/add', { agent: provider, ...(way.method !== undefined && { method: way.method }) })

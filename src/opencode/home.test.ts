@@ -34,6 +34,19 @@ describe('parseAuth', () => {
 })
 
 describe('the key of an OpenCode folder', () => {
+  it('keeps an explicitly selected Go provider when adding and replacing an ambiguous sk- key', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'even-keel-opencode-'))
+    try {
+      writeKey(dir, 'sk-fake-go-example-000000', 'opencode-go')
+      replaceKey(dir, 'sk-fake-go-example-111111')
+      expect(JSON.parse(readFileSync(join(dir, 'data', 'opencode', 'auth.json'), 'utf8'))).toEqual({
+        'opencode-go': { type: 'api', key: 'sk-fake-go-example-111111' },
+      })
+      expect(parseAuth(JSON.stringify({ 'opencode-go': { type: 'api', key: 'fake' } }))).toMatchObject({ authMethod: 'subscription_key' })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
   it('goes under the provider its start names', () => {
     expect(keyVendor('sk-ant-api03-FAKE')).toBe('anthropic')
     expect(keyVendor('sk-proj-FAKE')).toBe('openai')

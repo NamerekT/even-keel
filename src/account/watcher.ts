@@ -6,6 +6,8 @@ import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
 import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from './homes.js'
+import { consoleKey, readAuth } from '../opencode/home.js'
+import { checkGoKey } from '../opencode/go.js'
 import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyLimit, type KeyVerdict } from './keycheck.js'
 import type { BalanceVerdict } from './management.js'
@@ -217,7 +219,7 @@ export class AccountWatcher {
         configPending: this.options.configPending(home.key),
         ...this.settingsOf(home),
         apiKey: isApiKey(status),
-        keyReplaceable: isApiKey(status) && keyHeld,
+        keyReplaceable: keyHeld && (isApiKey(status) || status?.authMethod === 'subscription_key'),
         ...(cloud !== null && { cloud }),
         ...(this.checkedModels.has(home.key) && { checkedModel: this.checkedModels.get(home.key) ?? null }),
         ...(transport !== null && { transport }),
@@ -389,10 +391,11 @@ export class AccountWatcher {
     await this.refresh()
   }
 
-  async addApiKey(name: string, key: string, agent: string): Promise<void> {
+  async addApiKey(name: string, key: string, agent: string, provider?: string): Promise<void> {
+    if (provider !== undefined && (agent !== 'opencode' || provider !== 'opencode-go')) throw fail('request.required', { field: 'provider' })
     const value = assertApiKey(key, agent)
-    const verdict = await this.accepted(agent, value)
-    const home = this.options.homes.addApiKey(name, value, agent)
+    const verdict = await this.accepted(agent, value, provider === 'opencode-go')
+    const home = this.options.homes.addApiKey(name, value, agent, provider)
     this.noteKey(home.key, verdict)
     this.options.name(home.key, name)
     this.claimShared(home)
@@ -447,7 +450,7 @@ export class AccountWatcher {
     const home = this.options.homes.find(key)
     if (home === undefined) throw fail('account.unknown', { key })
     const next = this.options.homes.replacement(home, value)
-    const verdict = await this.accepted(home.agent, next)
+    const verdict = await this.accepted(home.agent, next, home.agent === 'opencode' && consoleKey(readAuth(home.dir)) !== null)
     const known = this.options.organizations.of(key)
     if (known !== undefined && verdict.organization !== undefined && verdict.organization !== known) {
       throw fail('account.keyOtherOrganization', { agent: home.agent })
@@ -458,7 +461,13 @@ export class AccountWatcher {
   }
 
   /** The provider's verdict on a key it takes; a refusal or no answer is thrown. */
-  private async accepted(agent: string, key: string): Promise<KeyVerdict & { state: 'ok' }> {
+  private async accepted(agent: string, key: string, go = false): Promise<KeyVerdict & { state: 'ok' }> {
+    if (go) {
+      const verdict = await checkGoKey(key, 15_000)
+      if (verdict.state === 'rejected') throw fail('account.goKeyRejected', {})
+      if (verdict.state === 'unknown') throw fail('account.goKeyUnchecked', { reason: verdict.reason })
+      return verdict
+    }
     const verdict = await this.options.checkKey(agent, key)
     const provider = keyProvider(agent, key)
     if (verdict.state === 'rejected') throw fail(REJECTED[provider], {})

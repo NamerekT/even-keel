@@ -10,6 +10,13 @@ const RETRY_PATTERN =
   /try again at\s+(?:(?<month>[a-z]{3})[a-z]*\.?\s+(?<day>\d{1,2})(?:st|nd|rd|th)?,?\s+(?<year>\d{4}),?\s+)?(?<hour>\d{1,2}):(?<minute>\d{2})\s*(?<meridiem>[ap]m)/i
 
 export function resetTimeOf(text: string, at: string): string | null {
+  const relative = /usage limit (?:reached|exceeded)\.?\s*It will reset in ((?:\d+\s+(?:days?|hours?|minutes?|seconds?)(?:\s+|,\s*|\s+and\s+)?)+)(?=\.|$)/i.exec(text)?.[1]
+  if (relative !== undefined) {
+    const units: Record<string, number> = { day: DAY_MS, hour: 3_600_000, minute: 60_000, second: 1000 }
+    const duration = [...relative.matchAll(/(\d+)\s+(day|hour|minute|second)s?/gi)].reduce((sum, match) => sum + Number(match[1]) * units[match[2]!.toLowerCase()]!, 0)
+    const reset = Date.parse(at) + duration
+    return Number.isFinite(reset) && Math.abs(reset) <= 8.64e15 ? new Date(reset).toISOString() : null
+  }
   const spending = spendingReset(text, at)
   if (spending !== null) return spending
   const claude = RESET_PATTERN.exec(text)
