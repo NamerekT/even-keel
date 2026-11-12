@@ -3,7 +3,7 @@ import { t } from '../i18n/index.js'
 import { AccountName, Ring } from '../layout/AccountBlock.js'
 import { BurgerIcon } from '../layout/Menu.js'
 import { QueueContents } from '../layout/Queue.js'
-import { GearIcon } from '../layout/Status.js'
+import { GearIcon, WaitingContents } from '../layout/Status.js'
 import { useLive } from '../live/context.js'
 import { isClosedLamp, type ChainBlock } from '../state.js'
 import { CacheRing } from '../ui/BlockMetrics.js'
@@ -26,7 +26,7 @@ function Sign({ sample, wide = false, children }: { sample: ReactNode; wide?: bo
 export function HeaderSigns({ narrow }: { narrow: boolean }) {
   const { state } = useLive()
   if (narrow) return <>
-    <Sign sample={<span className="waiting__count">2</span>}>{t.help.signs.waiting}</Sign>
+    <Sign wide sample={<span className="waiting"><WaitingContents count={2} /></span>}>{t.help.signs.waiting}</Sign>
     <Sign sample={<BurgerIcon />}>{t.help.signs.menu}</Sign>
     <Sign sample={<span className="page-help__bars" />}>{t.help.signs.bars}</Sign>
   </>
@@ -34,6 +34,7 @@ export function HeaderSigns({ narrow }: { narrow: boolean }) {
   return <>
     {state !== null && <>
       <Sign wide sample={<span className="hblock work-block"><span className={`queue-toggle queue-toggle--${kind}`}><QueueContents state={state} /></span></span>}>{t.help.signs.queue}</Sign>
+      <Sign wide sample={<span className="hblock work-block"><span className="waiting"><WaitingContents count={2} /></span></span>}>{t.help.signs.waiting}</Sign>
       <Sign wide sample={<span className="hblock"><AccountName account={state.account} /></span>}>{t.help.signs.account}</Sign>
     </>}
     <Sign sample={<span className="limit--warm"><Ring percent={85} /></span>}>{t.help.signs.limit}</Sign>

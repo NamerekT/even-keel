@@ -8,6 +8,7 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { projectPath, taskProject, waitingSessions } from '../state.js'
 import { completionTasks } from '../completion.js'
+import { QuestionIcon } from '../ui/icons.js'
 import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 import { VersionRow } from './Updates.js'
 import { usePopover } from './usePopover.js'
@@ -23,13 +24,20 @@ export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: T
       to={`${projectPath(taskProject(state, first.task))}#${first.task}`}
       className="waiting"
       title={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
+      aria-label={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
     >
-      <span className="waiting__count">{waiting.length}</span>
-      <span className="waiting__label">
-        {t.status.waiting}
-        <span className="waiting__tail">{t.status.waitingTail}</span>
-      </span>
+      <WaitingContents count={waiting.length} />
     </Link>
+  )
+}
+
+/** Shared with the legend: the question sign of the project row's chip and the count. */
+export function WaitingContents({ count }: { count: number }) {
+  return (
+    <>
+      <QuestionIcon />
+      <span className="waiting__count">{count}</span>
+    </>
   )
 }
 

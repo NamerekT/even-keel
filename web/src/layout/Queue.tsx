@@ -4,7 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainStatus, projectLabel, projectName, projectPath, projectSlot } from '../state.js'
-import { QueueIcon } from '../ui/icons.js'
+import { ProjectsIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
@@ -17,6 +17,8 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
   const { open, setOpen, rootRef } = usePopover()
   const { active, queue } = state.chain
   const kind = active.length === 0 ? 'idle' : active.every((chain) => chain.paused) ? 'paused' : 'running'
+  const names = active.map(({ project }) => projectName(state, project) ?? projectLabel(state, project))
+  const tip = t.queue.toggle(names, queue.length)
 
   return (
     <div className="queue-menu" ref={rootRef}>
@@ -25,7 +27,8 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
         className={`queue-toggle queue-toggle--${kind}`}
         aria-expanded={open}
         aria-controls="queue-panel"
-        title={t.queue.title}
+        aria-label={tip}
+        title={tip}
         onClick={() => setOpen(!open)}
       >
         <QueueContents state={state} />
@@ -35,31 +38,13 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
   )
 }
 
-/** Shared with the legend so names, counts and marks match the header. */
+/** Shared with the legend so the lamp and the count match the header. */
 export function QueueContents({ state }: { state: EvenKeelState }) {
-  const { active, queue } = state.chain
   return (
     <>
       <span className="queue-toggle__dot" aria-hidden="true" />
-      <QueueIcon />
-      <span className="queue-toggle__label">
-        {active.length === 0
-          ? t.queue.chain
-          : active.map(({ project }, index) => {
-              const name = projectName(state, project)
-              return (
-                <span key={project} className={name === null ? 'queue-toggle__key' : 'queue-toggle__name'}>
-                  {index > 0 && ' · '}
-                  {name ?? projectLabel(state, project)}
-                </span>
-              )
-            })}
-      </span>
-      {queue.length > 0 && (
-        <span className="queue-toggle__count" aria-label={t.queue.count(queue.length)}>
-          +{queue.length}
-        </span>
-      )}
+      <ProjectsIcon />
+      <span className="queue-toggle__count">{state.chain.active.length}</span>
     </>
   )
 }

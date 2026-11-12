@@ -374,17 +374,12 @@
 
   .waiting {
     position: relative;
-    padding: 2px;
   }
 
   .waiting::after {
     content: '';
     position: absolute;
     inset: -10px;
-  }
-
-  .waiting__label {
-    display: none;
   }
 
   .header__brand {

@@ -63,21 +63,11 @@
   outline-offset: -2px;
 }
 
-.work-block .queue-toggle--idle .queue-toggle__dot,
-.work-block .queue-toggle:not(.queue-toggle--idle) .icon {
-  display: none;
-}
-
 .work-block .waiting {
   gap: 7px;
   padding: 0 11px;
   border-left: 1px solid var(--border);
   border-radius: 0;
-}
-
-.work-block .waiting:hover {
-  background: color-mix(in srgb, var(--lamp-waiting) 18%, var(--warn-bg));
-  text-decoration: none;
 }
 
 .account-block {
@@ -477,11 +467,7 @@
 
 .sheet__work {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.sheet__work:has(.waiting) {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
 }
 
 .sheet__work .queue-menu {
@@ -507,6 +493,7 @@
 }
 
 .sheet__work .waiting {
+  justify-self: start;
   gap: 8px;
   border-left: 0;
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
@@ -514,15 +501,6 @@
 
 .sheet__work .waiting::after {
   content: none;
-}
-
-.sheet__work .waiting__label {
-  display: inline;
-}
-
-.sheet__work .queue-toggle--idle .queue-toggle__dot,
-.sheet__work .queue-toggle:not(.queue-toggle--idle) .icon {
-  display: none;
 }
 
 .sheet__work .queue {
@@ -581,10 +559,6 @@
 @media (min-width: 761px) and (max-width: 1000px) {
   .header__inner .header__aside {
     gap: 10px;
-  }
-
-  .work-block .waiting__tail {
-    display: none;
   }
 }
 

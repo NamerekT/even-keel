@@ -67,13 +67,6 @@
   gap: var(--space-4);
 }
 
-.page-help__sample .queue-toggle__label {
-  max-width: none;
-  min-width: 0;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
 .page-help__sample .queue-toggle,
 .page-help__sample .hblock {
   height: auto;
@@ -120,10 +113,6 @@
 .page-help__sample .queue-toggle__dot,
 .page-help__sample .ci-dot {
   display: block;
-}
-
-.page-help__sample .waiting__count {
-  font-size: var(--text-12);
 }
 
 /* The narrow header's two limit bars: five hours at the left, the week at the right. */

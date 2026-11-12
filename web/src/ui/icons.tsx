@@ -108,12 +108,11 @@ export function SlidersIcon() {
   )
 }
 
-/** The chain queue: the first in line is playing, the rest wait under it. */
-export function QueueIcon() {
+/** The projects with a chain started: a folder. */
+export function ProjectsIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M2.5 2.75v3.5L5.5 4.5z" />
-      <path d="M8 4.5h5.5M2.5 8.5h11M2.5 12.5h11" />
+      <path d="M2 4.25a1 1 0 0 1 1-1h3.1l1.5 1.75H13a1 1 0 0 1 1 1v5.75a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
     </svg>
   )
 }

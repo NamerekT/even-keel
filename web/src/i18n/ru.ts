@@ -215,8 +215,6 @@ export const ru = {
   status: {
     levels: { ok: 'всё работает', warn: 'есть предупреждения', error: 'есть сбои', off: 'нет данных' },
     waitingTitle: (tasks: string) => `Ждут ответа: ${tasks}`,
-    waiting: 'ждут',
-    waitingTail: ' ответа',
     heading: 'Состояние',
     trim: 'Убрать лишние инструменты',
     trimHint:
@@ -287,8 +285,8 @@ export const ru = {
   },
   queue: {
     title: 'Очередь цепочек',
-    chain: 'Цепочка',
-    count: (count: number) => `в очереди ${count}`,
+    toggle: (names: string[], queued: number) =>
+      `${names.length === 0 ? 'Ни одна цепочка не идёт' : `Цепочки: ${names.join(', ')}`}${queued > 0 ? `; в очереди: ${queued}` : ''}`,
     now: 'Сейчас',
     idle: 'Ни одна цепочка не идёт.',
     heading: 'Очередь',
