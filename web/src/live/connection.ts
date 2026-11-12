@@ -65,7 +65,7 @@ export interface LiveSource {
   /** What the project wizard's draft would come to; changes nothing. `askTracker: false` — the tracker is not asked, its answer is `null`. */
   checkProject(draft: ProjectDraft, askTracker?: boolean): Promise<ProjectCheck>
   /** A request that answers with its own result instead of the state (`profiles/check` and the like); changes no state. */
-  query<T>(name: string, body: Record<string, unknown>): Promise<T>
+  query<T>(name: string, body: Record<string, unknown>, options?: QueryOptions): Promise<T>
   /** Uploads `file` as an attachment of built-in task `task`. */
   attach(task: string, file: File): Promise<AttachedFile>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
@@ -80,6 +80,11 @@ export interface LiveSource {
   statsCompare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>>
 }
 
+export interface QueryOptions {
+  /** Sent as the card or the tab closes: the browser carries a small enough body through even after the page is gone. */
+  keepalive?: boolean
+}
+
 export interface LiveDeps {
   fetchState: () => Promise<EvenKeelState>
   openEvents: () => EventStream
@@ -91,7 +96,7 @@ export interface LiveDeps {
   fetchCard: (task: string) => Promise<TaskCard | null>
   fetchVocabulary: (projectId: string) => Promise<TrackerVocabulary | null>
   checkProject: (draft: ProjectDraft, askTracker: boolean) => Promise<ProjectCheck>
-  sendQuery: (name: string, body: Record<string, unknown>) => Promise<unknown>
+  sendQuery: (name: string, body: Record<string, unknown>, options?: QueryOptions) => Promise<unknown>
   sendFile: (task: string, file: File) => Promise<AttachedFile>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
@@ -198,8 +203,8 @@ export class LiveConnection implements LiveSource {
     return this.deps.checkProject(draft, askTracker)
   }
 
-  async query<T>(name: string, body: Record<string, unknown>): Promise<T> {
-    return (await this.deps.sendQuery(name, body)) as T
+  async query<T>(name: string, body: Record<string, unknown>, options?: QueryOptions): Promise<T> {
+    return (await this.deps.sendQuery(name, body, options)) as T
   }
 
   attach(task: string, file: File): Promise<AttachedFile> {

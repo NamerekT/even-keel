@@ -60,15 +60,13 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
   const [error, setError] = useState<Notice | null>(null)
   const [round, setRound] = useState(0)
   const [removing, setRemoving] = useState(false)
-  const [leaving, setLeaving] = useState<Drafts | null>(null)
-  // A note typed into the journal or an unsaved description is lost with the card: closing it asks first.
-  const drafting = useRef<Drafts>({ note: false, description: false })
-  const close = () => (drafting.current.note || drafting.current.description ? setLeaving({ ...drafting.current }) : onClose())
+  // Nothing typed is lost with the card (BTN-1027): its fields save or keep their drafts as they unmount.
+  const close = onClose
   const dialog = useRef<HTMLDialogElement>(null)
   const frame = useRef<HTMLDivElement>(null)
   const backdrop = useBackdropClose(dialog, close)
   const reread = () => setRound((n) => n + 1)
-  const editor = useCardEdit(task, reread)
+  const editor = useCardEdit(project, task, reread)
   const editable = card?.edit != null ? (card as Card & { edit: NonNullable<Card['edit']> }) : null
   const current = state !== null && activeChain(state.chain, project)?.current?.task === task
   // The card reads at its full height, so a long task does not move after it; a short one glides down to its content.
@@ -168,29 +166,12 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
                   live={live}
                   onOpen={onOpen}
                   onChanged={reread}
-                  onDraft={(kind, on) => {
-                    drafting.current = { ...drafting.current, [kind]: on }
-                  }}
                 />
               )}
             </>
           )}
         </div>
       </div>
-      {leaving !== null && (
-        <ConfirmDialog
-          title={t.card.leave.title}
-          question={t.card.leave.question(leaving.note, leaving.description)}
-          confirm={t.card.leave.confirm}
-          cancel={t.card.leave.cancel}
-          busy={false}
-          onConfirm={() => {
-            setLeaving(null)
-            onClose()
-          }}
-          onClose={() => setLeaving(null)}
-        />
-      )}
       {editor.conflict !== null && <ConflictDialog editor={editor} conflict={editor.conflict} />}
       {removing && editable !== null && (
         <RemoveDialog
@@ -205,12 +186,6 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
       )}
     </dialog>
   )
-}
-
-/** What the card holds unsaved. */
-interface Drafts {
-  note: boolean
-  description: boolean
 }
 
 const maybeSay = (notice: Notice | null) => (notice === null ? undefined : say(notice))
@@ -267,10 +242,9 @@ interface BodyProps {
   live: boolean
   onOpen: (task: string) => void
   onChanged: () => void
-  onDraft: (kind: keyof Drafts, drafting: boolean) => void
 }
 
-function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, onChanged, onDraft }: BodyProps) {
+function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, onChanged }: BodyProps) {
   const { send, sending, failure } = useCommand()
   const { state } = useLive()
   const labelsOn = runLabelsOn(state?.config, taskProject(state, card.id))
@@ -283,7 +257,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
   return (
     <>
       {editable !== null && <AncestorPath ancestors={editable.card.edit.ancestors} onOpen={onOpen} />}
-      {editable !== null ? <TitleEdit card={card} editor={editable.editor} /> : <h2 className="task-card__title">{card.title}</h2>}
+      {editable !== null ? <TitleEdit key={`title:${card.id}`} card={card} editor={editable.editor} /> :<h2 className="task-card__title">{card.title}</h2>}
       <div className="task-card__layout">
         <div className="task-card__main">
           {(loud.length > 0 || card.requires.length > 0 || work !== null) && (
@@ -319,7 +293,6 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               text={card.description}
               editor={editable.editor}
               render={(text) => <Text components={markdown}>{text}</Text>}
-              onDraft={(on) => onDraft('description', on)}
             />
           ) : (
             <section className="task-card__section">
@@ -338,7 +311,6 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
             comments={card.comments}
             editor={editable?.editor ?? null}
             render={(text) => <Text components={markdown}>{text}</Text>}
-            onDraft={(on) => onDraft('note', on)}
           />
         </div>
         <aside className="task-card__side">

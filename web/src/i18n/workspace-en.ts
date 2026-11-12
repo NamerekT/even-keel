@@ -535,15 +535,4 @@ export const cardEN: Messages['card'] = {
         table: 'Table',
       },
     },
-    leave: {
-      title: 'Close without saving?',
-      question: (note: boolean, description: boolean): string =>
-        note && description
-          ? 'The journal holds a note that was not sent, and the description has changes that are not saved. Closing the card loses them.'
-          : description
-            ? 'The description has changes that are not saved. Closing the card loses them.'
-            : 'The journal field holds a note that was not sent. Closing the card loses it.',
-      confirm: 'Close',
-      cancel: 'Back to the card',
-    },
   }

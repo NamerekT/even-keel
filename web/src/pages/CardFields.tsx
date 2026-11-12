@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { TaskCard as Card, SubtaskRef } from '../../../src/tracker/card.js'
 import { PRIORITIES, type TaskPriority, type TaskStatus } from '../../../src/tracker/model.js'
@@ -9,22 +9,43 @@ import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { carriedSubtasks, foreignMilestone, labelOffers, statusRoute } from './cardEdit.js'
+import { dropDraft, leftoverOf, readDraft } from './cardDrafts.js'
 import { Remove } from './CardLinks.js'
 import type { CardEditor } from './useCardEdit.js'
+import { useLeaving } from './useLeaving.js'
 
 export const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', year: 'numeric' }))
 
 type Editable = Card & { edit: NonNullable<Card['edit']> }
 
-/** The title edited in place: Enter saves, Escape drops the draft, an empty one is not saved. */
+/**
+ * The title edited in place: Enter, leaving the field, the card or the tab saves it; only Escape drops the draft; an
+ * empty one is not saved. Every save is one of the browser's drafts until it lands: the next open sends one left over.
+ */
 export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) {
   const [draft, setDraft] = useState<string | null>(null)
-  const save = async () => {
-    const to = draft?.trim() ?? ''
-    setDraft(null)
-    // A conflict keeps the draft in its own dialog; any other refusal is the card's band.
-    if (to !== '' && to !== card.title) await editor.edit('title', card.title, to)
+  // The draft as of now: a blur after Enter or a closing tab must not send it twice.
+  const typed = useRef<string | null>(null)
+  const show = (text: string | null) => {
+    typed.current = text
+    setDraft(text)
   }
+  const save = async () => {
+    const to = typed.current?.trim() ?? ''
+    show(null)
+    // A conflict keeps the draft in its own dialog; any other refusal is the card's band.
+    if (to !== '' && to !== card.title) await editor.edit('title', card.title, to, { kept: true, keepalive: true, task: card.id })
+  }
+  useLeaving(() => void save())
+  // The leftover is sent once per mount: React's strict mode runs a mount effect twice.
+  const resent = useRef(false)
+  useEffect(() => {
+    if (resent.current) return
+    resent.current = true
+    const left = leftoverOf(readDraft(editor.project, card.id, 'title'), card.title)
+    if (left === null) return dropDraft(editor.project, card.id, 'title')
+    void editor.edit('title', left.from, left.to, { kept: true, task: card.id }).then((outcome) => outcome === 'refused' && show(left.to))
+  }, [])
   const keys = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault()
@@ -32,14 +53,15 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
     } else if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
-      setDraft(null)
+      dropDraft(editor.project, card.id, 'title')
+      show(null)
     }
   }
 
   if (draft === null) {
     return (
       <h2 className="task-card__title">
-        <button type="button" className="task-card__title-edit" title={t.card.edit.titleHint} onClick={() => setDraft(card.title)}>
+        <button type="button" className="task-card__title-edit" title={t.card.edit.titleHint} onClick={() => show(card.title)}>
           {card.title}
         </button>
       </h2>
@@ -54,9 +76,9 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
         value={draft}
         autoFocus
         disabled={editor.busy}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => show(event.target.value)}
         onKeyDown={keys}
-        onBlur={() => setDraft(null)}
+        onBlur={() => void save()}
       />
     </h2>
   )
@@ -136,7 +158,7 @@ export function MilestoneField({ card, editor }: { card: Editable; editor: CardE
     const to = name.trim() === '' ? null : name.trim()
     if (same(to, current)) return setText(current ?? '')
     const children = carriedSubtasks(card.edit.subtasks, to)
-    if (!(await editor.edit('milestone', current, to))) return setText(current ?? '')
+    if ((await editor.edit('milestone', current, to)) !== 'landed') return setText(current ?? '')
     if (children.length > 0) setCarry({ to, children })
   }
   const carryOn = async () => {

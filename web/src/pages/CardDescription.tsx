@@ -8,8 +8,10 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { DiffLines } from '../ui/DiffLines.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
+import { dropDraft, leftoverOf, readDraft, writeDraft } from './cardDrafts.js'
 import { conflictOf } from './cardEdit.js'
 import type { CardEditor } from './useCardEdit.js'
+import { useLeaving, type Leaving } from './useLeaving.js'
 import '../tools/addPackage.css'
 import './description.css'
 
@@ -21,7 +23,6 @@ interface Props {
   text: string
   editor: CardEditor
   render: (text: string) => ReactNode
-  onDraft: (drafting: boolean) => void
 }
 
 interface Editing {
@@ -30,18 +31,19 @@ interface Editing {
   revision: number
 }
 
-/** A built-in tracker's description: rendered as on every card, edited in place in the editor's own chunk (BTN-772). */
-export function CardDescription({ task, text, editor, render, onDraft }: Props) {
+/**
+ * A built-in tracker's description: rendered as on every card, edited in place in the editor's own chunk (BTN-772).
+ * Closing the card or the tab saves the edit (BTN-1027); only the editor's Cancel drops it.
+ */
+export function CardDescription({ task, text, editor, render }: Props) {
   const [editing, setEditing] = useState<Editing | null>(null)
   const [conflict, setConflict] = useState<{ theirs: string; mine: string } | null>(null)
   // Mine after "take the new one": kept until the card closes.
   const [kept, setKept] = useState<string | null>(null)
   const [failure, setFailure] = useState<Notice | null>(null)
   const { state, attach } = useLive()
-  const dirty = editing !== null && editing.text !== editing.start
-
-  useEffect(() => onDraft(dirty), [dirty])
-  useEffect(() => () => onDraft(false), [])
+  // The text last sent as the tab went away: `visibilitychange` and `pagehide` of one close send it once.
+  const flushed = useRef<string | null>(null)
 
   const open = () => {
     setFailure(null)
@@ -51,19 +53,44 @@ export function CardDescription({ task, text, editor, render, onDraft }: Props) 
     setEditing(null)
     setFailure(null)
   }
-  const save = async (from: string, to: string) => {
+  const drop = () => {
+    dropDraft(editor.project, task, 'description')
+    close()
+  }
+  const save = async (from: string, to: string, leaving?: Leaving) => {
     // Nothing changed: no request, so no conflict can come of it.
     if (to === from) return close()
     setFailure(null)
-    const refused = await editor.run('query', 'builtin/edit', { task, field: 'description', from, to })
+    writeDraft(editor.project, task, 'description', { from, to })
+    const refused = await editor.run('query', 'builtin/edit', { task, field: 'description', from, to }, { keepalive: leaving !== undefined })
     if (refused === null) {
+      dropDraft(editor.project, task, 'description')
       setConflict(null)
+      // The tab only went out of sight: the editor stays open on what was saved.
+      if (leaving === 'hidden') return setEditing((now) => (now === null ? now : { ...now, start: to }))
       return close()
     }
+    // The draft stays: a card already closed shows the conflict on its next open.
     const found = conflictOf(refused, to)
     setConflict(found === null ? null : { theirs: found.theirs ?? '', mine: to })
     if (found === null) setFailure(refused)
   }
+
+  useLeaving((leaving) => {
+    if (editing === null || editing.text === editing.start || flushed.current === editing.text) return
+    flushed.current = editing.text
+    void save(editing.start, editing.text, leaving)
+  })
+  // The leftover is sent once per mount: React's strict mode runs a mount effect twice.
+  const resent = useRef(false)
+  useEffect(() => {
+    if (resent.current) return
+    resent.current = true
+    const left = leftoverOf(readDraft(editor.project, task, 'description'), text)
+    if (left === null) return dropDraft(editor.project, task, 'description')
+    setEditing({ start: left.from, text: left.to, revision: 0 })
+    void save(left.from, left.to)
+  }, [])
 
   return (
     <section className="task-card__section">
@@ -97,7 +124,7 @@ export function CardDescription({ task, text, editor, render, onDraft }: Props) 
               return done
             }}
             onSave={() => void save(editing.start, editing.text)}
-            onClose={close}
+            onClose={drop}
           />
         </Suspense>
       )}
@@ -115,6 +142,7 @@ export function CardDescription({ task, text, editor, render, onDraft }: Props) 
           busy={editor.busy}
           onKeep={() => void save(conflict.theirs, conflict.mine)}
           onTake={() => {
+            dropDraft(editor.project, task, 'description')
             setKept(conflict.mine)
             setEditing((now) => ({ start: conflict.theirs, text: conflict.theirs, revision: (now?.revision ?? 0) + 1 }))
             setConflict(null)

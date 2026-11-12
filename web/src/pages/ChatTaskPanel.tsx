@@ -122,7 +122,7 @@ export function ChatTaskPanel({ project, task, beat, onCard, slide, leaving, onL
                   {card.description.trim() === '' ? <p className="placeholder">{t.card.noDescription}</p> : <Text components={markdown}>{card.description}</Text>}
                 </section>
                 {card.attachments.length > 0 && <Attachments task={card.id} items={card.attachments} editor={null} />}
-                <CardJournal task={card.id} comments={card.comments} editor={null} render={(text) => <Text components={markdown}>{text}</Text>} onDraft={() => {}} />
+                <CardJournal task={card.id} comments={card.comments} editor={null} render={(text) => <Text components={markdown}>{text}</Text>} />
               </>
             )}
           </>

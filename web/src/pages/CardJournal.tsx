@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { TaskComment } from '../../../src/tracker/card.js'
 import { formatMoment } from '../format.js'
@@ -6,6 +6,7 @@ import { say, t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { EvenKeelIcon, SendIcon, TrashIcon } from '../ui/icons.js'
+import { dropDraft, readDraft, writeDraft } from './cardDrafts.js'
 import { sendsReply } from './chatKeys.js'
 import { journalAuthor, journalWindow, repliesOf } from './journalView.js'
 import type { CardEditor } from './useCardEdit.js'
@@ -16,15 +17,13 @@ interface Props {
   /** Only a task Even Keel keeps itself: the person writes and deletes their notes. */
   editor: CardEditor | null
   render: (text: string) => ReactNode
-  /** Whether the note field holds an unsent draft: the card asks before it closes. */
-  onDraft: (drafting: boolean) => void
 }
 
 /**
  * The task's comments in the order they were written (BTN-774). For the built-in tracker it is the task journal: agent
  * reports, session questions with the answers given in the page's chat, and the person's notes with a field below.
  */
-export function CardJournal({ task, comments, editor, render, onDraft }: Props) {
+export function CardJournal({ task, comments, editor, render }: Props) {
   const [all, setAll] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
   const { shown, hidden } = journalWindow(comments, all)
@@ -53,7 +52,7 @@ export function CardJournal({ task, comments, editor, render, onDraft }: Props) 
           ))}
         </ol>
       )}
-      {editor !== null && <NoteField task={task} editor={editor} onDraft={onDraft} />}
+      {editor !== null && <NoteField task={task} editor={editor} />}
       {removing !== null && editor !== null && <RemoveNote task={task} comment={removing} editor={editor} onClose={() => setRemoving(null)} />}
     </section>
   )
@@ -91,19 +90,23 @@ function Entry({ comment, render, onRemove, busy }: { comment: TaskComment; rend
   )
 }
 
-function NoteField({ task, editor, onDraft }: { task: string; editor: CardEditor; onDraft: (drafting: boolean) => void }) {
+/** A note not sent is never published on its own: it stays the browser's draft and is back in the field on the next open. */
+function NoteField({ task, editor }: { task: string; editor: CardEditor }) {
   const coarsePointer = useCoarsePointer()
-  const [text, setText] = useState('')
+  const [text, setText] = useState(() => readDraft(editor.project, task, 'note')?.to ?? '')
   const [refusal, setRefusal] = useState<Notice | null>(null)
   const drafting = text.trim() !== ''
-  useEffect(() => onDraft(drafting), [drafting])
-  useEffect(() => () => onDraft(false), [])
 
+  const type = (next: string) => {
+    setText(next)
+    if (next.trim() === '') dropDraft(editor.project, task, 'note')
+    else writeDraft(editor.project, task, 'note', { from: '', to: next })
+  }
   const send = async () => {
     if (!drafting || editor.busy) return
     setRefusal(null)
     const refused = await editor.run('query', 'builtin/comment', { task, text: text.trim() })
-    if (refused === null) setText('')
+    if (refused === null) type('')
     else setRefusal(refused)
   }
 
@@ -124,7 +127,7 @@ function NoteField({ task, editor, onDraft }: { task: string; editor: CardEditor
           value={text}
           readOnly={editor.busy}
           aria-invalid={refusal !== null || undefined}
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => type(event.target.value)}
           onKeyDown={(event) => {
             if (!sendsReply(event.nativeEvent, coarsePointer)) return
             event.preventDefault()

@@ -10,8 +10,9 @@ import type { ToolsView } from '../../src/tools/model.js'
 import type { TaskCard } from '../../src/tracker/card.js'
 import type { TrackerVocabulary } from '../../src/tracker/source.js'
 import { App } from './App.js'
-import { LiveConnection, type AttachedFile, type LiveSource } from './live/connection.js'
+import { LiveConnection, type AttachedFile, type LiveSource, type QueryOptions } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
+import { fitsKeepalive } from './pages/cardDrafts.js'
 import { pageIdle, reloadOnMissingChunk, watchBuild } from './live/reload.js'
 import './styles.css'
 
@@ -57,11 +58,14 @@ async function fetchCard(task: string): Promise<TaskCard | null> {
   return answer
 }
 
-async function sendQuery(name: string, body: object): Promise<unknown> {
+async function sendQuery(name: string, body: object, options?: QueryOptions): Promise<unknown> {
+  const json = JSON.stringify(body)
   const response = await fetch(`/api/${name}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: json,
+    // A bigger body goes the usual way: the card's local draft covers it if the tab is gone first.
+    keepalive: options?.keepalive === true && fitsKeepalive(json),
   })
   const answer = (await response.json().catch(() => null)) as { error?: string; notice?: unknown } | null
   if (!response.ok) throw new NoticeError(asNotice(answer?.notice ?? answer?.error ?? `/api/${name} answered ${response.status}`))
