@@ -105,7 +105,9 @@ export interface TrackerChoice {
   projectKey: { key: string; example: string; optional: boolean; alias: boolean } | null
 }
 
-export type { ProjectDraft, ProjectCheck, ProjectTrust } from './projects/state.js'
+export type { FolderPlace, ProjectDraft, ProjectCheck, ProjectTrust, RepoSource } from './projects/state.js'
+export type { CloneProgress } from './git/clone-progress.js'
+export type { JobStep, StepJob } from './jobs/model.js'
 export type { BranchChoice, BranchDrift, BranchMove, RepoBranches } from './projects/branch.js'
 import type { BranchDrift } from './projects/branch.js'
 

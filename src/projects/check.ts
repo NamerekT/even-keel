@@ -5,12 +5,14 @@ import { parseRemote, remotesOf } from '../ci/remote.js'
 import { withNewProject, yieldedMilestones } from '../config-form.js'
 import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels, runSettings } from '../config.js'
 import { currentBranch, isBranchName, readBranches } from '../git/branches.js'
+import { remoteReader, type ReadRemote } from '../git/remote-run.js'
 import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath, sameSpelling, workingFolder } from '../paths.js'
 import type { ProjectCheck, ProjectDraft } from '../state.js'
 import { expandFolder, isFullPath, REAL_FOLDERS, type Folders } from './folder.js'
 import { projectsDir } from './own-folder.js'
+import { checkPlace } from './place.js'
 import { errorText, TrackerLink } from '../tracker/link.js'
 import { isOpen } from '../tracker/model.js'
 import { trackerOf, type TrackerAdapter } from '../tracker/source.js'
@@ -33,6 +35,8 @@ export interface CheckDeps {
   folders?: Folders
   /** Where a project without git that names no folder gets its own; `projectsDir()` by default. */
   projectsDir?: string
+  /** Asks a clone's remote for its branches; the shared reader by default. */
+  readRemote?: ReadRemote
   /** The user the service runs as. */
   user: string
   /** Even Keel runs as a system service (`ProjectCheck.service`). */
@@ -51,9 +55,9 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: 
   const platform = deps.platform ?? process.platform
   const raw = deps.raw()
   const adapter = deps.adapters[draft.tracker]
-  const repo = await checkRepo(deps.git, draft, raw, platform, adapter, deps.env, deps.folders, deps.projectsDir)
-  // A project without git that names no folder gets one only when it is added: nothing to trust yet.
-  const unmade = draft.git === false && draft.repo.trim() === ''
+  const repo = await checkRepo(deps.git, draft, raw, platform, adapter, deps.env, deps.folders, deps.projectsDir, deps.readRemote)
+  // A folder Even Keel makes or fills when the project is created gets its trust then: nothing to trust yet.
+  const unmade = repo.place !== undefined || (draft.git === false && draft.repo.trim() === '')
   const branch = draft.branch.trim() || repo.current || DEFAULT_BRANCH
   let entry: Notice | null = null
   let rules: ChainRules | undefined
@@ -89,10 +93,15 @@ export async function checkRepo(
   env: Readonly<Record<string, string | undefined>> = {},
   folders: Folders = REAL_FOLDERS,
   ownDir: string = projectsDir(),
+  readRemote: ReadRemote = sharedReader,
 ): Promise<ProjectCheck['repo']> {
   const typed = draft.repo.trim()
   const none = { root: null, current: null, suggested: null, branches: null }
   const plain = draft.git === false
+  if (plain ? typed === '' && (draft.folder ?? '').trim() !== '' : draft.source === 'clone' || draft.source === 'new') {
+    const projectOf = (folder: string) => projectOfRepo(raw, folder, platform)
+    return checkPlace({ git, platform, folders, ownDir, readRemote, projectOf, ...(adapter === undefined ? {} : { adapter }), env }, draft)
+  }
   if (typed === '') return { ...none, root: plain ? ownDir : null, notice: null }
   const path = expandFolder(typed, folders.home, platform)
   const refuse = (code: 'wizard.noFolder' | 'wizard.relativePath') => ({ ...none, notice: notice(code, { path: typed }) })
@@ -119,7 +128,17 @@ export async function checkRepo(
   // A branch the repository lacks is no refusal: adding the project creates it (BTN-754).
   const branch = draft.branch.trim()
   if (branch !== '' && !(await isBranchName(git, root, branch))) return { ...found, branches, notice: notice('wizard.branchName', { value: branch }) }
+  // Sessions commit and merge there: the folder's own config may name them where the global one does not.
+  if (await lacksIdentity(git, root)) return { ...found, branches, notice: notice('git.noIdentity', {}) }
   return { ...found, branches, notice: null }
+}
+
+const sharedReader = remoteReader()
+
+/** `git config --get` ends with 1 for a value that is unset; any other failure is not taken for one. */
+async function lacksIdentity(git: Git, root: string): Promise<boolean> {
+  const values = await Promise.all(['user.name', 'user.email'].map((key) => git(root, ['config', '--get', key])))
+  return values.some((value) => value.code === 1 || (value.code === 0 && value.out.trim() === ''))
 }
 
 async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | undefined, env: Readonly<Record<string, string | undefined>>): Promise<string | null> {

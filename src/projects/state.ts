@@ -26,11 +26,42 @@ export interface ProjectDraft {
    * name a folder that is no repository or does not exist yet; `branch` and `slot` are not read.
    */
   git?: boolean
+  /**
+   * Where the repository comes from (BTN-1048): `clone` — cloned from `remote` when the project is created; `new` — a
+   * folder made a repository with what it holds in the first commit; absent or `existing` — `repo` is a checkout
+   * already there. Not read without git.
+   */
+  source?: RepoSource
+  /** The address a `clone` is made from. */
+  remote?: string
+  /**
+   * The name of the folder in Even Keel's projects folder, read while `repo` is blank: of a clone, of a new repository
+   * and of a project without git. Blank — the suggested one (a clone: by the address; without git: by the key).
+   */
+  folder?: string
+}
+
+export type RepoSource = 'clone' | 'new' | 'existing'
+
+/** The folder a clone, a new repository or a project without git would get, as the check found it (BTN-1048). */
+export interface FolderPlace {
+  /** Even Keel's projects folder; `null` — the folder is typed as a full path. */
+  dir: string | null
+  /** The folder's name in `dir`: the draft's, or the one suggested while it names none. */
+  name: string
+  /** `free` — not there, made on creation; `empty` — there and empty; `filled` — holds files. */
+  state: 'free' | 'empty' | 'filled'
+  /** A `filled` folder: what it holds; `capped` — the count stopped at its ceiling. */
+  holds?: { files: number; bytes: number; capped: boolean }
+  /** A clone of the same remote on the same branch already in the projects folder, which no project has. */
+  existing?: string
 }
 
 /** What the wizard's check found for a draft; a step that could not be checked yet is `null`. */
 export interface ProjectCheck {
   repo: {
+    /** Set for a clone, a new repository and a project without git: the folder that is not the project's yet. */
+    place?: FolderPlace
     /** The top of the repository the folder is in, as the entry will name it; `null` — not a git repository. */
     root: string | null
     /** The branch the checkout is on, the suggestion for the main branch; `null` — detached or not a repository. */

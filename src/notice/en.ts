@@ -126,6 +126,16 @@ export const en = {
   'git.identityFailed': () => 'git could not write the name and e-mail into its global config',
   'git.initFailed': (p: { path: string }) => `git could not make ${p.path} a repository`,
   'git.ignoreUnknown': (p: { repo: string; dir: string }) => `git: cannot tell whether ${p.repo} ignores ${p.dir}`,
+  'git.remoteDenied': (p: { remote: string }) =>
+    `git has no rights to read ${p.remote}: sign git in to that server on the machine of Even Keel (its credential helper or an SSH key of the user Even Keel runs as), then try again`,
+  'git.remoteNotFound': (p: { remote: string }) => `there is no repository at ${p.remote}: check the address; a private repository answers the same to a git that is not signed in`,
+  'git.remoteNetwork': (p: { remote: string }) => `git could not reach ${p.remote}: check the network and the address, then try again`,
+  'git.remoteFailed': (p: { remote: string }) => `git could not read ${p.remote}`,
+  'git.cloneStopped': () => 'the clone was cancelled',
+  'job.busy': () => 'another project is being created right now: wait until it is done, or cancel it',
+  'job.unknown': () => 'this work is no longer there: it was finished or cancelled',
+  'job.notFailed': () => 'nothing to repeat: the work has not failed',
+  'job.packagesUnready': (p: { packages: string[] }) => `the project's packages are not ready: ${list(p.packages)}. Open Tools of the project to see why`,
   'git.failed': (p: { step: GitStep; subject: string; repo: string }) => `git: could not ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
   'git.noBranch': (p: { project: string; branch: string; repo: string }) =>
     `git: ${p.repo} has no branch ${p.branch}, the main branch of ${p.project}; create it or name the right one in the project's settings`,
@@ -715,7 +725,10 @@ export const en = {
   'wizard.noCommits': () => 'the repository has no commits yet, so its branch is not born: make the first commit',
   'wizard.noFolder': (p: { path: string }) => `${p.path} is not a folder`,
   'wizard.relativePath': (p: { path: string }) => `${p.path} is not a full path: give the folder from its root, or from ~`,
-  'wizard.keyShape': (p: { value: string }) => `the key is a capital Latin letter, then up to 4 capitals, digits or _, not "${p.value}"`,
+  'wizard.folderName': (p: { value: string }) => `"${p.value}" is not a folder name: one name, without slashes or the characters < > : " | ? *`,
+  'wizard.folderFilled': (p: { path: string }) => `${p.path} is not empty: a clone needs an empty folder or one that is not there yet`,
+  'wizard.folderIsFile': (p: { path: string }) => `${p.path} is a file, not a folder`,
+  'wizard.alreadyRepo': (p: { path: string }) => `${p.path} is a git repository already: choose "Existing" as the source`,  'wizard.keyShape': (p: { value: string }) => `the key is a capital Latin letter, then up to 4 capitals, digits or _, not "${p.value}"`,
   'wizard.branchName': (p: { value: string }) => `"${p.value}" is not a branch name`,
   'wizard.trackerPlace': (p: { example: string }) => `name the project in the tracker like ${p.example}`,
   'wizard.trackerShared': (p: { project: string }) =>

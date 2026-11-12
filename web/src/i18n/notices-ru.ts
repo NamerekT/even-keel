@@ -155,6 +155,16 @@ export const noticesRu: NoticeTexts = {
   'git.identityFailed': () => 'git не записал имя и почту в свой глобальный конфиг',
   'git.initFailed': (p) => `git не сделал ${p.path} репозиторием`,
   'git.ignoreUnknown': (p) => `не понять, игнорирует ли ${p.repo} папку ${p.dir}`,
+  'git.remoteDenied': (p) =>
+    `у git нет прав читать ${p.remote}: войдите в git на этот сервер на машине Even Keel (его хранилище учётных данных или SSH-ключ пользователя, от которого работает Even Keel) и попробуйте снова`,
+  'git.remoteNotFound': (p) => `по адресу ${p.remote} нет репозитория: проверьте адрес; закрытый репозиторий отвечает так же, если git не вошёл на сервер`,
+  'git.remoteNetwork': (p) => `git не достучался до ${p.remote}: проверьте сеть и адрес и попробуйте снова`,
+  'git.remoteFailed': (p) => `git не прочитал ${p.remote}`,
+  'git.cloneStopped': () => 'клонирование отменено',
+  'job.busy': () => 'сейчас создаётся другой проект: дождитесь конца или отмените его',
+  'job.unknown': () => 'этой работы уже нет: она закончена или отменена',
+  'job.notFailed': () => 'повторять нечего: работа не падала',
+  'job.packagesUnready': (p) => `пакеты проекта не готовы: ${list(p.packages)}. Причина — в «Инструментах» проекта`,
   'git.failed': (p) => `git: не удалось ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
   'git.noBranch': (p) =>
     `в ${p.repo} нет ветки ${p.branch} — главной ветки проекта ${p.project}; создайте её или укажите нужную в настройках проекта`,
@@ -684,7 +694,10 @@ export const noticesRu: NoticeTexts = {
   'wizard.noCommits': () => 'в репозитории ещё нет коммитов, и его ветка не родилась: сделайте первый коммит',
   'wizard.noFolder': (p) => `${p.path} — не папка`,
   'wizard.relativePath': (p) => `${p.path} — не полный путь: укажите папку от корня диска или от ~`,
-  'wizard.keyShape': (p) => `ключ — латинская заглавная буква и до 4 заглавных, цифр или _, а не «${p.value}»`,
+  'wizard.folderName': (p) => `«${p.value}» — не имя папки: одно имя, без косых черт и знаков < > : " | ? *`,
+  'wizard.folderFilled': (p) => `${p.path} не пуста: клону нужна пустая папка или та, которой ещё нет`,
+  'wizard.folderIsFile': (p) => `${p.path} — файл, а не папка`,
+  'wizard.alreadyRepo': (p) => `${p.path} — уже git-репозиторий: выберите источник «Существующий»`,  'wizard.keyShape': (p) => `ключ — латинская заглавная буква и до 4 заглавных, цифр или _, а не «${p.value}»`,
   'wizard.branchName': (p) => `«${p.value}» — не имя ветки`,
   'wizard.trackerPlace': (p) => `назовите проект в трекере так: ${p.example}`,
   'wizard.trackerShared': (p) =>
