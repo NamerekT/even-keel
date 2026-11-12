@@ -107,6 +107,38 @@ describe('TrackerQuestions', () => {
     expect(bodies).toHaveLength(1)
   })
 
+  it('lets a fresh reply settle a tick, so a file written after its message goes along (BTN-1020)', async () => {
+    const replies: TrackerComment[] = []
+    const { questions, answers } = fixture([asking()], replies)
+    await questions.tick()
+
+    replies.push(comment('c2', '1'))
+    await questions.tick()
+    expect(answers).toEqual([])
+
+    replies[0] = comment('c2', '1', [{ name: 'shot.png', file: 'f1' }])
+    await questions.tick()
+    expect(answers).toEqual([])
+
+    await questions.tick()
+    expect(answers).toHaveLength(1)
+    expect(answers[0]!.reply.files.map((file) => file.name)).toEqual(['shot.png'])
+  })
+
+  it('waits again while more replies keep coming (BTN-1020)', async () => {
+    const replies: TrackerComment[] = []
+    const { questions, answers } = fixture([asking()], replies)
+    await questions.tick()
+    replies.push(comment('c2', '1'))
+    await questions.tick()
+    replies.push(comment('c3', 'and hurry'))
+    await questions.tick()
+    expect(answers).toEqual([])
+    await questions.tick()
+    expect(answers).toHaveLength(1)
+    expect(answers[0]!.reply.text).toBe('and hurry')
+  })
+
   it('records the question in a journal once and reads no reply from it (BTN-774)', async () => {
     const { questions, store, answers, bodies } = fixture([asking()], [], undefined, true)
     await questions.tick()
@@ -122,11 +154,13 @@ describe('TrackerQuestions', () => {
     const { questions, store } = fixture([asking()], [comment('c2', '2')], 'answer.busy')
     await questions.tick()
     await questions.tick()
+    await questions.tick()
     expect(store.at(-1)).toEqual([posted()])
   })
 
   it('tries again when the task stopped being current before the reply was passed on', async () => {
     const { questions, store } = fixture([asking()], [comment('c2', '2')], 'chain.notCurrent')
+    await questions.tick()
     await questions.tick()
     await questions.tick()
     expect(store.at(-1)).toEqual([posted()])
@@ -143,6 +177,7 @@ describe('TrackerQuestions', () => {
     expect(answers).toEqual([])
 
     sessions[0] = asking()
+    await questions.tick()
     await questions.tick()
     expect(answers).toHaveLength(1)
     expect(answers[0]!.reply.answers).toEqual({ 'Which color?': 'Blue' })

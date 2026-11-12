@@ -81,6 +81,12 @@ export function trackerReply(all: TrackerComment[], ask: Ask): Omit<TrackerReply
 export class TrackerQuestions {
   private posted: PostedQuestion[]
   private running = false
+  /**
+   * The replies last read to each question, by its comment. A reply goes on only once a tick reads it as the one
+   * before did: a tracker may write a message and its files apart (Huly does), and a read between them would lose the
+   * files (BTN-1020).
+   */
+  private readonly seen = new Map<string, string>()
 
   constructor(private readonly deps: QuestionsDeps) {
     this.posted = deps.load()
@@ -93,6 +99,7 @@ export class TrackerQuestions {
       const sessions = this.deps.sessions()
       const plan = questionPlan(sessions, this.posted)
       if (plan.keep.length !== this.posted.length) this.store(plan.keep)
+      for (const comment of this.seen.keys()) if (!plan.read.some((each) => each.comment === comment)) this.seen.delete(comment)
       for (const session of plan.post) await this.post(session)
       for (const question of plan.read) await this.read(question, sessions.find((session) => session.current && waitsOn(session, question))!)
     } finally {
@@ -126,6 +133,11 @@ export class TrackerQuestions {
           const comments = (await tracker.commentsAfter?.(question.task, question.comment)) ?? []
           const read = trackerReply(comments, session.ask!)
           if (read === null) return null
+          const shape = JSON.stringify(comments)
+          if (this.seen.get(question.comment) !== shape) {
+            this.seen.set(question.comment, shape)
+            return null
+          }
           return { ...read, files: await download(tracker, question.task, comments) }
         })) ?? null
     } catch (error) {
