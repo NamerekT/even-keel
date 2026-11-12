@@ -4,6 +4,7 @@ import { DEFAULT_RULES, type ChainRules } from '../../../src/chain/rules.js'
 import type { StatusMoves } from '../../../src/chain/moves.js'
 import { colorsOf } from '../../../src/projects/colors.js'
 import { fakeProjectMaps } from './fakeConfig.js'
+import { fakePlace, withAddedJob } from './fakeCreation.js'
 import { withSavedMilestoneOrder } from './fakeMilestones.js'
 
 const ownColors = (forms: Record<string, ProjectForm>): Record<string, number> =>
@@ -47,6 +48,13 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
   const path = draft.repo.trim()
   const none = { root: null, current: null, suggested: null, branches: null }
   const host = { platform: state.platform, user: 'EvenKeelSvc', service: true }
+  const placed = fakePlace(state, draft)
+  if (placed !== null) {
+    // A folder Even Keel makes or fills is trusted when the project is created: nothing to ask yet.
+    const entry = placed.root === null || placed.notice !== null ? null : entryNotice(state, draft)
+    const tracker = placed.root === null || placed.notice !== null || entry !== null ? null : trackerOf(draft.tracker, mode)
+    return { repo: placed, entry, yields: [], tracker, trusted: null, ...host }
+  }
   if (draft.git === false) return plainCheck(state, draft, mode, host)
   if (path === '') return { repo: { ...none, notice: null }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   if (path.includes('nope')) {
@@ -138,7 +146,11 @@ function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
 
 /** `project/add` puts the draft in as the service would, `project/remove` refuses a project whose chain runs. */
 export function fakeProjectCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
-  if (name === 'project/add') return withProject(state, body as unknown as ProjectDraft)
+  if (name === 'project/add') {
+    const draft = body as unknown as ProjectDraft
+    const root = fakePlace(state, draft)?.root ?? null
+    return withAddedJob(state, withProject(state, root === null ? draft : { ...draft, repo: root }), draft)
+  }
   if (name === 'project/feed/add' || name === 'project/feed/remove' || name === 'project/feed/rules') return withFeeds(state, name, body)
   if (name === 'project/moves') return withMoves(state, body)
   if (name === 'project/milestone-order') return withSavedMilestoneOrder(state, body)

@@ -21,7 +21,7 @@ describe('automatic Claude trust configuration', () => {
   })
 
   it('does not add a trust switch through the wizard or forms', () => {
-    const draft = draftOfFields({ ...EMPTY_FIELDS, key: 'NEW', repo: 'D:/new', tracker: 'huly' })!
+    const draft = draftOfFields({ ...EMPTY_FIELDS, source: 'existing', key: 'NEW', repo: 'D:/new', tracker: 'huly' })!
     expect(draft).not.toHaveProperty('trustClaude')
     const added = withNewProject({ projects: [] }, draft, 'new')
     expect((added.projects as object[])[0]).not.toHaveProperty('trustClaude')

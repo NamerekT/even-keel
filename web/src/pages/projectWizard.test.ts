@@ -27,7 +27,8 @@ import {
   type WizardFields,
 } from './projectWizard.js'
 
-const fields = (change: Partial<WizardFields>): WizardFields => ({ ...EMPTY_FIELDS, tracker: 'huly', ...change })
+// A checkout already there, as before the clone and the new repository (BTN-1048); their tests set the source.
+const fields = (change: Partial<WizardFields>): WizardFields => ({ ...EMPTY_FIELDS, tracker: 'huly', source: 'existing', ...change })
 
 const passed: ProjectCheck = {
   repo: { root: 'D:/Projects/shop', current: 'main', suggested: null, branches: { current: 'main', head: 'a1b2c3d', branches: [{ name: 'main', remote: null }] }, notice: null },
@@ -54,7 +55,16 @@ describe('draftOfFields', () => {
       slot: 0,
       milestones: [],
       provider: null,
+      source: 'existing',
     })
+  })
+
+  it('sends a clone its remote and the folder name, and no path while none is typed (BTN-1048)', () => {
+    const clone = fields({ source: 'clone', remote: ' https://git.example.com/acme/shop.git ', folder: ' shop ', repo: 'D:/left/over' })
+    expect(draftOfFields(clone)).toMatchObject({ source: 'clone', remote: 'https://git.example.com/acme/shop.git', folder: 'shop', repo: '' })
+    expect(draftOfFields({ ...clone, other: true })).toMatchObject({ repo: 'D:/left/over' })
+    expect(draftOfFields({ ...clone, other: true })).not.toHaveProperty('folder')
+    expect(draftOfFields(fields({ source: 'new', folder: 'shop' }))).not.toHaveProperty('remote')
   })
 
   it('gives the agent picked, and none for the shared one (BTN-310)', () => {
@@ -412,6 +422,13 @@ describe('missingOf', () => {
     expect(missingOf(fields({ repo: 'D:/x', profile: 'p-1', trackerProject: 'o/n' }), 'place', null)).toBe('key')
     expect(missingOf(fields({ repo: 'D:/x', profile: 'p-1' }), 'key', null)).toBe('project')
     expect(missingOf(ready, 'key', null)).toBe('checking')
+  })
+
+  it("names a clone's blank remote, and a new repository needs no path: its folder is Even Keel's (BTN-1048)", () => {
+    expect(missingOf(fields({ source: 'clone' }), 'key', null)).toBe('remote')
+    expect(missingOf(fields({ source: 'clone', remote: 'https://git.example.com/a/b.git' }), 'key', null)).toBe('profile')
+    expect(missingOf(fields({ source: 'new' }), 'key', null)).toBe('profile')
+    expect(missingOf(fields({ source: 'new', other: true }), 'key', null)).toBe('repo')
   })
 
   it("names the check's failures, and nothing once it passed", () => {

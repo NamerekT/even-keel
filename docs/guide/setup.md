@@ -44,6 +44,16 @@ The projects and the settings live in Even Keel's database and are edited on the
 
 When you add the project, Even Keel checks the repository again before saving it. A folder inside a repository is saved as the repository's root folder.
 
+The repository need not be on the machine yet. Under **Source** pick:
+
+- **Clone** — give the remote's address (HTTPS or SSH). Even Keel asks the remote right away, so a wrong address or a missing sign-in shows before you add anything. A private repository needs git on Even Keel's machine signed in to that server as the user Even Keel runs as (its credential helper or an SSH key). A main branch the remote lacks is created when the project is added.
+- **New repository** — Even Keel makes the folder a git repository; whatever it already holds goes into the first commit, and the wizard says how many files and how much that is.
+- **Existing** — a clone already on the machine, as above.
+
+A clone and a new repository go into Even Keel's projects folder (`projects` in its data folder) under a name it suggests from the remote or the project; type another name, or press **another folder…** for a full path anywhere. A clone needs an empty folder or one that is not there yet. If the projects folder already has a clone of the same remote and branch that no project uses, the wizard offers **Use it**. Both need git's name and e-mail for commits: without them only **Existing** is open, with a button to the setup's Git step. A project without git takes a folder the same way.
+
+**Add project** opens a window with the steps: the folder, the clone with its progress (and its Git LFS files, if it has any) or the first commit, the project itself, Claude Code's trust and the project's packages. A step that fails says why and offers **Retry**. **Cancel** removes only what Even Keel made — a folder it created, or what it put into an empty one — and only until the project is saved; after that the project stays and the window offers **Open the project**.
+
 Leaving the project wizard and returning keeps the fields you changed yourself. Untouched Git and tracker choices
 follow the current setup settings on each visit; a choice you made in the form takes precedence. A failed check or
 add keeps your edits. Adding the project or reloading the browser page clears the draft.

@@ -65,4 +65,11 @@ describe('the project wizard draft', () => {
     expect(firstFields({ ...available, git: { version: null, name: null, email: null } }).git).toBe(false)
     expect(firstFields({ ...state(true), git: { version: null, name: null, email: null } }).git).toBe(true)
   })
+
+  it('starts on a clone, and on a checkout already there while git has no name or e-mail (BTN-1048)', () => {
+    const named = { version: '2.47.1', name: 'John Doe', email: 'john@example.com' }
+    expect(firstFields({ ...state(true), git: named }).source).toBe('clone')
+    expect(firstFields({ ...state(true), git: { ...named, email: null } }).source).toBe('existing')
+    expect(firstFields({ ...state(true), git: { ...named, name: null } }, { source: 'new' }).source).toBe('new')
+  })
 })

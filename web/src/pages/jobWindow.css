@@ -1,0 +1,119 @@
+/* The window of a job done in steps (BTN-1048), on the add-package dialog's frame. */
+.job-window {
+  width: min(480px, calc(100vw - 32px));
+}
+
+.job-window__head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+}
+
+/* The folder's own name is at its end: a long path is cut from the left. */
+.job-window__subject {
+  overflow: hidden;
+  color: var(--fg-muted);
+  direction: rtl;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: var(--text-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-window__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-window__step {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-8);
+  row-gap: var(--space-4);
+  font-size: var(--text-14);
+}
+
+.job-window__step .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.job-window__step--done .icon {
+  color: var(--lamp-done);
+}
+
+.job-window__step--failed .icon {
+  color: var(--error-fg);
+}
+
+.job-window__step--waiting .job-window__label {
+  color: var(--fg-muted);
+}
+
+.job-window__state {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.job-window__dot {
+  width: 12px;
+  height: 12px;
+  margin: 2px;
+  border: 1.5px solid var(--fg-muted);
+  border-radius: 50%;
+}
+
+.job-window__dot--running {
+  border-color: var(--accent);
+  border-right-color: transparent;
+  animation: job-window-spin var(--motion-spin) linear infinite;
+}
+
+@keyframes job-window-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .job-window__dot--running {
+    animation: none;
+  }
+}
+
+.job-window__progress {
+  display: flex;
+  flex-direction: column;
+  grid-column: 2 / -1;
+  gap: var(--space-4);
+}
+
+.job-window__bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+}
+
+.job-window__fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--motion-appear) ease-out;
+}
+
+.job-window__figures {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.job-window__note {
+  margin: 0;
+}

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { BUILTIN } from '../../../src/builtin/model.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft } from '../../../src/state.js'
-import { examplePaths } from '../examplePaths.js'
 import { say, t } from '../i18n/index.js'
 import { requestCli } from '../layout/CliCopies.js'
 import { useLive } from '../live/context.js'
@@ -12,8 +11,7 @@ import { ownProjects, projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
 import { Select } from '../ui/Select.js'
 import { agentCheck, AgentReady } from './AgentReady.js'
-import { BranchField, BranchMoveLine } from './BranchField.js'
-import { NoticeFixButton } from './FixButtons.js'
+import { JobWindow } from './JobWindow.js'
 import {
   draftOfFields,
   entryField,
@@ -21,6 +19,7 @@ import {
   keyTyped,
   missingOf,
   readyToAdd,
+  repoBlank,
   shapeOf,
   stepChecks,
   suggestOfRepo,
@@ -42,37 +41,17 @@ import { TableDraft, tablesValid } from './settingsTableDraft.js'
 import { setupLine } from './Setup.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
-import { trustTexts } from '../i18n/trust.js'
 import { checkMarks } from './wizard.js'
 import { StepDot, WizardFoot, WizardFrame } from './WizardFrame.js'
+import { RepoStep } from './WizardRepo.js'
 import { TrackerStep } from './WizardTracker.js'
 import './settings.css'
 import './projectAdd.css'
 
 const CHECK_DELAY_MS = 600
 
-/**
- * "Make it a repository" under a folder without one, "Make the first commit" under a repository without commits
- * (BTN-731): the service makes the draft's branch born, and the folder is checked again.
- */
-function MakeRepository({ repo, branch, exists, onMade }: { repo: string; branch: string; exists: boolean; onMade: () => void }) {
-  const { send, sending, failure } = useCommand()
-  const make = async () => {
-    if (await send('git/init', { repo, branch })) onMade()
-  }
-  return (
-    <div className="project-add__init">
-      <button type="button" className="button button--small" disabled={sending} onClick={() => void make()}>
-        {exists ? t.wizard.firstCommit : t.wizard.makeRepo}
-      </button>
-      {failure !== null && (
-        <p className="notice notice--error">
-          {say(failure)} <NoticeFixButton project={null} notice={failure} />
-        </p>
-      )}
-    </div>
-  )
-}
+/** The draft's fields the folder's lines depend on: they hold while another field is checked again. */
+const repoFieldsOf = (draft: ProjectDraft) => JSON.stringify([draft.repo, draft.branch, draft.git, draft.source, draft.remote, draft.folder])
 
 /** The fields typed, kept while the page is left and come back to (BTN-310); a project added clears them. */
 let kept: Partial<WizardFields> = {}
@@ -106,7 +85,6 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const [checkFailure, setCheckFailure] = useState<Notice | null>(null)
   const [checking, setChecking] = useState(false)
   const [round, setRound] = useState(0)
-  const [added, setAdded] = useState<{ key: string; before: string[] } | null>(null)
   const [branchOpen, setBranchOpen] = useState(false)
   const [milestonesOpen, setMilestonesOpen] = useState(false)
   // The demo goes once the person's own project is in (BTN-776): on by default, never by itself.
@@ -123,10 +101,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const tracker = heldTracker !== null && heldTracker.basis === basis ? heldTracker.answer : null
   const check = fresh ? { ...checked.result, tracker } : null
   // The folder's lines depend on the folder and the branch only: they hold while another field is checked again.
-  const repoCheck =
-    checked !== null && draft !== undefined && checked.draft.repo === draft.repo && checked.draft.branch === draft.branch && checked.draft.git === draft.git
-      ? checked.result
-      : null
+  const repoCheck = checked !== null && draft !== undefined && repoFieldsOf(checked.draft) === repoFieldsOf(draft) ? checked.result : null
   const changeFields = (change: (before: WizardFields) => WizardFields) => setFields((before) => {
     const after = change(before)
     kept = keepFields(kept, before, after)
@@ -144,7 +119,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   }, [tableDraft])
 
   useEffect(() => {
-    if (draft === undefined || (draft.repo === '' && draft.git !== false) || basis === null) return
+    if (draft === undefined || repoBlank(fields) || basis === null) return
     const askTracker = tracker === null
     let live = true
     const timer = setTimeout(() => {
@@ -187,9 +162,12 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const root = repo?.root ?? null
   const current = repo?.current ?? null
   const suggested = repo?.suggested ?? null
+  // A new repository's folder is named after the project while its name is blank: it suggests nothing back (BTN-1048).
+  const named = repo?.place === undefined || repo.place.dir === null || fields.source !== 'new' || fields.folder.trim() !== ''
+  const suggestRoot = named ? root : null
   useEffect(() => {
-    setFields((before) => suggestOfRepo(before, shape, { root, current, suggested }))
-  }, [root, current, suggested, shape])
+    setFields((before) => suggestOfRepo(before, shape, { root: suggestRoot, current, suggested }))
+  }, [suggestRoot, current, suggested, shape])
 
   // A bad branch name, or one that moves the checkout, opens the field, and it stays open while the branch is typed again (BTN-754).
   const branches = repo?.branches ?? null
@@ -207,28 +185,25 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     if (trackerShared) setMilestonesOpen(true)
   }, [trackerShared])
 
-  useEffect(() => {
-    if (added === null) return
-    // The new project is the one of the key that was not there before: another project may have the key (BTN-271).
-    const project = state.projects.find((each) => !added.before.includes(each) && state.projectKeys[each] === added.key)
-    if (project !== undefined) void navigate(projectPath(project))
-  }, [added, state, navigate])
-
+  // "Add" starts the service's job (BTN-1048): its window shows the steps, and opens the project once it is made.
+  const job = state.jobs?.find((each) => each.kind === 'project')
   const add = async () => {
     if (!tablesValid(document.querySelector<HTMLElement>('.project-add__steps')!)) return
     if (draft === undefined || !readyToAdd(check)) return
-    const before = state.projects
-    if (!(await send('project/add', { ...draft }))) return
+    await send('project/add', { ...draft })
+  }
+  const open = (made: string | undefined) => {
     if (dropDemo && state.demo !== null) void send('demo/remove')
     kept = {}
     keptTables = { base: {}, edit: {} }
-    setAdded({ key: draft.key.trim(), before })
+    // A kept job not done yet is dropped by Cancel, which takes nothing back then.
+    if (job !== undefined) void send(job.done ? 'job/close' : 'job/cancel', { id: job.id })
+    if (made !== undefined) void navigate(projectPath(made))
   }
 
   const ready = readyToAdd(check)
   const missing = ready ? null : missingOf(fields, shape, check)
   const branchShown = fields.git && (branchOpen || badBranch || moves || (root !== null && current === null))
-  const found = repoCheck !== null && repoCheck.repo.root !== null && repoCheck.repo.notice === null ? repoCheck.repo.root : null
   const checks = stepChecks(fields, shape, check, repoCheck, agentCheck(state, agent), tracker)
   const marks = checkMarks(WIZARD_STEPS.map((step) => checks[step]))
   const dot = (step: WizardStepId) => {
@@ -272,88 +247,19 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             </Row>
           </Section>
           <Section title={fields.git ? t.wizard.stepRepo : t.wizard.stepFolder} mark={dot('repo')} className="project-add__step">
-            <Row
-              className="settings__field project-add__pick"
-              label={t.wizard.mode}
-              control={
-                <Segmented
-                  label={t.wizard.mode}
-                  options={[
-                    ['git', t.wizard.modeGit],
-                    ['plain', t.wizard.modePlain],
-                  ]}
-                  value={fields.git ? 'git' : 'plain'}
-                  onChange={(mode) => set({ git: mode === 'git' })}
-                />
-              }
-            >
-              <span className="settings__hint">{t.wizard.modeHints[fields.git ? 'git' : 'plain']}</span>
-            </Row>
-            <div className="settings__field">
-              <FieldHead label={t.wizard.path} hint={fields.git ? t.wizard.repoHint : t.wizard.folderHint} htmlFor="wizard-repo" />
-              <input
-                id="wizard-repo"
-                className="settings__text settings__text--mono"
-                autoComplete="off"
-                spellCheck={false}
-                autoFocus
-                value={fields.repo}
-                placeholder={fields.git ? examplePaths(state.platform).repo : t.wizard.folderPlaceholder}
-                aria-invalid={repoCheck?.repo.notice != null}
-                onChange={(event) => set({ repo: event.target.value })}
-              />
-              {found !== null && !fields.git && <Status ok>{fields.repo.trim() === '' ? t.wizard.folderOwn(found) : t.wizard.folderChosen(found)}</Status>}
-              {found !== null && fields.git && (
-                <Status ok>
-                  {t.wizard.repoFound(found)}
-                  {!branchShown && (
-                    <>
-                      {' · '}
-                      {t.wizard.mainBranch(fields.branch || current || 'main')}{' '}
-                      <button type="button" className="link-button" onClick={() => setBranchOpen(true)}>
-                        [{t.wizard.changeBranch}]
-                      </button>
-                    </>
-                  )}
-                </Status>
-              )}
-              {repoCheck?.repo.notice != null && (
-                <Status>
-                  {say(repoCheck.repo.notice)}
-                  {(repoCheck.repo.notice.code === 'wizard.repoTaken' || repoCheck.repo.notice.code === 'wizard.folderTaken') && (
-                    <>
-                      {' '}
-                      <Link to={projectPath(repoCheck.repo.notice.params.project)}>{t.wizard.openProject}</Link>
-                    </>
-                  )}
-                </Status>
-              )}
-              {draft !== undefined && (repoCheck?.repo.notice?.code === 'wizard.notRepo' || repoCheck?.repo.notice?.code === 'wizard.noCommits') && (
-                <MakeRepository repo={draft.repo} branch={draft.branch} exists={repoCheck.repo.notice.code === 'wizard.noCommits'} onMade={() => setRound((count) => count + 1)} />
-              )}
-            </div>
-            {branchShown && (
-              <Row
-                className="settings__field"
-                label={t.settings.branch}
-                hint={t.settings.branchHint}
-                htmlFor="wizard-branch"
-                control={
-                  <BranchField
-                    id="wizard-branch"
-                    value={fields.branch}
-                    repo={branches}
-                    placeholder={current ?? 'main'}
-                    invalid={badBranch}
-                    onChange={(branch) => set({ branch })}
-                  />
-                }
-              >
-                <BranchMoveLine repo={branches} value={fields.branch} />
-              </Row>
-            )}
-            {repoCheck?.trusted === false && <p className="settings__hint">{trustTexts().pending}</p>}
-            {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
+            <RepoStep
+              state={state}
+              fields={fields}
+              set={set}
+              draft={draft}
+              repoCheck={repoCheck}
+              current={current}
+              branches={branches}
+              branchShown={branchShown}
+              badBranch={badBranch}
+              onBranchOpen={() => setBranchOpen(true)}
+              onRecheck={() => setRound((count) => count + 1)}
+            />
           </Section>
           <Section title={t.wizard.stepTracker} mark={dot('tracker')} className="project-add__step">
             <TrackerStep state={state} fields={fields} shape={shape} check={check} tracker={tracker} onChange={changeFields} />
@@ -472,7 +378,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
         {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         <WizardFoot
           back={first ? { to: stepPath('stats'), label: t.setup.back } : { to: '/', label: t.wizard.back }}
-          next={{ label: t.wizard.add, onNext: () => void add(), disabled: sending || added !== null || !ready }}
+          next={{ label: t.wizard.add, onNext: () => void add(), disabled: sending || job !== undefined || !ready }}
           note={
             <span className="project-add__note">
               {checking || missing === 'checking' ? (
@@ -480,7 +386,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               ) : (
                 missing !== null && <span className="settings__hint">{missingText(missing, fields, state)}</span>
               )}
-              {draft !== undefined && (draft.repo !== '' || draft.git === false) && (
+              {draft !== undefined && !repoBlank(fields) && (
                 <button
                   type="button"
                   className="wizard__skip"
@@ -499,6 +405,14 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
         />
       </WizardFrame>
       </TableDraft>
+      {job !== undefined && (
+        <JobWindow
+          job={job}
+          title={t.creation.window.title}
+          stepLabel={(id) => t.creation.window.steps[id] ?? id}
+          done={{ label: t.creation.window.open, onDone: () => open(job.result) }}
+        />
+      )}
     </div>
   )
 }

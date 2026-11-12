@@ -2,6 +2,10 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: The page](../verified/page.md).
 
+## Creating a project by a clone or a new repository (BTN-1048)
+
+Tests cover the parsing of `git clone --progress` lines (stages, percent, sizes, speed, `\r` and `\n`), the reading of a remote's answer and its refusals by git's message (rights, no repository, network), the folder's place and suggested name, the measure of a filled folder, the plan's steps for each source, Retry from the failed step, Cancel's undo of only what the job made (with a real folder on disk), the kept project after the entry, the page's draft and the fake's answers; the wizard's card and the window were shot on `dev:fake` in each state. Not checked live: a real clone of a public and of a private repository over HTTPS and SSH under the Windows service (git's credential helper of the service's user, a prompt that would hang: `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` are set, nothing for SSH's own prompts), the progress moving in the window during a large clone, a repository with Git LFS files (the "LFS files" step appearing and its percent), Cancel mid-clone on Windows (the folder released by git before it is removed), a new repository's first commit of a filled folder with `.gitignore`d files, Claude Code's trust written for the new folder, and the wait for the packages of a project made with them on by default. **If it is wrong:** clone the repository by hand into a folder and add it as Existing; a folder Cancel left behind is safe to delete.
+
 ## The badge's warm-up after a start (BTN-973)
 
 Unit tests cover the wait: no push until the project's trackers, the sessions, the stats (when a stats field is picked)

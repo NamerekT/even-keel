@@ -124,3 +124,40 @@
     width: 100%;
   }
 }
+
+/* The folder line (BTN-1048): Even Keel's projects folder, muted and cut from the left, then the name's field. */
+.project-add__folder {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.project-add__dir {
+  flex: 0 1 auto;
+  min-width: 4em;
+  overflow: hidden;
+  color: var(--fg-muted);
+  direction: rtl;
+  font-family: var(--mono);
+  font-size: var(--text-13);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-add__name {
+  flex: 1 0 12em;
+}
+
+.project-add__other {
+  align-self: flex-start;
+}
+
+/* A reason a choice is closed, with the way to open it. */
+.project-add__gate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}

@@ -95,10 +95,11 @@ describe('StepJobs', () => {
 
   it('keeps what was made once the kept step is done: Cancel then undoes nothing', async () => {
     const jobs = new StepJobs()
-    const made = plan([{ id: 'project', run: async () => {} }, { id: 'packages', run: async () => { throw fail('job.packagesUnready', { packages: ['huly'] }) } }], { keptAfter: 'project' })
+    const made = plan([{ id: 'project', run: async () => {} }, { id: 'packages', run: async () => { throw fail('job.packagesUnready', { packages: ['huly'] }) } }], { keptAfter: 'project', result: () => 'project-1' })
     const id = jobs.start(made)
     await jobs.settled(id)
-    expect(jobs.view()[0]!.undoable).toBe(false)
+    // The project is there to open while its packages failed.
+    expect(jobs.view()[0]).toMatchObject({ undoable: false, done: false, result: 'project-1' })
     await jobs.cancel(id)
     expect(made.undone).toBe(0)
   })

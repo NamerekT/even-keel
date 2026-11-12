@@ -5,7 +5,9 @@ import { EMPTY_FIELDS, switchBuiltin, switchProfile, type WizardFields } from '.
 export function firstFields(state: EvenKeelState, kept: Partial<WizardFields> = {}): WizardFields {
   const trackers = new Set(state.profiles.kinds.filter((kind) => kind.tracker).map((kind) => kind.kind))
   const own = state.profiles.profiles.filter((profile) => trackers.has(profile.kind))
-  const empty: WizardFields = { ...EMPTY_FIELDS, git: state.config.shared.defaultGit ?? state.git?.version !== null }
+  // A clone and a new repository commit as git's name and e-mail: without them a checkout already there is the default (BTN-1048).
+  const anonymous = state.git !== undefined && (state.git.name === null || state.git.email === null)
+  const empty: WizardFields = { ...EMPTY_FIELDS, git: state.config.shared.defaultGit ?? state.git?.version !== null, source: anonymous ? 'existing' : 'clone' }
   const defaults = own.length === 0 ? switchBuiltin(empty) : own.length === 1 ? switchProfile(empty, own[0]!) : empty
   return { ...defaults, ...kept }
 }

@@ -16,7 +16,7 @@ the setup again. A manual profile choice keeps both its id and tracker kind toge
 suggestions are recomputed rather than saved as manual edits. Failed checks or adds retain the draft; only a successful
 add clears it. A browser reload clears the module's memory.
 
-A blank branch is filled from the checkout's current one; for `place` the tracker's value comes from the repository's remotes (`repo.suggested`: the first remote the adapter's optional `projectOfRemote` recognises — GitHub, a github.com remote), the key and the name from the repository's name (`keyOfFolder`, `suggestOfRepo`). A tracker project another project reads is refused as `wizard.trackerShared` until the two split it by milestone (BTN-306): the refusal opens "Only tasks in milestones" under the Project step (it stays open while the milestones are typed), the draft's `milestones` become the new entry's `chain.requiredMilestones`, and `yieldedMilestones` (`src/config-form.ts`) takes them out of each other project's required ones or, when it requires none, adds them to its excluded ones — `withNewProject` writes that into their entries, and the check names those projects (`ProjectCheck.yields`) in a line under the field. "Add" is open once the repository, the entry and the tracker pass (`readyToAdd`) — trust is informational and does not block adding the project; it sends `project/add`, which writes the record through `ConfigStore`, and the page goes to `/p/<id>` once the state has a project of the key it did not have before (another one may share the key). Removal is `ProjectRemove.tsx` at the bottom of the project settings' Repository tab: a confirm, then `project/remove`; `removalBlock` (`src/projects/removal.ts`) refuses while the project's chain runs or waits in the queue, a live session was launched for its tasks or works in its folders, a task holds a place (`held`) or cleanup leftovers remain, and the notice lists each reason. A first start without a config file starts with no projects, and the page opens the wizard.
+A blank branch is filled from the checkout's current one; for `place` the tracker's value comes from the repository's remotes (`repo.suggested`: the first remote the adapter's optional `projectOfRemote` recognises — GitHub, a github.com remote), the key and the name from the repository's name (`keyOfFolder`, `suggestOfRepo`). A tracker project another project reads is refused as `wizard.trackerShared` until the two split it by milestone (BTN-306): the refusal opens "Only tasks in milestones" under the Project step (it stays open while the milestones are typed), the draft's `milestones` become the new entry's `chain.requiredMilestones`, and `yieldedMilestones` (`src/config-form.ts`) takes them out of each other project's required ones or, when it requires none, adds them to its excluded ones — `withNewProject` writes that into their entries, and the check names those projects (`ProjectCheck.yields`) in a line under the field. "Add" is open once the repository, the entry and the tracker pass (`readyToAdd`) — trust is informational and does not block adding the project; it sends `project/add`, which starts the creation job (below), and the job's window opens the project once it is made. Removal is `ProjectRemove.tsx` at the bottom of the project settings' Repository tab: a confirm, then `project/remove`; `removalBlock` (`src/projects/removal.ts`) refuses while the project's chain runs or waits in the queue, a live session was launched for its tasks or works in its folders, a task holds a place (`held`) or cleanup leftovers remain, and the notice lists each reason. A first start without a config file starts with no projects, and the page opens the wizard.
 
 Entry refusals are routed by code (`entryField` in `projectWizard.ts`), shared by the field messages and step dots. Only `wizard.keyShape` and `wizard.keyTaken` belong to the key (Tracker for the `key` shape, Project otherwise); `wizard.trackerPlace` belongs under the tracker project's field, and `wizard.trackerShared` under milestones. Blank required keys and tracker projects remain neutral: the footer's `missingOf` names what is missing.
 
@@ -47,3 +47,44 @@ or for an unborn branch `git symbolic-ref HEAD refs/heads/<branch>`, and `git co
 A repository with commits is left as it is. When git does not start at all, `checkRepo` answers `git.missing` instead
 of `wizard.notRepo`, and so does any git call of the chain through `requireStarted` (`requireBranch`, the worktree
 steps): the chain pauses on that notice, whose fix is "Check again and resume".
+
+## Where the repository comes from (BTN-1048)
+
+The Repository card (`web/src/pages/WizardRepo.tsx`, `RepoStep`) has, under the git mode, a `Segmented` "Source":
+Clone | New repository | Existing (`WizardFields.source`, `ProjectDraft.source`). The draft starts on Clone, on
+Existing while git has no name or e-mail (`firstFields`). Git that does not start closes "In a git repository" with the
+reason and a link to the setup's Git step; git without a name and e-mail closes Clone and New repository with
+`NoticeFixButton` of `git.noIdentity`. Existing is the old folder field with its "Make it a repository".
+
+- **Clone** — "Remote address" (`ProjectDraft.remote`). The check asks the remote first (`git ls-remote --symref`,
+  `sharedRemoteReader` in `src/git/remote-run.ts`, held for a minute per address): a refusal is
+  `git.remoteDenied|remoteNotFound|remoteNetwork|remoteFailed` under the field, an answer "The remote answered" with the
+  main branch and `[change]`. A branch the remote lacks is no refusal: the default branch is cloned and the wanted one is
+  made when the entry is written.
+- **Folder** (Clone, New repository and "Without git") — Even Keel's projects folder (`projectsDir()`, the data
+  folder's fixed `projects/`, no setting) as muted text cut from the left, then the name's field; blank, the name
+  suggested (`checkPlace` in `src/projects/place.ts`: the remote's name, else the project's name or key; a taken one
+  gets the branch, then `-2`…). "another folder…" turns it into a full path (`ProjectDraft.repo`). Under it the
+  folder's state (`FolderPlace`): free — made on creation, empty, or filled; a clone refuses a filled folder
+  (`wizard.folderFilled`), a new repository says what goes into its first commit (files and size, counted up to a
+  ceiling), a folder that is a repository already is `wizard.alreadyRepo`. A clone of the same remote and branch already
+  in the projects folder, which no project has, is offered with "Use it", which switches the source to Existing on it.
+  The page sends `folder` only while no path is typed, and `checkDraft` routes a draft "Without git" to `checkPlace`
+  only when it has `folder`: an older page keeps the own folder by id.
+
+"Add project" sends `project/add`, and `settings.add` (`src/service/hosting.ts`) builds the steps
+(`creationPlan`, `src/projects/creation.ts`) and starts them as a job (`stepJobs`, `src/jobs/runner.ts`; one live job
+of a kind; `EvenKeelState.jobs`). The steps: the folder, the clone (`cloner`, `git clone --progress`, its stage,
+percent, size and speed parsed by `parseProgress`) with its LFS files shown once a clone starts filtering them, or the
+new repository's first commit (`git init -b <branch>`, `git add -A`, the commit), the project's entry, Claude Code's
+trust for a folder Even Keel made, and the wait for the project's packages. A refused draft starts no job: the check is
+repeated first.
+
+The window (`JobWindow.tsx`, the add-package dialog's frame, not tied to the wizard: the job's `kind` names its steps,
+and adding a machine to a project takes it too, BTN-993) shows each step's state, a clone's progress bar and figures,
+the failure with its fix and "Retry" (`job/retry` runs the failed step again, the done ones are not repeated), and
+"Cancel" (`job/cancel`): until the entry is written it aborts the step and removes only what the job made — the folder
+it created, the contents of an empty folder it filled, the `.git` it made in a filled one. Once the entry is written
+(`keptAfter`) the project stays: the note says so, and the button is "Open the project", which drops the job without
+undoing anything. Esc does not close the window. A finished job keeps its window until "Open the project"
+(`job/close`), which also removes the demo when asked and clears the kept fields.

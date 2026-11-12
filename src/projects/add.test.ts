@@ -29,6 +29,9 @@ describe('project addition', () => {
     if (args[0] === 'symbolic-ref') return { code: 0, out: 'trunk' }
     if (args[0] === 'for-each-ref') return { code: 0, out: 'refs/heads/trunk\nrefs/heads/dev' }
     if (args[0] === 'check-ref-format') return { code: args[2]!.includes('..') ? 1 : 0, out: '' }
+    // Commits need a name and an e-mail: the check refuses a repository without them (BTN-1048).
+    if (args[0] === 'config' && args[2] === 'user.name') return { code: 0, out: 'John Doe' }
+    if (args[0] === 'config' && args[2] === 'user.email') return { code: 0, out: 'john@example.com' }
     if (args[0] === 'switch' || args[0] === 'branch') {
       switches.push(args)
       return { code: 0, out: '' }

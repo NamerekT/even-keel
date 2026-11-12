@@ -50,7 +50,8 @@ export class StepJobs {
 
   view(): StepJob[] {
     return [...this.jobs.values()].map((job) => {
-      const result = job.done ? job.plan.result?.() : undefined
+      // Once kept, what the job made is there to open, even while a later step runs or failed.
+      const result = job.done || job.kept ? job.plan.result?.() : undefined
       return {
         id: job.id,
         kind: job.plan.kind,

@@ -98,7 +98,8 @@ export async function checkRepo(
   const typed = draft.repo.trim()
   const none = { root: null, current: null, suggested: null, branches: null }
   const plain = draft.git === false
-  if (plain ? typed === '' && (draft.folder ?? '').trim() !== '' : draft.source === 'clone' || draft.source === 'new') {
+  // A page that sends no `folder` for a project without git means Even Keel's own folder of the project, as before BTN-1048.
+  if (plain ? typed === '' && draft.folder !== undefined : draft.source === 'clone' || draft.source === 'new') {
     const projectOf = (folder: string) => projectOfRepo(raw, folder, platform)
     return checkPlace({ git, platform, folders, ownDir, readRemote, projectOf, ...(adapter === undefined ? {} : { adapter }), env }, draft)
   }
