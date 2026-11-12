@@ -1,6 +1,8 @@
 import type { Language } from '../language.js'
 import { SESSION_MARK } from '../review/model.js'
 import { fill } from '../sessions/prompt.js'
+import { MESSAGE_LIMIT } from '../sessions/transcript.js'
+import { closeFence } from './fence.js'
 import type { ReturnReason } from './model.js'
 
 export type HandoffReason = 'limit' | 'restart' | 'message' | 'checkpoint' | 'mainFixed' | 'review' | ReturnReason
@@ -41,7 +43,8 @@ export interface UnchangedTexts {
   accepted: (message: string) => string
   /**
    * The tracker comment on a task of a project without git closed by its mark (BTN-883): the session's last message
-   * whole, `''` — it wrote only the mark; `cut` — the message is longer than what is kept.
+   * whole, `''` — it wrote only the mark; `cut` — the message is longer than what is kept, and a code block it was cut
+   * inside is closed before the note (BTN-1045).
    */
   answered: (message: string, cut: boolean) => string
 }
@@ -141,7 +144,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       answered: (message, cut) =>
         message === ''
           ? 'Задача закрыта сессией без текста ответа.'
-          : fill`Ответ сессии:\n\n${message}` + (cut ? '\n\n(Ответ обрезан: он длиннее, чем Even Keel записывает в комментарий. Целиком — в сессии.)' : ''),
+          : fill`Ответ сессии:\n\n${cut ? closeFence(message, MESSAGE_LIMIT) : message}` + (cut ? '\n\n(Ответ обрезан: он длиннее, чем Even Keel записывает в комментарий. Целиком — в сессии.)' : ''),
     },
     plain: {
       folder: (path) =>
@@ -285,7 +288,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       answered: (message, cut) =>
         message === ''
           ? 'The session closed the task without an answer text.'
-          : fill`The session's answer:\n\n${message}` + (cut ? '\n\n(The answer is cut: it is longer than Even Keel puts in a comment. The whole of it is in the session.)' : ''),
+          : fill`The session's answer:\n\n${cut ? closeFence(message, MESSAGE_LIMIT) : message}` + (cut ? '\n\n(The answer is cut: it is longer than Even Keel puts in a comment. The whole of it is in the session.)' : ''),
     },
     plain: {
       folder: (path) =>
