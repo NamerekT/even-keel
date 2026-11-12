@@ -200,7 +200,7 @@ The organization's actual refusal was seen on Claude CLI 2.1.310 on 2026-10-25: 
 
 ## Scheduled break-label assignment
 
-The five-minute Windows Task Scheduler registration in [the experiment protocol](../posts/compaction-ab.md) has not been installed or executed by a scheduler. Assignment logic has unit tests; the first live tracker run is recorded separately. A scheduler may use a different identity, Node path, working directory or data folder, or lack access to the state database. Check its first two runs, exit codes and append-only log before relying on it. **Workaround:** run `npm run break-labels -- BTN` manually from the installation's source checkout and retain its output. Other operating systems' schedulers have not been checked either.
+The Windows Task Scheduler registration of [the experiment protocol](../posts/compaction-ab.md) is checked live (`docs/verified/sessions.md`, 2026-11-12). Not checked: a scheduler on Linux or macOS (cron, a systemd timer, launchd), which may use a different identity, Node path, working directory or data folder, or lack access to the state database. Check its first two runs, exit codes and append-only log before relying on it. **Workaround:** run `npm run break-labels -- BTN` by hand from the installation's source checkout and retain its output.
 
 ## Hooks after the page's address changes (BTN-817)
 

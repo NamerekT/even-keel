@@ -94,25 +94,31 @@ the old imported config file. In a worktree, set `EVEN_KEEL_DATA` to the install
 selection works for Huly, GitHub, Linear and other adapters with `relabel`. It adds no service function
 and no page control. A failure exits nonzero; earlier successful writes stay and a retry preserves them.
 
-The user registers the schedule. This PowerShell example runs every five minutes under the registering
-user, from the installation's source checkout, with one instance at a time and an append-only local log.
+The user registers the schedule. This PowerShell example runs every 15 minutes under the registering
+user, from the installation's source checkout, with one instance at a time and an append-only UTF-8 log,
+and stops repeating after 21 days so a forgotten experiment does not label tasks forever.
+`conhost.exe --headless` keeps a console window from flashing up on every run; `Out-File -Encoding utf8`
+keeps the log readable by `grep` (Windows PowerShell's `*>>` writes UTF-16).
 Replace the example folder; use the identity that can read the installation's state and profiles.
 
 ```powershell
 $repo = 'C:\Projects\even-keel'
 New-Item -ItemType Directory -Force -Path (Join-Path $repo '.temp') | Out-Null
 $node = (Get-Command node.exe).Source
-$command = "& '$node' 'node_modules/tsx/dist/cli.mjs' 'scripts/break-labels.ts' BTN *>> '.temp/break-labels.log'; exit `$LASTEXITCODE"
-$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -NonInteractive -Command "' + $command + '"') -WorkingDirectory $repo
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 5)
-$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable
+$command = "& '$node' 'node_modules/tsx/dist/cli.mjs' 'scripts/break-labels.ts' BTN 2>&1 | Out-File -Append -Encoding utf8 '.temp/break-labels.log'; exit `$LASTEXITCODE"
+$psArgs = '-NoProfile -NonInteractive -WindowStyle Hidden -Command "' + $command + '"'
+$action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument ('--headless powershell.exe ' + $psArgs) -WorkingDirectory $repo
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Days 21)
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
 Register-ScheduledTask -TaskName 'EvenKeel-BreakLabels' -Action $action -Trigger $trigger -Settings $settings
 ```
 
+At the stop rule, `Unregister-ScheduledTask -TaskName 'EvenKeel-BreakLabels' -Confirm:$false`.
 For a separate data folder, add `$env:EVEN_KEEL_DATA = 'C:\Data\even-keel';` to the command.
-No task is registered by the script. On other systems, run the same command every five minutes with
-the scheduler's overlap prevention and append stdout/stderr to a retained log. Scheduler registration
-and execution are a separate [live check](../unverified/sessions.md#scheduled-break-label-assignment).
+No task is registered by the script. On other systems, run the same command every 15 minutes with
+the scheduler's overlap prevention and append stdout/stderr to a retained log. The Windows schedule is
+[checked live](../verified/sessions.md); other systems' schedulers are an open
+[live check](../unverified/sessions.md#scheduled-break-label-assignment).
 
 ## First run record
 
@@ -128,3 +134,26 @@ two tasks that had already started before assignment, across all providers. Appl
 population rule during analysis, without losing these rollout records. Preserve these files for the
 deviation ledger: any task session started before its assignment is a rollout deviation even though
 the label now matches parity. Scheduler registration remains for the user.
+
+The `.temp/btn-505/` files named above are gone: the main checkout's `.temp/` was emptied on 2026-10-30
+(BTN-503). The first run's counts above are all that is left of them.
+
+## Second start record
+
+**The first run is void as an experiment.** The schedule was never registered: the script ran only by
+hand, on 2026-10-29 and 2026-11-07, so tasks created between those runs and after the second one were
+started without any break label. On 2026-11-12 only 9 of 38 and 6 of 38 closed long tasks of the two
+groups carried their label, and the rest ran on the product's default, context handoffs. Counting them by parity would
+compare two mostly untreated groups. No outcome numbers of that period are reported; the rules above
+stay unchanged.
+
+Second start: **2026-11-12 13:14:16 UTC**, the same script (`962fda25`, unchanged since) by hand on BTN.
+It finished at 13:14:31 UTC: 87 tasks assigned, 55 already labelled, one parity mismatch kept as it is
+(BTN-796 carries `Break | handoff` while even) and recorded as a deviation. Log:
+`.temp/break-labels-2026-11-12.log` in the main checkout.
+
+Right after it the schedule above was registered on the author's workstation (every 15 minutes, expiring
+on 2026-12-03); its runs append to `.temp/break-labels.log`. The new collection counts only tasks whose
+first session started after 13:14:16 UTC; a task first started earlier belongs to the void period and
+stays out, whatever its label. The stop rule
+is unchanged: 30 closed long tasks in each group, then unregister the task.
