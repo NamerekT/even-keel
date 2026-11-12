@@ -1,5 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router'
 import { LANGUAGES, type Language } from '../../../src/language.js'
+import type { PassableStep } from '../../../src/setup.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { readinessOf } from '../accounts.js'
 import { accountName } from '../accountName.js'
@@ -13,7 +14,8 @@ import { providerName } from './settingsRun.js'
 import { AgentStep } from './SetupAgent.js'
 import { Cards, type Save } from './SetupChoices.js'
 import { GitStep } from './SetupGit.js'
-import { accountShortName, agentReady, gitStepReady, gitYesToKeep, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
+import { ADD_PROJECT, FROM_SETUP, setupFacts } from './SetupAsk.js'
+import { accountShortName, gitStepReady, gitYesToKeep, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepAnswered, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
 import { trackerProfiles, TrackerStep } from './SetupTracker.js'
 import { StatsStep } from './StatsSetup.js'
 import { listSummary } from './wizard.js'
@@ -24,8 +26,6 @@ import './settings.css'
 import './projectAdd.css'
 import './tally.css'
 import './setup.css'
-
-const ADD_PROJECT = '/projects/add'
 
 /**
  * The first run's setup (BTN-310, BTN-346): the languages, the agent and its account, a tracker profile, the update
@@ -42,14 +42,22 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   const previous = stepBeside(step, -1)
   const next = stepBeside(step, 1)
   const own = ownProjects(state).length
-  const done = () => void navigate(own === 0 ? ADD_PROJECT : '/', { replace: true })
+  const done = () => void navigate(own === 0 ? ADD_PROJECT : '/', { replace: true, state: FROM_SETUP })
+  // A step gone past with no setting of its own is kept, so it is not offered again (BTN-1023).
+  const pass = async (passable: PassableStep) => shared.setupPassed.includes(passable) || (await save({ setupPassed: [...shared.setupPassed, passable] }))
 
   // The page's language shown is only a guess until it is written: "Next" keeps it.
   // `picked`: a card on the step has already written its answer, which `shared` of this render does not hold yet.
   const onward = async (picked = false) => {
     if (step === 'language' && shared.language === null && !(await save({ language, promptLanguage: language }))) return
     if (step === 'git' && gitYesToKeep(shared.defaultGit, state.git, picked) && !(await save({ defaultGit: true }))) return
+    if (step === 'updates' && !(await pass('updates'))) return
     if (next !== null) void navigate(stepPath(next))
+  }
+  const skipped = async () => {
+    if (!(await pass(step as PassableStep))) return
+    if (step === 'stats') done()
+    else await onward()
   }
 
   // Nothing to go on with on the tracker step but a profile: without one, skipping is the way on.
@@ -57,10 +65,8 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
   const ahead = step === 'tracker' && trackerProfiles(state).length === 0 ? null : next
   const gitHeld = step === 'git' && !gitStepReady(shared.defaultGit, state.git)
   const skippable = OPTIONAL_STEPS.includes(step) && (ahead === null || gitHeld) && !(step === 'stats' && own > 0)
-  const skip = !skippable ? undefined : step === 'stats' ? done : () => void onward()
-  const held =
-    gitHeld ||
-    (step === 'agent' && !agentReady(shared.provider, state.cliCopies?.[shared.provider], state.account, shared.accounts[shared.provider] ?? ''))
+  const skip = !skippable ? undefined : () => void skipped()
+  const held = gitHeld || (step === 'agent' && !setupFacts(state).agentReady)
   // The Git and agent steps are parts of their own, each in its card with a dot, as in the project wizard (BTN-603).
   const parts = step === 'agent' || step === 'git'
   const body = <StepBody step={step} state={state} save={save} sending={sending} onDone={done} onPicked={() => void onward(true)} />
@@ -96,9 +102,10 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
 
 /** The first run's line of steps; its last dot is the project wizard. */
 export function setupLine(state: EvenKeelState): WizardStep[] {
+  const facts = setupFacts(state)
   return [
-    ...SETUP_STEPS.map((each) => ({ id: each, label: t.setup.steps[each], summary: summaryOf(each, state), to: stepPath(each) })),
-    { id: 'project', label: t.setup.steps.project, summary: null, to: ADD_PROJECT },
+    ...SETUP_STEPS.map((each) => ({ id: each, label: t.setup.steps[each], summary: summaryOf(each, state), done: stepAnswered(each, facts), to: stepPath(each) })),
+    { id: 'project', label: t.setup.steps.project, summary: null, done: false, to: ADD_PROJECT, state: FROM_SETUP },
   ]
 }
 

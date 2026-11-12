@@ -666,6 +666,7 @@ export const noticesRu: NoticeTexts = {
   'config.mergeIntoForeign': (p) =>
     `${p.project} вливается в ${p.into}, а это папка другого репозитория: нет общего remote, и ни одна не клон другой`,
   'config.allowedHosts': () => 'allowedHosts должен быть списком имён хостов',
+  'config.setupPassed': (p) => `setupPassed должен быть списком шагов настройки, есть: ${list(p.known)}`,
   'config.updatesKey': (p) => `updates.${p.key} — не настройка обновлений, есть: ${list(p.known)}`,
   'config.updatesDismissed': (p) => `updates.dismissed должен быть версией вида 0.2.0 или null, а не ${p.value}`,
   'updates.running': () => 'обновление уже идёт',

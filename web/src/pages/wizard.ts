@@ -1,10 +1,9 @@
 /** Where a step of a wizard stands against the one open: its dot is filled, a ring, or empty. */
 export type StepMark = 'done' | 'current' | 'future'
 
-/** The steps before the current one are done, those after it are ahead. */
-export function stepMarks<T>(steps: readonly T[], current: T): StepMark[] {
-  const at = steps.indexOf(current)
-  return steps.map((_, index) => (index < at ? 'done' : index === at ? 'current' : 'future'))
+/** The current step is a ring; another is done by its own answer, wherever it stands, and empty without one (BTN-1023). */
+export function stepMarks(steps: readonly { id: string; done: boolean }[], current: string): StepMark[] {
+  return steps.map((step) => (step.id === current ? 'current' : step.done ? 'done' : 'future'))
 }
 
 /** How much of the line between the first dot and the last is filled: up to the current step. */

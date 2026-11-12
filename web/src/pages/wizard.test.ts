@@ -3,14 +3,19 @@ import { checkMarks, filledShare, listSummary, stepMarks } from './wizard.js'
 
 const STEPS = ['language', 'agent', 'tracker', 'stats', 'project'] as const
 
+const line = (done: boolean[]) => STEPS.map((id, index) => ({ id, done: done[index]! }))
+
 describe('stepMarks', () => {
-  it('marks the steps before the current one done and those after it future', () => {
-    expect(stepMarks(STEPS, 'tracker')).toEqual(['done', 'done', 'current', 'future', 'future'])
+  it('marks the current step a ring and the others by their answer, not by their place (BTN-1023)', () => {
+    expect(stepMarks(line([true, false, false, true, false]), 'tracker')).toEqual(['done', 'future', 'current', 'done', 'future'])
   })
 
-  it('has nothing done on the first step and nothing future on the last', () => {
-    expect(stepMarks(STEPS, 'language')).toEqual(['current', 'future', 'future', 'future', 'future'])
-    expect(stepMarks(STEPS, 'project')).toEqual(['done', 'done', 'done', 'done', 'current'])
+  it('leaves a step before the current one without its check while it has no answer', () => {
+    expect(stepMarks(line([true, false, true, true, false]), 'project')).toEqual(['done', 'future', 'done', 'done', 'current'])
+  })
+
+  it('rings the current step even when it is answered', () => {
+    expect(stepMarks(line([true, true, true, true, false]), 'language')).toEqual(['current', 'done', 'done', 'done', 'future'])
   })
 })
 

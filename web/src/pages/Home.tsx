@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react'
-import { Link, Navigate } from 'react-router'
+import { Navigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
 import { openQuestions, ownProjects, projectSlots, questionPath } from '../state.js'
@@ -13,13 +13,13 @@ import { LaunchChart, localDate } from './LaunchChart.js'
 import { testLaunches } from './testLaunches.js'
 import { emptyKind, ProjectCard } from './ProjectCard.js'
 import { DemoWelcome } from './Demo.js'
+import { AddProjectLink } from './SetupAsk.js'
 import { stepPath } from './setupSteps.js'
 import { useGrouping } from './useGrouping.js'
 import './home.css'
 
 const PEAK_DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long' }))
 const HOME_PACE = { charMs: 45, pauseMs: 3000 }
-const ADD_PROJECT = '/projects/add'
 
 export function Home({ state }: { state: EvenKeelState }) {
   // One draw per visit; the line follows the numbers as they change.
@@ -54,9 +54,9 @@ export function Home({ state }: { state: EvenKeelState }) {
         actions={
           <>
             {state.projects.length > 1 && <GroupingSwitch value={grouping} onChange={setGrouping} />}
-            <Link to={ADD_PROJECT} className="button button--small">
+            <AddProjectLink state={state} className="button button--small">
               + {t.home.add}
-            </Link>
+            </AddProjectLink>
           </>
         }
       />
@@ -72,9 +72,9 @@ export function Home({ state }: { state: EvenKeelState }) {
         {state.projects.length === 0 ? (
           <EmptyState
             action={
-              <Link to={ADD_PROJECT} className="button button--small">
+              <AddProjectLink state={state} className="button button--small">
                 + {t.home.add}
-              </Link>
+              </AddProjectLink>
             }
           >
             {t.home.empty}

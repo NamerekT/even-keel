@@ -3,6 +3,7 @@ import type { ChainRules } from '../chain/rules.js'
 import type { CiKind, RemoteProfiles } from '../ci/model.js'
 import type { Language } from '../language.js'
 import type { Protection } from '../sessions/protection.js'
+import type { PassableStep } from '../setup.js'
 import type { CompareSettings } from '../stats/rules.js'
 import type { UpdateSettings } from '../updates/release.js'
 
@@ -223,6 +224,8 @@ export interface SharedForm {
   attachmentLimit: number
   /** The project wizard's mode for a new project (BTN-886); `null` — not asked yet. */
   defaultGit: boolean | null
+  /** The setup's steps gone past with no setting of their own (BTN-1023). */
+  setupPassed: PassableStep[]
   /** The service checks a new CLI version and the checked one weekly (BTN-569). */
   cliCheck: boolean
   /** What a project without its own `ci` keys or `fillMilestone` runs on. */

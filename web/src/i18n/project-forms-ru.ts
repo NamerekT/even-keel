@@ -612,6 +612,12 @@ export const setupRU = {
     nextTo: (step: string) => `Далее: ${step}`,
     back: 'Назад',
     skip: 'Пропустить пока',
+    ask: {
+      title: 'Настроить Even Keel?',
+      question: (step: string) => `Настройка не закончена, а полностью Even Keel работает только после неё. Она продолжится с шага, на котором остановилась: ${step}.`,
+      yes: 'Настроить',
+      no: 'Не сейчас',
+    },
     pageLanguage: 'Страница',
     pageLanguageHint: 'Надписи страницы и сообщения службы на ней.',
     promptLanguage: 'Промпты сессий',

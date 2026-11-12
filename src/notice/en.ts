@@ -690,6 +690,7 @@ export const en = {
   'config.mergeIntoForeign': (p: { project: string; into: string }) =>
     `config: ${p.project}.mergeInto names ${p.into}, a checkout of another repository: they share no remote, and neither is a clone of the other`,
   'config.allowedHosts': () => 'config: allowedHosts must be a list of host names',
+  'config.setupPassed': (p: { known: string[] }) => `config: setupPassed must be a list of the setup's steps, known: ${list(p.known)}`,
   'config.updatesKey': (p: { key: string; known: string[] }) => `config: updates.${p.key} is not an update setting, known: ${list(p.known)}`,
   'config.updatesDismissed': (p: { value: string }) => `config: updates.dismissed must be a version such as 0.2.0, or null, got ${p.value}`,
   'updates.running': () => 'updates: an update is already under way',

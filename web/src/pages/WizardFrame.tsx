@@ -9,7 +9,11 @@ export interface WizardStep {
   label: string
   /** What the step holds once done ("English", "GitHub · octo-org"), under its label; `null` — nothing to say. */
   summary: string | null
+  /** The step has its answer (`stepAnswered`): its dot is checked wherever the user is. */
+  done: boolean
   to: string
+  /** The router state the step's link carries. */
+  state?: unknown
 }
 
 interface FrameProps {
@@ -43,9 +47,8 @@ export function WizardFrame({ title, lead, steps, className, children }: FramePr
 }
 
 function StepLine({ label, list, current }: { label: string; list: WizardStep[]; current: string }) {
-  const ids = list.map((step) => step.id)
-  const marks = stepMarks(ids, current)
-  const style = { '--steps': list.length, '--filled': filledShare(ids, current) } as CSSProperties
+  const marks = stepMarks(list, current)
+  const style = { '--steps': list.length, '--filled': filledShare(list.map((step) => step.id), current) } as CSSProperties
   return (
     <nav className="wizard__nav" aria-label={label}>
       <ol className="wizard__steps" style={style}>
@@ -53,7 +56,7 @@ function StepLine({ label, list, current }: { label: string; list: WizardStep[];
           const mark = marks[index]!
           return (
             <li key={step.id} className={`wizard__step wizard__step--${mark}`}>
-              <Link to={step.to} className="wizard__step-link" aria-current={mark === 'current' ? 'step' : undefined}>
+              <Link to={step.to} state={step.state} className="wizard__step-link" aria-current={mark === 'current' ? 'step' : undefined}>
                 <StepDot mark={mark} />
                 <span className="wizard__step-label">{step.label}</span>
                 {mark === 'done' && step.summary !== null && <span className="wizard__step-summary">{step.summary}</span>}

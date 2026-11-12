@@ -615,6 +615,12 @@ export const setupEN: Messages['setup'] = {
     nextTo: (step: string) => `Next: ${step}`,
     back: 'Back',
     skip: 'Skip for now',
+    ask: {
+      title: 'Set up Even Keel?',
+      question: (step: string) => `The setup is not finished, and Even Keel works in full only after it. It goes on from the step it stopped at: ${step}.`,
+      yes: 'Set up',
+      no: 'Not now',
+    },
     pageLanguage: 'Page',
     pageLanguageHint: "The page's labels and the service's messages on it.",
     promptLanguage: 'Session prompts',

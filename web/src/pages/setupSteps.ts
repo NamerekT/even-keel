@@ -1,5 +1,8 @@
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
+import type { Language } from '../../../src/language.js'
+import type { PassableStep } from '../../../src/setup.js'
 import type { GitSetupView } from '../../../src/state.js'
+import type { TallyMode } from '../../../src/stats/mode.js'
 
 /** The first run's setup (BTN-310): one page, the step in its address so that the browser's Back goes a step back. */
 export const SETUP = '/setup'
@@ -94,6 +97,39 @@ export function gitDownload(platform: string): string {
   if (platform === 'win32') return 'https://git-scm.com/download/win'
   if (platform === 'darwin') return 'https://git-scm.com/download/mac'
   return 'https://git-scm.com/download/linux'
+}
+
+/** What tells whether each step of the setup has its answer (BTN-1023). */
+export interface SetupFacts {
+  language: Language | null
+  defaultGit: boolean | null
+  git: GitSetupView | undefined
+  /** `agentReady` of the shared agent and its account. */
+  agentReady: boolean
+  profiles: number
+  tally: TallyMode | null
+  /** `setupPassed`: the steps gone past with no setting of their own. */
+  passed: readonly PassableStep[]
+}
+
+/**
+ * Whether a step has its answer, the one fact behind both the line's checks and where the setup stopped (BTN-1023): its
+ * setting, or a skip kept in `setupPassed`. Git is answered by No or by a Yes with git ready, never by the Yes shown in
+ * advance; the agent only by an account it can run on; the update check, on by default, only once gone past.
+ */
+export function stepAnswered(step: SetupStep, facts: SetupFacts): boolean {
+  const passed = (facts.passed as readonly SetupStep[]).includes(step)
+  if (step === 'language') return facts.language !== null
+  if (step === 'git') return passed || (facts.defaultGit !== null && gitStepReady(facts.defaultGit, facts.git))
+  if (step === 'agent') return facts.agentReady
+  if (step === 'tracker') return passed || facts.profiles > 0
+  if (step === 'updates') return passed
+  return passed || facts.tally !== null
+}
+
+/** Where the setup stopped: its first step without an answer; `null` — every step has one, the project wizard is next. */
+export function setupStop(facts: SetupFacts): SetupStep | null {
+  return SETUP_STEPS.find((step) => !stepAnswered(step, facts)) ?? null
 }
 
 /** The step before and after; `null` — none, the first step or the last. */

@@ -39,6 +39,7 @@ import { ListTable } from './settingsTable.js'
 import type { Draft } from './settingsDraft.js'
 import { TableDraft, tablesValid } from './settingsTableDraft.js'
 import { setupLine } from './Setup.js'
+import { SetupGate } from './SetupAsk.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
 import { checkMarks } from './wizard.js'
@@ -214,6 +215,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 
   return (
     <div className="page project-add">
+      <SetupGate state={state} />
       <TableDraft value={{ draft: tableDraft, setDraft: setTableDraft }}>
       <WizardFrame
         title={first ? t.setup.title : t.wizard.title}

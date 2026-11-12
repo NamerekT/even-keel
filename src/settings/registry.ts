@@ -15,6 +15,7 @@ import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
 import { promptPatternOf } from '../sessions/model-prompts.js'
 import { DEFAULT_PROTECTION, PROTECTION_GROUPS } from '../sessions/protection.js'
 import { placeholderIn } from '../sessions/prompt.js'
+import { PASSABLE_STEPS } from '../setup.js'
 import type { CheckpointShares, OwnKey } from '../state.js'
 import { DEFAULT_SHARES } from '../stats/checkpoint.js'
 import { isTallyMode } from '../stats/mode.js'
@@ -219,6 +220,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   // The project wizard's mode for a new project, the setup's Git step answer (BTN-886); `null` — not asked yet.
   { key: 'defaultGit', kind: 'boolean', scopes: ['global'], lands: ['defaultGit'], default: null, check: (value, place) => (value === null ? null : boolean('defaultGit')(value, place)) },
+  // The setup's steps gone past with no setting of their own (BTN-1023): the setup writes them, not a form.
+  { key: 'setupPassed', kind: 'list', scopes: ['global'], lands: ['setupPassed'], default: [], check: (value) => {
+    if (!Array.isArray(value) || value.some((step) => !(PASSABLE_STEPS as readonly unknown[]).includes(step))) throw fail('config.setupPassed', { known: [...PASSABLE_STEPS] })
+    return [...new Set(value)]
+  } },
   // Off for users: each run spends the account's limits (BTN-569).
   { key: 'cliCheck', kind: 'boolean', scopes: ['global'], lands: ['cliCheck'], default: false, check: boolean('cliCheck') },
   { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },

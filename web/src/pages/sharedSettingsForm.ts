@@ -57,6 +57,8 @@ export const valuesOf = (form: SharedForm): Values => ({
   updatesNotify: form.updates.notify,
   fillMilestone: form.fillMilestone,
   defaultGit: form.defaultGit === null ? '' : String(form.defaultGit),
+  // No field of its own: the setup writes it, the form carries it as it is.
+  setupPassed: form.setupPassed,
   cliCheck: form.cliCheck,
   guard: form.ci.guard,
   kinds: form.ci.kinds,
@@ -114,6 +116,7 @@ export function formOf(values: Values): SharedForm | undefined {
     keepWarm: keepWarm!,
     attachmentLimit: attachmentLimit!,
     defaultGit: text('defaultGit') === '' ? null : text('defaultGit') === 'true',
+    setupPassed: values.setupPassed as SharedForm['setupPassed'],
     cliCheck: values.cliCheck as boolean,
     allowedHosts: linesOf(text('allowedHosts')),
     context: { window: window!, warn, danger },

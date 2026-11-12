@@ -1,6 +1,77 @@
 import { describe, expect, it } from 'vitest'
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
-import { accountShortName, agentReady, gitChoice, gitDownload, gitReady, gitStepReady, gitYesToKeep, profileShortName, setupStep, stepBeside, stepPath } from './setupSteps.js'
+import {
+  accountShortName,
+  agentReady,
+  gitChoice,
+  gitDownload,
+  gitReady,
+  gitStepReady,
+  gitYesToKeep,
+  profileShortName,
+  setupStep,
+  setupStop,
+  stepAnswered,
+  stepBeside,
+  stepPath,
+  type SetupFacts,
+} from './setupSteps.js'
+
+const NOTHING: SetupFacts = { language: null, defaultGit: null, git: undefined, agentReady: false, profiles: 0, tally: null, passed: [] }
+const ANSWERED: SetupFacts = {
+  language: 'en',
+  defaultGit: false,
+  git: undefined,
+  agentReady: true,
+  profiles: 0,
+  tally: null,
+  passed: ['tracker', 'updates', 'stats'],
+}
+
+describe('stepAnswered', () => {
+  it('takes a step as answered by its own setting (BTN-1023)', () => {
+    expect(stepAnswered('language', NOTHING)).toBe(false)
+    expect(stepAnswered('language', { ...NOTHING, language: 'ru' })).toBe(true)
+    expect(stepAnswered('tracker', { ...NOTHING, profiles: 1 })).toBe(true)
+    expect(stepAnswered('stats', { ...NOTHING, tally: 'local' })).toBe(true)
+  })
+
+  it('takes a skip kept in setupPassed as an answer, so the step is not offered again', () => {
+    expect(stepAnswered('tracker', NOTHING)).toBe(false)
+    expect(stepAnswered('tracker', { ...NOTHING, passed: ['tracker'] })).toBe(true)
+    expect(stepAnswered('stats', { ...NOTHING, passed: ['stats'] })).toBe(true)
+    expect(stepAnswered('git', { ...NOTHING, passed: ['git'] })).toBe(true)
+  })
+
+  it('takes the update check as answered only once gone past: on is its default, not an answer', () => {
+    expect(stepAnswered('updates', NOTHING)).toBe(false)
+    expect(stepAnswered('updates', { ...NOTHING, passed: ['updates'] })).toBe(true)
+  })
+
+  it('takes Git as answered by No, or by Yes with git ready, never by the Yes shown in advance', () => {
+    expect(stepAnswered('git', { ...NOTHING, defaultGit: false })).toBe(true)
+    expect(stepAnswered('git', { ...NOTHING, defaultGit: true, git: READY })).toBe(true)
+    expect(stepAnswered('git', { ...NOTHING, defaultGit: true, git: ABSENT })).toBe(false)
+    expect(stepAnswered('git', { ...NOTHING, defaultGit: null, git: READY })).toBe(false)
+  })
+
+  it('takes the agent as answered only with an account to run on, and no skip stands for it', () => {
+    expect(stepAnswered('agent', { ...NOTHING, passed: ['git', 'tracker', 'updates', 'stats'] })).toBe(false)
+    expect(stepAnswered('agent', { ...NOTHING, agentReady: true })).toBe(true)
+  })
+})
+
+describe('setupStop', () => {
+  it('names the first step without an answer', () => {
+    expect(setupStop(NOTHING)).toBe('language')
+    expect(setupStop({ ...ANSWERED, agentReady: false })).toBe('agent')
+    expect(setupStop({ ...ANSWERED, passed: ['stats'] })).toBe('tracker')
+  })
+
+  it('is null once every step has its answer: the project wizard is next', () => {
+    expect(setupStop(ANSWERED)).toBeNull()
+  })
+})
 
 describe('gitReady', () => {
   it('goes on once git is installed and has a name and an e-mail to commit with (BTN-731)', () => {

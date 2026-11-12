@@ -16,6 +16,7 @@ import type { TallyServerDraft } from './stats/connect.js'
 import { isTallyMode, type TallyMode } from './stats/mode.js'
 import { PROFILE_RULE_KEYS } from './profiles/model.js'
 import type { Protection } from './sessions/protection.js'
+import { PASSABLE_STEPS, type PassableStep } from './setup.js'
 import { BROWSER_ID, hotkeyBindingsOf, type HotkeyBindings } from './hotkeys.js'
 
 export function browserOf(body: Record<string, unknown>): string {
@@ -189,7 +190,7 @@ export function ownOf(raw: unknown): OwnValues {
 }
 
 export function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates } = body
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
@@ -222,6 +223,8 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     attachmentLimit: attachmentLimit === undefined ? ATTACHMENT_LIMIT_MB : numberOf(attachmentLimit, 'attachmentLimit'),
     // A page from before the setting sends none: not asked, as the default, so nothing is written.
     defaultGit: defaultGit == null ? null : switchOf(defaultGit, 'defaultGit'),
+    // A page from before the setting sends none: nothing gone past, as the default, so nothing is written.
+    setupPassed: setupPassed === undefined ? [] : passedOf(setupPassed),
     cliCheck: cliCheck === undefined ? false : switchOf(cliCheck, 'cliCheck'),
     ci: ci === undefined ? DEFAULT_CI : ciOf(ci),
     fillMilestone: fillMilestone === undefined ? false : switchOf(fillMilestone, 'fillMilestone'),
@@ -284,6 +287,12 @@ export function profileRulesOf(raw: unknown, keys: readonly (keyof ChainRules)[]
     Object.assign(rules, { [key]: value === null && (key === 'active' || key === 'terminal') ? null : linesOf(value, 'rules') })
   }
   return rules
+}
+
+function passedOf(raw: unknown): PassableStep[] {
+  const steps = linesOf(raw, 'setupPassed')
+  if (steps.some((step) => !(PASSABLE_STEPS as readonly string[]).includes(step))) throw fail('request.required', { field: 'setupPassed' })
+  return steps as PassableStep[]
 }
 
 export function linesOf(raw: unknown, field: string): string[] {

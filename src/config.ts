@@ -16,6 +16,7 @@ import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_ACCOUNTS, DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
 import type { Protection } from './sessions/protection.js'
+import type { PassableStep } from './setup.js'
 import type { TallyMode } from './stats/mode.js'
 import { fileRows, isPlainObject, PROJECT_KEY, writeRows } from './settings/file.js'
 import { at, OWN_KEYS } from './settings/registry.js'
@@ -108,6 +109,8 @@ export interface EvenKeelConfig {
   attachmentLimit: number
   /** The mode the project wizard offers a new project (BTN-886): `false` — without git; `null` — not asked yet, by whether git starts. */
   defaultGit: boolean | null
+  /** The setup's steps gone past with no setting of their own (BTN-1023, `PASSABLE_STEPS`): not offered again. */
+  setupPassed: PassableStep[]
   /** Run `cli-check` in the service on a new CLI version and weekly (BTN-569); off by default — it spends limits. */
   cliCheck: boolean
   /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
@@ -341,6 +344,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     keepWarm: shared.keepWarm as number,
     attachmentLimit: shared.attachmentLimit as number,
     defaultGit: shared.defaultGit as boolean | null,
+    setupPassed: shared.setupPassed as PassableStep[],
     cliCheck: shared.cliCheck as boolean,
     unattended: shared.unattended as boolean,
     trimTools: shared.trimTools as boolean,

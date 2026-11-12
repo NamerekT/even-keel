@@ -1,23 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
-import { firstRun } from '../../../src/setup.js'
 import { language, say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { ownProjects, projectPath } from '../state.js'
+import { projectPath } from '../state.js'
 import { Band, Card } from '../ui/blocks.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
-import { SETUP } from './setupSteps.js'
+import { AddProjectLink } from './SetupAsk.js'
 import { WizardFrame } from './WizardFrame.js'
 import './demo.css'
-
-const ADD_PROJECT = '/projects/add'
-
-/** Where "Connect your own" leads: the first run's setup while it is not walked, the project wizard after it. */
-export function connectPath(state: EvenKeelState): string {
-  return firstRun(state.tally, ownProjects(state).length) ? SETUP : ADD_PROJECT
-}
 
 /**
  * Starts the demo (or starts it anew) in the page's language and opens its project once the state names it: the
@@ -61,9 +53,9 @@ export function DemoWelcome({ state }: { state: EvenKeelState }) {
           <Card title={t.demo.connectTitle} className="demo-welcome__choice">
             <p className="demo-welcome__hint">{t.demo.connectHint}</p>
             <div className="demo-welcome__actions">
-              <Link to={connectPath(state)} className="button">
+              <AddProjectLink state={state} className="button">
                 {t.demo.connect}
-              </Link>
+              </AddProjectLink>
             </div>
           </Card>
         </div>
@@ -101,7 +93,9 @@ function DemoBanner({ state }: { state: EvenKeelState }) {
         className="demo-banner"
         action={
           <>
-            <Link to={connectPath(state)}>{t.demo.connect}</Link>
+            <AddProjectLink state={state} className="link-button">
+              {t.demo.connect}
+            </AddProjectLink>
             <MoreMenu label={t.demo.more} items={[{ label: t.demo.remove, danger: true, pick: () => setAsking(true) }]} />
           </>
         }
@@ -139,9 +133,9 @@ function DemoEnd({ state }: { state: EvenKeelState }) {
         <button type="button" className="button" disabled={starting || removing} onClick={() => void start(true)}>
           {t.demo.again}
         </button>
-        <Link to={connectPath(state)} className="button button--primary">
+        <AddProjectLink state={state} className="button button--primary">
           {t.demo.connect}
-        </Link>
+        </AddProjectLink>
       </div>
     </Card>
   )

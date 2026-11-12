@@ -49,12 +49,12 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, cliCheck, ci, fillMilestone, allowedHosts, context, stats } = config
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
     protection: config.protection,
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
-    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates },
     notices: config.notices,
   }
   return { projects, shared }
@@ -311,6 +311,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('keepWarm', 'keepWarm', form.keepWarm),
     value('attachmentLimit', 'attachmentLimit', form.attachmentLimit),
     value('defaultGit', 'defaultGit', form.defaultGit),
+    value('setupPassed', 'setupPassed', form.setupPassed),
     value('cliCheck', 'cliCheck', form.cliCheck),
     value('ci', 'ci.guard', form.ci.guard),
     value('ci', 'ci.kinds', CI_KINDS.filter((kind) => form.ci.kinds.includes(kind))),

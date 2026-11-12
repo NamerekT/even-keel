@@ -81,6 +81,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     keepWarm: 0,
     attachmentLimit: 25,
     defaultGit: null,
+    setupPassed: [],
     cliCheck: false,
     updates: { check: true, notify: true },
     unattended: false,
