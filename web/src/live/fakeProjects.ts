@@ -4,7 +4,7 @@ import { DEFAULT_RULES, type ChainRules } from '../../../src/chain/rules.js'
 import type { StatusMoves } from '../../../src/chain/moves.js'
 import { colorsOf } from '../../../src/projects/colors.js'
 import { fakeProjectMaps } from './fakeConfig.js'
-import { fakePlace, withAddedJob } from './fakeCreation.js'
+import { fakePlace, fakeTarget, withAddedJob } from './fakeCreation.js'
 import { withSavedMilestoneOrder } from './fakeMilestones.js'
 
 const ownColors = (forms: Record<string, ProjectForm>): Record<string, number> =>
@@ -48,6 +48,13 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
   const path = draft.repo.trim()
   const none = { root: null, current: null, suggested: null, branches: null }
   const host = { platform: state.platform, user: 'EvenKeelSvc', service: true }
+  const target = fakeTarget(state, draft)
+  if (target !== null) {
+    const read = target.read === null ? {} : { read: target.read }
+    if (target.draft === null) return { repo: { ...none, ...read, notice: target.notice }, entry: null, yields: [], tracker: null, trusted: null, ...host }
+    const resolved = fakeCheck(state, target.draft, mode)
+    return { ...resolved, repo: { ...resolved.repo, ...read } }
+  }
   const placed = fakePlace(state, draft)
   if (placed !== null) {
     // A folder Even Keel makes or fills is trusted when the project is created: nothing to ask yet.
@@ -60,7 +67,7 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
   if (path.includes('nope')) {
     return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   }
-  if (path.includes('fresh')) return { repo: { ...none, notice: notice('wizard.noCommits', {}) }, entry: null, yields: [], tracker: null, trusted: null, ...host }
+  if (path.includes('fresh')) return { repo: { ...none, root: path.replace(/\\/g, '/'), notice: notice('wizard.noCommits', {}) }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   const root = path.replace(/\\/g, '/').replace(/\/+$/, '')
   const current = root.includes('master') ? 'master' : 'main'
   const suggested = draft.tracker === 'github' ? `octo-org/${root.split('/').pop()}` : null
@@ -147,7 +154,9 @@ function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
 /** `project/add` puts the draft in as the service would, `project/remove` refuses a project whose chain runs. */
 export function fakeProjectCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   if (name === 'project/add') {
-    const draft = body as unknown as ProjectDraft
+    const typed = body as unknown as ProjectDraft
+    // "Create" reads the one field as the check did (BTN-1093); a refused one would have kept "Add" closed.
+    const draft = fakeTarget(state, typed)?.draft ?? typed
     const root = fakePlace(state, draft)?.root ?? null
     return withAddedJob(state, withProject(state, root === null ? draft : { ...draft, repo: root }), draft)
   }

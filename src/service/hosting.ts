@@ -25,7 +25,7 @@ import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice
 import { isBadgeSlug, isHttp } from '../badge/settings.js'
 import { guardHosts, guardToken } from '../guard.js'
 import { readJson } from '../packages/plugins.js'
-import { checkDraft, checkRepo, isTrusted } from '../projects/check.js'
+import { checkDraft, checkRepo, isTrusted, sourcedDraft } from '../projects/check.js'
 import { addProject } from '../projects/add.js'
 import { creationPlan } from '../projects/creation.js'
 import { cloner, sharedRemoteReader } from '../git/remote-run.js'
@@ -420,7 +420,8 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
             trust: (file, folder) => trustFolder(file, folder),
             packages: ctx.packages,
           },
-          draft,
+          // The wizard's one field read into the source the steps take (BTN-1093).
+          await sourcedDraft(runGit, draft, ctx.configStore.raw()),
         )
         stepJobs.start(plan)
       },

@@ -1,5 +1,6 @@
 import { BUILTIN } from '../../../src/builtin/model.js'
-import type { ProjectCheck, ProjectDraft, RepoSource, TrackerChoice } from '../../../src/state.js'
+import { targetKind } from '../../../src/projects/target.js'
+import type { ProjectCheck, ProjectDraft, TrackerChoice } from '../../../src/state.js'
 import type { TrackerProject } from '../../../src/tracker/source.js'
 import type { StepCheck } from './wizard.js'
 
@@ -10,15 +11,16 @@ type Suggested = 'key' | 'name' | 'trackerProject'
 export interface WizardFields {
   /** `false` — a project without git: the folder may be blank, the branch and the tasks' folders are not asked. */
   git: boolean
-  /** Where the repository comes from (BTN-1048); not read without git. */
-  source: RepoSource
-  /** The address a clone is made from. */
-  remote: string
-  /** The folder's name in Even Keel's projects folder; blank — the one the check suggests. */
+  /**
+   * "Folder or repository address" (BTN-1093): a full path, an address or a bare name, which the service reads into the
+   * source; not read without git.
+   */
+  target: string
+  /** The folder's name in Even Keel's projects folder, of a clone or a project without git; blank — the one the check suggests. */
   folder: string
   /** "Another folder…": `repo` is the folder's full path instead of a name in the projects folder. */
   other: boolean
-  /** The full path of a checkout already there, or of "another folder". */
+  /** The full path of "another folder" of a clone or a project without git. */
   repo: string
   branch: string
   key: string
@@ -41,8 +43,7 @@ export interface WizardFields {
 
 export const EMPTY_FIELDS: WizardFields = {
   git: true,
-  source: 'clone',
-  remote: '',
+  target: '',
   folder: '',
   other: false,
   repo: '',
@@ -135,12 +136,18 @@ export function placeFields(shape: TrackerShape, key: string, value: string): Pi
 
 const KEY_LENGTH = 5
 
-/** The folder is typed as a full path: a checkout already there, or "another folder"; else a name in the projects folder. */
-export const pathTyped = (fields: Pick<WizardFields, 'git' | 'source' | 'other'>): boolean => (fields.git && fields.source === 'existing') || fields.other
+/**
+ * The one field holds an address, as the page reads it before the service answers: the clone's own folder line shows
+ * under it. The service's answer (`ProjectCheck['repo']['read']`) says the rest.
+ */
+export const cloneTyped = (fields: Pick<WizardFields, 'git' | 'target'>): boolean => fields.git && targetKind(fields.target).kind === 'address'
 
-/** The field the repository step cannot be checked without is blank: the remote of a clone, a typed path. */
-export function repoBlank(fields: Pick<WizardFields, 'git' | 'source' | 'other' | 'remote' | 'repo'>): boolean {
-  if (fields.git && fields.source === 'clone' && fields.remote.trim() === '') return true
+/** The folder of a clone or of a project without git is typed as a full path ("another folder"); else a name in the projects folder. */
+export const pathTyped = (fields: Pick<WizardFields, 'git' | 'target' | 'other'>): boolean => fields.other && (!fields.git || cloneTyped(fields))
+
+/** The field the repository step cannot be checked without is blank: the one field, a typed path. */
+export function repoBlank(fields: Pick<WizardFields, 'git' | 'target' | 'other' | 'repo'>): boolean {
+  if (fields.git && fields.target === '') return true
   return pathTyped(fields) && fields.repo.trim() === ''
 }
 
@@ -158,12 +165,12 @@ export interface FolderKnown {
  * show always, blank and waiting too.
  */
 export function folderView(
-  fields: Pick<WizardFields, 'git' | 'source' | 'other' | 'folder'>,
+  fields: Pick<WizardFields, 'git' | 'target' | 'other' | 'folder'>,
   known: FolderKnown,
 ): { shown: boolean; note: 'checking' | 'blank' | null } {
   const typed = pathTyped(fields)
   const blank = !typed && fields.folder.trim() === ''
-  const clone = fields.git && fields.source === 'clone'
+  const clone = cloneTyped(fields)
   const shown = !clone || !blank || known.answer || known.remoteHeard
   if (!shown || known.answer) return { shown, note: null }
   return { shown, note: known.pending ? 'checking' : blank ? 'blank' : null }
@@ -178,6 +185,8 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
     if (slot < 1) return undefined
   }
   const typed = pathTyped(fields)
+  // Only a clone and a project without git have a folder line of their own; the one field names the rest's folder.
+  const ownFolder = !fields.git || cloneTyped(fields)
   return {
     repo: typed ? fields.repo.trim() : '',
     branch: fields.git ? fields.branch.trim() : '',
@@ -192,9 +201,8 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
       .map((line) => line.trim())
       .filter((line) => line !== ''),
     provider: fields.provider === '' ? null : fields.provider,
-    ...(fields.git ? { source: fields.source } : { git: false }),
-    ...(fields.git && fields.source === 'clone' ? { remote: fields.remote.trim() } : {}),
-    ...(typed ? {} : { folder: fields.folder.trim() }),
+    ...(fields.git ? { target: fields.target } : { git: false }),
+    ...(ownFolder && !typed ? { folder: fields.folder.trim() } : {}),
   }
 }
 
@@ -262,10 +270,10 @@ export function readyToAdd(check: ProjectCheck | null): boolean {
 
 
 /** Why "Add" is closed, the first reason in the order of the steps; `null` — it is open. */
-export type Missing = 'remote' | 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checking' | 'repoError' | 'entry' | 'tracker'
+export type Missing = 'target' | 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checking' | 'repoError' | 'entry' | 'tracker'
 
 export function missingOf(fields: WizardFields, shape: TrackerShape, check: ProjectCheck | null): Missing | null {
-  if (repoBlank(fields)) return fields.git && fields.source === 'clone' && fields.remote.trim() === '' ? 'remote' : 'repo'
+  if (repoBlank(fields)) return fields.git && fields.target === '' ? 'target' : 'repo'
   if (check?.repo.notice != null) return 'repoError'
   if (!trackerChosen(fields)) return 'profile'
   if (shape === 'place' && fields.trackerProject.trim() === '') return 'place'

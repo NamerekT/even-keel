@@ -1,7 +1,8 @@
 import { remoteFailure, remoteName, remoteShaped } from '../../../src/git/clone-progress.js'
-import { fail, notice } from '../../../src/notice/notice.js'
+import { fail, notice, type Notice } from '../../../src/notice/notice.js'
 import { remoteOffer } from '../../../src/projects/remote-branches.js'
-import type { EvenKeelState, FolderPlace, JobStep, ProjectCheck, ProjectDraft, StepJob } from '../../../src/state.js'
+import { targetKind } from '../../../src/projects/target.js'
+import type { EvenKeelState, FolderPlace, JobStep, ProjectCheck, ProjectDraft, SourceRead, StepJob } from '../../../src/state.js'
 
 /** Even Keel's projects folder in the fake. */
 export const FAKE_PROJECTS_DIR = 'C:/Users/EvenKeelSvc/AppData/Local/even-keel/projects'
@@ -87,6 +88,41 @@ export function fakePlace(state: EvenKeelState, draft: ProjectDraft): ProjectChe
   if (taken !== undefined) return { ...found, notice: notice(plain ? 'wizard.folderTaken' : 'wizard.repoTaken', { project: taken[0] }) }
   if (clone && filled) return { ...found, notice: notice('wizard.folderFilled', { path: root }) }
   return { ...found, notice: null }
+}
+
+type FakeRead = { draft: ProjectDraft; read: SourceRead; notice: null } | { draft: null; read: SourceRead | null; notice: Notice | null }
+
+/**
+ * The wizard's one field read by the fake's rules (BTN-1093), as the service's `readTarget` does: an address is a
+ * clone; a bare name a new folder in the projects folder; a relative path, a disk and the home folder are refused; for a
+ * full path a segment with `inside` is a subfolder of the repository above it, `missing` is not there, `empty` or `full`
+ * is a folder without git, anything else a repository's top (`noremote` — without a remote, `fresh` — with no commit).
+ * Git with no name or e-mail refuses the clone and the new repository. `null` — the draft has no field to read.
+ */
+export function fakeTarget(state: EvenKeelState, draft: ProjectDraft): FakeRead | null {
+  if (draft.git === false || draft.target === undefined) return null
+  const { target, folder, repo, ...bare } = draft
+  const example = state.platform === 'win32' ? 'C:\\Projects\\my-app' : '/home/me/projects/my-app'
+  const kind = targetKind(target, state.platform)
+  const refused = (code: Notice, read: SourceRead | null = null): FakeRead => ({ draft: null, read, notice: code })
+  const anonymous = state.git !== undefined && (state.git.name === null || state.git.email === null)
+  const made = (next: ProjectDraft, read: SourceRead): FakeRead => (anonymous ? refused(notice('git.noIdentity', {}), read) : { draft: next, read, notice: null })
+  const typed = target.trim()
+  if (kind.kind === 'blank') return { draft: null, read: null, notice: null }
+  if (kind.kind === 'none') return refused(notice('wizard.notTarget', { example }))
+  if (kind.kind === 'address') return made({ ...bare, repo, ...(folder === undefined ? {} : { folder }), source: 'clone', remote: typed }, { as: 'clone', host: kind.host })
+  if (kind.kind === 'name') return made({ ...bare, repo: '', source: 'new', folder: typed }, { as: 'name' })
+  if (kind.kind === 'relative') return refused(notice('wizard.fullPath', { path: typed, example }))
+  const path = typed.replace(/\\/g, '/').replace(/\/+$/, '')
+  if (/^(?:[A-Za-z]:)?$|^~$/.test(path)) return refused(notice('wizard.rootFolder', { path: typed }))
+  const segments = path.split('/')
+  const inside = segments.findIndex((segment) => segment.includes('inside'))
+  if (inside > 1) return refused(notice('wizard.insideRepo', { path, root: segments.slice(0, inside).join('/') }))
+  const last = segments[segments.length - 1]!
+  if (last.includes('missing')) return made({ ...bare, repo: path, source: 'new' }, { as: 'make' })
+  if (last.includes('empty') || last.includes('full')) return made({ ...bare, repo: path, source: 'new' }, { as: 'here' })
+  const remote = last.includes('noremote') ? null : { name: 'origin', url: `https://git.example.com/acme/${last}.git` }
+  return { draft: { ...bare, repo: path, source: 'existing' }, read: { as: 'existing', remote }, notice: null }
 }
 
 const CLONE_STEPS = ['folder', 'clone', 'project', 'trust', 'packages']

@@ -50,15 +50,34 @@ A repository with commits is left as it is. When git does not start at all, `che
 of `wizard.notRepo`, and so does any git call of the chain through `requireStarted` (`requireBranch`, the worktree
 steps): the chain pauses on that notice, whose fix is "Check again and resume".
 
-## Where the repository comes from (BTN-1048)
+## Where the repository comes from (BTN-1048, BTN-1093)
 
-The Repository card (`web/src/pages/WizardRepo.tsx`, `RepoStep`) has, under the git mode, a `Segmented` "Source":
-Clone | New repository | Existing (`WizardFields.source`, `ProjectDraft.source`). The draft starts on Clone, on
-Existing while git has no name or e-mail (`firstFields`). Git that does not start closes "In a git repository" with the
-reason and a link to the setup's Git step; git without a name and e-mail closes Clone and New repository with
-`NoticeFixButton` of `git.noIdentity`. Existing is the old folder field with its "Make it a repository".
+The Repository card (`web/src/pages/WizardRepo.tsx`, `RepoStep`) has, under the git mode, one field "Folder or
+repository address" (`WizardFields.target`, `ProjectDraft.target`); there is no source to pick. The service reads it
+(`readTarget` in `src/projects/target-read.ts`, the text's kind by the pure `targetKind` in `src/projects/target.ts`,
+tested for each platform on any machine) into the `source`, `remote`, `repo` and `folder` a person used to pick, and the
+check and "Create" go on as before (`sourcedDraft` in `src/projects/check.ts`, used by `settings.add`; `creation.ts` is
+unchanged). The answer's `repo.read` (`SourceRead`) is one line under the field with an icon (`ReadLine`):
 
-- **Clone** — "Remote address" (`ProjectDraft.remote`). The check asks the remote first (`git ls-remote --symref`,
+| Typed | Read as | The line |
+| --- | --- | --- |
+| an address: `http(s)://`, `ssh://`, `git://`, scp `[user@]host:path` | `clone{host}` | "Clone from <host>" with the main branch and `[change]`, the folder line under it |
+| a repository's top | `existing{remote}` | "Existing repository" with `origin` and its address (the user and password cut) or "no remote", the branch |
+| a folder without git | `here` | "New repository in this folder" · "empty", or the first commit's files and size |
+| a path not there | `make` | "No such folder — Even Keel makes it and a new repository in it" with the full path |
+| a bare name (no `/`, `\`, `~`, `:`, not `.`/`..`) | `name` | "New folder with a repository" with its full path in the projects folder, numbered past a taken one by the disk |
+
+Refused by code, without git's output: blanks, text with spaces or control characters — `wizard.notTarget` with an
+example; a relative path (never taken from the service's working folder) — `wizard.fullPath`; a disk or the home folder
+— `wizard.rootFolder`; a subfolder of a repository — `wizard.insideRepo` with "Use the top", which types the top into
+the field; `%VAR%` on Windows — `wizard.noFolder`; a name the platform cannot make — `wizard.folderName`,
+`folderNameSlash`, `reservedName`, `nameEnd` (`nameRefusal`). One letter before `:` is a drive on Windows only; elsewhere
+`foo:bar` is an address, as git reads it. A clone and a new repository need git's name and e-mail (`git.noIdentity`
+with its `NoticeFixButton`, the line still saying how the field was read); a repository without commits keeps "Make the
+first commit". A draft with `source` and no `target` (an older page) is checked as before. Git that does not start
+closes "In a git repository" with the reason and a link to the setup's Git step.
+
+- **Clone** — the address in the one field (`ProjectDraft.remote` once read). The check asks the remote first (`git ls-remote --symref`,
   `sharedRemoteReader` in `src/git/remote-run.ts`, held for a minute per address); a text that is no address
   (`remoteShaped`: a URL, `[user@]host:path` or a full local path) is refused as `git.remoteShape` without asking git
   (BTN-1087). A refusal is `git.remoteShape|remoteDenied|remoteHostKey|remoteSshKey|remoteNotFound|remoteNetwork|remoteFailed`
@@ -68,8 +87,8 @@ reason and a link to the setup's Git step; git without a name and e-mail closes 
   `ssh -T [-p port] [user@]host` (`sshProbe`) is a `CommandBlock` under the line; "Permission denied (publickey" —
   `remoteSshKey`; no rights, or an HTTP(S) remote's "Repository not found"/404, which a private repository answers to a
   git not signed in — `remoteDenied`. The fake's remotes with `private`, `hostkey` and `nokey` go through
-  `remoteFailure` with git's real output. An answer is "The remote answered" with the main branch and `[change]`, which opens the branch field right
-  under the remote (under the path or the folder for the other sources). A branch the remote lacks is no refusal: the default branch is cloned and the wanted one is
+  `remoteFailure` with git's real output. An answer is "Clone from <host>" with the main branch and `[change]`, which
+  opens the branch field right under the one field, above the clone's folder line. A branch the remote lacks is no refusal: the default branch is cloned and the wanted one is
   made when the entry is written. The field offers the remote's branches (BTN-1096): the check's answer carries
   `remoteBranches` (`remoteOffer` in `src/projects/remote-branches.ts`) — the default first, marked so, then the typed
   one, then the rest, task branches `<slug>/task` left out; past `REMOTE_OFFERED` (200) only those holding every typed
@@ -77,7 +96,7 @@ reason and a link to the setup's Git step; git without a name and e-mail closes 
   says which branch is cloned, or that the default is cloned and the typed one made from it (`cloneLine` in
   `web/src/pages/branchLines.ts`), never a move of a checkout; a narrowed list adds how many branches the remote has.
   The fake's remote with `many` in its address has over a thousand branches.
-- **Folder** (Clone, New repository and "Without git") — Even Keel's projects folder (`projectsDir()`, the data
+- **Folder** (a clone and "Without git"; a path or a name in the one field names the folder itself) — Even Keel's projects folder (`projectsDir()`, the data
   folder's fixed `projects/`, no setting) as muted text cut from the left, then the name's field; blank, the name
   suggested (`checkPlace` in `src/projects/place.ts`: the remote's name, else the project's name or key; a taken one
   gets the branch, then `-2`…). "another folder…" turns it into a full path (`ProjectDraft.repo`). Under it the
@@ -85,8 +104,8 @@ reason and a link to the setup's Git step; git without a name and e-mail closes 
   (`wizard.folderFilled`), a new repository says what goes into its first commit (files and size, counted up to a
   ceiling; `measureFolder` asks `git ls-files --others --exclude-standard` against an empty temporary repository, so
   every `.gitignore`, `info/exclude` and `core.excludesFile` leaves out what `git add -A` would), a folder that is a repository already is `wizard.alreadyRepo`. A clone of the same remote and branch already
-  in the projects folder, which no project has, is offered with "Use it", which switches the source to Existing on it.
-  The page sends `folder` only while no path is typed, and `checkDraft` routes a draft "Without git" to `checkPlace`
+  in the projects folder, which no project has, is offered with "Use it", which types its path into the one field.
+  The page sends `folder` only for a clone or "Without git" while no path is typed, and `checkDraft` routes a draft "Without git" to `checkPlace`
   only when it has `folder`: an older page keeps the own folder by id.
 
 "Add project" sends `project/add`, and `settings.add` (`src/service/hosting.ts`) builds the steps

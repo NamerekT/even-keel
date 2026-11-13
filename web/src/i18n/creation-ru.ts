@@ -11,22 +11,26 @@ const files = (count: number) => `${count} ${plural('ru', count, { one: 'фай�
 
 /** The wizard's "Repository" block and the window of a project being created (BTN-1048). */
 export const creationRu = {
-  source: 'Источник',
-  sources: { clone: 'Клон', new: 'Новый репозиторий', existing: 'Существующий' },
-  sourceHints: {
-    clone: 'Even Keel клонирует репозиторий с remote в папку на этой машине.',
-    new: 'Папка станет git-репозиторием, и всё, что в ней лежит, войдёт в первый коммит.',
-    existing: 'Клон, который уже лежит на этой машине.',
+  target: 'Папка или адрес репозитория',
+  targetHint:
+    'Полный путь к папке на этой машине — с репозиторием, без него или ещё не созданной; адрес репозитория для клона (HTTPS или SSH); или просто имя новой папки в папке проектов Even Keel. Закрытому репозиторию нужен вход git на его сервер.',
+  targetPlaceholder: (platform: string): string =>
+    `${platform === 'win32' ? 'C:\\Projects\\my-app' : '~/projects/my-app'} · https://github.com/me/app.git · git@github.com:me/app.git`,
+  reads: {
+    clone: (host: string): string => `Клон с ${host}`,
+    cloneEmpty: 'репозиторий пуст',
+    existing: 'Существующий репозиторий',
+    noRemote: 'без remote',
+    here: 'Новый репозиторий в этой папке',
+    empty: 'пустая',
+    make: 'Папки нет — Even Keel создаст её и новый репозиторий',
+    name: 'Новая папка с репозиторием',
   },
-  remote: 'Адрес remote',
-  remoteHint: 'Адрес, по которому git этой машины клонирует репозиторий: HTTPS или SSH. Закрытому репозиторию нужен вход git на этот сервер.',
-  remotePlaceholder: 'https://github.com/owner/storefront.git',
-  remoteRead: (branch: string | null): string => (branch === null ? 'Remote ответил: репозиторий пуст' : 'Remote ответил'),
+  takeRoot: 'Взять корень',
   folder: 'Папка',
   folderHint: 'Имя папки в папке проектов Even Keel. Пусто — подставленное по адресу или по проекту.',
   folderBlank: (clone: boolean): string => `Впишите имя или оставьте пустым — папку назовём по ${clone ? 'адресу' : 'проекту'}.`,
   folderOtherHint: 'Полный путь к папке. Клону нужна пустая папка или та, которой ещё нет.',
-  folderOtherHintNew: 'Полный путь к папке. Её может не быть — Even Keel её создаст.',
   folderOtherHintPlain: 'Полный путь к папке. Её может не быть — Even Keel её создаст; в ней могут лежать файлы.',
   folderOtherPlaceholder: 'Полный путь',
   other: 'другая папка…',
@@ -40,7 +44,6 @@ export const creationRu = {
   cloneThere: (path: string) => `В папке проектов уже есть клон этого remote на этой ветке: ${path}`,
   takeIt: 'Взять его',
   gitMissing: 'Git не запускается на машине Even Keel: проект в git-репозитории недоступен.',
-  noIdentity: 'У git нет имени и почты для коммитов: клон и новый репозиторий недоступны.',
   gitSetup: 'Настроить git',
   window: {
     title: 'Создание проекта',

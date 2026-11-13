@@ -99,8 +99,8 @@ export const wizardEN: Messages['wizard'] = {
       places: "Tasks' folders",
     },
     missing: {
-      repo: 'Choose the repository folder.',
-      remote: 'Type the remote address.',
+      repo: 'Type the folder.',
+      target: 'Type a folder or a repository address.',
       repoError: 'The folder needs a fix, see "Repository".',
       folderError: 'The folder needs a fix, see "Folder".',
       profile: 'Choose the tracker profile.',

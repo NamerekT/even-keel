@@ -40,9 +40,26 @@ export interface ProjectDraft {
    * and of a project without git. Blank — the suggested one (a clone: by the address; without git: by the key).
    */
   folder?: string
+  /**
+   * The wizard's one field "Folder or repository address" (BTN-1093), read by the service into `source`, `remote`,
+   * `repo` and `folder` (`readTarget`); set, `source` is not read. A clone's own folder still comes in `folder` or `repo`.
+   */
+  target?: string
 }
 
 export type RepoSource = 'clone' | 'new' | 'existing'
+
+/**
+ * How the service read the wizard's one field (BTN-1093): `clone` — an address; `existing` — a repository's top, with
+ * its first remote (`origin` first); `here` — a folder without git made a repository; `make` — a path that is not there,
+ * made with a new repository; `name` — a new folder in Even Keel's projects folder.
+ */
+export type SourceRead =
+  | { as: 'clone'; host: string }
+  | { as: 'existing'; remote: { name: string; url: string } | null }
+  | { as: 'here' }
+  | { as: 'make' }
+  | { as: 'name' }
 
 /** The folder a clone, a new repository or a project without git would get, as the check found it (BTN-1048). */
 export interface FolderPlace {
@@ -73,6 +90,8 @@ export interface ProjectCheck {
     branches: RepoBranches | null
     /** A clone's remote, read: what its branch field offers and whether the typed branch is there (BTN-1096). */
     remoteBranches?: RemoteBranchList
+    /** How the draft's `target` was read; absent — the draft has none, or it is blank or read as nothing. */
+    read?: SourceRead
     notice: Notice | null
   }
   /** What `parseConfig` says of the config with the draft added; `null` — it parses. */

@@ -12,12 +12,12 @@ import { pathsOf, samePath } from '../paths.js'
 import type { FolderPlace, ProjectCheck, ProjectDraft } from '../state.js'
 import type { TrackerAdapter } from '../tracker/source.js'
 import { expandFolder, isFullPath, type Folders } from './folder.js'
+import { nameRefusal } from './target.js'
 
 /** Files counted in a folder that goes into a first commit; past it the page says "more than". */
 const COUNT_CAP = 20_000
 /** Folders of the projects folder asked for their remote when a clone is checked. */
 const CLONES_ASKED = 20
-const BAD_NAME = /[<>:"|?*\\/]|^\.{1,2}$|[. ]$/
 
 export interface PlaceDeps {
   git: Git
@@ -36,7 +36,7 @@ type Repo = ProjectCheck['repo']
 const NONE = { root: null, current: null, suggested: null, branches: null }
 
 /** What a folder that is not the project's yet is on the disk. */
-function look(path: string): 'free' | 'empty' | 'filled' | 'file' {
+export function look(path: string): 'free' | 'empty' | 'filled' | 'file' {
   try {
     if (!statSync(path).isDirectory()) return 'file'
     return readdirSync(path).length === 0 ? 'empty' : 'filled'
@@ -168,7 +168,8 @@ export async function checkPlace(deps: PlaceDeps, draft: ProjectDraft): Promise<
   } else {
     dir = ownDir
     const given = (draft.folder ?? '').trim()
-    if (given !== '' && BAD_NAME.test(given)) return { ...none, notice: notice('wizard.folderName', { value: given }) }
+    const bad = given === '' ? null : nameRefusal(given, platform)
+    if (bad !== null) return { ...none, notice: bad }
     const base = given !== '' ? given : clone ? remoteName(remote) : draft.name.trim() || draft.key.trim().toLowerCase()
     const safe = base.replace(/[<>:"|?*\\/]+/g, '-').replace(/[. ]+$/, '') || 'project'
     name = given

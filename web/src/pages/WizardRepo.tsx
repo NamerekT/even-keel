@@ -1,15 +1,15 @@
 import { useRef, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { notice, type Notice } from '../../../src/notice/notice.js'
-import type { EvenKeelState, ProjectCheck, ProjectDraft, RepoBranches, RepoSource } from '../../../src/state.js'
-import { examplePaths } from '../examplePaths.js'
+import type { Notice } from '../../../src/notice/notice.js'
+import type { EvenKeelState, ProjectCheck, RepoBranches, SourceRead } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
+import { BranchIcon, ClonesIcon, PlusIcon } from '../ui/icons.js'
 import { BranchField, BranchMoveLine } from './BranchField.js'
 import { NoticeFixButton } from './FixButtons.js'
-import { folderView, pathTyped, type WizardFields } from './projectWizard.js'
+import { cloneTyped, folderView, pathTyped, type WizardFields } from './projectWizard.js'
 import { RefusalWords } from './RefusalWords.js'
 import { isRemoteRefusal } from './remoteRefusal.js'
 import { FieldHead, Row } from './settingsParts.js'
@@ -40,17 +40,15 @@ function MakeRepository({ repo, branch, exists, onMade }: { repo: string; branch
   )
 }
 
-/** What git on the service's machine allows (BTN-1048): no git — no repository; no name and e-mail — no clone or new one. */
-export function gitReadiness(state: EvenKeelState): { missing: boolean; anonymous: boolean } {
-  const git = state.git
-  return { missing: git?.version === null, anonymous: git !== undefined && git.version !== null && (git.name === null || git.email === null) }
+/** What git on the service's machine allows (BTN-1048): no git — no repository. */
+export function gitReadiness(state: EvenKeelState): { missing: boolean } {
+  return { missing: state.git?.version === null }
 }
 
 interface RepoStepProps {
   state: EvenKeelState
   fields: WizardFields
   set: (change: Partial<WizardFields>) => void
-  draft: ProjectDraft | undefined
   /** The check of the folder's own fields, held while another field is checked again. */
   repoCheck: ProjectCheck | null
   /** A check of the folder's fields is due or running: `repoCheck` is not theirs yet. */
@@ -64,19 +62,21 @@ interface RepoStepProps {
 }
 
 /**
- * The wizard's "Repository" block (BTN-1048): how tasks work, then for git the source — a clone from a remote, a new
- * repository, or a checkout already there — and the folder: a name in Even Keel's projects folder by default, a full
- * path behind "another folder…". Git that does not start closes git; git without a name and e-mail closes the clone
- * and the new repository, each with the way to the setup's Git step.
+ * The wizard's "Repository" block (BTN-1093): how tasks work, then for git one field "Folder or repository address" the
+ * service reads itself — an address is a clone, a repository's top the checkout already there, a folder without git a
+ * new repository in it, a path not there one made, a bare name a new folder in Even Keel's projects folder — with one
+ * line under it saying how it was read. A clone has its own folder line under the branch; a project without git only
+ * the folder line. Git that does not start closes git, with the way to the setup's Git step.
  */
-export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, current, branches, branchShown, badBranch, onBranchOpen, onRecheck }: RepoStepProps) {
+export function RepoStep({ state, fields, set, repoCheck, repoPending, current, branches, branchShown, badBranch, onBranchOpen, onRecheck }: RepoStepProps) {
   const ready = gitReadiness(state)
   const repo = repoCheck?.repo ?? null
   const refusal = repo?.notice ?? null
   const remoteRefused = isRemoteRefusal(refusal)
-  const clone = fields.git && fields.source === 'clone'
-  const existing = fields.git && fields.source === 'existing'
-  const found = repo !== null && repo.root !== null && refusal === null ? repo.root : null
+  const clone = cloneTyped(fields)
+  const read = fields.git ? (repo?.read ?? null) : null
+  // A clone's folder answers under its own line; everything else is the one field's answer.
+  const folderRefusal = clone && read?.as === 'clone' && repo?.place !== undefined && !remoteRefused
   const branchLine = !branchShown && (
     <>
       {' · '}
@@ -88,7 +88,6 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
   )
   // A clone's field offers its remote's branches and says which one the clone takes, never a move of a checkout (BTN-1096).
   const remote = clone && !remoteRefused ? repo?.remoteBranches : undefined
-  // Opened where its "[change]" was: under the remote for a clone, under the path or the folder otherwise.
   const branchRow = fields.git && branchShown && (
     <Row
       className="settings__field"
@@ -129,89 +128,85 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
         )}
       </Row>
       {fields.git && (
-        <Row
-          className="settings__field project-add__pick"
-          label={t.creation.source}
-          control={
-            <Segmented<RepoSource>
-              label={t.creation.source}
-              options={[
-                ['clone', t.creation.sources.clone],
-                ['new', t.creation.sources.new],
-                ['existing', t.creation.sources.existing],
-              ]}
-              value={fields.source}
-              blocked={ready.anonymous ? ['clone', 'new'] : []}
-              onChange={(source) => set({ source, other: false })}
-            />
-          }
-        >
-          <span className="settings__hint">{t.creation.sourceHints[fields.source]}</span>
-          {ready.anonymous && (
-            <span className="project-add__gate">
-              <Status>{t.creation.noIdentity}</Status>
-              <NoticeFixButton project={null} notice={notice('git.noIdentity', {})} />
-            </span>
-          )}
-        </Row>
-      )}
-      {clone && (
         <div className="settings__field">
-          <FieldHead label={t.creation.remote} hint={t.creation.remoteHint} htmlFor="wizard-remote" />
+          <FieldHead label={t.creation.target} hint={t.creation.targetHint} htmlFor="wizard-target" />
           <input
-            id="wizard-remote"
+            id="wizard-target"
             className="settings__text settings__text--mono"
             autoComplete="off"
             spellCheck={false}
             autoFocus
-            value={fields.remote}
-            placeholder={t.creation.remotePlaceholder}
-            aria-invalid={remoteRefused || undefined}
-            onChange={(event) => set({ remote: event.target.value })}
+            value={fields.target}
+            placeholder={t.creation.targetPlaceholder(state.platform)}
+            aria-invalid={(refusal !== null && !folderRefusal) || undefined}
+            onChange={(event) => set({ target: event.target.value })}
           />
-          {remoteRefused && <RemoteRefusal refusal={refusal} />}
-          {repo?.place !== undefined && !remoteRefused && (
-            <Status ok>
-              {t.creation.remoteRead(current)}
-              {current !== null && branchLine}
-            </Status>
-          )}
+          {read !== null && (refusal === null || folderRefusal) && <ReadLine read={read} repo={repo!} current={current} branchLine={branchLine} />}
+          {remoteRefused ? <RemoteRefusal refusal={refusal} /> : !folderRefusal && <TargetRefusal refusal={refusal} set={set} />}
+          {refusal?.code === 'wizard.noCommits' && repo?.root != null && <MakeRepository repo={repo.root} branch={fields.branch.trim()} exists onMade={onRecheck} />}
         </div>
       )}
-      {clone && branchRow}
-      {existing ? (
-        <div className="settings__field">
-          <FieldHead label={t.wizard.path} hint={t.wizard.repoHint} htmlFor="wizard-repo" />
-          <input
-            id="wizard-repo"
-            className="settings__text settings__text--mono"
-            autoComplete="off"
-            spellCheck={false}
-            autoFocus
-            value={fields.repo}
-            placeholder={examplePaths(state.platform).repo}
-            aria-invalid={refusal !== null}
-            onChange={(event) => set({ repo: event.target.value })}
-          />
-          {found !== null && (
-            <Status ok>
-              {t.wizard.repoFound(found)}
-              {branchLine}
-            </Status>
-          )}
-          <Refusal refusal={refusal} />
-          {draft !== undefined && (refusal?.code === 'wizard.notRepo' || refusal?.code === 'wizard.noCommits') && (
-            <MakeRepository repo={draft.repo} branch={draft.branch} exists={refusal.code === 'wizard.noCommits'} onMade={onRecheck} />
-          )}
-        </div>
-      ) : (
-        <FolderLine state={state} fields={fields} set={set} repo={repo} pending={repoPending} hideRefusal={remoteRefused} branchLine={fields.git && fields.source === 'new' && found !== null ? branchLine : null} />
-      )}
-      {!clone && branchRow}
+      {branchRow}
+      {(!fields.git || clone) && <FolderLine state={state} fields={fields} set={set} repo={repo} pending={repoPending} hideRefusal={fields.git && !folderRefusal} />}
       {repoCheck?.trusted === false && <p className="settings__hint">{trustTexts().pending}</p>}
       {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
     </>
   )
+}
+
+/** How the one field was read, in one line with an icon (BTN-1093); a folder that holds files warns of the first commit under it. */
+function ReadLine({ read, repo, current, branchLine }: { read: SourceRead; repo: ProjectCheck['repo']; current: string | null; branchLine: ReactNode }) {
+  const reads = t.creation.reads
+  const path = repo.root === null ? null : <bdi className="project-add__path">{repo.root}</bdi>
+  const holds = read.as === 'here' && repo.place?.state === 'filled' ? repo.place.holds : undefined
+  const line = (icon: ReactNode, words: ReactNode, tail: ReactNode) => (
+    <p className="project-add__read">
+      <span className="project-add__read-icon">{icon}</span>
+      <span>
+        {words}
+        {tail}
+      </span>
+    </p>
+  )
+  switch (read.as) {
+    case 'clone':
+      // The remote answers before the place does: until then the line waits.
+      if (repo.place === undefined) return null
+      return line(<ClonesIcon />, reads.clone(read.host), current === null ? ` · ${reads.cloneEmpty}` : branchLine)
+    case 'existing':
+      return line(
+        <BranchIcon />,
+        reads.existing,
+        <>
+          {' · '}
+          {read.remote === null ? (
+            reads.noRemote
+          ) : (
+            <>
+              {read.remote.name} <bdi className="project-add__path">{read.remote.url}</bdi>
+            </>
+          )}
+          {branchLine}
+        </>,
+      )
+    case 'here':
+      return (
+        <>
+          {line(<PlusIcon />, reads.here, holds === undefined ? <>{` · ${reads.empty}`}{branchLine}</> : branchLine)}
+          {holds !== undefined && <p className="project-add__open">{t.creation.firstCommit(holds.files, holds.bytes, holds.capped)}</p>}
+        </>
+      )
+    case 'make':
+    case 'name':
+      return line(
+        <PlusIcon />,
+        reads[read.as],
+        <>
+          {path !== null && <> · {path}</>}
+          {branchLine}
+        </>,
+      )
+  }
 }
 
 /** A remote's refusal in one line under its field; git's own words behind a question mark, a command to run under it. */
@@ -221,6 +216,31 @@ function RemoteRefusal({ refusal }: { refusal: Notice }) {
       <RefusalWords refusal={refusal} />
     </Status>
   )
+}
+
+/** The one field's refusal: a subfolder offers its repository's top, git without a name and e-mail its fix. */
+function TargetRefusal({ refusal, set }: { refusal: Notice | null; set: (change: Partial<WizardFields>) => void }) {
+  if (refusal === null) return null
+  if (refusal.code === 'wizard.insideRepo') {
+    const root = refusal.params.root
+    return (
+      <span className="project-add__gate">
+        <Status>{say(refusal)}</Status>
+        <button type="button" className="button button--small" onClick={() => set({ target: root })}>
+          {t.creation.takeRoot}
+        </button>
+      </span>
+    )
+  }
+  if (refusal.code === 'git.noIdentity') {
+    return (
+      <span className="project-add__gate">
+        <Status>{say(refusal)}</Status>
+        <NoticeFixButton project={null} notice={refusal} />
+      </span>
+    )
+  }
+  return <Refusal refusal={refusal} />
 }
 
 function Refusal({ refusal }: { refusal: ProjectCheck['repo']['notice'] }) {
@@ -240,8 +260,8 @@ function Refusal({ refusal }: { refusal: ProjectCheck['repo']['notice'] }) {
 }
 
 /**
- * The folder of a clone, a new repository or a project without git: Even Keel's projects folder and a name in it, the
- * suggested one while it is blank, or a full path behind "another folder…"; under it what the folder is now.
+ * The folder of a clone or a project without git: Even Keel's projects folder and a name in it, the suggested one while
+ * it is blank, or a full path behind "another folder…"; under it what the folder is now.
  */
 function FolderLine({
   state,
@@ -250,7 +270,6 @@ function FolderLine({
   repo,
   pending,
   hideRefusal,
-  branchLine,
 }: {
   state: EvenKeelState
   fields: WizardFields
@@ -258,20 +277,20 @@ function FolderLine({
   repo: ProjectCheck['repo'] | null
   pending: boolean
   hideRefusal: boolean
-  branchLine: ReactNode
 }) {
   const place = repo?.place
   const refusal = hideRefusal ? null : (repo?.notice ?? null)
-  const hint = !fields.other ? t.creation.folderHint : !fields.git ? t.creation.folderOtherHintPlain : fields.source === 'new' ? t.creation.folderOtherHintNew : t.creation.folderOtherHint
+  const hint = !fields.other ? t.creation.folderHint : !fields.git ? t.creation.folderOtherHintPlain : t.creation.folderOtherHint
   const typed = pathTyped(fields)
+  const clone = cloneTyped(fields)
   // The projects folder stays in front of the name while a refused name has no place.
   const lastDir = useRef<string | null>(null)
   if (place?.dir != null) lastDir.current = place.dir
-  // The remote a clone's place was last answered for: erasing the name keeps the block while it is checked again.
-  const remote = fields.remote.trim()
+  // The address a clone's place was last answered for: erasing the name keeps the block while it is checked again.
+  const address = fields.target.trim()
   const heard = useRef<string | null>(null)
-  if (place !== undefined && fields.git && fields.source === 'clone') heard.current = remote
-  const view = folderView(fields, { answer: place !== undefined || refusal !== null, remoteHeard: heard.current === remote, pending })
+  if (place !== undefined && clone) heard.current = address
+  const view = folderView(fields, { answer: place !== undefined || refusal !== null, remoteHeard: heard.current === address, pending })
   if (!view.shown) return null
   const dir = typed ? null : (place?.dir ?? lastDir.current)
   const separator = dir !== null && !dir.includes('\\') ? '/' : state.platform === 'win32' ? '\\' : '/'
@@ -314,12 +333,12 @@ function FolderLine({
       <button type="button" className="link-button project-add__other" onClick={() => set(typed ? { other: false } : { other: true })}>
         {typed ? t.creation.own : t.creation.other}
       </button>
-      {view.note !== null && <span className="settings__hint">{view.note === 'checking' ? t.wizard.checking : t.creation.folderBlank(fields.git && fields.source === 'clone')}</span>}
-      {place !== undefined && refusal === null && <PlaceState place={place} fields={fields} branchLine={branchLine} />}
+      {view.note !== null && <span className="settings__hint">{view.note === 'checking' ? t.wizard.checking : t.creation.folderBlank(clone)}</span>}
+      {place !== undefined && refusal === null && <PlaceState place={place} fields={fields} />}
       {place?.existing !== undefined && refusal === null && (
         <span className="project-add__gate">
           <span className="settings__hint">{t.creation.cloneThere(place.existing)}</span>
-          <button type="button" className="button button--small" onClick={() => set({ source: 'existing', repo: place.existing!, other: false })}>
+          <button type="button" className="button button--small" onClick={() => set({ target: place.existing!, other: false })}>
             {t.creation.takeIt}
           </button>
         </span>
@@ -329,14 +348,9 @@ function FolderLine({
   )
 }
 
-function PlaceState({ place, fields, branchLine }: { place: NonNullable<ProjectCheck['repo']['place']>; fields: WizardFields; branchLine: ReactNode }) {
+function PlaceState({ place, fields }: { place: NonNullable<ProjectCheck['repo']['place']>; fields: WizardFields }) {
   if (place.state === 'filled' && fields.git && place.holds !== undefined) {
     return <p className="project-add__open">{t.creation.firstCommit(place.holds.files, place.holds.bytes, place.holds.capped)}</p>
   }
-  return (
-    <Status ok>
-      {t.creation.states[place.state]}
-      {branchLine}
-    </Status>
-  )
+  return <Status ok>{t.creation.states[place.state]}</Status>
 }

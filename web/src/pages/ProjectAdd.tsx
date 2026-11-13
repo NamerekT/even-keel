@@ -52,7 +52,7 @@ import './projectAdd.css'
 const CHECK_DELAY_MS = 600
 
 /** The draft's fields the folder's lines depend on: they hold while another field is checked again. */
-const repoFieldsOf = (draft: ProjectDraft) => JSON.stringify([draft.repo, draft.branch, draft.git, draft.source, draft.remote, draft.folder])
+const repoFieldsOf = (draft: ProjectDraft) => JSON.stringify([draft.repo, draft.branch, draft.git, draft.target, draft.folder])
 
 /** The fields typed, kept while the page is left and come back to (BTN-310); a project added clears them. */
 let kept: Partial<WizardFields> = {}
@@ -165,12 +165,9 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const root = repo?.root ?? null
   const current = repo?.current ?? null
   const suggested = repo?.suggested ?? null
-  // A new repository's folder is named after the project while its name is blank: it suggests nothing back (BTN-1048).
-  const named = repo?.place === undefined || repo.place.dir === null || fields.source !== 'new' || fields.folder.trim() !== ''
-  const suggestRoot = named ? root : null
   useEffect(() => {
-    setFields((before) => suggestOfRepo(before, shape, { root: suggestRoot, current, suggested }))
-  }, [suggestRoot, current, suggested, shape])
+    setFields((before) => suggestOfRepo(before, shape, { root, current, suggested }))
+  }, [root, current, suggested, shape])
 
   // A bad branch name, or one that moves the checkout, opens the field, and it stays open while the branch is typed again (BTN-754).
   const branches = repo?.branches ?? null
@@ -255,7 +252,6 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               state={state}
               fields={fields}
               set={set}
-              draft={draft}
               repoCheck={repoCheck}
               repoPending={repoPending}
               current={current}
