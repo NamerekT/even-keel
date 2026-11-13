@@ -47,7 +47,7 @@ When you add the project, Even Keel checks the repository again before saving it
 The repository need not be on the machine yet. Under **Source** pick:
 
 - **Clone** — give the remote's address (HTTPS or SSH). Even Keel asks the remote right away, so a wrong address or a missing sign-in shows before you add anything. A private repository needs git on Even Keel's machine signed in to that server as the user Even Keel runs as (its credential helper or an SSH key). A main branch the remote lacks is created when the project is added.
-- **New repository** — Even Keel makes the folder a git repository; whatever it already holds goes into the first commit, and the wizard says how many files and how much that is.
+- **New repository** — Even Keel makes the folder a git repository; whatever it already holds goes into the first commit, except what its `.gitignore` files leave out, and the wizard says how many files and how much that is.
 - **Existing** — a clone already on the machine, as above.
 
 A clone and a new repository go into Even Keel's projects folder (`projects` in its data folder) under a name it suggests from the remote or the project; type another name, or press **another folder…** for a full path anywhere. A clone needs an empty folder or one that is not there yet. If the projects folder already has a clone of the same remote and branch that no project uses, the wizard offers **Use it**. Both need git's name and e-mail for commits: without them only **Existing** is open, with a button to the setup's Git step. A project without git takes a folder the same way.

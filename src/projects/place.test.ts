@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { RemoteHeads } from '../git/remote-run.js'
-import type { GitResult } from '../git/types.js'
+import { runGit } from '../git/run.js'
+import type { Git, GitResult } from '../git/types.js'
 import { notice, type Notice } from '../notice/notice.js'
 import type { ProjectDraft } from '../state.js'
 import { checkPlace, folderNames, measureFolder, type PlaceDeps } from './place.js'
@@ -30,6 +31,7 @@ function deps(fields: Partial<PlaceDeps> = {}, answers: Record<string, GitResult
       const answer = answers[`${cwd} ${args.join(' ')}`]
       if (answer !== undefined) return answer
       if (args[0] === 'check-ref-format') return { code: args[2]!.includes('..') ? 1 : 0, out: '' }
+      if (args[0] === 'init' || args.includes('ls-files')) return runGit(cwd, args)
       return { code: 128, out: 'fatal: not a git repository' }
     },
     platform: process.platform,
@@ -54,12 +56,35 @@ describe('folderNames', () => {
 })
 
 describe('measureFolder', () => {
-  it('counts files and bytes down the tree and stops at its cap', () => {
+  it('counts files and bytes down the tree and stops at its cap', async () => {
     mkdirSync(join(dir, 'a', 'b'), { recursive: true })
     writeFileSync(join(dir, 'a', 'one.txt'), '12345')
     writeFileSync(join(dir, 'a', 'b', 'two.txt'), '123')
-    expect(measureFolder(join(dir, 'a'))).toEqual({ files: 2, bytes: 8, capped: false })
-    expect(measureFolder(join(dir, 'a'), 1)).toEqual(expect.objectContaining({ files: 1, capped: true }))
+    expect(await measureFolder(runGit, join(dir, 'a'))).toEqual({ files: 2, bytes: 8, capped: false })
+    expect(await measureFolder(runGit, join(dir, 'a'), 1)).toEqual(expect.objectContaining({ files: 1, capped: true }))
+  })
+
+  it('counts only what the first commit takes: .gitignore files down the tree leave the rest out', async () => {
+    const folder = join(dir, 'with-files')
+    mkdirSync(join(folder, 'node_modules', 'left-pad'), { recursive: true })
+    mkdirSync(join(folder, 'src', 'cache'), { recursive: true })
+    writeFileSync(join(folder, '.gitignore'), 'node_modules/\n*.log\n')
+    writeFileSync(join(folder, 'README.md'), '# app\n')
+    writeFileSync(join(folder, 'debug.log'), 'x'.repeat(100))
+    writeFileSync(join(folder, 'node_modules', 'left-pad', 'index.js'), 'x'.repeat(100))
+    writeFileSync(join(folder, 'src', '.gitignore'), 'cache/\n')
+    writeFileSync(join(folder, 'src', 'app.js'), '1;\n')
+    writeFileSync(join(folder, 'src', 'cache', 'big.bin'), 'x'.repeat(100))
+    const bytes = 'node_modules/\n*.log\n'.length + '# app\n'.length + 'cache/\n'.length + '1;\n'.length
+    expect(await measureFolder(runGit, folder)).toEqual({ files: 4, bytes, capped: false })
+  })
+
+  it('walks the whole folder when git cannot be asked', async () => {
+    mkdirSync(join(dir, 'a'))
+    writeFileSync(join(dir, 'a', '.gitignore'), '*.log\n')
+    writeFileSync(join(dir, 'a', 'debug.log'), '1')
+    const broken: Git = async () => ({ code: 128, out: 'fatal: broken' })
+    expect(await measureFolder(broken, join(dir, 'a'))).toEqual({ files: 2, bytes: 7, capped: false })
   })
 })
 

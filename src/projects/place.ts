@@ -1,4 +1,6 @@
-import { readdirSync, statSync } from 'node:fs'
+import { lstatSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { parseRemote } from '../ci/remote.js'
 import { isBranchName } from '../git/branches.js'
 import { remoteName, sameRemote } from '../git/clone-progress.js'
@@ -42,8 +44,50 @@ function look(path: string): 'free' | 'empty' | 'filled' | 'file' {
   }
 }
 
-/** The files a folder holds and their size, links not followed; stops counting at `cap` files. */
-export function measureFolder(folder: string, cap: number = COUNT_CAP): NonNullable<FolderPlace['holds']> {
+type Holds = NonNullable<FolderPlace['holds']>
+
+/**
+ * The files a new repository's first commit would take from a folder and their size; stops counting at `cap` files.
+ * Git itself is asked, against an empty repository of its own, so that every `.gitignore`, `info/exclude` and
+ * `core.excludesFile` leave out what `git add -A` would (BTN-1092); a git that cannot be asked gives the whole folder.
+ */
+export async function measureFolder(git: Git, folder: string, cap: number = COUNT_CAP): Promise<Holds> {
+  const listed = await committable(git, folder)
+  if (listed === null) return walkFolder(folder, cap)
+  const paths = pathsOf(process.platform)
+  let files = 0
+  let bytes = 0
+  for (const name of listed) {
+    let stats
+    try {
+      stats = lstatSync(paths.join(folder, name))
+    } catch {
+      stats = null
+    }
+    // An embedded repository is listed as its folder; the commit takes it as a link, nothing of its files.
+    if (stats?.isDirectory() === true) continue
+    if (files >= cap) return { files, bytes, capped: true }
+    files += 1
+    bytes += stats?.isFile() === true ? stats.size : 0
+  }
+  return { files, bytes, capped: false }
+}
+
+/** `git ls-files` of the folder as the work tree of a fresh repository in a temporary folder; null when git refuses. */
+async function committable(git: Git, folder: string): Promise<string[] | null> {
+  const empty = mkdtempSync(join(tmpdir(), 'even-keel-measure-'))
+  try {
+    if ((await git(empty, ['init', '--bare', '-q'])).code !== 0) return null
+    const listed = await git(folder, [`--git-dir=${empty}`, `--work-tree=${folder}`, 'ls-files', '--others', '--exclude-standard', '-z'])
+    if (listed.code !== 0) return null
+    return listed.out.split('\0').filter((name) => name !== '')
+  } finally {
+    rmSync(empty, { recursive: true, force: true })
+  }
+}
+
+/** Every file of the folder and their size, links not followed. */
+function walkFolder(folder: string, cap: number): Holds {
   let files = 0
   let bytes = 0
   const left = [folder]
@@ -152,7 +196,7 @@ export async function checkPlace(deps: PlaceDeps, draft: ProjectDraft): Promise<
   const top = await deps.git(path, ['rev-parse', '--show-toplevel'])
   if (top.missing === true) return { ...NONE, notice: notice('git.missing', {}) }
   if (top.code === 0 && samePath(top.out.trim(), path, platform)) return { ...found, place, notice: notice('wizard.alreadyRepo', { path }) }
-  return { ...found, place: state === 'filled' ? { ...place, holds: measureFolder(path) } : place, notice: null }
+  return { ...found, place: state === 'filled' ? { ...place, holds: await measureFolder(deps.git, path) } : place, notice: null }
 }
 
 function suggestedOf(remote: string, deps: PlaceDeps): string | null {

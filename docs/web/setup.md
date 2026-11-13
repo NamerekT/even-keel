@@ -72,7 +72,8 @@ reason and a link to the setup's Git step; git without a name and e-mail closes 
   gets the branch, then `-2`…). "another folder…" turns it into a full path (`ProjectDraft.repo`). Under it the
   folder's state (`FolderPlace`): free — made on creation, empty, or filled; a clone refuses a filled folder
   (`wizard.folderFilled`), a new repository says what goes into its first commit (files and size, counted up to a
-  ceiling), a folder that is a repository already is `wizard.alreadyRepo`. A clone of the same remote and branch already
+  ceiling; `measureFolder` asks `git ls-files --others --exclude-standard` against an empty temporary repository, so
+  every `.gitignore`, `info/exclude` and `core.excludesFile` leaves out what `git add -A` would), a folder that is a repository already is `wizard.alreadyRepo`. A clone of the same remote and branch already
   in the projects folder, which no project has, is offered with "Use it", which switches the source to Existing on it.
   The page sends `folder` only while no path is typed, and `checkDraft` routes a draft "Without git" to `checkPlace`
   only when it has `folder`: an older page keeps the own folder by id.
