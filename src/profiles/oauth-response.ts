@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto'
 import type { ServerResponse } from 'node:http'
+import { securePage } from '../server-security.js'
 
 const RETURN_SCRIPT = "history.replaceState(null, '', '/settings#trackers'); location.reload()"
 const SCRIPT_HASH = createHash('sha256').update(RETURN_SCRIPT).digest('base64')
 
 /** Commit a same-origin page before navigating: Strict cookies stay absent across HTTP redirects. */
 export function oauthCallbackPage(response: ServerResponse, status = 200): void {
+  securePage(response)
   response.writeHead(status, {
     'content-type': 'text/html; charset=utf-8',
     'cache-control': 'no-store',

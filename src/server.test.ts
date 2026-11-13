@@ -56,6 +56,23 @@ describe('Even Keel HTTP server', () => {
     expect(await response.text()).toContain('Even Keel')
   })
 
+  it.each(['/', '/stats', '/p/ABC', '/index.html'])('protects the HTML document at %s', async (route) => {
+    const response = await fetch(base + route)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-frame-options')).toBe('DENY')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    const policy = response.headers.get('content-security-policy')
+    for (const directive of ["frame-ancestors 'none'", "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "object-src 'none'", "base-uri 'none'", "img-src 'self' data: blob:", "media-src 'self' data: blob:"]) {
+      expect(policy).toContain(directive)
+    }
+  })
+
+  it.each(['/', '/api/state', '/nope.txt', '/api/nope', '/api/tasks/ABC-1/files/shot%201.png'])('disables content sniffing on %s', async (route) => {
+    const response = await fetch(base + route)
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+    await response.arrayBuffer()
+  })
+
   it('passes an answer with its files on, past the usual body limit', async () => {
     const big = Buffer.alloc(100 * 1024, 'a').toString('base64')
     const body = {
@@ -257,6 +274,7 @@ describe('Even Keel HTTP server', () => {
     for (const route of ['/', '/p/ABC']) {
       const response = await fetch(base + route)
       expect(response.status, route).toBe(503)
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff')
       expect(await response.text(), route).toMatch(/npm run build/)
     }
   })
@@ -265,6 +283,7 @@ describe('Even Keel HTTP server', () => {
     const controller = new AbortController()
     const response = await fetch(base + '/api/events', { signal: controller.signal })
     expect(response.headers.get('content-type')).toMatch(/text\/event-stream/)
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
 
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()

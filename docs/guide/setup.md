@@ -197,6 +197,8 @@ By default the page listens on `127.0.0.1` only, and nothing else on the network
 - an `Origin`, if the request has one, must be the page's own: the same name and port as its `Host` (`https://name` matches a `Host` of `name` without a port, as an HTTPS proxy sends it). So neither another site open in your browser nor another app on the same name — a dev server on `localhost:5173`, a service on another port of your tailnet name — can post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass;
 - a `POST` to `/api/` must be `Content-Type: application/json`, otherwise it gets 415: a browser cannot send that type to another site without asking it first. A script posting to the API sends the header, as `curl -H 'Content-Type: application/json'` does.
 
+Open Even Keel directly in a tab or its installed app: the page and the access-token form cannot be embedded in a frame, even on the same site. Its content security policy permits scripts and connections only from its own origin, with inline styles and local/data/blob images and media. The page sends no referrer. If using a reverse proxy, preserve these response headers. An already open tab receives a new policy when reloaded.
+
 Two ways to reach it from elsewhere:
 
 - **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Its requests come from loopback, so the page asks them for no token: who gets in is decided by the tailnet's access rules.
