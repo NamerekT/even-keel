@@ -40,6 +40,8 @@ export const valuesOf = (form: SharedForm): Values => ({
   openCodeAutoCompactWindow: form.openCodeAutoCompactWindow === null ? '' : String(form.openCodeAutoCompactWindow),
   keepWarm: String(form.keepWarm),
   attachmentLimit: String(form.attachmentLimit),
+  backupDir: form.backup.dir ?? '',
+  backupKeep: String(form.backup.keep),
   allowedHosts: form.allowedHosts.join('\n'),
   window: String(form.context.window),
   warn: String(form.context.warn),
@@ -74,7 +76,7 @@ export function formOf(values: Values): SharedForm | undefined {
   const text = (key: string) => values[key] as string
   const protection = protectionOf(text('protection'))
   if (protection === undefined) return undefined
-  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm', 'attachmentLimit'].map((key) =>
+  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm', 'attachmentLimit', 'backupKeep'].map((key) =>
     key === 'window' ? (countFrom(text(key), 0) ?? undefined) : wholeOf(text(key), 0),
   )
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
@@ -84,7 +86,7 @@ export function formOf(values: Values): SharedForm | undefined {
   const openCodeAutoCompactWindow = countFrom(text('openCodeAutoCompactWindow'), 1)
   if (autoCompactWindow === undefined || codexAutoCompactWindow === undefined || openCodeAutoCompactWindow === undefined) return undefined
   const waitMinutes = minutesOf(text('wait'))
-  const [parallel, window, minTasks, minSessions, days, keepWarm, attachmentLimit] = numbers
+  const [parallel, window, minTasks, minSessions, days, keepWarm, attachmentLimit, backupKeep] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
   const checkpointShares = sharesOf(values)
   if (numbers.includes(undefined) || warn === undefined || danger === undefined || otherBelow === undefined || checkpointTokens === undefined || waitMinutes === undefined) return undefined
@@ -113,6 +115,7 @@ export function formOf(values: Values): SharedForm | undefined {
     contextHandoffs: values.contextHandoffs as boolean,
     keepWarm: keepWarm!,
     attachmentLimit: attachmentLimit!,
+    backup: { dir: text('backupDir').trim() === '' ? null : text('backupDir').trim(), keep: backupKeep! },
     defaultGit: text('defaultGit') === '' ? null : text('defaultGit') === 'true',
     setupPassed: values.setupPassed as SharedForm['setupPassed'],
     cliCheck: values.cliCheck as boolean,

@@ -65,6 +65,11 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('builtin.fileTooLarge', { name: 'big.zip', limit: 25 * 1024 * 1024 }))).toEqual({ to: 'shared', tab: 'page' })
   })
 
+  it('sends a failed automatic copy of the database to Backups (BTN-1083)', () => {
+    expect(noticeFixOf(notice('storage.backupFailed', {}))).toEqual({ to: 'shared', tab: 'backup' })
+    expect(noticeFixOf(notice('storage.backupCheckFailed', {}))).toEqual({ to: 'shared', tab: 'backup' })
+  })
+
   it('finds the fix of a reason in the items or the cause', () => {
     const empty = notice('chain.empty', { project: 'ABC' }, { items: [notice('chain.emptyNone', {}), notice('chain.emptyLabels', { labels: ['ready'] })] })
     expect(noticeFixOf(empty)).toEqual({ to: 'project', tab: 'tracker' })
@@ -98,5 +103,6 @@ describe('fieldFixOf', () => {
     expect(fieldFixOf({ project: null, field: 'context' })).toEqual({ to: 'shared', tab: 'sessions' })
     expect(fieldFixOf({ project: null, field: 'allowedHosts' })).toEqual({ to: 'shared', tab: 'page' })
     expect(fieldFixOf({ project: null, field: 'stats' })).toEqual({ to: 'shared', tab: 'stats' })
+    expect(fieldFixOf({ project: null, field: 'backupDir' })).toEqual({ to: 'shared', tab: 'backup' })
   })
 })

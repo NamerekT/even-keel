@@ -39,3 +39,11 @@ Measured on a copy of the live database (2026-11-10, [verified](../verified/plat
 Not checked: the start of the real service with it (the `storage: the database was compacted in N ms` line and the `start:` summary's `storage` time), the sizes of the tables after a week of chains, an hourly vacuum landing in a busy poll.
 
 If it is wrong: the start is slower by more than a second, or the page stalls once an hour — `logs/even-keel.log` has the compaction's time and any `storage: the vacuum failed` line; a failed vacuum changes nothing else, the tables only keep growing as before BTN-952 (`docs/storage.md`, "Vacuum").
+
+## The automatic copies of the state database (BTN-1083)
+
+The tests write, check and rotate copies of real PGlite databases with attachments, and refuse a copy whose rows or files differ; the worker thread was run once under `tsx` on a test database and wrote a checked copy. Assumed: in the running service the thread is found in the built `dist/src/storage/`, reading the rows of the live database for the copy does not hold the page noticeably, the copy of a large `files/` and its trial restore end within minutes, and at a real update the copy before the schema steps is made on the old schema without delaying the start by more than its own time.
+
+Not checked: the daily copy in the installed service (the `storage: the backup … is checked` line, `backups/` in the state folder, "Backups" in Shared settings), a folder on another disk or one that cannot be written (the banner, the retry an hour later), the copy before schema steps at a real update, and a restore from an automatic copy.
+
+If it is wrong: no copy appears, the banner says the copy failed, or the start after an update is slower — `logs/even-keel.log` has the `storage: the backup` and `storage: the copy before the schema steps` lines with the failing stage; nothing else depends on the copies, so turn to `npm run storage -- backup <folder>` by hand (`docs/storage.md`, "Backup, export, rollback").

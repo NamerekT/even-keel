@@ -62,6 +62,7 @@ import { SettingsProfiles } from './SettingsProfiles.js'
 import { ClassifierSettings, PageToken } from './SettingsSecrets.js'
 import { TallySettings } from './TallyChoice.js'
 import { NoticeSettings } from './NoticeSettings.js'
+import { BackupStatus } from './BackupStatus.js'
 import { PackageCatalog } from '../tools/PackageCatalog.js'
 import { PACKAGE_PARAM } from '../tools/packageGroups.js'
 import { noticeTexts } from '../i18n/notice-choices.js'
@@ -86,6 +87,7 @@ const GROUPS = [
   // The catalog of packages (BTN-802): each change is sent at once, no draft.
   { id: 'packages', keys: [] },
   { id: 'page', keys: ['language', 'allowedHosts', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
+  { id: 'backup', keys: ['backupDir', 'backupKeep'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
   { id: 'notices', keys: [] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
@@ -539,6 +541,34 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             />
             <FieldNote error={errorOf('allowedHosts')} />
           </div>
+        </Section>
+      </>
+    ),
+    backup: () => (
+      <>
+        <BackupStatus state={state} />
+        <Section title={t.shared.backupCopies}>
+          <Row
+            className={marks.box('backupDir')}
+            label={t.shared.backupDir}
+            hint={t.shared.backupDirHint}
+            htmlFor={fieldId('backupDir')}
+            mark={marks.note('backupDir', (value) => ((value as string).trim() === '' ? t.shared.backupDirDefault : shown(value)))}
+            control={
+              <input
+                id={fieldId('backupDir')}
+                className="settings__text settings__text--mono"
+                autoComplete="off"
+                spellCheck={false}
+                value={text('backupDir')}
+                placeholder={t.shared.backupDirDefault}
+                aria-invalid={errorOf('backupDir') !== null}
+                onChange={(event) => edit('backupDir', event.target.value)}
+              />
+            }
+            error={errorOf('backupDir')}
+          />
+          {numberRow('backupKeep', t.shared.backupKeep, wholeOf(text('backupKeep'), 1) === undefined || errorOf('backupKeep') !== null, t.shared.backupKeepHint)}
         </Section>
       </>
     ),

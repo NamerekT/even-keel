@@ -1137,3 +1137,28 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* The backup tab's facts and its one button (BTN-1083): the time in one column, the folder in the other two. */
+.backup-status__folder {
+  grid-column: span 2;
+}
+
+@media (max-width: 760px) {
+  .backup-status__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .backup-status__folder {
+    grid-column: auto;
+  }
+}
+
+.backup-status__dir {
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.backup-status__actions {
+  display: flex;
+  justify-content: flex-start;
+}

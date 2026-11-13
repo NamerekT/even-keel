@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { useMatch } from 'react-router'
 import { SETUP } from '../pages/setupSteps.js'
+import { BackupBanner } from './BackupBanner.js'
 import { CliCheckBanner } from './CliCheckBanner.js'
 import { CliCopiesBanner } from './CliCopies.js'
 import { ConfigBanner } from './ConfigBanner.js'
@@ -40,6 +41,7 @@ export function AppHeader() {
         <ConfigBanner />
         <UnattendedBanner />
         <PackagesBanner />
+        <BackupBanner />
       </div>
     </div>
   )

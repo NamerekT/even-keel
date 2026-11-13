@@ -17,6 +17,7 @@ import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, MANY_M
 import { FAKE_FIX, fakeCi, fakeMainCi } from './fakeCi.js'
 import { EVENT_MS, fakeEvent, fakeEventLog } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
+import { fakeBackup } from './fakeBackup.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
 import { withCarry } from './fakeCarry.js'
 import { withCompletionFailure, withMoveFailure } from './fakeCompletion.js'
@@ -253,6 +254,7 @@ function fakeState(
     tally: 'local',
     tallyHealth: { state: 'ok', lastRunAt: ago(3) },
     updates: fakeUpdates(null),
+    backup: fakeBackup(null),
     cliVersions: [],
     cliChecks: [],
     git: { version: '2.47.1', name: 'John Doe', email: 'john@example.com' },
@@ -373,6 +375,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.hulyClient = notice('huly.clientFailed', {}, { detail: 'npm ERR! code ECONNRESET npm ERR! network aborted' })
   }
   if (current.state !== null) current.state.updates = fakeUpdates(params)
+  if (current.state !== null) current.state.backup = fakeBackup(params.get('backup'))
   if (params.get('cli') === 'unchecked' && current.state !== null) {
     const unchecked = (agent: string, title: string, installed: string, checked: string) => ({
       agent,

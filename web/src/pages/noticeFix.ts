@@ -4,7 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { fieldOf, type FieldError } from './settingsField.js'
 
 type ProjectTab = 'repo' | 'tracker' | 'sessions' | 'ci'
-type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 'stats'
+type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 'backup' | 'stats'
 
 /**
  * Where the page fixes what a notice reports: a tab of a project's settings (`project` — the project a config error
@@ -35,6 +35,8 @@ const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
 const ACCOUNTS: NoticeFix = { to: 'accounts' }
 
 const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
+  'storage.backupFailed': { to: 'shared', tab: 'backup' },
+  'storage.backupCheckFailed': { to: 'shared', tab: 'backup' },
   'agent.copyMissing': { to: 'shared', tab: 'models' },
   'agent.copyFailed': { to: 'shared', tab: 'models' },
   'copilot.binaryMissing': { to: 'shared', tab: 'models' },
@@ -110,6 +112,7 @@ const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   sessions: ['hiddenSkills', 'context', 'contextHandoffs', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'keepWarm'],
   ci: ['ci'],
   page: ['language', 'allowedHosts', 'attachmentLimit'],
+  backup: ['backupDir', 'backupKeep', 'backup'],
   stats: ['stats'],
 }
 

@@ -18,6 +18,8 @@ const SHARED: Partial<Record<Notice['code'], string>> = {
   'config.parallel': 'parallel',
   'config.keepWarm': 'keepWarm',
   'config.attachmentLimit': 'attachmentLimit',
+  'config.backupDir': 'backupDir',
+  'config.backupKeep': 'backupKeep',
   'config.modelPrompts': 'modelPrompts',
   'config.modelPromptEmpty': 'modelPrompts',
   'config.modelPromptPlaceholder': 'modelPrompts',

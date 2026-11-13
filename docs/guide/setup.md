@@ -483,6 +483,8 @@ npm run storage -- backup <new folder>
 
 To restore, stop Even Keel and put the folder in place of `state/even-keel`.
 
+Even Keel also makes such a copy itself: once a day, and at the start of a new version before it changes the database. Each copy is opened back in a temporary folder and compared with the database before it counts; one that does not open whole is removed, and a failure shows a banner on every page while the older copies stay. The copies go into `state/backups/`, next to `state/even-keel/`, named `even-keel-auto-<date>-<time>-v<schema>`, and the newest 14 are kept. **Settings** → **Backups** shows the last checked copy, makes one at once, and sets **Copies folder** (`backup.dir`, an absolute path; a folder on another disk survives this one) and **Copies to keep** (`backup.keep`, 1–365). Folders of other names in it, such as your own backups, are never removed. A copy holds the trackers' tokens and keys in plain text: keep its folder as private as `.env`. To restore one, stop Even Keel and put it in place of `state/even-keel`, as above.
+
 The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction. Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one). On your own Postgres the collector migrates as `tally_writer`; if it is not the owner of the tables, it changes nothing and logs the statements to run and the role to run them as.
 
 ### Going back
