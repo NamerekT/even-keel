@@ -143,6 +143,10 @@ export const en = {
   'git.cloneStopped': () => 'the clone was cancelled',
   'git.cloneBroken': (p: { percent?: number }) =>
     `the connection broke off ${p.percent === undefined ? 'during the clone' : `at ${p.percent}% of the clone`}: check the network and press Retry, the clone starts over`,
+  'git.lfsMissing': (p: { path: string; remote: string; command: string }) =>
+    `the server has no LFS file ${p.path}: it was never uploaded. Run this in a clone that has it, then press Retry`,
+  'git.lfsFailed': (p: { path: string }) => `git LFS did not download ${p.path}: press Retry, the clone stays and only its LFS files are downloaded`,
+  'git.checkoutFailed': () => 'the repository was cloned, but git could not write out its files',
   'job.busy': () => 'another project is being created right now: wait until it is done, or cancel it',
   'job.unknown': () => 'this work is no longer there: it was finished or cancelled',
   'job.notFailed': () => 'nothing to repeat: the work has not failed',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cloneFailure, parseHeads, parseProgress, remoteFailure, remoteName, remoteShaped, sameRemote } from './clone-progress.js'
+import { cloneFailure, lfsFailure, parseHeads, parseProgress, remoteFailure, remoteName, remoteShaped, sameRemote } from './clone-progress.js'
 
 describe('parseProgress', () => {
   it('reads the stage, the percent, the bytes and the speed of a receiving line', () => {
@@ -133,6 +133,52 @@ describe('cloneFailure', () => {
   it('keeps a refusal that is not the network as it is, whatever was received', () => {
     const out = "fatal: Authentication failed for 'https://example.com/a/b.git/'"
     expect(cloneFailure(out, 'https://example.com/a/b.git', { answered: true, percent: 40 }).code).toBe('git.remoteDenied')
+  })
+
+  it('reads an LFS object the server lacks after the clone came as that file missing, never as no repository', () => {
+    expect(cloneFailure(LFS_404, GAME, { answered: true, percent: 100 })).toEqual({
+      code: 'git.lfsMissing',
+      params: { path: 'assets/picture.jpg', remote: GAME, command: `git lfs push --all ${GAME}` },
+      detail: LFS_404,
+    })
+  })
+
+  it('reads a checkout that failed after the clone came, without LFS, as files not written out', () => {
+    const out = "error: invalid path 'docs/a:b.md'\nfatal: unable to checkout working tree\nwarning: Clone succeeded, but checkout failed."
+    expect(cloneFailure(out, GAME, { answered: true, percent: 100 })).toEqual({ code: 'git.checkoutFailed', params: {}, detail: out })
+  })
+})
+
+const GAME = 'https://git.example.com/acme/game.git'
+const LFS_404 = [
+  'Downloading assets/picture.jpg (675 KB)',
+  'Error downloading object: assets/picture.jpg (69028a3): Smudge error: Error downloading assets/picture.jpg (69028a3a7c): [69028a3a7c] Not Found: [404] Not Found',
+  "Errors logged to 'C:\\work\\game\\.git\\lfs\\logs\\20261113T184937.0969816.log'.",
+  "Use `git lfs logs last` to view the log.",
+  "error: external filter 'git-lfs filter-process' failed",
+  'fatal: assets/picture.jpg: smudge filter lfs failed',
+  'warning: Clone succeeded, but checkout failed.',
+  "You can inspect what was checked out with 'git status'",
+  "and retry with 'git restore --source=HEAD :/'",
+].join('\n')
+
+describe('lfsFailure', () => {
+  it('names the missing file and the push that uploads it for a 404', () => {
+    expect(lfsFailure(LFS_404, GAME)).toMatchObject({ code: 'git.lfsMissing', params: { path: 'assets/picture.jpg' } })
+  })
+
+  it("reads a local remote's missing object as missing too", () => {
+    const out = 'Error downloading object: a.bin (51657d9): Smudge error: Error downloading a.bin (51657d95): error transferring "51657d95": [0] remote missing object 51657d95\nfatal: a.bin: smudge filter lfs failed'
+    expect(lfsFailure(out, GAME)).toMatchObject({ code: 'git.lfsMissing', params: { path: 'a.bin' } })
+  })
+
+  it('reads any other LFS download failure as the file not downloaded, with a path that has spaces', () => {
+    const out = 'Error downloading object: art/big picture.psd (1a2b3c4): Smudge error: Error downloading art/big picture.psd (1a2b3c4d): batch response: Rate limit exceeded\nfatal: art/big picture.psd: smudge filter lfs failed'
+    expect(lfsFailure(out, GAME)).toEqual({ code: 'git.lfsFailed', params: { path: 'art/big picture.psd' }, detail: out })
+  })
+
+  it('finds no LFS failure in a clone refused for another reason', () => {
+    expect(lfsFailure('remote: Repository not found.\nfatal: repository not found', GAME)).toBeNull()
   })
 })
 

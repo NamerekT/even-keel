@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
-import { cloneFailure, parseHeads, parseProgress, remoteFailure, remoteShaped, type CloneProgress, type CloneReach } from './clone-progress.js'
+import { cloneFailure, lfsFailure, parseHeads, parseProgress, remoteFailure, remoteShaped, type CloneProgress, type CloneReach } from './clone-progress.js'
 import { gitMissing } from './run.js'
 
 const READ_TIMEOUT_MS = 30_000
@@ -40,7 +40,7 @@ export function remoteEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessE
 }
 
 /**
- * Git on a remote, with no working folder: `ls-remote`, `clone`. Its answer on stdout is kept whole, up to a ceiling;
+ * Git on a remote: `ls-remote`, `clone`, and `-C <clone> restore` for its LFS files. Its answer on stdout is kept whole, up to a ceiling;
  * its words on stderr are cut to their end, where the reason of a failure is, and follow the answer.
  */
 export const runRemoteGit: RemoteGit = (args, { signal, timeoutMs, onLine } = {}) =>
@@ -162,5 +162,35 @@ export function cloner(git: RemoteGit = runRemoteGit): Clone {
     if (run.missing === true) throw fail('git.missing', {})
     if (run.stopped === true) throw fail('git.cloneStopped', {})
     if (run.code !== 0) throw new NoticeError(cloneFailure(run.out, remote, reach))
+  }
+}
+
+export interface RestoreRequest {
+  /** The clone's address: the LFS files come from it, and a refusal names it. */
+  remote: string
+  path: string
+  signal: AbortSignal
+  onProgress: (progress: CloneProgress) => void
+}
+
+export type Restore = (request: RestoreRequest) => Promise<void>
+
+/**
+ * Writes a clone's files out again from its HEAD, the index too, downloading the LFS files its checkout failed on
+ * (BTN-1106): what git itself offers after "Clone succeeded, but checkout failed", with `--staged` for the index that
+ * checkout left empty. The files already there are kept; no timeout, as for the clone.
+ */
+export function restorer(git: RemoteGit = runRemoteGit): Restore {
+  return async ({ remote, path, signal, onProgress }) => {
+    const run = await git(['-C', path, 'restore', '--progress', '--source=HEAD', '--staged', '--worktree', ':/'], {
+      signal,
+      onLine: (line) => {
+        const progress = parseProgress(line)
+        if (progress !== null) onProgress(progress)
+      },
+    })
+    if (run.missing === true) throw fail('git.missing', {})
+    if (run.stopped === true) throw fail('git.cloneStopped', {})
+    if (run.code !== 0) throw new NoticeError(lfsFailure(run.out, remote) ?? remoteFailure(run.out, remote))
   }
 }

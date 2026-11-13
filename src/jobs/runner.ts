@@ -13,7 +13,10 @@ export interface StepTools {
 
 export interface StepDef {
   id: string
-  /** Not in the list until another step begins it (`StepTools.begin`); it has no `run` of its own. */
+  /**
+   * Not in the list until another step begins it (`StepTools.begin`). Its `run`, if any, is only its Retry: the steps'
+   * run passes it by until it failed (BTN-1106: the LFS files downloaded again into the clone that came).
+   */
   hidden?: boolean
   run?(tools: StepTools): Promise<void>
 }
@@ -38,6 +41,8 @@ interface Running {
   done: boolean
   kept: boolean
   cancelled: boolean
+  /** Steps that failed once: a hidden step runs only then. */
+  retried: Set<string>
   abort: AbortController
   run: Promise<void>
 }
@@ -85,6 +90,7 @@ export class StepJobs {
       done: false,
       kept: false,
       cancelled: false,
+      retried: new Set(),
       abort: new AbortController(),
       run: Promise.resolve(),
     }
@@ -98,7 +104,11 @@ export class StepJobs {
     const job = this.job(id)
     if (job.failure === null) throw fail('job.notFailed', {})
     job.failure = null
-    for (const step of job.states.values()) if (step.state === 'failed') step.state = 'waiting'
+    for (const step of job.states.values()) {
+      if (step.state !== 'failed') continue
+      step.state = 'waiting'
+      job.retried.add(step.id)
+    }
     job.abort = new AbortController()
     job.run = this.run(job)
   }
@@ -150,6 +160,7 @@ export class StepJobs {
     }
     for (const step of plan.steps) {
       if (step.run === undefined || job.states.get(step.id)!.state === 'done') continue
+      if (step.hidden === true && !job.retried.has(step.id)) continue
       let current = step.id
       mark(current, 'running')
       try {
@@ -170,9 +181,14 @@ export class StepJobs {
         })
       } catch (error) {
         if (job.cancelled) return
-        // A sub-step fails as its parent: Retry runs the whole call again.
-        if (current !== step.id) mark(current, 'waiting')
-        mark(step.id, 'failed')
+        // A sub-step fails on its own, its parent done: Retry runs the sub-step's own `run`, or the parent again without one.
+        if (current !== step.id && plan.steps.some((each) => each.id === current && each.run !== undefined)) {
+          mark(step.id, 'done')
+          mark(current, 'failed')
+        } else {
+          if (current !== step.id) mark(current, 'waiting')
+          mark(step.id, 'failed')
+        }
         job.failure = noticeOf(error)
         console.warn(`jobs: ${plan.kind} ${plan.subject}: the step ${step.id} failed: ${englishOf(job.failure)}${job.failure.detail === undefined ? '' : ` (${job.failure.detail})`}`)
         this.changed?.()
