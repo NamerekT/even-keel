@@ -90,7 +90,7 @@ describe('the Turn on git dialog', () => {
 
   it('keeps the project’s main branch when the offer is unticked', async () => {
     const dialog = await open(undefined, { p1: { branch: 'master', since: 1 } })
-    await act(async () => dialog.querySelector<HTMLInputElement>('#git-on-branch')!.click())
+    await act(async () => dialog.querySelector<HTMLButtonElement>('#git-on-branch[role="switch"]')!.click())
     expect(dialog.textContent).toContain(t.settings.gitSwitch.keepHint('main'))
     await act(async () => dialog.querySelector<HTMLButtonElement>('.button--primary')!.click())
     expect(command.send).toHaveBeenCalledWith('project/git', { project: 'p1', on: true, slot: 0, commit: true })
@@ -113,7 +113,7 @@ describe('the Turn on git dialog', () => {
     expect(items).toHaveLength(21)
     expect(items[0]).toBe('M file-0.txt')
     expect(items[20]).toBe(t.settings.gitSwitch.changesMore(3))
-    await act(async () => dialog.querySelector<HTMLInputElement>('#git-on-commit')!.click())
+    await act(async () => dialog.querySelector<HTMLButtonElement>('#git-on-commit[role="switch"]')!.click())
     await act(async () => dialog.querySelector<HTMLButtonElement>('.button--primary')!.click())
     expect(command.send).toHaveBeenCalledWith('project/git', { project: 'p1', on: true, slot: 0, commit: false })
   })
