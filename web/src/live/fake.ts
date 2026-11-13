@@ -835,7 +835,7 @@ export function createFakeSource(search: string): LiveSource {
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
       const turn = view?.lamp === 'working' ? { startedAt: turnStartedAt, tool: view.task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null } : null
       if (after === 0 && view?.task === 'ABC-5' && ['apiError', 'apiRetry', 'transient', 'streamError', 'modelError'].includes(params.get('chain') ?? '')) return { lines: view.feed, turn }
-      if (after === 0) return { lines: fakeTranscript(view?.ask ?? null), turn }
+      if (after === 0) return { lines: fakeTranscript(view?.ask ?? null, params.get('shots')), turn }
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },
     onTranscript: () => () => {},

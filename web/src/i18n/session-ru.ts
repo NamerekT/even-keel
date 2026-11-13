@@ -167,6 +167,7 @@ export const sessionRu = {
     title: 'Чат',
     picture: 'Картинка',
     openPicture: (name: string) => `Открыть ${name}`,
+    openPictures: (name: string, count: number) => `Открыть ${name}, первую из ${count} ${forms('картинки', 'картинок', 'картинок')(count)}`,
     share: {
       title: 'Файлы от сессии',
       download: (name: string) => `Скачать ${name}`,

@@ -114,6 +114,38 @@ export function fakeCalls(at: (minutes: number) => string): FeedLine[] {
   ]
 }
 
+/** The calls of `fakeManyShots` whose screenshot left with a cleaned-up worktree. */
+const GONE = 'toolu_fake_gone_'
+const STEP = 'toolu_fake_step_'
+const STEP_TONES = [
+  ['#1c1c1a', '#2f5fd0'],
+  ['#f4f3ef', '#1baf7a'],
+  ['#24304a', '#eb6834'],
+  ['#3a2a4a', '#e0b23c'],
+] as const
+
+/**
+ * `?shots=many|gone`: a design check that read 18 screenshots among 22 files and ran 10 commands, one folded group (BTN-1103).
+ * With `gone` its worktree is cleaned up: the first five screenshots do not load, and a later group of two loads none.
+ */
+export function fakeManyShots(at: (minutes: number) => string, gone: boolean): FeedLine[] {
+  const call = (tool: string, name: string, text: string, extra: Partial<FeedLine> = {}): FeedLine => ({ at: at(24), kind: 'tool', text, tool, name, ...extra })
+  const shot = (tool: string, index: number): FeedLine[] => {
+    const file = `project-add-step-${index + 1}.png`
+    return [call(tool, 'Read', `Read .temp/shot/${file}`, { subject: `${ROOT}\\.temp\\shot\\${file}` }), { at: at(24), kind: 'image', text: file, tool, images: 1 }]
+  }
+  const read = (path: string) => call(`toolu_fake_m_${path}`, 'Read', `Read ${path}`, { subject: `${ROOT}\\${path.replaceAll('/', '\\')}` })
+  const run = (index: number) => call(`toolu_fake_m_run${index}`, 'Bash', `Bash Shoot the wizard step ${index + 1}`, { subject: `Shoot the wizard step ${index + 1}`, detail: `npm run shot -- '/projects/add?step=${index + 1}'` })
+  return [
+    { at: at(24), kind: 'text', text: 'Делаю дизайн-проверку шага «Репозиторий» в мастере: снял 18 состояний поля, теперь просматриваю снимки.' },
+    call('toolu_fake_m_edit', 'Edit', 'Edit web/src/pages/ProjectAdd.tsx', { subject: `${ROOT}\\web\\src\\pages\\ProjectAdd.tsx`, added: 23, removed: 0 }),
+    ...['web/src/pages/ProjectAdd.tsx', 'web/src/pages/projectAdd.css', 'docs/design.md', 'docs/web/screenshots.md'].map(read),
+    ...Array.from({ length: 18 }, (_, index) => shot(`${gone && index < 5 ? GONE : STEP}${index}`, index)).flat(),
+    ...Array.from({ length: 10 }, (_, index) => run(index)),
+    ...(gone ? [{ at: at(24), kind: 'text', text: 'Сверяю два первых снимка ещё раз.' } as FeedLine, ...shot(`${GONE}a`, 0), ...shot(`${GONE}b`, 1)] : []),
+  ]
+}
+
 const SHOTS: Record<string, string> = {
   toolu_fake_dark: picture(1280, 720, '#1c1c1a', '#2f5fd0', 'dark'),
   toolu_fake_light: picture(1280, 720, '#f4f3ef', '#1baf7a', 'light'),
@@ -121,6 +153,12 @@ const SHOTS: Record<string, string> = {
 }
 
 export function fakeImageUrl(tool: string, index: number): string {
+  if (tool.startsWith(GONE)) return 'data:image/png;base64,AAAA'
+  if (tool.startsWith(STEP)) {
+    const step = Number(tool.slice(STEP.length))
+    const [background, accent] = STEP_TONES[step % STEP_TONES.length]!
+    return picture(1280, 800, background, accent, `step ${step + 1}`)
+  }
   return SHOTS[tool] ?? picture(640, 480, '#d2443a', '#1c1c1a', `${tool} ${index}`)
 }
 

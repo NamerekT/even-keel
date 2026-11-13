@@ -166,6 +166,7 @@ export const sessionEn = {
     title: 'Chat',
     picture: 'Picture',
     openPicture: (name: string) => `Open ${name}`,
+    openPictures: (name: string, count: number) => `Open ${name}, the first of ${count} pictures`,
     share: {
       title: 'Files from the session',
       download: (name: string) => `Download ${name}`,
