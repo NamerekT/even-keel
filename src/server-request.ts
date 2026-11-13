@@ -95,7 +95,8 @@ export function draftOf(body: Record<string, unknown>): ProjectDraft {
   // A page open since before the source (BTN-1048) sends none: a checkout already there.
   const { source } = body
   if (source !== undefined && source !== 'clone' && source !== 'new' && source !== 'existing') throw fail('request.required', { field: 'source' })
-  const optional = (field: 'remote' | 'folder') => (body[field] === undefined ? {} : { [field]: textOf(body[field], field) })
+  // The one field of BTN-1093 is read by the service; a page from before it sends the source instead.
+  const optional = (field: 'remote' | 'folder' | 'target') => (body[field] === undefined ? {} : { [field]: textOf(body[field], field) })
   return {
     ...fields,
     profile,
@@ -106,6 +107,7 @@ export function draftOf(body: Record<string, unknown>): ProjectDraft {
     ...(source === undefined ? {} : { source }),
     ...optional('remote'),
     ...optional('folder'),
+    ...optional('target'),
   }
 }
 

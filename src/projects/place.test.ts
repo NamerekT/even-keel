@@ -126,7 +126,7 @@ describe('checkPlace', () => {
     writeFileSync(join(own, 'mine', 'x'), '')
     writeFileSync(join(own, 'file'), '')
     expect((await checkPlace(deps(), clone({ folder: 'mine' }))).notice).toEqual(expect.objectContaining({ code: 'wizard.folderFilled' }))
-    expect((await checkPlace(deps(), clone({ folder: 'a/b' }))).notice).toEqual(expect.objectContaining({ code: 'wizard.folderName' }))
+    expect((await checkPlace(deps(), clone({ folder: 'a/b' }))).notice).toEqual(expect.objectContaining({ code: process.platform === 'win32' ? 'wizard.folderName' : 'wizard.folderNameSlash' }))
     expect((await checkPlace(deps(), clone({ folder: 'file' }))).notice).toEqual(expect.objectContaining({ code: 'wizard.folderIsFile' }))
   })
 

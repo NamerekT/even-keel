@@ -7,12 +7,13 @@ import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels, runSettings 
 import { currentBranch, isBranchName, readBranches } from '../git/branches.js'
 import { sharedRemoteReader, type ReadRemote } from '../git/remote-run.js'
 import type { Git } from '../git/types.js'
-import { notice, noticeOf, type Notice } from '../notice/notice.js'
+import { fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath, sameSpelling, workingFolder } from '../paths.js'
 import type { ProjectCheck, ProjectDraft } from '../state.js'
 import { expandFolder, isFullPath, REAL_FOLDERS, type Folders } from './folder.js'
 import { projectsDir } from './own-folder.js'
 import { checkPlace } from './place.js'
+import { lacksIdentity, readTarget } from './target-read.js'
 import { errorText, TrackerLink } from '../tracker/link.js'
 import { isOpen } from '../tracker/model.js'
 import { trackerOf, type TrackerAdapter } from '../tracker/source.js'
@@ -96,6 +97,12 @@ export async function checkRepo(
   const typed = draft.repo.trim()
   const none = { root: null, current: null, suggested: null, branches: null }
   const plain = draft.git === false
+  if (!plain && draft.target !== undefined) {
+    const resolved = await readTarget({ git, platform, folders, ownDir, projectOf: (folder) => projectOfRepo(raw, folder, platform) }, draft)
+    const read = resolved.read === null ? {} : { read: resolved.read }
+    if (resolved.draft === null) return { ...none, ...read, notice: resolved.notice }
+    return { ...(await checkRepo(git, resolved.draft, raw, platform, adapter, env, folders, ownDir, readRemote)), ...read }
+  }
   // A page that sends no `folder` for a project without git means Even Keel's own folder of the project, as before BTN-1048.
   if (plain ? typed === '' && draft.folder !== undefined : draft.source === 'clone' || draft.source === 'new') {
     const projectOf = (folder: string) => projectOfRepo(raw, folder, platform)
@@ -132,10 +139,16 @@ export async function checkRepo(
   return { ...found, branches, notice: null }
 }
 
-/** `git config --get` ends with 1 for a value that is unset; any other failure is not taken for one. */
-async function lacksIdentity(git: Git, root: string): Promise<boolean> {
-  const values = await Promise.all(['user.name', 'user.email'].map((key) => git(root, ['config', '--get', key])))
-  return values.some((value) => value.code === 1 || (value.code === 0 && value.out.trim() === ''))
+/**
+ * The draft as "Create" builds it (BTN-1093): the wizard's one field read into the source, the remote and the folder
+ * the creation's steps take; a draft without the field as it came. Refused as the check refuses it.
+ */
+export async function sourcedDraft(git: Git, draft: ProjectDraft, raw: unknown, platform: NodeJS.Platform = process.platform, folders: Folders = REAL_FOLDERS, ownDir: string = projectsDir()): Promise<ProjectDraft> {
+  if (draft.git === false || draft.target === undefined) return draft
+  const resolved = await readTarget({ git, platform, folders, ownDir, projectOf: (folder) => projectOfRepo(raw, folder, platform) }, draft)
+  if (resolved.notice !== null) throw new NoticeError(resolved.notice)
+  if (resolved.draft === null) throw fail('request.required', { field: 'target' })
+  return resolved.draft
 }
 
 async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | undefined, env: Readonly<Record<string, string | undefined>>): Promise<string | null> {

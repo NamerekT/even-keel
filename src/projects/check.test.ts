@@ -8,7 +8,7 @@ import { englishOf } from '../notice/notice.js'
 import type { ProjectDraft } from '../state.js'
 import type { TaskSource, TrackerAdapter } from '../tracker/source.js'
 import type { TrackerTask } from '../tracker/model.js'
-import { checkDraft, isTrusted, type CheckDeps } from './check.js'
+import { checkDraft, isTrusted, sourcedDraft, type CheckDeps } from './check.js'
 
 const draft: ProjectDraft = { repo: 'D:\\new\\src', branch: '', key: 'NEW', name: '', tracker: 'fake', trackerProject: '', profile: null, slot: 0, milestones: [], provider: null }
 
@@ -111,6 +111,26 @@ describe('checkDraft', () => {
     const check = await checkDraft({ ...base, git }, { ...draft, repo: '%EKR_TEST_MISSING%\\src' })
     expect(check.repo.notice).toMatchObject({ code: 'wizard.noFolder' })
     expect(git).not.toHaveBeenCalled()
+  })
+
+  it("reads the wizard's one field first: a repository's top is checked as before and says how it was read (BTN-1093)", async () => {
+    const check = await checkDraft(deps(), { ...draft, repo: '', target: 'D:\\new' })
+    expect(check.repo).toMatchObject({ root: 'D:\\new', current: 'trunk', notice: null, read: { as: 'existing', remote: null } })
+    expect(check.tracker?.ok).toBe(true)
+  })
+
+  it('refuses a subfolder of a repository in the one field, naming its top, and an unknown Windows variable as no folder', async () => {
+    expect((await checkDraft(deps(), { ...draft, repo: '', target: 'D:\\new\\src' })).repo.notice).toMatchObject({ code: 'wizard.insideRepo', params: { root: 'D:\\new' } })
+    vi.stubEnv('EKR_TEST_MISSING', undefined)
+    expect((await checkDraft(deps(), { ...draft, repo: '', target: '%EKR_TEST_MISSING%\\src' })).repo.notice).toMatchObject({ code: 'wizard.noFolder' })
+  })
+
+  it('gives "Create" the draft with the source the one field names, and refuses as the check does (BTN-1093)', async () => {
+    const { git, raw, folders } = deps()
+    const clone = await sourcedDraft(git, { ...draft, repo: '', folder: 'shop', target: 'https://example.com/me/shop.git' }, raw(), 'win32', folders, 'D:\\projects')
+    expect(clone).toMatchObject({ source: 'clone', remote: 'https://example.com/me/shop.git', folder: 'shop' })
+    await expect(sourcedDraft(git, { ...draft, target: 'shop now please' }, raw(), 'win32', folders, 'D:\\projects')).rejects.toMatchObject({ notice: { code: 'wizard.notTarget' } })
+    expect(await sourcedDraft(git, draft, raw(), 'win32', folders, 'D:\\projects')).toBe(draft)
   })
 
   it('takes the top of the repository, suggests its branch, asks the tracker and the trust', async () => {
