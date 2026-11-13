@@ -7,6 +7,11 @@ const READ_TIMEOUT_MS = 30_000
 const READ_CACHE_MS = 60_000
 /** What is kept of git's words for a failure's detail. */
 const KEPT_CHARS = 4000
+/**
+ * A ceiling on what is kept of git's answer: `ls-remote` of a repository with thousands of branches is a few hundred
+ * kilobytes. Its beginning is what is kept, where the line of the default branch is.
+ */
+const ANSWER_CHARS = 16_000_000
 
 export interface RemoteRun {
   code: number
@@ -34,7 +39,10 @@ export function remoteEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessE
   return { ...env, LC_ALL: 'C', GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }
 }
 
-/** Git on a remote, with no working folder: `ls-remote`, `clone`. Its output is kept from both streams, cut to its end. */
+/**
+ * Git on a remote, with no working folder: `ls-remote`, `clone`. Its answer on stdout is kept whole, up to a ceiling;
+ * its words on stderr are cut to their end, where the reason of a failure is, and follow the answer.
+ */
 export const runRemoteGit: RemoteGit = (args, { signal, timeoutMs, onLine } = {}) =>
   new Promise<RemoteRun>((resolve) => {
     const child = spawn('git', [...(process.platform === 'win32' ? ['-c', 'core.longpaths=true'] : []), ...args], {
@@ -42,11 +50,12 @@ export const runRemoteGit: RemoteGit = (args, { signal, timeoutMs, onLine } = {}
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-    let out = ''
+    let answer = ''
+    let words = ''
     let rest = ''
     let stopped = false
     const keep = (text: string) => {
-      out = (out + text).slice(-KEPT_CHARS)
+      words = (words + text).slice(-KEPT_CHARS)
     }
     const stop = () => {
       stopped = true
@@ -55,7 +64,10 @@ export const runRemoteGit: RemoteGit = (args, { signal, timeoutMs, onLine } = {}
     const timer = timeoutMs === undefined ? undefined : setTimeout(stop, timeoutMs)
     if (signal?.aborted === true) stop()
     signal?.addEventListener('abort', stop, { once: true })
-    child.stdout.on('data', (chunk: Buffer) => keep(chunk.toString()))
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', (chunk: string) => {
+      if (answer.length < ANSWER_CHARS) answer = (answer + chunk).slice(0, ANSWER_CHARS)
+    })
     child.stderr.on('data', (chunk: Buffer) => {
       const lines = (rest + chunk.toString()).split(/[\r\n]/)
       rest = lines.pop() ?? ''
@@ -69,7 +81,7 @@ export const runRemoteGit: RemoteGit = (args, { signal, timeoutMs, onLine } = {}
       clearTimeout(timer)
       signal?.removeEventListener('abort', stop)
       keep(rest)
-      const text = out.trim()
+      const text = `${answer}\n${words}`.trim()
       if (gitMissing(errorCode ?? code, text)) resolve({ code: -1, out: text, missing: true })
       else resolve({ code, out: text, ...(stopped ? { stopped: true as const } : {}) })
     }
