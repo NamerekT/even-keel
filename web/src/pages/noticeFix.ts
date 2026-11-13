@@ -13,9 +13,11 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * status moves of the task's source (`source`) or of its tracker profile (`profile`); `packages` — the project's
  * packages, with the add dialog of `plugin` over them while the catalog lacks it; `git` — the setup's Git step, where git's name and e-mail are written; `enableProfile` — turns a
  * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830);
- * `milestoneOrder` — the "Milestone order" block of the project's tracker window (BTN-792).
+ * `milestoneOrder` — the "Milestone order" block of the project's tracker window (BTN-792); `gitOn` — the "Turn on git"
+ * dialog of the project it is shown at (BTN-1025).
  */
 export type NoticeFix =
+  | { to: 'gitOn' }
   | { to: 'enableProfile'; profile: string }
   | { to: 'stopChains'; projects: string[] }
   | { to: 'packages'; plugin?: string }
@@ -67,6 +69,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'claude.trustWriteFailed': { to: 'resume' },
   'git.missing': { to: 'resume' },
   'git.noIdentity': { to: 'git' },
+  'git.found': { to: 'gitOn' },
   'chain.packagesNotReady': { to: 'packages' },
   'order.later': { to: 'milestoneOrder' },
   'order.against': { to: 'milestoneOrder' },

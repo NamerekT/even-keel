@@ -56,6 +56,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'account'
   | 'accountNow'
   | 'agentExtras'
+  | 'gitFound'
   | 'agentOf'
   | 'agentStatus'
   | 'agents'
@@ -409,6 +410,8 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
         const { warnings } = await ctx.stopTaskSessions(project, repo, task, 0, true)
         ctx.packages.release(project, task)
         for (const warning of warnings) console.warn(`cleanup: ${task}: ${englishOf(warning)}`)
+        // The task's agent may have made the folder a repository: the page then offers to turn git on (BTN-1025).
+        void ctx.gitFound.check(project)
         return { warnings, syncError: null }
       }
       const span = isOwnName(task) ? 0 : ctx.slotSpan(project)

@@ -11,6 +11,8 @@ import { activeChain, chainStatus, projectLabel, projectPath } from '../state.js
 import { Band, FoldBand } from '../ui/blocks.js'
 import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
 import { BranchDriftBand } from './BranchField.js'
+import { GitFoundBand } from './GitFoundBand.js'
+import { gitFoundNotice } from './gitFound.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
@@ -46,10 +48,12 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
   )
   // The open settings show the drift under the main branch field: the card leaves it to them.
   const drift = settingsOpen ? undefined : driftShown(state, project)
-  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || protectionShown(state, project)
+  const found = gitFoundNotice(state, project) !== null
+  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || found || protectionShown(state, project)
   return (
     <FoldPresence>{shown ? <div className="project-notices">
       <ProtectionWarnings state={state} project={project} />
+      <FoldPresence>{found ? <GitFoundBand state={state} project={project} /> : null}</FoldPresence>
       <FoldPresence>{drift !== undefined ? <BranchDriftBand project={project} drift={drift} closable /> : null}</FoldPresence>
       <FoldList items={errors.map((error, index) => ({
         key: `${error.code}-${index}`, children:

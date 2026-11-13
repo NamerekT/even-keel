@@ -31,11 +31,11 @@ afterEach(async () => {
   changes.files = []
 })
 
-async function open(git: EvenKeelState['git'] = { version: '2.47.1', name: 'John Doe', email: 'john@example.com' }) {
+async function open(git: EvenKeelState['git'] = { version: '2.47.1', name: 'John Doe', email: 'john@example.com' }, gitFound?: EvenKeelState['gitFound']) {
   const host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
-  const state = { git, projectLabels: { p1: 'ABC' }, config: { projects: { p1: { name: null } } } } as unknown as EvenKeelState
+  const state = { git, gitFound, projectLabels: { p1: 'ABC' }, config: { projects: { p1: { name: null, branch: 'main' } } } } as unknown as EvenKeelState
   await act(async () => root.render(createElement(GitOnSection, { state, project: 'p1' })))
   const opener = [...host.querySelectorAll('button')].find((button) => button.textContent === t.settings.gitSwitch.on)!
   await act(async () => opener.click())
@@ -79,6 +79,26 @@ describe('the Turn on git dialog', () => {
     expect(button.getAttribute('aria-disabled')).toBeNull()
     await act(async () => button.click())
     expect(command.send).toHaveBeenCalledWith('project/git', { project: 'p1', on: true, slot: 0, commit: true })
+  })
+
+  it('offers the branch of a repository the agent made, ticked, and sends it as the main branch (BTN-1025)', async () => {
+    const dialog = await open(undefined, { p1: { branch: 'master', since: 1 } })
+    expect(dialog.textContent).toContain(t.settings.gitSwitch.branchLead('master', 'main'))
+    await act(async () => dialog.querySelector<HTMLButtonElement>('.button--primary')!.click())
+    expect(command.send).toHaveBeenCalledWith('project/git', { project: 'p1', on: true, slot: 0, commit: true, branch: 'master' })
+  })
+
+  it('keeps the project’s main branch when the offer is unticked', async () => {
+    const dialog = await open(undefined, { p1: { branch: 'master', since: 1 } })
+    await act(async () => dialog.querySelector<HTMLInputElement>('#git-on-branch')!.click())
+    expect(dialog.textContent).toContain(t.settings.gitSwitch.keepHint('main'))
+    await act(async () => dialog.querySelector<HTMLButtonElement>('.button--primary')!.click())
+    expect(command.send).toHaveBeenCalledWith('project/git', { project: 'p1', on: true, slot: 0, commit: true })
+  })
+
+  it('offers no branch when the repository is on the project’s main branch', async () => {
+    const dialog = await open(undefined, { p1: { branch: 'main', since: 1 } })
+    expect(dialog.querySelector('#git-on-branch')).toBeNull()
   })
 
   it('shows no changes card for a folder without uncommitted changes', async () => {

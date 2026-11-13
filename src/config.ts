@@ -657,6 +657,11 @@ export function gitProjects(config: Pick<EvenKeelConfig, 'projects' | 'settings'
   return Object.fromEntries(Object.entries(config.projects).filter(([project]) => !isPlain(config, project)))
 }
 
+/** The projects without git, by id, and their folders. */
+export function plainProjects(config: Pick<EvenKeelConfig, 'projects' | 'settings'>): Record<string, string> {
+  return Object.fromEntries(Object.entries(config.projects).filter(([project]) => isPlain(config, project)))
+}
+
 /** The config of the file, an entry without an id given one in memory only: for readers that do not write the file. */
 export function loadConfig(file: string): EvenKeelConfig {
   return parseConfig(withIds(readRawConfig(file)).raw)

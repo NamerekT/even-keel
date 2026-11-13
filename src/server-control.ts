@@ -160,9 +160,10 @@ export interface SettingsControl {
   /**
    * Turns git on for a project without git (BTN-884), only between its tasks; there is no way back (BTN-1063). The folder
    * made a repository on the project's branch, `slot` — how many slots its tasks take, 0 — a worktree each; work done in
-   * a repository while git was off goes into one commit with `commit`, or refuses the switch (BTN-1054).
+   * a repository while git was off goes into one commit with `commit`, or refuses the switch (BTN-1054). `branch` — the
+   * project's main branch becomes this one first: the branch of a repository its agent made (BTN-1025).
    */
-  turnGitOn(project: string, options: { slot: number; commit: boolean }): Promise<void>
+  turnGitOn(project: string, options: { slot: number; commit: boolean; branch?: string }): Promise<void>
   /** What turning git on would commit as work done without git: `git status --porcelain` lines, none for a fresh repository. */
   gitChanges(project: string): Promise<{ files: string[] }>
   /** Adds an extra task feed to the project (BTN-66); refuses one the config would not parse. */

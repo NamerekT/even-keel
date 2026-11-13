@@ -64,6 +64,25 @@ describe('a project without git', { timeout: 60_000 }, () => {
     expect(existsSync(join(folder, '.git'))).toBe(true)
   })
 
+  it('offers to turn git on once a task made the folder a repository, and takes the branch it made (BTN-1025)', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', async ({ git }) => {
+      await git('init', '-b', 'master')
+      await git('-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '--allow-empty', '-m', 'first')
+      return { noChanges: 'made the folder a repository' }
+    })
+    await run.start()
+    expect(run.service.gitFound.view()).toEqual({})
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+    await run.until(() => run.service.gitFound.view()[PROJECT_ID]?.branch === 'master', 'the repository found')
+    // The switch waits, as the page's button does, until the stopped session is seen gone.
+    await run.until(() => run.service.removalFacts(PROJECT_ID, folder).sessions.length === 0, 'the session gone')
+    await run.post('project/git', { project: PROJECT_ID, on: true, slot: 0, branch: 'master' })
+    expect(run.service.configStore.view().projects[PROJECT_ID]).toMatchObject({ git: true, branch: 'master' })
+    expect(run.service.gitFound.view()).toEqual({})
+  })
+
   it('runs its tasks one after another in the one folder and closes each by its mark with the answer as the comment', async () => {
     run.board.add('ABC-1')
     run.board.add('ABC-2', 'ABC-1')

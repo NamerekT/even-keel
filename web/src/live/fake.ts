@@ -343,6 +343,8 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('git') === 'plain' && current.state !== null) {
     const { projects } = current.state.config
     projects.OPS = { ...projects.OPS!, git: false, repo: 'C:/Users/EvenKeelSvc/AppData/Local/even-keel/projects/ops-3f9a1c2e', ci: { ...projects.OPS!.ci, guard: false }, pullRequests: false, slot: 0 }
+    const found = params.get('gitFound')
+    if (found !== null) current.state.gitFound = { OPS: { branch: found === '' ? null : found, since: 1_763_000_000_000 } }
   }
   if (params.has('ci') && current.state !== null) {
     current.state.ci = fakeCi(params.get('ci'))

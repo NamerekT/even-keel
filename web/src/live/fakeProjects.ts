@@ -186,8 +186,10 @@ function withGit(state: EvenKeelState, body: Record<string, unknown>): EvenKeelS
     const label = state.projectKeys[id] ?? id
     throw new NoticeError(notice('project.gitBusy', { project: label }, { items: [notice('project.gitTaskInHand', { task: inHand })] }))
   }
-  const next: ProjectForm = { ...form, git: true, slot: typeof body.slot === 'number' ? body.slot : 0 }
-  return { ...state, config: { ...state.config, projects: { ...state.config.projects, [id]: next } } }
+  const branch = typeof body.branch === 'string' ? { branch: body.branch } : {}
+  const next: ProjectForm = { ...form, git: true, slot: typeof body.slot === 'number' ? body.slot : 0, ...branch }
+  const { [id]: _, ...found } = state.gitFound ?? {}
+  return { ...state, gitFound: found, config: { ...state.config, projects: { ...state.config.projects, [id]: next } } }
 }
 
 /** `project/feed/add` refuses a key that is no project key or that a project or feed already gives; a locked feed can still go. */

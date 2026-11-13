@@ -80,6 +80,7 @@ type HostingContext = Pick<ServiceContext,
   | 'archive'
   | 'branchOf'
   | 'branches'
+  | 'gitFound'
   | 'chainControl'
   | 'changelogs'
   | 'checkMergeTarget'
@@ -265,6 +266,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     cliCopies: Object.fromEntries(Object.entries(ctx.cliCopies.view()).map(([name, copy]) => [name, { ...copy, installed: ctx.cliVersions.installedOf(name) }])),
     cliChecks: ctx.cliChecks.view(),
     git: gitSetup.view(),
+    gitFound: ctx.gitFound.view(),
     jobs: stepJobs.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,
@@ -417,7 +419,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         if (ctx.configStore.view().projects[project]!.git) return { files: [] }
         return { files: await uncommittedChanges(runGit, repo) }
       },
-      turnGitOn: async (project, { slot, commit }) => {
+      turnGitOn: async (project, { slot, commit, branch: taken }) => {
         const config = ctx.configStore.current
         const repo = config.projects[project]
         if (repo === undefined) throw fail('config.unknownProject', { key: project })
@@ -428,10 +430,12 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         if (blocked !== null) throw new NoticeError(blocked)
         const base = ctx.configStore.view().projects[project]!
         if (base.git) return
-        const { made, committed } = await turnGitOn(runGit, repo, label, base.branch.trim() || DEFAULT_BRANCH, { commit })
+        const branch = taken?.trim() || base.branch.trim() || DEFAULT_BRANCH
+        const { made, committed } = await turnGitOn(runGit, repo, label, branch, { commit })
         // The entry may still carry a slot count the mode without git ignored: the chosen one is written over it.
         const rules = profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules
-        ctx.configStore.saveProject(project, { ...base, git: true, slot }, { ...base, slot: -1 }, rules)
+        const saved = taken?.trim() ? { ...base, branch } : base
+        ctx.configStore.saveProject(project, { ...saved, git: true, slot }, { ...base, slot: -1 }, rules)
         const how = made ? ', its folder made a repository with a first commit' : committed ? ', the work done without git committed' : ''
         console.log(`page: git is on for ${label}${how}`)
       },

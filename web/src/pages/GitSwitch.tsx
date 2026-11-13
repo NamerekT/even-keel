@@ -10,6 +10,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Tipped } from '../ui/Tipped.js'
 import { gitSwitchBusy } from './gitSwitchBusy.js'
+import { offeredBranch } from './gitFound.js'
 import { PartDot } from './SetupAgent.js'
 import { GitInstall, Identity } from './SetupGit.js'
 import { Row, Section } from './settingsParts.js'
@@ -20,19 +21,31 @@ import './gitSwitch.css'
 type Place = 'worktree' | 'slots'
 
 /** A switch button greyed with the reason in a tip while the project is busy (`gitSwitchBusy`). */
-function SwitchButton({ busy, label, onClick }: { busy: boolean; label: string; onClick: () => void }) {
+function SwitchButton({ busy, label, onClick, className = 'button' }: { busy: boolean; label: string; onClick: () => void; className?: string }) {
   if (!busy)
     return (
-      <button type="button" className="button" onClick={onClick}>
+      <button type="button" className={className} onClick={onClick}>
         {label}
       </button>
     )
   return (
     <Tipped tip={t.settings.gitSwitch.busy} inline>
-      <button type="button" className="button" aria-disabled="true">
+      <button type="button" className={className} aria-disabled="true">
         {label}
       </button>
     </Tipped>
+  )
+}
+
+/** "Turn on git" under the notice that the folder has become a repository (BTN-1025): the same dialog as the card's. */
+export function GitOnButton({ state, project, className }: { state: EvenKeelState | null; project: string; className: string }) {
+  const [open, setOpen] = useState(false)
+  const busy = state === null || gitSwitchBusy(state, project)
+  return (
+    <>
+      <SwitchButton busy={busy} label={t.settings.gitSwitch.on} className={className} onClick={() => setOpen(true)} />
+      {open && state !== null && <GitOnDialog state={state} project={project} onClose={() => setOpen(false)} />}
+    </>
   )
 }
 
@@ -68,6 +81,8 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
   // A refusal for changes the press found carries the fresh list (BTN-1054): it stands over the one read at opening.
   const files = failure?.code === 'project.gitDirty' ? failure.params.files : read
   const [commit, setCommit] = useState(true)
+  const offered = offeredBranch(state, project)
+  const [take, setTake] = useState(true)
   const [place, setPlace] = useState<Place>('worktree')
   const [slots, setSlots] = useState('1')
   const text = t.settings.gitSwitch
@@ -83,7 +98,8 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
     : !named ? text.needIdentity
     : slotCount === null ? text.needSlots : null
   const turnOn = async () => {
-    if (ready && !sending && (await send('project/git', { project, on: true, slot: slotCount, commit }))) onClose()
+    const branch = offered !== null && take ? { branch: offered.current } : {}
+    if (ready && !sending && (await send('project/git', { project, on: true, slot: slotCount, commit, ...branch }))) onClose()
   }
 
   return createPortal(
@@ -111,6 +127,7 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
           <p className="setup__lead">{text.lead}</p>
           <GitInstall state={state} />
           {installed && <Identity key={`${git.name}\n${git.email}`} git={git} />}
+          {offered !== null && <BranchChoice {...offered} take={take} onTake={setTake} />}
           {files.length > 0 && <GitChanges files={files} commit={commit} onCommit={setCommit} />}
           <Section title={text.place} mark={<PartDot check={slotCount === null ? 'failed' : 'passed'} first />} className="project-add__step">
             <p className="setup__lead">{text.placeLead}</p>
@@ -189,6 +206,26 @@ function useGitChanges(project: string): string[] {
     }
   }, [project])
   return files
+}
+
+/**
+ * The branch of a repository the agent made against the project's main branch (BTN-1025): ticked, the project takes
+ * the repository's; unticked, the repository needs the project's, or the switch is refused with `git.noBranch`.
+ */
+function BranchChoice({ current, main, take, onTake }: { current: string; main: string; take: boolean; onTake: (take: boolean) => void }) {
+  const text = t.settings.gitSwitch
+  return (
+    <Section title={text.branch} mark={<PartDot check="passed" first />} className="project-add__step">
+      <p className="setup__lead">{text.branchLead(current, main)}</p>
+      <div className="git-on__commit">
+        <label className="settings__check">
+          <input id="git-on-branch" type="checkbox" checked={take} onChange={(event) => onTake(event.target.checked)} />
+          {text.takeBranch(current)}
+        </label>
+        <span className="settings__hint">{take ? text.takeHint : text.keepHint(main)}</span>
+      </div>
+    </Section>
+  )
 }
 
 /** Work done in the repository outside git (BTN-1054): the first lines of it and whether it goes into one commit. */

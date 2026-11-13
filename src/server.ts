@@ -64,6 +64,7 @@ const COMMANDS: Record<string, Command> = {
     return settings.turnGitOn(projectOf(body), {
       slot: body.slot === undefined ? 0 : numberOf(body.slot, 'slot'),
       commit: body.commit === true,
+      ...(body.branch === undefined ? {} : { branch: textOf(body.branch, 'branch') }),
     })
   },
   'project/feed/add': ({ settings }, body) => settings.addFeed(projectOf(body), feedDraftOf(body)),

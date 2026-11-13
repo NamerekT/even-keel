@@ -139,6 +139,8 @@ export const en = {
   'git.failed': (p: { step: GitStep; subject: string; repo: string }) => `git: could not ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
   'git.noBranch': (p: { project: string; branch: string; repo: string }) =>
     `git: ${p.repo} has no branch ${p.branch}, the main branch of ${p.project}; create it or name the right one in the project's settings`,
+  'git.found': (p: { project: string; branch: string | null }) =>
+    `the folder of ${p.project} has become a git repository${p.branch === null ? '' : ` on the branch ${p.branch}`}: turn git on, and its tasks will work on branches of their own`,
   'git.wrongBranch': (p: { project: string; branch: string; current: string | null; repo: string }) =>
     `git: ${p.repo} stands ${p.current === null ? 'on a detached HEAD' : `on ${p.current}`}, not on ${p.branch}, the main branch of ${p.project}; switch it to ${p.branch} or name the right branch in the project's settings`,
   'branch.taken': (p: { branch: string }) =>

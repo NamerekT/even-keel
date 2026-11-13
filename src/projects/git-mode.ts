@@ -62,7 +62,7 @@ export async function uncommittedChanges(git: Git, folder: string): Promise<stri
 }
 
 /** The folder may sit inside another repository: only a repository whose top is the folder itself is the project's. */
-async function ownRepository(git: Git, folder: string): Promise<boolean> {
+export async function ownRepository(git: Git, folder: string): Promise<boolean> {
   const top = await git(folder, ['rev-parse', '--show-toplevel'])
   return top.code === 0 && samePath(top.out.trim(), folder)
 }

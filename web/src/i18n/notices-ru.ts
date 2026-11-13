@@ -168,6 +168,8 @@ export const noticesRu: NoticeTexts = {
   'git.failed': (p) => `git: не удалось ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
   'git.noBranch': (p) =>
     `в ${p.repo} нет ветки ${p.branch} — главной ветки проекта ${p.project}; создайте её или укажите нужную в настройках проекта`,
+  'git.found': (p) =>
+    `папка проекта ${p.project} стала git-репозиторием${p.branch === null ? '' : ` на ветке ${p.branch}`}: включите git, и задачи будут работать в своих ветках`,
   'git.wrongBranch': (p) =>
     `${p.repo} стоит ${p.current === null ? 'на отсоединённом HEAD' : `на ${p.current}`}, а не на ${p.branch} — главной ветке проекта ${p.project}; переключите копию на ${p.branch} или укажите нужную ветку в настройках проекта`,
   'branch.taken': (p) => `чекаут не перейдёт на ${p.branch}: эта ветка занята другим worktree; выберите другую ветку или сначала освободите тот worktree`,

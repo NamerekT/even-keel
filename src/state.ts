@@ -174,6 +174,14 @@ export interface RemoteRef {
 
 export type ProjectTask = Task & { project: string }
 
+/** The folder of a project without git found a repository of its own (BTN-1025). */
+export interface FoundRepository {
+  /** The branch its `HEAD` points at; `null` — detached, or a `.git` file that points elsewhere. */
+  branch: string | null
+  /** When its `.git` was made, epoch ms: the page's "Not now" holds only for this repository, not one made anew. */
+  since: number
+}
+
 /** Work in a task's worktree or slot that no commit of the project's main branch holds (BTN-298). */
 export interface TaskWork {
   path: string
@@ -295,6 +303,8 @@ export interface EvenKeelState {
   cliCopies?: Record<string, import('./agent/cli-state.js').CliCopyView>
   /** Git on the service's machine; absent until its first read. */
   git?: GitSetupView
+  /** The projects without git whose folder has become a repository of its own (BTN-1025), by id; absent — an older service. */
+  gitFound?: Record<string, FoundRepository>
   /** The work the service does in steps while a window shows it (BTN-1048): a project being created; absent — an older service. */
   jobs?: import('./jobs/model.js').StepJob[]
   /** The automatic CLI check of each agent (BTN-569): waiting, running or its last result; empty while the setting is off. */

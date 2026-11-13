@@ -30,7 +30,7 @@ import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
 import { ProtectionAudit } from './ci/protection-audit.js'
 import { type CiTarget, type Remote } from './ci/remote.js'
 import type { IntakeEntry } from './intake/model.js'
-import { DEFAULT_BRANCH, gitProjects, isPlain, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, gitProjects, isPlain, plainProjects, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { type SlotUse } from './git/slot.js'
@@ -39,6 +39,7 @@ import { englishOf, fail, noticeOf, withLabels, type Notice } from './notice/not
 import { guardToken } from './guard.js'
 import { type RemovalFacts } from './projects/removal.js'
 import { ProjectRemotes } from './projects/remotes.js'
+import { GitFound } from './projects/git-found.js'
 import { Packages } from './packages/service.js'
 import { type ChainControl } from './server.js'
 import { Approvals } from './sessions/approvals.js'
@@ -284,6 +285,7 @@ const context = {
   get remotes() { return remotes },
   get removalFacts() { return removalFacts },
   get branches() { return branches },
+  get gitFound() { return gitFound },
   get requireModel() { return requireModel },
   get resumeIn() { return resumeIn },
   get resumeWith() { return resumeWith },
@@ -568,6 +570,13 @@ const ciOn = (profileId: string, hidden: boolean) =>
     .map(({ project, target }) => ({ project, remote: target.remote }))
 const pullRefusals = new PullRefusals()
 const remotes = new ProjectRemotes(runGit)
+const gitFound = new GitFound({
+  git: runGit,
+  gitStarts: () => (gitSetup.view()?.version ?? null) !== null,
+  folders: () => plainProjects(configStore.current),
+  label: (project) => projectLabel(configStore.current, project),
+})
+gitFound.changed = stateChanged
 const ciWatches = chainService.wireCiWatches(context)
 /** The setting; an installation from before it that has not chosen keeps what Tally already ran on (BTN-247). */
 const tallyMode = () => configStore.current.tally ?? inferredTallyMode(process.env, existsSync(join(stateDir, 'tally', 'pgdata')))
@@ -654,7 +663,8 @@ const profiles: Profiles = accountsService.wireProfiles(context)
 hulyClient.changed = stateChanged
 gitSetup.changed = stateChanged
 stepJobs.changed = stateChanged
-void gitSetup.check().catch((error: unknown) => console.error(`git: could not read its version and identity: ${englishOf(noticeOf(error))}`))
+// The folders of projects without git are checked once git's own read tells whether it starts (BTN-1025).
+void gitSetup.check().catch((error: unknown) => console.error(`git: could not read its version and identity: ${englishOf(noticeOf(error))}`)).then(() => gitFound.checkAll())
 installForProfiles(profiles.current().profiles)
 /** The tracker refused the credentials of the profile the project runs on: its chain waits (BTN-200). */
 const profileBlock = accountsService.wireProfileBlock(context)
