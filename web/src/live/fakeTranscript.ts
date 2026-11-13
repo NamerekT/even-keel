@@ -1,11 +1,11 @@
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { SessionCheckpoint } from '../../../src/stats/checkpoint.js'
-import { fakeCalls, fakeOpenAsk, fakePastAsk, fakeShare, fakeShots } from './fakeChat.js'
+import { fakeCalls, fakeManyShots, fakeOpenAsk, fakePastAsk, fakeShare, fakeShots } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { ago, fakeFeed } from './fakeSessions.js'
 
-export function fakeTranscript(open: Ask | null): FeedLine[] {
+export function fakeTranscript(open: Ask | null, shots: string | null): FeedLine[] {
   const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
   return [
     { at: at(40), kind: 'prompt', text: 'ABC-5\n\nWorking folder: C:\\repos\\example-project\\.claude\\worktrees\\abc-5' },
@@ -18,6 +18,7 @@ export function fakeTranscript(open: Ask | null): FeedLine[] {
       text: 'Порядок строится топологической сортировкой.\n\n- цикл сейчас роняет сервер;\n- сначала тест на цикл, потом правка.\n\n```\nError: cycle in the chain order: ABC-5 → ABC-7 → ABC-9 → ABC-5, the tasks of the cycle are left out of the order until a blocks link is removed\n    at chainOrder (C:\\repos\\example-project\\.claude\\worktrees\\abc-5\\src\\chain\\order.ts:42:11)\n```\n\nФайл `C:\\repos\\example-project\\.claude\\worktrees\\abc-5\\src\\chain\\order.ts`.\n\n' + 'Длинное объяснение. '.repeat(40),
     },
     ...fakeShots(at),
+    ...(shots === 'many' || shots === 'gone' ? fakeManyShots(at, shots === 'gone') : []),
     { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },
     ...fakeCalls(at),
     ...fakeShare(at),

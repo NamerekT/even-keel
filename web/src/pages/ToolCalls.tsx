@@ -4,7 +4,7 @@ import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { t } from '../i18n/index.js'
 import { Tipped } from '../ui/Tipped.js'
 import { fileName } from './feedLine.js'
-import { Thumbs } from './Thumbs.js'
+import { Thumbs, ThumbStack } from './Thumbs.js'
 import { summarize, toolKind, type Call, type EditTotal } from './toolGroups.js'
 import type { TranscriptMedia } from './transcriptMedia.js'
 
@@ -28,7 +28,7 @@ export function ToolGroup({ calls, media, onOpen }: Props) {
           {summary.size !== null && <EditSize {...summary.size} />}
           {summary.failed > 0 && <span className="tools__failed">{t.session.chat.tools.failed(summary.failed)}</span>}
         </FoldToggle>
-        {!open && <Thumbs places={calls.flatMap((call) => media.byTool.get(call.line.tool ?? '') ?? [])} items={media.items} onOpen={onOpen} />}
+        {!open && <ThumbStack places={calls.flatMap((call) => media.byTool.get(call.line.tool ?? '') ?? [])} items={media.items} onOpen={onOpen} />}
       </div>
       <FoldBody id={id} open={open}>
         <ul className="tools__calls">

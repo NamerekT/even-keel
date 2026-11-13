@@ -158,8 +158,9 @@
 
 .tools__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px 8px;
   min-width: 0;
 }
 
@@ -181,6 +182,11 @@
 
 button.tools__toggle {
   cursor: pointer;
+}
+
+/* A text wider than the line wraps beside the caret instead of leaving it alone on a line: the caret's 14 px and the gap */
+.ui-fold__caret + .tools__text {
+  max-width: calc(100% - 22px);
 }
 
 button.tools__toggle:hover {
