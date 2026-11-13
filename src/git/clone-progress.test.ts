@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { noticesRu } from '../../web/src/i18n/notices-ru.js'
+import { en } from '../notice/en.js'
+import { renderNotice } from '../notice/notice.js'
 import { cloneFailure, lfsFailure, parseHeads, parseProgress, remoteFailure, remoteName, remoteShaped, sameRemote } from './clone-progress.js'
+
+const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 describe('parseProgress', () => {
   it('reads the stage, the percent, the bytes and the speed of a receiving line', () => {
@@ -62,18 +67,30 @@ describe('remoteFailure', () => {
     const out = `Host key verification failed.\r${SSH_TAIL}`
     expect(remoteFailure(out, 'git@example.com:owner/storefront.git')).toEqual({
       code: 'git.remoteHostKey',
-      params: { remote: 'git@example.com:owner/storefront.git', command: 'ssh -T git@example.com' },
+      params: { remote: 'git@example.com:owner/storefront.git', host: 'example.com', command: 'ssh -T git@example.com' },
       detail: out,
     })
   })
 
   it.each([
-    ['ssh://git@example.com:2222/owner/storefront.git', 'ssh -T -p 2222 git@example.com'],
-    ['ssh://example.com/owner/storefront.git', 'ssh -T example.com'],
-    ['git+ssh://deploy@git.example.com/storefront', 'ssh -T deploy@git.example.com'],
-    ['example:owner/storefront', 'ssh -T example'],
-  ])('learns the host key of %s with %s', (remote, command) => {
-    expect(remoteFailure(`Host key verification failed.${SSH_TAIL}`, remote).params).toEqual({ remote, command })
+    ['ssh://git@example.com:2222/owner/storefront.git', '[example.com]:2222', 'ssh -T -p 2222 git@example.com'],
+    ['ssh://git@example.com:22/owner/storefront.git', 'example.com', 'ssh -T -p 22 git@example.com'],
+    ['ssh://example.com/owner/storefront.git', 'example.com', 'ssh -T example.com'],
+    ['git+ssh://deploy@git.example.com/storefront', 'git.example.com', 'ssh -T deploy@git.example.com'],
+    ['example:owner/storefront', 'example', 'ssh -T example'],
+  ])('learns the host key of %s, the server %s, with %s', (remote, host, command) => {
+    expect(remoteFailure(`Host key verification failed.${SSH_TAIL}`, remote).params).toEqual({ remote, host, command })
+  })
+
+  it.each([
+    ['git@example.com:owner/storefront.git', 'example.com'],
+    ['ssh://git@example.com:2222/owner/storefront.git', '[example.com]:2222'],
+  ])('names the server of %s, not the whole address, in both languages', (remote, host) => {
+    const refusal = remoteFailure(`Host key verification failed.${SSH_TAIL}`, remote)
+    const lines = [renderNotice({ ...refusal, detail: undefined }, en), renderNotice({ ...refusal, detail: undefined }, noticesRu)]
+    expect(lines[0]).toMatch(new RegExp(`^SSH does not know the server ${escaped(host)} yet: `))
+    expect(lines[1]).toMatch(new RegExp(`^SSH ещё не знает сервер ${escaped(host)}: `))
+    for (const line of lines) expect(line).not.toContain('storefront')
   })
 
   it.each([

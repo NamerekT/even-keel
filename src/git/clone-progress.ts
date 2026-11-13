@@ -78,7 +78,7 @@ const SSH_KEY = /permission denied \(publickey/i
  */
 export function remoteFailure(out: string, remote: string): Notice {
   const probe = HOST_KEY.test(out) ? sshProbe(remote) : null
-  if (probe !== null) return notice('git.remoteHostKey', { remote, command: probe }, { detail: out })
+  if (probe !== null) return notice('git.remoteHostKey', { remote, ...probe }, { detail: out })
   const code = SSH_KEY.test(out)
     ? 'git.remoteSshKey'
     : DENIED.test(out) || (HTTP_REMOTE.test(remote.trim()) && HTTP_HIDDEN.test(out))
@@ -131,16 +131,23 @@ export function lfsFailure(out: string, remote: string): Notice | null {
     : notice('git.lfsFailed', { path }, { detail: out })
 }
 
-/** `ssh -T [-p <port>] [user@]host` of an SSH remote: run once in a terminal, it asks to accept the host's key. */
-export function sshProbe(remote: string): string | null {
+/**
+ * The server of an SSH remote as `known_hosts` names it — `host`, or `[host]:port` off port 22 (BTN-1105) — and
+ * `ssh -T [-p <port>] [user@]host`: run once in a terminal, it asks to accept the host's key.
+ */
+export function sshProbe(remote: string): { host: string; command: string } | null {
   const text = remote.trim()
   const url = /^(?:git\+)?ssh:\/\/(?:([^@/]+)@)?([^/:]+)(?::(\d+))?\//i.exec(text)
   const scp = url === null && !text.includes('://') ? /^(?:([^\s@/:]+)@)?([^\s@/:]{2,}):/.exec(text) : null
   const found = url ?? scp
   if (found === null) return null
+  const name = found[2]!
   const port = url?.[3]
   const user = found[1] === undefined ? '' : `${found[1]}@`
-  return `ssh -T ${port === undefined ? '' : `-p ${port} `}${user}${found[2]!}`
+  return {
+    host: port === undefined || port === '22' ? name : `[${name}]:${port}`,
+    command: `ssh -T ${port === undefined ? '' : `-p ${port} `}${user}${name}`,
+  }
 }
 
 const URL_FORM = /^[a-z][a-z0-9+.-]*:\/\/\S+$/i

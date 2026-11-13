@@ -30,7 +30,7 @@ describe('refusalParts', () => {
   })
 
   it('gives the command an unknown SSH host key needs, apart from the line', () => {
-    const refusal = notice('git.remoteHostKey', { remote: 'git@example.com:owner/storefront.git', command: 'ssh -T git@example.com' }, { detail: 'Host key verification failed.' })
+    const refusal = notice('git.remoteHostKey', { remote: 'git@example.com:owner/storefront.git', host: 'example.com', command: 'ssh -T git@example.com' }, { detail: 'Host key verification failed.' })
     expect(refusalParts(refusal)).toMatchObject({ command: 'ssh -T git@example.com', detail: 'Host key verification failed.' })
   })
 })
@@ -39,7 +39,7 @@ describe('isRemoteRefusal', () => {
   it('knows the refusals of a remote', () => {
     expect(isRemoteRefusal(notice('git.remoteShape', {}))).toBe(true)
     expect(isRemoteRefusal(notice('git.remoteDenied', { remote: 'x' }))).toBe(true)
-    expect(isRemoteRefusal(notice('git.remoteHostKey', { remote: 'x', command: 'ssh -T x' }))).toBe(true)
+    expect(isRemoteRefusal(notice('git.remoteHostKey', { remote: 'x', host: 'x', command: 'ssh -T x' }))).toBe(true)
     expect(isRemoteRefusal(notice('git.remoteSshKey', { remote: 'x' }))).toBe(true)
     expect(isRemoteRefusal(notice('wizard.folderName', { value: 'x' }))).toBe(false)
   })

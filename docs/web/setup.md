@@ -94,6 +94,7 @@ closes "In a git repository" with the reason and a link to the setup's Git step.
   in one line under the field (`refusalParts` in `web/src/pages/remoteRefusal.ts`): the address cut to 48 characters,
   git's own words behind a `HelpTip`. `remoteFailure` (`src/git/clone-progress.ts`, BTN-1091) picks the code by git's
   English words (`remoteEnv` runs git with `LC_ALL=C`): "Host key verification failed" — `remoteHostKey`, whose
+  line names the server as `known_hosts` does (`host`, `[host]:port` off 22; BTN-1105) and whose
   `ssh -T [-p port] [user@]host` (`sshProbe`) is a `CommandBlock` under the line; "Permission denied (publickey" —
   `remoteSshKey`; no rights, or an HTTP(S) remote's "Repository not found"/404, which a private repository answers to a
   git not signed in — `remoteDenied`. The fake's remotes with `private`, `hostkey` and `nokey` go through
