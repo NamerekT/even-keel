@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { fail } from '../notice/notice.js'
 import { EditRefused, fileLinks, patchText, withFileLinks, type TaskEditor, type TaskFiles, type TaskUpload } from '../tracker/editor.js'
 import type { TrackerTask } from '../tracker/model.js'
+import { refuseWhileExporting } from './exporting.js'
 import { fileUrl, type BuiltinFiles } from './files.js'
 import type { BuiltinNames } from './source.js'
 import type { BuiltinStore, BuiltinTask } from './store.js'
@@ -20,7 +21,13 @@ export interface BuiltinEditorDeps {
  * The built-in tracker's writes for the tasks MCP server (BTN-768). A short field is set against the value it holds
  * now, so another field changed meanwhile never refuses it; the description goes by its revision or by patches.
  */
-export function builtinEditor({ store, names, must, trackerTask, files }: BuiltinEditorDeps): TaskEditor {
+export function builtinEditor({ store, names, must: find, trackerTask, files }: BuiltinEditorDeps): TaskEditor {
+  // Every write goes through it: a task of a project being copied to another tracker refuses changes (BTN-1073).
+  const must = async (id: string): Promise<BuiltinTask> => {
+    const task = await find(id)
+    refuseWhileExporting(task.project)
+    return task
+  }
   // A parent is of the task's own project.
   const parentOf = async (project: string, id: string): Promise<number> => {
     const parent = await must(id)
@@ -33,6 +40,7 @@ export function builtinEditor({ store, names, must, trackerTask, files }: Builti
     list: async (project) => (await store.list([project])).map(trackerTask),
     async create(project, draft, _notes, marker) {
       if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      refuseWhileExporting(project)
       const parent = draft.parent === null ? null : await parentOf(project, draft.parent)
       const number = await store.create(
         {
@@ -83,7 +91,7 @@ export function builtinEditor({ store, names, must, trackerTask, files }: Builti
       const task = await must(id)
       return changed(task, await store.setEstimate(task, minutes))
     },
-    revision: async (id) => (await must(id)).descriptionRev,
+    revision: async (id) => (await find(id)).descriptionRev,
     async describe(id, text, rev) {
       const task = await must(id)
       return changed(task, await store.setDescription(task, text, rev))

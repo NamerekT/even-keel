@@ -4,6 +4,7 @@ import type { ServerDeps } from '../server.js'
 import { labelList, numberOf, projectOf, taskOf, textOf } from '../server-request.js'
 import { PRIORITIES, type TaskPriority } from '../tracker/model.js'
 import type { BuiltinAttached, BuiltinControl, BuiltinDraft, BuiltinEdit } from './control.js'
+import type { ExportTargetFields } from './export-store.js'
 import type { RelationKind } from './model.js'
 
 type Query = (deps: ServerDeps, body: Record<string, unknown>, request: IncomingMessage) => Promise<unknown>
@@ -34,6 +35,19 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
     await control(deps).detach(taskOf(body), textOf(body.file, 'file'))
     return {}
   },
+  // The copy into another tracker (BTN-1073): the target as the wizard's tracker step names it.
+  'builtin/export/plan': (deps, body) => exports(deps).plan(projectOf(body), targetOf(body)),
+  'builtin/export/start': (deps, body) => exports(deps).start(projectOf(body), targetOf(body)),
+  'builtin/export/state': (deps, body) => exports(deps).state(projectOf(body)),
+}
+
+function exports({ builtinExports }: ServerDeps): NonNullable<ServerDeps['builtinExports']> {
+  if (builtinExports === undefined) throw fail('builtin.off', {})
+  return builtinExports
+}
+
+function targetOf(body: Record<string, unknown>): ExportTargetFields {
+  return { profile: textOf(body.profile, 'profile'), place: textOf(body.place ?? '', 'place').trim(), key: textOf(body.key, 'key').trim() }
 }
 
 /** An attachment's upload (BTN-773): the bytes are the raw body, the task and the name are in the query. */

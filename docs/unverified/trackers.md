@@ -190,3 +190,14 @@ A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by
 - On Windows the hourly sweep removes unreferenced bytes once nothing has them open, and a restored backup serves every picture.
 
 If one is wrong, a picture is not taken or not shown, or a session works without the screenshot it was given. **Workaround:** attach the file in Markdown as a link to where it lies, or describe it in words. To check (BTN-807): paste a screenshot into a bench project's task, save, reload the card; start the task on Claude and on Codex and see the session open the picture; delete it, wait a day, see the bytes gone from `state/even-keel/files/`.
+
+## Copying built-in tasks into another tracker (BTN-1073)
+
+The copy of a built-in project's open tasks into another tracker (`docs/trackers.md`, "The copy into another tracker") is checked by tests on a fake `TaskEditor` (`src/tracker/export.test.ts`) and on the state database with the service's own lock (`src/builtin/export.test.ts`), not against a real tracker. Assumed:
+
+- each tracker's editor takes the draft as the tests' fake does: the status of the same category, a parent created a moment earlier, the estimate, labels and milestones spelled as its vocabulary spells them;
+- a marker finds the task its create made, so a repeat after a failure mid-create does not make a second one (Huly, GitHub, Linear, Jira, GitLab, Forgejo each keep markers their own way);
+- `blocks`/`relates` written again on a repeat are no error, and attachments and long journal comments fit each tracker's limits;
+- a copy of tens of tasks does not run into a tracker's rate limit before it ends; if it does, it stops and a start goes on.
+
+If one is wrong, the copy stops with `export.failed`, or a task is copied twice or without its parent, links or files. **Workaround:** the project stays on the built-in tracker; fix the target (create the missing labels and milestones, wait for the rate limit) and start the copy again; delete a doubled task in the tracker by hand. To check (BTN-1077): on a bench, copy a built-in project with a parent and a child, a `blocks` pair, a label, a milestone, an estimate, an attachment and comments by a person, an agent and Even Keel into each tracker; break the token mid-copy and start again; see no task, comment or file twice and "Moved to" in every old task.

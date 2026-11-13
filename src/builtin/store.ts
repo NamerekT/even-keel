@@ -166,6 +166,12 @@ export class BuiltinStore {
     return rows[0]?.number ?? null
   }
 
+  /** The row id of each task of the project by its number: what outlives a change of the project's key. */
+  async rowIds(project: string): Promise<Map<number, string>> {
+    const { rows } = await this.db.query<{ id: string; number: number }>('select id, number from builtin_tasks where project_id = $1', [project])
+    return new Map(rows.map((row) => [row.number, row.id]))
+  }
+
   /** Every task of the projects, by project and number. */
   list(projects: readonly string[]): Promise<BuiltinTask[]> {
     return this.read(projects)

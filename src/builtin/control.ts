@@ -5,6 +5,7 @@ import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority } from '../tracker/model.js'
 import type { TrackerPlace } from '../tracker/source.js'
 import type { EvenKeelConfig } from '../config.js'
+import { refuseWhileExporting } from './exporting.js'
 import { BuiltinFiles, fileUrl, readLimited } from './files.js'
 import { ATTACHMENT_LIMIT_MB, BUILTIN, type RelationKind } from './model.js'
 import { BuiltinNames } from './source.js'
@@ -148,9 +149,15 @@ export function builtinControl({
     }
     return parsed.number
   }
+  // A task of a project being copied to another tracker refuses changes (BTN-1073).
+  const writable = async (names: BuiltinNames, store: BuiltinStore, id: string): Promise<BuiltinTask> => {
+    const task = await find(names, store, id)
+    refuseWhileExporting(task.project)
+    return task
+  }
   const write = async (id: string, work: (store: BuiltinStore, task: BuiltinTask, names: BuiltinNames) => Promise<unknown>): Promise<BuiltinView> => {
     const { names, store } = open()
-    const task = await find(names, store, id)
+    const task = await writable(names, store, id)
     await work(store, task, names)
     await refresh(task.project)
     return view(names, (await store.get(task))!)
@@ -160,6 +167,7 @@ export function builtinControl({
     async create(project, draft) {
       const { names, store } = open()
       if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      refuseWhileExporting(project)
       const parent = draft.parent == null ? null : (await find(names, store, draft.parent))
       if (parent !== null && parent.project !== project) throw fail('builtin.noTask', { task: draft.parent! })
       const number = await store.create({ ...draft, project, parent: parent?.number ?? null }, names.sharing(project))
@@ -183,6 +191,7 @@ export function builtinControl({
     async milestone(project, name, date) {
       const { names, store } = open()
       if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      refuseWhileExporting(project)
       const id = await store.saveMilestone(project, name, date)
       await refresh(project)
       return { id }
@@ -190,19 +199,20 @@ export function builtinControl({
     relate: (id, other, kind, on) =>
       write(id, async (store, task, names) => {
         const to = await find(names, store, other)
+        refuseWhileExporting(to.project)
         await (on ? store.relate(task, to, kind) : store.unrelate(task, to, kind))
         if (to.project !== task.project) await refresh(to.project)
       }),
     async comment(id, body) {
       const { names, store } = open()
-      const task = await find(names, store, id)
+      const task = await writable(names, store, id)
       const comment = await store.comment(task, 'person', body)
       await refresh(task.project)
       return { id: comment }
     },
     async uncomment(id, comment) {
       const { names, store } = open()
-      const task = await find(names, store, id)
+      const task = await writable(names, store, id)
       if (!(await store.uncomment(task, comment))) throw fail('builtin.noNote', { task: names.name(task) })
       await refresh(task.project)
     },
@@ -212,13 +222,14 @@ export function builtinControl({
       const key = names.candidates(id).find((each) => each.project === project)
       const task = key === undefined ? undefined : await store.get(key)
       if (task === undefined) return false
+      refuseWhileExporting(project)
       await store.comment(task, 'person', body)
       await refresh(project)
       return true
     },
     async remove(id) {
       const { names, store } = open()
-      const task = await find(names, store, id)
+      const task = await writable(names, store, id)
       const why = busy(names.name(task))
       if (why !== null) throw fail('builtin.removeBusy', { task: names.name(task), why })
       await store.remove(task)
@@ -242,7 +253,7 @@ export function builtinControl({
     async attach(id, upload) {
       const { names, store } = open()
       const files = filesOf(store)
-      const task = await find(names, store, id)
+      const task = await writable(names, store, id)
       const bytes = await readLimited(upload.body, limit(), upload.name)
       const file = await files.add(task, { name: upload.name, type: upload.type, bytes })
       await refresh(task.project)
@@ -250,7 +261,7 @@ export function builtinControl({
     },
     async detach(id, file) {
       const { names, store } = open()
-      const task = await find(names, store, id)
+      const task = await writable(names, store, id)
       if (!(await filesOf(store).remove(task, file))) throw fail('builtin.noFile', { task: names.name(task) })
       await refresh(task.project)
     },

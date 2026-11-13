@@ -31,7 +31,7 @@ export interface Queryable {
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
  * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
  * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689); step 29 the event
- * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925). A foreign key between tables is deferred, so that a copy inserts the
+ * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925); step 49 the copy of a built-in project's tasks into another tracker, `tracker_exports` and `tracker_export_tasks` (BTN-1073). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -612,6 +612,30 @@ export const STEPS: readonly string[] = [
            else 'opencode'
          end
    where key = 'models' and qualifier = 'opencode' and jsonb_typeof(value::jsonb) = 'string';
+  `,
+  // The copy of a built-in project's tasks into another tracker (BTN-1073): its target, and each task's new key and
+  // the stage it reached, so that a repeat goes on and a finished copy creates nothing again.
+  `
+  create table tracker_exports (
+    project_id  text primary key,
+    profile     text not null,
+    place       text not null,
+    key         text not null,
+    started_at  text not null,
+    finished_at text
+  );
+  create table tracker_export_tasks (
+    project_id text not null,
+    task_id    text not null,
+    number     integer not null,
+    new_key    text,
+    url        text,
+    stage      text not null check (stage in ('pending', 'created', 'linked', 'attached', 'journaled', 'marked')),
+    marker     text,
+    done       integer not null default 0,
+    at         text not null,
+    primary key (project_id, task_id)
+  );
   `,
 ]
 

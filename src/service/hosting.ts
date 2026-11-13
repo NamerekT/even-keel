@@ -60,6 +60,8 @@ import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runsAsService } from '../updates/control.js'
 import type { ServiceContext } from '../service.js'
 import { builtinControl, builtinPlaces } from '../builtin/control.js'
+import { BuiltinExports } from '../builtin/export.js'
+import { connectExportTarget } from '../tracker/export-target.js'
 import { attachmentsDirOf } from '../builtin/files.js'
 import { BUILTIN } from '../builtin/model.js'
 import { DEMO_ACCOUNT } from '../demo/model.js'
@@ -308,6 +310,13 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
         ? 'current'
         : ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished') ? 'live' : null,
+  })
+  const builtinExports = new BuiltinExports({
+    db: ctx.db,
+    places: () => builtinPlaces(ctx.configStore.current),
+    filesDir: attachmentsDirOf(stateDirOf()),
+    connect: (project, target) => connectExportTarget(ADAPTERS, ctx.profiles.current(), BUILTIN, project, target, ctx.TRACKER_CHECK_MS),
+    refresh: (project) => ctx.refreshProject(project),
   })
   // The answer to a question goes into a built-in task's journal too, where the question was recorded (BTN-774).
   const journalAnswer = (project: string, task: string, answers: AskAnswers, text: string) => {
@@ -674,6 +683,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       return off === undefined ? ctx.profileStatuses.get(id) : Promise.reject(new NoticeError(off))
     },
     builtin,
+    builtinExports,
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)

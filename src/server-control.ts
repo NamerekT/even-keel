@@ -4,6 +4,7 @@ import type { ModelList } from './agent/contract.js'
 import type { BadgeCheck } from './badge/check.js'
 import type { BadgeSettings } from './badge/model.js'
 import type { BuiltinControl } from './builtin/control.js'
+import type { BuiltinExports } from './builtin/export.js'
 import type { CheckReport } from './chain/checkreports.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
@@ -259,6 +260,8 @@ export interface ServerDeps {
   profiles: ProfilesControl
   /** The page's commands on the built-in tracker's tasks (BTN-767); without it they are refused. */
   builtin?: BuiltinControl
+  /** The copy of a built-in project's tasks into another tracker (BTN-1073); without it it is refused. */
+  builtinExports?: Pick<BuiltinExports, 'plan' | 'start' | 'state'>
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */
