@@ -364,6 +364,7 @@ export const settingsRU = {
     model: 'Модель',
     account: 'Аккаунт',
     modelOf: (provider: string) => `Модель на ${provider}`,
+    modelFor: (vendor: string) => `для аккаунта на ${vendor}`,
     modelHint: 'Как уходит в CLI: opus, gpt-6.1-sol. Пусто — общая.',
     cliDefault: 'по умолчанию CLI',
     accountOf: (provider: string) => `Аккаунт на ${provider}`,

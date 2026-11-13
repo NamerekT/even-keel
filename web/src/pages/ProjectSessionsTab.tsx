@@ -17,8 +17,8 @@ import { checkpointOf, CLI_TTL, compactWindowOf, standardRows, switchOf, WINDOW_
 import type { PanelFields } from './projectSettingsFields.js'
 import { labelOf, standardsShown, ttlLabel } from './projectSettingsDraft.js'
 import { protectionText } from './protectionDraft.js'
-import { ErrorStrip, FieldHead, fieldId, FieldNote, Inherit, Row, Section, SHARE_KEYS, shareOf, sharesText } from './settingsParts.js'
-import { accountOptions, providerName, WINDOW_KEYS } from './settingsRun.js'
+import { ErrorStrip, FieldHead, fieldId, FieldNote, Inherit, ModelStrip, Row, Section, SHARE_KEYS, shareOf, sharesText } from './settingsParts.js'
+import { accountOptions, accountVendorName, modelKey, providerName, WINDOW_KEYS } from './settingsRun.js'
 import { offersOf, type ModelAnswer } from './useModels.js'
 
 /** The "Sessions" tab of the project settings panel: the project's packages, the agent, the prompt, the standards, protection and context. */
@@ -49,6 +49,9 @@ export function ProjectSessionsTab({
   // The shares turned own or shared: one undo in the group's head; while they stay own, each share has its own.
   const sharesTurned = on('ownShares') !== draft.base.ownShares
   const handoffsOff = !(switchOf(text('contextHandoffs')) ?? shared.contextHandoffs)
+  // A provider's model field is the one of the slot of the account its row runs on (BTN-984).
+  const slotKey = (provider: string) => modelKey(state?.account, provider, rowAccount(provider))
+  const sharedModelOf = (key: string) => shared.models[key.slice('models.'.length)] ?? t.settings.cliDefault
 
   // A provider's compaction window, a cell of the agent card: the project's own or the shared one, empty for the agent's own window.
   const windowEmpty = (provider: string) => (provider === 'claude' ? t.shared.autoCompactWindowAccount : t.shared.codexAutoCompactWindowModel)
@@ -129,23 +132,25 @@ export function ProjectSessionsTab({
               )
             }
             const offers = offersOf(models, rowAccount(provider))
-            const sharedModel = shared.models[provider] ?? t.settings.cliDefault
+            const model = slotKey(provider)
+            const sharedModel = sharedModelOf(model)
+            const vendor = accountVendorName(state?.account, rowAccount(provider))
             return (
-              <div className={marks.box(key)}>
-                <ErrorStrip error={errorOf(key)} wide>
+              <div className={marks.box(model)}>
+                <ModelStrip error={errorOf(model)} vendor={vendor}>
                   <SuggestField
-                    id={fieldId(key)}
+                    id={fieldId(model)}
                     className="settings__text settings__text--mono"
-                    label={t.settings.modelOf(providerName(provider))}
+                    label={t.settings.modelOf(vendor === null ? providerName(provider) : `${providerName(provider)} · ${vendor}`)}
                     mono
-                    value={text(key)}
+                    value={text(model)}
                     options={offers}
                     placeholder={sharedModel}
-                    invalid={errorOf(key) !== null}
-                    onChange={(value) => edit(key, value)}
+                    invalid={errorOf(model) !== null}
+                    onChange={(value) => edit(model, value)}
                   />
-                </ErrorStrip>
-                <Inherit {...inheritOf(key, sharedModel)} />
+                </ModelStrip>
+                <Inherit {...inheritOf(model, sharedModel)} />
               </div>
             )
           }}
@@ -153,8 +158,8 @@ export function ProjectSessionsTab({
             const key = `${column}.${provider}`
             if (column === 'window') return windowMark(provider)
             if (column === 'models') {
-              const sharedModel = shared.models[provider] ?? t.settings.cliDefault
-              return marks.note(key, (value) => (value === '' ? t.settings.asShared(sharedModel) : String(value)))
+              const model = slotKey(provider)
+              return marks.note(model, (value) => (value === '' ? t.settings.asShared(sharedModelOf(model)) : String(value)))
             }
             const sharedAccount = shared.accounts[provider]
             const sharedLabel = sharedAccount === undefined ? '—' : folderLabel(state?.account, sharedAccount)

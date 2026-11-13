@@ -12,7 +12,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { changed, sent, type Value } from './settingsDraft.js'
-import { namedProviders } from './settingsRun.js'
+import { modelKey, namedProviders } from './settingsRun.js'
 import { GroupTabs, type RuleKey, rulesOf, SaveBar, unplaced, useFieldErrors } from './settingsParts.js'
 import { newMilestones, ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { useSourceMoves } from './SourceMoves.js'
@@ -84,10 +84,11 @@ export function SettingsPanel({
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  const slotKey = (provider: string) => modelKey(state?.account, provider, rowAccount(provider))
   useModelReset(
-    offered.map((provider) => ({ provider, choice: text(`accounts.${provider}`), account: rowAccount(provider), model: text(`models.${provider}`) })),
+    offered.map((provider) => ({ provider, choice: text(`accounts.${provider}`), account: rowAccount(provider), model: text(slotKey(provider)) })),
     models,
-    (providers) => editAll(providers.map((provider) => [`models.${provider}`, ''])),
+    (providers) => editAll(providers.map((provider) => [slotKey(provider), ''])),
   )
   const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
   // The rules inherit from the profile of the tracker the draft has: a tracker changed and not saved yet brings its own.

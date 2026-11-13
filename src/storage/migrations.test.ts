@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { root } from '../locations.js'
 import { noticeOf } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
-import { currentConfig, manualKept, runLabelsDropped, upgradeStorage } from './migrations.js'
+import { currentConfig, manualKept, openCodeModelsSlotted, runLabelsDropped, upgradeStorage } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
 /**
@@ -21,6 +21,28 @@ describe('upgradeStorage', () => {
     const raw = { version: 36, ...CHECKED, modelLabels: true, projects: [{ ...projects[0], modelLabels: false }, projects[1]] }
     expect(currentConfig(raw)).toEqual({ version: SCHEMA_VERSION, ...CHECKED, projects })
     expect(runLabelsDropped({ version: 36, modelLabels: true, projects: 'broken' })).toEqual({ version: SCHEMA_VERSION, projects: 'broken' })
+  })
+
+  it('moves an OpenCode model of a v37 config into the slot of its provider at both levels (BTN-984)', () => {
+    const project = { id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'huly' }
+    const raw = {
+      version: 37,
+      ...CHECKED,
+      models: { claude: 'sonnet', opencode: 'openai/gpt-6-luna' },
+      projects: [{ ...project, models: { codex: 'gpt-6-sol', opencode: 'big-pickle' } }, { ...project, id: 'q', key: 'XYZ', models: { opencode: 'openrouter/x-ai/grok' } }, { ...project, id: 'r', key: 'RRR' }],
+    }
+    expect(currentConfig(raw)).toEqual({
+      version: SCHEMA_VERSION,
+      ...CHECKED,
+      models: { claude: 'sonnet', 'opencode/openai': 'openai/gpt-6-luna' },
+      projects: [
+        { ...project, models: { codex: 'gpt-6-sol', 'opencode/opencode': 'big-pickle' } },
+        { ...project, id: 'q', key: 'XYZ', models: { 'opencode/openrouter': 'openrouter/x-ai/grok' } },
+        { ...project, id: 'r', key: 'RRR' },
+      ],
+    })
+    expect(openCodeModelsSlotted({ version: 37, models: { 'opencode/openai': 'openai/a', opencode: 'openai/b' }, projects: 'broken' }))
+      .toEqual({ version: SCHEMA_VERSION, models: { 'opencode/openai': 'openai/a' }, projects: 'broken' })
   })
 
   it('upgrades v18 without writing a chain compaction override', () => {

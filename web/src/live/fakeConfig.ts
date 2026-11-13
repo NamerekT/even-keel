@@ -63,7 +63,7 @@ export const FAKE_SHARED: SharedForm = {
   brief: null,
   chain: FAKE_RULES,
   provider: 'claude',
-  models: { claude: 'opus' },
+  models: { claude: 'opus', 'opencode/opencode': 'opencode/big-pickle' },
   accounts: { claude: 'global', codex: 'codex' },
   execution: { claude: 'auto', codex: 'sandbox' },
   cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' },

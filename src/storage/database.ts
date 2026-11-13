@@ -601,6 +601,18 @@ export const STEPS: readonly string[] = [
   delete from setting_values where key = 'modelLabels';
   delete from setting_definitions where key = 'modelLabels';
   `,
+  // An OpenCode model is kept by the provider its account signs in to (BTN-984): `models` of `opencode` goes to the
+  // slot `opencode/<provider>` its prefix names, a prefix OpenCode's providers do not have to its own models.
+  `
+  update setting_values
+     set qualifier = 'opencode/' || case
+           when position('/' in (value::jsonb #>> '{}')) > 0
+            and split_part(value::jsonb #>> '{}', '/', 1) in ('openai', 'anthropic', 'openrouter', 'github-copilot', 'opencode-go', 'opencode')
+           then split_part(value::jsonb #>> '{}', '/', 1)
+           else 'opencode'
+         end
+   where key = 'models' and qualifier = 'opencode' and jsonb_typeof(value::jsonb) = 'string';
+  `,
 ]
 
 /** The version this code reads and writes. */

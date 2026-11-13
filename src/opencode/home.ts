@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AccountStatus } from '../account/model.js'
+import { vendorOf } from '../agent/model-slots.js'
 import { chatGptProfileOf } from '../limits/chatgpt.js'
 
 /**
@@ -98,6 +99,11 @@ export function parseAuth(text: string | undefined): AccountStatus {
     subscriptionType: held.length === 0 ? null : held.map(([name]) => name).join(', '),
     ...(profile === undefined ? {} : { chatgptPlan: profile.plan }),
   }
+}
+
+/** The provider of OpenCode the folder runs models of, by its `auth.json` (`vendorOf`, BTN-984): its model slot. */
+export function folderVendor(dir: string): string {
+  return vendorOf(Object.keys(credentials(readAuth(dir))))
 }
 
 export function readAuth(dir: string): string | undefined {

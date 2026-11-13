@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { effortsOf, runPickChange, runPickOf, withProvider } from './runPick.js'
+import { effortsOf, rememberModel, runPickChange, runPickOf, withProvider } from './runPick.js'
 
 describe("what the card's run fields show", () => {
   it('shows a task without a run as the project says', () => {
@@ -43,6 +43,20 @@ describe('another provider picked', () => {
   it('leaves the pick alone when the provider is the same', () => {
     const pick = { provider: 'claude', model: 'opus', effort: 'max' }
     expect(withProvider(pick, 'claude', 'codex')).toBe(pick)
+  })
+
+  it('brings back the model typed for a provider when it is picked again (BTN-984)', () => {
+    let models: Record<string, string> = {}
+    let pick = { provider: 'codex', model: 'gpt-6-luna', effort: 'high' }
+    models = rememberModel(models, pick)
+    pick = withProvider(pick, 'claude', 'claude', models)
+    expect(pick).toEqual({ provider: 'claude', model: '', effort: 'high' })
+    pick = { ...pick, model: 'haiku' }
+    models = rememberModel(models, pick)
+    pick = withProvider(withProvider(pick, '', 'claude', models), 'codex', 'claude', rememberModel(models, pick))
+    expect(pick.model).toBe('gpt-6-luna')
+    expect(withProvider(pick, 'claude', 'claude', models).model).toBe('haiku')
+    expect(rememberModel(models, { provider: '', model: '', effort: '' })).toBe(models)
   })
 })
 

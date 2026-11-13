@@ -1,3 +1,4 @@
+import { MODEL_SLOTS } from '../../../src/agent/model-slots.js'
 import { EXECUTION_MODES, PINNED_PROVIDERS, PROVIDERS } from '../../../src/agent/providers.js'
 import type { Notice } from '../../../src/notice/notice.js'
 
@@ -10,7 +11,7 @@ export interface FieldError {
 const RULES = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones']
 const NAMED = ['protection', 'branch', 'prompt', 'tracker', 'brief', 'pullRequests', 'intakeLabel', 'mergeInto', 'carryAgent', 'fillMilestone', 'changelog', 'standards', 'provider', 'language', 'promptLanguage', 'contextHandoffs', 'context', 'stats']
 /** Maps by provider: an error points at the provider's own field, or the first one for a key that names no provider. */
-const BY_PROVIDER: Record<string, readonly string[]> = { models: PROVIDERS, accounts: PROVIDERS, execution: Object.keys(EXECUTION_MODES), cli: PINNED_PROVIDERS }
+const BY_PROVIDER: Record<string, readonly string[]> = { models: MODEL_SLOTS, accounts: PROVIDERS, execution: Object.keys(EXECUTION_MODES), cli: PINNED_PROVIDERS }
 const PROJECT_WHERE = /^([A-Z][A-Z0-9_]{0,4})\.(.+)$/
 
 const SHARED: Partial<Record<Notice['code'], string>> = {

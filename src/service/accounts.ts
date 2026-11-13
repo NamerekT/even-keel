@@ -28,6 +28,7 @@ import { untrustedStart } from '../claude/trust.js'
 import { CODEX } from '../codex/name.js'
 import { chainWindowOf, type WindowKey } from '../codex/window.js'
 import { OPENCODE } from '../opencode/name.js'
+import { folderVendor } from '../opencode/home.js'
 import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
 import { isPlain, localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings, sessionPrefixes } from '../config.js'
@@ -40,7 +41,7 @@ import { secretCatalog } from '../secrets/catalog.js'
 import { Secrets } from '../secrets/service.js'
 import { settleMail } from '../sessions/mailRelay.js'
 import { isLive, lampOf, turnStatus } from '../sessions/agents.js'
-import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from '../sessions/launch.js'
+import { launchPlan, runChoice, type LaunchPlan, type RunChoice, type VendorOf } from '../sessions/launch.js'
 import { effortFor } from '../sessions/runs.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { rareEvents } from '../sessions/rare.js'
@@ -662,16 +663,24 @@ export function wireHasAccount(ctx: AccountsContext): (provider: string, key: st
   return (provider: string, key: string) => ctx.homes.find(key)?.agent === provider
 }
 
+/** The OpenCode provider of an OpenCode folder of the pool, read from its `auth.json` at each launch: a sign-in may change. */
+function vendorOfHome(ctx: AccountsContext): VendorOf {
+  return (provider, key) => {
+    const home = provider === OPENCODE ? ctx.homes.find(key) : undefined
+    return home === undefined ? null : folderVendor(home.dir)
+  }
+}
+
 export function wireChoiceFor(ctx: AccountsContext): (project: string | undefined, task?: string) => RunChoice {
   return (project: string | undefined, task?: string): RunChoice =>
-    runChoice(task === undefined ? undefined : ctx.runOfTask(project ?? ctx.projectOf(task), task), runOf(ctx, project), ctx.hasAccount)
+    runChoice(task === undefined ? undefined : ctx.runOfTask(project ?? ctx.projectOf(task), task), runOf(ctx, project), ctx.hasAccount, vendorOfHome(ctx))
 }
 
 export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string, project?: string | undefined) => LaunchPlan {
   return (task: string, prompt: string, project = ctx.projectOf(task)): LaunchPlan => {
     const git = project === undefined || !isPlain(ctx.configStore.current, project)
     const full = withUnattended(prompt, ctx.dispatcher.state.unattended, ctx.promptLanguage(project), git)
-    return launchPlan(ctx.runOfTask(project, task), full, runOf(ctx, project), ctx.configStore.current.modelPrompts, ctx.hasAccount)
+    return launchPlan(ctx.runOfTask(project, task), full, runOf(ctx, project), ctx.configStore.current.modelPrompts, ctx.hasAccount, vendorOfHome(ctx))
   }
 }
 

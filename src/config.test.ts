@@ -371,7 +371,9 @@ describe('parseConfig', () => {
     expect(config.settings.ABC).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' } })
     expect(config.settings.XYZ).toMatchObject({ provider: null, models: {}, accounts: {} })
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', provider: 'gemini' } } })).toThrow(/ABC.provider.*gemini.*claude, codex/)
-    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', models: { gemini: 'pro' } } } })).toThrow(/ABC.models.gemini is not a provider/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', models: { gemini: 'pro' } } } })).toThrow(/ABC.models.gemini is no place of a model/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', models: { opencode: 'openai/gpt' } } } })).toThrow(/ABC.models.opencode is no place of a model.*opencode\/openai/)
+    expect(parse({ projects: { ABC: { repo: 'C:\\abc', models: { 'opencode/openrouter': ' openrouter/x ' } } } }).settings.ABC?.models).toEqual({ 'opencode/openrouter': 'openrouter/x' })
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', accounts: { claude: 5 } } } })).toThrow(/ABC.accounts.claude must be text/)
   })
 

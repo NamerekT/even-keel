@@ -610,6 +610,7 @@ export const noticesRu: NoticeTexts = {
   'config.provider': (p) => `${p.where}: провайдера ${p.value} нет, есть: ${list(p.known)}`,
   'config.providerKey': (p) => `${p.where}.${p.key} — не провайдер, есть: ${list(p.known)}`,
   'config.providerName': (p) => `${p.where} должен быть текстом`,
+  'config.modelSlot': (p) => `${p.where}.${p.key} — не место модели: провайдер, а у OpenCode — провайдер, к которому подписан аккаунт; есть: ${list(p.known)}`,
   'config.noticeKind': (p) => `${p.where}.${p.key} — не уведомление, которое здесь можно выключить, есть: ${list(p.known)}`,
   'config.execution': (p) => `execution.${p.provider}: режима ${p.value} нет, есть: ${list(p.known)}`,
   'config.cli': (p) => `cli.${p.provider}: варианта ${p.value} нет, есть: ${list(p.known)}`,

@@ -3,6 +3,8 @@ import { copyFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CODEX_ACCOUNT, GLOBAL_ACCOUNT } from '../account/model.js'
 import { isTransport } from '../account/transport.js'
+import { slotOfModel } from '../agent/model-slots.js'
+import { OPENCODE } from '../opencode/name.js'
 import { parseConfig, RULE_KEYS, withIds } from '../config.js'
 import { fail } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
@@ -166,7 +168,26 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const trusted = version < 26 ? automaticTrust(feeds) : feeds
   const kept = version < 28 ? manualKept(trusted) : trusted
   const defaulted = version < 36 ? manualDefaultKept(kept) : kept
-  return version < 37 ? runLabelsDropped(defaulted) : defaulted
+  const unlabelled = version < 37 ? runLabelsDropped(defaulted) : defaulted
+  return version < 38 ? openCodeModelsSlotted(unlabelled) : unlabelled
+}
+
+/**
+ * v37 → v38: an OpenCode model is kept by the provider its account signs in to (BTN-984), `models["opencode/openai"]`,
+ * so `models.opencode` goes to the slot its prefix names (`slotOfModel`), at Even Keel's level and in every project. A
+ * slot already filled keeps its own model.
+ */
+export function openCodeModelsSlotted(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  const slotted = (entry: Record<string, unknown>): Record<string, unknown> => {
+    if (!isRecord(entry.models) || typeof entry.models[OPENCODE] !== 'string') return entry
+    const { [OPENCODE]: model, ...rest } = entry.models
+    const slot = slotOfModel(model as string)
+    return { ...entry, models: { ...rest, [slot]: rest[slot] ?? model } }
+  }
+  const shared = slotted(raw)
+  if (!Array.isArray(shared.projects)) return stamped(shared)
+  return stamped({ ...shared, projects: shared.projects.map((project: unknown) => (isRecord(project) ? slotted(project) : project)) })
 }
 
 /**

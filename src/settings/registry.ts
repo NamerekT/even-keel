@@ -1,3 +1,4 @@
+import { isModelSlot, MODEL_SLOTS } from '../agent/model-slots.js'
 import { CLI_SOURCES, EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PINNED_PROVIDERS, PROVIDERS } from '../agent/providers.js'
 import { badgeSettingsOf } from '../badge/settings.js'
 import { statusMovesOf } from '../chain/moves.js'
@@ -79,8 +80,18 @@ const labels = (key: string) => (value: unknown, place: Place) => {
 
 const providerName = (path: string) => (value: unknown, place: Place) => {
   if (!isProvider(place.qualifier)) throw fail('config.providerKey', { where: at(place, path), key: place.qualifier, known: [...PROVIDERS] })
+  return nameOf(path, value, place)
+}
+
+const nameOf = (path: string, value: unknown, place: Place) => {
   if (typeof value !== 'string') throw fail('config.providerName', { where: at(place, `${path}.${place.qualifier}`) })
   return value.trim() === '' ? undefined : value.trim()
+}
+
+/** A model by its slot (`MODEL_SLOTS`, BTN-984): a provider, and OpenCode's by the provider its account signs in to. */
+const modelName = (value: unknown, place: Place) => {
+  if (!isModelSlot(place.qualifier)) throw fail('config.modelSlot', { where: at(place, 'models'), key: place.qualifier, known: [...MODEL_SLOTS] })
+  return nameOf('models', value, place)
 }
 
 const language = (path: string) => (value: unknown, place: Place) => {
@@ -258,7 +269,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (!isProvider(name)) throw fail('config.provider', { where: at(place, 'provider'), value: json(value), known: [...PROVIDERS] })
     return name
   } },
-  { key: 'models', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', lands: ['models', 'settings'], default: DEFAULT_MODELS, check: providerName('models') },
+  { key: 'models', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', lands: ['models', 'settings'], default: DEFAULT_MODELS, check: modelName },
   { key: 'accounts', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', lands: ['accounts', 'settings'], default: DEFAULT_ACCOUNTS, check: providerName('accounts') },
   { key: 'execution', kind: 'enum', scopes: ['global'], qualifier: 'provider', lands: ['execution'], default: DEFAULT_EXECUTION, check: (value, { qualifier: provider }) => {
     const known = EXECUTION_MODES[provider]

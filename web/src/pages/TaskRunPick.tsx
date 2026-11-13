@@ -6,8 +6,9 @@ import { useCommand } from '../live/useCommand.js'
 import { taskProject } from '../state.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
-import { effortsOf, runPickChange, runPickOf, withProvider, type RunPick } from './runPick.js'
-import { providerName } from './settingsRun.js'
+import { modelOf } from '../../../src/agent/model-slots.js'
+import { effortsOf, rememberModel, runPickChange, runPickOf, withProvider, type RunPick } from './runPick.js'
+import { accountVendor, providerName } from './settingsRun.js'
 import { offersOf, useModelCatalog } from './useModels.js'
 
 interface Props {
@@ -24,6 +25,8 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
   const run = state?.runs?.[project]?.[task]
   const shown = runPickOf(run)
   const [draft, setDraft] = useState<RunPick>(shown)
+  // The model typed for each provider while the card is open: picking a provider again brings its model back (BTN-984).
+  const [typed, setTyped] = useState<Record<string, string>>({})
   useEffect(() => setDraft(shown), [`${shown.provider}|${shown.model}|${shown.effort}`])
 
   const shared = state?.config.shared
@@ -31,7 +34,14 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
   const projectProvider = form?.provider ?? shared?.provider ?? ''
   const account = draft.provider === '' ? '' : (form?.accounts[draft.provider] || shared?.accounts[draft.provider]) ?? ''
   const models = useModelCatalog([account])
-  const projectModel = draft.provider === '' ? '' : (form?.models[draft.provider] || shared?.models[draft.provider]) || t.settings.cliDefault
+  const vendor = accountVendor(state?.account, account)
+  const projectModel =
+    draft.provider === '' ? '' : (modelOf(form?.models ?? {}, draft.provider, vendor) || modelOf(shared?.models ?? {}, draft.provider, vendor)) || t.settings.cliDefault
+  const pickProvider = (provider: string) => {
+    const remembered = rememberModel(typed, draft)
+    setTyped(remembered)
+    setDraft(withProvider(draft, provider, projectProvider, remembered))
+  }
   const change = runPickChange(run, draft)
   const providers = offeredProviders(state?.account ?? null, [shown.provider, draft.provider])
   const efforts = effortsOf(draft.provider, projectProvider)
@@ -51,7 +61,7 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
           ...providers.map((provider) => ({ value: provider, label: providerName(provider) })),
         ]}
         disabled={sending}
-        onChange={(provider) => setDraft(withProvider(draft, provider, projectProvider))}
+        onChange={pickProvider}
       />
       {draft.provider !== '' && (
         <SuggestField

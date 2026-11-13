@@ -261,6 +261,19 @@ export function ErrorStrip({ error, wide = false, children }: { error: Notice | 
 }
 
 /**
+ * A model field with its error in a strip under it; OpenCode's says there which provider of its account the model is
+ * kept for (`accountVendorName`, BTN-984), since switching to an account of another one shows that one's model.
+ */
+export function ModelStrip({ error, vendor, children }: { error: Notice | null; vendor: string | null; children: ReactNode }) {
+  const line = error !== null ? { tone: 'error' as const, text: sayAtField(error) } : vendor === null ? null : { tone: 'plain' as const, text: t.settings.modelFor(vendor), short: vendor }
+  return (
+    <FieldStrip line={line} fold={vendor === null} wide>
+      {children}
+    </FieldStrip>
+  )
+}
+
+/**
  * A card of related fields with its title; `mark` — before the title (a wizard step's dot); `aside` — at the title's
  * right; `danger` — what cannot be undone, framed red.
  */

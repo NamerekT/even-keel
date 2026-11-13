@@ -364,6 +364,7 @@ export const settingsEN: Messages['settings'] = {
     model: 'Model',
     account: 'Account',
     modelOf: (provider: string) => `Model on ${provider}`,
+    modelFor: (vendor: string) => `for an account on ${vendor}`,
     modelHint: 'As it goes to the CLI: opus, gpt-6.1-sol. Empty — the shared one.',
     cliDefault: "the CLI's default",
     accountOf: (provider: string) => `Account on ${provider}`,

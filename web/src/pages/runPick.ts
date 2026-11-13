@@ -18,10 +18,18 @@ export function effortsOf(provider: string, projectProvider: string): readonly s
   return EFFORTS[provider === '' ? projectProvider : provider] ?? []
 }
 
-/** The pick after another provider is chosen: the model goes with its provider, the effort stays where the new one takes it. */
-export function withProvider(pick: RunPick, provider: string, projectProvider: string): RunPick {
+/**
+ * The pick after another provider is chosen: the model goes with its provider and the one typed for the new provider
+ * before comes back (`models`, BTN-984); the effort stays where the new one takes it.
+ */
+export function withProvider(pick: RunPick, provider: string, projectProvider: string, models: Readonly<Record<string, string>> = {}): RunPick {
   if (provider === pick.provider) return pick
-  return { provider, model: '', effort: effortsOf(provider, projectProvider).includes(pick.effort) ? pick.effort : '' }
+  return { provider, model: models[provider] ?? '', effort: effortsOf(provider, projectProvider).includes(pick.effort) ? pick.effort : '' }
+}
+
+/** The models typed on the card by provider, with the pick's own: what `withProvider` brings back. */
+export function rememberModel(models: Readonly<Record<string, string>>, pick: RunPick): Record<string, string> {
+  return pick.provider === '' || models[pick.provider] === pick.model ? models : { ...models, [pick.provider]: pick.model }
 }
 
 /** The run the pick asks for, as the `task/run` command takes it; `null` — the task has it already. */

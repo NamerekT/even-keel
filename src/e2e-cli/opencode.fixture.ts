@@ -25,7 +25,8 @@ export const openCode: CliKit = {
   configure(run) {
     run.config.provider = 'opencode'
     run.config.accounts = { claude: ACCOUNT, opencode: OPENCODE_ACCOUNT }
-    run.config.models = { opencode: OPENCODE_MODEL }
+    // The folder has no `auth.json`: its sessions take the model of OpenCode's own slot (BTN-984).
+    run.config.models = { 'opencode/opencode': OPENCODE_MODEL }
   },
   prepare(run, binary, baseURL) {
     process.env.EVEN_KEEL_OPENCODE_BIN = binary

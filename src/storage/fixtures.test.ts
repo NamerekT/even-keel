@@ -64,7 +64,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(config.settings[XYZ]).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'global' } })
     expect(config).toMatchObject({
       provider: 'claude',
-      models: { claude: 'sonnet' },
+      models: { claude: 'sonnet', 'opencode/openai': 'openai/gpt-6-luna', 'opencode/opencode': 'opencode/big-pickle' },
       accounts: { claude: 'team-api', codex: 'codex' },
       execution: { claude: 'sdk', codex: 'bypass' },
     })

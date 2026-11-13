@@ -50,6 +50,19 @@ describe('runChoice', () => {
     })
     expect(runChoice(run('codex'), { ...settings, accounts: { claude: 'global' } }, any).fallback).toBe('codex')
   })
+
+  it('takes the OpenCode model of the provider its account is signed in to (BTN-984)', () => {
+    const open: RunSettings = {
+      provider: 'opencode',
+      models: { 'opencode/openai': 'openai/gpt-6-luna', 'opencode/opencode': 'opencode/big-pickle' },
+      accounts: { opencode: 'opencode-chatgpt' },
+    }
+    const vendor = (folder: string | null) => () => folder
+    expect(runChoice(undefined, open, any, vendor('openai')).model).toBe('openai/gpt-6-luna')
+    expect(runChoice(undefined, open, any, vendor(null)).model).toBe('opencode/big-pickle')
+    expect(runChoice(undefined, open, any, vendor('openrouter')).model).toBeNull()
+    expect(runChoice(run('opencode', 'openai/gpt-6-sol'), open, any, vendor('openai')).model).toBe('openai/gpt-6-sol')
+  })
 })
 
 describe('launchPlan', () => {

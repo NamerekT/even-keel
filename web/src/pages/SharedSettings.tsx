@@ -24,6 +24,7 @@ import {
   HelpTip,
   marksOf,
   minutesOf,
+  ModelStrip,
   Row,
   RULE_KEYS,
   rulesOf,
@@ -45,7 +46,7 @@ import { countFrom, tokensShown } from '../ui/tokens.js'
 import { knownStatuses, originsAt } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
-import { accountOptions, namedProviders, providerKeys, providerName, WINDOW_KEYS } from './settingsRun.js'
+import { accountOptions, accountVendorName, modelKey, namedProviders, providerKeys, providerName, WINDOW_KEYS } from './settingsRun.js'
 import { ProviderChoices } from './ProviderChoices.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { ModelPrompts } from './ModelPrompts.js'
@@ -143,10 +144,12 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const editAll = (changes: [string, Value][]) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, value), draft))
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
+  // A provider's model field is the one of the slot of its account (BTN-984).
+  const slotKey = (provider: string) => modelKey(state.account, provider, text(`accounts.${provider}`))
   useModelReset(
-    offered.map((provider) => ({ provider, choice: text(`accounts.${provider}`), account: text(`accounts.${provider}`), model: text(`models.${provider}`) })),
+    offered.map((provider) => ({ provider, choice: text(`accounts.${provider}`), account: text(`accounts.${provider}`), model: text(slotKey(provider)) })),
     models,
-    (providers) => editAll(providers.map((provider) => [`models.${provider}`, ''])),
+    (providers) => editAll(providers.map((provider) => [slotKey(provider), ''])),
   )
   const save = async () => {
     if (next === undefined || base === undefined) return
@@ -191,9 +194,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     />
   )
   // The model is typed freely; the account is picked from the offered folders.
-  const model = (key: string, label: string, offers: readonly string[]) => (
+  const model = (key: string, label: string, offers: readonly string[], vendor: string | null) => (
     <div className={marks.box(key)}>
-      <ErrorStrip error={errorOf(key)} wide>
+      <ModelStrip error={errorOf(key)} vendor={vendor}>
         <SuggestField
           id={fieldId(key)}
           className="settings__text settings__text--mono"
@@ -205,7 +208,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           invalid={errorOf(key) !== null}
           onChange={(value) => edit(key, value)}
         />
-      </ErrorStrip>
+      </ModelStrip>
     </div>
   )
   const pick = (key: string, label: string, options: readonly { value: string; label: string }[]) => (
@@ -335,7 +338,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             providers={offered}
             cell={(column, provider) => {
               const name = providerName(provider)
-              if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), offersOf(models, text(`accounts.${provider}`)))
+              if (column === 'models') {
+                const key = slotKey(provider)
+                const vendor = accountVendorName(state.account, text(`accounts.${provider}`))
+                return model(key, t.settings.modelOf(vendor === null ? name : `${name} · ${vendor}`), offersOf(models, text(`accounts.${provider}`)), vendor)
+              }
               if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
               if (column === 'window') return windowCell(provider)
               // The CLI's source is a field of the form, saved with Execution, so the service judges the pair as the form
@@ -366,7 +373,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             }}
             cellMark={(column, provider) => {
               const key = `${column}.${provider}`
-              if (column === 'models') return marks.note(key, (value) => ((value as string).trim() === '' ? t.settings.cliDefault : (value as string)))
+              if (column === 'models') return marks.note(slotKey(provider), (value) => ((value as string).trim() === '' ? t.settings.cliDefault : (value as string)))
               if (column === 'accounts') {
                 const options = accountOptions(state.account, provider, text(key))
                 return marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))
