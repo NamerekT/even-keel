@@ -62,5 +62,6 @@ describe("the fake's project creation (BTN-1048)", () => {
     expect(fakeGitIdentity(anonymous, 'git/identity', { name: ' John Doe ', email: 'john@example.com' })!.git).toEqual({ version: '2.47.1', name: 'John Doe', email: 'john@example.com' })
     expect(() => fakeGitIdentity(anonymous, 'git/identity', { name: '', email: 'john@example.com' })).toThrow()
     expect(fakeGitIdentity(anonymous, 'job/retry', {})).toBeNull()
+    expect(fakeGitIdentity(anonymous, 'git/check', {})).toBe(anonymous)
   })
 })

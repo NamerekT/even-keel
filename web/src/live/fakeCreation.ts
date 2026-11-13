@@ -210,8 +210,12 @@ export function fakeJobCommand(state: EvenKeelState, name: string, body: Record<
   return { ...state, jobs: jobs.filter((each) => each !== found) }
 }
 
-/** `git/identity` as the service writes git's global name and e-mail: both trimmed, a blank one refused. */
+/**
+ * `git/identity` as the service writes git's global name and e-mail: both trimmed, a blank one refused. `git/check`
+ * leaves the fake's git as it is, so `?job=identity` keeps the stale view whose same values the dialog saves (BTN-1104).
+ */
 export function fakeGitIdentity(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
+  if (name === 'git/check') return state
   if (name !== 'git/identity' || state.git === undefined) return null
   const who = String(body.name ?? '').trim()
   const email = String(body.email ?? '').trim()

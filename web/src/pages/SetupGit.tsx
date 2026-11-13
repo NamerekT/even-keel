@@ -108,12 +108,13 @@ function restartHint(start: WindowsStart): string {
 /**
  * git's name and e-mail as typed, filled with what git has, and their save by `git/identity` (BTN-731): the setup's
  * Git step and the dialog over a page that needs them (BTN-1094) share it. `save` answers whether git took them.
+ * `missing` — a refusal said git has none, so the values the view may still show are saved too (BTN-1104).
  */
-export function useIdentityForm(git: GitSetupView) {
+export function useIdentityForm(git: GitSetupView, missing = false) {
   const { send, sending, failure } = useCommand()
   const [name, setName] = useState(git.name ?? '')
   const [email, setEmail] = useState(git.email ?? '')
-  const changed = name.trim() !== (git.name ?? '') || email.trim() !== (git.email ?? '')
+  const changed = missing || name.trim() !== (git.name ?? '') || email.trim() !== (git.email ?? '')
   const filled = name.trim() !== '' && email.trim() !== ''
   return {
     name,

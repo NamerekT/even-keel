@@ -79,7 +79,10 @@ first commit".
 `git.noIdentity`'s fix is `{ to: 'identity' }` (BTN-1094): "Set them" opens `IdentityDialog` over the page, the setup Git
 step's two fields (`IdentityFields`, `useIdentityForm` in `SetupGit.tsx`) saved by the same `git/identity`. The wizard
 keeps everything typed and checks the field again after the save (`onFixed` of `NoticeFixButton`); the creation window
-sends `job/retry` from the failed step by itself; "Make the first commit" sends `git/init` again. The "Turn on git"
+sends `job/retry` from the failed step by itself; "Make the first commit" sends `git/init` again. The service reads git's
+name only at the start and on "Check again", so it may be gone while the view still shows it (BTN-1104): the dialog
+sends `git/check` on opening, and its Save takes both fields once filled, even the same values the view showed
+(`useIdentityForm(git, true)`); the setup Git step still saves only a change. The "Turn on git"
 dialog of a project keeps the step's `Identity` section in its body. The wizard's fields also outlive leaving the page
 within the tab (`kept`, BTN-310), not a reload. A draft with `source` and no `target` (an older page) is checked as before. Git that does not start
 closes "In a git repository" with the reason and a link to the setup's Git step.

@@ -11,6 +11,7 @@ import '../tools/addPackage.css'
  * "Set them" under `git.noIdentity` (BTN-1094): a dialog over the page with the setup Git step's name and e-mail, saved
  * by the same command, so a wizard or a creation window keeps everything typed. `onSaved` runs once git took them —
  * the wizard checks its field again, the creation window retries its failed step. Nothing without a git that starts.
+ * Opening it reads git again, and Save takes the fields once both are filled, even the same values the view showed.
  */
 export function IdentityButton({ className, onSaved }: { className: string; onSaved?: () => void }) {
   const { state } = useLive()
@@ -40,8 +41,13 @@ function IdentityDialog({ git, onClose, onSaved }: { git: GitSetupView; onClose:
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
-  const form = useIdentityForm(git)
+  const { command } = useLive()
+  const form = useIdentityForm(git, true)
   const text = t.setup.git
+
+  // The view is read only at the start and on "Check again", so git's name may have gone since (BTN-1104).
+  // Once per opening: `command` is a new function every render.
+  useEffect(() => void command('git/check').catch(() => {}), [])
 
   useEffect(() => {
     const box = dialog.current
