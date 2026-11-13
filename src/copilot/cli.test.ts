@@ -37,6 +37,13 @@ describe('turnArgs', () => {
     expect(turnArgs({ name: 'DEMO-1', model: null }, '- "Q" → yes', place, { id: 'abc', resume: true }).at(-1)).toBe('--prompt=- "Q" → yes')
   })
 
+  it("passes the run's effort on a new session and a resume, and none without one", () => {
+    const fresh = turnArgs({ name: 'DEMO-1', model: 'auto', effort: 'xhigh' }, 'DEMO-1', place, { id: 'abc', resume: false })
+    expect(fresh.slice(fresh.indexOf('--model'), fresh.indexOf('--model') + 4)).toEqual(['--model', 'auto', '--reasoning-effort', 'xhigh'])
+    expect(turnArgs({ name: 'DEMO-1', model: null, effort: 'none' }, 'go on', place, { id: 'abc', resume: true })).toContain('--reasoning-effort')
+    expect(turnArgs({ name: 'DEMO-1', model: null }, 'go on', place, { id: 'abc', resume: true })).not.toContain('--reasoning-effort')
+  })
+
   it("turns the built-in and the project's servers off and puts the gateway's in their place", () => {
     const server = { name: 'huly', plugin: 'huly', url: 'http://127.0.0.1:4748/mcp/huly' }
     const args = turnArgs({ name: 'DEMO-1', model: null, mcp: [server] }, 'DEMO-1', { ...place, disabled: ['local-db'] }, { id: 'abc', resume: false })

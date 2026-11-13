@@ -24,19 +24,20 @@ describe('the efforts the pick offers', () => {
   })
 
   it('offers none for a provider that takes no effort', () => {
-    expect(effortsOf('opencode', 'claude')).toEqual([])
-    expect(effortsOf('', 'copilot')).toEqual([])
+    expect(effortsOf('gemini', 'claude')).toEqual([])
+    expect(effortsOf('', 'gemini')).toEqual([])
   })
 })
 
 describe('another provider picked', () => {
   it('drops the model and keeps an effort the new provider takes', () => {
     expect(withProvider({ provider: 'claude', model: 'opus', effort: 'high' }, 'codex', 'claude')).toEqual({ provider: 'codex', model: '', effort: 'high' })
+    expect(withProvider({ provider: 'claude', model: '', effort: 'max' }, 'copilot', 'claude').effort).toBe('max')
   })
 
   it('drops an effort the new provider does not take', () => {
     expect(withProvider({ provider: 'claude', model: '', effort: 'max' }, 'codex', 'claude').effort).toBe('')
-    expect(withProvider({ provider: 'claude', model: '', effort: 'high' }, 'opencode', 'claude').effort).toBe('')
+    expect(withProvider({ provider: 'opencode', model: '', effort: 'none' }, 'claude', 'claude').effort).toBe('')
     expect(withProvider({ provider: 'codex', model: '', effort: 'minimal' }, '', 'claude').effort).toBe('')
   })
 

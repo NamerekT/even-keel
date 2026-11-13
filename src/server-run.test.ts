@@ -39,7 +39,7 @@ describe('task run HTTP command (BTN-983)', () => {
     [{ task: 'APP-1', provider: 'gemini' }, 'run.unknownProvider'],
     [{ task: 'APP-1', model: 'opus' }, 'run.modelWithoutProvider'],
     [{ task: 'APP-1', provider: 'claude', effort: 'minimal' }, 'run.unknownEffort'],
-    [{ task: 'APP-1', provider: 'opencode', effort: 'high' }, 'run.unknownEffort'],
+    [{ task: 'APP-1', provider: 'codex', effort: 'max' }, 'run.unknownEffort'],
   ])('refuses %j with %s and keeps nothing', async (body, code) => {
     const { setRun, post } = await fixture()
     const refused = await post(body)
