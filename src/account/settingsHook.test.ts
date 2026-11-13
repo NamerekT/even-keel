@@ -22,7 +22,8 @@ function run(script: string, args: string[], input: string, cwd: string, env: No
   })
 }
 
-describe('account settings hook entry points', () => {
+// Every test spawns a node child through tsx: under the full `npm test` that took over 5 s (BTN-1113).
+describe('account settings hook entry points', { timeout: 30_000 }, () => {
   let root: string
   let server: Server
   let url: string
