@@ -206,7 +206,7 @@ export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCar
                 {mixed && <span className="backlog__status">{task.status.name}</span>}
                 <span
                   className={task.milestone === null ? 'backlog__milestone backlog__milestone--none' : 'backlog__milestone'}
-                  title={t.card.milestone}
+                  title={`${t.card.milestone}: ${task.milestone?.label ?? t.chain.noMilestone}`}
                 >
                   <FlagIcon />
                   <span className="backlog__milestone-name">{task.milestone?.label ?? t.chain.noMilestone}</span>
