@@ -303,13 +303,15 @@
 }
 
 /* A refusal stands between the scrolling body and the foot, so a long body cannot keep it below the fold;
-   it may list several reasons, one per line (the project still held by the chain, a session, a folder). */
-.add-package__failure {
+   it may list several reasons, one per line (the project still held by the chain, a session, a folder).
+   Inset by the body's own margins: a rounded band flush with the dialog's sides and the foot's line reads as cut off.
+   Two classes, so `.notice` (loaded later) cannot take its margin back. */
+.notice.add-package__failure {
   flex-shrink: 0;
   max-height: 30dvh;
-  margin: 0;
+  margin: 0 20px 12px;
   padding: var(--space-12) var(--space-16);
-  border-radius: 0;
+  border-radius: var(--radius);
   overflow-y: auto;
   white-space: pre-line;
 }
