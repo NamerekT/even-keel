@@ -10,7 +10,8 @@ import { SuggestField } from '../ui/SuggestField.js'
 import { carriedSubtasks, foreignMilestone, labelOffers, statusRoute } from './cardEdit.js'
 import { dropDraft, leftoverOf, readDraft } from './cardDrafts.js'
 import { Remove } from './CardLinks.js'
-import type { CardEditor } from './useCardEdit.js'
+import type { CardEditor, EditOptions } from './useCardEdit.js'
+import { useHeld } from './useHeld.js'
 import { useLeaving } from './useLeaving.js'
 
 export const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', year: 'numeric' }))
@@ -20,6 +21,7 @@ type Editable = Card & { edit: NonNullable<Card['edit']> }
 /**
  * The title edited in place: Enter, leaving the field, the card or the tab saves it; only Escape drops the draft; an
  * empty one is not saved. Every save is one of the browser's drafts until it lands: the next open sends one left over.
+ * What was sent stands in the field until the card is read anew; only a refusal brings the old title back (BTN-1111).
  */
 export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) {
   const [draft, setDraft] = useState<string | null>(null)
@@ -29,11 +31,18 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
     typed.current = text
     setDraft(text)
   }
+  const held = useHeld(card.title)
+  const send = async (from: string, to: string, options: EditOptions) => {
+    held.hold(to)
+    const outcome = await editor.edit('title', from, to, { ...options, kept: true, task: card.id })
+    if (outcome !== 'landed') held.release()
+    return outcome
+  }
   const save = async () => {
     const to = typed.current?.trim() ?? ''
     show(null)
     // A conflict keeps the draft in its own dialog; any other refusal is the card's band.
-    if (to !== '' && to !== card.title) await editor.edit('title', card.title, to, { kept: true, keepalive: true, task: card.id })
+    if (to !== '' && to !== held.shown) await send(held.shown, to, { keepalive: true })
   }
   useLeaving(() => void save())
   // The leftover is sent once per mount: React's strict mode runs a mount effect twice.
@@ -43,7 +52,7 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
     resent.current = true
     const left = leftoverOf(readDraft(editor.project, card.id, 'title'), card.title)
     if (left === null) return dropDraft(editor.project, card.id, 'title')
-    void editor.edit('title', left.from, left.to, { kept: true, task: card.id }).then((outcome) => outcome === 'refused' && show(left.to))
+    void send(left.from, left.to, {}).then((outcome) => outcome === 'refused' && show(left.to))
   }, [])
   const keys = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
@@ -60,8 +69,8 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
   if (draft === null) {
     return (
       <h2 className="task-card__title">
-        <button type="button" className="task-card__title-edit" title={t.card.edit.titleHint} onClick={() => show(card.title)}>
-          {card.title}
+        <button type="button" className="task-card__title-edit" title={t.card.edit.titleHint} onClick={() => show(held.shown)}>
+          {held.shown}
         </button>
       </h2>
     )

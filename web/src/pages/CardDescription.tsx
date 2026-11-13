@@ -11,6 +11,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { dropDraft, leftoverOf, readDraft, writeDraft } from './cardDrafts.js'
 import { conflictOf } from './cardEdit.js'
 import type { CardEditor } from './useCardEdit.js'
+import { useHeld } from './useHeld.js'
 import { useLeaving, type Leaving } from './useLeaving.js'
 import '../tools/addPackage.css'
 import './description.css'
@@ -44,10 +45,13 @@ export function CardDescription({ task, text, editor, render }: Props) {
   const { state, attach } = useLive()
   // The text last sent as the tab went away: `visibilitychange` and `pagehide` of one close send it once.
   const flushed = useRef<string | null>(null)
+  // What was saved stands in the view until the card is read anew (BTN-1111).
+  const held = useHeld(text)
+  const shown = held.shown
 
   const open = () => {
     setFailure(null)
-    setEditing({ start: text, text, revision: 0 })
+    setEditing({ start: shown, text: shown, revision: 0 })
   }
   const close = () => {
     setEditing(null)
@@ -66,6 +70,7 @@ export function CardDescription({ task, text, editor, render }: Props) {
     if (refused === null) {
       dropDraft(editor.project, task, 'description')
       setConflict(null)
+      held.hold(to)
       // The tab only went out of sight: the editor stays open on what was saved.
       if (leaving === 'hidden') return setEditing((now) => (now === null ? now : { ...now, start: to }))
       return close()
@@ -105,7 +110,7 @@ export function CardDescription({ task, text, editor, render }: Props) {
             </Tipped>
           </div>
           <div className="description__view" onDoubleClick={open}>
-            {text.trim() === '' ? <p className="placeholder">{t.card.noDescription}</p> : render(text)}
+            {shown.trim() === '' ? <p className="placeholder">{t.card.noDescription}</p> : render(shown)}
           </div>
         </>
       ) : (
