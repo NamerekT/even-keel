@@ -28,7 +28,7 @@ async function fixture() {
     rmSync(publicDir, { recursive: true, force: true })
   })
   const post = (signal?: AbortSignal) => fetch(`${base}/api/sessions/session/mail`, {
-    method: 'POST', body: JSON.stringify({ event: 'PostToolUse' }), signal,
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: 'PostToolUse' }), signal,
   })
   const blocked = Promise.withResolvers<{ response: ServerResponse; release: () => void }>()
   server.prependOnceListener('request', (_request, response) => {
@@ -59,7 +59,7 @@ describe('the service\'s own note in the mailbox hook\'s answer (BTN-932)', { ti
       await close()
       rmSync(publicDir, { recursive: true, force: true })
     })
-    const post = (id: string, event: string) => fetch(`${base}/api/sessions/${id}/mail`, { method: 'POST', body: JSON.stringify({ event }) })
+    const post = (id: string, event: string) => fetch(`${base}/api/sessions/${id}/mail`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event }) })
     expect(await (await post('chain-session', 'PostToolUse')).json()).toEqual({ message: 'mail on PostToolUse', context: 'Add a status line.' })
     expect(await (await post('chain-session', 'PreToolUse')).json()).toEqual({ message: null, context: 'Add a status line.' })
     expect(await (await post('chain-session', 'Stop')).json()).toEqual({ message: null })

@@ -14,6 +14,7 @@ export function guardedServer(settings: () => GuardSettings, handle: (request: I
       url: request.url ?? '/',
       host: request.headers.host,
       origin: request.headers.origin,
+      contentType: request.headers['content-type'],
       cookie: request.headers.cookie,
       authorization: request.headers.authorization,
       remote: request.socket.remoteAddress,

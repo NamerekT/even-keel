@@ -15,7 +15,7 @@ describe('page transport', () => {
   it('acknowledges commands without building state and retains failure notices', async () => {
     const getState = vi.fn(() => { throw new Error('state must not be built') })
     fixture = await serverFixture({ getState })
-    const post = (project: string) => fetch(fixture.base + '/api/chain/start', { method: 'POST', body: JSON.stringify({ project }) })
+    const post = (project: string) => fetch(fixture.base + '/api/chain/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project }) })
     const success = await post('ABC')
     expect(success.status).toBe(200)
     expect(await success.json()).toEqual({ ok: true })
@@ -37,7 +37,7 @@ describe('page transport', () => {
   it('acknowledges a command sent without the old ack header', async () => {
     const getState = vi.fn(() => ({ chain: [] }))
     fixture = await serverFixture({ getState })
-    const response = await fetch(fixture.base + '/api/chain/start', { method: 'POST', body: JSON.stringify({ project: 'ABC' }) })
+    const response = await fetch(fixture.base + '/api/chain/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC' }) })
     expect(await response.json()).toEqual({ ok: true })
     expect(getState).not.toHaveBeenCalled()
   })
@@ -88,7 +88,7 @@ describe('page transport', () => {
       await readEvent('ping')
       state = { ...state, language: 'en' }
       const answer = await fetch(fixture.base + '/api/chain/start', {
-        method: 'POST', body: JSON.stringify({ project: 'ABC' }),
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC' }),
       })
       expect(await answer.json()).toEqual({ ok: true })
       expect(await readEvent('statePatch')).toContain('"language":"en"')

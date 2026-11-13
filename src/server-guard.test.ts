@@ -35,14 +35,27 @@ async function fixture() {
     })
     req.on('error', reject).end()
   })
-  return { send, handle, finish }
+  return { send, handle, finish, port }
 }
+
+describe('guarded API', () => {
+  it('takes a post from the page itself and refuses one from another port on the same name (BTN-1080)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { send, handle, port } = await fixture()
+    const post = (origin: string, type = 'application/json') =>
+      send('/api/chain/start', 'POST', { cookie: `${TOKEN_COOKIE}=${TOKEN}`, origin, 'content-type': type })
+    expect((await post(`http://127.0.0.1:${port}`)).status).toBe(200)
+    expect((await post('http://127.0.0.1:5173')).status).toBe(403)
+    expect((await post(`http://127.0.0.1:${port}`, 'text/plain')).status).toBe(415)
+    expect(handle).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('guarded OAuth callback', () => {
   it('issues a scoped Lax cookie on an authenticated start, including an existing Strict login', async () => {
     const { send } = await fixture()
     for (const headers of [{ cookie: `${TOKEN_COOKIE}=${TOKEN}` }, { authorization: `Bearer ${TOKEN}` }]) {
-      const started = await send('/api/profiles/oauth/start', 'POST', headers)
+      const started = await send('/api/profiles/oauth/start', 'POST', { ...headers, 'content-type': 'application/json' })
       expect(started.status).toBe(200)
       const cookie = started.headers['set-cookie']?.[0]
       expect(cookie).toMatch(/^even-keel-oauth=\d+\.[\w-]+; Path=\/api\/profiles\/oauth\/callback; HttpOnly; SameSite=Lax; Max-Age=600$/)
@@ -60,8 +73,17 @@ describe('guarded OAuth callback', () => {
     expect(refused.headers['set-cookie']).toBeUndefined()
     expect(handle).not.toHaveBeenCalled()
     for (const [method, path] of [['GET', '/api/profiles/oauth/start'], ['POST', '/api/profiles/check']]) {
-      expect((await send(path!, method, { cookie: `${TOKEN_COOKIE}=${TOKEN}` })).headers['set-cookie']).toBeUndefined()
+      expect((await send(path!, method, { cookie: `${TOKEN_COOKIE}=${TOKEN}`, 'content-type': 'application/json' })).headers['set-cookie']).toBeUndefined()
     }
+  })
+
+  it('does not issue the callback cookie to a start that is not JSON', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { send, handle } = await fixture()
+    const refused = await send('/api/profiles/oauth/start', 'POST', { cookie: `${TOKEN_COOKIE}=${TOKEN}`, 'content-type': 'text/plain' })
+    expect(refused.status).toBe(415)
+    expect(refused.headers['set-cookie']).toBeUndefined()
+    expect(handle).not.toHaveBeenCalled()
   })
 
   it.each([{}, { host: 'evil.example.net' }, { origin: 'https://evil.example.net' }])('scrubs a refused callback without invoking OAuth (%j)', async headers => {

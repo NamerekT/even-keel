@@ -192,7 +192,8 @@ Sessions can be answered from the page's chat or the tracker. To answer them in 
 By default the page listens on `127.0.0.1` only, and nothing else on the network sees it. That is on purpose: the page starts sessions with automatic permissions, writes answers into waiting sessions and signs Claude accounts in and out, so whoever reaches it drives your machine. Every request is also checked whatever `EVEN_KEEL_HOST` is:
 
 - its `Host` must be `localhost`, `127.0.0.1`, `[::1]`, `EVEN_KEEL_HOST` or a name in `allowedHosts`, otherwise it gets 403. This stops DNS rebinding — a foreign site whose name was pointed at `127.0.0.1`;
-- an `Origin`, if the request has one, must be one of the same names, so another site open in your browser cannot post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass.
+- an `Origin`, if the request has one, must be the page's own: the same name and port as its `Host` (`https://name` matches a `Host` of `name` without a port, as an HTTPS proxy sends it). So neither another site open in your browser nor another app on the same name — a dev server on `localhost:5173`, a service on another port of your tailnet name — can post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass;
+- a `POST` to `/api/` must be `Content-Type: application/json`, otherwise it gets 415: a browser cannot send that type to another site without asking it first. A script posting to the API sends the header, as `curl -H 'Content-Type: application/json'` does.
 
 Two ways to reach it from elsewhere:
 

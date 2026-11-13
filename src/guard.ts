@@ -32,6 +32,7 @@ export interface GuardRequest {
   url: string
   host: string | undefined
   origin: string | undefined
+  contentType: string | undefined
   cookie: string | undefined
   authorization: string | undefined
   /** Socket addresses; equal ones mean a connection from this machine to its own address. */
@@ -41,12 +42,13 @@ export interface GuardRequest {
 
 export type GuardVerdict =
   | { kind: 'pass' }
-  | { kind: 'refuse'; status: 401 | 403; reason: string }
+  | { kind: 'refuse'; status: 401 | 403 | 415; reason: string }
   /** The first visit with `?token=`: set the cookie and send the browser to the address without it. */
   | { kind: 'enter'; location: string; cookie: string }
 
 export const TOKEN_COOKIE = 'even-keel-token'
 export const OAUTH_CALLBACK_PATH = '/api/profiles/oauth/callback'
+const ATTACH_PATH = '/api/builtin/attach'
 const OAUTH_COOKIE = 'even-keel-oauth'
 const OAUTH_SECONDS = 600
 const TOKEN_SHAPE = /^[A-Za-z0-9._~+/=-]{16,}$/
@@ -82,17 +84,16 @@ export function guard(settings: GuardSettings, request: GuardRequest): GuardVerd
   if (host === undefined || !settings.hosts.has(host)) {
     return { kind: 'refuse', status: 403, reason: `host ${request.host ?? '(none)'} is not allowed; add it to allowedHosts` }
   }
-  if (request.origin !== undefined) {
-    const origin = originHostOf(request.origin)
-    if (origin === undefined || !settings.hosts.has(origin)) {
-      return { kind: 'refuse', status: 403, reason: `origin ${request.origin} is not allowed` }
-    }
+  // The whole origin, port included: another app on an allowed name is another site (BTN-1080).
+  if (request.origin !== undefined && !sameOrigin(request.origin, request.host!)) {
+    return { kind: 'refuse', status: 403, reason: `origin ${request.origin} is not the page's own (${request.host})` }
   }
-  if (fromThisMachine(request)) return { kind: 'pass' }
+  const admitted = typeVerdict(request)
+  if (fromThisMachine(request)) return admitted
 
   const token = settings.token
   if (token === null) return { kind: 'refuse', status: 401, reason: `${request.remote} is not on this machine and no token is set` }
-  if (same(cookieOf(request.cookie), token) || same(bearerOf(request.authorization), token)) return { kind: 'pass' }
+  if (same(cookieOf(request.cookie), token) || same(bearerOf(request.authorization), token)) return admitted
 
   const url = new URL(request.url, 'http://localhost')
   if (isOAuthCallback(request) && validOAuthCookie(request.cookie, token)) return { kind: 'pass' }
@@ -141,13 +142,28 @@ function hostnameOf(header: string | undefined): string | undefined {
   }
 }
 
-function originHostOf(origin: string): string | undefined {
+/**
+ * `Origin` names the same host and port as `Host`, the port read by the origin's scheme: an HTTPS proxy sends the
+ * name without a port and the browser's origin is `https://name`.
+ */
+function sameOrigin(origin: string, host: string): boolean {
   try {
     const url = new URL(origin)
-    return url.origin === 'null' ? undefined : bare(url.hostname)
+    return url.origin !== 'null' && new URL(`${url.protocol}//${host}`).host === url.host
   } catch {
-    return undefined
+    return false
   }
+}
+
+/**
+ * A POST to the API only as JSON (BTN-1080): another type is a request a foreign page sends without a preflight.
+ * An attached file's bytes come as their own type.
+ */
+function typeVerdict({ method, url, contentType }: GuardRequest): GuardVerdict {
+  const path = url.split('?')[0]!
+  if (method !== 'POST' || !path.startsWith('/api/') || path === ATTACH_PATH) return { kind: 'pass' }
+  if (/^application\/json\s*(;|$)/i.test(contentType ?? '')) return { kind: 'pass' }
+  return { kind: 'refuse', status: 415, reason: `POST ${path} came as ${contentType ?? '(no type)'}; the API takes application/json` }
 }
 
 function fromThisMachine({ remote, local }: GuardRequest): boolean {

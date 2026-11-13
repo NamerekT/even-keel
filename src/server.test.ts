@@ -42,7 +42,10 @@ describe('Even Keel HTTP server', () => {
     expect(await send('GET', '/api/state', { host: 'evil.example.net:4747' })).toBe(403)
     expect(await send('POST', '/api/chain/start', { origin: 'https://evil.example.net' })).toBe(403)
     expect(calls).toEqual([])
-    expect(await send('POST', '/api/chain/start', { host: 'localhost:4747', origin: 'http://localhost:4747' })).toBe(200)
+    expect(await send('POST', '/api/chain/start', { host: 'localhost:4747', origin: 'http://localhost:5173', 'content-type': 'application/json' })).toBe(403)
+    expect(await send('POST', '/api/chain/start', { host: 'localhost:4747', origin: 'http://localhost:4747', 'content-type': 'text/plain' })).toBe(415)
+    expect(calls).toEqual([])
+    expect(await send('POST', '/api/chain/start', { host: 'localhost:4747', origin: 'http://localhost:4747', 'content-type': 'application/json' })).toBe(200)
     expect(calls).toEqual([['start', 'ABC']])
   })
 
@@ -64,7 +67,7 @@ describe('Even Keel HTTP server', () => {
       text: 'Also this',
       files: [{ name: 'a.txt', data: Buffer.from('hello').toString('base64') }, { name: 'big.txt', data: big }],
     }
-    const response = await fetch(base + '/api/session/answer', { method: 'POST', body: JSON.stringify(body) })
+    const response = await fetch(base + '/api/session/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     expect(response.status).toBe(200)
     const [, request] = calls.find(([name]) => name === 'answer')! as [string, { files: { name: string; text: string }[] }]
     expect(request).toMatchObject({ project: 'ABC', task: 'ABC-1', sessionId: '0a1b2c3d', ask: 'toolu_1', answers: { 'Which color?': 'Blue' }, text: 'Also this' })
@@ -73,24 +76,24 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('refuses an answer without its session', async () => {
-    const response = await fetch(base + '/api/session/answer', { method: 'POST', body: JSON.stringify({ project: 'ABC', task: 'ABC-1', ask: null }) })
+    const response = await fetch(base + '/api/session/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', task: 'ABC-1', ask: null }) })
     expect(response.status).toBe(400)
     expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'sessionId' } })
   })
 
 
   it('passes on the toast buttons: closing one version and turning the toasts off', async () => {
-    expect((await fetch(base + '/api/updates/dismiss', { method: 'POST', body: JSON.stringify({ version: '0.2.0' }) })).status).toBe(200)
-    expect((await fetch(base + '/api/updates/mute', { method: 'POST', body: '{}' })).status).toBe(200)
+    expect((await fetch(base + '/api/updates/dismiss', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ version: '0.2.0' }) })).status).toBe(200)
+    expect((await fetch(base + '/api/updates/mute', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(200)
     expect(calls).toContainEqual(['dismiss', '0.2.0'])
     expect(calls).toContainEqual(['mute'])
-    const refused = await fetch(base + '/api/updates/dismiss', { method: 'POST', body: '{}' })
+    const refused = await fetch(base + '/api/updates/dismiss', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
     expect(refused.status).toBe(400)
     expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'version' } })
   })
 
   it('passes on the banner buttons: "Got it" marks and a kind turned off or back (BTN-759)', async () => {
-    const post = (path: string, body: unknown) => fetch(base + `/api/notices/${path}`, { method: 'POST', body: JSON.stringify(body) })
+    const post = (path: string, body: unknown) => fetch(base + `/api/notices/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     expect((await post('dismiss', { entries: { 'protection.remote@id-abc': '[]' } })).status).toBe(200)
     expect((await post('mute', { project: null, kind: 'cli.versions', shown: false })).status).toBe(200)
     expect((await post('mute', { project: 'ABC', kind: 'protection.remote', shown: null })).status).toBe(200)
@@ -110,7 +113,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   it("passes on a browser's hotkeys and refuses a broken id or layout (BTN-880)", async () => {
-    const post = (body: unknown) => fetch(base + '/api/hotkeys/save', { method: 'POST', body: JSON.stringify(body) })
+    const post = (body: unknown) => fetch(base + '/api/hotkeys/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     expect((await post({ browser: 'browser-example-0001', bindings: { chainRun: 'Mod+Shift+Enter' } })).status).toBe(200)
     expect((await post({ browser: 'browser-example-0001', bindings: {} })).status).toBe(200)
     expect(calls).toContainEqual(['saveHotkeys', 'browser-example-0001', { chainRun: 'Mod+Shift+Enter' }])
@@ -130,7 +133,7 @@ describe('Even Keel HTTP server', () => {
 
   it('passes on the update window: update, revert and closing the result', async () => {
     for (const command of ['install', 'revert', 'seen']) {
-      expect((await fetch(base + `/api/updates/${command}`, { method: 'POST', body: '{}' })).status).toBe(200)
+      expect((await fetch(base + `/api/updates/${command}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(200)
     }
     expect(calls).toEqual(expect.arrayContaining([['installUpdate'], ['revertUpdate'], ['closeUpdateResult']]))
   })
@@ -146,7 +149,7 @@ describe('Even Keel HTTP server', () => {
       pullRequests: false,
       fillMilestone: 'yes',
     }
-    const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+    const response = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     expect(response.status).toBe(400)
     expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'fillMilestone' } })
   })
@@ -164,7 +167,7 @@ describe('Even Keel HTTP server', () => {
     ]
     for (const ci of bad) {
       const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], afterGreen: [], ci }
-      const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+      const response = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'ci' } })
     }
@@ -178,7 +181,7 @@ describe('Even Keel HTTP server', () => {
     ] as const
     for (const [field, lists] of cases) {
       const body = { project: 'ABC', prompt: '', ...lists, ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false } }
-      const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+      const response = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
     }
@@ -193,7 +196,7 @@ describe('Even Keel HTTP server', () => {
 
   it('takes the report of a passed check before the merge from a chain session, 404 for any other, 400 without a tree', async () => {
     const report = { tree: 'a'.repeat(40), commands: ['npm test'] }
-    const post = (id: string, body: unknown) => fetch(base + `/api/sessions/${id}/check`, { method: 'POST', body: JSON.stringify(body) })
+    const post = (id: string, body: unknown) => fetch(base + `/api/sessions/${id}/check`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     expect((await post('chain-session', report)).status).toBe(200)
     expect(calls).toContainEqual(['checkReport', 'chain-session', report])
     expect((await post('other', report)).status).toBe(404)
@@ -208,7 +211,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('gives the mailbox hook what waits for a chain session on its event and 404 for any other', async () => {
-    const post = (id: string, body: unknown) => fetch(base + `/api/sessions/${id}/mail`, { method: 'POST', body: JSON.stringify(body) })
+    const post = (id: string, body: unknown) => fetch(base + `/api/sessions/${id}/mail`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     const found = await post('chain-session', { event: 'PostToolUse' })
     expect(found.status).toBe(200)
     expect(await found.json()).toEqual({ message: 'mail on PostToolUse' })
@@ -220,7 +223,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('dismisses the returned messages of a session', async () => {
-    const response = await fetch(base + '/api/session/mail/dismiss', { method: 'POST', body: JSON.stringify({ sessionId: '0a1b2c3d' }) })
+    const response = await fetch(base + '/api/session/mail/dismiss', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: '0a1b2c3d' }) })
     expect(response.status).toBe(200)
     expect(calls).toContainEqual(['dismissMail', '0a1b2c3d'])
   })
@@ -277,7 +280,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   const post = (path: string, body?: unknown) =>
-    fetch(base + path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
+    fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
 
   it('drives the chain through POST commands and acknowledges them', async () => {
     const response = await post('/api/chain/start', { project: 'ABC' })
@@ -334,18 +337,18 @@ describe('Even Keel HTTP server', () => {
   })
 
   it("answers a profile's statuses, null when it names none", async () => {
-    const statuses = await fetch(base + '/api/profiles/statuses', { method: 'POST', body: JSON.stringify({ id: 'p-huly' }) })
+    const statuses = await fetch(base + '/api/profiles/statuses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: 'p-huly' }) })
     expect(await statuses.json()).toEqual([{ name: 'Todo', category: 'ToDo' }, { name: 'In Review', category: 'Active' }])
-    const none = await fetch(base + '/api/profiles/statuses', { method: 'POST', body: JSON.stringify({ id: 'p-gone' }) })
+    const none = await fetch(base + '/api/profiles/statuses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: 'p-gone' }) })
     expect(await none.json()).toBeNull()
   })
 
   it("saves a profile's and a source's status moves, refusing a move that is no status name", async () => {
     const moves = { start: 'In Progress', review: null, done: 'Done' }
-    expect((await fetch(base + '/api/profiles/moves', { method: 'POST', body: JSON.stringify({ id: 'p-huly', moves }) })).status).toBe(200)
-    expect((await fetch(base + '/api/project/moves', { method: 'POST', body: JSON.stringify({ project: 'ABC', feed: null, moves: {} }) })).status).toBe(200)
-    expect((await fetch(base + '/api/project/moves', { method: 'POST', body: JSON.stringify({ project: 'ABC', feed: 'f1', moves: { review: 'In Review' } }) })).status).toBe(200)
-    const refused = await fetch(base + '/api/profiles/moves', { method: 'POST', body: JSON.stringify({ id: 'p-huly', moves: { done: null } }) })
+    expect((await fetch(base + '/api/profiles/moves', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: 'p-huly', moves }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/moves', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', feed: null, moves: {} }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/moves', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', feed: 'f1', moves: { review: 'In Review' } }) })).status).toBe(200)
+    const refused = await fetch(base + '/api/profiles/moves', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: 'p-huly', moves: { done: null } }) })
     expect(refused.status).toBe(400)
     expect(calls).toContainEqual(['profileMoves', 'p-huly', moves])
     expect(calls).toContainEqual(['sourceMoves', 'ABC', null, {}])
@@ -353,9 +356,9 @@ describe('Even Keel HTTP server', () => {
   })
 
   it("saves a project's milestone order, refusing one that is no list of names", async () => {
-    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', body: JSON.stringify({ project: 'ABC', order: ['Beta', 'MVP'] }) })).status).toBe(200)
-    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', body: JSON.stringify({ project: 'ABC', order: [] }) })).status).toBe(200)
-    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', body: JSON.stringify({ project: 'ABC', order: 'Beta' }) })).status).toBe(400)
+    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', order: ['Beta', 'MVP'] }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', order: [] }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/milestone-order', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', order: 'Beta' }) })).status).toBe(400)
     expect(calls).toContainEqual(['milestoneOrder', 'ABC', ['Beta', 'MVP']])
     expect(calls).toContainEqual(['milestoneOrder', 'ABC', []])
   })
@@ -420,7 +423,7 @@ describe('Even Keel HTTP server', () => {
     expect((await post('/api/chain/queue', { order: 'XYZ' })).status).toBe(400)
     expect((await post('/api/chain/skip', { project: 'ABC' })).status).toBe(400)
     expect((await post('/api/chain/unattended', { on: 'yes' })).status).toBe(400)
-    expect((await fetch(base + '/api/chain/start', { method: 'POST', body: '{' })).status).toBe(400)
+    expect((await fetch(base + '/api/chain/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{' })).status).toBe(400)
     expect((await post('/api/chain/nope')).status).toBe(404)
     expect(calls).toEqual([])
   })

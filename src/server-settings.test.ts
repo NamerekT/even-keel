@@ -32,29 +32,29 @@ describe('Even Keel settings HTTP routes', () => {
       ownRules: [],
     }
     const started = { ...settings, prompt: null, slot: 0, own: {} }
-    const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
+    const response = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
     expect(response.status).toBe(200)
     expect(calls).toContainEqual(['settings', 'ABC', settings, started])
 
-    const unknown = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, own: { parallel: 2 }, base: started }) })
+    const unknown = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', ...settings, own: { parallel: 2 }, base: started }) })
     expect(unknown.status).toBe(400)
     expect((await unknown.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'own' } })
 
-    const missing = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings }) })
+    const missing = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', ...settings }) })
     expect(missing.status).toBe(400)
     expect((await missing.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'base' } })
   })
 
   it('checks and adds the wizard project, removes a project, and refuses a draft of a wrong shape', async () => {
     const draft = { repo: 'D:\\new', branch: '', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0 }
-    const check = await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify(draft) })
+    const check = await fetch(base + '/api/project/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) })
     expect(check.status).toBe(200)
     expect(await check.json()).toEqual({ repo: { root: 'D:\\new', current: 'main', notice: null }, entry: null, tracker: null, trusted: true, platform: 'win32' })
 
     // The page holds the tracker's answer: the tracker is not asked (BTN-737).
-    expect((await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify({ ...draft, askTracker: false }) })).status).toBe(200)
-    expect((await fetch(base + '/api/project/add', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
-    expect((await fetch(base + '/api/project/remove', { method: 'POST', body: JSON.stringify({ project: 'ABC' }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...draft, askTracker: false }) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/add', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC' }) })).status).toBe(200)
     // A page open since before the milestones and the agent fields sends neither.
     expect(calls).toEqual([
       ['check', { ...draft, milestones: [], provider: null }, { tracker: true }],
@@ -64,7 +64,7 @@ describe('Even Keel settings HTTP routes', () => {
     ])
 
     for (const [field, change] of [['slot', { slot: -1 }], ['key', { key: 5 }], ['branch', { branch: undefined }], ['milestones', { milestones: ['v1', 2] }]] as const) {
-      const response = await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify({ ...draft, ...change }) })
+      const response = await fetch(base + '/api/project/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...draft, ...change }) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
     }
@@ -87,7 +87,7 @@ describe('Even Keel settings HTTP routes', () => {
     ] as const
     for (const [field, change] of bad) {
       const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], afterGreen: [], ci, fillMilestone: false, changelog: 'CHANGELOG.md', ...form, ...change }
-      const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+      const response = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
     }
@@ -123,7 +123,7 @@ describe('Even Keel settings HTTP routes', () => {
     // Notices are written through their own route.
     delete shared.notices
     const started = { ...shared, parallel: 1 }
-    const response = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify({ ...shared, base: started }) })
+    const response = await fetch(base + '/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...shared, base: started }) })
     expect(response.status).toBe(200)
     expect(calls).toContainEqual(['shared', shared, started])
 
@@ -143,7 +143,7 @@ describe('Even Keel settings HTTP routes', () => {
       ['updates', { updates: { check: 'yes', notify: true } }],
     ] as const
     for (const [field, change] of refusals) {
-      const refused = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify({ ...shared, ...change }) })
+      const refused = await fetch(base + '/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...shared, ...change }) })
       expect(refused.status).toBe(400)
       expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
     }

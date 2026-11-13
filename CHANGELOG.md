@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **No label is kept out of the chain by default.** `chain.excludedLabels` starts empty and the built-in tracker no longer offers `Manual`: name the label you mark your own tasks with in the chain rules. An installation that relied on the default keeps `Manual` in its shared list after the update, so the same tasks stay out.
 - **The main branch field offers the repository's branches, and saving another branch switches the main checkout to it**, in a project's settings and in the wizard that adds one: a branch the repository lacks is created from where the checkout stands, one only on a remote is taken from there, and the line under the field says which before you save. The wizard fills in the checkout's current branch and no longer refuses a branch the repository lacks. A checkout switched by hand is shown in the settings and on the chain's card, with buttons to make its branch the main one or to put the folder back, instead of only when a task fails to start.
 
+### Security
+
+- **The page takes a request only from its own origin, port included.** Before, the `Origin` check compared only the name, so a page on another port of an allowed name — a project's dev server on `localhost`, another service on your tailnet name — could post commands to Even Keel: start a chain, answer a session, add an MCP server. Now `Origin` must match the request's `Host` with its port, and a `POST` to `/api/` must be `Content-Type: application/json` (415 otherwise). A script posting to the API without that header has to add it.
+
 ### Fixed
 
 - **A project's lone `AGENTS.md` is no longer in a Claude session's context twice.** Claude Code reads the file by itself, so Even Keel stopped appending it to the system prompt; the same text reached every turn twice before.
