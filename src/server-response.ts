@@ -6,6 +6,7 @@ import { pipeline } from 'node:stream/promises'
 import { constants, createGzip } from 'node:zlib'
 import { englishOf, fail, noticeOf } from './notice/notice.js'
 import type { TaskFile } from './tracker/source.js'
+import { securePage } from './server-security.js'
 
 /** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
 const SHOWN_IN_PLACE = /^(image\/(png|jpeg|gif|webp|avif|bmp)|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf)$/
@@ -137,6 +138,7 @@ export async function serveStatic(publicDir: string, path: string, response: Ser
     response.writeHead(404).end()
     return
   }
+  if (extname(file) === '.html') securePage(response)
   response.writeHead(200, {
     'content-type': CONTENT_TYPES[extname(file)] ?? 'application/octet-stream',
     'cache-control': path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',

@@ -39,6 +39,36 @@ async function fixture() {
 }
 
 describe('guarded API', () => {
+  it('protects the token form and access refusals before routing', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { send, handle } = await fixture()
+    for (const [path, headers, status] of [
+      ['/', {}, 401],
+      ['/api/state', {}, 401],
+      ['/', { host: 'evil.example.net' }, 403],
+    ] as const) {
+      const response = await send(path, 'GET', headers)
+      expect(response.status).toBe(status)
+      expect(response.headers['x-frame-options']).toBe('DENY')
+      expect(response.headers['content-security-policy']).toContain("frame-ancestors 'none'")
+      expect(response.headers['referrer-policy']).toBe('no-referrer')
+      expect(response.headers['x-content-type-options']).toBe('nosniff')
+      if (status === 401 && path === '/') expect(response.body).toContain('<form method="get">')
+    }
+    expect(handle).not.toHaveBeenCalled()
+  })
+
+  it('keeps nosniff on entry redirects and unexpected errors', async () => {
+    const { send, handle } = await fixture()
+    const entered = await send(`/?token=${TOKEN}`)
+    expect(entered.status).toBe(303)
+    expect(entered.headers['x-content-type-options']).toBe('nosniff')
+    handle.mockRejectedValueOnce(new Error('unavailable'))
+    const failed = await send('/api/state', 'GET', { authorization: `Bearer ${TOKEN}` })
+    expect(failed.status).toBe(500)
+    expect(failed.headers['x-content-type-options']).toBe('nosniff')
+  })
+
   it('takes a post from the page itself and refuses one from another port on the same name (BTN-1080)', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { send, handle, port } = await fixture()
@@ -109,6 +139,9 @@ describe('guarded OAuth callback', () => {
       expect(response.status).toBe(200)
       expect(response.headers['content-type']).toContain('text/html')
       expect(response.headers['referrer-policy']).toBe('no-referrer')
+      expect(response.headers['x-frame-options']).toBe('DENY')
+      expect(response.headers['content-security-policy']).toContain("script-src 'sha256-")
+      expect(response.headers['x-content-type-options']).toBe('nosniff')
       expect(response.body).toContain('location.reload()')
       expect(response.body).not.toContain('private-')
     }

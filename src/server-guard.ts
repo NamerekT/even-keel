@@ -1,12 +1,14 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { guard, isOAuthCallback, oauthCallbackCookie, tokenForm, type GuardSettings } from './guard.js'
 import { oauthCallbackPage } from './profiles/oauth-response.js'
+import { securePage } from './server-security.js'
 
 const MAX_REPORTED = 100
 
 export function guardedServer(settings: () => GuardSettings, handle: (request: IncomingMessage, response: ServerResponse) => Promise<void>): Server {
   const reported = new Set<string>()
   return createServer((request, response) => {
+    response.setHeader('x-content-type-options', 'nosniff')
     const current = settings()
     const callback = isOAuthCallback({ method: request.method ?? 'GET', url: request.url ?? '/' })
     const verdict = guard(current, {
@@ -25,6 +27,7 @@ export function guardedServer(settings: () => GuardSettings, handle: (request: I
       return
     }
     if (verdict.kind === 'refuse') {
+      securePage(response)
       // One line per distinct refusal: a rebinding page may retry endlessly.
       if (!reported.has(verdict.reason) && reported.size < MAX_REPORTED) {
         reported.add(verdict.reason)
