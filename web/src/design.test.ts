@@ -33,6 +33,20 @@ function dialogBodies(source: string): { line: number; text: string }[] {
   return found
 }
 
+/** Whether a position of a source sits inside the callback of a `.map(`: an open parenthesis around it follows `map`. */
+function insideMap(source: string, at: number): boolean {
+  let depth = 0
+  for (let index = at - 1; index >= 0; index--) {
+    const char = source[index]
+    if (char === ')') depth++
+    else if (char === '(') {
+      if (depth > 0) depth--
+      else if (/\.(flat)?[mM]ap$/.test(source.slice(Math.max(0, index - 8), index))) return true
+    }
+  }
+  return false
+}
+
 describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
   it('in-flow disclosures use Fold rather than native details', () => {
     expect(Object.keys(sources).filter((path) => /<details\b/.test(sources[path]!))).toEqual([])
@@ -42,6 +56,14 @@ describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
       dialogBodies(source).filter(({ text }) => /\bnotice--error\b/.test(text)).map(({ line }) => `${path}:${line}`),
     )
     expect(inside, 'Put the refusal between add-package__body and the footer with class add-package__failure (docs/design.md)').toEqual([])
+  })
+  it('a checkbox only picks items of a list; a single on/off option is a switch', () => {
+    const single = Object.entries(sources).flatMap(([path, source]) =>
+      [...source.matchAll(/type="checkbox"/g)]
+        .filter((found) => !insideMap(source, found.index))
+        .map((found) => `${path}:${source.slice(0, found.index).split('\n').length}`),
+    )
+    expect(single, 'Use Switch or SwitchField of pages/settingsParts.tsx for one option (docs/design.md, "Switch")').toEqual([])
   })
   it('no stylesheet has more violations than the baseline, and the baseline is not above what is left', () => {
     const baseline = JSON.parse(baselineText) as Record<string, number>

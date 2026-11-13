@@ -13,7 +13,7 @@ import { gitSwitchBusy } from './gitSwitchBusy.js'
 import { offeredBranch } from './gitFound.js'
 import { PartDot } from './SetupAgent.js'
 import { GitInstall, Identity } from './SetupGit.js'
-import { Row, Section } from './settingsParts.js'
+import { Row, Section, Switch } from './settingsParts.js'
 import '../tools/addPackage.css'
 import './projectAdd.css'
 import './gitSwitch.css'
@@ -217,13 +217,9 @@ function BranchChoice({ current, main, take, onTake }: { current: string; main: 
   return (
     <Section title={text.branch} mark={<PartDot check="passed" first />} className="project-add__step">
       <p className="setup__lead">{text.branchLead(current, main)}</p>
-      <div className="git-on__commit">
-        <label className="settings__check">
-          <input id="git-on-branch" type="checkbox" checked={take} onChange={(event) => onTake(event.target.checked)} />
-          {text.takeBranch(current)}
-        </label>
+      <Row className="git-on__commit" label={text.takeBranch(current)} htmlFor="git-on-branch" control={<Switch id="git-on-branch" checked={take} onChange={onTake} />}>
         <span className="settings__hint">{take ? text.takeHint : text.keepHint(main)}</span>
-      </div>
+      </Row>
     </Section>
   )
 }
@@ -241,13 +237,9 @@ function GitChanges({ files, commit, onCommit }: { files: string[]; commit: bool
         ))}
         {files.length > shown.length && <li className="git-on__more">{text.changesMore(files.length - shown.length)}</li>}
       </ul>
-      <div className="git-on__commit">
-        <label className="settings__check">
-          <input id="git-on-commit" type="checkbox" checked={commit} onChange={(event) => onCommit(event.target.checked)} />
-          {text.commit}
-        </label>
+      <Row className="git-on__commit" label={text.commit} htmlFor="git-on-commit" control={<Switch id="git-on-commit" checked={commit} onChange={onCommit} />}>
         <span className="settings__hint">{commit ? text.commitHint : text.noCommitHint}</span>
-      </div>
+      </Row>
     </Section>
   )
 }

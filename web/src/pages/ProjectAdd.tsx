@@ -32,7 +32,7 @@ import {
 } from './projectWizard.js'
 import { firstFields, keepFields } from './projectWizardDraft.js'
 import { ProjectSummary } from './ProjectSummary.js'
-import { FieldHead, Row, Section } from './settingsParts.js'
+import { FieldHead, Row, Section, SwitchField } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { providerOptions } from './settingsRun.js'
 import { ListTable } from './settingsTable.js'
@@ -364,13 +364,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               />
             )}
             {state.demo !== null && (
-              <Row
-                className="settings__field"
-                label={t.demo.wizardRemove}
-                hint={t.demo.wizardRemoveHint}
-                htmlFor="wizard-drop-demo"
-                control={<input id="wizard-drop-demo" type="checkbox" checked={dropDemo} onChange={(event) => setDropDemo(event.target.checked)} />}
-              />
+              <SwitchField className="settings__field" label={t.demo.wizardRemove} hint={t.demo.wizardRemoveHint} checked={dropDemo} onChange={setDropDemo} />
             )}
           </Section>
         </div>

@@ -4,7 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
 import { Basement } from '../layout/Basement.js'
-import { HelpTip } from '../pages/settingsParts.js'
+import { HelpTip, Switch } from '../pages/settingsParts.js'
 import { projectLabel } from '../state.js'
 import { Band, PageHead } from '../ui/blocks.js'
 import { ProjectList } from '../ui/ProjectList.js'
@@ -83,7 +83,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
                 />
                 {views.length > 1 && (
                   <label className="tools__toggle">
-                    <input type="checkbox" checked={onlyDiff} onChange={(event) => setOnlyDiff(event.target.checked)} />
+                    <Switch checked={onlyDiff} onChange={setOnlyDiff} />
                     {t.tools.onlyDiff}
                   </label>
                 )}
