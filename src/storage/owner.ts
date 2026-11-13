@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { PGlite } from '@electric-sql/pglite'
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
 import pg from 'pg'
+import { notice, NoticeError } from '../notice/notice.js'
 import { claim, type Claim, removeOwner, writeOwner } from './claim.js'
 import { checkVersion, DATABASE_DIR, openDatabase, type Queryable } from './database.js'
 
@@ -23,8 +24,10 @@ export const filesDirOf = (dir: string) => join(dir, 'files')
 /** A PGlite folder is a database once `initdb` has finished in it. */
 export const databaseExists = (dir: string) => existsSync(join(dataDirOf(dir), 'PG_VERSION'))
 
-function held(dir: string, claimant: Claim): Error {
-  return new Error(`storage: process ${claimant.pid} holds the database in ${dir}; stop it first`)
+export class DatabaseHeldError extends NoticeError {
+  constructor(dir: string, claimant: Claim) {
+    super(notice('storage.held', { pid: claimant.pid, file: dir }))
+  }
 }
 
 /** The state database held by this process. */
@@ -39,7 +42,7 @@ export interface StateDatabase {
  */
 export async function openStateDatabase(dir: string, steps?: readonly string[]): Promise<StateDatabase> {
   const claimant = await claim(dir)
-  if (claimant !== null) throw held(dir, claimant)
+  if (claimant !== null) throw new DatabaseHeldError(dir, claimant)
   return served(dir, () => openDatabase(dataDirOf(dir), steps))
 }
 
@@ -109,7 +112,7 @@ async function reached(dir: string): Promise<StateReader> {
     const claimant = await claim(dir)
     if (claimant === null) return served(dir, () => PGlite.create({ dataDir: dataDirOf(dir) }))
     if (claimant.port !== undefined) return client(claimant.port)
-    if (Date.now() > deadline) throw held(dir, claimant)
+    if (Date.now() > deadline) throw new DatabaseHeldError(dir, claimant)
     await delay(READER_POLL_MS)
   }
 }

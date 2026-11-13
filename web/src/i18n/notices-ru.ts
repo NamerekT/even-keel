@@ -499,6 +499,7 @@ export const noticesRu: NoticeTexts = {
   'storage.newer': (p) =>
     `${p.file} записан более новой версией Even Keel (схема ${p.version}, эта знает до ${p.known}): ` +
     'верните его копию *.bak или обновите Even Keel',
+  'storage.held': (p) => `Процесс ${p.pid} держит базу ${p.file}; дождитесь его завершения или закройте другой экземпляр Even Keel`,
   'storage.damaged': (p) => `${p.file} не читается, поэтому миграция ничего не записала`,
   'storage.unknownProject': (p) => `${p.file} называет проект ${p.project}, которого нет в конфиге, поэтому миграция ничего не записала`,
   'storage.writeFailed': (p) => `не удалось записать ${p.file}; записанные до него файлы возвращены из копий`,

@@ -164,6 +164,16 @@ describe('LiveConnection', () => {
     expect(live.snapshot()).toEqual({ state: null, link: 'connecting' })
   })
 
+  it('clears the blocked reason when the recovered service sends its state', async () => {
+    last().open()
+    last().emit('blocked', { code: 'storage.held', params: { file: 'state/even-keel', pid: 123 } })
+    last().fail(0)
+    await vi.advanceTimersByTimeAsync(1_000)
+    last().open()
+    last().emit('state', state('recovered'))
+    expect(live.snapshot()).toEqual({ state: state('recovered'), link: 'live' })
+  })
+
   it('notifies subscribers on every change and stops after unsubscribe', () => {
     const seen: string[] = []
     const unsubscribe = live.subscribe(() => seen.push(live.snapshot().link))

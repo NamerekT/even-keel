@@ -3,11 +3,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { noticeOf } from '../notice/notice.js'
 import { closedTasks, saveClosedTask } from '../chain/store.js'
 import { backupDatabase } from './copy.js'
 import { DATABASE_VERSION, databaseVersion, STEPS } from './database.js'
 import { databaseDirOf, dataDirOf, openStateDatabase, readOwner, readStateDatabase, writeOwner, type StateDatabase } from './owner.js'
 import { prepareDatabase } from './state-files.js'
+import { startWithStorageRetry } from './startup.js'
 
 describe('state database ownership and backup on disk', { timeout: 120_000 }, () => {
   let dir: string
@@ -60,6 +62,7 @@ describe('state database ownership and backup on disk', { timeout: 120_000 }, ()
       expect(first.db).toBeInstanceOf(PGlite)
       expect((await readOwner(dbDir()))?.pid).toBe(process.pid)
       await expect(openStateDatabase(dbDir())).rejects.toThrow(/holds the database/)
+      await expect(openStateDatabase(dbDir()).catch(noticeOf)).resolves.toMatchObject({ code: 'storage.held', params: { pid: process.pid, file: dbDir() } })
       const second = (await readStateDatabase(stateDir))!
       expect(second.db).not.toBeInstanceOf(PGlite)
       expect(await databaseVersion(second.db)).toBe(DATABASE_VERSION)
@@ -75,6 +78,31 @@ describe('state database ownership and backup on disk', { timeout: 120_000 }, ()
     writeOwner(dbDir(), { pid: process.pid, port: 1 })
     expect(await readOwner(dbDir())).toBeNull()
     await opened(async (db) => expect(await databaseVersion(db)).toBe(DATABASE_VERSION))
+  })
+
+  it('recovers startup after a reader releases the real database folder', async () => {
+    await (await prepare()).close()
+    const reader = (await readStateDatabase(stateDir))!
+    let recovered: StateDatabase | undefined
+    let pageClosed = false
+    try {
+      expect(await startWithStorageRetry({
+        prepare: async () => { recovered = await prepare() },
+        blocked: async (error) => {
+          expect(noticeOf(error)).toMatchObject({ code: 'storage.held' })
+          expect(recovered).toBeUndefined()
+          expect(await databaseVersion(reader.db)).toBe(DATABASE_VERSION)
+          await reader.close()
+          return { update: () => {}, close: async () => { pageClosed = true } }
+        },
+        log: (line) => logs.push(line),
+      })).toBe(true)
+      expect(pageClosed).toBe(true)
+      expect(await databaseVersion(recovered!.db)).toBe(DATABASE_VERSION)
+    } finally {
+      if (recovered === undefined) await reader.close().catch(() => {})
+      await recovered?.close()
+    }
   })
 
   it('is owned by one of two opens started together, the other refused', async () => {

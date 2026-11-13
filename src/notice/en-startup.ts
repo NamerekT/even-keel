@@ -17,6 +17,7 @@ export const STARTUP_NOTICES = {
   'storage.newer': (p: { file: string; version: number; known: number }) =>
     `storage: ${p.file} is from a newer version of Even Keel (schema ${p.version}, this one knows up to ${p.known}); ` +
     'put back its *.bak copy or update Even Keel',
+  'storage.held': (p: { pid: number; file: string }) => `storage: process ${p.pid} holds the database in ${p.file}; wait for it to finish or close the other Even Keel instance`,
   'storage.damaged': (p: { file: string }) => `storage: ${p.file} cannot be read, so nothing was migrated`,
   'storage.unknownProject': (p: { file: string; project: string }) =>
     `storage: ${p.file} names the project ${p.project}, which the config does not have, so nothing was migrated`,
