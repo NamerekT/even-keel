@@ -15,6 +15,7 @@ import { FieldHead, HelpTip, Row } from './settingsParts.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
 import { trustTexts } from '../i18n/trust.js'
+import { CommandBlock } from '../ui/blocks.js'
 
 /**
  * "Make it a repository" under a folder without one, "Make the first commit" under a repository without commits
@@ -211,9 +212,9 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
   )
 }
 
-/** A remote's refusal in one line under its field; git's own words behind a question mark. */
+/** A remote's refusal in one line under its field; git's own words behind a question mark, a command to run under it. */
 function RemoteRefusal({ refusal }: { refusal: Notice }) {
-  const { shown, detail } = remoteRefusal(refusal)
+  const { shown, detail, command } = remoteRefusal(refusal)
   return (
     <Status>
       {say(shown)}
@@ -224,6 +225,7 @@ function RemoteRefusal({ refusal }: { refusal: Notice }) {
         </>
       )}{' '}
       <NoticeFixButton project={null} notice={refusal} />
+      {command !== null && <CommandBlock command={command} />}
     </Status>
   )
 }

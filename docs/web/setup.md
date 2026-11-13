@@ -61,9 +61,14 @@ reason and a link to the setup's Git step; git without a name and e-mail closes 
 - **Clone** — "Remote address" (`ProjectDraft.remote`). The check asks the remote first (`git ls-remote --symref`,
   `sharedRemoteReader` in `src/git/remote-run.ts`, held for a minute per address); a text that is no address
   (`remoteShaped`: a URL, `[user@]host:path` or a full local path) is refused as `git.remoteShape` without asking git
-  (BTN-1087). A refusal is `git.remoteShape|remoteDenied|remoteNotFound|remoteNetwork|remoteFailed` in one line under the
-  field (`remoteRefusal` in `web/src/pages/remoteRefusal.ts`): the address cut to 48 characters, git's own words behind a
-  `HelpTip`. An answer is "The remote answered" with the main branch and `[change]`, which opens the branch field right
+  (BTN-1087). A refusal is `git.remoteShape|remoteDenied|remoteHostKey|remoteSshKey|remoteNotFound|remoteNetwork|remoteFailed`
+  in one line under the field (`remoteRefusal` in `web/src/pages/remoteRefusal.ts`): the address cut to 48 characters,
+  git's own words behind a `HelpTip`. `remoteFailure` (`src/git/clone-progress.ts`, BTN-1091) picks the code by git's
+  English words (`remoteEnv` runs git with `LC_ALL=C`): "Host key verification failed" — `remoteHostKey`, whose
+  `ssh -T [-p port] [user@]host` (`sshProbe`) is a `CommandBlock` under the line; "Permission denied (publickey" —
+  `remoteSshKey`; no rights, or an HTTP(S) remote's "Repository not found"/404, which a private repository answers to a
+  git not signed in — `remoteDenied`. The fake's remotes with `private`, `hostkey` and `nokey` go through
+  `remoteFailure` with git's real output. An answer is "The remote answered" with the main branch and `[change]`, which opens the branch field right
   under the remote (under the path or the folder for the other sources). A branch the remote lacks is no refusal: the default branch is cloned and the wanted one is
   made when the entry is written.
 - **Folder** (Clone, New repository and "Without git") — Even Keel's projects folder (`projectsDir()`, the data

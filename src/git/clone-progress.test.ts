@@ -30,15 +30,51 @@ describe('remoteFailure', () => {
   it.each([
     ["fatal: Authentication failed for 'https://example.com/a/b.git/'", 'git.remoteDenied'],
     ['fatal: could not read Username for \'https://example.com\': terminal prompts disabled', 'git.remoteDenied'],
-    ['git@example.com: Permission denied (publickey).\nfatal: Could not read from remote repository.', 'git.remoteDenied'],
     ["fatal: unable to access 'https://example.com/a/b.git/': The requested URL returned error: 403", 'git.remoteDenied'],
     ["fatal: unable to access 'https://example.invalid/a/b.git/': Could not resolve host: example.invalid", 'git.remoteNetwork'],
     ['ssh: connect to host example.com port 22: Connection timed out', 'git.remoteNetwork'],
-    ['remote: Repository not found.\nfatal: repository \'https://example.com/a/b.git/\' not found', 'git.remoteNotFound'],
+    ['remote: Repository not found.\nfatal: repository \'https://example.com/a/b.git/\' not found', 'git.remoteDenied'],
     ["fatal: 'D:/none' does not appear to be a git repository", 'git.remoteNotFound'],
     ['fatal: early EOF', 'git.remoteFailed'],
   ])('reads %j as %s', (out, code) => {
     expect(remoteFailure(out, 'https://example.com/a/b.git')).toMatchObject({ code, params: { remote: 'https://example.com/a/b.git' }, detail: out })
+  })
+
+  const SSH_TAIL = '\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.\n'
+
+  it('reads an unknown SSH host key as its own notice with the command that learns it', () => {
+    const out = `Host key verification failed.\r${SSH_TAIL}`
+    expect(remoteFailure(out, 'git@example.com:owner/storefront.git')).toEqual({
+      code: 'git.remoteHostKey',
+      params: { remote: 'git@example.com:owner/storefront.git', command: 'ssh -T git@example.com' },
+      detail: out,
+    })
+  })
+
+  it.each([
+    ['ssh://git@example.com:2222/owner/storefront.git', 'ssh -T -p 2222 git@example.com'],
+    ['ssh://example.com/owner/storefront.git', 'ssh -T example.com'],
+    ['git+ssh://deploy@git.example.com/storefront', 'ssh -T deploy@git.example.com'],
+    ['example:owner/storefront', 'ssh -T example'],
+  ])('learns the host key of %s with %s', (remote, command) => {
+    expect(remoteFailure(`Host key verification failed.${SSH_TAIL}`, remote).params).toEqual({ remote, command })
+  })
+
+  it.each([
+    `git@example.com: Permission denied (publickey).${SSH_TAIL}`,
+    `git@example.com: Permission denied (publickey,password).${SSH_TAIL}`,
+  ])('reads an SSH refusal of the key %j as no SSH key', (out) => {
+    expect(remoteFailure(out, 'git@example.com:owner/storefront.git')).toMatchObject({ code: 'git.remoteSshKey', params: { remote: 'git@example.com:owner/storefront.git' } })
+  })
+
+  it('reads "repository not found" over HTTPS as no access: a private repository answers so to a git not signed in', () => {
+    const out = "remote: Repository not found.\nfatal: repository 'https://example.com/owner/private.git/' not found\n"
+    expect(remoteFailure(out, 'https://example.com/owner/private.git').code).toBe('git.remoteDenied')
+  })
+
+  it('keeps "not found" of an SSH or local remote as no repository', () => {
+    expect(remoteFailure(`ERROR: Repository not found.${SSH_TAIL}`, 'git@example.com:owner/none.git').code).toBe('git.remoteNotFound')
+    expect(remoteFailure("fatal: repository 'D:/none' does not exist\n", 'D:/none').code).toBe('git.remoteNotFound')
   })
 })
 

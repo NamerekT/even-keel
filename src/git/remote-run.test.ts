@@ -1,5 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
-import { remoteReader, type RemoteGit } from './remote-run.js'
+import { remoteEnv, remoteReader, type RemoteGit } from './remote-run.js'
+
+describe('remoteEnv', () => {
+  it('asks nobody and has git speak English, the words its refusals are read by', () => {
+    expect(remoteEnv({ LANG: 'ru_RU.UTF-8', PATH: '/bin' })).toEqual({
+      LANG: 'ru_RU.UTF-8',
+      PATH: '/bin',
+      LC_ALL: 'C',
+      GIT_TERMINAL_PROMPT: '0',
+      GCM_INTERACTIVE: 'never',
+    })
+  })
+})
 
 describe('remoteReader', () => {
   it('refuses a text that is no git address without asking git', async () => {

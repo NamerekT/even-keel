@@ -27,10 +27,11 @@ export type RemoteGit = (args: string[], options?: RunOptions) => Promise<Remote
 
 /**
  * A service has nobody to ask: no terminal prompt and no window of Git Credential Manager, which a Windows service
- * would wait on unseen. Git then fails with what the machine's saved credentials give.
+ * would wait on unseen. Git then fails with what the machine's saved credentials give, in English (`LC_ALL=C`): its
+ * progress and its refusals are read by their words.
  */
 export function remoteEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-  return { ...env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }
+  return { ...env, LC_ALL: 'C', GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }
 }
 
 /** Git on a remote, with no working folder: `ls-remote`, `clone`. Its output is kept from both streams, cut to its end. */

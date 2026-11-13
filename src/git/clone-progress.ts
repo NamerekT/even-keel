@@ -42,15 +42,42 @@ export function parseProgress(line: string): CloneProgress | null {
 const DENIED = /authentication failed|permission denied|could not read (?:username|password)|terminal prompts disabled|returned error: 40[13]|access denied|invalid credentials|logon failed/i
 const NETWORK = /could not resolve host|failed to connect|connection timed out|connection refused|network is unreachable|could not resolve hostname|operation timed out|connection reset|ssl|unable to look up/i
 const NOT_FOUND = /repository not found|returned error: 404|does not appear to be a git repository|not found|does not exist/i
+// A private repository over HTTP answers a git that is not signed in as if it were not there.
+const HTTP_HIDDEN = /repository not found|returned error: 404/i
+const HTTP_REMOTE = /^https?:\/\//i
+const HOST_KEY = /host key verification failed/i
+const SSH_KEY = /permission denied \(publickey/i
 
 /**
- * Why git could not reach a remote, by what it printed: no rights (the machine's git credentials), no such repository,
- * the network, or anything else with git's words in the detail. A private repository answers "not found" to a reader
- * without rights, so that notice names both.
+ * Why git could not reach a remote, by what it printed (BTN-1091): an SSH host key never accepted on this machine, with
+ * the command that accepts it; no SSH key the server takes; no rights over HTTP, a private repository's "not found"
+ * included; no such repository; the network; or anything else, with git's words in the detail.
  */
 export function remoteFailure(out: string, remote: string): Notice {
-  const code = DENIED.test(out) ? 'git.remoteDenied' : NETWORK.test(out) ? 'git.remoteNetwork' : NOT_FOUND.test(out) ? 'git.remoteNotFound' : 'git.remoteFailed'
+  const probe = HOST_KEY.test(out) ? sshProbe(remote) : null
+  if (probe !== null) return notice('git.remoteHostKey', { remote, command: probe }, { detail: out })
+  const code = SSH_KEY.test(out)
+    ? 'git.remoteSshKey'
+    : DENIED.test(out) || (HTTP_REMOTE.test(remote.trim()) && HTTP_HIDDEN.test(out))
+      ? 'git.remoteDenied'
+      : NETWORK.test(out)
+        ? 'git.remoteNetwork'
+        : NOT_FOUND.test(out)
+          ? 'git.remoteNotFound'
+          : 'git.remoteFailed'
   return notice(code, { remote }, { detail: out })
+}
+
+/** `ssh -T [-p <port>] [user@]host` of an SSH remote: run once in a terminal, it asks to accept the host's key. */
+export function sshProbe(remote: string): string | null {
+  const text = remote.trim()
+  const url = /^(?:git\+)?ssh:\/\/(?:([^@/]+)@)?([^/:]+)(?::(\d+))?\//i.exec(text)
+  const scp = url === null && !text.includes('://') ? /^(?:([^\s@/:]+)@)?([^\s@/:]{2,}):/.exec(text) : null
+  const found = url ?? scp
+  if (found === null) return null
+  const port = url?.[3]
+  const user = found[1] === undefined ? '' : `${found[1]}@`
+  return `ssh -T ${port === undefined ? '' : `-p ${port} `}${user}${found[2]!}`
 }
 
 const URL_FORM = /^[a-z][a-z0-9+.-]*:\/\/\S+$/i

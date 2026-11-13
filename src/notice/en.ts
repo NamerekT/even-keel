@@ -131,8 +131,11 @@ export const en = {
   'git.identityFailed': () => 'git could not write the name and e-mail into its global config',
   'git.initFailed': (p: { path: string }) => `git could not make ${p.path} a repository`,
   'git.ignoreUnknown': (p: { repo: string; dir: string }) => `git: cannot tell whether ${p.repo} ignores ${p.dir}`,
-  'git.remoteDenied': (p: { remote: string }) =>
-    `git has no rights to read ${p.remote}: sign git in to that server on the machine of Even Keel (its credential helper or an SSH key of the user Even Keel runs as), then try again`,
+  'git.remoteDenied': (p: { remote: string }) => `git has no access to ${p.remote}: sign git in on the machine of Even Keel (Git Credential Manager) or check the address`,
+  'git.remoteHostKey': (p: { remote: string; command: string }) =>
+    `SSH does not know the server of ${p.remote} yet: run this once in a terminal of the user Even Keel runs as and accept the fingerprint`,
+  'git.remoteSshKey': (p: { remote: string }) =>
+    `the server of ${p.remote} took no SSH key: add the key of the user Even Keel runs as to your account there, or use the HTTPS address`,
   'git.remoteNotFound': (p: { remote: string }) => `there is no repository at ${p.remote}: check the address; a private repository answers the same to a git that is not signed in`,
   'git.remoteNetwork': (p: { remote: string }) => `git could not reach ${p.remote}: check the network and the address, then try again`,
   'git.remoteFailed': (p: { remote: string }) => `git could not read ${p.remote}`,

@@ -1,4 +1,4 @@
-import { remoteName, remoteShaped } from '../../../src/git/clone-progress.js'
+import { remoteFailure, remoteName, remoteShaped } from '../../../src/git/clone-progress.js'
 import { fail, notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, FolderPlace, JobStep, ProjectCheck, ProjectDraft, StepJob } from '../../../src/state.js'
 
@@ -15,9 +15,19 @@ const BROKEN_OUT = [
   'and the repository exists.',
 ].join('\n')
 
+const SSH_TAIL = '\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.\n'
+
+/** What git prints for a remote whose name has the word, as the service reads it (BTN-1091). */
+const GIT_OUT: readonly (readonly [string, (remote: string) => string])[] = [
+  ['private', (remote) => `remote: Repository not found.\nfatal: repository '${remote}/' not found\n`],
+  ['hostkey', () => `Host key verification failed.\r${SSH_TAIL}`],
+  ['nokey', (remote) => `${remote.split(':')[0]}: Permission denied (publickey).${SSH_TAIL}`],
+]
+
 /**
  * The folder of a clone, a new repository or a named folder without git (BTN-1048) by the fake's rules: a text that is
- * no address is refused as the service refuses it; a remote with `denied`, `nope`, `offline` or `broken` is refused as git would; a folder name with `full` holds files, one with `empty` is
+ * no address is refused as the service refuses it; a remote with `denied`, `nope`, `offline`, `broken`, `private`,
+ * `hostkey` or `nokey` is refused as git would; a folder name with `full` holds files, one with `empty` is
  * there and empty; a remote with `again` has a clone of it in the projects folder already. `null` — the draft names
  * a checkout already there, which the old rules check.
  */
@@ -31,6 +41,8 @@ export function fakePlace(state: EvenKeelState, draft: ProjectDraft): ProjectChe
   if (clone && remote === '') return { ...NONE, notice: null }
   if (clone && !remoteShaped(remote)) return { ...NONE, notice: notice('git.remoteShape', {}) }
   if (clone && remote.includes('broken')) return { ...NONE, notice: notice('git.remoteFailed', { remote }, { detail: BROKEN_OUT }) }
+  const out = clone ? GIT_OUT.find(([word]) => remote.includes(word)) : undefined
+  if (out !== undefined) return { ...NONE, notice: remoteFailure(out[1](remote), remote) }
   if (clone && remote.includes('denied')) return { ...NONE, notice: notice('git.remoteDenied', { remote }) }
   if (clone && remote.includes('nope')) return { ...NONE, notice: notice('git.remoteNotFound', { remote }) }
   if (clone && remote.includes('offline')) return { ...NONE, notice: notice('git.remoteNetwork', { remote }, { detail: 'Could not resolve host' }) }
