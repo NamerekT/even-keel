@@ -10,22 +10,25 @@ const size = (bytes: number) => {
 const files = (count: number) => `${count} ${plural('en', count, { one: 'file', other: 'files' })}`
 
 export const creationEn: Messages['creation'] = {
-  source: 'Source',
-  sources: { clone: 'Clone', new: 'New repository', existing: 'Existing' },
-  sourceHints: {
-    clone: 'Even Keel clones the repository from its remote into a folder on this machine.',
-    new: 'The folder becomes a git repository, and all it holds goes into the first commit.',
-    existing: 'A clone that is on this machine already.',
+  target: 'Folder or repository address',
+  targetHint:
+    "The full path of a folder on this machine — with a repository, without one, or not made yet; a repository's address to clone (HTTPS or SSH); or just the name of a new folder in Even Keel's projects folder. A private repository needs git signed in to its server.",
+  targetPlaceholder: (platform) => `${platform === 'win32' ? 'C:\\Projects\\my-app' : '~/projects/my-app'} · https://github.com/me/app.git · git@github.com:me/app.git`,
+  reads: {
+    clone: (host) => `Clone from ${host}`,
+    cloneEmpty: 'the repository is empty',
+    existing: 'Existing repository',
+    noRemote: 'no remote',
+    here: 'New repository in this folder',
+    empty: 'empty',
+    make: 'No such folder — Even Keel makes it and a new repository in it',
+    name: 'New folder with a repository',
   },
-  remote: 'Remote address',
-  remoteHint: "The address this machine's git clones the repository from: HTTPS or SSH. A private repository needs git signed in to that server.",
-  remotePlaceholder: 'https://github.com/owner/storefront.git',
-  remoteRead: (branch) => (branch === null ? 'The remote answered: the repository is empty' : 'The remote answered'),
+  takeRoot: 'Use the top',
   folder: 'Folder',
   folderHint: "The folder's name in Even Keel's projects folder. Blank — the one suggested by the address or the project.",
   folderBlank: (clone) => `Type a name, or leave it blank for one named after the ${clone ? 'address' : 'project'}.`,
   folderOtherHint: 'The full path of the folder. A clone needs an empty folder or one that is not there yet.',
-  folderOtherHintNew: 'The full path of the folder. It need not exist: Even Keel makes it.',
   folderOtherHintPlain: 'The full path of the folder. It need not exist: Even Keel makes it; it may hold files.',
   folderOtherPlaceholder: 'Full path',
   other: 'another folder…',
@@ -39,7 +42,6 @@ export const creationEn: Messages['creation'] = {
   cloneThere: (path) => `Even Keel's projects folder has a clone of this remote on this branch already: ${path}`,
   takeIt: 'Use it',
   gitMissing: "Git does not start on Even Keel's machine: a project in a git repository is not available.",
-  noIdentity: 'Git has no name and e-mail for commits: a clone and a new repository are not available.',
   gitSetup: 'Set up git',
   window: {
     title: 'Creating the project',

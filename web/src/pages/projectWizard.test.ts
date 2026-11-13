@@ -28,8 +28,8 @@ import {
   type WizardFields,
 } from './projectWizard.js'
 
-// A checkout already there, as before the clone and the new repository (BTN-1048); their tests set the source.
-const fields = (change: Partial<WizardFields>): WizardFields => ({ ...EMPTY_FIELDS, tracker: 'huly', source: 'existing', ...change })
+// A full path in the one field (BTN-1093); the clone's and the plain folder's tests type their own.
+const fields = (change: Partial<WizardFields>): WizardFields => ({ ...EMPTY_FIELDS, tracker: 'huly', target: 'D:/Projects/shop', ...change })
 
 const passed: ProjectCheck = {
   repo: { root: 'D:/Projects/shop', current: 'main', suggested: null, branches: { current: 'main', head: 'a1b2c3d', branches: [{ name: 'main', remote: null }] }, notice: null },
@@ -45,8 +45,8 @@ const passed: ProjectCheck = {
 
 describe('draftOfFields', () => {
   it('trims the texts and gives a worktree per task as slot 0', () => {
-    expect(draftOfFields(fields({ repo: ' D:/Projects/shop ', key: ' SHOP ', name: ' Shop ', branch: ' main ', trackerProject: ' org/shop ' }))).toEqual({
-      repo: 'D:/Projects/shop',
+    expect(draftOfFields(fields({ key: ' SHOP ', name: ' Shop ', branch: ' main ', trackerProject: ' org/shop ' }))).toEqual({
+      repo: '',
       branch: 'main',
       key: 'SHOP',
       name: 'Shop',
@@ -56,16 +56,28 @@ describe('draftOfFields', () => {
       slot: 0,
       milestones: [],
       provider: null,
-      source: 'existing',
+      target: 'D:/Projects/shop',
     })
   })
 
-  it('sends a clone its remote and the folder name, and no path while none is typed (BTN-1048)', () => {
-    const clone = fields({ source: 'clone', remote: ' https://git.example.com/acme/shop.git ', folder: ' shop ', repo: 'D:/left/over' })
-    expect(draftOfFields(clone)).toMatchObject({ source: 'clone', remote: 'https://git.example.com/acme/shop.git', folder: 'shop', repo: '' })
+  it('sends the one field as typed, for the service to read: blanks are its "nothing like a folder" (BTN-1093)', () => {
+    expect(draftOfFields(fields({ target: '   ' }))).toMatchObject({ target: '   ' })
+    expect(draftOfFields(fields({ target: 'D:/Projects/shop' }))).not.toHaveProperty('source')
+  })
+
+  it('sends a clone its folder name, and a path only behind "another folder" (BTN-1093)', () => {
+    const clone = fields({ target: 'https://git.example.com/acme/shop.git', folder: ' shop ', repo: 'D:/left/over' })
+    expect(draftOfFields(clone)).toMatchObject({ target: 'https://git.example.com/acme/shop.git', folder: 'shop', repo: '' })
     expect(draftOfFields({ ...clone, other: true })).toMatchObject({ repo: 'D:/left/over' })
     expect(draftOfFields({ ...clone, other: true })).not.toHaveProperty('folder')
-    expect(draftOfFields(fields({ source: 'new', folder: 'shop' }))).not.toHaveProperty('remote')
+  })
+
+  it('sends neither a folder nor a path for a typed path or a bare name: the one field names the folder', () => {
+    for (const target of ['D:/Projects/shop', 'shop']) {
+      const draft = draftOfFields(fields({ target, folder: 'left', other: true, repo: 'D:/left/over' }))
+      expect(draft).toMatchObject({ target, repo: '' })
+      expect(draft).not.toHaveProperty('folder')
+    }
   })
 
   it('gives the agent picked, and none for the shared one (BTN-310)', () => {
@@ -417,19 +429,20 @@ describe('missingOf', () => {
   const ready = fields({ repo: 'D:/Projects/shop', profile: 'p-1', key: 'SHOP' })
 
   it('names the first thing missing, in the order of the steps', () => {
-    expect(missingOf(fields({}), 'key', null)).toBe('repo')
-    expect(missingOf(fields({ repo: 'D:/x' }), 'key', null)).toBe('profile')
-    expect(missingOf(fields({ repo: 'D:/x', profile: 'p-1' }), 'place', null)).toBe('place')
-    expect(missingOf(fields({ repo: 'D:/x', profile: 'p-1', trackerProject: 'o/n' }), 'place', null)).toBe('key')
-    expect(missingOf(fields({ repo: 'D:/x', profile: 'p-1' }), 'key', null)).toBe('project')
+    expect(missingOf(fields({ target: '' }), 'key', null)).toBe('target')
+    expect(missingOf(fields({ target: 'D:/x' }), 'key', null)).toBe('profile')
+    expect(missingOf(fields({ target: 'D:/x', profile: 'p-1' }), 'place', null)).toBe('place')
+    expect(missingOf(fields({ target: 'D:/x', profile: 'p-1', trackerProject: 'o/n' }), 'place', null)).toBe('key')
+    expect(missingOf(fields({ target: 'D:/x', profile: 'p-1' }), 'key', null)).toBe('project')
     expect(missingOf(ready, 'key', null)).toBe('checking')
   })
 
-  it("names a clone's blank remote, and a new repository needs no path: its folder is Even Keel's (BTN-1048)", () => {
-    expect(missingOf(fields({ source: 'clone' }), 'key', null)).toBe('remote')
-    expect(missingOf(fields({ source: 'clone', remote: 'https://git.example.com/a/b.git' }), 'key', null)).toBe('profile')
-    expect(missingOf(fields({ source: 'new' }), 'key', null)).toBe('profile')
-    expect(missingOf(fields({ source: 'new', other: true }), 'key', null)).toBe('repo')
+  it('needs a path only behind "another folder" of a clone or a folder without git (BTN-1093)', () => {
+    expect(missingOf(fields({ target: 'https://git.example.com/a/b.git' }), 'key', null)).toBe('profile')
+    expect(missingOf(fields({ target: 'https://git.example.com/a/b.git', other: true }), 'key', null)).toBe('repo')
+    expect(missingOf(fields({ target: 'shop', other: true }), 'key', null)).toBe('profile')
+    expect(missingOf(fields({ git: false, target: '', other: true }), 'key', null)).toBe('repo')
+    expect(missingOf(fields({ git: false, target: '' }), 'key', null)).toBe('profile')
   })
 
   it("names the check's failures, and nothing once it passed", () => {
@@ -488,10 +501,11 @@ describe('keyOfTyped', () => {
 
 describe('folderView', () => {
   const quiet = { answer: false, remoteHeard: false, pending: false }
-  const sources = ['clone', 'new'] as const
+  const address = 'https://example.com/a.git'
+  // The folder line is a clone's and a project's without git (BTN-1093).
   const modes = [
     { name: 'without git', change: { git: false } },
-    ...sources.map((source) => ({ name: `${source}`, change: { git: true, source } })),
+    { name: 'clone', change: { git: true, target: address } },
   ]
 
   // Every mode × own/other folder × blank/typed × waiting/answered: only a clone's own blank folder before its remote answers hides.
@@ -510,28 +524,28 @@ describe('folderView', () => {
   }
 
   it('shows a clone folder erased after its remote answered', () => {
-    expect(folderView(fields({ git: true, source: 'clone', remote: 'https://example.com/a.git' }), { ...quiet, remoteHeard: true, pending: true }).shown).toBe(true)
+    expect(folderView(fields({ git: true, target: address }), { ...quiet, remoteHeard: true, pending: true }).shown).toBe(true)
   })
 
   it('shows a clone folder with an answer or a refusal', () => {
-    expect(folderView(fields({ git: true, source: 'clone' }), { ...quiet, answer: true }).shown).toBe(true)
+    expect(folderView(fields({ git: true, target: address }), { ...quiet, answer: true }).shown).toBe(true)
   })
 
   it('says it is waiting while the check runs and nothing is answered', () => {
     expect(folderView(fields({ git: false }), { ...quiet, pending: true }).note).toBe('checking')
-    expect(folderView(fields({ git: true, source: 'new', folder: 'app' }), { ...quiet, pending: true }).note).toBe('checking')
+    expect(folderView(fields({ git: true, target: address, folder: 'app' }), { ...quiet, pending: true }).note).toBe('checking')
     expect(folderView(fields({ git: false, other: true, repo: 'D:\app' }), { ...quiet, pending: true }).note).toBe('checking')
   })
 
   it('says what to type for a blank name nobody answered', () => {
     expect(folderView(fields({ git: false }), quiet).note).toBe('blank')
-    expect(folderView(fields({ git: true, source: 'new' }), quiet).note).toBe('blank')
+    expect(folderView(fields({ git: true, target: address }), { ...quiet, remoteHeard: true }).note).toBe('blank')
   })
 
   it('says nothing over an answer, a typed name or a hidden field', () => {
     expect(folderView(fields({ git: false }), { ...quiet, answer: true, pending: true }).note).toBeNull()
     expect(folderView(fields({ git: false, folder: 'app' }), quiet).note).toBeNull()
     expect(folderView(fields({ git: false, other: true }), quiet).note).toBeNull()
-    expect(folderView(fields({ git: true, source: 'clone' }), { ...quiet, pending: true }).note).toBeNull()
+    expect(folderView(fields({ git: true, target: address }), { ...quiet, pending: true }).note).toBeNull()
   })
 })

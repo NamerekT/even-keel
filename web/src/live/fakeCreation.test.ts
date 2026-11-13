@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EvenKeelState, ProjectDraft } from '../../../src/state.js'
-import { FAKE_PROJECTS_DIR, fakeJob, fakeJobCommand, fakePlace, withAddedJob } from './fakeCreation.js'
+import { FAKE_PROJECTS_DIR, fakeJob, fakeJobCommand, fakePlace, fakeTarget, withAddedJob } from './fakeCreation.js'
 
 const state = { projects: ['OPS'], config: { projects: { OPS: { repo: 'D:/Projects/ops' } } } } as unknown as EvenKeelState
 const draft = (change: Partial<ProjectDraft>): ProjectDraft =>
@@ -12,6 +12,24 @@ describe("the fake's project creation (BTN-1048)", () => {
     expect(fakePlace(state, draft({ source: 'clone', remote, folder: '' }))).toMatchObject({ root: `${FAKE_PROJECTS_DIR}/storefront`, current: 'main', place: { dir: FAKE_PROJECTS_DIR, name: 'storefront', state: 'free' }, notice: null })
     expect(fakePlace(state, draft({ source: 'clone', remote: 'https://git.example.com/denied.git' }))?.notice?.code).toBe('git.remoteDenied')
     expect(fakePlace(state, draft({ source: 'clone', remote: '' }))).toMatchObject({ root: null, notice: null })
+  })
+
+  it("reads the wizard's one field into the source as the service does (BTN-1093)", () => {
+    const win = { ...state, platform: 'win32', git: { version: '2.47.1', name: 'John Doe', email: 'john@example.com' } } as EvenKeelState
+    const read = (target: string) => fakeTarget(win, draft({ target }))
+    expect(read('https://git.example.com/acme/shop.git')).toMatchObject({ draft: { source: 'clone', remote: 'https://git.example.com/acme/shop.git' }, read: { as: 'clone', host: 'git.example.com' } })
+    expect(read('D:\\Projects\\shop')).toMatchObject({ draft: { source: 'existing', repo: 'D:/Projects/shop' }, read: { as: 'existing', remote: { name: 'origin' } } })
+    expect(read('D:/Projects/shop-noremote')?.read).toEqual({ as: 'existing', remote: null })
+    expect(read('D:/Projects/notes-full')).toMatchObject({ draft: { source: 'new', repo: 'D:/Projects/notes-full' }, read: { as: 'here' } })
+    expect(read('D:/Projects/app-missing')?.read).toEqual({ as: 'make' })
+    expect(read('my-app')).toMatchObject({ draft: { source: 'new', repo: '', folder: 'my-app' }, read: { as: 'name' } })
+    expect(read('D:/Projects/shop/inside')?.notice).toMatchObject({ code: 'wizard.insideRepo', params: { root: 'D:/Projects/shop' } })
+    expect(read('./my-app')?.notice?.code).toBe('wizard.fullPath')
+    expect(read('C:\\')?.notice?.code).toBe('wizard.rootFolder')
+    expect(read('   ')?.notice?.code).toBe('wizard.notTarget')
+    expect(read('')).toEqual({ draft: null, read: null, notice: null })
+    expect(fakeTarget({ ...win, git: { version: '2.47.1', name: null, email: null } }, draft({ target: 'my-app' }))).toMatchObject({ draft: null, read: { as: 'name' }, notice: { code: 'git.noIdentity' } })
+    expect(fakeTarget(win, draft({ git: false, target: 'my-app' }))).toBeNull()
   })
 
   it('leaves a checkout already there and a typed folder without git to the old rules', () => {

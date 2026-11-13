@@ -21,7 +21,8 @@ describe('automatic Claude trust configuration', () => {
   })
 
   it('does not add a trust switch through the wizard or forms', () => {
-    const draft = draftOfFields({ ...EMPTY_FIELDS, source: 'existing', key: 'NEW', repo: 'D:/new', tracker: 'huly' })!
+    // The service reads the one field into the repository before the entry is written (BTN-1093).
+    const draft = { ...draftOfFields({ ...EMPTY_FIELDS, target: 'D:/new', key: 'NEW', tracker: 'huly' })!, repo: 'D:/new' }
     expect(draft).not.toHaveProperty('trustClaude')
     const added = withNewProject({ projects: [] }, draft, 'new')
     expect((added.projects as object[])[0]).not.toHaveProperty('trustClaude')

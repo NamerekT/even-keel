@@ -43,6 +43,27 @@
   font-size: var(--text-13);
 }
 
+/* How the one field "Folder or repository address" was read: an icon and a line (BTN-1093). */
+.project-add__read {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  overflow-wrap: anywhere;
+}
+
+.project-add__read-icon {
+  display: inline-flex;
+  padding-top: 2px;
+  color: var(--lamp-done);
+}
+
+.project-add__path {
+  font-family: var(--mono);
+}
+
 .project-add__trust {
   display: flex;
   flex-direction: column;
