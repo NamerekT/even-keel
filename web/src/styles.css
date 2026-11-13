@@ -7,8 +7,10 @@
 @import './styles/home.css';
 @import './styles/windows.css';
 
+/* The theme is `data-theme` on <html>, set before the first paint by the inline script of index.html and kept by
+   web/src/theme.ts: the system's theme or the one chosen in this browser (BTN-1089). One block of dark tokens below. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   --bg: #f4f3ef;
   --surface: #ffffff;
@@ -133,44 +135,44 @@
   --viewer-glass: rgb(255 255 255 / 0.18);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141413;
-    --surface: #1d1d1b;
-    --surface-muted: #262624;
-    --border: #34332f;
-    --fg: #ecebe6;
-    --fg-muted: #9a988f;
-    --accent: #7ea2ff;
+:root[data-theme='dark'] {
+  color-scheme: dark;
 
-    --lamp-done: #47c075;
-    --lamp-working: #5b92ff;
-    --lamp-waiting: #f0bd3c;
-    --lamp-error: #ff6b5f;
-    --lamp-idle: #6f6d66;
-    --lamp-fix: #b49cfc;
+  --bg: #141413;
+  --surface: #1d1d1b;
+  --surface-muted: #262624;
+  --border: #34332f;
+  --fg: #ecebe6;
+  --fg-muted: #9a988f;
+  --accent: #7ea2ff;
 
-    /* Cards and legends set every pair side by side, not only neighbours: 6 and 8 are lighter so they part from 3 and 2. */
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --series-4: #c98500;
-    --series-5: #d55181;
-    --series-6: #84cc52;
-    --series-7: #9085e9;
-    --series-8: #ff9b9b;
-    --series-other: #6f6d66;
+  --lamp-done: #47c075;
+  --lamp-working: #5b92ff;
+  --lamp-waiting: #f0bd3c;
+  --lamp-error: #ff6b5f;
+  --lamp-idle: #6f6d66;
+  --lamp-fix: #b49cfc;
 
-    --tone-1: #d8dde5;
-    --tone-2: #b5bdca;
-    --tone-3: #949fb1;
-    --tone-4: #7a8599;
-    --tone-5: #636e82;
-    --tone-6: #525c6f;
+  /* Cards and legends set every pair side by side, not only neighbours: 6 and 8 are lighter so they part from 3 and 2. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #84cc52;
+  --series-7: #9085e9;
+  --series-8: #ff9b9b;
+  --series-other: #6f6d66;
 
-    --warn-bg: #3a2f10;
-    --warn-fg: #f3d58a;
-    --error-bg: #3d1a17;
-    --error-fg: #ffb4ab;
-  }
+  --tone-1: #d8dde5;
+  --tone-2: #b5bdca;
+  --tone-3: #949fb1;
+  --tone-4: #7a8599;
+  --tone-5: #636e82;
+  --tone-6: #525c6f;
+
+  --warn-bg: #3a2f10;
+  --warn-fg: #f3d58a;
+  --error-bg: #3d1a17;
+  --error-fg: #ffb4ab;
 }

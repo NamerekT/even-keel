@@ -102,7 +102,8 @@ export function Segmented<T extends string>({
   blocked = [],
 }: {
   label: string
-  options: [T, string, string?][]
+  /** The value, what the item shows, its tip; an item that shows only an icon is named by its tip. */
+  options: [T, ReactNode, string?][]
   value: T
   onChange: (value: T) => void
   /** Options greyed and not picked; the caller says why next to the switch. */
@@ -115,6 +116,7 @@ export function Segmented<T extends string>({
           key={option}
           type="button"
           title={title}
+          aria-label={typeof text === 'string' ? undefined : title}
           className={option === value ? 'segmented__item segmented__item--on' : 'segmented__item'}
           aria-pressed={option === value}
           aria-disabled={blocked.includes(option) || undefined}

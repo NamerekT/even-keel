@@ -264,10 +264,8 @@
   right: 18%;
 }
 
-@media (prefers-color-scheme: dark) {
-  .basement {
-    --frame: #8d8b84;
-  }
+:root[data-theme='dark'] .basement {
+  --frame: #8d8b84;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -28,6 +28,8 @@ interface Options {
   width: number
   height: number
   light: boolean
+  /** The page's own theme choice, kept in the browser before the page loads (BTN-1089); the OS theme stays `light`'s. */
+  theme?: string
   reducedMotion: boolean
   full: boolean
   image: boolean
@@ -57,6 +59,10 @@ function parse(args: string[]): Options {
       options.width = width
       options.height = height
     } else if (arg === '--light') options.light = true
+    else if (arg === '--theme') {
+      options.theme = value()
+      if (!['system', 'light', 'dark'].includes(options.theme)) throw new Error('--theme is system, light or dark')
+    }
     else if (arg === '--reduced-motion') options.reducedMotion = true
     else if (arg === '--full') options.full = true
     else if (arg === '--no-image') options.image = false
@@ -133,6 +139,7 @@ async function main(): Promise<number> {
     })
     context.setDefaultTimeout(5000)
     await context.addInitScript({ path: join(ROOT, 'scripts/shot.page.js') })
+    if (options.theme) await context.addInitScript({ content: `localStorage.setItem('even-keel.theme', ${JSON.stringify(options.theme)})` })
     const page = await context.newPage()
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
@@ -142,7 +149,8 @@ async function main(): Promise<number> {
     await page.goto(url)
     for (const step of options.steps) await run(page, step)
     await page.waitForTimeout(options.settle)
-    console.log(`${url}  ${options.light ? 'light' : 'dark'} ${options.width}x${options.height}`)
+    const theme = options.theme ? ` (page: ${options.theme})` : ''
+    console.log(`${url}  ${options.light ? 'light' : 'dark'}${theme} ${options.width}x${options.height}`)
 
     const targets = options.selectors.length > 0 ? options.selectors : [':root']
     for (const [index, selector] of targets.entries()) {

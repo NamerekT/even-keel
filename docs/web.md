@@ -8,7 +8,7 @@ The area is split by subtopic, a file each in `docs/web/`: read this table, then
 
 | File | What is in it |
 | --- | --- |
-| [`interface.md`](web/interface.md) | The stack, the state stream, routes, the header and the home page |
+| [`interface.md`](web/interface.md) | The stack, the state stream, routes, the header, the home page and the theme |
 | [`project-page.md`](web/project-page.md) | The project page |
 | [`session-panel.md`](web/session-panel.md) | The session panel and the chat |
 | [`event-log.md`](web/event-log.md) | The event log: what the service writes, toasts, unread, `/log` |

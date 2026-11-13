@@ -41,6 +41,7 @@ import {
   type RuleKey,
 } from './settingsParts.js'
 import { TrackerIcon } from '../ui/icons.js'
+import { ThemeSwitch } from '../ui/ThemeSwitch.js'
 import { TokensInput } from '../ui/TokensInput.js'
 import { countFrom, tokensShown } from '../ui/tokens.js'
 import { knownStatuses, originsAt } from './ruleRows.js'
@@ -522,6 +523,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       <>
         <Section title={t.shared.sections.interface}>
           {select('language', t.shared.language, [{ value: '', label: t.shared.languageAuto }, ...languages])}
+          {/* Not a config key: kept in this browser and applied at once, outside the draft (BTN-1089). */}
+          <Row className="settings__field" label={t.shared.theme} hint={t.shared.themeHint} control={<ThemeSwitch words />} />
           {check('updatesCheck', t.shared.updatesCheck, t.shared.updatesCheckHint, false, 'updates')}
           {check('updatesNotify', t.shared.updatesNotify, t.shared.updatesNotifyHint)}
           {numberRow('attachmentLimit', t.shared.attachmentLimit, wholeOf(text('attachmentLimit'), 1) === undefined || errorOf('attachmentLimit') !== null, t.shared.attachmentLimitHint)}
