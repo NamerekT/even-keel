@@ -11,6 +11,7 @@ import { badgeEn } from './badge-en.js'
 import { profilesEn } from './profiles-en.js'
 import { demoEn } from './demo-en.js'
 import { creationEn } from './creation-en.js'
+import { transferEn } from './transfer-en.js'
 import { noticesEn } from './notices-en.js'
 import { eventsEn } from './events-en.js'
 import { hotkeysEn } from './hotkeys-en.js'
@@ -407,6 +408,7 @@ export const en: Messages = {
   profiles: profilesEn,
   demo: demoEn,
   creation: creationEn,
+  transfer: transferEn,
   basement: {
     tapes: ['CAUTION', 'DO NOT ENTER', 'WORK IN PROGRESS', 'NO ENTRY'],
     stats: ['What are you doing down here?', "We're still working on this page, don't get in the way!"],

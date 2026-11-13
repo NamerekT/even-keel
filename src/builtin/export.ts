@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
-import { exportPlan, progressOf, runExport, type ExportPlan, type ExportSource } from '../tracker/export.js'
+import { exportPlan, progressOf, runExport, type ExportPlan, type ExportRow, type ExportSource, type ExportState } from '../tracker/export.js'
 import type { OpenedExportTarget } from '../tracker/export-target.js'
 import { errorText } from '../tracker/link.js'
 import type { TrackerPlace } from '../tracker/source.js'
@@ -66,17 +66,7 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
   }
 }
 
-/** A project's copy as the page sees it. */
-export interface ExportState {
-  target: ExportTargetFields | null
-  running: boolean
-  startedAt: string | null
-  finishedAt: string | null
-  /** How many tasks reached each stage; `tasks` — those the copy took up so far. */
-  progress: ReturnType<typeof progressOf>
-  /** Why the last run stopped; `null` — it did not, or none ran since the start of the service. */
-  failed: Notice | null
-}
+export type { ExportState }
 
 export interface BuiltinExportsDeps {
   db: Db
@@ -139,14 +129,24 @@ export class BuiltinExports {
 
   async state(project: string): Promise<ExportState> {
     const header = await this.records.header(project)
+    const rows = await this.records.rows(project)
     return {
       target: header === null ? null : { profile: header.profile, place: header.place, key: header.key },
       running: this.runs.has(project),
       startedAt: header?.startedAt ?? null,
       finishedAt: header?.finishedAt ?? null,
-      progress: progressOf(await this.records.rows(project)),
+      progress: progressOf(rows),
+      total: await this.total(project, rows),
       failed: this.failures.get(project) ?? null,
     }
+  }
+
+  private async total(project: string, rows: readonly ExportRow[]): Promise<number> {
+    const names = new BuiltinNames(this.deps.places())
+    if (!names.knows(project)) return rows.length
+    const store = new BuiltinStore(this.deps.db, (key) => names.name(key))
+    const taken = new Set(rows.map((row) => row.number))
+    return rows.length + (await store.list([project])).filter((task) => isOpen(task.status) && !taken.has(task.number)).length
   }
 
   /** The run of the project, if one goes on: tests wait for it. */

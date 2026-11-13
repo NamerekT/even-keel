@@ -180,6 +180,30 @@ describe('BuiltinExports', () => {
     expect(await exports.state(ABC)).toMatchObject({ failed: null, progress: { marked: 2 } })
   })
 
+  it('counts the open tasks the copy is to take, before it starts and while it goes', async () => {
+    await seed()
+    const exports = exportsWith(fakeTarget())
+    expect(await exports.state(ABC)).toMatchObject({ total: 2, progress: { tasks: 0 } })
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    expect(await exports.state(ABC)).toMatchObject({ total: 2, progress: { marked: 2 } })
+  })
+
+  it("names a copied task's new key where the page still shows the old one: the search and the card's links (BTN-1075)", async () => {
+    const { one } = await seed()
+    const control = builtinControl({ db, places: () => PLACES, refresh: async () => true })
+    expect((await control.search('Parent', null))[0]?.moved).toBeUndefined()
+    const exports = exportsWith(fakeTarget())
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    expect((await control.search('Parent', null))[0]).toMatchObject({ id: 'ABC-1', moved: { key: 'GH-1', url: 'https://github.example.com/GH-1' } })
+    const card = await builtinSource(db, PLACES).card('ABC-2')
+    expect(card.parent).toMatchObject({ id: 'ABC-1', moved: { key: 'GH-1' } })
+    expect(card.blockedBy).toMatchObject([{ id: 'ABC-1', moved: { key: 'GH-1' } }])
+    const old = await store.create({ project: ABC, title: 'Later one', parent: one })
+    expect((await builtinSource(db, PLACES).card(`ABC-${old}`)).parent?.moved).toEqual({ key: 'GH-1', url: 'https://github.example.com/GH-1' })
+  })
+
   it('refuses a project not on the built-in tracker', async () => {
     expect(await refusal(exportsWith(fakeTarget()).plan('99999999-9999-4999-8999-999999999999', TARGET))).toBe('builtin.noProject')
   })

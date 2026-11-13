@@ -6,6 +6,7 @@ import type { Task } from '../../../src/tracker/model.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 import { t } from '../i18n/index.js'
 import { Band } from '../ui/blocks.js'
+import { BuiltinExportButton } from './BuiltinExport.js'
 import { FeedList } from './FeedList.js'
 import { MilestoneOrder } from './MilestoneOrder.js'
 import { ProjectTracker } from './ProjectTracker.js'
@@ -76,7 +77,10 @@ export function ProjectTrackerTab({
   const onBuiltin = text('tracker') === BUILTIN
   return (
     <>
-      <Section title={t.settings.sections.tracker}>
+      <Section
+        title={t.settings.sections.tracker}
+        aside={state !== null && saved.tracker === BUILTIN && mainTasks.length > 0 ? <BuiltinExportButton state={state} project={project} /> : undefined}
+      >
         {state !== null && (
           <ProjectTracker
             state={state}

@@ -12,7 +12,22 @@ import type { CardEditor } from './useCardEdit.js'
 
 const SEARCH_DELAY_MS = 150
 
+/** A linked task; one copied into another tracker (BTN-1075) names its new task under it, a link where it has an address. */
 export function RefLink({ item, onOpen }: { item: TaskRef; onOpen: (task: string) => void }) {
+  if (item.moved === undefined) return <RefButton item={item} onOpen={onOpen} />
+  const { key, url } = item.moved
+  return (
+    <span className="task-card__moved-ref">
+      <RefButton item={item} onOpen={onOpen} />
+      <span className="task-card__moved">
+        {t.transfer.movedTo}{' '}
+        {url === null ? key : <a href={url} target="_blank" rel="noreferrer">{key}</a>}
+      </span>
+    </span>
+  )
+}
+
+function RefButton({ item, onOpen }: { item: TaskRef; onOpen: (task: string) => void }) {
   return (
     <button
       type="button"
@@ -74,7 +89,7 @@ export function TaskSearch({ project, label, refusal, onPick, onClose, focus = t
           label={label}
           placeholder={t.card.edit.findTask}
           value={text}
-          options={found.map((each) => ({ value: each.id, label: each.title }))}
+          options={found.map((each) => ({ value: each.id, label: each.moved === undefined ? each.title : `${each.title} · ${t.transfer.movedTo} ${each.moved.key}` }))}
           invalid={refusal !== null}
           onChange={setText}
           onPick={onPick}

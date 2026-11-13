@@ -32,6 +32,7 @@ import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
 import { builtinVocabulary, fakeAttach, fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard, withBuiltinTracker } from './fakeBuiltin.js'
+import { fakeExportQuery, withMovedRefs } from './fakeExport.js'
 import { fakeBadgeCheck, fakeBadgeUrl, withFakeBadge } from './fakeBadge.js'
 import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import { fakeTools } from './fakeTools.js'
@@ -858,7 +859,8 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       const mode = params.get('card')
       if (current.state === null) return null
-      return isBuiltinCard(mode) ? fakeBuiltinCard(current.state, task, params.get('journal'), params.get('description'), params.get('files')) : fakeCard(current.state, task, mode)
+      if (!isBuiltinCard(mode)) return fakeCard(current.state, task, mode)
+      return withMovedRefs(fakeBuiltinCard(current.state, task, params.get('journal'), params.get('description'), params.get('files')), params.get('export'))
     },
     attach: async (task, file) => {
       await answer()
@@ -884,7 +886,7 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
       if (name === 'project/git/changes') return fakeGitChanges(params.get('gitChanges')) as T
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
-      const builtin = fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
+      const builtin = fakeExportQuery(current.state, name, body, params.get('export')) ?? fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
       if (builtin !== null) {
         current = { ...current, state: builtin.state }
         notify()

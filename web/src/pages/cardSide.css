@@ -271,3 +271,22 @@
 .task-card__ref--Lost .task-card__ref-title {
   text-decoration: line-through;
 }
+
+/* A task copied into another tracker (BTN-1075): its new key under the button, level with the key, since a link cannot sit inside it. */
+.task-card__moved-ref {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+.task-card__moved {
+  padding: 0 8px 4px 24px;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.task-card__moved a {
+  font-family: var(--mono);
+  font-weight: 600;
+}

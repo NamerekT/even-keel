@@ -1,4 +1,5 @@
 import { sameName } from '../chain/rules.js'
+import type { Notice } from '../notice/notice.js'
 import type { TaskDraft, TaskEditor } from './editor.js'
 import { isOpen, type TaskPriority, type TaskStatus } from './model.js'
 import type { TrackerVocabulary } from './source.js'
@@ -283,6 +284,29 @@ export function journalEntry(comment: ExportComment): string {
 }
 
 /** How many tasks of the copy reached each stage. */
+/** Where a project's tasks are copied (BTN-1073): the fields of the wizard's tracker step. */
+export interface ExportTargetFields {
+  /** The tracker profile's id. */
+  profile: string
+  /** The project in the tracker (`trackerProject`); empty where the tracker needs none. */
+  place: string
+  key: string
+}
+
+/** A project's copy as the page sees it (`builtin/export/state`); here, not in `src/builtin/`, so the page's types stay off the service's code. */
+export interface ExportState {
+  target: ExportTargetFields | null
+  running: boolean
+  startedAt: string | null
+  finishedAt: string | null
+  /** How many tasks reached each stage; `tasks` — those the copy took up so far. */
+  progress: ReturnType<typeof progressOf>
+  /** The tasks the copy is to take: the open ones and those it took that are closed since — the "M" of the page's "N of M". */
+  total: number
+  /** Why the last run stopped; `null` — it did not, or none ran since the start of the service. */
+  failed: Notice | null
+}
+
 export function progressOf(rows: readonly ExportRow[]): { tasks: number } & Record<Exclude<ExportStage, 'pending'>, number> {
   const reached = (stage: ExportStage) => rows.filter((row) => EXPORT_STAGES.indexOf(row.stage) >= EXPORT_STAGES.indexOf(stage)).length
   return { tasks: rows.length, created: reached('created'), linked: reached('linked'), attached: reached('attached'), journaled: reached('journaled'), marked: reached('marked') }

@@ -5,6 +5,7 @@ import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority } from '../tracker/model.js'
 import type { TrackerPlace } from '../tracker/source.js'
 import type { EvenKeelConfig } from '../config.js'
+import { movedName, movedTasks, withMoved } from './export-store.js'
 import { refuseWhileExporting } from './exporting.js'
 import { BuiltinFiles, fileUrl, readLimited } from './files.js'
 import { ATTACHMENT_LIMIT_MB, BUILTIN, type RelationKind } from './model.js'
@@ -245,7 +246,9 @@ export function builtinControl({
         if (task !== undefined) exact.push(task)
       }
       const found = [...exact, ...(await store.search(projects, text)).filter((task) => !exact.some((each) => each.project === task.project && each.number === task.number))]
-      return found.slice(0, SEARCH_LIMIT).map((task) => ({ id: names.name(task), title: task.title, status: task.status }))
+      const listed = found.slice(0, SEARCH_LIMIT)
+      const moved = await movedTasks(db, [...new Set(listed.map((task) => task.project))])
+      return listed.map((task) => withMoved({ id: names.name(task), title: task.title, status: task.status }, moved.get(movedName(task.project, task.number))))
     },
     async holds(project) {
       return (await open().store.list([project])).length > 0

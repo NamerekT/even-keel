@@ -1,0 +1,160 @@
+/* The window that moves a built-in project's tasks into another tracker (BTN-1075). */
+.add-package.transfer {
+  width: min(640px, calc(100vw - 32px));
+}
+
+/* What the target leaves behind: a nested group, a line per kind. */
+.transfer__losses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.transfer__losses-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  min-height: 24px;
+}
+
+.transfer__losses-title {
+  margin: 0;
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.transfer__none {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.transfer__loss-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transfer__loss {
+  display: grid;
+  grid-template-columns: minmax(0, 13em) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-12);
+  padding: var(--space-6) 0;
+  font-size: var(--text-13);
+}
+
+.transfer__loss + .transfer__loss {
+  border-top: 1px solid var(--border);
+}
+
+.transfer__kind,
+.transfer__count {
+  text-decoration: underline dotted var(--fg-muted);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.transfer__names {
+  overflow-wrap: anywhere;
+}
+
+.transfer__count {
+  grid-column: -2;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* "N of M" as the download meter: the word, a full-height divider, the bar, a short divider, the figures. */
+.transfer__meter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: var(--text-13);
+}
+
+.transfer__meter-name {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: var(--space-6) var(--space-12) var(--space-6) 0;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.transfer__meter progress {
+  flex: 1 1 auto;
+  min-width: 64px;
+  height: 6px;
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--surface-muted);
+}
+
+.transfer__meter progress::-webkit-progress-bar {
+  background: var(--surface-muted);
+}
+
+.transfer__meter progress::-webkit-progress-value {
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width var(--motion-appear);
+}
+
+.transfer__meter progress::-moz-progress-bar {
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.transfer__figures {
+  padding-left: var(--space-12);
+  background: linear-gradient(var(--border), var(--border)) left center / 1px 16px no-repeat;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A refusal of the switch with its action at the right, wrapping under the text on a narrow screen. */
+.transfer__refusal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8) var(--space-12);
+}
+
+.transfer__refusal-text {
+  flex: 1 1 260px;
+  white-space: normal;
+}
+
+.transfer__refusal-items {
+  margin: var(--space-4) 0 0;
+  padding-left: var(--space-16);
+}
+
+@media (max-width: 760px) {
+  .transfer__loss {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .transfer__names {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

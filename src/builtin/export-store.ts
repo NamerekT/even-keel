@@ -1,14 +1,8 @@
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
-import type { ExportLog, ExportRow, ExportStage } from '../tracker/export.js'
+import type { TaskMoved, TaskRef } from '../tracker/card.js'
+import type { ExportLog, ExportRow, ExportStage, ExportTargetFields } from '../tracker/export.js'
 
-/** Where a project's tasks are copied (BTN-1073): the fields of the wizard's tracker step. */
-export interface ExportTargetFields {
-  /** The tracker profile's id. */
-  profile: string
-  /** The project in the tracker (`trackerProject`); empty where the tracker needs none. */
-  place: string
-  key: string
-}
+export type { ExportTargetFields }
 
 export interface ExportHeader extends ExportTargetFields {
   startedAt: string
@@ -71,6 +65,25 @@ export class ExportRecords {
       },
     }
   }
+}
+
+/**
+ * The copied tasks of the projects by `<project> <number>`: the new task of each one whose copy is through (BTN-1075),
+ * for the page's search and a card's links, which still show the old task.
+ */
+export async function movedTasks(db: Queryable, projects: readonly string[]): Promise<Map<string, TaskMoved>> {
+  if (projects.length === 0) return new Map()
+  const { rows } = await db.query<{ project_id: string; number: number; new_key: string; url: string | null }>(
+    `select project_id, number, new_key, url from tracker_export_tasks where project_id = any($1) and stage = 'marked' and new_key is not null`,
+    [[...projects]],
+  )
+  return new Map(rows.map((row) => [movedName(row.project_id, row.number), { key: row.new_key, url: row.url }]))
+}
+
+export const movedName = (project: string, number: number): string => `${project} ${number}`
+
+export function withMoved(ref: TaskRef, moved: TaskMoved | undefined): TaskRef {
+  return moved === undefined ? ref : { ...ref, moved }
 }
 
 /** The project's copied tasks by number: the old task's new key, for the switch (#2) and Tally (#4). */

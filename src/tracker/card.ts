@@ -61,6 +61,13 @@ export interface TaskRef {
   id: string
   title: string
   status: TaskStatus
+  /** A built-in task copied into another tracker (BTN-1073): its new task there; `url` — `null` where the tracker gives none. */
+  moved?: TaskMoved
+}
+
+export interface TaskMoved {
+  key: string
+  url: string | null
 }
 
 export interface TaskComment {

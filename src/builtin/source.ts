@@ -5,6 +5,7 @@ import { parseTaskId, type MilestonePick, type TaskStatus, type TrackerTask } fr
 import type { MilestoneTask, TaskSource, TrackerPlace } from '../tracker/source.js'
 import { BACKLOG, BUILTIN_LABELS, BUILTIN_STATUSES, builtinStatus, DONE, TODO, uniqueNames, type CommentAuthor } from './model.js'
 import { builtinEditor } from './editor.js'
+import { movedName, movedTasks, withMoved } from './export-store.js'
 import { BuiltinFiles } from './files.js'
 import { BuiltinStore, type BuiltinTask, type TaskKey } from './store.js'
 
@@ -79,9 +80,11 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
   })
   const refs = async (keys: TaskKey[]): Promise<TaskRef[]> => {
     const found: TaskRef[] = []
-    for (const key of keys.filter((each) => names.knows(each.project))) {
+    const known = keys.filter((each) => names.knows(each.project))
+    const moved = await movedTasks(db, [...new Set(known.map((key) => key.project))])
+    for (const key of known) {
       const task = await store.get(key)
-      if (task !== undefined) found.push({ id: names.name(task), title: task.title, status: task.status })
+      if (task !== undefined) found.push(withMoved({ id: names.name(task), title: task.title, status: task.status }, moved.get(movedName(key.project, key.number))))
     }
     return found
   }
