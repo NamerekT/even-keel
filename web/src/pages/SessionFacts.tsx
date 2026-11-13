@@ -24,14 +24,15 @@ export function CacheFact({ cache }: { cache: CacheWindow }) {
 }
 
 /**
- * The model the session answers with, without its route, as a task's run tag shows it; the provider beside it when not Claude.
+ * The model the session answers with, without its route, as a task's run tag shows it, its effort after a `·`; the provider before it when not Claude.
  * Only the model's tail is cut; the tip has the full name.
  */
-export function ModelFact({ agent, model }: { agent: string; model: string | null }) {
+export function ModelFact({ agent, model, effort }: { agent: string; model: string | null; effort: string | null }) {
   const provider = agentLabel(agent)
   const value = model === null ? '—' : <>
     {agent !== CLAUDE && <span className="panel__model-provider">{provider}{' · '}</span>}
     <span className="panel__model-name">{modelName(model)}</span>
+    {effort !== null && <span className="panel__model-effort">{' · '}{effort}</span>}
   </>
   return (
     <Fact label={t.session.model} className="panel__inline panel__model">
@@ -44,6 +45,12 @@ export function ModelFact({ agent, model }: { agent: string; model: string | nul
           <span className="panel__part">
             <span className="panel__part-label">{t.session.modelOf}</span>
             <b>{model}</b>
+          </span>
+        )}
+        {model !== null && effort !== null && (
+          <span className="panel__part">
+            <span className="panel__part-label">{t.session.effortOf}</span>
+            <b>{effort}</b>
           </span>
         )}
         <span className="panel__tip-note">{model === null ? t.session.modelYet : t.session.modelFrom}</span>

@@ -178,8 +178,9 @@ function fakeState(
           session('ABC-6', 96_000, 'waiting'),
           session('ABC-7', 188_000, 'error'),
           session('ABC-8', 74_000, 'limit'),
-          { ...session('ABC-9', 350_000, 'finished'), contextWindow: null },
-          { ...session('DEMO-7', 142_000, 'waiting'), agent: 'codex', model: 'gpt-6.1-sol', contextWindow: 258_400, remoteUrl: null, remoteOff: null },
+          // An old transcript that names no effort: the Model fact shows the model alone.
+          { ...session('ABC-9', 350_000, 'finished'), contextWindow: null, effort: null },
+          { ...session('DEMO-7', 142_000, 'waiting'), agent: 'codex', model: 'gpt-6.1-sol', effort: 'medium', contextWindow: 258_400, remoteUrl: null, remoteOff: null },
           session('ABC-16', 118_000, 'finished'),
         ],
     // The tasks of the "Parents" view (BTN-1041): two open families of the chain's rows and one closed parent.
@@ -443,6 +444,7 @@ export function createFakeSource(search: string): LiveSource {
       ...session('ABC-5', contextTokens, params.get('chain') === 'apiRetry' ? 'working' : transient || modelError ? 'waiting' : 'error'),
       agent: ['claude', 'codex', 'opencode', 'copilot'].includes(agent) ? agent : 'codex',
       model: null,
+      effort: null,
       apiErrorKind: modelError ? 'model' : transient || params.get('chain') === 'apiRetry' ? 'transient' : 'error',
       apiError: error,
       ...(diagnostic === undefined ? {} : { apiErrorNotice: diagnostic }),

@@ -18,13 +18,14 @@ import { EditSize } from './ToolCalls.js'
 import type { EditTotal } from './toolGroups.js'
 import './chatStatus.css'
 
-/** What the status line knows of a session: all of it for one the state lists, the branch and context of a past one. */
+/** What the status line knows of a session: all of it for one the state lists, its record's facts for a past one. */
 export interface StatusFacts {
   sessionId: string
   agent: string | undefined
   account: string | null
   branch: string | null
   model: string | null
+  effort: string | null
   /** `null` — nothing is known of the context. */
   context: { tokens: number; window: number | null } | null
 }
@@ -52,15 +53,17 @@ export function useStatusFacts(sessionId: string, account: string | null, listed
       account,
       branch: listed.branch,
       model: listed.model,
+      effort: listed.effort,
       context: { tokens: listed.contextTokens, window: listed.contextWindow },
     }
   }
   return {
     sessionId,
-    agent: undefined,
+    agent: record?.agent,
     account: account ?? record?.account ?? null,
     branch: record?.branch ?? null,
-    model: null,
+    model: record?.model ?? null,
+    effort: record?.effort ?? null,
     context: record === null || record.contextTokens === 0 ? null : { tokens: record.contextTokens, window: record.contextWindow },
   }
 }
@@ -73,7 +76,7 @@ interface Props {
 
 /**
  * The line under the chat's field, what the session is at now: its branch and edits at the left; its account, the
- * model of its last answer and the ring of its context at the right.
+ * model and effort of its last answer and the ring of its context at the right.
  */
 export function ChatStatus({ facts, scale, edits }: Props) {
   const place = [facts.branch === null ? null : t.session.chat.head.branch(facts.branch), edits === null ? null : t.session.chat.head.edits(edits.added, edits.removed)].filter(
@@ -95,8 +98,16 @@ export function ChatStatus({ facts, scale, edits }: Props) {
       <span className="chat-status__session">
         <AccountTag account={facts.account} agent={facts.agent} />
         {facts.model !== null && (
-          <Tipped inline className="chat-status__model" tip={`${t.session.chat.head.model}: ${facts.model}`}>
+          <Tipped
+            inline
+            className="chat-status__model"
+            tip={[
+              <span key="model" className="chat-status__tip-line">{`${t.session.chat.head.model}: ${facts.model}`}</span>,
+              facts.effort !== null && <span key="effort" className="chat-status__tip-line">{`${t.session.chat.head.effort}: ${facts.effort}`}</span>,
+            ]}
+          >
             <span className="chat-status__model-name">{modelName(facts.model)}</span>
+            {facts.effort !== null && <span className="chat-status__model-effort">{` · ${facts.effort}`}</span>}
           </Tipped>
         )}
         {facts.context !== null && <ContextRing facts={facts} context={facts.context} scale={scale} />}

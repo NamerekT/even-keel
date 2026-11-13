@@ -275,6 +275,7 @@ function toView(
     sessionId: agent.sessionId,
     agent: runsOn,
     model: summary.model,
+    effort: summary.effort ?? null,
     cwd: agent.cwd,
     branch: summary.gitBranch,
     lamp,

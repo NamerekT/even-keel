@@ -161,15 +161,18 @@
   min-width: 0;
 }
 
-/* As a run label (`runLabel.css`): the provider stays whole, only the model's tail is cut. */
+/* As a run label (`runLabel.css`): the provider and the effort stay whole, only the model's tail is cut. */
 .panel__model .panel__total {
   display: inline-flex;
   max-width: 100%;
   white-space: nowrap;
 }
 
-.panel__model-provider {
+.panel__model-provider,
+.panel__model-effort {
   flex: none;
+  /* A flex item drops its edge spaces: the ones around the `·` are kept. */
+  white-space: pre;
 }
 
 .panel__model-name {

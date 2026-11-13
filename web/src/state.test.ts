@@ -63,6 +63,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     task,
     sessionId: `session-${task}`,
     agent: 'claude',
+    effort: null,
     model: null,
     cwd: 'C:\\repos\\example',
     branch: null,

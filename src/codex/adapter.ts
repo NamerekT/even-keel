@@ -73,6 +73,8 @@ export const codex: AgentAdapter = {
           sessionId,
           startedAt: summary.firstActivityAt,
           lastActivityAt: summary.lastActivityAt,
+          model: summary.model,
+          effort: summary.effort ?? null,
           contextTokens: summary.contextTokens,
           contextWindow: summary.contextWindow,
           tokens: summary.tokens,

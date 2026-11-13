@@ -64,13 +64,21 @@
   min-width: 48px;
 }
 
+/* As a run label (`runLabel.css`): the effort stays whole, only the model's tail is cut. */
 .chat-status__model {
+  display: inline-flex;
   flex: 0 1 auto;
   min-width: 6ch;
 }
 
+.chat-status__model-effort {
+  flex: none;
+  white-space: pre;
+}
+
 .chat-status__model-name {
   display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

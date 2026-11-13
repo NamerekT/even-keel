@@ -134,6 +134,8 @@ export interface TranscriptSummary {
   workdir: string | null
   /** The model of the last answer (Claude) or turn (Codex), as the agent names it; `null` — none yet. */
   model: string | null
+  /** The reasoning effort of the last answer (Claude) or turn (Codex); `null` — none written yet; absent — the agent writes none. */
+  effort?: string | null
   /**
    * The last `status: …` line the session wrote on a hook's request, for the README badge (BTN-932); `null` — none, or
    * the last one cannot be drawn; absent — the agent's transcript is not read for it, so it is never asked.
@@ -193,6 +195,7 @@ export class TranscriptFold {
   private gitBranch: string | null = null
   private workdir: string | null = null
   private model: string | null = null
+  private effort: string | null = null
   /** The file name of each `Read` call of a whole transcript, until its result comes. */
   private readonly readFiles = new Map<string, string>()
   private turnStartedAt: string | null = null
@@ -304,6 +307,7 @@ export class TranscriptFold {
       gitBranch: this.gitBranch,
       workdir: this.workdir,
       model: this.model,
+      effort: this.effort,
       badgeStatus: this.badgeStatus,
       backgroundCommand: this.backgroundCommand,
     }
@@ -325,6 +329,7 @@ export class TranscriptFold {
     if (entry.message?.model === '<synthetic>') return
 
     if (typeof entry.message?.model === 'string' && entry.message.model !== '') this.model = entry.message.model
+    if (typeof entry.effort === 'string' && entry.effort !== '') this.effort = entry.effort
     this.apiError = null
     if (entry.timestamp !== undefined) this.lastReplyAt = entry.timestamp
     const usage = entry.message?.usage
