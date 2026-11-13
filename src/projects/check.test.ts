@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { linkType } from '../account/share.js'
 import type { GitResult } from '../git/types.js'
-import { englishOf } from '../notice/notice.js'
+import { englishOf, notice } from '../notice/notice.js'
 import type { ProjectDraft } from '../state.js'
 import type { TaskSource, TrackerAdapter } from '../tracker/source.js'
 import type { TrackerTask } from '../tracker/model.js'
@@ -131,6 +131,20 @@ describe('checkDraft', () => {
     expect(clone).toMatchObject({ source: 'clone', remote: 'https://example.com/me/shop.git', folder: 'shop' })
     await expect(sourcedDraft(git, { ...draft, target: 'shop now please' }, raw(), 'win32', folders, 'D:\\projects')).rejects.toMatchObject({ notice: { code: 'wizard.notTarget' } })
     expect(await sourcedDraft(git, draft, raw(), 'win32', folders, 'D:\\projects')).toBe(draft)
+  })
+
+  it('leaves the folder a refused remote did not give to the repository step: no entry refusal under a good key (BTN-1107)', async () => {
+    const readRemote = async () => notice('git.remoteSshKey', { remote: 'git@example.com:me/shop.git' })
+    const check = await checkDraft(deps({ readRemote, projectsDir: 'D:\\projects' }), { ...draft, repo: '', key: 'FGDF', target: 'git@example.com:me/shop.git' })
+    expect(check.repo).toMatchObject({ root: null, notice: { code: 'git.remoteSshKey' } })
+    expect(check.entry).toBeNull()
+    expect(check.tracker).toBeNull()
+  })
+
+  it('still says a bad key under a typed folder git refused (BTN-1107)', async () => {
+    const check = await checkDraft(deps(), { ...draft, repo: 'D:\\nowhere', key: 'a b' })
+    expect(check.repo.notice).toMatchObject({ code: 'wizard.noFolder' })
+    expect(check.entry).toEqual(expect.objectContaining({ code: 'wizard.keyShape', params: { value: 'a b' } }))
   })
 
   it('takes the top of the repository, suggests its branch, asks the tracker and the trust', async () => {

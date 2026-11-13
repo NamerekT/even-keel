@@ -70,7 +70,9 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: 
     const names = projectLabels(config)
     yields = Object.keys(yieldedMilestones(raw, placed, ENTRY_ID, deps.adapters)).map((project) => names[project]!)
   } catch (error) {
-    entry = keyNotice(noticeOf(error))
+    const refused = noticeOf(error)
+    // No folder yet is the repository step's to say (BTN-1107): its own refusal, or the footer for a blank field.
+    entry = refused.code === 'config.repoEmpty' && repo.root === null ? null : keyNotice(refused)
   }
   const tracker =
     options.tracker && entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
