@@ -118,7 +118,12 @@ export class DemoService {
 
   private async make(language: Language): Promise<string> {
     if (this.project() !== undefined) throw fail('demo.exists', {})
-    await this.initRepo(language)
+    try {
+      await this.initRepo(language)
+    } catch (error) {
+      rmSync(this.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+      throw error
+    }
     mkdirSync(demoAccountOf(this.dir), { recursive: true })
     this.deps.homes.setDemo(this.home())
     await this.deps.refreshAccounts()

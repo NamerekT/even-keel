@@ -87,7 +87,7 @@ describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
     expect(run.gitIn(demo().repo, 'show', 'HEAD:README.md')).toContain('Добро пожаловать на борт')
   })
 
-  it('refuses without git and says so', async () => {
+  it('refuses without git without leaving a folder and can be retried', async () => {
     await run.start()
     const path = process.env.PATH
     process.env.PATH = ''
@@ -98,5 +98,9 @@ describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
       process.env.PATH = path
     }
     expect(run.service.getState().demo).toBeNull()
+    expect(existsSync(demo().dir)).toBe(false)
+    await run.post('demo/start', {})
+    expect(run.service.getState().demo?.project).toBe(project())
+    expect(existsSync(demo().repo)).toBe(true)
   })
 })
