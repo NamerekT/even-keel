@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EvenKeelState, ProjectDraft } from '../../../src/state.js'
-import { FAKE_PROJECTS_DIR, fakeJob, fakeJobCommand, fakePlace, fakeTarget, withAddedJob } from './fakeCreation.js'
+import { FAKE_PROJECTS_DIR, fakeGitIdentity, fakeJob, fakeJobCommand, fakePlace, fakeTarget, withAddedJob } from './fakeCreation.js'
 
 const state = { projects: ['OPS'], config: { projects: { OPS: { repo: 'D:/Projects/ops' } } } } as unknown as EvenKeelState
 const draft = (change: Partial<ProjectDraft>): ProjectDraft =>
@@ -52,5 +52,15 @@ describe("the fake's project creation (BTN-1048)", () => {
     expect(fakeJobCommand(failed, 'job/cancel', { id: 'job-fake' })!.jobs).toEqual([])
     expect(fakeJobCommand(retried, 'job/close', { id: 'job-fake' })!.jobs).toEqual([])
     expect(fakeJobCommand(failed, 'project/add', {})).toBeNull()
+  })
+
+  it('fails a new repository at its first commit without a git name and e-mail, and writes them on git/identity (BTN-1094)', () => {
+    const failed = fakeJob('identity')!
+    expect(failed.steps.map((step) => [step.id, step.state])).toEqual([['folder', 'done'], ['init', 'failed'], ['project', 'waiting'], ['trust', 'waiting'], ['packages', 'waiting']])
+    expect(failed.failure).toMatchObject({ code: 'git.noIdentity' })
+    const anonymous = { ...state, git: { version: '2.47.1', name: null, email: null } } as EvenKeelState
+    expect(fakeGitIdentity(anonymous, 'git/identity', { name: ' John Doe ', email: 'john@example.com' })!.git).toEqual({ version: '2.47.1', name: 'John Doe', email: 'john@example.com' })
+    expect(() => fakeGitIdentity(anonymous, 'git/identity', { name: '', email: 'john@example.com' })).toThrow()
+    expect(fakeGitIdentity(anonymous, 'job/retry', {})).toBeNull()
   })
 })

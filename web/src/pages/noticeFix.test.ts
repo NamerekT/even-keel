@@ -27,9 +27,9 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('forward.foreign', { from: 'ABC', into: 'ABD' }))).toEqual({ to: 'project', tab: 'repo' })
   })
 
-  it('resumes a chain stopped on git gone from the machine, and sends git without a name to the setup’s Git step (BTN-731)', () => {
+  it('resumes a chain stopped on git gone from the machine, and asks git’s name and e-mail in a dialog over the page (BTN-1094)', () => {
     expect(noticeFixOf(notice('git.missing', {}))).toEqual({ to: 'resume' })
-    expect(noticeFixOf(notice('git.noIdentity', {}))).toEqual({ to: 'git' })
+    expect(noticeFixOf(notice('git.noIdentity', {}))).toEqual({ to: 'identity' })
   })
 
   it('sends a model the account does not have to the sessions tab of the project', () => {

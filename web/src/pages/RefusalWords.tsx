@@ -5,8 +5,11 @@ import { NoticeFixButton } from './FixButtons.js'
 import { refusalParts } from './remoteRefusal.js'
 import { HelpTip } from './settingsParts.js'
 
-/** A refusal in one line; the tool's own words behind a question mark, its fix button, a command to run under it. */
-export function RefusalWords({ refusal }: { refusal: Notice }) {
+/**
+ * A refusal in one line; the tool's own words behind a question mark, its fix button, a command to run under it.
+ * `onFixed` — what to do again once a fix done in place is saved.
+ */
+export function RefusalWords({ refusal, onFixed }: { refusal: Notice; onFixed?: () => void }) {
   const { shown, detail, command } = refusalParts(refusal)
   return (
     <>
@@ -17,7 +20,7 @@ export function RefusalWords({ refusal }: { refusal: Notice }) {
           <HelpTip text={detail} lines />
         </>
       )}{' '}
-      <NoticeFixButton project={null} notice={refusal} />
+      <NoticeFixButton project={null} notice={refusal} onFixed={onFixed} />
       {command !== null && <CommandBlock command={command} />}
     </>
   )

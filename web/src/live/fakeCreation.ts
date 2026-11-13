@@ -126,6 +126,7 @@ export function fakeTarget(state: EvenKeelState, draft: ProjectDraft): FakeRead 
 }
 
 const CLONE_STEPS = ['folder', 'clone', 'project', 'trust', 'packages']
+const NEW_STEPS = ['folder', 'init', 'project', 'trust', 'packages']
 
 const job = (steps: StepJob['steps'], change: Partial<StepJob> = {}): StepJob => ({
   id: 'job-fake',
@@ -150,10 +151,10 @@ const upTo = (ids: string[], running: number): JobStep[] => {
 }
 
 /**
- * `?job=connecting|enumerating|clone|lfs|failed|refused|packages|done` — the wizard's creation window in that state: a
- * clone before the server answers, while the server lists the objects, receiving objects, the LFS files after it, a
- * clone whose network broke off at 10%, one git refused for a reason it does not name, the packages failing after the
- * entry is written, a project made.
+ * `?job=connecting|enumerating|clone|lfs|failed|refused|identity|packages|done` — the wizard's creation window in that
+ * state: a clone before the server answers, while the server lists the objects, receiving objects, the LFS files after
+ * it, a clone whose network broke off at 10%, one git refused for a reason it does not name, a new repository's first
+ * commit refused for git's missing name and e-mail, the packages failing after the entry is written, a project made.
  */
 export function fakeJob(mode: string | null): StepJob | null {
   if (mode === 'connecting' || mode === 'enumerating') {
@@ -177,6 +178,11 @@ export function fakeJob(mode: string | null): StepJob | null {
     const remote = 'https://git.example.com/acme/example-app.git'
     const failure = mode === 'failed' ? notice('git.cloneBroken', { percent: 10 }, { detail: CUT_OFF_OUT }) : notice('git.remoteFailed', { remote }, { detail: BROKEN_OUT })
     return job(steps, { failure })
+  }
+  if (mode === 'identity') {
+    const steps = upTo(NEW_STEPS, 1)
+    steps[1] = { id: 'init', state: 'failed' }
+    return job(steps, { failure: notice('git.noIdentity', {}) })
   }
   if (mode === 'packages') {
     const steps = upTo(CLONE_STEPS, 4)
@@ -202,6 +208,15 @@ export function fakeJobCommand(state: EvenKeelState, name: string, body: Record<
     return { ...state, jobs: jobs.map((each) => (each === found ? finished : each)) }
   }
   return { ...state, jobs: jobs.filter((each) => each !== found) }
+}
+
+/** `git/identity` as the service writes git's global name and e-mail: both trimmed, a blank one refused. */
+export function fakeGitIdentity(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
+  if (name !== 'git/identity' || state.git === undefined) return null
+  const who = String(body.name ?? '').trim()
+  const email = String(body.email ?? '').trim()
+  if (who === '' || email === '') throw fail('git.identityBlank', {})
+  return { ...state, git: { ...state.git, name: who, email } }
 }
 
 /** The fake's `project/add` answer as the service's job: a finished job naming the project that came in. */

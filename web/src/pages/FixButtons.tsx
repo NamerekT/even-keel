@@ -11,18 +11,22 @@ import { linkedProfile } from './ProjectTracker.js'
 import { profileGroup } from './ProfileRules.js'
 import { taskFeed } from './settingsRows.js'
 import { packagesPath } from '../tools/packageGroups.js'
-import { stepPath } from './setupSteps.js'
 import { GitOnButton } from './GitSwitch.js'
+import { IdentityButton } from './IdentityDialog.js'
 
-/** A button under a notice to the place it is fixed at; nothing where the page has none. `project` — the project it is shown at. */
-export function NoticeFixButton({ project, notice }: { project: string | null; notice: Notice | null }) {
+/**
+ * A button under a notice to the place it is fixed at; nothing where the page has none. `project` — the project it is
+ * shown at; `onFixed` — what to do again once a fix done in place (a dialog over the page) is saved.
+ */
+export function NoticeFixButton({ project, notice, onFixed }: { project: string | null; notice: Notice | null; onFixed?: () => void }) {
   const fix = noticeFixOf(notice)
-  return fix === null ? null : <FixButton project={project} fix={fix} />
+  return fix === null ? null : <FixButton project={project} fix={fix} onFixed={onFixed} />
 }
 
-export function FixButton({ project, fix, className = 'button button--small notice-fix' }: { project: string | null; fix: NoticeFix; className?: string }) {
+export function FixButton({ project, fix, className = 'button button--small notice-fix', onFixed }: { project: string | null; fix: NoticeFix; className?: string; onFixed?: () => void }) {
   const go = useFix()
   const { state } = useLive()
+  if (fix.to === 'identity') return <IdentityButton className={className} onSaved={onFixed} />
   if (fix.to === 'tracker') {
     const url = state === null ? null : issueLink(state.trackerUrls, fix.task)
     return url === null ? null : <a className={className} href={url} target="_blank" rel="noreferrer">{t.card.openIn(null)}</a>
@@ -42,8 +46,7 @@ export function FixButton({ project, fix, className = 'button button--small noti
 }
 
 /** What the button to a place in the settings or the accounts says. */
-export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' | 'packages' | 'git' | 'milestoneOrder' }>): string {
-  if (fix.to === 'git') return t.fix.git
+export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 'shared' | 'moves' | 'packages' | 'milestoneOrder' }>): string {
   if (fix.to === 'milestoneOrder') return t.fix.milestoneOrder
   if (fix.to === 'moves') return t.fix.moves
   if (fix.to === 'packages') return t.fix.packages
@@ -77,9 +80,8 @@ function SendButton({ command, bodies, label, className }: { command: string; bo
 export function useFix() {
   const navigate = useNavigate()
   const { state } = useLive()
-  return (fix: Exclude<NoticeFix, { to: 'resume' | 'enableProfile' | 'stopChains' | 'gitOn' }>, project: string | null) => {
+  return (fix: Exclude<NoticeFix, { to: 'resume' | 'enableProfile' | 'stopChains' | 'gitOn' | 'identity' }>, project: string | null) => {
     if (fix.to === 'accounts') return void navigate('/accounts')
-    if (fix.to === 'git') return void navigate(stepPath('git'))
     if (fix.to === 'tracker') return
     if (fix.to === 'shared') {
       openTab(SHARED_SCOPE, fix.tab)

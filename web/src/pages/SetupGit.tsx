@@ -105,39 +105,77 @@ function restartHint(start: WindowsStart): string {
   return start.by === 'service' ? text.restartService(start.name) : text.restartConsole
 }
 
-/** Two fields filled with what git has, and "Save" once both are filled and one of them changed; keyed by them where shown. */
-export function Identity({ git }: { git: GitSetupView }) {
+/**
+ * git's name and e-mail as typed, filled with what git has, and their save by `git/identity` (BTN-731): the setup's
+ * Git step and the dialog over a page that needs them (BTN-1094) share it. `save` answers whether git took them.
+ */
+export function useIdentityForm(git: GitSetupView) {
   const { send, sending, failure } = useCommand()
   const [name, setName] = useState(git.name ?? '')
   const [email, setEmail] = useState(git.email ?? '')
-  const text = t.setup.git
-  const set = git.name !== null && git.email !== null
   const changed = name.trim() !== (git.name ?? '') || email.trim() !== (git.email ?? '')
   const filled = name.trim() !== '' && email.trim() !== ''
+  return {
+    name,
+    setName,
+    email,
+    setEmail,
+    set: git.name !== null && git.email !== null,
+    ready: !sending && changed && filled,
+    sending,
+    failure,
+    save: () => send('git/identity', { name, email }),
+  }
+}
+
+export type IdentityForm = ReturnType<typeof useIdentityForm>
+
+/** The two fields of git's name and e-mail; `id` keeps their ids apart where the step and a dialog may both be. */
+export function IdentityFields({ form, id = 'setup-git' }: { form: IdentityForm; id?: string }) {
+  const text = t.setup.git
   return (
-    <Section title={text.identity} mark={<PartDot check={set ? 'passed' : 'empty'} first />} className="project-add__step">
-      <p className="setup__lead">{text.identityLead}</p>
+    <>
       <Row
         className="settings__field"
         label={text.name}
-        htmlFor="setup-git-name"
-        control={<input id="setup-git-name" className="settings__text" value={name} placeholder="John Doe" autoComplete="name" onChange={(event) => setName(event.target.value)} />}
+        htmlFor={`${id}-name`}
+        control={<input id={`${id}-name`} className="settings__text" value={form.name} placeholder="John Doe" autoComplete="name" onChange={(event) => form.setName(event.target.value)} />}
       />
       <Row
         className="settings__field"
         label={text.email}
-        htmlFor="setup-git-email"
+        htmlFor={`${id}-email`}
         control={
-          <input id="setup-git-email" className="settings__text" type="email" value={email} placeholder="john@example.com" autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+          <input
+            id={`${id}-email`}
+            className="settings__text"
+            type="email"
+            value={form.email}
+            placeholder="john@example.com"
+            autoComplete="email"
+            onChange={(event) => form.setEmail(event.target.value)}
+          />
         }
       />
+    </>
+  )
+}
+
+/** Two fields filled with what git has, and "Save" once both are filled and one of them changed; keyed by them where shown. */
+export function Identity({ git }: { git: GitSetupView }) {
+  const form = useIdentityForm(git)
+  const text = t.setup.git
+  return (
+    <Section title={text.identity} mark={<PartDot check={form.set ? 'passed' : 'empty'} first />} className="project-add__step">
+      <p className="setup__lead">{text.identityLead}</p>
+      <IdentityFields form={form} />
       <div className="setup-git__save">
-        {!set && <Status>{text.identityMissing}</Status>}
-        <button type="button" className="button" disabled={sending || !changed || !filled} onClick={() => void send('git/identity', { name, email })}>
+        {!form.set && <Status>{text.identityMissing}</Status>}
+        <button type="button" className="button" disabled={!form.ready} onClick={() => void form.save()}>
           {text.save}
         </button>
       </div>
-      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+      {form.failure !== null && <p className="notice notice--error">{say(form.failure)}</p>}
     </Section>
   )
 }

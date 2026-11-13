@@ -15,7 +15,7 @@ import { fakeAnswer, fakeDismissMail } from './fakeChat.js'
 import { fakePackagesCommand } from './fakePackages.js'
 import { fakeSecretsCommand, fakeTally } from './fakeSecrets.js'
 import { fakeProfilesCommand } from './fakeProfiles.js'
-import { fakeJobCommand } from './fakeCreation.js'
+import { fakeGitIdentity, fakeJobCommand } from './fakeCreation.js'
 import { fakeProjectCommand } from './fakeProjects.js'
 import { fakeBadgeCommand } from './fakeBadge.js'
 import { fakeNoticesCommand } from './fakeNotices.js'
@@ -304,6 +304,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
     fakeSettingsCommand(state, name, body) ??
     fakeProjectCommand(state, name, body) ??
     fakeJobCommand(state, name, body) ??
+    fakeGitIdentity(state, name, body) ??
     fakeBadgeCommand(state, name, body) ??
     fakeUpdatesCommand(state, name) ??
     fakePackagesCommand(state, name, body) ??

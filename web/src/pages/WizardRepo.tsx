@@ -33,7 +33,7 @@ function MakeRepository({ repo, branch, exists, onMade }: { repo: string; branch
       </button>
       {failure !== null && (
         <p className="notice notice--error">
-          {say(failure)} <NoticeFixButton project={null} notice={failure} />
+          {say(failure)} <NoticeFixButton project={null} notice={failure} onFixed={() => void make()} />
         </p>
       )}
     </div>
@@ -142,7 +142,7 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
             onChange={(event) => set({ target: event.target.value })}
           />
           {read !== null && (refusal === null || folderRefusal) && <ReadLine read={read} repo={repo!} current={current} branchLine={branchLine} />}
-          {remoteRefused ? <RemoteRefusal refusal={refusal} /> : !folderRefusal && <TargetRefusal refusal={refusal} set={set} />}
+          {remoteRefused ? <RemoteRefusal refusal={refusal} /> : !folderRefusal && <TargetRefusal refusal={refusal} set={set} onRecheck={onRecheck} />}
           {refusal?.code === 'wizard.noCommits' && repo?.root != null && <MakeRepository repo={repo.root} branch={fields.branch.trim()} exists onMade={onRecheck} />}
         </div>
       )}
@@ -218,8 +218,11 @@ function RemoteRefusal({ refusal }: { refusal: Notice }) {
   )
 }
 
-/** The one field's refusal: a subfolder offers its repository's top, git without a name and e-mail its fix. */
-function TargetRefusal({ refusal, set }: { refusal: Notice | null; set: (change: Partial<WizardFields>) => void }) {
+/**
+ * The one field's refusal: a subfolder offers its repository's top; git without a name and e-mail "Set them", a dialog
+ * over the wizard (BTN-1094) after whose save the field is checked again with all typed kept.
+ */
+function TargetRefusal({ refusal, set, onRecheck }: { refusal: Notice | null; set: (change: Partial<WizardFields>) => void; onRecheck: () => void }) {
   if (refusal === null) return null
   if (refusal.code === 'wizard.insideRepo') {
     const root = refusal.params.root
@@ -236,7 +239,7 @@ function TargetRefusal({ refusal, set }: { refusal: Notice | null; set: (change:
     return (
       <span className="project-add__gate">
         <Status>{say(refusal)}</Status>
-        <NoticeFixButton project={null} notice={refusal} />
+        <NoticeFixButton project={null} notice={refusal} onFixed={onRecheck} />
       </span>
     )
   }

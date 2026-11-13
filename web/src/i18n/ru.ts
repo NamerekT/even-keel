@@ -162,7 +162,7 @@ export const ru = {
     milestoneOrder: 'Открыть порядок вех',
     resume: 'Проверить и продолжить',
     packages: 'Открыть пакеты проекта',
-    git: 'Открыть шаг «Git»',
+    identity: 'Указать',
     enableProfile: 'Включить',
     stopChains: (count: number): string => (count > 1 ? 'Остановить цепочки' : 'Остановить цепочку'),
   },

@@ -157,7 +157,7 @@ export const en: Messages = {
     milestoneOrder: 'Open the milestone order',
     resume: 'Check again and resume',
     packages: 'Open the project’s packages',
-    git: 'Open the Git step',
+    identity: 'Set them',
     enableProfile: 'Turn on',
     stopChains: (count: number) => (count > 1 ? 'Stop the chains' : 'Stop the chain'),
   },

@@ -44,7 +44,7 @@ Git in the wizard (BTN-731). A folder that is not a repository (`wizard.notRepo`
 refusal, a repository with no commits (`wizard.noCommits`) "Make the first commit"; both send `git/init` with the folder
 and the branch field (blank — `DEFAULT_BRANCH`), then check the draft again. `initRepository` (`src/git/setup.ts`)
 refuses a missing folder (`wizard.noFolder`), a branch git would not take (`wizard.branchName`) and git without a name
-or e-mail (`git.noIdentity`, whose fix opens the setup's Git step) before touching anything; then `git init -b <branch>`,
+or e-mail (`git.noIdentity`, whose fix "Set them" asks them in a dialog and sends `git/init` again) before touching anything; then `git init -b <branch>`,
 or for an unborn branch `git symbolic-ref HEAD refs/heads/<branch>`, and `git commit --allow-empty -m "Initial commit"`.
 A repository with commits is left as it is. When git does not start at all, `checkRepo` answers `git.missing` instead
 of `wizard.notRepo`, and so does any git call of the chain through `requireStarted` (`requireBranch`, the worktree
@@ -74,7 +74,14 @@ the field; `%VAR%` on Windows — `wizard.noFolder`; a name the platform cannot 
 `folderNameSlash`, `reservedName`, `nameEnd` (`nameRefusal`). One letter before `:` is a drive on Windows only; elsewhere
 `foo:bar` is an address, as git reads it. A clone and a new repository need git's name and e-mail (`git.noIdentity`
 with its `NoticeFixButton`, the line still saying how the field was read); a repository without commits keeps "Make the
-first commit". A draft with `source` and no `target` (an older page) is checked as before. Git that does not start
+first commit".
+
+`git.noIdentity`'s fix is `{ to: 'identity' }` (BTN-1094): "Set them" opens `IdentityDialog` over the page, the setup Git
+step's two fields (`IdentityFields`, `useIdentityForm` in `SetupGit.tsx`) saved by the same `git/identity`. The wizard
+keeps everything typed and checks the field again after the save (`onFixed` of `NoticeFixButton`); the creation window
+sends `job/retry` from the failed step by itself; "Make the first commit" sends `git/init` again. The "Turn on git"
+dialog of a project keeps the step's `Identity` section in its body. The wizard's fields also outlive leaving the page
+within the tab (`kept`, BTN-310), not a reload. A draft with `source` and no `target` (an older page) is checked as before. Git that does not start
 closes "In a git repository" with the reason and a link to the setup's Git step.
 
 - **Clone** — the address in the one field (`ProjectDraft.remote` once read). The check asks the remote first (`git ls-remote --symref`,

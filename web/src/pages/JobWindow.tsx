@@ -66,6 +66,7 @@ export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
   }, [])
 
   const failed = job.failure !== null
+  const retry = () => void send('job/retry', { id: job.id })
   // What a kept job made is opened in place of a bare "Close"; Cancel takes back only what can still be.
   const openable = !job.done && !job.undoable && job.result !== undefined
   const stop = job.undoable ? t.creation.window.cancel : t.creation.window.close
@@ -104,9 +105,10 @@ export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
           {!job.done && <p className="settings__hint job-window__note">{job.undoable ? t.creation.window.undoable : t.creation.window.kept}</p>}
         </div>
         {job.failure !== null && (
-          // One line by the failure's code, the tool's words behind a tip: git's ten lines are not why to a person.
+          // One line by the failure's code, the tool's words behind a tip: git's ten lines are not why to a person. A fix
+          // made in a dialog over the window (git's name and e-mail) retries the failed step by itself.
           <div role="alert" className="notice notice--error add-package__failure">
-            <RefusalWords refusal={job.failure} />
+            <RefusalWords refusal={job.failure} onFixed={retry} />
           </div>
         )}
         {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
@@ -123,7 +125,7 @@ export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
             </button>
           )}
           {failed && (
-            <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('job/retry', { id: job.id })}>
+            <button type="button" className="button button--primary" disabled={sending} onClick={retry}>
               {t.creation.window.retry}
             </button>
           )}

@@ -11,7 +11,8 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * names by its key; without it, the project the notice is shown at), a tab of Even Keel's settings, or the accounts;
  * `resume` — fixed outside the page, the chain of the project it is shown at is resumed to try again; `moves` — the
  * status moves of the task's source (`source`) or of its tracker profile (`profile`); `packages` — the project's
- * packages, with the add dialog of `plugin` over them while the catalog lacks it; `git` — the setup's Git step, where git's name and e-mail are written; `enableProfile` — turns a
+ * packages, with the add dialog of `plugin` over them while the catalog lacks it; `identity` — a dialog over the page
+ * with the setup Git step's name and e-mail fields, so nothing typed on the page is left behind (BTN-1094); `enableProfile` — turns a
  * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830);
  * `milestoneOrder` — the "Milestone order" block of the project's tracker window (BTN-792); `gitOn` — the "Turn on git"
  * dialog of the project it is shown at (BTN-1025).
@@ -21,7 +22,7 @@ export type NoticeFix =
   | { to: 'enableProfile'; profile: string }
   | { to: 'stopChains'; projects: string[] }
   | { to: 'packages'; plugin?: string }
-  | { to: 'git' }
+  | { to: 'identity' }
   | { to: 'project'; project?: string; tab: ProjectTab }
   | { to: 'shared'; tab: SharedTab }
   | { to: 'accounts' }
@@ -70,7 +71,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'claude.untrusted': { to: 'resume' },
   'claude.trustWriteFailed': { to: 'resume' },
   'git.missing': { to: 'resume' },
-  'git.noIdentity': { to: 'git' },
+  'git.noIdentity': { to: 'identity' },
   'git.found': { to: 'gitOn' },
   'chain.packagesNotReady': { to: 'packages' },
   'order.later': { to: 'milestoneOrder' },
