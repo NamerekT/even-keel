@@ -1,5 +1,6 @@
 import type { Notice } from '../notice/notice.js'
 import type { RepoBranches } from './branch.js'
+import type { RemoteBranchList } from './remote-branches.js'
 
 /** A project the wizard of `/projects/add` is about to add; blank text — not given. */
 export interface ProjectDraft {
@@ -70,6 +71,8 @@ export interface ProjectCheck {
     suggested: string | null
     /** What the branch field offers and what adding does to the checkout (BTN-754); `null` — not read: no repository, or one another project has. */
     branches: RepoBranches | null
+    /** A clone's remote, read: what its branch field offers and whether the typed branch is there (BTN-1096). */
+    remoteBranches?: RemoteBranchList
     notice: Notice | null
   }
   /** What `parseConfig` says of the config with the draft added; `null` — it parses. */

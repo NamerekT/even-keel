@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { EvenKeelState, RepoBranches } from '../../../src/state.js'
+import type { EvenKeelState, RemoteBranchList, RepoBranches } from '../../../src/state.js'
 import { branchTexts } from '../i18n/branch.js'
 import { setLanguage } from '../i18n/index.js'
 import { fakeRepoBranches } from '../live/fakeBranches.js'
-import { branchOffers, moveLine } from './branchLines.js'
+import { branchOffers, cloneLine, moveLine, remoteOffers } from './branchLines.js'
 
 const repo: RepoBranches = {
   current: 'dev',
@@ -87,5 +87,28 @@ describe('the drift warning', () => {
     expect(branchTexts().drift(null, 'main')).toBe('В папке сейчас отсоединённый HEAD, главная ветка проекта — main')
     expect(branchTexts().adopt('feature/spike')).toBe('Сделать feature/spike главной')
     expect(branchTexts().restore('main')).toBe('Вернуть папку на main')
+  })
+})
+
+describe('a clone\'s branch field (BTN-1096)', () => {
+  const list: RemoteBranchList = { head: 'main', branches: ['main', 'develop'], total: 2, typed: 'develop', has: true }
+
+  it('offers the remote\'s branches, the default marked so', () => {
+    expect(remoteOffers(list)).toEqual([{ value: 'main', label: 'default' }, { value: 'develop' }])
+  })
+
+  it('says which branch is cloned, and that a branch the remote lacks is created from the default', () => {
+    expect(cloneLine(list, 'develop')).toBe('The branch develop will be cloned')
+    expect(cloneLine(list, ' main ')).toBe('The branch main will be cloned')
+    expect(cloneLine({ ...list, typed: 'next', has: false }, 'next')).toBe('The remote has no branch next: main will be cloned, and next created from it')
+    expect(cloneLine({ ...list, head: null, branches: [], total: 0, typed: 'next', has: false }, 'next')).toBe('The remote is empty: the branch next will be created in the clone')
+    expect(cloneLine(list, '')).toBeNull()
+  })
+
+  it('reads a full list itself while the check is behind the typing, and says nothing for a narrowed one', () => {
+    expect(cloneLine(list, 'feature')).toBe('The remote has no branch feature: main will be cloned, and feature created from it')
+    const narrowed = { ...list, total: 4000 }
+    expect(cloneLine(narrowed, 'feature')).toBeNull()
+    expect(cloneLine(narrowed, 'develop')).toBe('The branch develop will be cloned')
   })
 })

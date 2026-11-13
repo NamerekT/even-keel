@@ -86,6 +86,8 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
       </button>
     </>
   )
+  // A clone's field offers its remote's branches and says which one the clone takes, never a move of a checkout (BTN-1096).
+  const remote = clone && !remoteRefused ? repo?.remoteBranches : undefined
   // Opened where its "[change]" was: under the remote for a clone, under the path or the folder otherwise.
   const branchRow = fields.git && branchShown && (
     <Row
@@ -93,9 +95,9 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
       label={t.settings.branch}
       hint={t.settings.branchHint}
       htmlFor="wizard-branch"
-      control={<BranchField id="wizard-branch" value={fields.branch} repo={branches} placeholder={current ?? 'main'} invalid={badBranch} onChange={(branch) => set({ branch })} />}
+      control={<BranchField id="wizard-branch" value={fields.branch} repo={clone ? null : branches} remote={remote} placeholder={current ?? 'main'} invalid={badBranch} onChange={(branch) => set({ branch })} />}
     >
-      <BranchMoveLine repo={branches} value={fields.branch} />
+      <BranchMoveLine repo={clone ? null : branches} remote={remote} value={fields.branch} />
     </Row>
   )
   return (

@@ -70,7 +70,13 @@ reason and a link to the setup's Git step; git without a name and e-mail closes 
   git not signed in — `remoteDenied`. The fake's remotes with `private`, `hostkey` and `nokey` go through
   `remoteFailure` with git's real output. An answer is "The remote answered" with the main branch and `[change]`, which opens the branch field right
   under the remote (under the path or the folder for the other sources). A branch the remote lacks is no refusal: the default branch is cloned and the wanted one is
-  made when the entry is written.
+  made when the entry is written. The field offers the remote's branches (BTN-1096): the check's answer carries
+  `remoteBranches` (`remoteOffer` in `src/projects/remote-branches.ts`) — the default first, marked so, then the typed
+  one, then the rest, task branches `<slug>/task` left out; past `REMOTE_OFFERED` (200) only those holding every typed
+  word, with the remote's total, and the field lists at most 100 rows (`SuggestField`'s `limit`). The line under it
+  says which branch is cloned, or that the default is cloned and the typed one made from it (`cloneLine` in
+  `web/src/pages/branchLines.ts`), never a move of a checkout; a narrowed list adds how many branches the remote has.
+  The fake's remote with `many` in its address has over a thousand branches.
 - **Folder** (Clone, New repository and "Without git") — Even Keel's projects folder (`projectsDir()`, the data
   folder's fixed `projects/`, no setting) as muted text cut from the left, then the name's field; blank, the name
   suggested (`checkPlace` in `src/projects/place.ts`: the remote's name, else the project's name or key; a taken one

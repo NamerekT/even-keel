@@ -23,6 +23,8 @@ interface SuggestFieldProps {
   disabled?: boolean
   /** The values in the list in monospace, as the field shows them. */
   mono?: boolean
+  /** The most rows the list shows, the best fits of the typed text: thousands of options would stall the page. */
+  limit?: number
   /** A key the list did not take: Enter with no option active, Escape with the list closed. */
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
   /** An option taken from the list, by a click or Enter, as against a value typed. */
@@ -34,7 +36,7 @@ interface SuggestFieldProps {
  * replaces it; the list opened by focus, a click or an arrow shows every option and narrows only once the user types.
  * The list opens in the top layer like `Select`'s. Arrows move through it, Enter picks, Escape closes the list alone.
  */
-export function SuggestField({ value, options, onChange, id, className = '', label, placeholder, invalid = false, disabled = false, mono = false, onKeyDown, onPick }: SuggestFieldProps) {
+export function SuggestField({ value, options, onChange, id, className = '', label, placeholder, invalid = false, disabled = false, mono = false, limit, onKeyDown, onPick }: SuggestFieldProps) {
   const [open, setOpen] = useState(false)
   // `null` until the user types: the list then shows every option, whatever the field holds.
   const [typed, setTyped] = useState<string | null>(null)
@@ -48,7 +50,7 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
   const [host, setHost] = useState<HTMLElement | null>(null)
   const listId = useId()
   const offers = options.map((option) => (typeof option === 'string' ? { value: option } : option))
-  const shown = offersOf(offers, typed)
+  const shown = offersOf(offers, typed, limit)
   const visible = open && shown.length > 0
   const optionId = (index: number) => `${listId}-${index}`
 
@@ -90,7 +92,7 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
 
   const show = () => {
     setTyped(null)
-    setActive(offersOf(offers, null).findIndex((option) => option.value === value))
+    setActive(offersOf(offers, null, limit).findIndex((option) => option.value === value))
     setOpen(true)
   }
   const close = () => {

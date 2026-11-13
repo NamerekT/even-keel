@@ -6,12 +6,14 @@ export interface Offer {
 
 /**
  * What a field with suggestions lists: every option until something is typed (`null`), then those whose value or
- * label fits it, as a search ranks them. A value given twice is listed once.
+ * label fits it, as a search ranks them. A value given twice is listed once; past `limit` the rest are left out.
  */
-export function offersOf<T extends Offer>(options: readonly T[], typed: string | null): T[] {
+export function offersOf<T extends Offer>(options: readonly T[], typed: string | null, limit = Infinity): T[] {
   const unique = [...new Map(options.map((option) => [option.value, option])).values()]
-  if (typed === null) return unique
-  return filterOf(unique.map((option) => (option.label === undefined ? option.value : `${option.value} ${option.label}`)), typed).map((index) => unique[index]!)
+  if (typed === null) return unique.slice(0, limit)
+  return filterOf(unique.map((option) => (option.label === undefined ? option.value : `${option.value} ${option.label}`)), typed)
+    .slice(0, limit)
+    .map((index) => unique[index]!)
 }
 
 /**
