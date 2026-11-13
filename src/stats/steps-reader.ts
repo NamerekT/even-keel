@@ -133,6 +133,12 @@ export async function readSteps(db: StepsDb, query: PeriodQuery): Promise<StatsS
   }
 }
 
+/** The agent's active seconds on the task, as the Time column of `/stats`; `null` — Tally has no session of it. */
+export async function readTaskActive(db: StepsDb, task: string): Promise<number | null> {
+  const [row] = await db.plain(TASK_ACTIVE, [[task]])
+  return row === undefined ? null : Number(row.active_s)
+}
+
 export async function readTaskSteps(db: StepsDb, task: string): Promise<StatsTaskStep[]> {
   const time = (await readTimes(db, [task])).get(task)
   return time === undefined ? [] : taskSteps(time)

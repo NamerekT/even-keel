@@ -50,51 +50,56 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
     void send('task/run', { task, ...change }).then((ok) => ok && onChanged())
   }
 
+  // A property group of the card's side: Save stands in the label's row, so it moves nothing when it shows up.
   return (
-    <div className="task-card__run">
-      <Select
-        className="task-card__run-pick"
-        label={t.card.run.provider}
-        value={draft.provider}
-        options={[
-          { value: '', label: t.card.run.asProject(providerName(projectProvider)) },
-          ...providers.map((provider) => ({ value: provider, label: providerName(provider) })),
-        ]}
-        disabled={sending}
-        onChange={pickProvider}
-      />
-      {draft.provider !== '' && (
-        <SuggestField
-          className="task-card__run-model"
-          label={t.card.run.model}
-          mono
-          value={draft.model}
-          options={offersOf(models, account)}
-          placeholder={t.card.run.modelAsProject(projectModel)}
-          disabled={sending}
-          onChange={(model) => setDraft({ ...draft, model })}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') save()
-          }}
-        />
-      )}
-      {efforts.length > 0 && (
+    <div className="task-card__prop task-card__prop--wide">
+      <dt className="task-card__prop-head">
+        {t.card.run.title}
+        {change !== null && (
+          <button type="button" className="button button--small task-card__run-save" disabled={sending} onClick={save}>
+            {t.card.run.save}
+          </button>
+        )}
+      </dt>
+      <dd className="task-card__run">
         <Select
-          className="task-card__run-pick"
-          label={t.card.run.effort}
-          value={draft.effort}
-          options={[{ value: '', label: t.card.run.effortNone }, ...efforts.map((effort) => ({ value: effort, label: t.card.run.effortOf(effort) }))]}
+          className="task-card__field"
+          label={t.card.run.provider}
+          value={draft.provider}
+          options={[
+            { value: '', label: t.card.run.asProject(providerName(projectProvider)) },
+            ...providers.map((provider) => ({ value: provider, label: providerName(provider) })),
+          ]}
           disabled={sending}
-          onChange={(effort) => setDraft({ ...draft, effort })}
+          onChange={pickProvider}
         />
-      )}
-      {change !== null && (
-        <button type="button" className="button button--small task-card__run-save" disabled={sending} onClick={save}>
-          {t.card.run.save}
-        </button>
-      )}
-      {live && change !== null && <p className="task-card__run-note">{t.card.run.live}</p>}
-      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+        {draft.provider !== '' && (
+          <SuggestField
+            className="task-card__field"
+            label={t.card.run.model}
+            value={draft.model}
+            options={offersOf(models, account)}
+            placeholder={t.card.run.modelAsProject(projectModel)}
+            disabled={sending}
+            onChange={(model) => setDraft({ ...draft, model })}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') save()
+            }}
+          />
+        )}
+        {efforts.length > 0 && (
+          <Select
+            className="task-card__field"
+            label={t.card.run.effort}
+            value={draft.effort}
+            options={[{ value: '', label: t.card.run.effortNone }, ...efforts.map((effort) => ({ value: effort, label: t.card.run.effortOf(effort) }))]}
+            disabled={sending}
+            onChange={(effort) => setDraft({ ...draft, effort })}
+          />
+        )}
+        {live && change !== null && <p className="task-card__run-note">{t.card.run.live}</p>}
+        {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+      </dd>
     </div>
   )
 }

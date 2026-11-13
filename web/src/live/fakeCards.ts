@@ -104,6 +104,9 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     milestones: { current: task.milestone?.label ?? null, choices: fakeMilestones(state, id) },
     relabel: mode !== 'readonly',
     edit: null,
+    // An estimate in the tracker's minutes and a time the way Tally gives it: started tasks only, every third one over ×1.5.
+    estimate: plain || task.estimate == null ? null : Math.round(task.estimate * 60),
+    activeS: plain || task.status.category === 'UnStarted' || task.estimate == null ? null : Math.round(task.estimate * 3600 * (number % 3 === 0 ? 1.8 : 0.7)),
   }
 }
 

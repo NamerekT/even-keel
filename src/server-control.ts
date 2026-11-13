@@ -38,6 +38,8 @@ export interface StatsSource {
   steps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   calibration(project: string, task: string | null): Promise<StatsAnswer<Calibration>>
+  /** The agent's active seconds on the task over all its turns, as the Time column of `/stats`; `null` — no session yet. */
+  activeTime(task: string): Promise<StatsAnswer<number | null>>
   checkpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
   spend(tz: string): Promise<StatsAnswer<Record<string, AccountSpend>>>
   tokens(tz: string): Promise<StatsAnswer<Record<string, AccountTokens>>>

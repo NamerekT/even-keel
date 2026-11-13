@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { TaskCard as Card, TaskRef } from '../../../src/tracker/card.js'
 import { t } from '../i18n/index.js'
@@ -106,8 +106,10 @@ export function Relations({ card, editor, onOpen }: RelationsProps) {
   useEffect(() => {
     if (adding) form.current?.querySelector('button')?.focus()
   }, [adding])
-  const any =card.blockedBy.length + card.blocks.length + card.related.length > 0
-  if (!any && editor === null) return null
+  const refs = [...card.blockedBy, ...card.blocks, ...card.related]
+  if (refs.length === 0 && editor === null) return null
+  // One key column for every group, as wide as the longest key: the titles start on one line.
+  const keys = { '--ref-key': `${Math.max(0, ...refs.map((each) => each.id.length))}ch` } as CSSProperties
 
   const link = async (other: string) => {
     const refused = linkRefusal(card, kind, other) ?? (await editor!.run('query', 'builtin/relate', linkBody(card.id, kind, other)))
@@ -121,7 +123,7 @@ export function Relations({ card, editor, onOpen }: RelationsProps) {
   }
 
   return (
-    <div className="task-card__relations">
+    <div className="task-card__relations" style={keys}>
       <Refs title={t.card.blockedBy} items={card.blockedBy} onOpen={onOpen} onRemove={(other) => unlink('blockedBy', other)} />
       <Refs title={t.card.blocks} items={card.blocks} onOpen={onOpen} onRemove={(other) => unlink('blocks', other)} />
       <Refs title={t.card.related} items={card.related} onOpen={onOpen} onRemove={(other) => unlink('relates', other)} />

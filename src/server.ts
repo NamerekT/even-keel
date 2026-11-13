@@ -357,7 +357,9 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     try {
       const task = decodeURIComponent(card[1]!)
       if (!isTaskId(task)) throw fail('request.taskId', {})
-      view = await deps.tasks.card(task)
+      // The time comes with the card (BTN-1097): the page does not ask Tally itself. Stats off, failing or slow — no time.
+      const [found, activeS] = await Promise.all([deps.tasks.card(task), activeTimeOf(deps.stats, task)])
+      view = found === undefined ? undefined : { ...found, activeS }
     } catch (error) {
       sendFailure(response, error)
       return
@@ -555,7 +557,19 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   response.writeHead(405).end()
 }
 
+/** How long the card waits for Tally's time before it goes without one. */
+const CARD_TIME_WAIT_MS = 1_500
 
+async function activeTimeOf(stats: ServerDeps['stats'], task: string): Promise<number | null> {
+  let timer: NodeJS.Timeout | undefined
+  const late = new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), CARD_TIME_WAIT_MS)))
+  const read = stats.activeTime(task).then((answer) => (answer.state === 'ok' ? answer.data : null), () => null)
+  try {
+    return await Promise.race([read, late])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 function streamEvents(deps: ServerDeps, response: ServerResponse): void {
   const writer = eventWriter(response)

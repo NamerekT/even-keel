@@ -106,6 +106,8 @@ export interface TaskCard extends Omit<TrackerCard, 'labels' | 'attachments' | '
   milestones: MilestonePick | null
   /** The tracker can write the task's labels. */
   relabel: boolean
+  /** The agent's active seconds on the task from Tally, added by the service (BTN-1097); absent or `null` — not known. */
+  activeS?: number | null
 }
 
 /** What the task's connected tracker can do to move a task between the backlog and the chain. */

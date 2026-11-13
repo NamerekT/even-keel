@@ -148,7 +148,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
     tasks: {
       card: async (task) => {
         if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
-        return task === 'ABC-1' ? ({ id: task } as never) : undefined
+        return task === 'ABC-1' || task === 'ABC-3' ? ({ id: task } as never) : undefined
       },
       ready: async (task) => {
         if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
@@ -173,6 +173,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
       period: async (query) => ({ state: 'off', reason: `period ${query.from} ${query.to} ${query.projects?.join('+')}` }),
       task: async (task) => ({ state: 'error', error: `task ${task}` }),
       calibration: async (project, task) => ({ state: 'off', reason: `calibration ${project} ${task ?? 'none'}` }),
+      activeTime: async (task) => (task === 'ABC-1' ? { state: 'ok', data: 2040 } : { state: 'off', reason: `active ${task}` }),
       checkpoints: async () => ({ state: 'off', reason: 'checkpoints' }),
       spend: async (tz) => ({ state: 'off', reason: `spend ${tz}` }),
       tokens: async (tz) => ({ state: 'off', reason: `tokens ${tz}` }),

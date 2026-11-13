@@ -19,7 +19,7 @@ import { mapCalibration, type Calibration } from './calibration.js'
 import { checkpointThreshold, type CheckpointMeasure, type CheckpointThreshold } from './checkpoint.js'
 import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
-import { readSteps, readTaskSteps } from './steps-reader.js'
+import { readSteps, readTaskActive, readTaskSteps } from './steps-reader.js'
 import { TALLY_SCHEMA_VERSION, tallyVersion } from './tally-schema.js'
 import type { StatsSteps, StatsTaskStep } from './steps.js'
 import type { StatsConfig } from '../state.js'
@@ -513,6 +513,10 @@ export class StatsReader {
       ])
       return mapTask(task, sessions!, spans!, steps, compactions)
     })
+  }
+
+  activeTime(task: string): Promise<StatsAnswer<number | null>> {
+    return this.cached(`active|${task}`, (pool) => readTaskActive(this.db(pool), task))
   }
 
   /** Any project key Tally has seen, not only the tracked ones: the huly plugin runs in projects outside the chain. */

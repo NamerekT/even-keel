@@ -363,10 +363,11 @@ describe('Even Keel HTTP server', () => {
     expect(calls).toContainEqual(['milestoneOrder', 'ABC', []])
   })
 
-  it('serves the card of a task, 404 when no tracker gives one', async () => {
+  it("serves the card of a task with its agent's active time from the stats, 404 when no tracker gives one", async () => {
     const response = await fetch(base + '/api/tasks/ABC-1')
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ id: 'ABC-1' })
+    expect(await response.json()).toEqual({ id: 'ABC-1', activeS: 2040 })
+    expect(await (await fetch(base + '/api/tasks/ABC-3')).json()).toEqual({ id: 'ABC-3', activeS: null })
     expect((await fetch(base + '/api/tasks/ABC-2')).status).toBe(404)
     expect((await fetch(base + '/api/tasks/nope')).status).toBe(400)
     const failed = await fetch(base + '/api/tasks/ABC-9')

@@ -7,6 +7,10 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { Fact, FactList } from '../ui/blocks.js'
+import { ButtonWithTip } from '../ui/ButtonWithTip.js'
+import { Tipped } from '../ui/Tipped.js'
+import { cardTimeOf } from './cardTime.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Loader } from '../ui/Loader.js'
 import { useLoader } from '../ui/loaderPhase.js'
@@ -250,6 +254,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
   const loud = card.labels.filter((label) => LOUD.has(label.role))
   const quiet = card.labels.filter((label) => label.role !== null && !LOUD.has(label.role))
   const editable = editor !== null && card.edit !== null ? { card: card as Card & { edit: NonNullable<Card['edit']> }, editor } : null
+  const time = cardTimeOf(card.estimate, card.activeS)
 
   return (
     <>
@@ -313,7 +318,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
         <aside className="task-card__side">
           {/* An edited card moves the task through its status pick, which takes these same actions. */}
           {card.ready && editable === null && (
-            <div className="task-card__ready">
+            <Action hint={t.card.readyHint} problem={refused === null ? null : t.chain.readyRefused(say(refused))}>
               <button
                 type="button"
                 className="button button--primary"
@@ -322,11 +327,10 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               >
                 {t.card.ready}
               </button>
-              <span className="task-card__hint">{refused === null ? t.card.readyHint : t.chain.readyRefused(say(refused))}</span>
-            </div>
+            </Action>
           )}
           {card.unready && !live && editable === null && (
-            <div className="task-card__ready">
+            <Action hint={t.card.unreadyHint} problem={null}>
               <button
                 type="button"
                 className="button"
@@ -335,11 +339,24 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               >
                 {t.card.unready}
               </button>
-              <span className="task-card__hint">{t.card.unreadyHint}</span>
-            </div>
+            </Action>
           )}
           {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
           {editable?.editor.failure != null && <p className="notice notice--error">{say(editable.editor.failure)}</p>}
+          {time !== null && (
+            <FactList className="task-card__facts">
+              <Fact label={t.card.estimate}>
+                <dd>{time.estimate}</dd>
+              </Fact>
+              <Fact label={t.card.time} tone={time.over ? 'warn' : 'ok'}>
+                <dd>
+                  <Tipped tip={t.card.timeTip} inline focusable>
+                    {time.time}
+                  </Tipped>
+                </dd>
+              </Fact>
+            </FactList>
+          )}
           <dl className="task-card__props">
             <Prop name={t.card.priority}>
               {editable !== null ? (
@@ -365,9 +382,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
                 </span>
               )}
             </Prop>
-            <Prop name={t.card.run.title} wide>
-              <TaskRunPick task={card.id} live={live} onChanged={onChanged} />
-            </Prop>
+            <TaskRunPick task={card.id} live={live} onChanged={onChanged} />
             {editable !== null ? (
               <Prop name={t.card.parent} wide={editable.card.parent !== null}>
                 <ParentField card={editable.card} project={project} editor={editable.editor} onOpen={onOpen} />
@@ -439,6 +454,16 @@ function MilestonePick({ task, pick, onChanged }: { task: string; pick: Mileston
       />
       {chosen?.targetDate ? <small>{t.card.due(DAY().format(chosen.targetDate))}</small> : null}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+    </div>
+  )
+}
+
+/** The card's move between the backlog and the chain; what it does is behind its "?", a reason it cannot under it. */
+function Action({ hint, problem, children }: { hint: string; problem: string | null; children: ReactNode }) {
+  return (
+    <div className="task-card__ready">
+      <ButtonWithTip action={children} label={t.card.actionHelp} tip={hint} />
+      {problem !== null && <p className="task-card__hint">{problem}</p>}
     </div>
   )
 }
