@@ -15,6 +15,7 @@ type CliCheckContext = Pick<ServiceContext,
   | 'configStore'
   | 'db'
   | 'dispatcher'
+  | 'envFile'
   | 'getState'
   | 'homes'
   | 'hub'
@@ -57,7 +58,7 @@ export function wireCliChecks(ctx: CliCheckContext, history: CheckHistory): CliC
           model: CHECK_MODELS[agent] ?? null,
           usage: false,
           work: join(ctx.stateDir, 'cli-check'),
-          env: () => sessionBase(process.env, ctx.packages.keyNames()),
+          env: () => sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own()),
           say: (line) => console.log(`cli-check: ${line}`),
         })
       } finally {

@@ -44,6 +44,11 @@ export class EnvFile {
     return this.outer.has(name)
   }
 
+  /** The variables the file put into the environment: those set from outside are not its own. */
+  own(): string[] {
+    return Object.keys(this.current).filter((name) => !this.outer.has(name))
+  }
+
   /** `listener` gets the variables whose value the file changed, sorted. */
   subscribe(listener: (changed: string[]) => void): void {
     this.listeners.add(listener)

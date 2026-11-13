@@ -56,6 +56,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'account'
   | 'accountNow'
   | 'agentExtras'
+  | 'envFile'
   | 'gitFound'
   | 'agentOf'
   | 'agentStatus'
@@ -200,7 +201,7 @@ export function taskSource(ctx: ChainContext, project: string, task: string): { 
 }
 
 export function taskRun(ctx: ChainContext, task: string, cwd: string, account: string): SetupRun {
-  const env = () => accountEnv(account, (key) => ctx.homes.find(key), ctx.envOf, sessionBase(process.env, ctx.packages.keyNames()))
+  const env = () => accountEnv(account, (key) => ctx.homes.find(key), ctx.envOf, sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own()))
   return { task, cwd, shell: systemShell(env), log: (line) => console.log(line) }
 }
 

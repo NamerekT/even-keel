@@ -166,7 +166,7 @@ export function wireRuntimes(ctx: AccountsContext): Map<string, Agent> {
     Object.entries(AGENTS).map(([name, adapter]) => [
       name,
       adapter.setup({
-        env: () => sessionEnv(process.env, ctx.packages.keyNames(), localUrlOf(ctx.listen)),
+        env: () => sessionEnv(process.env, ctx.packages.keyNames(), localUrlOf(ctx.listen), ctx.envFile.own()),
         timeoutMs: ctx.AGENT_TIMEOUT_MS,
         workDir: ctx.stateDir,
         checkedCli: () => ctx.configStore.current.cli[name] !== 'system',

@@ -20,6 +20,21 @@ describe('sessionBase', () => {
   it('drops the CI token', () => {
     expect(sessionBase({ ...env, FORGEJO_TOKEN: 'fake-token' }).FORGEJO_TOKEN).toBeUndefined()
   })
+
+  it("drops Even Keel's own secrets even when set from outside", () => {
+    const result = sessionBase({ ...env, EVEN_KEEL_TOKEN: 'x', TALLY_LLM_KEY: 'y', TALLY_WRITER_PASSWORD: 'z', EVEN_KEEL_BADGE_SECRET: 'w' })
+    expect(Object.keys(result).sort()).toEqual(['PATH'])
+  })
+
+  it("drops the adapters' placeholder names the gateway also reads a key under", () => {
+    const result = sessionBase({ ...env, GITHUB_PERSONAL_ACCESS_TOKEN: 'x', LINEAR_API_KEY: 'y', JIRA_BASIC_AUTH: 'z', GITEA_ACCESS_TOKEN: 'w' })
+    expect(Object.keys(result).sort()).toEqual(['PATH'])
+  })
+
+  it('drops whatever came from the .env file', () => {
+    const result = sessionBase({ ...env, EVEN_KEEL_PORT: '4800', EXAMPLE_PROXY: 'http://proxy.example.com' }, [], ['EVEN_KEEL_PORT', 'EXAMPLE_PROXY'])
+    expect(Object.keys(result).sort()).toEqual(['PATH'])
+  })
 })
 
 describe('sessionEnv', () => {
@@ -36,6 +51,12 @@ describe('sessionSecrets', () => {
     const names = sessionSecrets(['EXAMPLE_KEY'])
     expect(names).toEqual(expect.arrayContaining(['HULY_PASSWORD', 'GITLAB_TOKEN', 'GITLAB_URL', 'FORGEJO_TOKEN', 'EXAMPLE_KEY']))
     expect(names).not.toContain('PATH')
+  })
+
+  it("names the adapters' placeholders and Even Keel's own secrets, not its plain settings", () => {
+    const names = sessionSecrets()
+    expect(names).toEqual(expect.arrayContaining(['GITHUB_PERSONAL_ACCESS_TOKEN', 'LINEAR_API_KEY', 'GITLAB_PERSONAL_ACCESS_TOKEN', 'JIRA_BASIC_AUTH', 'EVEN_KEEL_TOKEN', 'TALLY_LLM_KEY', 'EVEN_KEEL_BADGE_SECRET']))
+    expect(names).not.toContain('TALLY_DB_HOST')
   })
 })
 

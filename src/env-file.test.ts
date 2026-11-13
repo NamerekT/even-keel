@@ -67,6 +67,16 @@ describe('EnvFile', () => {
     expect(env).toEqual({ PATH: 'C:\\bin', EVEN_KEEL_PORT: '4800', HULY_TOKEN: 'one' })
   })
 
+  it('names the variables it put into the environment, not those set from outside', () => {
+    env.EVEN_KEEL_PORT = '4800'
+    writeFileSync(file, 'EVEN_KEEL_PORT=4747\nEVEN_KEEL_TOKEN=fake-token\n')
+    const envFile = open()
+    expect(envFile.own()).toEqual(['EVEN_KEEL_TOKEN'])
+    writeFileSync(file, 'TALLY_LLM_KEY=fake-key\n')
+    envFile.reload()
+    expect(envFile.own()).toEqual(['TALLY_LLM_KEY'])
+  })
+
   it('applies a changed file to the environment and reports what changed', () => {
     writeFileSync(file, 'HULY_TOKEN=one\nGITHUB_TOKEN=gh\n')
     const envFile = open()

@@ -42,7 +42,7 @@ export function wirePackages(ctx: AccountsContext): Packages {
     agentOf: (project) => ctx.homes.find(ctx.choiceFor(project).account)?.agent ?? CLAUDE,
     updateMarketplace: (marketplace) => ctx.agentOf(ctx.homes.global).updateMarketplace!(ctx.homes.global, marketplace, ctx.PLUGIN_UPDATE_TIMEOUT_MS),
     addMarketplace: (dir) => ctx.agentOf(ctx.homes.global).addMarketplace!(ctx.homes.global, dir, ctx.PLUGIN_UPDATE_TIMEOUT_MS),
-    baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, ctx.packages.keyNames()),
+    baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own()),
     poolOf: (project) => keyPool(ctx.profiles.current(), ctx.profileKindsOf, process.env, project, ctx.configStore.current.trackers[project]!, ctx.configStore.current.feeds[project]),
     oauth: (project, server, url) => ctx.profiles.gateway(serverProfile(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!, ctx.configStore.current.feeds[project] ?? [], server)?.id, server, url),
     refuseDeletes: (project, server) => {
