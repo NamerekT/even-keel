@@ -6,15 +6,53 @@ import { dataDirOf, filesDirOf } from './owner.js'
 /** The rows of a database, by table: what a copy carries over. */
 export type Rows = Record<string, Record<string, unknown>[]>
 
-/** Every row of every table but the version, in one statement: a consistent snapshot while the service writes. */
-export async function rowsOf(db: Queryable): Promise<Rows> {
-  const { rows: tables } = await db.query<{ name: string }>(
+/** The tables a copy carries over: every table but the version. */
+export async function tablesOf(db: Queryable): Promise<string[]> {
+  const { rows } = await db.query<{ name: string }>(
     "select tablename as name from pg_tables where schemaname = 'public' and tablename <> 'schema_version' order by tablename",
   )
+  return rows.map(({ name }) => name)
+}
+
+const tableRows = (name: string) => `(select coalesce(json_agg(r), '[]'::json) from "${name}" r)`
+
+/** Every row of every table but the version, in one statement: a consistent snapshot while the service writes. */
+export async function rowsOf(db: Queryable): Promise<Rows> {
+  const tables = await tablesOf(db)
   if (tables.length === 0) return {}
-  const parts = tables.map(({ name }) => `'${name}', (select coalesce(json_agg(r), '[]'::json) from "${name}" r)`)
+  const parts = tables.map((name) => `'${name}', ${tableRows(name)}`)
   const { rows } = await db.query<{ rows: Rows }>(`select json_build_object(${parts.join(', ')}) as rows`)
   return rows[0]!.rows
+}
+
+/**
+ * The rows of `rowsOf` as JSON text, never parsed here: read a table a statement inside one transaction, which keeps
+ * the service's writes out until the last table is read, so the snapshot stays consistent while the event loop runs
+ * between the statements. For the automatic backup (`src/storage/backup.ts`), whose thread parses it.
+ */
+export async function rowsTextOf(db: Db): Promise<string> {
+  return inTransaction(db, async (tx) => {
+    const parts: string[] = []
+    for (const name of await tablesOf(tx)) {
+      const { rows } = await tx.query<{ rows: string }>(`select ${tableRows(name)}::text as rows`)
+      parts.push(`${JSON.stringify(name)}:${rows[0]!.rows}`)
+    }
+    return `{${parts.join(',')}}`
+  })
+}
+
+/**
+ * Writes the rows into a new database in `dataDir` of the schema `steps` bring it to, then the attachments' bytes
+ * `files` (the source's folder) into `filesDir`, without half-written uploads.
+ */
+export async function writeRows(rows: Rows, dir: string, files: string | undefined, steps: readonly string[] = STEPS): Promise<void> {
+  const copy = await openDatabase(dataDirOf(dir), steps)
+  try {
+    await insertRows(copy, rows)
+  } finally {
+    await copy.close()
+  }
+  if (files !== undefined && existsSync(files)) cpSync(files, filesDirOf(dir), { recursive: true, filter: (path) => !/\.tmp$/.test(path) })
 }
 
 /** Inserts the rows into the tables of the same names and moves the counters of the id columns past them. */
@@ -40,14 +78,7 @@ export async function insertRows(db: Db, rows: Rows): Promise<void> {
  */
 export async function backupDatabase(source: Queryable, dir: string, files?: string): Promise<void> {
   if (existsSync(dir) && readdirSync(dir).length > 0) throw new Error(`storage: ${dir} exists; give a new folder`)
-  const rows = await rowsOf(source)
-  const copy = await openDatabase(dataDirOf(dir))
-  try {
-    await insertRows(copy, rows)
-  } finally {
-    await copy.close()
-  }
-  if (files !== undefined && existsSync(files)) cpSync(files, filesDirOf(dir), { recursive: true, filter: (path) => !/\.tmp$/.test(path) })
+  await writeRows(await rowsOf(source), dir, files)
 }
 
 /**
