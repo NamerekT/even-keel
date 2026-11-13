@@ -9,6 +9,7 @@ import { useLive } from '../live/context.js'
 import { projectPath, taskProject, waitingSessions } from '../state.js'
 import { completionTasks } from '../completion.js'
 import { QuestionIcon } from '../ui/icons.js'
+import { ThemeSwitch } from '../ui/ThemeSwitch.js'
 import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 import { VersionRow } from './Updates.js'
 import { usePopover } from './usePopover.js'
@@ -69,6 +70,16 @@ function HotkeysRow({ onOpen }: { onOpen: () => void }) {
   )
 }
 
+/** The theme of this browser one press away (BTN-1089); the menu stays open, so the choice is seen at once. */
+function ThemeRow() {
+  return (
+    <div className="gear__theme">
+      <span>{t.shared.theme}</span>
+      <ThemeSwitch />
+    </div>
+  )
+}
+
 /** The window lives outside the menu, which closes as it opens. */
 export function useHotkeysWindow(closeMenu: () => void) {
   const [open, setOpen] = useState(false)
@@ -94,6 +105,7 @@ export function GearRows({ now, onHotkeys }: { now: Date; onHotkeys: () => void 
         {t.header.tools}
       </NavLink>
       <HotkeysRow onOpen={onHotkeys} />
+      <ThemeRow />
       <VersionRow />
     </nav>
   )
@@ -135,6 +147,7 @@ export function GearMenu({ now }: { now: Date }) {
             {t.header.tools}
           </NavLink>
           <HotkeysRow onOpen={hotkeys.show} />
+          <ThemeRow />
           <VersionRow />
         </nav>
       )}

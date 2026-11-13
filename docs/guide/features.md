@@ -482,3 +482,7 @@ A newer release gets a mark next to the version in the gear menu and a notificat
 ## Languages
 
 The page is in English or Russian; the prompts Even Keel sends to sessions can be in either, separately.
+
+## Theme
+
+The page is light or dark. **Settings** → **Interface** → **Theme** and the gear menu (the menu button on a phone) offer **System**, **Light** and **Dark**. **System** is the default: the page follows your device's theme and changes with it on the fly. The choice is kept in this browser only, so a phone and a desktop can each have their own.

@@ -1,5 +1,6 @@
 /** The token rules of `docs/design.md` that a stylesheet can be checked against: a colour only through a variable
- * (a literal only in `:root`), a font size only from the scale, two weights, a radius only from the tokens. */
+ * (a literal only in `:root` or the dark theme's `:root[data-theme='dark']`), a font size only from the scale, two
+ * weights, a radius only from the tokens. */
 export type CssRule = 'colour' | 'font-size' | 'font-weight' | 'radius'
 
 export interface CssViolation {
@@ -14,6 +15,7 @@ const LENGTH = /^\d*\.?\d+(?:px|rem|pt|%)$/
 const WEIGHT = /^(?:400|600|normal|inherit)$/
 const RADIUS_PROPERTY = /^border(?:-(?:top|bottom|start|end)-(?:left|right|start|end))?-radius$/
 const RADIUS = /^(?:0|50%|999px|inherit|var\(--radius(?:-[a-z]+)?\))$/
+const ROOT = /^:root(?:\[data-theme=(['"]?)(?:light|dark)\1\])?$/
 
 export function cssViolations(css: string): CssViolation[] {
   const text = withoutComments(css)
@@ -44,7 +46,7 @@ export function cssViolations(css: string): CssViolation[] {
       if (char === '{') preludes.push(segment.trim())
       else {
         const lead = segment.length - segment.trimStart().length
-        const inRoot = preludes.some((prelude) => prelude === ':root')
+        const inRoot = preludes.some((prelude) => ROOT.test(prelude))
         for (const rule of declarationRules(segment.trim(), inRoot)) found.push({ rule, line: lineAt(start + lead), text: squeeze(segment) })
         if (char === '}') preludes.pop()
       }

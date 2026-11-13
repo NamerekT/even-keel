@@ -14,6 +14,7 @@ import { LiveConnection, type AttachedFile, type LiveSource, type QueryOptions }
 import { LiveProvider } from './live/context.js'
 import { fitsKeepalive } from './pages/cardDrafts.js'
 import { pageIdle, reloadOnMissingChunk, watchBuild } from './live/reload.js'
+import { watchTheme } from './theme.js'
 import './styles.css'
 
 async function fetchState(): Promise<EvenKeelState> {
@@ -132,6 +133,7 @@ async function createSource(): Promise<LiveSource> {
   return connection
 }
 
+watchTheme()
 const source = await createSource()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

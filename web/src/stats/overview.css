@@ -101,6 +101,13 @@
   cursor: pointer;
 }
 
+/* An item with an icon, before its word or alone (the theme switch, BTN-1089). */
+.segmented__item:has(> .icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
 .segmented__item {
   transition:
     background-color var(--motion-fast),

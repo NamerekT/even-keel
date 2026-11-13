@@ -542,3 +542,30 @@ export function ChangelogIcon() {
     </svg>
   )
 }
+
+/** The page's theme follows the system: a screen on its stand. */
+export function SystemThemeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1.75" y="2.75" width="12.5" height="8.5" rx="1.25" />
+      <path d="M8 11.25v2M5.25 13.25h5.5" />
+    </svg>
+  )
+}
+
+export function SunIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="2.75" />
+      <path d="M8 1.5v1.25M8 13.25v1.25M1.5 8h1.25M13.25 8h1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9" />
+    </svg>
+  )
+}
+
+export function MoonIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M13.5 9.6A5.75 5.75 0 1 1 6.4 2.5a4.6 4.6 0 0 0 7.1 7.1z" />
+    </svg>
+  )
+}

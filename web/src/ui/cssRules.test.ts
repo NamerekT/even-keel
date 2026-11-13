@@ -28,14 +28,20 @@ describe('cssViolations', () => {
     expect(rules('.a { --tint: #123456; }')).toEqual(['colour'])
   })
 
-  it('lets :root hold colours, in a media query too', () => {
+  it('lets :root and its theme hold colours, in a media query too', () => {
     const css = `
 :root { --bg: #f4f3ef; --scrim: rgb(0 0 0 / 0.6); }
-@media (prefers-color-scheme: dark) {
+:root[data-theme='dark'] { --bg: #141413; }
+@media (min-width: 900px) {
   :root { --bg: #141413; }
 }
 `
     expect(cssViolations(css)).toEqual([])
+  })
+
+  it('finds a colour under the dark theme outside :root itself', () => {
+    expect(rules(":root[data-theme='dark'] .a { --frame: #8d8b84; }")).toEqual(['colour'])
+    expect(rules(":root[data-theme='dark'], .a { color: #fff; }")).toEqual(['colour'])
   })
 
   it('does not take a pseudo-element of :root for :root', () => {
