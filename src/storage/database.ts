@@ -660,12 +660,13 @@ export async function databaseVersion(db: Queryable): Promise<number> {
 /**
  * Opens the database in `dataDir` (in memory without one, for tests) and brings it to the current schema; a database a
  * newer Even Keel wrote is refused before anything is written. One process holds the folder: `src/storage/owner.ts`.
+ * `before` runs when an existing database is about to take new steps, on its schema `from` (the backup's copy, BTN-1083).
  */
-export async function openDatabase(dataDir: string | undefined, steps: readonly string[] = STEPS): Promise<PGlite> {
+export async function openDatabase(dataDir: string | undefined, steps: readonly string[] = STEPS, before?: BeforeSteps): Promise<PGlite> {
   if (dataDir !== undefined) mkdirSync(dataDir, { recursive: true })
   const db = await PGlite.create(dataDir === undefined ? {} : { dataDir })
   try {
-    await migrateDatabase(db, dataDir ?? 'memory', steps)
+    await migrateDatabase(db, dataDir ?? 'memory', steps, before)
     return db
   } catch (error) {
     await db.close().catch(() => {})
@@ -673,10 +674,13 @@ export async function openDatabase(dataDir: string | undefined, steps: readonly 
   }
 }
 
-async function migrateDatabase(db: PGlite, where: string, steps: readonly string[]): Promise<void> {
+export type BeforeSteps = (db: PGlite, from: number) => Promise<void>
+
+async function migrateDatabase(db: PGlite, where: string, steps: readonly string[], before?: BeforeSteps): Promise<void> {
   const known = SQLITE_VERSIONS + steps.length
   const from = await databaseVersion(db)
   refuseNewer(where, from, known)
+  if (before !== undefined && from > SQLITE_VERSIONS && from < known) await before(db, from)
   for (let version = Math.max(from, SQLITE_VERSIONS); version < known; version++) {
     await db.transaction(async (tx) => {
       await tx.query("select set_config('even_keel.migration_from', $1, true)", [String(from)])

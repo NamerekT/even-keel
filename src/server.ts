@@ -96,6 +96,7 @@ const COMMANDS: Record<string, Command> = {
   'cli/checked': ({ cli }, body) => cli?.checked(textOf(body.agent, 'agent')),
   'cli/check': ({ cli }) => cli?.check(),
   'huly/install': ({ hulyClient }) => hulyClient?.install(),
+  'storage/backup': ({ backup }) => backup?.copyNow(),
   // The page sends its language: on the first run none is chosen yet, and the demo speaks the one the person reads.
   'demo/start': async ({ demo }, body) => void (await demo?.start(isLanguage(body.language) ? body.language : undefined)),
   'demo/again': async ({ demo }, body) => void (await demo?.again(isLanguage(body.language) ? body.language : undefined)),

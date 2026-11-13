@@ -13,6 +13,7 @@ import { isColor } from '../projects/colors.js'
 import { standardsOf } from '../projects/standards.js'
 import { ATTACHMENT_LIMIT_MB, MAX_ATTACHMENT_LIMIT_MB } from '../builtin/model.js'
 import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
+import { DEFAULT_BACKUP, MAX_BACKUP_KEEP } from '../storage/backup-model.js'
 import { promptPatternOf } from '../sessions/model-prompts.js'
 import { DEFAULT_PROTECTION, PROTECTION_GROUPS } from '../sessions/protection.js'
 import { placeholderIn } from '../sessions/prompt.js'
@@ -64,6 +65,8 @@ export interface ObjectDefinition {
 }
 
 const json = (value: unknown) => String(JSON.stringify(value))
+/** An absolute path on Windows (`D:\…`, `\\server\…`) or elsewhere (`/…`); the page reaches here too, so no `node:path`. */
+const ABSOLUTE = /^(?:[A-Za-z]:[\\/]|[\\/])/
 export const at = ({ project }: Place, path: string) => (project === null ? path : `${project}.${path}`)
 
 const boolean = (path: string) => (value: unknown, place: Place) => {
@@ -225,6 +228,18 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   { key: 'attachmentLimit', kind: 'integer', scopes: ['global'], lands: ['attachmentLimit'], default: ATTACHMENT_LIMIT_MB, check: (value) => {
     if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > MAX_ATTACHMENT_LIMIT_MB) {
       throw fail('config.attachmentLimit', { value: json(value), max: String(MAX_ATTACHMENT_LIMIT_MB) })
+    }
+    return value
+  } },
+  // The automatic copies of the state database (BTN-1083): `null` — `backups/` in the state folder.
+  { key: 'backup.dir', kind: 'string', scopes: ['global'], lands: ['backup'], default: DEFAULT_BACKUP.dir, check: (value) => {
+    if (value === null || (typeof value === 'string' && value.trim() === '')) return null
+    if (typeof value !== 'string' || !ABSOLUTE.test(value.trim())) throw fail('config.backupDir', { value: json(value) })
+    return value.trim()
+  } },
+  { key: 'backup.keep', kind: 'integer', scopes: ['global'], lands: ['backup'], default: DEFAULT_BACKUP.keep, check: (value) => {
+    if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > MAX_BACKUP_KEEP) {
+      throw fail('config.backupKeep', { value: json(value), max: String(MAX_BACKUP_KEEP) })
     }
     return value
   } },
@@ -444,6 +459,7 @@ export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {
   'stats.compare': { unknown: (_, key) => fail('config.compareKey', { key }) },
   'stats.checkpointShares': { unknown: (where, key, known) => fail('config.checkpointShareKey', { where, key, known }) },
   updates: { unknown: (_, key, known) => fail('config.updatesKey', { key, known }) },
+  backup: {},
   commands: { unknown: (where, key, known) => fail('config.commandKey', { where, key, known }) },
   ci: { unknown: (where, key, known) => fail('config.ciKey', { where, key, known }) },
 }

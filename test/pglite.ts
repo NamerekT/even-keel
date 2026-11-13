@@ -10,7 +10,7 @@ vi.mock('../src/storage/database.js', async (importOriginal) => {
   const dumps = new Map<string, Blob>()
   return {
     ...actual,
-    openDatabase: async (dataDir: string | undefined, steps: readonly string[] = actual.STEPS) => {
+    openDatabase: async (dataDir: string | undefined, steps: readonly string[] = actual.STEPS, before?: Parameters<typeof actual.openDatabase>[2]) => {
       const known = steps.every((step, index) => step === actual.STEPS[index])
       const template = !known ? undefined
         : steps.length === 1 ? templates.sqlite
@@ -27,7 +27,7 @@ vi.mock('../src/storage/database.js', async (importOriginal) => {
         }
         await copyTemplate(template, dataDir)
       }
-      return actual.openDatabase(dataDir, steps)
+      return actual.openDatabase(dataDir, steps, before)
     },
   }
 })

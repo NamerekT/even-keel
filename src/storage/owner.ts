@@ -6,7 +6,7 @@ import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
 import pg from 'pg'
 import { notice, NoticeError } from '../notice/notice.js'
 import { claim, type Claim, removeOwner, writeOwner } from './claim.js'
-import { checkVersion, DATABASE_DIR, openDatabase, type Queryable } from './database.js'
+import { checkVersion, DATABASE_DIR, openDatabase, type BeforeSteps, type Queryable } from './database.js'
 
 export { type Owner, readOwner, removeOwner, writeOwner } from './claim.js'
 
@@ -38,12 +38,12 @@ export interface StateDatabase {
 
 /**
  * Opens the database folder `dir` as its owner: brought to the current schema and served on a loopback port. Refused
- * while another live process owns it.
+ * while another live process owns it. `before` — as `openDatabase` takes it.
  */
-export async function openStateDatabase(dir: string, steps?: readonly string[]): Promise<StateDatabase> {
+export async function openStateDatabase(dir: string, steps?: readonly string[], before?: BeforeSteps): Promise<StateDatabase> {
   const claimant = await claim(dir)
   if (claimant !== null) throw new DatabaseHeldError(dir, claimant)
-  return served(dir, () => openDatabase(dataDirOf(dir), steps))
+  return served(dir, () => openDatabase(dataDirOf(dir), steps, before))
 }
 
 /** Opens the folder this process has claimed and serves it; the claim goes if that fails. */

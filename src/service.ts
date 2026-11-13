@@ -69,6 +69,8 @@ import { dropLeftFolder, loadLeftFolders, saveLeftFolder } from './storage/left-
 import { VACUUM_EVERY_MS, vacuumDatabase } from './storage/vacuum.js'
 import { loadContextWindows, loadSessionWindows } from './storage/context-windows.js'
 import { keptDatabase } from './storage/owner.js'
+import { backupDirOf } from './storage/backup.js'
+import { Backups, copyOnThread, takeStartFailure } from './storage/backup-schedule.js'
 import { stateValue } from './storage/service-state.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { createSessionSettings } from './tools/sessionSettings.js'
@@ -172,6 +174,7 @@ const context = {
   get approved() { return approved },
   get archive() { return archive },
   get archiveClosed() { return archiveClosed },
+  get backups() { return backups },
   get branchOf() { return branchOf },
   get briefOn() { return briefOn },
   get briefed() { return briefed },
@@ -379,6 +382,16 @@ const eventLog = new EventLog(
 )
 const configStore = await hostingService.wireConfigStore(context)
 eventLog.settingsSeen(configStore.raw())
+const backups = new Backups({
+  db,
+  files: attachmentsDir,
+  settings: () => ({ dir: backupDirOf(stateDirOf(), configStore.current.backup.dir), keep: configStore.current.backup.keep }),
+  run: copyOnThread,
+  log: (line) => console.log(line),
+  changed: () => stateChanged(),
+})
+const backupAtStart = takeStartFailure()
+if (backupAtStart !== null) backups.failedAtStart(backupAtStart)
 // The service names a project by its id (BTN-271): its log shows the project's label (`projectLabel`) instead.
 for (const method of ['log', 'warn', 'error'] as const) {
   const write = console[method].bind(console)
@@ -938,6 +951,7 @@ setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 setInterval(() => void keepWarm.check(), KEEP_WARM_TICK_MS).unref()
 setInterval(sweepFiles, SWEEP_EVERY_MS).unref()
 setInterval(() => writes.add('the vacuum', vacuumDatabase(db)), VACUUM_EVERY_MS).unref()
+backups.start()
 setInterval(() => void cliChecks.check(), cliCheckService.CLI_CHECK_TICK_MS).unref()
 setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 

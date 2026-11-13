@@ -51,10 +51,11 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
   )
   const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
+  const backup = { dir: config.backup.dir, keep: config.backup.keep }
   const shared = {
     protection: config.protection,
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt },
-    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates, backup },
     notices: config.notices,
   }
   return { projects, shared }
@@ -328,6 +329,8 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     ...(['first', 'late', 'hard'] as const).map((key) => value('stats', `stats.checkpointShares.${key}`, form.stats.checkpointShares[key])),
     value('updates', 'updates.check', form.updates.check),
     value('updates', 'updates.notify', form.updates.notify),
+    value('backup', 'backup.dir', form.backup.dir),
+    value('backup', 'backup.keep', form.backup.keep),
   ]
   const changedGroup = (group: string) => {
     const [field, part] = group.split('.') as [keyof SharedForm, string | undefined]

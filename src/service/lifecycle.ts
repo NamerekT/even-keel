@@ -7,6 +7,7 @@ import type { ServiceContext } from '../service.js'
 type LifecycleContext = Pick<ServiceContext,
   | 'SHUTDOWN_MS'
   | 'account'
+  | 'backups'
   | 'cliChecks'
   | 'cliVersions'
   | 'configStore'
@@ -37,9 +38,10 @@ type LifecycleContext = Pick<ServiceContext,
  * What a stop signal closes before the exit. The gateway's servers go too: under systemd (`KillMode=process`) and
  * launchd (`AbandonProcessGroup`) they would outlive node with the tracker credentials of their start (BTN-720).
  */
-export function shutdown(ctx: Pick<LifecycleContext, 'cliChecks' | 'packages' | 'stateDb' | 'tally' | 'writes'>): Promise<unknown> {
+export function shutdown(ctx: Pick<LifecycleContext, 'backups' | 'cliChecks' | 'packages' | 'stateDb' | 'tally' | 'writes'>): Promise<unknown> {
   ctx.cliChecks.stop()
-  return Promise.allSettled([ctx.packages.close(), ctx.tally.stop(), ctx.writes.settled().then(() => ctx.stateDb.close())])
+  const database = Promise.allSettled([ctx.backups.stop(), ctx.writes.settled()]).then(() => ctx.stateDb.close())
+  return Promise.allSettled([ctx.packages.close(), ctx.tally.stop(), database])
 }
 
 export function start(ctx: LifecycleContext): void {

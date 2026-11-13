@@ -14,9 +14,6 @@ import { dataDirOf, filesDirOf } from './owner.js'
 /** The folder of the automatic copies when the setting `backup.dir` names none: `backups/` next to the database's folder. */
 export const backupDirOf = (stateDir: string, setting: string | null) => setting ?? join(stateDir, 'backups')
 
-export const DEFAULT_BACKUP_KEEP = 14
-export const MAX_BACKUP_KEEP = 365
-
 /** What the check of a copy found, kept in the copy as `check.json`: a copy without it is no checked copy. */
 export interface CopyCheck {
   at: string

@@ -5,6 +5,7 @@ import type { Language } from '../language.js'
 import type { Protection } from '../sessions/protection.js'
 import type { PassableStep } from '../setup.js'
 import type { CompareSettings } from '../stats/rules.js'
+import type { BackupConfig } from '../storage/backup-model.js'
 import type { UpdateSettings } from '../updates/release.js'
 
 /**
@@ -233,6 +234,8 @@ export interface SharedForm {
   stats: StatsConfig
   /** The switches of `updates`; the closed version is written by the toast, not the form. */
   updates: Pick<UpdateSettings, 'check' | 'notify'>
+  /** The automatic copies of the state database (BTN-1083). */
+  backup: BackupConfig
   /** Even Keel's `notices` entries (BTN-759), read only: `notices/mute` writes them, not the form. */
   notices?: Record<string, boolean>
 }

@@ -9,6 +9,7 @@ import { configPath, home, loadEnv, root, stateDirOf } from './locations.js'
 import { causeLine, englishOf, noticeWithCause, sameNotice } from './notice/notice.js'
 import { createBlockedServer } from './server.js'
 import { prepareSettings } from './settings/import.js'
+import { copyBeforeSteps } from './storage/backup-schedule.js'
 import { upgradeStorage } from './storage/migrations.js'
 import { DatabaseHeldError, keepDatabase, keptDatabase } from './storage/owner.js'
 import { startWithStorageRetry, type BlockedPage } from './storage/startup.js'
@@ -26,7 +27,8 @@ const modulesMs = performance.now()
 const ready = await startWithStorageRetry({
   prepare: async () => {
     upgradeStorage({ configFile: configPath(), stateDir: stateDirOf(), log: (line) => console.log(line) })
-    const database = await prepareDatabase({ stateDir: stateDirOf(), log: (line) => console.log(line) })
+    const log = (line: string) => console.log(line)
+    const database = await prepareDatabase({ stateDir: stateDirOf(), log, beforeSteps: copyBeforeSteps(stateDirOf(), log) })
     keepDatabase(database)
     await compactDatabase(database.db, (line) => console.log(line))
     await prepareSettings({ db: database.db, file: configPath(), log: (line) => console.log(line) })

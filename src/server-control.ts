@@ -240,6 +240,8 @@ export interface ServerDeps {
   cli?: { download(agent: string): void; system(agent: string): void; checked(agent: string): void; check(): Promise<void> }
   /** The Huly client installed on demand (BTN-666): "Retry" after a failed install. */
   hulyClient?: { install(): void }
+  /** "Make a copy now" of the backup's settings (BTN-1083): refused while a copy runs. */
+  backup?: { copyNow(): void }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
   /** The windows of step jobs (BTN-1048): "Retry" of a failed step, "Cancel", closing a finished one. */

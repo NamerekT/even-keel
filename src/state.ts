@@ -12,6 +12,7 @@ import type { Language } from './language.js'
 import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
 import type { Notice } from './notice/notice.js'
+import type { BackupView } from './storage/backup-model.js'
 import type { BackgroundWait, Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
 import type { SessionMail } from './sessions/mail.js'
@@ -291,6 +292,8 @@ export interface EvenKeelState {
   /** The Huly client's install into the data folder (BTN-666) while it runs or after it failed; `null` — none. */
   hulyClient?: Notice | null
   updates: UpdatesView
+  /** The automatic copies of the state database (BTN-1083). */
+  backup?: BackupView
   /**
    * The page's "Got it" marks (BTN-759): a banner's id and the stamp of what it said when closed; it comes back once
    * the stamp changes. Kept in `service_state`, so every device sees them.

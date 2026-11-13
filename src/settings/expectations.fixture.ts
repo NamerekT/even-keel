@@ -82,6 +82,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     setupPassed: [],
     cliCheck: false,
     updates: { check: true, notify: true },
+    backup: { dir: null, keep: 14 },
     unattended: false,
     trimTools: true,
     tally: null,

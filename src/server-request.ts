@@ -2,6 +2,7 @@ import { isNoticeKind, type NoticeKind } from './notice/kinds.js'
 import { fail, type NoticeCode } from './notice/notice.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { ATTACHMENT_LIMIT_MB } from './builtin/model.js'
+import { DEFAULT_BACKUP } from './storage/backup-model.js'
 import { DEFAULT_CI } from './settings/defaults.js'
 import { EDIT_CHOICES, type EditChoice } from './account/settingsLayer.js'
 import { OWN_KEYS } from './settings/registry.js'
@@ -229,7 +230,16 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     context: mapOf(context, 'context', (value) => typeof value === 'number') as unknown as ContextScale,
     stats: statsOf(stats),
     updates: updatesOf(updates),
+    backup: backupOf(body.backup),
   }
+}
+
+/** A page from before the backup's settings sends none: the defaults, so nothing is written. */
+function backupOf(raw: unknown): SharedForm['backup'] {
+  if (raw === undefined) return { ...DEFAULT_BACKUP }
+  const { dir, keep } = mapOf(raw, 'backup', () => true)
+  if (dir != null && typeof dir !== 'string') throw fail('request.required', { field: 'backup' })
+  return { dir: typeof dir === 'string' && dir.trim() !== '' ? dir.trim() : null, keep: numberOf(keep, 'backup') }
 }
 
 /** A page from before the update switches sends none: form and base then agree and nothing is written. */

@@ -9,7 +9,7 @@ import type { PostedQuestion } from '../tracker/questions.js'
 import { renameOver, writeAtomic } from './atomic.js'
 import { insertRows, sqliteRows, type Rows } from './copy.js'
 import { mirrorDefinitions, putSettings } from '../settings/store.js'
-import { inTransaction, openDatabase, SQLITE_FILE, STEPS, type Db, type Queryable } from './database.js'
+import { inTransaction, openDatabase, SQLITE_FILE, STEPS, type BeforeSteps, type Db, type Queryable } from './database.js'
 import { databaseDirOf, databaseExists, dataDirOf, openStateDatabase, type StateDatabase } from './owner.js'
 import { isRecord } from './projects.js'
 import { isVersionLine, refuseNewer, SCHEMA_VERSION, versionOf } from './schema.js'
@@ -25,6 +25,8 @@ export interface PrepareOptions {
   log: (line: string) => void
   /** Runs inside the import's transaction after the last insert; a test throws there to break it midway. */
   beforeCommit?: (db: Transaction) => Promise<void>
+  /** Runs before an existing database takes new schema steps (the backup's copy); never for one just imported. */
+  beforeSteps?: BeforeSteps
 }
 
 /**
@@ -39,7 +41,7 @@ export async function prepareDatabase(options: PrepareOptions): Promise<StateDat
   const dir = databaseDirOf(stateDir)
   const legacy = join(stateDir, SQLITE_FILE)
   if (databaseExists(dir)) {
-    const opened = await openStateDatabase(dir)
+    const opened = await openStateDatabase(dir, undefined, options.beforeSteps)
     const stray = [...Object.values(STATE_FILES), SQLITE_FILE].filter((name) => existsSync(join(stateDir, name)))
     if (stray.length > 0) log(`storage: ${stray.join(', ')} in ${stateDir} are not read: the state is in ${dir} (BTN-198)`)
     return opened

@@ -83,6 +83,7 @@ type HostingContext = Pick<ServiceContext,
   | 'branchOf'
   | 'branches'
   | 'gitFound'
+  | 'backups'
   | 'chainControl'
   | 'changelogs'
   | 'checkMergeTarget'
@@ -270,6 +271,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     tallyHealth: ctx.tally.health(),
     hulyClient: hulyClient.view(),
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
+    backup: ctx.backups.view(),
     noticesDismissed: ctx.dismissedNotices,
     hotkeys: ctx.browserHotkeys,
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
@@ -684,6 +686,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     builtin,
     builtinExports,
+    backup: ctx.backups,
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)

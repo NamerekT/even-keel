@@ -24,6 +24,7 @@ import { checkRows, inherit, resolve, type ProjectRecord, type Resolved, type Va
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
 import type { UpdateSettings } from './updates/release.js'
+import type { BackupConfig } from './storage/backup-model.js'
 
 export {
   CONFIG_FILE,
@@ -118,6 +119,8 @@ export interface EvenKeelConfig {
   tally: TallyMode | null
   /** The switches only: the version whose toast was closed is state (`service_state`). */
   updates: Pick<UpdateSettings, 'check' | 'notify'>
+  /** The automatic copies of the state database (BTN-1083). */
+  backup: BackupConfig
   /** Even Keel's own `notices` entries (BTN-759), `false` — that kind is not shown; a project's own are in `settings`. */
   notices: Record<string, boolean>
 }
@@ -347,6 +350,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     trimTools: shared.trimTools as boolean,
     tally: shared.tally as TallyMode | null,
     updates: { check: shared['updates.check'] as boolean, notify: shared['updates.notify'] as boolean },
+    backup: { dir: shared['backup.dir'] as string | null, keep: shared['backup.keep'] as number },
     notices: shared.notices as Record<string, boolean>,
   }
 }
