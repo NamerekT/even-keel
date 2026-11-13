@@ -93,6 +93,25 @@ describe('badgeStateOf', () => {
     expect(state.active[0]?.action).toEqual({ tool: 'Edit', text: 'Edit src/a.ts' })
   })
 
+  describe('a task handed over to a new session (BTN-1114)', () => {
+    const handedTo = (sessionId: string | null): EvenKeelState => {
+      const state = stateWith()
+      const current = state.chain.active[0]!.current!
+      state.chain.active[0]!.current = { ...current, sessionId }
+      return state
+    }
+
+    it('never shows the old session\'s action, context or agent while the new one has no transcript yet', () => {
+      const state = badgeStateOf(handedTo('s-2'), ABC, { now, fields: ALL_BADGE_FIELDS, stats: null })
+      expect(state.active).toEqual([{ key: 'ABC-4', startedAt: '2026-11-09T11:30:00Z', state: 'working' }])
+    })
+
+    it('still finds the task\'s session by the task while the chain has no session id at all', () => {
+      const state = badgeStateOf(handedTo(null), ABC, { now, fields: ['action', 'context'], stats: null })
+      expect(state.active[0]).toMatchObject({ action: { tool: 'mcp__x__y' }, context: 25 })
+    })
+  })
+
   describe('the session\'s own status line (BTN-932)', () => {
     const withStatus = (at: string): EvenKeelState => {
       const state = stateWith({ feed: [tool('Bash npm test', { tool: 'Bash', text: 'Bash Run the tests' })] })

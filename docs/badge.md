@@ -15,7 +15,9 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
 - `v`, `at` (ISO time of the push), `project` (`key`, `name`).
 - `active` — the tasks with a live session: `key`, `titleEn`, `agent`, `model`, `startedAt`, `state` (`working` |
   `waiting` | `limit`), `until` (of a `limit` task: when its limit resets), `action` (`{ tool, text }`), `context`
-  (whole percents).
+  (whole percents). The session is the one the chain names (`current.sessionId`); a task handed over to a new session
+  that has no transcript yet shows no `agent`, `model`, `action` or `context` until it has one, never its earlier
+  session's. Only a task with no session id at all is matched to a session by its key.
 - `chain` — `state` (`running` | `paused` | `stopped` | `idle`), `next` (the task the chain takes next, `null` — none),
   `tasks` (chips: the last done ones, the working, the waiting, the ones on a limit and the queue; a done chip may
   carry `doneAt`).

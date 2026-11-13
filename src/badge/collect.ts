@@ -66,7 +66,8 @@ type Current = NonNullable<EvenKeelState['chain']['active'][number]['current']>
 function taskOf(state: EvenKeelState, current: Current, on: Set<BadgeField>, inputs: BadgeInputs): BadgeTask {
   const { titleEn } = inputs
   const { task: id, since } = current
-  const session = state.sessions.find((each) => each.sessionId === current.sessionId) ?? state.sessions.find((each) => each.task === id)
+  // A handed-over task's new session has no transcript yet: the task's earlier session must not stand in for it (BTN-1114).
+  const session = current.sessionId === null ? state.sessions.find((each) => each.task === id) : state.sessions.find((each) => each.sessionId === current.sessionId)
   const hold = current.limit !== undefined && current.limit.acted === null && current.limit.transient !== true ? current.limit : undefined
   const limited = hold !== undefined || session?.lamp === 'limit'
   const waiting = session !== undefined && (session.asking || session.lamp === 'waiting')
