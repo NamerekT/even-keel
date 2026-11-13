@@ -8,6 +8,9 @@ export interface JobStep {
   state: StepState
   /** Where a step that reports it is: a clone's stage, percent, bytes and speed. */
   progress?: CloneProgress
+  /** When the step last began and, once done or failed, ended (ISO): the window counts the step's time (BTN-1099). */
+  startedAt?: string
+  endedAt?: string
 }
 
 /**

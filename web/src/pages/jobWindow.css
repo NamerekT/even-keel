@@ -81,10 +81,17 @@
   }
 }
 
+/* A still ring would read as "waiting": the running step's dot is filled instead, and its ticking time says it lives. */
 @media (prefers-reduced-motion: reduce) {
   .job-window__dot--running {
+    border-color: var(--accent);
+    background: var(--accent);
     animation: none;
   }
+}
+
+.job-window__time {
+  font-variant-numeric: tabular-nums;
 }
 
 .job-window__progress {
@@ -106,6 +113,22 @@
   height: 100%;
   background: var(--accent);
   transition: width var(--motion-appear) ease-out;
+}
+
+/* No percent yet: a glint runs along the bar instead of a fill; with reduced motion the bar is gone. */
+.job-window__bar--unknown {
+  background: linear-gradient(90deg, var(--surface-muted) 30%, var(--accent) 50%, var(--surface-muted) 70%) 0 0 / 300% 100%;
+  animation: shimmer var(--motion-skeleton) linear infinite;
+}
+
+.job-window__bar--unknown .job-window__fill {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .job-window__bar--unknown {
+    display: none;
+  }
 }
 
 .job-window__figures {

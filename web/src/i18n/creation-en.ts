@@ -54,6 +54,8 @@ export const creationEn: Messages['creation'] = {
     },
     states: { waiting: 'waiting', running: 'running', done: 'done', failed: 'failed' },
     stages: {
+      connecting: 'connecting',
+      enumerating: 'the server lists objects',
       counting: 'counting objects',
       compressing: 'compressing',
       receiving: 'receiving',
@@ -62,6 +64,7 @@ export const creationEn: Messages['creation'] = {
       lfs: 'LFS files',
     },
     received: (bytes, speed) => `${size(bytes)}${speed === undefined ? '' : ` · ${size(speed)}/s`}`,
+    objects: (count) => count.toLocaleString('en'),
     retry: 'Retry',
     cancel: 'Cancel',
     close: 'Close',

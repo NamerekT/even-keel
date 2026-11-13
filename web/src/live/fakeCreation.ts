@@ -82,13 +82,28 @@ const job = (steps: StepJob['steps'], change: Partial<StepJob> = {}): StepJob =>
   ...change,
 })
 
-const upTo = (ids: string[], running: number): JobStep[] => ids.map((id, index) => ({ id, state: index < running ? 'done' : index === running ? 'running' : 'waiting' }))
+// The steps before the running one took 4 s each; the running one began 92 s ago and its time ticks on.
+const upTo = (ids: string[], running: number): JobStep[] => {
+  const start = Date.now() - 92_000 - running * 4_000
+  const at = (ms: number) => new Date(start + ms).toISOString()
+  return ids.map((id, index) => {
+    if (index < running) return { id, state: 'done', startedAt: at(index * 4_000), endedAt: at((index + 1) * 4_000) }
+    if (index === running) return { id, state: 'running', startedAt: at(index * 4_000) }
+    return { id, state: 'waiting' }
+  })
+}
 
 /**
- * `?job=clone|lfs|failed|packages|done` — the wizard's creation window in that state: a clone receiving objects, the
- * LFS files after it, a clone refused halfway, the packages failing after the entry is written, a project made.
+ * `?job=connecting|enumerating|clone|lfs|failed|packages|done` — the wizard's creation window in that state: a clone
+ * before the server answers, while the server lists the objects, receiving objects, the LFS files after it, a clone
+ * refused halfway, the packages failing after the entry is written, a project made.
  */
 export function fakeJob(mode: string | null): StepJob | null {
+  if (mode === 'connecting' || mode === 'enumerating') {
+    const steps = upTo(CLONE_STEPS, 1)
+    steps[1] = { ...steps[1]!, progress: mode === 'connecting' ? { stage: 'connecting' } : { stage: 'enumerating', objects: 1_234_567 } }
+    return job(steps)
+  }
   if (mode === 'clone') {
     const steps = upTo(CLONE_STEPS, 1)
     steps[1] = { ...steps[1]!, progress: { stage: 'receiving', percent: 42, bytes: 87_400_000, speed: 6_300_000 } }

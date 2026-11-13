@@ -28,6 +28,7 @@ interface Options {
   width: number
   height: number
   light: boolean
+  reducedMotion: boolean
   full: boolean
   image: boolean
   settle: number
@@ -39,7 +40,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url))
 function parse(args: string[]): Options {
   const options: Options = {
     route: '/', selectors: [], steps: [], evals: [], width: 1280, height: 800,
-    light: false, full: false, image: true, settle: 500, limit: 8,
+    light: false, reducedMotion: false, full: false, image: true, settle: 500, limit: 8,
   }
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!
@@ -56,6 +57,7 @@ function parse(args: string[]): Options {
       options.width = width
       options.height = height
     } else if (arg === '--light') options.light = true
+    else if (arg === '--reduced-motion') options.reducedMotion = true
     else if (arg === '--full') options.full = true
     else if (arg === '--no-image') options.image = false
     else if (arg === '--settle') options.settle = Number(value())
@@ -127,6 +129,7 @@ async function main(): Promise<number> {
     const context = await browser.newContext({
       viewport: { width: options.width, height: options.height },
       colorScheme: options.light ? 'light' : 'dark',
+      reducedMotion: options.reducedMotion ? 'reduce' : 'no-preference',
     })
     context.setDefaultTimeout(5000)
     await context.addInitScript({ path: join(ROOT, 'scripts/shot.page.js') })

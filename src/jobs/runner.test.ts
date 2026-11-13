@@ -30,7 +30,8 @@ describe('StepJobs', () => {
     const id = jobs.start(plan([{ id: 'a', run: async () => void ran.push('a') }, { id: 'b', run: async () => void ran.push('b') }], { result: () => 'project-1' }))
     await jobs.settled(id)
     expect(ran).toEqual(['a', 'b'])
-    expect(jobs.view()).toEqual([expect.objectContaining({ id, done: true, failure: null, result: 'project-1', steps: [{ id: 'a', state: 'done' }, { id: 'b', state: 'done' }] })])
+    expect(states(jobs)).toEqual(['a:done', 'b:done'])
+    expect(jobs.view()).toEqual([expect.objectContaining({ id, done: true, failure: null, result: 'project-1' })])
     jobs.close(id)
     expect(jobs.view()).toEqual([])
   })
@@ -60,6 +61,42 @@ describe('StepJobs', () => {
     await jobs.settled(id)
     expect(ran).toEqual(['a', 'b'])
     expect(jobs.view()[0]).toEqual(expect.objectContaining({ done: true, failure: null }))
+  })
+
+  it('stamps when each step began and ended; Retry begins the failed step anew', async () => {
+    let clock = Date.parse('2026-11-13T10:00:00Z')
+    const jobs = new StepJobs(() => new Date(clock))
+    const at = (seconds: number) => new Date(Date.parse('2026-11-13T10:00:00Z') + seconds * 1000).toISOString()
+    const held = gate()
+    let tries = 0
+    const id = jobs.start(
+      plan([
+        { id: 'a', run: async () => void (clock += 3000) },
+        {
+          id: 'b',
+          run: async () => {
+            tries += 1
+            if (tries === 1) {
+              clock += 2000
+              throw fail('git.remoteNetwork', { remote: 'https://example.com/shop.git' })
+            }
+            await held.opened
+          },
+        },
+        { id: 'c', run: async () => {} },
+      ]),
+    )
+    await jobs.settled(id)
+    expect(jobs.view()[0]!.steps).toEqual([
+      { id: 'a', state: 'done', startedAt: at(0), endedAt: at(3) },
+      { id: 'b', state: 'failed', startedAt: at(3), endedAt: at(5) },
+      { id: 'c', state: 'waiting' },
+    ])
+    clock += 60_000
+    jobs.retry(id)
+    expect(jobs.view()[0]!.steps[1]).toEqual({ id: 'b', state: 'running', startedAt: at(65) })
+    held.open()
+    await jobs.settled(id)
   })
 
   it('refuses a second live job of a kind, and lets a finished one give way', async () => {

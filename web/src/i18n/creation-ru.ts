@@ -55,6 +55,8 @@ export const creationRu = {
     } as Record<string, string>,
     states: { waiting: 'ждёт', running: 'идёт', done: 'готово', failed: 'ошибка' },
     stages: {
+      connecting: 'соединение',
+      enumerating: 'сервер собирает объекты',
       counting: 'подсчёт объектов',
       compressing: 'сжатие',
       receiving: 'загрузка',
@@ -63,6 +65,7 @@ export const creationRu = {
       lfs: 'файлы LFS',
     },
     received: (bytes: number, speed: number | undefined) => `${size(bytes)}${speed === undefined ? '' : ` · ${size(speed)}/с`}`,
+    objects: (count: number) => count.toLocaleString('ru'),
     retry: 'Повторить',
     cancel: 'Отменить',
     close: 'Закрыть',

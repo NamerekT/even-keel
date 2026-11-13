@@ -1,9 +1,11 @@
 import { useEffect, useId, useRef } from 'react'
 import type { JobStep, StepJob } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
+import { useNow } from '../layout/useNow.js'
 import { useCommand } from '../live/useCommand.js'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
 import { NoticeFixButton } from './FixButtons.js'
+import { progressText, stepTime } from './jobProgress.js'
 import '../tools/addPackage.css'
 import './jobWindow.css'
 
@@ -25,17 +27,24 @@ function StepMark({ state }: { state: JobStep['state'] }) {
 function Progress({ step }: { step: JobStep }) {
   const progress = step.progress
   if (progress === undefined) return null
+  const known = progress.percent !== undefined
   return (
     <span className="job-window__progress">
-      <span className="job-window__bar" aria-hidden="true">
-        <span className="job-window__fill" style={{ width: `${progress.percent}%` }} />
+      {/* Without a percent the bar only moves; with reduced motion it is not there. */}
+      <span className={`job-window__bar${known ? '' : ' job-window__bar--unknown'}`} aria-hidden="true">
+        <span className="job-window__fill" style={known ? { width: `${progress.percent}%` } : undefined} />
       </span>
-      <span className="job-window__figures">
-        {/* The LFS files are a step of their own: its name says the stage. */}
-        {progress.stage !== 'lfs' && `${t.creation.window.stages[progress.stage]} · `}
-        {progress.percent}%
-        {progress.bytes !== undefined && ` · ${t.creation.window.received(progress.bytes, progress.speed)}`}
-      </span>
+      <span className="job-window__figures">{progressText(progress)}</span>
+    </span>
+  )
+}
+
+function StepState({ step, now }: { step: JobStep; now: Date }) {
+  const time = stepTime(step, now)
+  return (
+    <span className="job-window__state">
+      {t.creation.window.states[step.state]}
+      {time !== null && <span className="job-window__time"> · {time}</span>}
     </span>
   )
 }
@@ -49,6 +58,8 @@ export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useId()
   const { send, sending, failure } = useCommand()
+  // The running step's time ticks: a sign of life that needs no motion.
+  const now = useNow(1_000)
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -85,7 +96,7 @@ export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
               <li key={step.id} className={`job-window__step job-window__step--${step.state}`}>
                 <StepMark state={step.state} />
                 <span className="job-window__label">{stepLabel(step.id)}</span>
-                <span className="job-window__state">{t.creation.window.states[step.state]}</span>
+                <StepState step={step} now={now} />
                 <Progress step={step} />
               </li>
             ))}

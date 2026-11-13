@@ -48,6 +48,8 @@ export class StepJobs {
   /** A step moved: the page shows it. */
   changed: (() => void) | undefined
 
+  constructor(private readonly now: () => Date = () => new Date()) {}
+
   view(): StepJob[] {
     return [...this.jobs.values()].map((job) => {
       // Once kept, what the job made is there to open, even while a later step runs or failed.
@@ -139,6 +141,10 @@ export class StepJobs {
       const entry = job.states.get(step)!
       entry.state = state
       if (state !== 'running') delete entry.progress
+      if (state === 'running') entry.startedAt = this.now().toISOString()
+      if (state === 'waiting' || state === 'running') delete entry.endedAt
+      else entry.endedAt = this.now().toISOString()
+      if (state === 'waiting') delete entry.startedAt
       if (state === 'done' && step === plan.keptAfter) job.kept = true
       this.changed?.()
     }

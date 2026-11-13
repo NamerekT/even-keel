@@ -2,9 +2,15 @@ import { notice, type Notice } from '../notice/notice.js'
 
 /** Where a `git clone --progress` is, as its last progress line says. */
 export interface CloneProgress {
-  /** `receiving` carries the bytes and the speed; `lfs` is the checkout's "Filtering content". */
-  stage: 'counting' | 'compressing' | 'receiving' | 'resolving' | 'files' | 'lfs'
-  percent: number
+  /**
+   * `receiving` carries the bytes and the speed; `lfs` is the checkout's "Filtering content". Before the first percent
+   * (BTN-1099): `connecting` from "Cloning into", `enumerating` while the server lists the objects, with their count.
+   */
+  stage: 'connecting' | 'enumerating' | 'counting' | 'compressing' | 'receiving' | 'resolving' | 'files' | 'lfs'
+  /** Absent in the stages git gives no percent for. */
+  percent?: number
+  /** The objects the server has listed so far. */
+  objects?: number
   /** Bytes received so far and per second, where git says them. */
   bytes?: number
   speed?: number
@@ -24,10 +30,17 @@ const STAGES: Readonly<Record<string, CloneProgress['stage']>> = {
 const UNITS: Readonly<Record<string, number>> = { bytes: 1, B: 1, KiB: 1024, MiB: 1024 ** 2, GiB: 1024 ** 3 }
 const LINE = /^(?:remote: )?([A-Z][a-z]+ [a-z]+(?: [a-z]+)?):\s+(\d+)%/
 const SIZE = /, ([\d.]+) (bytes|B|KiB|MiB|GiB)(?: \| ([\d.]+) (bytes|B|KiB|MiB|GiB)\/s)?/
+const CLONING = /^Cloning into /
+// The server's count without a percent: newer git enumerates, older counts.
+const LISTED = /^remote: (?:Enumerating|Counting) objects: (\d+)(?:, done\.)?$/
 
 /** One line of git's progress, as it is split by `\r` or `\n`; `null` — not a progress line. */
 export function parseProgress(line: string): CloneProgress | null {
-  const found = LINE.exec(line.trim())
+  const text = line.trim()
+  if (CLONING.test(text)) return { stage: 'connecting' }
+  const listed = LISTED.exec(text)
+  if (listed !== null) return { stage: 'enumerating', objects: Number(listed[1]) }
+  const found = LINE.exec(text)
   const stage = found === null ? undefined : STAGES[found[1]!]
   if (found === null || stage === undefined) return null
   const size = SIZE.exec(line)

@@ -21,7 +21,17 @@ describe('parseProgress', () => {
     expect(parseProgress(line)).toEqual(progress)
   })
 
-  it.each(["Cloning into 'storefront'...", 'remote: Total 2741 (delta 0), reused 0 (delta 0)', ''])('takes %j for no progress', (line) => {
+  it.each([
+    ["Cloning into 'storefront'...", { stage: 'connecting' }],
+    ["Cloning into bare repository 'storefront.git'...", { stage: 'connecting' }],
+    ['remote: Enumerating objects: 1234567', { stage: 'enumerating', objects: 1234567 }],
+    ['remote: Enumerating objects: 1234567, done.', { stage: 'enumerating', objects: 1234567 }],
+    ['remote: Counting objects: 2741, done.', { stage: 'enumerating', objects: 2741 }],
+  ])('reads the stage before the first percent of %s', (line, progress) => {
+    expect(parseProgress(line)).toEqual(progress)
+  })
+
+  it.each(['remote: Total 2741 (delta 0), reused 0 (delta 0)', 'warning: redirecting to https://example.com/a.git/', ''])('takes %j for no progress', (line) => {
     expect(parseProgress(line)).toBeNull()
   })
 })

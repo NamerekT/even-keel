@@ -93,7 +93,11 @@ repeated first.
 
 The window (`JobWindow.tsx`, the add-package dialog's frame, not tied to the wizard: the job's `kind` names its steps,
 and adding a machine to a project takes it too, BTN-993) shows each step's state, a clone's progress bar and figures,
-the failure with its fix and "Retry" (`job/retry` runs the failed step again, the done ones are not repeated), and
+each step's time (BTN-1099: `startedAt`/`endedAt` of the step, ticking each second while it runs, so a window with
+reduced motion still shows it lives; a finished step under a second shows none), the stages git gives no percent for
+("connecting…" from `Cloning into`, "the server lists objects: N" from `remote: Enumerating objects: N`) under a bar
+with a running glint that reduced motion hides — the running step's ring is then a filled dot, not a still ring —, the
+failure with its fix and "Retry" (`job/retry` runs the failed step again, the done ones are not repeated), and
 "Cancel" (`job/cancel`): until the entry is written it aborts the step and removes only what the job made — the folder
 it created, the contents of an empty folder it filled, the `.git` it made in a filled one. Once the entry is written
 (`keptAfter`) the project stays: the note says so, and the button is "Open the project", which drops the job without
