@@ -1,4 +1,5 @@
 import type { NewTask, TaskSource, TrackerAdapter } from '../tracker/source.js'
+import type { TaskEditor } from '../tracker/editor.js'
 import { sameName } from '../chain/rules.js'
 import { changedLabels } from '../tracker/labels.js'
 import type { TaskStatus, TrackerTask } from '../tracker/model.js'
@@ -171,7 +172,32 @@ export class Board {
         if (!Number.isInteger(number) || number > this.commentsOf(id).length) return []
         return this.commentsOf(id).slice(number).map((body, index) => ({ id: `${id}-comment-${number + index + 1}`, body, files: [] }))
       },
+      editor: this.editor(),
       close: async () => {},
+    }
+  }
+
+  /** Just what a copy of tasks into the board writes (BTN-1074): a task numbered within its key, a blocking link, a comment. */
+  private editor(): TaskEditor {
+    return {
+      list: async () => [],
+      create: async (project, draft) => {
+        const key = this.keys.get(project) ?? 'TASK'
+        const id = `${key}-${[...this.tasks.keys()].filter((each) => each.startsWith(`${key}-`)).length + 1}`
+        this.tasks.set(id, fakeTask(id, { title: draft.title, parent: draft.parent }))
+        return id
+      },
+      set: async () => false,
+      revision: async () => 0,
+      describe: async () => false,
+      patch: async () => false,
+      linkTypes: ['blocks'],
+      link: async (id, other, _link, on) => {
+        const task = this.tasks.get(other)!
+        task.blockedBy = on ? [...task.blockedBy, id] : task.blockedBy.filter((each) => each !== id)
+      },
+      relabel: async () => [],
+      comment: async (id, body) => this.reply(id, body),
     }
   }
 }

@@ -151,6 +151,7 @@ type HostingContext = Pick<ServiceContext,
   | 'tally'
   | 'tallyMode'
   | 'taskNote'
+  | 'taskRuns'
   | 'tasksByProject'
   | 'runOfTask'
   | 'setTaskRun'
@@ -319,6 +320,20 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     filesDir: attachmentsDirOf(stateDirOf()),
     connect: (project, target) => connectExportTarget(ADAPTERS, ctx.profiles.current(), BUILTIN, project, target, ctx.TRACKER_CHECK_MS),
     refresh: (project) => ctx.refreshProject(project),
+    switching: {
+      config: () => ctx.configStore.current,
+      raw: () => ctx.configStore.raw(),
+      profiles: () => ctx.profiles.current(),
+      chain: () => ctx.dispatcher.state,
+      rename: (project, names) => {
+        ctx.dispatcher.rename(project, names)
+        ctx.taskRuns.rename(project, names)
+      },
+      move: (project, move, profile) => {
+        ctx.configStore.moveTracker(project, move, ctx.profiles.current().profiles.find((each) => each.id === profile)?.rules)
+        ctx.profiles.link(project, profile)
+      },
+    },
   })
   // The answer to a question goes into a built-in task's journal too, where the question was recorded (BTN-774).
   const journalAnswer = (project: string, task: string, answers: AskAnswers, text: string) => {

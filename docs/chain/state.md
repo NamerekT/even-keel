@@ -6,6 +6,8 @@ The tracker is the source of truth for statuses; the dispatcher keeps no status 
 
 The built-in tracker (BTN-767, `docs/trackers.md`) keeps its tasks in the same state database, yet they are tracker data, not the dispatcher's state: the chain reads and moves them only through the `builtin` adapter, by the same actions as on any other tracker (start, pull request, merge, `ready`/`unready`, a comment), and the person changes them through the page's `builtin/*` commands. Nothing of the list above goes into a built-in task, and no status of one is written outside these actions.
 
+When a built-in project switches to the tracker its tasks were copied into (BTN-1074, `docs/trackers.md`), only the saved order, the skips and the tasks' runs move to the new ids (`Dispatcher.rename`, `TaskRuns.rename`); the switch is refused while the chain runs or holds a task of the project (the current one, a released or shelved one, an open pull request). Everything else that names a task by id — launches, `closed_tasks`, `merge_closes`, handoffs, questions — keeps the old id, linked to the new one by `tracker_export_tasks`.
+
 ## State files and the schema version (BTN-132)
 
 Since BTN-147 the chain state, the questions, the launch log and the handoff snapshots are in the state database (`state/even-keel/`, `docs/storage.md`); the files below are what v0.1 kept and what the first start of the new version imports. The config, `account.json`, `packages.json`, `rate-limits.json` and `codex/` stay files.

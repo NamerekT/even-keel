@@ -845,6 +845,21 @@ describe('Dispatcher', () => {
     expect(saved.at(-1)?.orders.ABC).toEqual(['ABC-3', 'ABC-4', 'ABC-2', 'ABC-1'])
   })
 
+  it('keeps the manual order and the skips across new task ids once its tasks are renamed (BTN-1074)', () => {
+    const { dispatcher, saved } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3'), task('ABC-4')])
+    dispatcher.reorder('ABC', ['ABC-3', 'ABC-1', 'ABC-4', 'ABC-2'])
+    dispatcher.skip('ABC', 'ABC-4')
+    const before = dispatcher.orders().ABC?.order
+
+    dispatcher.rename('ABC', new Map([['ABC-1', 'GH-11'], ['ABC-2', 'GH-12'], ['ABC-3', 'GH-13'], ['ABC-4', 'GH-14']]))
+    expect(saved.at(-1)).toMatchObject({ orders: { ABC: ['GH-13', 'GH-11', 'GH-14', 'GH-12'] }, skipped: { ABC: ['GH-14'] } })
+    dispatcher.setTasks('ABC', [task('GH-12'), task('GH-11'), task('GH-14'), task('GH-13')])
+    expect(before).toEqual(['ABC-3', 'ABC-1', 'ABC-4', 'ABC-2'])
+    expect(dispatcher.orders().ABC?.order).toEqual(['GH-13', 'GH-11', 'GH-14', 'GH-12'])
+    expect(dispatcher.state.skipped.ABC).toEqual(['GH-14'])
+  })
+
   it('puts a new task right after the running one', async () => {
     const { dispatcher } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])

@@ -12,6 +12,9 @@ import { BuiltinExports } from './export.js'
 import { BuiltinFiles } from './files.js'
 import { builtinSource } from './source.js'
 import { BuiltinStore } from './store.js'
+import type { SwitchDeps } from './switch.js'
+import { emptyChainState, type ChainState } from '../chain/model.js'
+import { parseConfig } from '../config.js'
 
 const ABC = '11111111-1111-4111-8111-111111111111'
 const PLACES = { [ABC]: { key: 'ABC' } }
@@ -179,5 +182,67 @@ describe('BuiltinExports', () => {
 
   it('refuses a project not on the built-in tracker', async () => {
     expect(await refusal(exportsWith(fakeTarget()).plan('99999999-9999-4999-8999-999999999999', TARGET))).toBe('builtin.noProject')
+  })
+})
+
+describe('the switch after the copy (BTN-1074)', () => {
+  const RAW = { projects: [{ id: ABC, key: 'ABC', tracker: 'builtin', repo: 'C:/example' }] }
+  const switching = (chain: Partial<ChainState> = {}) => {
+    const renamed: Map<string, string>[] = []
+    const moved: unknown[] = []
+    const deps: SwitchDeps = {
+      config: () => parseConfig(RAW),
+      raw: () => RAW,
+      profiles: () => ({ profiles: [{ id: 'gh', kind: 'github', name: 'GitHub', values: {}, isDefault: true, login: null, expiresAt: null }], links: {} }),
+      chain: () => ({ ...emptyChainState(), ...chain }),
+      rename: (_project, names) => void renamed.push(new Map(names)),
+      move: (_project, move, profile) => void moved.push({ ...move, profile }),
+    }
+    return { deps, renamed, moved }
+  }
+  const exportsSwitching = (tracker: ReturnType<typeof fakeTarget>, deps: SwitchDeps) =>
+    new BuiltinExports({ db, places: () => PLACES, filesDir: dir, connect: async () => tracker.target(), refresh: async () => true, say: () => {}, switching: deps })
+
+  it("refuses to plan or start a copy whose tasks would keep the project's prefix, before any task is created", async () => {
+    await seed()
+    const tracker = fakeTarget()
+    const exports = exportsSwitching(tracker, switching().deps)
+    expect(await refusal(exports.plan(ABC, { ...TARGET, key: 'ABC' }))).toBe('switch.samePrefix')
+    expect(await refusal(exports.start(ABC, { ...TARGET, key: 'ABC' }))).toBe('switch.samePrefix')
+    expect(tracker.created).toEqual([])
+    expect(await exports.state(ABC)).toMatchObject({ target: null, running: false })
+  })
+
+  it('moves the project to the target and renames its copied tasks, once the copy is finished', async () => {
+    await seed()
+    const tracker = fakeTarget()
+    const { deps, renamed, moved } = switching()
+    const exports = exportsSwitching(tracker, deps)
+    expect(await refusal(exports.switch(ABC))).toBe('switch.noCopy')
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    await exports.switch(ABC)
+    expect(renamed).toEqual([new Map([['ABC-1', 'GH-1'], ['ABC-2', 'GH-2']])])
+    expect(moved).toEqual([{ tracker: 'github', trackerProject: 'example/repo', key: 'GH', profile: 'gh' }])
+  })
+
+  it('refuses while a task filed after the copy is not copied, or while the copy runs', async () => {
+    await seed()
+    const tracker = fakeTarget()
+    const { deps, moved } = switching()
+    const exports = exportsSwitching(tracker, deps)
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    await store.create({ project: ABC, title: 'Late' })
+    expect(await refusal(exports.switch(ABC))).toBe('switch.notCopied')
+    tracker.hold()
+    expect(await exports.start(ABC, TARGET)).toMatchObject({ running: true, finishedAt: null })
+    expect(await refusal(exports.switch(ABC))).toBe('builtin.exporting')
+    tracker.release()
+    await exports.settled(ABC)
+    expect(tracker.created.map((each) => each.title)).toEqual(['Parent', 'Child', 'Late'])
+    expect(moved).toEqual([])
+    await exports.switch(ABC)
+    expect(moved).toHaveLength(1)
   })
 })

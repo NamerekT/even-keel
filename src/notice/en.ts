@@ -570,6 +570,17 @@ export const en = {
   'export.noTarget': () => 'Pick a profile of another tracker to copy the tasks into.',
   'export.noEditor': (p: { tracker: string }) => `Even Keel cannot create tasks in ${p.tracker}, so it cannot copy tasks there.`,
   'export.failed': (p: { tracker: string }) => `The copy to ${p.tracker} stopped: the tracker refused a write. The project stays on Even Keel's own tracker; start the copy again to go on from where it stopped. Tracker response`,
+  'switch.noCopy': (p: { key: string }) => `${p.key} can move to another tracker only after its tasks are copied there. Copy them first, or let the copy finish.`,
+  'switch.notCopied': (p: { tasks: string[] }) => `These open tasks were not copied and would be lost: ${list(p.tasks)}. Copy the tasks again to bring them over, then switch.`,
+  'switch.held': (p: { key: string }) => `${p.key} stays on its tracker while the chain works on it`,
+  'switch.chainRuns': () => 'its chain runs: pause or stop it',
+  'switch.current': (p: { task: string }) => `the chain holds ${p.task}: skip it or let it finish`,
+  'switch.released': (p: { tasks: string[] }) => `released tasks wait for their cleanup: ${list(p.tasks)}`,
+  'switch.reviews': (p: { tasks: string[] }) => `pull requests are open for ${list(p.tasks)}: merge or close them`,
+  'switch.samePrefix': (p: { prefix: string }) =>
+    `The new tracker's tasks would be named ${p.prefix}-…, as the project's are now: old and new tasks of one number would mix in the history and stats. Pick another key or tracker project for the copy.`,
+  'switch.prefixTaken': (p: { prefix: string; other: string }) =>
+    `The new tracker's tasks would be named ${p.prefix}-…, as the tasks of ${p.other} are. Pick another key or tracker project for the copy.`,
   'profiles.unknownKind': (p: { kind: string }) => `there is no tracker "${p.kind}"`,
   'profiles.unknown': () => 'there is no such profile; the page may be out of date',
   'profiles.oauthAddress': () => 'Open Even Keel over HTTPS, or on localhost on the service machine, then connect MCP again.',

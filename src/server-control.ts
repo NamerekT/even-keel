@@ -264,8 +264,8 @@ export interface ServerDeps {
   profiles: ProfilesControl
   /** The page's commands on the built-in tracker's tasks (BTN-767); without it they are refused. */
   builtin?: BuiltinControl
-  /** The copy of a built-in project's tasks into another tracker (BTN-1073); without it it is refused. */
-  builtinExports?: Pick<BuiltinExports, 'plan' | 'start' | 'state'>
+  /** The copy of a built-in project's tasks into another tracker (BTN-1073) and the switch to it (BTN-1074); without it they are refused. */
+  builtinExports?: Pick<BuiltinExports, 'plan' | 'start' | 'state' | 'switch'>
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */

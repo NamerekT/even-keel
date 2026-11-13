@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { BuiltinStore } from '../builtin/store.js'
 import { commitAndMerge } from './agent.fixture.js'
 import { FEED_ID, FEED_KEY, Harness, PROJECT_ID } from './service.fixture.js'
+import { BOARD_TRACKER } from './tracker.fixture.js'
 
 describe('the built-in tracker end to end', { timeout: 120_000 }, () => {
   let run: Harness
@@ -110,5 +111,36 @@ describe('the built-in tracker end to end', { timeout: 120_000 }, () => {
     expect(said.list.split('\n')).toEqual(expect.arrayContaining([expect.stringMatching(/^ABC-1 · .* · Main task$/), expect.stringMatching(/^GHI-1 · .* · Feed task$/), expect.stringMatching(/^GHI-2 · .* · Feed blocker$/)]))
     expect(said.cross).toMatch(/links don't cross trackers/)
     expect(await store.get({ project: FEED_ID, number: 3 })).toBeUndefined()
+  })
+
+  it('copies the tasks to another tracker, switches the project there and runs them in the order saved before (BTN-1074)', async () => {
+    run.project.tracker = 'builtin'
+    for (const task of ['BRD-1', 'BRD-2']) run.agent.script(task, commitAndMerge(`${task}.txt`))
+    await run.start()
+    await run.post('builtin/create', { project: PROJECT_ID, title: 'First' })
+    await run.post('builtin/create', { project: PROJECT_ID, title: 'Second' })
+    await run.until(() => run.service.dispatcher.view(PROJECT_ID).tasks.length === 2, 'both tasks read')
+    await run.post('chain/order', { project: PROJECT_ID, order: ['ABC-2', 'ABC-1'] })
+
+    run.board.keys.set(PROJECT_ID, 'BRD')
+    const profile = run.service.profiles.current().profiles.find((each) => each.kind === BOARD_TRACKER)!.id
+    expect((await run.refused('builtin/export/start', { project: PROJECT_ID, profile, place: '', key: 'ABC' })).code).toBe('switch.samePrefix')
+    expect((await run.refused('builtin/export/switch', { project: PROJECT_ID })).code).toBe('switch.noCopy')
+    await run.post('builtin/export/start', { project: PROJECT_ID, profile, place: '', key: 'BRD' })
+    let finished = false
+    await run.until(() => {
+      void run.service.db.query<{ finished_at: string | null }>('select finished_at from tracker_exports').then(({ rows }) => (finished = rows[0]?.finished_at != null))
+      return finished
+    }, 'the copy finished')
+    await run.post('builtin/export/switch', { project: PROJECT_ID })
+    expect(run.service.configStore.current).toMatchObject({ trackers: { [PROJECT_ID]: BOARD_TRACKER }, keys: { [PROJECT_ID]: 'BRD' } })
+    expect(run.service.dispatcher.state.orders[PROJECT_ID]).toEqual(['BRD-2', 'BRD-1'])
+
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.board.status('BRD-1') === 'Done', 'BRD-1 done')
+    const launches = run.agent.calls.filter((call) => call.kind === 'launch').map((call) => call.task)
+    expect(launches).toEqual(['BRD-2', 'BRD-1'])
+    expect(run.board.status('BRD-2')).toBe('Done')
+    expect((await statusOf(1)) === 'Done').toBe(false)
   })
 })

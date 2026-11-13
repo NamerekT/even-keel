@@ -158,4 +158,14 @@ export class TaskRuns {
     for (const [key, run] of this.runs) if (run.project === project) this.runs.delete(key)
     this.pending.delete(project)
   }
+
+  /** The project's tasks got new ids (BTN-1074, its tracker switched): each run goes to its task's new id. */
+  rename(project: string, names: ReadonlyMap<string, string>): void {
+    for (const run of [...this.runs.values()]) {
+      const to = run.project === project ? names.get(run.task) : undefined
+      if (to === undefined || to === run.task) continue
+      this.set(project, run.task, null)
+      this.set(project, to, { provider: run.provider, model: run.model, effort: run.effort })
+    }
+  }
 }

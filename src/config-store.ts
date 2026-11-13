@@ -3,7 +3,7 @@ import { needsCheckedCli } from './agent/providers.js'
 import type { BadgeSettings } from './badge/model.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withBadge, withSharedAccount, withSharedForm, withNotice, withTally, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withBadge, withSharedAccount, withSharedForm, withNotice, withTally, withTrackerMove, withUpdates, type TrackerMove } from './config-form.js'
 import type { NoticeKind } from './notice/kinds.js'
 import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
@@ -142,6 +142,11 @@ export class ConfigStore {
   /** Writes the project's settings, only if the whole config still parses, and applies them at once; `profile` as in `withProjectForm`. */
   saveProject(project: string, form: ProjectForm, base: ProjectForm, profile: Partial<ChainRules> = {}): void {
     this.write(withProjectForm(this.raw(), this.idOf(project), form, base, profile))
+  }
+
+  /** Moves the project to another tracker (BTN-1074, `withTrackerMove`), by the same rule as `saveProject`. */
+  moveTracker(project: string, move: TrackerMove, profile: Partial<ChainRules> = {}): void {
+    this.write(withTrackerMove(this.raw(), this.idOf(project), move, formsOf(this.current).projects[project]!, profile))
   }
 
   /** Writes the shared settings, by the same rule as `saveProject`. */
