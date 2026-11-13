@@ -16,6 +16,7 @@ function fixture(relabel?: TaskSource['relabel'], connectionError?: Error, refre
   const set = vi.fn((_reader, tasks) => { listed = tasks })
   const setTasks = vi.fn()
   const broadcast = vi.fn()
+  const setRun = vi.fn()
   const source: TaskSource = { chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {}, ...(relabel === undefined ? {} : { relabel }) }
   const link = new TrackerLink({ name: 'example', connect: async () => {
     if (connectionError !== undefined) throw connectionError
@@ -25,9 +26,9 @@ function fixture(relabel?: TaskSource['relabel'], connectionError?: Error, refre
     configuredProject: (task) => task.startsWith('APP-') ? 'owner' : undefined, live: () => false,
     linkFor: () => link, readerFor: () => 'feed', rulesOf: () => DEFAULT_RULES,
     refreshers: new Map(refresh === undefined ? [] : [['feed', refresh]]), readerTasks: { get: () => listed, set, setTasks },
-    refreshProject: async () => true, pollReviews: async () => {}, broadcast,
+    refreshProject: async () => true, pollReviews: async () => {}, setRun, broadcast,
   })
-  return { control, listed: () => listed, set, setTasks, broadcast }
+  return { control, listed: () => listed, set, setTasks, setRun, broadcast }
 }
 
 describe('task label controls', () => {
@@ -42,13 +43,24 @@ describe('task label controls', () => {
     expect(setTasks).not.toHaveBeenCalled()
   })
 
-  it('immediately updates the feed, chain and derived question/model fields with the tracker result', async () => {
+  it('immediately updates the feed, chain and derived question field with the tracker result', async () => {
     const relabel = vi.fn(async () => ['Question', 'Codex | gpt-example'])
     const { control, listed, setTasks, broadcast } = fixture(relabel)
     await control.relabel('APP-1', { add: ['Question', 'Codex | gpt-example'], remove: ['Old'] })
-    expect(listed()[0]).toMatchObject({ labels: ['Question', 'Codex | gpt-example'], question: true, runLabels: [{ provider: 'codex', model: 'gpt-example' }] })
+    expect(listed()[0]).toMatchObject({ labels: ['Question', 'Codex | gpt-example'], question: true })
     expect(setTasks).toHaveBeenCalledWith('feed', listed())
     expect(broadcast).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the run of a task in Even Keel without a call to the tracker, and refuses a task of no project', () => {
+    const relabel = vi.fn(async () => [])
+    const { control, setRun } = fixture(relabel)
+    const run = { provider: 'codex', model: 'gpt-example', effort: 'high' }
+    control.setRun('APP-1', run)
+    control.setRun('APP-1', null)
+    expect(setRun.mock.calls).toEqual([['owner', 'APP-1', run], ['owner', 'APP-1', null]])
+    expect(relabel).not.toHaveBeenCalled()
+    expect(() => control.setRun('ZZZ-1', run)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'task.noTracker' }) }))
   })
 
   it('returns a notice code on refusal, keeps the current labels and logs the cause', async () => {

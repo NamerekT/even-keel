@@ -23,7 +23,6 @@ export function archivedShown(archive: readonly ClosedTask[], project: string, l
             labels: [],
             estimate: null,
             question: false,
-            runLabels: [],
           },
         ],
   )

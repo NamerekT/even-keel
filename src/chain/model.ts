@@ -229,7 +229,7 @@ export interface LaunchEntry {
   commit?: string
   /** The release commits a carry brought, on its `carried` entry. */
   commits?: number
-  /** The provider of the task's run label the pool had no account for: the session started on the project's (schema v8). */
+  /** The provider of the task's run the pool had no account for: the session started on the project's (schema v8). */
   fallback?: string
   /**
    * Where the task was read from at the launch (BTN-66): the tracker profile, the task's link and its title — Tally and
@@ -240,7 +240,7 @@ export interface LaunchEntry {
   title?: string
 }
 
-/** A session the chain started: its id, and the provider of a run label it could not honour (`LaunchEntry.fallback`). */
+/** A session the chain started: its id, and the provider of a task's run it could not honour (`LaunchEntry.fallback`). */
 export interface Launched {
   sessionId: string
   fallback?: string
@@ -334,7 +334,7 @@ export interface DispatcherDeps {
   /** The project's saved milestone order by label (BTN-792); empty or absent — the automatic one. */
   milestoneOrder?: (project: string) => readonly string[]
   /**
-   * Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool.
+   * Starts a new session of the task; `fallback` — the task's run named a provider without an account in the pool.
    * `extra` goes at the end of the prompt: the feedback on the task's pull request, or its pull request closed unmerged.
    */
   launch: (project: string, task: string, extra?: string) => Promise<Launched>

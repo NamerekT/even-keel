@@ -17,7 +17,7 @@
     "/keys/00000000-0000-4000-8000-000000000001": "ABC",
     "/keys/00000000-0000-4000-8000-000000000002": "XYZ",
     "/keys/00000000-0000-4000-8000-000000000003": "GHB",
-    "/modelPrompts/* | *sonnet*": "You are Sonnet. Do not split the task into subtasks and do not put model labels on tasks. If the task turns out bigger than it looked, stop and write what you found; Opus or the user will split it. File question tasks and bugs found on the way as usual, without a model label.",
+    "/modelPrompts/* | *sonnet*": "You are Sonnet. Do not split the task into subtasks and do not name a model for the tasks you create. If the task turns out bigger than it looked, stop and write what you found; Opus or the user will split it. File question tasks and bugs found on the way as usual, without a model.",
     "/names/00000000-0000-4000-8000-000000000002": "Other project",
     "/ownRules/00000000-0000-4000-8000-000000000002/requiredLabels": [
       "Auto"

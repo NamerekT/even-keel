@@ -88,8 +88,8 @@ export interface ProjectCheck {
     notice: Notice | null
   } | null
   /**
-   * Whether Claude Code trusts the folder; `null` — no repository to ask about, or Claude never runs the project's
-   * sessions: it is not the project's agent and run labels are off.
+   * Whether Claude Code trusts the folder; `null` — no repository to ask about. Asked on any agent: a task's
+   * run can give the task to Claude.
    */
   trusted: boolean | null
   /** The platform of the service's machine (`process.platform`), which the folder is on: the trust command depends on it. */

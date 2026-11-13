@@ -15,7 +15,7 @@ export const helpEn = {
     cache: 'The cache ring replaces the current-task triangle, or fills an empty number slot. It shows how long the prompt cache stays warm; point at it for the time left.',
     blockers: 'Lock + count: tasks that must finish before this one. Point at the count to see them.',
     dependents: 'Key + count: tasks waiting for this one to finish. Point at the count to see them.',
-    model: 'The agent and model selected by the task label.',
+    model: 'The agent, model and effort picked on the task card.',
     milestone: 'Beside a milestone name: opens its release notes draft.',
     forge: 'The smiths mark an agent fixing the project branch or merging a release carry. They move while it works; the lamp beside the row key shows its state. Crossed hammers mark a finished fix.',
     action: 'Current session action. The filled part of this strip and its percentage show context used, not the task estimate.',

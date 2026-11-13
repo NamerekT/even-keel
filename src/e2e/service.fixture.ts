@@ -33,7 +33,7 @@ const FORGE_URL = `${FORGE_WEB}/john/example.git`
 export const ACCOUNT = 'script'
 /** A second Claude account folder, with `Harness.spare` set: the account a scenario switches to. */
 export const SPARE_ACCOUNT = 'spare'
-/** A Codex account folder the scripted agent plays too: a project names it in `accounts` for a run label to pick it. */
+/** A Codex account folder the scripted agent plays too: a project names it in `accounts` for a task's run to pick it. */
 export const CODEX_ACCOUNT = 'coder'
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const
 /** The real `setTimeout`, for waits on real I/O (git, the database) while the service's own timers are fake. */

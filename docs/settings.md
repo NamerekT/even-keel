@@ -13,8 +13,8 @@ There are three levels and a default, narrowest wins: **task** → **project** �
   written by the page `/settings`.
 - **Project** — the project's rows (its entry in `projects[]` of the format), written by the project's settings panel. A project's own value
   goes over the shared one; a value left out means "as shared".
-- **Task** — only through a tracker label. Labels are the tracker's, not Even Keel's: nothing of the task level is
-  stored, it is read off `Task.labels` on every launch.
+- **Task** — the task's run (provider, model, effort), which Even Keel keeps itself in `task_runs` (BTN-983,
+  `docs/sessions/models.md`), and the tracker label `Break | compaction`, read off `Task.labels` on every launch.
 
 Four chain rules have a level between the project and Even Keel (BTN-66): the **tracker profile** the project runs on,
 or for a task of one of its feeds, the feed's profile. `chain.active`, `chain.terminal`, `chain.requiredLabels` and
@@ -53,7 +53,6 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
 | `execution.<provider>` | G | — | page, hand | the first mode of each provider: `claude` — `auto` (`bg`, `sdk`; the transport of its sessions, BTN-353), `codex` — `sandbox` (`bypass`). `claude: sdk` needs `cli.claude: checked` (BTN-610, `needsCheckedCli`): the pair with `system` is `config.executionCli`, on the page, in `config-import` and at a write; DB step 21 and config v22 move a stored pair to `checked` |
 | `cli.<provider>` | G | — | page, hand, service (download failure switches only that provider to `system`, unless its execution needs the copy — `ConfigStore.fallBackCli`) | `system` for every provider (BTN-603; before it `checked`, which DB step 20 and config v21 write for installs that left it out): the CLI installed by the user; `checked` asks download consent, chain waits for the copy (`docs/sessions/cli-versions.md`). Picking `execution.claude: sdk` on the page switches `cli.claude` to `checked` at once (or asks for the download) and locks Yours until the execution changes; the value stays `checked` after |
-| `modelLabels` | G, P | P over G | page, hand | false |
 | `modelPrompts.<pattern>` | G | — | page, hand | `{}` — ordered prompts matching `provider \| model` (`*` means any string, case ignored); a bare provider includes its CLI default. Added to new-session prompts only, never to chat replies or automatic resumes. Schema v17 and database step 16 migrate legacy model keys to `* \| <model>` |
 | `language` | G | — | page, hand | `null` (the browser's) |
 | `promptLanguage` | G, P | P over G | page, hand | `language`, else `en` |
@@ -111,7 +110,7 @@ schema version of a file of the format.
 | --- | --- | --- | --- |
 | a package's `default`, `settings` | `state/packages.json` `packages.<name>` | G | the package level: projects start from it |
 | a project's `on`, `off`, `settings` | `state/packages.json` `projects.<id>` | P | over the package's, `settings` by variable |
-| the run label `<Provider> \| <model>`, bare `<Provider>` | tracker label | T | sets `provider` and `models.<provider>`, read only while `modelLabels` is on; with it off the card dims the label and a save of the pick first asks to turn `modelLabels` on for the project (BTN-741) |
+| a task's run: provider, model, effort | the state database, `task_runs` | T | over the project's `provider` and `models.<provider>`; set on the task card and by the tasks server, not a setting row (BTN-983, `docs/sessions/models.md`). The tracker label `<Provider> \| <model>` is not read; `modelLabels` went with config v37 and database step 47 |
 | other excluded labels | tracker label | T | matched by `chain.excludedLabels`, a G/P setting |
 | required labels | tracker label | T | matched by `chain.requiredLabels` |
 | `Question`/`Вопрос` | tracker label | T | `QUESTION_LABELS`: the card's mark and the prompts' wording; it changes neither the order nor the launch |
@@ -175,7 +174,7 @@ version, whatever project its sessions are for), `modelPrompts`, `hiddenSkills`,
 Keel level too: one instruction for every project and agent, which no agent's own global rules file (`~/.claude/CLAUDE.md`,
 Codex's `AGENTS.md`) carries to the others.
 
-A task level makes sense only for what runs the session: `provider`, `models` (the run label), `effort` (BTN-146). Not
+A task level makes sense only for what runs the session: `provider`, `models` and the effort — the task's run (BTN-983). Not
 for anything about the repository (`commands`, `ci`, `slot`, the tracker), the chain (`brief`, `chain.*`, `parallel`) or
 the page; and not for `prompt`: the task's description is its prompt.
 
@@ -271,8 +270,8 @@ in the fixture is still a deliberate change of behaviour. Sample-specific change
 their snapshots; inspect those before accepting a snapshot update. Never change the frozen inputs in
 `test/fixtures/` to make these tests pass.
 
-The service does not read task labels through `resolve` yet: launches still go through `runChoice`, which also falls
-back when the pool has no account for the label's provider.
+What a launch runs on does not go through `resolve`: it is `runChoice` over the task's run, which also falls back when
+the pool has no account for the run's provider.
 
 The design it follows:
 
@@ -334,12 +333,11 @@ a blank key keeps the saved one). Nothing of it goes into the drafts of the grou
 Labels live in the tracker and are matched case-insensitively. A definition with a `task_label` names a parser in code;
 there is no mapping table:
 
-- `run` — `<Provider> | <model>` or a bare `<Provider>` (`runLabelOf`): one label sets `provider` and `models.<provider>`.
-  Read only while `modelLabels` is on, since older workspaces carry labels like `Sonnet`.
+- `run` — was `<Provider> | <model>` or a bare `<Provider>`; gone with BTN-983: a task's run is Even Keel's record, and
+  the label is a plain one.
 - `checkpoint` — `Break | compaction` pins the task's threshold to 999999; `Break | handoff` or no label inherits the project's threshold. Both together inherit it as well.
-- `effort` — `effort:<level>` (BTN-146), its own prefix so it never collides with a model label; no switch needed.
-- Two labels feeding the same setting with different values — a warning in the log and the project's value, as
-  `runChoice` does now.
+- `effort` — was planned as `effort:<level>` (BTN-146); a task's effort is a field of its run instead (BTN-983).
+- Two labels feeding the same setting with different values — a warning in the log and the project's value.
 - Flags are not values: excluded and required labels are G/P settings that read labels, no label is
   excluded unless a list names it (BTN-971), the question labels only mark the card.
 

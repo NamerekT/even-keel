@@ -52,11 +52,14 @@ export function resolveCodexBinary(env: NodeJS.ProcessEnv, pinned?: string): str
 /** `codex exec` refuses a folder outside a repository without the flag: a project without git works in one. */
 const repoCheckArgs = (outsideRepo: boolean | undefined): string[] => (outsideRepo === true ? ['--skip-git-repo-check'] : [])
 
+/** The effort of the task's run (`SessionStart.effort`), a TOML string as `-c` reads values. */
+const effortArgs = (effort: string | undefined): string[] => (effort === undefined ? [] : ['-c', `model_reasoning_effort=${JSON.stringify(effort)}`])
+
 /**
  * Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. `plugins` — `CodexPlugins.args`.
  * A project with a `CLAUDE.md` and no `AGENTS.md` still gives the session its rules (BTN-340, checked on 0.164.0).
  */
-export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp' | 'noMemory' | 'contextWindow' | 'outsideRepo'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
+export function turnArgs(start: Pick<SessionStart, 'model' | 'effort' | 'bypassSandbox' | 'mcp' | 'noMemory' | 'contextWindow' | 'outsideRepo'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
   const { model, bypassSandbox, mcp = [] } = start
   return [
     'exec',
@@ -69,6 +72,7 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
     ...(start.noMemory === true ? ['-c', 'features.memories=false', '-c', 'memories.use_memories=false', '-c', 'memories.generate_memories=false'] : []),
     ...windowArgs(start.contextWindow),
     ...(model === null ? [] : ['-m', model]),
+    ...effortArgs(start.effort),
     ...mcpArgs(mcp),
     ...plugins,
     ...(resumeId === undefined ? [] : ['resume', resumeId]),
@@ -81,7 +85,7 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
  * servers and plugins, so that its prompt is the session's and reads its cache. Read-only refuses a tool call; the
  * hooks are off, so that a package's Stop hook takes no mail meant for the waiting session (checked on 0.164.0, BTN-677).
  */
-export function warmArgs(start: Pick<SessionStart, 'model' | 'mcp' | 'contextWindow' | 'outsideRepo'>, sessionId: string, plugins: string[] = []): string[] {
+export function warmArgs(start: Pick<SessionStart, 'model' | 'effort' | 'mcp' | 'contextWindow' | 'outsideRepo'>, sessionId: string, plugins: string[] = []): string[] {
   const { model, mcp = [] } = start
   return [
     'exec',
@@ -96,6 +100,7 @@ export function warmArgs(start: Pick<SessionStart, 'model' | 'mcp' | 'contextWin
     'project_doc_fallback_filenames=["CLAUDE.md"]',
     ...windowArgs(start.contextWindow),
     ...(model === null ? [] : ['-m', model]),
+    ...effortArgs(start.effort),
     ...mcpArgs(mcp),
     ...plugins,
     'fork',

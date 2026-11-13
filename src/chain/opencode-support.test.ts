@@ -15,9 +15,10 @@ describe('unsupported OpenCode Copilot in a chain', () => {
     expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: copilotUnsupported() })
   })
 
-  it('preserves the refusal when the selected model comes from a run label', async () => {
-    const labelled = { ...task('ABC-1'), runLabels: [{ provider: 'opencode', model: 'github-copilot/gpt-6.1' }] }
-    const choice = runChoice(labelled, { provider: 'claude', models: {}, accounts: { claude: 'global', opencode: 'mixed' }, labels: true }, () => true)
+  it("preserves the refusal when the selected model comes from the task's run", async () => {
+    const labelled = task('ABC-1')
+    const run = { provider: 'opencode', model: 'github-copilot/gpt-6.1', effort: null }
+    const choice = runChoice(run, { provider: 'claude', models: {}, accounts: { claude: 'global', opencode: 'mixed' } }, () => true)
     const models = new ModelCatalog({ list: async () => null, title: () => 'OpenCode', name: () => 'Mixed', now: Date.now, log: () => {} })
     const refusal = await models.refusal({ key: choice.account, agent: choice.provider, dir: '/unused', global: false }, labelled.id, choice.model)
     expect(refusal).toEqual(copilotUnsupported())

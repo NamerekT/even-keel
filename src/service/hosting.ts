@@ -149,6 +149,9 @@ type HostingContext = Pick<ServiceContext,
   | 'tallyMode'
   | 'taskNote'
   | 'tasksByProject'
+  | 'runOfTask'
+  | 'setTaskRun'
+  | 'runsOfProject'
   | 'parentsByProject'
   | 'token'
   | 'trackers'
@@ -187,6 +190,10 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       const archived = archivedShown(ctx.archive, project, listed, new Date(Date.now() - RAN_SHOWN_MS))
       return [...listed, ...archived].map((task) => ({ ...task, project }))
     }),
+    runs: Object.fromEntries(Object.keys(ctx.configStore.current.projects).flatMap((project) => {
+      const runs = ctx.runsOfProject(project)
+      return Object.keys(runs).length === 0 ? [] : [[project, runs]]
+    })),
     parents: Object.fromEntries(Object.keys(ctx.configStore.current.projects).flatMap((project) => {
       const parents = ctx.parentsByProject.get(project)
       return parents === undefined ? [] : [[project, parents]]
@@ -207,6 +214,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       headerLevels: Object.fromEntries(Object.keys(ctx.configStore.current.projects).map((project) => [project, headerLevels({
         shared: runSettings(ctx.configStore.current, undefined),
         project: runOf(ctx, project),
+        runOf: (task) => ctx.runOfTask(project, task),
         tasks: ctx.tasksByProject.get(project) ?? [],
         order: orders[project]?.order ?? [],
         current: ctx.dispatcher.state.active.find((chain) => chain.project === project)?.current ?? null,
@@ -396,7 +404,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
             folderOf: (project) => ctx.configStore.current.projects[project]!,
             trustFiles: (each) => {
               const run = runSettings(ctx.configStore.current, undefined)
-              return (each.provider ?? run.provider) === CLAUDE || run.labels ? ctx.claudeConfigs() : []
+              return (each.provider ?? run.provider) === CLAUDE ? ctx.claudeConfigs() : []
             },
             trust: (file, folder) => trustFolder(file, folder),
             packages: ctx.packages,
@@ -674,6 +682,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       configuredProject: ctx.configuredProject, linkFor: ctx.linkFor, disabled: (reader) => disabledNotice(ctx.profiles.disabledFor(reader)), rulesOf: ctx.rulesOf, readerFor: ctx.readerFor, refreshers: ctx.refreshers, readerTasks: ctx.readerTasks, refreshProject: ctx.refreshProject,
       live: (task) => ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished'),
       pollReviews: (project) => ctx.dispatcher.pollReviews(project),
+      setRun: (project, task, run) => ctx.setTaskRun(project, task, run),
       broadcast: () => ctx.hub.broadcastSoon('state', ctx.getState),
     }),
     changelog: async (project, milestone, op) => {

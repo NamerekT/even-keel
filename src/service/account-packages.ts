@@ -75,6 +75,8 @@ export function wirePackages(ctx: AccountsContext): Packages {
           const live = ofTask.find((each) => each.lamp !== 'finished') ?? ofTask[0]
           return live === undefined ? null : runLabelText({ provider: live.agent, model: live.model })
         },
+        runOf: (project, task) => ctx.runOfTask(project, task),
+        setRun: (project, task, run) => ctx.setTaskRun(project, task, run),
         refresh: (project) => ctx.refreshProject(project),
         // A chain session attaches files of its worktree; a hand session, of its project's repository (BTN-895).
         folderOf: (scope, project) => {

@@ -55,7 +55,6 @@ export const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): 
   provider: form.provider ?? '',
   ...providerValues('models', form.models),
   ...providerValues('accounts', form.accounts),
-  modelLabels: form.modelLabels === null ? '' : String(form.modelLabels),
   promptLanguage: form.own.promptLanguage ?? '',
   cacheTtl: form.own.cacheTtl === undefined ? '' : (form.own.cacheTtl ?? CLI_TTL),
   ownAutoCompact: form.own.autoCompactWindow !== undefined,
@@ -151,7 +150,6 @@ export function formOf(values: Values, name: string | null, shared: SharedForm, 
   const own = ownOf(values)
   if (own === undefined || slot === undefined) return undefined
   const trackerProject = text('trackerProject').trim()
-  const labels = text('modelLabels')
   return {
     name,
     testProject: on('testProject'),
@@ -188,7 +186,6 @@ export function formOf(values: Values, name: string | null, shared: SharedForm, 
     provider: text('provider') === '' ? null : text('provider'),
     models: providerMap('models', values),
     accounts: providerMap('accounts', values),
-    modelLabels: labels === '' ? null : labels === 'true',
     promptLanguage: ownOr(own, 'promptLanguage', shared.promptLanguage),
     cacheTtl: ownOr(own, 'cacheTtl', shared.cacheTtl),
     autoCompactWindow: ownOr(own, 'autoCompactWindow', shared.autoCompactWindow),

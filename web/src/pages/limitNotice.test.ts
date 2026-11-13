@@ -32,7 +32,7 @@ describe('limit notice on the page', () => {
     expect(text).toContain(formatMoment(until, new Date()))
     expect(text).not.toContain(until)
     expect(text).toContain(language === 'en' ? 'pool' : 'пул')
-    expect(text).toContain(language === 'en' ? 'label' : 'метк')
+    expect(text).toContain(language === 'en' ? 'card' : 'карточк')
     const nested = sayIds(notice('chain.empty', { project: 'ABC' }, { cause: notice('chain.limitSpent', { until }) }))
     expect(nested).toContain(formatMoment(until, new Date()))
     expect(nested).not.toContain(until)

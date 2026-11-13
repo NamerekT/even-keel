@@ -121,14 +121,14 @@ export const claude: AgentAdapter = {
       launch: async (home, start) => {
         if (viaSdk(home)) return sdk.launch(home, start)
         if (start.trustedRepo !== undefined) trustFolder(envOf(home).CLAUDE_CONFIG_DIR === undefined ? join(homedir(), '.claude.json') : join(home.dir, '.claude.json'), start.trustedRepo)
-        const { name, cwd, prompt, model, settings, mcp, plugins } = start
-        return (await cli.launch(home, name, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })).sessionId
+        const { name, cwd, prompt, model, settings, mcp, plugins, effort } = start
+        return (await cli.launch(home, name, cwd, prompt, model, { settings, mcp, plugins, effort, instructions: agentsFallback(cwd) })).sessionId
       },
       resume: async (home, { agentId, sessionId }, start) => {
         if (await sdk.knows(sessionId)) return sdk.resume(home, sessionId, start)
         if (start.trustedRepo !== undefined) trustFolder(envOf(home).CLAUDE_CONFIG_DIR === undefined ? join(homedir(), '.claude.json') : join(home.dir, '.claude.json'), start.trustedRepo)
-        const { name, cwd, prompt, model, settings, mcp, plugins } = start
-        return (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })).sessionId
+        const { name, cwd, prompt, model, settings, mcp, plugins, effort } = start
+        return (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, { settings, mcp, plugins, effort, instructions: agentsFallback(cwd) })).sessionId
       },
       reply: async (home, { sessionId }, start) => ((await sdk.knows(sessionId)) ? sdk.reply(home, sessionId, start.prompt) : null),
       stop: async (home, { agentId, sessionId }) => ((await sdk.knows(sessionId)) ? sdk.stop(sessionId) : cli.stop(home, agentId, sessionId)),
@@ -168,8 +168,8 @@ export const claude: AgentAdapter = {
       write: (home, turn) => cli.write(home, turn),
       warm: async (home, { sessionId }, start) => {
         if (await sdk.knows(sessionId)) return sdk.warm(home, sessionId, start)
-        const { cwd, prompt, model, settings, mcp, plugins } = start
-        return cli.warm(home, sessionId, cwd, prompt, model, { settings, mcp, plugins, instructions: agentsFallback(cwd) })
+        const { cwd, prompt, model, settings, mcp, plugins, effort } = start
+        return cli.warm(home, sessionId, cwd, prompt, model, { settings, mcp, plugins, effort, instructions: agentsFallback(cwd) })
       },
       // A subscription's cache lives an hour, a key's as `cacheTtl` wrote it.
       warmMs: (cache, apiKey) => (apiKey ? warmCacheMs(cache?.ttl ?? null) : WARM_CACHE_MS),

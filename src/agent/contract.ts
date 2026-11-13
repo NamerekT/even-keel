@@ -78,6 +78,11 @@ export interface SessionStart {
   prompt: string
   /** The model as it goes to the agent's CLI (`runChoice`); `null` — the agent's configured default. */
   model: string | null
+  /**
+   * Optional. The effort of the task's run (`TaskRuns`), one of `EFFORTS` of this agent: passed on every launch and
+   * resume, like the model. Absent — the agent's own default.
+   */
+  effort?: string
   /** Optional. Claude's `--settings` JSON for chain sessions (`src/tools/panel.ts`). */
   settings?: string
   /** Optional. Run without the agent's own sandbox and approvals (the global `execution` of the agent is `bypass`). */

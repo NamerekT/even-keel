@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { modelName, runLabelView } from './runLabel.js'
+import { modelName, runView } from './runLabel.js'
 
 describe('modelName', () => {
   it.each([
@@ -11,16 +11,13 @@ describe('modelName', () => {
   })
 })
 
-describe('runLabelView', () => {
+describe('runView', () => {
   it.each([
-    ['OpenCode | opencode/deepseek-v4.1-flash-free', { provider: 'OpenCode', model: 'deepseek-v4.1-flash-free' }],
-    ['OpenCode | router/vendor/deepseek-v4-pro', { provider: 'OpenCode', model: 'deepseek-v4-pro' }],
-    ['Codex | gpt-6.1-terra', { provider: 'Codex', model: 'gpt-6.1-terra' }],
-    ['Claude | opus', { provider: 'Claude', model: 'opus' }],
-    ['OpenCode', { provider: 'OpenCode', model: null }],
-    ['cOdEx | gpt-6.1-sol', { provider: 'cOdEx', model: 'gpt-6.1-sol' }],
-    ['Bug', null],
-  ])('displays %s without changing provider case or the model suffix', (label, expected) => {
-    expect(runLabelView(label)).toEqual(expected)
+    [{ provider: 'opencode', model: 'router/vendor/deepseek-v4-pro', effort: null }, { provider: 'OpenCode', model: 'deepseek-v4-pro', effort: null }],
+    [{ provider: 'claude', model: 'opus', effort: 'high' }, { provider: 'Claude', model: 'opus', effort: 'high' }],
+    [{ provider: 'codex', model: null, effort: null }, { provider: 'Codex', model: null, effort: null }],
+    [{ provider: null, model: null, effort: 'low' }, { provider: null, model: null, effort: 'low' }],
+  ])('shows %j', (run, expected) => {
+    expect(runView(run)).toEqual(expected)
   })
 })

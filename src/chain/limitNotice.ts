@@ -1,7 +1,7 @@
 import { fail } from '../notice/notice.js'
 import type { ActiveChain, DispatcherDeps } from './model.js'
 
-/** Refuse against the task's selected account, including a provider run label. */
+/** Refuse against the task's selected account, including the provider of the task's run. */
 export function requireLimit(deps: Pick<DispatcherDeps, 'limitReset' | 'account'>, project: string, task: string): void {
   const until = deps.limitReset(project, task)
   if (until === null) return

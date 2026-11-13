@@ -1,7 +1,7 @@
 import { fail } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
 import type { CardEdit, TaskRef, TrackerCard } from '../tracker/card.js'
-import { parseTaskId, runLabelOf, type MilestonePick, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import { parseTaskId, type MilestonePick, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { MilestoneTask, TaskSource, TrackerPlace } from '../tracker/source.js'
 import { BACKLOG, BUILTIN_LABELS, BUILTIN_STATUSES, builtinStatus, DONE, TODO, uniqueNames, type CommentAuthor } from './model.js'
 import { builtinEditor } from './editor.js'
@@ -93,7 +93,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
   }
   const editOf = async (task: BuiltinTask): Promise<CardEdit> => {
     const own = (await store.labels(task.project)).map((label) => label.name)
-    const labels = uniqueNames([...BUILTIN_LABELS, ...own]).filter((name) => runLabelOf(name) === null)
+    const labels = uniqueNames([...BUILTIN_LABELS, ...own])
     const builtin = new Set(BUILTIN_LABELS.map((name) => name.toLocaleLowerCase()))
     return {
       statuses: [...BUILTIN_STATUSES],

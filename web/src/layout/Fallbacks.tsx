@@ -5,7 +5,7 @@ import { Toast, ToastList } from '../ui/Toast.js'
 
 const DISMISSED_KEY = 'even-keel.fallbacks.dismissed'
 
-/** A toast per launch whose run label had no account in the pool; closed on this device only. */
+/** A toast per launch whose task's run named a provider with no account in the pool; closed on this device only. */
 export function FallbackToasts() {
   const { state } = useLive()
   const [dismissed, setDismissed] = useState(readDismissed)

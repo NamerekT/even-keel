@@ -114,7 +114,7 @@ export function feedDraftOf(body: Record<string, unknown>): FeedDraft {
 }
 
 export function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, intakeLabel, mergeInto, carryAgent, fillMilestone, changelog, standards, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, intakeLabel, mergeInto, carryAgent, fillMilestone, changelog, standards, provider, models, accounts, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -138,7 +138,6 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
   // A page open since before the standards (BTN-359) sends none; the setting's own check judges the entries.
   if (standards !== undefined && !Array.isArray(standards)) throw fail('request.required', { field: 'standards' })
   if (provider !== null && typeof provider !== 'string') throw fail('request.required', { field: 'provider' })
-  if (modelLabels !== null && typeof modelLabels !== 'boolean') throw fail('request.required', { field: 'modelLabels' })
   if (trackerProject !== null && typeof trackerProject !== 'string') throw fail('request.required', { field: 'trackerProject' })
   if (!Number.isInteger(slot) || (slot as number) < 0) throw fail('request.required', { field: 'slot' })
   if (color !== null && !Number.isInteger(color)) throw fail('request.required', { field: 'color' })
@@ -158,7 +157,6 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
     provider,
     models: mapOf(models, 'models', (value) => typeof value === 'string'),
     accounts: mapOf(accounts, 'accounts', (value) => typeof value === 'string'),
-    modelLabels,
     branch: textOf(branch, 'branch'),
     repo: textOf(repo, 'repo'),
     tracker: textOf(tracker, 'tracker'),
@@ -190,7 +188,7 @@ export function ownOf(raw: unknown): OwnValues {
 }
 
 export function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates } = body
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
@@ -204,7 +202,6 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     accounts: mapOf(accounts, 'accounts', (value) => typeof value === 'string'),
     execution: mapOf(execution, 'execution', (value) => typeof value === 'string'),
     cli: mapOf(cli, 'cli', (value) => typeof value === 'string'),
-    modelLabels: switchOf(modelLabels, 'modelLabels'),
     modelPrompts: mapOf(modelPrompts, 'modelPrompts', (value) => typeof value === 'string'),
     // A page from before the shared prompt sends none: form and base then agree and nothing is written.
     prompt: (prompt ?? null) as string | null,

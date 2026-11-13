@@ -1,11 +1,12 @@
 import { englishOf, NoticeError } from '../notice/notice.js'
 import type { Queryable } from '../storage/database.js'
 import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskFiles, type TaskLink } from '../tracker/editor.js'
-import { parseTaskId, runLabelOf, type TrackerTask } from '../tracker/model.js'
+import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import type { Tracker } from '../tracker/source.js'
 import { didNotAnswer } from '../tracker/link.js'
 import type { TaskComment, TrackerCard } from '../tracker/card.js'
 import { sameName, type ChainRules } from '../chain/rules.js'
+import { patchedRun, sameRun, taskRunText, type TaskRun } from '../sessions/runs.js'
 import { Args, checkToolArgs } from './args.js'
 import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 import { rolesLine, termsOf, vocabularyFor, type TrackerTerms } from './vocabulary.js'
@@ -45,6 +46,9 @@ export interface TasksDeps {
   rulesOf(reader: string): ChainRules
   /** `<Provider> | <model>` of the live session of the project's task; `null` — not known. */
   modelOf(project: string, task: string): string | null
+  /** The run of the project's task (`TaskRuns`), and its change; `null` — as the project says again. */
+  runOf(project: string, task: string): TaskRun | undefined
+  setRun(project: string, task: string, run: TaskRun | null): void
   /** The project's tasks changed: the chain reads them anew. */
   refresh(project: string): Promise<unknown>
   /**
@@ -142,7 +146,8 @@ export class TasksTools {
       const files = await attachmentLines(card.id, card.attachments, tracker, this.deps.folderOf(scope, reader.project), this.deps.attachmentLimit())
       return { card, rev, terms, files }
     })
-    return cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms), files)
+    const run = this.deps.runOf(reader.project, key)
+    return cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms), files, run === undefined ? null : taskRunText(run))
   }
 
   private async create(args: Args, scope: TasksScope): Promise<string> {
@@ -192,6 +197,10 @@ export class TasksTools {
                 await restoreFields(editor, found, draft)
                 notes[index]!.push('found in the tracker after an interrupted call')
                 retry.ids[index] = found
+              }
+              if (each.run !== null) {
+                this.deps.setRun(reader.project, retry.ids[index]!, each.run)
+                notes[index]!.push(`run ${taskRunText(each.run)}`)
               }
             } catch (error) {
               throw new EditRefused(`${createdSoFar(done())}task ${index + 1} was refused: ${refusalText(error)}. A repeat with the same retry creates only the rest`)
@@ -263,6 +272,7 @@ export class TasksTools {
     const whole = args.text('description')
     const rev = args.integer('rev')
     const estimate = estimateArg(args)
+    const run = args.run('run')
     const component = args.nullable('component')
     const attach = args.texts('attach')
     const status = args.text('status')
@@ -310,9 +320,19 @@ export class TasksTools {
       return { fields, add, terms, files: attach.length === 0 ? [] : await this.uploads(attach, scope, reader) }
     }
     /** The writes of one task; `said` holds what changed, also when a later write throws. */
-    const apply = async (tracker: Tracker, key: string, plan: UpdatePlan, said: string[]): Promise<void> => {
+    const apply = async (tracker: Tracker, project: string, key: string, plan: UpdatePlan, said: string[]): Promise<void> => {
       const editor = editorOf(tracker)
       const notes: string[] = []
+      if (run !== undefined) {
+        // The run is Even Keel's record, not the tracker's: the tracker is asked only that the task exists.
+        const current = this.deps.runOf(project, key)
+        const next = run === null ? null : patchedRun(current, run)
+        if (!sameRun(current, next)) {
+          if ((await tracker.tasks([key])).length === 0) throw new EditRefused(`there is no task ${key}`)
+          this.deps.setRun(project, key, next)
+          said.push(`run → ${next === null ? 'as the project says' : taskRunText(next)}`)
+        }
+      }
       if (whole !== undefined && (await editor.describe(key, whole, rev!, notes))) said.push('description replaced', ...notes)
       if ((patches.length > 0 || append !== null) && (await editor.patch(key, patches, append, notes))) said.push('description patched', ...notes)
       for (const field of plan.fields) if (await editor.set(key, field)) said.push(fieldLine(field))
@@ -367,7 +387,7 @@ export class TasksTools {
             const key = keys[index]!
             const said: string[] = []
             try {
-              await apply(tracker, key, plan, said)
+              await apply(tracker, reader.project, key, plan, said)
               lines[index] = `${key}: ${said.length === 0 ? 'already so' : said.join('; ')}`
             } catch (error) {
               const done = said.length === 0 ? '' : `${key}: ${said.join('; ')}; then `
@@ -496,6 +516,8 @@ interface PlannedTask {
   links: Record<TaskLink, string[]>
   /** The paths of the files to attach once the task is created. */
   attach: string[]
+  /** The run the task gets once it is created; `null` — none. */
+  run: TaskRun | null
 }
 
 /** Checks every name and reference of a batch's task before anything is created. */
@@ -529,8 +551,10 @@ function plannedTask(item: Args, index: number, count: number, terms: TrackerTer
     }
   }
   if (attach.length > 0) task(() => filesCheck(terms, prefix))
+  const run = item.run('run')
   return {
     attach,
+    run: run == null ? null : (task(() => patchedRun(undefined, run)) as TaskRun | null),
     draft: {
       title: item.required('title').trim(),
       description: item.text('description') ?? '',
@@ -590,12 +614,9 @@ function milestoneName(name: string, terms: TrackerTerms): string {
 }
 
 function labelName(name: string, terms: TrackerTerms): string {
-  // A run label is not a name of the vocabulary: it goes on a tracker that gives none too.
-  if (terms.known === null && runLabelOf(name) !== null) return name.trim()
   const known = vocabularyFor(terms)
   const found = known.labels.find((each) => each.toLocaleLowerCase() === name.trim().toLocaleLowerCase())
   if (found !== undefined) return found
-  if (runLabelOf(name) !== null) return name.trim()
   throw nameRefusal(`there is no label "${name}"; the labels are ${known.labels.join(', ')}. Only the user makes a new one`, terms)
 }
 
@@ -651,7 +672,7 @@ function listLine(task: TrackerTask): string {
  * The card as Markdown: a head of what the task has, its description, the lines of its files (`attachmentLines`) and,
  * on request, its comments.
  */
-export function cardText(card: TrackerCard, rev: number, comments: boolean, roles: string | null = null, files: readonly string[] = []): string {
+export function cardText(card: TrackerCard, rev: number, comments: boolean, roles: string | null = null, files: readonly string[] = [], run: string | null = null): string {
   const refs = (list: { id: string }[]) => list.map((each) => each.id).join(', ')
   const head = [
     card.status.name,
@@ -659,6 +680,7 @@ export function cardText(card: TrackerCard, rev: number, comments: boolean, role
     ...(card.milestone === null ? [] : [`milestone ${card.milestone.label}`]),
     ...(card.labels.length === 0 ? [] : [`labels ${card.labels.join(', ')}`]),
     ...(card.estimate == null ? [] : [`estimate ${card.estimate} min`]),
+    ...(run === null ? [] : [`run ${run}`]),
     ...(card.parent === null ? [] : [`parent ${card.parent.id}`]),
     ...(card.blockedBy.length === 0 ? [] : [`blocked by ${refs(card.blockedBy)}`]),
     ...(card.blocks.length === 0 ? [] : [`blocks ${refs(card.blocks)}`]),

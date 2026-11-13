@@ -162,7 +162,6 @@ export function ProjectSessionsTab({
             return marks.note(key, (value) => (value === '' ? t.settings.asShared(sharedLabel) : labelOf(options)(value)))
           }}
         />
-        {inheritedSwitch('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, shared.modelLabels)}
       </Section>
       <Section title={t.settings.sections.prompt}>
         {pick('brief', t.settings.brief, t.settings.briefHint, [

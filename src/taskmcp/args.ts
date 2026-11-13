@@ -1,5 +1,6 @@
 import { EditRefused, type TextPatch } from '../tracker/editor.js'
 import { PRIORITIES, type TaskPriority } from '../tracker/model.js'
+import { RUN_FIELDS, type RunPatch } from '../sessions/runs.js'
 import { toolSpecs } from './tools.js'
 
 interface ArgumentSchema {
@@ -96,6 +97,22 @@ export class Args {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new EditRefused(`"${name}" must be {add, remove}`)
     const inner = new Args(value as Record<string, unknown>)
     return { add: inner.texts('add'), remove: inner.texts('remove') }
+  }
+
+  /** `{ provider, model, effort }` of a task's run: the fields named, `null` to clear one; `null` — clear the run. */
+  run(name: string): RunPatch | null | undefined {
+    const value = this.raw[name]
+    if (value === undefined || value === null) return value
+    if (typeof value !== 'object' || Array.isArray(value)) throw new EditRefused(`"${name}" must be {provider, model, effort}`)
+    const unknown = Object.keys(value).filter((key) => !(RUN_FIELDS as readonly string[]).includes(key))
+    if (unknown.length > 0) throw new EditRefused(`"${name}" takes ${RUN_FIELDS.join(', ')}, not ${unknown.join(', ')}`)
+    const inner = new Args(value as Record<string, unknown>)
+    const patch: RunPatch = {}
+    for (const field of RUN_FIELDS) {
+      const given = inner.nullable(field)
+      if (given !== undefined) patch[field] = given === null || given.trim() === '' ? null : given
+    }
+    return patch
   }
 
   patches(name: string): TextPatch[] {

@@ -141,7 +141,7 @@ from periods x left join ss using (side) left join ts using (side) left join es 
 
 Columns: mean context per request (`ctx_k`), share of requests > 150k, $ per main-thread request, median task cost, p90 of a task's peak window, sessions per task, median active minutes of a task; for closed tasks — their number, median active minutes and user waiting, how many of them have an estimate, the share within ×1.5 of the estimate (`within_pct`) and median actual / estimate (`ratio_med`, > 1 — underestimate); then the median entry context, the shares of spend in stuck spans and without a task, tasks marked as rework, errors and denials per 100 calls, answers of models with no price (`unpriced`). A session belongs to the period of its first answer, a task to that of its first answer and with all its cost. Estimate accuracy — only over closed tasks with an estimate; fewer than 5 such on either side — "too little data". Breakdown by component — `select model_family, component, count(fact_ratio), percentile_cont(0.5) within group (order by fact_ratio) from e group by 1, 2` (in the same CTE).
 
-**Always a cut by model, next to the table.** Run labels move small tasks to cheap models, and the median task cost falls even if the tasks of the expensive model got no cheaper. Compare task cost and time within one model:
+**Always a cut by model, next to the table.** A task's run moves small tasks to cheap models, and the median task cost falls even if the tasks of the expensive model got no cheaper. Compare task cost and time within one model:
 
 ```sql
 with p(key, skip) as (values ('ACME', array[]::text[])),

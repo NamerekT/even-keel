@@ -109,23 +109,21 @@ describe('settled', () => {
 })
 
 describe('labelRows', () => {
-  it('shows the built-in labels first, the run labels only while they pick a model, then the lists’ own', () => {
-    const rows = labelRows(rules({ requiredLabels: ['agent-ok'], excludedLabels: ['wip', 'Manual'] }), { requiredLabels: 'project', excludedLabels: 'shared' }, ['Claude | opus', 'Bug'], true)
+  it('shows the built-in labels first, then the lists’ own', () => {
+    const rows = labelRows(rules({ requiredLabels: ['agent-ok'], excludedLabels: ['wip', 'Manual'] }), { requiredLabels: 'project', excludedLabels: 'shared' })
     expect(rows).toEqual([
       { name: 'Question', rule: 'question', origin: 'builtin' },
       { name: 'Вопрос', rule: 'question', origin: 'builtin' },
-      { name: 'Claude | opus', rule: 'run', origin: 'builtin' },
       { name: 'agent-ok', rule: 'required', origin: 'project' },
       { name: 'wip', rule: 'excluded', origin: 'shared' },
       { name: 'Manual', rule: 'excluded', origin: 'shared' },
     ])
-    expect(labelRows(DEFAULT_RULES, { requiredLabels: 'shared', excludedLabels: 'shared' }, ['Claude | opus'], false).some((row) => row.rule === 'run')).toBe(false)
   })
 
   it('shows `Manual` of a list as an ordinary excluded row, and no row under the default rules (BTN-758, BTN-971)', () => {
-    const rows = labelRows(rules({ excludedLabels: ['Manual'] }), { requiredLabels: 'shared', excludedLabels: 'shared' }, [], false)
+    const rows = labelRows(rules({ excludedLabels: ['Manual'] }), { requiredLabels: 'shared', excludedLabels: 'shared' })
     expect(rows.filter((row) => row.origin !== 'builtin')).toEqual([{ name: 'Manual', rule: 'excluded', origin: 'shared' }])
-    expect(labelRows(DEFAULT_RULES, { requiredLabels: 'shared', excludedLabels: 'shared' }, [], false).filter((row) => row.origin !== 'builtin')).toEqual([])
+    expect(labelRows(DEFAULT_RULES, { requiredLabels: 'shared', excludedLabels: 'shared' }).filter((row) => row.origin !== 'builtin')).toEqual([])
   })
 })
 

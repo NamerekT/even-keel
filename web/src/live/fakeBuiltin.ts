@@ -2,7 +2,7 @@ import { BUILTIN, BUILTIN_LABELS, BUILTIN_STATUSES } from '../../../src/builtin/
 import { fail } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { TaskCard, TaskRef } from '../../../src/tracker/card.js'
-import { runLabelOf, type TaskPriority } from '../../../src/tracker/model.js'
+import type { TaskPriority } from '../../../src/tracker/model.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 import type { AttachedFile } from './connection.js'
 import { FAKE_HULY_PROFILE } from './fakeProfiles.js'
@@ -65,7 +65,6 @@ function withParents(state: EvenKeelState): ProjectTask[] {
       status: { name: 'In Progress', category: 'Active' },
       blockedBy: [],
       labels: [],
-      runLabels: [],
       question: false,
       subtasks: state.tasks.filter((task) => task.parent === id).length,
     }))
@@ -99,14 +98,14 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
     ancestors.unshift(refOf(parent))
     up = parent.parent
   }
-  const own = new Set(tasks.flatMap((each) => each.labels).filter((name) => runLabelOf(name) === null))
+  const own = new Set(tasks.flatMap((each) => each.labels))
   return {
     ...base,
     description: descriptions.get(id)!,
     priority: task.priority,
     labels: [
       ...(task.question ? [{ name: 'Question', role: 'question' as const }] : []),
-      ...task.labels.map((name) => ({ name, role: runLabelOf(name) === null ? null : ('model' as const) })),
+      ...task.labels.map((name) => ({ name, role: null })),
     ],
     parent: ancestors.at(-1) ?? null,
     comments: fakeJournal(id, journal),
@@ -222,7 +221,6 @@ export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Recor
         milestone,
         blockedBy: [],
         labels: [],
-        runLabels: [],
         question: false,
         subtasks: 0,
         priority: 'none',

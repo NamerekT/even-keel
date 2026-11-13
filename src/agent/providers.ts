@@ -5,7 +5,7 @@ import { OPENCODE } from '../opencode/name.js'
 
 /**
  * The providers a session may run on, by the agents' names in `src/agent/adapters.ts`: the keys of `provider`, `models`,
- * `accounts` and `execution` in the config and the first part of a task's run label. A page-safe list, without the adapters.
+ * `accounts` and `execution` in the config and the provider of a task's run. A page-safe list, without the adapters.
  */
 export const PROVIDERS: readonly string[] = [CLAUDE, CODEX, OPENCODE, COPILOT]
 /** The providers Even Keel keeps a copy of the checked CLI for, the keys of `cli`: every one since BTN-347. */
@@ -29,6 +29,16 @@ export const NO_SIGN_IN = 'none'
  * sessions run (BTN-353, `transportOf`): `auto` by the account's kind, or `claude --bg` or the Agent SDK for every one.
  */
 export const EXECUTION_MODES: Readonly<Record<string, readonly string[]>> = { [CLAUDE]: ['auto', 'bg', 'sdk'], [CODEX]: ['sandbox', 'bypass'] }
+
+/**
+ * The effort levels a task's run may name by provider (BTN-983), lowest first, as the CLI takes them: Claude Code's
+ * `--effort`, Codex's `model_reasoning_effort`. A provider not listed takes none: the card has no field for it and its
+ * sessions get no flag.
+ */
+export const EFFORTS: Readonly<Record<string, readonly string[]>> = {
+  [CLAUDE]: ['low', 'medium', 'high', 'xhigh', 'max'],
+  [CODEX]: ['minimal', 'low', 'medium', 'high', 'xhigh'],
+}
 
 /**
  * Which CLI a provider's sessions run on (`cli`, BTN-250), the default first: `system` — the one installed on the

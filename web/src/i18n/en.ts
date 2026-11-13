@@ -140,7 +140,7 @@ export const en: Messages = {
     log: 'The whole log is logs/update.log in the folder of Even Keel.',
   },
   fallback: {
-    toastTitle: (task: string) => `${task} ran without its run label`,
+    toastTitle: (task: string) => `${task} ran not as its card says`,
     close: 'Close',
   },
   toast: {

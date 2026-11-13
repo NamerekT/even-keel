@@ -21,8 +21,6 @@ import { removeRefusal } from './cardEdit.js'
 import { DAY, LabelsField, MilestoneField, PriorityPick, StatusPick, TitleEdit } from './CardFields.js'
 import { RefLink, Relations } from './CardLinks.js'
 import { AncestorPath, ParentField, Subtasks } from './CardTree.js'
-import { runLabelsOn } from './runPick.js'
-import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { TaskRunPick } from './TaskRunPick.js'
 import { workLines } from '../ui/WorkChip.js'
 import { Attachments } from './Attachments.js'
@@ -247,8 +245,7 @@ interface BodyProps {
 function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, onChanged }: BodyProps) {
   const { send, sending, failure } = useCommand()
   const { state } = useLive()
-  const labelsOn = runLabelsOn(state?.config, taskProject(state, card.id))
-  const roleText = (role: NonNullable<Card['labels'][number]['role']>) => (role === 'model' && !labelsOn ? t.card.roles.modelOff : t.card.roles[role])
+  const roleText = (role: NonNullable<Card['labels'][number]['role']>) => t.card.roles[role]
   const markdown = useMarkdown(onOpen, card.attachments)
   const loud = card.labels.filter((label) => LOUD.has(label.role))
   const quiet = card.labels.filter((label) => label.role !== null && !LOUD.has(label.role))
@@ -369,7 +366,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               )}
             </Prop>
             <Prop name={t.card.run.title} wide>
-              <TaskRunPick task={card.id} labels={card.labels.map((label) => label.name)} relabel={card.relabel} live={live} onChanged={onChanged} />
+              <TaskRunPick task={card.id} live={live} onChanged={onChanged} />
             </Prop>
             {editable !== null ? (
               <Prop name={t.card.parent} wide={editable.card.parent !== null}>
@@ -385,12 +382,10 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
             {(card.labels.length > 0 || editable !== null) && (
               <Prop name={t.card.labels} wide>
                 {editable !== null ? (
-                  <LabelsField card={editable.card} editor={editable.editor} labelsOn={labelsOn} roleText={roleText} />
+                  <LabelsField card={editable.card} editor={editable.editor} roleText={roleText} />
                 ) : (
                 <ul className="task-card__chips">
-                  {card.labels.map((label) => label.role === 'model' ? (
-                    <RunLabelTag key={label.name} label={label.name} as="li" off={!labelsOn} />
-                  ) : (
+                  {card.labels.map((label) => (
                     <li
                       key={label.name}
                       className={label.role === null ? 'tag' : `chip task-card__chip--${label.role}`}

@@ -1,48 +1,36 @@
-import type { LabelChange } from '../../../src/tracker/labels.js'
-import { runLabelOf, runLabelText } from '../../../src/tracker/model.js'
+import { EFFORTS } from '../../../src/agent/providers.js'
+import { sameRun, type TaskRun } from '../../../src/sessions/runs.js'
 
-/** The task card's choice of what its sessions run on; `''` in either field is "as the project says". */
+/** The task card's choice of what its sessions run on; `''` in a field is "as the project says", for the effort — none passed. */
 export interface RunPick {
   provider: string
   model: string
+  effort: string
 }
 
-export interface RunPickView {
-  pick: RunPick
-  /** The task's run labels as the tracker spells them. */
-  labels: string[]
-  /** More than one run label: the chain runs the task as its project says, and a save replaces them with one. */
-  several: boolean
+/** What the card's fields show for the task's run. */
+export function runPickOf(run: TaskRun | null | undefined): RunPick {
+  return { provider: run?.provider ?? '', model: run?.model ?? '', effort: run?.effort ?? '' }
 }
 
-const keyOf = (provider: string, model: string | null) => `${provider}|${model ?? ''}`
-
-/** What the card's selects show for the task's labels. */
-export function runPickOf(labels: string[]): RunPickView {
-  const runs = labels.filter((label) => runLabelOf(label) !== null)
-  const distinct = new Map(runs.map((label) => {
-    const run = runLabelOf(label)!
-    return [keyOf(run.provider, run.model), run] as const
-  }))
-  const [only] = distinct.values()
-  if (distinct.size !== 1 || only === undefined) return { pick: { provider: '', model: '' }, labels: runs, several: distinct.size > 1 }
-  return { pick: { provider: only.provider, model: only.model ?? '' }, labels: runs, several: false }
+/** The efforts the pick offers: those of the picked provider, else of the one the project runs on; none where it takes no effort. */
+export function effortsOf(provider: string, projectProvider: string): readonly string[] {
+  return EFFORTS[provider === '' ? projectProvider : provider] ?? []
 }
 
-/** The label write that makes the task carry the pick alone: every run label off, one built by `runLabelText` on; `null` — it carries it already. */
-export function runPickChange(labels: string[], pick: RunPick): LabelChange | null {
-  const remove = labels.filter((label) => runLabelOf(label) !== null)
+/** The pick after another provider is chosen: the model goes with its provider, the effort stays where the new one takes it. */
+export function withProvider(pick: RunPick, provider: string, projectProvider: string): RunPick {
+  if (provider === pick.provider) return pick
+  return { provider, model: '', effort: effortsOf(provider, projectProvider).includes(pick.effort) ? pick.effort : '' }
+}
+
+/** The run the pick asks for, as the `task/run` command takes it; `null` — the task has it already. */
+export function runPickChange(run: TaskRun | null | undefined, pick: RunPick): TaskRun | null {
   const model = pick.model.trim()
-  const add = pick.provider === '' ? [] : [runLabelText({ provider: pick.provider, model: model === '' ? null : model })]
-  const current = runPickOf(labels)
-  const same = !current.several && current.pick.provider === pick.provider && (pick.provider === '' || current.pick.model === model)
-  return same ? null : { add, remove }
-}
-
-/** Whether a project's run labels are on: its own switch, else the shared one (BTN-741). */
-export function runLabelsOn(
-  config: { shared: { modelLabels: boolean }; projects: Record<string, { modelLabels: boolean | null } | undefined> } | undefined,
-  project: string,
-): boolean {
-  return config?.projects[project]?.modelLabels ?? config?.shared.modelLabels ?? false
+  const asked: TaskRun = {
+    provider: pick.provider === '' ? null : pick.provider,
+    model: pick.provider === '' || model === '' ? null : model,
+    effort: pick.effort === '' ? null : pick.effort,
+  }
+  return sameRun(run, asked) ? null : asked
 }

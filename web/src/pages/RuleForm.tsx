@@ -45,8 +45,6 @@ export interface RuleFormProps {
   statuses: readonly KnownStatus[]
   /** The labels offered as one adds a label. */
   labels: readonly string[]
-  /** Run labels pick a model: they are shown among the built-in ones. */
-  modelLabels: boolean
   /** The keys one edit changes, together: a status that moves may leave one list for another. */
   onEdit: (changes: RuleChange[]) => void
   errorOf: (field: string) => Notice | null
@@ -157,11 +155,11 @@ function StatusTable({ rules, inherited, origins, level, profileName, ownName, s
 const ruleOf = (rules: Pick<ChainRules, 'requiredLabels' | 'excludedLabels'>, name: string): 'required' | 'excluded' | null =>
   rules.requiredLabels.some((each) => sameName(each, name)) ? 'required' : rules.excludedLabels.some((each) => sameName(each, name)) ? 'excluded' : null
 
-function LabelTable({ rules, inherited, origins, level, profileName, ownName, labels, modelLabels, marks, errorOf, put }: RuleFormProps & { put: Put }) {
+function LabelTable({ rules, inherited, origins, level, profileName, ownName, labels, marks, errorOf, put }: RuleFormProps & { put: Put }) {
   const id = useId()
   const [adding, setAdding] = useState('')
   const [rule, setRule] = useState<'required' | 'excluded'>('excluded')
-  const rows = labelRows(rules, origins, labels, modelLabels)
+  const rows = labelRows(rules, origins)
   const set = (name: string, to: 'required' | 'excluded' | null) => put(withLabel(rules, name, to))
   const canAdd = adding.trim() !== '' && !rows.some((row) => sameName(row.name, adding))
   const add = () => {

@@ -145,7 +145,7 @@ export const ru = {
     log: 'Весь журнал — logs/update.log в папке Even Keel.',
   },
   fallback: {
-    toastTitle: (task: string) => `${task} запущена без своего ярлыка запуска`,
+    toastTitle: (task: string) => `${task} запущена не так, как задано в карточке`,
     close: 'Закрыть',
   },
   toast: {

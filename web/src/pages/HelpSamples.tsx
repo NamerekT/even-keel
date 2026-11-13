@@ -10,6 +10,7 @@ import { CacheRing } from '../ui/BlockMetrics.js'
 import { ChangelogIcon, HandoffIcon, KeyIcon, LockIcon, RefreshIcon, SlidersIcon, StackIcon } from '../ui/icons.js'
 import { estimateShare, isRework, railsOf } from '../ui/look.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
+import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { seriesStyle } from '../ui/series.js'
 import { Forge } from './Forge.js'
 import { LockIcon as BlockLockIcon, PlayIcon } from './ChainList.js'
@@ -61,7 +62,7 @@ export function TabSigns({ ci, narrow }: { ci: boolean; narrow: boolean }) {
 
 export function TaskSigns({ blocks }: { blocks: ChainBlock[] }) {
   const [until] = useState(() => new Date(Date.now() + 240_000).toISOString())
-  const model = blocks.flatMap((block) => block.runLabels)[0] ?? 'Claude | opus'
+  const run = blocks.find((block) => block.run !== null)?.run ?? { provider: 'claude', model: 'opus', effort: null }
   return <>
     <Sign sample={<span className="chain"><span className="block__number block__number--medium">2</span></span>}>{t.help.card.number}</Sign>
     <Sign sample={<span className="chain page-help__current"><PlayIcon /></span>}>{t.help.card.current}</Sign>
@@ -69,7 +70,7 @@ export function TaskSigns({ blocks }: { blocks: ChainBlock[] }) {
     <Sign sample={<span className="links__count"><LockIcon /><span className="links__number">2</span></span>}>{t.help.card.blockers}</Sign>
     <Sign sample={<span className="links__count"><KeyIcon /><span className="links__number">3</span></span>}>{t.help.card.dependents}</Sign>
     <Sign sample={<span className="chain"><BlockLockIcon /></span>}>{t.chain.lockedHint}</Sign>
-    <Sign wide sample={<span className="tag">{model}</span>}>{t.help.card.model}</Sign>
+    <Sign wide sample={<RunLabelTag run={run} />}>{t.help.card.model}</Sign>
     <Sign sample={<ChangelogIcon />}>{t.help.card.milestone}</Sign>
     <Sign wide sample={<><Forge lamp="working" /><Forge lamp="fixed" /></>}>{t.help.card.forge}</Sign>
   </>

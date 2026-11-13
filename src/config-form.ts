@@ -49,11 +49,11 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats } = config
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
     protection: config.protection,
-    ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, prompt },
+    ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt },
     ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates },
     notices: config.notices,
   }
@@ -296,7 +296,6 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
         value(`${field}.${provider}`, field, trimmed(form[field], provider) || undefined, provider),
       ),
     ),
-    value('modelLabels', 'modelLabels', form.modelLabels),
     value('modelPrompts', 'modelPrompts', Object.fromEntries(prompts)),
     value('prompt', 'prompt', form.prompt?.trim() || undefined),
     value('language', 'language', form.language),

@@ -12,10 +12,10 @@ function setup() {
   const planning = {
     dispatcher: { state: { unattended: true } },
     promptLanguage: () => 'en', projectOf: () => undefined,
-    knownTask: () => undefined, hasAccount: () => true, demo: { owns: () => false },
+    knownTask: () => undefined, hasAccount: () => true, demo: { owns: () => false }, runOfTask: () => undefined,
     configStore: { current: {
       provider: 'claude', models: { claude: 'sonnet' }, accounts: { claude: 'test' },
-      modelLabels: false, modelPrompts: { 'Claude | *': instructions }, settings: {},
+      modelPrompts: { 'Claude | *': instructions }, settings: {},
     } },
   } as unknown as Parameters<typeof wirePlanFor>[0]
   const reply = vi.fn().mockResolvedValue('session-1')

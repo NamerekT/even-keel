@@ -55,6 +55,8 @@ export interface SdkOptions {
   /** `dontAsk` — the keep-warm fork's (BTN-437): what is not allowed already is refused. */
   permissionMode: 'auto' | 'dontAsk'
   model?: string
+  /** Flags handed to the CLI as they are: `{ effort: 'high' }` is `--effort high`. */
+  extraArgs?: Record<string, string | null>
   title?: string
   sessionId?: string
   resume?: string

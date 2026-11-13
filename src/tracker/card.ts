@@ -1,6 +1,6 @@
 import { milestoneComparator } from '../chain/order.js'
 import { missingLabel, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
-import { QUESTION_LABELS, runLabelOf, type MilestonePick, type TaskMilestone, type TaskPriority, type TaskStatus } from './model.js'
+import { QUESTION_LABELS, type MilestonePick, type TaskMilestone, type TaskPriority, type TaskStatus } from './model.js'
 
 /** A task in full for its card on the page (`TaskSource.card`). `description` and comment texts are Markdown. */
 export interface TrackerCard {
@@ -31,7 +31,7 @@ export interface SubtaskRef extends TaskRef {
 /** What the card of a task Even Keel keeps itself offers to edit it with (BTN-771). */
 export interface CardEdit {
   statuses: TaskStatus[]
-  /** The project's labels and the built-in ones (`builtin`: Even Keel gives them a meaning); run labels are left out. */
+  /** The project's labels and the built-in ones (`builtin`: Even Keel gives them a meaning). */
   labels: { name: string; builtin: boolean }[]
   /** The root first, the direct parent last. */
   ancestors: TaskRef[]
@@ -84,7 +84,7 @@ export interface JournalEntry {
 }
 
 /** What a label means to Even Keel: picks the model, marks a question, keeps the task out of the chain or lets it in. */
-export type LabelRole = 'model' | 'question' | 'excluded' | 'required'
+export type LabelRole = 'question' | 'excluded' | 'required'
 
 export interface CardLabel {
   name: string
@@ -104,7 +104,7 @@ export interface TaskCard extends Omit<TrackerCard, 'labels' | 'attachments' | '
   requires: string[]
   /** What the card's milestone can be changed to, in the chain's order; `null` — the tracker cannot move a task. */
   milestones: MilestonePick | null
-  /** The tracker can write the task's labels: the card's run label pick saves. */
+  /** The tracker can write the task's labels. */
   relabel: boolean
 }
 
@@ -142,5 +142,5 @@ function roleOf(label: string, rules: ChainRules): LabelRole | null {
   if (listed(rules.excludedLabels)) return 'excluded'
   if (listed(rules.requiredLabels)) return 'required'
   if (listed(QUESTION_LABELS)) return 'question'
-  return runLabelOf(label) === null ? null : 'model'
+  return null
 }

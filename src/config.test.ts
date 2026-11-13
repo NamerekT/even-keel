@@ -364,26 +364,24 @@ describe('parseConfig', () => {
   it('reads the run settings of a project by provider, trimmed, blank names left out', () => {
     const config = parse({
       projects: {
-        ABC: { repo: 'C:\\abc', provider: ' Codex ', models: { codex: ' gpt-5.6-luna ', claude: ' ' }, accounts: { claude: 'team-api' }, modelLabels: true },
+        ABC: { repo: 'C:\\abc', provider: ' Codex ', models: { codex: ' gpt-5.6-luna ', claude: ' ' }, accounts: { claude: 'team-api' } },
         XYZ: 'C:\\xyz',
       },
     })
-    expect(config.settings.ABC).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' }, modelLabels: true })
-    expect(config.settings.XYZ).toMatchObject({ provider: null, models: {}, accounts: {}, modelLabels: null })
+    expect(config.settings.ABC).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' } })
+    expect(config.settings.XYZ).toMatchObject({ provider: null, models: {}, accounts: {} })
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', provider: 'gemini' } } })).toThrow(/ABC.provider.*gemini.*claude, codex/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', models: { gemini: 'pro' } } } })).toThrow(/ABC.models.gemini is not a provider/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', accounts: { claude: 5 } } } })).toThrow(/ABC.accounts.claude must be text/)
-    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', modelLabels: 'yes' } } })).toThrow(/ABC.modelLabels/)
   })
 
   it('reads the shared run settings over the defaults: Claude on opus in the global folder by its kind, Codex in its own, the sandbox on', () => {
-    const config = parse({ projects: {}, provider: 'codex', models: { codex: 'gpt-5.6-sol' }, accounts: { claude: 'team-api' }, execution: { codex: 'bypass' }, modelLabels: true })
+    const config = parse({ projects: {}, provider: 'codex', models: { codex: 'gpt-5.6-sol' }, accounts: { claude: 'team-api' }, execution: { codex: 'bypass' } })
     expect(config).toMatchObject({
       provider: 'codex',
       models: { claude: 'opus', codex: 'gpt-5.6-sol' },
       accounts: { claude: 'team-api', codex: 'codex' },
       execution: { claude: 'auto', codex: 'bypass' },
-      modelLabels: true,
     })
     expect(parse({ projects: {}, execution: { claude: 'sdk' }, cli: { claude: 'checked' } }).execution).toEqual({ claude: 'sdk', codex: 'sandbox' })
     expect(() => parse({ projects: {}, execution: { codex: 'yolo' } })).toThrow(/execution.codex.*yolo.*sandbox, bypass/)
@@ -410,15 +408,13 @@ describe('parseConfig', () => {
     const config = parse({
       projects: { ABC: { repo: 'C:\\abc', provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' } }, XYZ: 'C:\\xyz' },
       models: { codex: 'gpt-5.6-sol' },
-      modelLabels: true,
     })
     expect(runSettings(config, 'ABC')).toEqual({
       provider: 'codex',
       models: { claude: 'opus', codex: 'gpt-5.6-luna' },
       accounts: { claude: 'team-api', codex: 'codex' },
-      labels: true,
     })
-    expect(runSettings(config, 'XYZ')).toEqual({ provider: 'claude', models: { claude: 'opus', codex: 'gpt-5.6-sol' }, accounts: { claude: 'global', codex: 'codex' }, labels: true })
+    expect(runSettings(config, 'XYZ')).toEqual({ provider: 'claude', models: { claude: 'opus', codex: 'gpt-5.6-sol' }, accounts: { claude: 'global', codex: 'codex' } })
   })
 
   it('lists the pool entries, the shared ones and each project its own', () => {

@@ -578,6 +578,29 @@ export const STEPS: readonly string[] = [
      where current_setting('even_keel.migration_from', true)::integer > 0
        and not exists (select 1 from setting_values where key = 'chain.excludedLabels' and project_id is null and qualifier = '');
   `,
+  // What each task's sessions run on is Even Keel's record, not a tracker label (BTN-983). The `modelLabels` setting
+  // goes; a project it was on for is marked, and the service moves the run labels of its open tasks into runs once.
+  `
+  create table task_runs (
+    project_id text not null,
+    task       text not null,
+    provider   text,
+    model      text,
+    effort     text,
+    primary key (project_id, task)
+  );
+  create table run_label_imports (
+    project_id text primary key
+  );
+  insert into run_label_imports (project_id)
+    select p.id from projects p
+     where coalesce(
+             (select v.value from setting_values v where v.key = 'modelLabels' and v.project_id = p.id),
+             (select v.value from setting_values v where v.key = 'modelLabels' and v.project_id is null),
+             'false') = 'true';
+  delete from setting_values where key = 'modelLabels';
+  delete from setting_definitions where key = 'modelLabels';
+  `,
 ]
 
 /** The version this code reads and writes. */

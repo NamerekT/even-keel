@@ -12,7 +12,7 @@ import type { AgentAdapter } from './contract.js'
 
 /**
  * The agents by the name accounts and sessions carry (`AccountHome.agent`, `SessionView.agent`). The demo's runs only
- * the demo project (BTN-776): it is no provider a config or a run label names (`PROVIDERS`).
+ * the demo project (BTN-776): it is no provider a config or a task's run names (`PROVIDERS`).
  */
 export const AGENTS: Readonly<Record<string, AgentAdapter>> = {
   [CLAUDE]: claude,

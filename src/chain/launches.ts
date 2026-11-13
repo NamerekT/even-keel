@@ -208,7 +208,7 @@ export function launchedProjects(entries: LaunchEntry[], readerOf: (project: str
   return [...new Set(entries.filter((entry) => !isRelease(entry) && !isOwnName(entry.task)).map((entry) => readerOf(entry.project, entry.task)))]
 }
 
-/** The launches since `since` whose run label named a provider without an account in the pool, newest first: the page's toast. */
+/** The launches since `since` whose task's run named a provider without an account in the pool, newest first: the page's toast. */
 export function fallbacksSince(entries: LaunchEntry[], since: Date): (LaunchEntry & { fallback: string })[] {
   return entries
     .filter((entry): entry is LaunchEntry & { fallback: string } => entry.fallback !== undefined && Date.parse(entry.at) >= since.getTime())

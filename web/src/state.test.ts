@@ -105,6 +105,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     projectLabels: { ABC: 'ABC', XYZ: 'XYZ' },
     taskPrefixes: { ABC: 'ABC', XYZ: 'XYZ' },
     branchDrift: {},
+    runs: {},
     config: { shared: FAKE_SHARED, projects: {}, trackers: [], feeds: {}, trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],

@@ -127,17 +127,11 @@ describe('checkDraft', () => {
     })
   })
 
-  it("asks Claude Code's trust only of a project that runs on Claude (BTN-310)", async () => {
+  it("asks Claude Code's trust of a project on any agent: a task's run can give it to Claude (BTN-429, BTN-983)", async () => {
     const untrusted = { claudeConfigs: () => [{}] }
-    expect((await checkDraft(deps(untrusted), { ...draft, provider: 'codex' })).trusted).toBeNull()
-    expect((await checkDraft(deps({ ...untrusted, raw: () => ({ provider: 'codex', projects: [] }) }), draft)).trusted).toBeNull()
+    expect((await checkDraft(deps(untrusted), { ...draft, provider: 'codex' })).trusted).toBe(false)
+    expect((await checkDraft(deps({ ...untrusted, raw: () => ({ provider: 'codex', projects: [] }) }), draft)).trusted).toBe(false)
     expect((await checkDraft(deps({ ...untrusted, raw: () => ({ provider: 'codex', projects: [] }) }), { ...draft, provider: 'claude' })).trusted).toBe(false)
-  })
-
-  it('asks the trust of a project on another agent once run labels can give a task to Claude (BTN-429)', async () => {
-    const labelled = { claudeConfigs: () => [{}], raw: () => ({ provider: 'codex', modelLabels: true, projects: [] }) }
-    expect((await checkDraft(deps(labelled), draft)).trusted).toBe(false)
-    expect((await checkDraft(deps(labelled), { ...draft, provider: 'opencode' })).trusted).toBe(false)
   })
 
   it("takes the trust of the chain's account folder as well as the global one (BTN-300)", async () => {

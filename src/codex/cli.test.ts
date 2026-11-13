@@ -147,6 +147,15 @@ describe('turnArgs', () => {
     expect(turnArgs({ model: null }, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, 'BTN-1'])
   })
 
+  it("passes the effort of the task's run as a config value on a first turn, a resumed one and a keep-warm fork", () => {
+    const effort = ['-c', 'model_reasoning_effort="high"']
+    const within = (args: string[]) => args.some((arg, index) => arg === effort[0] && args[index + 1] === effort[1])
+    expect(within(turnArgs({ model: null, effort: 'high' }, 'BTN-1'))).toBe(true)
+    expect(within(turnArgs({ model: 'gpt-example', effort: 'high' }, 'go on', 'session-1'))).toBe(true)
+    expect(within(warmArgs({ model: null, effort: 'high' }, 'session-1'))).toBe(true)
+    expect(turnArgs({ model: null }, 'BTN-1').join(' ')).not.toContain('model_reasoning_effort')
+  })
+
   it('runs in a folder that is no repository, on a resumed turn too', () => {
     expect(turnArgs({ model: null, outsideRepo: true }, 'NOTE-1')).toEqual(['exec', '--json', '--skip-git-repo-check', '--approve-for-me', ...fallback, 'NOTE-1'])
     expect(turnArgs({ model: null, outsideRepo: true }, 'NOTE-1', 'thread-1').slice(-3)).toEqual(['resume', 'thread-1', 'NOTE-1'])

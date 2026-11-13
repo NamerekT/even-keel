@@ -183,6 +183,14 @@ describe('sessionArgs', () => {
   it("appends the project's lone AGENTS.md to the system prompt", () => {
     expect(sessionArgs('ABC-1', null, { instructions: 'C:\\work\\AGENTS.md' }).slice(-2)).toEqual(['--append-system-prompt-file', 'C:\\work\\AGENTS.md'])
   })
+
+  it("passes the effort of the task's run after the model, on a resume that starts a new job and on a keep-warm fork too", () => {
+    expect(sessionArgs('ABC-1', 'opus', { effort: 'xhigh' }).slice(-4)).toEqual(['--model', 'opus', '--effort', 'xhigh'])
+    expect(sessionArgs('ABC-1', null, { effort: 'low' }).slice(-2)).toEqual(['--effort', 'low'])
+    expect(resumeArgs('s-1', 'answer', false, 'ABC-1', null, { effort: 'max' })).toEqual([...sessionArgs('ABC-1', null, { effort: 'max' }), '--resume', 's-1', 'answer'])
+    expect(warmArgs('s-1', 'opus', { effort: 'high' }).slice(9, 15)).toEqual(['--permission-mode', 'dontAsk', '--model', 'opus', '--effort', 'high'])
+    expect(warmArgs('s-1', 'opus')).not.toContain('--effort')
+  })
 })
 
 describe('resumeArgs', () => {

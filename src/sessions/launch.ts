@@ -1,5 +1,5 @@
-import { runLabelText, type RunLabel, type Task } from '../tracker/model.js'
 import { modelPromptMatches } from './model-prompts.js'
+import { effortFor, type TaskRun } from './runs.js'
 
 /** What a project's sessions run on, the shared values filled in under its own (`runSettings`). */
 export interface RunSettings {
@@ -8,8 +8,6 @@ export interface RunSettings {
   models: Record<string, string>
   /** The account folder by provider: one per provider, no rotation on a spent limit. */
   accounts: Record<string, string>
-  /** Whether the tasks' run labels are read. */
-  labels: boolean
 }
 
 export interface RunChoice {
@@ -17,48 +15,45 @@ export interface RunChoice {
   account: string
   /** `null` — the CLI's own default. */
   model: string | null
-  /** The provider of the task's label the pool has no account for; the session runs on the project's instead. */
+  /** The task's effort, where the provider it runs on takes that level; `null` — none is passed. */
+  effort: string | null
+  /** The provider of the task's run the pool has no account for; the session runs on the project's instead. */
   fallback: string | null
-  warning: string | null
 }
 
 export interface LaunchPlan extends RunChoice {
   prompt: string
 }
 
-type Labelled = Pick<Task, 'id' | 'runLabels'>
-
 /**
- * What a new session of the task runs on: its run label while labels are on, else the project's provider; the model
- * by the label, the project's then the shared one. A label of a provider the pool has no account for does not pause
- * the chain: the task runs on the project's provider with the project's model. A handover keeps the choice — it is
- * the task's and the project's, not the previous session's.
+ * What a new session of the task runs on: the provider of its run (`TaskRuns`), else the project's; the model by the
+ * run, the project's then the shared one; the effort of the run. A run of a provider the pool has no account for does
+ * not pause the chain: the task runs on the project's provider with the project's model. A handover keeps the choice —
+ * it is the task's and the project's, not the previous session's.
  */
-export function runChoice(task: Labelled | undefined, run: RunSettings, hasAccount: (provider: string, account: string) => boolean): RunChoice {
-  const own = (provider: string, model: string | null = null, fallback: string | null = null, warning: string | null = null): RunChoice => ({
+export function runChoice(run: TaskRun | undefined, settings: RunSettings, hasAccount: (provider: string, account: string) => boolean): RunChoice {
+  const own = (provider: string, model: string | null = null, fallback: string | null = null): RunChoice => ({
     provider,
-    account: run.accounts[provider]!,
-    model: model ?? run.models[provider] ?? null,
+    account: settings.accounts[provider]!,
+    model: model ?? settings.models[provider] ?? null,
+    effort: effortFor(run, provider),
     fallback,
-    warning,
   })
-  const labels = run.labels ? (task?.runLabels ?? []) : []
-  if (labels.length > 1) return own(run.provider, null, null, `chain: ${task!.id} carries run labels ${labels.map(runLabelText).join(', ')}; launching it as its project says`)
-  const label: RunLabel | undefined = labels[0]
-  if (label === undefined) return own(run.provider)
-  const account = run.accounts[label.provider]
-  if (account === undefined || !hasAccount(label.provider, account)) return own(run.provider, null, label.provider)
-  return own(label.provider, label.model)
+  const provider = run?.provider ?? null
+  if (run === undefined || provider === null) return own(settings.provider)
+  const account = settings.accounts[provider]
+  if (account === undefined || !hasAccount(provider, account)) return own(settings.provider, null, provider)
+  return own(provider, run.model)
 }
 
 export function launchPlan(
-  task: Labelled | undefined,
+  run: TaskRun | undefined,
   prompt: string,
-  run: RunSettings,
+  settings: RunSettings,
   prompts: Record<string, string>,
   hasAccount: (provider: string, account: string) => boolean,
 ): LaunchPlan {
-  const choice = runChoice(task, run, hasAccount)
+  const choice = runChoice(run, settings, hasAccount)
   const extra = Object.entries(prompts).filter(([pattern]) => modelPromptMatches(pattern, choice.provider, choice.model)).map(([, text]) => text)
   return { ...choice, prompt: [prompt, ...extra].join('\n\n') }
 }

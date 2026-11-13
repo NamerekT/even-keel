@@ -39,7 +39,6 @@ const project: ProjectSettings = {
   provider: null,
   models: {},
   accounts: {},
-  modelLabels: null,
   ...checkpoint,
   own: {},
 }
@@ -72,7 +71,6 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     accounts: { claude: 'global', codex: 'codex' },
     execution: { claude: 'auto', codex: 'sandbox' },
     cli: { claude: 'system', codex: 'system', opencode: 'system', copilot: 'system' },
-    modelLabels: false,
     modelPrompts: {},
     stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, ...checkpoint },
     language: null,

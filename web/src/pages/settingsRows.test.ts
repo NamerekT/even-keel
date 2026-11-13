@@ -54,7 +54,6 @@ describe('choices for the chain rules', () => {
       priority: 'none',
       estimate: null,
       question: false,
-      runLabels: [],
     }) as unknown as Task
 
   it('lists the labels and milestones the tasks have, once each, sorted', () => {

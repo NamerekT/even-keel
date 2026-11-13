@@ -3,11 +3,18 @@ import { headerLevels, type HeaderContext } from './header-levels.js'
 import type { Task } from '../tracker/model.js'
 import type { RunSettings } from '../sessions/launch.js'
 
-const shared: RunSettings = { provider: 'codex', accounts: { codex: 'shared', claude: 'claude', opencode: 'open' }, models: {}, labels: true }
-const task = (id: string, provider?: string): Task => ({ id, runLabels: provider ? [{ provider, model: null }] : [], status: { name: 'Todo', category: 'ToDo' } }) as Task
+const shared: RunSettings = { provider: 'codex', accounts: { codex: 'shared', claude: 'claude', opencode: 'open' }, models: {} }
+const providers = new Map<string, string>()
+const task = (id: string, provider?: string): Task => {
+  if (provider) providers.set(id, provider)
+  else providers.delete(id)
+  return { id, status: { name: 'Todo', category: 'ToDo' } } as Task
+}
 const level = (account: string, source: string, task?: string) => ({ account, source, ...(task && { task }) })
 function context(own: Partial<RunSettings> = {}, tasks = [task('ABC-1')]): HeaderContext {
-  return { shared, project: { ...shared, ...own }, tasks, order: tasks.map((each) => each.id), current: null, sessionAccount: () => undefined, hasAccount: () => true }
+  const runs = new Map(providers)
+  const runOf = (id: string) => (runs.has(id) ? { provider: runs.get(id)!, model: null, effort: null } : undefined)
+  return { shared, project: { ...shared, ...own }, tasks, order: tasks.map((each) => each.id), current: null, runOf, sessionAccount: () => undefined, hasAccount: () => true }
 }
 
 describe('header account levels', () => {
@@ -27,11 +34,10 @@ describe('header account levels', () => {
     expect(headerLevels(context({ provider: 'claude' }, [task('ABC-1', 'codex')]))).toEqual([level('shared', 'task', 'ABC-1'), level('claude', 'project')])
     expect(headerLevels(context({}, [task('ABC-1', 'codex')]))).toEqual([level('shared', 'task', 'ABC-1')])
   })
-  it('uses launch fallback and ignores disabled or ambiguous labels', () => {
+  it('uses launch fallback, and a run of an effort alone is no level of its own', () => {
     const ctx = context({}, [task('ABC-1', 'opencode')])
     expect(headerLevels({ ...ctx, hasAccount: () => false })).toEqual([level('shared', 'shared')])
-    expect(headerLevels({ ...ctx, project: { ...shared, labels: false } })).toEqual([level('shared', 'shared')])
-    expect(headerLevels({ ...ctx, tasks: [{ ...ctx.tasks[0]!, runLabels: [...ctx.tasks[0]!.runLabels, { provider: 'claude', model: null }] }] })).toEqual([level('shared', 'shared')])
+    expect(headerLevels({ ...ctx, runOf: () => ({ provider: null, model: null, effort: 'high' }) })).toEqual([level('shared', 'shared')])
   })
   it('keeps the launched session account after settings change, including while paused', () => {
     const ctx = context({}, [task('ABC-1', 'opencode')])

@@ -423,6 +423,8 @@ export function sessionOptions(start: SessionStart, fallback: (cwd: string) => s
       strictMcpConfig: true,
     }),
     ...(plugins.length > 0 && { plugins: plugins.map(({ dir }) => ({ type: 'local' as const, path: dir })) }),
+    // The CLI's own flag, as `sessionArgs` passes it to `--bg`.
+    ...(start.effort !== undefined && { extraArgs: { effort: start.effort } }),
   }
 }
 

@@ -189,7 +189,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
   })
 
   it('gives the same settings in the same key order whether read from the database or just written (BTN-781)', async () => {
-    await seed({ trimTools: true, parallel: 2, projects: [abc({ slot: 2, prompt: 'Run tests.', carryAgent: true, fillMilestone: true }), xyz({ modelLabels: true, branch: 'dev' })] })
+    await seed({ trimTools: true, parallel: 2, projects: [abc({ slot: 2, prompt: 'Run tests.', carryAgent: true, fillMilestone: true }), xyz({ branch: 'dev' })] })
     const config = await open()
     const fromDb = config.raw()
 

@@ -7,7 +7,8 @@ import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
 import { PROJECT_COLORS } from '../../src/projects/colors.js'
-import { isOpen, runLabelOf, type StatusCategory, type Task, type TaskPriority } from '../../src/tracker/model.js'
+import { isOpen, type StatusCategory, type Task, type TaskPriority } from '../../src/tracker/model.js'
+import type { TaskRun } from '../../src/sessions/runs.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
@@ -66,8 +67,8 @@ export interface ChainBlock {
   estimate: number | null
   parent: string | null
   labels: string[]
-  /** The task's full run labels, as written in the tracker. */
-  runLabels: string[]
+  /** What the task's sessions run on where its card set it (`state.runs`); `null` — as the project says. */
+  run: TaskRun | null
   session: SessionView | null
   sessions: TaskSession[]
   limit: LimitHold | null
@@ -616,7 +617,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       estimate: task?.estimate ?? null,
       parent: task?.parent ?? null,
       labels: task?.labels ?? [],
-      runLabels: (task?.labels ?? []).filter((label) => runLabelOf(label) !== null),
+      run: state.runs[project]?.[id] ?? null,
       session,
       sessions,
       limit: id === current ? pending : null,
@@ -701,7 +702,7 @@ function fixRow(id: string, title: string, lamp: BlockLamp, milestone: string | 
     estimate: null,
     parent: null,
     labels: [],
-    runLabels: [],
+    run: null,
     session,
     sessions,
     limit: null,

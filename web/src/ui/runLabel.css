@@ -5,7 +5,8 @@
   box-sizing: border-box;
 }
 
-.run-label__provider {
+.run-label__provider,
+.run-label__effort {
   flex: none;
 }
 
@@ -21,8 +22,4 @@
   text-overflow: ellipsis;
   padding-block: var(--space-4);
   margin-block: calc(-1 * var(--space-4));
-}
-
-.run-label--off {
-  opacity: 0.55;
 }

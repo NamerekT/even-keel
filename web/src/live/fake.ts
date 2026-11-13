@@ -99,12 +99,12 @@ function fakeState(
     task('ABC-7', 'Разбор транскриптов сессий', 'In Progress', 'Active', ['ABC-6'], 'v0.1 — каркас', { estimate: minutes(80), parent: 'ABC-16' }),
     task('ABC-8', 'Лимиты подписки в шапке', 'In Progress', 'Active', [], 'v0.1 — каркас', { ...REWORK, priority: 'low', estimate: minutes(20) }),
     task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-7'], 'v0.1 — каркас', { estimate: minutes(10), parent: 'ABC-16' }),
-    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', [], 'v0.2 — удобство', { estimate: 1.5, parent: 'ABC-17', labels: ['Claude | sonnet'], runLabels: [{ provider: 'claude', model: 'sonnet' }] }),
-    task('ABC-11', 'Панель сессии', 'Todo', 'ToDo', ['ABC-8', 'ABC-10'], 'v0.2 — удобство', { estimate: minutes(5), parent: 'ABC-17', labels: ['OpenCode | opencode/deepseek-v4.1-flash-free'], runLabels: [{ provider: 'opencode', model: 'opencode/deepseek-v4.1-flash-free' }] }),
+    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', [], 'v0.2 — удобство', { estimate: 1.5, parent: 'ABC-17' }),
+    task('ABC-11', 'Панель сессии', 'Todo', 'ToDo', ['ABC-8', 'ABC-10'], 'v0.2 — удобство', { estimate: minutes(5), parent: 'ABC-17' }),
     { ...task('ABC-12', 'Вопрос: служба Windows или планировщик задач', 'Todo', 'ToDo', [], null, { priority: 'low' }), question: true },
     { ...task('ABC-13', 'Уведомления на телефон', 'Todo', 'ToDo', ['ABC-6'], 'v0.2 — удобство', { estimate: 3 }), question: true },
     task('ABC-14', 'Установка службы одним скриптом', 'Todo', 'ToDo', ['ABC-11'], 'v0.3 — служба', { priority: 'high', estimate: minutes(40) }),
-    task('ABC-15', 'Перезапуск службы после обновления', 'Todo', 'ToDo', ['ABC-14'], 'v0.3 — служба', { priority: 'low', labels: ['Переделка', 'Bug', 'Claude | opus', 'OpenCode | router/vendor/deepseek-v4.1-flash-free-with-an-extra-long-model-suffix'], runLabels: [{ provider: 'claude', model: 'opus' }, { provider: 'opencode', model: 'router/vendor/deepseek-v4.1-flash-free-with-an-extra-long-model-suffix' }] }),
+    task('ABC-15', 'Перезапуск службы после обновления', 'Todo', 'ToDo', ['ABC-14'], 'v0.3 — служба', { priority: 'low', labels: ['Переделка', 'Bug'] }),
     task('ABC-18', 'Тёмная тема для печати', 'Backlog', 'UnStarted', [], 'v0.2 — удобство', { parent: 'ABC-17' }),
     task('ABC-19', 'Импорт задач из CSV', 'Backlog', 'UnStarted', [], 'v0.3 — служба'),
     task('ABC-20', 'Подсказки по горячим клавишам', 'Backlog', 'UnStarted'),
@@ -123,6 +123,14 @@ function fakeState(
     projects: FAKE_PROJECTS,
     ...fakeProjectMaps(),
     config: fakeConfig(account),
+    runs: {
+      ABC: {
+        'ABC-10': { provider: 'claude', model: 'sonnet', effort: 'high' },
+        'ABC-11': { provider: 'opencode', model: 'opencode/deepseek-v4.1-flash-free', effort: null },
+        'ABC-14': { provider: null, model: null, effort: 'low' },
+        'ABC-15': { provider: 'opencode', model: 'router/vendor/deepseek-v4.1-flash-free-with-an-extra-long-model-suffix', effort: null },
+      },
+    },
     branchDrift: {},
     chain: {
       active: idle
@@ -398,7 +406,6 @@ export function createFakeSource(search: string): LiveSource {
     current.state.limits = { ...FAKE_LIMITS, fiveHour: { ...fiveHour!, usedPercentage: 86 }, sevenDay: { ...sevenDay!, usedPercentage: 100 } }
   }
   if (params.get('limits') === 'none' && current.state !== null) current.state.limits = null
-  if (params.get('modelLabels') === 'on' && current.state !== null) current.state.config.shared.modelLabels = true
   if (params.has('branch') && current.state !== null) current.state.branchDrift = fakeBranchDrift(params.get('branch'))
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })

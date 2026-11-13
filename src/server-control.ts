@@ -27,6 +27,7 @@ import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules }
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { LabelChange } from './tracker/labels.js'
+import type { TaskRun } from './sessions/runs.js'
 import type { TaskStatus } from './tracker/model.js'
 import type { TaskFile, TrackerVocabulary } from './tracker/source.js'
 
@@ -107,6 +108,8 @@ export interface TaskControl {
   /** "To the backlog": the mirror of `ready`, refused for a task with a live session. */
   unready(task: string): Promise<void>
   relabel(task: string, change: LabelChange): Promise<void>
+  /** What the task's sessions run on, kept by Even Keel (`TaskRuns`); `null` — as its project says. */
+  setRun(task: string, run: TaskRun | null): void
   /** `milestone` is an id from the card's `milestones`; `null` — out of any. */
   moveMilestone(task: string, milestone: string | null): Promise<void>
   /** Reads the project's tasks from its tracker now, out of turn. */

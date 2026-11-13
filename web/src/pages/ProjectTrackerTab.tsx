@@ -111,7 +111,6 @@ export function ProjectTrackerTab({
           state={state}
           project={project}
           tasks={tasks}
-          modelLabels={switchOf(text('modelLabels')) ?? shared.modelLabels}
           mainTitle={trackerTitle}
           main={
             <SourceLine
@@ -156,7 +155,6 @@ export function ProjectTrackerTab({
                     chain,
                   )}
                   labels={ruleChoices.labels}
-                  modelLabels={switchOf(text('modelLabels')) ?? shared.modelLabels}
                   onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
                   errorOf={errorOf}
                   marks={marks}

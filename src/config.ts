@@ -80,8 +80,6 @@ export interface EvenKeelConfig {
   execution: Record<string, string>
   /** Which CLI each provider's sessions run on (`CLI_SOURCES`), defaults filled in; shared only: an account folder has one daemon. */
   cli: Record<string, string>
-  /** Whether the tasks' run labels are read, unless a project says otherwise. */
-  modelLabels: boolean
   /** Appended in order to new sessions matching each provider / model pattern (`*` matches any string). */
   modelPrompts: Record<string, string>
   /** Appended to the prompt of every new session of every project, before the project's own `prompt`; null — none. */
@@ -319,7 +317,6 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     accounts: shared.accounts as Record<string, string>,
     execution: shared.execution as Record<string, string>,
     cli: shared.cli as Record<string, string>,
-    modelLabels: shared.modelLabels as boolean,
     modelPrompts: shared.modelPrompts as Record<string, string>,
     prompt: shared.prompt as string | null,
     stats: {
@@ -406,7 +403,6 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     provider: (own.provider as string | undefined) ?? null,
     models: (own.models as Record<string, string> | undefined) ?? {},
     accounts: (own.accounts as Record<string, string> | undefined) ?? {},
-    modelLabels: (own.modelLabels as boolean | undefined) ?? null,
     cacheTtl: values.cacheTtl as CacheTtl | null,
     autoCompactWindow: values.autoCompactWindow as number | null,
     codexAutoCompactWindow: values.codexAutoCompactWindow as number | null,
@@ -609,14 +605,13 @@ export function ignoredKeys(raw: unknown): string[] {
   return isPlainObject(raw) ? IGNORED_KEYS.filter((key) => Object.hasOwn(raw, key)) : []
 }
 
-/** What the project's sessions run on: its own provider, models, accounts and labels switch over the shared ones. */
-export function runSettings(config: Pick<EvenKeelConfig, 'settings' | 'provider' | 'models' | 'accounts' | 'modelLabels'>, project: string | undefined): RunSettings {
+/** What the project's sessions run on: its own provider, models and accounts over the shared ones. */
+export function runSettings(config: Pick<EvenKeelConfig, 'settings' | 'provider' | 'models' | 'accounts'>, project: string | undefined): RunSettings {
   const own = project === undefined ? undefined : config.settings[project]
   return {
     provider: inherit('provider', config.provider, own?.provider ?? undefined) as string,
     models: inherit('models', config.models, own?.models) as Record<string, string>,
     accounts: inherit('accounts', config.accounts, own?.accounts) as Record<string, string>,
-    labels: inherit('modelLabels', config.modelLabels, own?.modelLabels ?? undefined) as boolean,
   }
 }
 
@@ -708,13 +703,12 @@ export function projectSettingValues(settings: ProjectSettings, written: Record<
     value('provider', 'provider', settings.provider ?? undefined),
     ...byProvider('models'),
     ...byProvider('accounts'),
-    value('modelLabels', 'modelLabels', settings.modelLabels ?? undefined),
   ]
 }
 
 /**
- * The project's entry in the config file with `branch`, `prompt`, `commands`, `provider`, `models`, `accounts`,
- * `modelLabels` and the keys of `own` set, or removed when empty or inherited; its other keys stay, and so do the
+ * The project's entry in the config file with `branch`, `prompt`, `commands`, `provider`, `models`, `accounts`
+ * and the keys of `own` set, or removed when empty or inherited; its other keys stay, and so do the
  * settings `changed` leaves out. The group of an own key is `own.<key>`.
  */
 export function withProjectSettings(

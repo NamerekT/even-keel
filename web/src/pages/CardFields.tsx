@@ -5,7 +5,6 @@ import { PRIORITIES, type TaskPriority, type TaskStatus } from '../../../src/tra
 import { localized, say, t } from '../i18n/index.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PriorityIcon } from '../ui/Priority.js'
-import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { carriedSubtasks, foreignMilestone, labelOffers, statusRoute } from './cardEdit.js'
@@ -209,13 +208,11 @@ export function MilestoneField({ card, editor }: { card: Editable; editor: CardE
 interface LabelsProps {
   card: Editable
   editor: CardEditor
-  /** Run labels are read for this project. */
-  labelsOn: boolean
   roleText: (role: NonNullable<Card['labels'][number]['role']>) => string
 }
 
 /** Labels are added and taken off one by one, never the list replaced: a label someone else added stays. */
-export function LabelsField({ card, editor, labelsOn, roleText }: LabelsProps) {
+export function LabelsField({ card, editor, roleText }: LabelsProps) {
   const [text, setText] = useState('')
   const held = card.labels.map((label) => label.name)
   const offers = labelOffers(card.edit.labels, held, text).map((offer) => ({
@@ -232,24 +229,20 @@ export function LabelsField({ card, editor, labelsOn, roleText }: LabelsProps) {
     <div className="task-card__labels">
       {card.labels.length > 0 && (
         <ul className="task-card__chips">
-          {card.labels.map((label) =>
-            label.role === 'model' ? (
-              <RunLabelTag key={label.name} label={label.name} as="li" off={!labelsOn} />
-            ) : (
-              <li
-                key={label.name}
-                className={`${label.role === null ? 'tag' : `chip task-card__chip--${label.role}`} task-card__chip-edit`}
-                title={label.role === null ? undefined : roleText(label.role)}
-              >
-                {label.name}
-                <Remove
-                  label={t.card.edit.removeLabel(label.name)}
-                  disabled={editor.busy}
-                  onPress={() => void editor.call('query', 'builtin/labels', { task: card.id, remove: [label.name] })}
-                />
-              </li>
-            ),
-          )}
+          {card.labels.map((label) => (
+            <li
+              key={label.name}
+              className={`${label.role === null ? 'tag' : `chip task-card__chip--${label.role}`} task-card__chip-edit`}
+              title={label.role === null ? undefined : roleText(label.role)}
+            >
+              {label.name}
+              <Remove
+                label={t.card.edit.removeLabel(label.name)}
+                disabled={editor.busy}
+                onPress={() => void editor.call('query', 'builtin/labels', { task: card.id, remove: [label.name] })}
+              />
+            </li>
+          ))}
         </ul>
       )}
       <SuggestField

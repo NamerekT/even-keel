@@ -165,7 +165,24 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const feeds = version < 23 ? feedsRuled(sdk) : sdk
   const trusted = version < 26 ? automaticTrust(feeds) : feeds
   const kept = version < 28 ? manualKept(trusted) : trusted
-  return version < 36 ? manualDefaultKept(kept) : kept
+  const defaulted = version < 36 ? manualDefaultKept(kept) : kept
+  return version < 37 ? runLabelsDropped(defaulted) : defaulted
+}
+
+/**
+ * v36 → v37: the tasks' run labels are no longer read (BTN-983), so `modelLabels` goes from Even Keel's level and from
+ * every project. What a task runs on is its run in the state database; the labels stay in the tracker.
+ */
+export function runLabelsDropped(raw: unknown): unknown {
+  if (!isRecord(raw)) return raw
+  const { modelLabels: _shared, ...rest } = raw
+  if (!Array.isArray(rest.projects)) return stamped(rest)
+  const projects = rest.projects.map((project: unknown) => {
+    if (!isRecord(project)) return project
+    const { modelLabels: _own, ...kept } = project
+    return kept
+  })
+  return stamped({ ...rest, projects })
 }
 
 /**

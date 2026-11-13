@@ -1,5 +1,5 @@
 import { DEFAULT_RULES, isActive, isTerminal, sameName, type ChainRules } from '../../../src/chain/rules.js'
-import { QUESTION_LABELS, runLabelOf, type StatusCategory, type TaskStatus } from '../../../src/tracker/model.js'
+import { QUESTION_LABELS, type StatusCategory, type TaskStatus } from '../../../src/tracker/model.js'
 
 /**
  * The chain rules by what they are about (BTN-334): a status has one place, a label one rule. The values stay the lists
@@ -93,20 +93,18 @@ export function settled(value: string[] | null, inherited: string[] | null, expl
   return value ?? explicit
 }
 
-export type LabelRule = 'required' | 'excluded' | 'question' | 'run'
+export type LabelRule = 'required' | 'excluded' | 'question'
 export interface LabelRow {
   name: string
   rule: LabelRule
   origin: RuleOrigin
 }
 
-/** Even Keel's own labels first, shown and not edited — the run labels only while they pick a model — then the lists'. */
-export function labelRows(rules: LabelRules, origins: Record<keyof LabelRules, RuleLevel>, known: readonly string[], modelLabels: boolean): LabelRow[] {
+/** Even Keel's own labels first, shown and not edited, then the lists'. */
+export function labelRows(rules: LabelRules, origins: Record<keyof LabelRules, RuleLevel>): LabelRow[] {
   const builtin = (rule: LabelRule) => (name: string): LabelRow => ({ name, rule, origin: 'builtin' })
-  const runs = modelLabels ? known.filter((name) => runLabelOf(name) !== null) : []
   return [
     ...QUESTION_LABELS.map(builtin('question')),
-    ...runs.map(builtin('run')),
     ...rules.requiredLabels.map((name): LabelRow => ({ name, rule: 'required', origin: origins.requiredLabels })),
     ...rules.excludedLabels.map((name): LabelRow => ({ name, rule: 'excluded', origin: origins.excludedLabels })),
   ]

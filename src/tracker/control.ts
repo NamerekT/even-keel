@@ -7,6 +7,7 @@ import type { TrackerLink } from './link.js'
 import type { Tracker } from './source.js'
 import type { ReaderTasks } from './readers.js'
 import { toTask, type TaskStatus } from './model.js'
+import type { TaskRun } from '../sessions/runs.js'
 
 export interface TaskControlDeps {
   configuredProject(task: string): string | undefined
@@ -21,6 +22,8 @@ export interface TaskControlDeps {
   readerTasks: Pick<ReaderTasks, 'get' | 'set' | 'setTasks'>
   refreshProject(project: string): Promise<boolean>
   pollReviews(project: string): Promise<unknown>
+  /** Keeps the run of the project's task and tells the page (`TaskRuns`). */
+  setRun(project: string, task: string, run: TaskRun | null): void
   broadcast(): void
 }
 
@@ -133,6 +136,11 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       if (labels === undefined) throw fail('task.cannotRelabel', { task })
       // Labels can admit a task to the chain: fill its milestone through the same read as `ready`.
       return settle(readerFor(project!, task), task, { labels })
+    },
+    setRun: (task, run) => {
+      const project = configuredProject(task)
+      if (project === undefined) throw fail('task.noTracker', { task })
+      deps.setRun(project, task, run)
     },
     // The milestone moves the task in the chain's order: the project is read anew rather than patched.
     moveMilestone: async (task, milestone) => {

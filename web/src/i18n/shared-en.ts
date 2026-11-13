@@ -12,7 +12,7 @@ export const sharedEn = {
     run: 'Running',
     tasks: 'Tasks',
     agent: 'Agent',
-    prompts: 'Run labels and prompts',
+    prompts: 'Prompts',
     tools: 'Tools',
     context: 'Context',
     interface: 'Interface',
@@ -27,7 +27,7 @@ export const sharedEn = {
   packages: 'Packages',
   ciNote: 'For projects with no value of their own. The check commands, the commands after a green main, pull requests and the remote profiles are set per project.',
   forProjects: "For projects that don't set their own.",
-  providerHint: 'For projects that name none of their own. Used for tasks without a run label; with run labels on, a task labelled with another provider runs on that one.',
+  providerHint: 'For projects that name none of their own. A task whose card names another provider runs on that one.',
   modelHint:
     "As it goes to the CLI: opus, gpt-6.1-sol. For projects and tasks that name none of their own. Empty — the CLI's default: for Claude Code the model of settings.json, which an editor may have just changed.",
   accountHint: 'For projects that name none of their own; also switched from the header, by moving Even Keel to another account on its card. One per provider, no rotation on a spent limit.',
@@ -50,7 +50,6 @@ export const sharedEn = {
   cliCheck: 'Check new CLI versions on this machine',
   cliCheckHint:
     "When an agent's CLI releases a new version, and weekly on the checked one, Even Keel runs a short live check of it in the folder of the account the projects run on, on a cheap model. The check waits until the folder has no live session, and the folder's chains wait while it runs. The result shows at the top of the page. Spends the account's limits.",
-  modelLabelsHint: "For projects that don't set it. On — a task's label Claude | sonnet, Codex | gpt-6.1-sol or a bare Codex picks its session.",
   promptHint:
     "Added to the prompt of every new session of every project and agent, before the project's own prompt, which adds to it rather than replaces it. Passed as written; Markdown is fine — models read it as they read CLAUDE.md.",
   promptPlaceholder: 'Answer in English. Run the tests before every commit.',

@@ -7,6 +7,7 @@ import { BuiltinFiles } from '../builtin/files.js'
 import { builtinSource } from '../builtin/source.js'
 import { BuiltinStore } from '../builtin/store.js'
 import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
+import { TaskRuns, type TaskRun } from '../sessions/runs.js'
 import { openDatabase } from '../storage/database.js'
 import { trackerOf, type Tracker } from '../tracker/source.js'
 import type { TrackerCard } from '../tracker/card.js'
@@ -37,6 +38,7 @@ let refreshed: string[]
 let ran: string[]
 let off: Set<string>
 let rules: Map<string, ChainRules>
+let runs: TaskRuns
 /** A tracker of its own for a reader; the rest go to `tracker`. */
 let trackers: Map<string, Tracker>
 /** The session's working folder the files are read from; `null` — not known. */
@@ -54,6 +56,8 @@ const deps = () => ({
   readerOfPrefix: (prefix: string) => READERS.find((each) => each.prefix === prefix) ?? null,
   rulesOf: (reader: string) => rules.get(reader) ?? DEFAULT_RULES,
   modelOf: () => 'Claude | opus',
+  runOf: (project: string, task: string) => runs.of(project, task),
+  setRun: (project: string, task: string, run: TaskRun | null) => runs.set(project, task, run),
   refresh: async (project: string) => void refreshed.push(project),
   folderOf: () => folder,
   attachmentLimit: () => 1024 * 1024,
@@ -88,6 +92,7 @@ beforeEach(async () => {
   ran = []
   off = new Set()
   rules = new Map()
+  runs = new TaskRuns()
   await store.saveMilestone(ABC, 'v0.3', null)
   await store.create({ project: ABC, title: 'Parent', description: '## Plan\n\nfirst step\n\nsecond step\n' })
 })
@@ -427,6 +432,37 @@ describe('task_update of fields', () => {
     expect(await call('task_update', { key: 'ABC-2', estimate: 45 })).toBe('ABC-2: estimate → 45 min')
     expect((await store.get({ project: ABC, number: 2 }))!.estimate).toBe(45)
     expect((await tracker.tasks(['ABC-2']))[0]!.estimate).toBe(0.75)
+  })
+})
+
+describe('the run of a task (BTN-983)', () => {
+  it('a created task gets its run in Even Keel, not as a label, and task_read names it in the head', async () => {
+    const answer = await call('tasks_create', { tasks: [{ title: 'Fast', run: { provider: 'Codex', model: 'gpt-example', effort: 'high' } }, { title: 'Plain' }] })
+    expect(answer).toBe('ABC-2 Fast (run Codex | gpt-example · high)\nABC-3 Plain')
+    expect(runs.of(ABC, 'ABC-2')).toEqual({ provider: 'codex', model: 'gpt-example', effort: 'high' })
+    expect(runs.of(ABC, 'ABC-3')).toBeUndefined()
+    expect((await tracker.tasks(['ABC-2']))[0]!.labels).toEqual([])
+    expect((await call('task_read', { key: 'ABC-2' })).split('\n\n')[1]).toContain('run Codex | gpt-example · high')
+    expect(await call('task_read', { key: 'ABC-3' })).not.toContain('run ')
+  })
+
+  it('an update changes the fields named, a new provider drops the model, null clears', async () => {
+    runs.set(ABC, 'ABC-1', { provider: 'claude', model: 'opus', effort: null })
+    expect(await call('task_update', { key: 'ABC-1', run: { effort: 'max' } })).toBe('ABC-1: run → Claude | opus · max')
+    expect(await call('task_update', { key: 'ABC-1', run: { effort: 'max' } })).toBe('ABC-1: already so')
+    expect(await call('task_update', { key: 'ABC-1', run: { provider: 'codex', effort: null } })).toBe('ABC-1: run → Codex')
+    expect(runs.of(ABC, 'ABC-1')).toEqual({ provider: 'codex', model: null, effort: null })
+    expect(await call('task_update', { key: 'ABC-1', run: null })).toBe('ABC-1: run → as the project says')
+    expect(runs.of(ABC, 'ABC-1')).toBeUndefined()
+  })
+
+  it('refuses a model without a provider, an unknown field and a task that is not there, and keeps nothing', async () => {
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'A', run: { model: 'opus' } }] }))).toMatch(/^task 1: .*opus/)
+    expect(await refusal(call('task_update', { key: 'ABC-1', run: { model: 'opus' } }))).toMatch(/opus/)
+    expect(await refusal(call('task_update', { key: 'ABC-1', run: { speed: 'fast' } }))).toBe('"run" takes provider, model, effort, not speed')
+    expect(await refusal(call('task_update', { key: 'ABC-9', run: { provider: 'codex' } }))).toMatch(/there is no task ABC-9/)
+    expect(await store.get({ project: ABC, number: 2 })).toBeUndefined()
+    expect(runs.ofProject(ABC)).toEqual({})
   })
 })
 

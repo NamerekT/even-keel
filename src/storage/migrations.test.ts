@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { root } from '../locations.js'
 import { noticeOf } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
-import { currentConfig, manualKept, upgradeStorage } from './migrations.js'
+import { currentConfig, manualKept, runLabelsDropped, upgradeStorage } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
 /**
@@ -16,6 +16,13 @@ import { SCHEMA_VERSION } from './schema.js'
 const CHECKED = { cli: { claude: 'checked', codex: 'checked', opencode: 'checked', copilot: 'checked' }, chain: { excludedLabels: ['Manual', 'Вручную'] } }
 
 describe('upgradeStorage', () => {
+  it('drops modelLabels from a v36 config at both levels and keeps the rest (BTN-983)', () => {
+    const projects = [{ id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'huly', provider: 'codex' }, { id: 'q', key: 'XYZ', repo: 'C:/other', tracker: 'huly' }]
+    const raw = { version: 36, ...CHECKED, modelLabels: true, projects: [{ ...projects[0], modelLabels: false }, projects[1]] }
+    expect(currentConfig(raw)).toEqual({ version: SCHEMA_VERSION, ...CHECKED, projects })
+    expect(runLabelsDropped({ version: 36, modelLabels: true, projects: 'broken' })).toEqual({ version: SCHEMA_VERSION, projects: 'broken' })
+  })
+
   it('upgrades v18 without writing a chain compaction override', () => {
     const raw = { version: 18, projects: [{ id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'huly' }] }
     expect(currentConfig(raw)).toEqual({ ...raw, ...CHECKED, version: SCHEMA_VERSION })

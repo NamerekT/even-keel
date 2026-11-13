@@ -78,7 +78,7 @@ const GROUPS = [
   { id: 'rules', keys: [...RULE_KEYS] },
   {
     id: 'models',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), ...Object.values(WINDOW_KEYS), 'cliCheck', 'modelLabels', 'prompt', 'modelPrompts', 'promptLanguage'],
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), ...Object.values(WINDOW_KEYS), 'cliCheck', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
   { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun'] },
@@ -295,7 +295,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             chain,
           )}
           labels={choices.labels}
-          modelLabels={draft.edit.modelLabels as boolean}
           onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
           errorOf={errorOf}
           marks={marks}
@@ -384,7 +383,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {check('cliCheck', t.shared.cliCheck, t.shared.cliCheckHint)}
         </Section>
         <Section title={t.shared.sections.prompts}>
-          {check('modelLabels', t.settings.modelLabels, t.shared.modelLabelsHint)}
           <div className={marks.box('prompt')}>
             <FieldHead label={t.settings.prompt} hint={t.shared.promptHint} htmlFor={fieldId('prompt')} mark={marks.note('prompt', (value) => ((value as string).trim() === '' ? t.shared.none : (value as string)))} />
             <ErrorStrip error={errorOf('prompt')} wide>

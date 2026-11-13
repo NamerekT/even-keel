@@ -37,12 +37,11 @@ export function useFeedDraft(state: EvenKeelState, project: string, feed: FeedVi
 }
 
 /** The settings window of a feed: its rules and which of its tracker's tasks are the project's, from its own tracker only. */
-export function FeedDialog({ state, project, feed, tasks, modelLabels, onClose }: {
+export function FeedDialog({ state, project, feed, tasks, onClose }: {
   state: EvenKeelState
   project: string
   feed: FeedView
   tasks: readonly Task[]
-  modelLabels: boolean
   onClose: () => void
 }) {
   const { draft, setDraft, saved, inherited, profile, profileRules } = useFeedDraft(state, project, feed)
@@ -77,7 +76,6 @@ export function FeedDialog({ state, project, feed, tasks, modelLabels, onClose }
             chain,
           )}
           labels={choices.labels}
-          modelLabels={modelLabels}
           hint={t.settings.feedRulesHint}
           onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
           errorOf={noError}

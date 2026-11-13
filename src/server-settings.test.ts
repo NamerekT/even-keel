@@ -21,7 +21,7 @@ describe('Even Keel settings HTTP routes', () => {
   // These read-only fields have dedicated routes and are not forwarded by project/settings.
   const { protection, notices, milestoneOrder, badge, ...defaults } = projectFormDefaults()
   const chain = { ...defaults.chain, terminal: ['Done'], excludedLabels: ['Manual'] }
-  const form = { ...defaults, name: 'Web shop', branch: 'master', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { forgejo: 'own' } }
+  const form = { ...defaults, name: 'Web shop', branch: 'master', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' },remoteProfiles: { forgejo: 'own' } }
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true, rerunFailed: false }
@@ -83,7 +83,6 @@ describe('Even Keel settings HTTP routes', () => {
       ['provider', { provider: 5 }],
       ['models', { models: { codex: 5 } }],
       ['accounts', { accounts: null }],
-      ['modelLabels', { modelLabels: 'yes' }],
       ['chain', { chain: { ...chain, active: 'Todo' } }],
     ] as const
     for (const [field, change] of bad) {
@@ -139,7 +138,6 @@ describe('Even Keel settings HTTP routes', () => {
       ['prompt', { prompt: 1 }],
       ['execution', { execution: { codex: true } }],
       ['cli', { cli: 'checked' }],
-      ['modelLabels', { modelLabels: null }],
       ['stats', { stats: { ...shared.stats, moves: [] } }],
       ['stats', { stats: { ...shared.stats, checkpointShares: { first: '70', late: 85, hard: 95 } } }],
       ['updates', { updates: { check: 'yes', notify: true } }],

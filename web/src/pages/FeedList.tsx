@@ -20,14 +20,13 @@ import { TrackerFields } from './TrackerFields.js'
  * (BTN-66), places of other trackers or profiles whose tasks join its chain. A feed is added and removed at once,
  * without the save bar; a feed the chain has started tasks of keeps its profile. Each source's rules open in its window.
  */
-export function FeedList({ state, project, main, mainTitle, tasks, modelLabels }: {
+export function FeedList({ state, project, main, mainTitle, tasks }: {
   state: EvenKeelState
   project: string
   main: ReactNode
   /** The main tracker's title, as the draft has it. */
   mainTitle: string
   tasks: readonly Task[]
-  modelLabels: boolean
 }) {
   const [adding, setAdding] = useState(false)
   const feeds = state.config.feeds[project] ?? []
@@ -47,7 +46,7 @@ export function FeedList({ state, project, main, mainTitle, tasks, modelLabels }
       {adding && <FeedAdd state={state} project={project} onClose={() => setAdding(false)} />}
       <div className="feeds__row">{main}</div>
       {feeds.map((feed) => (
-        <FeedRow key={feed.id} state={state} project={project} feed={feed} tasks={tasks} modelLabels={modelLabels} />
+        <FeedRow key={feed.id} state={state} project={project} feed={feed} tasks={tasks} />
       ))}
       {feeds.length === 0 && !adding && <p className="settings__hint">{t.settings.feedsNone(mainTitle)}</p>}
     </Section>
@@ -55,7 +54,7 @@ export function FeedList({ state, project, main, mainTitle, tasks, modelLabels }
 }
 
 /** A feed: its line, then the tracker block with its place fixed, only the profile changing. */
-function FeedRow({ state, project, feed, tasks, modelLabels }: { state: EvenKeelState; project: string; feed: FeedView; tasks: readonly Task[]; modelLabels: boolean }) {
+function FeedRow({ state, project, feed, tasks }: { state: EvenKeelState; project: string; feed: FeedView; tasks: readonly Task[] }) {
   const [confirming, setConfirming] = useState(false)
   const [configuring, setConfiguring] = useState(false)
   const { send, sending, failure } = useCommand()
@@ -82,7 +81,7 @@ function FeedRow({ state, project, feed, tasks, modelLabels }: { state: EvenKeel
         onConfigure={() => setConfiguring(true)}
         menu={<MoreMenu label={t.settings.sourceMore(feed.key)} items={[{ label: t.settings.feedRemove, danger: true, pick: () => setConfirming(true) }]} />}
       />
-      {configuring && <FeedDialog state={state} project={project} feed={feed} tasks={tasks} modelLabels={modelLabels} onClose={() => setConfiguring(false)} />}
+      {configuring && <FeedDialog state={state} project={project} feed={feed} tasks={tasks} onClose={() => setConfiguring(false)} />}
       {confirming && <FeedRemove project={project} feed={feed} title={title} onClose={() => setConfirming(false)} />}
       <TrackerFields
         ids={(field) => fieldId(`feed.${feed.id}.${field}`)}

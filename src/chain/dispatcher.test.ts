@@ -32,7 +32,7 @@ describe('Dispatcher', () => {
     expect(log.at(-1)).toContain('ABC-1 was not moved on its start')
   })
 
-  it('notes in the launch log the provider of a run label the launch could not honour', async () => {
+  it('notes in the launch log the provider of the run of a task the launch could not honour', async () => {
     const { dispatcher, journal } = setup({ fallback: { 'ABC-1': 'codex' } })
     dispatcher.setTasks('ABC', [task('ABC-1')])
     dispatcher.start('ABC')

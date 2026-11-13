@@ -20,6 +20,7 @@ type DemoContext = Pick<ServiceContext,
   | 'hub'
   | 'launches'
   | 'mergeMarks'
+  | 'taskRuns'
   | 'promptLanguage'
   | 'refreshProject'
   | 'stateDir'
@@ -27,7 +28,7 @@ type DemoContext = Pick<ServiceContext,
 >
 
 /** The demo project runs on the demo's agent and account, whatever the settings say: no config row names them. */
-const DEMO_RUN: RunSettings = { provider: DEMO_AGENT, models: {}, accounts: { [DEMO_AGENT]: DEMO_ACCOUNT }, labels: false }
+const DEMO_RUN: RunSettings = { provider: DEMO_AGENT, models: {}, accounts: { [DEMO_AGENT]: DEMO_ACCOUNT } }
 
 /** The run settings of a project, the demo's own for the demo project (BTN-776). */
 export function runOf(ctx: Pick<ServiceContext, 'configStore' | 'demo'>, project: string | undefined): RunSettings {
@@ -57,6 +58,7 @@ export function wireDemo(ctx: DemoContext): DemoService {
         for (let at = list.length - 1; at >= 0; at--) if (list[at]!.project === project) list.splice(at, 1)
       }
       ctx.mergeMarks.forget(project)
+      ctx.taskRuns.forget(project)
     },
     changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
   })

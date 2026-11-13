@@ -50,6 +50,6 @@ Even Keel orders the open issues, starts a session for the first, closes it once
 - `issue_write(method: "create", owner, repo, title, body, labels, milestone)`; `milestone` is the milestone's id from `milestone_read(method: "list", …)`. Forgejo has no backlog: every open issue is ready. An ordinary idea stays without the project's entry label; a blocker or question gets it. Look for existing work with `list_issues` first.
 - Priority is a label: `priority: high`, `priority/high` or `priority::high`, with levels `urgent`, `high`, `medium`, `low`; use the spelling the repository has (`label_read`). High for a broken chain or when the user says it goes next, medium for normal work, low for ideas. Never choose urgent yourself. Use `add_labels` and `remove_label` so the other labels stay.
 - Put new work in the current issue's milestone unless it belongs later. Add `## Where to look` with known file and symbol names. Do not guess pointers.
-- Run labels pick a provider or model only when the user named one; use the project's existing label.
+- No label picks a provider or model: what a task's session runs on is set on the task's card in Even Keel.
 - Forgejo has no subtasks. Split work into separate issues ordered by dependencies, not a Markdown checklist.
 - Titles, bodies and comments use the language of the project's issues. Do not assign an issue unless the user names the assignee.

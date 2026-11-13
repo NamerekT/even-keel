@@ -17,17 +17,18 @@ describe("a project's task feed end to end", { timeout: 60_000 }, () => {
   const launches = () => run.agent.calls.filter((call) => call.kind === 'launch')
   const resumes = () => run.agent.calls.filter((call) => call.kind === 'resume')
 
-  it("runs the feed's tasks in the project's chain: on their run label, asking and answered in the feed's tracker, closed there by the merge", async () => {
+  it("runs the feed's tasks in the project's chain: on their run, asking and answered in the feed's tracker, closed there by the merge", async () => {
     run.feed = true
-    Object.assign(run.project, { modelLabels: true, models: { claude: 'sonnet' } })
+    Object.assign(run.project, { models: { claude: 'sonnet' } })
     run.board.add('ABC-1')
     run.lane.add('GHI-1')
     run.lane.add('GHI-2', 'GHI-1')
-    run.lane.label('GHI-2', 'Claude | haiku')
     run.agent.script('ABC-1', commitAndMerge('ABC-1.txt'))
     run.agent.script('GHI-1', ends({ ask: 'Keep the old format?' }), commitAndMerge('GHI-1.txt'))
     run.agent.script('GHI-2', commitAndMerge('GHI-2.txt'))
     await run.start()
+    await run.until(() => run.service.knownTask('GHI-2') !== undefined, "the feed's tasks read")
+    await run.post('task/run', { task: 'GHI-2', provider: 'claude', model: 'haiku' })
     await run.startChain(PROJECT_ID)
 
     await run.until(() => run.lane.commentsOf('GHI-1').length === 1, "the question posted on the feed's tracker")

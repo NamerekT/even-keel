@@ -1,0 +1,165 @@
+{
+  "changed": {
+    "/accounts/claude": "team-api",
+    "/autoCompactWindow": 300000,
+    "/chain/excludedLabels": [
+      "Manual",
+      "Вручную"
+    ],
+    "/cli/claude": "checked",
+    "/codexAutoCompactWindow": 250000,
+    "/colors/11111111-1111-4111-8111-111111111111": 1,
+    "/colors/22222222-2222-4222-8222-222222222222": 2,
+    "/execution/claude": "sdk",
+    "/execution/codex": "bypass",
+    "/feeds/11111111-1111-4111-8111-111111111111": [
+      {
+        "id": "77777777-7777-4777-8777-777777777777",
+        "tracker": "github",
+        "key": "ABCGH",
+        "place": "octo-org/ideas",
+        "chain": {
+          "requiredLabels": [
+            "agent"
+          ]
+        }
+      }
+    ],
+    "/keys/11111111-1111-4111-8111-111111111111": "ABC",
+    "/keys/22222222-2222-4222-8222-222222222222": "XYZ",
+    "/language": "en",
+    "/modelPrompts/Claude | sonnet*": "Check every change.",
+    "/modelPrompts/Codex": "Use the project rules.",
+    "/models/claude": "sonnet",
+    "/moves/11111111-1111-4111-8111-111111111111": {
+      "start": "In Progress",
+      "review": null,
+      "done": "Done"
+    },
+    "/names/22222222-2222-4222-8222-222222222222": "Other project",
+    "/notices/cli.versions": false,
+    "/notices/protection.remote": false,
+    "/openCodeAutoCompactWindow": 200000,
+    "/ownRules/11111111-1111-4111-8111-111111111111/excludedLabels": [
+      "Later",
+      "Manual",
+      "Вручную"
+    ],
+    "/projects/11111111-1111-4111-8111-111111111111": "C:\\repos\\example-project",
+    "/projects/22222222-2222-4222-8222-222222222222": "C:\\repos\\other-project",
+    "/protection/claude": [
+      "Write(.env)"
+    ],
+    "/protection/codex": [
+      [
+        "terraform",
+        "destroy"
+      ]
+    ],
+    "/protection/copilot": [
+      "write(.env)"
+    ],
+    "/protection/disabled": [
+      "deleteGithub",
+      "deleteJira"
+    ],
+    "/protection/opencode": [
+      "terraform destroy*"
+    ],
+    "/rules/11111111-1111-4111-8111-111111111111/excludedLabels": [
+      "Later",
+      "Manual",
+      "Вручную"
+    ],
+    "/rules/22222222-2222-4222-8222-222222222222/excludedLabels": [
+      "Manual",
+      "Вручную"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/afterGreen": [
+      "npm run build",
+      "pwsh -File service/restart.ps1"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/autoCompactWindow": 400000,
+    "/settings/11111111-1111-4111-8111-111111111111/badge": {
+      "on": true,
+      "url": "https://badge.example.com",
+      "slug": "example",
+      "fields": [
+        "chain",
+        "milestone"
+      ]
+    },
+    "/settings/11111111-1111-4111-8111-111111111111/check": [
+      "npm test"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/codexAutoCompactWindow": 250000,
+    "/settings/11111111-1111-4111-8111-111111111111/milestoneOrder": [
+      "Beta",
+      "MVP"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/notices/branch.drift": false,
+    "/settings/11111111-1111-4111-8111-111111111111/notices/protection.remote": true,
+    "/settings/11111111-1111-4111-8111-111111111111/openCodeAutoCompactWindow": 200000,
+    "/settings/11111111-1111-4111-8111-111111111111/own/autoCompactWindow": 400000,
+    "/settings/11111111-1111-4111-8111-111111111111/own/protection": {
+      "disabled": [
+        "forcePush"
+      ],
+      "opencode": [
+        "git reset --hard*"
+      ]
+    },
+    "/settings/11111111-1111-4111-8111-111111111111/protection/claude": [
+      "Write(.env)"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/protection/codex": [
+      [
+        "terraform",
+        "destroy"
+      ]
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/protection/copilot": [
+      "write(.env)"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/protection/disabled": [
+      "forcePush"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/protection/opencode": [
+      "git reset --hard*"
+    ],
+    "/settings/11111111-1111-4111-8111-111111111111/testProject": true,
+    "/settings/22222222-2222-4222-8222-222222222222/accounts/claude": "global",
+    "/settings/22222222-2222-4222-8222-222222222222/branch": "master",
+    "/settings/22222222-2222-4222-8222-222222222222/ci/rerunFailed": false,
+    "/settings/22222222-2222-4222-8222-222222222222/codexAutoCompactWindow": 400000,
+    "/settings/22222222-2222-4222-8222-222222222222/models/codex": "gpt-5.6-luna",
+    "/settings/22222222-2222-4222-8222-222222222222/own/autoCompactWindow": null,
+    "/settings/22222222-2222-4222-8222-222222222222/own/ci.rerunFailed": false,
+    "/settings/22222222-2222-4222-8222-222222222222/own/codexAutoCompactWindow": 400000,
+    "/settings/22222222-2222-4222-8222-222222222222/own/openCodeAutoCompactWindow": null,
+    "/settings/22222222-2222-4222-8222-222222222222/protection/claude": [
+      "Write(.env)"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/protection/codex": [
+      [
+        "terraform",
+        "destroy"
+      ]
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/protection/copilot": [
+      "write(.env)"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/protection/disabled": [
+      "deleteGithub",
+      "deleteJira"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/protection/opencode": [
+      "terraform destroy*"
+    ],
+    "/settings/22222222-2222-4222-8222-222222222222/provider": "codex",
+    "/slots/22222222-2222-4222-8222-222222222222": 2,
+    "/trackers/11111111-1111-4111-8111-111111111111": "huly",
+    "/trackers/22222222-2222-4222-8222-222222222222": "huly"
+  },
+  "missing": []
+}

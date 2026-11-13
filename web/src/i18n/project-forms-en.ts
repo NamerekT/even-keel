@@ -291,7 +291,7 @@ export const settingsEN: Messages['settings'] = {
       "One per line. They run in order in the task's folder before a new session starts; a resumed session does not run them again. A failed command pauses the chain.",
     beforeStartPlaceholder: 'npm ci',
     provider: 'Provider',
-    providerHint: 'What the new sessions of the project run on. With run labels on, a task labelled with another provider runs on that one.',
+    providerHint: 'What the new sessions of the project run on. A task whose card names another provider runs on that one.',
     agents: { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot' },
     asShared: (value: string) => `${value} (shared)`,
     sharedChip: 'shared',
@@ -369,9 +369,6 @@ export const settingsEN: Messages['settings'] = {
     accountOf: (provider: string) => `Account on ${provider}`,
     accountHint:
       'The account folder sessions on that provider start in. One per provider: on a spent limit the chain waits for the reset or for this field to change, then goes on in a new session with a handoff.',
-    modelLabels: 'Run labels',
-    modelLabelsHint:
-      "On — a task's label picks its session: Claude | sonnet, Codex | gpt-6.1-sol, or a bare Codex for the provider's model. Off — such labels are ignored.",
     guard: 'Keep main green',
     guardHint:
       'Off: the chain does not watch main — after a push the next task starts at once, with no wait for CI, no check and no fix of a red main; CI itself still runs and reports as usual. For when the project’s CI serves other ends (deploys, releases, reports) or you watch main yourself. The fields below keep their values.',
@@ -583,7 +580,7 @@ export const settingsEN: Messages['settings'] = {
       'Set a required label for a public GitHub repository: anyone can open an issue there, only collaborators can label it. The built-in labels are Even Keel’s own and do not change here.',
     ruleLabel: 'Label',
     ruleRule: 'Rule',
-    labelRule: { required: 'Required', excluded: "Don't take", question: 'Only a mark', run: 'Picks the model' },
+    labelRule: { required: 'Required', excluded: "Don't take", question: 'Only a mark' },
     labelAdd: 'A label from the tracker…',
     labelTakeTitle: 'Which tasks enter',
     labelTake: { any: 'Take any', required: 'Only with a required label' },

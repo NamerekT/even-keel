@@ -13,6 +13,8 @@ import { keyVendor } from './opencode/home.js'
 import { loadSavedLimits } from './limits/saved.js'
 import { loadRareEvents, pruneRareEvents, rareEvents, saveRareEvent } from './sessions/rare.js'
 import { loadMergeMarks, MergeMarks, saveMergeMark } from './tracker/closes.js'
+import { TaskRuns, type TaskRun } from './sessions/runs.js'
+import { dropRunImport, dropTaskRun, loadRunImports, loadTaskRuns, saveTaskRun } from './sessions/runs-store.js'
 import { EventLog, loadEventLog, pruneEventLog, saveEventEntry, saveEventMemory } from './event-log/log.js'
 import type { EvenKeelState } from './state.js'
 import { providerUrl } from './account/network.js'
@@ -224,6 +226,10 @@ const context = {
   get keyOrganizations() { return keyOrganizations },
   get keySpend() { return keySpend },
   get knownTask() { return knownTask },
+  get runOfTask() { return runOfTask },
+  get runsOfProject() { return runsOfProject },
+  get setTaskRun() { return setTaskRun },
+  get taskRuns() { return taskRuns },
   get launchIn() { return launchIn },
   get launches() { return launches },
   get ledger() { return ledger },
@@ -396,6 +402,12 @@ const savedWindows = await loadContextWindows(db)
 const savedSessionWindows = await loadSessionWindows(db)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
 const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add(`the close of ${mark.task}`, saveMergeMark(db, mark)))
+/** What each task's sessions run on, set on its card (BTN-983), and the projects whose run labels are still to be moved. */
+const taskRuns = new TaskRuns(await loadTaskRuns(db), await loadRunImports(db), {
+  save: (run) => writes.add(`the run of ${run.task}`, saveTaskRun(db, run)),
+  drop: (project, task) => writes.add(`the run of ${task}`, dropTaskRun(db, project, task)),
+  imported: (project) => writes.add(`the moved run labels of ${project}`, dropRunImport(db, project)),
+})
 /** The `rare:` lines already written and the pairs still open (BTN-814); unreadable rows only risk a repeated line. */
 rareEvents.restore(await loadRareEvents(db).catch((error: unknown) => {
   console.warn(`storage: the rare events not read: ${error instanceof Error ? error.message : String(error)}`)
@@ -708,6 +720,27 @@ const steering = accountsService.wireSteering(context)
 const agentStatus = accountsService.wireAgentStatus(context)
 
 const knownTask = (task: string) => [...tasksByProject.values()].flat().find((each) => each.id === task)
+/** The first look at a project that read run labels before BTN-983 moves them into runs, once its tasks are listed. */
+const moveRunLabels = (project: string): void => {
+  const tasks = tasksByProject.get(project)
+  if (tasks === undefined) return
+  const moved = taskRuns.importLabels(project, tasks)
+  if (moved.length > 0) console.log(`run labels moved into runs: ${moved.join(', ')}`)
+}
+const runOfTask = (project: string | undefined, task: string) => {
+  if (project === undefined) return undefined
+  moveRunLabels(project)
+  return taskRuns.of(project, task)
+}
+const runsOfProject = (project: string) => {
+  moveRunLabels(project)
+  return taskRuns.ofProject(project)
+}
+/** The page's card and the tasks server set a run; a live session keeps what it started on. */
+const setTaskRun = (project: string, task: string, run: TaskRun | null): void => {
+  taskRuns.set(project, task, run)
+  stateChanged()
+}
 /** A pool entry counts only while its folder exists and belongs to the provider it is filed under. */
 const hasAccount = accountsService.wireHasAccount(context)
 

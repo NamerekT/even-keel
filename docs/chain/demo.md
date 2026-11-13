@@ -18,7 +18,7 @@ A person who has just installed Even Keel can watch the chain work before connec
 
 - **The folder** `<state>/demo/`: the repository `repo/` and the agent's account folder `account/`, where `sessions.json` keeps its sessions. Nothing else marks the demo: a project is the demo's when its repository is `<state>/demo/repo` (`DemoService.project`).
 - **The repository** is made fresh on the project's main branch (`DEFAULT_BRANCH`) with a README, a `.gitignore` of `.claude/worktrees/` and `.temp/`, and one commit, under a local name and `demo@example.com`. No git — `demo.noGit`, nothing is made.
-- **The project** `DEMO` (name Demo / Демо) on the built-in tracker, with `testProject` on (BTN-206): out of the launch chart, `/stats` and Tally. The run settings are the demo's whatever the config says (`runOf`): agent `demo`, account `even-keel-demo`, no run labels.
+- **The project** `DEMO` (name Demo / Демо) on the built-in tracker, with `testProject` on (BTN-206): out of the launch chart, `/stats` and Tally. The run settings are the demo's whatever the config says (`runOf`): agent `demo`, account `even-keel-demo`; a task's run cannot take it off the demo agent, whose pool has no other account.
 - **The account** `even-keel-demo` is listed by `AccountHomes` only while its folder exists (`setDemo`) and is never shown on the page: the accounts view filters it out, and the update check counts no demo project as the person's.
 - **The tasks**, in the page's language at the start: DEMO-1 (a welcome line in the README), DEMO-2 (a changelog) blocked by DEMO-1, DEMO-3 (the tone of a greeting) which asks a question with two options. A task the person adds (a ghost, BTN-770) gets a short generic turn: a note under `notes/`.
 

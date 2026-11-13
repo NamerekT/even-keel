@@ -38,7 +38,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(config.projects).toEqual({ [ABC]: 'C:\\repos\\example-project', [XYZ]: 'C:\\repos\\other-project' })
     expect(config.slots).toEqual({ [XYZ]: 2 })
     expect(config.settings[ABC]?.afterGreen).toEqual(['npm run build', 'pwsh -File service/restart.ps1'])
-    expect(config.settings[ABC]).toMatchObject({ provider: null, models: {}, accounts: {}, modelLabels: null })
+    expect(config.settings[ABC]).toMatchObject({ provider: null, models: {}, accounts: {} })
     expect(config.autoCompactWindow).toBe(300_000)
     expect(config.settings[ABC]?.autoCompactWindow).toBe(400_000)
     expect(config.settings[XYZ]?.autoCompactWindow).toBeNull()
@@ -61,13 +61,12 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(config.rules[XYZ]?.excludedLabels).toEqual(['Manual', 'Вручную'])
     expect(config.feeds[ABC]?.map((feed) => feed.chain)).toEqual([{ requiredLabels: ['agent'] }])
     expect(config.moves).toEqual({ [ABC]: { start: 'In Progress', review: null, done: 'Done' } })
-    expect(config.settings[XYZ]).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'global' }, modelLabels: false })
+    expect(config.settings[XYZ]).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'global' } })
     expect(config).toMatchObject({
       provider: 'claude',
       models: { claude: 'sonnet' },
       accounts: { claude: 'team-api', codex: 'codex' },
       execution: { claude: 'sdk', codex: 'bypass' },
-      modelLabels: true,
     })
   })
 

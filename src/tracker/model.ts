@@ -44,8 +44,6 @@ export interface TrackerTask {
 
 export interface Task extends TrackerTask {
   question: boolean
-  /** What the task's run labels ask its sessions to run on; the chain reads them only where `modelLabels` is on. */
-  runLabels: RunLabel[]
 }
 
 /** A task with subtasks as the page's "Parents" view shows it (BTN-1041). */
@@ -54,7 +52,10 @@ export interface ParentTask extends Task {
   closedSubtasks: number
 }
 
-/** A label `<provider> | <model>`, or a bare `<provider>` that leaves the model to the config. */
+/**
+ * A label `<provider> | <model>`, or a bare `<provider>` that leaves the model to the config. The chain read such
+ * labels until BTN-983; now they are only moved once into the tasks' runs (`TaskRuns.importLabels`).
+ */
 export interface RunLabel {
   provider: string
   /** As written, for the CLI: a typo is the session's error on its first turn. */
@@ -97,17 +98,7 @@ export function toTask(raw: TrackerTask): Task {
     ...raw,
     labels: [...labels.values()],
     question: QUESTION_LABELS.some((label) => labels.has(label.toLocaleLowerCase())),
-    runLabels: runLabelsOf([...labels.values()]),
   }
-}
-
-function runLabelsOf(labels: string[]): RunLabel[] {
-  const found = new Map<string, RunLabel>()
-  for (const label of labels) {
-    const run = runLabelOf(label)
-    if (run !== null) found.set(`${run.provider}|${run.model ?? ''}`, run)
-  }
-  return [...found.values()]
 }
 
 export function parseTaskId(id: string): { project: string; number: number } | null {

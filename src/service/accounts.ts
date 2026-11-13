@@ -41,6 +41,7 @@ import { Secrets } from '../secrets/service.js'
 import { settleMail } from '../sessions/mailRelay.js'
 import { isLive, lampOf, turnStatus } from '../sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from '../sessions/launch.js'
+import { effortFor } from '../sessions/runs.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { rareEvents } from '../sessions/rare.js'
 import { isInside } from '../paths.js'
@@ -108,7 +109,8 @@ export type AccountsContext = Pick<ServiceContext,
   | 'importedProfiles'
   | 'keyOrganizations'
   | 'keySpend'
-  | 'knownTask'
+  | 'runOfTask'
+  | 'setTaskRun'
   | 'ledger'
   | 'limitRetries'
   | 'limits'
@@ -662,20 +664,18 @@ export function wireHasAccount(ctx: AccountsContext): (provider: string, key: st
 
 export function wireChoiceFor(ctx: AccountsContext): (project: string | undefined, task?: string) => RunChoice {
   return (project: string | undefined, task?: string): RunChoice =>
-    runChoice(task === undefined ? undefined : ctx.knownTask(task), runOf(ctx, project), ctx.hasAccount)
+    runChoice(task === undefined ? undefined : ctx.runOfTask(project ?? ctx.projectOf(task), task), runOf(ctx, project), ctx.hasAccount)
 }
 
 export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string, project?: string | undefined) => LaunchPlan {
   return (task: string, prompt: string, project = ctx.projectOf(task)): LaunchPlan => {
     const git = project === undefined || !isPlain(ctx.configStore.current, project)
     const full = withUnattended(prompt, ctx.dispatcher.state.unattended, ctx.promptLanguage(project), git)
-    const plan = launchPlan(ctx.knownTask(task), full, runOf(ctx, project), ctx.configStore.current.modelPrompts, ctx.hasAccount)
-    if (plan.warning !== null) console.warn(plan.warning)
-    return plan
+    return launchPlan(ctx.runOfTask(project, task), full, runOf(ctx, project), ctx.configStore.current.modelPrompts, ctx.hasAccount)
   }
 }
 
-type AgentExtras = Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'contextWindow' | 'outsideRepo'>
+type AgentExtras = Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'contextWindow' | 'outsideRepo' | 'effort'>
 
 /** The agents whose chain sessions take a window through `SessionStart.contextWindow`; Claude's goes in its settings. */
 const WINDOW_KEYS: Readonly<Record<string, WindowKey>> = { [CODEX]: 'codexAutoCompactWindow', [OPENCODE]: 'openCodeAutoCompactWindow' }
@@ -684,7 +684,9 @@ export function wireAgentExtras(ctx: AccountsContext): (home: AccountHome, proje
   return (home: AccountHome, project: string | undefined, task: string): AgentExtras => {
     const key = WINDOW_KEYS[home.agent]
     const window = key === undefined ? undefined : chainWindowOf(ctx.configStore.current, project, key)
+    const effort = effortFor(ctx.runOfTask(project, task), home.agent)
     return {
+      ...(effort === null ? {} : { effort }),
       protection: (project === undefined ? undefined : ctx.configStore.current.settings[project]?.protection) ?? ctx.configStore.current.protection,
       ...(project === undefined ? {} : { mainBranch: ctx.branchOf(project) }),
       ...(home.agent !== CLAUDE && ctx.configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),

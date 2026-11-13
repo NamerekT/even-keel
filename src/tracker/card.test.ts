@@ -26,7 +26,7 @@ describe('cardOf', () => {
   it('tells what each label means to Even Keel', () => {
     const card = cardOf(raw({ labels: ['Claude | opus', 'Вопрос', 'manual', 'UI'] }), { ...DEFAULT_RULES, excludedLabels: ['Manual'] }, ALL)
     expect(card.labels).toEqual([
-      { name: 'Claude | opus', role: 'model' },
+      { name: 'Claude | opus', role: null },
       { name: 'Вопрос', role: 'question' },
       { name: 'manual', role: 'excluded' },
       { name: 'UI', role: null },

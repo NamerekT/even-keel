@@ -20,6 +20,8 @@ const deps = {
   readerOfPrefix: () => reader,
   rulesOf: () => DEFAULT_RULES,
   modelOf: () => null,
+  runOf: () => undefined,
+  setRun: () => {},
   refresh: vi.fn(async () => {}),
   folderOf: () => null,
   attachmentLimit: () => 1024,
@@ -73,7 +75,7 @@ describe('unknown task arguments', () => {
 
   it('checks every task before reading the tracker or saving retry', async () => {
     await expect(tools.call('tasks_create', { tasks: [{ title: 'A' }, { title: 'B', owner: 'C' }], retry: 'batch' }, CHAIN)).rejects.toThrow(
-      'tasks #2: "owner" is not a field of a task; its fields are title, description, status, priority, milestone, labels, estimate, parent, blocks, blockedBy, relates, component, attach',
+      'tasks #2: "owner" is not a field of a task; its fields are title, description, status, priority, milestone, labels, estimate, run, parent, blocks, blockedBy, relates, component, attach',
     )
     expect(run).not.toHaveBeenCalled()
     expect(query).not.toHaveBeenCalled()

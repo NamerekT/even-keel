@@ -11,7 +11,6 @@ import { ActionMeter, BlockMetrics, CacheRing, ResetsBadge } from '../ui/BlockMe
 import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { useLive } from '../live/context.js'
-import { runLabelsOn } from './runPick.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
@@ -333,7 +332,7 @@ function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
     estimate: null,
     parent: null,
     labels: [],
-    runLabels: [],
+    run: null,
     session: null,
     sessions: [],
     limit: null,
@@ -634,9 +633,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
-        {block.runLabels.map((label) => (
-          <RunLabelTag key={label} label={label} off={!runLabelsOn(state?.config, project)} />
-        ))}
+        {block.run !== null && <RunLabelTag run={block.run} />}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (
           <span className="chip" title={t.chain.interruptedTitle}>

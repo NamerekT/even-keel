@@ -21,14 +21,13 @@ import { DEFAULT_SHARES } from '../stats/checkpoint.js'
 import { isTallyMode } from '../stats/mode.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
-import { runLabelOf, type RunLabel } from '../tracker/model.js'
 import { DEFAULT_UPDATES } from '../updates/release.js'
 import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_MODELS } from './defaults.js'
 
 /** `global` — Even Keel's own value, the top level of the file; `project` — a project's, its entry in `projects`. */
 export type Scope = 'global' | 'project'
 export type Kind = 'boolean' | 'integer' | 'number' | 'string' | 'enum' | 'list' | 'json'
-export type TaskLabel = 'run' | 'checkpoint'
+export type TaskLabel = 'checkpoint'
 
 /** Where a value is set, for the messages: the project's key (not its id) and the qualifier, `''` when the key has none. */
 export interface Place {
@@ -254,12 +253,12 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   rule('excludedLabels'),
   rule('requiredMilestones'),
   rule('excludedMilestones'),
-  { key: 'provider', kind: 'enum', scopes: ['global', 'project'], taskLabel: 'run', lands: ['provider', 'settings'], default: DEFAULT_PROVIDER, check: (value, place) => {
+  { key: 'provider', kind: 'enum', scopes: ['global', 'project'], lands: ['provider', 'settings'], default: DEFAULT_PROVIDER, check: (value, place) => {
     const name = typeof value === 'string' ? value.trim().toLowerCase() : ''
     if (!isProvider(name)) throw fail('config.provider', { where: at(place, 'provider'), value: json(value), known: [...PROVIDERS] })
     return name
   } },
-  { key: 'models', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', taskLabel: 'run', lands: ['models', 'settings'], default: DEFAULT_MODELS, check: providerName('models') },
+  { key: 'models', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', lands: ['models', 'settings'], default: DEFAULT_MODELS, check: providerName('models') },
   { key: 'accounts', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', lands: ['accounts', 'settings'], default: DEFAULT_ACCOUNTS, check: providerName('accounts') },
   { key: 'execution', kind: 'enum', scopes: ['global'], qualifier: 'provider', lands: ['execution'], default: DEFAULT_EXECUTION, check: (value, { qualifier: provider }) => {
     const known = EXECUTION_MODES[provider]
@@ -272,7 +271,6 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (typeof value !== 'string' || !CLI_SOURCES.includes(value)) throw fail('config.cli', { provider, value: json(value), known: [...CLI_SOURCES] })
     return value
   } },
-  { key: 'modelLabels', kind: 'boolean', scopes: ['global', 'project'], lands: ['modelLabels', 'settings'], default: false, check: boolean('modelLabels') },
   { key: 'modelPrompts', kind: 'json', scopes: ['global'], lands: ['modelPrompts'], default: {}, check: (value) => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw fail('config.modelPrompts', {})
     const prompts: Record<string, string> = {}
@@ -475,20 +473,6 @@ export const LABEL_PARSERS: Readonly<Record<TaskLabel, LabelParser>> = {
       const choices = new Set(found.map((label) => label.trim().toLowerCase()))
       if (choices.size > 1) return { clash: found }
       return { values: choices.has('break | compaction') ? [{ key: 'stats.checkpointTokens', qualifier: '', value: 999_999 }] : [] }
-    },
-  },
-  run: {
-    switch: 'modelLabels',
-    read: (labels) => {
-      const found = labels.flatMap((label) => {
-        const run = runLabelOf(label)
-        return run === null ? [] : [[label, run] as [string, RunLabel]]
-      })
-      if (found.length > 1) return { clash: found.map(([label]) => label) }
-      const run = found[0]?.[1]
-      if (run === undefined) return { values: [] }
-      const model = run.model === null ? [] : [{ key: 'models', qualifier: run.provider, value: run.model }]
-      return { values: [{ key: 'provider', qualifier: '', value: run.provider }, ...model] }
     },
   },
 }

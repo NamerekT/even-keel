@@ -1,41 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from '../chain/rules.js'
 import { fakeTask } from './fixture.js'
-import { diffStatuses, isOpen, issueLink, parseTaskId, toTask, type TaskStatus, type TrackerTask } from './model.js'
+import { diffStatuses, isOpen, issueLink, parseTaskId, runLabelOf, toTask,type TaskStatus, type TrackerTask } from './model.js'
 import { trackerOf, type TaskSource } from './source.js'
 
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
 const done: TaskStatus = { name: 'Done', category: 'Won' }
 
 const raw = (id: string, fields: Partial<TrackerTask> = {}): TrackerTask => {
-  const { question: _question, runLabels: _runLabels, ...task } = fakeTask(id)
+  const { question: _question, ...task } = fakeTask(id)
   return { ...task, ...fields }
 }
 
-describe('toTask', () => {
-  it('reads run labels: a provider whatever its case, the model after the bar as written, spaces around it trimmed', () => {
-    const tasks = [['Claude | opus'], [' CODEX '], ['codex|gpt-6.1-sol', 'Bug'], ['Claude | Sonnet 4'], ['Copilot | gpt-6-luna']].map((labels, index) =>
-      toTask(raw(`ABC-${index + 1}`, { labels })),
-    )
-    expect(tasks.map((task) => task.runLabels)).toEqual([
-      [{ provider: 'claude', model: 'opus' }],
-      [{ provider: 'codex', model: null }],
-      [{ provider: 'codex', model: 'gpt-6.1-sol' }],
-      [{ provider: 'claude', model: 'Sonnet 4' }],
-      [{ provider: 'copilot', model: 'gpt-6-luna' }],
+describe('runLabelOf', () => {
+  it('reads a run label: a provider whatever its case, the model after the bar as written, spaces around it trimmed', () => {
+    expect(['Claude | opus', ' CODEX ', 'codex|gpt-6.1-sol', 'Claude | Sonnet 4', 'Copilot | gpt-6-luna'].map(runLabelOf)).toEqual([
+      { provider: 'claude', model: 'opus' },
+      { provider: 'codex', model: null },
+      { provider: 'codex', model: 'gpt-6.1-sol' },
+      { provider: 'claude', model: 'Sonnet 4' },
+      { provider: 'copilot', model: 'gpt-6-luna' },
     ])
   })
 
   it('takes no run label from a label of an unknown provider, an empty model or an old model alias', () => {
-    const task = toTask(raw('ABC-1', { labels: ['Gemini | pro', 'Claude |', 'Sonnet', 'Opus', 'Bug | fix'] }))
-    expect(task.runLabels).toEqual([])
+    expect(['Gemini | pro', 'Claude |', 'Sonnet', 'Opus', 'Bug | fix'].map(runLabelOf)).toEqual([null, null, null, null, null])
   })
+})
 
-  it('keeps each run label once', () => {
-    expect(toTask(raw('ABC-1', { labels: ['Codex', 'codex', 'Claude | opus'] })).runLabels).toEqual([
-      { provider: 'codex', model: null },
-      { provider: 'claude', model: 'opus' },
-    ])
+describe('toTask', () => {
+  it('keeps a run label as a plain label: the run of a task is not the tracker\'s', () => {
+    expect(toTask(raw('ABC-1', { labels: ['Claude | opus'] }))).not.toHaveProperty('runLabels')
   })
 
   it('marks a task carrying the question label, whatever its case and spacing', () => {
@@ -125,7 +120,7 @@ describe('trackerOf', () => {
   it('leaves parents out of the chain, derives labels and asks for open statuses by the rules', async () => {
     const adapter = source([raw('ABC-1', { subtasks: 2 }), raw('ABC-2', { parent: 'ABC-1', labels: ['Claude | sonnet'] })])
     const { tasks, parents, unknownStatuses } = await trackerOf(adapter).chainTasks('ABC', { ...DEFAULT_RULES, active: ['Review'] })
-    expect(tasks.map((task) => [task.id, task.runLabels])).toEqual([['ABC-2', [{ provider: 'claude', model: 'sonnet' }]]])
+    expect(tasks.map((task) => [task.id, task.labels])).toEqual([['ABC-2', ['Claude | sonnet']]])
     expect(parents.map((task) => task.id)).toEqual(['ABC-1'])
     expect(unknownStatuses).toEqual(['Review'])
     expect(adapter.asked).toEqual([todo])
@@ -158,6 +153,6 @@ describe('trackerOf', () => {
     expect(await full.brief!('ABC-1')).toEqual({ title: 'Title of ABC-1', description: '' })
     expect(await full.complete!('ABC-1')).toBe(true)
     expect(completed).toEqual(['ABC-1'])
-    expect((await full.children!('ABC-1')).map((task) => [task.id, task.runLabels])).toEqual([['ABC-2', [{ provider: 'codex', model: null }]]])
+    expect((await full.children!('ABC-1')).map((task) => [task.id, task.labels])).toEqual([['ABC-2', ['Codex']]])
   })
 })

@@ -252,7 +252,7 @@ export class ClaudeCli {
 export const SESSION_MODE = 'auto'
 
 /** What a chain session gets besides its name, model and prompt. */
-export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'> & {
+export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins' | 'effort'> & {
   /** A file appended to the system prompt: the project's lone `AGENTS.md` (`agentsFallback`). */
   instructions?: string
 }
@@ -321,6 +321,7 @@ export function sessionArgs(task: string, model: string | null, extras: SessionE
     '-n',
     task,
     ...(model === null ? [] : ['--model', model]),
+    ...(extras.effort === undefined ? [] : ['--effort', extras.effort]),
     ...(settings === undefined ? [] : ['--settings', settings]),
     ...(instructions === undefined ? [] : ['--append-system-prompt-file', instructions]),
   ]
@@ -360,6 +361,7 @@ export function warmArgs(sessionId: string, model: string | null, extras: Sessio
     '--permission-mode',
     WARM_MODE,
     ...(model === null ? [] : ['--model', model]),
+    ...(extras.effort === undefined ? [] : ['--effort', extras.effort]),
     '--settings',
     hooksOff(settings),
     ...(instructions === undefined ? [] : ['--append-system-prompt-file', instructions]),

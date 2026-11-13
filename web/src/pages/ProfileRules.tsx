@@ -73,7 +73,6 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
           rules,
         )}
         labels={ruleChoicesOf(tasks, vocabularies).labels}
-        modelLabels={state.config.shared.modelLabels}
         // The profile leaves a key unset where it would only repeat the shared one.
         onEdit={(changes) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, ruleText(value)), draft))}
         errorOf={() => null}

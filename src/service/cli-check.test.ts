@@ -14,7 +14,6 @@ function contextOf(settings: Record<string, unknown>, runtimes = ['claude', 'cod
         provider: 'claude',
         models: {},
         accounts: { claude: 'main', codex: 'codex' },
-        modelLabels: false,
       },
     },
     homes: { find: (key: string) => HOMES.find((each) => each.key === key) },

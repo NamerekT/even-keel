@@ -21,6 +21,7 @@ import { restartConfirmation } from './sessions/silence.js'
 import type { ProjectCheck } from './state.js'
 import { isTaskId, parsePeriodQuery, parseStatsFilter, type StatsAnswer } from './stats/model.js'
 import { parseChangeIds, parseCompareQuery, parseRulesQuery } from './stats/rules.js'
+import { taskRunOf } from './sessions/runs.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile, TrackerVocabulary } from './tracker/source.js'
 export type { ProfilesControl } from './profiles/routes.js'
@@ -50,7 +51,8 @@ const COMMANDS: Record<string, Command> = {
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
   'task/unready': ({ tasks }, body) => tasks.unready(taskOf(body)),
   'task/labels': ({ tasks }, body) => tasks.relabel(taskOf(body), { add: labelList(body.add, 'add'), remove: labelList(body.remove, 'remove') }),
-  'task/milestone': ({ tasks }, body) => tasks.moveMilestone(taskOf(body), body.milestone === null ? null : textOf(body.milestone, 'milestone')),
+  'task/run': ({ tasks }, body) => tasks.setRun(taskOf(body), taskRunOf(body)),
+  'task/milestone':({ tasks }, body) => tasks.moveMilestone(taskOf(body), body.milestone === null ? null : textOf(body.milestone, 'milestone')),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
   'session/mail/dismiss': ({ sessions }, body) => sessions.dismissMail(textOf(body.sessionId, 'sessionId')),
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),

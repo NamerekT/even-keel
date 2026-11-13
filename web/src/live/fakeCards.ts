@@ -3,7 +3,8 @@ import { fail } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { CardLabel, TaskCard, TaskRef } from '../../../src/tracker/card.js'
 import { changedLabels, type LabelChange } from '../../../src/tracker/labels.js'
-import { runLabelOf, toTask, type MilestoneChoice, type TaskMilestone } from '../../../src/tracker/model.js'
+import { taskRunOf } from '../../../src/sessions/runs.js'
+import { toTask, type MilestoneChoice, type TaskMilestone } from '../../../src/tracker/model.js'
 
 const DESCRIPTION = `## Goal
 
@@ -74,7 +75,7 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     ? []
     : [
         ...(task.question ? [{ name: 'Вопрос', role: 'question' as const }] : []),
-        ...task.labels.map((name) => ({ name, role: runLabelOf(name) === null ? null : 'model' as const })),
+        ...task.labels.map((name) => ({ name, role: null })),
         { name: 'UI', role: null },
       ]
   return {
@@ -107,11 +108,17 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
 }
 
 export function fakeRelabel(state: EvenKeelState, id: string, change: LabelChange): EvenKeelState {
-  const relabeled = (task: ProjectTask): ProjectTask => {
-    const { labels, runLabels } = toTask({ ...task, labels: changedLabels(task.labels, change) })
-    return { ...task, labels, runLabels }
-  }
+  const relabeled = (task: ProjectTask): ProjectTask => ({ ...task, labels: toTask({ ...task, labels: changedLabels(task.labels, change) }).labels })
   return { ...state, tasks: state.tasks.map((task) => (task.id === id ? relabeled(task) : task)) }
+}
+
+/** The `task/run` command: the run kept for the task, or dropped when nothing is set. */
+export function fakeSetRun(state: EvenKeelState, id: string, body: { provider?: unknown; model?: unknown; effort?: unknown }): EvenKeelState {
+  const project = state.tasks.find((task) => task.id === id)?.project
+  if (project === undefined) return state
+  const run = taskRunOf(body)
+  const { [id]: _, ...rest } = state.runs[project] ?? {}
+  return { ...state, runs: { ...state.runs, [project]: run === null ? rest : { ...rest, [id]: run } } }
 }
 
 /** The fake's milestones are those its tasks of the project have, each by its label. */

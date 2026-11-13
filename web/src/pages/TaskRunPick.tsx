@@ -3,65 +3,41 @@ import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { projectLabel, taskProject } from '../state.js'
-import { ConfirmDialog } from '../ui/ConfirmDialog.js'
+import { taskProject } from '../state.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
-import { FixButton } from './FixButtons.js'
-import { runLabelsOn, runPickChange, runPickOf, type RunPick } from './runPick.js'
+import { effortsOf, runPickChange, runPickOf, withProvider, type RunPick } from './runPick.js'
 import { providerName } from './settingsRun.js'
 import { offersOf, useModelCatalog } from './useModels.js'
 
 interface Props {
   task: string
-  /** The task's labels as the tracker spells them. */
-  labels: string[]
-  /** The tracker can write them; otherwise the pick only shows the label. */
-  relabel: boolean
   live: boolean
   onChanged: () => void
 }
 
-/** The task's run label as a provider and a model pick (BTN-508): a save replaces every run label of the task with one. */
-export function TaskRunPick({ task, labels, relabel, live, onChanged }: Props) {
+/** What the task's sessions run on, as a provider, a model and an effort pick (BTN-983): Even Keel keeps it, the tracker does not. */
+export function TaskRunPick({ task, live, onChanged }: Props) {
   const { state } = useLive()
   const { send, sending, failure } = useCommand()
-  const view = runPickOf(labels)
-  const [draft, setDraft] = useState<RunPick>(view.pick)
-  const shown = `${view.pick.provider}|${view.pick.model}`
-  useEffect(() => setDraft(view.pick), [shown])
-
   const project = taskProject(state, task)
+  const run = state?.runs?.[project]?.[task]
+  const shown = runPickOf(run)
+  const [draft, setDraft] = useState<RunPick>(shown)
+  useEffect(() => setDraft(shown), [`${shown.provider}|${shown.model}|${shown.effort}`])
+
   const shared = state?.config.shared
   const form = state?.config.projects[project]
   const projectProvider = form?.provider ?? shared?.provider ?? ''
   const account = draft.provider === '' ? '' : (form?.accounts[draft.provider] || shared?.accounts[draft.provider]) ?? ''
   const models = useModelCatalog([account])
   const projectModel = draft.provider === '' ? '' : (form?.models[draft.provider] || shared?.models[draft.provider]) || t.settings.cliDefault
-  const labelsOn = runLabelsOn(state?.config, project)
-  const [asking, setAsking] = useState(false)
-  const change = runPickChange(labels, draft)
-  const providers = offeredProviders(state?.account ?? null, [view.pick.provider, draft.provider])
-  const options = [
-    { value: '', label: view.several && draft.provider === '' ? t.card.run.severalPick(view.labels.length) : t.card.run.asProject(providerName(projectProvider)) },
-    ...providers.map((provider) => ({ value: provider, label: providerName(provider) })),
-  ]
-  const write = () => send('task/labels', { task, ...change }).then((ok) => ok && onChanged())
+  const change = runPickChange(run, draft)
+  const providers = offeredProviders(state?.account ?? null, [shown.provider, draft.provider])
+  const efforts = effortsOf(draft.provider, projectProvider)
   const save = () => {
     if (change === null || sending) return
-    if (!labelsOn) setAsking(true)
-    else void write()
-  }
-  const turnOnAndSave = async () => {
-    if (change === null || form === undefined) return
-    if (await send('project/settings', { project, ...form, modelLabels: true, base: form })) {
-      setAsking(false)
-      await write()
-    }
-  }
-  const cancel = () => {
-    setAsking(false)
-    setDraft(view.pick)
+    void send('task/run', { task, ...change }).then((ok) => ok && onChanged())
   }
 
   return (
@@ -70,9 +46,12 @@ export function TaskRunPick({ task, labels, relabel, live, onChanged }: Props) {
         className="task-card__run-pick"
         label={t.card.run.provider}
         value={draft.provider}
-        options={options}
-        disabled={!relabel || sending}
-        onChange={(provider) => setDraft({ provider, model: provider === draft.provider ? draft.model : '' })}
+        options={[
+          { value: '', label: t.card.run.asProject(providerName(projectProvider)) },
+          ...providers.map((provider) => ({ value: provider, label: providerName(provider) })),
+        ]}
+        disabled={sending}
+        onChange={(provider) => setDraft(withProvider(draft, provider, projectProvider))}
       />
       {draft.provider !== '' && (
         <SuggestField
@@ -82,41 +61,30 @@ export function TaskRunPick({ task, labels, relabel, live, onChanged }: Props) {
           value={draft.model}
           options={offersOf(models, account)}
           placeholder={t.card.run.modelAsProject(projectModel)}
-          disabled={!relabel || sending}
+          disabled={sending}
           onChange={(model) => setDraft({ ...draft, model })}
           onKeyDown={(event) => {
             if (event.key === 'Enter') save()
           }}
         />
       )}
-      {relabel && change !== null && (
+      {efforts.length > 0 && (
+        <Select
+          className="task-card__run-pick"
+          label={t.card.run.effort}
+          value={draft.effort}
+          options={[{ value: '', label: t.card.run.effortNone }, ...efforts.map((effort) => ({ value: effort, label: t.card.run.effortOf(effort) }))]}
+          disabled={sending}
+          onChange={(effort) => setDraft({ ...draft, effort })}
+        />
+      )}
+      {change !== null && (
         <button type="button" className="button button--small task-card__run-save" disabled={sending} onClick={save}>
           {t.card.run.save}
         </button>
       )}
-      {view.several && <p className="task-card__run-note task-card__run-note--warn">{t.card.run.several}</p>}
-      {!labelsOn && (
-        <div className="task-card__run-note task-card__run-note--warn">
-          <span>{t.card.run.off}</span>
-          <FixButton project={project} fix={{ to: 'project', tab: 'sessions' }} />
-        </div>
-      )}
-      {!relabel && <p className="task-card__run-note">{t.card.run.readOnly}</p>}
-      {relabel && live && change !== null && <p className="task-card__run-note">{t.card.run.live}</p>}
-      {asking && (
-        <ConfirmDialog
-          title={t.card.run.confirmTitle(projectLabel(state, project))}
-          question={t.card.run.confirmQuestion(projectLabel(state, project))}
-          confirm={t.card.run.confirmOn}
-          cancel={t.common.cancel}
-          busy={sending}
-          safe
-          failure={failure === null ? undefined : say(failure)}
-          onConfirm={() => void turnOnAndSave()}
-          onClose={cancel}
-        />
-      )}
-      {failure !== null && !asking && <p className="notice notice--error">{say(failure)}</p>}
+      {live && change !== null && <p className="task-card__run-note">{t.card.run.live}</p>}
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </div>
   )
 }

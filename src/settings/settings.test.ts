@@ -82,19 +82,11 @@ describe('resolve', () => {
     expect(values[ABC]).toMatchObject({ brief: false, models: { claude: 'sonnet', codex: 'gpt-6.1-sol' }, 'ci.fixTask': false, parallel: 1 })
   })
 
-  it('puts the run label over the project while run labels are on', () => {
-    const { records, rows } = rowsOf({ modelLabels: true, projects: [project({ provider: 'claude' })] })
-    const task = { project: ABC, id: 'ABC-1', labels: ['Bug', 'Codex | gpt-6.1-sol'] }
-    expect(resolve(records, rows, task).values[ABC]).toMatchObject({ provider: 'codex', models: { claude: 'opus', codex: 'gpt-6.1-sol' } })
-    const off = rowsOf({ projects: [project({ provider: 'claude' })] })
-    expect(resolve(off.records, off.rows, task).values[ABC]).toMatchObject({ provider: 'claude', models: { claude: 'opus' } })
-  })
-
-  it('warns of run labels that contradict each other and keeps the project values', () => {
-    const { records, rows } = rowsOf({ modelLabels: true, projects: [project()] })
-    const resolved = resolve(records, rows, { project: ABC, id: 'ABC-1', labels: ['Codex', 'Claude | haiku'] })
+  it('reads no run from a label: the run of a task is not a setting (BTN-983)', () => {
+    const { records, rows } = rowsOf({ projects: [project({ provider: 'claude' })] })
+    const resolved = resolve(records, rows, { project: ABC, id: 'ABC-1', labels: ['Bug', 'Codex | gpt-6.1-sol', 'Claude | haiku'] })
     expect(resolved.values[ABC]).toMatchObject({ provider: 'claude', models: { claude: 'opus' } })
-    expect(resolved.warnings).toEqual(['settings: ABC-1 carries labels Codex, Claude | haiku that contradict each other; launching it as its project says'])
+    expect(resolved.warnings).toEqual([])
   })
 })
 

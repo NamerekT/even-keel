@@ -7,7 +7,7 @@ import { DEFAULT_SHARES as SHARES } from './stats/checkpoint.js'
 describe('withProjectSettings', () => {
   const base: ProjectSettings = {
     ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false },
-    ...{ changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
+    ...{ changelog: 'CHANGELOG.md', standards: [], provider: null, models: {}, accounts: {}, promptLanguage: 'en', cacheTtl: null, autoCompactWindow: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
   }
 
   it('writes the main branch only when it is not main', () => {
@@ -42,10 +42,10 @@ describe('withProjectSettings', () => {
   })
 
   it('writes the run settings the project has of its own, blank names left out', () => {
-    const settings = { ...base, provider: 'codex', models: { codex: ' gpt-5.6-luna ', claude: ' ' }, accounts: { claude: 'team-api' }, modelLabels: false }
-    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' }, modelLabels: false })
-    const inherited = { ...settings, provider: null, models: { codex: ' ' }, accounts: {}, modelLabels: null }
-    expect(withProjectSettings({ repo: 'C:\\abc', provider: 'codex', models: { codex: 'x' }, accounts: { claude: 'y' }, modelLabels: true }, inherited)).toEqual({ repo: 'C:\\abc' })
+    const settings = { ...base, provider: 'codex', models: { codex: ' gpt-5.6-luna ', claude: ' ' }, accounts: { claude: 'team-api' } }
+    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' } })
+    const inherited = { ...settings, provider: null, models: { codex: ' ' }, accounts: {} }
+    expect(withProjectSettings({ repo: 'C:\\abc', provider: 'codex', models: { codex: 'x' }, accounts: { claude: 'y' } }, inherited)).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the check commands and the commands after a green main next to the commands before start', () => {

@@ -50,6 +50,6 @@ Even Keel orders the open issues, starts a session for the first, closes it once
 - `create_issue(project_id, title, description, labels, milestone_id)`. GitLab has no backlog: every opened issue is ready. An ordinary idea stays without the project's entry label; a blocker or question gets it. Use `list_issues` with `scope: "all"` to look for existing work.
 - Priority is a label: `priority::high` or `priority: high`, with levels `urgent`, `high`, `medium`, `low`. Use high for a broken chain or when the user says it goes next, medium for normal work, low for ideas. Never choose urgent yourself. Preserve existing labels when updating a label list.
 - Put new work in the current issue's milestone unless it belongs later. Add `## Where to look` with known file and symbol names. Do not guess pointers.
-- Run labels pick a provider or model only when the user named one; use the project's existing label.
+- No label picks a provider or model: what a task's session runs on is set on the task's card in Even Keel.
 - Child items use native work-item hierarchy, but this package does not enable tools to manage it. If a task needs a parent-child change, tell the user that it needs a compatible work-item tool. Do not substitute a Markdown checklist for a native parent-child relationship.
 - Titles, descriptions and comments use the language of the project's issues. Do not assign an issue unless the user names the assignee.

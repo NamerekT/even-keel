@@ -54,16 +54,20 @@ export const en = {
   'chain.limitsUnread': (p: { account: string; next?: string }) =>
     `Waiting for the first answer about the limits of the account ${p.account}: without it a spent limit looks free.${p.next === undefined ? '' : ` The next poll is at ${p.next}.`}`,
   'chain.limitSpent': (p: { until: string; account?: string; provider?: string }) =>
-    `chain: The usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. Wait for the reset, or change the provider's account in the project's pool (shared or own) under Project settings → Sessions, or change the task's provider label.`,
+    `chain: The usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. Wait for the reset, or change the provider's account in the project's pool (shared or own) under Project settings → Sessions, or the provider on the task's card.`,
   'session.transient': () => 'waiting to retry',
   'session.transientRetry': (p: { at: string }) => `The model is temporarily unavailable. The dispatcher will retry this same session at ${p.at}. You can continue it now from the chat or start a new session.`,
   'chain.noSession': (p: { task: string }) => `chain: no session of ${p.task} is known`,
   'chain.noAccountFor': (p: { task: string; label: string; provider: string }) =>
-    `chain: ${p.task} is labelled ${p.label}, but no account of that provider is in the pool; it runs on ${p.provider}, as its project does`,
+    `chain: the run of ${p.task} is set to ${p.label}, but no account of that provider is in the pool; it runs on ${p.provider}, as its project does`,
+  'run.unknownProvider': (p: { provider: string; known: string[] }) => `the provider ${p.provider} is not known; the run takes ${list(p.known)}`,
+  'run.modelWithoutProvider': (p: { model: string }) => `the model ${p.model} needs a provider: name the provider of the run with it`,
+  'run.unknownEffort': (p: { effort: string; provider: string; known: string[] }) =>
+    `the effort ${p.effort} is not known${p.provider === '' ? '' : ` to ${p.provider}`}; ${p.known.length === 0 ? 'this provider takes none' : `it takes ${list(p.known)}`}`,
   'chain.unknownModel': (p: { task: string; model: string; agent: string; account: string; known: string[] }) =>
     `chain: ${p.task} is to run on ${p.model}, which the ${p.agent} account ${p.account} does not have (it has ${list(p.known.slice(0, MODELS_NAMED)) || 'none'}${p.known.length > MODELS_NAMED ? ` and ${p.known.length - MODELS_NAMED} more` : ''}); pick a model in the Model field of the session settings, and the chain goes on by itself`,
-  'chain.opencodeCopilot': () => 'OpenCode on Copilot is not supported yet. Choose another Model or Account in the session settings, update the task’s model label if it uses Copilot, then resume the chain.',
-  'chain.modelUnavailable': (p: { model: string }) => `The ChatGPT account cannot run ${p.model} through OpenCode. Choose another Model or Account in the session settings and update the task’s model label if it has one. Use New session, then resume the chain.`,
+  'chain.opencodeCopilot': () => 'OpenCode on Copilot is not supported yet. Choose another Model or Account in the session settings, change the run on the task’s card if it uses Copilot, then resume the chain.',
+  'chain.modelUnavailable': (p: { model: string }) => `The ChatGPT account cannot run ${p.model} through OpenCode. Choose another Model or Account in the session settings and update the model on the task’s card, if set. Use New session, then resume the chain.`,
   'account.opencodeCopilot': () => 'OpenCode on Copilot is not supported yet',
   'answer.moved': (p: { task: string }) => `answer: the session of ${p.task} has moved on since the question; the answer was not sent`,
   'answer.busy': (p: { task: string }) => `answer: the session of ${p.task} is working; answer once it waits`,

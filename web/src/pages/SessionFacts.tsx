@@ -24,7 +24,7 @@ export function CacheFact({ cache }: { cache: CacheWindow }) {
 }
 
 /**
- * The model the session answers with, without its route, as a run label shows it; the provider beside it when not Claude.
+ * The model the session answers with, without its route, as a task's run tag shows it; the provider beside it when not Claude.
  * Only the model's tail is cut; the tip has the full name.
  */
 export function ModelFact({ agent, model }: { agent: string; model: string | null }) {

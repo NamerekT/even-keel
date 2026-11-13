@@ -15,6 +15,7 @@ import type { Notice } from './notice/notice.js'
 import type { BackgroundWait, Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
 import type { SessionMail } from './sessions/mail.js'
+import type { TaskRun } from './sessions/runs.js'
 import type { SecretPlace, SecretReaders } from './secrets/catalog.js'
 import type { TallyHealth, TallyMode } from './stats/mode.js'
 import type { RemoteOff } from './sessions/remote.js'
@@ -240,6 +241,8 @@ export interface EvenKeelState {
   }
   /** The tasks of every project with its project: a task of a tracker project two projects share is here for each. */
   tasks: ProjectTask[]
+  /** What the tasks' sessions run on where the card set it (BTN-983), by project and task; a task that runs as its project says has no key. */
+  runs: Record<string, Record<string, TaskRun>>
   /** The tasks with subtasks of each project, open and closed, for the "Parents" view (BTN-1041); a project without any has no key. */
   parents?: Record<string, ParentTask[]>
   sessions: SessionView[]
@@ -309,7 +312,7 @@ export interface EvenKeelState {
   jobs?: import('./jobs/model.js').StepJob[]
   /** The automatic CLI check of each agent (BTN-569): waiting, running or its last result; empty while the setting is off. */
   cliChecks: CliCheckView[]
-  /** The last day's launches whose run label had no account in the pool, newest first: a toast each until dismissed. */
+  /** The last day's launches whose task's run named a provider with no account in the pool, newest first: a toast each until dismissed. */
   fallbacks: FallbackLaunch[]
   /** The chat mailbox of each live session whose hooks ask for mail or that has messages to show, by session id (BTN-181). */
   mailbox: Record<string, SessionMail>

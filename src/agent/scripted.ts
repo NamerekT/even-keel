@@ -82,6 +82,8 @@ export interface Call {
   /** The account folder it ran on. */
   account: string
   model: string | null
+  /** The effort the service asked for; absent — none was passed. */
+  effort?: string
 }
 
 /** A session as the script keeps it: what its listing and transcript show. */
@@ -181,7 +183,7 @@ export class ScriptedAgent implements Agent {
     const summary = new TranscriptFold().summary()
     const entry: AgentEntry = { id: sessionId, cwd: start.cwd, kind: 'script', startedAt: Date.now(), sessionId, name: start.name, account: home.key }
     this.known.set(sessionId, { entry, summary: { ...summary, workdir: start.cwd }, lines: [], plays: 0, prompt: start.prompt, turn: 0, wroteAt: Date.now(), mcp: start.mcp ?? [] })
-    this.calls.push({ kind: 'launch', task: start.name, sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model })
+    this.calls.push({ kind: 'launch', task: start.name, sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model, ...(start.effort !== undefined && { effort: start.effort }) })
     this.play(sessionId, start.prompt)
     return sessionId
   }
@@ -190,7 +192,7 @@ export class ScriptedAgent implements Agent {
     const known = this.known.get(session.sessionId)
     if (known === undefined) throw new Error(`script: no session ${session.sessionId}`)
     known.mcp = start.mcp ?? []
-    this.calls.push({ kind: 'resume', task: start.name, sessionId: session.sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model })
+    this.calls.push({ kind: 'resume', task: start.name, sessionId: session.sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model, ...(start.effort !== undefined && { effort: start.effort }) })
     this.play(session.sessionId, start.prompt)
     return session.sessionId
   }

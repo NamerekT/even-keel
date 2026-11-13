@@ -1,4 +1,4 @@
-import { isOpen, runLabelOf, type ParentTask } from '../../src/tracker/model.js'
+import { isOpen, type ParentTask } from '../../src/tracker/model.js'
 import type { EvenKeelState } from '../../src/state.js'
 import { taskSession, type ChainBlock, type ChainStatus } from './state.js'
 import { taskLamp } from './taskLamp.js'
@@ -7,7 +7,7 @@ import { taskLamp } from './taskLamp.js'
 export const VIEW_PARAM = 'view'
 export const PARENTS_VIEW = 'parents'
 
-type ParentsSource = Pick<EvenKeelState, 'parents' | 'sessions' | 'taskSessions' | 'chain'>
+type ParentsSource = Pick<EvenKeelState, 'parents' | 'sessions' | 'taskSessions' | 'chain'> & Partial<Pick<EvenKeelState, 'runs'>>
 
 const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
@@ -73,7 +73,7 @@ export function parentBlocks(state: ParentsSource, project: string): ChainBlock[
       estimate: task.estimate,
       parent: task.parent,
       labels: task.labels,
-      runLabels: task.labels.filter((label) => runLabelOf(label) !== null),
+      run: state.runs?.[project]?.[task.id] ?? null,
       session,
       sessions: state.taskSessions[task.id] ?? [],
       limit: null,

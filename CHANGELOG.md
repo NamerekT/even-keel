@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **What a task runs on is set on its card, not by a tracker label.** A task's run — provider, model and effort — is kept by Even Keel: the card's **Runs on** picks it, and a session can set it through the tasks server's `run` field of `tasks_create` and `task_update`. The effort is new: Claude Code's `low` to `max` and Codex's `minimal` to `xhigh`; empty passes none. Labels `<Provider> | <model>` are no longer read. The update moves the run label of each open task into its run once, in the projects that had run labels on; the labels stay in the tracker. The setting `modelLabels` is removed.
+
 - **No label is kept out of the chain by default.** `chain.excludedLabels` starts empty and the built-in tracker no longer offers `Manual`: name the label you mark your own tasks with in the chain rules. An installation that relied on the default keeps `Manual` in its shared list after the update, so the same tasks stay out.
 - **The main branch field offers the repository's branches, and saving another branch switches the main checkout to it**, in a project's settings and in the wizard that adds one: a branch the repository lacks is created from where the checkout stands, one only on a remote is taken from there, and the line under the field says which before you save. The wizard fills in the checkout's current branch and no longer refuses a branch the repository lacks. A checkout switched by hand is shown in the settings and on the chain's card, with buttons to make its branch the main one or to put the folder back, instead of only when a task fails to start.
 

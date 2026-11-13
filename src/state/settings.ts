@@ -24,7 +24,7 @@ export interface Standard {
 
 /**
  * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
- * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `git`, `intakeLabel`, `mergeInto`, `fillMilestone`, `changelog`, `standards`, `provider`, `models`, `accounts` and `modelLabels` in the config.
+ * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `git`, `intakeLabel`, `mergeInto`, `fillMilestone`, `changelog`, `standards`, `provider`, `models` and `accounts` in the config.
  */
 export interface ProjectSettings {
   /** Hidden from aggregate charts by default; collection and chain behaviour are unchanged. */
@@ -66,14 +66,12 @@ export interface ProjectSettings {
   changelog: string
   /** The documents of the repository that guard some of its files, handed to the sessions by the `checkpoint` hooks (BTN-359). */
   standards: Standard[]
-  /** The provider the project's sessions run on (`claude`, `codex`); `null` — the shared one. A task's run label may override it. */
+  /** The provider the project's sessions run on (`claude`, `codex`); `null` — the shared one. A task's run may override it. */
   provider: string | null
   /** The project's own model by provider, over the shared `models`. */
   models: Record<string, string>
   /** The project's own account folder by provider, over the shared `accounts`. */
   accounts: Record<string, string>
-  /** Whether the tasks' run labels are read; `null` — as the shared `modelLabels` says. */
-  modelLabels: boolean | null
   /** The language of the project's prompts and of what Even Keel writes into its tracker, the shared one filled in. */
   promptLanguage: Language
   /** The prompt cache TTL of the project's sessions, the shared one filled in; `null` — the CLI's own choice. */
@@ -204,7 +202,6 @@ export interface SharedForm {
   execution: Record<string, string>
   /** By provider: `checked` or `system` (BTN-250). */
   cli: Record<string, string>
-  modelLabels: boolean
   /** By the model's name as the CLI gets it. */
   modelPrompts: Record<string, string>
   /** Added to the prompt of every new session of every project, before the project's own; `null` — none. */

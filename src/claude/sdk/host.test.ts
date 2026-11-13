@@ -66,4 +66,10 @@ describe('sessionOptions', () => {
       rmSync(cwd, { recursive: true, force: true })
     }
   })
+
+  it("passes the effort of the task's run as the CLI's own flag, and none without one", () => {
+    const start = { name: 'ABC-1', cwd: tmpdir(), prompt: 'ABC-1', model: null }
+    expect(sessionOptions({ ...start, effort: 'max' }, () => undefined).extraArgs).toEqual({ effort: 'max' })
+    expect(sessionOptions(start, () => undefined)).not.toHaveProperty('extraArgs')
+  })
 })

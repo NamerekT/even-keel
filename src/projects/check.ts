@@ -62,12 +62,10 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: 
   let entry: Notice | null = null
   let rules: ChainRules | undefined
   let yields: string[] = []
-  let labels = isPlainObject(raw) && raw.modelLabels === true
   try {
     const placed = { ...draft, repo: repo.root ?? draft.repo, branch }
     const config = parseConfig(withNewProject(raw, placed, ENTRY_ID, deps.adapters), deps.adapters)
     rules = config.rules[ENTRY_ID]!
-    labels = runSettings(config, ENTRY_ID).labels
     const names = projectLabels(config)
     yields = Object.keys(yieldedMilestones(raw, placed, ENTRY_ID, deps.adapters)).map((project) => names[project]!)
   } catch (error) {
@@ -79,8 +77,8 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: 
       : null
   const provider = draft.provider ?? (isPlainObject(raw) && typeof raw.provider === 'string' ? raw.provider : DEFAULT_PROVIDER)
   const root = repo.root
-  // Run labels can give any task to Claude, whatever the project's own agent (BTN-429).
-  const trusted = root === null || unmade || (provider !== CLAUDE && !labels) ? null : deps.claudeConfigs().some((config) => isTrusted(config, root, platform))
+  // A task's run can give it to Claude, whatever the project's own agent (BTN-429, BTN-983).
+  const trusted = root === null || unmade ? null : deps.claudeConfigs().some((config) => isTrusted(config, root, platform))
   return { repo, entry, yields, tracker, trusted, platform, user: deps.user, service: deps.service }
 }
 

@@ -269,7 +269,6 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     provider: null,
     models: {},
     accounts: {},
-    modelLabels: null,
     promptLanguage: state.config.shared.promptLanguage,
     cacheTtl: state.config.shared.cacheTtl,
     autoCompactWindow: state.config.shared.autoCompactWindow,
