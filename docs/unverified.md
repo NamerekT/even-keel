@@ -36,7 +36,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423; 143 (tasks on a new project) — has no task yet. Keeping warm: 78c — BTN-446.
 - The chat: 11, 11a–11e, 33 — BTN-710; 118 has no task yet. A project without git: 133 — BTN-965, 140 — BTN-1065, 141 — BTN-1053; turning git on: 136 — has no task yet; the folder become a repository: 145 — has no task yet. Pauses and returns: 16a, 17, 17a, 36d — BTN-711.
 - Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 80 — BTN-578; 104 (needs an OpenRouter key with money) — BTN-844; 107 — BTN-857; 108 (what is left after BTN-861: a restart mid-turn, the activity page) — has no task yet; 114 (an OpenRouter management key) — has no task yet.
-- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) and 146, 147 (a task's run) have no task yet.
+- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) has no task yet. A task's run: 146, 147 — BTN-1072.
 - Milestone order by hand: 113 — a feed's milestone only, no task yet (the rest run in BTN-865); 102 — after BTN-1021.
 - `settings.json` edits and their guard in account folders: 120, 121 — BTN-904.
 - The README badge: 122, 126, 127, 129, 131, 132, 134, 135 — BTN-919.
