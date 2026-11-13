@@ -67,6 +67,7 @@ export class RolloutFold {
   private gitBranch: string | null = null
   private workdir: string | null = null
   private model: string | null = null
+  private effort: string | null = null
   private turnStartedAt: string | null = null
   private lastCallAt: string | null = null
   private endedTurn: string | null = null
@@ -92,6 +93,7 @@ export class RolloutFold {
     if (line.type === 'turn_context') {
       if (typeof payload.cwd === 'string') this.workdir = payload.cwd
       if (typeof payload.model === 'string' && payload.model !== '') this.model = payload.model
+      this.effort = turnEffort(payload)
       return
     }
     // A compaction writes its summary as a line of its own, the history to resume from; the event that announces it may follow.
@@ -144,6 +146,7 @@ export class RolloutFold {
       gitBranch: this.gitBranch,
       workdir: this.workdir,
       model: this.model,
+      effort: this.effort,
     }
   }
 
@@ -466,6 +469,12 @@ function errorText(message: unknown): unknown {
   } catch {
     return message
   }
+}
+
+/** A turn's reasoning effort: its own `effort`, else its collaboration mode's `reasoning_effort`; `null` — the turn names none. */
+function turnEffort(payload: Record<string, unknown>): string | null {
+  const effort = payload.effort ?? record(record(payload.collaboration_mode)?.settings)?.reasoning_effort
+  return typeof effort === 'string' && effort !== '' ? effort : null
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {

@@ -46,6 +46,7 @@ export function session(task: string, contextTokens: number, lamp: SessionView['
     sessionId: fakeSessionId(task),
     agent: 'claude',
     model: 'claude-opus-5-5',
+    effort: 'high',
     cwd: 'C:\\repos\\example-project',
     branch: `${task.toLowerCase()}/task`,
     lamp,

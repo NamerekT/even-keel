@@ -216,7 +216,7 @@ export interface Agent {
   /** Follows a session's transcript in the account's folder. */
   tail(home: AccountHome, agent: AgentEntry): SessionTail
   /** A finished or live session's transcript in brief; `undefined` — the folder has no such session. */
-  record(home: AccountHome, sessionId: string): Promise<SessionRecord | undefined>
+  record(home: AccountHome, sessionId: string): Promise<Omit<SessionRecord, 'agent'> | undefined>
   /**
    * Every line of the session's transcript from line `after` on, and its last turn; `undefined` — the folder has no such
    * session. `mail` — the chat's messages hooks delivered, for an agent whose transcript may not hold them (Copilot).

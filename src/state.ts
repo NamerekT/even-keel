@@ -32,6 +32,8 @@ export interface SessionView {
   agent: string
   /** The model of its last answer, from the transcript; `null` — it has not answered yet. */
   model: string | null
+  /** The reasoning effort of its last answer, from the transcript; `null` — none written yet, or its agent writes none. */
+  effort: string | null
   cwd: string
   /** The git branch of the session's last line, for the head of the chat window. */
   branch: string | null
@@ -75,6 +77,11 @@ export interface SessionRecord {
   sessionId: string
   startedAt: string | null
   lastActivityAt: string | null
+  /** The agent of the account folder it was found in (`src/agent/adapters.ts`); the agent's own record leaves it to the service. */
+  agent: string
+  /** The model and the reasoning effort of its last answer, as `SessionView` has them. */
+  model: string | null
+  effort: string | null
   contextTokens: number
   /** The record's own window, falling back to the last window observed by the session monitor. */
   contextWindow: number | null

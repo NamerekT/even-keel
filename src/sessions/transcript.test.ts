@@ -477,6 +477,17 @@ describe('TranscriptFold', () => {
     expect(fold([JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'ABC-1' } })]).summary().model).toBeNull()
   })
 
+  it('names the effort of the last answer, keeping the one before when a line has none', () => {
+    const summary = fold([
+      assistant('m1', [text('a')], {}, { effort: 'high' }),
+      assistant('m2', [text('b')], {}, { effort: 'low' }),
+      assistant('m3', [text('c')], {}, { effort: 'max', isSidechain: true }),
+      assistant('m4', [text('d')]),
+    ]).summary()
+    expect(summary.effort).toBe('low')
+    expect(fold([assistant('m1', [text('a')])]).summary().effort).toBeNull()
+  })
+
   it('remembers the last real answer apart from a limit error that came after it', () => {
     const lines = [assistant('m1', [text('a')])]
     const answeredAt = new Date(Date.UTC(2026, 0, 1, 12, 0, 0) + clock).toISOString()

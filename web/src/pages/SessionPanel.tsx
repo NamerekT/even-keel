@@ -412,7 +412,7 @@ function SessionBody({ session, limit, refusal = null, scale, task, onChat }: Se
           {session.cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={session.cache} />}
         </Fact>
         <ContextFact label={t.session.context} tokens={session.contextTokens} window={session.contextWindow} scale={scale} wide />
-        <ModelFact agent={session.agent} model={session.model} />
+        <ModelFact agent={session.agent} model={session.model} effort={session.effort} />
         <TokensFact tokens={session.tokens} />
       </FactList>
       {session.lamp === 'finished' ? (
@@ -570,7 +570,7 @@ function SessionWindow({ row, live, scale, task, onClose }: { row: TaskSession; 
           <h2 className="panel__task">
             <span className="panel__key">{row.sessionId.slice(0, 8)}</span>
             <span className="panel__title">{launchText(row)}</span>
-            <AccountTag account={account} agent={state?.sessions.find((session) => session.sessionId === row.sessionId)?.agent} />
+            <AccountTag account={account} agent={record?.agent ?? state?.sessions.find((session) => session.sessionId === row.sessionId)?.agent} />
           </h2>
           <button type="button" className="panel__close" aria-label={t.session.closeDialog} onClick={() => dialogRef.current?.close()}>
             ×
@@ -593,7 +593,8 @@ function SessionWindow({ row, live, scale, task, onClose }: { row: TaskSession; 
                 <Fact label={t.session.worked}>
                   <dd className="panel__value">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
                 </Fact>
-                <ContextFact label={t.session.endContext} tokens={record.contextTokens} window={record.contextWindow} scale={scale} />
+                <ContextFact label={t.session.endContext} tokens={record.contextTokens} window={record.contextWindow} scale={scale} wide />
+                <ModelFact agent={record.agent} model={record.model} effort={record.effort} />
                 <TokensFact tokens={record.tokens} />
                 {(record.branch !== null || record.workdir !== null) && (
                   <Fact label={t.session.place} wide>

@@ -77,6 +77,14 @@ describe('RolloutFold', () => {
     expect(fold([meta(), started()]).summary().model).toBeNull()
   })
 
+  it('names the effort of the last turn, from the collaboration mode where the turn has no own', () => {
+    const context = (effort: string) => line('turn_context', { cwd: CWD, model: 'gpt-6.1-sol', effort })
+    expect(fold([meta(), context('high'), started(), context('low')]).summary().effort).toBe('low')
+    const mode = line('turn_context', { cwd: CWD, model: 'gpt-6.1-sol', collaboration_mode: { mode: 'default', settings: { reasoning_effort: 'xhigh' } } })
+    expect(fold([meta(), context('high'), mode]).summary().effort).toBe('xhigh')
+    expect(fold([meta(), line('turn_context', { cwd: CWD, model: 'gpt-6.1-sol' })]).summary().effort).toBeNull()
+  })
+
   it('feeds the prompt, the texts and the tool calls with a stage', () => {
     const summary = fold([
       meta(),

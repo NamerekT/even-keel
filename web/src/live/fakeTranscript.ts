@@ -33,6 +33,9 @@ export function fakeRecord(state: EvenKeelState, sessionId: string): SessionReco
   return {
     sessionId,
     startedAt: live?.startedAt ?? ago(400),
+    agent: live?.agent ?? 'claude',
+    model: live?.model ?? 'claude-opus-5-5',
+    effort: live === undefined ? 'high' : live.effort,
     lastActivityAt: live?.lastActivityAt ?? ago(250),
     contextTokens: live?.contextTokens ?? 271_000,
     contextWindow: live?.contextWindow ?? null,

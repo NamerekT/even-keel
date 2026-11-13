@@ -9,13 +9,15 @@ const SESSION_ID = /^[0-9a-f][0-9a-f-]{7,63}$/i
 const ANY_SESSION_ID = /^[\w-]{1,128}$/
 const HISTORY_FEED = 5_000
 
-export async function readSessionRecord(projectsDir: string, sessionId: string): Promise<SessionRecord | undefined> {
+export async function readSessionRecord(projectsDir: string, sessionId: string): Promise<Omit<SessionRecord, 'agent'> | undefined> {
   const summary = await foldTranscript(projectsDir, sessionId, new TranscriptFold(HISTORY_FEED))
   if (summary === undefined) return undefined
   return {
     sessionId,
     startedAt: summary.firstActivityAt,
     lastActivityAt: summary.lastActivityAt,
+    model: summary.model,
+    effort: summary.effort ?? null,
     contextTokens: summary.contextTokens,
     contextWindow: summary.contextWindow,
     tokens: summary.tokens,
