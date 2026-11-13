@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { parseProgress } from '../git/clone-progress.js'
 import { fail } from '../notice/notice.js'
-import { StepJobs, type JobPlan, type StepTools } from './runner.js'
+import { STAGE_END_MS, StepJobs, type JobPlan, type StepTools } from './runner.js'
 
 function gate() {
   let open!: () => void
@@ -219,5 +220,98 @@ describe('StepJobs', () => {
     await jobs.settled(id)
     expect(() => jobs.retry(id)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'job.notFailed' }) }))
     expect(() => jobs.retry('nope')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'job.unknown' }) }))
+  })
+})
+
+describe('StepJobs: the end of a stage (BTN-1102)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // `git clone` of a large repository as its stderr came through a pipe: the server compresses its first fifth for five
+  // seconds, then the rest, the "done" line and the first "Receiving" line come in one read of a few milliseconds.
+  const compressing = (percent: number) => `remote: Compressing objects: ${String(percent).padStart(3)}% (${Math.round(percent * 28.7)}/2870)        `
+  const slow = [19, 20, 21].map(compressing)
+  const burst = [
+    ...Array.from({ length: 79 }, (_, index) => compressing(22 + index)),
+    'remote: Compressing objects: 100% (2870/2870), done.        ',
+    'Receiving objects:   0% (1/2612378)',
+  ]
+
+  /** A clone step that runs until `end` opens, its LFS step and the step after them; the test feeds git's lines. */
+  function cloneJob() {
+    vi.useFakeTimers()
+    const jobs = new StepJobs()
+    const end = gate()
+    let tools!: StepTools
+    const id = jobs.start(
+      plan([
+        {
+          id: 'clone',
+          run: async (given) => {
+            tools = given
+            await end.opened
+          },
+        },
+        { id: 'lfs', hidden: true },
+        { id: 'project', run: async () => {} },
+      ]),
+    )
+    const feed = (...lines: string[]) => {
+      for (const line of lines) tools.progress(parseProgress(line)!)
+    }
+    const shown = (step = 'clone') => jobs.view()[0]!.steps.find((each) => each.id === step)?.progress
+    return { jobs, id, end, feed, shown, begin: (step: string) => tools.begin(step) }
+  }
+
+  it("keeps a stage's last figures on view before the next stage that came in the same burst, then the latest of it", async () => {
+    const clone = cloneJob()
+    clone.feed(...slow)
+    await vi.advanceTimersByTimeAsync(700)
+    clone.feed(...burst)
+    expect(clone.shown()).toEqual({ stage: 'compressing', percent: 100 })
+    await vi.advanceTimersByTimeAsync(200)
+    clone.feed('Receiving objects:   0% (23068/2612378), 17.25 MiB | 17.24 MiB/s')
+    await vi.advanceTimersByTimeAsync(STAGE_END_MS - 201)
+    expect(clone.shown()).toEqual({ stage: 'compressing', percent: 100 })
+    await vi.advanceTimersByTimeAsync(1)
+    expect(clone.shown()).toMatchObject({ stage: 'receiving', percent: 0, bytes: 18_087_936 })
+    clone.end.open()
+    await clone.jobs.settled(clone.id)
+  })
+
+  it('holds nothing back for a stage that comes long after the last figures', async () => {
+    const clone = cloneJob()
+    clone.feed("Cloning into 'shop'...")
+    await vi.advanceTimersByTimeAsync(9000)
+    clone.feed('remote: Enumerating objects: 2612378, done.        ')
+    expect(clone.shown()).toEqual({ stage: 'enumerating', objects: 2612378 })
+    clone.end.open()
+    await clone.jobs.settled(clone.id)
+  })
+
+  it('drops the held figures when the step ends: they never land on a finished step', async () => {
+    const clone = cloneJob()
+    const seen: string[] = []
+    clone.jobs.changed = () => seen.push(JSON.stringify(clone.jobs.view()[0]!.steps))
+    clone.feed(...burst)
+    clone.end.open()
+    await clone.jobs.settled(clone.id)
+    await vi.advanceTimersByTimeAsync(STAGE_END_MS * 2)
+    expect(seen.some((line) => line.includes('receiving'))).toBe(false)
+    expect(clone.jobs.view()[0]!.steps.map((step) => step.progress)).toEqual([undefined, undefined])
+  })
+
+  it('drops the held figures when another step begins: it starts without them and shows its own at once', async () => {
+    const clone = cloneJob()
+    clone.feed(...burst)
+    clone.begin('lfs')
+    await vi.advanceTimersByTimeAsync(STAGE_END_MS * 2)
+    expect(clone.shown('clone')).toBeUndefined()
+    expect(clone.shown('lfs')).toBeUndefined()
+    clone.feed('Filtering content:  50% (1/2), 300.00 KiB | 300.00 KiB/s')
+    expect(clone.shown('lfs')).toMatchObject({ stage: 'lfs', percent: 50 })
+    clone.end.open()
+    await clone.jobs.settled(clone.id)
   })
 })

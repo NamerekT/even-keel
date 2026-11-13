@@ -3,6 +3,14 @@ import type { CloneProgress } from '../git/clone-progress.js'
 import { englishOf, fail, noticeOf, type Notice } from '../notice/notice.js'
 import type { JobStep, StepJob, StepState } from './model.js'
 
+/**
+ * How long a stage's last figures stay before the next stage's (BTN-1102): git ends a stage in one burst with the next
+ * one's first line — a server compresses the first fifth of the objects for seconds and the rest in milliseconds —, and
+ * the page, built at most once per `SOON_WINDOW_MS` (200 ms), would jump from 20% straight to the next stage. Longer than
+ * that window, so a build falls on the stage's end, and long enough for an eye.
+ */
+export const STAGE_END_MS = 500
+
 export interface StepTools {
   /** Aborted by Cancel: a step that waits or runs a process ends on it. */
   signal: AbortSignal
@@ -162,20 +170,24 @@ export class StepJobs {
       if (step.run === undefined || job.states.get(step.id)!.state === 'done') continue
       if (step.hidden === true && !job.retried.has(step.id)) continue
       let current = step.id
+      const show = (progress: CloneProgress | undefined) => {
+        const entry = job.states.get(current)!
+        if (progress === undefined) delete entry.progress
+        else entry.progress = progress
+        this.changed?.()
+      }
+      let pace = paced(show, () => this.now().getTime())
       mark(current, 'running')
       try {
         await step.run({
           signal: job.abort.signal,
-          progress: (progress) => {
-            const entry = job.states.get(current)!
-            if (progress === undefined) delete entry.progress
-            else entry.progress = progress
-            this.changed?.()
-          },
+          progress: (progress) => pace.progress(progress),
           begin: (next) => {
             if (current === next) return
+            pace.drop()
             mark(current, 'done')
             current = next
+            pace = paced(show, () => this.now().getTime())
             mark(current, 'running')
           },
         })
@@ -193,6 +205,8 @@ export class StepJobs {
         console.warn(`jobs: ${plan.kind} ${plan.subject}: the step ${step.id} failed: ${englishOf(job.failure)}${job.failure.detail === undefined ? '' : ` (${job.failure.detail})`}`)
         this.changed?.()
         return
+      } finally {
+        pace.drop()
       }
       if (job.cancelled) return
       if (current !== step.id) mark(step.id, 'done')
@@ -200,6 +214,50 @@ export class StepJobs {
     }
     job.done = true
     this.changed?.()
+  }
+}
+
+/**
+ * Hands a step's progress to `show`, holding a new stage back while the stage before it has shown its figures for under
+ * `STAGE_END_MS`; what comes meanwhile replaces the held figures, and the latest are shown when the hold ends. `drop`
+ * forgets them: the step ended or another began.
+ */
+function paced(show: (progress: CloneProgress | undefined) => void, now: () => number) {
+  let shown: CloneProgress | undefined
+  let shownAt = -Infinity
+  let held: { progress: CloneProgress; timer: ReturnType<typeof setTimeout> } | null = null
+  const put = (progress: CloneProgress | undefined) => {
+    shown = progress
+    shownAt = now()
+    show(progress)
+  }
+  const drop = () => {
+    if (held !== null) clearTimeout(held.timer)
+    held = null
+  }
+  return {
+    progress(progress: CloneProgress | undefined): void {
+      if (held !== null && progress !== undefined) {
+        held.progress = progress
+        return
+      }
+      drop()
+      const wait = shownAt + STAGE_END_MS - now()
+      if (progress === undefined || shown === undefined || shown.stage === progress.stage || wait <= 0) {
+        put(progress)
+        return
+      }
+      const slot = {
+        progress,
+        timer: setTimeout(() => {
+          held = null
+          put(slot.progress)
+        }, wait),
+      }
+      slot.timer.unref?.()
+      held = slot
+    },
+    drop,
   }
 }
 

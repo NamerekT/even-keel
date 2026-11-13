@@ -128,7 +128,10 @@ trust for a folder Even Keel made, and the wait for the project's packages. A re
 repeated first.
 
 The window (`JobWindow.tsx`, the add-package dialog's frame, not tied to the wizard: the job's `kind` names its steps,
-and adding a machine to a project takes it too, BTN-993) shows each step's state, a clone's progress bar and figures,
+and adding a machine to a project takes it too, BTN-993) shows each step's state, a clone's progress bar and figures
+(BTN-1102: a stage's last figures stay `STAGE_END_MS`, half a second, before the next stage's — git ends a stage in one
+burst with the next one's first line: a large repository's "Compressing objects" goes to ~20% in seconds, then to 100%
+and on to "Receiving objects" within milliseconds, and a page built once per 200 ms would never show the end),
 each step's time (BTN-1099: `startedAt`/`endedAt` of the step, ticking each second while it runs, so a window with
 reduced motion still shows it lives; a finished step under a second shows none), the stages git gives no percent for
 ("connecting…" from `Cloning into`, "the server lists objects: N" from `remote: Enumerating objects: N`) under a bar
