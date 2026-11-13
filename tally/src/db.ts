@@ -22,6 +22,7 @@ import type { HandoffRow } from './handoffs.js'
 import { migrate, pgDb, type Migration } from './migrations.js'
 import { firstPrompt } from './prompt.js'
 import { REPAIR_GLOBAL_RULE_SNAPSHOTS } from './rule-repair.js'
+import { TASK_MOVES, type TaskMove } from './task-moves.js'
 import { pendingSpans, writeLlmCosts, writeReason, type PendingSpan, type SpanReason } from './db-classify.js'
 export type { PendingSpan, SpanReason } from './db-classify.js'
 
@@ -412,6 +413,11 @@ export class TallyDb implements Store {
   async syncClosedTasks(states: ClosedState[]): Promise<number> {
     const result = await this.client.query(CLOSED_TASK_STATES, [JSON.stringify(states)])
     return result.rowCount ?? 0
+  }
+
+  /** The links of the old ids of built-in tasks to their copies (`TASK_MOVES`, BTN-1076). */
+  async syncTaskMoves(moves: TaskMove[]): Promise<void> {
+    if (moves.length > 0) await this.client.query(TASK_MOVES, [JSON.stringify(moves)])
   }
 
   async fillEfforts(): Promise<number> {

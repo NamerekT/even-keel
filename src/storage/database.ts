@@ -31,7 +31,7 @@ export interface Queryable {
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
  * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
  * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689); step 29 the event
- * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925); step 49 the copy of a built-in project's tasks into another tracker, `tracker_exports` and `tracker_export_tasks` (BTN-1073). A foreign key between tables is deferred, so that a copy inserts the
+ * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925); step 49 the copy of a built-in project's tasks into another tracker, `tracker_exports` and `tracker_export_tasks` (BTN-1073); step 50 the copied project's old key, `tracker_exports.source_key` (BTN-1076). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -636,6 +636,15 @@ export const STEPS: readonly string[] = [
     at         text not null,
     primary key (project_id, task_id)
   );
+  `,
+  // The project's key on the built-in tracker at the copy's start (BTN-1076): the switch gives the project the target's
+  // key, and Tally links the old ids `<source_key>-<number>` to the new ones by it. A copy of a project still on the
+  // built-in tracker takes its key now; one already switched has lost it.
+  `
+  alter table tracker_exports add column source_key text;
+  update tracker_exports e set source_key = p.key from projects p
+  where p.id = e.project_id
+    and exists (select 1 from setting_values v where v.key = 'tracker' and v.project_id = p.id and v.qualifier = '' and v.value = '"builtin"');
   `,
 ]
 

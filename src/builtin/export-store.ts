@@ -26,14 +26,18 @@ export class ExportRecords {
     return row === undefined ? null : { profile: row.profile, place: row.place, key: row.key, startedAt: row.started_at, finishedAt: row.finished_at }
   }
 
-  /** Starts the copy to `target`, dropping the progress of an earlier target: the caller refuses that once a task was created. */
+  /**
+   * Starts the copy to `target`, dropping the progress of an earlier target: the caller refuses that once a task was
+   * created. The project's key now is kept as `source_key`, the prefix of its old ids once the switch rekeys it.
+   */
   begin(project: string, target: ExportTargetFields): Promise<void> {
     return inTransaction(this.db, async (tx) => {
       await tx.query('delete from tracker_export_tasks where project_id = $1', [project])
       await tx.query(
-        `insert into tracker_exports (project_id, profile, place, key, started_at, finished_at) values ($1, $2, $3, $4, $5, null)
+        `insert into tracker_exports (project_id, profile, place, key, started_at, finished_at, source_key)
+           values ($1, $2, $3, $4, $5, null, (select key from projects where id = $1))
            on conflict (project_id) do update set profile = excluded.profile, place = excluded.place, key = excluded.key,
-             started_at = excluded.started_at, finished_at = null`,
+             started_at = excluded.started_at, finished_at = null, source_key = excluded.source_key`,
         [project, target.profile, target.place, target.key, this.now().toISOString()],
       )
     })
