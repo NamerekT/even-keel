@@ -477,6 +477,14 @@ export class Dispatcher {
     this.changed()
   }
 
+  /** The project's tasks got new ids (BTN-1074, its tracker switched): the saved order and the skips follow; an id without a new one stays. */
+  rename(project: string, names: ReadonlyMap<string, string>): void {
+    const renamed = (ids: string[]) => ids.map((id) => names.get(id) ?? id)
+    if (this.state.orders[project] !== undefined) this.state.orders[project] = renamed(this.state.orders[project])
+    if (this.state.skipped[project] !== undefined) this.state.skipped[project] = renamed(this.state.skipped[project])
+    this.changed()
+  }
+
   requeue(order: string[]): void {
     const queue = this.state.queue
     const same = order.length === queue.length && new Set(order).size === order.length && order.every((key) => queue.includes(key))

@@ -39,6 +39,11 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
   'builtin/export/plan': (deps, body) => exports(deps).plan(projectOf(body), targetOf(body)),
   'builtin/export/start': (deps, body) => exports(deps).start(projectOf(body), targetOf(body)),
   'builtin/export/state': (deps, body) => exports(deps).state(projectOf(body)),
+  // The switch of the project to the finished copy's target (BTN-1074).
+  'builtin/export/switch': async (deps, body) => {
+    const { move, names } = await exports(deps).switch(projectOf(body))
+    return { tracker: move.tracker, key: move.key, renamed: names.size }
+  },
 }
 
 function exports({ builtinExports }: ServerDeps): NonNullable<ServerDeps['builtinExports']> {

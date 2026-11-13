@@ -112,6 +112,23 @@ describe('TaskRuns', () => {
     expect(kept.calls).toEqual(['save ABC-1 codex|null|high', 'drop ABC-1'])
   })
 
+  it("moves the project's runs to their tasks' new ids, leaving other projects and unnamed tasks (BTN-1074)", () => {
+    const kept = store()
+    const runs = new TaskRuns(
+      [
+        { project: 'p1', task: 'ABC-1', provider: 'claude', model: 'opus', effort: 'high' },
+        { project: 'p1', task: 'ABC-2', provider: 'codex', model: null, effort: null },
+        { project: 'p2', task: 'ABC-1', provider: 'codex', model: null, effort: 'low' },
+      ],
+      [],
+      kept,
+    )
+    runs.rename('p1', new Map([['ABC-1', 'GH-7']]))
+    expect(runs.ofProject('p1')).toEqual({ 'GH-7': { provider: 'claude', model: 'opus', effort: 'high' }, 'ABC-2': { provider: 'codex', model: null, effort: null } })
+    expect(runs.of('p2', 'ABC-1')).toEqual({ provider: 'codex', model: null, effort: 'low' })
+    expect(kept.calls).toEqual(['drop ABC-1', 'save GH-7 claude|opus|high'])
+  })
+
   it('moves the run label of each open task of a marked project into a run, once', () => {
     const kept = store()
     const runs = new TaskRuns([{ project: 'p1', task: 'ABC-4', provider: 'codex', model: null, effort: 'low' }], ['p1'], kept)

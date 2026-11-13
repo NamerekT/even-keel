@@ -45,6 +45,11 @@ export class ExportRecords {
     })
   }
 
+  /** A finished copy goes on to the same target, for the tasks filed since: its rows stay. */
+  async reopen(project: string): Promise<void> {
+    await this.db.query('update tracker_exports set finished_at = null where project_id = $1', [project])
+  }
+
   async finish(project: string): Promise<void> {
     await this.db.query('update tracker_exports set finished_at = $2 where project_id = $1', [project, this.now().toISOString()])
   }

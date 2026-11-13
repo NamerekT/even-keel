@@ -140,6 +140,26 @@ export function withProjectForm(
   return { ...config, projects: list.map((each, at) => (at === index ? entry : each)) }
 }
 
+/** Where a project moves when its tasks went to another tracker (BTN-1074): the tracker, its place and the project's key. */
+export interface TrackerMove {
+  tracker: string
+  trackerProject: string | null
+  key: string
+}
+
+/**
+ * The raw config with the project moved to another tracker, by the same rule as `withProjectForm`: `base` — the
+ * project's form now, `profile` — the rules of the profile it moves to. The key is the one place this writes it.
+ */
+export function withTrackerMove(raw: unknown, id: string, move: TrackerMove, base: ProjectForm, profile: Partial<ChainRules> = {}, adapters: Adapters = ADAPTERS): Record<string, unknown> {
+  const config = isPlainObject(raw) ? raw : {}
+  const list = Array.isArray(config.projects) ? (config.projects as unknown[]) : []
+  if (!list.some((each) => isPlainObject(each) && each.id === id)) throw fail('config.unknownProject', { key: id })
+  // The key first: a tracker place equal to the key is not written (`trackerValue`).
+  const keyed = { ...config, projects: list.map((each) => (isPlainObject(each) && each.id === id ? { ...each, key: move.key.trim() } : each)) }
+  return withProjectForm(keyed, id, { ...base, tracker: move.tracker, trackerProject: move.trackerProject }, base, profile, adapters)
+}
+
 /** The raw config with an entry for the wizard's draft appended: the record and only what differs from what the project would inherit. */
 export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, adapters: Adapters = ADAPTERS): Record<string, unknown> {
   const config = isPlainObject(raw) ? raw : {}
