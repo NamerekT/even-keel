@@ -53,6 +53,20 @@ export function remoteFailure(out: string, remote: string): Notice {
   return notice(code, { remote }, { detail: out })
 }
 
+const URL_FORM = /^[a-z][a-z0-9+.-]*:\/\/\S+$/i
+// `[user@]host:path`; a one-letter host is a Windows drive.
+const SCP_FORM = /^(?:[^\s@/:]+@)?[^\s@/:]{2,}:[^\s]+$/
+const LOCAL_FORM = /^(?:\/|[a-z]:[\\/]|\\\\)/i
+
+/**
+ * A text git could take for a remote (BTN-1087): a URL, `[user@]host:path` or a full local path — spaces only in the
+ * last. Anything else is refused without asking git, which would answer a pasted paragraph with a page of errors.
+ */
+export function remoteShaped(remote: string): boolean {
+  const text = remote.trim()
+  return URL_FORM.test(text) || SCP_FORM.test(text) || LOCAL_FORM.test(text)
+}
+
 /** What `git ls-remote --symref <url> HEAD refs/heads/*` printed: the default branch and every branch. */
 export function parseHeads(out: string): { head: string | null; branches: string[] } {
   let head: string | null = null

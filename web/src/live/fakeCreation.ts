@@ -1,4 +1,4 @@
-import { remoteName } from '../../../src/git/clone-progress.js'
+import { remoteName, remoteShaped } from '../../../src/git/clone-progress.js'
 import { fail, notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, FolderPlace, JobStep, ProjectCheck, ProjectDraft, StepJob } from '../../../src/state.js'
 
@@ -7,9 +7,17 @@ export const FAKE_PROJECTS_DIR = 'C:/Users/EvenKeelSvc/AppData/Local/even-keel/p
 
 const NONE = { root: null, current: null, suggested: null, branches: null }
 
+const BROKEN_OUT = [
+  'ssh: hostname contains invalid characters',
+  'fatal: Could not read from remote repository.',
+  '',
+  'Please make sure you have the correct access rights',
+  'and the repository exists.',
+].join('\n')
+
 /**
- * The folder of a clone, a new repository or a named folder without git (BTN-1048) by the fake's rules: a remote with
- * `denied`, `nope` or `offline` is refused as git would; a folder name with `full` holds files, one with `empty` is
+ * The folder of a clone, a new repository or a named folder without git (BTN-1048) by the fake's rules: a text that is
+ * no address is refused as the service refuses it; a remote with `denied`, `nope`, `offline` or `broken` is refused as git would; a folder name with `full` holds files, one with `empty` is
  * there and empty; a remote with `again` has a clone of it in the projects folder already. `null` — the draft names
  * a checkout already there, which the old rules check.
  */
@@ -21,6 +29,8 @@ export function fakePlace(state: EvenKeelState, draft: ProjectDraft): ProjectChe
   const clone = !plain && source === 'clone'
   const remote = (draft.remote ?? '').trim()
   if (clone && remote === '') return { ...NONE, notice: null }
+  if (clone && !remoteShaped(remote)) return { ...NONE, notice: notice('git.remoteShape', {}) }
+  if (clone && remote.includes('broken')) return { ...NONE, notice: notice('git.remoteFailed', { remote }, { detail: BROKEN_OUT }) }
   if (clone && remote.includes('denied')) return { ...NONE, notice: notice('git.remoteDenied', { remote }) }
   if (clone && remote.includes('nope')) return { ...NONE, notice: notice('git.remoteNotFound', { remote }) }
   if (clone && remote.includes('offline')) return { ...NONE, notice: notice('git.remoteNetwork', { remote }, { detail: 'Could not resolve host' }) }

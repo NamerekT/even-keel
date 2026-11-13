@@ -136,6 +136,7 @@ export const en = {
   'git.remoteNotFound': (p: { remote: string }) => `there is no repository at ${p.remote}: check the address; a private repository answers the same to a git that is not signed in`,
   'git.remoteNetwork': (p: { remote: string }) => `git could not reach ${p.remote}: check the network and the address, then try again`,
   'git.remoteFailed': (p: { remote: string }) => `git could not read ${p.remote}`,
+  'git.remoteShape': () => 'this is not a git address: paste one like https://example.com/owner/repo.git or git@example.com:owner/repo.git',
   'git.cloneStopped': () => 'the clone was cancelled',
   'job.busy': () => 'another project is being created right now: wait until it is done, or cancel it',
   'job.unknown': () => 'this work is no longer there: it was finished or cancelled',

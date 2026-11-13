@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
-import { fail, NoticeError, type Notice } from '../notice/notice.js'
-import { parseHeads, parseProgress, remoteFailure, type CloneProgress } from './clone-progress.js'
+import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
+import { parseHeads, parseProgress, remoteFailure, remoteShaped, type CloneProgress } from './clone-progress.js'
 import { gitMissing } from './run.js'
 
 const READ_TIMEOUT_MS = 30_000
@@ -106,6 +106,7 @@ export function remoteReader(git: RemoteGit = runRemoteGit, now: () => number = 
   return async (remote) => {
     const held = known.get(remote)
     if (held !== undefined && now() - held.at < READ_CACHE_MS) return held.heads
+    if (!remoteShaped(remote)) return notice('git.remoteShape', {})
     const read = await git(['ls-remote', '--symref', '--', remote, 'HEAD', 'refs/heads/*'], { timeoutMs: READ_TIMEOUT_MS })
     if (read.missing === true) return fail('git.missing', {}).notice
     if (read.stopped === true) return remoteFailure('connection timed out', remote)

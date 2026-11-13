@@ -59,9 +59,12 @@ reason and a link to the setup's Git step; git without a name and e-mail closes 
 `NoticeFixButton` of `git.noIdentity`. Existing is the old folder field with its "Make it a repository".
 
 - **Clone** — "Remote address" (`ProjectDraft.remote`). The check asks the remote first (`git ls-remote --symref`,
-  `sharedRemoteReader` in `src/git/remote-run.ts`, held for a minute per address): a refusal is
-  `git.remoteDenied|remoteNotFound|remoteNetwork|remoteFailed` under the field, an answer "The remote answered" with the
-  main branch and `[change]`. A branch the remote lacks is no refusal: the default branch is cloned and the wanted one is
+  `sharedRemoteReader` in `src/git/remote-run.ts`, held for a minute per address); a text that is no address
+  (`remoteShaped`: a URL, `[user@]host:path` or a full local path) is refused as `git.remoteShape` without asking git
+  (BTN-1087). A refusal is `git.remoteShape|remoteDenied|remoteNotFound|remoteNetwork|remoteFailed` in one line under the
+  field (`remoteRefusal` in `web/src/pages/remoteRefusal.ts`): the address cut to 48 characters, git's own words behind a
+  `HelpTip`. An answer is "The remote answered" with the main branch and `[change]`, which opens the branch field right
+  under the remote (under the path or the folder for the other sources). A branch the remote lacks is no refusal: the default branch is cloned and the wanted one is
   made when the entry is written.
 - **Folder** (Clone, New repository and "Without git") — Even Keel's projects folder (`projectsDir()`, the data
   folder's fixed `projects/`, no setting) as muted text cut from the left, then the name's field; blank, the name

@@ -1,0 +1,30 @@
+import type { Notice } from '../../../src/notice/notice.js'
+
+const REMOTE_CODES = new Set<Notice['code']>(['git.remoteShape', 'git.remoteDenied', 'git.remoteNotFound', 'git.remoteNetwork', 'git.remoteFailed'])
+const SHORT_CHARS = 48
+
+/** A refusal of a clone's remote address, shown under that field rather than under the folder. */
+export function isRemoteRefusal(refusal: Notice | null): refusal is Notice {
+  return refusal !== null && REMOTE_CODES.has(refusal.code)
+}
+
+/** An address cut in the middle to a line's share: its host and its name stay. */
+export function shortRemote(remote: string): string {
+  if (remote.length <= SHORT_CHARS) return remote
+  const head = Math.ceil((SHORT_CHARS - 1) / 2)
+  return `${remote.slice(0, head)}…${remote.slice(remote.length - (SHORT_CHARS - 1 - head))}`
+}
+
+/**
+ * A remote's refusal as the line under its field says it (BTN-1087): one short line by the code with the address cut,
+ * and git's own words apart, for a tip — the field is right above, a pasted paragraph is not echoed back.
+ */
+export function remoteRefusal(refusal: Notice): { shown: Notice; detail: string | null } {
+  const params = refusal.params as { remote?: unknown }
+  const shown = {
+    code: refusal.code,
+    params: typeof params.remote === 'string' ? { ...params, remote: shortRemote(params.remote) } : refusal.params,
+  } as Notice
+  const detail = refusal.detail?.trim() ?? ''
+  return { shown, detail: detail === '' ? null : detail }
+}

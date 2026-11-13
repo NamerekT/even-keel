@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { notice } from '../../../src/notice/notice.js'
+import { notice, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, RepoBranches, RepoSource } from '../../../src/state.js'
 import { examplePaths } from '../examplePaths.js'
 import { say, t } from '../i18n/index.js'
@@ -10,7 +10,8 @@ import { Segmented } from '../stats/common.js'
 import { BranchField, BranchMoveLine } from './BranchField.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { folderView, pathTyped, type WizardFields } from './projectWizard.js'
-import { FieldHead, Row } from './settingsParts.js'
+import { isRemoteRefusal, remoteRefusal } from './remoteRefusal.js'
+import { FieldHead, HelpTip, Row } from './settingsParts.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
 import { trustTexts } from '../i18n/trust.js'
@@ -44,8 +45,6 @@ export function gitReadiness(state: EvenKeelState): { missing: boolean; anonymou
   return { missing: git?.version === null, anonymous: git !== undefined && git.version !== null && (git.name === null || git.email === null) }
 }
 
-const REMOTE_CODES = new Set(['git.remoteDenied', 'git.remoteNotFound', 'git.remoteNetwork', 'git.remoteFailed'])
-
 interface RepoStepProps {
   state: EvenKeelState
   fields: WizardFields
@@ -73,7 +72,8 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
   const ready = gitReadiness(state)
   const repo = repoCheck?.repo ?? null
   const refusal = repo?.notice ?? null
-  const remoteRefused = refusal !== null && REMOTE_CODES.has(refusal.code)
+  const remoteRefused = isRemoteRefusal(refusal)
+  const clone = fields.git && fields.source === 'clone'
   const existing = fields.git && fields.source === 'existing'
   const found = repo !== null && repo.root !== null && refusal === null ? repo.root : null
   const branchLine = !branchShown && (
@@ -84,6 +84,18 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
         [{t.wizard.changeBranch}]
       </button>
     </>
+  )
+  // Opened where its "[change]" was: under the remote for a clone, under the path or the folder otherwise.
+  const branchRow = fields.git && branchShown && (
+    <Row
+      className="settings__field"
+      label={t.settings.branch}
+      hint={t.settings.branchHint}
+      htmlFor="wizard-branch"
+      control={<BranchField id="wizard-branch" value={fields.branch} repo={branches} placeholder={current ?? 'main'} invalid={badBranch} onChange={(branch) => set({ branch })} />}
+    >
+      <BranchMoveLine repo={branches} value={fields.branch} />
+    </Row>
   )
   return (
     <>
@@ -140,7 +152,7 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
           )}
         </Row>
       )}
-      {fields.git && fields.source === 'clone' && (
+      {clone && (
         <div className="settings__field">
           <FieldHead label={t.creation.remote} hint={t.creation.remoteHint} htmlFor="wizard-remote" />
           <input
@@ -154,11 +166,7 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
             aria-invalid={remoteRefused || undefined}
             onChange={(event) => set({ remote: event.target.value })}
           />
-          {remoteRefused && (
-            <Status>
-              {say(refusal)} <NoticeFixButton project={null} notice={refusal} />
-            </Status>
-          )}
+          {remoteRefused && <RemoteRefusal refusal={refusal} />}
           {repo?.place !== undefined && !remoteRefused && (
             <Status ok>
               {t.creation.remoteRead(current)}
@@ -167,6 +175,7 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
           )}
         </div>
       )}
+      {clone && branchRow}
       {existing ? (
         <div className="settings__field">
           <FieldHead label={t.wizard.path} hint={t.wizard.repoHint} htmlFor="wizard-repo" />
@@ -195,20 +204,27 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
       ) : (
         <FolderLine state={state} fields={fields} set={set} repo={repo} pending={repoPending} hideRefusal={remoteRefused} branchLine={fields.git && fields.source === 'new' && found !== null ? branchLine : null} />
       )}
-      {fields.git && branchShown && (
-        <Row
-          className="settings__field"
-          label={t.settings.branch}
-          hint={t.settings.branchHint}
-          htmlFor="wizard-branch"
-          control={<BranchField id="wizard-branch" value={fields.branch} repo={branches} placeholder={current ?? 'main'} invalid={badBranch} onChange={(branch) => set({ branch })} />}
-        >
-          <BranchMoveLine repo={branches} value={fields.branch} />
-        </Row>
-      )}
+      {!clone && branchRow}
       {repoCheck?.trusted === false && <p className="settings__hint">{trustTexts().pending}</p>}
       {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
     </>
+  )
+}
+
+/** A remote's refusal in one line under its field; git's own words behind a question mark. */
+function RemoteRefusal({ refusal }: { refusal: Notice }) {
+  const { shown, detail } = remoteRefusal(refusal)
+  return (
+    <Status>
+      {say(shown)}
+      {detail !== null && (
+        <>
+          {' '}
+          <HelpTip text={detail} />
+        </>
+      )}{' '}
+      <NoticeFixButton project={null} notice={refusal} />
+    </Status>
   )
 }
 

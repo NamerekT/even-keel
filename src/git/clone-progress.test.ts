@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseHeads, parseProgress, remoteFailure, remoteName, sameRemote } from './clone-progress.js'
+import { parseHeads, parseProgress, remoteFailure, remoteName, remoteShaped, sameRemote } from './clone-progress.js'
 
 describe('parseProgress', () => {
   it('reads the stage, the percent, the bytes and the speed of a receiving line', () => {
@@ -39,6 +39,34 @@ describe('remoteFailure', () => {
     ['fatal: early EOF', 'git.remoteFailed'],
   ])('reads %j as %s', (out, code) => {
     expect(remoteFailure(out, 'https://example.com/a/b.git')).toMatchObject({ code, params: { remote: 'https://example.com/a/b.git' }, detail: out })
+  })
+})
+
+describe('remoteShaped', () => {
+  it.each([
+    'https://example.com/owner/storefront.git',
+    'ssh://git@example.com:2222/owner/storefront.git',
+    'git://example.com/storefront',
+    'file:///srv/git/storefront.git',
+    'git@example.com:owner/storefront.git',
+    'example:owner/storefront',
+    '/srv/git/storefront.git',
+    'D:\\repos\\my storefront',
+    'D:/repos/storefront',
+    '\\\\server\\share\\storefront',
+  ])('takes %j for an address', (remote) => {
+    expect(remoteShaped(remote)).toBe(true)
+  })
+
+  it.each([
+    'Hello, this is a paragraph pasted by mistake: nothing like an address',
+    'https://example.com/owner/my storefront.git',
+    'storefront',
+    'owner/storefront',
+    'C:storefront',
+    'git@example.com',
+  ])('refuses %j', (remote) => {
+    expect(remoteShaped(remote)).toBe(false)
   })
 })
 

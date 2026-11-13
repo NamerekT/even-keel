@@ -164,6 +164,7 @@ export const noticesRu: NoticeTexts = {
   'git.remoteNotFound': (p) => `по адресу ${p.remote} нет репозитория: проверьте адрес; закрытый репозиторий отвечает так же, если git не вошёл на сервер`,
   'git.remoteNetwork': (p) => `git не достучался до ${p.remote}: проверьте сеть и адрес и попробуйте снова`,
   'git.remoteFailed': (p) => `git не прочитал ${p.remote}`,
+  'git.remoteShape': () => 'это не адрес git: нужен вида https://example.com/owner/repo.git или git@example.com:owner/repo.git',
   'git.cloneStopped': () => 'клонирование отменено',
   'job.busy': () => 'сейчас создаётся другой проект: дождитесь конца или отмените его',
   'job.unknown': () => 'этой работы уже нет: она закончена или отменена',
