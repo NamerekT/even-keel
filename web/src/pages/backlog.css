@@ -26,14 +26,119 @@
 
 .backlog__title {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  font-weight: 600;
+}
+
+.backlog__title-text {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  white-space: nowrap;
 }
 
 .backlog__order {
   flex: none;
   align-self: center;
+}
+
+.backlog__found {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The field holds the magnifier at its left and the clearing cross at its right. */
+.backlog__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.backlog__search > .icon {
+  position: absolute;
+  left: 10px;
+  width: 14px;
+  height: 14px;
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+
+.backlog__search-field {
+  width: 100%;
+  padding: 6px 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-14);
+}
+
+.backlog__search-field::placeholder {
+  color: var(--fg-muted);
+}
+
+.backlog__search-field:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.backlog__search-clear {
+  position: absolute;
+  right: 4px;
+}
+
+.backlog__search-clear button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--fg-muted);
+  font-size: var(--text-16);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.backlog__search-clear button:hover,
+.backlog__search-clear button:focus-visible {
+  background: var(--surface-muted);
+  color: var(--fg);
+  outline: none;
+}
+
+.backlog__nothing {
+  padding: var(--space-8) 0;
+  font-size: var(--text-13);
+  text-align: center;
+}
+
+.backlog__more {
+  align-self: center;
+}
+
+/*
+ * The run and the milestone start from their least and grow up to their text, the run far faster: a row wraps only when
+ * their least does not fit, and then the work chip and the links go to a line of their own instead of cutting the run.
+ */
+.backlog__meta > .run-label {
+  flex: 20 1 0;
+  min-width: 9ch;
+  max-width: max-content;
+  /* Below its least, past the model's ellipsis, the tag is cut at its own edge rather than running under its neighbour. */
+  overflow-x: clip;
+}
+
+.backlog__meta .run-label__model {
+  max-width: 24ch;
 }
 
 .backlog__order .segmented__item {
@@ -80,8 +185,9 @@
 .backlog__meta {
   grid-area: meta;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 4px 10px;
   min-width: 0;
   font-size: var(--text-12);
 }
@@ -133,6 +239,13 @@
   z-index: 1;
 }
 
+.backlog__tail {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+}
+
 .backlog__status {
   flex: none;
   color: var(--fg-muted);
@@ -147,9 +260,11 @@
 
 .backlog__milestone {
   display: inline-flex;
+  flex: 1 1 0;
   align-items: center;
   gap: 4px;
-  min-width: 0;
+  min-width: 12px;
+  max-width: max-content;
   margin-left: auto;
   color: var(--fg-muted);
 }
