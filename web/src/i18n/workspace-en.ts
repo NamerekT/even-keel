@@ -143,7 +143,10 @@ export const packagesEN: Messages['packages'] = {
     settings: 'Settings',
     settingsBase: 'For all projects',
     settingsProject: 'In this project',
-    settingsHint: 'A project’s field left empty takes the value for all projects. A change reaches new sessions.',
+    settingsHint:
+      'A project’s field left empty takes the value for all projects. Keys and tokens are never shown: an empty field keeps the saved one, “own” puts back the value for all projects. A change reaches new sessions.',
+    secretInherited: 'As for all projects — hidden',
+    secretHidden: 'hidden',
     noSettings: 'The package has no settings.',
     save: 'Save',
     problem: {

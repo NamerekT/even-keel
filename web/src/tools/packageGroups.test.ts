@@ -21,7 +21,7 @@ const base: PackageView = {
   builtIn: false,
 }
 const pkg = (name: string, over: Partial<PackageView> = {}): PackageView => ({ ...base, name, kind: name.includes('@') ? 'plugin' : 'mcp', ...over })
-const cell = (enabled: boolean, over: Partial<PackageCell> = {}): PackageCell => ({ choice: null, enabled, settings: {}, problems: [], ...over })
+const cell = (enabled: boolean, over: Partial<PackageCell> = {}): PackageCell => ({ choice: null, enabled, own: {}, problems: [], ...over })
 const project = (cells: Record<string, PackageCell>, over: Partial<ProjectPackages> = {}): ProjectPackages => ({ cells, problems: [], blocked: false, tracker: null, ...over })
 
 const view = (over: Partial<PackagesView> = {}): PackagesView => ({

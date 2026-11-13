@@ -242,7 +242,7 @@ function ProjectLine({ pkg, cell, project, open, alert, onToggle }: LineProps) {
               ))}
             </ul>
           )}
-          <PackageSettings pkg={pkg} project={project} values={cell.settings} />
+          <PackageSettings pkg={pkg} project={project} values={cell.own} />
           <div className="packages__details-actions">
             <Tipped tip={t.packages.toCatalogTip} inline>
               <button type="button" className="button button--small" onClick={() => navigate(`/settings?${PACKAGE_PARAM}=${encodeURIComponent(pkg.name)}`)}>

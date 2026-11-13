@@ -146,7 +146,7 @@ export function packageSettings(record: PackageRecord): Record<string, string> {
   return { ...defaultsOf(record), ...record.settings }
 }
 
-/** The project's overrides over the current install's defaults and the package's values, for the page. */
+/** The project's overrides over the current install's defaults and the package's values; secrets included, never for the page. */
 export function settingsOf(file: PackagesFile, project: string, name: string): Record<string, string> {
   const record = file.packages[name]
   return { ...(record === undefined ? {} : packageSettings(record)), ...file.projects[project]?.settings[name] }

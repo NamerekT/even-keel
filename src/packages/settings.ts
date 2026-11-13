@@ -16,6 +16,22 @@ export function defaultSettings(servers: Record<string, ServerEntry>): Record<st
   return settings
 }
 
+const SECRET_NAME = /KEY|TOKEN|SECRET|PASS|PWD|AUTH|COOKIE|CREDENTIAL|SESSION|PRIVATE|SIGNATURE/i
+const SECRET_VALUE = /^(Bearer|Basic|Token|Digest)\s|^(sk-|sk_|ghp_|gho_|ghs_|github_pat_|glpat-|xox[abpr]-|lin_api_)/i
+
+/**
+ * A setting the page must not see (BTN-1116): an `env` key or header named like a credential (`API_KEY`,
+ * `Authorization`, `Cookie`, `X-Api-Key`), or a value that is one whatever its name (`Bearer …`, `ghp_…`).
+ */
+export function isSecretSetting(name: string, value: string): boolean {
+  return SECRET_NAME.test(name) || SECRET_VALUE.test(value.trim())
+}
+
+/** Settings as the page gets them: a secret's value stays in the service, `null` says only that it is set. */
+export function pageSettings(settings: Record<string, string>): Record<string, string | null> {
+  return Object.fromEntries(Object.entries(settings).map(([name, value]) => [name, isSecretSetting(name, value) ? null : value]))
+}
+
 export function applySettings(entry: ServerEntry, settings: Record<string, string>): ServerEntry {
   const field = typeof entry.command === 'string' ? 'env' : 'headers'
   const own = settable(entry)

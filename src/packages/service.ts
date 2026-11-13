@@ -12,6 +12,7 @@ import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './k
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { copyPinned, installPinned, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
+import { pageSettings } from './settings.js'
 import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn, TASKS_PLUGIN } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
@@ -138,7 +139,7 @@ export class Packages {
         error: this.errors.get(name) ?? null,
         note: this.notes.get(name) ?? null,
         default: record.default,
-        settings: packageSettings(record),
+        settings: pageSettings(packageSettings(record)),
         servers: Object.keys(install?.servers ?? {}),
         extras: install?.extras ?? false,
         removed: record.removed === true,

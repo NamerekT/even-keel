@@ -23,7 +23,7 @@ const pkg = (name: string): PackageView => ({
   removed: false,
   builtIn: false,
 })
-const cell = (enabled: boolean, problems: PackageCell['problems'] = []): PackageCell => ({ choice: null, enabled, settings: {}, problems })
+const cell = (enabled: boolean, problems: PackageCell['problems'] = []): PackageCell => ({ choice: null, enabled, own: {}, problems })
 
 const view = (cells: Record<string, PackageCell>): PackagesView => ({
   gateway: null,

@@ -3,7 +3,7 @@ import type { KeyView, PackageProblem, PackagesView, PackageView } from '../../.
 import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { HelpTip } from '../pages/settingsParts.js'
+import { HelpTip, Inherit } from '../pages/settingsParts.js'
 import { Band } from '../ui/blocks.js'
 import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
@@ -200,8 +200,11 @@ export function PackageBrings({ pkg }: { pkg: PackageView }) {
   )
 }
 
-/** A package's settings, a field per key; `project` — the project's own values over `base`. */
-export function PackageSettings({ pkg, project, values }: { pkg: PackageView; project?: string; values?: Record<string, string> }) {
+/**
+ * A package's settings, a field per key; `project` — the project's own values (`values`) over the package's. A `null`
+ * value is a secret's (BTN-1116): the page never has it, the field stays empty and shows only that one is set.
+ */
+export function PackageSettings({ pkg, project, values }: { pkg: PackageView; project?: string; values?: Record<string, string | null> }) {
   const keys = Object.keys(pkg.settings)
   if (keys.length === 0) return <p className="packages__quiet">{t.packages.noSettings}</p>
   return (
@@ -211,9 +214,15 @@ export function PackageSettings({ pkg, project, values }: { pkg: PackageView; pr
         <HelpTip text={t.packages.settingsHint} />
       </span>
       {keys.map((key) => {
+        const shared = pkg.settings[key] ?? null
         const own = values?.[key]
-        const value = project === undefined ? (pkg.settings[key] ?? '') : own === undefined || own === pkg.settings[key] ? '' : own
-        return <SettingField key={key} name={pkg.name} settingKey={key} project={project} value={value} placeholder={project === undefined ? '' : (pkg.settings[key] ?? '')} />
+        const field = { name: pkg.name, settingKey: key, project }
+        if (project === undefined) return shared === null ? <SettingField key={key} {...field} secret value="" placeholder={t.packages.keySaved} /> : <SettingField key={key} {...field} value={shared} placeholder="" />
+        if (shared === null || own === null) {
+          const placeholder = own === undefined ? t.packages.secretInherited : own === null ? t.packages.keySaved : own
+          return <SettingField key={key} {...field} secret value="" placeholder={placeholder} own={own !== undefined} />
+        }
+        return <SettingField key={key} {...field} value={own === undefined || own === shared ? '' : own} placeholder={shared} />
       })}
     </div>
   )
@@ -225,10 +234,17 @@ interface SettingFieldProps {
   project?: string
   value: string
   placeholder: string
+  /** The value is never shown: the field starts empty, an empty one keeps what is set. */
+  secret?: boolean
+  /** A project's own secret: the mark that puts the inherited one back. */
+  own?: boolean
 }
 
-/** Sent on Enter or when it loses the focus; an empty field goes back to the value it inherits. */
-function SettingField({ name, settingKey, project, value, placeholder }: SettingFieldProps) {
+/**
+ * Sent on Enter or when it loses the focus; an empty field goes back to the value it inherits, a secret's keeps the
+ * value it has and goes back only by the "own" mark.
+ */
+function SettingField({ name, settingKey, project, value, placeholder, secret = false, own = false }: SettingFieldProps) {
   const { send, sending, failure } = useCommand()
   const [draft, setDraft] = useState(value)
   const [base, setBase] = useState(value)
@@ -238,16 +254,26 @@ function SettingField({ name, settingKey, project, value, placeholder }: Setting
   }
   const commit = (event?: FormEvent) => {
     event?.preventDefault()
-    if (draft === value) return
-    void send('packages/setting', { name, key: settingKey, value: draft.trim() === '' ? null : draft, project })
+    if (draft === value || (secret && draft.trim() === '')) return
+    void send('packages/setting', { name, key: settingKey, value: draft.trim() === '' ? null : draft, project }).then((sent) => {
+      if (sent && secret) setDraft('')
+    })
   }
 
   return (
     <form className="packages__field" onSubmit={commit}>
       <label className="packages__field-name">
-        <code>{settingKey}</code>
+        {own ? (
+          <span className="packages__field-key">
+            <code>{settingKey}</code>
+            <Inherit own shared={t.packages.secretHidden} disabled={sending} onReset={() => void send('packages/setting', { name, key: settingKey, value: null, project })} />
+          </span>
+        ) : (
+          <code>{settingKey}</code>
+        )}
         <input
           className="packages__input"
+          {...secretInput(secret)}
           value={draft}
           placeholder={placeholder}
           disabled={sending}

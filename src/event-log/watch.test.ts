@@ -177,7 +177,7 @@ describe('observe', () => {
   })
 
   it('writes the problems of a project\'s packages that do not pass by themselves, as errors while they hold the chain', () => {
-    const cell = (problems: object[], enabled = true) => ({ choice: null, enabled, settings: {}, problems })
+    const cell = (problems: object[], enabled = true) => ({ choice: null, enabled, own: {}, problems })
     const packages = (blocked: boolean, cells: object, problems: object[] = []) =>
       ({ ...none, packages: { gateway: null, projects: { p1: { cells, problems, blocked, tracker: null } } } }) as unknown as WatchInput
     const place = { view: 'packages', project: 'p1' }

@@ -36,7 +36,7 @@ describe('projectPackages', () => {
   it('lets a project whose set is installed, keyed and answering run', () => {
     const view = projectPackages(input())
     expect(view.blocked).toBe(false)
-    expect(view.cells['huly@even-keel']).toEqual({ choice: null, enabled: true, settings: { TOOLSETS: 'all' }, problems: [] })
+    expect(view.cells['huly@even-keel']).toEqual({ choice: null, enabled: true, own: {}, problems: [] })
     expect(view.cells.db).toMatchObject({ enabled: false, problems: [] })
   })
 

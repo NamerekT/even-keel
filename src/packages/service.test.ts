@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { settingsOf, type ServerEntry } from './model.js'
+import { packageSettings, type ServerEntry } from './model.js'
 import { installPinned, type NpxSpec } from './npm.js'
 import { Packages, type PackagesDeps } from './service.js'
 import { loadPackages, savePackages } from './store.js'
@@ -110,7 +110,28 @@ describe('package settings across updates', () => {
     await packages.update('tools@example')
     const view = reload().view()
     expect(view.packages[0]!.settings).toEqual({ TOOLSETS: 'issues,milestones', MODE: 'careful' })
-    expect(view.projects.project!.cells['tools@example']!.settings).toEqual({ TOOLSETS: 'projects', MODE: 'careful' })
+    expect(view.projects.project!.cells['tools@example']!.own).toEqual({ TOOLSETS: 'projects' })
+  })
+
+  it('never sends a secret setting to the page, and still drops a project value equal to the inherited one', async () => {
+    const { packages, file, deps } = fixture()
+    const put = (path: string, value: unknown) => writeFileSync(join(deps.ownDir, path), JSON.stringify(value))
+    put('plugin/.mcp.json', { mcpServers: { tools: { command: 'example-server', env: { API_KEY: 'fake-key', MODE: 'fast', ENDPOINT_TOKEN: '${ENDPOINT_TOKEN}' } } } })
+    await packages.install('tools@example')
+    packages.setSetting('tools@example', 'MODE', 'Bearer fake-token-123', 'project')
+    packages.setSetting('tools@example', 'API_KEY', 'fake-key', 'project')
+    const view = packages.view()
+    expect(view.packages[0]!.settings).toEqual({ API_KEY: null, MODE: 'fast' })
+    expect(view.projects.project!.cells['tools@example']!.own).toEqual({ MODE: null })
+    expect(JSON.stringify(view)).not.toMatch(/fake-key|fake-token/)
+    expect(loadPackages(file)!.projects.project!.settings).toEqual({ 'tools@example': { MODE: 'Bearer fake-token-123' } })
+  })
+
+  it('hides an HTTP server header named like a credential', async () => {
+    const { packages } = fixture()
+    packages.addServer('remote', { type: 'http', url: 'https://mcp.example.com/mcp', headers: { Authorization: 'Bearer fake-token-123', 'X-Workspace': 'demo' } })
+    const remote = packages.view().packages.find((each) => each.name === 'remote')!
+    expect(remote.settings).toEqual({ Authorization: null, 'X-Workspace': 'demo' })
   })
 
   it('removes inherited values on save and resets both levels to their inherited defaults', async () => {
@@ -126,7 +147,8 @@ describe('package settings across updates', () => {
     packages.setSetting('tools@example', 'TOOLSETS', null, 'project')
     plugin('2.0.0', 'issues,milestones')
     await packages.update('tools@example')
-    expect(packages.view().projects.project!.cells['tools@example']!.settings).toEqual({ TOOLSETS: 'issues,milestones', MODE: 'fast' })
+    expect(packages.view().projects.project!.cells['tools@example']!.own).toEqual({})
+    expect(packages.view().packages[0]!.settings).toEqual({ TOOLSETS: 'issues,milestones', MODE: 'fast' })
   })
 
   it('leaves pinned installs on their own defaults', async () => {
@@ -140,7 +162,7 @@ describe('package settings across updates', () => {
     plugin('2.0.0', 'issues,milestones')
     await next.update('tools@example')
     const updated = loadPackages(file)!
-    expect(settingsOf(updated, 'project', 'tools@example')).toEqual({ TOOLSETS: 'issues,milestones', MODE: 'fast' })
+    expect(packageSettings(updated.packages['tools@example']!)).toEqual({ TOOLSETS: 'issues,milestones', MODE: 'fast' })
     const target = next['target']({ project: 'project', name: 'tools@example', install: old.id, server: 'tools' })
     expect(target!.entry.env).toEqual({ TOOLSETS: 'workitems,milestones', MODE: 'fast' })
   })

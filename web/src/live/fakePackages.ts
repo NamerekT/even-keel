@@ -9,7 +9,7 @@ interface FakePackage extends PackageView {
 interface Catalog {
   packages: FakePackage[]
   choices: Record<string, Record<string, 'on' | 'off'>>
-  own: Record<string, Record<string, Record<string, string>>>
+  own: Record<string, Record<string, Record<string, string | null>>>
   keys: Record<string, boolean>
   imports: Record<string, string[]>
   gateway: boolean
@@ -48,14 +48,14 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
       { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
       // Built in (BTN-986): every project has it, with no switches.
       { ...base, name: 'agent-bridge@even-keel', kind: 'plugin', version: '1.0.0', default: true, settings: {}, servers: [], extras: true, keys: [], builtIn: true },
-      { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com' }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
+      { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com', FORGEJO_WEBHOOK_SECRET: null }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
     ],
     choices: {
       DEMO: { 'playwright@claude-plugins-official': 'on', ...(mode === 'tracker' ? { 'huly@even-keel': 'off' as const } : {}) },
       OPS: { forgejo: 'off' },
       ...(mode === 'trackerAbc' ? { ABC: { 'huly@even-keel': 'off' as const } } : {}),
     },
-    own: { DEMO: { 'huly@even-keel': { TOOLSETS: 'issues' } } },
+    own: { DEMO: { 'huly@even-keel': { TOOLSETS: 'issues' }, forgejo: { FORGEJO_WEBHOOK_SECRET: null } } },
     keys: { HULY_EMAIL: true, HULY_PASSWORD: true, FORGEJO_TOKEN: mode !== 'blocked', GITHUB_TOKEN: true },
     imports: { DEMO: ['sentry', 'db'] },
     gateway: mode !== 'gateway',
@@ -117,7 +117,7 @@ function projectOf(catalog: Catalog, project: string): PackagesView['projects'][
     else if (catalog.probing && each.installed) problems.push({ kind: 'probing' })
     else if (catalog.silent && each.name === 'forgejo') problems.push({ kind: 'noResponse', servers: each.servers })
     if (each.extras && project === 'OPS') problems.push({ kind: 'unsupported', agent: 'Codex' })
-    cells[each.name] = { choice, enabled, settings: { ...each.settings, ...catalog.own[project]?.[each.name] }, problems }
+    cells[each.name] = { choice, enabled, own: { ...catalog.own[project]?.[each.name] }, problems }
   }
   // Even Keel's tasks server serves Huly too (BTN-874): either brings the tracker's tasks.
   const huly = cells['huly@even-keel']?.enabled === true
@@ -184,7 +184,7 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
     const value = typeof body.value === 'string' ? body.value : null
     const values = project === undefined ? target.settings : (((catalog.own[project] ??= {})[target.name] ??= {}))
     if (value === null) delete values[key]
-    else values[key] = value
+    else values[key] = target.settings[key] === null ? null : value
   } else if (name === 'packages/key') catalog.keys[String(body.name)] = true
   else throw new Error(`fake: ${name} is not supported`)
   return { ...state, packages: viewOf(catalog, state.projects) }

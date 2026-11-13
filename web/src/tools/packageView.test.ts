@@ -54,7 +54,7 @@ describe('serverEntry', () => {
 
 describe('heldLong', () => {
   it('is false for a project not held, or held only while a package installs or is probed', () => {
-    const cell = (enabled: boolean, problems: ProjectPackages['problems']) => ({ choice: null, enabled, settings: {}, problems })
+    const cell = (enabled: boolean, problems: ProjectPackages['problems']) => ({ choice: null, enabled, own: {}, problems })
     const held = (cells: ProjectPackages['cells']): ProjectPackages => ({ cells, problems: [], blocked: true, tracker: null })
     expect(heldLong(project(false))).toBe(false)
     expect(heldLong(project(true))).toBe(true)
@@ -100,7 +100,7 @@ describe('trackerPackage', () => {
   const marketplace = { name: 'even-keel', dir: 'C:\\even-keel', known: true }
   const base = { kind: 'plugin' as const, installed: true, version: '1.0.0', latest: null, fetched: null, installing: false, error: null, note: null, default: true, settings: {}, extras: true, removed: false, builtIn: false }
   const tracked = (brought: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({
-    cells: { 'huly@even-keel': { choice: null, enabled: brought, settings: {}, problems: [] } },
+    cells: { 'huly@even-keel': { choice: null, enabled: brought, own: {}, problems: [] } },
     problems,
     blocked: problems.length > 0,
     tracker: { server: 'huly', brought },
@@ -114,7 +114,7 @@ describe('trackerPackage', () => {
   it('names the tasks package when only it brings the tracker’s tasks, and offers no tracker package then', () => {
     const packages = [{ ...base, name: 'huly@even-keel', servers: ['huly'] }, { ...base, name: 'tasks@even-keel', servers: ['tasks'] }]
     const found: ProjectPackages = {
-      cells: { 'huly@even-keel': { choice: 'off', enabled: false, settings: {}, problems: [] }, 'tasks@even-keel': { choice: null, enabled: true, settings: {}, problems: [] } },
+      cells: { 'huly@even-keel': { choice: 'off', enabled: false, own: {}, problems: [] }, 'tasks@even-keel': { choice: null, enabled: true, own: {}, problems: [] } },
       problems: [],
       blocked: false,
       tracker: { server: 'huly', brought: true, through: 'tasks' },
@@ -177,7 +177,7 @@ describe('trackerDoubled', () => {
   it('names the enabled package that brings the tasks server, for one press to turn it off (BTN-1028)', () => {
     const base = { kind: 'plugin' as const, installed: true, version: '1.0.0', latest: null, fetched: null, installing: false, error: null, note: null, default: false, settings: {}, extras: true, removed: false, builtIn: false }
     const packages = [{ ...base, name: 'huly@even-keel', servers: ['huly'] }, { ...base, name: 'tasks@even-keel', servers: ['tasks'] }]
-    const cell = { choice: 'on' as const, enabled: true, settings: {}, problems: [] }
+    const cell = { choice: 'on' as const, enabled: true, own: {}, problems: [] }
     const both: ProjectPackages = { cells: { 'huly@even-keel': cell, 'tasks@even-keel': cell }, problems: [], blocked: false, tracker: { server: 'huly', brought: true, also: 'tasks', both: true } }
     expect(trackerDoubled(view({ packages, projects: { ABC: both } }), 'ABC')).toEqual({ server: 'huly', also: 'tasks', by: 'tasks@even-keel' })
   })
@@ -194,8 +194,8 @@ describe('problemCount', () => {
     const projects = {
       ABC: {
         cells: {
-          huly: { choice: null, enabled: true, settings: {}, problems: [{ kind: 'noKey' as const, variables: ['HULY_PASSWORD'] }] },
-          db: { choice: 'off' as const, enabled: false, settings: {}, problems: [{ kind: 'notInstalled' as const }] },
+          huly: { choice: null, enabled: true, own: {}, problems: [{ kind: 'noKey' as const, variables: ['HULY_PASSWORD'] }] },
+          db: { choice: 'off' as const, enabled: false, own: {}, problems: [{ kind: 'notInstalled' as const }] },
         },
         problems: [{ kind: 'noTrackerMcp' as const, server: 'huly' }],
         blocked: true,

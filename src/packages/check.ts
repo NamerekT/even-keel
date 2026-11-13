@@ -2,7 +2,8 @@ import { pluginReach } from '../agent/projectRules.js'
 import type { Notice } from '../notice/notice.js'
 import type { PackageCell, PackageProblem, ProjectPackages } from '../state.js'
 import type { ServerKeys } from './keys.js'
-import { current, enabledIn, settingsOf, type PackagesFile, type ServerEntry } from './model.js'
+import { current, enabledIn, type PackagesFile, type ServerEntry } from './model.js'
+import { pageSettings } from './settings.js'
 
 const PROBE_OK_MS = 5 * 60_000
 /** The wait before asking a failing server again, by its failures in a row; the last one repeats (BTN-589). */
@@ -50,7 +51,7 @@ export function projectPackages(input: CheckInput): ProjectPackages {
     if (record.removed === true) continue
     const enabled = enabledIn(file, project, name)
     const choice = set?.on.includes(name) ? 'on' : set?.off.includes(name) ? 'off' : null
-    const settings = settingsOf(file, project, name)
+    const own = pageSettings(set?.settings[name] ?? {})
     const problems: PackageProblem[] = []
     const install = current(record)
     if (enabled) {
@@ -82,7 +83,7 @@ export function projectPackages(input: CheckInput): ProjectPackages {
         }
       }
     }
-    cells[name] = { choice, enabled, settings, problems }
+    cells[name] = { choice, enabled, own, problems }
   }
   const through = !hasTracker && hasAlso ? { through: input.tracker!.also! } : {}
   const also = input.tracker?.also === undefined ? {} : { also: input.tracker.also, ...(hasTracker && hasAlso ? { both: true } : {}) }

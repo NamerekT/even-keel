@@ -337,6 +337,7 @@
 }
 
 .packages__field-name > code,
+.packages__field-key,
 .packages__key-name {
   display: inline-flex;
   align-items: center;

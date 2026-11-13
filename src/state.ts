@@ -492,8 +492,8 @@ export interface PackageView {
   /** The outcome of the last update: `packages.upToDate` or `packages.updated`. */
   note: Notice | null
   default: boolean
-  /** The values projects start from. */
-  settings: Record<string, string>
+  /** The values projects start from; `null` — a secret's (BTN-1116): set, its value never leaves the service. */
+  settings: Record<string, string | null>
   servers: string[]
   /** Skills, hooks, commands or agents: only Claude Code gets them. */
   extras: boolean
@@ -523,8 +523,8 @@ export interface PackageCell {
   /** The project's own choice; `null` — the package's default. */
   choice: 'on' | 'off' | null
   enabled: boolean
-  /** The project's values over the package's. */
-  settings: Record<string, string>
+  /** The project's own values over the package's `settings`; `null` — an own secret, its value kept in the service. */
+  own: Record<string, string | null>
   problems: PackageProblem[]
 }
 

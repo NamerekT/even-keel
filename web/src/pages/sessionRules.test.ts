@@ -26,9 +26,9 @@ const packages: PackagesView = {
   projects: {
     ABC: {
       cells: {
-        'agent-bridge': { choice: null, enabled: true, settings: {}, problems: [] },
-        'servers-only': { choice: null, enabled: true, settings: {}, problems: [] },
-        off: { choice: 'off', enabled: false, settings: {}, problems: [] },
+        'agent-bridge': { choice: null, enabled: true, own: {}, problems: [] },
+        'servers-only': { choice: null, enabled: true, own: {}, problems: [] },
+        off: { choice: 'off', enabled: false, own: {}, problems: [] },
       },
       problems: [],
       blocked: false,

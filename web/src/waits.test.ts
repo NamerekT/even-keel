@@ -42,9 +42,9 @@ describe('chainWaits', () => {
 
   it('names the packages a chain about to launch waits for, and whether they pass by themselves', () => {
     const cells: ProjectPackages['cells'] = {
-      huly: { choice: null, enabled: true, settings: {}, problems: [{ kind: 'installing' }, { kind: 'unsupported', agent: 'codex' }] },
-      forgejo: { choice: null, enabled: true, settings: {}, problems: [{ kind: 'probing' }] },
-      off: { choice: 'off', enabled: false, settings: {}, problems: [{ kind: 'noResponse', servers: ['x'] }] },
+      huly: { choice: null, enabled: true, own: {}, problems: [{ kind: 'installing' }, { kind: 'unsupported', agent: 'codex' }] },
+      forgejo: { choice: null, enabled: true, own: {}, problems: [{ kind: 'probing' }] },
+      off: { choice: 'off', enabled: false, own: {}, problems: [{ kind: 'noResponse', servers: ['x'] }] },
     }
     expect(chainWaits(stateOf(running(), packagesOf({ ABC: held(cells) })), 'ABC')).toEqual([
       { kind: 'packages', passing: true, packages: [{ name: 'huly', problems: [{ kind: 'installing' }] }, { name: 'forgejo', problems: [{ kind: 'probing' }] }] },
