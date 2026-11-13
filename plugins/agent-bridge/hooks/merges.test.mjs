@@ -48,7 +48,10 @@ describe("refusal", () => {
   });
 });
 
-describe("runCommand", () => {
+// Each test spawns git and `node -e` children: under the full `npm test` they took over vitest's 5 s (BTN-1110).
+const children = { timeout: 30_000 };
+
+describe("runCommand", children, () => {
   it("gives the command's code and its output, both streams", async () => {
     expect(await runCommand(node("console.log('ok')"), tmpdir())).toEqual({ code: 0, output: expect.stringContaining("ok") });
     const failed = await runCommand(node("console.error('broken'); process.exit(3)"), tmpdir());
@@ -64,7 +67,7 @@ describe("runCommand", () => {
   });
 });
 
-describe("mergeRefusal", () => {
+describe("mergeRefusal", children, () => {
   let repo;
   beforeAll(() => {
     repo = taskRepo();

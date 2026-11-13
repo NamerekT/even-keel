@@ -145,7 +145,8 @@ describe('HulyClient', () => {
   })
 })
 
-describe('the real Huly client on the patched Tiptap', () => {
+// The cold load of the real client's packages took over 5 s under the full `npm test` (BTN-1110).
+describe('the real Huly client on the patched Tiptap', { timeout: 30_000 }, () => {
   it('loads and keeps the markdown Even Keel reads and writes: Tiptap 3 breaks only its HTML path, which Even Keel never takes', () => {
     const huly = client({ dir: tempDir(), own: createRequire(import.meta.url) })
     expect(huly.require<object>('@hcengineering/api-client')).toHaveProperty('connect')
