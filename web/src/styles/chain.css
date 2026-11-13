@@ -572,17 +572,27 @@ button.block__key {
   background: var(--cache-clock);
 }
 
+/*
+ * A card takes four rows of its grid and shares them with the row's other cards (subgrid, BTN-1022): the head, the bar,
+ * the body, the buttons. Each slot is as tall as the row's tallest, so the bars and the text stand level however many
+ * lines a name takes. The space between slots is their margin, not the grid's gap: a row with no buttons keeps no empty
+ * gap under its body. The space between rows is the card's bottom margin, the last row's taken back by the grid's.
+ */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
+  gap: 0 12px;
+  margin-bottom: -12px;
 }
 
 .card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 0;
+  margin-bottom: 12px;
   padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -640,10 +650,20 @@ button.block__key {
   font-weight: 600;
   line-height: var(--head-line);
   text-decoration: none;
+  /* A word moves to the next line whole; only one longer than the line is broken. */
+  overflow-wrap: break-word;
+}
+
+/*
+ * The gap after the key is a space, not a margin: a margin is no place to break, so a narrow head broke the name's first
+ * word ("DEMO Custome / r"), and a name moved to the next line whole kept the margin as an indent. The space goes at a break.
+ */
+.card__name::before {
+  content: ' ';
+  word-spacing: 4px;
 }
 
 .card__name {
-  margin-left: 8px;
   color: var(--fg-muted);
   font-family: var(--font);
   font-size: var(--text-14);

@@ -162,6 +162,8 @@ export const projectEN: Messages['project'] = {
       shelved: 'Send the ones you want into the chain from your tracker, captain.',
     },
     openIn: (tracker: string | null) => (tracker === null ? 'Open the tracker' : `Open in ${tracker}`),
+    openInList: 'Open in…',
+    trackerUnnamed: 'Tracker',
     next: 'Next',
     held: {
       skipped: 'Skipped',

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 
 /**
- * A menu in a popover under its button: it opens placed by `place`, focuses its first live item, closes on a pointer or
+ * A menu in a popover under its button: it opens placed by `place`, focuses its first live item (a button or a link), closes on a pointer or
  * a scroll outside its root, on a resize, on Tab and on Escape (back to the button), and moves between items by arrows.
  */
 export function usePopoverMenu<Menu extends HTMLElement>(place: (menu: HTMLElement, at: DOMRect) => void) {
@@ -16,7 +16,7 @@ export function usePopoverMenu<Menu extends HTMLElement>(place: (menu: HTMLEleme
     if (!open || element === null || owner === null) return
     element.showPopover()
     place(element, owner.getBoundingClientRect())
-    element.querySelector<HTMLButtonElement>('button:not([aria-disabled="true"])')?.focus({ preventScroll: true })
+    element.querySelector<HTMLElement>('button:not([aria-disabled="true"]), a[href]')?.focus({ preventScroll: true })
     const away = (event: Event) => {
       if (!(event.target instanceof Node && root.current?.contains(event.target))) setOpen(false)
     }
@@ -44,7 +44,7 @@ export function usePopoverMenu<Menu extends HTMLElement>(place: (menu: HTMLEleme
       setOpen(false)
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
-      const items = [...(menu.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
+      const items = [...(menu.current?.querySelectorAll<HTMLElement>('button, a[href]') ?? [])]
       const at = items.findIndex((item) => item === document.activeElement)
       const next = at + (event.key === 'ArrowDown' ? 1 : -1)
       items[(next + items.length) % items.length]?.focus()

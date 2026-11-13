@@ -28,6 +28,7 @@ import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
+import { TrackerPages } from '../ui/TrackerPages.js'
 import { chainWaits } from '../waits.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { ChainWaits } from './ChainWaits.js'
@@ -54,6 +55,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const down = unreadWhy(state.trackers.find((each) => each.projects.includes(project)))
   const call = off === null ? emptyCall(state, project) : null
   const pages = call === null ? [] : projectPages(state, project)
+  const fix = off === null && task === null && order === undefined ? (down?.fix ?? null) : null
   const [asking, setAsking] = useState(false)
   // A turned-off profile is a choice, not a fault: its project shows no red errors (BTN-830).
   const error = off !== null ? (asking ? null : failure) : (order?.error ?? (status.kind === 'paused' ? status.error : null) ?? completionNotices(state, project)[0] ?? failure)
@@ -98,69 +100,69 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         </span>
       </div>
 
-      {off !== null ? (
-        <p className="card__task card__task--empty">{t.project.profileOff(off.name)}</p>
-      ) : task === null ? (
-        order === undefined ? (
-          down === null ? (
-            <p className="card__task card__task--empty">{t.project.notLoaded}</p>
+      {/* The body is one slot of the row's subgrid, whatever it holds, so the cards of a row keep their lines level. */}
+      <div className="card__body">
+        {off !== null ? (
+          <p className="card__task card__task--empty">{t.project.profileOff(off.name)}</p>
+        ) : task === null ? (
+          order === undefined ? (
+            down === null ? (
+              <p className="card__task card__task--empty">{t.project.notLoaded}</p>
+            ) : (
+              <Tipped className="card__error card__error--tipped" tip={down.detail ?? ''} align="start" focusable={down.detail !== null} off={down.detail === null}>
+                {down.why}
+              </Tipped>
+            )
           ) : (
-            <Tipped className="card__error card__error--tipped" tip={down.detail ?? ''} align="start" focusable={down.detail !== null} off={down.detail === null}>
-              {down.why}
-            </Tipped>
+            <>
+              <EmptyLine progress={{ done, total, backlog }} turn={turn} />
+              {call !== null && <p className="card__call">{call}</p>}
+            </>
           )
         ) : (
-          <>
-            <EmptyLine progress={{ done, total, backlog }} turn={turn} />
-            {call !== null && <p className="card__call">{call}</p>}
-          </>
-        )
-      ) : (
-        <p className="card__task">
-          <Lamp lamp={task.lamp} />
-          {task.next && <span className="card__task-label">{t.project.next}</span>}
-          {task.held !== undefined && (
-            <Tipped className="card__task-label card__task-label--held" tip={t.project.heldTip[task.held]} inline focusable>
-              {t.project.held[task.held]}
-            </Tipped>
-          )}
-          <span className="card__task-id">{task.id}</span>
-          {task.title !== null && <TaskTitle title={task.title} to={projectPath(project)} />}
-        </p>
-      )}
+          <p className="card__task">
+            <Lamp lamp={task.lamp} />
+            {task.next && <span className="card__task-label">{t.project.next}</span>}
+            {task.held !== undefined && (
+              <Tipped className="card__task-label card__task-label--held" tip={t.project.heldTip[task.held]} inline focusable>
+                {t.project.held[task.held]}
+              </Tipped>
+            )}
+            <span className="card__task-id">{task.id}</span>
+            {task.title !== null && <TaskTitle title={task.title} to={projectPath(project)} />}
+          </p>
+        )}
 
-      <ChainWaits project={project} waits={waits} className="card__wait" compact />
-      {error !== null && <CardError notice={error} />}
-      <NoticeFixButton project={project} notice={error} />
-      {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
-      {status.kind === 'paused' && <TrackerFixButtons state={state} project={project} error={status.error} />}
+        <ChainWaits project={project} waits={waits} className="card__wait" compact />
+        {error !== null && <CardError notice={error} />}
+        <NoticeFixButton project={project} notice={error} />
+        {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
+        {status.kind === 'paused' && <TrackerFixButtons state={state} project={project} error={status.error} />}
+      </div>
 
-      {off !== null && (
+      {(off !== null || fix !== null || (off === null && canStart) || pages.length > 0) && (
         <footer className="card__foot">
-          {/* A list read before the profile went off may still offer Start: it only asks to turn the profile on. */}
-          <button type="button" className="button button--primary" disabled={sending} onClick={() => (canStart ? setAsking(true) : enable(off.id))}>
-            {canStart ? (startsNow(state.chain) ? t.project.start : t.project.enqueue) : t.project.enableProfile}
-          </button>
-        </footer>
-      )}
-      {off === null && task === null && order === undefined && down !== null && down.fix !== null && (
-        <footer className="card__foot">
-          <FixButton project={project} fix={down.fix} />
-        </footer>
-      )}
-      {off === null && canStart && (
-        <footer className="card__foot">
-          {reading ? (
-            <Tipped tip={t.project.readingTip} inline>
-              <button type="button" className="button button--primary" aria-disabled="true">
-                {t.project.reading}
-              </button>
-            </Tipped>
-          ) : (
-            <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('chain/start', { project })}>
-              {startsNow(state.chain) ? t.project.start : t.project.enqueue}
+          {off !== null && (
+            /* A list read before the profile went off may still offer Start: it only asks to turn the profile on. */
+            <button type="button" className="button button--primary" disabled={sending} onClick={() => (canStart ? setAsking(true) : enable(off.id))}>
+              {canStart ? (startsNow(state.chain) ? t.project.start : t.project.enqueue) : t.project.enableProfile}
             </button>
           )}
+          {fix !== null && <FixButton project={project} fix={fix} />}
+          {off === null &&
+            canStart &&
+            (reading ? (
+              <Tipped tip={t.project.readingTip} inline>
+                <button type="button" className="button button--primary" aria-disabled="true">
+                  {t.project.reading}
+                </button>
+              </Tipped>
+            ) : (
+              <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('chain/start', { project })}>
+                {startsNow(state.chain) ? t.project.start : t.project.enqueue}
+              </button>
+            ))}
+          <TrackerPages pages={pages} />
         </footer>
       )}
       {asking &&
@@ -179,15 +181,6 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
           />,
           document.body,
         )}
-      {pages.length > 0 && (
-        <footer className="card__foot">
-          {pages.map((page) => (
-            <a key={page.url} className="button" href={page.url} target="_blank" rel="noreferrer">
-              {t.project.openIn(page.tracker)}
-            </a>
-          ))}
-        </footer>
-      )}
     </article>
   )
 }

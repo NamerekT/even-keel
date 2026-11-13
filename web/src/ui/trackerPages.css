@@ -1,0 +1,77 @@
+/* "Open in…" of a project with several trackers and the list of their pages under it. */
+.tracker-pages {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+}
+
+.tracker-pages__one {
+  position: relative;
+  z-index: 1;
+}
+
+/* A plain `.button`, not a flex box: `text-box` trims only a block's line, and a flex one would stand taller than its neighbours. */
+.tracker-pages__button .icon {
+  margin-left: var(--space-6);
+  vertical-align: -2px;
+  transition: transform var(--motion-fast);
+}
+
+.tracker-pages__button[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+
+.tracker-pages__button[aria-expanded='true'] .icon {
+  transform: rotate(180deg);
+}
+
+.tracker-pages__list {
+  position: fixed;
+  inset: auto;
+  width: max-content;
+  min-width: 160px;
+  max-width: min(320px, calc(100vw - 16px));
+  margin: 0;
+  padding: var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--fg);
+  font: var(--text-14)/1.45 var(--font);
+  list-style: none;
+  animation: fade-in var(--motion-fast) ease-out;
+}
+
+.tracker-pages__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-8);
+  border-radius: var(--radius-control);
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.tracker-pages__item .icon {
+  color: var(--fg-muted);
+}
+
+.tracker-pages__item:hover,
+.tracker-pages__item:focus-visible {
+  background: var(--surface-muted);
+  outline: none;
+}
+
+.tracker-pages__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tracker-pages__button .icon {
+    transition: none;
+  }
+}

@@ -13,6 +13,16 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-top: 12px;
+}
+
+/* Everything between the bar and the buttons, at the top of its slot. */
+.card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-self: start;
+  margin-top: 12px;
 }
 
 .card__bar {
@@ -153,7 +163,8 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: auto;
+  align-self: end;
+  margin-top: 12px;
 }
 
 .card__foot .button,

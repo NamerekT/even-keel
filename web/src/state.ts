@@ -481,21 +481,29 @@ export function projectTracker(state: EvenKeelState, project: string): { kind: s
   return { kind: view.kind, label: trackerProject === null ? view.title : `${view.title} · ${trackerProject}` }
 }
 
+/** A page of a project's tracker: `tracker` is the name a person reads, `kind` the tracker's (`null` — unknown). */
+export interface TrackerPage {
+  url: string
+  tracker: string | null
+  kind: string | null
+}
+
 /**
  * The pages where the project's new tasks are filed: its own in its tracker, then each feed's (BTN-329), with the tracker's
- * own name (`Huly`) for the button; two pages of one tracker add their keys to it.
+ * own name (`Huly`) for the button and its kind (`huly`) for the icon; two pages of one tracker add their keys to it.
  */
-export function projectPages(state: EvenKeelState, project: string): { url: string; tracker: string | null }[] {
-  const titleOf = (kind: string | undefined) => state.config.trackers.find((each) => each.name === kind)?.title ?? null
-  const own = { id: project, key: state.projectKeys[project] ?? project, tracker: titleOf(state.trackers.find((each) => each.projects.includes(project))?.kind) }
-  const feeds = (state.config.feeds[project] ?? []).map((feed) => ({ id: feed.id, key: feed.key, tracker: titleOf(feed.tracker) }))
+export function projectPages(state: EvenKeelState, project: string): TrackerPage[] {
+  const titleOf = (kind: string | null) => state.config.trackers.find((each) => each.name === kind)?.title ?? null
+  const ownKind = state.trackers.find((each) => each.projects.includes(project))?.kind ?? null
+  const own = { id: project, key: state.projectKeys[project] ?? project, kind: ownKind, tracker: titleOf(ownKind) }
+  const feeds = (state.config.feeds[project] ?? []).map((feed) => ({ id: feed.id, key: feed.key, kind: feed.tracker, tracker: titleOf(feed.tracker) }))
   const pages = [own, ...feeds].flatMap(({ id, ...page }) => {
     const url = state.trackerUrls.pages[id] ?? null
     return url === null ? [] : [{ url, ...page }]
   })
-  return pages.map(({ url, key, tracker }) => {
+  return pages.map(({ url, key, kind, tracker }) => {
     const shared = pages.filter((other) => other.tracker === tracker).length > 1
-    return { url, tracker: !shared ? tracker : tracker === null ? key : `${tracker} · ${key}` }
+    return { url, tracker: !shared ? tracker : tracker === null ? key : `${tracker} · ${key}`, kind }
   })
 }
 

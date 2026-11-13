@@ -160,6 +160,10 @@ export const projectRU = {
       shelved: 'Переведите нужные в работу в своём трекере, кэп.',
     },
     openIn: (tracker: string | null) => (tracker === null ? 'Открыть трекер' : `Открыть в ${tracker}`),
+    /** The one button of a project with several trackers; its list names each of them. */
+    openInList: 'Открыть в…',
+    /** A tracker of the list without a name it is known by. */
+    trackerUnnamed: 'Трекер',
     next: 'Следующая',
     held: {
       skipped: 'Пропущена',

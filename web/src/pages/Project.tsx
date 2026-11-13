@@ -40,6 +40,7 @@ import { Said } from '../ui/ProjectLinks.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
+import { TrackerPages } from '../ui/TrackerPages.js'
 import { chainWaits } from '../waits.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList, type Adding } from './ChainList.js'
@@ -445,14 +446,10 @@ function EmptyCall({ state, project }: { state: EvenKeelState; project: string }
   const call = emptyCall(state, project)
   if (call === null) return null
   return (
-    <p className="project__call">
+    <div className="project__call">
       {call}
-      {projectPages(state, project).map((page) => (
-        <a key={page.url} className="button button--small" href={page.url} target="_blank" rel="noreferrer">
-          {t.project.openIn(page.tracker)}
-        </a>
-      ))}
-    </p>
+      <TrackerPages pages={projectPages(state, project)} small />
+    </div>
   )
 }
 
