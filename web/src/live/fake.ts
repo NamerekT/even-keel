@@ -25,6 +25,7 @@ import { finishFakeCli, withCliCopies } from './fakeCliCopies.js'
 import { withFix } from './fakeFix.js'
 import { withLiveMilestones, withMilestonePreview, withSavedMilestoneOrder } from './fakeMilestones.js'
 import { withDragPreview } from './fakeDrag.js'
+import { withLongBacklog } from './fakeBacklog.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
@@ -129,6 +130,7 @@ function fakeState(
         'ABC-11': { provider: 'opencode', model: 'opencode/deepseek-v4.1-flash-free', effort: null },
         'ABC-14': { provider: null, model: null, effort: 'low' },
         'ABC-15': { provider: 'opencode', model: 'router/vendor/deepseek-v4.1-flash-free-with-an-extra-long-model-suffix', effort: null },
+        'ABC-19': { provider: 'codex', model: 'gpt-6.1-sol', effort: 'high' },
       },
     },
     branchDrift: {},
@@ -509,6 +511,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state = startChain({ ...current.state, chain: { ...current.state.chain, parallel, queue: current.state.chain.queue.slice(1) } }, 'DEMO', launches)
   }
   if (params.get('chain') === 'drag' && current.state !== null) current.state = withDragPreview(current.state)
+  if (params.get('backlog') === 'many' && current.state !== null) current.state = withLongBacklog(current.state)
   if (params.get('chain') === 'backlog' && current.state !== null) {
     const { tasks, chain } = current.state
     current.state.tasks = [

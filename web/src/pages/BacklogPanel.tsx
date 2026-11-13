@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
+import type { TaskRun } from '../../../src/sessions/runs.js'
 import type { TaskWork } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import type { ReadyButton, TaskLinks } from '../state.js'
-import { ByPriorityIcon, FlagIcon, IntoChainIcon, NewestFirstIcon, OldestFirstIcon, StackIcon } from '../ui/icons.js'
+import { ByPriorityIcon, FlagIcon, IntoChainIcon, NewestFirstIcon, OldestFirstIcon, SearchIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
+import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { BACKLOG_PLACE } from '../ui/addGhost.js'
 import { AddGhost } from './AddGhost.js'
 import { BACKLOG_ORDERS, type BacklogOrder, sortBacklog, useBacklogOrder } from './backlogOrder.js'
+import { BACKLOG_PAGE, nextLimit, searchBacklog } from './backlogSearch.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import '../stats/overview.css'
 import './backlog.css'
@@ -57,6 +60,8 @@ export function BacklogChip({ count, open, look = 'tag', work = false, always = 
 
 interface Props {
   tasks: Task[]
+  /** What the tasks' sessions run on where their card set it (`state.runs` of the project), by task. */
+  runs: Record<string, TaskRun>
   /** The work left in the tasks' folders, by task. */
   works: Record<string, TaskWork>
   /** The task's "Into the chain" button, `null` for none. */
@@ -75,7 +80,7 @@ interface Props {
   adding?: string | null
 }
 
-export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled, adding = null }: Props) {
+export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled, adding = null }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
@@ -86,10 +91,22 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
   known.current ??= new Set(tasks.map((task) => task.id))
   const mixed = new Set(tasks.map((task) => task.status.name)).size > 1
   const [order, setOrder] = useBacklogOrder()
-  const sorted = sortBacklog(tasks, order)
+  const [query, setQuery] = useState('')
+  const [limit, setLimit] = useState(BACKLOG_PAGE)
+  const searching = query.trim() !== ''
+  const runOf = (task: string) => runs[task] ?? null
+  const found = searchBacklog(sortBacklog(tasks, order), query, runOf)
   // The row finishes sliding out even when the chain takes the task before it is gone.
   const rows =
-    out === null || sorted.some((task) => task.id === out.task.id) ? sorted : [...sorted.slice(0, out.index), out.task, ...sorted.slice(out.index)]
+    out === null || found.some((task) => task.id === out.task.id) ? found : [...found.slice(0, out.index), out.task, ...found.slice(out.index)]
+  const shown = rows.slice(0, limit)
+  const left = rows.length - shown.length
+  const search = (text: string) => {
+    setQuery(text)
+    setLimit(BACKLOG_PAGE)
+  }
+  const queryRef = useRef(query)
+  queryRef.current = query
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
   useEffect(() => () => point.current(null), [])
@@ -102,14 +119,18 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
   // mousemove, not mouseenter: Chrome fires a synthetic enter when the row under a still cursor disappears.
   const pointAt = (event: SyntheticEvent) => onPoint((event.target as HTMLElement).closest<HTMLElement>('[data-ready]')?.dataset.ready ?? null)
   const ready = (task: Task) => {
-    setOut({ task, index: sorted.indexOf(task) })
+    setOut({ task, index: found.indexOf(task) })
     onMove(task)
     void send('task/ready', { task: task.id }).then(() => onSettled(task.id))
   }
 
+  // Escape clears a search first and closes the panel only when there is none.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && document.querySelector('dialog[open]') === null) onClose()
+      if (event.key !== 'Escape' || document.querySelector('dialog[open]') !== null) return
+      if (queryRef.current === '') return onClose()
+      setQuery('')
+      setLimit(BACKLOG_PAGE)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -119,8 +140,11 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
     <aside className="panel backlog" aria-label={t.project.backlog(tasks.length)}>
       <header className="panel__head">
         <h2 className="panel__task backlog__title">
-          <StackIcon />
-          {t.project.backlog(tasks.length)}
+          <span className="backlog__title-text">
+            <StackIcon />
+            {t.project.backlog(tasks.length)}
+          </span>
+          {searching && <span className="backlog__found">{t.project.backlogFound(found.length, tasks.length)}</span>}
         </h2>
         <OrderSwitch value={order} onChange={setOrder} />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
@@ -128,9 +152,10 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
         </button>
       </header>
       <p className="chain__hint">{t.project.backlogHint}</p>
+      <SearchField value={query} onChange={search} />
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <ol
-        className={rows.some((task) => buttonOf(task) !== null) ? 'backlog__list backlog__list--ready' : 'backlog__list'}
+        className={shown.some((task) => buttonOf(task) !== null) ? 'backlog__list backlog__list--ready' : 'backlog__list'}
         onMouseMove={pointAt}
         onFocus={pointAt}
         onMouseLeave={() => onPoint(null)}
@@ -141,7 +166,8 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
             <AddGhost project={adding} place={BACKLOG_PLACE} label={t.chain.add.task} onCard={onCard} />
           </li>
         )}
-        {rows.map((task) => {
+        {shown.map((task) => {
+          const run = runOf(task.id)
           const button = buttonOf(task)
           const reason = button?.refused ?? null
           const gone = task.id === leaving || task.id === out?.task.id
@@ -176,6 +202,7 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
                     ↳ {task.parent}
                   </span>
                 )}
+                {run !== null && <RunLabelTag run={run} />}
                 {mixed && <span className="backlog__status">{task.status.name}</span>}
                 <span
                   className={task.milestone === null ? 'backlog__milestone backlog__milestone--none' : 'backlog__milestone'}
@@ -184,15 +211,60 @@ export function BacklogPanel({ tasks, works, ready: buttonOf, links, onCard, onC
                   <FlagIcon />
                   <span className="backlog__milestone-name">{task.milestone?.label ?? t.chain.noMilestone}</span>
                 </span>
-                {works[task.id] !== undefined && <WorkChip work={works[task.id]!} />}
-                <Links links={links(task.id)} onCard={onCard} />
+                <span className="backlog__tail">
+                  {works[task.id] !== undefined && <WorkChip work={works[task.id]!} />}
+                  <Links links={links(task.id)} onCard={onCard} />
+                </span>
               </div>
               <p className="backlog__name">{task.title}</p>
             </li>
           )
         })}
       </ol>
+      {searching && rows.length === 0 && <p className="placeholder backlog__nothing">{t.project.backlogNothing}</p>}
+      {left > 0 && (
+        <Tipped tip={t.project.backlogMoreTip(left)} className="backlog__more">
+          <button type="button" className="button button--small" onClick={() => setLimit(nextLimit(limit, rows.length))}>
+            {t.project.backlogMore(Math.min(left, BACKLOG_PAGE))}
+          </button>
+        </Tipped>
+      )}
     </aside>
+  )
+}
+
+/** The backlog's search: a magnifier, the field and a cross that clears it. */
+function SearchField({ value, onChange }: { value: string; onChange: (text: string) => void }) {
+  const field = useRef<HTMLInputElement>(null)
+  return (
+    <div className="backlog__search">
+      <SearchIcon />
+      <input
+        ref={field}
+        type="text"
+        className="backlog__search-field"
+        autoComplete="off"
+        spellCheck={false}
+        placeholder={t.project.backlogSearchPlaceholder}
+        aria-label={t.project.backlogSearch}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {value !== '' && (
+        <Tipped tip={t.project.backlogSearchClear} inline className="backlog__search-clear">
+          <button
+            type="button"
+            aria-label={t.project.backlogSearchClear}
+            onClick={() => {
+              onChange('')
+              field.current?.focus()
+            }}
+          >
+            ×
+          </button>
+        </Tipped>
+      )}
+    </div>
   )
 }
 

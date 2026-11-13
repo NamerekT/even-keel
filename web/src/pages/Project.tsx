@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
+import type { TaskRun } from '../../../src/sessions/runs.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerView } from '../../../src/tracker/health.js'
 import { formatAgo } from '../format.js'
@@ -83,6 +84,7 @@ const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).Ta
 const BadgeDialog = lazy(async () => ({ default: (await import('./BadgeDialog.js')).BadgeDialog }))
 const ProjectPackages = lazy(async () => ({ default: (await import('../tools/ProjectPackages.js')).ProjectPackages }))
 const CARD_PARAM = 'task'
+const NO_RUNS: Record<string, TaskRun> = {}
 
 export function Project({ state, project: key }: { state: EvenKeelState; project: string }) {
   const location = useLocation()
@@ -303,6 +305,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           {backlogOpen && (
             <BacklogPanel
               tasks={backlog}
+              runs={state.runs[key] ?? NO_RUNS}
               works={backlogWorks}
               ready={(task) => readyButton(state, key, { id: task.id, stage: task.status.category, locked: false })}
               links={links}

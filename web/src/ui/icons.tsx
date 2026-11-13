@@ -87,6 +87,16 @@ export function GoToIcon() {
   )
 }
 
+/** Search: a magnifier. */
+export function SearchIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.25" />
+      <path d="m10.25 10.25 3.5 3.5" />
+    </svg>
+  )
+}
+
 export function StackIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
