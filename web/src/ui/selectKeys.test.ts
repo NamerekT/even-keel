@@ -97,4 +97,10 @@ describe('offersOf', () => {
     const projects = [{ value: 'SHOP', label: 'Storefront' }, { value: 'OPS', label: 'Operations' }]
     expect(offersOf(projects, 'front')).toEqual([projects[0]])
   })
+
+  it('lists no more than its limit, the best fits first', () => {
+    const many = Array.from({ length: 5000 }, (_, index) => ({ value: `b${index}` }))
+    expect(offersOf(many, null, 100)).toHaveLength(100)
+    expect(offersOf(many, 'b49', 3).map((offer) => offer.value)).toEqual(['b49', 'b490', 'b491'])
+  })
 })

@@ -5,6 +5,7 @@ import { parseRemote } from '../ci/remote.js'
 import { isBranchName } from '../git/branches.js'
 import { remoteName, sameRemote } from '../git/clone-progress.js'
 import { isHeads, type ReadRemote, type RemoteHeads } from '../git/remote-run.js'
+import { remoteOffer } from './remote-branches.js'
 import type { Git } from '../git/types.js'
 import { notice } from '../notice/notice.js'
 import { pathsOf, samePath } from '../paths.js'
@@ -149,8 +150,10 @@ export async function checkPlace(deps: PlaceDeps, draft: ProjectDraft): Promise<
     if (!isHeads(read)) return { ...NONE, notice: read }
     heads = read
   }
+  // A refused folder or branch keeps the remote's branches in the field.
+  const none = heads === null ? NONE : { ...NONE, remoteBranches: remoteOffer(heads, draft.branch) }
   const branch = draft.branch.trim()
-  if (!plain && branch !== '' && !(await isBranchName(deps.git, deps.folders.home, branch))) return { ...NONE, notice: notice('wizard.branchName', { value: branch }) }
+  if (!plain && branch !== '' && !(await isBranchName(deps.git, deps.folders.home, branch))) return { ...none, notice: notice('wizard.branchName', { value: branch }) }
   const wanted = branch !== '' ? branch : (heads?.head ?? null)
 
   const typed = draft.repo.trim()
@@ -159,13 +162,13 @@ export async function checkPlace(deps: PlaceDeps, draft: ProjectDraft): Promise<
   let path: string
   if (typed !== '') {
     const full = expandFolder(typed, deps.folders.home, platform)
-    if (!isFullPath(full, platform)) return { ...NONE, notice: notice(platform === 'win32' && /%[^%]+%/.test(full) ? 'wizard.noFolder' : 'wizard.relativePath', { path: typed }) }
+    if (!isFullPath(full, platform)) return { ...none, notice: notice(platform === 'win32' && /%[^%]+%/.test(full) ? 'wizard.noFolder' : 'wizard.relativePath', { path: typed }) }
     path = paths.normalize(full)
     name = paths.basename(path)
   } else {
     dir = ownDir
     const given = (draft.folder ?? '').trim()
-    if (given !== '' && BAD_NAME.test(given)) return { ...NONE, notice: notice('wizard.folderName', { value: given }) }
+    if (given !== '' && BAD_NAME.test(given)) return { ...none, notice: notice('wizard.folderName', { value: given }) }
     const base = given !== '' ? given : clone ? remoteName(remote) : draft.name.trim() || draft.key.trim().toLowerCase()
     const safe = base.replace(/[<>:"|?*\\/]+/g, '-').replace(/[. ]+$/, '') || 'project'
     name = given
@@ -181,8 +184,8 @@ export async function checkPlace(deps: PlaceDeps, draft: ProjectDraft): Promise<
 
   const state = look(path)
   const suggested = clone ? suggestedOf(remote, deps) : null
-  const found = { root: path, current: heads?.head ?? null, suggested, branches: null }
-  if (state === 'file') return { ...NONE, notice: notice('wizard.folderIsFile', { path }) }
+  const found = { ...none, root: path, current: heads?.head ?? null, suggested }
+  if (state === 'file') return { ...none, notice: notice('wizard.folderIsFile', { path }) }
   const place: FolderPlace = { dir, name, state }
   const taken = deps.projectOf(path)
   if (taken !== undefined) return { ...found, place, notice: notice(plain ? 'wizard.folderTaken' : 'wizard.repoTaken', { project: taken }) }

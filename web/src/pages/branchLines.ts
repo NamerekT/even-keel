@@ -1,5 +1,5 @@
 import { branchMove } from '../../../src/projects/branch.js'
-import type { RepoBranches } from '../../../src/state.js'
+import type { RemoteBranchList, RepoBranches } from '../../../src/state.js'
 import { branchTexts } from '../i18n/branch.js'
 import type { Offer } from '../ui/selectKeys.js'
 
@@ -26,4 +26,25 @@ export function moveLine(repo: RepoBranches | null, value: string): string | nul
   if (move.kind === 'create') return texts.create(target, move.from, move.head)
   if (move.kind === 'track') return texts.track(target, move.remote)
   return null
+}
+
+/** A clone's branch field list (BTN-1096): the remote's branches as the check sent them, the default marked so. */
+export function remoteOffers(list: RemoteBranchList | undefined): Offer[] {
+  if (list === undefined) return []
+  const texts = branchTexts()
+  return list.branches.map((name) => (name === list.head ? { value: name, label: texts.byDefault } : { value: name }))
+}
+
+/**
+ * What a clone does with the typed branch, as a line under the field; `null` — blank, or not known yet: the check of a
+ * narrowed list has not answered for the text typed since.
+ */
+export function cloneLine(list: RemoteBranchList | undefined, value: string): string | null {
+  const target = value.trim()
+  if (list === undefined || target === '') return null
+  const full = list.branches.length >= list.total
+  const has = target === list.typed ? list.has : full ? list.branches.includes(target) : null
+  if (has === null) return null
+  const texts = branchTexts()
+  return has ? texts.cloned(target) : texts.clonedNew(target, list.head)
 }

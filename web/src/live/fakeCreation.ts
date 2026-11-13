@@ -1,5 +1,6 @@
 import { remoteFailure, remoteName, remoteShaped } from '../../../src/git/clone-progress.js'
 import { fail, notice } from '../../../src/notice/notice.js'
+import { remoteOffer } from '../../../src/projects/remote-branches.js'
 import type { EvenKeelState, FolderPlace, JobStep, ProjectCheck, ProjectDraft, StepJob } from '../../../src/state.js'
 
 /** Even Keel's projects folder in the fake. */
@@ -15,7 +16,16 @@ const BROKEN_OUT = [
   'and the repository exists.',
 ].join('\n')
 
-const SSH_TAIL = '\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.\n'
+/** A fake remote's branches: one with `many` in its address has a thousand and more, as a big project's (BTN-1096). */
+function fakeRemoteHeads(remote: string): { head: string; branches: string[] } {
+  const few = ['develop', 'feature/login', 'main', 'release/v1', 'abc-7/task']
+  if (!remote.includes('many')) return { head: 'main', branches: few }
+  const areas = ['api', 'docs', 'editor', 'search', 'terminal']
+  const many = Array.from({ length: 1200 }, (_, index) => `${index % 3 === 0 ? 'fix' : 'feature'}/${areas[index % areas.length]}-${index}`)
+  return { head: 'main', branches: [...few, ...many] }
+}
+
+const SSH_TAIL ='\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.\n'
 
 /** What git prints for a remote whose name has the word, as the service reads it (BTN-1091). */
 const GIT_OUT: readonly (readonly [string, (remote: string) => string])[] = [
@@ -28,7 +38,8 @@ const GIT_OUT: readonly (readonly [string, (remote: string) => string])[] = [
  * The folder of a clone, a new repository or a named folder without git (BTN-1048) by the fake's rules: a text that is
  * no address is refused as the service refuses it; a remote with `denied`, `nope`, `offline`, `broken`, `private`,
  * `hostkey` or `nokey` is refused as git would; a folder name with `full` holds files, one with `empty` is
- * there and empty; a remote with `again` has a clone of it in the projects folder already. `null` — the draft names
+ * there and empty; a remote with `again` has a clone of it in the projects folder already, one with `many` has over a
+ * thousand branches. `null` — the draft names
  * a checkout already there, which the old rules check.
  */
 export function fakePlace(state: EvenKeelState, draft: ProjectDraft): ProjectCheck['repo'] | null {
@@ -48,7 +59,7 @@ export function fakePlace(state: EvenKeelState, draft: ProjectDraft): ProjectChe
   if (clone && remote.includes('offline')) return { ...NONE, notice: notice('git.remoteNetwork', { remote }, { detail: 'Could not resolve host' }) }
   const typed = draft.repo.trim().replace(/\\/g, '/').replace(/\/+$/, '')
   const given = (draft.folder ?? '').trim()
-  if (typed === '' && /[\\/<>:"|?*]/.test(given)) return { ...NONE, notice: notice('wizard.folderName', { value: given }) }
+  if (typed === '' && /[\\/<>:"|?*]/.test(given)) return { ...NONE, ...(clone ? { remoteBranches: remoteOffer(fakeRemoteHeads(remote), draft.branch) } : {}), notice: notice('wizard.folderName', { value: given }) }
   const base = given || (clone ? remoteName(remote) : draft.name.trim() || draft.key.trim().toLowerCase() || 'project')
   const dir = typed === '' ? FAKE_PROJECTS_DIR : null
   const name = typed === '' ? base : typed.slice(typed.lastIndexOf('/') + 1)
@@ -63,7 +74,8 @@ export function fakePlace(state: EvenKeelState, draft: ProjectDraft): ProjectChe
     ...(clone && dir !== null && remote.includes('again') ? { existing: `${FAKE_PROJECTS_DIR}/${base}-2` } : {}),
   }
   const taken = Object.entries(state.config.projects).find(([, form]) => form.repo.toLowerCase() === root.toLowerCase())
-  const found = { root, current: clone ? 'main' : null, suggested: null, branches: null, place }
+  const offer = clone ? { remoteBranches: remoteOffer(fakeRemoteHeads(remote), draft.branch) } : {}
+  const found = { root, current: clone ? 'main' : null, suggested: null, branches: null, ...offer, place }
   if (taken !== undefined) return { ...found, notice: notice(plain ? 'wizard.folderTaken' : 'wizard.repoTaken', { project: taken[0] }) }
   if (clone && filled) return { ...found, notice: notice('wizard.folderFilled', { path: root }) }
   return { ...found, notice: null }

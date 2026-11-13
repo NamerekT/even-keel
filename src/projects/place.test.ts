@@ -91,7 +91,14 @@ describe('measureFolder', () => {
 describe('checkPlace', () => {
   it('names a clone after its remote in the projects folder and reads its default branch', async () => {
     const check = await checkPlace(deps(), clone())
-    expect(check).toEqual({ root: join(own, 'storefront'), current: 'main', suggested: null, branches: null, place: { dir: own, name: 'storefront', state: 'free' }, notice: null })
+    const remoteBranches = { head: 'main', branches: ['main', 'release/v0.2'], total: 2, typed: '', has: false }
+    expect(check).toEqual({ root: join(own, 'storefront'), current: 'main', suggested: null, branches: null, remoteBranches, place: { dir: own, name: 'storefront', state: 'free' }, notice: null })
+  })
+
+  it("offers the remote's branches to a clone's branch field and says whether the typed one is there (BTN-1096)", async () => {
+    expect((await checkPlace(deps(), clone({ branch: 'release/v0.2' }))).remoteBranches).toEqual(expect.objectContaining({ typed: 'release/v0.2', has: true }))
+    expect((await checkPlace(deps(), clone({ branch: 'next' }))).remoteBranches).toEqual(expect.objectContaining({ typed: 'next', has: false }))
+    expect((await checkPlace(deps(), clone({ folder: 'bad/name' }))).remoteBranches).toEqual(expect.objectContaining({ head: 'main' }))
   })
 
   it('asks no remote and says nothing while the address is blank', async () => {
