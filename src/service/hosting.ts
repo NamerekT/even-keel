@@ -28,7 +28,7 @@ import { readJson } from '../packages/plugins.js'
 import { checkDraft, checkRepo, isTrusted, sourcedDraft } from '../projects/check.js'
 import { addProject } from '../projects/add.js'
 import { creationPlan } from '../projects/creation.js'
-import { cloner, sharedRemoteReader } from '../git/remote-run.js'
+import { cloner, restorer, sharedRemoteReader } from '../git/remote-run.js'
 import { stepJobs } from '../jobs/runner.js'
 import { trustFolder } from '../claude/trust.js'
 import { gitSwitchBlock, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
@@ -409,6 +409,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
           {
             git: runGit,
             clone: cloner(),
+            restore: restorer(),
             readRemote: sharedRemoteReader,
             check: (each) => checkRepo(runGit, each, ctx.configStore.raw(), process.platform),
             add: (each) => addProject({ configStore: ctx.configStore, profiles: ctx.profiles, git: runGit }, each),

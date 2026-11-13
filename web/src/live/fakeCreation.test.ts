@@ -54,6 +54,12 @@ describe("the fake's project creation (BTN-1048)", () => {
     expect(fakeJobCommand(failed, 'project/add', {})).toBeNull()
   })
 
+  it('fails the LFS step of a clone that came whole, with the push that uploads the missing file (BTN-1106)', () => {
+    const failed = fakeJob('lfs-missing')!
+    expect(failed.steps.map((step) => `${step.id}:${step.state}`)).toEqual(['folder:done', 'clone:done', 'lfs:failed', 'project:waiting', 'trust:waiting', 'packages:waiting'])
+    expect(failed.failure).toMatchObject({ code: 'git.lfsMissing', params: { path: 'assets/picture.jpg', command: 'git lfs push --all https://git.example.com/acme/example-app.git' } })
+  })
+
   it('fails a new repository at its first commit without a git name and e-mail, and writes them on git/identity (BTN-1094)', () => {
     const failed = fakeJob('identity')!
     expect(failed.steps.map((step) => [step.id, step.state])).toEqual([['folder', 'done'], ['init', 'failed'], ['project', 'waiting'], ['trust', 'waiting'], ['packages', 'waiting']])

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { DEFAULT_BRANCH } from '../config.js'
-import { isHeads, type Clone, type ReadRemote } from '../git/remote-run.js'
+import { isHeads, type Clone, type ReadRemote, type Restore } from '../git/remote-run.js'
 import { requireStarted } from '../git/setup.js'
 import type { Git } from '../git/types.js'
 import type { JobPlan, StepDef, StepTools } from '../jobs/runner.js'
@@ -11,10 +11,13 @@ import type { ProjectCheck, ProjectDraft } from '../state.js'
 const FIRST_COMMIT = 'Initial commit'
 const PACKAGES_POLL_MS = 500
 const PACKAGES_WAIT_MS = 5 * 60_000
+const LFS_CODES = new Set<string>(['git.lfsMissing', 'git.lfsFailed'])
 
 export interface CreationDeps {
   git: Git
   clone: Clone
+  /** The LFS files of a clone that came without them, downloaded on the LFS step's Retry. */
+  restore: Restore
   readRemote: ReadRemote
   /** The wizard's check of the draft's folder, as "Create" finds it. */
   check: (draft: ProjectDraft) => Promise<ProjectCheck['repo']>
@@ -81,18 +84,36 @@ export async function creationPlan(deps: CreationDeps, draft: ProjectDraft): Pro
       const heads = await deps.readRemote(remote)
       if (!isHeads(heads)) throw new NoticeError(heads)
       const branch = draft.branch.trim()
-      await deps.clone({
-        remote,
-        path: path!,
-        // A branch the remote lacks is created when the entry is written, as for a repository already there.
-        branch: heads.branches.includes(branch) ? branch : null,
-        signal: tools.signal,
-        onProgress: (progress) => {
-          if (progress.stage === 'lfs') tools.begin('lfs')
-          tools.progress(progress)
-        },
-      })
+      try {
+        await deps.clone({
+          remote,
+          path: path!,
+          // A branch the remote lacks is created when the entry is written, as for a repository already there.
+          branch: heads.branches.includes(branch) ? branch : null,
+          signal: tools.signal,
+          onProgress: (progress) => {
+            if (progress.stage === 'lfs') tools.begin('lfs')
+            tools.progress(progress)
+          },
+        })
+      } catch (error) {
+        // The clone came, its LFS files did not: the LFS step fails, and its Retry downloads them into the clone.
+        if (error instanceof NoticeError && LFS_CODES.has(error.notice.code)) tools.begin('lfs')
+        throw error
+      }
     },
+  }
+
+  const lfs: StepDef = {
+    id: 'lfs',
+    hidden: true,
+    run: (tools: StepTools) =>
+      deps.restore({
+        remote: draft.remote!.trim(),
+        path: path!,
+        signal: tools.signal,
+        onProgress: (progress) => tools.progress(progress),
+      }),
   }
 
   const init: StepDef = {
@@ -146,7 +167,7 @@ export async function creationPlan(deps: CreationDeps, draft: ProjectDraft): Pro
 
   const steps = [
     ...(path === null ? [] : [folder]),
-    ...(source === 'clone' ? [clone, { id: 'lfs', hidden: true }] : []),
+    ...(source === 'clone' ? [clone, lfs] : []),
     ...(source === 'new' ? [init] : []),
     entry,
     ...(trustFiles.length === 0 ? [] : [trust]),

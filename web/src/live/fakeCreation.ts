@@ -1,4 +1,4 @@
-import { remoteFailure, remoteName, remoteShaped } from '../../../src/git/clone-progress.js'
+import { lfsFailure, remoteFailure, remoteName, remoteShaped } from '../../../src/git/clone-progress.js'
 import { fail, notice, type Notice } from '../../../src/notice/notice.js'
 import { remoteOffer } from '../../../src/projects/remote-branches.js'
 import { targetKind } from '../../../src/projects/target.js'
@@ -23,6 +23,14 @@ const CUT_OFF_OUT = [
   'fetch-pack: unexpected disconnect while reading sideband packet',
   'fatal: early EOF',
   'fatal: fetch-pack: invalid index-pack output',
+].join('\n')
+// What git keeps of a clone that came whole while the server lacks one of its LFS files (BTN-1106).
+const LFS_MISSING_OUT = [
+  'Downloading assets/picture.jpg (675 KB)',
+  'Error downloading object: assets/picture.jpg (69028a3): Smudge error: Error downloading assets/picture.jpg (69028a3a7c): [69028a3a7c] Not Found: [404] Not Found',
+  "error: external filter 'git-lfs filter-process' failed",
+  'fatal: assets/picture.jpg: smudge filter lfs failed',
+  'warning: Clone succeeded, but checkout failed.',
 ].join('\n')
 
 /** A fake remote's branches: one with `many` in its address has a thousand and more, as a big project's (BTN-1096). */
@@ -151,9 +159,9 @@ const upTo = (ids: string[], running: number): JobStep[] => {
 }
 
 /**
- * `?job=connecting|enumerating|clone|lfs|failed|refused|identity|packages|done` — the wizard's creation window in that
- * state: a clone before the server answers, while the server lists the objects, receiving objects, the LFS files after
- * it, a clone whose network broke off at 10%, one git refused for a reason it does not name, a new repository's first
+ * `?job=connecting|enumerating|clone|lfs|lfs-missing|failed|refused|identity|packages|done` — the wizard's creation
+ * window in that state: a clone before the server answers, while the server lists the objects, receiving objects, the
+ * LFS files after it, a clone come whole whose LFS file the server lacks, a clone whose network broke off at 10%, one git refused for a reason it does not name, a new repository's first
  * commit refused for git's missing name and e-mail, the packages failing after the entry is written, a project made.
  */
 export function fakeJob(mode: string | null): StepJob | null {
@@ -171,6 +179,12 @@ export function fakeJob(mode: string | null): StepJob | null {
     const steps = upTo(['folder', 'clone', 'lfs', 'project', 'trust', 'packages'], 2)
     steps[2] = { ...steps[2]!, progress: { stage: 'lfs', percent: 63 } }
     return job(steps)
+  }
+  if (mode === 'lfs-missing') {
+    const steps = upTo(['folder', 'clone', 'lfs', 'project', 'trust', 'packages'], 2)
+    steps[2] = { ...steps[2]!, state: 'failed', endedAt: new Date().toISOString() }
+    const remote = 'https://git.example.com/acme/example-app.git'
+    return job(steps, { failure: lfsFailure(LFS_MISSING_OUT, remote) })
   }
   if (mode === 'failed' || mode === 'refused') {
     const steps = upTo(CLONE_STEPS, 1)

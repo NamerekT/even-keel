@@ -165,6 +165,54 @@ describe('StepJobs', () => {
     expect(states(jobs)).toEqual(['clone:done', 'lfs:done', 'project:done'])
   })
 
+  it('fails the sub-step that was running and keeps its parent done; Retry runs the sub-step alone, then the rest', async () => {
+    const jobs = new StepJobs()
+    const calls: string[] = []
+    let lfsFails = true
+    const id = jobs.start(
+      plan([
+        {
+          id: 'clone',
+          run: async (tools: StepTools) => {
+            calls.push('clone')
+            tools.begin('lfs')
+            throw fail('git.lfsMissing', { path: 'a.bin', remote: 'x', command: 'git lfs push --all x' })
+          },
+        },
+        {
+          id: 'lfs',
+          hidden: true,
+          run: async () => {
+            calls.push('lfs')
+            if (lfsFails) throw fail('git.lfsFailed', { path: 'a.bin' })
+          },
+        },
+        { id: 'project', run: async () => void calls.push('project') },
+      ]),
+    )
+    await jobs.settled(id)
+    expect(states(jobs)).toEqual(['clone:done', 'lfs:failed', 'project:waiting'])
+    expect(jobs.view()[0]!.failure).toMatchObject({ code: 'git.lfsMissing' })
+    jobs.retry(id)
+    await jobs.settled(id)
+    expect(states(jobs)).toEqual(['clone:done', 'lfs:failed', 'project:waiting'])
+    expect(jobs.view()[0]!.failure).toMatchObject({ code: 'git.lfsFailed' })
+    lfsFails = false
+    jobs.retry(id)
+    await jobs.settled(id)
+    expect(states(jobs)).toEqual(['clone:done', 'lfs:done', 'project:done'])
+    expect(calls).toEqual(['clone', 'lfs', 'lfs', 'project'])
+  })
+
+  it('leaves out a hidden step with a run of its own while no step began it', async () => {
+    const jobs = new StepJobs()
+    const calls: string[] = []
+    const id = jobs.start(plan([{ id: 'clone', run: async () => void calls.push('clone') }, { id: 'lfs', hidden: true, run: async () => void calls.push('lfs') }]))
+    await jobs.settled(id)
+    expect(calls).toEqual(['clone'])
+    expect(states(jobs)).toEqual(['clone:done'])
+  })
+
   it('refuses Retry of a job that has not failed and any call on a job that is gone', async () => {
     const jobs = new StepJobs()
     const id = jobs.start(plan([]))

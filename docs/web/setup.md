@@ -148,3 +148,13 @@ unexpectedly") after the server answered — any progress past `Cloning into` �
 objects received ("the connection broke off at 10% of the clone: … press Retry, the clone starts over"); before that
 it stays `git.remoteNetwork`. `runRemoteGit` keeps no progress line in git's words, `Cloning into` and
 `remote: Enumerating objects` among them.
+
+A checkout that failed after the clone came is read before any remote reason (BTN-1106): its "not found" is never "no
+repository". `lfsFailure` takes the file from `fatal: <path>: smudge filter lfs failed`: a 404 or a remote's "missing
+object" is `git.lfsMissing` (the server lacks the file — never uploaded, as with `lfs.allowincompletepush`; its command
+block is `git lfs push --all <remote>` for a clone that has it), anything else `git.lfsFailed`; without LFS, "Clone
+succeeded, but checkout failed" is `git.checkoutFailed`. An LFS failure fails the LFS step, the clone stays done: the
+clone step begins it on such a code even when git reported no "Filtering content". A sub-step that fails is marked
+itself when it has a `run` of its own, which runs only as its Retry (`StepDef.hidden`); the LFS step's is `restorer`,
+`git -C <clone> restore --progress --source=HEAD --staged --worktree :/` — git's own advice plus `--staged`, since the
+failed checkout leaves the index empty — so Retry downloads the LFS files into the clone, never clones again.

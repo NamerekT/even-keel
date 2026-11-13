@@ -40,6 +40,7 @@ function deps(path: string | null, fields: Partial<CreationDeps> = {}, repo: Par
       writeFileSync(join(request.path, 'README.md'), '')
       request.onProgress({ stage: 'receiving', percent: 100 })
     },
+    restore: async () => {},
     readRemote: async () => ({ head: 'main', branches: ['main'] }),
     check: async () => ({ root: path, current: null, suggested: null, branches: null, notice: null, ...(path === null ? {} : { place: { dir, name: 'storefront', state: 'free' as const } }), ...repo }),
     add: async (draft) => {
@@ -125,6 +126,35 @@ describe('creationPlan', () => {
     await jobs.cancel(id)
     expect(existsSync(path)).toBe(true)
     expect(readdirSync(path)).toEqual([])
+  })
+
+  it('fails the LFS step of a clone that came whole, and Retry downloads the LFS files into the same clone', async () => {
+    const path = join(dir, 'storefront')
+    const restored: string[] = []
+    let missing = true
+    const made = deps(path, {
+      clone: async (request) => {
+        made.seen.clones.push(request)
+        writeFileSync(join(request.path, 'README.md'), '')
+        // git-lfs without the delayed checkout reports no "Filtering content" before it fails.
+        throw fail('git.lfsMissing', { path: 'a.bin', remote: REMOTE, command: `git lfs push --all ${REMOTE}` })
+      },
+      restore: async (request) => {
+        restored.push(`${request.remote} ${request.path}`)
+        request.onProgress({ stage: 'lfs', percent: 50 })
+        if (missing) throw fail('git.lfsMissing', { path: 'a.bin', remote: REMOTE, command: `git lfs push --all ${REMOTE}` })
+      },
+    })
+    const { jobs, id, view } = await run(made, { ...base, source: 'clone', remote: REMOTE })
+    expect(view.steps.map((step) => `${step.id}:${step.state}`)).toEqual(['folder:done', 'clone:done', 'lfs:failed', 'project:waiting', 'trust:waiting', 'packages:waiting'])
+    expect(view.failure).toEqual(expect.objectContaining({ code: 'git.lfsMissing' }))
+    missing = false
+    jobs.retry(id)
+    await jobs.settled(id)
+    expect(made.seen.clones).toHaveLength(1)
+    expect(restored).toEqual([`${REMOTE} ${path}`])
+    expect(readdirSync(path)).toEqual(['README.md'])
+    expect(jobs.view()[0]!.steps.map((step) => `${step.id}:${step.state}`)).toEqual(['folder:done', 'clone:done', 'lfs:done', 'project:done', 'trust:done', 'packages:done'])
   })
 
   it('makes a filled folder a repository with all it holds in the first commit; Cancel takes back only the .git', async () => {

@@ -100,12 +100,35 @@ export interface CloneReach {
 
 /**
  * Why a clone failed (BTN-1100): the network breaking off after the server answered is a clone broken halfway, with the
- * percent received — not an address to check; anything else as `remoteFailure` reads it.
+ * percent received — not an address to check; a checkout failed after the clone came is not the remote's either: an LFS
+ * file as `lfsFailure` reads it, anything else files not written out; the rest as `remoteFailure` reads it.
  */
 export function cloneFailure(out: string, remote: string, reach: CloneReach): Notice {
+  const lfs = lfsFailure(out, remote)
+  if (lfs !== null) return lfs
+  if (CHECKOUT_FAILED.test(out)) return notice('git.checkoutFailed', {}, { detail: out })
   const failure = remoteFailure(out, remote)
   if (failure.code !== 'git.remoteNetwork' || !reach.answered) return failure
   return notice('git.cloneBroken', reach.percent === undefined ? {} : { percent: reach.percent }, { detail: out })
+}
+
+const CHECKOUT_FAILED = /clone succeeded, but checkout failed/i
+const LFS_SMUDGE = /^fatal: (.+): smudge filter lfs failed\s*$/m
+// A server over HTTP answers 404; a local or SSH remote's own transfer says it has no such object.
+const LFS_MISSING = /\[404\]|remote missing object|object does not exist on the server/i
+
+/**
+ * A file of Git LFS the checkout could not download (BTN-1106), by git's last words on it: missing on the server — never
+ * uploaded, with the push that uploads it from a clone that has it — or not downloaded for another reason. `null` —
+ * not an LFS failure.
+ */
+export function lfsFailure(out: string, remote: string): Notice | null {
+  const smudge = LFS_SMUDGE.exec(out)
+  if (smudge === null) return null
+  const path = smudge[1]!.trim()
+  return LFS_MISSING.test(out)
+    ? notice('git.lfsMissing', { path, remote, command: `git lfs push --all ${remote}` }, { detail: out })
+    : notice('git.lfsFailed', { path }, { detail: out })
 }
 
 /** `ssh -T [-p <port>] [user@]host` of an SSH remote: run once in a terminal, it asks to accept the host's key. */
