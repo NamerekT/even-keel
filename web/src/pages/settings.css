@@ -594,6 +594,11 @@
   animation: fade-in var(--motion-fast) ease-out;
 }
 
+/* A tool's own words keep their lines: git's reasons read one to a line. */
+.help__tip--lines {
+  white-space: pre-line;
+}
+
 /* The page of shared settings: the groups in a column at the left, the open one at the right, together no wider than reads well. */
 .settings-page {
   max-width: 1180px;

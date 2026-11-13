@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseHeads, parseProgress, remoteFailure, remoteName, remoteShaped, sameRemote } from './clone-progress.js'
+import { cloneFailure, parseHeads, parseProgress, remoteFailure, remoteName, remoteShaped, sameRemote } from './clone-progress.js'
 
 describe('parseProgress', () => {
   it('reads the stage, the percent, the bytes and the speed of a receiving line', () => {
@@ -45,7 +45,13 @@ describe('remoteFailure', () => {
     ['ssh: connect to host example.com port 22: Connection timed out', 'git.remoteNetwork'],
     ['remote: Repository not found.\nfatal: repository \'https://example.com/a/b.git/\' not found', 'git.remoteDenied'],
     ["fatal: 'D:/none' does not appear to be a git repository", 'git.remoteNotFound'],
-    ['fatal: early EOF', 'git.remoteFailed'],
+    ['fatal: early EOF', 'git.remoteNetwork'],
+    ['error: RPC failed; curl 18 transfer closed with outstanding read data remaining', 'git.remoteNetwork'],
+    ['error: RPC failed; curl 28 Operation too slow. Less than 1000 bytes/sec transferred the last 30 seconds', 'git.remoteNetwork'],
+    ['error: RPC failed; curl 56 Recv failure: Connection was reset', 'git.remoteNetwork'],
+    ['fetch-pack: unexpected disconnect while reading sideband packet', 'git.remoteNetwork'],
+    ['fatal: the remote end hung up unexpectedly', 'git.remoteNetwork'],
+    ['fatal: unable to checkout working tree', 'git.remoteFailed'],
   ])('reads %j as %s', (out, code) => {
     expect(remoteFailure(out, 'https://example.com/a/b.git')).toMatchObject({ code, params: { remote: 'https://example.com/a/b.git' }, detail: out })
   })
@@ -85,6 +91,48 @@ describe('remoteFailure', () => {
   it('keeps "not found" of an SSH or local remote as no repository', () => {
     expect(remoteFailure(`ERROR: Repository not found.${SSH_TAIL}`, 'git@example.com:owner/none.git').code).toBe('git.remoteNotFound')
     expect(remoteFailure("fatal: repository 'D:/none' does not exist\n", 'D:/none').code).toBe('git.remoteNotFound')
+  })
+})
+
+// What git printed when the network went down at 10% of a large clone (BTN-1100, a live check in Windows Sandbox).
+const BROKEN_LINES = [
+  "Cloning into 'C:\\Projects\\git\\even-keel\\projects\\vscode'...",
+  'remote: Enumerating objects: 2604670',
+  'remote: Enumerating objects: 2613044, done.',
+  'error: RPC failed; curl 56 Recv failure: Connection was reset',
+  'error: 43086 bytes of body are still expected',
+  'fetch-pack: unexpected disconnect while reading sideband packet',
+  'fatal: early EOF',
+  'fatal: fetch-pack: invalid index-pack output',
+]
+const BROKEN_REASON = BROKEN_LINES.slice(3).join('\n')
+const VSCODE = 'https://github.com/microsoft/vscode.git'
+
+describe('cloneFailure', () => {
+  it("keeps git's lines before the first percent out of the reason: they are progress, not why it failed", () => {
+    expect(BROKEN_LINES.slice(0, 3).map((line) => parseProgress(line))).not.toContain(null)
+    expect(BROKEN_LINES.slice(3).map((line) => parseProgress(line))).toEqual([null, null, null, null, null])
+  })
+
+  it('reads the network breaking off after the server answered as a broken clone, with the percent received', () => {
+    expect(cloneFailure(BROKEN_REASON, VSCODE, { answered: true, percent: 10 })).toEqual({
+      code: 'git.cloneBroken',
+      params: { percent: 10 },
+      detail: BROKEN_REASON,
+    })
+  })
+
+  it('has no percent where nothing was received yet', () => {
+    expect(cloneFailure(BROKEN_REASON, VSCODE, { answered: true })).toEqual({ code: 'git.cloneBroken', params: {}, detail: BROKEN_REASON })
+  })
+
+  it('reads a network failure before the server answered as an unreachable remote', () => {
+    expect(cloneFailure(BROKEN_REASON, VSCODE, { answered: false }).code).toBe('git.remoteNetwork')
+  })
+
+  it('keeps a refusal that is not the network as it is, whatever was received', () => {
+    const out = "fatal: Authentication failed for 'https://example.com/a/b.git/'"
+    expect(cloneFailure(out, 'https://example.com/a/b.git', { answered: true, percent: 40 }).code).toBe('git.remoteDenied')
   })
 })
 

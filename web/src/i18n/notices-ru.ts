@@ -169,6 +169,8 @@ export const noticesRu: NoticeTexts = {
   'git.remoteFailed': (p) => `git не прочитал ${p.remote}`,
   'git.remoteShape': () => 'это не адрес git: нужен вида https://example.com/owner/repo.git или git@example.com:owner/repo.git',
   'git.cloneStopped': () => 'клонирование отменено',
+  'git.cloneBroken': (p) =>
+    `связь оборвалась ${p.percent === undefined ? 'посреди клонирования' : `на ${p.percent}% клонирования`}: проверьте сеть и нажмите «Повторить», клонирование начнётся заново`,
   'job.busy': () => 'сейчас создаётся другой проект: дождитесь конца или отмените его',
   'job.unknown': () => 'этой работы уже нет: она закончена или отменена',
   'job.notFailed': () => 'повторять нечего: работа не падала',

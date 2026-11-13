@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
-import { parseHeads, parseProgress, remoteFailure, remoteShaped, type CloneProgress } from './clone-progress.js'
+import { cloneFailure, parseHeads, parseProgress, remoteFailure, remoteShaped, type CloneProgress, type CloneReach } from './clone-progress.js'
 import { gitMissing } from './run.js'
 
 const READ_TIMEOUT_MS = 30_000
@@ -148,15 +148,19 @@ export type Clone = (request: CloneRequest) => Promise<void>
 export function cloner(git: RemoteGit = runRemoteGit): Clone {
   return async ({ remote, path, branch, signal, onProgress }) => {
     const args = ['clone', '--progress', ...(branch === null ? [] : ['--branch', branch]), '--', remote, path]
+    const reach: CloneReach = { answered: false }
     const run = await git(args, {
       signal,
       onLine: (line) => {
         const progress = parseProgress(line)
-        if (progress !== null) onProgress(progress)
+        if (progress === null) return
+        if (progress.stage !== 'connecting') reach.answered = true
+        if (progress.stage === 'receiving') reach.percent = progress.percent
+        onProgress(progress)
       },
     })
     if (run.missing === true) throw fail('git.missing', {})
     if (run.stopped === true) throw fail('git.cloneStopped', {})
-    if (run.code !== 0) throw new NoticeError(remoteFailure(run.out, remote))
+    if (run.code !== 0) throw new NoticeError(cloneFailure(run.out, remote, reach))
   }
 }

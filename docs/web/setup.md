@@ -62,7 +62,7 @@ reason and a link to the setup's Git step; git without a name and e-mail closes 
   `sharedRemoteReader` in `src/git/remote-run.ts`, held for a minute per address); a text that is no address
   (`remoteShaped`: a URL, `[user@]host:path` or a full local path) is refused as `git.remoteShape` without asking git
   (BTN-1087). A refusal is `git.remoteShape|remoteDenied|remoteHostKey|remoteSshKey|remoteNotFound|remoteNetwork|remoteFailed`
-  in one line under the field (`remoteRefusal` in `web/src/pages/remoteRefusal.ts`): the address cut to 48 characters,
+  in one line under the field (`refusalParts` in `web/src/pages/remoteRefusal.ts`): the address cut to 48 characters,
   git's own words behind a `HelpTip`. `remoteFailure` (`src/git/clone-progress.ts`, BTN-1091) picks the code by git's
   English words (`remoteEnv` runs git with `LC_ALL=C`): "Host key verification failed" — `remoteHostKey`, whose
   `ssh -T [-p port] [user@]host` (`sshProbe`) is a `CommandBlock` under the line; "Permission denied (publickey" —
@@ -103,9 +103,19 @@ each step's time (BTN-1099: `startedAt`/`endedAt` of the step, ticking each seco
 reduced motion still shows it lives; a finished step under a second shows none), the stages git gives no percent for
 ("connecting…" from `Cloning into`, "the server lists objects: N" from `remote: Enumerating objects: N`) under a bar
 with a running glint that reduced motion hides — the running step's ring is then a filled dot, not a still ring —, the
-failure with its fix and "Retry" (`job/retry` runs the failed step again, the done ones are not repeated), and
+failure with its fix and "Retry" (`job/retry` runs the failed step again, the done ones are not repeated; a clone
+empties the folder it filled first, since `git clone` does not resume), and
 "Cancel" (`job/cancel`): until the entry is written it aborts the step and removes only what the job made — the folder
 it created, the contents of an empty folder it filled, the `.git` it made in a filled one. Once the entry is written
 (`keptAfter`) the project stays: the note says so, and the button is "Open the project", which drops the job without
 undoing anything. Esc does not close the window. A finished job keeps its window until "Open the project"
 (`job/close`), which also removes the demo when asked and clears the kept fields.
+
+A failed step is said as the remote field says a refusal (BTN-1100, `RefusalWords` in `web/src/pages/RefusalWords.tsx`
+over `refusalParts`): one line by the code, the tool's own words behind a `HelpTip`, its fix button, a command under it.
+A clone fails by `cloneFailure` (`src/git/clone-progress.ts`): a network line (`NETWORK`: besides an unreachable host,
+`RPC failed`, curl 18/28/56, `Connection was reset`, `early EOF`, `unexpected disconnect`, "the remote end hung up
+unexpectedly") after the server answered — any progress past `Cloning into` — is `git.cloneBroken` with the percent of
+objects received ("the connection broke off at 10% of the clone: … press Retry, the clone starts over"); before that
+it stays `git.remoteNetwork`. `runRemoteGit` keeps no progress line in git's words, `Cloning into` and
+`remote: Enumerating objects` among them.

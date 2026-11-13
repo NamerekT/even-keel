@@ -24,11 +24,12 @@ export function shortRemote(remote: string): string {
 }
 
 /**
- * A remote's refusal as the line under its field says it (BTN-1087): one short line by the code with the address cut,
- * and git's own words apart, for a tip — the field is right above, a pasted paragraph is not echoed back. A command the
- * line asks to run (BTN-1091: `ssh -T` for an unknown host key) comes apart too, for a block with a copy button.
+ * A refusal as a line of the page says it (BTN-1087): one short line by the code with an address cut, and the tool's own
+ * words apart, for a tip — the field is right above, a pasted paragraph is not echoed back. A command the line asks to
+ * run (BTN-1091: `ssh -T` for an unknown host key) comes apart too, for a block with a copy button. The wizard's remote
+ * field and the job window's failed step (BTN-1100) both say a refusal so.
  */
-export function remoteRefusal(refusal: Notice): { shown: Notice; detail: string | null; command: string | null } {
+export function refusalParts(refusal: Notice): { shown: Notice; detail: string | null; command: string | null } {
   const params = refusal.params as { remote?: unknown; command?: unknown }
   const shown = {
     code: refusal.code,

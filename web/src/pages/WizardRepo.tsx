@@ -10,12 +10,12 @@ import { Segmented } from '../stats/common.js'
 import { BranchField, BranchMoveLine } from './BranchField.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { folderView, pathTyped, type WizardFields } from './projectWizard.js'
-import { isRemoteRefusal, remoteRefusal } from './remoteRefusal.js'
-import { FieldHead, HelpTip, Row } from './settingsParts.js'
+import { RefusalWords } from './RefusalWords.js'
+import { isRemoteRefusal } from './remoteRefusal.js'
+import { FieldHead, Row } from './settingsParts.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
 import { trustTexts } from '../i18n/trust.js'
-import { CommandBlock } from '../ui/blocks.js'
 
 /**
  * "Make it a repository" under a folder without one, "Make the first commit" under a repository without commits
@@ -216,18 +216,9 @@ export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, cu
 
 /** A remote's refusal in one line under its field; git's own words behind a question mark, a command to run under it. */
 function RemoteRefusal({ refusal }: { refusal: Notice }) {
-  const { shown, detail, command } = remoteRefusal(refusal)
   return (
     <Status>
-      {say(shown)}
-      {detail !== null && (
-        <>
-          {' '}
-          <HelpTip text={detail} />
-        </>
-      )}{' '}
-      <NoticeFixButton project={null} notice={refusal} />
-      {command !== null && <CommandBlock command={command} />}
+      <RefusalWords refusal={refusal} />
     </Status>
   )
 }

@@ -78,8 +78,9 @@ export function unplaced(project: string | null, error: Notice | null, config: C
  * A question mark after a setting's name: pressed, it tells what the setting does; pressed again, Escape or a press elsewhere closes it.
  * Pointing and focus open nothing — focus would open it just before the click of the same press closed it.
  * Out of the Tab order: Tab goes from field to field in a form, not through every question mark.
+ * `lines` keeps the text's line breaks: a tool's output, not a sentence.
  */
-export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
+export function HelpTip({ text, align, lines = false }: { text: string; align?: TipAlign; lines?: boolean }) {
   const { shown, anchor, tip, toggle, close } = useTip<HTMLButtonElement, HTMLSpanElement>(true, align)
   const id = useId()
   return (
@@ -99,7 +100,7 @@ export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
         {text}
       </span>
       {shown && (
-        <span ref={tip} popover="manual" className="help__tip" role="tooltip">
+        <span ref={tip} popover="manual" className={lines ? 'help__tip help__tip--lines' : 'help__tip'} role="tooltip">
           {text}
         </span>
       )}

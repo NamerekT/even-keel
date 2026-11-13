@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { remoteEnv, remoteReader, runRemoteGit, type RemoteGit } from './remote-run.js'
+import { cloner, remoteEnv, remoteReader, runRemoteGit, type RemoteGit } from './remote-run.js'
 import { runGit } from './run.js'
 
 describe('runRemoteGit', { timeout: 60_000 }, () => {
@@ -50,5 +50,24 @@ describe('remoteReader', () => {
   it('asks git for an address', async () => {
     const git = vi.fn<RemoteGit>(async () => ({ code: 0, out: 'ref: refs/heads/trunk\tHEAD\nabc\trefs/heads/trunk' }))
     expect(await remoteReader(git)('https://example.com/owner/storefront.git')).toEqual({ head: 'trunk', branches: ['trunk'] })
+  })
+})
+
+describe('cloner', () => {
+  const REMOTE = 'https://example.com/owner/storefront.git'
+  const BROKEN = 'error: RPC failed; curl 56 Recv failure: Connection was reset\nfatal: early EOF'
+  const cloneWith = (lines: string[]) =>
+    cloner(async (_args, options) => {
+      for (const line of lines) options?.onLine?.(line)
+      return { code: 128, out: BROKEN }
+    })({ remote: REMOTE, path: 'storefront', branch: null, signal: new AbortController().signal, onProgress: () => {} })
+
+  it('names the percent received when the network breaks off halfway', async () => {
+    const lines = ["Cloning into 'storefront'...", 'remote: Enumerating objects: 2741, done.', 'Receiving objects:   9% (247/2741)', 'Receiving objects:  10% (275/2741)']
+    await expect(cloneWith(lines)).rejects.toMatchObject({ notice: { code: 'git.cloneBroken', params: { percent: 10 }, detail: BROKEN } })
+  })
+
+  it('reads the network failing before the server answered as an unreachable remote', async () => {
+    await expect(cloneWith(["Cloning into 'storefront'..."])).rejects.toMatchObject({ notice: { code: 'git.remoteNetwork' } })
   })
 })

@@ -53,7 +53,17 @@ export function parseProgress(line: string): CloneProgress | null {
 }
 
 const DENIED = /authentication failed|permission denied|could not read (?:username|password)|terminal prompts disabled|returned error: 40[13]|access denied|invalid credentials|logon failed/i
-const NETWORK = /could not resolve host|failed to connect|connection timed out|connection refused|network is unreachable|could not resolve hostname|operation timed out|connection reset|ssl|unable to look up/i
+// The second line is a transfer broken off on its way: curl's 18 (cut short), 28 (too slow) and 56 (receive failure).
+const NETWORK = new RegExp(
+  [
+    /could not resolve host|failed to connect|connection timed out|connection refused|network is unreachable|could not resolve hostname/,
+    /operation timed out|connection (?:was )?reset|ssl|unable to look up|rpc failed|curl (?:18|28|56)\b|early eof|unexpected disconnect/,
+    /the remote end hung up unexpectedly/,
+  ]
+    .map((part) => part.source)
+    .join('|'),
+  'i',
+)
 const NOT_FOUND = /repository not found|returned error: 404|does not appear to be a git repository|not found|does not exist/i
 // A private repository over HTTP answers a git that is not signed in as if it were not there.
 const HTTP_HIDDEN = /repository not found|returned error: 404/i
@@ -79,6 +89,23 @@ export function remoteFailure(out: string, remote: string): Notice {
           ? 'git.remoteNotFound'
           : 'git.remoteFailed'
   return notice(code, { remote }, { detail: out })
+}
+
+/** How far a clone got before it failed: the server's answer, and the percent of the objects received. */
+export interface CloneReach {
+  /** The server listed or sent anything: past "Cloning into", which git prints before it connects. */
+  answered: boolean
+  percent?: number
+}
+
+/**
+ * Why a clone failed (BTN-1100): the network breaking off after the server answered is a clone broken halfway, with the
+ * percent received — not an address to check; anything else as `remoteFailure` reads it.
+ */
+export function cloneFailure(out: string, remote: string, reach: CloneReach): Notice {
+  const failure = remoteFailure(out, remote)
+  if (failure.code !== 'git.remoteNetwork' || !reach.answered) return failure
+  return notice('git.cloneBroken', reach.percent === undefined ? {} : { percent: reach.percent }, { detail: out })
 }
 
 /** `ssh -T [-p <port>] [user@]host` of an SSH remote: run once in a terminal, it asks to accept the host's key. */

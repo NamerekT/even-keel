@@ -141,6 +141,8 @@ export const en = {
   'git.remoteFailed': (p: { remote: string }) => `git could not read ${p.remote}`,
   'git.remoteShape': () => 'this is not a git address: paste one like https://example.com/owner/repo.git or git@example.com:owner/repo.git',
   'git.cloneStopped': () => 'the clone was cancelled',
+  'git.cloneBroken': (p: { percent?: number }) =>
+    `the connection broke off ${p.percent === undefined ? 'during the clone' : `at ${p.percent}% of the clone`}: check the network and press Retry, the clone starts over`,
   'job.busy': () => 'another project is being created right now: wait until it is done, or cancel it',
   'job.unknown': () => 'this work is no longer there: it was finished or cancelled',
   'job.notFailed': () => 'nothing to repeat: the work has not failed',

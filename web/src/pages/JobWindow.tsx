@@ -4,8 +4,8 @@ import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useCommand } from '../live/useCommand.js'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
-import { NoticeFixButton } from './FixButtons.js'
 import { progressText, stepTime } from './jobProgress.js'
+import { RefusalWords } from './RefusalWords.js'
 import '../tools/addPackage.css'
 import './jobWindow.css'
 
@@ -104,9 +104,10 @@ export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
           {!job.done && <p className="settings__hint job-window__note">{job.undoable ? t.creation.window.undoable : t.creation.window.kept}</p>}
         </div>
         {job.failure !== null && (
-          <p role="alert" className="notice notice--error add-package__failure">
-            {say(job.failure)} <NoticeFixButton project={null} notice={job.failure} />
-          </p>
+          // One line by the failure's code, the tool's words behind a tip: git's ten lines are not why to a person.
+          <div role="alert" className="notice notice--error add-package__failure">
+            <RefusalWords refusal={job.failure} />
+          </div>
         )}
         {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         <footer className="add-package__foot">

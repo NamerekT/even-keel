@@ -15,6 +15,14 @@ const BROKEN_OUT = [
   'Please make sure you have the correct access rights',
   'and the repository exists.',
 ].join('\n')
+// What git keeps of a clone whose network went down at 10% (BTN-1100).
+const CUT_OFF_OUT = [
+  'error: RPC failed; curl 56 Recv failure: Connection was reset',
+  'error: 43086 bytes of body are still expected',
+  'fetch-pack: unexpected disconnect while reading sideband packet',
+  'fatal: early EOF',
+  'fatal: fetch-pack: invalid index-pack output',
+].join('\n')
 
 /** A fake remote's branches: one with `many` in its address has a thousand and more, as a big project's (BTN-1096). */
 function fakeRemoteHeads(remote: string): { head: string; branches: string[] } {
@@ -106,9 +114,10 @@ const upTo = (ids: string[], running: number): JobStep[] => {
 }
 
 /**
- * `?job=connecting|enumerating|clone|lfs|failed|packages|done` — the wizard's creation window in that state: a clone
- * before the server answers, while the server lists the objects, receiving objects, the LFS files after it, a clone
- * refused halfway, the packages failing after the entry is written, a project made.
+ * `?job=connecting|enumerating|clone|lfs|failed|refused|packages|done` — the wizard's creation window in that state: a
+ * clone before the server answers, while the server lists the objects, receiving objects, the LFS files after it, a
+ * clone whose network broke off at 10%, one git refused for a reason it does not name, the packages failing after the
+ * entry is written, a project made.
  */
 export function fakeJob(mode: string | null): StepJob | null {
   if (mode === 'connecting' || mode === 'enumerating') {
@@ -126,10 +135,12 @@ export function fakeJob(mode: string | null): StepJob | null {
     steps[2] = { ...steps[2]!, progress: { stage: 'lfs', percent: 63 } }
     return job(steps)
   }
-  if (mode === 'failed') {
+  if (mode === 'failed' || mode === 'refused') {
     const steps = upTo(CLONE_STEPS, 1)
     steps[1] = { id: 'clone', state: 'failed' }
-    return job(steps, { failure: notice('git.remoteNetwork', { remote: 'https://git.example.com/acme/example-app.git' }, { detail: 'RPC failed; curl 56 Recv failure' }) })
+    const remote = 'https://git.example.com/acme/example-app.git'
+    const failure = mode === 'failed' ? notice('git.cloneBroken', { percent: 10 }, { detail: CUT_OFF_OUT }) : notice('git.remoteFailed', { remote }, { detail: BROKEN_OUT })
+    return job(steps, { failure })
   }
   if (mode === 'packages') {
     const steps = upTo(CLONE_STEPS, 4)
