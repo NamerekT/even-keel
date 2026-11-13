@@ -92,8 +92,8 @@ export interface TurnPlace {
  * A new session gets its id from Even Keel (`--session-id`) and its task as its name; a resume names the session. The
  * prompt goes as `--prompt=`: a reply starts with `- "question" → answer`, which `-p` would take for an option.
  */
-export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'outsideRepo'>, prompt: string, place: TurnPlace, session: { id: string; resume: boolean }): string[] {
-  const { name, model, mcp, plugins = [] } = start
+export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'outsideRepo'>, prompt: string, place: TurnPlace, session: { id: string; resume: boolean }): string[] {
+  const { name, model, effort, mcp, plugins = [] } = start
   return [
     '-C',
     place.cwd,
@@ -105,6 +105,7 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'mcp' | 'p
     ...(start.protection === undefined ? [] : protectionRules(start.protection, place.remotes, start.mainBranch, undefined, start.outsideRepo === true).copilot.flatMap(rule => ['--deny-tool', rule])),
     ...(session.resume ? [`--resume=${session.id}`] : ['--session-id', session.id, '--name', name]),
     ...(model === null ? [] : ['--model', model]),
+    ...(effort === undefined ? [] : ['--reasoning-effort', effort]),
     ...place.dirs.flatMap((dir) => ['--add-dir', dir]),
     ...(mcp === undefined ? [] : ['--disable-builtin-mcps', ...place.disabled.flatMap((server) => ['--disable-mcp-server', server]), ...gatewayArgs(mcp)]),
     ...plugins.flatMap((plugin) => ['--plugin-dir', plugin.dir]),

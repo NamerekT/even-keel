@@ -63,15 +63,17 @@ export function resolveOpenCodeBinary(env: NodeJS.ProcessEnv, pinned?: string): 
 
 /**
  * A new session is titled with its task, so its own TUI shows it by name; a resume names the session instead. The
- * prompt goes after `--`: a reply starts with `- "question" → answer`, which `run` would read as an option.
+ * prompt goes after `--`: a reply starts with `- "question" → answer`, which `run` would read as an option. The run's
+ * effort is the model's `--variant`.
  */
-export function turnArgs(start: Pick<SessionStart, 'name' | 'model'>, prompt: string, resumeId?: string): string[] {
-  const { name, model } = start
+export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort'>, prompt: string, resumeId?: string): string[] {
+  const { name, model, effort } = start
   return [
     'run',
     '--format',
     'json',
     ...(model === null ? [] : ['-m', model]),
+    ...(effort === undefined ? [] : ['--variant', effort]),
     ...(resumeId === undefined ? ['--title', name] : ['-s', resumeId]),
     '--',
     prompt,

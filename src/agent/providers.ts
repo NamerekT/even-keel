@@ -31,13 +31,22 @@ export const NO_SIGN_IN = 'none'
 export const EXECUTION_MODES: Readonly<Record<string, readonly string[]>> = { [CLAUDE]: ['auto', 'bg', 'sdk'], [CODEX]: ['sandbox', 'bypass'] }
 
 /**
+ * OpenCode's `--variant` and Copilot's `--reasoning-effort` (BTN-1071): the levels of the whole CLI, while the ones a
+ * model has are only the CLI's own knowledge (OpenCode's `variants` of a model, `opencode models --verbose`). A level
+ * the model lacks is the CLI's to handle.
+ */
+const MODEL_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+
+/**
  * The effort levels a task's run may name by provider (BTN-983), lowest first, as the CLI takes them: Claude Code's
- * `--effort`, Codex's `model_reasoning_effort`. A provider not listed takes none: the card has no field for it and its
- * sessions get no flag.
+ * `--effort`, Codex's `model_reasoning_effort`, OpenCode's and Copilot's `MODEL_EFFORTS`. A provider not listed takes
+ * none: the card has no field for it and its sessions get no flag.
  */
 export const EFFORTS: Readonly<Record<string, readonly string[]>> = {
   [CLAUDE]: ['low', 'medium', 'high', 'xhigh', 'max'],
   [CODEX]: ['minimal', 'low', 'medium', 'high', 'xhigh'],
+  [OPENCODE]: MODEL_EFFORTS,
+  [COPILOT]: MODEL_EFFORTS,
 }
 
 /**

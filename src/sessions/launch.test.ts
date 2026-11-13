@@ -36,7 +36,8 @@ describe('runChoice', () => {
 
   it('passes no effort to a provider that does not take the level', () => {
     expect(runChoice(run(null, null, 'max'), { ...settings, provider: 'codex' }, any).effort).toBeNull()
-    expect(runChoice(run(null, null, 'high'), { ...settings, provider: 'copilot', accounts: { copilot: 'copilot' } }, any).effort).toBeNull()
+    expect(runChoice(run(null, null, 'none'), { ...settings, provider: 'claude' }, any).effort).toBeNull()
+    expect(runChoice(run(null, null, 'max'), { ...settings, provider: 'copilot', accounts: { copilot: 'copilot' } }, any).effort).toBe('max')
   })
 
   it('runs on the project provider and its model when the pool has no account for the run’s provider', () => {
