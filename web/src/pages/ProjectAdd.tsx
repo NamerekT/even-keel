@@ -103,6 +103,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const check = fresh ? { ...checked.result, tracker } : null
   // The folder's lines depend on the folder and the branch only: they hold while another field is checked again.
   const repoCheck = checked !== null && draft !== undefined && repoFieldsOf(checked.draft) === repoFieldsOf(draft) ? checked.result : null
+  // A failed check is not waited for until it is asked again.
+  const repoPending = repoCheck === null && draft !== undefined && !repoBlank(fields) && (checking || checkFailure === null)
   const changeFields = (change: (before: WizardFields) => WizardFields) => setFields((before) => {
     const after = change(before)
     kept = keepFields(kept, before, after)
@@ -255,6 +257,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               set={set}
               draft={draft}
               repoCheck={repoCheck}
+              repoPending={repoPending}
               current={current}
               branches={branches}
               branchShown={branchShown}

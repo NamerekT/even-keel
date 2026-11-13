@@ -23,6 +23,7 @@ export const creationEn: Messages['creation'] = {
   remoteRead: (branch) => (branch === null ? 'The remote answered: the repository is empty' : 'The remote answered'),
   folder: 'Folder',
   folderHint: "The folder's name in Even Keel's projects folder. Blank — the one suggested by the address or the project.",
+  folderBlank: (clone) => `Type a name, or leave it blank for one named after the ${clone ? 'address' : 'project'}.`,
   folderOtherHint: 'The full path of the folder. A clone needs an empty folder or one that is not there yet.',
   folderOtherHintNew: 'The full path of the folder. It need not exist: Even Keel makes it.',
   folderOtherHintPlain: 'The full path of the folder. It need not exist: Even Keel makes it; it may hold files.',

@@ -9,7 +9,7 @@ import { projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
 import { BranchField, BranchMoveLine } from './BranchField.js'
 import { NoticeFixButton } from './FixButtons.js'
-import { pathTyped, type WizardFields } from './projectWizard.js'
+import { folderView, pathTyped, type WizardFields } from './projectWizard.js'
 import { FieldHead, Row } from './settingsParts.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
@@ -53,6 +53,8 @@ interface RepoStepProps {
   draft: ProjectDraft | undefined
   /** The check of the folder's own fields, held while another field is checked again. */
   repoCheck: ProjectCheck | null
+  /** A check of the folder's fields is due or running: `repoCheck` is not theirs yet. */
+  repoPending: boolean
   current: string | null
   branches: RepoBranches | null
   branchShown: boolean
@@ -67,7 +69,7 @@ interface RepoStepProps {
  * path behind "another folder…". Git that does not start closes git; git without a name and e-mail closes the clone
  * and the new repository, each with the way to the setup's Git step.
  */
-export function RepoStep({ state, fields, set, draft, repoCheck, current, branches, branchShown, badBranch, onBranchOpen, onRecheck }: RepoStepProps) {
+export function RepoStep({ state, fields, set, draft, repoCheck, repoPending, current, branches, branchShown, badBranch, onBranchOpen, onRecheck }: RepoStepProps) {
   const ready = gitReadiness(state)
   const repo = repoCheck?.repo ?? null
   const refusal = repo?.notice ?? null
@@ -191,7 +193,7 @@ export function RepoStep({ state, fields, set, draft, repoCheck, current, branch
           )}
         </div>
       ) : (
-        <FolderLine state={state} fields={fields} set={set} repo={repo} hideRefusal={remoteRefused} branchLine={fields.git && fields.source === 'new' && found !== null ? branchLine : null} />
+        <FolderLine state={state} fields={fields} set={set} repo={repo} pending={repoPending} hideRefusal={remoteRefused} branchLine={fields.git && fields.source === 'new' && found !== null ? branchLine : null} />
       )}
       {fields.git && branchShown && (
         <Row
@@ -235,6 +237,7 @@ function FolderLine({
   fields,
   set,
   repo,
+  pending,
   hideRefusal,
   branchLine,
 }: {
@@ -242,6 +245,7 @@ function FolderLine({
   fields: WizardFields
   set: (change: Partial<WizardFields>) => void
   repo: ProjectCheck['repo'] | null
+  pending: boolean
   hideRefusal: boolean
   branchLine: ReactNode
 }) {
@@ -252,8 +256,12 @@ function FolderLine({
   // The projects folder stays in front of the name while a refused name has no place.
   const lastDir = useRef<string | null>(null)
   if (place?.dir != null) lastDir.current = place.dir
-  // A clone's folder is named after its remote: nothing to show until the remote answers, unless a name is typed.
-  if (!typed && place === undefined && refusal === null && fields.folder.trim() === '') return null
+  // The remote a clone's place was last answered for: erasing the name keeps the block while it is checked again.
+  const remote = fields.remote.trim()
+  const heard = useRef<string | null>(null)
+  if (place !== undefined && fields.git && fields.source === 'clone') heard.current = remote
+  const view = folderView(fields, { answer: place !== undefined || refusal !== null, remoteHeard: heard.current === remote, pending })
+  if (!view.shown) return null
   const dir = typed ? null : (place?.dir ?? lastDir.current)
   const separator = dir !== null && !dir.includes('\\') ? '/' : state.platform === 'win32' ? '\\' : '/'
   return (
@@ -295,6 +303,7 @@ function FolderLine({
       <button type="button" className="link-button project-add__other" onClick={() => set(typed ? { other: false } : { other: true })}>
         {typed ? t.creation.own : t.creation.other}
       </button>
+      {view.note !== null && <span className="settings__hint">{view.note === 'checking' ? t.wizard.checking : t.creation.folderBlank(fields.git && fields.source === 'clone')}</span>}
       {place !== undefined && refusal === null && <PlaceState place={place} fields={fields} branchLine={branchLine} />}
       {place?.existing !== undefined && refusal === null && (
         <span className="project-add__gate">

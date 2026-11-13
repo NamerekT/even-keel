@@ -24,6 +24,7 @@ export const creationRu = {
   remoteRead: (branch: string | null): string => (branch === null ? 'Remote ответил: репозиторий пуст' : 'Remote ответил'),
   folder: 'Папка',
   folderHint: 'Имя папки в папке проектов Even Keel. Пусто — подставленное по адресу или по проекту.',
+  folderBlank: (clone: boolean): string => `Впишите имя или оставьте пустым — папку назовём по ${clone ? 'адресу' : 'проекту'}.`,
   folderOtherHint: 'Полный путь к папке. Клону нужна пустая папка или та, которой ещё нет.',
   folderOtherHintNew: 'Полный путь к папке. Её может не быть — Even Keel её создаст.',
   folderOtherHintPlain: 'Полный путь к папке. Её может не быть — Even Keel её создаст; в ней могут лежать файлы.',

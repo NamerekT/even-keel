@@ -6,6 +6,7 @@ import {
   draftOfFields,
   entryField,
   EMPTY_FIELDS,
+  folderView,
   keyOfFolder,
   keyOfTyped,
   missingOf,
@@ -482,5 +483,55 @@ describe('keyOfTyped', () => {
 
   it('keeps at most five characters', () => {
     expect(keyOfTyped('abcdefg')).toBe('ABCDE')
+  })
+})
+
+describe('folderView', () => {
+  const quiet = { answer: false, remoteHeard: false, pending: false }
+  const sources = ['clone', 'new'] as const
+  const modes = [
+    { name: 'without git', change: { git: false } },
+    ...sources.map((source) => ({ name: `${source}`, change: { git: true, source } })),
+  ]
+
+  // Every mode × own/other folder × blank/typed × waiting/answered: only a clone's own blank folder before its remote answers hides.
+  for (const { name, change } of modes) {
+    for (const other of [false, true]) {
+      for (const folder of ['', 'app']) {
+        for (const pending of [false, true]) {
+          const typed = other ? { repo: folder } : { folder }
+          const hidden = name === 'clone' && !other && folder === ''
+          it(`${name}, ${other ? 'other' : 'own'} folder "${folder}", ${pending ? 'waiting' : 'not waiting'}: ${hidden ? 'hidden' : 'shown'} before an answer`, () => {
+            expect(folderView(fields({ ...change, other, ...typed }), { ...quiet, pending }).shown).toBe(!hidden)
+          })
+        }
+      }
+    }
+  }
+
+  it('shows a clone folder erased after its remote answered', () => {
+    expect(folderView(fields({ git: true, source: 'clone', remote: 'https://example.com/a.git' }), { ...quiet, remoteHeard: true, pending: true }).shown).toBe(true)
+  })
+
+  it('shows a clone folder with an answer or a refusal', () => {
+    expect(folderView(fields({ git: true, source: 'clone' }), { ...quiet, answer: true }).shown).toBe(true)
+  })
+
+  it('says it is waiting while the check runs and nothing is answered', () => {
+    expect(folderView(fields({ git: false }), { ...quiet, pending: true }).note).toBe('checking')
+    expect(folderView(fields({ git: true, source: 'new', folder: 'app' }), { ...quiet, pending: true }).note).toBe('checking')
+    expect(folderView(fields({ git: false, other: true, repo: 'D:\app' }), { ...quiet, pending: true }).note).toBe('checking')
+  })
+
+  it('says what to type for a blank name nobody answered', () => {
+    expect(folderView(fields({ git: false }), quiet).note).toBe('blank')
+    expect(folderView(fields({ git: true, source: 'new' }), quiet).note).toBe('blank')
+  })
+
+  it('says nothing over an answer, a typed name or a hidden field', () => {
+    expect(folderView(fields({ git: false }), { ...quiet, answer: true, pending: true }).note).toBeNull()
+    expect(folderView(fields({ git: false, folder: 'app' }), quiet).note).toBeNull()
+    expect(folderView(fields({ git: false, other: true }), quiet).note).toBeNull()
+    expect(folderView(fields({ git: true, source: 'clone' }), { ...quiet, pending: true }).note).toBeNull()
   })
 })

@@ -144,6 +144,31 @@ export function repoBlank(fields: Pick<WizardFields, 'git' | 'source' | 'other' 
   return pathTyped(fields) && fields.repo.trim() === ''
 }
 
+/** What the folder block knows: `answer` — a place or a refusal for these fields, `remoteHeard` — a clone's remote answered before. */
+export interface FolderKnown {
+  answer: boolean
+  remoteHeard: boolean
+  /** A check of these fields is due or running. */
+  pending: boolean
+}
+
+/**
+ * Whether the folder block of a clone, a new repository or a project without git shows, and the line under it while
+ * nothing is answered (BTN-1086). Only a clone's own blank name waits for its remote: the name comes from it. The rest
+ * show always, blank and waiting too.
+ */
+export function folderView(
+  fields: Pick<WizardFields, 'git' | 'source' | 'other' | 'folder'>,
+  known: FolderKnown,
+): { shown: boolean; note: 'checking' | 'blank' | null } {
+  const typed = pathTyped(fields)
+  const blank = !typed && fields.folder.trim() === ''
+  const clone = fields.git && fields.source === 'clone'
+  const shown = !clone || !blank || known.answer || known.remoteHeard
+  if (!shown || known.answer) return { shown, note: null }
+  return { shown, note: known.pending ? 'checking' : blank ? 'blank' : null }
+}
+
 /** The draft the service checks and adds; `undefined` — the pool size is not a whole number above zero. */
 export function draftOfFields(fields: WizardFields, defaultProfile = false): ProjectDraft | undefined {
   let slot = 0
