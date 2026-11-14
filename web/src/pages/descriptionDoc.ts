@@ -1,7 +1,7 @@
 import { getSchema, type AnyExtension, type JSONContent } from '@tiptap/core'
 import Code from '@tiptap/extension-code'
 import CodeBlock from '@tiptap/extension-code-block'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { OrderedList, TaskItem, TaskList } from '@tiptap/extension-list'
 import { renderTableToMarkdown, Table, TableKit } from '@tiptap/extension-table'
 import { MarkdownManager } from '@tiptap/markdown'
 import { DOMParser as SchemaParser } from '@tiptap/pm/model'
@@ -36,11 +36,14 @@ export function compactTable(markdown: string): string {
 
 /**
  * What the visual editor holds. Inline code may sit inside bold or a link (`**see `x`**`), which the stock mark excludes;
- * underline has no Markdown and is left out.
+ * underline has no Markdown and is left out. An ordered list is read by marked's own CommonMark list rule, as a bullet list
+ * is: the stock tokenizer cuts a continuation line's indent short of the marker's `.`, so every block of an item after its
+ * second gained a space on each save, and code inside an item was lost.
  */
 export function descriptionExtensions(extra: AnyExtension[] = []): AnyExtension[] {
   return [
-    StarterKit.configure({ code: false, codeBlock: false, underline: false, link: { openOnClick: false, autolink: true, linkOnPaste: true } }),
+    StarterKit.configure({ code: false, codeBlock: false, underline: false, orderedList: false, link: { openOnClick: false, autolink: true, linkOnPaste: true } }),
+    OrderedList.extend({ markdownTokenizer: { name: 'orderedList', level: 'block', start: () => -1, tokenize: () => undefined } }),
     Code.extend({ excludes: '' }),
     CodeBlock.extend({
       renderMarkdown: (node: JSONContent, helpers: { renderChildren: (content: JSONContent[]) => string }) => {

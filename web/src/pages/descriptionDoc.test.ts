@@ -62,6 +62,30 @@ describe('the visual editor keeps what it shows', () => {
     expect(roundTrip(roundTrip(text))).toContain('- next item')
   })
 
+  it.each([
+    ['two paragraphs inside an item before the next one', '1. First\n2. Second\n\n   Paragraph one of the item.\n\n   Paragraph two of the item.\n3. Third'],
+    ['three paragraphs inside the last item', '1. First\n\n   one\n\n   two\n\n   three'],
+    ['a wider marker', '10. First\n\n    one\n\n    two'],
+    ['a two-line paragraph after the first one', '1. First\n\n   para\n\n   tail one\n   tail two'],
+  ])('keeps the indent of %s in an ordered list', (_, text) => {
+    expect(previewLoss(text)).toBeNull()
+    const once = roundTrip(text)
+    expect(once.match(/^ +(?=\S)/gm)?.map((indent) => indent.length)).toEqual(text.match(/^ +(?=\S)/gm)?.map((indent) => indent.length))
+    expect(roundTrip(once)).toBe(once)
+  })
+
+  it('lines an ordered item up to a single space after its marker', () => {
+    expect(roundTrip('1.  First\n\n    one\n\n    two')).toBe('1. First\n\n   one\n\n   two')
+  })
+
+  it('keeps code and a quote inside an ordered item', () => {
+    for (const text of ['1. First\n\n   para\n\n       code line', '1. First\n\n   para\n\n   ```\n   fenced\n   ```', '1. First\n\n   para\n\n   > quote']) {
+      const once = roundTrip(text)
+      expect(once, text).toContain(text.split('\n').at(-1)!.trim().replace(/^> /, ''))
+      expect(roundTrip(once), text).toBe(once)
+    }
+  })
+
   it('leaves one empty line after a table at the top', () => {
     const text = '| a | b |\n| --- | --- |\n| 1 | 2 |\n\n1. first\n\nafter'
     expect(roundTrip(text)).toBe(text)
