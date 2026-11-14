@@ -290,7 +290,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       if (!completes) return
       const open = shown.filter((task) => isOpen(task.status)).map((task) => task.id)
       for (const task of await closer.sweep(project, dispatcher.held(project), open)) {
-        console.log(`${title}: closed ${task}, its branch is merged into main`)
+        console.log(`${title}: closed ${task}, its branch is merged into ${mainBranch(project)}`)
       }
       if (stopped) return
       view.completionFailures ??= {}
