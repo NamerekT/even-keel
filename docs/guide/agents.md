@@ -91,6 +91,8 @@ If the CLI still refuses folder trust, the pause gives one command that opens th
 
 On a Windows service the command runs a short PowerShell script Even Keel writes into its state folder, under `trust/`, so you can open it and read what it does.
 
+Codex applies a folder's Protection rules only in a project its account trusts, so before each Codex turn Even Keel adds the project's folder as trusted (`trust_level = "trusted"`) to that account's `config.toml`; task worktrees inside it inherit the trust. This also enables the project's own `.codex` configuration and hooks. A folder you marked `untrusted` there is left as it is: its sessions then run without those rules, and the service log says so. If the file cannot be read or written, the task does not start and the message names the file.
+
 Saved pauses from older versions retain their original commands using `claude` from PATH, both of them when the pause does not know whether Even Keel runs as a service; check the CLI and account yourself or retry to get fresh commands.
 
 ### Stale session records

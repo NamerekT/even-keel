@@ -90,7 +90,18 @@ describe how to repeat the safe checks.
 Codex receives `.codex/rules/even-keel.generated.rules` in the working folder, added to git's local exclude. Account
 folders and existing rule files are untouched; a collision with a file without the generated header fails the launch.
 The file is refreshed before a CLI turn (including resume) and loaded at startup. Slot reuse replaces only this file.
-Other Codex project configuration retains its normal trust requirements. Checked on Codex 0.164.0 with a local
+Codex reads a project's `.codex/rules` only in a folder its account trusts (0.167.0, BTN-1160): untrusted, the rules
+silently do nothing, and the folder of a project without git or a clone new to the account is trusted by nobody. So
+before the same turns `trustProject` (`src/codex/trust.ts`, BTN-1174) adds `[projects.'<folder>'] trust_level =
+"trusted"` for the project's folder (`projects[].repo`, as Claude's `.claude.json` gets) to the account's
+`config.toml`, under the key Codex writes itself: the real path, on Windows in lower case with backslashes; an entry
+under another spelling counts. Worktrees and slots inside the checkout take its trust. The account layer cannot hold
+the rules instead: execpolicy has no condition on the folder, so one project's git ban would hold in every session of
+the account, and `codex exec` takes no rules file and ignores `-c projects…`. The trust also turns on the rest of the
+project's layer (its `.codex/config.toml`, its hooks), which the turn's `-c` flags outrank. A folder the user marked
+`untrusted`, or a `config.toml` whose `projects` are not `[projects.'…']` tables (no TOML parser edits it), is left
+with a line in the log, the `agent-bridge` hook alone guarding git; a file that cannot be read or written fails the
+launch with `codex.trustWriteFailed`. Checked on Codex 0.164.0 with a local
 Responses server sending a harmless `echo` tool call: a `forbidden` prefix was rejected under bypass in the account
 and project config layers. [Codex rules](https://developers.openai.com/codex/rules/) match literal argv prefixes:
 defaults cover push flags immediately after `git push` or after a configured remote, and literal dangerous `rm`

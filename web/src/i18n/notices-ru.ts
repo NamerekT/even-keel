@@ -288,6 +288,8 @@ export const noticesRu: NoticeTexts = {
   'codex.pluginsFailed': (p) => `Codex: не удалось установить плагины ${p.task} в ${p.account}`,
   'codex.hooksUntrusted': (p) =>
     `Codex не доверяет хукам пакета ${p.package}: без них ${p.task} пошла бы без проверки перед слиянием и напоминаний о контексте`,
+  'codex.trustWriteFailed': (p) =>
+    `Не удалось отметить ${p.folder} доверенной в ${p.file}: без этого Codex не применит правила «Защиты» в этой папке. Исправьте файл или доступ к нему и продолжите`,
   'codex.otherThread': (p) => `Codex: ${p.task} продолжали как ${p.asked}, а поднялся новый поток ${p.got}`,
   'codex.unknownSession': (p) => `Codex: сессию ${p.session} запускал не Even Keel`,
   'codex.stillRunning': (p) => `Codex: ход ${p.session} убит, но ещё идёт`,

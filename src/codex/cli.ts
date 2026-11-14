@@ -16,6 +16,7 @@ import { rareEvents } from '../sessions/rare.js'
 import type { TurnSpend } from '../state.js'
 import { mcpArgs } from './mcp.js'
 import { writeProtection } from './protection.js'
+import { trustProject } from './trust.js'
 import { type CodexPlugins, UntrustedHooks } from './plugins.js'
 import { APPEAR_TIMEOUT_MS, polledProcessStartedAt, processBelongsToTurn, processStartedAt, turnStartedAt } from './process.js'
 import { foldRollout, RolloutFold } from './rollout.js'
@@ -207,7 +208,7 @@ export class CodexCli {
 
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
     const { name, cwd } = start
-    if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch, start.outsideRepo === true)
+    await this.protect(home, start, cwd)
     const plugins = await this.pluginArgs(home, start, cwd)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
     const window = start.contextWindow === undefined ? {} : { contextWindow: start.contextWindow }
@@ -219,7 +220,7 @@ export class CodexCli {
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
     const session = await this.known(sessionId)
     const { name, cwd } = session
-    if (start.protection !== undefined) await writeProtection(cwd, start.protection, start.mainBranch, start.outsideRepo === true)
+    await this.protect(home, start, cwd)
     const plugins = await this.pluginArgs(home, start, cwd)
     const own = { ...start, contextWindow: session.contextWindow }
     const turn = await this.turn(home, start, turnArgs(own, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
@@ -301,6 +302,13 @@ export class CodexCli {
     } catch (error) {
       throw fail('codex.signOutFailed', { account: home.key }, { detail: outputOf(error) }, { cause: error })
     }
+  }
+
+  /** The rules file in the folder, and the project trusted in the account so that Codex reads it (BTN-1174). */
+  private async protect(home: AccountHome, start: SessionStart, cwd: string): Promise<void> {
+    if (start.protection === undefined) return
+    if (start.trustedRepo !== undefined) trustProject(join(home.dir, 'config.toml'), start.trustedRepo)
+    await writeProtection(cwd, start.protection, start.mainBranch, start.outsideRepo === true)
   }
 
   private async pluginArgs(home: AccountHome, start: SessionStart, cwd: string): Promise<string[]> {
