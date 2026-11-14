@@ -10,6 +10,7 @@ import { MoreMenu } from '../ui/MoreMenu.js'
 import { FeedDialog, useFeedDraft } from './FeedDialog.js'
 import { linkedProfile, trackedFields } from './ProjectTracker.js'
 import { SourceLine } from './SourceDialog.js'
+import { sourceScope, useTab } from './settingsStore.js'
 import { useSourceMovesDirty } from './SourceMoves.js'
 import { EMPTY_FIELDS, keyTyped, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { FieldHead, fieldId, FieldNote, Section } from './settingsParts.js'
@@ -57,6 +58,8 @@ export function FeedList({ state, project, main, mainTitle, tasks }: {
 function FeedRow({ state, project, feed, tasks }: { state: EvenKeelState; project: string; feed: FeedView; tasks: readonly Task[] }) {
   const [confirming, setConfirming] = useState(false)
   const [configuring, setConfiguring] = useState(false)
+  // A link may ask for the window open on a tab ("Rules" on a public repository's band, BTN-1146).
+  const [asked, ask] = useTab<string>(sourceScope(feed.id), '')
   const { send, sending, failure } = useCommand()
   const { dirty } = useFeedDraft(state, project, feed)
   const movesDirty = useSourceMovesDirty(project, feed.id, feed.moves)
@@ -81,7 +84,19 @@ function FeedRow({ state, project, feed, tasks }: { state: EvenKeelState; projec
         onConfigure={() => setConfiguring(true)}
         menu={<MoreMenu label={t.settings.sourceMore(feed.key)} items={[{ label: t.settings.feedRemove, danger: true, pick: () => setConfirming(true) }]} />}
       />
-      {configuring && <FeedDialog state={state} project={project} feed={feed} tasks={tasks} onClose={() => setConfiguring(false)} />}
+      {(configuring || asked !== '') && (
+        <FeedDialog
+          state={state}
+          project={project}
+          feed={feed}
+          tasks={tasks}
+          initialTab={asked === '' ? undefined : asked}
+          onClose={() => {
+            setConfiguring(false)
+            ask('')
+          }}
+        />
+      )}
       {confirming && <FeedRemove project={project} feed={feed} title={title} onClose={() => setConfirming(false)} />}
       <TrackerFields
         ids={(field) => fieldId(`feed.${feed.id}.${field}`)}

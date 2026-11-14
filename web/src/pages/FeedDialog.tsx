@@ -39,11 +39,13 @@ export function useFeedDraft(state: EvenKeelState, project: string, feed: FeedVi
 }
 
 /** The settings window of a feed: its rules and which of its tracker's tasks are the project's, from its own tracker only. */
-export function FeedDialog({ state, project, feed, tasks, onClose }: {
+export function FeedDialog({ state, project, feed, tasks, initialTab, onClose }: {
   state: EvenKeelState
   project: string
   feed: FeedView
   tasks: readonly Task[]
+  /** The tab a link asked the window to open on. */
+  initialTab?: string
   onClose: () => void
 }) {
   const { draft, setDraft, saved, inherited, profile, profileRules } = useFeedDraft(state, project, feed)
@@ -112,6 +114,7 @@ export function FeedDialog({ state, project, feed, tasks, onClose }: {
     <TableDraft value={{ draft, setDraft }}>
     <SourceDialog
       kind={feed.tracker}
+      initialTab={initialTab}
       sourceKey={feed.key}
       title={profile?.name ?? tracker}
       tabs={tabs}

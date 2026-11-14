@@ -98,11 +98,12 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
 
 /**
  * A public repository a source takes tasks from without a label (BTN-1134): it stays while the tracker says so, with no
- * "Got it", since only the rules turn it off. "Rules" opens the tracker tab, and the main tracker's rules on it.
+ * "Got it", since only the rules turn it off. "Rules" opens the tracker tab, and the source's rules on it: the main
+ * tracker's or the feed's window.
  */
 function OpenToAll({ project, sources }: { project: string; sources: OpenSource[] }) {
   const toRules = (source: OpenSource) => {
-    if (!source.feed) openTab(sourceScope(project), 'rules')
+    openTab(sourceScope(source.reader), 'rules')
     openTab(projectScope(project), 'tracker')
   }
   return <FoldList items={sources.map((source) => ({
@@ -121,7 +122,7 @@ function OpenToAll({ project, sources }: { project: string; sources: OpenSource[
  */
 function TemplateLabels({ project, labels }: { project: string; labels: TemplateLabel[] }) {
   const toFix = (hit: TemplateLabel) => {
-    if (hit.reader === project) openTab(sourceScope(project), 'rules')
+    if (hit.reader !== null) openTab(sourceScope(hit.reader), 'rules')
     openTab(projectScope(project), 'tracker')
   }
   return <FoldList items={labels.map((hit) => ({
