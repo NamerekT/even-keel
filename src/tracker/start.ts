@@ -210,6 +210,22 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     failures.set(project, text)
     if (!stopped) console.error(`${title}: ${project}: ${text}`)
   }
+  const visibilityFailures = new Map<string, string>()
+  /** Whether anyone may open a task the reader takes; a failed check keeps the last answer and is logged once a failure. */
+  const checkOpenToAll = async (project: string, rules: ChainRules): Promise<void> => {
+    try {
+      const open = await link.run(async (tracker) => (tracker.isPublic === undefined ? null : await tracker.isPublic(project)), `isPublic:${readKey(project)}`)
+      visibilityFailures.delete(project)
+      if (open === null || stopped) return
+      view.openToAll ??= {}
+      view.openToAll[project] = open && rules.requiredLabels.length === 0
+    } catch (error) {
+      const text = errorText(error)
+      if (visibilityFailures.get(project) === text) return
+      visibilityFailures.set(project, text)
+      if (!stopped) console.error(`${title}: ${project}: visibility: ${text}`)
+    }
+  }
   const readProject = async (project: string): Promise<void> => {
     let failure: { error: unknown } | null = null
     try {
@@ -238,6 +254,8 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       tasksByProject.set(project, shown)
       dispatcher.setTasks(project, shown)
       view.readAt[project] = new Date().toISOString()
+      await checkOpenToAll(project, rules)
+      if (stopped) return
       // Taken before the chain has followed the list just set: a task it releases meanwhile is not in this read (BTN-766).
       const released = dispatcher.released(project)
       if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released), JSON.stringify(['tasks', ...released])), released)

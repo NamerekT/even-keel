@@ -5,6 +5,7 @@ import type { ConfigView, EvenKeelState, ProjectForm } from '../../../src/state.
 import type { Task } from '../../../src/tracker/model.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 import { t } from '../i18n/index.js'
+import { isOpenToAll } from '../openToAll.js'
 import { Band } from '../ui/blocks.js'
 import { BuiltinExportButton } from './BuiltinExport.js'
 import { FeedList } from './FeedList.js'
@@ -140,6 +141,7 @@ export function ProjectTrackerTab({
           initialTab={sourceTab === '' ? undefined : sourceTab}
           sourceKey={state?.projectKeys[project] ?? project}
           title={ruleProfile?.name ?? trackerTitle}
+          note={state !== null && isOpenToAll(state, project) ? <Band tone="note">{t.project.openToAll(form.trackerProject ?? state.projectKeys[project] ?? project)}</Band> : undefined}
           tabs={[
             // The built-in tracker's statuses and labels are fixed (BTN-767): only which tasks are the project's.
             ...(onBuiltin ? [] : [{

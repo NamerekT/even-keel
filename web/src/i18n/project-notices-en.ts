@@ -19,4 +19,8 @@ export const projectNoticesEn = {
   forwardAgent: (into: string) => `The agent resolves the conflict in the chain of ${into}`,
   forwardAgentAsked: (into: string) => `The agent resolves the conflict after the current task of ${into}`,
   forwardAgentOpen: 'Open',
+  openToAll: (place: string) =>
+    `The repository ${place} is public: anyone can open an issue there. An issue of someone outside the repository waits in the backlog until you press "Into the chain" on it; ` +
+    'the issues of its members enter the chain at once. To decide on each issue yourself, pick "Only with a required label" in the rules of this source and name the label.',
+  openToAllRules: 'Rules',
 }

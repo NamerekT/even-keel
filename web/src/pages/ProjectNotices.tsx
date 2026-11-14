@@ -6,6 +6,8 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { completionNotices, moveNotices } from '../completion.js'
+import { openToAllSources, type OpenSource } from '../openToAll.js'
+import { openTab, projectScope, SETTINGS_HASH, sourceScope } from './settingsStore.js'
 import { useCommand } from '../live/useCommand.js'
 import { activeChain, chainStatus, projectLabel, projectPath } from '../state.js'
 import { Band, FoldBand } from '../ui/blocks.js'
@@ -49,10 +51,12 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
   // The open settings show the drift under the main branch field: the card leaves it to them.
   const drift = settingsOpen ? undefined : driftShown(state, project)
   const found = gitFoundNotice(state, project) !== null
-  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || found || protectionShown(state, project)
+  const open = openToAllSources(state, project)
+  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || found || protectionShown(state, project) || open.length > 0
   return (
     <FoldPresence>{shown ? <div className="project-notices">
       <ProtectionWarnings state={state} project={project} />
+      <OpenToAll project={project} sources={open} />
       <FoldPresence>{found ? <GitFoundBand state={state} project={project} /> : null}</FoldPresence>
       <FoldPresence>{drift !== undefined ? <BranchDriftBand project={project} drift={drift} closable /> : null}</FoldPresence>
       <FoldList items={errors.map((error, index) => ({
@@ -87,6 +91,25 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
       <FoldPresence>{failure !== null ? <Band tone="error">{say(failure)}</Band> : null}</FoldPresence>
     </div> : null}</FoldPresence>
   )
+}
+
+/**
+ * A public repository a source takes tasks from without a label (BTN-1134): it stays while the tracker says so, with no
+ * "Got it", since only the rules turn it off. "Rules" opens the tracker tab, and the main tracker's rules on it.
+ */
+function OpenToAll({ project, sources }: { project: string; sources: OpenSource[] }) {
+  const toRules = (source: OpenSource) => {
+    if (!source.feed) openTab(sourceScope(project), 'rules')
+    openTab(projectScope(project), 'tracker')
+  }
+  return <FoldList items={sources.map((source) => ({
+    key: `open-${source.reader}`, children:
+      <Band tone="note" action={
+        <Link className="button button--small" to={{ pathname: projectPath(project), hash: SETTINGS_HASH }} onClick={() => toRules(source)}>{t.project.openToAllRules}</Link>
+      }>
+        {t.project.openToAll(source.place)}
+      </Band>
+  }))} />
 }
 
 /** An error holds the chain: it takes only "Got it", back when anything it says changes (BTN-759). */

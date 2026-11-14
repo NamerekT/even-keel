@@ -36,6 +36,12 @@ export interface TrackerView {
   liveSince?: string
   /** Refused closes of merged tasks, by reader; retried on the next full read. In memory only. */
   completionFailures?: Record<string, Notice[]>
+  /**
+   * By reader, rechecked on every full read: the tracker says anyone may open a task there (`isPublic`) and the reader
+   * takes tasks without a required label, so an outsider's task waits for "Into the chain" (BTN-1134). A reader of a
+   * tracker without `isPublic` has none; a failed check keeps the last answer.
+   */
+  openToAll?: Record<string, boolean>
   /** Status moves on a task's start or pull request that did not go through (BTN-554), by reader. In memory only. */
   moveFailures?: Record<string, Notice[]>
 }

@@ -33,6 +33,8 @@ interface SourceDialogProps<T extends string> {
   /** A save is under way or the draft cannot be sent. */
   canSave: boolean
   failure: Notice | null
+  /** What holds for the source whatever the tab, above its content: its repository open to anyone (BTN-1134). */
+  note?: ReactNode
   /** Whether the save went through: then the window closes. */
   onSave: () => Promise<boolean>
   onRevert: () => void
@@ -82,7 +84,7 @@ export function SourceLine({ kind, title, sourceKey, own, dirty, onConfigure, me
  * The settings of one source of the project's tasks (BTN-553), its main tracker or a feed: the parts as tabs across
  * the top, one save for all of them at the bottom.
  */
-export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, initialTab, canSave, failure, onSave, onRevert, onClose }: SourceDialogProps<T>) {
+export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, initialTab, canSave, failure, note, onSave, onRevert, onClose }: SourceDialogProps<T>) {
   const tableDraft = useTableDraft()
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
@@ -131,6 +133,7 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, i
           role={tabs.length > 1 ? 'tabpanel' : undefined}
           aria-labelledby={tabs.length > 1 ? `settings-tab-${tab.id}` : undefined}
         >
+          {note}
           {tab.render()}
         </div>
         {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}

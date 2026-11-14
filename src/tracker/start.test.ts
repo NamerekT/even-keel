@@ -79,6 +79,42 @@ function start(projects: string[], connect: () => Promise<TaskSource>, overrides
 }
 
 describe('startTracker', () => {
+  it('rechecks on every read whether anyone may open a task the chain takes (BTN-1134)', async () => {
+    let open = true
+    let rules = DEFAULT_RULES
+    const { view, refreshers } = start(['APP', 'OWN'], async () => ({
+      chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {},
+      isPublic: async (project: string) => open && project === 'APP',
+    }), { rulesOf: () => rules })
+    await vi.waitFor(() => expect(view.openToAll).toEqual({ APP: true, OWN: false }))
+    rules = { ...DEFAULT_RULES, requiredLabels: ['ready'] }
+    await refreshers.get('APP')!()
+    expect(view.openToAll?.APP).toBe(false)
+    rules = DEFAULT_RULES
+    open = false
+    await refreshers.get('APP')!()
+    expect(view.openToAll?.APP).toBe(false)
+  })
+
+  it('keeps the last answer on visibility when its check fails, and says nothing of a tracker without it (BTN-1134)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let fails = false
+    const { view, refreshers } = start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {},
+      isPublic: async () => {
+        if (fails) throw new Error('github: HTTP 502')
+        return true
+      },
+    }))
+    await vi.waitFor(() => expect(view.openToAll?.APP).toBe(true))
+    fails = true
+    await refreshers.get('APP')!()
+    expect(view.openToAll?.APP).toBe(true)
+    const plain = start(['HUL'], async () => ({ chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {} }))
+    await vi.waitFor(() => expect(plain.view.readAt.HUL).toBeDefined())
+    expect(plain.view.openToAll).toBeUndefined()
+  })
+
   it.each([false, true])('publishes label-write support after connecting (supported: %s)', async (supported) => {
     const { view } = start(['APP'], async () => ({
       chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {},

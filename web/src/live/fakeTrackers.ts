@@ -13,6 +13,18 @@ export function fakeHuly(state: TrackerLinkState): TrackerView {
   return { ...view, health: { state, lastOkAt: ago(0), error: null }, readAt: readAt(0) }
 }
 
+/** `?trackers=public` (BTN-1134): ABC itself and its GitHub feed read as repositories anyone may open a task in. */
+export function withPublicSources(state: EvenKeelState): EvenKeelState {
+  const open: Record<string, string> = { ABC: FAKE_HULY_PROFILE, 'feed-abc-gh': GITHUB_PROFILE }
+  return {
+    ...state,
+    trackers: state.trackers.map((tracker) => {
+      const readers = Object.keys(open).filter((reader) => open[reader] === tracker.name)
+      return readers.length === 0 ? tracker : { ...tracker, openToAll: Object.fromEntries(readers.map((reader) => [reader, true])) }
+    }),
+  }
+}
+
 /** The trackers of ABC's task feeds: GitHub has read its feed, Linear not yet. */
 export function fakeFeedTrackers(): TrackerView[] {
   const view = { ready: true, relabel: true, health: { state: 'live' as const, lastOkAt: ago(0), error: null } }

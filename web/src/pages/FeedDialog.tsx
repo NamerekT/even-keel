@@ -3,6 +3,8 @@ import type { EvenKeelState, FeedView } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { isOpenToAll } from '../openToAll.js'
+import { Band } from '../ui/blocks.js'
 import { linkedProfile } from './ProjectTracker.js'
 import { feedRulesOf, knownStatuses, ownRulesOf, ruleOrigins } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
@@ -115,6 +117,7 @@ export function FeedDialog({ state, project, feed, tasks, onClose }: {
       tabs={tabs}
       canSave={!sending && !moves.sending}
       failure={failure ?? moves.failure}
+      note={isOpenToAll(state, feed.id) ? <Band tone="note">{t.project.openToAll(feed.place ?? feed.key)}</Band> : undefined}
       onSave={async () => (await send('project/feed/rules', { project, feed: feed.id, rules: ownRulesOf(rulesOf(sent(draft, RULE_KEYS).form as Record<RuleKey, Value>), inherited) })) && moves.save()}
       onRevert={() => {
         revert(RULE_KEYS)
