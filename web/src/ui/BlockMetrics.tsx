@@ -14,30 +14,6 @@ import { seriesStyle } from './series.js'
 import { Tipped } from './Tipped.js'
 import './blockMetrics.css'
 
-interface BlockMetricsProps {
-  project: string
-  session: SessionView
-  sessions: TaskSession[]
-  scale: ContextScale
-  /** The cache ring goes here only when the number's place does not hold it. */
-  ring: boolean
-}
-
-/** The metrics of a one-line chain row: the cache ring, the context bar, an account other than the project's, the context resets. */
-export function BlockMetrics({ project, session, sessions, scale, ring }: BlockMetricsProps) {
-  const { percent } = contextFill(session.contextTokens, scale, session.contextWindow)
-
-  return (
-    <div className="block__metrics">
-      {ring && session.cache !== null && <CacheRing cache={session.cache} />}
-      <Tipped tip={contextTip(session, scale, percent)} align="start">
-        <ContextMeter tokens={session.contextTokens} window={session.contextWindow} scale={scale} brief />
-      </Tipped>
-      <Extras project={project} session={session} sessions={sessions} />
-    </div>
-  )
-}
-
 interface ActionMeterProps {
   project: string
   session: SessionView

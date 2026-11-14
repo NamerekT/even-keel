@@ -1,4 +1,6 @@
 .project__head {
+  /* The chain's strip under its buttons; the head steps its lines past it. */
+  --run-strip: 20px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -128,11 +130,6 @@
   margin-left: auto;
 }
 
-.project__queue {
-  color: var(--fg-muted);
-  font-size: var(--text-14);
-}
-
 .project__read {
   display: inline-flex;
   align-items: center;
@@ -226,41 +223,134 @@
     display: block;
   }
 
-  .project__controls {
+  .project__break {
     flex-basis: 100%;
+    height: 0;
+    margin-top: -8px;
+  }
+
+  .project__head .project__tools {
     margin-left: 0;
+  }
+
+  /* Level by their tops: the chain's strip hangs below the line's other blocks. */
+  .project__head .project__tools,
+  .project__head .feed-switch,
+  .project__controls {
+    align-self: flex-start;
+  }
+
+  .project__controls {
+    gap: 8px;
   }
 }
 
-/* The chain's block at any width: the status, a segment tinted as its chip, then the two buttons (BTN-1042).
-   The narrow head: the panels' block ends the title row, the chain's block ends the next one. */
+/* The chain's block at any width: its two buttons (BTN-1042), the status hanging under them as a field's strip, tinted as
+   its chip (BTN-1162). */
 .project__tools {
   margin-left: auto;
 }
 
-.project__buttons {
+.project__run {
+  --strip-height: var(--run-strip);
+  flex: none;
   margin-left: auto;
 }
 
-.hblock__seg.project__status {
-  padding: 0 11px;
-  border: 0;
-  border-radius: 0;
-  font-size: var(--text-13);
-  line-height: normal;
+.project__run .project__buttons {
+  width: 100%;
+}
+
+/* On a desktop the buttons stand level with the head's line and the strip hangs below them out of the line's height:
+   the head keeps the room for it, and a line under the head steps down past it (BTN-1162). */
+@media (min-width: 761px) {
+  .project__run {
+    margin-bottom: calc(-1 * var(--run-strip));
+  }
+
+  .project__head:has(> .project__controls:last-child) {
+    padding-bottom: var(--run-strip);
+  }
+
+  .project__controls + .project__wait,
+  .project__controls + .project__error {
+    margin-top: var(--run-strip);
+  }
+}
+
+.project__run .project__buttons > .seg-button {
+  flex: 1;
+}
+
+.project__run .project__state {
+  justify-content: center;
+  padding: calc(var(--strip-tuck) + 2px) 10px 1px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-strip) var(--radius-strip);
+  background: color-mix(in srgb, var(--fg) 10%, var(--surface-muted));
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  line-height: 16px;
+}
+
+.project__run .project__state.chip--running {
+  background: color-mix(in srgb, var(--lamp-working) 24%, var(--bg));
+  color: var(--fg);
+}
+
+.project__run .project__state.chip--waiting {
+  background: color-mix(in srgb, var(--lamp-waiting) 24%, var(--bg));
+  color: var(--fg);
+}
+
+.project__run .project__state.chip--paused,
+.project__run .project__state.chip--stopping {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
 }
 
 @media (max-width: 760px) {
   .project__tools,
   .project__buttons,
   .project__head .feed-switch {
-    height: 38px;
+    height: 34px;
   }
 
-  /* The feed's view switch rides in the head on a phone, as tall as the tools beside it (BTN-1041). */
+  /* The feed's view switch rides in the head on a phone, as tall as the tools beside it (BTN-1041): each item fills the
+     track's height, its tip's wrapper too. */
+  .project__head .feed-switch > .tipped {
+    display: flex;
+  }
+
   .project__head .feed-switch .segmented__item {
     align-items: center;
-    padding-inline: var(--space-12);
+    padding-inline: var(--space-8);
+  }
+
+  /* One line holds the panels, the switch and the chain's buttons (BTN-1162): segments of icons and short figures. */
+  .project__head .hblock__seg {
+    padding: 0 var(--space-8);
+  }
+
+  .project__head .project__buttons > .seg-button {
+    padding: 0 var(--space-12);
+  }
+}
+
+/* Narrow phones (360–375, the Galaxy S line and the iPhone SE): tighter segments keep the chain's buttons on the line. */
+@media (max-width: 389px) {
+  .project__controls {
+    gap: var(--space-6);
+  }
+
+  .project__head .hblock__seg,
+  .project__head .feed-switch .segmented__item {
+    padding-inline: var(--space-6);
+  }
+
+  .project__head .project__buttons > .seg-button {
+    padding-inline: var(--space-8);
   }
 }
 
@@ -278,6 +368,19 @@
 .seg-button .icon {
   width: 16px;
   height: 16px;
+}
+
+/* A word with a tip of its own, laid out as the button's face. */
+.seg-button__face {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+@media (max-width: 760px) {
+  .seg-button__label {
+    display: none;
+  }
 }
 
 .seg-button:hover:not(:disabled),

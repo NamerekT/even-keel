@@ -35,14 +35,16 @@ import {
   type ChainControl,
 } from '../state.js'
 import { focusAfterClose, focusOnEntry, nextOpenAfter } from '../ui/focus.js'
-import { RefreshIcon } from '../ui/icons.js'
+import { EnqueueIcon, KeepGoingIcon, RefreshIcon, StartIcon, StopIcon } from '../ui/icons.js'
+import '../ui/fieldStrip.css'
 import { Loading } from '../ui/Loader.js'
 import { Said } from '../ui/ProjectLinks.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
-import { StatusChip } from '../ui/StatusChip.js'
+import { Morph } from '../ui/Morph.js'
 import { Tipped } from '../ui/Tipped.js'
 import { TrackerPages } from '../ui/TrackerPages.js'
-import { chainWaits } from '../waits.js'
+import { chainWaits, type ChainWait } from '../waits.js'
+import type { ChainStatus } from '../state.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList, type Adding } from './ChainList.js'
 import { FeedSwitch } from './FeedSwitch.js'
@@ -51,7 +53,7 @@ import { BUILTIN } from '../../../src/builtin/model.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { emptyMilestones } from '../ui/addGhost.js'
 import { useProjectMilestones } from './useProjectMilestones.js'
-import { ChainWaits } from './ChainWaits.js'
+import { ChainWaits, WaitLine } from './ChainWaits.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { CI_HASH, CiChip, CiPanel, ciFocus } from './CiChip.js'
 import { Flight } from './Flight.js'
@@ -188,6 +190,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
       <HelpChip open={helpOpen} look={look} onToggle={toggle(HELP_HASH, helpOpen)} />
     </>
   )
+  // On a phone the problem chips stay in the title row, so the line under it keeps to the buttons.
+  const toolsChip = <ToolsChip key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />
   // On a narrow screen the switch sits in the head, beside the tools.
   const feedSwitcher = narrow ? undefined : switcher
   const feedFocus = focus === BACKLOG_HASH || focus === SETTINGS_HASH || helpOpen || ciAt.open ? '' : focus
@@ -226,12 +230,15 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           </div>
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
+          {narrow && toolsChip}
+          {/* On a phone the panels' block, the view switch and the chain's buttons share the line under the title (BTN-1162). */}
+          {narrow && <span className="project__break" aria-hidden="true" />}
           {narrow && <div className="hblock project__tools">{tools}</div>}
           {narrow && switcher}
           <ChainControls
             state={state}
             project={key}
-            beside={<ToolsChip key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />}
+            beside={narrow ? undefined : toolsChip}
           >
             {look === 'tag' && tools}
           </ChainControls>
@@ -459,7 +466,8 @@ function EmptyCall({ state, project }: { state: EvenKeelState; project: string }
 
 
 /**
- * The chain's status and its two buttons are one block of segments at any width, the primary button filled (BTN-1042).
+ * The chain's two buttons are one block of segments at any width, the primary button filled (BTN-1042), each an icon
+ * and a word, the icon alone on a phone; the status hangs under them as a field's strip (BTN-1162).
  * `beside` (the problem chips) stands before it.
  */
 function ChainControls({
@@ -486,47 +494,75 @@ function ChainControls({
   })
 
   const active = status.kind === 'running' || status.kind === 'paused'
-  const button = (label: ReactNode, name: ChainControl, onClick = () => void send(`chain/${name}`, { project })) => (
-    <button
-      type="button"
-      className={controls.primary === name ? `${SEG_CLASS} seg-button--primary` : SEG_CLASS}
-      disabled={sending || !controls.enabled.includes(name)}
-      title={controls.enabled.includes(name) ? undefined : off}
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  )
+  // An icon before the word; on a phone the icon alone, the word its name for a screen reader.
+  // The face slides to its new width and fades in when the word changes, so a press moves nothing in a jump; it keeps
+  // one tree whether or not it has a tip, else a change would mount it anew.
+  const button = (icon: ReactNode, label: string, name: ChainControl, onClick = () => void send(`chain/${name}`, { project }), tip?: string) => {
+    const face = (
+      <Tipped tip={tip} off={tip === undefined} inline>
+        <Morph id={label} className="seg-button__face">
+          {icon}
+          <span className="seg-button__label">{label}</span>
+        </Morph>
+      </Tipped>
+    )
+    return (
+      <button
+        type="button"
+        className={controls.primary === name ? `${SEG_CLASS} seg-button--primary` : SEG_CLASS}
+        disabled={sending || !controls.enabled.includes(name)}
+        title={controls.enabled.includes(name) ? undefined : off}
+        aria-label={label}
+        onClick={onClick}
+      >
+        {face}
+      </button>
+    )
+  }
 
   // The buttons stay in place whatever the status, so a repeated click never lands on another one.
-  const first = active ? button(t.project.resume, 'resume') : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start')
+  const first = active
+    ? button(<StartIcon />, t.project.resume, 'resume')
+    : startsNow(state.chain)
+      ? button(<StartIcon />, t.project.start, 'start')
+      : button(<EnqueueIcon />, t.project.enqueue, 'start')
   const chain = activeChain(state.chain, project)
   const stopsAfter = chain?.stopAfter === true
   // A running chain stops once its session's turn ends, the session untouched; a paused one runs nothing, so it stops at once.
   const stop =
     status.kind === 'running'
       ? button(
-          <Tipped tip={stopsAfter ? t.project.keepGoingTip : t.project.stopTip(chain?.current?.task ?? chain?.closing ?? null)} inline>
-            {stopsAfter ? t.project.keepGoing : t.project.stop}
-          </Tipped>,
+          stopsAfter ? <KeepGoingIcon /> : <StopIcon />,
+          stopsAfter ? t.project.keepGoing : t.project.stop,
           'stop',
           () => void send('chain/stopAfter', { project, on: !stopsAfter }),
+          stopsAfter ? t.project.keepGoingTip : t.project.stopTip(chain?.current?.task ?? chain?.closing ?? null),
         )
-      : button(t.project.stop, 'stop')
+      : button(<StopIcon />, t.project.stop, 'stop')
+  const stopsOn = chain?.current?.task ?? chain?.closing ?? null
+  // What only says how the chain runs lives in the strip and its tip, so a press or a passing wait moves nothing under
+  // the head; a wait with a fix of its own keeps its line and button (BTN-1162).
+  const line = runLine(status, waits[0], stopsAfter ? stopsOn : undefined, after === null ? null : projectLabel(state, after))
+  const loud = waits.filter((wait) => (wait.kind === 'packages' && !wait.passing) || wait.kind === 'slot' || wait.kind === 'folder')
   return (
     <>
       <div className="project__controls">
         {beside}
-        {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
-        <div className="hblock project__buttons">
-          <StatusChip status={status} wait={waits[0]} className="hblock__seg project__status" />
-          {first}
-          {stop}
-        </div>
         {children}
+        {/* The chain's status hangs under its buttons as a field's strip (BTN-1162). */}
+        <div className="field-strip project__run">
+          <div className="hblock project__buttons">
+            {first}
+            {stop}
+          </div>
+          <div className="field-strip__room">
+            <Tipped tip={line.tip} off={line.tip === null} focusable={line.tip !== null} align="end" className={`chip chip--${line.kind} field-strip__line project__state`}>
+              <Morph id={line.text}>{line.text}</Morph>
+            </Tipped>
+          </div>
+        </div>
       </div>
-      <ChainWaits project={project} waits={waits} className="project__wait" />
-      {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
+      <ChainWaits project={project} waits={loud} className="project__wait" />
       {error !== null && (
         <p className="project__error">
           <Said notice={error} />
@@ -537,4 +573,18 @@ function ChainControls({
       <TrackerFixButtons state={state} project={project} error={error} />
     </>
   )
+}
+
+/**
+ * The strip's word for the chain and the whole of it in a tip: a chain told to stop after its session's turn
+ * (`stopsOn`, `null` when no session is named), the first thing a running chain waits for, the project a queued one
+ * waits behind.
+ */
+function runLine(status: ChainStatus, wait: ChainWait | undefined, stopsOn: string | null | undefined, after: string | null): { kind: string; text: string; tip: ReactNode } {
+  if (status.kind === 'running' && stopsOn !== undefined) return { kind: 'stopping', text: t.project.stopping, tip: t.project.stopsAfter(stopsOn) }
+  if (status.kind === 'running' && wait !== undefined) {
+    return { kind: 'waiting', text: `${t.chainStatus.waiting} · ${t.chainStatus.waitFor[wait.kind]}`, tip: <WaitLine wait={wait} compact={false} /> }
+  }
+  if (status.kind === 'queued') return { kind: 'queued', text: `${t.chainStatus.queued} · ${t.chainStatus.position(status.position)}`, tip: after === null ? null : t.project.after(after) }
+  return { kind: status.kind, text: t.chainStatus[status.kind], tip: null }
 }

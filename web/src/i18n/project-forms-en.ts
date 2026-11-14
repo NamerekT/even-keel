@@ -218,6 +218,7 @@ export const projectEN: Messages['project'] = {
       `The session${task === null ? '' : ` of ${task}`} is not stopped: the chain waits until it ends its turn, then stops and takes nothing further — no next task, no new session after a checkpoint or a limit.`,
     keepGoing: 'Keep going',
     keepGoingTip: 'The chain goes on as usual.',
+    stopping: 'stopping',
     stopsAfter: (task: string | null) =>
       task === null
         ? 'The chain stops before it does anything further.'

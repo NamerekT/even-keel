@@ -14,7 +14,8 @@ import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 import { VersionRow } from './Updates.js'
 import { usePopover } from './usePopover.js'
 
-export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: Task[] }) {
+/** The header's questions block; `row` is the burger's row: the word at the left, the sign and the count at the right (BTN-1162). */
+export function Waiting({ sessions, tasks, row = false }: { sessions: SessionView[]; tasks: Task[]; row?: boolean }) {
   const { state } = useLive()
   const waiting = waitingSessions(sessions, tasks, completionTasks(state))
   const first = waiting[0]
@@ -23,11 +24,20 @@ export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: T
   return (
     <Link
       to={`${projectPath(taskProject(state, first.task))}#${first.task}`}
-      className="waiting"
+      className={row ? 'gear__item waiting-row' : 'waiting'}
       title={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
       aria-label={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
     >
-      <WaitingContents count={waiting.length} />
+      {row ? (
+        <>
+          {t.status.waitingRow}
+          <span className="gear__level">
+            <WaitingContents count={waiting.length} />
+          </span>
+        </>
+      ) : (
+        <WaitingContents count={waiting.length} />
+      )}
     </Link>
   )
 }
@@ -91,8 +101,8 @@ export function useHotkeysWindow(closeMenu: () => void) {
   return { show, dialog }
 }
 
-/** The narrow screen's sheet ends with the gear's items as rows. */
-export function GearRows({ now, onHotkeys }: { now: Date; onHotkeys: () => void }) {
+/** The narrow screen's sheet ends with the gear's items as rows; no "Hotkeys" — a phone has no keyboard (BTN-1162). */
+export function GearRows({ now }: { now: Date }) {
   const { level } = useChecks(now)
 
   return (
@@ -104,7 +114,6 @@ export function GearRows({ now, onHotkeys }: { now: Date; onHotkeys: () => void 
       <NavLink to="/tools" className="gear__item">
         {t.header.tools}
       </NavLink>
-      <HotkeysRow onOpen={onHotkeys} />
       <ThemeRow />
       <VersionRow />
     </nav>

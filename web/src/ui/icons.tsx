@@ -78,6 +78,42 @@ export function OutOfChainIcon() {
   )
 }
 
+/** Start or resume the chain: a play triangle. */
+export function StartIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4.5 3v10l8-5z" />
+    </svg>
+  )
+}
+
+/** Stop the chain: a square. */
+export function StopIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" />
+    </svg>
+  )
+}
+
+/** Take the stop back and keep going: two triangles forward. */
+export function KeepGoingIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M1.5 4v8L7.5 8zM8.5 4v8l6-4z" />
+    </svg>
+  )
+}
+
+/** Take a place in the queue: lines with a plus. */
+export function EnqueueIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.5 4h8M2.5 8h5M2.5 12h5M12 8.5v5M9.5 11h5" />
+    </svg>
+  )
+}
+
 /** Go to where an entry happened: an arrow to the right. */
 export function GoToIcon() {
   return (

@@ -1,0 +1,30 @@
+/* Content that changes in place (`Morph`, BTN-1162): the box slides to the new width, the new content fades in. */
+.morph {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: width var(--motion-appear) ease-out;
+}
+
+.morph__face--new {
+  animation: morph-in var(--motion-appear) ease-out;
+}
+
+@keyframes morph-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .morph {
+    transition: none;
+  }
+
+  .morph__face--new {
+    animation: none;
+  }
+}

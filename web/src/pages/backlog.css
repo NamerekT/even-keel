@@ -359,6 +359,50 @@
   }
 }
 
+/* With a pointer "To Todo" takes no room until its row is pointed at or holds the focus, then slides out at the left and
+   moves the row's text right (BTN-1162); a touch screen keeps it always. */
+@media (hover: hover) and (min-width: 761px) {
+  .backlog__list--ready .backlog__row {
+    grid-template-columns: 0 minmax(0, 1fr);
+    column-gap: 0;
+    padding-left: 14px;
+    transition:
+      grid-template-columns var(--motion-fast) ease-out,
+      column-gap var(--motion-fast) ease-out,
+      padding-left var(--motion-fast) ease-out;
+  }
+
+  .backlog__list--ready .backlog__row:hover,
+  .backlog__list--ready .backlog__row:focus-within {
+    grid-template-columns: 26px minmax(0, 1fr);
+    column-gap: 10px;
+    padding-left: 8px;
+  }
+
+  .backlog__ready {
+    width: auto;
+    min-width: 0;
+    transition:
+      opacity var(--motion-fast),
+      background-color var(--motion-fast),
+      border-color var(--motion-fast),
+      color var(--motion-fast);
+  }
+
+  .backlog__row:not(:hover, :focus-within) .backlog__ready {
+    border-width: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (hover: hover) and (min-width: 761px) and (prefers-reduced-motion: reduce) {
+  .backlog__list--ready .backlog__row,
+  .backlog__ready {
+    transition: none;
+  }
+}
+
 /* Slides out to the left past the panel's edge, fading, then folds so the rows under it close up. */
 .backlog__row.backlog__row--leaving {
   interpolate-size: allow-keywords;

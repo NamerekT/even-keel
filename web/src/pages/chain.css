@@ -25,7 +25,6 @@
   --family-3: var(--series-7);
   --family-4: var(--series-4);
   --family-5: var(--series-6);
-  --hazard-dark: var(--on-bright);
 }
 
 .chain .chain__blocks {
@@ -250,22 +249,28 @@
   color: var(--fg-muted);
 }
 
-/* "To the backlog": quiet until the row is pointed at or holds the focus */
+/* "To the backlog" before the lock and the key (BTN-1162): no room of its own until the row is pointed at or holds the
+   focus, then it slides out and moves the labels left; the lock and the key stay under the pointer. Still in the Tab
+   order, so the keyboard opens it too. */
 .chain .block__unready {
   position: relative;
   display: grid;
   place-items: center;
   flex: none;
-  width: 22px;
+  width: 0;
   height: 22px;
+  margin-left: -10px;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 0 solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-muted);
   color: var(--fg-muted);
   cursor: pointer;
   opacity: 0;
+  pointer-events: none;
   transition:
+    width var(--motion-fast) ease-out,
+    margin-left var(--motion-fast) ease-out,
     opacity var(--motion-fast),
     border-color var(--motion-fast),
     color var(--motion-fast);
@@ -278,13 +283,28 @@
 }
 
 .chain .block:hover .block__unready,
-.chain .block:focus-within .block__unready {
+.chain .block:focus-within .block__unready,
+.chain .block__tail .block__unready {
+  width: 22px;
+  margin-left: 0;
+  border-width: 1px;
   opacity: 1;
+  pointer-events: auto;
 }
 
 @media (hover: none) {
   .chain .block__unready {
+    width: 22px;
+    margin-left: 0;
+    border-width: 1px;
     opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chain .block__unready {
+    transition: none;
   }
 }
 
@@ -320,23 +340,11 @@
   opacity: 0.45;
 }
 
+/* Urgent: a still red "!" in the number's place (BTN-1162; once a siren and hazard tape, which pulled the eye for good). */
 .chain .block__number--urgent {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
   background: var(--lamp-error);
   color: var(--on-fill);
   font-weight: 600;
-  animation: siren 1.2s ease-in-out infinite;
-}
-
-.chain .block__number--urgent::before {
-  content: '';
-  position: absolute;
-  inset: -6px;
-  z-index: -1;
-  background: conic-gradient(from 0deg, transparent 0 62%, color-mix(in srgb, var(--on-fill) 60%, transparent) 80%, transparent 96%);
-  animation: beacon 0.9s linear infinite;
 }
 
 .chain .block--current .block__number {
@@ -344,11 +352,6 @@
   box-shadow: none;
   color: var(--lamp-working);
   opacity: 1;
-  animation: none;
-}
-
-.chain .block--current .block__number::before {
-  content: none;
 }
 
 .chain .block__play {
@@ -366,35 +369,6 @@
   border-color: color-mix(in srgb, var(--lamp-error) 55%, var(--border));
 }
 
-.chain .block__hazard {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 6px;
-  border-radius: var(--radius-inner) 0 0 var(--radius-inner);
-  background: repeating-linear-gradient(-45deg, var(--lamp-waiting) 0 4px, var(--hazard-dark) 4px 8px);
-  background-size: 100% 11.3px;
-  animation: hazard 1.4s linear infinite;
-}
-
-@keyframes siren {
-  50% {
-    box-shadow: 0 0 10px 2px color-mix(in srgb, var(--lamp-error) 70%, transparent);
-  }
-}
-
-@keyframes beacon {
-  to {
-    transform: rotate(1turn);
-  }
-}
-
-@keyframes hazard {
-  to {
-    background-position: 0 11.3px;
-  }
-}
 
 /* Labels */
 
@@ -512,17 +486,34 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* On a phone the rails stand in the page's 16 px margin, off the rows, three lanes 4 px apart (BTN-1162). */
 @media (max-width: 760px) {
   .chain .block__rail {
-    left: calc(1px + var(--lane) * 4px);
+    left: calc(-5px - var(--lane) * 4px);
   }
 
   .chain .block__rail-hit {
-    left: calc(-2px + var(--lane) * 4px);
+    left: calc(-8px - var(--lane) * 4px);
+  }
+
+  /* A 6 px end would touch the next lane's rail at a 4 px pitch. */
+  .chain .block__rail--start::before,
+  .chain .block__rail--end::after {
+    left: -1px;
+    width: 4px;
+    height: 4px;
+  }
+
+  .chain .block__rail--start::before {
+    top: -2px;
+  }
+
+  .chain .block__rail--end::after {
+    bottom: -2px;
   }
 
   .chain .block--acting {
-    grid-template-areas: 'number head' '. title' '. action' '. side';
+    grid-template-areas: 'number head tail' '. title title' '. action action' '. side side';
   }
 }
 
@@ -826,9 +817,6 @@
   .chain .block--take .lamp,
   .chain .block--take .block__title,
   .chain .block__now,
-  .chain .block__hazard,
-  .chain .block__number--urgent,
-  .chain .block__number--urgent::before,
   .chain .chain__milestone--bump .chain__milestone-count,
   .chain .chain__away,
   .chain .screen__line {

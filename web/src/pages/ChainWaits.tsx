@@ -23,7 +23,7 @@ export function ChainWaits({ project, waits, className, compact = false }: { pro
   ))
 }
 
-function WaitLine({ wait, compact }: { wait: ChainWait; compact: boolean }) {
+export function WaitLine({ wait, compact }: { wait: ChainWait; compact: boolean }) {
   const now = new Date()
   switch (wait.kind) {
     case 'closing':

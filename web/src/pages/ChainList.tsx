@@ -7,7 +7,7 @@ import { useCommand } from '../live/useCommand.js'
 import { blockMetered, taskTitle, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
-import { ActionMeter, BlockMetrics, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
+import { ActionMeter, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
 import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { useLive } from '../live/context.js'
@@ -26,6 +26,8 @@ import { cardAction, lampLabel } from './sessionStatus.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
+import { BlockTail } from './BlockTail.js'
+import { useNarrow } from '../layout/useNarrow.js'
 import './chain.css'
 import { ChangelogButton } from './ChangelogDialog.js'
 import { Forge } from './Forge.js'
@@ -555,6 +557,36 @@ function Block(props: BlockProps) {
     ...(share !== null && { '--estimate': share.toFixed(2) }),
     ...(offset !== undefined && { transform: `translate(${offset.x}px, ${offset.y}px)` }),
   } as CSSProperties
+  // On a phone the run, the links and the row's button stand in the key's line (BTN-1162).
+  const narrow = useNarrow()
+  const readyButton = ready === null ? null : (
+    <button
+      type="button"
+      className="block__ready"
+      disabled={onReady === undefined || ready.refused !== null}
+      aria-label={t.card.ready}
+      title={ready.refused === null ? t.card.ready : t.chain.readyRefused(say(ready.refused))}
+      draggable={false}
+      onClick={onReady}
+    >
+      <IntoChainIcon />
+    </button>
+  )
+  // Takes no room until the row is pointed at, then slides out before the lock and the key, which stay put (BTN-1162).
+  const unreadyButton =
+    onUnready === null ? null : (
+      <button
+        type="button"
+        className="block__unready"
+        disabled={onUnready === undefined}
+        aria-label={t.card.unready}
+        title={t.card.unready}
+        draggable={false}
+        onClick={onUnready}
+      >
+        <OutOfChainIcon />
+      </button>
+    )
 
   return (
     <li
@@ -576,26 +608,15 @@ function Block(props: BlockProps) {
       {rails.map((rail) => (
         <RailLink key={rail.family} project={project} rail={rail} />
       ))}
-      {block.priority === 'urgent' && <span className="block__hazard" aria-hidden="true" />}
       {block.question && <span className="block__corner" role="img" aria-label={t.chain.questionTitle} title={t.chain.questionTitle} />}
       {share !== null && <span className="block__estimate" aria-hidden="true" />}
       {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
-      {ready === null ? (
-        <span className={ring === null ? `block__number block__number--${block.priority}` : 'block__number'} title={priorityTitle(block)}>
-          {ring !== null ? <CacheRing cache={ring} /> : fix ? null : block.current ? <PlayIcon /> : number}
+      {ready === null || narrow ? (
+        <span className={ring === null ? `block__number block__number--${block.priority}` : 'block__number'} title={priorityTitle(block, number)}>
+          {ring !== null ? <CacheRing cache={ring} /> : fix ? null : block.current ? <PlayIcon /> : block.priority === 'urgent' ? '!' : number}
         </span>
       ) : (
-        <button
-          type="button"
-          className="block__ready"
-          disabled={onReady === undefined || ready.refused !== null}
-          aria-label={t.card.ready}
-          title={ready.refused === null ? t.card.ready : t.chain.readyRefused(say(ready.refused))}
-          draggable={false}
-          onClick={onReady}
-        >
-          <IntoChainIcon />
-        </button>
+        readyButton
       )}
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
@@ -616,6 +637,11 @@ function Block(props: BlockProps) {
           </Link>
         )}
       </div>
+      {narrow && (
+        <BlockTail run={block.run} links={links} onCard={onCard}>
+          {readyButton ?? unreadyButton}
+        </BlockTail>
+      )}
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">
         {/* Plain text: a press anywhere on the row lands on the key — the session panel, whose head opens the card (or a fix's CI), or a locked blocker's card. */}
@@ -633,7 +659,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
-        {block.run !== null && <RunLabelTag run={block.run} />}
+        {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (
           <span className="chip" title={t.chain.interruptedTitle}>
@@ -645,28 +671,14 @@ function Block(props: BlockProps) {
         {badge === 'blocker' && <span className="tag">{t.chain.blocker}</span>}
         {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}
         {block.start !== null && <StartPill start={block.start} />}
-        {metered !== null && !acting && (
-          <BlockMetrics project={project} session={metered} sessions={block.sessions} scale={scale} ring={ring === null} />
-        )}
+        {/* A session that does not work shows no meter on its row: its lamp says its state, its panel the numbers (BTN-1162). */}
         {block.leftovers !== undefined && (
           <button type="button" className="button button--small block__return" disabled={onDismiss === undefined} onClick={onDismiss}>
             {t.project.dismiss}
           </button>
         )}
-        {onUnready !== null && (
-          <button
-            type="button"
-            className="block__unready"
-            disabled={onUnready === undefined}
-            aria-label={t.card.unready}
-            title={t.card.unready}
-            draggable={false}
-            onClick={onUnready}
-          >
-            <OutOfChainIcon />
-          </button>
-        )}
-        <Links links={links} onCard={onCard} />
+        {!narrow && unreadyButton}
+        {!narrow && <Links links={links} onCard={onCard} />}
       </div>
     </li>
   )
@@ -731,9 +743,11 @@ function CheckIcon() {
   )
 }
 
-function priorityTitle(block: ChainBlock): string | undefined {
+/** An urgent row's "!" stands where its place in the chain was: the tip gives the place back. */
+function priorityTitle(block: ChainBlock, number: number | undefined): string | undefined {
   if (block.priority === 'none' || block.priority === 'medium') return undefined
-  return `${t.card.priority}: ${t.card.priorities[block.priority]}`
+  const title = `${t.card.priority}: ${t.card.priorities[block.priority]}`
+  return block.priority === 'urgent' && number !== undefined ? `${title} · #${number}` : title
 }
 
 function relativesOf(blocks: ChainBlock[], id: string | null): Relatives | null {

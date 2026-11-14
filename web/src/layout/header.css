@@ -463,13 +463,41 @@
   margin: 0 -10px;
 }
 
+/* The rows reach 10 px past the sheet's text for their hover; the line above them stays as wide as the others. */
+.menu-sheet > .sheet__rows:not(:first-child) {
+  border-top: 0;
+  background: linear-gradient(var(--border), var(--border)) center top / calc(100% - 20px) 1px no-repeat;
+}
+
+.sheet__rows .gear__version {
+  margin-inline: 10px;
+  padding-inline: 0;
+}
+
+/* The accounts' row stands as the other rows of the sheet: its word at the sheet's text edge, its height and size. */
+.menu-sheet .account-sheet-button {
+  width: calc(100% + 20px);
+  min-height: 44px;
+  margin: 0 -10px;
+  font-size: var(--text-15);
+}
+
 .sheet__rows .gear__item,
 .account-card__open {
   min-height: 44px;
 }
 
 .sheet__rows .gear__item {
+  justify-content: flex-start;
   font-size: var(--text-15);
+}
+
+/* A row's figure (the log's unread count, the status level) stands at the right before the chevron, as the account's
+   limit does; a row with no figure pushes the chevron alone. */
+.sheet__rows .gear__item > .log-count,
+.sheet__rows .gear__item > .gear__level,
+.sheet__rows a.gear__item:not(:has(> .log-count, > .gear__level))::after {
+  margin-left: auto;
 }
 
 .sheet__rows a.gear__item::after,
@@ -485,51 +513,33 @@
   transform: rotate(90deg);
 }
 
-.sheet__work {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-}
-
+/* The chains and the questions are rows of the sheet as the others (BTN-1162): the word at the left, the lamp or the
+   sign with the count at the right; the queue opens under its row. */
 .sheet__work .queue-menu {
-  display: contents;
+  display: flex;
+  flex-direction: column;
 }
 
-.sheet__work .queue-toggle,
-.sheet__work .waiting {
-  grid-row: 1;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
+.sheet__work .gear__level {
+  gap: var(--space-6);
+  color: var(--fg);
   font-size: var(--text-15);
+  font-variant-numeric: tabular-nums;
 }
 
-.sheet__work .queue-toggle {
-  gap: 8px;
+.sheet__work .gear__level .icon {
+  color: var(--fg-muted);
 }
 
-.sheet__work:has(.waiting) .queue-toggle {
-  border-radius: var(--radius-control) 0 0 var(--radius-control);
-}
-
-.sheet__work .waiting {
-  justify-self: start;
-  gap: 8px;
-  border-left: 0;
-  border-radius: 0 var(--radius-control) var(--radius-control) 0;
-}
-
-.sheet__work .waiting::after {
-  content: none;
+.sheet__work .waiting-row .gear__level {
+  color: var(--warn-fg);
 }
 
 .sheet__work .queue {
   position: static;
-  grid-column: 1 / -1;
-  grid-row: 2;
   width: auto;
   max-height: none;
-  margin-top: 8px;
+  margin: 4px 10px 8px;
   box-shadow: none;
 }
 

@@ -79,7 +79,7 @@ export function TaskSigns({ blocks }: { blocks: ChainBlock[] }) {
 export function PrioritySigns({ blocks }: { blocks: ChainBlock[] }) {
   const open = blocks.filter((block) => !isClosedLamp(block.lamp))
   return <>
-    {(['urgent', 'high', 'low'] as const).map((priority) => <Sign key={priority} sample={<span className="chain"><span className={`block__number block__number--${priority}`}>2</span></span>}>{t.chain.shapes[priority]}</Sign>)}
+    {(['urgent', 'high', 'low'] as const).map((priority) => <Sign key={priority} sample={<span className="chain"><span className={`block__number block__number--${priority}`}>{priority === 'urgent' ? '!' : 2}</span></span>}>{t.chain.shapes[priority]}</Sign>)}
     {open.some((block) => isRework(block.labels)) && <Sign sample={<span className="page-help__shape page-help__shape--rework" />}>{t.chain.shapes.rework}</Sign>}
     {open.some((block) => block.question) && <Sign sample={<span className="page-help__shape page-help__shape--question" />}>{t.chain.shapes.question}</Sign>}
     {railsOf(blocks).size > 0 && <Sign sample={<span className="page-help__shape page-help__shape--family" />}>{t.chain.shapes.family}</Sign>}

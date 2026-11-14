@@ -5,7 +5,7 @@ import { accountBadge } from '../state.js'
 import { AccountSheet } from './AccountBlock.js'
 import { LogLink } from './LogLink.js'
 import { QueueMenu } from './Queue.js'
-import { GearRows, useHotkeysWindow, Waiting } from './Status.js'
+import { GearRows, Waiting } from './Status.js'
 import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 import { usePopover } from './usePopover.js'
 
@@ -13,7 +13,6 @@ import { usePopover } from './usePopover.js'
 export function MobileMenu({ now }: { now: Date }) {
   const { state, link } = useLive()
   const { open, setOpen, rootRef } = usePopover()
-  const hotkeys = useHotkeysWindow(() => setOpen(false))
   const system = worstLevel(systemChecks(systemInput(state, link), now))
   const level = state === null ? system : withAccount(system, accountBadge(state.account).kind)
 
@@ -40,16 +39,15 @@ export function MobileMenu({ now }: { now: Date }) {
             <LogLink className="gear__item" />
           </nav>
           {state !== null && (
-            <div className="sheet__work">
-              <QueueMenu state={state} />
-              <Waiting sessions={state.sessions} tasks={state.tasks} />
+            <div className="sheet__rows sheet__work">
+              <QueueMenu state={state} row />
+              <Waiting sessions={state.sessions} tasks={state.tasks} row />
             </div>
           )}
           {state !== null && <AccountSheet account={state.account} limits={state.limits} now={now} />}
-          <GearRows now={now} onHotkeys={hotkeys.show} />
+          <GearRows now={now} />
         </div>
       )}
-      {hotkeys.dialog}
     </div>
   )
 }
