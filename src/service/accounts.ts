@@ -18,7 +18,7 @@ import { VsCodeAccount, vscodeSettingsFile } from '../account/vscode.js'
 import { AccountWatcher } from '../account/watcher.js'
 import { AGENTS } from '../agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from '../agent/contract.js'
-import { sessionEnv, sessionSecrets, settingsSecrets } from '../agent/env.js'
+import { sessionBase, sessionEnv, sessionSecrets, settingsSecrets } from '../agent/env.js'
 import { ModelCatalog } from '../agent/models.js'
 import { ContextWindows, type SavedWindow } from '../agent/windows.js'
 import { saveContextWindow, saveSessionWindows } from '../storage/context-windows.js'
@@ -468,9 +468,10 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
       const answer = await write.call(ctx.agentOf(home), home, { cwd: home.dir, prompt: CLOUD_CHECK_PROMPT, model: null, timeoutMs: CLOUD_CHECK_TIMEOUT_MS })
       return { model: answer.spend.model }
     },
-    awsProfiles: () => readAwsProfiles(process.env),
-    gcloud: () => readGcloud(process.env),
-    azure: () => readAzure(process.env),
+    // The cloud form reads what a session gets, not what Even Keel's `.env` put into the service (BTN-1120).
+    awsProfiles: () => readAwsProfiles(sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own())),
+    gcloud: () => readGcloud(sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own())),
+    azure: () => readAzure(sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own())),
     whose: () => ({ user: currentUser(), home: homedir() }),
     checkKey: (agent, key) => KEY_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
     keyCheckMs: KEY_CHECK_MS,
