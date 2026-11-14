@@ -20,6 +20,8 @@ async function connect(status = 200) {
     const { query, variables } = JSON.parse(String(init?.body)) as { query: string; variables: Record<string, unknown> }
     calls.push({ url, init, query, variables })
     if (query.includes('organization {')) return Response.json({ data: { organization: { urlKey: 'example' } } })
+    // The card's children, asked alongside it (BTN-1152): none here.
+    if (query.includes('includeArchived: true')) return Response.json({ data: { issues: page([]) } })
     const attachments = variables.after === 'next' ? page([{ title: 'External reference', url: 'https://example.com/reference' }]) : page([{ title: 'shot.png', url: shot }], 'next')
     return Response.json({ data: { issues: { nodes: [{
       ...issue('ENG-1'), description: `![Description name](${shot})`, relations: { nodes: [] },
@@ -39,8 +41,9 @@ describe('Linear task files', () => {
       { file: 'https://example.com/reference', name: 'External reference', size: 0, type: '', url: 'https://example.com/reference' },
       { file: note, name: 'note.txt', size: 0, type: '', url: null },
     ])
-    expect(calls[1]!.query).toMatch(/attachments\(first: \d+/)
-    expect(calls[2]!.variables).toMatchObject({ after: 'next' })
+    const asked = calls.filter((call) => call.query?.includes('attachments(') === true)
+    expect(asked[0]!.query).toMatch(/attachments\(first: \d+/)
+    expect(asked[1]!.variables).toMatchObject({ after: 'next' })
     const scratch = resolve('.temp')
     await mkdir(scratch, { recursive: true })
     const folder = await mkdtemp(join(scratch, 'linear-files-'))

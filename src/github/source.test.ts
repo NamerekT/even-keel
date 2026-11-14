@@ -384,6 +384,23 @@ describe('github source', () => {
     const card = await source.card!('ABC-7')
     expect(calls[1]!.query).toContain('authorAssociation')
     expect(card.comments.map((each) => [each.text, each.outsider])).toEqual([['mine', undefined], ['stranger', true], ['member', undefined], ['bot', true], ['gone', true]])
+    expect(card.subtasks).toEqual([])
+    expect(calls).toHaveLength(2)
+  })
+
+  it('lists a parent’s sub-issues on its card with their status and milestone (BTN-1152)', async () => {
+    const parent = {
+      id: 'I_1', number: 1, title: 'Parent', state: 'OPEN', stateReason: null, body: '', repository: { nameWithOwner: 'octo-org/abc' }, subIssuesSummary: { total: 2 },
+      parent: null, blockedBy: { nodes: [] }, blocking: { nodes: [] }, labels: { nodes: [] }, milestone: null, comments: { nodes: [] },
+    }
+    const { source } = await connect([
+      { body: { data: { repository: { issue: parent } } } },
+      { body: { data: { repository: { issue: { subIssues: page([issue(2, { state: 'CLOSED', stateReason: 'COMPLETED' }), issue(3, { milestone: { number: 1, title: 'v1', dueOn: null } })]) } } } } },
+    ])
+    expect((await source.card!('ABC-1')).subtasks).toEqual([
+      { id: 'ABC-2', title: 'Issue 2', status: { name: 'Completed', category: 'Won' }, milestone: null },
+      { id: 'ABC-3', title: 'Issue 3', status: { name: 'Open', category: 'ToDo' }, milestone: 'v1' },
+    ])
   })
 
   it('gives a milestone’s tasks with the last comment of a collaborator', async () => {

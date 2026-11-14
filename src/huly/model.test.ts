@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { fakeTask } from '../tracker/fixture.js'
+import type { TaskStatus } from '../tracker/model.js'
 import {
   answersAfter,
   backlogStatus,
@@ -250,7 +252,17 @@ describe('toCard', () => {
     replies: [],
     people: new Map(),
     attachments: [],
+    subIssues: [],
     ...fields,
+  })
+
+  it('lists the sub-issues with their status and milestone (BTN-1152)', () => {
+    const child = (id: string, status: TaskStatus, milestone: string | null) => fakeTask(id, { status, parent: 'ABC-1', milestone: milestone === null ? null : { label: milestone, targetDate: null } })
+    const card = toCard(docs({ subIssues: [child('ABC-2', { name: 'Done', category: 'Won' }, null), child('ABC-3', { name: 'Todo', category: 'ToDo' }, 'v0.3')] }))
+    expect(card.subtasks).toEqual([
+      { id: 'ABC-2', title: 'ABC-2', status: { name: 'Done', category: 'Won' }, milestone: null },
+      { id: 'ABC-3', title: 'ABC-3', status: { name: 'Todo', category: 'ToDo' }, milestone: 'v0.3' },
+    ])
   })
 
   it('maps the issue with its description, priority, milestone and labels', () => {
@@ -279,6 +291,7 @@ describe('toCard', () => {
       related: [],
       comments: [],
       attachments: [],
+      subtasks: [],
     })
   })
 

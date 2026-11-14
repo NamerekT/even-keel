@@ -165,7 +165,7 @@ export function MilestoneField({ card, editor }: { card: Editable; editor: CardE
   const commit = async (name: string) => {
     const to = name.trim() === '' ? null : name.trim()
     if (same(to, current)) return setText(current ?? '')
-    const children = carriedSubtasks(card.edit.subtasks, to)
+    const children = carriedSubtasks(card.subtasks ?? [], to)
     if ((await editor.edit('milestone', current, to)) !== 'landed') return setText(current ?? '')
     if (children.length > 0) setCarry({ to, children })
   }

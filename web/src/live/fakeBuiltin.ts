@@ -111,11 +111,11 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
     comments: fakeJournal(id, journal),
     attachments: fakeAttachments(id, base.attachments, files),
     related: tasks.filter((each) => related.has(pair(id, each.id))).map(refOf),
+    subtasks: tasks.filter((each) => each.parent === id).map((each) => ({ ...refOf(each), milestone: each.milestone?.label ?? null })),
     edit: {
       statuses: [...BUILTIN_STATUSES],
       labels: [...BUILTIN_LABELS.map((name) => ({ name, builtin: true })), ...[...OWN_LABELS, ...own].filter((name, at, all) => all.indexOf(name) === at).map((name) => ({ name, builtin: false }))],
       ancestors,
-      subtasks: tasks.filter((each) => each.parent === id).map((each) => ({ ...refOf(each), milestone: each.milestone?.label ?? null })),
       milestoneRules: { requiredMilestones: [], excludedMilestones: ['Когда-нибудь'] },
     },
   }

@@ -349,9 +349,11 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         client.findAll<ChatMessageDoc>(CHAT_MESSAGE, { attachedTo: issue._id }),
       ])
       const replies = await repliesTo(messages)
-      const [people, attachments] = await Promise.all([
+      const [people, attachments, subIssues] = await Promise.all([
         peopleOf([...messages, ...replies].flatMap((doc) => doc.createdBy ?? [])),
         findAttachments({ attachedTo: { $in: [issue._id, ...messages.map((doc) => doc._id), ...replies.map((doc) => doc._id)] } }),
+        // Huly counts an issue's sub-issues on it: a leaf costs no query.
+        (issue.subIssues ?? 0) === 0 ? [] : findIssues({ attachedTo: issue._id }).then((docs) => resolve(docs, statuses)),
       ])
       const markdownOf = (doc: ChatMessageDoc) => ({ ...doc, text: markupToMarkdown(markupToJSON(doc.message)) })
       return toCard({
@@ -366,6 +368,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         replies: replies.map(markdownOf),
         people,
         attachments,
+        subIssues,
       })
     },
     async file(identifier, file) {

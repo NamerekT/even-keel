@@ -120,7 +120,11 @@ describe('the built-in tracker over HTTP', () => {
       { name: 'Question', builtin: true }, { name: 'Bug', builtin: true }, { name: 'Rework', builtin: true },
       { name: 'Claude | opus', builtin: false }, { name: 'Later', builtin: false },
     ])
-    expect((await source.card!('ABC-1')).edit!.subtasks).toEqual([{ id: 'ABC-2', title: 'Middle', status: { name: 'Todo', category: 'ToDo' }, milestone: 'v0.3' }])
+    // One list for every tracker's card (BTN-1152): the subtasks are the card's, not its editing's.
+    const root = await source.card!('ABC-1')
+    expect(root.subtasks).toEqual([{ id: 'ABC-2', title: 'Middle', status: { name: 'Todo', category: 'ToDo' }, milestone: 'v0.3' }])
+    expect(root.edit).not.toHaveProperty('subtasks')
+    expect(leaf.subtasks).toEqual([])
   })
 
   it('refuses to delete the chain’s current task or one with a live session', async () => {

@@ -106,6 +106,25 @@ describe('Jira task source', () => {
     expect(remaining()).toBe(0)
   })
 
+  it('lists an epic’s children on its card by a search, and asks none for a leaf (BTN-1152)', async () => {
+    const child = (key: string, fields: Partial<ReturnType<typeof issue>['fields']>) => issue(key, { parent: { key: 'ABC-4', fields: { summary: 'Epic', status: TODO } }, ...fields })
+    const { source, calls, remaining } = await connect([
+      { body: issue('ABC-4', { issuetype: { hierarchyLevel: 1 } }) },
+      { body: { comments: [], total: 0 } },
+      { body: { issues: [child('ABC-5', { status: DONE }), child('ABC-6', { fixVersions: [{ id: '20', name: 'v1.0' }] })] } },
+      PRIORITIES,
+    ])
+    expect((await source.card!('ABC-4')).subtasks).toEqual([
+      { id: 'ABC-5', title: 'Issue ABC-5', status: { name: 'Done', category: 'Won' }, milestone: null },
+      { id: 'ABC-6', title: 'Issue ABC-6', status: { name: 'To Do', category: 'ToDo' }, milestone: 'v1.0' },
+    ])
+    expect(calls[4]!.body).toMatchObject({ jql: 'parent = ABC-4 ORDER BY key' })
+    expect(remaining()).toBe(0)
+    const leaf = await connect([{ body: issue('ABC-1') }, { body: { comments: [], total: 0 } }, PRIORITIES])
+    expect((await leaf.source.card!('ABC-1')).subtasks).toEqual([])
+    expect(leaf.remaining()).toBe(0)
+  })
+
   it('reads the open issues by status id, the closed ones of their versions and the children of epics', async () => {
     const epic = issue('ABC-4', { issuetype: { hierarchyLevel: 1 } })
     const { source, calls, remaining } = await connect([

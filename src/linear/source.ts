@@ -3,6 +3,7 @@ import { fail } from '../notice/notice.js'
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { labelKey, resolveLabels, type NamedLabel } from '../tracker/labels.js'
+import { subtaskRef } from '../tracker/card.js'
 import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { LINEAR_PRIORITY, linearEditor, teamMilestones } from './editor.js'
@@ -290,7 +291,8 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
     async card(id) {
       type WithFiles = LinearCardIssue & { attachments?: Connection<LinearAttachment> }
-      const issue = await oneIssue<WithFiles>(id, ISSUE_CARD)
+      // Asked alongside, not by the card's own count: the card's `children` would leave out the archived ones.
+      const [issue, children] = await Promise.all([oneIssue<WithFiles>(id, ISSUE_CARD), source.children!(id)])
       let files = issue.attachments
       const nodes = [...(files?.nodes ?? [])]
       while (files?.pageInfo.hasNextPage && files.pageInfo.endCursor !== null) {
@@ -300,7 +302,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         files = found.attachments
         nodes.push(...(files?.nodes ?? []))
       }
-      return toCard({ ...issue, attachments: { nodes } })
+      return { ...toCard({ ...issue, attachments: { nodes } }), subtasks: children.map(subtaskRef) }
     },
 
     async children(id) {

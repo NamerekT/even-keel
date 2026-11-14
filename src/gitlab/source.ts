@@ -1,4 +1,5 @@
 import { Skipped } from '../github/trust.js'
+import { subtaskRef } from '../tracker/card.js'
 import { resolveLabels } from '../tracker/labels.js'
 import { entryMinutes, parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
@@ -211,7 +212,10 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
       const links = await linksOf(path, iid)
       const notes = await notesOf(id)
       const tree = await hierarchy.read(path, iid)
-      const card = toCard(issue, links, notes, projects, tree, await outsiderNotes(path, notes))
+      // A child's own issue only for its milestone: the links and hierarchy `children` reads are not shown here.
+      const childIds = tree.children.map((child) => projects.idOf(child)).filter((childId) => parseTaskId(childId) !== null)
+      const subtasks = (await limitedMap(childIds, async (childId) => toTrackerTask(await rawIssue(childId), [], projects))).map(subtaskRef)
+      const card = { ...toCard(issue, links, notes, projects, tree, await outsiderNotes(path, notes)), subtasks }
       return (await outsiderIssue(issue, authorTrust(path))) ? { ...card, outsider: true, author: issue.author?.username ?? null } : card
     },
 

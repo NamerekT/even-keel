@@ -2,6 +2,7 @@ import { sameName } from '../chain/rules.js'
 import { changedLabels } from '../tracker/labels.js'
 import { fail } from '../notice/notice.js'
 import { commentsAfterId } from '../tracker/comments.js'
+import { subtaskRef } from '../tracker/card.js'
 import { entryMinutes, parseTaskId, uniqueStatuses, type StatusCategory, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
@@ -236,7 +237,10 @@ export async function connectJira(settings: JiraSettings, timeoutMs: number, fet
       const [issue, comments] = await Promise.all([issueOf(id, CARD_FIELDS), commentsOf(id)])
       const links = issue.fields.issuelinks ?? []
       await resolveStatuses([issue, ...[issue.fields.parent, ...links.flatMap((link) => [link.inwardIssue, link.outwardIssue])].filter((ref): ref is JiraRef => ref != null)])
-      return toCard(issue, comments, await order())
+      // An issue lists its sub-tasks; an epic's children are found only by a search.
+      const parent = hasChildIssues(issue) || (issue.fields.subtasks?.length ?? 0) > 0
+      const children = parent ? await source.children!(id) : []
+      return { ...toCard(issue, comments, await order()), subtasks: children.map(subtaskRef) }
     },
 
     async file(id, file) {

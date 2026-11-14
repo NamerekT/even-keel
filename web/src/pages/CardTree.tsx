@@ -47,7 +47,7 @@ export function ParentField({ card, project, editor, onOpen }: ParentProps) {
     setRefusal(null)
   }
   const pick = async (parent: string) => {
-    const refused = parentRefusal(card.id, card.edit.subtasks, parent)
+    const refused = parentRefusal(card.id, card.subtasks ?? [], parent)
     if (refused !== null) return setRefusal(refused)
     if (parent === from) return close()
     const answer = await editor.run('query', 'builtin/edit', { task: card.id, field: 'parent', from, to: parent })
@@ -77,20 +77,21 @@ export function ParentField({ card, project, editor, onOpen }: ParentProps) {
 }
 
 interface SubtasksProps {
-  card: Editable
+  card: Card
   project: string
-  editor: CardEditor
+  /** Only a card Even Keel edits itself adds subtasks; any other tracker's list is read-only. */
+  adding: { card: Editable; editor: CardEditor } | null
   /** The task is the chain's current one or a session of it is live: a first subtask takes it out of the chain. */
   inWork: boolean
   onOpen: (task: string) => void
 }
 
-/** The children in the chain's order with a ghost field that adds one; a closed task takes no new subtask. */
-export function Subtasks({ card, project, editor, inWork, onOpen }: SubtasksProps) {
+/** The children in the chain's order, with a ghost field that adds one where the card edits; a closed task takes no new subtask. */
+export function Subtasks({ card, project, adding, inWork, onOpen }: SubtasksProps) {
   const { state } = useLive()
-  const { subtasks } = card.edit
-  const open = !isClosed(card.status)
-  if (subtasks.length === 0 && !open) return null
+  const subtasks = card.subtasks ?? []
+  const add = adding !== null && !isClosed(card.status) ? adding : null
+  if (subtasks.length === 0 && add === null) return null
   const order = state?.chain.projects[project]?.order ?? []
   const closed = subtasks.filter((child) => isClosed(child.status)).length
 
@@ -107,7 +108,7 @@ export function Subtasks({ card, project, editor, inWork, onOpen }: SubtasksProp
           ))}
         </ul>
       )}
-      {open && <AddSubtask card={card} project={project} editor={editor} confirmFirst={inWork && subtasks.length === 0} />}
+      {add !== null && <AddSubtask card={add.card} project={project} editor={add.editor} confirmFirst={inWork && subtasks.length === 0} />}
     </section>
   )
 }

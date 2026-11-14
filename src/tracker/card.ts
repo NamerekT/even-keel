@@ -1,6 +1,6 @@
 import { milestoneComparator } from '../chain/order.js'
 import { entryLabels, missingLabel, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
-import { QUESTION_LABELS, type MilestonePick, type TaskMilestone, type TaskPriority, type TaskStatus } from './model.js'
+import { QUESTION_LABELS, type MilestonePick, type TaskMilestone, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
 /** A task in full for its card on the page (`TaskSource.card`). `description` and comment texts are Markdown. */
 export interface TrackerCard {
@@ -23,6 +23,8 @@ export interface TrackerCard {
   outsider?: true
   /** Who opened it, given with `outsider` (BTN-1124): `task_read` says whose the text is; `null` — a deleted account. */
   author?: string | null
+  /** The direct subtasks, whatever their status (BTN-1152); absent — the tracker has none (Forgejo). */
+  subtasks?: SubtaskRef[]
   /** Only the tracker kept in Even Keel itself (the built-in one) gives it: the card is where its tasks are edited. */
   edit?: CardEdit
 }
@@ -32,6 +34,8 @@ export interface SubtaskRef extends TaskRef {
   milestone: string | null
 }
 
+export const subtaskRef = (task: TrackerTask): SubtaskRef => ({ id: task.id, title: task.title, status: task.status, milestone: task.milestone?.label ?? null })
+
 /** What the card of a task Even Keel keeps itself offers to edit it with (BTN-771). */
 export interface CardEdit {
   statuses: TaskStatus[]
@@ -39,7 +43,6 @@ export interface CardEdit {
   labels: { name: string; builtin: boolean }[]
   /** The root first, the direct parent last. */
   ancestors: TaskRef[]
-  subtasks: SubtaskRef[]
 }
 
 /** A file attached to the task or to one of its comments. */

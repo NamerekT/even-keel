@@ -1,6 +1,7 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
+import { subtaskRef } from '../tracker/card.js'
 import { parseTaskId, type TaskStatus, type TextEdit, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubAuthored, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
@@ -341,7 +342,8 @@ export async function connectGithub(
 
     async card(id) {
       const { issue } = await issueOf<GithubCardIssue>(id, ISSUE_CARD)
-      return toCard(issue, repos, trusted)
+      const children = issue.subIssuesSummary.total === 0 ? [] : await source.children!(id)
+      return { ...toCard(issue, repos, trusted), subtasks: children.map(subtaskRef) }
     },
 
     async complete(id) {

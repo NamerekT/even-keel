@@ -194,6 +194,25 @@ describe('linear source', () => {
     expect(calls[2]!.variables).toMatchObject({ after: 'cursor-1' })
   })
 
+  it('lists the children on the card, archived ones too, with their status and milestone (BTN-1152)', async () => {
+    const card = {
+      identifier: 'ENG-1', title: 'Parent', description: null, priority: 0, state: { name: 'In Progress', type: 'started' }, parent: null,
+      relations: { nodes: [] }, inverseRelations: { nodes: [] }, labels: { nodes: [] }, projectMilestone: null, comments: { nodes: [] }, attachments: page([]),
+    }
+    const v1 = { id: 'm1', name: 'v1', targetDate: null, sortOrder: 1, project: { id: 'p1' } }
+    const children = [issue('ENG-2', { state: { name: 'Done', type: 'completed' }, parent: { identifier: 'ENG-1' } }), issue('ENG-3', { parent: { identifier: 'ENG-1' }, projectMilestone: v1 })]
+    const fetcher: typeof fetch = async (_input, init) => {
+      const { query } = JSON.parse(String(init?.body)) as { query: string }
+      if (query.includes('organization {')) return Response.json(ORGANIZATION.body)
+      return Response.json({ data: { issues: query.includes('includeArchived: true') ? page(children) : { nodes: [card] } } })
+    }
+    const source = await connectLinear({ token: 'lin_api_example', projects: {} }, 5_000, fetcher)
+    expect((await source.card!('ENG-1')).subtasks).toEqual([
+      { id: 'ENG-2', title: 'Issue ENG-2', status: { name: 'Done', category: 'Won' }, milestone: null },
+      { id: 'ENG-3', title: 'Issue ENG-3', status: { name: 'Todo', category: 'ToDo' }, milestone: 'v1' },
+    ])
+  })
+
   it('closes into the completed state of the name picked, and into no other', async () => {
     const states = { nodes: [{ id: 's-done', name: 'Done', type: 'completed', position: 3 }, { id: 's-shipped', name: 'Shipped', type: 'completed', position: 5 }, { id: 's-canceled', name: 'Canceled', type: 'canceled', position: 6 }] }
     const at = (type: string) => ({ body: { data: { issues: { nodes: [{ id: 'uuid-eng-7', state: { name: 'X', type }, team: { states } }] } } } })

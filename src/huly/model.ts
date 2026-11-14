@@ -1,4 +1,4 @@
-import type { TaskComment, TaskRef, TrackerCard } from '../tracker/card.js'
+import { subtaskRef, type TaskComment, type TaskRef, type TrackerCard } from '../tracker/card.js'
 import { uniqueStatuses, type StatusCategory, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TrackerVocabulary } from '../tracker/source.js'
 import { tracker } from './ids.js'
@@ -68,6 +68,8 @@ export interface HulyCardDocs {
   people: ReadonlyMap<string, string>
   /** The files of the issue, of its comments and of their replies. */
   attachments: HulyAttachmentDoc[]
+  /** Its sub-issues, resolved as the list's tasks are. */
+  subIssues: TrackerTask[]
 }
 
 /** `file` is the blob id in the workspace storage. */
@@ -258,6 +260,7 @@ export function toCard(docs: HulyCardDocs): TrackerCard {
     attachments: [...docs.attachments]
       .sort((a, b) => (a.createdOn ?? a.modifiedOn) - (b.createdOn ?? b.modifiedOn))
       .map((doc) => ({ file: doc.file, name: doc.name, type: doc.type ?? '', size: doc.size ?? 0, url: null })),
+    subtasks: docs.subIssues.map(subtaskRef),
   }
 }
 

@@ -62,7 +62,8 @@ const ATTACHMENTS: TaskCard['attachments'] = [
 /** `mode`: `empty` — a task without description, labels, links, comments and attachments; `none` — the tracker gives no card. */
 export function fakeCard(state: EvenKeelState, id: string, mode: string | null): TaskCard | null {
   if (mode === 'none') return null
-  const task = state.tasks.find((each) => each.id === id)
+  // A parent of the "Parents" view has its card too, with its subtasks of the fake's list.
+  const task = state.tasks.find((each) => each.id === id) ?? Object.values(state.parents ?? {}).flat().find((each) => each.id === id)
   if (task === undefined) return null
   const number = Number(id.split('-')[1])
   const refs = (ids: string[]): TaskRef[] =>
@@ -90,6 +91,7 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     blockedBy: refs(task.blockedBy),
     blocks: refs(state.tasks.filter((each) => each.blockedBy.includes(id)).map((each) => each.id)),
     related: plain ? [] : refs(state.tasks.filter((each) => each.id !== id && each.id.startsWith(id.split('-')[0]!)).slice(0, 1).map((each) => each.id)),
+    subtasks: state.tasks.filter((each) => each.parent === id).map((each) => ({ id: each.id, title: each.title, status: each.status, milestone: each.milestone?.label ?? null })),
     comments: plain
       ? []
       : COMMENTS.map(({ replies, ...comment }, index) => ({

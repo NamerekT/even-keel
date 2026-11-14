@@ -219,7 +219,7 @@ function RemoveDialog({ card, editor, onClose, onRemoved }: { card: Card & { edi
   return (
     <ConfirmDialog
       title={t.card.edit.removeTitle(card.id)}
-      question={t.card.edit.removeQuestion(card.edit.subtasks.map((child) => child.id).join(', '))}
+      question={t.card.edit.removeQuestion((card.subtasks ?? []).map((child) => child.id).join(', '))}
       confirm={t.card.edit.removeConfirm}
       cancel={t.card.edit.cancel}
       busy={editor.busy}
@@ -306,7 +306,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               )}
             </section>
           )}
-          {editable !== null && <Subtasks card={editable.card} project={project} editor={editable.editor} inWork={inWork} onOpen={onOpen} />}
+          <Subtasks card={card} project={project} adding={editable} inWork={inWork} onOpen={onOpen} />
           <CardJournal
             key={`journal:${card.id}`}
             task={card.id}

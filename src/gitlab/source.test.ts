@@ -174,6 +174,22 @@ describe('GitLab task source', () => {
     expect(await source.children!('APP-1')).toMatchObject([{ id: 'APP-2', status: { category: 'Won' }, priority: 'medium' }])
   })
 
+  it('lists a parent’s children on its card by their own issues alone (BTN-1152)', async () => {
+    const ref = (iid: number, state: string) => ({ iid: String(iid), title: `Child ${iid}`, state, webUrl: `${SETTINGS.web}/group/subgroup/app/-/work_items/${iid}` })
+    const children = [ref(2, 'CLOSED'), ref(3, 'OPEN')]
+    const { source, remaining } = await connect([
+      { body: issue() }, { body: [] }, { body: [] },
+      { body: { data: { project: { workItems: { nodes: [{ widgets: [{ parent: null, children: { nodes: children, pageInfo: { hasNextPage: false, endCursor: null } } }] }] } } } } },
+      { body: issue({ iid: 2, title: 'Child 2', state: 'closed', milestone: null, web_url: children[0]!.webUrl }) },
+      { body: issue({ iid: 3, title: 'Child 3', web_url: children[1]!.webUrl }) },
+    ])
+    expect((await source.card!('APP-1')).subtasks).toEqual([
+      { id: 'APP-2', title: 'Child 2', status: { name: 'Closed', category: 'Won' }, milestone: null },
+      { id: 'APP-3', title: 'Child 3', status: { name: 'Opened', category: 'ToDo' }, milestone: 'v1.0' },
+    ])
+    expect(remaining()).toBe(0)
+  })
+
   it('lists active milestones plus the current closed one, and clears a milestone with zero', async () => {
     const closed = { id: 20, title: 'v1.0', due_date: null, state: 'closed' }
     const { source, calls } = await connect([{ body: issue({ milestone: closed as NonNullable<ReturnType<typeof issue>['milestone']> }) }, { body: [{ id: 21, title: 'v2.0', due_date: '2026-12-01', state: 'active' }] }, { body: {} }])

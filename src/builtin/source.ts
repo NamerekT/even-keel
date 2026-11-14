@@ -1,6 +1,6 @@
 import { fail } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
-import type { CardEdit, TaskRef, TrackerCard } from '../tracker/card.js'
+import { subtaskRef, type CardEdit, type TaskRef, type TrackerCard } from '../tracker/card.js'
 import { parseTaskId, type MilestonePick, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { MilestoneTask, TaskSource, TrackerPlace } from '../tracker/source.js'
 import { BACKLOG, BUILTIN_LABELS, BUILTIN_STATUSES, builtinStatus, DONE, TODO, uniqueNames, type CommentAuthor } from './model.js'
@@ -102,12 +102,6 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
       statuses: [...BUILTIN_STATUSES],
       labels: labels.map((name) => ({ name, builtin: builtin.has(name.toLocaleLowerCase()) })),
       ancestors: await refs((await store.ancestors(task)).map((number) => ({ project: task.project, number }))),
-      subtasks: (await store.children(task)).map((child) => ({
-        id: names.name(child),
-        title: child.title,
-        status: child.status,
-        milestone: child.milestone?.name ?? null,
-      })),
     }
   }
   const milestoneOf = async (task: string | null): Promise<string | null> => (task === null ? null : ((await find(task))?.milestone?.name ?? null))
@@ -185,6 +179,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
           file: file.sha256, id: file.id, name: file.name, type: file.type, size: file.size, url: null, path: file.path,
           ...(file.missing ? { missing: true as const } : {}),
         })),
+        subtasks: (await store.children(task)).map((child) => subtaskRef(trackerTask(child))),
         edit: await editOf(task),
       }
     },
