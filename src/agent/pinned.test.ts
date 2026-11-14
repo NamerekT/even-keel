@@ -102,6 +102,15 @@ describe('PinnedCli', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
+  it('tells whether any version was downloaded, an unfinished one aside', () => {
+    expect(pinned().cli.hadCopy()).toBe(false)
+    put(join(dir, '2.0.0.partial'))
+    mkdirSync(join(dir, '1.0.0'))
+    expect(pinned().cli.hadCopy()).toBe(false)
+    version('1.5.0', 1_000)
+    expect(pinned().cli.hadCopy()).toBe(true)
+  })
+
   it('gives nothing while the version downloads, then its binary', async () => {
     const { cli, fetch, onReady, log } = pinned()
     expect(cli.path()).toBeUndefined()

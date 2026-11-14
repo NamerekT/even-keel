@@ -8,7 +8,8 @@ import type { Queryable } from './database.js'
  * `intake` — the GitHub issues taken into the projects' trackers and not closed yet (`IntakeEntry[]`, BTN-262);
  * `cliCheck.history` — per agent, the automatic CLI check's last lookup, versions tried and last result (`CheckHistory`, BTN-569);
  * `notices.dismissed` — the page's "Got it" marks, a banner's id to the stamp it was closed at (BTN-759, `withDismissed`);
- * `eventLog.memory` — what the event log saw last, so a restart writes nothing that held before it (`EventMemory`, BTN-350).
+ * `eventLog.memory` — what the event log saw last, so a restart writes nothing that held before it (`EventMemory`, BTN-350);
+ * `cli.downloaded` — the providers whose checked CLI copy was once downloaded with consent (`string[]`, BTN-1175).
  */
 export type StateName =
   | 'updates.dismissed'
@@ -19,6 +20,7 @@ export type StateName =
   | 'cliCheck.history'
   | 'notices.dismissed'
   | 'eventLog.memory'
+  | 'cli.downloaded'
 
 /** `undefined` — never written. */
 export async function stateValue(db: Queryable, name: StateName): Promise<unknown> {

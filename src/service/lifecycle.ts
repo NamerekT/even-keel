@@ -9,6 +9,7 @@ type LifecycleContext = Pick<ServiceContext,
   | 'account'
   | 'backups'
   | 'cliChecks'
+  | 'cliCopies'
   | 'cliVersions'
   | 'configStore'
   | 'envChanged'
@@ -66,6 +67,7 @@ export function start(ctx: LifecycleContext): void {
   ctx.updates.start()
   void ctx.updater.start().catch((error: unknown) => console.warn(`updates: ${(error as Error).message}`))
   ctx.cliVersions.start()
+  ctx.cliCopies.resume()
   ctx.account.start()
   ctx.vscode.start()
   ctx.configStore.watch()

@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { mkdir, readdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DownloadProgress } from './download.js'
@@ -42,6 +42,13 @@ export class PinnedCli {
       return binary
     }
     return undefined
+  }
+
+  /** Some version, this one or an older one the next sweep removes, was downloaded whole: consent was given (BTN-1175). */
+  hadCopy(): boolean {
+    if (!existsSync(this.options.dir)) return false
+    return readdirSync(this.options.dir, { withFileTypes: true })
+      .some((entry) => entry.isDirectory() && !entry.name.endsWith(PARTIAL) && existsSync(this.options.binary(join(this.options.dir, entry.name))))
   }
 
   ensure(): Promise<void> {

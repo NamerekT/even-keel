@@ -37,5 +37,7 @@ export function cliCopy(copy: PinnedCli | undefined, options: { checkedCli(): bo
       }
     },
     async prune(): Promise<void> { await copy?.prune(); await extra?.prune() },
+    /** The CLI's copy, not the second package: its download is the one consented to. */
+    hadCopy: (): boolean => copy?.hadCopy() ?? false,
   }
 }
