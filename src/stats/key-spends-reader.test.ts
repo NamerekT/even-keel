@@ -9,7 +9,7 @@ import type { StatsAnswer } from './model.js'
 // A task's cost as paid where Even Keel read a session's real spend on its key, the estimate in a field of its own (BTN-860).
 
 const proxy = vi.hoisted(() => ({ query: null as null | ((sql: string, params?: unknown[]) => Promise<unknown>) }))
-vi.mock('pg', () => ({ default: { Pool: class {
+vi.mock('pg', () => ({ default: { Client: class {}, Pool: class {
   on() {}
   end() { return Promise.resolve() }
   query(sql: string, params?: unknown[]) { return proxy.query!(sql, params) }

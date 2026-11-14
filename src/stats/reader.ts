@@ -26,7 +26,30 @@ import type { StatsConfig } from '../state.js'
 import type { CompareQuery, CompareSettings, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
 
 const CACHE_MS = 60_000
+/** An error is kept only this long: a queue that overflowed once must not show the page a refusal for a minute. */
+const ERROR_CACHE_MS = 5_000
 const TOP_STUCK = 20
+/** The time to open one connection to Tally. */
+export const CONNECT_MS = 5_000
+const STATEMENT_MS = 20_000
+/** The time a query waits for a free client of the pool: a burst of `period` queues behind slow statements. */
+const QUEUE_MS = 30_000
+const POOL_SIZE = 8
+
+/**
+ * The reader's pool. `pg-pool` applies its `connectionTimeoutMillis` both to opening a connection and to waiting in its
+ * queue, so the pool gets the queue wait and each client its own connect timeout. The local Tally's socket server runs
+ * the queries of all its connections one by one, so a bigger pool only moves the wait from this queue to that one.
+ */
+export function readerPool(settings: ReaderSettings, Base: typeof pg.Client = pg.Client): pg.Pool {
+  class Client extends Base {
+    constructor(config: pg.ClientConfig) {
+      super({ ...config, connectionTimeoutMillis: CONNECT_MS })
+    }
+  }
+  // @types/pg types the option as a constructor without arguments, while pg-pool passes it the pool's options.
+  return new pg.Pool({ ...settings, Client: Client as unknown as new () => pg.ClientBase, max: POOL_SIZE, connectionTimeoutMillis: QUEUE_MS, statement_timeout: STATEMENT_MS, idleTimeoutMillis: 60_000 })
+}
 
 const HISTORY = `${BASE}, local as (
   select b.*, (b.at at time zone $3::text)::date as day from base b
@@ -441,7 +464,9 @@ export class StatsReader {
   // A string is why the stats are off (`TALLY_DISABLED`, `TALLY_UNCHOSEN` or the missing variables); the local database
   // comes as a promise that settles once it is open.
   private pool!: Promise<pg.Pool | string>
-  private readonly cache = new Map<string, { at: number; answer: StatsAnswer<unknown> }>()
+  private readonly cache = new Map<string, { until: number; answer: StatsAnswer<unknown> }>()
+  /** Reads in flight by key: the badge and the page asking the same `period` share one burst of queries. */
+  private readonly flying = new Map<string, Promise<StatsAnswer<unknown>>>()
   private folders: { at: number; key: string; groups: Promise<Folders> } | null = null
 
   constructor(
@@ -460,12 +485,13 @@ export class StatsReader {
     const before = this.pool
     this.pool = Promise.resolve(settings).then((each) => {
       if (typeof each === 'string') return each
-      const pool = new pg.Pool({ ...each, max: 4, connectionTimeoutMillis: 5_000, statement_timeout: 20_000, idleTimeoutMillis: 60_000 })
+      const pool = readerPool(each)
       pool.on('error', () => {})
       return pool
     })
     this.pool.catch(() => {})
     this.cache.clear()
+    this.flying.clear()
     this.folders = null
     void before?.then((pool) => (typeof pool === 'string' ? undefined : pool.end())).catch(() => {})
   }
@@ -645,22 +671,33 @@ export class StatsReader {
     return groups
   }
 
-  private async cached<T>(key: string, read: (pool: pg.Pool) => Promise<T>): Promise<StatsAnswer<T>> {
+  private cached<T>(key: string, read: (pool: pg.Pool) => Promise<T>): Promise<StatsAnswer<T>> {
     key = `${JSON.stringify([this.projects(), this.statsConfig(), this.testProjects()])}|${key}`
     const now = Date.now()
-    for (const [each, entry] of this.cache) if (now - entry.at >= CACHE_MS) this.cache.delete(each)
+    for (const [each, entry] of this.cache) if (now >= entry.until) this.cache.delete(each)
     const hit = this.cache.get(key)
-    if (hit !== undefined) return hit.answer as StatsAnswer<T>
-    let answer: StatsAnswer<T>
+    if (hit !== undefined) return Promise.resolve(hit.answer as StatsAnswer<T>)
+    const flying = this.flying.get(key)
+    if (flying !== undefined) return flying as Promise<StatsAnswer<T>>
+    const answer = this.answer(read)
+    this.flying.set(key, answer)
+    void answer.then((done) => {
+      // A reader moved meanwhile (`setReader`) dropped this read: its answer is of the old database.
+      if (this.flying.get(key) !== answer) return
+      this.flying.delete(key)
+      if (done.state !== 'off') this.cache.set(key, { until: Date.now() + (done.state === 'error' ? ERROR_CACHE_MS : CACHE_MS), answer: done })
+    })
+    return answer
+  }
+
+  private async answer<T>(read: (pool: pg.Pool) => Promise<T>): Promise<StatsAnswer<T>> {
     try {
       const pool = await this.pool
       if (typeof pool === 'string') return { state: 'off', reason: pool }
       const version = await tallyVersion(pool)
-      answer = version > TALLY_SCHEMA_VERSION ? { state: 'newer', version, known: TALLY_SCHEMA_VERSION } : { state: 'ok', data: await read(pool) }
+      return version > TALLY_SCHEMA_VERSION ? { state: 'newer', version, known: TALLY_SCHEMA_VERSION } : { state: 'ok', data: await read(pool) }
     } catch (error) {
-      answer = { state: 'error', error: error instanceof Error ? error.message : String(error) }
+      return { state: 'error', error: error instanceof Error ? error.message : String(error) }
     }
-    this.cache.set(key, { at: Date.now(), answer })
-    return answer
   }
 }

@@ -7,7 +7,7 @@ import { StatsReader } from './reader.js'
 import { readCompareSides, type RulesDb } from './rules-reader.js'
 
 const proxy = vi.hoisted(() => ({ query: null as null | ((sql: string, params?: unknown[]) => Promise<unknown>) }))
-vi.mock('pg', () => ({ default: { Pool: class {
+vi.mock('pg', () => ({ default: { Client: class {}, Pool: class {
   on() {}
   end() { return Promise.resolve() }
   query(sql: string, params?: unknown[]) { return proxy.query!(sql, params) }
