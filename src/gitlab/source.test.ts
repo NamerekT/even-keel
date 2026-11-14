@@ -52,6 +52,18 @@ describe('GitLab task source', () => {
     expect(remaining()).toBe(0)
   })
 
+  it('marks outsiders\' open issues in the tasks tools\' list too, without their text changes (BTN-1125)', async () => {
+    const at = (iid: number, author: { id: number; username: string }) => issue({ iid, milestone: null, web_url: `${SETTINGS.web}/group/subgroup/app/-/issues/${iid}`, author })
+    const { source, calls, remaining } = await connect([
+      { body: [at(1, { id: 9, username: 'example-user' }), at(2, { id: 30, username: 'stranger' })] },
+      batchHierarchy(1, 2), { body: [] }, { body: [] }, { status: 404, body: {} },
+    ])
+    const tasks = await source.editor!.list('project-id')
+    expect(tasks.map((task) => [task.id, task.outsider])).toEqual([['APP-1', undefined], ['APP-2', true]])
+    expect(calls.some((call) => call.url.includes('/notes') || call.url.includes('resource_label_events'))).toBe(false)
+    expect(remaining()).toBe(0)
+  })
+
   it('reads the text changes of an outsider\'s open issue by its author, with the label puttings (BTN-1124)', async () => {
     const note = (id: number, body: string, author: number | null, at: string) => ({ id, body, created_at: at, system: true, author: author === null ? null : { id: author, username: 'someone' } })
     const { source, calls, remaining } = await connect([

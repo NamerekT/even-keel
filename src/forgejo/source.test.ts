@@ -50,6 +50,18 @@ describe('connectForgejo', () => {
     expect(calls.filter((call) => call.path.endsWith('/timeline')).map((call) => call.path).sort()).toEqual([`${BASE}/issues/3/timeline`, `${BASE}/issues/4/timeline`])
   })
 
+  it('marks outsiders\' open issues in the tasks tools\' list too, without their timelines (BTN-1125)', async () => {
+    const { source, calls } = await connect({
+      [`GET ${BASE}/issues?type=issues&state=all`]: { body: [issue({ number: 1, milestone: null, user: { login: 'even-keel-bot' } }), issue({ number: 2, milestone: null, user: { login: 'jane-roe' } })] },
+      ...Object.fromEntries([1, 2].map((number) => [`GET ${BASE}/issues/${number}/dependencies`, { body: [] }])),
+      [`GET ${BASE}/collaborators/jane-roe`]: { status: 404, body: {} },
+      [`GET ${BASE}/collaborators/jane-roe/permission`]: { status: 403, body: {} },
+    })
+    const tasks = await source.editor!.list('id-app')
+    expect(tasks.map((task) => [task.id, task.outsider])).toEqual([['APP-1', undefined], ['APP-2', true]])
+    expect(calls.some((call) => call.path.endsWith('/timeline'))).toBe(false)
+  })
+
   it('reads the renames of an outsider\'s open issue by its author, with the label puttings (BTN-1124)', async () => {
     const event = (type: string, login: string | null, at: string, extra: object = {}) => ({ type, created_at: at, user: login === null ? null : { login }, ...extra })
     const { source } = await connect({

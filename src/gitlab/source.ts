@@ -91,14 +91,21 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     return gitlabTextEdit(issue, notes, events)
   }
 
-  /** `tasks` are `issues` converted, in order: marks those of outsiders, with their text changes. */
-  async function markOutsiders(tasks: TrackerTask[], issues: GitlabIssue[], path: string): Promise<TrackerTask[]> {
+  /**
+   * `tasks` are `issues` converted, in order: marks those of outsiders, with their text changes unless `edits` is off
+   * (the tasks tools' list, BTN-1125, needs only the mark).
+   */
+  async function markOutsiders(tasks: TrackerTask[], issues: GitlabIssue[], path: string, edits = true): Promise<TrackerTask[]> {
     const trusted = authorTrust(path)
     const marked: TrackerTask[] = []
     for (const [index, task] of tasks.entries()) {
       const issue = issues[index]!
       if (!(await outsiderIssue(issue, trusted))) {
         marked.push(task)
+        continue
+      }
+      if (!edits) {
+        marked.push({ ...task, outsider: true })
         continue
       }
       const edited = await textEditOf(issue, path)
@@ -325,7 +332,8 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     projects,
     list: async (project) => {
       const path = pathOf(project)
-      return convertedMany(await api.collect<GitlabIssue>(`${projectBase(path)}/issues?state=all&scope=all`), path)
+      const issues = await api.collect<GitlabIssue>(`${projectBase(path)}/issues?state=all&scope=all`)
+      return markOutsiders(await convertedMany(issues, path), issues, path, false)
     },
     parentOf: async (path, iid) => (await hierarchy.read(path, iid)).parent,
     labelsOf,

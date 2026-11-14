@@ -42,7 +42,8 @@ export interface TrackerTask {
   estimate: number | null
   /**
    * Opened by someone who is not one of the repository's own people, by the comments' trust rule (BTN-1123: GitHub,
-   * GitLab, Forgejo, in `chainTasks`). Such a task enters the chain only with an entry label (`entryLabels`).
+   * GitLab, Forgejo, in `chainTasks` and `editor.list`). Such a task enters the chain only with an entry label
+   * (`entryLabels`), and without one the tasks tools give none of its text (BTN-1125).
    */
   outsider?: true
   /** Set on an outsider's task whose author changed its title or description (BTN-1124); absent — never changed. */

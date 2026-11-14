@@ -92,9 +92,9 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
 
   /**
    * Open issues with their blockers, closed ones without: a closed task orders nothing. With `trust`, outsiders' issues
-   * are marked, with their renames after the timeline (BTN-1124).
+   * are marked, with their renames after the timeline (BTN-1124) unless `edits` is off (the tasks tools' list, BTN-1125).
    */
-  async function converted(repo: Repo, issues: ForgejoIssue[], trust?: ReturnType<typeof trustIn>): Promise<TrackerTask[]> {
+  async function converted(repo: Repo, issues: ForgejoIssue[], trust?: ReturnType<typeof trustIn>, edits = true): Promise<TrackerTask[]> {
     let off = false
     return limitedMap(issues, async (issue) => {
       const base = `${repoBase(repo)}/issues/${issue.number}`
@@ -102,6 +102,7 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
       if (blockers === null) off = true
       const task = toTrackerTask(issue, blockers ?? [], repos)
       if (trust === undefined || !(await outsiderIssue(issue, trust))) return task
+      if (!edits) return { ...task, outsider: true as const }
       const edited = forgejoTextEdit(issue, await api.collect<ForgejoTimelineEvent>(`${base}/timeline`))
       return edited === undefined ? { ...task, outsider: true as const } : { ...task, outsider: true as const, edited }
     })
@@ -283,7 +284,7 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
     repos,
     list: async (project) => {
       const repo = repoOf(project)
-      return converted(repo, await issuesOf(repo, 'state=all'))
+      return converted(repo, await issuesOf(repo, 'state=all'), trustIn(repo), false)
     },
     labelsOf,
     milestonesOf: openMilestones,
