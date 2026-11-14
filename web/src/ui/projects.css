@@ -148,8 +148,14 @@
     background: none;
   }
 
+  /* A block, so the button's text trim keeps its height; the caret then stands at the word's middle, not on its baseline. */
   .projects__toggle {
     display: inline-block;
+  }
+
+  .projects__toggle > .ui-fold__caret {
+    margin-right: var(--space-6);
+    vertical-align: middle;
   }
 
   .projects__body {

@@ -203,9 +203,10 @@
   overflow-x: auto;
 }
 
+/* The table scrolls only once its project columns no longer fit: one project fits a phone (BTN-1162). */
 .tools__matrix {
   width: 100%;
-  min-width: 480px;
+  min-width: calc(130px + var(--columns, 2) * 150px);
   border-collapse: collapse;
   table-layout: fixed;
   font-size: var(--text-13);

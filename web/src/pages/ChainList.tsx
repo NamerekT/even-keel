@@ -608,13 +608,12 @@ function Block(props: BlockProps) {
       {rails.map((rail) => (
         <RailLink key={rail.family} project={project} rail={rail} />
       ))}
-      {block.priority === 'urgent' && <span className="block__hazard" aria-hidden="true" />}
       {block.question && <span className="block__corner" role="img" aria-label={t.chain.questionTitle} title={t.chain.questionTitle} />}
       {share !== null && <span className="block__estimate" aria-hidden="true" />}
       {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
       {ready === null || narrow ? (
-        <span className={ring === null ? `block__number block__number--${block.priority}` : 'block__number'} title={priorityTitle(block)}>
-          {ring !== null ? <CacheRing cache={ring} /> : fix ? null : block.current ? <PlayIcon /> : number}
+        <span className={ring === null ? `block__number block__number--${block.priority}` : 'block__number'} title={priorityTitle(block, number)}>
+          {ring !== null ? <CacheRing cache={ring} /> : fix ? null : block.current ? <PlayIcon /> : block.priority === 'urgent' ? '!' : number}
         </span>
       ) : (
         readyButton
@@ -744,9 +743,11 @@ function CheckIcon() {
   )
 }
 
-function priorityTitle(block: ChainBlock): string | undefined {
+/** An urgent row's "!" stands where its place in the chain was: the tip gives the place back. */
+function priorityTitle(block: ChainBlock, number: number | undefined): string | undefined {
   if (block.priority === 'none' || block.priority === 'medium') return undefined
-  return `${t.card.priority}: ${t.card.priorities[block.priority]}`
+  const title = `${t.card.priority}: ${t.card.priorities[block.priority]}`
+  return block.priority === 'urgent' && number !== undefined ? `${title} · #${number}` : title
 }
 
 function relativesOf(blocks: ChainBlock[], id: string | null): Relatives | null {

@@ -78,7 +78,7 @@ function MatrixSection({ title, note, shown, total, projects, chip, children }: 
             <p className="tools__muted">{t.tools.nothingShown}</p>
           ) : (
             <div className="tools__scroll">
-              <table className="tools__matrix" style={chip === undefined ? undefined : ({ '--chip': chip } as CSSProperties)}>
+              <table className="tools__matrix" style={{ '--columns': projects.length, ...(chip !== undefined && { '--chip': chip }) } as CSSProperties}>
                 <thead>
                   <tr>
                     <th />

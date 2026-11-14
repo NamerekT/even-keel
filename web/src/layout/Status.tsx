@@ -101,8 +101,8 @@ export function useHotkeysWindow(closeMenu: () => void) {
   return { show, dialog }
 }
 
-/** The narrow screen's sheet ends with the gear's items as rows. */
-export function GearRows({ now, onHotkeys }: { now: Date; onHotkeys: () => void }) {
+/** The narrow screen's sheet ends with the gear's items as rows; no "Hotkeys" — a phone has no keyboard (BTN-1162). */
+export function GearRows({ now }: { now: Date }) {
   const { level } = useChecks(now)
 
   return (
@@ -114,7 +114,6 @@ export function GearRows({ now, onHotkeys }: { now: Date; onHotkeys: () => void 
       <NavLink to="/tools" className="gear__item">
         {t.header.tools}
       </NavLink>
-      <HotkeysRow onOpen={onHotkeys} />
       <ThemeRow />
       <VersionRow />
     </nav>

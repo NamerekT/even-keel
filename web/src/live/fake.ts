@@ -26,6 +26,7 @@ import { finishFakeCli, withCliCopies } from './fakeCliCopies.js'
 import { withFix } from './fakeFix.js'
 import { withLiveMilestones, withMilestonePreview, withSavedMilestoneOrder } from './fakeMilestones.js'
 import { withDragPreview } from './fakeDrag.js'
+import { withFamilies } from './fakeFamilies.js'
 import { withChangedText, withLongBacklog } from './fakeBacklog.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -347,6 +348,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('long') === 'on' && current.state !== null) current.state = withLongNames(current.state)
   if (params.get('long') === 'mixed' && current.state !== null) current.state = withMixedNames(current.state)
   if (params.has('feeds') && current.state !== null) current.state = withFeeds(current.state, params.get('feeds')!)
+  if (params.get('families') === '3' && current.state !== null) current.state = withFamilies(current.state)
   const keyAgent = KEY_LIMIT_AGENTS[params.get('limit') ?? '']
   const keyAccount = current.state?.account.accounts.find((entry) => entry.key === 'ci-key')
   if (keyAgent && keyAccount) keyAccount.agent = keyAgent

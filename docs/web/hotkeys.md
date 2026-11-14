@@ -20,7 +20,7 @@ A combination is text: modifiers in the order `Mod, Ctrl, Meta, Alt, Shift` and 
 
 ## The window
 
-The gear menu of the header has "Hotkeys" after "Tools", and the narrow menu the same row (`HotkeysRow`, `useHotkeysWindow` in `web/src/layout/Status.tsx`). The window (`web/src/hotkeys/HotkeysDialog.tsx`) has a row per action: its name with a tip, the combination, "Change" and, when the browser changed it, "Default"; the fixed double-click row is greyed with "fixed"; at the bottom "Reset all" and "Close".
+The gear menu of the header has "Hotkeys" after "Tools" (`HotkeysRow`, `useHotkeysWindow` in `web/src/layout/Status.tsx`); the narrow menu has no such row, a phone having no keyboard (BTN-1162). The window (`web/src/hotkeys/HotkeysDialog.tsx`) has a row per action: its name with a tip, the combination, "Change" and, when the browser changed it, "Default"; the fixed double-click row is greyed with "fixed"; at the bottom "Reset all" and "Close".
 
 "Change" records the next key down in the dialog; Esc cancels. `refusalOf` turns a combination down with a line under the row, from i18n: one held by another action (named), a bare key without `Mod`, `Ctrl`, `Meta` or `Alt` other than F1–F12, the ones a browser keeps (`Mod` with W, T, N, L, Tab or Q, and Ctrl+Tab), and Enter with any modifiers for an action of `TYPING_ACTIONS`. The server checks only the shape (`hotkeyBindingsOf`).
 
