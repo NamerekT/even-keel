@@ -7,7 +7,7 @@ import { useCommand } from '../live/useCommand.js'
 import { blockMetered, taskTitle, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
-import { ActionMeter, BlockMetrics, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
+import { ActionMeter, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
 import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { useLive } from '../live/context.js'
@@ -572,7 +572,7 @@ function Block(props: BlockProps) {
       <IntoChainIcon />
     </button>
   )
-  // Takes no room until the row is pointed at, then slides out at the row's end (BTN-1162).
+  // Takes no room until the row is pointed at, then slides out before the lock and the key, which stay put (BTN-1162).
   const unreadyButton =
     onUnready === null ? null : (
       <button
@@ -672,16 +672,14 @@ function Block(props: BlockProps) {
         {badge === 'blocker' && <span className="tag">{t.chain.blocker}</span>}
         {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}
         {block.start !== null && <StartPill start={block.start} />}
-        {metered !== null && !acting && (
-          <BlockMetrics project={project} session={metered} sessions={block.sessions} scale={scale} ring={ring === null} />
-        )}
+        {/* A session that does not work shows no meter on its row: its lamp says its state, its panel the numbers (BTN-1162). */}
         {block.leftovers !== undefined && (
           <button type="button" className="button button--small block__return" disabled={onDismiss === undefined} onClick={onDismiss}>
             {t.project.dismiss}
           </button>
         )}
-        {!narrow && <Links links={links} onCard={onCard} />}
         {!narrow && unreadyButton}
+        {!narrow && <Links links={links} onCard={onCard} />}
       </div>
     </li>
   )

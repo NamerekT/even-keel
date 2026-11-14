@@ -40,10 +40,11 @@ import '../ui/fieldStrip.css'
 import { Loading } from '../ui/Loader.js'
 import { Said } from '../ui/ProjectLinks.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
-import { StatusChip } from '../ui/StatusChip.js'
+import { Morph } from '../ui/Morph.js'
 import { Tipped } from '../ui/Tipped.js'
 import { TrackerPages } from '../ui/TrackerPages.js'
-import { chainWaits } from '../waits.js'
+import { chainWaits, type ChainWait } from '../waits.js'
+import type { ChainStatus } from '../state.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList, type Adding } from './ChainList.js'
 import { FeedSwitch } from './FeedSwitch.js'
@@ -52,7 +53,7 @@ import { BUILTIN } from '../../../src/builtin/model.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { emptyMilestones } from '../ui/addGhost.js'
 import { useProjectMilestones } from './useProjectMilestones.js'
-import { ChainWaits } from './ChainWaits.js'
+import { ChainWaits, WaitLine } from './ChainWaits.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { CI_HASH, CiChip, CiPanel, ciFocus } from './CiChip.js'
 import { Flight } from './Flight.js'
@@ -494,12 +495,16 @@ function ChainControls({
 
   const active = status.kind === 'running' || status.kind === 'paused'
   // An icon before the word; on a phone the icon alone, the word its name for a screen reader.
+  // The face slides to its new width and fades in when the word changes, so a press moves nothing in a jump; it keeps
+  // one tree whether or not it has a tip, else a change would mount it anew.
   const button = (icon: ReactNode, label: string, name: ChainControl, onClick = () => void send(`chain/${name}`, { project }), tip?: string) => {
     const face = (
-      <>
-        {icon}
-        <span className="seg-button__label">{label}</span>
-      </>
+      <Tipped tip={tip} off={tip === undefined} inline>
+        <Morph id={label} className="seg-button__face">
+          {icon}
+          <span className="seg-button__label">{label}</span>
+        </Morph>
+      </Tipped>
     )
     return (
       <button
@@ -510,13 +515,7 @@ function ChainControls({
         aria-label={label}
         onClick={onClick}
       >
-        {tip === undefined ? (
-          face
-        ) : (
-          <Tipped tip={tip} inline className="seg-button__face">
-            {face}
-          </Tipped>
-        )}
+        {face}
       </button>
     )
   }
@@ -540,11 +539,15 @@ function ChainControls({
           stopsAfter ? t.project.keepGoingTip : t.project.stopTip(chain?.current?.task ?? chain?.closing ?? null),
         )
       : button(<StopIcon />, t.project.stop, 'stop')
+  const stopsOn = chain?.current?.task ?? chain?.closing ?? null
+  // What only says how the chain runs lives in the strip and its tip, so a press or a passing wait moves nothing under
+  // the head; a wait with a fix of its own keeps its line and button (BTN-1162).
+  const line = runLine(status, waits[0], stopsAfter ? stopsOn : undefined, after === null ? null : projectLabel(state, after))
+  const loud = waits.filter((wait) => (wait.kind === 'packages' && !wait.passing) || wait.kind === 'slot' || wait.kind === 'folder')
   return (
     <>
       <div className="project__controls">
         {beside}
-        {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
         {children}
         {/* The chain's status hangs under its buttons as a field's strip (BTN-1162). */}
         <div className="field-strip project__run">
@@ -553,12 +556,13 @@ function ChainControls({
             {stop}
           </div>
           <div className="field-strip__room">
-            <StatusChip status={status} wait={waits[0]} className="field-strip__line project__state" />
+            <Tipped tip={line.tip} off={line.tip === null} focusable={line.tip !== null} align="end" className={`chip chip--${line.kind} field-strip__line project__state`}>
+              <Morph id={line.text}>{line.text}</Morph>
+            </Tipped>
           </div>
         </div>
       </div>
-      <ChainWaits project={project} waits={waits} className="project__wait" />
-      {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
+      <ChainWaits project={project} waits={loud} className="project__wait" />
       {error !== null && (
         <p className="project__error">
           <Said notice={error} />
@@ -569,4 +573,18 @@ function ChainControls({
       <TrackerFixButtons state={state} project={project} error={error} />
     </>
   )
+}
+
+/**
+ * The strip's word for the chain and the whole of it in a tip: a chain told to stop after its session's turn
+ * (`stopsOn`, `null` when no session is named), the first thing a running chain waits for, the project a queued one
+ * waits behind.
+ */
+function runLine(status: ChainStatus, wait: ChainWait | undefined, stopsOn: string | null | undefined, after: string | null): { kind: string; text: string; tip: ReactNode } {
+  if (status.kind === 'running' && stopsOn !== undefined) return { kind: 'stopping', text: t.project.stopping, tip: t.project.stopsAfter(stopsOn) }
+  if (status.kind === 'running' && wait !== undefined) {
+    return { kind: 'waiting', text: `${t.chainStatus.waiting} · ${t.chainStatus.waitFor[wait.kind]}`, tip: <WaitLine wait={wait} compact={false} /> }
+  }
+  if (status.kind === 'queued') return { kind: 'queued', text: `${t.chainStatus.queued} · ${t.chainStatus.position(status.position)}`, tip: after === null ? null : t.project.after(after) }
+  return { kind: status.kind, text: t.chainStatus[status.kind], tip: null }
 }

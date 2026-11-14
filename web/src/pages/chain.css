@@ -250,8 +250,9 @@
   color: var(--fg-muted);
 }
 
-/* "To the backlog" at the row's end (BTN-1162): no room of its own until the row is pointed at or holds the focus, then it
-   slides out and moves the links and the labels left. Still in the Tab order, so the keyboard opens it too. */
+/* "To the backlog" before the lock and the key (BTN-1162): no room of its own until the row is pointed at or holds the
+   focus, then it slides out and moves the labels left; the lock and the key stay under the pointer. Still in the Tab
+   order, so the keyboard opens it too. */
 .chain .block__unready {
   position: relative;
   display: grid;

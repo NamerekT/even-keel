@@ -128,11 +128,6 @@
   margin-left: auto;
 }
 
-.project__queue {
-  color: var(--fg-muted);
-  font-size: var(--text-14);
-}
-
 .project__read {
   display: inline-flex;
   align-items: center;
@@ -290,7 +285,8 @@
   color: var(--fg);
 }
 
-.project__run .project__state.chip--paused {
+.project__run .project__state.chip--paused,
+.project__run .project__state.chip--stopping {
   background: var(--warn-bg);
   color: var(--warn-fg);
 }
