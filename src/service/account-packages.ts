@@ -84,6 +84,7 @@ export function wirePackages(ctx: AccountsContext): Packages {
           return own?.cwd ?? ctx.configStore.current.projects[project] ?? null
         },
         attachmentLimit: () => ctx.configStore.current.attachmentLimit * 1024 * 1024,
+        editedOf: (reader, task) => ctx.readerTasks.get(reader)?.find((each) => each.id === task)?.edited,
       },
       // `ctx.release` is set after the packages are wired.
       installed(root).version,

@@ -138,6 +138,7 @@ export type AccountsContext = Pick<ServiceContext,
   | 'pullRefusals'
   | 'pullRequestsOn'
   | 'readerRules'
+  | 'readerTasks'
   | 'readers'
   | 'refreshProject'
   | 'release'

@@ -36,8 +36,8 @@ Everyone else is an outsider:
 - **Outsiders' comments stay on the card.** A session sees only that a comment was there and who wrote it, not its
   text or its files. Such a comment never answers a session's question. In PR mode outsiders' reviews and comments on
   the pull request do not reach the session either.
-- **The tasks server hides outsiders' unlabelled issues.** A session's task list counts them without titles, and
-  reading one gives only who opened it.
+- **The tasks server hides outsiders' unlabelled issues**, and those an outsider changed after the label. A session's
+  task list counts them without titles, and reading one gives only who opened it, until you put the label on again.
 
 **Taking GitHub issues into another tracker** follows the same rules: an issue is taken in once you put the label on,
 its text and its author's comments go in marked as the author's information, collaborators' comments as they are,

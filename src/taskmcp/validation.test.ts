@@ -25,6 +25,7 @@ const deps = {
   refresh: vi.fn(async () => {}),
   folderOf: () => null,
   attachmentLimit: () => 1024,
+  editedOf: () => undefined,
 }
 let tools: TasksTools
 
