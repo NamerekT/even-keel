@@ -78,9 +78,11 @@ interface Props {
   onSettled: (task: string) => void
   /** The project's GUID when it is on the built-in tracker: a ghost on top makes a backlog task; `null` — another tracker. */
   adding?: string | null
+  /** The tasks an outsider changed the text of after their entry label (`ProjectOrder.changed`): a mark says why they wait. */
+  changed?: readonly string[]
 }
 
-export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled, adding = null }: Props) {
+export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCard, onClose, onPoint, leaving, onMove, onSettled, adding = null, changed = [] }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
@@ -216,7 +218,15 @@ export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCar
                   <Links links={links(task.id)} onCard={onCard} />
                 </span>
               </div>
-              <p className="backlog__name">{task.title}</p>
+              <p className="backlog__name">
+                {/* Before the text it is about, and off the meta line, whose run and milestone already share it tightly. */}
+                {changed.includes(task.id) && (
+                  <Tipped tip={t.chain.changedTip} focusable inline className="backlog__changed">
+                    <span className="chip chip--changed">{t.chain.changed}</span>
+                  </Tipped>
+                )}
+                {task.title}
+              </p>
             </li>
           )
         })}

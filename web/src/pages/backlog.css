@@ -258,6 +258,27 @@
   font-size: var(--text-12);
 }
 
+/* An outsider changed the text after its label (BTN-1135): the question's amber, it waits on a person's reading. */
+.backlog__changed {
+  display: inline-flex;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+/* Two classes: the plain `.chip` of chain.css comes later and would take the fill back. */
+.chip.chip--changed {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+/* Lowercase words sit low in Segoe UI's line box: the plaque is trimmed to the x-height, as `.tag` is. */
+@supports (text-box: trim-both ex alphabetic) {
+  .chip.chip--changed {
+    padding-block: calc((18px - 1ex) / 2);
+    text-box: trim-both ex alphabetic;
+  }
+}
+
 .backlog__milestone {
   display: inline-flex;
   flex: 1 1 0;
