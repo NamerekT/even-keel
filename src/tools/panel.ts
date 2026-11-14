@@ -55,7 +55,7 @@ export interface ToolsPlaces {
 /**
  * The `--settings` JSON for a chain session of the repository: the shared memory folder, the enabled plugins its
  * packages do not bring turned off (`otherPlugins`), the prompt cache TTL when the config pins one, the `secrets`
- * blanked in `env`, the ban on git of a project without it (`noGit`) and, with trimming on, the trimming. The flag's `env` outranks the user's and the project's settings,
+ * blanked in `env`, the ban on git of a project without it (`noGit`) with the CLI's worktree guard off and, with trimming on, the trimming. The flag's `env` outranks the user's and the project's settings,
  * and an empty value hides a key one of them sets (checked on CLI 2.1.310, BTN-436).
  */
 export function chainSettings(
@@ -77,6 +77,9 @@ export function chainSettings(
     ...(cacheTtl !== null && { promptCacheTtl: cacheTtl }),
     ...(autoCompactWindow !== null && { autoCompactWindow }),
     ...(secrets.length > 0 && { env: Object.fromEntries(secrets.map((name) => [name, ''])) }),
+    // The CLI's guard (2.1.306) refuses edits of a `--bg` session in a repository's checkout until it enters a worktree;
+    // a project without git has none to enter and is banned from git (BTN-1181).
+    ...(noGit && { worktree: { bgIsolation: 'none' } }),
   }
   if (!trim) return JSON.stringify(always)
   const { project, local } = projectSettings(repo)

@@ -88,6 +88,17 @@ describe('chainSettings', () => {
   it('has no env without secrets', () => {
     expect(settings()).not.toHaveProperty('env')
   })
+
+  it('turns the background isolation guard off only for a project without git: it has no worktree to enter', () => {
+    const plain = (noGit: boolean) => JSON.parse(chainSettings('repo', {}, false, [], 'home/.claude', null, [], undefined, null, noGit)) as Record<string, unknown>
+    expect(plain(true).worktree).toEqual({ bgIsolation: 'none' })
+    expect(plain(false)).not.toHaveProperty('worktree')
+  })
+
+  it('keeps the guard off with trimming on: the project settings cannot turn it back', () => {
+    const trimmed = JSON.parse(chainSettings('repo', {}, true, [], 'home/.claude', null, [], undefined, null, true)) as Record<string, unknown>
+    expect(trimmed.worktree).toEqual({ bgIsolation: 'none' })
+  })
 })
 
 // Each test spawns five or six git processes: ~0.5 s alone, 2 s and more under a full `npm test` beside other sessions,
