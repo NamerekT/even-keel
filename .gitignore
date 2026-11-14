@@ -2,6 +2,11 @@ node_modules/
 dist/
 .temp/
 .env
+.env.*
+!.env.example
+/.mcp.json
+.claude/settings.local.json
+.claude/worktrees/
 *.log
 /state/
 # Folders of projects without git that Even Keel makes in a clone's data folder (docs/chain/worktrees.md).
