@@ -62,7 +62,10 @@ label you put on yourself ([the chain](features.md#the-chain)).
 - **It runs as the user Even Keel runs as.** It starts in the task's folder, but no agent confines it there: its
   commands can read and write whatever that user can — other repositories, the agents' sign-ins, SSH keys and git
   credentials, Even Keel's `.env` and state folder. Tracker and MCP keys stay out of the session's environment, behind
-  Even Keel's gateway, but a file the user can read the session can read too.
+  Even Keel's gateway, but a file the user can read the session can read too. That includes each tracker's default
+  profile: for sessions you start by hand Even Keel writes its keys in plain text into the `env` of `settings.json` in
+  every account folder, the chain session's own among them, and keeps them only out of its environment, not out of the
+  file.
 - **It does not ask before a tool call.**
   - Claude Code runs in `auto` mode: Claude's own classifier decides each call. A call an `ask` rule of your settings
     holds, or one the classifier keeps refusing, comes to you as a question on the page.
