@@ -517,7 +517,7 @@ npm run storage -- config-export even-keel.config.json
 
 ## Uninstall
 
-Remove the service — it removes nothing else:
+Remove the service — besides it, only the hook Even Keel added to the `settings.json` of its Claude account folders goes:
 
 ```sh
 even-keel uninstall
@@ -563,5 +563,6 @@ npm uninstall --global even-keel
 - the extra Claude account folders in `~/.claude-accounts` (`EVEN_KEEL_ACCOUNTS_DIR`), each still signed in until you run `claude auth logout` with its `CLAUDE_CONFIG_DIR`;
 - the Codex ones in `~/.codex-accounts` (`EVEN_KEEL_CODEX_ACCOUNTS_DIR`) the same, with `codex logout` and its `CODEX_HOME`;
 - the OpenCode ones in `~/.opencode-accounts` (`EVEN_KEEL_OPENCODE_ACCOUNTS_DIR`), whose credentials are in `data/opencode/auth.json`: deleting a folder signs it out;
+- the GitHub Copilot ones in `~/.copilot-accounts` (`EVEN_KEEL_COPILOT_ACCOUNTS_DIR`), each a `COPILOT_HOME` of its own;
 - project memory, moved to `~/.claude-memory/<project>` with `~/.claude/projects/<project>/memory` linking to it: Claude Code keeps using it through the link, so leave it unless you want the memory gone too;
 - your skills, moved from `~/.claude/skills` to `~/.claude-skills/<name>` the same way, each leaving a link behind, and so `~/.claude/agents`, `commands`, `hooks` and `output-styles`, to `~/.claude-agents` and the like: leave them, or move the folders back in place of the links.
