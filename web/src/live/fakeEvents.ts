@@ -69,7 +69,22 @@ export function refusedNoteError(task: string): Notice {
   return notice('review.notOpened', { task }, { cause })
 }
 
-/** The state after the event `?event=limit|red|ciRed|redBoth|noNote|ask|conflict|work` names; the first chain, CI, session and project get it. */
+/**
+ * A chain's pause the service holds as a wrapper (BTN-1150): on a cause with its own advice (`pulls`), with no cause
+ * and the wrapper's own advice (`tracker`), and on a cause naming a path inside the project's folder (`dirty`).
+ */
+function wrapperError(event: 'pulls' | 'tracker' | 'dirty', project: string, task: string): Notice {
+  if (event === 'tracker') return notice('chain.noTrackerMcp', { project, server: 'huly' })
+  if (event === 'pulls') {
+    const cause = notice('review.noToken', { remote: 'origin', kind: 'forgejo', web: 'https://git.example.com' })
+    return notice('review.notReady', { project }, { cause })
+  }
+  const folder = `.claude/worktrees/${task.toLowerCase()}`
+  const cause = notice('review.dirty', { path: folder, full: `D:\\work\\abc\\${folder.replaceAll('/', '\\')}` }, { detail: ' M src/app.ts\n?? src/scratch.ts' })
+  return notice('review.notOpened', { task }, { cause })
+}
+
+/** The state after the event `?event=limit|red|ciRed|redBoth|noNote|pulls|tracker|dirty|ask|conflict|work` names; the first chain, CI, session and project get it. */
 function changedBy(state: EvenKeelState, event: string): EvenKeelState {
   const [first, second] = state.projects
   if (event === 'limit') {
@@ -100,6 +115,12 @@ function changedBy(state: EvenKeelState, event: string): EvenKeelState {
     const task = active?.current?.task
     if (active === undefined || task === undefined) return state
     const held = { ...active, paused: true, error: refusedNoteError(task) }
+    return { ...state, chain: { ...state.chain, active: [held, ...state.chain.active.slice(1)] } }
+  }
+  if (event === 'pulls' || event === 'tracker' || event === 'dirty') {
+    const active = state.chain.active[0]
+    if (active === undefined) return state
+    const held = { ...active, paused: true, error: wrapperError(event, active.project, active.current?.task ?? 'ABC-5') }
     return { ...state, chain: { ...state.chain, active: [held, ...state.chain.active.slice(1)] } }
   }
   if (event === 'ask') {

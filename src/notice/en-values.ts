@@ -1,7 +1,9 @@
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 
-export type ClaudeRecovery = { binary: string; configDir: string | null }
+/** A path as the page shows it, written from the project's folder where it lies there; `full` is then the whole one, for a tip and the log (`shownUnder`). */
+export type ShownPath = { path: string; full?: string }
+export type ClaudeRecovery ={ binary: string; configDir: string | null }
 
 export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo', gitlab: 'GitLab' }
 /** Whose key an API account holds, by `keyProvider`. */

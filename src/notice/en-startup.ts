@@ -15,14 +15,13 @@ export const STARTUP_NOTICES = {
     `config: the ${p.field} ${p.value} is given twice, at ${p.first} and at ${p.second}`,
   'config.version': (p: { value: string }) => `config: version must be a whole number, not ${p.value}`,
   'storage.newer': (p: { file: string; version: number; known: number }) =>
-    `storage: ${p.file} is from a newer version of Even Keel (schema ${p.version}, this one knows up to ${p.known}); ` +
-    'put back its *.bak copy or update Even Keel',
-  'storage.held': (p: { pid: number; file: string }) => `storage: process ${p.pid} holds the database in ${p.file}; wait for it to finish or close the other Even Keel instance`,
+    `storage: ${p.file} is from a newer version of Even Keel (schema ${p.version}, this one knows up to ${p.known})`,
+  'storage.held': (p: { pid: number; file: string }) => `storage: process ${p.pid} holds the database in ${p.file}`,
   'storage.damaged': (p: { file: string }) => `storage: ${p.file} cannot be read, so nothing was migrated`,
   'storage.unknownProject': (p: { file: string; project: string }) =>
     `storage: ${p.file} names the project ${p.project}, which the config does not have, so nothing was migrated`,
   'storage.writeFailed': (p: { file: string }) => `storage: could not write ${p.file}; the files written before it are put back from their copies`,
   'storage.newerDatabase': (p: { file: string; version: number; known: number }) =>
-    `storage: the database ${p.file} is from a newer version of Even Keel (schema ${p.version}, this one knows up to ${p.known}); update Even Keel`,
+    `storage: the database ${p.file} is from a newer version of Even Keel (schema ${p.version}, this one knows up to ${p.known})`,
   'storage.importFailed': (p: { file: string }) => `storage: could not move the state files into ${p.file}; no database was made and the files are as they were`,
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { asNotice, causeLine, englishOf, fail, notice, noticeOf, noticeWithCause, renderNotice, sameNotice, textNotice, withLabels, type Notice, type NoticeTexts } from './notice.js'
 import { AGENTS } from '../agent/adapters.js'
 import { AGENT_NAMES, en } from './en.js'
+import { ADVICE } from './en-advice.js'
 
 describe('withLabels', () => {
   it('shows every project id in a text by its label, and leaves the rest as it is (BTN-271)', () => {
@@ -34,6 +35,15 @@ describe('notices', () => {
     )
   })
 
+  it('names a shortened path whole in the English text of the log, under a cause and in items too (BTN-1150)', () => {
+    const kept = notice('cleanup.worktreeKept', { path: '.claude/worktrees/abc-1', full: 'D:/abc/.claude/worktrees/abc-1' })
+    expect(renderNotice(kept, en)).toBe('the worktree .claude/worktrees/abc-1 was kept')
+    expect(englishOf(kept)).toBe('the worktree D:/abc/.claude/worktrees/abc-1 was kept')
+    expect(englishOf(notice('cleanup.failed', {}, { cause: kept }))).toBe('cleanup failed: the worktree D:/abc/.claude/worktrees/abc-1 was kept')
+    const dirty = notice('slot.dirty', { path: '.claude/worktrees/even-keel', full: '/abc/.claude/worktrees/even-keel' })
+    expect(englishOf(notice('slot.noneFree', { task: 'ABC-2' }, { items: [dirty] }))).toContain('the slot /abc/.claude/worktrees/even-keel has')
+  })
+
   it('renders a cause after the text and items on lines of their own', () => {
     const cause = notice('claude.stopFailed', { agent: 'a1' }, { detail: 'denied' })
     expect(englishOf(notice('cleanup.sessionNotStopped', { session: 's1' }, { cause }))).toBe(
@@ -49,10 +59,36 @@ describe('notices', () => {
 
   it('puts a cause after a whole sentence as the next one, not after a colon', () => {
     const cause = notice('copilot.startFailed', { task: 'ABC-1', cwd: '/w' }, { detail: 'spawn x ENOENT' })
-    expect(englishOf(notice('copilot.binaryMissing', { bin: 'x' }, { cause }))).toBe(
-      `${en['copilot.binaryMissing']({ bin: 'x' })} ${en['copilot.startFailed']({ task: 'ABC-1', cwd: '/w' })}: spawn x ENOENT`,
+    expect(englishOf(notice('copilot.notSignedIn', {}, { cause }))).toBe(
+      `${en['copilot.notSignedIn']()} ${en['copilot.startFailed']({ task: 'ABC-1', cwd: '/w' })}: spawn x ENOENT`,
     )
-    expect(englishOf(notice('copilot.binaryMissing', { bin: 'x' }, { detail: 'line 1\nline 2' }))).toBe(`${en['copilot.binaryMissing']({ bin: 'x' })}\nline 1\nline 2`)
+    expect(englishOf(notice('copilot.notSignedIn', {}, { detail: 'line 1\nline 2' }))).toBe(`${en['copilot.notSignedIn']()}\nline 1\nline 2`)
+  })
+
+  it('gives a wrapper its advice in brackets before a cause that has none, and after a semicolon without a cause (BTN-1150)', () => {
+    const cause = notice('copilot.startFailed', { task: 'ABC-1', cwd: '/w' }, { detail: 'spawn x ENOENT' })
+    expect(englishOf(notice('copilot.binaryMissing', { bin: 'x' }, { cause }))).toBe(
+      'Copilot CLI could not be started: “x” is not a program Even Keel can run ' +
+        "(set Copilot's CLI version to Checked in Settings → Providers and models, then resume the chain): copilot: could not start ABC-1 in /w: spawn x ENOENT",
+    )
+    expect(englishOf(notice('task.relabelFailed', { task: 'ABC-1' }, { detail: 'HTTP 403' }))).toBe(
+      "could not change labels of ABC-1; check the tracker profile's permission to edit issues and labels, then try again: HTTP 403",
+    )
+  })
+
+  it('a cause with its own advice hides the wrapper\'s (BTN-1150)', () => {
+    const cause = notice('review.noToken', { remote: 'origin', kind: 'github', web: 'https://github.com/a/b' })
+    expect(englishOf(notice('review.notReady', { project: 'ABC' }, { cause }))).toBe(
+      'PR mode of ABC has nowhere to open pull requests, so its chain starts no task: no profile has a token for the remote origin (https://github.com/a/b); add a GitHub profile for its host',
+    )
+  })
+
+  it('uncommitted changes in the task folder are not answered with "fix access" (BTN-1150)', () => {
+    const cause = notice('review.dirty', { path: '.claude/worktrees/abc-5', full: '/abc/.claude/worktrees/abc-5' })
+    expect(renderNotice(notice('review.notOpened', { task: 'ABC-5' }, { cause }), en, ADVICE)).toBe(
+      'the pull request of ABC-5 was not opened: .claude/worktrees/abc-5 has uncommitted changes; ' +
+        'commit or remove them and press Resume, answer its session from the chat, or skip the task',
+    )
   })
 
   it('renders through another language', () => {

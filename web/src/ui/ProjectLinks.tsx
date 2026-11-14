@@ -29,9 +29,14 @@ export function ProjectLinks({ text }: { text: string }) {
   )
 }
 
-/** A server message in the page's language, its projects as links (`ProjectLinks`). */
-export function Said({ notice }: { notice: Notice }) {
-  return <ProjectLinks text={sayIds(notice)} />
+/**
+ * A server message in the page's language, its projects as links (`ProjectLinks`). A path the text shortens is whole in
+ * its tip (BTN-1150); `plain` — without one, for a message that stands inside a tip already.
+ */
+export function Said({ notice, plain = false }: { notice: Notice; plain?: boolean }) {
+  const paths = plain ? [] : fullPathsOf(notice)
+  const text = <ProjectLinks text={sayIds(notice)} />
+  return paths.length === 0 ? text : <Tipped tip={<PathLines paths={paths} />} inline>{text}</Tipped>
 }
 
 /**
@@ -41,17 +46,22 @@ export function Said({ notice }: { notice: Notice }) {
 export function SaidLines({ notice }: { notice: Notice }) {
   const { head, under } = sayLines(notice)
   if (under === null) return <Said notice={notice} />
-  const full = fullPathOf(notice)
+  const paths = fullPathsOf(notice)
   return (
     <>
       <strong className="said__head"><ProjectLinks text={sentence(head).replace(/\.$/, '')} /></strong>
-      <Tipped tip={full ?? ''} off={full === null} inline className="said__under"><ProjectLinks text={under} /></Tipped>
+      <Tipped tip={<PathLines paths={paths} />} off={paths.length === 0} inline className="said__under"><ProjectLinks text={under} /></Tipped>
     </>
   )
 }
 
-function fullPathOf(notice: Notice): string | null {
+function PathLines({ paths }: { paths: string[] }) {
+  return paths.map((path) => <span key={path}>{path}</span>)
+}
+
+/** The whole paths a message shortens (`shownUnder`): its own, its causes' and its items'. */
+export function fullPathsOf(notice: Notice): string[] {
   const full = (notice.params as { full?: unknown }).full
-  if (typeof full === 'string') return full
-  return notice.cause === undefined ? null : fullPathOf(notice.cause)
+  const under = [...(notice.cause === undefined ? [] : [notice.cause]), ...(notice.items ?? [])]
+  return [...new Set([...(typeof full === 'string' ? [full] : []), ...under.flatMap(fullPathsOf)])]
 }

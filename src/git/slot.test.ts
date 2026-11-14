@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from './slot.js'
 import type { GitResult } from './types.js'
-import { englishOf } from '../notice/notice.js'
+import { englishOf, noticeOf } from '../notice/notice.js'
 
 const repo = join(tmpdir(), 'abc')
 const slot = join(repo, '.claude', 'worktrees', 'even-keel')
@@ -86,6 +86,12 @@ describe('prepareSlot', () => {
     })
     await expect(prepareSlot(git, repo, 'ABC-7')).rejects.toThrow(new RegExp(`${slot.replaceAll('\\', '\\\\')}[\\s\\S]*notes\\.md`))
     expect(changing(calls)).toEqual([])
+  })
+
+  it('names the refused slot from the project folder for the page, the whole path beside it (BTN-1150)', async () => {
+    const { git } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']), '@slot status --porcelain': { out: ' M src/app.ts' } })
+    const refusal = noticeOf(await prepareSlot(git, repo, 'ABC-7').catch((error: unknown) => error))
+    expect(refusal.items?.[0]).toMatchObject({ code: 'slot.dirty', params: { path: '.claude/worktrees/even-keel', full: slot } })
   })
 
   it('takes the task’s own worktree as it is, left from before the slot', async () => {

@@ -487,7 +487,7 @@ export function createFakeSource(search: string): LiveSource {
   }
   withTrustPause(current.state, params, asService)
   if (params.get('chain') === 'slot' && active) {
-    const dirty = notice('slot.dirty', { path: 'D:/work/abc/.claude/worktrees/even-keel' }, { detail: 'M src/app.ts\n?? src/scratch.ts' })
+    const dirty = notice('slot.dirty', { path: '.claude/worktrees/even-keel', full: 'D:/work/abc/.claude/worktrees/even-keel' },{ detail: 'M src/app.ts\n?? src/scratch.ts' })
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
@@ -608,7 +608,7 @@ export function createFakeSource(search: string): LiveSource {
           at: ago(35),
           notice: notice(
             'cleanup.worktreeKept',
-            { path: 'D:\\work\\abc\\.claude\\worktrees\\abc-4' },
+            { path: '.claude/worktrees/abc-4', full: 'D:\\work\\abc\\.claude\\worktrees\\abc-4' },
             { detail: "fatal: '.claude/worktrees/abc-4' contains modified or untracked files, use --force to delete it" },
           ),
         },

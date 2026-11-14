@@ -134,8 +134,19 @@ export function noticeParts(notice: Notice, texts: NoticeTexts, advice: NoticeAd
   return { head: ownText(notice, texts), ...(under.length > 0 && { reason: under.join('\n') }), ...(tip !== undefined && { advice: tip }) }
 }
 
+/** The English text of the log: with advice, and a path the page shortens named whole (`shownUnder`, BTN-1150). */
 export function englishOf(notice: Notice): string {
-  return renderNotice(notice, en, ADVICE)
+  return renderNotice(wholePaths(notice), en, ADVICE)
+}
+
+function wholePaths(notice: Notice): Notice {
+  const { full } = notice.params as { full?: unknown }
+  return {
+    ...notice,
+    ...(typeof full === 'string' && { params: { ...notice.params, path: full } }),
+    ...(notice.cause !== undefined && { cause: wholePaths(notice.cause) }),
+    ...(notice.items !== undefined && { items: notice.items.map(wholePaths) }),
+  } as Notice
 }
 
 /**

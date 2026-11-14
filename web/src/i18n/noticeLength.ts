@@ -1,3 +1,5 @@
+import { ADVICE } from '../../../src/notice/en-advice.js'
+import { adviceRu } from './notices-advice-ru.js'
 import { noticesEn } from './notices-en.js'
 import { noticesRu } from './notices-ru.js'
 
@@ -33,11 +35,15 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
 }
 const paramsOf = (code: string): unknown => new Proxy({}, { get: (_, key) => (typeof key === 'string' ? SAMPLES[code]?.[key] : undefined) ?? stub })
 
-/** Each code's text length in each language. */
+/** Each code's length in each language: its text with its own advice after it, as a message without a cause reads (BTN-1150). */
 export function noticeLengths(): Record<NoticeLanguage, Record<string, number>> {
-  const measure = (texts: Record<string, unknown>) =>
-    Object.fromEntries(Object.entries(texts).map(([code, render]) => [code, String((render as (params: unknown) => string)(paramsOf(code))).length]))
-  return { en: measure(noticesEn), ru: measure(noticesRu) }
+  const measure = (texts: Record<string, unknown>, advice: Record<string, unknown>) =>
+    Object.fromEntries(Object.entries(texts).map(([code, render]) => {
+      const text = String((render as (params: unknown) => string)(paramsOf(code)))
+      const tip = (advice[code] as ((params: unknown) => string | undefined) | undefined)?.(paramsOf(code))
+      return [code, (tip === undefined ? text : `${text}; ${tip}`).length]
+    }))
+  return { en: measure(noticesEn, ADVICE), ru: measure(noticesRu, adviceRu) }
 }
 
 /** The texts longer than the limit, as `notice-lengths.json` holds them: the ones older than the rule. */

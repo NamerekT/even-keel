@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { binaryPath, findBinary, isInside, pathKey, relativeUnder, samePath, spelledUnder, workingFolder, writtenUnder } from './paths.js'
+import { binaryPath, findBinary, isInside, pathKey, relativeUnder, samePath, shownUnder, spelledUnder, workingFolder, writtenUnder } from './paths.js'
 
 describe('a folder behind a link', () => {
   let root: string
@@ -68,6 +68,17 @@ describe('writtenUnder', () => {
     expect(writtenUnder('D:\\Projects\\repo', 'D:\\Projects\\repo', 'win32')).toBeNull()
     expect(writtenUnder('D:\\Projects\\repo\\..\\other\\pull.md', 'D:\\Projects\\repo', 'win32')).toBeNull()
     expect(writtenUnder('/srv/Repo/pull.md', '/srv/repo', 'linux')).toBeNull()
+  })
+})
+
+describe('shownUnder', () => {
+  it('gives a path under the folder short, with the whole one beside it', () => {
+    expect(shownUnder('D:\\work\\abc\\.claude\\worktrees\\abc-1', 'D:/work/abc', 'win32')).toEqual({ path: '.claude/worktrees/abc-1', full: 'D:\\work\\abc\\.claude\\worktrees\\abc-1' })
+  })
+
+  it('leaves the folder itself and a path outside it as they are', () => {
+    expect(shownUnder('/srv/repo', '/srv/repo', 'linux')).toEqual({ path: '/srv/repo' })
+    expect(shownUnder('/srv/other/abc-1', '/srv/repo', 'linux')).toEqual({ path: '/srv/other/abc-1' })
   })
 })
 

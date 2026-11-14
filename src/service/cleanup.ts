@@ -65,8 +65,9 @@ export async function stopTaskSessions(
 export function deferLeftFolder(ctx: ChainContext, project: string, repo: string, task: string, warnings: Notice[]): Notice[] {
   return warnings.filter((warning) => {
     if (warning.code !== 'cleanup.folderLeft') return true
-    ctx.lingering.leave({ project, task, repo, path: warning.params.path, until: Date.now() + STOP_RETRY_MS })
-    console.log(`cleanup: the worktree folder ${warning.params.path} of ${task} is held, it will be tried again once nothing holds it`)
+    const path = warning.params.full ?? warning.params.path
+    ctx.lingering.leave({ project, task, repo, path, until: Date.now() + STOP_RETRY_MS })
+    console.log(`cleanup: the worktree folder ${path} of ${task} is held, it will be tried again once nothing holds it`)
     return false
   })
 }

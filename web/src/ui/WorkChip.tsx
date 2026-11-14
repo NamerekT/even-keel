@@ -26,7 +26,7 @@ export function WorkChip({ work, leftovers }: { work: TaskWork; leftovers?: Noti
       ))}
       {leftovers?.map((notice, index) => (
         <span key={index}>
-          <Said notice={notice} />
+          <Said notice={notice} plain />
         </span>
       ))}
       <span>{leftovers === undefined ? t.chain.work.fix : t.chain.work.closed}</span>

@@ -1,4 +1,3 @@
-import { FORGES } from '../../../src/notice/en.js'
 import type { NoteRefusal, REVIEW_NOTICES } from '../../../src/notice/en-review.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 
@@ -17,10 +16,10 @@ export const REVIEW_NOTICES_RU = {
   'review.notOpened': (p) => `pull request задачи ${p.task} не открыт`,
   'review.notCompleted': (p) => `у задачи ${p.task} нечего открывать как pull request, но в трекере она не переведена в Done`,
   'review.notReady': (p) =>
-    `PR-режиму ${p.project} негде открывать pull request, и цепочка не запускает задачи; она пойдёт сама в течение минуты, как только это исправят, или выключите PR-режим`,
+    `PR-режиму ${p.project} негде открывать pull request, и цепочка не запускает задачи`,
   'review.cannotEnable': (p) => `PR-режим ${p.project} не включён`,
   'review.noRemote': (p) => `у ${p.project} нет remote на GitHub, GitLab или Forgejo, где открыть pull request`,
-  'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote} (${p.web}); добавьте профиль ${FORGES[p.kind]} его хоста`,
+  'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote} (${p.web})`,
   'review.unsupportedHost': (p) => `remote ${p.remote} на ${p.host} не поддерживается для pull request: только GitHub, GitLab и Forgejo`,
   'review.noNote': (p) => p.reason === undefined
     ? `сессия не оставила описание pull request в ${p.path}`

@@ -5,6 +5,7 @@ import { readFailure, type FailedRun } from '../ci/report.js'
 import type { ReviewDeps } from '../chain/model.js'
 import type { Git } from '../git/types.js'
 import { fail, NoticeError, noticeOf } from '../notice/notice.js'
+import { shownUnder } from '../paths.js'
 import { remotesIn } from '../projects/remotes.js'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
@@ -81,7 +82,10 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       try {
         opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now, closes)
       } catch (error) {
-        if (noticeOf(error).code === 'review.denied') wiring.refusals?.note(project, target, ready.token)
+        const why = noticeOf(error)
+        if (why.code === 'review.denied') wiring.refusals?.note(project, target, ready.token)
+        // The task folder is named from the project's (BTN-1150).
+        if (why.code === 'review.noBranch' || why.code === 'review.dirty') throw new NoticeError({ ...why, params: shownUnder(why.params.path, wiring.repo(project)) })
         throw error
       }
       wiring.refusals?.clear(project)

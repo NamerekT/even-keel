@@ -47,7 +47,7 @@ import { REVIEW_NOTICES_RU } from './notices-review-ru.js'
 export const noticesRu: NoticeTexts = {
   ...REVIEW_NOTICES_RU,
   'account.overageRisk': () => 'Расход сверх лимита возможен до его обнаружения Even Keel.',
-  'account.overagePolicy': () => 'Even Keel останавливает сессию при платном расходе, а у Claude — и при исчерпанном запасе подписки: это не подтверждает оплату. Ждёт сброса запаса. Сигнал может отставать на пять минут. Задайте жёсткий денежный лимит у провайдера.',
+  'account.overagePolicy': () => 'Even Keel останавливает сессию при платном расходе, а у Claude — и при исчерпанном запасе подписки, и ждёт его сброса. Сигнал может отставать на пять минут: задайте жёсткий денежный лимит у провайдера.',
   'account.overageAdvice': (p) => p.provider === 'chatgpt'
     ? 'Для этого аккаунта цепочки выключите автопополнение кредитов или задайте месячный денежный лимит в ChatGPT, где это поддерживается.'
     : p.provider === 'claude' ? 'Для этого аккаунта цепочки выключите Extra usage или задайте месячный денежный лимит в Claude.'
@@ -56,8 +56,8 @@ export const noticesRu: NoticeTexts = {
   'tracker.closePending': () => 'трекер не даёт закрыть',
   'tracker.completeRefused': (p) =>
     p.status === undefined
-      ? `Задача ${p.task} влита, но трекер не даёт её закрыть. Заполните требуемое поле или закройте задачу в трекере вручную. Even Keel повторит попытку автоматически. Ответ трекера`
-      : `Задача ${p.task} влита, но трекер не даёт перевести её в «${p.status}» (${MOVE_LABELS.done}). Заполните требуемое поле, выберите другой статус в ${MOVE_LABELS.done} или закройте задачу вручную. Even Keel повторит попытку автоматически. Ответ трекера`,
+      ? `Задача ${p.task} влита, но трекер не даёт её закрыть. Заполните требуемое поле или закройте задачу в трекере вручную: Even Keel повторит попытку сам. Ответ трекера`
+      : `Задача ${p.task} влита, но трекер не даёт перевести её в «${p.status}». Заполните требуемое поле, выберите другой статус в ${MOVE_LABELS.done} или закройте задачу вручную: Even Keel повторит попытку сам. Ответ трекера`,
   'statusMove.refused': (p) =>
     `Трекер не перевёл ${p.task} в «${p.status}» (${MOVE_LABELS[p.setting]}). Цепочка идёт дальше; выберите другой статус в ${MOVE_LABELS[p.setting]} или переведите задачу вручную. Ответ трекера`,
   'statusMove.outside': (p) =>
@@ -89,7 +89,7 @@ export const noticesRu: NoticeTexts = {
   'chain.notCurrent': (p) => `${p.task} — не текущая задача цепочки`,
   'chain.limitsUnread': (p) =>
     `Ждём первого ответа о лимитах аккаунта ${p.account}: без него исчерпанный лимит выглядит как свободный.${p.next === undefined ? '' : ` Следующий опрос в ${p.next}.`}`,
-  'chain.limitSpent': (p) => `Лимит исчерпан до ${p.until}${p.account === undefined ? '' : ` на аккаунте ${p.provider ?? ''} «${p.account}»`}. Дождитесь сброса, смените аккаунт провайдера в пуле проекта (общем или своём) в «Настройки проекта → Сессии» или провайдера на карточке задачи.`,
+  'chain.limitSpent': (p) => `Лимит исчерпан до ${p.until}${p.account === undefined ? '' : ` на аккаунте ${p.provider ?? ''} «${p.account}»`}. Дождитесь сброса, смените аккаунт в пуле проекта в «Настройки проекта → Сессии» или провайдера на карточке задачи.`,
   'session.transient': () => 'ждёт повтора',
   'session.transientRetry': (p) => `Модель временно недоступна. Диспетчер продолжит эту же сессию в ${p.at}. Можно продолжить её сейчас из чата или начать новую сессию.`,
   'chain.noSession': (p) => `у ${p.task} нет известной сессии`,
@@ -123,9 +123,9 @@ export const noticesRu: NoticeTexts = {
     `${p.task} не закрыта: в её ветке ${p.count} коммит(ов) сверх ${p.main}, и закрытие их потеряло бы. Такая работа закрывается мержем — попросите сессию в чате влить ветку.`,
   'accept.dirty': (p) =>
     `${p.task} не закрыта: в её worktree ${p.count} файл(ов) вне коммита, уборка после Done оставила бы их. Попросите сессию в чате закоммитить и влить их или убрать.`,
-  'accept.notChecked': (p) => `${p.task} не закрыта: не удалось проверить, есть ли в её папке работа сверх основной ветки. Повторите через минуту.`,
+  'accept.notChecked': (p) => `${p.task} не закрыта: не удалось проверить, есть ли в её папке работа сверх основной ветки`,
   'accept.notCompleted': (p) =>
-    `${p.task} не закрыта: трекер не принял ответ комментарием или не перевёл задачу в Done. Повторите или закройте её в трекере сами.`,
+    `${p.task} не закрыта: трекер не принял ответ комментарием или не перевёл задачу в Done`,
   'chain.notRead': (p) => `задачи ${p.project} ещё не прочитаны из трекера — повторите, когда он ответит`,
   'chain.empty': (p) => `в цепочке ${p.project} нет задач, она не запущена`,
   'chain.emptyNone': () => 'открытых задач нет',
@@ -226,7 +226,7 @@ export const noticesRu: NoticeTexts = {
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
   'intake.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужны чтение и запись issue репозитория`,
   'chain.noTrackerMcp': (p) =>
-    `цепочка ${p.project} не запускает задачи: «Описание задачи в промпте» выключено, а ни один пакет проекта не приносит MCP-сервер трекера ${p.server}, так что сессия не увидит свою задачу; включите пакет с ним или описание задачи — цепочка пойдёт сама`,
+    `цепочка ${p.project} не запускает задачи: «Описание задачи в промпте» выключено, а ни один пакет проекта не приносит MCP-сервер трекера ${p.server}`,
   'chain.packagesNotReady': (p) =>
     `цепочка ${p.project} не запускает задачи: ${p.packages.length === 1 ? 'пакет' : 'пакеты'} ${list(p.packages)} не установлен${p.packages.length === 1 ? '' : 'ы'}, не встал${p.packages.length === 1 ? '' : 'и'} или без ключа; исправьте это в пакетах проекта — цепочка пойдёт сама`,
   'ci.notTaken': (p) => `${p.ci}: ни один раннер не взял ${p.commit}`,
@@ -287,8 +287,7 @@ export const noticesRu: NoticeTexts = {
   'codex.resumeFailed': (p) => `Codex: не удалось продолжить ${p.task} в ${p.cwd}`,
   'codex.pluginsFailed': (p) => `Codex: не удалось установить плагины ${p.task} в ${p.account}`,
   'codex.hooksUntrusted': (p) =>
-    `Codex не доверяет хукам пакета ${p.package}: без них ${p.task} пошла бы без проверки перед слиянием и напоминаний о контексте. ` +
-    'Обновите Even Keel, а пока запустите задачу на другом провайдере',
+    `Codex не доверяет хукам пакета ${p.package}: без них ${p.task} пошла бы без проверки перед слиянием и напоминаний о контексте`,
   'codex.otherThread': (p) => `Codex: ${p.task} продолжали как ${p.asked}, а поднялся новый поток ${p.got}`,
   'codex.unknownSession': (p) => `Codex: сессию ${p.session} запускал не Even Keel`,
   'codex.stillRunning': (p) => `Codex: ход ${p.session} убит, но ещё идёт`,
@@ -304,7 +303,7 @@ export const noticesRu: NoticeTexts = {
 
   'copilot.startFailed': (p) => `Copilot: не удалось запустить ${p.task} в ${p.cwd}`,
   'copilot.binaryMissing': (p) =>
-    `Copilot CLI не запускается: «${p.bin}» — не программа, которую Even Keel может запустить. Выберите «Проверенную» в «Версии CLI» Copilot (Настройки → Провайдеры и модели) или укажите в .env путь к исполняемому файлу copilot в EVEN_KEEL_COPILOT_BIN, затем возобновите цепь.`,
+    `Copilot CLI не запускается: «${p.bin}» — не программа, которую Even Keel может запустить`,
   'copilot.modelUnavailable': (p) => `Copilot не может использовать модель «${p.model}». Выберите доступную модель в поле «Модель» настроек сессий проекта (или смените модель на карточке задачи, в блоке «Запускается на»), затем нажмите «Новая сессия».`,
   'copilot.notSignedIn': () => 'Copilot на этой машине не вошёл. Выполните «gh auth login» под пользователем, от которого работает Even Keel, или добавьте аккаунт Copilot со своим токеном на странице «Аккаунты», затем нажмите «Новая сессия».',
   'copilot.resumeFailed': (p) => `Copilot: не удалось продолжить ${p.task} в ${p.cwd}`,
@@ -468,7 +467,7 @@ export const noticesRu: NoticeTexts = {
   'task.unreadyLive': (p) => `у ${p.task} живая сессия: остановите её или дождитесь конца, потом переносите задачу в бэклог`,
   'task.inBacklog': (p) => `${p.task} уже в бэклоге`,
   'task.cannotRelabel': (p) => `трекер ${p.task} не умеет менять метки`,
-  'task.relabelFailed': (p) => `не удалось изменить метки ${p.task}; проверьте права профиля трекера на изменение задач и меток и повторите попытку`,
+  'task.relabelFailed': (p) => `не удалось изменить метки ${p.task}`,
   'task.labelGroup': (p) => `«${p.label}» в Linear — группа меток, на ${p.task} её не поставить; выберите метку внутри группы`,
   'task.pastBacklog': (p) => `${p.task} уже не в статусе бэклога`,
   'task.cannotMoveMilestone': (p) => `трекер ${p.task} не умеет менять веху задачи`,
@@ -478,7 +477,7 @@ export const noticesRu: NoticeTexts = {
   'changelog.noAgent': (p) => `агент аккаунта, на котором идёт ${p.project}, не умеет писать черновик`,
   'changelog.failed': (p) => `агент не написал черновик ${p.project}`,
   'changelog.unnoticed': (p) =>
-    `агент не нашёл в сделанных задачах ${p.milestone} (${list(p.tasks)}) ничего заметного пользователю, и записей в разделе нет; если какая-то из них что-то меняет для пользователей, напишите, что именно, в её закрывающем комментарии и нажмите «Написать заново»`,
+    `агент не нашёл в сделанных задачах ${p.milestone} (${list(p.tasks)}) ничего заметного пользователю, и записей в разделе нет`,
   'changelog.noDraft':(p) => `у ${p.milestone} ещё нет черновика`,
   'changelog.released': (p) => `раздел ${p.milestone} выпущен как ${p.tag} и больше не правится`,
   'changelog.nothingNew': (p) => `все сделанные задачи ${p.milestone} уже в черновике`,
@@ -499,14 +498,13 @@ export const noticesRu: NoticeTexts = {
   'config.projectTwice': (p) => `${p.field} ${p.value} повторяется: в ${p.first} и в ${p.second}`,
   'config.version': (p) => `version должен быть целым числом, а не ${p.value}`,
   'storage.newer': (p) =>
-    `${p.file} записан более новой версией Even Keel (схема ${p.version}, эта знает до ${p.known}): ` +
-    'верните его копию *.bak или обновите Even Keel',
-  'storage.held': (p) => `Процесс ${p.pid} держит базу ${p.file}; дождитесь его завершения или закройте другой экземпляр Even Keel`,
+    `${p.file} записан более новой версией Even Keel (схема ${p.version}, эта знает до ${p.known})`,
+  'storage.held': (p) => `Процесс ${p.pid} держит базу ${p.file}`,
   'storage.damaged': (p) => `${p.file} не читается, поэтому миграция ничего не записала`,
   'storage.unknownProject': (p) => `${p.file} называет проект ${p.project}, которого нет в конфиге, поэтому миграция ничего не записала`,
   'storage.writeFailed': (p) => `не удалось записать ${p.file}; записанные до него файлы возвращены из копий`,
   'storage.newerDatabase': (p) =>
-    `база ${p.file} записана более новой версией Even Keel (схема ${p.version}, эта знает до ${p.known}): обновите Even Keel`,
+    `база ${p.file} записана более новой версией Even Keel (схема ${p.version}, эта знает до ${p.known})`,
   'storage.importFailed': (p) => `не удалось перенести файлы состояния в ${p.file}; база не создана, файлы остались как были`,
   'packages.unknown': (p) => `пакета ${p.name} нет`,
   'packages.exists': (p) => `${p.name} уже есть в каталоге`,
@@ -524,7 +522,7 @@ export const noticesRu: NoticeTexts = {
   'huly.clientFailed': () => 'npm не смог установить клиент Huly; проекты на Huly ждут, пока установку не повторят',
   'packages.marketplaceUpdate': (p) => `claude plugin marketplace update ${p.marketplace} не удался`,
   'packages.marketplaceAdd': (p) => `claude plugin marketplace add не смог добавить ${p.marketplace}`,
-  'packages.marketplaceCliMissing': () => 'Even Keel не находит Claude Code: установите его и снова добавьте маркетплейс на странице «Аккаунты»',
+  'packages.marketplaceCliMissing': () => 'Even Keel не находит Claude Code',
   'packages.noOwnMarketplace': (p) => `в ${p.dir} нет .claude-plugin/marketplace.json`,
   'packages.upToDate': (p) => `у ${p.name} уже последняя версия`,
   'packages.updated': (p) => `${p.name} обновлён до ${p.version}; идущие задачи остаются на версии, с которой начали`,
@@ -534,7 +532,7 @@ export const noticesRu: NoticeTexts = {
   'packages.keyName': (p) => `${p.name} — не имя переменной`,
   'packages.keyValue': (p) => `в значении ${p.name} не может быть переноса строки или одинарной кавычки`,
   'packages.unknownKey': (p) => `${p.name} не читает ни один пакет или трекер`,
-  'packages.port': (p) => `шлюз MCP не может слушать 127.0.0.1:${p.port}, порт занят другой программой — задайте другой EVEN_KEEL_MCP_PORT в .env Even Keel`,
+  'packages.port': (p) => `шлюз MCP не может слушать 127.0.0.1:${p.port}, порт занят другой программой`,
   'secrets.unknown': (p) => `${p.name} — не из тех доступов, что задаются на странице`,
   'secrets.empty': (p) => `значение ${p.name} пустое; удаление переменной — отдельное действие`,
   'secrets.outer': (p) => `${p.name} задана в окружении службы, а не в .env — меняйте её там`,

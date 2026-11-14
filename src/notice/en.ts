@@ -2,7 +2,7 @@ import type { RelayCause } from '../chain/model.js'
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 import { STARTUP_NOTICES } from './en-startup.js'
-import { AGENT_NAMES, BUILTIN_FIELDS, FORGES, GIT_STEPS, MODELS_NAMED, MOVE_LABELS, PROVIDER_NAMES, UPDATE_BLOCKS, list, megabytes, whose, type BuiltinField, type ClaudeRecovery, type GitStep, type MoveLevel, type MoveWhen } from './en-values.js'
+import { AGENT_NAMES, BUILTIN_FIELDS, FORGES, GIT_STEPS, MODELS_NAMED, MOVE_LABELS, PROVIDER_NAMES, UPDATE_BLOCKS, list, megabytes, whose, type BuiltinField, type ClaudeRecovery, type GitStep, type MoveLevel, type MoveWhen, type ShownPath } from './en-values.js'
 
 export { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, megabytes, whose, type BuiltinField, type GitStep, type MoveLevel } from './en-values.js'
 
@@ -12,7 +12,7 @@ import { REVIEW_NOTICES } from './en-review.js'
 export const en = {
   ...REVIEW_NOTICES,
   'account.overageRisk': () => 'Paid usage may start before Even Keel detects it.',
-  'account.overagePolicy': () => 'Even Keel stops on paid usage or, for Claude, an exhausted included allowance, which does not confirm payment. It waits for the allowance reset. Detection may lag five minutes. Set a hard spending cap with the provider.',
+  'account.overagePolicy': () => 'Even Keel stops on paid usage or, for Claude, a spent included allowance, and waits for its reset. Detection may lag five minutes: set a hard spending cap with the provider.',
   'account.overageAdvice': (p: { provider: 'claude' | 'chatgpt' | 'github' }) => p.provider === 'chatgpt'
     ? 'For this chain account, turn off automatic credit reload or set its monthly spending cap in ChatGPT where supported.'
     : p.provider === 'claude' ? 'For this chain account, turn off Extra usage or set its monthly spending limit in Claude.'
@@ -21,8 +21,8 @@ export const en = {
   'tracker.closePending': () => 'tracker refused closure',
   'tracker.completeRefused': (p: { task: string; status?: string; level?: MoveLevel }) =>
     p.status === undefined
-      ? `${p.task} is merged, but the tracker refused to close it. Fill the required field or close the task in the tracker yourself. Even Keel retries automatically. Tracker response`
-      : `${p.task} is merged, but the tracker refused to move it to "${p.status}" (${MOVE_LABELS.done}). Fill the required field, pick another status in ${MOVE_LABELS.done} or close the task yourself. Even Keel retries automatically. Tracker response`,
+      ? `${p.task} is merged, but the tracker refused to close it. Fill the required field or close the task in the tracker yourself; Even Keel retries by itself. Tracker response`
+      : `${p.task} is merged, but the tracker refused to move it to "${p.status}". Fill the required field, pick another status in ${MOVE_LABELS.done} or close the task yourself; Even Keel retries by itself. Tracker response`,
   'statusMove.refused': (p: { task: string; status: string; setting: MoveWhen; level: MoveLevel }) =>
     `The tracker did not move ${p.task} to "${p.status}" (${MOVE_LABELS[p.setting]}). The chain goes on; pick another status in ${MOVE_LABELS[p.setting]} or move the task yourself. Tracker response`,
   'statusMove.outside': (p: { task: string; status: string; setting: MoveWhen; level: MoveLevel }) =>
@@ -57,7 +57,7 @@ export const en = {
   'chain.limitsUnread': (p: { account: string; next?: string }) =>
     `Waiting for the first answer about the limits of the account ${p.account}: without it a spent limit looks free.${p.next === undefined ? '' : ` The next poll is at ${p.next}.`}`,
   'chain.limitSpent': (p: { until: string; account?: string; provider?: string }) =>
-    `chain: The usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. Wait for the reset, or change the provider's account in the project's pool (shared or own) under Project settings → Sessions, or the provider on the task's card.`,
+    `chain: The usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. Wait for the reset, change the account in the project's pool under Project settings → Sessions, or the provider on the task's card.`,
   'session.transient': () => 'waiting to retry',
   'session.transientRetry': (p: { at: string }) => `The model is temporarily unavailable. The dispatcher will retry this same session at ${p.at}. You can continue it now from the chat or start a new session.`,
   'chain.noSession': (p: { task: string }) => `chain: no session of ${p.task} is known`,
@@ -93,9 +93,9 @@ export const en = {
     `${p.task} was not closed: its branch has ${p.count} commit(s) beyond ${p.main}, and closing it would lose them. Such work closes by a merge: ask the session in the chat to merge it.`,
   'accept.dirty': (p: { task: string; count: number }) =>
     `${p.task} was not closed: its worktree has ${p.count} file(s) left out of a commit, which the cleanup after Done would leave behind. Ask the session in the chat to commit and merge them or to remove them.`,
-  'accept.notChecked': (p: { task: string }) => `${p.task} was not closed: its folder could not be checked for work beyond the main branch. Try again in a moment.`,
+  'accept.notChecked': (p: { task: string }) => `${p.task} was not closed: its folder could not be checked for work beyond the main branch`,
   'accept.notCompleted': (p: { task: string }) =>
-    `${p.task} was not closed: the tracker did not take the answer as a comment or did not move the task to done. Try again, or close it in the tracker yourself.`,
+    `${p.task} was not closed: the tracker did not take the answer as a comment or did not move the task to done`,
   'chain.notRead': (p: { project: string }) => `chain: the tasks of ${p.project} are not read from the tracker yet; try again once it answers`,
   'chain.empty': (p: { project: string }) => `chain: ${p.project} has no task to run, not started`,
   'chain.emptyNone': () => 'it has no open tasks',
@@ -118,14 +118,14 @@ export const en = {
 
   'cleanup.failed': () => 'cleanup failed',
   'cleanup.syncFailed': () => 'sync of the main branch failed',
-  'cleanup.folderLeft': (p: { path: string }) => `the worktree folder ${p.path} was left behind, a process still holds it`,
-  'cleanup.folderNotDeleted': (p: { path: string }) => `the worktree folder ${p.path} was left behind: it could not be deleted`,
-  'cleanup.worktreeKept': (p: { path: string }) => `the worktree ${p.path} was kept`,
+  'cleanup.folderLeft': (p: ShownPath) => `the worktree folder ${p.path} was left behind, a process still holds it`,
+  'cleanup.folderNotDeleted': (p: ShownPath) => `the worktree folder ${p.path} was left behind: it could not be deleted`,
+  'cleanup.worktreeKept': (p: ShownPath) => `the worktree ${p.path} was kept`,
   'cleanup.branchKept': (p: { branch: string }) => `the branch ${p.branch} was kept`,
   'cleanup.originUnchecked': (p: { branch: string; remote?: string }) => `could not check the branch ${p.branch} on ${p.remote ?? 'origin'}`,
   'cleanup.originKept': (p: { branch: string; remote?: string }) => `the branch ${p.branch} was kept on ${p.remote ?? 'origin'}`,
-  'cleanup.slotDirty': (p: { path: string; branch: string }) => `the slot ${p.path} was kept on ${p.branch}: it has uncommitted changes`,
-  'cleanup.slotKept': (p: { path: string; branch: string }) => `the slot ${p.path} was kept on ${p.branch}`,
+  'cleanup.slotDirty': (p: ShownPath & { branch: string }) => `the slot ${p.path} was kept on ${p.branch}: it has uncommitted changes`,
+  'cleanup.slotKept': (p: ShownPath & { branch: string }) => `the slot ${p.path} was kept on ${p.branch}`,
   'cleanup.sessionNotStopped': (p: { session: string }) => `its session ${p.session} was not stopped`,
 
   'git.missing': () => 'git does not start on the machine of Even Keel, and every task needs it: install git, then try again',
@@ -203,7 +203,7 @@ export const en = {
   'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
   'intake.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to read and write the repository's issues`,
   'chain.noTrackerMcp': (p: { project: string; server: string }) =>
-    `the chain of ${p.project} starts no task: "Task description in the prompt" is off and no package of the project brings the tracker's MCP server ${p.server}, so a session would not see its task; turn on a package with it or turn the description on, and the chain goes on by itself`,
+    `the chain of ${p.project} starts no task: "Task description in the prompt" is off and no package brings the tracker's MCP server ${p.server}`,
   'chain.packagesNotReady': (p: { project: string; packages: string[] }) =>
     `the chain of ${p.project} starts no task: its package${p.packages.length === 1 ? '' : 's'} ${list(p.packages)} ${p.packages.length === 1 ? 'is' : 'are'} not installed, failed to install or lack${p.packages.length === 1 ? 's' : ''} a key; fix that in the project's packages, and the chain goes on by itself`,
   'ci.notTaken': (p: { ci: string; commit: string }) => `${p.ci}: no runner took ${p.commit}`,
@@ -221,8 +221,8 @@ export const en = {
   'afterGreen.failed': (p: { command: string; code: number; commit: string }) =>
     `"${p.command}" after the green main at ${p.commit} exited with code ${p.code}; main stays green, the service log has the output`,
 
-  'slot.dirty': (p: { path: string }) => `the slot ${p.path} has uncommitted changes; commit or remove them`,
-  'slot.busy': (p: { path: string; sessions: string[] }) => `the slot ${p.path} is in use by ${list(p.sessions)} mid-turn; let it finish or stop it`,
+  'slot.dirty': (p: ShownPath) => `the slot ${p.path} has uncommitted changes; commit or remove them`,
+  'slot.busy': (p: ShownPath & { sessions: string[] }) => `the slot ${p.path} is in use by ${list(p.sessions)} mid-turn; let it finish or stop it`,
   'slot.noneFree': (p: { task: string }) => `git: no slot is free, ${p.task} was not started; free one, then resume`,
   'slot.waiting': (p: { task: string }) => `no slot is free for ${p.task}; it starts as soon as one is`,
   'slot.busyStart': (p: { slot: string; sessions: string[]; task: string }) =>
@@ -278,8 +278,7 @@ export const en = {
   'codex.resumeFailed': (p: { task: string; cwd: string }) => `codex: could not resume ${p.task} in ${p.cwd}`,
   'codex.pluginsFailed': (p: { task: string; account: string }) => `codex: could not install the plugins of ${p.task} into ${p.account}`,
   'codex.hooksUntrusted': (p: { task: string; package: string }) =>
-    `codex: Codex does not trust the hooks of the package ${p.package}, so ${p.task} would run without the check before a merge ` +
-    'and the context reminders; update Even Keel, or for now run the task on another provider',
+    `codex: Codex does not trust the hooks of the package ${p.package}, so ${p.task} would run without the check before a merge and the context reminders`,
   'codex.otherThread': (p: { task: string; asked: string; got: string }) =>
     `codex: ${p.task} was resumed as ${p.asked} but came up as the new thread ${p.got}`,
   'codex.unknownSession': (p: { session: string }) => `codex: Even Keel did not start the session ${p.session}`,
@@ -297,7 +296,7 @@ export const en = {
 
   'copilot.startFailed': (p: { task: string; cwd: string }) => `copilot: could not start ${p.task} in ${p.cwd}`,
   'copilot.binaryMissing': (p: { bin: string }) =>
-    `Copilot CLI could not be started: “${p.bin}” is not a program Even Keel can run. Set Copilot's CLI version to Checked in Settings → Providers and models, or point EVEN_KEEL_COPILOT_BIN in .env at the copilot executable, then resume the chain.`,
+    `Copilot CLI could not be started: “${p.bin}” is not a program Even Keel can run`,
   'copilot.modelUnavailable': (p: { model: string }) => `Copilot cannot use the model “${p.model}”. Choose an available model in Model in the project's session settings (or change the model on the task’s card, under “Runs on”), then choose “New session”.`,
   'copilot.notSignedIn': () => 'Copilot is not signed in on this machine. Run “gh auth login” as the user Even Keel runs as, or add a Copilot account with its own token on the Accounts page, then choose “New session”.',
   'copilot.resumeFailed': (p: { task: string; cwd: string }) => `copilot: could not resume ${p.task} in ${p.cwd}`,
@@ -466,7 +465,7 @@ export const en = {
   'task.unreadyLive': (p: { task: string }) => `${p.task} has a live session: stop it or let it finish, then move the task to the backlog`,
   'task.inBacklog': (p: { task: string }) => `${p.task} is in the backlog already`,
   'task.cannotRelabel': (p: { task: string }) => `the tracker of ${p.task} cannot change labels`,
-  'task.relabelFailed': (p: { task: string }) => `could not change labels of ${p.task}; check the tracker profile's permission to edit issues and labels, then try again`,
+  'task.relabelFailed': (p: { task: string }) => `could not change labels of ${p.task}`,
   'task.labelGroup': (p: { task: string; label: string }) => `"${p.label}" is a label group in Linear and cannot be put on ${p.task}; pick a label inside the group`,
   'task.pastBacklog': (p: { task: string }) => `${p.task} is no longer in a backlog status`,
   'task.cannotMoveMilestone': (p: { task: string }) => `the tracker of ${p.task} cannot change its milestone`,
@@ -476,7 +475,7 @@ export const en = {
   'changelog.noAgent': (p: { project: string }) => `changelog: the agent of the account ${p.project} runs on cannot write a draft`,
   'changelog.failed': (p: { project: string }) => `changelog: the agent did not write the draft of ${p.project}`,
   'changelog.unnoticed': (p: { milestone: string; tasks: string[] }) =>
-    `changelog: the agent found nothing a user would notice in the done tasks of ${p.milestone} (${list(p.tasks)}), so the section has no entry; if one of them changes something for users, say what in its closing comment, then press "Write again"`,
+    `changelog: the agent found nothing a user would notice in the done tasks of ${p.milestone} (${list(p.tasks)}), so the section has no entry`,
   'changelog.noDraft':(p: { milestone: string }) => `changelog: ${p.milestone} has no draft yet`,
   'changelog.released': (p: { milestone: string; tag: string }) => `changelog: the section of ${p.milestone} is released as ${p.tag} and is not changed`,
   'changelog.nothingNew': (p: { milestone: string }) => `changelog: every done task of ${p.milestone} is already in the draft`,
@@ -502,7 +501,7 @@ export const en = {
   'huly.clientFailed': () => 'huly: npm could not install the Huly client; Huly projects wait until it is retried',
   'packages.marketplaceUpdate': (p: { marketplace: string }) => `packages: claude plugin marketplace update ${p.marketplace} failed`,
   'packages.marketplaceAdd': (p: { marketplace: string }) => `packages: claude plugin marketplace add could not add ${p.marketplace}`,
-  'packages.marketplaceCliMissing': () => 'Even Keel cannot find Claude Code: install it, then add the marketplace again on Accounts',
+  'packages.marketplaceCliMissing': () => 'Even Keel cannot find Claude Code',
   'packages.noOwnMarketplace': (p: { dir: string }) => `packages: ${p.dir} has no .claude-plugin/marketplace.json`,
   'packages.upToDate': (p: { name: string }) => `packages: ${p.name} is already the latest version`,
   'packages.updated': (p: { name: string; version: string }) => `packages: ${p.name} is updated to ${p.version}; running tasks stay on the version they started with`,
@@ -513,7 +512,7 @@ export const en = {
   'packages.keyName': (p: { name: string }) => `packages: ${p.name} is not a variable name`,
   'packages.keyValue': (p: { name: string }) => `packages: the value of ${p.name} may hold neither a line break nor a single quote`,
   'packages.unknownKey': (p: { name: string }) => `packages: no package or tracker reads ${p.name}`,
-  'packages.port': (p: { port: number }) => `packages: the MCP gateway cannot listen on 127.0.0.1:${p.port}, another program holds the port; set another EVEN_KEEL_MCP_PORT in Even Keel's .env`,
+  'packages.port': (p: { port: number }) => `packages: the MCP gateway cannot listen on 127.0.0.1:${p.port}, another program holds the port`,
   'secrets.unknown': (p: { name: string }) => `secrets: ${p.name} is not a credential the page sets`,
   'secrets.empty': (p: { name: string }) => `secrets: the value of ${p.name} is empty; removing a variable is its own action`,
   'secrets.outer': (p: { name: string }) => `secrets: ${p.name} comes from the service's environment, not .env; change it there`,
@@ -704,9 +703,7 @@ export const en = {
   'updates.noPrevious': () => 'updates: there is no previous version to go back to',
   'updates.blocked': (p: { reason: UpdateBlock | 'storage' }) => `updates: ${UPDATE_BLOCKS[p.reason]}`,
   'config.token': (p: { host: string }) =>
-    `config: host ${p.host} is reachable from the network, so the page needs a token: set EVEN_KEEL_TOKEN in .env ` +
-    `(16+ characters, e.g. the output of: node -e "console.log(crypto.randomBytes(24).toString('hex'))") and restart, ` +
-    'or set host to 127.0.0.1',
+    `config: host ${p.host} is reachable from the network, so the page needs a token: set EVEN_KEEL_TOKEN in .env (16+ characters) and restart, or set host to 127.0.0.1`,
   'config.tokenShape': () => 'config: EVEN_KEEL_TOKEN must be 16+ characters of A-Z a-z 0-9 . _ ~ + / = -',
   'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>
     `config: modelPrompts.${p.model} has the substitution ${p.placeholder}, but a model prompt is passed on as it is`,
@@ -748,7 +745,7 @@ export const en = {
   'wizard.branchName': (p: { value: string }) => `"${p.value}" is not a branch name`,
   'wizard.trackerPlace': (p: { example: string }) => `name the project in the tracker like ${p.example}`,
   'wizard.trackerShared': (p: { project: string }) =>
-    `${p.project} already takes the tasks of this tracker project, and each task would enter both chains: name the milestones this project takes in "Only tasks in milestones" below, and ${p.project} gives them up. Or pick another tracker project`,
+    `${p.project} already takes this tracker project's tasks, and each would enter both chains: name this project's milestones in "Only tasks in milestones" below and ${p.project} gives them up. Or pick another tracker project`,
   'wizard.entryFailed': () => 'the project cannot be added with these values',
   'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>
     `no ${p.tracker} profile with ${list(p.variables)}: add one with "Add profile" in the Profile list`,

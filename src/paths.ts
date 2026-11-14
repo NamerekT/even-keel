@@ -76,6 +76,15 @@ export function writtenUnder(path: string, folder: string, platform: NodeJS.Plat
   return inner.slice(outer.length + 1).split(paths.sep).join('/')
 }
 
+/**
+ * A path as a notice names it (BTN-1150): written from `folder` when it lies under it (`writtenUnder`), with the whole
+ * one as `full` for the tip and the log; as it is otherwise.
+ */
+export function shownUnder(path: string, folder: string, platform: NodeJS.Platform = process.platform): { path: string; full?: string } {
+  const short = writtenUnder(path, folder, platform)
+  return short === null ? { path } : { path: short, full: path }
+}
+
 export function samePath(a: string, b: string, platform: NodeJS.Platform = process.platform): boolean {
   return pathKey(a, platform) === pathKey(b, platform)
 }
