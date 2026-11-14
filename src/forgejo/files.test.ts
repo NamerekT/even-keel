@@ -48,10 +48,10 @@ describe('Forgejo task files', () => {
       await rm(folder, { recursive: true, force: true })
     }
     const downloads = calls.filter((call) => call.url.includes('/attachments/'))
-    expect(downloads).toHaveLength(2)
-    expect(downloads[0]!.url).toBe(`${WEB}/prefix/attachments/${shot.uuid}`)
-    expect(new Headers(downloads[0]!.init?.headers).get('authorization')).toBe('token example-token')
-    expect(downloads[0]!.init?.redirect).toBe('error')
+    // Both files download at once and their requests go in whichever order the disk answers the copies' checks.
+    expect(downloads.map((call) => call.url).sort()).toEqual([shot, note].map((file) => `${WEB}/prefix/attachments/${file.uuid}`).sort())
+    expect(downloads.every((call) => new Headers(call.init?.headers).get('authorization') === 'token example-token')).toBe(true)
+    expect(downloads.every((call) => call.init?.redirect === 'error')).toBe(true)
   })
 
   it('uses the asset size even without content-length and supplies a known media type', async () => {
