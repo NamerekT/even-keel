@@ -27,27 +27,26 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 Waiting-list entries 86, 18, 17c, 29 and 46 can be checked after a natural occurrence with `grep "rare:" logs/even-keel.log` (on PowerShell, `Select-String 'rare:' logs/even-keel.log`). Match the observation and its outcome; an absent line proves nothing. Observation keys and open pairs are kept in the state database (`rare_events`, `docs/storage.md`) for 30 days, so a service restart reports no event twice and still writes the second line of a pair; only a failed database write can repeat a line. These diagnostics do not change session control.
 
-The rows are checked in batches, one manual "Проверка" task each (sorted 2026-11-02); a new entry joins the batch of its area, or the waiting list:
+The rows are checked in batches, one manual "Проверка" task each. This list is an index: a line is an area, then entry numbers and the task that checks them, nothing else. What a run checked, what is left, what a check needs and why an entry waits go into the entry itself or the check task, never here; a run narrows the entry, not this list. A new entry joins its area's batch when a task takes it, otherwise the "No task yet" line or the waiting list; an area with no task has no line of its own.
 
-- macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69, 116 — EKR-45 (Linux, after the 0.2 release; was BTN-275); macOS was run in BTN-312 (2026-11-03), what is left there waits for the next Mac.
-- Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419; 23e (one free ChatGPT identity across Codex and OpenCode) — BTN-1037; 23b (Amazon Bedrock, needs an AWS account with model access), 23c (Google Vertex AI, needs a billed Google Cloud project with a Claude model) and 23d (Microsoft Foundry, needs a pay-as-you-go Azure subscription with a Claude deployment) have no task yet.
-- First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36 — BTN-546; creating a project by a clone or a new repository, 142 — BTN-1068.
-- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; Jira OAuth 37f2–37f4 — BTN-591; Forgejo Issues 37i1–37i3 — BTN-790 (the rest of BTN-477). The built-in tracker's tasks server: 95 — BTN-795; on the other trackers, on a project's feeds, its roles line and estimate, its components and attachments: 117, 117a, 117b, 117c — the leftovers of BTN-898 (run 2026-11-09 from a hand session); the built-in tracker's attachments: 96 — BTN-807; copying built-in tasks into another tracker: 148 — BTN-1077. A tracker that did not answer: 106 — has no task yet. A turned-off tracker profile: 110 — BTN-864. The CI panel by push: 111 — has no task yet. Task files downloaded by `task_read`: 117d — has no task yet; a hand session ran Huly, GitLab.com and Jira on 2026-11-09 and BTN-915's chain sessions opened its SVG mockups from the worktree; a raster screenshot in a chain session and a Huly thread reply's file are left. The `tasks` plugin's note when the service is down: 125 — has no task yet. Outsiders' issues and comments on public repositories: 153, 154, 155, 156, 157, 158 — BTN-1142 (Forgejo run 2026-11-14; GitHub and GitLab need a second account with no access, Gitea's template labels need its bench up). Pinned actions and Dependabot: 161 — BTN-1144, after the release puts them on `main`.
-- Protection: 0, 0b, 0e — BTN-487. Packages: 7, 7a, 34, 45a, 79 (own skills) — BTN-423; 143 (tasks on a new project on Huly, "Turn off tasks", an older project) — has no task yet; 159 (servers with no install scripts) — BTN-1143. Keeping warm: 78c — BTN-446.
-- The chat: 11, 11a–11e, 33 — BTN-710; 118 has no task yet. A project without git: 133 — BTN-965, 140 — BTN-1065, 141 — BTN-1053; turning git on: 136 — has no task yet; the folder become a repository: 145 — has no task yet. Pauses and returns: 16a, 17, 17a, 36d — BTN-711.
-- Copilot: 70, 75, 81, 85 — BTN-712. Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713. OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 79b, 80 — BTN-578; 104 (needs an OpenRouter key with money) — BTN-844; 107 — BTN-857; 108 (what is left after BTN-861: a restart mid-turn, the activity page) — has no task yet; 114 (an OpenRouter management key) — has no task yet.
-- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b (handoffs off) — BTN-714; 100 (an address change) has no task yet. A task's run: 147 — BTN-1072; 150 (OpenCode and Copilot) has no task yet; 151 (a Claude session's past-session window and chat line) — in passing, no task yet.
-- Milestone order: 102 — Linear's own order beside another tracker's feed and Jira's undated versions, no task yet (Jira by date run in BTN-1155).
-- `settings.json` edits and their guard in account folders: 120, 121 — BTN-904.
+- macOS and Linux: 3, 4, 13, 14, 15, 20, 24, 55, 59, 69, 116 — EKR-45.
+- Money or a provider's state: 1a, 1b, 20a, 21, 22, 23, 83 — BTN-531; 23a — BTN-419; 23e — BTN-1037.
+- First run: 0d, 2a, 3a, 3b, 3c, 9, 28, 36 — BTN-546; 142 — BTN-1068.
+- Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; 37f2–37f4 — BTN-591; 37i1–37i3 — BTN-790; 153–158 — BTN-1142; 161 — BTN-1144.
+- Trackers: 95 — BTN-795; 96 — BTN-807; 110 — BTN-864; 117, 117a, 117b, 117c — BTN-898; 148 — BTN-1077.
+- Protection: 0, 0b, 0e — BTN-487.
+- Packages: 7, 7a, 34, 45a, 79 — BTN-423; 159 — BTN-1143; 78c — BTN-446.
+- The chat, pauses and returns: 11, 11a–11e, 33 — BTN-710; 16a, 17, 17a, 36d — BTN-711.
+- A project without git: 133 — BTN-965; 140 — BTN-1065; 141 — BTN-1053.
+- Copilot: 70, 75, 81, 85 — BTN-712.
+- Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713.
+- OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 79b, 80 — BTN-578; 104 — BTN-844; 107 — BTN-857.
+- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b — BTN-714; 147 — BTN-1072.
+- Account folders: 120, 121 — BTN-904.
 - The README badge: 122, 126, 127, 129, 131, 132, 135 — BTN-919.
-- Background commands of a session stopped under load: 123 — the loaded machine only, no task yet (an idle one was run in BTN-936).
-- A built-in task's edit saved as the tab closes: 144 (a description over 60 000 bytes, a phone) — has no task yet.
-- Subtasks on an outside tracker's card: 163 — has no task yet, one run over the benches.
-- A paused chain's toast and band on a real pause: 164 — in passing, no task yet.
-- The theme on a phone and in the installed page: 152 — Safari on iOS and a background change of the device's theme, no task yet (Android seen 2026-11-14).
-- The automatic copies of the state database: 149 — BTN-1084.
-- A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02, 2026-11-07 and 2026-11-09, then a launch on a kept snapshot half a second before the first poll and a task held on a spent week's kept snapshot; what is left needs a kept snapshot a reset made stale, due right at the restart, or a slow or failed first poll with no kept snapshot).
-- Waiting for the event, no run: 1 (an early reset), 2 (a reboot), 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72 (the sandbox's relay), 86, 90 (a red main on Forgejo from a runner failure), 92 (a watched branch fast-forwarded to an already green commit), 93 (the next task of a project with `commands.check` and no CI), 94 (GitLab runners running short, or a rerun of a run no runner took), 109 (the next red main on GitHub or GitLab), 112 (a chain that holds its next task for a run), 124 (the next held folder after a Done followed by that restart: `removed the worktree folder … once nothing held it` after the start), 128 (the next restart with live Claude chain sessions), 101 (the first nights after the release that brings the workflow, with its secrets set — BTN-821). Not checked by choice: 63.
+- The state database: 149 — BTN-1084.
+- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 108, 111, 114, 117d, 118, 123, 125, 136, 143, 144, 145, 150, 151, 152, 163, 164.
+- Waiting for the event, no run: 1, 2, 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72, 86, 90, 92, 93, 94, 101 — BTN-821, 109, 112, 124, 128. Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
