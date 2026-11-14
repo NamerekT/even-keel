@@ -316,6 +316,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               onMove={(task) => arrival.move(task.id, task.title)}
               onSettled={arrival.settle}
               adding={builtin ? key : null}
+              changed={state.chain.projects[key]?.changed}
             />
           )}
           {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={projectTasks(state, key)} onClose={close} />}

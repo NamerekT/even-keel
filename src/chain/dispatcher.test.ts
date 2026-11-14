@@ -169,6 +169,19 @@ describe('Dispatcher', () => {
     })
   })
 
+  it('names the backlog tasks an outsider changed after their entry label, for the page to say why they wait', () => {
+    const { dispatcher } = setup()
+    const approved = (id: string, edited: number) => ({ ...task(id), labels: [APPROVAL_LABEL], outsider: true as const, edited: { at: edited, labeled: [{ label: APPROVAL_LABEL, at: 2 }] } })
+    dispatcher.setTasks('ABC', [task('ABC-1'), approved('ABC-2', 3), approved('ABC-3', 1), { ...task('ABC-4'), outsider: true as const }])
+    expect(dispatcher.orders()['ABC']).toMatchObject({ order: ['ABC-1', 'ABC-3'], backlog: ['ABC-2', 'ABC-4'], changed: ['ABC-2'] })
+  })
+
+  it('names no changed task where none is', () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', backlog)])
+    expect(dispatcher.orders()['ABC']).not.toHaveProperty('changed')
+  })
+
   it('tells the place of a waiting blocker the chain would take, but not of one it would not', () => {
     const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, excludedLabels: ['Manual'] } } })
     dispatcher.setOutside('ABC', [task('XYZ-1', backlog)])

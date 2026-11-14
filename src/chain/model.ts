@@ -268,6 +268,11 @@ export interface ProjectOrder {
    * is not listed. Set when there are any.
    */
   requiredLabel?: Record<string, boolean>
+  /**
+   * The backlog's tasks an outsider changed the text of after their entry label (`changedAfterEntry`, BTN-1124): "Into the
+   * chain" puts the label on again once a person read it (BTN-1135). Set when there are any.
+   */
+  changed?: string[]
   /** The project's tasks with a pull request open or closed but not cleaned up after; set when there are any. */
   reviews?: ReviewView[]
   /**

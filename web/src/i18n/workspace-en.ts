@@ -267,6 +267,9 @@ export const chainEN: Messages['chain'] = {
     lockedHint:
       'A lock instead of the state lamp marks a blocker outside the chain. Use “Move to Todo” in its number slot or change its status in the tracker. A blocker with a label the chain does not take must be completed by you.',
     readyRefused: (reason: string) => `Taking it into the chain would stop the chain: ${reason}`,
+    changed: 'text changed',
+    changedTip:
+      'Its author, not a member of the repository, changed the title or the description after the label. Read the task and press “Into the chain”: the label goes on again.',
     tasks,
     noMilestone: 'No milestone',
     hidden: (tasks: string) => `hidden · ${tasks}`,

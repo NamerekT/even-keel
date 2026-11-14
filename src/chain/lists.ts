@@ -70,7 +70,13 @@ export class TaskLists {
       const outside = (this.waiting.get(project) ?? []).filter((task) => listed.includes(task))
       const reviews = this.reviews.views(project)
       const milestones = this.milestones(project)
-      const extra = { ...(outside.length > 0 && { outside }), ...(reviews.length > 0 && { reviews }), ...(milestones.length > 0 && { milestones }) }
+      const changed = (this.backlog.get(project) ?? []).filter((task) => changedAfterEntry(this.deps.rules(project, task.id), task)).map((task) => task.id)
+      const extra = {
+        ...(outside.length > 0 && { outside }),
+        ...(reviews.length > 0 && { reviews }),
+        ...(milestones.length > 0 && { milestones }),
+        ...(changed.length > 0 && { changed }),
+      }
       try {
         const order = chainOrder(tasks, this.preferred(project))
         const { landing, landingMilestones, refused } = this.landing(project)

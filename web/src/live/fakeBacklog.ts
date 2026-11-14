@@ -11,6 +11,13 @@ const RUNS = [
   { provider: 'opencode', model: 'router/vendor/deepseek-v4.1-flash-free', effort: null },
 ]
 
+/** `?backlog=changed` (BTN-1135): ABC-19's outsider author changed its text after the entry label, so it waits in the backlog. */
+export function withChangedText(state: EvenKeelState): EvenKeelState {
+  const order = state.chain.projects['ABC']!
+  const changed = { ...order, changed: ['ABC-19'], requiredLabel: { ...order.requiredLabel, 'ABC-19': false } }
+  return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, ABC: changed } } }
+}
+
 /** `?backlog=many` (BTN-982): 64 more backlog tasks in ABC, every fifth with a run, so the panel shows "More" and the search has something to find. */
 export function withLongBacklog(state: EvenKeelState): EvenKeelState {
   const made = Array.from({ length: 64 }, (_, index) => {

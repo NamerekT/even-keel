@@ -27,7 +27,7 @@ Everyone else is an outsider:
   stays your decision. Until then the issue waits in the backlog.
 - **A label covers the text it was put on.** If the author changes the title or the description after it, the issue
   leaves the chain until you read it again and press **Into the chain**, which takes the label off and puts it back.
-  On Forgejo only a changed title is noticed: its API reports no event for a changed description.
+  Its row in the backlog is marked **text changed** meanwhile. On Forgejo only a changed title is noticed: its API reports no event for a changed description.
 - **An issue template must not put an entry label on.** A template puts its labels on for any author. The project page
   warns, naming the template.
 - **The session is told whose text it is.** The prompt and the task's text open with a line that the author is not a
