@@ -295,7 +295,7 @@
   .project__tools,
   .project__buttons,
   .project__head .feed-switch {
-    height: 38px;
+    height: 34px;
   }
 
   /* The feed's view switch rides in the head on a phone, as tall as the tools beside it (BTN-1041): each item fills the
