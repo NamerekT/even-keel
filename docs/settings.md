@@ -49,7 +49,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `chain.excludedLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole; no label is built in or excluded by default (BTN-758, BTN-971) | page, hand (not the profile's) | `[]` |
 | `chain.requiredMilestones`, `chain.excludedMilestones` | G, P | each key P over G, the list replaced whole; one milestone in both is `config.milestoneBoth`; projects on one tracker place must split it (`config.trackerProjectShared`, BTN-172, `docs/chain/projects.md`) | page, hand | `[]` |
 | `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
-| `models.<provider>` | G, P | by provider, P over G; OpenCode's by the provider its account signs in to, `models.opencode/<vendor>` (BTN-984, `docs/sessions/models.md`) | page, hand | `{ claude: 'opus', 'opencode/openai': 'openai/gpt-6.1-sol' }` |
+| `models.<provider>` | G, P | by provider, P over G; OpenCode's by the provider its account signs in to, `models.opencode/<vendor>` (BTN-984, `docs/sessions/models.md`) | page, hand | `{ claude: 'opus' }` (`DEFAULT_MODELS`); another provider's is its CLI's own |
 | `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
 | `execution.<provider>` | G | — | page, hand | the first mode of each provider: `claude` — `auto` (`bg`, `sdk`; the transport of its sessions, BTN-353), `codex` — `sandbox` (`bypass`). `claude: sdk` needs `cli.claude: checked` (BTN-610, `needsCheckedCli`): the pair with `system` is `config.executionCli`, on the page, in `config-import` and at a write; DB step 21 and config v22 move a stored pair to `checked` |
 | `cli.<provider>` | G | — | page, hand, service (download failure switches only that provider to `system`, unless its execution needs the copy — `ConfigStore.fallBackCli`) | `system` for every provider (BTN-603; before it `checked`, which DB step 20 and config v21 write for installs that left it out): the CLI installed by the user; `checked` asks download consent, chain waits for the copy (`docs/sessions/cli-versions.md`). Picking `execution.claude: sdk` on the page switches `cli.claude` to `checked` at once (or asks for the download) and locks Yours until the execution changes; the value stays `checked` after |
@@ -195,8 +195,8 @@ CREATE TABLE setting_definitions (
   spec          TEXT NOT NULL,      -- JSON: {"min":1}, {"values":["5m","1h"]}, {"of":"string"}, {"nullable":true}
   default_value TEXT,               -- JSON; NULL when the code computes it (promptLanguage from language)
   scopes        TEXT NOT NULL,      -- 'global' | 'project' | 'global,project'
-  qualifier     TEXT,               -- NULL | 'provider' | 'model' | 'package'
-  task_label    TEXT                -- NULL | 'run' | 'effort': the label parser that feeds the task level
+  qualifier     TEXT,               -- NULL | 'provider' | 'notice' (proposed: also 'model', 'package')
+  task_label    TEXT                -- NULL | 'checkpoint' (proposed: 'run', 'effort'): the label parser that feeds the task level
 );
 
 CREATE TABLE setting_values (
@@ -223,7 +223,7 @@ code (`mirrorDefinitions`).
   one level only (`modelPrompts`, `stats.moves`) is one `json` value.
 - **No row is inheritance; JSON `null` is a value.** `chain.active: null` (back to the categories over a shared list),
   `ci.waitMinutes: null`, `cacheTtl: null` are rows. Going back to the shared value on the page (the "own" chip) deletes the row; nothing stores "inherit".
-- **Packages**: `packages.enabled` (qualifier: the package) with the catalog's `default` as its Even Keel value and a
+- **Packages** (proposed, not built: they stay in `state/packages.json`): `packages.enabled` (qualifier: the package) with the catalog's `default` as its Even Keel value and a
   project's `on`/`off` as its project rows; `packages.setting` (qualifier `<package>/<variable>`) with the package's
   values as Even Keel rows and a project's differing ones as project rows. The catalog, installs and pins stay state.
 - **`unattended`, `trimTools`** become Even Keel rows (step 4 moves the rows of `chain_flags`); `updates.dismissed`
@@ -353,7 +353,7 @@ parsers — not a table.
   this research; the user's two-table idea kept.
 - BTN-118 "Storage without a hand-edited file" (2026-10-18, unattended, the cheapest to undo; the user confirmed it in
   BTN-190, closing BTN-192): no intermediate JSON in the state folder. The wizard and the removal write the project record into the same
-  `even-keel.config.json` through `ConfigFile`, which becomes the database's writer once settings move (BTN-199).
+  `even-keel.config.json` through `ConfigFile` (now `ConfigStore`), which becomes the database's writer once settings move (BTN-199).
   Without a file at start, the service creates an empty one (`version`, `projects: []`) and logs it; the one-time
   import and `EVEN_KEEL_CONFIG` go with that move.
 - BTN-186 sits in milestone v0.1 because it blocks BTN-147 and BTN-118, which are there; a blocker in a later milestone
