@@ -159,6 +159,10 @@
   background-image: repeating-linear-gradient(135deg, transparent 0 2px, var(--fg-muted) 2px 3px);
 }
 
+.page-help__shape--question {
+  background-image: linear-gradient(225deg, var(--lamp-waiting) 0 5px, transparent 5px);
+}
+
 .page-help__shape--family {
   width: 2px;
   height: 12px;

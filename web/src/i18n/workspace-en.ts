@@ -294,7 +294,6 @@ export const chainEN: Messages['chain'] = {
       closed: 'closed',
     },
     questionTitle: 'Label “Question”: without an answer in the description the session will most likely get stuck',
-    question: 'question',
     work: {
       uncommitted: (files: number) => `uncommitted · ${files}`,
       unmerged: (commits: number) => `not merged · ${commits} ${forms('commit', 'commits')(commits)}`,
@@ -358,6 +357,7 @@ export const chainEN: Messages['chain'] = {
       high: 'high priority',
       low: 'low priority',
       rework: 'rework',
+      question: 'amber corner — the task has the “Question” label: without an answer in the description the session will most likely get stuck',
       family: 'subtasks of one parent',
       estimate: 'thin line at the card edge — estimated task work time; longer means a larger estimate',
     },

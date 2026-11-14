@@ -729,7 +729,6 @@ button.block__key {
 }
 
 .chip--paused,
-.chip--question,
 .chip--feedback,
 .chip--questions {
   background: var(--warn-bg);

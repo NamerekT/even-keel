@@ -81,6 +81,7 @@ export function PrioritySigns({ blocks }: { blocks: ChainBlock[] }) {
   return <>
     {(['urgent', 'high', 'low'] as const).map((priority) => <Sign key={priority} sample={<span className="chain"><span className={`block__number block__number--${priority}`}>2</span></span>}>{t.chain.shapes[priority]}</Sign>)}
     {open.some((block) => isRework(block.labels)) && <Sign sample={<span className="page-help__shape page-help__shape--rework" />}>{t.chain.shapes.rework}</Sign>}
+    {open.some((block) => block.question) && <Sign sample={<span className="page-help__shape page-help__shape--question" />}>{t.chain.shapes.question}</Sign>}
     {railsOf(blocks).size > 0 && <Sign sample={<span className="page-help__shape page-help__shape--family" />}>{t.chain.shapes.family}</Sign>}
     {open.some((block) => estimateShare(block.estimate) !== null) && <Sign wide sample={<span className="chain"><span className="page-help__estimate"><span className="block__estimate" /></span></span>}>{t.chain.shapes.estimate}</Sign>}
   </>

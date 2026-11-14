@@ -577,7 +577,7 @@ function Block(props: BlockProps) {
         <RailLink key={rail.family} project={project} rail={rail} />
       ))}
       {block.priority === 'urgent' && <span className="block__hazard" aria-hidden="true" />}
-      {block.question && <span className="block__corner" aria-hidden="true" />}
+      {block.question && <span className="block__corner" role="img" aria-label={t.chain.questionTitle} title={t.chain.questionTitle} />}
       {share !== null && <span className="block__estimate" aria-hidden="true" />}
       {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
       {ready === null ? (
@@ -641,11 +641,6 @@ function Block(props: BlockProps) {
           </span>
         )}
         {block.review !== undefined && <PullChip review={block.review} />}
-        {block.question && (
-          <span className="chip chip--question" title={t.chain.questionTitle}>
-            {t.chain.question}
-          </span>
-        )}
         {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
         {badge === 'blocker' && <span className="tag">{t.chain.blocker}</span>}
         {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}

@@ -402,8 +402,10 @@
   background-image: repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in srgb, var(--fg) 6%, transparent) 7px 8px);
 }
 
+/* Above the row's stretched link, for its tip: the corner is the only sign of the question label on the row. */
 .chain .block__corner {
   position: absolute;
+  z-index: 1;
   top: -1px;
   right: -1px;
   width: 14px;
