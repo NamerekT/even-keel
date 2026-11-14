@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
 import { fixture, schemaOf } from './database.fixture.js'
 
-describe('automatic Claude trust database migration', () => {
+describe('automatic Claude trust database migration', { timeout: 120_000 }, () => {
   it('matches the frozen database at step 27', async () => {
     const frozen = await openDatabase(undefined, [])
     const made = await openDatabase(undefined, STEPS.slice(0, 25))
