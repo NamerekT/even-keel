@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { StatusCategory, TextEdit } from '../tracker/model.js'
 import type { IntakeRepo } from './github.js'
-import { Intake } from './intake.js'
+import { Intake, type IntakeDeps } from './intake.js'
 import type { IntakeComment, IntakeEntry, IntakeIssue } from './model.js'
 
 const issueOf = (number: number, extra: Partial<IntakeIssue> = {}): IntakeIssue => ({
@@ -69,7 +69,7 @@ class FakeRepo implements IntakeRepo {
   }
 }
 
-function setup(entries: IntakeEntry[] = []) {
+function setup(entries: IntakeEntry[] = [], extra: Partial<IntakeDeps> = {}) {
   const repo = new FakeRepo()
   const created: { project: string; title: string; description: string }[] = []
   const comments: { task: string; body: string }[] = []
@@ -92,11 +92,36 @@ function setup(entries: IntakeEntry[] = []) {
     save: (next) => (saved = next),
     now: () => new Date('2026-10-22T10:00:00.000Z'),
     log: (line) => logs.push(line),
+    ...extra,
   })
   return { intake, repo, created, comments, tasks, logs, saved: () => saved, turn: (next: boolean) => (on = next) }
 }
 
 describe('Intake', () => {
+  it('keeps, by project, the issue templates that put its label on, until they stop or it stops taking issues in (BTN-1130)', async () => {
+    const hits = {}
+    let labels = ['Accepted', 'bug']
+    let changes = 0
+    const { intake, turn } = setup([], {
+      templates: async () => [{ path: '.github/ISSUE_TEMPLATE/bug.yml', labels }],
+      templateHits: hits,
+      changed: () => changes++,
+    })
+    await intake.tick()
+    expect(hits).toEqual({ p1: [{ label: 'accepted', template: '.github/ISSUE_TEMPLATE/bug.yml' }] })
+    await intake.tick()
+    expect(changes).toBe(1)
+    labels = ['bug']
+    await intake.tick()
+    expect(hits).toEqual({})
+    labels = ['accepted']
+    await intake.tick()
+    turn(false)
+    await intake.tick()
+    expect(hits).toEqual({})
+    expect(changes).toBe(4)
+  })
+
   it('takes a labelled issue in once, with the comments before it of members and the author', async () => {
     const { intake, repo, created, saved, logs } = setup()
     repo.add(issueOf(1))

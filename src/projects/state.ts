@@ -107,6 +107,8 @@ export interface ProjectCheck {
     open: number | null
     /** Anyone can open a task in the tracker's project (a public GitHub repository) and no label is needed to enter the chain. */
     openToAll: boolean
+    /** The required labels an issue template of the folder's branch puts on for any author (BTN-1130); none — no such label. */
+    templateHits?: import('../tracker/templates.js').TemplateHit[]
     notice: Notice | null
   } | null
   /**

@@ -368,6 +368,21 @@ describe('checkDraft', () => {
     expect((await checkDraft(deps({ adapters: { fake: fakeAdapter({ public: false }) } }), draft)).tracker?.openToAll).toBe(false)
   })
 
+  it("names a required label an issue template of the folder's branch puts on, where the folder is the tracker's repository (BTN-1130)", async () => {
+    const answers = {
+      'D:\\new config --get-regexp ^remote\\..*\\.url$': { code: 0, out: 'remote.origin.url git@github.com:example/app.git\n' },
+      'D:\\new ls-tree -r --name-only trunk': { code: 0, out: '.github/ISSUE_TEMPLATE/bug.yml\nsrc/main.ts\n' },
+      'D:\\new show trunk:.github/ISSUE_TEMPLATE/bug.yml': { code: 0, out: 'name: Bug\nlabels: [bug]\n' },
+    }
+    const raw = () => ({ chain: { requiredLabels: ['bug'] }, projects: [] })
+    const labelled = deps({ adapters: { fake: fakeAdapter({ public: true }) }, raw }, answers)
+    const own = { ...draft, trackerProject: 'example/app' }
+    expect((await checkDraft(labelled, own)).tracker?.templateHits).toEqual([{ label: 'bug', template: '.github/ISSUE_TEMPLATE/bug.yml' }])
+    expect((await checkDraft(labelled, { ...draft, trackerProject: 'other/app' })).tracker?.templateHits).toBeUndefined()
+    const plain = deps({ adapters: { fake: fakeAdapter() }, raw }, answers)
+    expect((await checkDraft(plain, own)).tracker?.templateHits).toBeUndefined()
+  })
+
   it('gives the tracker the project it names the project by', async () => {
     const adapter = fakeAdapter()
     adapter.projectKey = { key: 'fake', pattern: /^\w+\/\w+$/, example: 'org/name' }

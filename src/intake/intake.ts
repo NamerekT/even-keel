@@ -3,6 +3,7 @@ import { Skipped, trustedAuthor } from '../github/trust.js'
 import type { Language } from '../language.js'
 import { englishOf, noticeOf } from '../notice/notice.js'
 import type { StatusCategory } from '../tracker/model.js'
+import { templateHits, type IssueTemplate, type TemplateHit } from '../tracker/templates.js'
 import type { IntakeRepo } from './github.js'
 import { copyOf, nextVersion, shippedLine, taskOf, voiceOf, type IntakeComment, type IntakeEntry, type IntakeIssue } from './model.js'
 
@@ -28,6 +29,12 @@ export interface IntakeDeps {
   save(entries: IntakeEntry[]): void
   now(): Date
   log(line: string): void
+  /** The issue templates of the place's repository (BTN-1130); `null` — not known. None — not read. */
+  templates?(place: IntakePlace): Promise<IssueTemplate[] | null>
+  /** Filled by each tick: by project, the templates that put its label on for any author. */
+  templateHits?: Record<string, TemplateHit[]>
+  /** `templateHits` changed. */
+  changed?(): void
 }
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
@@ -52,6 +59,7 @@ export class Intake {
     this.running = true
     try {
       const places = this.deps.places()
+      await this.checkTemplates(places)
       for (const place of places) await this.guarded(`${place.slug} (${place.label})`, () => this.take(place))
       for (const entry of [...this.entries]) {
         const place = places.find((each) => each.project === entry.project && same(each.slug, entry.repo))
@@ -60,6 +68,22 @@ export class Intake {
     } finally {
       this.running = false
     }
+  }
+
+  /** A template that puts the label on lets any author's issue in (BTN-1130); a failed read keeps the last answer. */
+  private async checkTemplates(places: IntakePlace[]): Promise<void> {
+    const { templates, templateHits: hits } = this.deps
+    if (templates === undefined || hits === undefined) return
+    const before = JSON.stringify(hits)
+    for (const project of Object.keys(hits)) if (!places.some((place) => place.project === project)) delete hits[project]
+    for (const place of places) {
+      await this.guarded(`${place.slug} templates`, async () => {
+        const found = templateHits((await templates(place)) ?? [], [place.label])
+        if (found.length > 0) hits[place.project] = found
+        else delete hits[place.project]
+      })
+    }
+    if (JSON.stringify(hits) !== before) this.deps.changed?.()
   }
 
   private async guarded(what: string, step: () => Promise<void>): Promise<void> {

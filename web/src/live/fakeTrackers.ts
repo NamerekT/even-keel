@@ -25,6 +25,22 @@ export function withPublicSources(state: EvenKeelState): EvenKeelState {
   }
 }
 
+/**
+ * `?trackers=templates` (BTN-1130): two issue templates of ABC's GitHub feed put on its required label "bug", and one
+ * puts on ABC's intake label "accepted".
+ */
+export function withTemplateLabels(state: EvenKeelState): EvenKeelState {
+  const hits = [
+    { label: 'bug', template: '.github/ISSUE_TEMPLATE/bug_report.yml' },
+    { label: 'bug', template: '.github/ISSUE_TEMPLATE/crash.md' },
+  ]
+  return {
+    ...state,
+    trackers: state.trackers.map((tracker) => (tracker.name === GITHUB_PROFILE ? { ...tracker, templateHits: { 'feed-abc-gh': hits } } : tracker)),
+    intakeTemplates: { ABC: [{ label: 'accepted', template: '.github/ISSUE_TEMPLATE/bug_report.yml' }] },
+  }
+}
+
 /** The trackers of ABC's task feeds: GitHub has read its feed, Linear not yet. */
 export function fakeFeedTrackers(): TrackerView[] {
   const view = { ready: true, relabel: true, health: { state: 'live' as const, lastOkAt: ago(0), error: null } }

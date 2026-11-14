@@ -23,4 +23,13 @@ export const projectNoticesEn = {
     `The repository ${place} is public: anyone can open an issue there. An issue of someone outside the repository waits in the backlog until you press "Into the chain" on it; ` +
     'the issues of its members enter the chain at once. To decide on each issue yourself, pick "Only with a required label" in the rules of this source and name the label.',
   openToAllRules: 'Rules',
+  templateRequiredLabel: (label: string, templates: string[], place: string) =>
+    `The issue ${templates.length === 1 ? 'template' : 'templates'} ${templates.join(', ')} of ${place} ${templates.length === 1 ? 'puts' : 'put'} the label "${label}" on for any author, ` +
+    `and "${label}" is a label the tasks of this source need to enter the chain: anyone's issue opened from ${templates.length === 1 ? 'it' : 'them'} enters at once. ` +
+    'Take the label out of the template, or name another one in the rules of this source.',
+  templateIntakeLabel: (label: string, templates: string[]) =>
+    `The issue ${templates.length === 1 ? 'template' : 'templates'} ${templates.join(', ')} ${templates.length === 1 ? 'puts' : 'put'} the label "${label}" on for any author, ` +
+    `and Even Keel takes issues with "${label}" into the tracker: anyone's issue opened from ${templates.length === 1 ? 'it' : 'them'} becomes a task at once. ` +
+    'Take the label out of the template, or pick another label for taking issues in.',
+  templateLabelSettings: 'Settings',
 }

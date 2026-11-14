@@ -13,6 +13,7 @@ import { ParentCloser, parentRows } from './parents.js'
 import type { ReaderTasks } from './readers.js'
 import { StatusPoller } from './poller.js'
 import { trackerOf, type ChainTasks, type TrackerSetup } from './source.js'
+import { templateHits, type IssueTemplate } from './templates.js'
 
 const TRACKER_POLL_MS = 5_000
 const TASKS_REFRESH_MS = 30_000
@@ -53,6 +54,11 @@ export interface TrackerStartDeps {
   refreshers: Map<string, () => Promise<void>>
   /** The link turned live, by the tracker's `view.name` (its profile's id): a profile check that got no answer is redone. */
   recovered?: (name: string) => void
+  /**
+   * The issue templates of the reader's repository, read off the project's main branch (BTN-1130); `null` — not known:
+   * the folder is not that repository, or its branch cannot be read. Asked only of a tracker with `isPublic`.
+   */
+  issueTemplates?: (project: string) => Promise<IssueTemplate[] | null>
 }
 
 /** A running tracker: its credentials change on the fly, and it stops when its projects or variables are gone. */
@@ -72,6 +78,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   let completes = false
   let closesParents = false
   let setsMilestones = false
+  let forge = false
   const unfilled = new Set<string>()
   const link = new TrackerLink({
     name: title,
@@ -80,6 +87,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       completes = tracker.complete !== undefined
       closesParents = completes && tracker.children !== undefined
       setsMilestones = tracker.setMilestone !== undefined
+      forge = tracker.isPublic !== undefined
       view.ready = tracker.ready !== undefined
       view.relabel = tracker.relabel !== undefined
       view.unready = tracker.unready !== undefined
@@ -226,6 +234,21 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       if (!stopped) console.error(`${title}: ${project}: visibility: ${text}`)
     }
   }
+  /** The required labels an issue template puts on for any author (BTN-1130); a failed read keeps the last answer. */
+  const checkTemplates = async (project: string, rules: ChainRules): Promise<void> => {
+    if (!forge || deps.issueTemplates === undefined) return
+    let templates: IssueTemplate[] | null
+    try {
+      templates = await deps.issueTemplates(project)
+    } catch (error) {
+      if (!stopped) console.error(`${title}: ${project}: issue templates: ${errorText(error)}`)
+      return
+    }
+    if (stopped) return
+    const hits = templates === null ? [] : templateHits(templates, rules.requiredLabels)
+    if (hits.length > 0) (view.templateHits ??= {})[project] = hits
+    else if (view.templateHits !== undefined) delete view.templateHits[project]
+  }
   const readProject = async (project: string): Promise<void> => {
     let failure: { error: unknown } | null = null
     try {
@@ -255,6 +278,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       dispatcher.setTasks(project, shown)
       view.readAt[project] = new Date().toISOString()
       await checkOpenToAll(project, rules)
+      await checkTemplates(project, rules)
       if (stopped) return
       // Taken before the chain has followed the list just set: a task it releases meanwhile is not in this read (BTN-766).
       const released = dispatcher.released(project)

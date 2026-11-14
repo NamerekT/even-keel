@@ -17,6 +17,8 @@ import { StatusMover, type MovePlan } from '../tracker/mover.js'
 import { TrackerQuestions, type AskingSession } from '../tracker/questions.js'
 import { ReaderTasks } from '../tracker/readers.js'
 import { startTracker } from '../tracker/start.js'
+import { IssueTemplateReader, isOwnRepo, type IssueTemplate } from '../tracker/templates.js'
+import { runGit } from '../git/run.js'
 import { Trackers } from '../tracker/trackers.js'
 import type { ServiceContext } from '../service.js'
 
@@ -36,6 +38,7 @@ type TrackersContext = Pick<ServiceContext,
   | 'hub'
   | 'intakeEntries'
   | 'intakePlaces'
+  | 'intakeTemplateHits'
   | 'launches'
   | 'linkFor'
   | 'linkOf'
@@ -116,6 +119,19 @@ export function wireStatusMover(ctx: TrackersContext): StatusMover {
   })
 }
 
+const templateReader = new IssueTemplateReader(runGit)
+
+/**
+ * The issue templates of the project's main branch, where its folder is the tracker's repository `place` (BTN-1130);
+ * `null` — not known: a project without git, or a repository the folder is not a clone of.
+ */
+function ownTemplates(ctx: TrackersContext, project: string, place: string | undefined): Promise<IssueTemplate[] | null> {
+  const config = ctx.configStore.current
+  const repo = config.projects[project]
+  if (repo === undefined || place === undefined || isPlain(config, project) || !isOwnRepo(ctx.remotes.urls[project] ?? [], place)) return Promise.resolve(null)
+  return templateReader.read(repo, ctx.branchOf(project))
+}
+
 export function wireTrackers(ctx: TrackersContext): Trackers {
   return new Trackers({
     adapters: ADAPTERS,
@@ -146,6 +162,7 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
         broadcast: () => ctx.hub.broadcastSoon('state', ctx.getState),
         refreshers: ctx.refreshers,
         recovered: (profile) => ctx.profiles.recheckSoon(profile),
+        issueTemplates: (reader) => ownTemplates(ctx, ctx.ownerOfReader(reader), ctx.readers().trackerProjects[reader]),
       }),
     tasksByProject: ctx.readerTasks,
     refreshers: ctx.refreshers,
@@ -216,6 +233,9 @@ export function wireIntake(ctx: TrackersContext): Intake {
     save: (entries) => ctx.writes.add('the issues taken in', setStateValue(ctx.db, 'intake', entries)),
     now: () => new Date(),
     log: (message) => console.log(message),
+    templates: (place) => ownTemplates(ctx, place.project, place.slug),
+    templateHits: ctx.intakeTemplateHits,
+    changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
   })
 }
 

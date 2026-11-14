@@ -17,6 +17,7 @@ import { lacksIdentity, readTarget } from './target-read.js'
 import { errorText, TrackerLink } from '../tracker/link.js'
 import { isOpen } from '../tracker/model.js'
 import { trackerOf, type TrackerAdapter } from '../tracker/source.js'
+import { isOwnRepo, readIssueTemplates, templateHits, type IssueTemplate } from '../tracker/templates.js'
 
 export interface CheckDeps {
   git: Git
@@ -76,7 +77,7 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft, options: 
   }
   const tracker =
     options.tracker && entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
-      ? await checkTracker(adapter, deps, draft.key.trim(), draft.trackerProject.trim(), rules)
+      ? await checkTracker(adapter, deps, draft.key.trim(), draft.trackerProject.trim(), rules, { root: repo.root, branch })
       : null
   const provider = draft.provider ?? (isPlainObject(raw) && typeof raw.provider === 'string' ? raw.provider : DEFAULT_PROVIDER)
   const root = repo.root
@@ -209,6 +210,7 @@ async function checkTracker(
   key: string,
   place: string,
   rules: ChainRules,
+  folder: { root: string; branch: string },
 ): Promise<NonNullable<ProjectCheck['tracker']>> {
   const failed = (notice: Notice) => ({ ok: false, missing: [], open: null, openToAll: false, notice })
   let setup
@@ -224,17 +226,26 @@ async function checkTracker(
   const connect = setup.connect
   const link = new TrackerLink({ name: adapter.title, connect: async () => trackerOf(await connect(deps.timeoutMs)), timeoutMs: deps.timeoutMs })
   try {
-    const { tasks, isPublic } = await link.run(async (tracker) => ({
+    const { tasks, isPublic, forge } = await link.run(async (tracker) => ({
       ...(await tracker.chainTasks(ENTRY_ID, rules)),
       isPublic: (await tracker.isPublic?.(ENTRY_ID)) ?? false,
+      forge: tracker.isPublic !== undefined,
     }))
     const openToAll = isPublic && rules.requiredLabels.length === 0
-    return { ok: true, missing: [], open: tasks.filter((task) => isOpen(task.status)).length, openToAll, notice: null }
+    const hits = forge && rules.requiredLabels.length > 0 ? templateHits((await folderTemplates(deps.git, folder, place)) ?? [], rules.requiredLabels) : []
+    return { ok: true, missing: [], open: tasks.filter((task) => isOpen(task.status)).length, openToAll, ...(hits.length > 0 && { templateHits: hits }), notice: null }
   } catch (error) {
     return failed(notice('wizard.trackerFailed', { tracker: adapter.title }, { detail: errorText(error) }))
   } finally {
     await link.close()
   }
+}
+
+/** The issue templates of the folder's branch, where the folder is a clone of the tracker's repository `place` (BTN-1130). */
+async function folderTemplates(git: Git, { root, branch }: { root: string; branch: string }, place: string): Promise<IssueTemplate[] | null> {
+  if (place === '') return null
+  const urls = await git(root, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+  return urls.code === 0 && isOwnRepo(remotesOf(urls.out), place) ? readIssueTemplates(git, root, branch) : null
 }
 
 /** Whether `.claude.json` trusts the folder under a key the CLI reads. */

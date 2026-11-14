@@ -148,7 +148,10 @@ function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
     return { ok: false, missing: [], open: null, openToAll: false, notice: notice('wizard.trackerFailed', { tracker: title }, { detail: 'connect ETIMEDOUT 10.0.0.5:443' }) }
   }
   // The fake GitHub repository is public: the wizard shows its warning.
-  return { ok: true, missing: [], open: 7, openToAll: name === 'github' || name === 'gitlab', notice: null }
+  const forge = name === 'github' || name === 'gitlab'
+  // Whatever the tracker, so that the wizard's default one shows it without a pick.
+  const templateHits = mode === 'templates' ? { templateHits: [{ label: 'bug', template: '.github/ISSUE_TEMPLATE/bug_report.yml' }] } : {}
+  return { ok: true, missing: [], open: 7, openToAll: forge && mode !== 'templates', ...templateHits, notice: null }
 }
 
 /** `project/add` puts the draft in as the service would, `project/remove` refuses a project whose chain runs. */

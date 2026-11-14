@@ -65,6 +65,9 @@ export const wizardEN: Messages['wizard'] = {
     openToAll:
       'The repository is public: anyone can open an issue there. An issue of someone outside the repository waits in the backlog until you press "Into the chain" on it; ' +
       'the issues of its members enter the chain at once. To decide on each issue yourself, set "Only tasks with labels" in the project\'s settings once it is added, e.g. to ready.',
+    templateLabel: (label: string, template: string) =>
+      `The issue template ${template} of this folder puts the label "${label}" on for any author, and tasks enter the chain with "${label}": ` +
+      'anyone\'s issue opened from it enters at once. Take the label out of the template, or name another one in the project\'s rules once it is added.',
     stepProject: 'Project',
     prefix: 'Task prefix',
     prefixHint: 'A capital Latin letter, then up to 4 capitals, digits or _. It names the tasks, their branches and the stats.',

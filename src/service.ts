@@ -32,6 +32,7 @@ import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
 import { ProtectionAudit } from './ci/protection-audit.js'
 import { type CiTarget, type Remote } from './ci/remote.js'
 import type { IntakeEntry } from './intake/model.js'
+import type { TemplateHit } from './tracker/templates.js'
 import { DEFAULT_BRANCH, gitProjects, isPlain, plainProjects, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
@@ -225,6 +226,7 @@ const context = {
   get inHomes() { return inHomes },
   get intakeEntries() { return intakeEntries },
   get intakePlaces() { return intakePlaces },
+  get intakeTemplateHits() { return intakeTemplateHits },
   get keepWarm() { return keepWarm },
   get keyOrganizations() { return keyOrganizations },
   get keySpend() { return keySpend },
@@ -404,6 +406,8 @@ let dismissedNotices = ((await stateValue(db, 'notices.dismissed')) as Record<st
 /** The page's hotkeys of each browser (BTN-880), held in memory and written behind. */
 let browserHotkeys = await loadBrowserHotkeys(db)
 const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undefined) ?? []
+/** By project, the issue templates that put its intake label on (BTN-1130); filled by the intake's ticks. */
+const intakeTemplateHits: Record<string, TemplateHit[]> = {}
 /** The organization each API account's key pays through (BTN-418), held in memory and written behind. */
 const keyOrganizations = await loadKeyOrganizations(db)
 /** The management key of each OpenRouter account, for its balance (BTN-868), held in memory and written behind. */

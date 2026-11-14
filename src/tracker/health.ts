@@ -1,4 +1,5 @@
 import type { Notice } from '../notice/notice.js'
+import type { TemplateHit } from './templates.js'
 
 export type TrackerLinkState = 'off' | 'connecting' | 'live' | 'down'
 
@@ -42,6 +43,11 @@ export interface TrackerView {
    * tracker without `isPublic` has none; a failed check keeps the last answer.
    */
   openToAll?: Record<string, boolean>
+  /**
+   * By reader, rechecked on every full read: its required labels that an issue template of its repository puts on for
+   * any author (BTN-1130). A reader with none, or whose templates are not known, has no entry.
+   */
+  templateHits?: Record<string, TemplateHit[]>
   /** Status moves on a task's start or pull request that did not go through (BTN-554), by reader. In memory only. */
   moveFailures?: Record<string, Notice[]>
 }

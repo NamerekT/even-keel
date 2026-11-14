@@ -47,6 +47,11 @@ export function TrackerStep({ state, fields, shape, check, tracker, onChange }: 
           {t.wizard.openToAll}
         </p>
       )}
+      {tracker?.ok === true && (tracker.templateHits ?? []).map((hit) => (
+        <p key={`${hit.label}-${hit.template}`} className="project-add__open" role="note">
+          {t.wizard.templateLabel(hit.label, hit.template)}
+        </p>
+      ))}
     </>
   )
 }

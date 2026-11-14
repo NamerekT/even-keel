@@ -115,6 +115,49 @@ describe('startTracker', () => {
     expect(plain.view.openToAll).toBeUndefined()
   })
 
+  it('rechecks on every read which required labels an issue template puts on (BTN-1130)', async () => {
+    let rules = { ...DEFAULT_RULES, requiredLabels: ['Bug', 'ready'] }
+    let templates: { path: string; labels: string[] }[] | null = [{ path: '.github/ISSUE_TEMPLATE/bug.yml', labels: ['bug', 'triage'] }]
+    const { view, refreshers } = start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {},
+      isPublic: async () => false,
+    }), { rulesOf: () => rules, issueTemplates: async () => templates })
+    await vi.waitFor(() => expect(view.templateHits).toEqual({ APP: [{ label: 'Bug', template: '.github/ISSUE_TEMPLATE/bug.yml' }] }))
+    rules = { ...DEFAULT_RULES, requiredLabels: ['ready'] }
+    await refreshers.get('APP')!()
+    expect(view.templateHits).toEqual({})
+    rules = { ...DEFAULT_RULES, requiredLabels: ['bug'] }
+    templates = null
+    await refreshers.get('APP')!()
+    expect(view.templateHits).toEqual({})
+  })
+
+  it('asks no templates of a tracker without visibility, and keeps the last answer when their read fails (BTN-1130)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const asked = vi.fn(async () => [{ path: '.github/ISSUE_TEMPLATE/bug.yml', labels: ['bug'] }])
+    const rules = { ...DEFAULT_RULES, requiredLabels: ['bug'] }
+    const plain = start(['HUL'], async () => ({ chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {} }), {
+      rulesOf: () => rules, issueTemplates: asked,
+    })
+    await vi.waitFor(() => expect(plain.view.readAt.HUL).toBeDefined())
+    expect(asked).not.toHaveBeenCalled()
+    let fails = false
+    const { view, refreshers } = start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {},
+      isPublic: async () => false,
+    }), {
+      rulesOf: () => rules,
+      issueTemplates: async () => {
+        if (fails) throw new Error('git: bad object')
+        return [{ path: '.github/ISSUE_TEMPLATE/bug.yml', labels: ['bug'] }]
+      },
+    })
+    await vi.waitFor(() => expect(view.templateHits?.APP).toHaveLength(1))
+    fails = true
+    await refreshers.get('APP')!()
+    expect(view.templateHits?.APP).toHaveLength(1)
+  })
+
   it.each([false, true])('publishes label-write support after connecting (supported: %s)', async (supported) => {
     const { view } = start(['APP'], async () => ({
       chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {},

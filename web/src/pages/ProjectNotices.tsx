@@ -7,6 +7,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { completionNotices, moveNotices } from '../completion.js'
 import { openToAllSources, type OpenSource } from '../openToAll.js'
+import { templateLabels, type TemplateLabel } from '../templateHits.js'
 import { openTab, projectScope, SETTINGS_HASH, sourceScope } from './settingsStore.js'
 import { useCommand } from '../live/useCommand.js'
 import { activeChain, chainStatus, projectLabel, projectPath } from '../state.js'
@@ -52,10 +53,12 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
   const drift = settingsOpen ? undefined : driftShown(state, project)
   const found = gitFoundNotice(state, project) !== null
   const open = openToAllSources(state, project)
-  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || found || protectionShown(state, project) || open.length > 0
+  const labels = templateLabels(state, project)
+  const shown = drift !== undefined || errors.length > 0 || tone !== null || count > 0 || failure !== null || found || protectionShown(state, project) || open.length > 0 || labels.length > 0
   return (
     <FoldPresence>{shown ? <div className="project-notices">
       <ProtectionWarnings state={state} project={project} />
+      <TemplateLabels project={project} labels={labels} />
       <OpenToAll project={project} sources={open} />
       <FoldPresence>{found ? <GitFoundBand state={state} project={project} /> : null}</FoldPresence>
       <FoldPresence>{drift !== undefined ? <BranchDriftBand project={project} drift={drift} closable /> : null}</FoldPresence>
@@ -108,6 +111,27 @@ function OpenToAll({ project, sources }: { project: string; sources: OpenSource[
         <Link className="button button--small" to={{ pathname: projectPath(project), hash: SETTINGS_HASH }} onClick={() => toRules(source)}>{t.project.openToAllRules}</Link>
       }>
         {t.project.openToAll(source.place)}
+      </Band>
+  }))} />
+}
+
+/**
+ * A label the project trusts that an issue template puts on for any author (BTN-1130): it stays while the templates or
+ * the label say so, with no "Got it". A source's opens its rules, the intake's the tracker tab with the intake field.
+ */
+function TemplateLabels({ project, labels }: { project: string; labels: TemplateLabel[] }) {
+  const toFix = (hit: TemplateLabel) => {
+    if (hit.reader === project) openTab(sourceScope(project), 'rules')
+    openTab(projectScope(project), 'tracker')
+  }
+  return <FoldList items={labels.map((hit) => ({
+    key: `template-${hit.reader ?? 'intake'}-${hit.label}`, children:
+      <Band tone="warn" action={
+        <Link className="button button--small" to={{ pathname: projectPath(project), hash: SETTINGS_HASH }} onClick={() => toFix(hit)}>
+          {hit.reader === null ? t.project.templateLabelSettings : t.project.openToAllRules}
+        </Link>
+      }>
+        {hit.place === null ? t.project.templateIntakeLabel(hit.label, hit.templates) : t.project.templateRequiredLabel(hit.label, hit.templates, hit.place)}
       </Band>
   }))} />
 }

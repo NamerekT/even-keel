@@ -130,6 +130,7 @@ type HostingContext = Pick<ServiceContext,
   | 'projectsChanged'
   | 'promptLanguage'
   | 'protectionAudit'
+  | 'intakeTemplateHits'
   | 'pullReadinessOf'
   | 'readerFor'
   | 'readerTasks'
@@ -172,6 +173,7 @@ type HostingContext = Pick<ServiceContext,
 export function wireGetState(ctx: HostingContext): () => EvenKeelState {
   const view = (orders: ReturnType<HostingContext['dispatcher']['orders']>): EvenKeelState => ({
     protection: ctx.protectionAudit.view,
+    intakeTemplates: ctx.intakeTemplateHits,
     startedAt: ctx.startedAt,
     platform: process.platform,
     projects: Object.keys(ctx.configStore.current.projects),
