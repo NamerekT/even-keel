@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { createServer as createNetServer } from 'node:net'
 import { Readable } from 'node:stream'
+import { errorReason } from '../error-reason.js'
 import { fail } from '../notice/notice.js'
 import { deletesRecord } from '../sessions/protection.js'
 import type { TasksScope } from '../taskmcp/calls.js'
@@ -43,6 +44,8 @@ export interface GatewayTarget {
   npm: string | null
   /** Variables a stdio server gets on top of its entry's `env`. */
   env: Record<string, string>
+  /** Placeholder values, including keys substituted into arguments and URLs. */
+  secrets?: readonly string[]
   oauth?: GatewayOAuth
   /** The tracker whose deletes Protection refuses on this server (BTN-541): such a `tools/call` never reaches it. */
   refuseDeletes?: string
@@ -169,13 +172,13 @@ export class McpGateway {
       }
       if (this.failing.delete(key)) this.deps.log(`mcp gateway: ${label} works again`)
     } catch (error) {
-      if ((error as Error).name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         // The client gave up waiting, the process is still there: a cold `npx` start can take a minute.
         const seconds = Math.round((Date.now() - started) / 1000)
         const methods = methodsOf(body) ?? req.method
         this.deps.log(`mcp gateway: ${label} did not answer ${methods} in ${seconds} s${local && methods === 'initialize' ? ', still starting' : ''}`)
       } else {
-        const message = (error as Error).message
+        const message = errorReason(error, secretsOf(target))
         if (this.failing.get(key) !== message) this.deps.log(`mcp gateway: ${label}: ${message}`)
         this.failing.set(key, message)
       }
@@ -202,7 +205,7 @@ export class McpGateway {
         if (reply !== null) replies.push(reply)
       }
     } catch (error) {
-      this.deps.log(`mcp gateway: tasks: ${(error as Error).message}`)
+      this.deps.log(`mcp gateway: tasks: ${errorReason(error)}`)
       if (!res.headersSent) res.writeHead(500)
       return void res.end()
     }
@@ -247,9 +250,31 @@ export class McpGateway {
       shell,
     })
     let tail = ''
-    child.stderr?.on('data', (chunk: Buffer) => (tail = (tail + chunk.toString()).slice(-2000)))
-    child.on('error', (error) => this.deps.log(`mcp gateway: ${label}: ${error.message}`))
-    child.on('exit', (code, signal) => signal === null && this.deps.log(`mcp gateway: ${label} exited with ${code}${tail.trim() === '' ? '' : `: ${tail.trim().split('\n').at(-1)}`}`))
+    let last = ''
+    let overflow = false
+    const secrets = [...secretsOf(target), ...Object.values(extra)]
+    child.stderr?.setEncoding('utf8')
+    child.stderr?.on('data', (chunk: string) => {
+      const parts = chunk.split('\n')
+      for (const [index, part] of parts.entries()) {
+        if (!overflow) tail += part
+        if (tail.length > 2000) {
+          overflow = true
+          tail = ''
+        }
+        if (index < parts.length - 1) {
+          if (overflow) last = '[stderr line truncated]'
+          else if (tail.trim() !== '') last = errorReason(tail, secrets)
+          tail = ''
+          overflow = false
+        }
+      }
+    })
+    child.on('error', (error) => this.deps.log(`mcp gateway: ${label}: ${errorReason(error, secrets)}`))
+    child.on('exit', (code, signal) => {
+      const reason = overflow ? '[stderr line truncated]' : tail.trim() === '' ? last : errorReason(tail, secrets)
+      if (signal === null) this.deps.log(`mcp gateway: ${label} exited with ${code}${reason === '' ? '' : `: ${reason}`}`)
+    })
     return child
   }
 
@@ -518,6 +543,11 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 export function shellQuoted(arg: string): string {
   if (arg !== '' && !/[\s"&|<>^()]/.test(arg)) return arg
   return `"${arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1')}"`
+}
+
+function secretsOf(target: GatewayTarget): string[] {
+  return [...target.secrets ?? [], ...Object.values(target.env), ...Object.values(stringsOf(target.entry.env)), ...Object.values(stringsOf(target.entry.headers))]
+    .flatMap((value) => [value, ...value.split(/\r?\n/), ...(/^\s*(?:Bearer|Basic)\s+(.+?)\s*$/i.exec(value)?.slice(1) ?? [])])
 }
 
 function stringsOf(value: unknown): Record<string, string> {

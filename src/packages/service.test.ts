@@ -65,6 +65,19 @@ describe('pinned servers across plugin updates', () => {
   // Install ids are Date.now() in base 36: two installs within one millisecond would share a folder.
   const tick = () => new Promise((done) => setTimeout(done, 5))
 
+  it('keeps substituted argument credentials for gateway diagnostics after a reload', async () => {
+    const { packages, deps, file, plugin } = fixture()
+    plugin('1.0.0', 'all', { command: 'example-server', args: ['--key=${API_KEY}'] })
+    await packages.install('tools@example')
+    const install = loadPackages(file)!.packages['tools@example']!.installs[0]!
+    let value = 'fake-pool-secret'
+    const reloaded = new Packages({ ...deps, poolOf: () => ({ API_KEY: value }) })
+    const route = { project: 'project', name: 'tools@example', install: install.id, server: 'tools' }
+    expect(reloaded['target'](route)).toMatchObject({ entry: { args: ['--key=fake-pool-secret'] }, secrets: ['fake-pool-secret'] })
+    value = 'fake-new-secret'
+    expect(reloaded['target'](route)).toMatchObject({ entry: { args: ['--key=fake-new-secret'] }, secrets: ['fake-new-secret'] })
+  })
+
   async function updated(server: ServerEntry, before?: (cache: string, id: string) => void) {
     const { packages, file, cache, plugin, lines } = fixture()
     plugin('1.0.0', 'all', npx('1.0.0'))

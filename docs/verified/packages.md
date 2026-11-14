@@ -4,6 +4,7 @@ One area of [What has been verified](../verified.md), whose head says how a row 
 
 | Behaviour | Where | Date | Versions | Task, commit | Result | Session |
 | --- | --- | --- | --- | --- | --- | --- |
+| A real stdio child printed fake environment and argument credentials and a Bearer token to stderr, then exited with 1: the built gateway returned 502 and logged only `[redacted]`; the same check passed after closing and creating the gateway again | TSK `ask-check`, standalone built gateway on an ephemeral loopback port; no service or project settings changed | 2026-11-14 | Windows, Node.js 26.13.0 | BTN-1119 | whole for the standalone gateway; host service upgrade not exercised; evidence in the bench's `.temp/btn-1119/result.json` | |
 | The gateway's server (`npx @firfi/huly-mcp`) started and answered from the service's session 0 of a fresh install | the service | 2026-10-18 | — | BTN-161, `74de7d54` | whole | |
 | Adding a project, and the gateway's remote servers | the workstation | 2026-10-20 | — | `78ad2c37` | whole (project removal left open, done 2026-10-25 above) | |
 | The chain's `--settings` sets every tracker and package key to an empty string, and the flag's `env` outranks the account's `settings.json` and the daemon's environment | a terminal, `-p` and `--bg` | 2026-10-26 | CLI 2.1.310 | BTN-436, `c6ec3c5f` | whole | `514cf51b` |

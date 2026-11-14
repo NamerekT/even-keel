@@ -538,7 +538,7 @@ export class Packages {
     if (oauth) entry = withoutAuthorization(entry)
     const keys = keysOf(route.server, entry, this.deps.rules, this.deps.poolOf(project))
     const refuseDeletes = this.deps.refuseDeletes?.(project, route.server)
-    return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env, ...(oauth === undefined ? {} : { oauth }), ...(refuseDeletes === undefined ? {} : { refuseDeletes }) }
+    return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env, secrets: Object.values(keys.values), ...(oauth === undefined ? {} : { oauth }), ...(refuseDeletes === undefined ? {} : { refuseDeletes }) }
   }
 
   /** `null` — the versions are those of the current install: nothing new is kept. */

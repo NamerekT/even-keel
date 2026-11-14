@@ -132,6 +132,72 @@ describe('McpGateway', () => {
   const post = (url: string, body: unknown, session?: string) =>
     fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...(session === undefined ? {} : { 'mcp-session-id': session }) }, body: JSON.stringify(body) })
 
+  it('redacts stderr credentials, including split chunks, before logging a failed server', async () => {
+    const lines: string[] = []
+    const script = `process.stderr.write('discarded\\nfailed ' + process.env.KEY.slice(0, 4)); setTimeout(() => { process.stderr.write(process.env.KEY.slice(4) + ' ' + process.env.LITERAL + ' Bearer unknown-token\\n'); process.exitCode = 1 }, 20)`
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', script], env: { LITERAL: 'literal-secret' } }, npm: null, env: { KEY: 'pool-secret' } }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
+    expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
+    expect(lines).toContain('mcp gateway: echo/echo exited with 1: failed [redacted] [redacted] Bearer [redacted]')
+  })
+
+  it.each(['header-secret', 'Bearer header-secret', 'Basic header-secret'])('redacts literal headers (%s) and generic credentials in request errors, preserving deduplication', async (header) => {
+    const lines: string[] = []
+    const token = async () => { throw new Error('failed header-secret Bearer unknown-token access_token=unknown-access') }
+    gateway = new McpGateway({ resolve: () => ({ entry: { url: 'https://example.com/mcp', headers: { 'X-Api-Key': header } }, npm: null, env: {}, oauth: { token, refused: vi.fn() } }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
+    for (let attempt = 0; attempt < 2; attempt++) expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
+    expect(lines).toEqual(['mcp gateway: echo/echo: failed [redacted] Bearer [redacted] access_token=[redacted]'])
+  })
+
+  it.each([
+    ['', ''],
+    ['x'.repeat(2100) + 'secret-tail', ': [stderr line truncated]'],
+    ['x'.repeat(2100) + '\nfailed arg-secret', ': failed [redacted]'],
+    ['failed arg-secret', ': failed [redacted]'],
+    ['line-secret\ncredential-tail', ': [redacted]'],
+  ])('handles empty, oversized and unterminated stderr safely (%#)', async (stderr, suffix) => {
+    const lines: string[] = []
+    const target = { entry: { command: 'node', args: ['-e', `process.stderr.write(${JSON.stringify(stderr)}); process.exitCode = 1`] }, npm: null, env: { PRIVATE_KEY: 'line-secret\ncredential-tail' }, secrets: ['arg-secret', 'x'.repeat(2100) + 'secret-tail'] }
+    gateway = new McpGateway({ resolve: () => target, baseEnv: () => ({}), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
+    }
+    expect(lines.filter((line) => line.includes('exited with'))).toEqual(Array(2).fill(`mcp gateway: echo/echo exited with 1${suffix}`))
+  })
+
+  it('redacts the generated HTTP-mode token when a shared server fails', async () => {
+    const lines: string[] = []
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', "process.stderr.write('failed ' + process.env.MCP_AUTH_TOKEN); process.exitCode = 1"] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
+    expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
+    expect(lines).toContain('mcp gateway: echo/echo exited with 1: failed [redacted]')
+  })
+
+  it('redacts credentials in process spawn errors', async () => {
+    const lines: string[] = []
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'missing-fake-secret.exe' }, npm: null, env: {}, secrets: ['fake-secret'] }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
+    expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
+    expect(lines).toContain('mcp gateway: echo/echo: spawn missing-[redacted].exe ENOENT')
+    expect(lines.join('\n')).not.toContain('fake-secret')
+  })
+
+  it('logs a safe fallback when a request throws a non-error value', async () => {
+    const lines: string[] = []
+    gateway = new McpGateway({ resolve: () => ({ entry: { url: 'https://example.com/mcp' }, npm: null, env: {}, oauth: { token: async () => { throw null }, refused: vi.fn() } }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
+    expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
+    expect(lines).toEqual(['mcp gateway: echo/echo: Unknown error'])
+  })
+
   it('answers its own tasks server itself, by the hand path and by a package route with the task (BTN-768)', async () => {
     const scopes: unknown[] = []
     const tasks = {
