@@ -36,13 +36,18 @@ for (const sample of samples) it(`${sample.provider}: captures both phases throu
       mkdirSync(dirname(databaseFile(dir)), { recursive: true })
       const db = new DatabaseSync(databaseFile(dir))
       try {
-        db.exec(`drop table if exists session; drop table if exists message; drop table if exists part;
+        // One unsynced transaction: a commit per statement syncs the file each time, seconds for a sample on Windows.
+        db.exec(`pragma synchronous = off; begin;
+          drop table if exists session; drop table if exists message; drop table if exists part;
           create table session (id text, time_updated integer);
           create table message (id text, session_id text, time_created integer, time_updated integer, data text);
           create table part (id text, message_id text, session_id text, time_created integer, time_updated integer, data text);`)
         db.prepare('insert into session values (?, 1)').run(sessionId)
-        for (const row of snapshot.raw.messages) db.prepare('insert into message values (?, ?, ?, 1, ?)').run(row.id, sessionId, row.at, row.data)
-        for (const row of snapshot.raw.parts) db.prepare('insert into part values (?, ?, ?, ?, 1, ?)').run(row.id, row.message, sessionId, row.at, row.data)
+        const message = db.prepare('insert into message values (?, ?, ?, 1, ?)')
+        for (const row of snapshot.raw.messages) message.run(row.id, sessionId, row.at, row.data)
+        const part = db.prepare('insert into part values (?, ?, ?, ?, 1, ?)')
+        for (const row of snapshot.raw.parts) part.run(row.id, row.message, sessionId, row.at, row.data)
+        db.exec('commit')
       } finally { db.close() }
       tail = new OpenCodeTail(dir, entry, async () => [])
     }
