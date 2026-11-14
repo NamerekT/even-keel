@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { catchUp, ensureIgnored, finishWorktree, leftBehind, parseWorktrees, prepareWorktree, requireBranch, requireCheckedOut, taskPlace, type GitResult } from './worktree.js'
 import { englishOf, notice } from '../notice/notice.js'
 
-const repo = join(tmpdir(), 'abc')
+// The folders this file makes on disk sit under its own folder: other test files name paths under `tmpdir()/abc`, and
+// on NTFS a folder being deleted resolves to `C:\$Extend\$Deleted\…`, so their path keys would miss (BTN-1121).
+const sandbox = join(tmpdir(), `even-keel-worktree-test-${process.pid}`)
+const repo = join(sandbox, 'abc')
 const place = join(repo, '.claude', 'worktrees', 'abc-7')
 const porcelainPath = place.replaceAll('\\', '/')
 
@@ -314,7 +317,7 @@ describe('finishWorktree', () => {
   })
 
   it('deletes a folder git left behind for another reason than a lock, without a warning', async () => {
-    if (!existsSync(repo)) onExit.push(repo)
+    if (!existsSync(sandbox)) onExit.push(sandbox)
     mkdirSync(join(place, 'deep'), { recursive: true })
     writeFileSync(join(place, 'deep', 'file.txt'), 'x')
     const { git, calls } = fakeGit({
@@ -366,7 +369,7 @@ describe('finishWorktree', () => {
     })
 
     function folders() {
-      if (!existsSync(repo)) made.push(repo)
+      if (!existsSync(sandbox)) made.push(sandbox)
       const outside = mkdtempSync(join(tmpdir(), 'even-keel-outside-'))
       made.push(outside)
       writeFileSync(join(outside, 'keep.txt'), 'x')
