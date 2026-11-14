@@ -1,6 +1,18 @@
 import type { CiKind } from '../ci/model.js'
 import { FORGES } from './en-values.js'
 
+const NOTE_REFUSALS = {
+  outside: 'the file is outside the task folder',
+  secret: '.env files (except .env.example) and .git cannot be published',
+  missing: 'the file or task folder is missing',
+  notFile: 'the path is not a regular file',
+  tooLarge: 'the file exceeds the description size limit',
+  empty: 'the description is empty',
+  unreadable: 'the file could not be read',
+}
+
+export type NoteRefusal = keyof typeof NOTE_REFUSALS
+
 export const REVIEW_NOTICES = {
   'review.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to write pull requests of the repository`,
   'review.notOpened': (p: { task: string }) => `the pull request of ${p.task} was not opened (fix access and press Resume, answer its session from the chat, or skip the task)`,
@@ -12,7 +24,9 @@ export const REVIEW_NOTICES = {
   'review.noToken': (p: { remote: string; kind: CiKind; web: string }) =>
     `no profile has a token for the remote ${p.remote} (${p.web}); add a ${FORGES[p.kind]} profile for its host`,
   'review.unsupportedHost': (p: { remote: string; host: string }) => `the remote ${p.remote} on ${p.host} is not supported for pull requests: only GitHub, GitLab and Forgejo are`,
-  'review.noNote': (p: { path: string }) => `the session left no pull request description at ${p.path}`,
+  'review.noNote': (p: { path: string; reason?: NoteRefusal; limit?: number }) => p.reason === undefined
+    ? `the session left no pull request description at ${p.path}`
+    : `PR description ${p.path} refused: ${NOTE_REFUSALS[p.reason]}${p.reason === 'tooLarge' ? ` (${p.limit} bytes)` : ''}; write a safe note in the task folder, mark again and press Resume`,
   'review.noBranch': (p: { path: string }) => `${p.path} is not on a branch`,
   'review.dirty': (p: { path: string }) => `${p.path} has uncommitted changes`,
   'review.nothingAhead': (p: { branch: string; base: string }) => `${p.branch} has no commits beyond ${p.base}`,

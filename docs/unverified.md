@@ -48,6 +48,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
+| 160 | [PR description file boundaries](unverified/sessions.md#pr-description-file-boundaries-btn-1129) | projects in PR mode | an unsafe note is published or a safe note stays refused; stop the chain and open the PR manually |
 | 143 | [Tasks on from a new project's creation](unverified/packages.md#tasks-on-from-a-new-projects-creation-btn-1028) | everyone who adds a project on Huly | the new project's sessions see only their task's text, or its creation fails on the packages step; turn `tasks@even-keel` on by hand |
 | 159 | [Servers installed with no install scripts](unverified/packages.md#servers-installed-with-no-install-scripts-btn-1131) | everyone whose MCP packages are pinned npm servers, at their next install | a server whose dependency needs a script fails to start and the chain waits; turn "Install scripts" on and press Check |
 | 147 | [The effort of a task's run on the real CLIs](unverified/sessions.md#the-effort-of-a-tasks-run-on-the-real-clis-btn-983) | tasks with an effort set on their card, on a reply to a Codex or SDK session | the resumed session fails on its turn and the chain pauses; set the effort back to "default" |

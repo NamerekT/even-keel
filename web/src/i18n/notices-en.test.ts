@@ -26,4 +26,13 @@ describe('noticesEn', () => {
     expect(page(notice('account.codexHomeKept', {}))).toMatch(/^Codex's own account/)
     expect(page(notice('prompt.empty', { before: 'x', value: 'null' }))).toMatch(/^prompt: /)
   })
+
+  it('shows the PR note refusal and recovery action in both languages, and reads old notices', () => {
+    const refused = notice('review.noNote', { path: '.temp/pull.md', reason: 'tooLarge', limit: 65_536 })
+    expect(page(refused)).toContain('65536 bytes')
+    expect(page(refused)).toContain('press Resume')
+    expect(renderNotice(refused, noticesRu)).toContain('65536 байт')
+    expect(renderNotice(refused, noticesRu)).toContain('«Снять с паузы»')
+    expect(page(notice('review.noNote', { path: 'old.md' }))).toBe('the session left no pull request description at old.md')
+  })
 })

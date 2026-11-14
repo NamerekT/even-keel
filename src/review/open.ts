@@ -1,10 +1,10 @@
-import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, relative } from 'node:path'
 import type { CiTarget, Remote, UnsupportedRemote } from '../ci/remote.js'
 import { gitlabRepo, parseRemote, remoteKind } from '../ci/remote.js'
 import type { Git } from '../git/types.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import type { Forge, Opened } from './model.js'
+import { readPullNote } from './note.js'
 
 /**
  * The remote a project's pull requests go to: `origin` if its address parses, else the first one that does (BTN-205);
@@ -130,8 +130,8 @@ export async function openPull(
   }
   const status = await git(workdir, ['status', '--porcelain', '--untracked-files=no'])
   if (status.code !== 0 || status.out.trim() !== '') throw fail('review.dirty', { path: workdir }, { detail: status.out })
-  const described = describedBy(await readFile(notePath, 'utf8').catch(() => ''))
-  if (described === null) throw fail('review.noNote', { path: notePath })
+  const described = describedBy(await readPullNote(workdir, notePath))
+  if (described === null) throw fail('review.noNote', { path: notePath, reason: 'empty' })
 
   const pushed = await git(workdir, ['push', '--set-upstream', remote, `${branch}:refs/heads/${branch}`])
   if (pushed.code !== 0) throw fail(BEHIND.test(pushed.out) ? 'review.pushBehind' : 'review.pushFailed', { branch, remote }, { detail: pushed.out })

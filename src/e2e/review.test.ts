@@ -1,4 +1,4 @@
-import { existsSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { forReview } from './agent.fixture.js'
@@ -108,6 +108,40 @@ describe('PR mode end to end: opening and closing', { timeout: 60_000 }, () => {
     await run.post('chain/resume', { project: PROJECT_ID })
     await run.until(() => run.pulls.of('ABC-1') !== undefined, 'the pull request of ABC-1 opened after Resume')
     expect(run.pulls.creates).toBe(2)
+    expect(calls('launch', 'ABC-1')).toHaveLength(1)
+    expect(calls('resume', 'ABC-1')).toEqual([])
+  })
+
+  it('refuses an external description through a junction and retries the corrected note after restart and Resume', async () => {
+    run.board.add('ABC-1')
+    const outside = join(run.dir, 'outside-note')
+    mkdirSync(outside)
+    writeFileSync(join(outside, 'pull.md'), 'Private title\n\nPrivate body')
+    run.agent.script('ABC-1', async (context) => {
+      await forReview('one.txt')(context)
+      symlinkSync(outside, join(context.cwd, '.temp', 'note-link'), 'junction')
+      return { pullRequest: '.temp/note-link/pull.md' }
+    })
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => chain()?.paused === true, 'the chain paused on the external note')
+    expect(chain()).toMatchObject({ current: { task: 'ABC-1' }, error: { code: 'review.notOpened', cause: { code: 'review.noNote', params: { reason: 'outside' } } } })
+    expect(run.pulls.creates).toBe(0)
+    expect(branches(run.remote)).not.toContain('abc-1/task')
+
+    await run.restart()
+    await run.post('chain/resume', { project: PROJECT_ID })
+    await run.until(() => chain()?.paused === true, 'the external note refused after restart')
+    expect(chain()?.error).toMatchObject({ cause: { code: 'review.noNote', params: { reason: 'outside' } } })
+    expect(run.pulls.creates).toBe(0)
+
+    const link = join(worktree('ABC-1'), '.temp', 'note-link')
+    rmSync(link)
+    mkdirSync(link)
+    writeFileSync(join(link, 'pull.md'), 'Safe title\n\nSafe body')
+    await run.post('chain/resume', { project: PROJECT_ID })
+    await run.until(() => run.pulls.of('ABC-1') !== undefined, 'the corrected description opened')
+    expect(run.pulls.of('ABC-1')).toMatchObject({ title: 'Safe title', body: 'Safe body' })
     expect(calls('launch', 'ABC-1')).toHaveLength(1)
     expect(calls('resume', 'ABC-1')).toEqual([])
   })

@@ -1,6 +1,16 @@
 import { FORGES } from '../../../src/notice/en.js'
-import type { REVIEW_NOTICES } from '../../../src/notice/en-review.js'
+import type { NoteRefusal, REVIEW_NOTICES } from '../../../src/notice/en-review.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
+
+const NOTE_REFUSALS: Record<NoteRefusal, string> = {
+  outside: 'файл находится вне папки задачи',
+  secret: 'файлы .env (кроме .env.example) и .git нельзя публиковать',
+  missing: 'файл или папка задачи отсутствует',
+  notFile: 'путь не является обычным файлом',
+  tooLarge: 'файл превышает предел размера описания',
+  empty: 'описание пустое',
+  unreadable: 'не удалось прочитать файл',
+}
 
 export const REVIEW_NOTICES_RU = {
   'review.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужна запись pull request репозитория`,
@@ -12,7 +22,9 @@ export const REVIEW_NOTICES_RU = {
   'review.noRemote': (p) => `у ${p.project} нет remote на GitHub, GitLab или Forgejo, где открыть pull request`,
   'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote} (${p.web}); добавьте профиль ${FORGES[p.kind]} его хоста`,
   'review.unsupportedHost': (p) => `remote ${p.remote} на ${p.host} не поддерживается для pull request: только GitHub, GitLab и Forgejo`,
-  'review.noNote': (p) => `сессия не оставила описание pull request в ${p.path}`,
+  'review.noNote': (p) => p.reason === undefined
+    ? `сессия не оставила описание pull request в ${p.path}`
+    : `описание PR ${p.path} отклонено: ${NOTE_REFUSALS[p.reason]}${p.reason === 'tooLarge' ? ` (${p.limit} байт)` : ''}; запишите безопасную заметку в папке задачи, повторите метку и нажмите «Снять с паузы»`,
   'review.noBranch': (p) => `${p.path} не на ветке`,
   'review.dirty': (p) => `в ${p.path} есть незакоммиченные изменения`,
   'review.nothingAhead': (p) => `у ${p.branch} нет коммитов сверх ${p.base}`,
