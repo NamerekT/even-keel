@@ -59,7 +59,9 @@ What does not hold on Codex, as seen live: a command with a redirection (`2>&1`,
 
 ### Claude Code and OpenCode
 
-Claude Code and OpenCode also deny the push rules behind any such options (`git -C <dir> push --force`).
+Claude Code and OpenCode also deny the push rules behind any such options (`git -C <dir> push --force`), and a deletion refspec of any branch (`git push origin :feature`).
+
+A Claude rule of your own that ends in `:*` is Claude Code's prefix syntax: the words before it are taken literally, `*` included, so `Bash(git push * :*)` matches nothing. Where the text before it holds a `*` or the colon is part of the command, end the rule in `:**` instead (`Bash(rm -rf C:**)`).
 
 Chains joined by `;`, `&&` or `|` are checked command by command.
 

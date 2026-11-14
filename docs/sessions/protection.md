@@ -44,9 +44,14 @@ Copilot have no wildcard inside a prefix and get only `git -C . push …` and `g
 `-C` with any other folder (the worktree's absolute path included), `-c`, `--git-dir`, `--work-tree`, several global
 options together. Not caught anywhere: an alias (`git config alias.p push`), a `+` refspec in the remote's
 `remote.<name>.push` config, a push hidden in a script or shell wrapper. Claude's `git -* push …` spellings were
-seen refused live on Windows; Claude's colon delete refspec `git push * :*` matched no command there, likely because the
-CLI reads a trailing `:*` as its prefix syntax (BTN-1173) ([verified](../verified/opencode.md),
+seen refused live on Windows ([verified](../verified/opencode.md),
 [unverified.md](../unverified/opencode.md#opencode-protection-btn-486)).
+
+Claude reads a rule ending in `:*` as its legacy prefix syntax: the words before it literally, `*` included, followed
+by nothing or a space. So `Bash(git push * :*)` and `Bash(rm -rf C:*)` matched no command (BTN-1173; the CLI warns
+about such a deny rule at start). `claudeBash` doubles that trailing `*` for Claude (`git push * :**`, `rm -rf C:**`),
+which the CLI reads as an ordinary glob; OpenCode keeps the single `*`. A test holds that no generated Claude rule ends
+in `:*` and matches commands the way the CLI does.
 
 OpenCode receives the native groups through `OPENCODE_CONFIG_CONTENT` (`sessionConfig`): command patterns as
 `permission.bash[pattern]: "deny"`, and Huly deletion tools as `permission[<gatewayName>_<tool>]: "deny"`.

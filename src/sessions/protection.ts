@@ -48,8 +48,13 @@ function parsed(value: unknown): unknown {
 const DELETE_TOOLS = ['issue', 'project', 'component', 'milestone', 'label', 'comment', 'attachment', 'issue_template', 'drawing', 'activity_reply', 'related_issue_space_target'].map(name => `delete_${name}`)
 
 interface Rules { claude: string[]; codex: string[][]; copilot: string[]; opencode: { bash: string[]; tools: string[] } }
+/**
+ * Claude reads a trailing `:*` as its legacy prefix syntax, a whole word with any `*` before it literal, so `git push * :*`
+ * and `rm -rf C:*` matched nothing (BTN-1173); a doubled `**` is the same glob without that ending.
+ */
+const claudeBash = (pattern: string) => `Bash(${pattern.endsWith(':*') ? `${pattern}*` : pattern})`
 /** Copilot, like Codex, matches a command's leading words (`shell(<prefix>:*)`); a `*` anywhere else matches nothing. */
-const commands = (patterns: string[], prefixes: string[][]): Rules => ({ claude: patterns.map(pattern => `Bash(${pattern})`), codex: prefixes, copilot: prefixes.map(prefix => `shell(${prefix.join(' ')}:*)`), opencode: { bash: patterns, tools: [] } })
+const commands = (patterns: string[], prefixes: string[][]): Rules => ({ claude: patterns.map(claudeBash), codex: prefixes, copilot: prefixes.map(prefix => `shell(${prefix.join(' ')}:*)`), opencode: { bash: patterns, tools: [] } })
 /**
  * Git's global options (`-C <dir>`, `-c <k=v>`, `--git-dir=…`, `--no-pager`) go before `push` (BTN-642). Patterns take
  * any of them as `git -* push`; a prefix has no wildcard, so Codex and Copilot get only these literal spellings.
@@ -111,8 +116,8 @@ export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes:
     deleteHuly: { claude: DELETE_TOOLS.flatMap(name => [`mcp__plugin_huly_huly__${name}`, `mcp__huly__${name}`]), codex: [], copilot: DELETE_TOOLS.flatMap(name => [`plugin_huly_huly(${name})`, `huly(${name})`]), opencode: { bash: [], tools: hulyServers.flatMap(server => DELETE_TOOLS.map(name => `${server}_${name}`)) } },
   }
   for (const git of ['git', 'git -*']) {
-    groups.forcePush.claude.push(`Bash(${git} push * +*)`)
-    groups.deleteRemote.claude.push(`Bash(${git} push * :*)`)
+    groups.forcePush.claude.push(claudeBash(`${git} push * +*`))
+    groups.deleteRemote.claude.push(claudeBash(`${git} push * :*`))
     groups.forcePush.opencode.bash.push(`${git} push * +*`)
     groups.deleteRemote.opencode.bash.push(`${git} push * :*`)
   }

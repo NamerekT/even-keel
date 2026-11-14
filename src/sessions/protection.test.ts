@@ -5,6 +5,17 @@ import { ADAPTERS } from '../tracker/adapters.js'
 import { turnArgs as copilotArgs } from '../copilot/cli.js'
 import { sessionConfig as openCodeConfig } from '../opencode/cli.js'
 
+const matches = (value: string, pattern: string) => new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\?]/g, '\\$&').replaceAll('*', '.*') + '$').test(value)
+/**
+ * Claude Code's reading of a `Bash(…)` or `PowerShell(…)` rule's content (2.1.325): a trailing `:*` is its legacy prefix
+ * syntax — the words before it, their `*` literal, followed by nothing or a space — and anything else a glob.
+ */
+const claudeMatches = (command: string, content: string) => {
+  const prefix = content.match(/^(.+):\*$/)?.[1]
+  return prefix === undefined ? matches(command, content) : command === prefix || command.startsWith(`${prefix} `)
+}
+const claudeDenies = (rules: string[], command: string, tool = 'Bash') => rules.some(rule => rule.startsWith(`${tool}(`) && claudeMatches(command, rule.slice(tool.length + 1, -1)))
+
 describe('session protection', () => {
   it('passes native deny rules with trimming both on and off and with Copilot allow-all enabled', () => {
     const protection = { ...DEFAULT_PROTECTION, claude: ['Write(.env)'], copilot: ['write(.env)'] }
@@ -128,13 +139,11 @@ describe('session protection', () => {
 
   it('denies a push behind git\'s global options without touching an ordinary push or commit', () => {
     const rules = protectionRules(DEFAULT_PROTECTION, ['origin'])
-    const matches = (value: string, pattern: string) => new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\?]/g, '\\$&').replaceAll('*', '.*') + '$').test(value)
-    const denied = (command: string) => rules.opencode.bash.some(pattern => matches(command, pattern))
-      && rules.claude.some(rule => rule.startsWith('Bash(') && matches(command, rule.slice(5, -1)))
+    const denied = (command: string) => rules.opencode.bash.some(pattern => matches(command, pattern)) && claudeDenies(rules.claude, command)
     for (const command of ['git -C . push --force probe HEAD:refs/heads/x', 'git -C /repo push origin -f', 'git -c core.x=y --no-pager push --mirror origin', 'git --git-dir=.git push origin --delete x', 'git -C . push origin +x', 'git -C . push origin :x', 'git -C . push --force-with-lease']) expect(denied(command), command).toBe(true)
     for (const command of ['git -C . push origin feature', 'git -C . push origin HEAD:refs/heads/x', 'git commit -m "push --force is denied"', 'git push origin feature']) {
       expect(rules.opencode.bash.some(pattern => matches(command, pattern)), command).toBe(false)
-      expect(rules.claude.some(rule => rule.startsWith('Bash(') && matches(command, rule.slice(5, -1))), command).toBe(false)
+      expect(claudeDenies(rules.claude, command), command).toBe(false)
     }
     for (const global of [['-C', '.'], ['--no-pager']]) {
       expect(rules.codex).toContainEqual(['git', ...global, 'push', '--force'])
@@ -143,14 +152,22 @@ describe('session protection', () => {
     }
   })
 
+  it('never ends a Claude rule in :*, which the CLI reads as a literal prefix (BTN-1173)', () => {
+    const rules = protectionRules(DEFAULT_PROTECTION, ['origin'], 'main')
+    expect(rules.claude.filter(rule => rule.endsWith(':*)'))).toEqual([])
+    for (const command of ['git push origin :plain', 'git push origin :refs/heads/plain', 'git -C /repo push origin :main', 'git -c k=v -C . push origin :refs/heads/x', 'rm -rf C:', 'rm -rf C:\\', 'rm -fr D:/', 'rm -rf D:\\Projects']) {
+      expect(claudeDenies(rules.claude, command), command).toBe(true)
+    }
+    for (const command of ['git push origin HEAD:refs/heads/x', 'git push origin main:main', 'rm -rf Cache', 'rm -rf ./D']) expect(claudeDenies(rules.claude, command), command).toBe(false)
+  })
+
   describe('a project without git (BTN-1052)', () => {
-    const matches = (value: string, pattern: string) => new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\?]/g, '\\$&').replaceAll('*', '.*') + '$').test(value)
     const allOff = { ...DEFAULT_PROTECTION, disabled: [...PROTECTION_GROUPS] }
     const banned = (rules: ReturnType<typeof protectionRules>, command: string) => {
       const argv = command.split(' ')
       return {
-        claude: rules.claude.some(rule => rule.startsWith('Bash(') && matches(command, rule.slice(5, -1))),
-        powershell: rules.claude.some(rule => rule.startsWith('PowerShell(') && matches(command, rule.slice(11, -1))),
+        claude: claudeDenies(rules.claude, command),
+        powershell: claudeDenies(rules.claude, command, 'PowerShell'),
         codex: rules.codex.some(prefix => prefix.every((word, index) => argv[index] === word)),
         copilot: rules.copilot.some(rule => rule.startsWith('shell(') && rule.endsWith(':*)') && (command + ' ').startsWith(rule.slice(6, -3) + ' ')),
         opencode: rules.opencode.bash.some(pattern => matches(command, pattern)),
