@@ -45,7 +45,7 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 - Account folders: 120, 121 — BTN-904.
 - The README badge: 122, 126, 127, 129, 131, 132, 135 — BTN-919.
 - The state database: 149 — BTN-1084.
-- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 111, 117d, 118, 125, 136, 143, 144, 145, 150, 151, 152, 163, 164.
+- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 111, 117d, 118, 125, 136, 143, 144, 145, 150, 151, 152, 163, 164, 165.
 - Waiting for the event, no run: 1, 2, 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72, 86, 90, 92, 93, 94, 101 — BTN-821, 109, 112, 124, 128. Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
@@ -65,6 +65,7 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 | 144 | [A built-in task's edit saved as the tab closes](unverified/page.md#a-built-in-tasks-edit-saved-as-the-tab-closes-btn-1027) | everyone who closes the tab over a built-in task's description of more than 60 000 bytes, or whose phone kills a backgrounded tab mid-edit | the edit is not in the task after the tab closed; open the card again and the kept draft is sent anew or shown in the conflict window |
 | 152 | [The theme on a phone and in the installed page](unverified/page.md#the-theme-on-a-phone-and-in-the-installed-page-btn-1089) | everyone who picks Light or Dark against the device's theme on an iPhone (Android checked), or changes the device's theme with the page in the background | the browser's bar or the app's title bar keeps the device's colour over a page of the other theme; pick System |
 | 138 | [The bridge rename with running tasks](unverified/packages.md#the-bridge-rename-with-running-tasks-btn-999) | upgrades with tasks pinned to the old package | a task loses hooks or gets duplicate mail and merge checks; finish running tasks before upgrading, then Update or Check agent-bridge |
+| 165 | [A new checked version downloaded by itself](unverified/sessions.md#a-new-checked-version-downloaded-by-itself-btn-1175) | everyone on Checked who updates Even Keel to a build with a raised pin | the chain waits on "Waiting for the checked copy" as before, or a copy downloads with no consent ever given; press "Download" on the band |
 | 149 | [The automatic copies of the state database](unverified/platforms.md#the-automatic-copies-of-the-state-database-btn-1083) | every installation | no copy appears, the banner says the copy failed, or the start after an update is slower; the log has the failing stage — make a copy by hand with `npm run storage -- backup` |
 | 130 | [The state database's vacuum in the running service](unverified/platforms.md#the-state-databases-vacuum-in-the-running-service-btn-952) | every installation | the start is over a second slower or the page stalls once an hour; the log has the compaction's time and `storage: the vacuum failed` |
 | 135 | [The badge's warm-up after a start](unverified/page.md#the-badges-warm-up-after-a-start-btn-973) | projects that publish a badge | after a restart of the service the badge shows a task without its agent and an empty chain for two minutes, or keeps the old picture that long; the next push corrects it |

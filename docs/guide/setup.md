@@ -87,7 +87,7 @@ Blue bands under the header and in the agent's block show downloaded bytes while
 
 A provider already on Checked whose copy is missing asks the same when you select it or add its account; closing the dialog keeps the choice and leaves the chain waiting.
 
-No startup, sign-in or version check downloads a copy by itself.
+No startup, sign-in or version check downloads a copy by itself, with one exception: a provider on Checked whose copy you have downloaded before fetches each newer checked version without asking again.
 
 If downloading fails, **CLI version** switches to **Yours** for that provider and offers **Try downloading again**.
 

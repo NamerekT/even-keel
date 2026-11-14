@@ -73,7 +73,7 @@ import { loadContextWindows, loadSessionWindows } from './storage/context-window
 import { keptDatabase } from './storage/owner.js'
 import { backupDirOf } from './storage/backup.js'
 import { Backups, copyOnThread, takeStartFailure } from './storage/backup-schedule.js'
-import { stateValue } from './storage/service-state.js'
+import { setStateValue, stateValue } from './storage/service-state.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { createSessionSettings } from './tools/sessionSettings.js'
 import { ADAPTERS } from './tracker/adapters.js'
@@ -688,7 +688,11 @@ const daemons = accountsService.wireDaemons(context)
 
 const cliCopies = copies(runtimes, (name, source) => configStore.saveCli(name, source), (name) => configStore.fallBackCli(name),
   () => { dispatcher.check(); stateChanged(); void account.refresh() },
-  async () => { await cliVersions.check(); await account.refresh() })
+  async () => { await cliVersions.check(); await account.refresh() },
+  {
+    downloaded: ((await stateValue(db, 'cli.downloaded')) as string[] | undefined) ?? [],
+    remember: (downloaded) => writes.add('the providers with a downloaded CLI copy', setStateValue(db, 'cli.downloaded', downloaded)),
+  })
 
 const secrets = accountsService.wireSecrets(context)
 

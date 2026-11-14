@@ -15,7 +15,7 @@ Each agent's sessions run either on the CLI you installed or on Even Keel's own 
 
 **CLI version → Yours**, the default, uses the CLI you manage; nothing is downloaded.
 
-**Checked** runs sessions on Even Keel's own copy of the version it was checked against: choosing it in the setup or in settings (the log's entry of an unchecked version opens them) asks for consent with the version and approximate size, and the chain waits for the copy.
+**Checked** runs sessions on Even Keel's own copy of the version it was checked against: choosing it in the setup or in settings (the log's entry of an unchecked version opens them) asks for consent with the version and approximate size, and the chain waits for the copy. Consent is asked once per provider: once a copy has been downloaded, a newer checked version (after an Even Keel update) downloads by itself while the provider stays on Checked, and the chain waits only for the download.
 
 In settings the CLI version is saved with the rest of the form, Execution included, and the consent comes after the save.
 
