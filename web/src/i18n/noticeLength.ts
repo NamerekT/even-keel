@@ -8,6 +8,13 @@ import { noticesRu } from './notices-ru.js'
 export const NOTICE_LIMITS = { en: 200, ru: 220 } as const
 export type NoticeLanguage = keyof typeof NOTICE_LIMITS
 
+/**
+ * The longest the title of a paused chain's toast may be after its subject (BTN-1149), counted as the page shows it,
+ * values and all: what happened, in a line. The causes and the thing to do go under it, within `NOTICE_LIMITS`
+ * (`web/src/layout/eventToast.test.ts` measures both on sample entries). Any other entry's title is its code's own text.
+ */
+export const TOAST_TITLE_LIMITS = { en: 80, ru: 90 } as const
+
 // Any parameter: prints as "1", counts as 1, iterates once, and any field or call of it is itself.
 const stub: unknown = new Proxy(() => {}, {
   get: (_, key) =>

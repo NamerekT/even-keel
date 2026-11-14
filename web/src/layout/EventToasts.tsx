@@ -7,6 +7,7 @@ import { useLive } from '../live/context.js'
 import { Toast, ToastList, useToastTimer } from '../ui/Toast.js'
 import { freshAlerts, lastId, placePath, useFirstReadMark, withFresh } from './eventLog.js'
 import { EventTitle } from './EventSubject.js'
+import { toastOf } from './eventToast.js'
 
 /**
  * How long a toast stays while the page is in sight and nothing holds it: a hidden tab stops it, and coming back
@@ -41,13 +42,14 @@ function EventToast({ entry, state, onClose }: { entry: EventEntry; state: EvenK
   const navigate = useNavigate()
   const timer = useToastTimer(TOAST_MS, onClose)
   const path = placePath(entry.place, state)
+  const text = toastOf(entry)
   const open = path === null ? [] : [{ label: t.events.open, onClick: () => (onClose(), navigate(path)) }]
   return (
     <Toast
       source="Even Keel"
       icon="/favicon.svg"
-      title={<EventTitle entry={entry} state={state} />}
-      body={t.events.hints[entry.notice.code]}
+      title={<EventTitle text={text} state={state} />}
+      body={text.body}
       actions={[...open, { label: t.events.close, onClick: onClose }]}
       timer={timer}
     />

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { binaryPath, findBinary, isInside, pathKey, relativeUnder, samePath, spelledUnder, workingFolder } from './paths.js'
+import { binaryPath, findBinary, isInside, pathKey, relativeUnder, samePath, spelledUnder, workingFolder, writtenUnder } from './paths.js'
 
 describe('a folder behind a link', () => {
   let root: string
@@ -55,6 +55,19 @@ describe('relativeUnder', () => {
   it('keeps case on Linux', () => {
     expect(relativeUnder('/srv/repo/.claude/worktrees/abc-1', '/srv/repo', 'linux')).toBe('.claude/worktrees/abc-1')
     expect(relativeUnder('/srv/Repo/abc-1', '/srv/repo', 'linux')).toBeNull()
+  })
+})
+
+describe('writtenUnder', () => {
+  it('gives the path as written under the folder, with forward slashes', () => {
+    expect(writtenUnder('d:\\Projects\\repo\\.temp\\note-link\\pull.md', 'D:/Projects/repo', 'win32')).toBe('.temp/note-link/pull.md')
+    expect(writtenUnder('/srv/repo/.temp/../.temp/pull.md', '/srv/repo', 'linux')).toBe('.temp/pull.md')
+  })
+
+  it('gives null for the folder itself and for a path written outside it', () => {
+    expect(writtenUnder('D:\\Projects\\repo', 'D:\\Projects\\repo', 'win32')).toBeNull()
+    expect(writtenUnder('D:\\Projects\\repo\\..\\other\\pull.md', 'D:\\Projects\\repo', 'win32')).toBeNull()
+    expect(writtenUnder('/srv/Repo/pull.md', '/srv/repo', 'linux')).toBeNull()
   })
 })
 

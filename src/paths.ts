@@ -64,6 +64,18 @@ export function relativeUnder(path: string, folder: string, platform: NodeJS.Pla
   return inner.slice(outer.length + 1).split(paths.sep).join('/')
 }
 
+/**
+ * `relativeUnder` by the paths as they are written, links not followed: for a path a person reads, where a link out of
+ * the folder is still named by its place in it. `null` — the folder itself or a path not written under it.
+ */
+export function writtenUnder(path: string, folder: string, platform: NodeJS.Platform = process.platform): string | null {
+  const paths = pathsOf(platform)
+  const inner = paths.resolve(path)
+  const outer = paths.resolve(folder)
+  if (!foldCase(inner, platform).startsWith(`${foldCase(outer, platform)}${paths.sep}`)) return null
+  return inner.slice(outer.length + 1).split(paths.sep).join('/')
+}
+
 export function samePath(a: string, b: string, platform: NodeJS.Platform = process.platform): boolean {
   return pathKey(a, platform) === pathKey(b, platform)
 }

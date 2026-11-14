@@ -43,6 +43,7 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 - Background commands of a session stopped under load: 123 — the loaded machine only, no task yet (an idle one was run in BTN-936).
 - A built-in task's edit saved as the tab closes: 144 (a description over 60 000 bytes, a phone) — has no task yet.
 - Subtasks on an outside tracker's card: 163 — has no task yet, one run over the benches.
+- A paused chain's toast and band on a real pause: 164 — in passing, no task yet.
 - The theme on a phone and in the installed page: 152 — Safari on iOS and a background change of the device's theme, no task yet (Android seen 2026-11-14).
 - The automatic copies of the state database: 149 — BTN-1084.
 - A restart of the service watched through `/api/state` and two pages: 1c and 1d (runs 2026-11-02, 2026-11-07 and 2026-11-09, then a launch on a kept snapshot half a second before the first poll and a task held on a spent week's kept snapshot; what is left needs a kept snapshot a reset made stale, due right at the restart, or a slow or failed first poll with no kept snapshot).
@@ -240,3 +241,4 @@ The rows are checked in batches, one manual "Проверка" task each (sorted
 | 101 | [The tracker contract night and the release it holds](unverified/ci.md#the-tracker-contract-night-and-the-release-it-holds-btn-470) | the maintainer's releases | a night red for the network holds a release for nothing, or a red night lets one out; run `sh scripts/nights-green.sh` before a release |
 | 161 | [Pinned actions and Dependabot](unverified/ci.md#pinned-actions-and-dependabot-btn-1132) | this repository's GitHub workflows and maintainers after the configuration reaches `main` | an action fails to load or pins stop receiving update PRs; review upstream releases and update SHAs manually on `dev` |
 | 163 | [Subtasks on any tracker's card](unverified/trackers.md#subtasks-on-any-trackers-card-btn-1152) | everyone who opens a parent task's card on Huly, GitHub, GitLab, Jira or Linear | the card shows no subtasks or only the open ones; open the parent in its tracker |
+| 164 | [A paused chain's toast and band in two lines](unverified/page.md#a-paused-chains-toast-and-band-in-two-lines-btn-1149) | everyone whose chain pauses on an error while the page is open | the toast or the band names the wrong cause, a second advice or no path; read the pause on the project page and on `/log` |

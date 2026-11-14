@@ -1,6 +1,6 @@
 import type { EventDraft, EventEntry } from '../../../src/event-log/model.js'
 import { observe, watchedOf } from '../../../src/event-log/watch.js'
-import { notice } from '../../../src/notice/notice.js'
+import { notice, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 
 /** `?event=` comes this long after the first state, so the page sees it come and shows its toast (`EventToasts`). */
@@ -62,7 +62,14 @@ export function fakeEventLog(projects: string[]): EventEntry[] {
   return drafts.map(([minutes, draft], index) => ({ id: String(index + 1), at: ago(minutes).toISOString(), ...draft }))
 }
 
-/** The state after the event `?event=limit|red|ciRed|redBoth|ask|conflict|work` names; the first chain, CI, session and project get it. */
+/** A chain's pause on a pull request description that lies outside the task folder, as the service holds it (BTN-1149). */
+export function refusedNoteError(task: string): Notice {
+  const full = `D:\\work\\abc\\.claude\\worktrees\\${task.toLowerCase()}\\.temp\\note-link\\pull.md`
+  const cause = notice('review.noNote', { path: '.temp/note-link/pull.md', reason: 'outside', limit: 65_536, full })
+  return notice('review.notOpened', { task }, { cause })
+}
+
+/** The state after the event `?event=limit|red|ciRed|redBoth|noNote|ask|conflict|work` names; the first chain, CI, session and project get it. */
 function changedBy(state: EvenKeelState, event: string): EvenKeelState {
   const [first, second] = state.projects
   if (event === 'limit') {
@@ -87,6 +94,13 @@ function changedBy(state: EvenKeelState, event: string): EvenKeelState {
       return { ...each, counted, current: { ...each.current, commit, runs } }
     })
     return { ...state, config, ci: { ...state.ci, [project]: changed } }
+  }
+  if (event === 'noNote') {
+    const active = state.chain.active[0]
+    const task = active?.current?.task
+    if (active === undefined || task === undefined) return state
+    const held = { ...active, paused: true, error: refusedNoteError(task) }
+    return { ...state, chain: { ...state.chain, active: [held, ...state.chain.active.slice(1)] } }
   }
   if (event === 'ask') {
     const at = state.sessions.findIndex((session) => !session.asking)

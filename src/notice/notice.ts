@@ -1,10 +1,13 @@
 import { en } from './en.js'
+import { ADVICE } from './en-advice.js'
 
 // A message the server shows on the page: a code the page translates, its values, and text from git or
 // the CLI that stays as it is. The log and the English page read it through `en`.
 export type NoticeCode = keyof typeof en
 export type NoticeParams<K extends NoticeCode> = Parameters<(typeof en)[K]> extends [infer P] ? P : Record<string, never>
 export type NoticeTexts = { [K in NoticeCode]: (params: NoticeParams<K>) => string }
+/** What to do about a code, apart from its text; `undefined` where these values need none (`en-advice.ts`). */
+export type NoticeAdvice = { [K in NoticeCode]?: (params: NoticeParams<K>) => string | undefined }
 
 export interface NoticeExtras {
   detail?: string
@@ -78,17 +81,61 @@ export function asNotice(value: unknown): Notice {
   return textNotice(JSON.stringify(value))
 }
 
-export function renderNotice(notice: Notice, texts: NoticeTexts): string {
+function ownText(notice: Notice, texts: NoticeTexts): string {
   const render = Object.hasOwn(texts, notice.code) ? (texts[notice.code] as (params: unknown) => string) : undefined
-  let text = render === undefined ? notice.code : render(notice.params)
-  if (notice.cause !== undefined) text = joined(text, renderNotice(notice.cause, texts))
-  if (notice.items !== undefined && notice.items.length > 0) text = `${text}:\n${notice.items.map((item) => renderNotice(item, texts)).join('\n')}`
-  const detail = notice.detail?.replace(/^\s*\n/, '').trimEnd() ?? ''
+  return render === undefined ? notice.code : render(notice.params)
+}
+
+function ownAdvice(notice: Notice, advice: NoticeAdvice): string | undefined {
+  const give = Object.hasOwn(advice, notice.code) ? (advice[notice.code] as (params: unknown) => string | undefined) : undefined
+  return give?.(notice.params)
+}
+
+function cleanDetail(notice: Notice): string {
+  return notice.detail?.replace(/^\s*\n/, '').trimEnd() ?? ''
+}
+
+/** The one advice of a message: of the deepest notice of its chain of causes that has one (BTN-1149). */
+export function noticeAdvice(notice: Notice, advice: NoticeAdvice): string | undefined {
+  return (notice.cause === undefined ? undefined : noticeAdvice(notice.cause, advice)) ?? ownAdvice(notice, advice)
+}
+
+/**
+ * A message as one line, for the log and a row of the page: the texts of the chain of causes after colons, with its one
+ * advice (`noticeAdvice`) next to the notice that gives it — in brackets before its cause, after a semicolon without one.
+ * Without `advice` it says only what happened.
+ */
+export function renderNotice(notice: Notice, texts: NoticeTexts, advice: NoticeAdvice = {}): string {
+  let text = ownText(notice, texts)
+  const own = notice.cause !== undefined && noticeAdvice(notice.cause, advice) !== undefined ? undefined : ownAdvice(notice, advice)
+  if (own !== undefined) text = notice.cause === undefined ? `${text}; ${own}` : `${text} (${own})`
+  if (notice.cause !== undefined) text = joined(text, renderNotice(notice.cause, texts, advice))
+  if (notice.items !== undefined && notice.items.length > 0) text = `${text}:\n${notice.items.map((item) => renderNotice(item, texts, advice)).join('\n')}`
+  const detail = cleanDetail(notice)
   return detail === '' ? text : joined(text, detail)
 }
 
+/** A message in parts, for a toast and a band (BTN-1149): what happened, what is under it, and the one thing to do. */
+export interface NoticeParts {
+  head: string
+  /** The causes after colons, then the items and the detail, each on its own lines. */
+  reason?: string
+  advice?: string
+}
+
+export function noticeParts(notice: Notice, texts: NoticeTexts, advice: NoticeAdvice): NoticeParts {
+  const detail = cleanDetail(notice)
+  const under = [
+    ...(notice.cause === undefined ? [] : [renderNotice(notice.cause, texts, {})]),
+    ...(notice.items ?? []).map((item) => renderNotice(item, texts, advice)),
+    ...(detail === '' ? [] : [detail]),
+  ]
+  const tip = noticeAdvice(notice, advice)
+  return { head: ownText(notice, texts), ...(under.length > 0 && { reason: under.join('\n') }), ...(tip !== undefined && { advice: tip }) }
+}
+
 export function englishOf(notice: Notice): string {
-  return renderNotice(notice, en)
+  return renderNotice(notice, en, ADVICE)
 }
 
 /**

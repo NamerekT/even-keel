@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { englishOf, notice, renderNotice, type Notice } from '../../../src/notice/notice.js'
+import { englishOf, notice, noticeParts, renderNotice, type Notice } from '../../../src/notice/notice.js'
 import { noticesEn } from './notices-en.js'
 import { noticesRu } from './notices-ru.js'
+import { adviceRu } from './notices-advice-ru.js'
+import { ADVICE } from '../../../src/notice/en-advice.js'
 
-const page = (shown: Notice) => renderNotice(shown, noticesEn)
+const page = (shown: Notice) => renderNotice(shown, noticesEn, ADVICE)
+const russian = (shown: Notice) => renderNotice(shown, noticesRu, adviceRu)
 
 describe('noticesEn', () => {
   it("drops the log's area prefix", () => {
@@ -31,18 +34,42 @@ describe('noticesEn', () => {
     const refused = notice('review.noNote', { path: '.temp/pull.md', reason: 'tooLarge', limit: 65_536 })
     expect(page(refused)).toContain('65536 bytes')
     expect(page(refused)).toContain('press Resume')
-    expect(renderNotice(refused, noticesRu)).toContain('65536 байт')
-    expect(renderNotice(refused, noticesRu)).toContain('«Снять с паузы»')
+    expect(russian(refused)).toContain('65536 байт')
+    expect(russian(refused)).toContain('«Снять с паузы»')
     expect(page(notice('review.noNote', { path: 'old.md' }))).toBe('the session left no pull request description at old.md')
   })
 
   it('does not tell to fix access when the pause is on a refused PR note, in both languages (BTN-1148)', () => {
     const cause = notice('review.noNote', { path: '.env.local', reason: 'secret', limit: 65_536 })
-    const paused = notice('review.notOpened', { task: 'ABC-1', note: true }, { cause })
+    const paused = notice('review.notOpened', { task: 'ABC-1' }, { cause })
     expect(page(paused)).toMatch(/^the pull request of ABC-1 was not opened: PR description \.env\.local refused: /)
     expect(page(paused)).not.toContain('access')
-    expect(renderNotice(paused, noticesRu)).toMatch(/^pull request задачи ABC-1 не открыт: описание PR \.env\.local отклонено: /)
-    expect(renderNotice(paused, noticesRu)).not.toContain('доступ')
+    expect(russian(paused)).toMatch(/^pull request задачи ABC-1 не открыт: описание PR \.env\.local отклонено: /)
+    expect(russian(paused)).not.toContain('доступ')
     expect(page(notice('review.notOpened', { task: 'ABC-1' }))).toContain('fix access')
+  })
+
+  it('gives a chain of causes one advice, the deepest notice’s, and the wrapper’s only above a cause without one (BTN-1149)', () => {
+    const refused = notice('review.noNote', { path: '.temp/pull.md', reason: 'outside', limit: 65_536 })
+    const paused = notice('review.notOpened', { task: 'ABC-1' }, { cause: refused })
+    expect(page(paused)).toBe(
+      'the pull request of ABC-1 was not opened: PR description .temp/pull.md refused: the file is outside the task folder; write a safe note in the task folder, mark again and press Resume',
+    )
+    expect(page(paused).match(/Resume/g)).toHaveLength(1)
+    expect(russian(paused).match(/Снять с паузы/g)).toHaveLength(1)
+    const denied = notice('review.notOpened', { task: 'ABC-1' }, { cause: notice('review.denied', { ci: 'GitHub', status: 403 }) })
+    expect(page(denied)).toBe(
+      'the pull request of ABC-1 was not opened (fix access and press Resume, answer its session from the chat, or skip the task): GitHub: the token was refused (HTTP 403); it needs to write pull requests of the repository',
+    )
+    expect(noticeParts(paused, noticesEn, ADVICE)).toEqual({
+      head: 'the pull request of ABC-1 was not opened',
+      reason: 'PR description .temp/pull.md refused: the file is outside the task folder',
+      advice: 'write a safe note in the task folder, mark again and press Resume',
+    })
+    expect(noticeParts(notice('chain.noSession', { task: 'ABC-1' }), noticesEn, ADVICE)).toEqual({ head: 'no session of ABC-1 is known' })
+  })
+
+  it('has the advice of the same codes in both languages', () => {
+    expect(Object.keys(adviceRu).sort()).toEqual(Object.keys(ADVICE).sort())
   })
 })

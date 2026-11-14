@@ -13,6 +13,7 @@ import { demoEn } from './demo-en.js'
 import { creationEn } from './creation-en.js'
 import { transferEn } from './transfer-en.js'
 import { noticesEn } from './notices-en.js'
+import { ADVICE } from '../../../src/notice/en-advice.js'
 import { eventsEn } from './events-en.js'
 import { hotkeysEn } from './hotkeys-en.js'
 import { plural } from './plural.js'
@@ -29,6 +30,7 @@ const PLACE_LABELS: Record<string, string> = { github: 'Repository on GitHub', g
 
 export const en: Messages = {
   notice: noticesEn,
+  advice: ADVICE,
   common: {
     close: 'Close',
     retry: 'Retry',

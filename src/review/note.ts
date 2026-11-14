@@ -3,7 +3,7 @@ import { isAbsolute, relative, sep } from 'node:path'
 import type { Stats } from 'node:fs'
 import type { NoteRefusal } from '../notice/en-review.js'
 import { fail, NoticeError } from '../notice/notice.js'
-import { isInside } from '../paths.js'
+import { isInside, writtenUnder } from '../paths.js'
 
 const NOTE_LIMIT = 64 * 1024
 
@@ -13,9 +13,15 @@ function secret(path: string): boolean {
   return parts.includes('.git') || ((name === '.env' || name.startsWith('.env.')) && name !== '.env.example')
 }
 
+/** The refusal of a PR description: its path as written under the task folder for the page, the whole one beside it (BTN-1149). */
+export function refusedNote(folder: string, path: string, reason: NoteRefusal): NoticeError {
+  const short = writtenUnder(path, folder)
+  return fail('review.noNote', { path: short ?? path, reason, limit: NOTE_LIMIT, ...(short !== null && { full: path }) })
+}
+
 /** Read a PR description only from the task folder, resolving links and bounding even a file that grows. */
 export async function readPullNote(folder: string, path: string): Promise<string> {
-  const refused = (reason: NoteRefusal) => fail('review.noNote', { path, reason, limit: NOTE_LIMIT })
+  const refused = (reason: NoteRefusal) => refusedNote(folder, path, reason)
   const check = (info: Stats) => {
     if (!info.isFile()) throw refused('notFile')
     if (info.size > NOTE_LIMIT) throw refused('tooLarge')

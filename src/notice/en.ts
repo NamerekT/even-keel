@@ -82,9 +82,9 @@ export const en = {
   'chain.fixReportMissing': (p: { task: string }) => `chain: the report of ${p.task} is gone, so a new session cannot be told what to fix; check main and resume`,
   'chain.interrupted':(p: { task: string }) => `chain: launch of ${p.task} was interrupted by a restart; check its session, then resume`,
   'chain.unchangedNotChecked': (p: { task: string }) =>
-    `chain: the session of ${p.task} marked it as needing no change, but its folder could not be checked (answer its session from the chat, or skip the task)`,
+    `chain: the session of ${p.task} marked it as needing no change, but its folder could not be checked`,
   'chain.unchangedNotCompleted': (p: { task: string }) =>
-    `chain: ${p.task} needs no change and its branch has nothing to merge, but it was not moved to done in the tracker (move it there yourself and resume the chain, or skip the task)`,
+    `chain: ${p.task} needs no change and its branch has nothing to merge, but it was not moved to done in the tracker`,
   'accept.asking': (p: { task: string }) =>
     `${p.task} was not closed: its session waits on a question. Answer it in the chat; Accept as answer is for a turn that ended without one.`,
   'accept.closed': (p: { task: string }) => `${p.task} is already done; its answer went on it as a comment.`,

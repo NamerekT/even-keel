@@ -1,10 +1,10 @@
 import { Link } from 'react-router'
-import type { EventEntry } from '../../../src/event-log/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { projectLabel } from '../state.js'
-import { Said } from '../ui/ProjectLinks.js'
+import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { placePath } from './eventLog.js'
-import { subjectOf, type EventSubject as Subject } from './eventLogFilter.js'
+import type { EventSubject as Subject } from './eventLogFilter.js'
+import type { ToastText } from './eventToast.js'
 
 type Known = Pick<EvenKeelState, 'ci' | 'projects' | 'projectLabels'>
 
@@ -21,13 +21,12 @@ export function EventSubject({ subject, state }: { subject: Subject; state: Know
   return path === null ? name : <Link to={path} className="project-link">{name}</Link>
 }
 
-/** An entry's text as it reads alone, in a toast: its subject first, then the text the log shows next to it. */
-export function EventTitle({ entry, state }: { entry: EventEntry; state: Known }) {
-  const subject = subjectOf(entry)
-  if (subject === null) return <Said notice={entry.notice} />
+/** A toast's title (`toastOf`): the subject first, since a toast reads alone, then what happened. */
+export function EventTitle({ text, state }: { text: Pick<ToastText, 'subject' | 'title'>; state: Known }) {
+  if (text.subject === null) return <ProjectLinks text={text.title} />
   return (
     <>
-      <EventSubject subject={subject} state={state} />: <Said notice={entry.notice} />
+      <EventSubject subject={text.subject} state={state} />: <ProjectLinks text={text.title} />
     </>
   )
 }

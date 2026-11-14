@@ -167,7 +167,7 @@ describe('Dispatcher in PR mode', () => {
 
     expect(dispatcher.state.active[0]).toMatchObject({
       paused: true,
-      error: { code: 'review.notOpened', params: { task: 'ABC-1', note: true }, cause: { code: 'review.noNote' } },
+      error: { code: 'review.notOpened', params: { task: 'ABC-1' }, cause: { code: 'review.noNote' } },
     })
   })
 

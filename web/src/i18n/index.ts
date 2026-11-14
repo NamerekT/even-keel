@@ -1,5 +1,5 @@
 import { isLanguage, type Language } from '../../../src/language.js'
-import { renderNotice, withLabels, type Notice } from '../../../src/notice/notice.js'
+import { noticeParts, renderNotice, withLabels, type Notice, type NoticeTexts } from '../../../src/notice/notice.js'
 import { en } from './en.js'
 import { fieldsEn, type FieldTexts } from './fields-en.js'
 import { fieldsRu } from './fields-ru.js'
@@ -59,14 +59,43 @@ export function say(notice: Notice): string {
 
 // The same, its projects still by their ids, for `ProjectLinks` to make links of them (BTN-319).
 export function sayIds(notice: Notice): string {
-  return renderNotice(namedAccounts(notice), {
+  return renderNotice(namedAccounts(notice), pageTexts(), t.advice)
+}
+
+function pageTexts(): NoticeTexts {
+  return {
     ...t.notice,
     'chain.limitSpent': (p) => t.notice['chain.limitSpent']({
       ...p,
       until: localMoment(p.until, new Date(), language),
       provider: p.provider === undefined ? undefined : (t.account.agents as Record<string, string>)[p.provider] ?? p.provider,
     }),
-  })
+  }
+}
+
+/** A server message as a toast and a band show it (BTN-1149), its projects by their ids as in `sayIds`. */
+export interface SaidLines {
+  /** What happened, as the text has it: it may go after a subject, so its first letter is the text's own. */
+  head: string
+  /** The line under it, in whole sentences: the causes, then the one thing to do; `null` when the message is its head alone. */
+  under: string | null
+}
+
+export function sayLines(notice: Notice): SaidLines {
+  const { head, reason, advice } = noticeParts(namedAccounts(notice), pageTexts(), t.advice)
+  const under = [reason, advice].filter((each) => each !== undefined).map(sentence).join(' ')
+  return { head, under: under === '' ? null : under }
+}
+
+/** A text of `sayIds` or `sayLines` with its projects by their labels, where it cannot hold links. */
+export function labelled(text: string): string {
+  return withLabels(text, labels)
+}
+
+/** A text that reads after a colon, as a sentence of its own: a capital first, a full stop last unless it ends in lines of output. */
+export function sentence(text: string): string {
+  const capital = text.charAt(0).toLocaleUpperCase(language) + text.slice(1)
+  return /[.!?…:]$/.test(capital) || capital.includes('\n') ? capital : `${capital}.`
 }
 
 const FIELDS: Record<Language, FieldTexts> = { en: fieldsEn, ru: fieldsRu }

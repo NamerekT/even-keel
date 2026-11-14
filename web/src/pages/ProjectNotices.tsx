@@ -12,7 +12,7 @@ import { openTab, projectScope, SETTINGS_HASH, sourceScope } from './settingsSto
 import { useCommand } from '../live/useCommand.js'
 import { activeChain, chainStatus, projectLabel, projectPath } from '../state.js'
 import { Band, FoldBand } from '../ui/blocks.js'
-import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
+import { ProjectLinks, Said, SaidLines } from '../ui/ProjectLinks.js'
 import { BranchDriftBand } from './BranchField.js'
 import { GitFoundBand } from './GitFoundBand.js'
 import { gitFoundNotice } from './gitFound.js'
@@ -72,7 +72,7 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
               <NoticeButtons stamps={{ [errorMark(error.code, project)]: JSON.stringify(error) }} small />
             </>
           }>
-            <Said notice={error} />
+            <SaidLines notice={error} />
             <UntrustedCommands notice={error} />
           </Band>
       }))} />

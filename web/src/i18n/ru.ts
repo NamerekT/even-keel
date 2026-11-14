@@ -15,6 +15,8 @@ import { transferRu } from './transfer-ru.js'
 import type { UpdateBlock, UpdateStep } from '../../../src/updates/model.js'
 import type { ContextResets } from '../state.js'
 import { noticesRu } from './notices-ru.js'
+import { adviceRu } from './notices-advice-ru.js'
+import type { NoticeAdvice } from '../../../src/notice/notice.js'
 import { eventsRu } from './events-ru.js'
 import { hotkeysRu } from './hotkeys-ru.js'
 import { plural } from './plural.js'
@@ -34,6 +36,7 @@ const PLACE_LABELS: Record<string, string> = { github: 'Репозиторий �
 
 export const ru = {
   notice: noticesRu,
+  advice: adviceRu as NoticeAdvice,
   common: {
     close: 'Закрыть',
     retry: 'Повторить',

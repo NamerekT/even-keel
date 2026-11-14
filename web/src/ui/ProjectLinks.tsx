@@ -1,6 +1,7 @@
 import { Link, useMatch } from 'react-router'
 import type { Notice } from '../../../src/notice/notice.js'
-import { sayIds } from '../i18n/index.js'
+import { sayIds, sayLines, sentence } from '../i18n/index.js'
+import { Tipped } from './Tipped.js'
 import { useLive } from '../live/context.js'
 import { projectLabel, projectOfPath, projectPath } from '../state.js'
 import { piecesOf } from './projectPieces.js'
@@ -31,4 +32,26 @@ export function ProjectLinks({ text }: { text: string }) {
 /** A server message in the page's language, its projects as links (`ProjectLinks`). */
 export function Said({ notice }: { notice: Notice }) {
   return <ProjectLinks text={sayIds(notice)} />
+}
+
+/**
+ * A server message as an error band shows it (BTN-1149, `sayLines`): what happened, and smaller under it the causes and
+ * the one thing to do; a message that is its text alone stays `Said`. A path the text shortens is whole in the line's tip.
+ */
+export function SaidLines({ notice }: { notice: Notice }) {
+  const { head, under } = sayLines(notice)
+  if (under === null) return <Said notice={notice} />
+  const full = fullPathOf(notice)
+  return (
+    <>
+      <strong className="said__head"><ProjectLinks text={sentence(head).replace(/\.$/, '')} /></strong>
+      <Tipped tip={full ?? ''} off={full === null} inline className="said__under"><ProjectLinks text={under} /></Tipped>
+    </>
+  )
+}
+
+function fullPathOf(notice: Notice): string | null {
+  const full = (notice.params as { full?: unknown }).full
+  if (typeof full === 'string') return full
+  return notice.cause === undefined ? null : fullPathOf(notice.cause)
 }

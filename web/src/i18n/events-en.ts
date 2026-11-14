@@ -8,7 +8,14 @@ export const eventsEn = {
     'eventLog.conflict': 'Merge it by hand or press “Resolve with the agent” on the project’s page.',
     'eventLog.uncommitted': 'The task left the chain; its work is still in its folder.',
     'eventLog.unmerged': 'The task left the chain; its work is still in its folder.',
-    'eventLog.chainHeld': 'Open the project to see why and to go on.',
+    'eventLog.chainHeld': 'Open the project to go on.',
+  } as Partial<Record<string, string>>,
+  /** A paused chain's toast title by the code of its error, read after the task: shorter than the error's own text, which names the task again. */
+  titles: {
+    'review.notOpened': 'pull request not opened',
+    'review.notCompleted': 'not moved to done in the tracker',
+    'chain.unchangedNotChecked': 'its folder could not be checked',
+    'chain.unchangedNotCompleted': 'not moved to done in the tracker',
   } as Partial<Record<string, string>>,
   open: 'Open',
   close: 'Close',

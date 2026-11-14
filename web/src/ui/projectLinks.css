@@ -11,6 +11,11 @@
   text-underline-offset: 2px;
 }
 
+.said__head {
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
 .project-link:hover {
   text-decoration-color: currentColor;
 }
