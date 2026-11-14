@@ -237,14 +237,14 @@ If wrong, a session that ignores the prompt runs git in a folder that is a repos
 
 ## Even Keel's address refused (BTN-1127)
 
-The Protection group `ownAddress` makes the `agent-bridge` hook refuse a shell command that sends a request to Even Keel's own address (`docs/sessions/protection.md`, "Even Keel's address"). Covered by unit tests of the command parsing (`plugins/agent-bridge/hooks/addressban.test.mjs`), of the group (`src/sessions/protection.test.ts`) and of the hook process and OpenCode's plugin against a fake Even Keel (`hooks.test.mjs`); no real agent was run. Assumed:
+The Protection group `ownAddress` makes the `agent-bridge` hook refuse a shell command that sends a request to Even Keel's own address (`docs/sessions/protection.md`, "Even Keel's address"). Covered by unit tests of the command parsing (`plugins/agent-bridge/hooks/addressban.test.mjs`), of the group (`src/sessions/protection.test.ts`) and of the hook process and OpenCode's plugin against a fake Even Keel (`hooks.test.mjs`). On Claude Code (2026-11-15, [verified](../verified/sessions.md)) a chain session's `curl`, `powershell … Invoke-WebRequest` and `node -e "fetch(…)"` of `/api/state` through the Bash tool were refused with the group's text, which reached the model, and with the group off in the shared Protection a new session got the answers. Not run: Codex, OpenCode and Copilot; Claude's PowerShell tool; the group off in a project's own Protection. Assumed:
 
 - a chain session's hook process has the service's `EVEN_KEEL_URL`, and a Claude `--bg` daemon started before a port change keeps the old one (entry 100);
 - the hook runs on the shell tools of every agent as the git ban does (entry 141), and the denial reaches the model as the reason;
 - a task that needs the service (`npm run shot -- --url`, a live check through `curl`) is rare enough to turn the group off for its project;
 - the session's `agent-bridge` package is 1.2.0 or later — an older one has no such check.
 
-If wrong, a session under someone else's text changes Protection, answers a question or creates a task in another project with a plain `curl`, or a task that needs the API keeps being refused. **Check:** a project with the group on; a task that asks for `curl` of `/api/state`, `Invoke-WebRequest` of the same and `node -e "fetch(…)"` on Claude Code, then on Codex, OpenCode and Copilot; each is refused with the text naming the group; with the group off in the project, a new session gets the answer. **Workaround:** turn the group off in the project's Protection; for isolation give the service its own OS account.
+If wrong, a session under someone else's text changes Protection, answers a question or creates a task in another project with a plain `curl`, or a task that needs the API keeps being refused. **Check:** a project with the group on; a task that asks for `curl` of `/api/state`, `Invoke-WebRequest` of the same and `node -e "fetch(…)"` on Codex, OpenCode and Copilot; each is refused with the text naming the group; with the group off in the project, a new session gets the answer. **Workaround:** turn the group off in the project's Protection; for isolation give the service its own OS account.
 
 ## A stop that does not lose the mark in a project without git (BTN-1044)
 
