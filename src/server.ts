@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { cloudConnectionOf } from './account/cloud.js'
 import type { BadgeSettings } from './badge/model.js'
-import { BUILTIN_QUERIES, BUILTIN_UPLOAD, builtinUpload } from './builtin/routes.js'
+import { BUILTIN_BODY_LIMITS, BUILTIN_QUERIES, BUILTIN_UPLOAD, builtinUpload } from './builtin/routes.js'
 import { checkReportOf } from './chain/checkreports.js'
 import { statusMovesOf } from './chain/moves.js'
 import { CLAUDE } from './claude/name.js'
@@ -180,7 +180,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
 const MAX_BODY_BYTES = 64 * 1024
 /** An answer carries its files in base64. */
 const MAX_ANSWER_BYTES = 64 * 1024 * 1024
-const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES }
+const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES, ...BUILTIN_BODY_LIMITS }
 
 export function createEvenKeelServer(deps: ServerDeps): Server {
   return guardedServer(deps.guard, (request, response) => route(deps, request, response))
@@ -515,7 +515,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   if (query !== undefined) {
     let result: unknown
     try {
-      result = await query(deps, await readJsonBody(request, MAX_BODY_BYTES), request)
+      result = await query(deps, await readJsonBody(request, BODY_LIMITS[path] ?? MAX_BODY_BYTES), request)
     } catch (error) {
       sendFailure(response, error)
       return

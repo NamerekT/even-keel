@@ -1,4 +1,4 @@
-import { AGENT_NAMES, FORGES, megabytes, MODELS_NAMED, PROVIDER_NAMES, whose, type BuiltinField, type ContinuedWhy, type GitStep, type HandoffWhy, type LoggedPackageProblem } from '../../../src/notice/en.js'
+import { AGENT_NAMES, FORGES, megabytes, MODELS_NAMED, PROVIDER_NAMES, sizeShown, whose, type BuiltinField, type ContinuedWhy, type GitStep, type HandoffWhy, type LoggedPackageProblem } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
@@ -454,7 +454,8 @@ export const noticesRu: NoticeTexts = {
   'prompt.empty': (p) =>
     `промт: в промт сессии нечего подставить после «${p.before}» (пришло ${p.value}) — проверьте задачу в трекере и настройки проекта и снимите с паузы`,
 
-  'request.tooLarge': () => 'тело запроса слишком большое',
+  'request.tooLarge': (p) =>
+    `запрос больше ${sizeShown(p.limit, { kb: 'КБ', mb: 'МБ' })} — предела этого действия: сократите текст или вынесите часть его в приложенный файл`,
   'request.notJson': () => 'тело запроса — не JSON',
   'request.notObject': () => 'тело запроса должно быть объектом',
   'request.required': (p) => `нужно поле ${p.field}`,

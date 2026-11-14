@@ -2,9 +2,9 @@ import type { RelayCause } from '../chain/model.js'
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 import { STARTUP_NOTICES } from './en-startup.js'
-import { AGENT_NAMES, BUILTIN_FIELDS, FORGES, GIT_STEPS, MODELS_NAMED, MOVE_LABELS, PROVIDER_NAMES, UPDATE_BLOCKS, list, megabytes, whose, type BuiltinField, type ClaudeRecovery, type GitStep, type MoveLevel, type MoveWhen, type ShownPath } from './en-values.js'
+import { AGENT_NAMES, BUILTIN_FIELDS, FORGES, GIT_STEPS, MODELS_NAMED, MOVE_LABELS, PROVIDER_NAMES, UPDATE_BLOCKS, list, megabytes, sizeShown, whose, type BuiltinField, type ClaudeRecovery, type GitStep, type MoveLevel, type MoveWhen, type ShownPath } from './en-values.js'
 
-export { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, megabytes, whose, type BuiltinField, type GitStep, type MoveLevel } from './en-values.js'
+export { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, megabytes, sizeShown, whose, type BuiltinField, type GitStep, type MoveLevel } from './en-values.js'
 
 // The English texts of the server's messages: the log and the English page both read them.
 import { REVIEW_NOTICES } from './en-review.js'
@@ -453,7 +453,8 @@ export const en = {
 
   'prompt.empty': (p: { before: string; value: string }) => `prompt: the session prompt has nothing to put after "${p.before}" (got ${p.value}); check the task in the tracker and the project's settings, then resume`,
 
-  'request.tooLarge': () => 'request body is too large',
+  'request.tooLarge': (p: { limit: number }) =>
+    `the request is larger than ${sizeShown(p.limit, { kb: 'KB', mb: 'MB' })}, the limit of this action: shorten the text or move a part of it into an attached file`,
   'request.notJson': () => 'request body is not JSON',
   'request.notObject': () => 'request body must be an object',
   'request.required': (p: { field: string }) => `${p.field} is required`,

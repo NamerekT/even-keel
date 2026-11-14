@@ -21,6 +21,9 @@ export const megabytes = (bytes: number) => {
   const value = bytes / 1024 / 1024
   return value >= 10 ? String(Math.round(value)) : String(Math.round(value * 10) / 10)
 }
+/** Bytes in whole kilobytes under a megabyte, in megabytes from it; the units are the caller's language. */
+export const sizeShown = (bytes: number, units: { kb: string; mb: string }) =>
+  bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} ${units.kb}` : `${megabytes(bytes)} ${units.mb}`
 /** How many models of an account `chain.unknownModel` names; the rest are counted. */
 export const MODELS_NAMED = 8
 
