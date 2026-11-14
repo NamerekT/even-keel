@@ -67,18 +67,63 @@ export async function resolveVersion(spec: NpxSpec): Promise<string> {
   }
 }
 
-/** `--prefer-offline`: the version is already resolved by `npm view`, so a cached package needs no metadata check. */
-export function installArgs(prefix: string, target: string): string[] {
-  return ['install', '--prefix', prefix, '--no-audit', '--no-fund', '--omit=dev', '--no-save', '--prefer-offline', target]
+/**
+ * `--prefer-offline`: the version is already resolved by `npm view`, so a cached package needs no metadata check.
+ * The prefix keeps `package.json` and `package-lock.json`: the exact tree the server runs, carried by a copy and
+ * compared by Update. Install scripts of the package and its dependencies run only when the package allows them.
+ */
+export function installArgs(prefix: string, target: string, scripts = false): string[] {
+  return ['install', '--prefix', prefix, '--no-audit', '--no-fund', '--omit=dev', '--save-exact', '--prefer-offline', ...(scripts ? [] : ['--ignore-scripts']), target]
 }
 
-/** Installs the version into `prefix` and returns the server that runs it with node. */
-export async function installPinned(entry: ServerEntry, spec: NpxSpec, version: string, prefix: string): Promise<InstalledServer> {
+/** The lock's packages by their path under `node_modules` (`x/ws` for a nested `ws`); `null` — no readable lock. */
+export function lockedVersions(text: string): Record<string, string> | null {
+  let lock: unknown
+  try {
+    lock = JSON.parse(text)
+  } catch {
+    return null
+  }
+  const packages = typeof lock === 'object' && lock !== null ? (lock as { packages?: unknown }).packages : undefined
+  if (typeof packages !== 'object' || packages === null) return null
+  const versions: Record<string, string> = {}
+  for (const [path, entry] of Object.entries(packages as Record<string, unknown>)) {
+    const version = typeof entry === 'object' && entry !== null ? (entry as { version?: unknown }).version : undefined
+    if (path === '' || typeof version !== 'string') continue
+    versions[path.replace(/^node_modules\//, '').split('/node_modules/').join('/')] = version
+  }
+  return versions
+}
+
+/** The lock's file of a server's prefix, `null` when there is none: an install from before locks were kept. */
+export function lockOf(prefix: string): Record<string, string> | null {
+  try {
+    return lockedVersions(readFileSync(join(prefix, 'package-lock.json'), 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+/** The dependencies that changed between two locks, by name: `ws 8.0.0 → 8.1.0`, `fresh +0.1.0`, `old -1.0.0`. */
+export function dependencyChanges(before: Record<string, string>, after: Record<string, string>, own: string): string[] {
+  const names = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((name) => name !== own).sort()
+  return names.flatMap((name) => {
+    const was = before[name]
+    const now = after[name]
+    if (was === now) return []
+    if (was === undefined) return [`${name} +${now}`]
+    if (now === undefined) return [`${name} -${was}`]
+    return [`${name} ${was} → ${now}`]
+  })
+}
+
+/** Installs the version into `prefix` and returns the server that runs it with node; `scripts` — run install scripts. */
+export async function installPinned(entry: ServerEntry, spec: NpxSpec, version: string, prefix: string, scripts = false): Promise<InstalledServer> {
   const target = `${spec.name}@${version}`
   try {
     // A missing working folder makes spawn report the executable itself as ENOENT.
     mkdirSync(prefix, { recursive: true })
-    await npm(installArgs(prefix, target), prefix)
+    await npm(installArgs(prefix, target, scripts), prefix)
   } catch (error) {
     throw fail('packages.npmFailed', { spec: target }, { detail: (error as Error).message }, { cause: error })
   }

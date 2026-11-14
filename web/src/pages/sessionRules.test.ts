@@ -15,6 +15,8 @@ const plugin = (name: string, extras: boolean): PackageView => ({
   default: true,
   settings: {},
   servers: [],
+  unpinned: [],
+  scripts: null,
   extras,
   removed: false,
   builtIn: false,

@@ -141,6 +141,7 @@ const COMMANDS: Record<string, Command> = {
   'packages/import': ({ packages }, body) => packages.importRepo(projectOf(body)),
   'packages/project': ({ packages }, body) => packages.choose(projectOf(body), nameOf(body), choiceOf(body.choice)),
   'packages/default': ({ packages }, body) => packages.setDefault(nameOf(body), flagOf(body)),
+  'packages/scripts': ({ packages }, body) => packages.setScripts(nameOf(body), flagOf(body)),
   'packages/setting': ({ packages }, body) =>
     packages.setSetting(nameOf(body), textOf(body.key, 'key'), body.value === null ? null : textOf(body.value, 'value'), optionalProjectOf(body)),
   'packages/key': ({ packages }, body) => packages.setKey(nameOf(body), textOf(body.value, 'value')),

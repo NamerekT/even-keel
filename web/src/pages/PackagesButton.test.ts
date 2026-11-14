@@ -19,6 +19,8 @@ const pkg = (name: string): PackageView => ({
   default: false,
   settings: {},
   servers: [],
+  unpinned: [],
+  scripts: null,
   extras: false,
   removed: false,
   builtIn: false,

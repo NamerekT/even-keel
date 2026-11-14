@@ -102,6 +102,8 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // v15 → v16: additive OpenCode Protection patterns; omitted fields inherit an empty custom list.
   // v16 → v17: model prompt keys become provider / model patterns.
   // v17 → v18: restamp for optional release reasons and blockers in shelved tasks, and their handover causes.
+  // v38 → v39: a package's optional `scripts` and an install's (BTN-1131); omitted means npm runs no install scripts,
+  // so only the version changes.
   if (packages !== undefined && packages.version < SCHEMA_VERSION) {
     const record = asRecord(packages)
     rewrite(packages, jsonText(stamped(packages.version < 14 ? packageOverrides(record) : record)))

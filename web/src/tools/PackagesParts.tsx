@@ -3,7 +3,7 @@ import type { KeyView, PackageProblem, PackagesView, PackageView } from '../../.
 import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { HelpTip, Inherit } from '../pages/settingsParts.js'
+import { HelpTip, Inherit, Switch } from '../pages/settingsParts.js'
 import { Band } from '../ui/blocks.js'
 import { FoldBody, FoldToggle } from '../ui/Fold.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
@@ -173,7 +173,26 @@ function PackageMeta({ pkg }: { pkg: PackageView }) {
       )}
       {pkg.installing && <span className="packages__busy">{t.packages.installing}</span>}
       {pkg.removed && <span className="packages__version">{t.packages.removed}</span>}
+      {pkg.unpinned.length > 0 && !pkg.installing && (
+        <Tipped className="chip packages__unpinned" tip={t.packages.unpinnedTip(pkg.unpinned.join(', '))} focusable inline>
+          {t.packages.unpinned}
+        </Tipped>
+      )}
     </span>
+  )
+}
+
+/** Whether npm runs the install scripts of the package's servers: off unless the package needs them. */
+export function ScriptsSwitch({ pkg, disabled, onChange }: { pkg: PackageView; disabled: boolean; onChange: (on: boolean) => void }) {
+  if (pkg.scripts === null) return null
+  return (
+    <div className="packages__switch-row">
+      <span className="packages__label">
+        {t.packages.scripts}
+        <HelpTip text={t.packages.scriptsHint} />
+      </span>
+      <Switch checked={pkg.scripts} disabled={disabled} label={t.packages.scriptsLabel(pkg.name)} onChange={onChange} />
+    </div>
   )
 }
 

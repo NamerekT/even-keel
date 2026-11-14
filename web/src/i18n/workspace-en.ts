@@ -102,6 +102,13 @@ export const packagesEN: Messages['packages'] = {
     extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: Claude Code sessions get them all, Codex and GitHub Copilot sessions the skills and hooks, OpenCode sessions the skills and the OpenCode plugins of its `opencode/` folder.',
     servers: (list: string) => `MCP servers: ${list}`,
     noServers: 'No MCP servers',
+    unpinned: 'version not pinned',
+    unpinnedTip: (servers: string) =>
+      `${servers}: the command runs as it is, so each start may fetch a new version, and it gets the project’s keys. Only \`npx -y <package>@<version>\` is pinned: Even Keel installs that version once and runs it from its own folder.`,
+    scripts: 'Install scripts',
+    scriptsHint:
+      'Off: npm installs the package’s servers without install scripts, so no code of the package or its dependencies runs during the install. Turn it on only for a package that does not work without its scripts: they run as the service’s user. Check installs the package again with the new choice.',
+    scriptsLabel: (name: string) => `Install scripts of ${name}`,
     details: (name: string) => `Details of ${name}`,
     catalog: 'Package catalog',
     catalogHint:

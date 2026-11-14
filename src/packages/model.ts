@@ -19,6 +19,8 @@ export interface PackageInstall {
   servers: Record<string, InstalledServer>
   /** The plugin brings skills, hooks, commands or agents: an agent without Claude Code's plugins does not get them. */
   extras: boolean
+  /** npm ran the install scripts of its pinned servers (`PackageRecord.scripts`); absent — it did not. */
+  scripts?: true
 }
 
 export interface PackageRecord {
@@ -35,6 +37,8 @@ export interface PackageRecord {
   installs: PackageInstall[]
   /** Removed from the catalog; kept while a task still runs on one of its installs. */
   removed?: boolean
+  /** npm runs the install scripts of its pinned servers and their dependencies (schema v39); absent — `--ignore-scripts`. */
+  scripts?: boolean
 }
 
 /** A project's set on top of the defaults. */

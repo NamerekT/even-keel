@@ -196,6 +196,24 @@
   cursor: help;
 }
 
+/* On a narrow row the chip gives way before the version does. */
+.packages .packages__unpinned {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: var(--text-12);
+  cursor: help;
+}
+
+.packages__switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .packages__busy {
   color: var(--accent);
   font-size: var(--text-12);

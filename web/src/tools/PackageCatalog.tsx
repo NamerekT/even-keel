@@ -9,7 +9,7 @@ import { Band, EmptyState } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
 import { catalogIssues, looseKeys, PACKAGE_PARAM, packageGroups, packageKeys } from './packageGroups.js'
-import { BuiltInTag, GroupBox, ImportOffers, IssueBands, KeyList, PackageBrings, PackageLine, PackageSettings, rowId } from './PackagesParts.js'
+import { BuiltInTag, GroupBox, ImportOffers, IssueBands, KeyList, PackageBrings, PackageLine, PackageSettings, rowId, ScriptsSwitch } from './PackagesParts.js'
 import { passes } from './packageView.js'
 import { useRowFocus } from './useRowFocus.js'
 
@@ -131,6 +131,7 @@ function CatalogLine({ pkg, view, open, alert, onToggle }: { pkg: PackageView; v
           {pkg.error !== null && <p className="packages__error">{say(pkg.error)}</p>}
           {pkg.note !== null && <p className="packages__quiet">{say(pkg.note)}</p>}
           <PackageSettings pkg={pkg} />
+          {!pkg.removed && <ScriptsSwitch pkg={pkg} disabled={sending} onChange={(on) => void send('packages/scripts', { name: pkg.name, on })} />}
           <KeyList keys={packageKeys(view, pkg.name)} />
           {!pkg.removed && (
             <div className="packages__details-actions">

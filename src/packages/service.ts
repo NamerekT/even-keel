@@ -11,7 +11,7 @@ import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
-import { copyPinned, installPinned, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
+import { copyPinned, dependencyChanges, installPinned, lockOf, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
 import { pageSettings } from './settings.js'
 import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn, TASKS_PLUGIN } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
@@ -75,6 +75,8 @@ export class Packages {
   private readonly errors = new Map<string, Notice>()
   /** The outcome of each package's last update. */
   private readonly notes = new Map<string, Notice>()
+  /** By package: how many dependencies its last install's npm installs changed against the install before. */
+  private readonly changedDependencies = new Map<string, number>()
   private readonly gateway: McpGateway
   private readonly probes: Probes
   private gatewayError: Notice | null = null
@@ -141,6 +143,8 @@ export class Packages {
         default: record.default,
         settings: pageSettings(packageSettings(record)),
         servers: Object.keys(install?.servers ?? {}),
+        unpinned: Object.entries(install?.servers ?? {}).filter(([, server]) => server.npm === null && typeof server.entry.command === 'string').map(([server]) => server),
+        scripts: Object.values(install?.servers ?? {}).some((server) => server.npm !== null) ? record.scripts === true : null,
         extras: install?.extras ?? false,
         removed: record.removed === true,
         builtIn: name === this.builtIn,
@@ -372,7 +376,12 @@ export class Packages {
       }
     }
     const install = await this.installNew(name)
-    this.notes.set(name, install === null ? notice('packages.upToDate', { name }) : notice('packages.updated', { name, version: install.version ?? install.id }))
+    const changed = install === null ? 0 : (this.changedDependencies.get(name) ?? 0)
+    const version = install?.version ?? install?.id ?? ''
+    this.notes.set(
+      name,
+      install === null ? notice('packages.upToDate', { name }) : changed > 0 ? notice('packages.updatedDependencies', { name, version, changed }) : notice('packages.updated', { name, version }),
+    )
     this.deps.onChange()
   }
 
@@ -441,6 +450,15 @@ export class Packages {
   setDefault(name: string, on: boolean): void {
     this.notBuiltIn(name)
     this.recordOf(name).default = on
+    this.save()
+  }
+
+  /** npm runs the install scripts of the package's pinned servers from its next install on; the current one stays. */
+  setScripts(name: string, on: boolean): void {
+    const record = this.recordOf(name)
+    if (on) record.scripts = true
+    else delete record.scripts
+    this.notes.delete(name)
     this.save()
   }
 
@@ -558,26 +576,30 @@ export class Packages {
       }
       version ??= Object.values(planned).find((each) => each.npm !== null)?.npm ?? null
       const last = current(record)
-      if (last !== undefined && last.version === version && sameServers(last.servers, planned)) {
+      const scripts = record.scripts === true
+      if (last !== undefined && last.version === version && sameServers(last.servers, planned) && (last.scripts === true) === scripts) {
         rmSync(home, { recursive: true, force: true })
         return null
       }
       const servers: Record<string, InstalledServer> = {}
+      let changed = 0
       for (const [server, { entry, spec, npm }] of Object.entries(planned)) {
         if (spec === null || npm === null) servers[server] = { entry, npm: null }
         else {
           const at = seconds()
           const prefix = join(home, 'servers', server)
-          const copied = await this.copyServer(name, last, server, entry, spec, npm, prefix)
+          const copied = (last?.scripts === true) === scripts ? await this.copyServer(name, last, server, entry, spec, npm, prefix) : null
           if (copied !== null) {
             servers[server] = copied
             this.deps.log(`packages: ${name}: ${spec.name}@${npm} copied from ${last!.id} in ${seconds() - at} s`)
             continue
           }
-          servers[server] = await this.installServer(name, entry, spec, npm, prefix, () => seconds() - at)
+          servers[server] = await this.installServer(name, entry, spec, npm, prefix, scripts, () => seconds() - at)
+          changed += this.dependenciesChanged(name, server, spec, last, prefix)
         }
       }
-      const install: PackageInstall = { id, version, at: new Date().toISOString(), servers, extras }
+      const install: PackageInstall = { id, version, at: new Date().toISOString(), servers, extras, ...(scripts ? { scripts: true as const } : {}) }
+      this.changedDependencies.set(name, changed)
       record.installs.push(install)
       this.prune()
       this.save()
@@ -595,10 +617,21 @@ export class Packages {
   }
 
   /** npm install of a pinned server. */
-  private async installServer(name: string, entry: ServerEntry, spec: NpxSpec, npm: string, prefix: string, took: () => number): Promise<InstalledServer> {
-    const server = await installPinned(entry, spec, npm, prefix)
-    this.deps.log(`packages: ${name}: npm install ${spec.name}@${npm} took ${took()} s`)
+  private async installServer(name: string, entry: ServerEntry, spec: NpxSpec, npm: string, prefix: string, scripts: boolean, took: () => number): Promise<InstalledServer> {
+    const server = await installPinned(entry, spec, npm, prefix, scripts)
+    this.deps.log(`packages: ${name}: npm install ${spec.name}@${npm}${scripts ? ' with install scripts' : ''} took ${took()} s`)
     return server
+  }
+
+  /** The dependencies the new lock of a server changed against the previous install's, logged; their count. */
+  private dependenciesChanged(name: string, server: string, spec: NpxSpec, last: PackageInstall | undefined, prefix: string): number {
+    if (last?.servers[server]?.npm == null) return 0
+    const before = lockOf(join(this.deps.cache, name, last.id, 'servers', server))
+    const after = lockOf(prefix)
+    if (before === null || after === null) return 0
+    const changes = dependencyChanges(before, after, spec.name)
+    if (changes.length > 0) this.deps.log(`packages: ${name}/${server}: dependencies changed: ${changes.join(', ')}`)
+    return changes.length
   }
 
   /**

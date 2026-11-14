@@ -28,7 +28,7 @@ interface Catalog {
 const SKILLS_PACKAGE = 'my-skills@even-keel-skills'
 const TASKS_PACKAGE = 'tasks@even-keel'
 
-const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false, builtIn: false }
+const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false, builtIn: false, unpinned: [] as string[], scripts: null as boolean | null }
 const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
 
 /**
@@ -42,13 +42,13 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
     packages: [
-      { ...base, name: 'huly@even-keel', kind: 'plugin', version: '0.4.2', latest: '0.4.3', default: true, settings: { TOOLSETS: 'issues,projects,comments' }, servers: ['huly'], extras: true, keys: ['HULY_EMAIL', 'HULY_PASSWORD'] },
+      { ...base, name: 'huly@even-keel', kind: 'plugin', version: '0.4.2', latest: '0.4.3', default: true, settings: { TOOLSETS: 'issues,projects,comments' }, servers: ['huly'], scripts: false, extras: true, keys: ['HULY_EMAIL', 'HULY_PASSWORD'] },
       // Another tracker's plugin, off by default: a project's packages fold it under "1 more".
       { ...base, name: 'github@even-keel', kind: 'plugin', version: '0.2.0', default: false, settings: {}, servers: ['github'], extras: true, keys: [] },
       { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
       // Built in (BTN-986): every project has it, with no switches.
       { ...base, name: 'agent-bridge@even-keel', kind: 'plugin', version: '1.0.0', default: true, settings: {}, servers: [], extras: true, keys: [], builtIn: true },
-      { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com', FORGEJO_WEBHOOK_SECRET: null }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
+      { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com', FORGEJO_WEBHOOK_SECRET: null }, servers: ['forgejo'], unpinned: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
     ],
     choices: {
       DEMO: { 'playwright@claude-plugins-official': 'on', ...(mode === 'tracker' ? { 'huly@even-keel': 'off' as const } : {}) },
@@ -179,6 +179,7 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
     if (body.choice === 'on' || body.choice === 'off') choices[String(body.name)] = body.choice
     else delete choices[String(body.name)]
   } else if (name === 'packages/default' && target !== undefined) target.default = body.on === true
+  else if (name === 'packages/scripts' && target !== undefined && target.scripts !== null) target.scripts = body.on === true
   else if (name === 'packages/setting' && target !== undefined) {
     const key = String(body.key)
     const value = typeof body.value === 'string' ? body.value : null

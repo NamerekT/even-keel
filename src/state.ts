@@ -497,6 +497,10 @@ export interface PackageView {
   /** The values projects start from; `null` — a secret's (BTN-1116): set, its value never leaves the service. */
   settings: Record<string, string | null>
   servers: string[]
+  /** Stdio servers whose command runs as it is (`uvx`, `docker run`, …): a new version may come at each start (BTN-1131). */
+  unpinned: string[]
+  /** npm runs install scripts of its pinned servers; `null` — the install has no npm server. */
+  scripts: boolean | null
   /** Skills, hooks, commands or agents: only Claude Code gets them. */
   extras: boolean
   /** Removed, still held by a running task. */

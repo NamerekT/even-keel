@@ -541,6 +541,7 @@ export const noticesRu: NoticeTexts = {
   'packages.noOwnMarketplace': (p) => `в ${p.dir} нет .claude-plugin/marketplace.json`,
   'packages.upToDate': (p) => `у ${p.name} уже последняя версия`,
   'packages.updated': (p) => `${p.name} обновлён до ${p.version}; идущие задачи остаются на версии, с которой начали`,
+  'packages.updatedDependencies': (p) => `${p.name} обновлён до ${p.version}, зависимостей изменилось: ${p.changed}, список — в логе; идущие задачи остаются на версии, с которой начали`,
   'packages.badServer': (p) => `серверу ${p.name} нужна команда или адрес`,
   'packages.badName': (p) => `${p.name} не годится в имя сервера: только буквы, цифры, - и _`,
   'packages.keyName': (p) => `${p.name} — не имя переменной`,

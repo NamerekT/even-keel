@@ -220,6 +220,7 @@ export interface PackagesControl {
   importRepo(project: string): void
   choose(project: string, name: string, choice: 'on' | 'off' | null): void
   setDefault(name: string, on: boolean): void
+  setScripts(name: string, on: boolean): void
   setSetting(name: string, key: string, value: string | null, project?: string): void
   setKey(name: string, value: string): void
 }

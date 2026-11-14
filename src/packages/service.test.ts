@@ -16,6 +16,8 @@ vi.mock('./npm.js', async (importOriginal) => {
       const home = join(prefix, 'node_modules', ...spec.name.split('/'))
       mkdirSync(home, { recursive: true })
       writeFileSync(join(home, 'package.json'), JSON.stringify({ name: spec.name, version, bin: 'index.js' }))
+      const ws = version === '1.0.0' ? '8.0.0' : '8.1.0'
+      writeFileSync(join(prefix, 'package-lock.json'), JSON.stringify({ packages: { '': {}, [`node_modules/${spec.name}`]: { version }, 'node_modules/ws': { version: ws } } }))
       return actual.pinnedServer(entry, spec, version, prefix)
     }),
   }
@@ -64,7 +66,7 @@ describe('pinned servers across plugin updates', () => {
   const tick = () => new Promise((done) => setTimeout(done, 5))
 
   async function updated(server: ServerEntry, before?: (cache: string, id: string) => void) {
-    const { packages, file, cache, plugin } = fixture()
+    const { packages, file, cache, plugin, lines } = fixture()
     plugin('1.0.0', 'all', npx('1.0.0'))
     await packages.install('tools@example')
     const old = loadPackages(file)!.packages['tools@example']!.installs[0]!
@@ -73,8 +75,59 @@ describe('pinned servers across plugin updates', () => {
     await tick()
     await packages.update('tools@example')
     const installs = loadPackages(file)!.packages['tools@example']!.installs
-    return { install: installs.at(-1)!, home: join(cache, 'tools@example', installs.at(-1)!.id, 'servers', 'tools') }
+    return { install: installs.at(-1)!, home: join(cache, 'tools@example', installs.at(-1)!.id, 'servers', 'tools'), packages, lines }
   }
+
+  it('logs the dependencies a new npm version changed and counts them on the page', async () => {
+    const { packages, lines } = await updated(npx('1.1.0'))
+    expect(lines).toContain('packages: tools@example/tools: dependencies changed: ws 8.0.0 → 8.1.0')
+    expect(packages.view().packages[0]!.note).toEqual({ code: 'packages.updatedDependencies', params: { name: 'tools@example', version: '2.0.0', changed: 1 } })
+  })
+
+  it('says nothing of dependencies when a copy kept them', async () => {
+    const { packages, lines } = await updated(npx('1.0.0'))
+    expect(lines.some((line) => line.includes('dependencies changed'))).toBe(false)
+    expect(packages.view().packages[0]!.note?.code).toBe('packages.updated')
+  })
+
+  it('runs no install scripts until the package allows them, and Update installs anew after the switch', async () => {
+    const { packages, file, plugin } = fixture()
+    plugin('1.0.0', 'all', npx('1.0.0'))
+    await packages.install('tools@example')
+    expect(vi.mocked(installPinned).mock.calls[0]![4]).toBe(false)
+    expect(packages.view().packages[0]!.scripts).toBe(false)
+    packages.setScripts('tools@example', true)
+    expect(packages.view().packages[0]!.scripts).toBe(true)
+    await tick()
+    await packages.update('tools@example')
+    expect(installPinned).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(installPinned).mock.calls[1]![4]).toBe(true)
+    const record = loadPackages(file)!.packages['tools@example']!
+    expect(record.scripts).toBe(true)
+    expect(record.installs.at(-1)!.scripts).toBe(true)
+    await tick()
+    await packages.update('tools@example')
+    expect(packages.view().packages[0]!.note?.code).toBe('packages.upToDate')
+  })
+
+  it('names a stdio server whose command is not pinned, and has no scripts switch without an npm server', async () => {
+    const { packages, plugin } = fixture()
+    plugin('1.0.0', 'all', { command: 'uvx', args: ['example-server'] })
+    await packages.install('tools@example')
+    expect(packages.view().packages[0]!.unpinned).toEqual(['tools'])
+    expect(packages.view().packages[0]!.scripts).toBeNull()
+    plugin('2.0.0', 'all', npx('1.0.0'))
+    await tick()
+    await packages.update('tools@example')
+    expect(packages.view().packages[0]!.unpinned).toEqual([])
+  })
+
+  it('does not count an HTTP server as unpinned', async () => {
+    const { packages, plugin } = fixture()
+    plugin('1.0.0', 'all', { type: 'http', url: 'https://example.com/mcp' })
+    await packages.install('tools@example')
+    expect(packages.view().packages[0]!.unpinned).toEqual([])
+  })
 
   it('copies a server of the same version from the previous install', async () => {
     const { install, home } = await updated(npx('1.0.0'))

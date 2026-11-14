@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { binOf, installArgs, latestOf, parseNpx, pinnedEntry } from './npm.js'
+import { binOf, dependencyChanges, installArgs, latestOf, lockedVersions, parseNpx, pinnedEntry } from './npm.js'
 
 describe('parseNpx', () => {
   it('reads the package, its range and the arguments after it', () => {
@@ -37,6 +37,35 @@ describe('installArgs', () => {
     const args = installArgs('C:\\cache\\x', 'x@1.0.0')
     expect(args).toContain('--prefer-offline')
     expect(args.at(-1)).toBe('x@1.0.0')
+  })
+
+  it('keeps a lock of the exact tree and runs no install scripts unless the package allows them', () => {
+    const args = installArgs('C:\\cache\\x', 'x@1.0.0')
+    expect(args).not.toContain('--no-save')
+    expect(args).toContain('--save-exact')
+    expect(args).toContain('--ignore-scripts')
+    expect(installArgs('C:\\cache\\x', 'x@1.0.0', true)).not.toContain('--ignore-scripts')
+  })
+})
+
+describe('lockedVersions', () => {
+  it('reads every installed package of a lock, nested ones by their path', () => {
+    const lock = JSON.stringify({
+      lockfileVersion: 3,
+      packages: { '': { dependencies: { x: '1.0.0' } }, 'node_modules/x': { version: '1.0.0' }, 'node_modules/x/node_modules/ws': { version: '8.0.0' }, 'node_modules/@s/y': { version: '2.1.0' } },
+    })
+    expect(lockedVersions(lock)).toEqual({ x: '1.0.0', 'x/ws': '8.0.0', '@s/y': '2.1.0' })
+    expect(lockedVersions('not json')).toBeNull()
+    expect(lockedVersions('{}')).toBeNull()
+  })
+})
+
+describe('dependencyChanges', () => {
+  it('names what changed, came and went, the server package itself left out', () => {
+    const before = { x: '1.0.0', ws: '8.0.0', old: '1.0.0', same: '3.0.0' }
+    const after = { x: '1.1.0', ws: '8.1.0', fresh: '0.1.0', same: '3.0.0' }
+    expect(dependencyChanges(before, after, 'x')).toEqual(['fresh +0.1.0', 'old -1.0.0', 'ws 8.0.0 → 8.1.0'])
+    expect(dependencyChanges(before, before, 'x')).toEqual([])
   })
 })
 

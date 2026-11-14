@@ -520,6 +520,8 @@ export const en = {
   'packages.noOwnMarketplace': (p: { dir: string }) => `packages: ${p.dir} has no .claude-plugin/marketplace.json`,
   'packages.upToDate': (p: { name: string }) => `packages: ${p.name} is already the latest version`,
   'packages.updated': (p: { name: string; version: string }) => `packages: ${p.name} is updated to ${p.version}; running tasks stay on the version they started with`,
+  'packages.updatedDependencies': (p: { name: string; version: string; changed: number }) =>
+    `packages: ${p.name} is updated to ${p.version}, with ${p.changed} dependencies changed; the log names them; running tasks stay on the version they started with`,
   'packages.badServer': (p: { name: string }) => `packages: the server ${p.name} needs either a command or a url`,
   'packages.badName': (p: { name: string }) => `packages: ${p.name} is not a name for a server: letters, digits, - and _ only`,
   'packages.keyName': (p: { name: string }) => `packages: ${p.name} is not a variable name`,
