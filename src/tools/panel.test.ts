@@ -90,15 +90,22 @@ describe('chainSettings', () => {
   })
 })
 
-describe('readRepoRules', () => {
+// Each test spawns five or six git processes: ~0.5 s alone, 2 s and more under a full `npm test` beside other sessions,
+// past vitest's default 5 s (BTN-1172).
+describe('readRepoRules', { timeout: 30_000 }, () => {
   let repo: string
   beforeEach(() => {
     repo = mkdtempSync(join(tmpdir(), 'repo-rules-'))
   })
   afterEach(() => rmSync(repo, { recursive: true, force: true }))
 
+  // A failed setup step stops the test with git's own words instead of a later "expected null".
+  const git = async (...args: string[]) => {
+    const result = await runGit(repo, args)
+    if (result.code !== 0) throw new Error(`git ${args.join(' ')} failed (${result.code}): ${result.out}`)
+  }
+
   it("reads the branch's committed instruction files and skills, not the uncommitted ones", async () => {
-    const git = (...args: string[]) => runGit(repo, args)
     await git('init', '-q', '-b', 'trunk')
     writeFileSync(join(repo, 'AGENTS.md'), 'rules')
     mkdirSync(join(repo, '.claude', 'skills', 'review'), { recursive: true })
@@ -111,7 +118,6 @@ describe('readRepoRules', () => {
   })
 
   it("lists the branch's committed Markdown files as the documents a standard may name", async () => {
-    const git = (...args: string[]) => runGit(repo, args)
     await git('init', '-q', '-b', 'trunk')
     mkdirSync(join(repo, 'docs'), { recursive: true })
     writeFileSync(join(repo, 'docs', 'design.md'), 'look')
@@ -125,7 +131,6 @@ describe('readRepoRules', () => {
   })
 
   it("reads the Codex rules committed on the branch, without Even Keel's generated file", async () => {
-    const git = (...args: string[]) => runGit(repo, args)
     await git('init', '-q', '-b', 'trunk')
     mkdirSync(join(repo, '.codex', 'rules'), { recursive: true })
     writeFileSync(join(repo, '.codex', 'rules', 'team.rules'), 'prefix_rule(pattern=["git", "push"], decision="forbidden")\n')
