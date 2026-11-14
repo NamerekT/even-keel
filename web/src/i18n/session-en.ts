@@ -128,7 +128,7 @@ export const sessionEn = {
   modelYet: 'The session has not answered yet: the model shows from its first answer',
   limitUnknown: 'The limit reset time is unknown. Changing the task’s account starts a new session.',
   limitGuide: 'How to start sooner',
-  limitAccount: (provider: string, account: string) => `Changing the task’s account starts it sooner. ${provider} account “${account}”. Change this provider’s account in the project’s pool (shared or own) under Project settings → Sessions, or change the task’s provider label.`,
+  limitAccount: (provider: string, account: string) => `Changing the task’s account starts it sooner. ${provider} account “${account}”. Change this provider’s account in the project’s pool (shared or own) under Project settings → Sessions, or change the provider on the task’s card, under “Runs on”.`,
   limitEvent: 'Open the session to see the affected account and how to change its project pool.',
   creditEmpty: 'out of credit',
   spendEmpty: 'spending limit',
