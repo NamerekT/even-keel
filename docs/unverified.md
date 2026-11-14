@@ -41,18 +41,17 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 - Copilot: 70, 75, 81, 85 — BTN-712.
 - Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713.
 - OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 79b, 80 — BTN-578; 104 — BTN-844; 107 — BTN-857.
-- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b — BTN-714; 147 — BTN-1072.
+- Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b — BTN-714.
 - Account folders: 120, 121 — BTN-904.
 - The README badge: 122, 126, 127, 129, 131, 132, 135 — BTN-919.
 - The state database: 149 — BTN-1084.
-- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 108, 111, 114, 117d, 118, 123, 125, 136, 143, 144, 145, 150, 151, 152, 163, 164.
+- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 108, 111, 114, 117d, 118, 125, 136, 143, 144, 145, 150, 151, 152, 163, 164.
 - Waiting for the event, no run: 1, 2, 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72, 86, 90, 92, 93, 94, 101 — BTN-821, 109, 112, 124, 128. Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
 | 143 | [Tasks on from a new project's creation](unverified/packages.md#tasks-on-from-a-new-projects-creation-btn-1028) | everyone who adds a project on Huly | the new project's sessions see only their task's text, or its creation fails on the packages step; turn `tasks@even-keel` on by hand |
 | 159 | [Servers installed with no install scripts](unverified/packages.md#servers-installed-with-no-install-scripts-btn-1131) | everyone whose MCP packages are pinned npm servers, at their next install | a server whose dependency needs a script fails to start and the chain waits; turn "Install scripts" on and press Check |
-| 147 | [The effort of a task's run on the real CLIs](unverified/sessions.md#the-effort-of-a-tasks-run-on-the-real-clis-btn-983) | tasks with an effort set on their card, on a reply to a Codex or SDK session | the resumed session fails on its turn and the chain pauses; set the effort back to "default" |
 | 150 | [The effort on OpenCode and Copilot](unverified/sessions.md#the-effort-on-opencode-and-copilot-btn-1071) | OpenCode and Copilot tasks with an effort set on their card | a level the model lacks fails the session on its first turn and the chain pauses; pick a level the model has or "default" |
 | 151 | [The session's effort on the page of a running service](unverified/sessions.md#the-sessions-effort-on-the-page-of-a-running-service-btn-1098) | everyone who opens a Claude session's past window or chat | the page shows the model without the effort; nothing else breaks |
 | 139 | [OpenCode Go limits](unverified/opencode.md#opencode-go-limits-btn-803) | OpenCode folders with a Console Go key | percentages or resets differ from Console, no windows, or a replacement fails; compare Console, replace a refused key, pause the chain or switch accounts |
@@ -76,7 +75,6 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 | 127 | [The README badge dialog](unverified/page.md#the-readme-badge-dialog-btn-917) | projects that set their badge up from the page | "Check" passes or fails against a real Worker otherwise than it says, or the copied snippet shows no picture on GitHub; set `badge` and the secret by hand and write the `<picture>` from `docs/badge.md` |
 | 126 | [The badge's Worker on Cloudflare](unverified/page.md#the-badges-worker-on-cloudflare-btn-916) | projects that publish a badge and deploy its Worker with the button or `wrangler deploy` | the button fails to build or makes no KV namespace, or the deployed Worker answers otherwise than the tests; deploy by hand and create the namespace with `wrangler kv namespace create BADGE` |
 | 124 | [A held folder after Done through a restart](unverified/sessions.md#a-held-folder-after-done-through-a-restart-btn-925) | Windows chains whose project restarts the service after a green CI (`commands.afterGreen`) | the folder stays after the restart without a warning, as before; remove it by hand |
-| 123 | [Background commands of a session stopped under load](unverified/sessions.md#background-commands-of-a-session-stopped-under-load-btn-924) | Claude `--bg` chains on Windows whose sessions start a dev server or watcher in the background and are stopped mid-turn on a loaded machine | the command outlives the stop and the worktree stays after Done; kill its tree by its port, the cleanup then removes the folder |
 | 122 | [The README badge](unverified/page.md#the-readme-badge-btn-915) | projects that publish a badge | GitHub shows a broken or plain picture, the Worker refuses the pushes, or the free KV runs out of writes; turn the badge off |
 | 121 | [Account settings edit hook](unverified/accounts.md#account-settings-edit-hook-btn-902) | managed Claude account folders in any project | an edit passes without guidance, or uninstall leaves the hook; change shared settings in the global file and remove only the marked command if needed |
 | 120 | [Settings edits in account folders](unverified/accounts.md#settings-edits-in-account-folders-btn-901) | everyone with several Claude accounts who changes a setting from a terminal, VS Code or a session under one of them | a CLI update or start raises a band for a change nobody made; press "Discard" |
