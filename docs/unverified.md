@@ -46,7 +46,7 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 - The README badge: 122, 126, 127, 129, 131, 132, 135 — BTN-919.
 - The state database: 149 — BTN-1084.
 - No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 111, 117d, 118, 125, 136, 143, 144, 145, 150, 151, 152, 163, 164, 165.
-- Waiting for the event, no run: 1, 2, 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72, 86, 90, 92, 93, 94, 101 — BTN-821, 109, 112, 124, 128. Not checked by choice: 63.
+- Waiting for the event, no run: 1, 2, 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72, 86, 90, 92, 93, 94, 101 — BTN-821, 109, 112, 124, 128. Not checked by choice: 63, 138.
 
 | # | Entry | Who it hits | If the assumption is wrong |
 | ---: | --- | --- | --- |
