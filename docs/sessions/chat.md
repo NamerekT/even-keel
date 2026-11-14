@@ -10,7 +10,7 @@ A session that steers — an SDK session, `AgentEntry.steers` — needs no mailb
 - at `Stop` — `{ decision: "block", reason }`, so the session carries on instead of ending its turn;
 - before `AskUserQuestion` — `permissionDecision: "deny"` with the message as the reason: the question does not go out next to an unread message, and the session asks again only if it still needs to.
 
-The same answer may carry `context`, a note of the service's own that the hook (from plugin 0.15.0) adds to `additionalContext` after the mail on `PreToolUse` and `PostToolUse` only — never at `Stop` or before a question, so it neither keeps a turn going nor turns a question down. Its one user is the request for the README badge's status line (`mailContext` in `src/server.ts`, `docs/badge.md`, BTN-932).
+The same answer may carry `context`, a note of the service's own that the hook (from plugin 0.15.0) adds to `additionalContext` after the mail on `PreToolUse` and `PostToolUse` only — never at `Stop` or before a question, so it neither keeps a turn going nor turns a question down. Its one user is the request for the README badge's status line (`mailContext` in `src/service/hosting.ts`, `docs/badge.md`, BTN-932).
 
 A subagent's call (`agent_id` in the hook's input) is left alone, so the message waits for the main thread. With no service or no answer in time (5 s for every event, within the hook's 10 s budget) the hook prints nothing and the tool call goes on.
 

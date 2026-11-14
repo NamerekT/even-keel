@@ -7,7 +7,7 @@ import type { PackagesFile } from './model.js'
 
 /**
  * `state/packages.json` names a project by its id, as the service does (BTN-271). `undefined` — no file yet: the
- * catalog is seeded from what sessions get today (`seed.ts`).
+ * catalog is seeded from what sessions get today (`seedPackages` in `plugins.ts`).
  */
 export function loadPackages(file: string): PackagesFile | undefined {
   let text: string
