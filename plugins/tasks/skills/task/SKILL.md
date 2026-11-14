@@ -5,7 +5,7 @@ description: Working a task through Even Keel's tasks MCP server (any tracker of
 
 # Working a task
 
-The tracker is reached only through the `tasks` server: `tasks_list`, `task_read`, `tasks_create`, `task_update`, `task_comment`. There is no delete. Labels, milestones and statuses go by name; an unknown one is refused with the list of existing ones — take a name from it, never invent one. Neighbour skill: `tasks:split`. A session with the tracker's own MCP server instead (such as `huly`) works by that plugin's skill (`huly:task`).
+The tracker is reached only through the `tasks` server: `tasks_list`, `task_read`, `tasks_create`, `task_update`, `task_comment`. There is no delete. Tools listed as deferred: load all five in one ToolSearch `select:` call before the first one. Labels, milestones and statuses go by name; an unknown one is refused with the list of existing ones — take a name from it, never invent one. Neighbour skill: `tasks:split`. A session with the tracker's own MCP server instead (such as `huly`) works by that plugin's skill (`huly:task`).
 
 **The `chain:` line** names each tracker's roles, e.g. `chain: into it — Ready; skip — Manual; question — Question; milestones v0.3; priority: yes; estimate: no`. "Into it" is the status that puts a task into the chain, "skip" the label the chain passes over, "question" the label of a question. The names differ from project to project and between a project's trackers, so this skill names none of them: take each from the line. It is in a chain session's prompt (one per tracker when the project has feeds), under the head of every `task_read` and at the end of every refused status, label or milestone. A role with `none` has no name in that tracker: leave it out. `priority: no` or `estimate: no` — that tracker keeps none; send the task without it. `blocking links: no` — no `blocks` or `blockedBy` there: name the order in the description.
 
@@ -15,7 +15,7 @@ Even Keel runs the chain: it starts a session on the first open task, closes it 
 
 ## 1. The task
 
-- Started by Even Keel: the task's title, description and comments are already in the prompt — do not `task_read` your own task. Other tasks — `task_read(key)`, `comments: true` only when the discussion matters.
+- Started by Even Keel with the task's title and description in the prompt: do not `task_read` your own task. With only its key in the prompt: `task_read(key, comments: true)` first. Other tasks — `task_read(key)`, `comments: true` only when the discussion matters.
 - Started by hand: `task_read(key)`. Calls without a project in the server's address name it: `project` is the key before the dash.
 - Before any code: a blocking question (§3) and the size check of `tasks:split`.
 - The task has no estimate and its tracker keeps one (`estimate: yes`) — set it now with `task_update(key, estimate: <minutes>)` (§5) before reading any code. Leave an existing estimate alone.
