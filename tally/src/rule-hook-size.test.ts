@@ -8,6 +8,7 @@ import { isInstructionFile } from './rule-hook-size.js'
 
 const session = 'instruction-size-check'
 const roots: string[] = []
+const LAUNCH_TIMEOUT = 15000
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
@@ -134,7 +135,7 @@ describe('instruction size hook', () => {
     const execute = (input: object) => {
       const result = spawnSync(process.execPath, [fileURLToPath(new URL('../bin/rule-hook.mjs', import.meta.url))], {
         input: JSON.stringify({ session_id: session, ...input }), encoding: 'utf8',
-        env: { ...process.env, ...f.env }, timeout: 15000,
+        env: { ...process.env, ...f.env }, timeout: LAUNCH_TIMEOUT,
       })
       expect(result.error).toBeUndefined()
       expect(result.status).toBe(0)
@@ -151,5 +152,6 @@ describe('instruction size hook', () => {
     expect(execute({ hook_event_name: 'Stop' })).toBeNull()
     expect(edit('a'.repeat(14000), 'a'.repeat(13500))).toBeNull()
     expect(execute({ hook_event_name: 'Stop' })).toBeNull()
-  })
+    // Five launches of 0.2 s each take up to 2.3 s each beside a full run on every core: the launch's own timeout fails first.
+  }, 5 * LAUNCH_TIMEOUT + 5000)
 })
