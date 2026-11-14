@@ -33,6 +33,20 @@ describe('connectForgejo', () => {
     expect(calls.some((call) => call.path.includes('/issues/3/dependencies'))).toBe(false)
   })
 
+  it('marks the open issues of outsiders by the comments\' trust rule (BTN-1123)', async () => {
+    const by = (number: number, login: string | null) => issue({ number, milestone: null, user: login === null ? null : { login } })
+    const { source, calls } = await connect({
+      [`GET ${BASE}/issues?type=issues&state=open`]: { body: [by(1, 'even-keel-bot'), by(2, 'john-doe'), by(3, 'jane-roe'), by(4, null), issue({ number: 5, milestone: null })] },
+      ...Object.fromEntries([1, 2, 3, 4, 5].map((number) => [`GET ${BASE}/issues/${number}/dependencies`, { body: [] }])),
+      [`GET ${BASE}/collaborators/john-doe`]: { status: 204 },
+      [`GET ${BASE}/collaborators/jane-roe`]: { status: 404, body: {} },
+      [`GET ${BASE}/collaborators/jane-roe/permission`]: { status: 403, body: {} },
+    })
+    const { tasks } = await source.chainTasks('id-app', open)
+    expect(tasks.map((task) => [task.id, task.outsider])).toEqual([['APP-1', undefined], ['APP-2', undefined], ['APP-3', true], ['APP-4', true], ['APP-5', undefined]])
+    expect(calls.filter((call) => call.path.endsWith('/collaborators/jane-roe'))).toHaveLength(1)
+  })
+
   it('goes without blockers where the repository has dependencies turned off', async () => {
     const { source } = await connect({
       [`GET ${BASE}/issues?type=issues&state=open`]: { body: [issue({ number: 1, milestone: null }), issue({ number: 2, milestone: null })] },

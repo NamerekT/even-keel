@@ -90,7 +90,10 @@ export class TaskLists {
     if (tasks.length > 0) return tasks.every((task) => skipped.includes(task.id)) ? notice('chain.emptySkipped', {}) : notice('chain.emptyBlocked', {})
     const backlog = this.backlog.get(project) ?? []
     const active = backlog.find((task) => isActive(this.deps.rules(project, task.id), task.status))
-    if (active !== undefined) return notice('chain.emptyLabels', { labels: this.deps.rules(project, active.id).requiredLabels })
+    if (active !== undefined) {
+      const { requiredLabels } = this.deps.rules(project, active.id)
+      return requiredLabels.length === 0 ? notice('chain.emptyOutsiders', {}) : notice('chain.emptyLabels', { labels: requiredLabels })
+    }
     return backlog.length > 0 ? notice('chain.emptyStatus', {}) : notice('chain.emptyNone', {})
   }
 

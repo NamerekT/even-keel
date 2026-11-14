@@ -42,19 +42,38 @@ export function excludes(rules: ChainRules, task: { status: TaskStatus; labels: 
   return isTerminal(rules, task.status) || task.labels.some((label) => listed(rules.excludedLabels, label))
 }
 
-export function admits(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): boolean {
+/**
+ * The label "Into the chain" puts on an outsider's task where the rules require none (BTN-1123): anyone can open an
+ * issue in a public repository, so it waits in the backlog until a person lets it in.
+ */
+export const APPROVAL_LABEL = 'even-keel: approved'
+
+/** What the entry rules read of a task: `outsider` — opened by someone who is not one of the repository's own people. */
+export interface EntryTask {
+  labels: string[]
+  outsider?: true
+}
+
+/** The labels of which the task needs one to enter the chain: the required ones, or for an outsider's task without them, the approval label. */
+export function entryLabels(rules: ChainRules, task: Pick<EntryTask, 'outsider'>): string[] {
+  if (rules.requiredLabels.length > 0) return rules.requiredLabels
+  return task.outsider === true ? [APPROVAL_LABEL] : []
+}
+
+export function admits(rules: ChainRules, task: EntryTask & { status: TaskStatus }): boolean {
   if (excludes(rules, task)) return false
-  return rules.requiredLabels.length === 0 || task.labels.some((label) => listed(rules.requiredLabels, label))
+  const entry = entryLabels(rules, task)
+  return entry.length === 0 || task.labels.some((label) => listed(entry, label))
 }
 
-/** The required label "Into the chain" puts on an open task that has none of them (BTN-509); `null` — the task needs none. */
-export function missingLabel(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): string | null {
+/** The entry label "Into the chain" puts on an open task that has none of them (BTN-509); `null` — the task needs none. */
+export function missingLabel(rules: ChainRules, task: EntryTask & { status: TaskStatus }): string | null {
   if (excludes(rules, task) || admits(rules, task)) return null
-  return rules.requiredLabels[0]!
+  return entryLabels(rules, task)[0]!
 }
 
-/** The required labels the task carries, as the tracker spells them: "To the backlog" takes them off. */
-export const requiredOn = (rules: ChainRules, task: { labels: string[] }): string[] => task.labels.filter((label) => listed(rules.requiredLabels, label))
+/** The entry labels the task carries, as the tracker spells them: "To the backlog" takes them off. */
+export const requiredOn = (rules: ChainRules, task: EntryTask): string[] => task.labels.filter((label) => listed(entryLabels(rules, task), label))
 
 export function ownsMilestone(rules: Pick<ChainRules, 'requiredMilestones' | 'excludedMilestones'>, task: { milestone: TaskMilestone | null }): boolean {
   const name = task.milestone?.label

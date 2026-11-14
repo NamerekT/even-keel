@@ -20,6 +20,15 @@ export interface GithubIssue extends IssueRef {
   blockedBy: { nodes: IssueRef[] }
   labels: { nodes: { name: string }[] }
   milestone: { number: number; title: string; dueOn: string | null } | null
+  /** The issue's author, which the chain's reads ask for (BTN-1123): absent — not asked, taken as trusted. */
+  author?: { login: string } | null
+  authorAssociation?: string
+}
+
+/** Whose text an issue or a comment is: `trustedAuthor` judges it. */
+export interface GithubAuthored {
+  author?: { login: string } | null
+  authorAssociation?: string
 }
 
 /** An issue a card links to: enough to show its title and status. */
@@ -122,7 +131,7 @@ export class RepoMap {
 }
 
 /** `trusted` — the rule of `commentsAfter` (`trustedAuthor`); a comment it refuses is marked `outsider` (BTN-1122). */
-export function toCard(issue: GithubCardIssue, repos: RepoMap, trusted: (comment: GithubCardComment) => boolean = () => true): TrackerCard {
+export function toCard(issue: GithubCardIssue, repos: RepoMap, trusted: (who: GithubAuthored) => boolean = () => true): TrackerCard {
   const labels = issue.labels.nodes.map((label) => label.name)
   const { milestone } = issue
   const refOf = (ref: CardRef): TaskRef => ({ id: repos.idOf(ref), title: ref.title, status: githubStatus(ref.state, ref.stateReason) })
@@ -142,10 +151,14 @@ export function toCard(issue: GithubCardIssue, repos: RepoMap, trusted: (comment
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
       .map((node) => ({ author: node.author?.login ?? null, at: Date.parse(node.createdAt), text: node.body, ...(trusted(node) ? {} : { outsider: true as const }) })),
     attachments: [],
+    ...(outsider(issue, trusted) ? { outsider: true as const } : {}),
   }
 }
 
-export function toTrackerTask(issue: GithubIssue, repos: RepoMap): TrackerTask {
+const outsider = (issue: GithubAuthored, trusted: (who: GithubAuthored) => boolean) => issue.authorAssociation !== undefined && !trusted(issue)
+
+/** `trusted` judges the issue's author when the read asked for it (BTN-1123). */
+export function toTrackerTask(issue: GithubIssue, repos: RepoMap, trusted: (who: GithubAuthored) => boolean = () => true): TrackerTask {
   const labels = issue.labels.nodes.map((label) => label.name)
   const { milestone } = issue
   return {
@@ -159,5 +172,6 @@ export function toTrackerTask(issue: GithubIssue, repos: RepoMap): TrackerTask {
     priority: githubPriority(labels),
     labels,
     estimate: 0,
+    ...(outsider(issue, trusted) ? { outsider: true as const } : {}),
   }
 }

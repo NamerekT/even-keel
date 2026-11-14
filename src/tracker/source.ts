@@ -147,8 +147,9 @@ export interface TaskSource {
    */
   vocabulary?(project: string): Promise<TrackerVocabulary>
   /**
-   * Optional. Whether anyone at all can open a task in the project (a public GitHub repository): the wizard then warns
-   * that without `chain.requiredLabels` such a task enters the chain. Without it the tracker is taken as closed.
+   * Optional. Whether anyone at all can open a task in the project (a public GitHub repository): the wizard then says
+   * that without `chain.requiredLabels` an outsider's task waits for "Into the chain" (BTN-1123) while members' enter at
+   * once. Without it the tracker is taken as closed.
    */
   isPublic?(project: string): Promise<boolean>
   /**

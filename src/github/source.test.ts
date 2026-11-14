@@ -98,6 +98,15 @@ describe('github source', () => {
     expect(calls[2]!.variables).toMatchObject({ number: 4, states: ['CLOSED'] })
   })
 
+  it('marks the issues of outsiders by the comments\' trust rule (BTN-1123)', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { repository: { issues: page([issue(1, by('octocat', 'NONE')), issue(2, by('stranger', 'NONE')), issue(3, by('jdoe', 'COLLABORATOR')), issue(4, by(null, 'NONE'))]) } } } },
+    ])
+    const { tasks } = await source.chainTasks('ABC', notTerminal)
+    expect(tasks.map((task) => [task.id, task.outsider])).toEqual([['ABC-1', undefined], ['ABC-2', true], ['ABC-3', undefined], ['ABC-4', true]])
+    expect(calls[1]!.query).toContain('authorAssociation')
+  })
+
   it('fails on a project without a repository and on a repository it cannot see', async () => {
     const { source } = await connect([{ body: { data: { repository: null }, errors: [{ type: 'NOT_FOUND', path: ['repository'], message: 'Could not resolve to a Repository' }] } }])
     await expect(source.chainTasks('XYZ', notTerminal)).rejects.toThrow(/XYZ/)

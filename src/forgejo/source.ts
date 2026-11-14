@@ -83,13 +83,18 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
     }
   }
 
-  /** Open issues with their blockers, closed ones without: a closed task orders nothing. */
-  async function converted(repo: Repo, issues: ForgejoIssue[]): Promise<TrackerTask[]> {
+  /** An open issue an outsider opened (BTN-1123); one read without its author is nobody's. */
+  const outsiderIssue = async (issue: ForgejoIssue, trust: ReturnType<typeof trustIn>) =>
+    issue.state === 'open' && issue.user !== undefined && !(await trust(issue.user?.login))
+
+  /** Open issues with their blockers, closed ones without: a closed task orders nothing. With `trust`, outsiders' issues are marked. */
+  async function converted(repo: Repo, issues: ForgejoIssue[], trust?: ReturnType<typeof trustIn>): Promise<TrackerTask[]> {
     let off = false
     return limitedMap(issues, async (issue) => {
       const blockers = issue.state === 'open' && !off ? await dependenciesOf(`${repoBase(repo)}/issues/${issue.number}`, 'dependencies') : []
       if (blockers === null) off = true
-      return toTrackerTask(issue, blockers ?? [], repos)
+      const task = toTrackerTask(issue, blockers ?? [], repos)
+      return trust !== undefined && (await outsiderIssue(issue, trust)) ? { ...task, outsider: true as const } : task
     })
   }
 
@@ -122,7 +127,7 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
           issues.push(...others.filter((issue) => !open(forgejoStatus(issue.state))))
         }
       }
-      return { tasks: await converted(repo, [...new Map(issues.map((issue) => [issue.number, issue])).values()]), statuses }
+      return { tasks: await converted(repo, [...new Map(issues.map((issue) => [issue.number, issue])).values()], trustIn(repo)), statuses }
     },
 
     async tasks(ids) {
@@ -160,7 +165,8 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
       const trust = trustIn(addressOf(id).repo)
       const outsiders = new Set<number>()
       for (const comment of comments) if (!(await trust(comment.user?.login))) outsiders.add(comment.id)
-      return toCard(issue, blockedBy ?? [], blocks ?? [], comments, repos, outsiders)
+      const card = toCard(issue, blockedBy ?? [], blocks ?? [], comments, repos, outsiders)
+      return (await outsiderIssue(issue, trust)) ? { ...card, outsider: true } : card
     },
 
     async file(id, file) {

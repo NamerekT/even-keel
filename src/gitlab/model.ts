@@ -27,6 +27,8 @@ export interface GitlabIssue extends GitlabRef {
   issue_type?: string
   /** The estimate in seconds; 0 — none. */
   time_stats?: { time_estimate?: number }
+  /** Who opened it: an outsider's issue enters the chain only with an entry label (BTN-1123). */
+  author?: { id: number; username: string } | null
 }
 
 /** The time estimate in whole minutes; `null` — none. */

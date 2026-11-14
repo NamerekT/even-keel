@@ -1,5 +1,5 @@
 import { milestoneComparator } from '../chain/order.js'
-import { missingLabel, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
+import { entryLabels, missingLabel, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
 import { QUESTION_LABELS, type MilestonePick, type TaskMilestone, type TaskPriority, type TaskStatus } from './model.js'
 
 /** A task in full for its card on the page (`TaskSource.card`). `description` and comment texts are Markdown. */
@@ -19,6 +19,8 @@ export interface TrackerCard {
   attachments: TaskAttachment[]
   /** Minutes of the agent's active work, where the tracker keeps an estimate (BTN-893); absent or `null` — none. */
   estimate?: number | null
+  /** Opened by an outsider, as `TrackerTask.outsider` (BTN-1123). */
+  outsider?: true
   /** Only the tracker kept in Even Keel itself (the built-in one) gives it: the card is where its tasks are edited. */
   edit?: CardEdit
 }
@@ -132,8 +134,9 @@ export interface TrackerMoves {
 }
 
 export function cardOf(raw: TrackerCard, rules: ChainRules, can: TrackerMoves, milestones: MilestonePick | null = null): TaskCard {
-  const labels = raw.labels.map((name) => ({ name, role: roleOf(name, rules) }))
-  const required = rules.requiredLabels.length > 0 && !labels.some((label) => label.role === 'required')
+  const entry = entryLabels(rules, raw)
+  const labels = raw.labels.map((name) => ({ name, role: roleOf(name, rules, entry) }))
+  const required = entry.length > 0 && !labels.some((label) => label.role === 'required')
   const { category } = raw.status
   const open = category !== 'Won' && category !== 'Lost'
   const { edit, ...rest } = raw
@@ -147,16 +150,16 @@ export function cardOf(raw: TrackerCard, rules: ChainRules, can: TrackerMoves, m
     })),
     ready: (can.ready && category === 'UnStarted') || (can.relabel && missingLabel(rules, raw) !== null),
     unready: (can.unready && (category === 'ToDo' || category === 'Active')) || (can.relabel && open && requiredOn(rules, raw).length > 0),
-    requires: required ? rules.requiredLabels : [],
+    requires: required ? entry : [],
     milestones: milestones === null ? null : { ...milestones, choices: [...milestones.choices].sort(milestoneComparator(milestones.choices)) },
     relabel: can.relabel,
   }
 }
 
-function roleOf(label: string, rules: ChainRules): LabelRole | null {
+function roleOf(label: string, rules: ChainRules, entry: string[]): LabelRole | null {
   const listed = (names: string[]) => names.some((name) => sameName(name, label))
   if (listed(rules.excludedLabels)) return 'excluded'
-  if (listed(rules.requiredLabels)) return 'required'
+  if (listed(entry)) return 'required'
   if (listed(QUESTION_LABELS)) return 'question'
   return null
 }

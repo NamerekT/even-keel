@@ -285,6 +285,7 @@ describe('Dispatcher', () => {
   it.each([
     ['no open task', [] as Task[], {}, notice('chain.emptyNone', {})],
     ['ready tasks without the required label', [task('ABC-1')], { requiredLabels: ['Auto'] }, notice('chain.emptyLabels', { labels: ['Auto'] })],
+    ['only outsiders\' ready tasks, none let in', [{ ...task('ABC-1'), outsider: true as const }], {}, notice('chain.emptyOutsiders', {})],
     ['only skipped tasks', [task('ABC-1')], {}, notice('chain.emptySkipped', {})],
     ['a ready task held by a blocker outside the chain', [task('ABC-1', todo, 'ABC-2'), task('ABC-2', review)], { active: ['Todo'] }, notice('chain.emptyBlocked', {})],
   ])('names the reason of an empty chain: %s', async (_name, tasks, rules, why) => {

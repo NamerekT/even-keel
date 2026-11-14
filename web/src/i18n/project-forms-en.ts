@@ -63,8 +63,8 @@ export const wizardEN: Messages['wizard'] = {
     trackerOk: (open: number) => `The tracker answered: ${counted('open task', 'open tasks')(open)}`,
     openTasks: (open: number) => counted('open task', 'open tasks')(open),
     openToAll:
-      'The repository is public: anyone can open an issue there, and with no label needed it enters the chain. ' +
-      'Once the project is added, set "Only tasks with labels" in its settings, e.g. to ready: only collaborators can put a label on an issue.',
+      'The repository is public: anyone can open an issue there. An issue of someone outside the repository waits in the backlog until you press "Into the chain" on it; ' +
+      'the issues of its members enter the chain at once. To decide on each issue yourself, set "Only tasks with labels" in the project\'s settings once it is added, e.g. to ready.',
     stepProject: 'Project',
     prefix: 'Task prefix',
     prefixHint: 'A capital Latin letter, then up to 4 capitals, digits or _. It names the tasks, their branches and the stats.',

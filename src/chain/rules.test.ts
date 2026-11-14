@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskStatus } from '../tracker/model.js'
-import { admits, DEFAULT_RULES, isActive, isDone, isTerminal, missingLabel, ownsMilestone, requiredOn, splitsMilestones, unknownStatuses, type ChainRules } from './rules.js'
+import { admits, APPROVAL_LABEL, DEFAULT_RULES, entryLabels, isActive, isDone, isTerminal, missingLabel, ownsMilestone, requiredOn, splitsMilestones, unknownStatuses, type ChainRules } from './rules.js'
 
 const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -126,6 +126,35 @@ describe('labels', () => {
     const required = rules({ requiredLabels: ['Auto', 'Цепочка'] })
     expect(requiredOn(required, { labels: ['bug', ' auto ', 'Цепочка'] })).toEqual([' auto ', 'Цепочка'])
     expect(requiredOn(DEFAULT_RULES, { labels: ['Auto'] })).toEqual([])
+  })
+})
+
+describe('an outsider\'s task (BTN-1123)', () => {
+  it('waits for the approval label when no label is required', () => {
+    expect(admits(DEFAULT_RULES, { status: todo, labels: ['Bug'], outsider: true })).toBe(false)
+    expect(admits(DEFAULT_RULES, { status: todo, labels: [` ${APPROVAL_LABEL.toUpperCase()} `], outsider: true })).toBe(true)
+    expect(admits(DEFAULT_RULES, { status: todo, labels: [] })).toBe(true)
+  })
+
+  it('needs a required label like anyone\'s when the rules name one, and the approval label alone does not do', () => {
+    const required = rules({ requiredLabels: ['Auto'] })
+    expect(admits(required, { status: todo, labels: ['Auto'], outsider: true })).toBe(true)
+    expect(admits(required, { status: todo, labels: [APPROVAL_LABEL], outsider: true })).toBe(false)
+    expect(missingLabel(required, { status: todo, labels: [], outsider: true })).toBe('Auto')
+  })
+
+  it('gets the approval label from "Into the chain" and loses it to "To the backlog"', () => {
+    expect(missingLabel(DEFAULT_RULES, { status: todo, labels: [], outsider: true })).toBe(APPROVAL_LABEL)
+    expect(missingLabel(DEFAULT_RULES, { status: done, labels: [], outsider: true })).toBeNull()
+    expect(missingLabel(rules({ excludedLabels: ['Вручную'] }), { status: todo, labels: ['Вручную'], outsider: true })).toBeNull()
+    expect(requiredOn(DEFAULT_RULES, { labels: ['bug', APPROVAL_LABEL], outsider: true })).toEqual([APPROVAL_LABEL])
+    expect(requiredOn(DEFAULT_RULES, { labels: [APPROVAL_LABEL] })).toEqual([])
+  })
+
+  it('names the approval label as its entry label', () => {
+    expect(entryLabels(DEFAULT_RULES, { outsider: true })).toEqual([APPROVAL_LABEL])
+    expect(entryLabels(DEFAULT_RULES, {})).toEqual([])
+    expect(entryLabels(rules({ requiredLabels: ['Auto'] }), { outsider: true })).toEqual(['Auto'])
   })
 })
 

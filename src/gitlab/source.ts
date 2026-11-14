@@ -50,23 +50,40 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     })
   }
 
-  /** Whose notes on the task's project reach a session: the token's owner and Reporter or above; each author is asked once. */
-  function noteTrust(path: string): (note: GitlabNote) => Promise<boolean> {
+  /** Whose notes and issues on the project count as its own people's: the token's owner and Reporter or above; each author is asked once. */
+  function authorTrust(path: string): (author: { id: number } | null | undefined) => Promise<boolean> {
     const levels = new Map<number, boolean>()
-    return async (note) => {
-      if (note.author == null) return false
-      if (note.author.id === viewer.id) return true
-      if (!levels.has(note.author.id)) {
+    return async (author) => {
+      if (author == null) return false
+      if (author.id === viewer.id) return true
+      if (!levels.has(author.id)) {
         let level = 0
         try {
-          level = (await api.rest<{ access_level: number }>(`${projectBase(path)}/members/all/${note.author.id}`)).access_level
+          level = (await api.rest<{ access_level: number }>(`${projectBase(path)}/members/all/${author.id}`)).access_level
         } catch (error) {
           if (!(error instanceof TrackerNotFound) && !(error instanceof GitlabHttpError && error.status === 403)) throw error
         }
-        levels.set(note.author.id, level >= 20)
+        levels.set(author.id, level >= 20)
       }
-      return levels.get(note.author.id)!
+      return levels.get(author.id)!
     }
+  }
+
+  function noteTrust(path: string): (note: GitlabNote) => Promise<boolean> {
+    const trusted = authorTrust(path)
+    return (note) => trusted(note.author)
+  }
+
+  /** An open issue an outsider opened (BTN-1123); one read without its author is nobody's. */
+  const outsiderIssue = async (issue: GitlabIssue, trusted: ReturnType<typeof authorTrust>) =>
+    issue.state === 'opened' && issue.author !== undefined && !(await trusted(issue.author))
+
+  /** `tasks` are `issues` converted, in order: marks those of outsiders. */
+  async function markOutsiders(tasks: TrackerTask[], issues: GitlabIssue[], path: string): Promise<TrackerTask[]> {
+    const trusted = authorTrust(path)
+    const marked: TrackerTask[] = []
+    for (const [index, task] of tasks.entries()) marked.push((await outsiderIssue(issues[index]!, trusted)) ? { ...task, outsider: true } : task)
+    return marked
   }
 
   async function trustedNotes(id: string, notes: GitlabNote[]): Promise<GitlabNote[]> {
@@ -103,7 +120,8 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
           issues.push(...others.filter((issue) => !open(gitlabStatus(issue.state))))
         }
       }
-      const tasks = await convertedMany([...new Map(issues.map((issue) => [issue.id, issue])).values()], path, (issue) => open(gitlabStatus(issue.state)))
+      const unique = [...new Map(issues.map((issue) => [issue.id, issue])).values()]
+      const tasks = await markOutsiders(await convertedMany(unique, path, (issue) => open(gitlabStatus(issue.state))), unique, path)
       return { tasks, statuses: GITLAB_STATUSES.map((status) => status.name) }
     },
 
@@ -164,7 +182,8 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
       const links = await linksOf(path, iid)
       const notes = await notesOf(id)
       const tree = await hierarchy.read(path, iid)
-      return toCard(issue, links, notes, projects, tree, await outsiderNotes(path, notes))
+      const card = toCard(issue, links, notes, projects, tree, await outsiderNotes(path, notes))
+      return (await outsiderIssue(issue, authorTrust(path))) ? { ...card, outsider: true } : card
     },
 
     async file(id, file) {

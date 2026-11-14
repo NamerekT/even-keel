@@ -37,6 +37,19 @@ describe('GitLab task source', () => {
     expect(remaining()).toBe(0)
   })
 
+  it('marks the open issues of outsiders, asking after each author once (BTN-1123)', async () => {
+    const at = (iid: number, author: { id: number; username: string } | null) => issue({ iid, milestone: null, web_url: `${SETTINGS.web}/group/subgroup/app/-/issues/${iid}`, author })
+    const { source, calls, remaining } = await connect([
+      { body: [at(1, { id: 9, username: 'example-user' }), at(2, { id: 30, username: 'stranger' }), at(3, { id: 31, username: 'reporter' }), at(4, { id: 30, username: 'stranger' }), at(5, null), issue({ iid: 6, milestone: null, web_url: `${SETTINGS.web}/group/subgroup/app/-/issues/6` })] },
+      batchHierarchy(1, 2, 3, 4, 5, 6), { body: [] }, { body: [] }, { body: [] }, { body: [] }, { body: [] }, { body: [] },
+      { status: 404, body: {} }, { body: { access_level: 30 } },
+    ])
+    const { tasks } = await source.chainTasks('project-id', notTerminal)
+    expect(tasks.map((task) => [task.id, task.outsider])).toEqual([['APP-1', undefined], ['APP-2', true], ['APP-3', undefined], ['APP-4', true], ['APP-5', true], ['APP-6', undefined]])
+    expect(calls.filter((call) => call.url.includes('/members/all/')).map((call) => call.url.split('/').pop())).toEqual(['30', '31'])
+    expect(remaining()).toBe(0)
+  })
+
   it('leaves related links unordered on Free and propagates link API failures', async () => {
     const { source } = await connect([{ body: [issue({ milestone: null })] }, batchHierarchy(1), { body: [linked('relates_to', 2)] }])
     expect((await source.chainTasks('project-id', notTerminal)).tasks[0]!.blockedBy).toEqual([])
@@ -98,6 +111,15 @@ describe('GitLab task source', () => {
     ])
     expect(calls.filter((call) => call.url.includes('/members/all/'))).toHaveLength(3)
     expect(remaining()).toBe(0)
+  })
+
+  it('marks the card of an outsider\'s open issue (BTN-1123)', async () => {
+    const stranger = { author: { id: 30, username: 'stranger' } }
+    const { source, remaining } = await connect([{ body: issue(stranger) }, { body: [] }, { body: [] }, NO_HIERARCHY, { status: 404, body: {} }])
+    expect((await source.card!('APP-1')).outsider).toBe(true)
+    expect(remaining()).toBe(0)
+    const closed = await connect([{ body: issue({ ...stranger, state: 'closed' }) }, { body: [] }, { body: [] }, NO_HIERARCHY])
+    expect(await closed.source.card!('APP-1')).not.toHaveProperty('outsider')
   })
 
   it('copies a milestone only into an empty issue of the same project', async () => {

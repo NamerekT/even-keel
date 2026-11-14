@@ -93,6 +93,13 @@ describe('github issue to task', () => {
   it('takes the status from the state and its reason', () => {
     expect(toTrackerTask(issue(7, { state: 'CLOSED', stateReason: 'NOT_PLANNED' }), repos).status).toEqual({ name: 'Not planned', category: 'Lost' })
   })
+
+  it('marks an issue its author\'s trust refuses as an outsider\'s, and one read without its author as nobody\'s (BTN-1123)', () => {
+    const member = (who: { authorAssociation?: string }) => who.authorAssociation === 'MEMBER'
+    expect(toTrackerTask(issue(7, { author: { login: 'stranger' }, authorAssociation: 'NONE' }), repos, member).outsider).toBe(true)
+    expect(toTrackerTask(issue(7, { author: { login: 'jdoe' }, authorAssociation: 'MEMBER' }), repos, member)).not.toHaveProperty('outsider')
+    expect(toTrackerTask(issue(7), repos, member)).not.toHaveProperty('outsider')
+  })
 })
 
 describe('github card', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_RULES } from '../chain/rules.js'
+import { APPROVAL_LABEL, DEFAULT_RULES } from '../chain/rules.js'
 import { cardOf, type TrackerCard, type TrackerMoves } from './card.js'
 
 const ALL: TrackerMoves = { ready: true, unready: true, relabel: true }
@@ -67,6 +67,17 @@ describe('cardOf', () => {
     expect(card.requires).toEqual([])
     expect(card.labels).toEqual([{ name: 'agent', role: 'required' }])
     expect(cardOf(raw(), DEFAULT_RULES, ALL).requires).toEqual([])
+  })
+
+  it('asks the approval label of an outsider\'s task and lets "Into the chain" put it on (BTN-1123)', () => {
+    const todo = { status: { name: 'Open', category: 'ToDo' as const } }
+    const waiting = cardOf(raw({ ...todo, outsider: true }), DEFAULT_RULES, { ...NONE, relabel: true })
+    expect(waiting.requires).toEqual([APPROVAL_LABEL])
+    expect(waiting.ready).toBe(true)
+    const approved = cardOf(raw({ ...todo, outsider: true, labels: [APPROVAL_LABEL] }), DEFAULT_RULES, { ...NONE, relabel: true })
+    expect(approved.requires).toEqual([])
+    expect(approved.labels).toEqual([{ name: APPROVAL_LABEL, role: 'required' }])
+    expect(approved.unready).toBe(true)
   })
 
   it('says whether the tracker can write the labels', () => {

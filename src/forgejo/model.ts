@@ -32,6 +32,8 @@ export interface ForgejoIssue {
   /** Set on a pull request: the issues endpoints list them too unless asked for `type=issues`. */
   pull_request?: unknown
   assets?: ForgejoAsset[] | null
+  /** Who opened it: an outsider's issue enters the chain only with an entry label (BTN-1123). */
+  user?: { login: string } | null
 }
 
 export interface ForgejoComment {

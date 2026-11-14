@@ -40,6 +40,11 @@ export interface TrackerTask {
   priority: TaskPriority
   labels: string[]
   estimate: number | null
+  /**
+   * Opened by someone who is not one of the repository's own people, by the comments' trust rule (BTN-1123: GitHub,
+   * GitLab, Forgejo, in `chainTasks`). Such a task enters the chain only with an entry label (`entryLabels`).
+   */
+  outsider?: true
 }
 
 export interface Task extends TrackerTask {

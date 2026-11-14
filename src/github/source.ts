@@ -3,7 +3,7 @@ import { trackedFetch } from '../tracker/diagnostics.js'
 import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
-import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
+import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubAuthored, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
 import { githubEditor } from './editor.js'
 import { Skipped, trustedAuthor } from './trust.js'
 import { nextPage, signedLink, uploadId, UPLOADS } from './uploads.js'
@@ -27,15 +27,16 @@ interface Connection<T> {
 const API = 'https://api.github.com/graphql'
 const PAGE = 100
 
-const ISSUE = `id number title state stateReason
+const AUTHOR = 'author { login } authorAssociation'
+
+// The author marks an outsider's issue, which enters the chain only with an entry label (BTN-1123).
+const ISSUE = `id number title state stateReason ${AUTHOR}
   repository { nameWithOwner }
   parent { number repository { nameWithOwner } }
   subIssuesSummary { total }
   blockedBy(first: 50) { nodes { number repository { nameWithOwner } } }
   labels(first: 50) { nodes { name } }
   milestone { number title dueOn }`
-
-const AUTHOR = 'author { login } authorAssociation'
 
 interface Authored {
   author: { login: string } | null
@@ -84,7 +85,7 @@ const CARD_REF = 'number title state stateReason repository { nameWithOwner }'
 const ISSUE_CARD = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $number) {
-      id number title state stateReason body
+      id number title state stateReason body ${AUTHOR}
       repository { nameWithOwner }
       subIssuesSummary { total }
       parent { ${CARD_REF} }
@@ -263,7 +264,7 @@ export async function connectGithub(
   }
 
   const { viewer } = await graphql<{ viewer: { login: string } }>('query { viewer { login } }')
-  const trusted = (comment: Authored) => trustedAuthor(comment.authorAssociation, comment.author?.login, viewer.login)
+  const trusted = (who: GithubAuthored) => trustedAuthor(who.authorAssociation, who.author?.login, viewer.login)
 
   const source: TaskSource = {
     async chainTasks(project, open) {
@@ -285,7 +286,7 @@ export async function connectGithub(
           ),
         ),
       )
-      const tasks = [...openIssues, ...closedIssues.flat().filter((issue) => !isOpen(issue))].map((issue) => toTrackerTask(issue, repos))
+      const tasks = [...openIssues, ...closedIssues.flat().filter((issue) => !isOpen(issue))].map((issue) => toTrackerTask(issue, repos, trusted))
       return { tasks, statuses: GITHUB_STATUSES.map((status) => status.name) }
     },
 
@@ -306,7 +307,7 @@ export async function connectGithub(
       })
       const data = await graphql<Record<string, Record<string, GithubIssue | null> | null>>(`query {\n${parts.join('\n')}\n}`)
       return Object.values(data).flatMap((repository): TrackerTask[] =>
-        Object.values(repository ?? {}).flatMap((issue) => (issue === null ? [] : [toTrackerTask(issue, repos)])),
+        Object.values(repository ?? {}).flatMap((issue) => (issue === null ? [] : [toTrackerTask(issue, repos, trusted)])),
       )
     },
 
@@ -337,7 +338,7 @@ export async function connectGithub(
         (data) => (data.repository?.issue as { subIssues: Connection<GithubIssue> } | null | undefined)?.subIssues,
         `issue ${id} in ${repo.owner}/${repo.name}`,
       )
-      return issues.map((issue) => toTrackerTask(issue, repos))
+      return issues.map((issue) => toTrackerTask(issue, repos, trusted))
     },
 
     closingRef(id) {
@@ -445,7 +446,7 @@ export async function connectGithub(
         (data) => (data.repository?.milestone as { issues: Connection<GithubIssue> } | null)?.issues,
         `milestone ${found.number} of ${repo.owner}/${repo.name}`,
       )) as (GithubIssue & { comments: { nodes: ({ body: string } & Authored)[] } })[]
-      return issues.map((issue) => ({ ...toTrackerTask(issue, repos), lastComment: issue.comments.nodes.findLast(trusted)?.body ?? null }))
+      return issues.map((issue) => ({ ...toTrackerTask(issue, repos, trusted), lastComment: issue.comments.nodes.findLast(trusted)?.body ?? null }))
     },
 
     async vocabulary(project) {
@@ -539,7 +540,7 @@ export async function connectGithub(
     async list(project) {
       const repo = repoOf(project)
       const issues = await collect(REPOSITORY_ISSUES, { ...repo, states: ['OPEN', 'CLOSED'] }, (data) => data.repository?.issues as Connection<GithubIssue>, `${repo.owner}/${repo.name}`)
-      return issues.map((issue) => toTrackerTask(issue, repos))
+      return issues.map((issue) => toTrackerTask(issue, repos, trusted))
     },
     relabel: (id, change) => source.relabel!(id, change),
     comment: (id, body) => source.comment!(id, body),
