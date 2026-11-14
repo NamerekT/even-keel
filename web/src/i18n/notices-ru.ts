@@ -42,7 +42,10 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 }
 
 // The server's messages in Russian; the keys and values come from src/notice/en.ts.
+import { REVIEW_NOTICES_RU } from './notices-review-ru.js'
+
 export const noticesRu: NoticeTexts = {
+  ...REVIEW_NOTICES_RU,
   'account.overageRisk': () => 'Расход сверх лимита возможен до его обнаружения Even Keel.',
   'account.overagePolicy': () => 'Even Keel останавливает сессию при платном расходе, а у Claude — и при исчерпанном запасе подписки: это не подтверждает оплату. Ждёт сброса запаса. Сигнал может отставать на пять минут. Задайте жёсткий денежный лимит у провайдера.',
   'account.overageAdvice': (p) => p.provider === 'chatgpt'
@@ -221,27 +224,11 @@ export const noticesRu: NoticeTexts = {
   'ci.rerunUnsupported': (p) => `${p.ci} не умеет перезапускать задания через API`,
   'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
-  'review.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужна запись pull request репозитория`,
   'intake.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужны чтение и запись issue репозитория`,
-  'review.notOpened': (p) => `pull request задачи ${p.task} не открыт (исправьте доступ и нажмите «Снять с паузы», ответьте её сессии в чате или пропустите задачу)`,
-  'review.notCompleted': (p) => `у задачи ${p.task} нечего открывать как pull request, но в трекере она не переведена в Done (переведите её сами и продолжите цепочку или пропустите задачу)`,
-  'review.notReady': (p) =>
-    `PR-режиму ${p.project} негде открывать pull request, и цепочка не запускает задачи; она пойдёт сама в течение минуты, как только это исправят, или выключите PR-режим`,
-  'review.cannotEnable': (p) => `PR-режим ${p.project} не включён`,
   'chain.noTrackerMcp': (p) =>
     `цепочка ${p.project} не запускает задачи: «Описание задачи в промпте» выключено, а ни один пакет проекта не приносит MCP-сервер трекера ${p.server}, так что сессия не увидит свою задачу; включите пакет с ним или описание задачи — цепочка пойдёт сама`,
   'chain.packagesNotReady': (p) =>
     `цепочка ${p.project} не запускает задачи: ${p.packages.length === 1 ? 'пакет' : 'пакеты'} ${list(p.packages)} не установлен${p.packages.length === 1 ? '' : 'ы'}, не встал${p.packages.length === 1 ? '' : 'и'} или без ключа; исправьте это в пакетах проекта — цепочка пойдёт сама`,
-  'review.noRemote': (p) => `у ${p.project} нет remote на GitHub, GitLab или Forgejo, где открыть pull request`,
-  'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote} (${p.web}); добавьте профиль ${FORGES[p.kind]} его хоста`,
-  'review.unsupportedHost': (p) => `remote ${p.remote} на ${p.host} не поддерживается для pull request: только GitHub, GitLab и Forgejo`,
-  'review.noNote': (p) => `сессия не оставила описание pull request в ${p.path}`,
-  'review.noBranch': (p) => `${p.path} не на ветке`,
-  'review.dirty': (p) => `в ${p.path} есть незакоммиченные изменения`,
-  'review.nothingAhead': (p) => `у ${p.branch} нет коммитов сверх ${p.base}`,
-  'review.pushFailed': (p) => `не удалось запушить ${p.branch} в ${p.remote}`,
-  'review.pushBehind': (p) =>
-    `в ${p.branch} на ${p.remote} есть коммиты, которых нет у сессии (например, конфликт разрешён на форже): сессия сливает их к себе и снова отмечает pull request`,
   'ci.notTaken': (p) => `${p.ci}: ни один раннер не взял ${p.commit}`,
   'ci.fixFailed': (p) => `CI красный на main в ${p.commit} — это пуш починки ${p.task}; цепочка ждёт вас`,
   'ci.cannotCreate': (p) => `CI красный на main в ${p.commit}, а трекер не умеет заводить задачу на починку`,

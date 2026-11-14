@@ -7,7 +7,10 @@ import { AGENT_NAMES, BUILTIN_FIELDS, FORGES, GIT_STEPS, MODELS_NAMED, MOVE_LABE
 export { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, megabytes, whose, type BuiltinField, type GitStep, type MoveLevel } from './en-values.js'
 
 // The English texts of the server's messages: the log and the English page both read them.
+import { REVIEW_NOTICES } from './en-review.js'
+
 export const en = {
+  ...REVIEW_NOTICES,
   'account.overageRisk': () => 'Paid usage may start before Even Keel detects it.',
   'account.overagePolicy': () => 'Even Keel stops on paid usage or, for Claude, an exhausted included allowance, which does not confirm payment. It waits for the allowance reset. Detection may lag five minutes. Set a hard spending cap with the provider.',
   'account.overageAdvice': (p: { provider: 'claude' | 'chatgpt' | 'github' }) => p.provider === 'chatgpt'
@@ -198,28 +201,11 @@ export const en = {
   'ci.rerunUnsupported': (p: { ci: string }) => `${p.ci} cannot rerun jobs through its API`,
   'ci.http': (p: { ci: string; status: number }) => `${p.ci}: the API answered HTTP ${p.status}`,
   'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
-  'review.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to write pull requests of the repository`,
   'intake.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to read and write the repository's issues`,
-  'review.notOpened': (p: { task: string }) => `the pull request of ${p.task} was not opened (fix access and press Resume, answer its session from the chat, or skip the task)`,
-  'review.notCompleted': (p: { task: string }) => `${p.task} has nothing to open as a pull request, but it was not moved to done in the tracker (move it there yourself and resume the chain, or skip the task)`,
-  'review.notReady': (p: { project: string }) =>
-    `PR mode of ${p.project} has nowhere to open pull requests, so its chain starts no task; it goes on by itself within a minute once that is fixed, or turn PR mode off`,
-  'review.cannotEnable': (p: { project: string }) => `PR mode of ${p.project} is not turned on`,
   'chain.noTrackerMcp': (p: { project: string; server: string }) =>
     `the chain of ${p.project} starts no task: "Task description in the prompt" is off and no package of the project brings the tracker's MCP server ${p.server}, so a session would not see its task; turn on a package with it or turn the description on, and the chain goes on by itself`,
   'chain.packagesNotReady': (p: { project: string; packages: string[] }) =>
     `the chain of ${p.project} starts no task: its package${p.packages.length === 1 ? '' : 's'} ${list(p.packages)} ${p.packages.length === 1 ? 'is' : 'are'} not installed, failed to install or lack${p.packages.length === 1 ? 's' : ''} a key; fix that in the project's packages, and the chain goes on by itself`,
-  'review.noRemote': (p: { project: string }) => `${p.project} has no remote on GitHub, GitLab or Forgejo to open a pull request on`,
-  'review.noToken': (p: { remote: string; kind: CiKind; web: string }) =>
-    `no profile has a token for the remote ${p.remote} (${p.web}); add a ${FORGES[p.kind]} profile for its host`,
-  'review.unsupportedHost': (p: { remote: string; host: string }) => `the remote ${p.remote} on ${p.host} is not supported for pull requests: only GitHub, GitLab and Forgejo are`,
-  'review.noNote': (p: { path: string }) => `the session left no pull request description at ${p.path}`,
-  'review.noBranch': (p: { path: string }) => `${p.path} is not on a branch`,
-  'review.dirty': (p: { path: string }) => `${p.path} has uncommitted changes`,
-  'review.nothingAhead': (p: { branch: string; base: string }) => `${p.branch} has no commits beyond ${p.base}`,
-  'review.pushFailed': (p: { branch: string; remote: string }) => `could not push ${p.branch} to ${p.remote}`,
-  'review.pushBehind': (p: { branch: string; remote: string }) =>
-    `${p.branch} on ${p.remote} has commits the session's branch lacks (a conflict resolved on the forge, say): the session is to merge them and mark the pull request again`,
   'ci.notTaken': (p: { ci: string; commit: string }) => `${p.ci}: no runner took ${p.commit}`,
   'ci.fixFailed': (p: { task: string; commit: string }) => `CI is red on main at ${p.commit}, the push of the fix ${p.task}; the chain waits for you`,
   'ci.cannotCreate': (p: { commit: string }) => `CI is red on main at ${p.commit}, and the tracker cannot create a task to fix it`,
