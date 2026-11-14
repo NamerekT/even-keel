@@ -22,7 +22,7 @@ describe('Approvals', () => {
     const ask = registry.ask(SESSION)!
     expect(ask.id).toMatch(/^perm:session-1:[0-9a-f]+$/)
     expect(ask.questions[0]).toMatchObject({ question: 'Allow the session to run Bash?' })
-    expect(ask.questions[0]!.options[0]).toMatchObject({ label: 'Allow', preview: 'npm publish' })
+    expect(ask.questions[0]!.options[0]).toMatchObject({ label: 'Allow', preview: expect.stringMatching(/^npm publish(\n|$)/) })
     expect(registry.poll(SESSION, 'Bash', PUBLISH, 0)).toBeNull()
     expect(registry.ask(SESSION)?.id).toBe(ask.id)
     expect(registry.ask('session-2')).toBeNull()

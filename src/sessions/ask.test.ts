@@ -161,6 +161,14 @@ describe('questionComment', () => {
     expect(questionComment(ONE, 'en')).toContain('`1, 3`')
   })
 
+  it('shows an option’s preview after the options in a fence longer than any it holds', () => {
+    const previewed: Ask = {
+      id: 'toolu_3',
+      questions: [{ question: 'Allow?', header: '', multiSelect: false, options: [{ label: 'Allow', description: '', preview: 'echo ```\nls' }, { label: 'Deny', description: '' }] }],
+    }
+    expect(questionComment(previewed, 'en')).toContain('1. Allow\n2. Deny\n\n**Allow**\n\n````\necho ```\nls\n````')
+  })
+
   it('in a journal only records the question and points to the chat', () => {
     const comment = questionComment(ONE, 'en', true)
     expect(comment).toContain('1. Red')

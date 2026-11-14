@@ -273,9 +273,18 @@ export function questionComment(ask: Ask, language: Language, journal = false): 
     if (question.options.length > 0) {
       blocks.push(question.options.map((option, number) => `${number + 1}. ${optionLine(option)}`).join('\n'))
     }
+    // A permission's call is its preview: the tracker shows it as the page does (BTN-1128).
+    for (const option of question.options) if (option.preview !== undefined) blocks.push(`**${option.label}**`, fenced(option.preview))
   })
   blocks.push(journal ? text.chat : text.how(several))
   return blocks.join('\n\n')
+}
+
+/** `text` as a Markdown code block whose fence is longer than any backtick run inside it. */
+function fenced(text: string): string {
+  const longest = Math.max(0, ...[...text.matchAll(/`+/g)].map((run) => run[0].length))
+  const fence = '`'.repeat(Math.max(3, longest + 1))
+  return `${fence}\n${text}\n${fence}`
 }
 
 /**
