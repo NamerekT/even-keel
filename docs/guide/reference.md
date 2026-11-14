@@ -11,7 +11,7 @@ If Claude Code still refuses the folder, the pause offers one copyable command f
 `protection` is shared and per project, edited in **Sessions → Protection**. Its default is
 `{ "disabled": [], "claude": [], "codex": [], "copilot": [], "opencode": [] }`: all built-in groups on, no extra native rules.
 `disabled` lists groups to turn off: `forcePush`, `mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`,
-`deleteParent`, and one per tracker: `deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`, `deleteForgejo`. The other fields add native deny rules: Claude permission strings, Codex arrays of
+`deleteParent`, `ownAddress` (requests to Even Keel's own address), and one per tracker: `deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`, `deleteForgejo`. The other fields add native deny rules: Claude permission strings, Codex arrays of
 command arguments (for example `["terraform", "destroy"]`), Copilot tool strings, and OpenCode bash command glob
 patterns (for example `git reset --hard*`). A project's field replaces its
 shared counterpart; omitted fields inherit. New launches only; see [coverage and limits](features.md#protection).

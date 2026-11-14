@@ -5,13 +5,15 @@
 // a turn. A delivered message is also kept in the call's metadata, where Even Keel's feed finds it. Before a shell
 // call that merges the task branch it runs the project's check, and an error thrown there keeps the call from running;
 // a passed check is reported to Even Keel with the tree it ran on, as the hook command does. A shell call of git in a
-// project whose git is off is refused the same way (../hooks/gitban.mjs).
+// project whose git is off is refused the same way (../hooks/gitban.mjs), and so is a request to Even Keel's own
+// address while the project's Protection refuses it (../hooks/addressban.mjs).
 // The project's standards (../hooks/standards.mjs) work as in the hook commands: a read of a guarded file gets the
 // document after its output, a first edit before it is refused by an error, and a compaction forgets what was given.
 // `opencode run` has no Stop to block, so a turn that wrote the handoff note and ends without the CHECKPOINT line gets
 // the line added to its text as it completes; for the same reason PR mode's mark is not held for the standards. A
 // subagent runs in a session of its own, which Even Keel does not know, so it is left alone. Only `server` is
 // exported: OpenCode takes the module's exports for plugins.
+import { addressRefusal } from "../hooks/addressban.mjs";
 import { checkOf, checkpointNote, mailOf, noteAtEnd, reportCheck, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
 import { gitRefusal } from "../hooks/gitban.mjs";
 import { hasMark, isNotePath } from "../hooks/handoff.mjs";
@@ -52,7 +54,8 @@ export const server = async ({ directory }) => {
         if (found?.deny !== undefined) throw new Error(found.deny);
         return;
       }
-      const banned = await gitRefusal(output?.args?.command, () => checkOf(input.sessionID));
+      const check = () => checkOf(input.sessionID);
+      const banned = (await gitRefusal(output?.args?.command, check)) ?? (await addressRefusal(output?.args?.command, check));
       if (banned !== null) throw new Error(banned);
       // Even Keel not answering, or git failing, must never block a merge.
       const text = await mergeRefusal(

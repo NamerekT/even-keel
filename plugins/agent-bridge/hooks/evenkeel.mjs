@@ -77,14 +77,15 @@ export async function decisionOf(sessionId, tool, input, since) {
 /**
  * The project's check before the session merges its task branch, its standards (../hooks/standards.mjs) and the
  * project's main branch (`main` when Even Keel does not name one). No commands — Even Keel did not start this session,
- * the project has none, or a CI will judge main. `git: false` — the project's git is off (./gitban.mjs).
+ * the project has none, or a CI will judge main. `git: false` — the project's git is off (./gitban.mjs);
+ * `ownAddress` — its Protection refuses requests to Even Keel's own address (./addressban.mjs).
  */
 export async function checkOf(sessionId) {
   const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/check`, { signal: AbortSignal.timeout(2000) });
-  if (!response.ok) return { commands: [], standards: [], main: "main", git: true };
+  if (!response.ok) return { commands: [], standards: [], main: "main", git: true, ownAddress: false };
   const body = await response.json();
   const commands = Array.isArray(body?.commands) ? body.commands.filter((command) => typeof command === "string" && command.trim() !== "") : [];
-  return { commands, standards: standardsIn(body), main: typeof body?.branch === "string" && body.branch !== "" ? body.branch : "main", git: body?.git !== false };
+  return { commands, standards: standardsIn(body), main: typeof body?.branch === "string" && body.branch !== "" ? body.branch : "main", git: body?.git !== false, ownAddress: body?.ownAddress === true };
 }
 
 /** Tells Even Keel the project's check before the merge passed on `tree` (EKR-103); a failure is the caller's to swallow. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_PROTECTION, deletesRecord, PROTECTION_GROUPS, protectionRules, TRACKER_GROUPS } from './protection.js'
+import { DEFAULT_PROTECTION, deletesRecord, guardsOwnAddress, PROTECTION_GROUPS, protectionRules, TRACKER_GROUPS } from './protection.js'
 import { chainSettings } from '../tools/panel.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import { turnArgs as copilotArgs } from '../copilot/cli.js'
@@ -24,6 +24,13 @@ describe('session protection', () => {
     expect(rules.codex).toContainEqual(['git', 'push', '--force'])
     expect(rules.copilot).toContain('shell(git push --force:*)')
     expect(rules.claude).toContain('mcp__plugin_huly_huly__delete_issue')
+  })
+
+  it('leaves Even Keel\'s address to the agent-bridge hook: on by default, no native rule of its own', () => {
+    expect(guardsOwnAddress(DEFAULT_PROTECTION)).toBe(true)
+    expect(guardsOwnAddress({ ...DEFAULT_PROTECTION, disabled: ['ownAddress'] })).toBe(false)
+    const without = protectionRules({ ...DEFAULT_PROTECTION, disabled: ['ownAddress'] })
+    expect(protectionRules(DEFAULT_PROTECTION)).toEqual(without)
   })
 
   it('keeps the native Huly rules with the Huly group only: the other trackers are the gateway\'s', () => {

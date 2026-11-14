@@ -242,6 +242,17 @@ A session of a project without git gets native deny rules on git and the `agent-
 
 If wrong, a session that ignores the prompt runs git in a folder that is a repository after all or lies inside someone else's: commits, a changed index or branch there. **Check:** a project "Without git" whose folder is an existing repository, and one whose folder lies inside another repository; a task that asks for `git status`, `git -C . log` and `cd . && git status` on Claude Code, then on Codex, OpenCode and Copilot; the session reports refusals, the repository's `git status`, branches and `info/exclude` are as before; after "Turn on git" a new session runs git again. **Workaround:** keep the folder of a project without git outside any repository — leave it blank and Even Keel makes one in its data folder.
 
+## Even Keel's address refused (BTN-1127)
+
+The Protection group `ownAddress` makes the `agent-bridge` hook refuse a shell command that sends a request to Even Keel's own address (`docs/sessions/protection.md`, "Even Keel's address"). Covered by unit tests of the command parsing (`plugins/agent-bridge/hooks/addressban.test.mjs`), of the group (`src/sessions/protection.test.ts`) and of the hook process and OpenCode's plugin against a fake Even Keel (`hooks.test.mjs`); no real agent was run. Assumed:
+
+- a chain session's hook process has the service's `EVEN_KEEL_URL`, and a Claude `--bg` daemon started before a port change keeps the old one (entry 100);
+- the hook runs on the shell tools of every agent as the git ban does (entry 141), and the denial reaches the model as the reason;
+- a task that needs the service (`npm run shot -- --url`, a live check through `curl`) is rare enough to turn the group off for its project;
+- the session's `agent-bridge` package is 1.2.0 or later — an older one has no such check.
+
+If wrong, a session under someone else's text changes Protection, answers a question or creates a task in another project with a plain `curl`, or a task that needs the API keeps being refused. **Check:** a project with the group on; a task that asks for `curl` of `/api/state`, `Invoke-WebRequest` of the same and `node -e "fetch(…)"` on Claude Code, then on Codex, OpenCode and Copilot; each is refused with the text naming the group; with the group off in the project, a new session gets the answer. **Workaround:** turn the group off in the project's Protection; for isolation give the service its own OS account.
+
 ## A stop that does not lose the mark in a project without git (BTN-1044)
 
 In a sandbox run of 0.3.0-rc.1 on Claude Code (2026-11-11) "Stop after the turn" left a task whose turn ended with `TASK DONE` open, and the next start ran it a second time. Since BTN-1044 the ended turn's mark closes the task before the chain stops, a session just launched counts as mid-turn for a minute, and a start on a task whose finished session ended with the mark closes it without a new launch (`docs/chain/worktrees.md`, "A stop does not lose the mark"). Covered by unit tests (`src/chain/stopafter-plain.test.ts`) and the scripted scenarios of `src/e2e/plain.test.ts`; not run on a real agent. Assumed:
