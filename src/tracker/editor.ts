@@ -143,6 +143,13 @@ export interface TaskMarkers {
 /** A write the tools refuse with a reason the agent can act on; the message is English and complete. */
 export class EditRefused extends Error {}
 
+/** A create the tracker took, after which it refused the rest of the task (a status, a parent, labels): the task exists. */
+export class CreatedThenRefused extends EditRefused {
+  constructor(readonly id: string, reason: string) {
+    super(`${id} was created, but ${reason}; do not create it again`)
+  }
+}
+
 /** A task's description as a tracker reads and writes it whole, in Markdown. */
 export interface DescriptionStore {
   read(id: string): Promise<string>

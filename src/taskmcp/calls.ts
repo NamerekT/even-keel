@@ -1,6 +1,6 @@
 import { englishOf, NoticeError } from '../notice/notice.js'
 import type { Queryable } from '../storage/database.js'
-import { EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskFiles, type TaskLink } from '../tracker/editor.js'
+import { CreatedThenRefused, EditRefused, type TaskDraft, type TaskEditor, type TaskField, type TaskFiles, type TaskLink } from '../tracker/editor.js'
 import { parseTaskId, type TextEdit, type TrackerTask } from '../tracker/model.js'
 import type { Tracker } from '../tracker/source.js'
 import { didNotAnswer } from '../tracker/link.js'
@@ -230,6 +230,12 @@ export class TasksTools {
                 notes[index]!.push(`run ${taskRunText(each.run)}`)
               }
             } catch (error) {
+              // The tracker took the task and refused only the rest of it: it is created, and a repeat must skip it (BTN-1166).
+              if (error instanceof CreatedThenRefused && retry.ids[index] === undefined) {
+                retry.ids[index] = error.id
+                // An unsaved id is still found by its marker on a repeat; the refusal below says the task exists either way.
+                await retry.save().catch(() => undefined)
+              }
               throw new EditRefused(`${createdSoFar(done())}task ${index + 1} was refused: ${refusalText(error)}. A repeat with the same retry creates only the rest`)
             }
             try {

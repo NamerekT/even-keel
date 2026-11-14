@@ -12,7 +12,7 @@ import { openDatabase } from '../storage/database.js'
 import { trackerOf, type Tracker } from '../tracker/source.js'
 import type { TrackerCard } from '../tracker/card.js'
 import type { TextEdit, TrackerTask } from '../tracker/model.js'
-import { EditRefused, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
+import { CreatedThenRefused, EditRefused, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
 import { TasksTools, cardText, type TaskReader, type TasksScope } from './calls.js'
 import { TasksMcp } from './server.js'
 import { toolSpecs } from './tools.js'
@@ -290,6 +290,24 @@ describe('tasks_create', () => {
     expect(refreshed).toEqual([ABC, ABC])
     broken = ''
     expect(await call('tasks_create', batch)).toBe('ABC-2 One (found in the tracker after an interrupted call)\nABC-3 Two')
+  })
+
+  it('counts a task created before its tracker refused the rest as created, and a repeat does not create it again (BTN-1166)', async () => {
+    const editor = tracker.editor!
+    tracker.editor = {
+      ...editor,
+      create: async (project, draft, notes, marker) => {
+        const id = await editor.create(project, { ...draft, status: null }, notes, marker)
+        throw new CreatedThenRefused(id, `Jira refused the transition to "${draft.status}": Нужен срок`)
+      },
+    }
+    const batch = { retry: 'transition', tasks: [{ title: 'One', status: 'In Progress' }, { title: 'Two' }] }
+    expect(await refusal(call('tasks_create', batch))).toBe(
+      'Created ABC-2 One; then task 1 was refused: ABC-2 was created, but Jira refused the transition to "In Progress": Нужен срок; do not create it again. A repeat with the same retry creates only the rest',
+    )
+    tracker.editor = editor
+    expect(await call('tasks_create', batch)).toBe('ABC-2 One\nABC-3 Two')
+    expect((await store.list([ABC])).map((task) => task.title)).toEqual(['Parent', 'One', 'Two'])
   })
 
   it('a batch the tracker broke off says what was created and to repeat with the same retry (BTN-929)', async () => {

@@ -164,6 +164,13 @@ describe('Jira task source', () => {
     expect(await source.complete!('ABC-1')).toBe(true)
   })
 
+  it('keeps a validator message that names no field apart from field errors (BTN-1166)', async () => {
+    const before = { body: { fields: { status: PROGRESS } } }
+    const transitions = { body: { transitions: [{ id: '31', name: 'Finish', to: DONE }] } }
+    const { source } = await connect([before, transitions, { status: 400, body: { errorMessages: ['Нужен срок'], errors: {} } }])
+    await expect(source.complete!('ABC-1')).rejects.toMatchObject({ status: 400, fields: [], messages: ['Нужен срок'] })
+  })
+
   it('closes through the first transition to a Done status, and says why when there is none', async () => {
     const { source, calls, lines } = await connect([
       { body: { fields: { status: PROGRESS } } },

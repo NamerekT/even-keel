@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { sameName } from '../chain/rules.js'
-import { descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
+import { CreatedThenRefused, descriptionEdits, EditRefused, type TaskEditor, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { adfToMarkdown, markdownToAdf } from './adf.js'
@@ -90,12 +90,14 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
     try {
       await rest(`${path(issue.key)}/transitions`, 'POST', { transition: { id: found.id } })
     } catch (error) {
-      // Some transitions require fields the tasks server does not set (BTN-930).
+      // Some transitions require fields the tasks server does not set (BTN-930); a validator may name none, only say why (BTN-1166).
       if (error instanceof JiraHttpError && error.status === 400) {
-        const required = error.fields.length > 0
-          ? `the field${error.fields.length > 1 ? 's' : ''} ${error.fields.join(', ')}`
-          : 'a field Jira named in its answer'
-        throw new EditRefused(`the transition to "${name}" requires ${required}, which the tasks server does not set; set it in Jira`)
+        if (error.fields.length > 0) {
+          const required = `the field${error.fields.length > 1 ? 's' : ''} ${error.fields.join(', ')}`
+          throw new EditRefused(`the transition to "${name}" requires ${required}, which the tasks server does not set; set it in Jira`)
+        }
+        const answer = error.messages.length > 0 ? `: ${error.messages.join('; ')}` : ' without a reason'
+        throw new EditRefused(`Jira refused the transition to "${name}"${answer}; it may require a field the tasks server does not set; set it in Jira`)
       }
       throw error
     }
@@ -154,7 +156,7 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
         try {
           await moveTo(await issueOf(created.key), draft.status)
         } catch (error) {
-          throw new EditRefused(`${created.key} was created, but ${error instanceof Error ? error.message : String(error)}; do not create it again`)
+          throw new CreatedThenRefused(created.key, error instanceof Error ? error.message : String(error))
         }
       }
       return created.key

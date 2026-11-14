@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { sameName } from '../chain/rules.js'
 import { markerComment, withMarker } from '../tracker/markers.js'
-import { descriptionEdits, EditRefused, withFileLinks, type TaskEditor, type TaskLink, type TaskUpload } from '../tracker/editor.js'
+import { CreatedThenRefused, descriptionEdits, EditRefused, withFileLinks, type TaskEditor, type TaskLink, type TaskUpload } from '../tracker/editor.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { GitlabHttpError } from './api.js'
@@ -144,7 +144,7 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
         // A new issue takes no estimate: it is set through its own call.
         if (draft.estimate != null) await setEstimate(id, draft.estimate)
       } catch (error) {
-        throw new EditRefused(`${id} was created, but ${error instanceof Error ? error.message : String(error)}; do not create it again`)
+        throw new CreatedThenRefused(id, error instanceof Error ? error.message : String(error))
       }
       return id
     },

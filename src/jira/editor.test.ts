@@ -240,6 +240,18 @@ describe('jiraEditor', () => {
     expect(writes).toEqual([['POST', '/issue/ABC-1/transitions', { transition: { id: 't-31' } }]])
   })
 
+  it('passes on what Jira answered when a refused transition names no field (BTN-1166)', async () => {
+    const { editor, state } = fixture()
+    state.transition = new JiraHttpError(400, 'Нужен срок', [], ['Нужен срок'])
+    await expect(editor.set('ABC-1', { field: 'status', to: 'Done' })).rejects.toThrow(
+      'Jira refused the transition to "Done": Нужен срок; it may require a field the tasks server does not set; set it in Jira',
+    )
+    state.transition = new JiraHttpError(400, '')
+    await expect(editor.set('ABC-1', { field: 'status', to: 'Done' })).rejects.toThrow(
+      'Jira refused the transition to "Done" without a reason; it may require a field the tasks server does not set; set it in Jira',
+    )
+  })
+
   it('patches the description through Markdown and writes it back as ADF', async () => {
     const { editor, writes } = fixture()
     expect(await editor.revision('ABC-1')).toBe(revisionOf('Old text'))
