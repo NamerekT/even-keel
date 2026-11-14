@@ -101,10 +101,47 @@ describe('github source', () => {
   it('marks the issues of outsiders by the comments\' trust rule (BTN-1123)', async () => {
     const { source, calls } = await connect([
       { body: { data: { repository: { issues: page([issue(1, by('octocat', 'NONE')), issue(2, by('stranger', 'NONE')), issue(3, by('jdoe', 'COLLABORATOR')), issue(4, by(null, 'NONE'))]) } } } },
+      { body: { data: { repository: { i2: { author: { login: 'stranger' } }, i4: { author: null } } } } },
     ])
     const { tasks } = await source.chainTasks('ABC', notTerminal)
     expect(tasks.map((task) => [task.id, task.outsider])).toEqual([['ABC-1', undefined], ['ABC-2', true], ['ABC-3', undefined], ['ABC-4', true]])
     expect(calls[1]!.query).toContain('authorAssociation')
+  })
+
+  it('reads the text changes of outsiders\' issues only, by their authors (BTN-1124)', async () => {
+    const at = (minute: number) => `2026-01-02T10:${String(minute).padStart(2, '0')}:00Z`
+    const { source, calls } = await connect([
+      { body: { data: { repository: { issues: page([issue(1, by('jdoe', 'MEMBER')), issue(2, by('stranger', 'NONE')), issue(3, by('other', 'NONE'))]) } } } },
+      {
+        body: {
+          data: {
+            repository: {
+              i2: {
+                author: { login: 'stranger' },
+                userContentEdits: { nodes: [{ editedAt: at(5), editor: { login: 'Stranger' } }, { editedAt: at(30), editor: { login: 'jdoe' } }] },
+                timelineItems: {
+                  nodes: [
+                    { __typename: 'LabeledEvent', createdAt: at(1), label: { name: 'even-keel: approved' } },
+                    { __typename: 'RenamedTitleEvent', createdAt: at(10), actor: { login: 'stranger' } },
+                    { __typename: 'RenamedTitleEvent', createdAt: at(40), actor: { login: 'jdoe' } },
+                  ],
+                },
+              },
+              i3: { author: { login: 'other' }, userContentEdits: { nodes: [] }, timelineItems: { nodes: [] } },
+            },
+          },
+        },
+      },
+    ])
+    const { tasks } = await source.chainTasks('ABC', notTerminal)
+    expect(tasks.map((task) => [task.id, task.edited])).toEqual([
+      ['ABC-1', undefined],
+      ['ABC-2', { at: Date.parse(at(10)), labeled: [{ label: 'even-keel: approved', at: Date.parse(at(1)) }] }],
+      ['ABC-3', undefined],
+    ])
+    expect(calls[2]!.query).toContain('i2: issue(number: 2)')
+    expect(calls[2]!.query).not.toContain('issue(number: 1)')
+    expect(calls[2]!.variables).toEqual({ owner: 'octo-org', name: 'abc' })
   })
 
   it('fails on a project without a repository and on a repository it cannot see', async () => {
@@ -146,6 +183,17 @@ describe('github source', () => {
     ])
     expect(await source.brief!('ABC-7')).toEqual({ title: 'Add login', description: 'Use **OAuth**.' })
     await expect(source.brief!('ABC-8')).rejects.toThrow(/ABC-8/)
+  })
+
+  it('names an outsider who opened the issue in the brief (BTN-1124)', async () => {
+    const { source } = await connect([
+      { body: { data: { repository: { issue: { title: 'T', body: null, ...by('stranger', 'NONE') } } } } },
+      { body: { data: { repository: { issue: { title: 'T', body: null, ...by(null, 'NONE') } } } } },
+      { body: { data: { repository: { issue: { title: 'T', body: null, ...by('jdoe', 'MEMBER') } } } } },
+    ])
+    expect(await source.brief!('ABC-7')).toEqual({ title: 'T', description: '', outsider: 'stranger' })
+    expect(await source.brief!('ABC-7')).toMatchObject({ outsider: '' })
+    expect(await source.brief!('ABC-7')).not.toHaveProperty('outsider')
   })
 
   it('closes an open issue as completed', async () => {

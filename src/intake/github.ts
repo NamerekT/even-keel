@@ -1,5 +1,7 @@
 import { getJson, sendJson } from '../ci/http.js'
+import { EDITS, textEditOf, type GithubEdits } from '../github/edits.js'
 import { noticeOf } from '../notice/notice.js'
+import type { TextEdit } from '../tracker/model.js'
 import type { IntakeComment, IntakeIssue } from './model.js'
 
 /** The calls of the intake on one GitHub repository (BTN-262). */
@@ -8,6 +10,8 @@ export interface IntakeRepo {
   labeled(label: string): Promise<IntakeIssue[]>
   /** `null` — the issue is gone. */
   issue(number: number): Promise<IntakeIssue | null>
+  /** The changes of the issue's text by its author and its label puttings (BTN-1124); `undefined` — the author changed nothing. */
+  edits(number: number): Promise<TextEdit | undefined>
   /** The issue's comments with an id above `after`, oldest first. */
   comments(number: number, after: number): Promise<IntakeComment[]>
   comment(number: number, body: string): Promise<void>
@@ -28,6 +32,7 @@ interface GithubIssue {
   html_url: string
   state: string
   user: { login: string } | null
+  author_association?: string
   pull_request?: unknown
 }
 
@@ -69,6 +74,7 @@ export function intakeRepo(slug: string, token: string, timeoutMs: number, fetch
     body: issue.body ?? '',
     url: issue.html_url,
     author: issue.user?.login ?? '',
+    association: issue.author_association ?? 'NONE',
     open: issue.state === 'open',
   })
   const published = (release: GithubRelease) => !release.draft && !release.prerelease && release.published_at !== null
@@ -80,6 +86,17 @@ export function intakeRepo(slug: string, token: string, timeoutMs: number, fetch
     },
 
     issue: (number) => unlessGone(async () => issueOf(await get<GithubIssue>(`/issues/${number}`)), null),
+
+    // REST keeps no history of an issue's text: GraphQL does.
+    async edits(number) {
+      const [owner, name] = slug.split('/')
+      const query = `query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { issue(number: $number) { author { login } ${EDITS} } } }`
+      const answer = await sendJson<{ data?: { repository: { issue: GithubEdits | null } | null } | null }>(
+        TITLE, `${API}/graphql`, auth, { query, variables: { owner, name, number } }, timeoutMs, fetchImpl, 'POST', 'intake.denied',
+      )
+      const issue = answer.data?.repository?.issue
+      return issue == null ? undefined : textEditOf(issue)
+    },
 
     async comments(number, after) {
       const found: GithubComment[] = []

@@ -66,7 +66,7 @@ export function mainFixedPrompt(red: string, fixed: string | null, language: Lan
 
 export function withBrief(prompt: string, brief: TaskBrief | undefined, language: Language): string {
   if (brief === undefined) return prompt
-  const lines = ['', PROMPTS[language].brief(brief.title.trim())]
+  const lines = ['', ...(brief.outsider === undefined ? [] : [PROMPTS[language].outsider(brief.outsider)]), PROMPTS[language].brief(brief.title.trim())]
   const description = brief.description.trim()
   if (description !== '') lines.push('', description)
   const files = brief.files ?? []

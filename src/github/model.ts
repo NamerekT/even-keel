@@ -151,7 +151,7 @@ export function toCard(issue: GithubCardIssue, repos: RepoMap, trusted: (who: Gi
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
       .map((node) => ({ author: node.author?.login ?? null, at: Date.parse(node.createdAt), text: node.body, ...(trusted(node) ? {} : { outsider: true as const }) })),
     attachments: [],
-    ...(outsider(issue, trusted) ? { outsider: true as const } : {}),
+    ...(outsider(issue, trusted) ? { outsider: true as const, author: issue.author?.login ?? null } : {}),
   }
 }
 

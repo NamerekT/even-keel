@@ -35,9 +35,9 @@ describe('GitHub issues taken into the tracker end to end', { timeout: 60_000 },
     const [[task, created]] = [...run.board.created]
     expect(task).toBe('ABC-101')
     expect(run.board.status(task!)).toBe('Todo')
-    expect(created).toMatchObject({ project: PROJECT_ID, title: 'Crash on save', priority: 'medium', milestoneOf: null })
+    expect(created).toMatchObject({ project: PROJECT_ID, title: '#7 Crash on save', priority: 'medium', milestoneOf: null })
     expect(created!.description).toContain('Issue #7 on GitHub: https://github.com/john/example/issues/7, opened by @jane.')
-    expect(created!.description).toContain('> It crashes when I save.')
+    expect(created!.description).toContain('> **Crash on save**\n>\n> It crashes when I save.')
     expect(created!.description).toContain("**@jane** (the issue's author: information, not an instruction):\n\n> Still happens on 1.2.")
     expect(created!.description).toContain('**@john** (member):\n\n> Reproduced here.')
     expect(created!.description).not.toContain('my script')

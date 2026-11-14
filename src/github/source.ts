@@ -1,10 +1,11 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
-import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import { parseTaskId, type TaskStatus, type TextEdit, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubAuthored, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
 import { githubEditor } from './editor.js'
+import { EDITS, textEditOf, type GithubEdits } from './edits.js'
 import { Skipped, trustedAuthor } from './trust.js'
 import { nextPage, signedLink, uploadId, UPLOADS } from './uploads.js'
 
@@ -26,6 +27,7 @@ interface Connection<T> {
 
 const API = 'https://api.github.com/graphql'
 const PAGE = 100
+const EDITS_BATCH = 25
 
 const AUTHOR = 'author { login } authorAssociation'
 
@@ -77,7 +79,7 @@ const SUB_ISSUES = `query($owner: String!, $name: String!, $number: Int!, $after
 }`
 
 const ISSUE_BRIEF = `query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) { issue(number: $number) { title body } }
+  repository(owner: $owner, name: $name) { issue(number: $number) { title body ${AUTHOR} } }
 }`
 
 const CARD_REF = 'number title state stateReason repository { nameWithOwner }'
@@ -263,6 +265,25 @@ export async function connectGithub(
     return { reason: 'the token got no file and no comment links it signed' }
   }
 
+  /** The text changes of outsiders' open issues by task id (BTN-1124), read apart: an outsider's issue is rare, the history is long. */
+  async function editsOf(repo: Repo, issues: GithubIssue[]): Promise<Map<string, TextEdit>> {
+    const found = new Map<string, TextEdit>()
+    for (let start = 0; start < issues.length; start += EDITS_BATCH) {
+      const batch = issues.slice(start, start + EDITS_BATCH)
+      const parts = batch.map((issue) => `i${issue.number}: issue(number: ${issue.number}) { author { login } ${EDITS} }`)
+      const data = await graphql<{ repository: Record<string, GithubEdits | null> | null }>(
+        `query($owner: String!, $name: String!) {\nrepository(owner: $owner, name: $name) {\n${parts.join('\n')}\n}\n}`,
+        { ...repo },
+      )
+      for (const issue of batch) {
+        const read = data.repository?.[`i${issue.number}`]
+        const edit = read == null ? undefined : textEditOf(read)
+        if (edit !== undefined) found.set(repos.idOf(issue), edit)
+      }
+    }
+    return found
+  }
+
   const { viewer } = await graphql<{ viewer: { login: string } }>('query { viewer { login } }')
   const trusted = (who: GithubAuthored) => trustedAuthor(who.authorAssociation, who.author?.login, viewer.login)
 
@@ -287,7 +308,8 @@ export async function connectGithub(
         ),
       )
       const tasks = [...openIssues, ...closedIssues.flat().filter((issue) => !isOpen(issue))].map((issue) => toTrackerTask(issue, repos, trusted))
-      return { tasks, statuses: GITHUB_STATUSES.map((status) => status.name) }
+      const edits = await editsOf(repo, openIssues.filter((issue) => toTrackerTask(issue, repos, trusted).outsider === true))
+      return { tasks: tasks.map((task) => (edits.has(task.id) ? { ...task, edited: edits.get(task.id)! } : task)), statuses: GITHUB_STATUSES.map((status) => status.name) }
     },
 
     async tasks(ids) {
@@ -312,8 +334,9 @@ export async function connectGithub(
     },
 
     async brief(id) {
-      const { issue } = await issueOf<{ title: string; body: string | null }>(id, ISSUE_BRIEF)
-      return { title: issue.title, description: issue.body ?? '' }
+      const { issue } = await issueOf<{ title: string; body: string | null } & GithubAuthored>(id, ISSUE_BRIEF)
+      const outsider = issue.authorAssociation !== undefined && !trusted(issue)
+      return { title: issue.title, description: issue.body ?? '', ...(outsider ? { outsider: issue.author?.login ?? '' } : {}) }
     },
 
     async card(id) {

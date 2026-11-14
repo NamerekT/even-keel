@@ -99,6 +99,7 @@ export const en = {
   'chain.emptyStatus': () => 'none of its open tasks is in a status the chain takes',
   'chain.emptyLabels': (p: { labels: string[] }) => `its ready tasks lack a required label (${list(p.labels)})`,
   'chain.emptyOutsiders': () => 'its ready tasks were opened by people outside the repository: "Into the chain" lets one in',
+  'chain.emptyChanged': () => 'the author of a ready task, not a member of the repository, changed its text after the label: read it and press "Into the chain" to put the label on again',
   'chain.emptySkipped': () => 'all its ready tasks are skipped',
   'chain.emptyBlocked': () => 'its ready tasks are skipped or wait for blockers outside the chain',
 

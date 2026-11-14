@@ -9,6 +9,8 @@ export interface IntakeIssue {
   body: string
   url: string
   author: string
+  /** GitHub's `author_association` of the issue's author. */
+  association: string
   open: boolean
 }
 
@@ -80,16 +82,21 @@ const quoted = (text: string) =>
     .map((line) => `> ${line}`.trimEnd())
     .join('\n')
 
-/** The task an issue becomes: `comments` are those posted before it was taken in, each judged by `voiceOf`. */
+/**
+ * The task an issue becomes: `comments` are those posted before it was taken in, each judged by `voiceOf`. The title is
+ * the author's text too, so the task's title carries the issue's number and the quote repeats it (BTN-1124).
+ */
 export function taskOf(issue: IntakeIssue, comments: IntakeComment[], language: Language): { title: string; description: string } {
   const texts = TEXTS[language]
-  const parts = [texts.head(issue.number, issue.url, issue.author), texts.issue, issue.body.trim() === '' ? texts.empty : quoted(issue.body)]
+  const title = issue.title.trim()
+  const body = issue.body.trim() === '' ? texts.empty : issue.body
+  const parts = [texts.head(issue.number, issue.url, issue.author), texts.issue, quoted(title === '' ? body : `**${title}**\n\n${body}`)]
   const kept = comments.flatMap((comment) => {
     const voice = voiceOf(comment, issue)
     return voice === null ? [] : [`**@${comment.author}** (${texts.voice[voice]}):\n\n${quoted(comment.body)}`]
   })
   if (kept.length > 0) parts.push(texts.before, ...kept)
-  return { title: issue.title.trim() || `#${issue.number}`, description: parts.join('\n\n') }
+  return { title: title === '' ? `#${issue.number}` : `#${issue.number} ${title}`, description: parts.join('\n\n') }
 }
 
 const COPY_HEAD = 'GitHub · @'

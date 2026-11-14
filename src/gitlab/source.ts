@@ -7,7 +7,10 @@ import { GitlabBatch, limitedMap } from './batch.js'
 import { gitlabEditor } from './editor.js'
 import { GitlabHierarchy } from './hierarchy.js'
 import { GitlabUploads, uploadType } from './uploads.js'
-import { GITLAB_STATUSES, gitlabPriority, gitlabStatus, ProjectMap, toCard, toTrackerTask, type GitlabIssue, type GitlabLink, type GitlabMilestone, type GitlabNote } from './model.js'
+import {
+  GITLAB_STATUSES, gitlabPriority, gitlabStatus, gitlabTextEdit, ProjectMap, toCard, toTrackerTask,
+  type GitlabIssue, type GitlabLabelEvent, type GitlabLink, type GitlabMilestone, type GitlabNote,
+} from './model.js'
 
 export interface GitlabSettings {
   web: string
@@ -78,11 +81,29 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
   const outsiderIssue = async (issue: GitlabIssue, trusted: ReturnType<typeof authorTrust>) =>
     issue.state === 'opened' && issue.author !== undefined && !(await trusted(issue.author))
 
-  /** `tasks` are `issues` converted, in order: marks those of outsiders. */
+  /** An outsider's changes of the issue's text and its label puttings (BTN-1124), read only for an outsider's issue. */
+  async function textEditOf(issue: GitlabIssue, path: string) {
+    const base = `${projectBase(path)}/issues/${issue.iid}`
+    const [notes, events] = await Promise.all([
+      api.collect<GitlabNote>(`${base}/notes?sort=asc&order_by=created_at`),
+      api.collect<GitlabLabelEvent>(`${base}/resource_label_events`),
+    ])
+    return gitlabTextEdit(issue, notes, events)
+  }
+
+  /** `tasks` are `issues` converted, in order: marks those of outsiders, with their text changes. */
   async function markOutsiders(tasks: TrackerTask[], issues: GitlabIssue[], path: string): Promise<TrackerTask[]> {
     const trusted = authorTrust(path)
     const marked: TrackerTask[] = []
-    for (const [index, task] of tasks.entries()) marked.push((await outsiderIssue(issues[index]!, trusted)) ? { ...task, outsider: true } : task)
+    for (const [index, task] of tasks.entries()) {
+      const issue = issues[index]!
+      if (!(await outsiderIssue(issue, trusted))) {
+        marked.push(task)
+        continue
+      }
+      const edited = await textEditOf(issue, path)
+      marked.push(edited === undefined ? { ...task, outsider: true } : { ...task, outsider: true, edited })
+    }
     return marked
   }
 
@@ -149,7 +170,8 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
 
     async brief(id) {
       const issue = await rawIssue(id)
-      return { title: issue.title, description: issue.description ?? '' }
+      const outsider = await outsiderIssue(issue, authorTrust(addressOf(id).path))
+      return { title: issue.title, description: issue.description ?? '', ...(outsider ? { outsider: issue.author?.username ?? '' } : {}) }
     },
 
     async complete(id) {
@@ -183,7 +205,7 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
       const notes = await notesOf(id)
       const tree = await hierarchy.read(path, iid)
       const card = toCard(issue, links, notes, projects, tree, await outsiderNotes(path, notes))
-      return (await outsiderIssue(issue, authorTrust(path))) ? { ...card, outsider: true } : card
+      return (await outsiderIssue(issue, authorTrust(path))) ? { ...card, outsider: true, author: issue.author?.username ?? null } : card
     },
 
     async file(id, file) {

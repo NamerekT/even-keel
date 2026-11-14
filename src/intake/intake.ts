@@ -1,4 +1,5 @@
-import { Skipped } from '../github/trust.js'
+import { changedAfterEntry, DEFAULT_RULES } from '../chain/rules.js'
+import { Skipped, trustedAuthor } from '../github/trust.js'
 import type { Language } from '../language.js'
 import { englishOf, noticeOf } from '../notice/notice.js'
 import type { StatusCategory } from '../tracker/model.js'
@@ -72,12 +73,29 @@ export class Intake {
   private async take(place: IntakePlace): Promise<void> {
     for (const issue of await place.repo.labeled(place.label)) {
       if (this.entries.some((entry) => same(entry.repo, place.slug) && entry.number === issue.number)) continue
+      if (await this.changed(place, issue)) continue
       const comments = await place.repo.comments(issue.number, 0)
       this.skip(place.slug, issue, comments)
       const task = await this.deps.create(place.project, taskOf(issue, comments, this.deps.language(place.project)))
       this.store([...this.entries, { project: place.project, repo: place.slug, number: issue.number, task, seen: comments.at(-1)?.id ?? 0 }])
       this.deps.log(`intake: ${place.slug}#${issue.number} is taken in as ${task}`)
     }
+  }
+
+  /**
+   * An outsider's issue whose text its author changed after the label was put on (BTN-1124): the person let in a text the
+   * task would not get. It waits, with a line in the log, until the label is put on again.
+   */
+  private async changed(place: IntakePlace, issue: IntakeIssue): Promise<boolean> {
+    if (trustedAuthor(issue.association, issue.author, null)) return false
+    const edited = await place.repo.edits(issue.number)
+    const rules = { ...DEFAULT_RULES, requiredLabels: [place.label] }
+    if (edited === undefined || !changedAfterEntry(rules, { labels: [place.label], outsider: true, edited })) return false
+    this.skipped.note(
+      `${place.slug}#${issue.number}@${edited.at}`,
+      `intake: ${place.slug}#${issue.number} is not taken in: its author, not a member of the repository, changed its text after the label "${place.label}" was put on; take the label off and put it on again`,
+    )
+    return true
   }
 
   private async follow(entry: IntakeEntry, place: IntakePlace): Promise<void> {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskStatus } from '../tracker/model.js'
-import { admits, APPROVAL_LABEL, DEFAULT_RULES, entryLabels, isActive, isDone, isTerminal, missingLabel, ownsMilestone, requiredOn, splitsMilestones, unknownStatuses, type ChainRules } from './rules.js'
+import { admits, APPROVAL_LABEL, changedAfterEntry, DEFAULT_RULES, entryLabels, isActive, isDone, isTerminal, missingLabel, ownsMilestone, requiredOn, splitsMilestones, unknownStatuses, type ChainRules } from './rules.js'
 
 const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -155,6 +155,44 @@ describe('an outsider\'s task (BTN-1123)', () => {
     expect(entryLabels(DEFAULT_RULES, { outsider: true })).toEqual([APPROVAL_LABEL])
     expect(entryLabels(DEFAULT_RULES, {})).toEqual([])
     expect(entryLabels(rules({ requiredLabels: ['Auto'] }), { outsider: true })).toEqual(['Auto'])
+  })
+})
+
+describe('an outsider\'s text changed after its entry label (BTN-1124)', () => {
+  const approved = (edited: number, labeled: number) => ({
+    status: todo,
+    labels: ['bug', APPROVAL_LABEL],
+    outsider: true as const,
+    edited: { at: edited, labeled: [{ label: 'bug', at: edited + 10 }, { label: APPROVAL_LABEL.toUpperCase(), at: labeled }] },
+  })
+
+  it('keeps the task out once the author edits after the label, and lets it in when the label is put on again', () => {
+    expect(changedAfterEntry(DEFAULT_RULES, approved(200, 100))).toBe(true)
+    expect(admits(DEFAULT_RULES, approved(200, 100))).toBe(false)
+    expect(admits(DEFAULT_RULES, approved(100, 200))).toBe(true)
+    expect(changedAfterEntry(DEFAULT_RULES, approved(100, 200))).toBe(false)
+  })
+
+  it('takes the latest putting of any entry label it carries', () => {
+    const task = { status: todo, labels: ['Auto', 'Agent'], outsider: true as const, edited: { at: 150, labeled: [{ label: 'Auto', at: 100 }, { label: 'agent', at: 300 }] } }
+    expect(changedAfterEntry(rules({ requiredLabels: ['Auto', 'Agent'] }), task)).toBe(false)
+    expect(changedAfterEntry(rules({ requiredLabels: ['Auto'] }), task)).toBe(true)
+  })
+
+  it('counts an entry label the tracker gave no time for as put on before the edit', () => {
+    expect(changedAfterEntry(DEFAULT_RULES, { status: todo, labels: [APPROVAL_LABEL], outsider: true, edited: { at: 1, labeled: [] } })).toBe(true)
+  })
+
+  it('leaves alone a member\'s task, a task without edits and one without an entry label', () => {
+    expect(changedAfterEntry(DEFAULT_RULES, { ...approved(200, 100), outsider: undefined })).toBe(false)
+    expect(changedAfterEntry(DEFAULT_RULES, { status: todo, labels: [APPROVAL_LABEL], outsider: true })).toBe(false)
+    expect(changedAfterEntry(DEFAULT_RULES, { ...approved(200, 100), labels: ['bug'] })).toBe(false)
+  })
+
+  it('has "Into the chain" put the label on again', () => {
+    expect(missingLabel(DEFAULT_RULES, approved(200, 100))).toBe(APPROVAL_LABEL)
+    expect(missingLabel(rules({ requiredLabels: ['Auto'] }), { ...approved(200, 100), labels: ['Auto'] })).toBe('Auto')
+    expect(missingLabel(DEFAULT_RULES, { ...approved(200, 100), status: done })).toBeNull()
   })
 })
 

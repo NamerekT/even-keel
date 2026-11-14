@@ -1,4 +1,4 @@
-import { missingLabel, requiredOn, type ChainRules } from '../chain/rules.js'
+import { changedAfterEntry, missingLabel, requiredOn, type ChainRules } from '../chain/rules.js'
 import { englishOf, fail, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import type { TaskControl } from '../server.js'
 import { cardOf } from './card.js'
@@ -91,7 +91,10 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       const reader = readerFor(project!, task)
       const listed = readerTasks.get(reader)?.find((each) => each.id === task)
       const label = listed === undefined ? null : missingLabel(rulesOf(project!, task), listed)
+      // Over a text changed since the label (BTN-1124) the label comes off first: a new putting is the person's new word.
+      const again = label !== null && listed !== undefined && changedAfterEntry(rulesOf(project!, task), listed) ? requiredOn(rulesOf(project!, task), listed) : []
       const moved = await link.page(async (tracker) => {
+        if (again.length > 0 && tracker.relabel !== undefined) await relabeled(link, tracker, task, { add: [], remove: again })
         const labels = label === null || tracker.relabel === undefined ? undefined : await relabeled(link, tracker, task, { add: [label], remove: [] })
         const status = await tracker.ready?.(task)
         if (labels === undefined && (status ?? null) === null) {

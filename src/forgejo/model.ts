@@ -1,6 +1,6 @@
 import { RepoMap } from '../github/model.js'
 import type { TaskAttachment, TaskRef, TrackerCard } from '../tracker/card.js'
-import { PRIORITIES, type TaskMilestone, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import { PRIORITIES, type TaskMilestone, type TaskPriority, type TaskStatus, type TextEdit, type TrackerTask } from '../tracker/model.js'
 
 export interface ForgejoMilestone {
   id: number
@@ -126,4 +126,30 @@ export function toCard(issue: ForgejoIssue, blockedBy: ForgejoIssue[], blocks: F
       })),
     attachments: attachmentsOf(issue, comments, outsiders),
   }
+}
+
+/** An event of an issue's timeline: `label` with the body `1` puts a label on, `change_title` renames the issue. */
+export interface ForgejoTimelineEvent {
+  type: string
+  created_at: string
+  user: { login: string } | null
+  label?: { name: string } | null
+  body?: string
+}
+
+/**
+ * The renames of the issue by its author or a deleted account, and the label puttings (BTN-1124); anyone else who edits
+ * an issue has a role in the repository. The timeline has no event for a changed description. `undefined` — none.
+ */
+export function forgejoTextEdit(issue: Pick<ForgejoIssue, 'user'>, events: ForgejoTimelineEvent[]): TextEdit | undefined {
+  const author = issue.user?.login.toLowerCase()
+  const times = events
+    .filter((event) => event.type === 'change_title' && (event.user === null || event.user.login.toLowerCase() === author))
+    .map((event) => Date.parse(event.created_at))
+    .filter((time) => !Number.isNaN(time))
+  if (times.length === 0) return undefined
+  const labeled = events.flatMap((event) =>
+    event.type === 'label' && event.body === '1' && event.label != null ? [{ label: event.label.name, at: Date.parse(event.created_at) }] : [],
+  )
+  return { at: Math.max(...times), labeled }
 }

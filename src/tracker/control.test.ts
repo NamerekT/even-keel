@@ -3,7 +3,7 @@ import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { fail, notice } from '../notice/notice.js'
 import { taskControl } from './control.js'
 import { TrackerLink } from './link.js'
-import { toTask, type TaskStatus } from './model.js'
+import { toTask, type TaskStatus, type TrackerTask } from './model.js'
 import { trackerOf, type TaskSource } from './source.js'
 
 afterEach(() => {
@@ -98,8 +98,8 @@ describe('task label controls', () => {
 describe('the moves between the backlog and the chain', () => {
   const RULES = { ...DEFAULT_RULES, requiredLabels: ['Ready', 'Go'] }
 
-  function moves(extra: Partial<TaskSource>, options: { status?: TaskStatus; labels?: string[]; live?: boolean; rules?: ChainRules } = {}) {
-    const raw = { id: 'APP-1', title: 'Example', status: options.status ?? { name: 'Todo', category: 'ToDo' as const }, blockedBy: [], parent: null, subtasks: 0, milestone: null, priority: 'none' as const, estimate: null, labels: options.labels ?? ['Old'] }
+  function moves(extra: Partial<TaskSource>, options: { status?: TaskStatus; labels?: string[]; live?: boolean; rules?: ChainRules; outsider?: Pick<TrackerTask, 'outsider' | 'edited'> } = {}) {
+    const raw = { id: 'APP-1', title: 'Example', status: options.status ?? { name: 'Todo', category: 'ToDo' as const }, blockedBy: [], parent: null, subtasks: 0, milestone: null, priority: 'none' as const, estimate: null, labels: options.labels ?? ['Old'], ...options.outsider }
     let listed = [toTask(raw)]
     const source: TaskSource = { chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {}, ...extra }
     const link = new TrackerLink({ name: 'example', connect: async () => trackerOf(source), timeoutMs: 1000 })
@@ -118,6 +118,14 @@ describe('the moves between the backlog and the chain', () => {
     await control.ready('APP-1')
     expect(relabel).toHaveBeenCalledWith('APP-1', { add: ['Ready'], remove: [] })
     expect(task().labels).toEqual(['Old', 'Ready'])
+  })
+
+  it('takes the label off and puts it on again over an outsider\'s text changed after it (BTN-1124)', async () => {
+    const relabel = vi.fn(async (_id: string, change: { add: string[] }) => (change.add.length === 0 ? ['Old'] : ['Old', 'Go']))
+    const edited = { at: 200, labeled: [{ label: 'Go', at: 100 }] }
+    const { control } = moves({ relabel }, { labels: ['Old', 'Go'], outsider: { outsider: true, edited } })
+    await control.ready('APP-1')
+    expect(relabel.mock.calls).toEqual([['APP-1', { add: [], remove: ['Go'] }], ['APP-1', { add: ['Go'], remove: [] }]])
   })
 
   it('also moves the task out of the backlog status, and only that for a task already labelled', async () => {

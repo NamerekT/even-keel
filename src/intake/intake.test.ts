@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { StatusCategory } from '../tracker/model.js'
+import type { StatusCategory, TextEdit } from '../tracker/model.js'
 import type { IntakeRepo } from './github.js'
 import { Intake } from './intake.js'
 import type { IntakeComment, IntakeEntry, IntakeIssue } from './model.js'
@@ -10,6 +10,7 @@ const issueOf = (number: number, extra: Partial<IntakeIssue> = {}): IntakeIssue 
   body: 'It breaks.',
   url: `https://github.com/acme/app/issues/${number}`,
   author: 'jdoe',
+  association: 'NONE',
   open: true,
   ...extra,
 })
@@ -42,6 +43,10 @@ class FakeRepo implements IntakeRepo {
   }
   async issue(number: number) {
     return this.issues.get(number) ?? null
+  }
+  edited = new Map<number, TextEdit>()
+  async edits(number: number) {
+    return this.edited.get(number)
   }
   async comments(number: number, after: number) {
     return (this.talk.get(number) ?? []).filter((comment) => comment.id > after)
@@ -100,12 +105,27 @@ describe('Intake', () => {
     await intake.tick()
     await intake.tick()
     expect(created).toHaveLength(1)
-    expect(created[0]!.title).toBe('Bug 1')
+    expect(created[0]!.title).toBe('#1 Bug 1')
     expect(created[0]!.description).toContain('note 10 of owner')
     expect(created[0]!.description).toContain('note 12 of jdoe')
     expect(created[0]!.description).not.toContain('stranger')
     expect(saved()).toEqual([{ project: 'p1', repo: 'acme/app', number: 1, task: 'ABC-1', seen: 12 }])
     expect(logs.filter((line) => line.includes('is not copied'))).toHaveLength(1)
+  })
+
+  it('holds an outsider’s issue changed after the label until the label goes on again, with one log line (BTN-1124)', async () => {
+    const { intake, repo, created, logs } = setup()
+    repo.add(issueOf(1))
+    repo.add(issueOf(2, { association: 'COLLABORATOR' }))
+    repo.edited.set(1, { at: 200, labeled: [{ label: 'Accepted', at: 100 }] })
+    repo.edited.set(2, { at: 200, labeled: [{ label: 'accepted', at: 100 }] })
+    await intake.tick()
+    await intake.tick()
+    expect(created.map((task) => task.title)).toEqual(['#2 Bug 2'])
+    expect(logs.filter((line) => line.includes('acme/app#1 is not taken in'))).toHaveLength(1)
+    repo.edited.set(1, { at: 200, labeled: [{ label: 'accepted', at: 100 }, { label: 'accepted', at: 300 }] })
+    await intake.tick()
+    expect(created.map((task) => task.title)).toEqual(['#2 Bug 2', '#1 Bug 1'])
   })
 
   it('copies the later comments of members and the author to the task, not a stranger’s', async () => {

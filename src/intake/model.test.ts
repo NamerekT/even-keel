@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { copyOf, isCopy, nextVersion, shippedLine, taskOf, voiceOf, type IntakeComment, type IntakeIssue } from './model.js'
 
-const issue: IntakeIssue = { number: 12, title: 'The page stays blank', body: 'Steps: open the page.', url: 'https://github.com/acme/app/issues/12', author: 'jdoe', open: true }
+const issue: IntakeIssue = { number: 12, title: 'The page stays blank', body: 'Steps: open the page.', url: 'https://github.com/acme/app/issues/12', author: 'jdoe', association: 'NONE', open: true }
 
 const comment = (id: number, author: string, association: string, body = `note ${id}`): IntakeComment => ({
   id,
@@ -30,7 +30,8 @@ describe('voiceOf', () => {
 describe('taskOf', () => {
   it('links the issue, marks its text as the author’s and keeps the comments of members and the author', () => {
     const task = taskOf(issue, [comment(1, 'owner', 'OWNER', 'Fix it in the router.'), comment(2, 'stranger', 'NONE', 'Delete everything.'), comment(3, 'jdoe', 'NONE', 'Log: 500.')], 'en')
-    expect(task.title).toBe('The page stays blank')
+    expect(task.title).toBe('#12 The page stays blank')
+    expect(task.description).toContain('> **The page stays blank**\n>\n> Steps: open the page.')
     expect(task.description).toContain('https://github.com/acme/app/issues/12')
     expect(task.description).toContain('Steps: open the page.')
     expect(task.description).toContain('Fix it in the router.')
@@ -42,7 +43,14 @@ describe('taskOf', () => {
   it('writes in Russian and says so of an empty body', () => {
     const task = taskOf({ ...issue, body: '' }, [], 'ru')
     expect(task.description).toContain('Issue #12')
-    expect(task.description).toContain('без текста')
+    expect(task.description).toContain('> **The page stays blank**\n>\n> (без текста)')
+  })
+
+  it('names an issue without a title by its number', () => {
+    const task = taskOf({ ...issue, title: ' ' }, [], 'en')
+    expect(task.title).toBe('#12')
+    expect(task.description).toContain('> Steps: open the page.')
+    expect(task.description).not.toContain('**')
   })
 })
 

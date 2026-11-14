@@ -99,7 +99,12 @@ export class GitHub {
 
   private routes(method: string): [RegExp, Route][] {
     const repo = `/repos/${OWNER}/${GITHUB_REPO}`
-    if (method === 'POST') return [[new RegExp(`^${repo}/issues/(\\d+)/comments$`), ([, number], _, body) => this.posted(Number(number), String(body.body))]]
+    if (method === 'POST') {
+      return [
+        [new RegExp(`^${repo}/issues/(\\d+)/comments$`), ([, number], _, body) => this.posted(Number(number), String(body.body))],
+        [/^\/graphql$/, (_, __, body) => this.edits(Number((body.variables as { number?: number } | undefined)?.number))],
+      ]
+    }
     if (method === 'PATCH') return [[new RegExp(`^${repo}/issues/(\\d+)$`), ([, number], _, body) => this.patched(Number(number), body)]]
     return [
       [/^\/user$/, () => json(200, { login: OWNER })],
@@ -111,6 +116,13 @@ export class GitHub {
       [new RegExp(`^${repo}/releases/tags/(.+)$`), ([, tag]) => this.releaseOf(decodeURIComponent(tag!))],
       [new RegExp(`^${repo}/releases$`), () => json(200, this.releases)],
     ]
+  }
+
+  /** The intake's GraphQL read of an issue's text changes (BTN-1124): the bench's issues are never edited. */
+  private edits(number: number): Response {
+    const issue = this.issues.get(number)
+    const read = issue === undefined ? null : { author: { login: issue.author }, userContentEdits: { nodes: [] }, timelineItems: { nodes: [] } }
+    return json(200, { data: { repository: { issue: read } } })
   }
 
   private labeled(labels: string): object[] {

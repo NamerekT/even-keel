@@ -1,4 +1,4 @@
-import { type StatusCategory, type TaskMilestone, type TaskStatus } from '../tracker/model.js'
+import { type StatusCategory, type TaskMilestone, type TaskStatus, type TextEdit } from '../tracker/model.js'
 
 export interface ChainRules {
   active: string[] | null
@@ -52,6 +52,7 @@ export const APPROVAL_LABEL = 'even-keel: approved'
 export interface EntryTask {
   labels: string[]
   outsider?: true
+  edited?: TextEdit
 }
 
 /** The labels of which the task needs one to enter the chain: the required ones, or for an outsider's task without them, the approval label. */
@@ -61,14 +62,31 @@ export function entryLabels(rules: ChainRules, task: Pick<EntryTask, 'outsider'>
 }
 
 export function admits(rules: ChainRules, task: EntryTask & { status: TaskStatus }): boolean {
-  if (excludes(rules, task)) return false
+  if (excludes(rules, task) || changedAfterEntry(rules, task)) return false
   const entry = entryLabels(rules, task)
   return entry.length === 0 || task.labels.some((label) => listed(entry, label))
 }
 
-/** The entry label "Into the chain" puts on an open task that has none of them (BTN-509); `null` — the task needs none. */
+/**
+ * An outsider changed the task's text after the last entry label it carries was put on (BTN-1124): the person let in a
+ * text the session would not get. A carried label the tracker gave no time for counts as older than the change.
+ */
+export function changedAfterEntry(rules: ChainRules, task: EntryTask): boolean {
+  if (task.outsider !== true || task.edited === undefined) return false
+  const carried = requiredOn(rules, task)
+  if (carried.length === 0) return false
+  const times = task.edited.labeled.filter((each) => carried.some((label) => sameName(label, each.label))).map((each) => each.at)
+  return times.length === 0 || task.edited.at > Math.max(...times)
+}
+
+/**
+ * The entry label "Into the chain" puts on an open task that has none of them (BTN-509), or puts on again over a text
+ * changed since (BTN-1124); `null` — the task needs none.
+ */
 export function missingLabel(rules: ChainRules, task: EntryTask & { status: TaskStatus }): string | null {
-  if (excludes(rules, task) || admits(rules, task)) return null
+  if (excludes(rules, task)) return null
+  if (changedAfterEntry(rules, task)) return requiredOn(rules, task)[0]!
+  if (admits(rules, task)) return null
   return entryLabels(rules, task)[0]!
 }
 

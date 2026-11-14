@@ -7,7 +7,10 @@ import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { ForgejoApi, ForgejoHttpError, ForgejoScopeError } from './api.js'
 import { forgejoEditor } from './editor.js'
-import { FORGEJO_STATUSES, attachmentsOf, forgejoPriority, forgejoStatus, labelNames, toCard, toTrackerTask, type ForgejoComment, type ForgejoIssue, type ForgejoLabel, type ForgejoMilestone } from './model.js'
+import {
+  FORGEJO_STATUSES, attachmentsOf, forgejoPriority, forgejoStatus, forgejoTextEdit, labelNames, toCard, toTrackerTask,
+  type ForgejoComment, type ForgejoIssue, type ForgejoLabel, type ForgejoMilestone, type ForgejoTimelineEvent,
+} from './model.js'
 import { forgejoTrust } from './trust.js'
 
 export interface ForgejoSettings {
@@ -87,14 +90,20 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
   const outsiderIssue = async (issue: ForgejoIssue, trust: ReturnType<typeof trustIn>) =>
     issue.state === 'open' && issue.user !== undefined && !(await trust(issue.user?.login))
 
-  /** Open issues with their blockers, closed ones without: a closed task orders nothing. With `trust`, outsiders' issues are marked. */
+  /**
+   * Open issues with their blockers, closed ones without: a closed task orders nothing. With `trust`, outsiders' issues
+   * are marked, with their renames after the timeline (BTN-1124).
+   */
   async function converted(repo: Repo, issues: ForgejoIssue[], trust?: ReturnType<typeof trustIn>): Promise<TrackerTask[]> {
     let off = false
     return limitedMap(issues, async (issue) => {
-      const blockers = issue.state === 'open' && !off ? await dependenciesOf(`${repoBase(repo)}/issues/${issue.number}`, 'dependencies') : []
+      const base = `${repoBase(repo)}/issues/${issue.number}`
+      const blockers = issue.state === 'open' && !off ? await dependenciesOf(base, 'dependencies') : []
       if (blockers === null) off = true
       const task = toTrackerTask(issue, blockers ?? [], repos)
-      return trust !== undefined && (await outsiderIssue(issue, trust)) ? { ...task, outsider: true as const } : task
+      if (trust === undefined || !(await outsiderIssue(issue, trust))) return task
+      const edited = forgejoTextEdit(issue, await api.collect<ForgejoTimelineEvent>(`${base}/timeline`))
+      return edited === undefined ? { ...task, outsider: true as const } : { ...task, outsider: true as const, edited }
     })
   }
 
@@ -148,7 +157,8 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
 
     async brief(id) {
       const issue = await rawIssue(id)
-      return { title: issue.title, description: issue.body ?? '' }
+      const outsider = await outsiderIssue(issue, trustIn(addressOf(id).repo))
+      return { title: issue.title, description: issue.body ?? '', ...(outsider ? { outsider: issue.user?.login ?? '' } : {}) }
     },
 
     async complete(id) {
@@ -166,7 +176,7 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
       const outsiders = new Set<number>()
       for (const comment of comments) if (!(await trust(comment.user?.login))) outsiders.add(comment.id)
       const card = toCard(issue, blockedBy ?? [], blocks ?? [], comments, repos, outsiders)
-      return (await outsiderIssue(issue, trust)) ? { ...card, outsider: true } : card
+      return (await outsiderIssue(issue, trust)) ? { ...card, outsider: true, author: issue.user?.login ?? null } : card
     },
 
     async file(id, file) {

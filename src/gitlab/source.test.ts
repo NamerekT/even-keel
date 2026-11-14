@@ -8,6 +8,8 @@ const USER: Reply = { body: { id: 9, username: 'example-user' } }
 const NO_HIERARCHY: Reply = { body: { data: { project: { workItems: { nodes: [{ widgets: [] }] } } } } }
 const batchHierarchy = (...iids: number[]): Reply => ({ body: { data: { project: { workItems: { nodes: iids.map((iid) => ({ iid: String(iid), widgets: [] })), pageInfo: { hasNextPage: false, endCursor: null } } } } } })
 const notTerminal = (status: { category: string }) => status.category !== 'Won'
+/** The notes and label events of an outsider's issue without changes (BTN-1124). */
+const NO_EDITS: Reply[] = [{ body: [] }, { body: [] }]
 
 async function connect(replies: Reply[]) {
   const fake = fakeFetch([USER, ...replies])
@@ -42,11 +44,32 @@ describe('GitLab task source', () => {
     const { source, calls, remaining } = await connect([
       { body: [at(1, { id: 9, username: 'example-user' }), at(2, { id: 30, username: 'stranger' }), at(3, { id: 31, username: 'reporter' }), at(4, { id: 30, username: 'stranger' }), at(5, null), issue({ iid: 6, milestone: null, web_url: `${SETTINGS.web}/group/subgroup/app/-/issues/6` })] },
       batchHierarchy(1, 2, 3, 4, 5, 6), { body: [] }, { body: [] }, { body: [] }, { body: [] }, { body: [] }, { body: [] },
-      { status: 404, body: {} }, { body: { access_level: 30 } },
+      { status: 404, body: {} }, ...NO_EDITS, { body: { access_level: 30 } }, ...NO_EDITS, ...NO_EDITS,
     ])
     const { tasks } = await source.chainTasks('project-id', notTerminal)
     expect(tasks.map((task) => [task.id, task.outsider])).toEqual([['APP-1', undefined], ['APP-2', true], ['APP-3', undefined], ['APP-4', true], ['APP-5', true], ['APP-6', undefined]])
     expect(calls.filter((call) => call.url.includes('/members/all/')).map((call) => call.url.split('/').pop())).toEqual(['30', '31'])
+    expect(remaining()).toBe(0)
+  })
+
+  it('reads the text changes of an outsider\'s open issue by its author, with the label puttings (BTN-1124)', async () => {
+    const note = (id: number, body: string, author: number | null, at: string) => ({ id, body, created_at: at, system: true, author: author === null ? null : { id: author, username: 'someone' } })
+    const { source, calls, remaining } = await connect([
+      { body: [issue({ iid: 1, milestone: null, author: { id: 30, username: 'stranger' } })] },
+      batchHierarchy(1), { body: [] }, { status: 404, body: {} },
+      {
+        body: [
+          note(1, 'changed the description', 30, '2026-01-02T10:05:00Z'),
+          note(2, 'changed title from **a** to **b**', 30, '2026-01-02T10:07:00Z'),
+          note(3, 'changed the description', 9, '2026-01-02T10:30:00Z'),
+          note(4, 'added ~"bug" label', 30, '2026-01-02T10:40:00Z'),
+        ],
+      },
+      { body: [{ created_at: '2026-01-02T10:01:00Z', action: 'add', label: { name: 'even-keel: approved' } }, { created_at: '2026-01-02T10:02:00Z', action: 'remove', label: { name: 'bug' } }] },
+    ])
+    const { tasks } = await source.chainTasks('project-id', notTerminal)
+    expect(tasks[0]!.edited).toEqual({ at: Date.parse('2026-01-02T10:07:00Z'), labeled: [{ label: 'even-keel: approved', at: Date.parse('2026-01-02T10:01:00Z') }] })
+    expect(calls.at(-1)!.url).toContain('/issues/1/resource_label_events')
     expect(remaining()).toBe(0)
   })
 

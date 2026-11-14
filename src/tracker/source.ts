@@ -222,6 +222,8 @@ export interface TaskBrief {
   description: string
   /** The task's attachments as files of this machine (the built-in tracker, BTN-773): a session reads them by path. */
   files?: { name: string; path: string }[]
+  /** The login of the outsider who opened it (BTN-1124: GitHub, GitLab, Forgejo), `''` for a deleted account: the prompt says the text is theirs. */
+  outsider?: string
 }
 
 export interface TrackerSetup {

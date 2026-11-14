@@ -45,6 +45,19 @@ export interface TrackerTask {
    * GitLab, Forgejo, in `chainTasks`). Such a task enters the chain only with an entry label (`entryLabels`).
    */
   outsider?: true
+  /** Set on an outsider's task whose author changed its title or description (BTN-1124); absent — never changed. */
+  edited?: TextEdit
+}
+
+/**
+ * When an outsider last changed a task's title or description and when its labels were put on (BTN-1124): a label is a
+ * person's word on the text it was put on, so a later change keeps the task out until the label goes on again.
+ */
+export interface TextEdit {
+  /** ms of the last change by the task's author (or a deleted account). */
+  at: number
+  /** Each putting of a label the tracker gave, as it spells the label; ms. */
+  labeled: { label: string; at: number }[]
 }
 
 export interface Task extends TrackerTask {

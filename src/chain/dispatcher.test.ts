@@ -4,7 +4,7 @@ import type { Task } from '../tracker/model.js'
 import { active, backlog, canceled, done, pause, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
 import type { LimitsWait, ModelWeekHold } from './model.js'
-import { DEFAULT_RULES } from './rules.js'
+import { APPROVAL_LABEL, DEFAULT_RULES } from './rules.js'
 
 describe('Dispatcher', () => {
   it('launches the first task in order when the chain starts', async () => {
@@ -286,6 +286,12 @@ describe('Dispatcher', () => {
     ['no open task', [] as Task[], {}, notice('chain.emptyNone', {})],
     ['ready tasks without the required label', [task('ABC-1')], { requiredLabels: ['Auto'] }, notice('chain.emptyLabels', { labels: ['Auto'] })],
     ['only outsiders\' ready tasks, none let in', [{ ...task('ABC-1'), outsider: true as const }], {}, notice('chain.emptyOutsiders', {})],
+    [
+      'an outsider\'s text changed after its label',
+      [{ ...task('ABC-1'), labels: [APPROVAL_LABEL], outsider: true as const, edited: { at: 2, labeled: [{ label: APPROVAL_LABEL, at: 1 }] } }],
+      {},
+      notice('chain.emptyChanged', {}),
+    ],
     ['only skipped tasks', [task('ABC-1')], {}, notice('chain.emptySkipped', {})],
     ['a ready task held by a blocker outside the chain', [task('ABC-1', todo, 'ABC-2'), task('ABC-2', review)], { active: ['Todo'] }, notice('chain.emptyBlocked', {})],
   ])('names the reason of an empty chain: %s', async (_name, tasks, rules, why) => {

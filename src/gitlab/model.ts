@@ -1,5 +1,5 @@
 import type { TaskAttachment, TaskRef, TrackerCard } from '../tracker/card.js'
-import { PRIORITIES, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import { PRIORITIES, type TaskPriority, type TaskStatus, type TextEdit, type TrackerTask } from '../tracker/model.js'
 import type { TrackerPlace } from '../tracker/source.js'
 import { GitlabUploads } from './uploads.js'
 
@@ -124,4 +124,29 @@ export function toCard(issue: GitlabIssue, links: GitlabLink[], notes: GitlabNot
     attachments: [...attachments.values()],
     ...(estimate === null ? {} : { estimate }),
   }
+}
+
+/** A putting or taking off of a label (`resource_label_events`). */
+export interface GitlabLabelEvent {
+  created_at: string
+  action: 'add' | 'remove'
+  label: { name: string } | null
+}
+
+/** The system notes GitLab leaves on a change of the title or the description. */
+const TEXT_NOTE = /^changed (?:the description|title )/
+
+/**
+ * The changes of the issue's text by its author or a deleted account (BTN-1124): their system notes, and the label
+ * puttings; anyone else who edits an issue has a role in the project. `undefined` — none.
+ */
+export function gitlabTextEdit(issue: Pick<GitlabIssue, 'author'>, notes: GitlabNote[], events: GitlabLabelEvent[]): TextEdit | undefined {
+  const author = issue.author?.id
+  const times = notes
+    .filter((note) => note.system && TEXT_NOTE.test(note.body) && (note.author === null || note.author.id === author))
+    .map((note) => Date.parse(note.created_at))
+    .filter((time) => !Number.isNaN(time))
+  if (times.length === 0) return undefined
+  const labeled = events.flatMap((event) => (event.action === 'add' && event.label !== null ? [{ label: event.label.name, at: Date.parse(event.created_at) }] : []))
+  return { at: Math.max(...times), labeled }
 }

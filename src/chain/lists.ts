@@ -5,7 +5,13 @@ import { milestoneSequence, type SequencedMilestone } from './milestone-sequence
 import { activeMilestone, milestoneCandidate, type ChainView } from './milestones.js'
 import { chainOrder, waitingBlockers, withFresh } from './order.js'
 import type { Reviews } from './reviews.js'
-import { admits, isActive, isTerminal, missingLabel, requiredOn, type ChainRules } from './rules.js'
+import { admits, changedAfterEntry, isActive, isTerminal, missingLabel, requiredOn, type ChainRules } from './rules.js'
+
+/** The task as "Into the chain" leaves it: with the label on, put on after any change of its text. */
+function labelledAnew(task: Task, label: string): Task {
+  const { edited: _, ...rest } = task
+  return { ...rest, labels: task.labels.some((each) => each === label) ? task.labels : [...task.labels, label] }
+}
 
 /** Each project's tasks as the dispatcher last sorted them, and the order and views the page gets from them. */
 export class TaskLists {
@@ -16,6 +22,7 @@ export class TaskLists {
   readonly outside = new Map<string, Task[]>()
   readonly backlog = new Map<string, Task[]>()
   readonly done = new Map<string, Set<string>>()
+  private readonly changed = new Set<string>()
 
   constructor(
     private readonly state: ChainState,
@@ -33,9 +40,18 @@ export class TaskLists {
   sorted(project: string, tasks: Task[]): { chain: Task[]; waiting: Task[] } {
     const rules = (task: Task) => this.deps.rules(project, task.id)
     const chain = tasks.filter((task) => admits(rules(task), task) && this.enters(project, task, rules(task)))
+    for (const task of tasks) if (changedAfterEntry(rules(task), task)) this.noteChanged(task)
     const outside = (this.outside.get(project) ?? []).filter((task) => isOpen(task.status))
     const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules(task), task.status) && !chain.includes(task)))
     return { chain, waiting }
+  }
+
+  /** The log's line for each change of an outsider's text after its label, once: the tracker is polled again and again. */
+  private noteChanged(task: Task): void {
+    const key = `${task.id}@${task.edited!.at}`
+    if (this.changed.has(key)) return
+    this.changed.add(key)
+    this.deps.log(`chain: ${task.id} is kept out: its author, not a member of the repository, changed its text at ${new Date(task.edited!.at).toISOString()}, after its entry label; "Into the chain" puts the label on again`)
   }
 
   private enters(project: string, task: Task, rules: ChainRules): boolean {
@@ -90,6 +106,7 @@ export class TaskLists {
     if (tasks.length > 0) return tasks.every((task) => skipped.includes(task.id)) ? notice('chain.emptySkipped', {}) : notice('chain.emptyBlocked', {})
     const backlog = this.backlog.get(project) ?? []
     const active = backlog.find((task) => isActive(this.deps.rules(project, task.id), task.status))
+    if (backlog.some((task) => changedAfterEntry(this.deps.rules(project, task.id), task))) return notice('chain.emptyChanged', {})
     if (active !== undefined) {
       const { requiredLabels } = this.deps.rules(project, active.id)
       return requiredLabels.length === 0 ? notice('chain.emptyOutsiders', {}) : notice('chain.emptyLabels', { labels: requiredLabels })
@@ -166,9 +183,9 @@ export class TaskLists {
     const donor = this.deps.fillsMilestone?.(project) ? activeMilestone(chain, this.currentOf(project)) : undefined
     for (const listed of [...(this.backlog.get(project) ?? []), ...blockers]) {
       const rules = this.deps.rules(project, listed.id)
-      // "Into the chain" puts the missing required label on: the place is the labelled task's.
+      // "Into the chain" puts the missing required label on, or on again over a changed text: the place is the labelled task's.
       const label = missingLabel(rules, listed)
-      const task = label === null ? listed : { ...listed, labels: [...listed.labels, label] }
+      const task = label === null ? listed : labelledAnew(listed, label)
       if (!admits(rules, task)) continue
       const planned = [...chain, task, ...blockers.filter((each) => each.id !== task.id)]
       const candidate = milestoneCandidate(task, donor, planned)

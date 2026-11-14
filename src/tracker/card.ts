@@ -21,6 +21,8 @@ export interface TrackerCard {
   estimate?: number | null
   /** Opened by an outsider, as `TrackerTask.outsider` (BTN-1123). */
   outsider?: true
+  /** Who opened it, given with `outsider` (BTN-1124): `task_read` says whose the text is; `null` — a deleted account. */
+  author?: string | null
   /** Only the tracker kept in Even Keel itself (the built-in one) gives it: the card is where its tasks are edited. */
   edit?: CardEdit
 }

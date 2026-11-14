@@ -41,10 +41,33 @@ describe('connectForgejo', () => {
       [`GET ${BASE}/collaborators/john-doe`]: { status: 204 },
       [`GET ${BASE}/collaborators/jane-roe`]: { status: 404, body: {} },
       [`GET ${BASE}/collaborators/jane-roe/permission`]: { status: 403, body: {} },
+      [`GET ${BASE}/issues/3/timeline`]: { body: [] },
+      [`GET ${BASE}/issues/4/timeline`]: { body: [] },
     })
     const { tasks } = await source.chainTasks('id-app', open)
     expect(tasks.map((task) => [task.id, task.outsider])).toEqual([['APP-1', undefined], ['APP-2', undefined], ['APP-3', true], ['APP-4', true], ['APP-5', undefined]])
     expect(calls.filter((call) => call.path.endsWith('/collaborators/jane-roe'))).toHaveLength(1)
+    expect(calls.filter((call) => call.path.endsWith('/timeline')).map((call) => call.path).sort()).toEqual([`${BASE}/issues/3/timeline`, `${BASE}/issues/4/timeline`])
+  })
+
+  it('reads the renames of an outsider\'s open issue by its author, with the label puttings (BTN-1124)', async () => {
+    const event = (type: string, login: string | null, at: string, extra: object = {}) => ({ type, created_at: at, user: login === null ? null : { login }, ...extra })
+    const { source } = await connect({
+      [`GET ${BASE}/issues?type=issues&state=open`]: { body: [issue({ number: 1, milestone: null, user: { login: 'jane-roe' } })] },
+      [`GET ${BASE}/issues/1/dependencies`]: { body: [] },
+      [`GET ${BASE}/collaborators/jane-roe`]: { status: 404, body: {} },
+      [`GET ${BASE}/collaborators/jane-roe/permission`]: { status: 403, body: {} },
+      [`GET ${BASE}/issues/1/timeline`]: {
+        body: [
+          event('label', 'even-keel-bot', '2026-01-02T10:01:00Z', { body: '1', label: { name: 'even-keel: approved' } }),
+          event('label', 'even-keel-bot', '2026-01-02T10:02:00Z', { body: '', label: { name: 'bug' } }),
+          event('change_title', 'Jane-Roe', '2026-01-02T10:05:00Z'),
+          event('change_title', 'even-keel-bot', '2026-01-02T10:30:00Z'),
+        ],
+      },
+    })
+    const { tasks } = await source.chainTasks('id-app', open)
+    expect(tasks[0]!.edited).toEqual({ at: Date.parse('2026-01-02T10:05:00Z'), labeled: [{ label: 'even-keel: approved', at: Date.parse('2026-01-02T10:01:00Z') }] })
   })
 
   it('goes without blockers where the repository has dependencies turned off', async () => {
