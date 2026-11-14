@@ -51,7 +51,7 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 | --- | --- | --- |
 | ![The page's chat with a session's question and its options](assets/screens/question.png) | ![The session hit the usage limit; the panel says it goes on after the reset with the cache still warm](assets/screens/limit.png) | ![The stats page: cost, weekly limits and spend by day per project](assets/screens/stats.png) |
 
-Every feature in full: [docs/guide/features.md](docs/guide/features.md).
+Every feature in full: [docs/guide](docs/guide/README.md), a page per area.
 
 ## Requirements
 

@@ -1,77 +1,117 @@
 # Reference
 
-Every environment variable and every setting. How to set Even Keel up is in [setup](setup.md), what it does in [features](features.md).
+Every environment variable and every setting. How to set Even Keel up is in [setup](setup.md), what it does in the [guide's pages](README.md).
 
-Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account.
+- [Environment](#environment) — the variables of `.env`: the page's address and token, folders, paths to the CLIs, the statistics database
+- [Configuration](#configuration) — every setting by its key, grouped by area
+- [Protection setting](#protection-setting) — the format of the `protection` key
+- [Task labels](#task-labels) — the API call that changes a task's labels
 
-If Claude Code still refuses the folder, the pause offers one copyable command for the CLI and account of that failed attempt: under a system service it opens them as the service user (on Windows through `runas` and a short script in the state folder's `trust/`), otherwise as you. Run it in the shell named over it, accept trust, then press **Check again and resume**. Saved pauses from older versions retain their original commands using `claude` from PATH, both of them when the pause does not know whether Even Keel runs as a service; check the CLI and account yourself or retry to get fresh commands. A damaged or unwritable account configuration instead needs to be repaired before retrying; the pause names its file.
-
-### Protection setting
-
-`protection` is shared and per project, edited in **Sessions → Protection**. Its default is
-`{ "disabled": [], "claude": [], "codex": [], "copilot": [], "opencode": [] }`: all built-in groups on, no extra native rules.
-`disabled` lists groups to turn off: `forcePush`, `mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`,
-`deleteParent`, `ownAddress` (requests to Even Keel's own address), and one per tracker: `deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`, `deleteForgejo`. The other fields add native deny rules: Claude permission strings, Codex arrays of
-command arguments (for example `["terraform", "destroy"]`), Copilot tool strings, and OpenCode bash command glob
-patterns (for example `git reset --hard*`). A project's field replaces its
-shared counterpart; omitted fields inherit. New launches only; see [coverage and limits](features.md#protection).
-
-## Task labels
-
-Automation clients can call `POST /api/task/labels` with a task ID in `task` and lists of label names in `add` and `remove`. Huly, GitHub, GitLab, Linear, Jira and Forgejo support it. Removals precede additions; names are matched without case and surrounding whitespace, and labels already present keep their spelling. Missing label definitions are created in the workspace, repository, project or team as appropriate; Jira uses free labels. The profile needs permission to edit issues and labels. Saved labels, including their effect on model selection and chain rules, appear in service state immediately. If the tracker refuses, refresh the task and check its labels before retrying: a multi-request operation may have partly completed. See the [adapter reference](../trackers.md) for details.
-
-For a deterministic compaction/handoff experiment from a source checkout, `npm run break-labels -- <project key or GUID> ...` assigns explicit break labels to open tasks: even numbers get `Break | compaction`, odd numbers get `Break | handoff`. Existing break labels are preserved and logged, including conflicts; `--dry-run` previews assignments. The script reads the installation's state database and tracker profiles. It runs separately from the service; see the [protocol and optional schedule](../posts/compaction-ab.md).
+Each table row gives a name, its default and what it does. Where the page has the setting under a name of its own, the row gives that name in bold.
 
 ## Environment
 
-`.env` in the data folder: a clone's own folder, or for an install with npm `%LOCALAPPDATA%\even-keel`, `~/Library/Application Support/even-keel` or `~/.local/share/even-keel` (`$XDG_DATA_HOME/even-keel`). Even Keel watches it and applies a change without a restart: the page moves to a new address, the collector reconnects. Only the variables marked "read at startup" below need a restart.
+`.env` in the data folder: a clone's own folder, or for an install with npm `%LOCALAPPDATA%\even-keel`, `~/Library/Application Support/even-keel` or `~/.local/share/even-keel` (`$XDG_DATA_HOME/even-keel`).
 
-`.env` is Even Keel's own: nothing in it reaches the agents' sessions, the task's commands or the MCP servers (a package's key reaches only its own server, through the gateway). Neither do the page token, Tally's passwords and key and the badge secret when set in the service's environment instead. A variable a session needs, such as the credentials of a cloud account's "environment" way, goes into the service's own environment, not into `.env`; the cloud account form looks only there and does not see credentials set in `.env`. A Claude account folder's background daemon started before this rule keeps handing the old environment to its sessions until it restarts.
+Even Keel watches it and applies a change without a restart: the page moves to a new address, the collector reconnects. Only the variables marked "read at startup" below need a restart.
 
-The trackers' and the CIs' credentials are not here but in the profiles (see [Trackers and plugins](setup.md#trackers-and-plugins)); a profile's change applies at once too. On the first start Even Keel turns the tracker variables it finds in `.env` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_TOKEN`; `LINEAR_TOKEN`; `GITLAB_TOKEN` and optional `GITLAB_URL` (default `https://gitlab.com`, the web address without `/api/v4`); `JIRA_URL`, `JIRA_EMAIL` and `JIRA_TOKEN`, with the optional `JIRA_MCP_TOKEN` of the Jira plugin; `FORGEJO_TOKEN` and optional `FORGEJO_URL`, a profile per Forgejo host) into the default profile of each tracker, once, and says so in the log; after that it no longer reads them.
+`.env` is Even Keel's own: nothing in it reaches the agents' sessions, the task's commands or the MCP servers (a package's key reaches only its own server, through the gateway). Neither do the page token, Tally's passwords and key and the badge secret when set in the service's environment instead.
 
-Most variables below can also be set on the page, where they belong: the page token on `/settings` → **Interface** → **Page access**, the stats database under **Your own Postgres** on **Stats**, the span classifier in its section on **Stats** (a blank key keeps the saved one). The page edits only those lines of `.env`, comments and order kept. It never shows the value of a password, token or key, only whether it is set; addresses and names are shown as they are. A variable set in the service's own environment rather than in `.env` cannot be changed there: its field is off, and its tip says so.
+A variable a session needs, such as the credentials of a cloud account's "environment" way, goes into the service's own environment, not into `.env`; the cloud account form looks only there and does not see credentials set in `.env`.
 
-| Variable | |
-| --- | --- |
-| `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
-| `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary; beats the "CLI version" setting |
-| `EVEN_KEEL_CODEX_BIN` | path to the `codex` binary, beats the "CLI version" setting; default Even Keel's copy of the checked version when that setting is Checked, otherwise the native one of the global npm package on Windows, `codex` elsewhere |
-| `CODEX_HOME` | Codex's own folder, its first account; default `~/.codex`. Read at startup |
-| `EVEN_KEEL_CODEX_ACCOUNTS_DIR` | folder of the Codex account folders added from the page; default `~/.codex-accounts` |
-| `EVEN_KEEL_OPENCODE_BIN` | path to the `opencode` binary, beats the "CLI version" setting; default Even Keel's copy of the checked version when that setting is Checked, otherwise the native one of the global npm package on Windows, `opencode` elsewhere |
-| `EVEN_KEEL_OPENCODE_ACCOUNTS_DIR` | folder of the OpenCode account folders added from the page; default `~/.opencode-accounts` |
-| `EVEN_KEEL_COPILOT_BIN` | path to the `copilot` binary, beats the "CLI version" setting; default Even Keel's copy of the checked version when that setting is Checked, otherwise on Windows the `copilot.exe` winget installed, else the native `copilot.exe` of the global npm package, `copilot` elsewhere |
-| `EVEN_KEEL_COPILOT_ACCOUNTS_DIR` | folder of the GitHub Copilot account folders added from the page; default `~/.copilot-accounts` |
-| `EVEN_KEEL_CONFIG` | path to the config file of an older install, imported into the database at the first start; default `even-keel.config.json` in the data folder. Read at startup |
-| `EVEN_KEEL_CPU_PROFILE` | seconds of the start to record a CPU profile of, at most 600: the file `logs/start-<time>.cpuprofile` opens in Chrome DevTools or VS Code. For a slow start; remove it afterwards. Read at startup |
-| `EVEN_KEEL_DATA` | the data folder — `.env`, `state/`, `logs/` — instead of the clone's own folder or the platform's one of an npm install. Set in the environment of the service or the terminal, not in `.env`, which is in it |
-| `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | where the page listens; default `127.0.0.1` and `4747`. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](setup.md#reaching-the-page-from-another-machine)). Changed, the page moves to the new address; if it cannot listen there, it stays on the old one and says so on the page. Sessions get the address as `EVEN_KEEL_URL` for the packages' hooks; sessions already running keep the old one. `host` and `port` left in an older config are not imported, the log says so once |
-| `EVEN_KEEL_MCP_PORT` | port of the local MCP gateway the chain sessions reach their packages' servers through; default `4748`, always on `127.0.0.1`. Read at startup |
-| other keys | whatever a package's MCP server reads (a `${…}` placeholder of its entry), entered in its package's details in **Settings → Packages** or by hand |
-| `EVEN_KEEL_TOKEN` | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Changed, open pages ask for the new one |
-| `EVEN_KEEL_BADGE_SECRET` | the secret the README badge's Worker takes pushes with; without it no badge is pushed |
-| `EVEN_KEEL_STATE_DIR` | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database); default `state/` of the data folder. Read at startup |
-| `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_WRITER_PASSWORD`, `TALLY_READER_PASSWORD` | your own Postgres for the statistics, used when `tally` is `server`: the collector writes as `tally_writer`, the page reads as `tally_reader` (`TALLY_WRITER_USER` and `TALLY_READER_USER` name other roles). Settings → Stats writes them for you after checking the connection. `tally/deploy/` has a Compose file that creates both roles |
-| `TALLY_LLM_URL`, `TALLY_LLM_KEY`, `TALLY_LLM_MODEL` | optional classifier of stuck spans on `/stats` and English titles on README badges: your LiteLLM endpoint, its bearer key and model (default `google-gemini-3.1-flash-lite`, free tier; fallbacks set in LiteLLM). Without them spans have no explanation and badges show task keys. Badge translation reads changes live and retries failures after 30 minutes, or at once after a change of these three |
+A Claude account folder's background daemon started before this rule keeps handing the old environment to its sessions until it restarts.
+
+The trackers' and the CIs' credentials are not here but in the profiles (see [Trackers and plugins](setup.md#trackers-and-plugins)); a profile's change applies at once too.
+
+On the first start Even Keel turns the tracker variables it finds in `.env` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_TOKEN`; `LINEAR_TOKEN`; `GITLAB_TOKEN` and optional `GITLAB_URL` (default `https://gitlab.com`, the web address without `/api/v4`); `JIRA_URL`, `JIRA_EMAIL` and `JIRA_TOKEN`, with the optional `JIRA_MCP_TOKEN` of the Jira plugin; `FORGEJO_TOKEN` and optional `FORGEJO_URL`, a profile per Forgejo host) into the default profile of each tracker, once, and says so in the log; after that it no longer reads them.
+
+Most variables below can also be set on the page, where they belong: the page token on `/settings` → **Interface** → **Page access**, the stats database under **Your own Postgres** on **Stats**, the span classifier in its section on **Stats** (a blank key keeps the saved one).
+
+The page edits only those lines of `.env`, comments and order kept.
+
+It never shows the value of a password, token or key, only whether it is set; addresses and names are shown as they are.
+
+A variable set in the service's own environment rather than in `.env` cannot be changed there: its field is off, and its tip says so.
+
+### The page and its folders
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | `127.0.0.1` and `4747` | where the page listens. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](setup.md#reaching-the-page-from-another-machine)). Changed, the page moves to the new address; if it cannot listen there, it stays on the old one and says so on the page. Sessions get the address as `EVEN_KEEL_URL` for the packages' hooks; sessions already running keep the old one. `host` and `port` left in an older config are not imported, the log says so once |
+| `EVEN_KEEL_TOKEN` | — | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Changed, open pages ask for the new one |
+| `EVEN_KEEL_MCP_PORT` | `4748` | port of the local MCP gateway the chain sessions reach their packages' servers through; always on `127.0.0.1`. Read at startup |
+| `EVEN_KEEL_DATA` | the clone's own folder, or the platform's one of an npm install | the data folder — `.env`, `state/`, `logs/`. Set in the environment of the service or the terminal, not in `.env`, which is in it |
+| `EVEN_KEEL_STATE_DIR` | `state/` of the data folder | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database). Read at startup |
+| `EVEN_KEEL_CONFIG` | `even-keel.config.json` in the data folder | path to the config file of an older install, imported into the database at the first start. Read at startup |
+| `EVEN_KEEL_CPU_PROFILE` | — | seconds of the start to record a CPU profile of, at most 600: the file `logs/start-<time>.cpuprofile` opens in Chrome DevTools or VS Code. For a slow start; remove it afterwards. Read at startup |
+
+### Agents and their accounts
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `EVEN_KEEL_CLAUDE_BIN` | — | path to the `claude` binary; beats the "CLI version" setting |
+| `EVEN_KEEL_ACCOUNTS_DIR` | `~/.claude-accounts` | folder of the extra Claude account folders |
+| `EVEN_KEEL_CODEX_BIN` | Even Keel's copy of the checked version when the "CLI version" setting is Checked, otherwise the native one of the global npm package on Windows, `codex` elsewhere | path to the `codex` binary; beats the "CLI version" setting |
+| `CODEX_HOME` | `~/.codex` | Codex's own folder, its first account. Read at startup |
+| `EVEN_KEEL_CODEX_ACCOUNTS_DIR` | `~/.codex-accounts` | folder of the Codex account folders added from the page |
+| `EVEN_KEEL_OPENCODE_BIN` | Even Keel's copy of the checked version when the "CLI version" setting is Checked, otherwise the native one of the global npm package on Windows, `opencode` elsewhere | path to the `opencode` binary; beats the "CLI version" setting |
+| `EVEN_KEEL_OPENCODE_ACCOUNTS_DIR` | `~/.opencode-accounts` | folder of the OpenCode account folders added from the page |
+| `EVEN_KEEL_COPILOT_BIN` | Even Keel's copy of the checked version when the "CLI version" setting is Checked, otherwise on Windows the `copilot.exe` winget installed, else the native `copilot.exe` of the global npm package, `copilot` elsewhere | path to the `copilot` binary; beats the "CLI version" setting |
+| `EVEN_KEEL_COPILOT_ACCOUNTS_DIR` | `~/.copilot-accounts` | folder of the GitHub Copilot account folders added from the page |
+| other keys | — | whatever a package's MCP server reads (a `${…}` placeholder of its entry), entered in its package's details in **Settings → Packages** or by hand |
+
+### Statistics and the badge
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_WRITER_PASSWORD`, `TALLY_READER_PASSWORD` | — | your own Postgres for the statistics, used when `tally` is `server`: the collector writes as `tally_writer`, the page reads as `tally_reader` (`TALLY_WRITER_USER` and `TALLY_READER_USER` name other roles). Settings → Stats writes them for you after checking the connection. `tally/deploy/` has a Compose file that creates both roles |
+| `TALLY_LLM_URL`, `TALLY_LLM_KEY`, `TALLY_LLM_MODEL` | the model: `google-gemini-3.1-flash-lite` | optional classifier of stuck spans on `/stats` and English titles on README badges: your LiteLLM endpoint, its bearer key and model (the default one is on the free tier; fallbacks set in LiteLLM). Without them spans have no explanation and badges show task keys. Badge translation reads changes live and retries failures after 30 minutes, or at once after a change of these three |
+| `EVEN_KEEL_BADGE_SECRET` | — | the secret the README badge's Worker takes pushes with; without it no badge is pushed |
 
 ## Configuration
 
-The settings are kept in the state database; the keys below are those of their file format, which [even-keel.config.example.json](../../even-keel.config.example.json) shows at work. Everything can be edited on the page: projects are added by the wizard (**+ Add project** on the home page) and removed in their settings, a project's keys on its page (**Settings**), the shared ones on `/settings`, behind the gear in the header. Once the chain has started a task of a project, the page no longer switches that project's tracker or tracker project; add the other tracker as a task feed instead (`projects[].feeds`). Every key applies at once, a project added or removed included.
+The settings are kept in the state database; the keys below are those of their file format, which [even-keel.config.example.json](../../even-keel.config.example.json) shows at work.
 
-To edit them as a file, `npm run storage -- config-export <new file>` writes them out and `npm run storage -- config-import <file>` puts a file in their place, whole: a key the file lacks goes back to its default, a project it lacks is removed. The file is checked before anything is written, and a running Even Keel applies it within seconds; a form open on the page keeps your edits of fields the import did not change and marks a field changed in both.
+Everything can be edited on the page: projects are added by the wizard (**+ Add project** on the home page) and removed in their settings, a project's keys on its page (**Settings**), the shared ones on `/settings`, behind the gear in the header.
 
-Settings tables include a started bottom row when you save; **+** or Enter adds it to the table so you can start another (Ctrl/Command+Enter in a multiline cell). Missing required cells and repeated keys are marked when you leave the row or save, and must be corrected before saving. Reverting a field or tab clears its started row. Unsaved table input survives navigating away and back while the page remains open; reloading the page discards it. The project wizard includes its started milestone row when adding the project.
+Once the chain has started a task of a project, the page no longer switches that project's tracker or tracker project; add the other tracker as a task feed instead (`projects[].feeds`).
 
-| Key | Default | |
+Every key applies at once, a project added or removed included.
+
+To edit them as a file, `npm run storage -- config-export <new file>` writes them out and `npm run storage -- config-import <file>` puts a file in their place, whole: a key the file lacks goes back to its default, a project it lacks is removed.
+
+The file is checked before anything is written, and a running Even Keel applies it within seconds; a form open on the page keeps your edits of fields the import did not change and marks a field changed in both.
+
+Settings tables include a started bottom row when you save; **+** or Enter adds it to the table so you can start another (Ctrl/Command+Enter in a multiline cell).
+
+Missing required cells and repeated keys are marked when you leave the row or save, and must be corrected before saving.
+
+Reverting a field or tab clears its started row.
+
+Unsaved table input survives navigating away and back while the page remains open; reloading the page discards it.
+
+The project wizard includes its started milestone row when adding the project.
+
+### The page and the service
+
+| Key | Default | What it does |
 | --- | --- | --- |
 | `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403 |
-| `brief` | `null` | put the task's title and description into the prompt. `null` — auto: exactly when no package of the project brings the tracker's MCP server; `true` or `false` overrides it. With `false` and no package bringing that server a session would not see its task: the chain pauses with the reason and buttons to turn the package or the description on, and goes on by itself once one is |
-| `parallel` | `1` | how many chains on different projects run at once; the rest wait in the queue. Lowered, it stops nothing: no new chain starts until fewer run |
-| `protection` | every built-in group on | shared and per project (`projects[].protection`): see [Protection setting](#protection-setting) above |
+| `language` | the browser's | language of the page: `en` or `ru` |
+| `updates.check` | `true` | ask GitHub for the Even Keel releases at start and every 12 hours, without a token, though not before the first start's setup is through (it asks this); `false` — never go there, and the update window has nothing to offer ([Updating](setup.md#updating)) |
+| `updates.notify` | `true` | a newer release gets a notification in the corner of the page; `false` — only the mark next to the version in the gear menu |
+| `notices` | `{}` | warnings turned off, by kind: `{ "protection.remote": false }`. Even Keel's may name `protection.noRules`, `protection.remote`, `branch.drift`, `cli.versions`, `cli.check`, `usage.unread`, `unattended`; a project's own only the first three, over Even Keel's. `cli.versions` is still accepted but turns nothing off: unchecked CLI versions are only in the event log now. Written by **Don't show again** and **Settings → Notices** ([Closing warnings](page.md#closing-warnings)) |
 | `attachmentLimit` | `25` | megabytes, 1–1024: the largest file a task of the built-in tracker takes and the largest a session attaches to a task of any tracker; **Attachment size limit, MB** in **Settings** → **Interface** |
 | `backup.dir` | `null` | absolute path of the folder the automatic copies of the state database go into ([Stored state](setup.md#stored-state)); `null` — `backups/` in the state folder. **Copies folder** in **Settings** → **Backups** |
 | `backup.keep` | `14` | how many of the newest checked copies stay, 1–365; **Copies to keep** in **Settings** → **Backups** |
+| `version` | — | version of the file's format; `config-export` writes it, and an older file is migrated as it is imported. A file newer than the code is refused |
+
+### The chain
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `parallel` | `1` | how many chains on different projects run at once; the rest wait in the queue. Lowered, it stops nothing: no new chain starts until fewer run |
+| `unattended` | `false` | [unattended mode](chain.md#unattended-mode), the switch in **Settings → Chain** |
 | `defaultGit` | `null` | what the project wizard starts on for a new project: `true` — in a git repository, `false` — without git; `null` — git if it is installed. Written by the setup's Git step and **Settings → Chain** → **New projects** |
 | `chain.active` | ready and in-progress categories | status names that enter the chain |
 | `chain.terminal` | done and canceled categories | status names that close a task |
@@ -80,77 +120,145 @@ Settings tables include a started bottom row when you save; **+** or Enter adds 
 | tracker profile's chain rules | none | `chain.active`, `chain.terminal`, `chain.requiredLabels` and `chain.excludedLabels` set on a tracker profile, in its tab of **Chain rules** on `/settings`: they go for the projects and feeds on that profile over the shared ones, a project's or a feed's own still winning; a project saved with the profile's value keeps none of its own, so a later change of the profile reaches it. Kept with the profile, so `config-export` leaves them out; a save that would put a status or label of a project on it on both sides is refused |
 | `chain.requiredMilestones` | `[]` | a task belongs to the project only in one of these milestones; empty — in any. A task left out is not the project's at all: not read, shown or closed by it. On the page: **Project tasks** → "Only milestones" (this key) or "All except" (the next one) |
 | `chain.excludedMilestones` | `[]` | a task in one of these milestones is not the project's. Two projects on one tracker project must split it with these two keys, so that no task is both's: say, a release project requires `v0.1` and the main one excludes it |
-| `version` | — | version of the file's format; `config-export` writes it, and an older file is migrated as it is imported. A file newer than the code is refused |
+| `fillMilestone` | `false` | shared and per project (`projects[].fillMilestone`): `true` — a task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain; once, so a milestone you change or clear afterwards stays |
+
+Statuses are matched by name, case-insensitively.
+
+Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status.
+
+Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`; GitLab's are `Opened` and `Closed`; Jira's are the project's workflow statuses; Linear's are the team's workflow states), as in the example.
+
+On localized Jira sites, use the displayed workflow names in explicit status lists.
+
+The default rules recognize a translated Backlog by its original name.
+
+Automatically created Jira tasks use the standard Task type by its original name, or the first available standard type; epics and subtasks are excluded.
+
+### Projects
+
+| Key | Default | What it does |
+| --- | --- | --- |
 | `projects` | — | an array of projects, each an object with the keys below |
 | `projects[].key` | — | the project's key in Even Keel (a letter, then up to four letters, digits or `_`): the prefix of its branches and the label the page shows. Two projects may share a key — a release clone keeps the main project's — and the page then adds the name (or the branch) in brackets, `ABC (Release)`. Not on GitHub with two different repositories: their task ids would clash. On Huly it is the Huly project's identifier unless `huly` names another |
 | `projects[].id` | given by Even Keel | the project's own id, a GUID that never changes; Even Keel, its state and the page's links name the project by it. An imported project without one gets one |
 | `projects[].repo` | — | path to the main checkout |
 | `projects[].name` | none | display name shown next to the key; the page edits it in the project head |
 | `projects[].branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. The field offers the repository's branches, local and remote. Saving another branch on the page switches the main checkout to it — a branch the repository lacks is created from where the checkout stands, uncommitted changes going along, one only on a remote is taken from there — and nothing is saved when git refuses the switch or while the project has a task in work. A checkout switched by hand keeps the setting: the settings and the chain's card say so, with **Make … the main branch** and **Put the folder back on …**. Set by hand in the config, a branch missing from the repository pauses the chain |
+| `projects[].git` | `true` | `false` — [a project without git](chain.md#a-project-without-git): its folder is no repository, sessions work in the folder itself, and it has no PR mode, no carry and no guard of the main branch, whatever the other keys say |
+| `projects[].slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
+| `projects[].mergeInto` | none | the `id` of a main project, or its key while no other project but this one has it, which makes this one a release project: its branch is merged into the main project's branch when that project's chain stands (stopped, empty or paused) or on **Carry now** on the project's page, and pushed. A conflict is aborted, the main checkout stays clean, and the carry waits for you: **Resolve with the agent** on the project's page gives it to a session of the main project, or merge by hand and it goes on. The main project must merge into none and be of the same repository: the two checkouts share a remote, or one is a clone of the other's folder |
+| `projects[].carryAgent` | `false` | on a release project: a carry that conflicts goes to the agent's session at once, as **Resolve with the agent** would. Unattended mode does the same with it off. A session that did not land the carry gets no successor until the release branch moves |
+| `projects[].color` | the first free one | 1–8: the project's colour on the home cards, the queue, the launch chart and `/stats`; a new project gets the first one no other project has |
+| `projects[].testProject` | `false` | marks a sandbox: hides its full history from the home launch chart and default aggregate statistics, without stopping collection or chains; **Show test projects** on the statistics page shows it again |
+| `projects[].changelog` | `CHANGELOG.md` | the file the [changelog drafts](ci.md#changelog-drafts) are written into, relative to the repository's root, such as `docs/CHANGELOG.md` |
+| `projects[].badge` | `null` | the project's README badge: `{ "on": true, "url": "https://badge.example.com", "slug": "my-project", "fields": [...] }` — the Worker's address, the project's name on it and what the badge shows (`title`, `agent`, `model`, `time`, `action`, `context`, `chain`, `milestone`, `sessions`, `medianCost`, `medianMinutes`; left out — all). Set in the project's settings → **Repository** → **README badge**; `null` — no badge. The Worker and how to deploy it: [`deploy/badge`](../../deploy/badge/README.md) |
+
+### A project's tracker
+
+| Key | Default | What it does |
+| --- | --- | --- |
 | `projects[].tracker` | `github` | the project's tracker: `huly`, `github`, `linear`, `gitlab`, `jira` or `forgejo` (Jira Cloud: the key is the Jira project key, task ids are the issue keys). The page and `config-export` always write it; a project of a file without it runs on GitHub. A file of an older Even Keel gives each project the tracker it ran on |
-| `projects[].brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
 | `projects[].github` | — | `owner/name` of the repository, for a project on GitHub |
 | `projects[].forgejo` | — | `owner/name` of the repository, for a project on Forgejo (Gitea, Codeberg); issue ids use the Even Keel key and the issue's number |
 | `projects[].gitlab` | — | full project path, including subgroups (`group/subgroup/project`), for a project on GitLab; issue ids use the Even Keel key and the project's issue `iid` |
 | `projects[].huly` | the key | identifier of the Huly project the project reads, when it is not the key; task ids stay Huly's (`ABC-12`) |
 | `projects[].linear` | the whole team | for a project on Linear: the name of the Linear project the team is narrowed down to, and the key is the team key; or `TEAM/Project` (`TEAM/` for the whole team), and the key is only Even Keel's, so several projects can work on one team. Task ids stay the team's (`TEAM-12`) |
-| `projects[].feeds` | `[]` | extra task feeds whose tasks join the project's chain ([Several trackers for one project](features.md#several-trackers-for-one-project)): each `{ "id": "<GUID>", "tracker": "github", "key": "ABCGH", "github": "owner/name" }` — a tracker, a key and the tracker's place by the same keys as a project's (`github`, `huly`, `linear`, `gitlab`). The ids of a feed's tasks must not start like another project's or feed's, and no two may read one place. A feed's account is chosen on the page (the tracker's default without one) and is kept with the profiles, outside the file. `chain` — the feed's own chain rules, by the keys of `chain` (`active`, `terminal`, `requiredLabels`, `excludedLabels`, `requiredMilestones`, `excludedMilestones`), over its profile's and the shared ones; the project's rules do not reach a feed's tasks. `moves` — the feed's own statuses on actions, as `projects[].statusMoves` |
-| `projects[].statusMoves` | `{}` | Huly, Linear and Jira only: the statuses Even Keel moves the project's own tracker's tasks into ([Statuses on actions](features.md#statuses-on-actions)). `start` — when it starts a task, `review` — when it opens the task's pull request: a status name, or `null` to leave the status; `done` — the done status a merged task is closed into. A key left out takes the tracker profile's value, set in its tab of **Chain rules** and kept with the profile, outside the file; none anywhere — nothing moves and a merged task closes into the tracker's first done status |
-| `projects[].mergeInto` | none | the `id` of a main project, or its key while no other project but this one has it, which makes this one a release project: its branch is merged into the main project's branch when that project's chain stands (stopped, empty or paused) or on **Carry now** on the project's page, and pushed. A conflict is aborted, the main checkout stays clean, and the carry waits for you: **Resolve with the agent** on the project's page gives it to a session of the main project, or merge by hand and it goes on. The main project must merge into none and be of the same repository: the two checkouts share a remote, or one is a clone of the other's folder |
-| `projects[].carryAgent` | `false` | on a release project: a carry that conflicts goes to the agent's session at once, as **Resolve with the agent** would. Unattended mode does the same with it off. A session that did not land the carry gets no successor until the release branch moves |
-| `projects[].slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
-| `projects[].git` | `true` | `false` — [a project without git](features.md#the-chain): its folder is no repository, sessions work in the folder itself, and it has no PR mode, no carry and no guard of the main branch, whatever the other keys say |
-| `projects[].changelog` | `CHANGELOG.md` | the file the [changelog drafts](features.md#changelog-drafts) are written into, relative to the repository's root, such as `docs/CHANGELOG.md` |
-| `projects[].testProject` | `false` | marks a sandbox: hides its full history from the home launch chart and default aggregate statistics, without stopping collection or chains; **Show test projects** on the statistics page shows it again |
-| `projects[].color` | the first free one | 1–8: the project's colour on the home cards, the queue, the launch chart and `/stats`; a new project gets the first one no other project has |
-| `projects[].prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it), after the shared `prompt`, which it adds to rather than replaces; empty — none |
-| `projects[].standards` | `[]` | the project's [standards](features.md#standards): each `{ "doc": "docs/design.md", "files": ["**/*.tsx"], "except": ["**/*.test.*"], "shots": true }` — a document inside the repository, at least one mask of the files it guards, masks of those it leaves alone, and whether a branch that changed them waits for shots and answers before its merge; a document once |
-| `projects[].commands.beforeStart` | `[]` | shell commands (`cmd.exe` on Windows) run in order in the task's worktree or slot before a new session starts, such as `npm ci`; output goes to the service log. A failed one pauses the chain with its output on the page; a resumed session does not run them again |
+| `projects[].feeds` | `[]` | extra task feeds whose tasks join the project's chain ([Several trackers for one project](trackers.md#several-trackers-for-one-project)): each `{ "id": "<GUID>", "tracker": "github", "key": "ABCGH", "github": "owner/name" }` — a tracker, a key and the tracker's place by the same keys as a project's (`github`, `huly`, `linear`, `gitlab`). The ids of a feed's tasks must not start like another project's or feed's, and no two may read one place. A feed's account is chosen on the page (the tracker's default without one) and is kept with the profiles, outside the file. `chain` — the feed's own chain rules, by the keys of `chain` (`active`, `terminal`, `requiredLabels`, `excludedLabels`, `requiredMilestones`, `excludedMilestones`), over its profile's and the shared ones; the project's rules do not reach a feed's tasks. `moves` — the feed's own statuses on actions, as `projects[].statusMoves` |
+| `projects[].statusMoves` | `{}` | Huly, Linear and Jira only: the statuses Even Keel moves the project's own tracker's tasks into ([Statuses on actions](chain.md#statuses-on-actions)). `start` — when it starts a task, `review` — when it opens the task's pull request: a status name, or `null` to leave the status; `done` — the done status a merged task is closed into. A key left out takes the tracker profile's value, set in its tab of **Chain rules** and kept with the profile, outside the file; none anywhere — nothing moves and a merged task closes into the tracker's first done status |
+| `projects[].milestoneOrder` | `[]` | milestone names in the order the project's chain goes by ([Milestone order](chain.md#milestone-order)); empty — the automatic order. The page writes it from **Tracker** → **Configure** → **Milestones** → **Milestone order**; a milestone not in the list takes its automatic place, a name no task carries is ignored |
+| `projects[].intakeLabel` | `null` | a GitHub label: the open issues of the project's GitHub remote with it become tasks of the project's tracker; collaborators' comments are copied as they are, the issue author's as information, nobody else's; when the task is done the issue gets the line "Fixed; it ships in vX.Y.Z" and is closed when that release is published ([GitHub issues taken into your tracker](trackers.md#github-issues-taken-into-your-tracker)). Not for a project whose tracker is GitHub. The token of the GitHub profile the remote takes needs Issues: Read and write |
+| `projects[].remoteProfiles` | `{}` | `{ "github": "<profile id>", "forgejo": "<profile id>", "gitlab": "<profile id>" }` — the profile the remote's CI and pull requests take, per kind; a missing one, or one that does not fit the remote (another kind, another Forgejo host or GitLab installation, removed), is the automatic choice ([CI and pull requests](setup.md#ci-and-pull-requests)) |
+| `projects[].brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
+
+### CI, checks and pull requests
+
+| Key | Default | What it does |
+| --- | --- | --- |
 | `ci.guard` | `true` | `false` — do not guard `main` at all: no wait for a CI, no `commands.check`, no fix of a red `main`; the other `ci` keys are kept for when it is back on. Every `ci` key is shared and per project (`projects[].ci`), each on its own |
 | `ci.kinds` | `["forgejo", "github", "gitlab"]` | the CIs whose verdict on a pushed `main` the next task waits for; empty — none. A CI not named here still shows its runs in the CI panel, but a push it takes no run for is not called stuck |
-| `projects[].commands.check` | `[]` | the project's check, run in order when no CI of `ci.kinds` will judge `main` (none counted, or one not answering): before a session's merge, in its worktree, by the [agent-bridge](../../plugins/agent-bridge) plugin's hook — a failure blocks the merge; and on `main` in the next task's worktree when `main` moved during the task, or when the hook did not report a passed check before the merge (no plugin, an old one) — a failure is fixed as a red CI is |
-| `projects[].commands.afterGreen` | `[]` | shell commands run in order in the project's main checkout once a pushed `main` is green by the CI or `commands.check`, such as building and restarting the project's service on this machine; only while that checkout is on the main branch at the green commit, once per commit. A push of `main` you make yourself while Even Keel runs counts too, once a CI of `ci.kinds` passes it; a red one only shows in the CI panel, with no fix. The next task waits for them; a failure is a warning on the page, not a red `main`. A command that restarts Even Keel itself goes last and as one process (`pwsh -NoProfile -Command "Restart-Service EvenKeel"`, not `net stop … && net start …`): the commands after it do not run. Needs `ci.guard` |
 | `ci.waitMinutes` | none | how long the next task waits for that verdict, in minutes; none — as long as it takes, `0` — not at all (faster, but a task may start on a broken `main`) |
 | `ci.recheckMain` | `true` | `false` — do not run `commands.check` again on a `main` that moved during the task; a merge whose check the hook did not report is checked on `main` anyway |
 | `ci.fixTask` | `false` | who fixes a red `main`. `false` — a session without a tracker task; the session working on the current task is stopped until the fix is merged and then continued. `true` — a high-priority task created in the tracker, taken after the current one |
 | `ci.rerunFailed` | `true` | rerun the failed jobs of a red `main` once before fixing it, and wait up to an hour for them: green on the rerun — no fix. Only GitHub Actions and GitLab CI can be rerun (a GitHub token needs `actions: write`); with Forgejo Actions the fix starts at once. `false` — the fix at the first red |
-| `projects[].provider`, `.models`, `.accounts`, `.promptLanguage`, `.cacheTtl`, `.contextHandoffs`, `.stats.checkpointTokens`, `.stats.checkpointShares` | the shared ones | the project's own values of the keys below; an entry of `models` or `accounts` overrides the shared one of that provider only; a project's `null` for `cacheTtl` or `stats.checkpointTokens` is its own value |
-| `fillMilestone` | `false` | shared and per project (`projects[].fillMilestone`): `true` — a task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain; once, so a milestone you change or clear afterwards stays |
-| `projects[].milestoneOrder` | `[]` | milestone names in the order the project's chain goes by ([The chain](features.md#the-chain)); empty — the automatic order. The page writes it from **Tracker** → **Configure** → **Milestones** → **Milestone order**; a milestone not in the list takes its automatic place, a name no task carries is ignored |
-| `projects[].badge` | `null` | the project's README badge: `{ "on": true, "url": "https://badge.example.com", "slug": "my-project", "fields": [...] }` — the Worker's address, the project's name on it and what the badge shows (`title`, `agent`, `model`, `time`, `action`, `context`, `chain`, `milestone`, `sessions`, `medianCost`, `medianMinutes`; left out — all). Set in the project's settings → **Repository** → **README badge**; `null` — no badge. The Worker and how to deploy it: [`deploy/badge`](../../deploy/badge/README.md) |
-| `projects[].pullRequests` | `false` | `true` — PR mode: a session does not merge its branch; Even Keel pushes it, opens a pull request on GitHub or Forgejo (a merge request on GitLab) and takes the next task. Feedback goes back to the task's session: reviews that ask for changes or comment, comments in the pull request's conversation (yours included: a forge does not let you request changes on a pull request opened with your own token) and failed checks. Whose remarks count: on GitHub those of the repository's owner, the members of its organization, its collaborators and the token's own account — anyone else's is skipped with a line in the service log, and bots' are not feedback; on GitLab every note by a member with Reporter access or above, not system notes such as approvals and not bots; on Forgejo those of the token's own account and of anyone with write access or above to the repository — when the token's account is not an admin of the repository, Forgejo does not tell it others' access, and then only the token's account and the repository's owner count, so make the profile's account an admin of the repository for other reviewers — anyone else's is skipped with a line in the service log. A chain that ran out of tasks with pull requests open starts again by itself when feedback comes on one of them; a chain you stopped waits for **Start**. The merge closes the task in the tracker; a close without a merge returns it skipped, and its next run is told of the closed pull request and its comments. A task that changed nothing in the repository (research, work already in `main`) is closed without a pull request. It takes the token the remote's CI takes — a GitHub, GitLab or Forgejo profile on `/settings` → **Trackers and CI** — which then needs to write pull requests ([Token permissions](setup.md#token-permissions)); the branch itself is pushed by git on the service account's credentials. Without a remote on GitHub, GitLab or Forgejo and a token for it the mode is not turned on: the switch in **Settings** → **Check and CI** stays off and says which is missing, and when it is the token, **Add profile** beside it opens **Trackers and CI** with a new profile of the remote's forge on the remote's address. A project whose remote or token went away — whether its chain was running or you press **Start** or **Resume** — waits paused with the reason instead of starting tasks, with the same **Add profile** under it, or a button to the project's **Check and CI** when the remote is gone (its switch can still be turned off); it goes on by itself within a minute of the remote or the profile being added. |
-| `projects[].intakeLabel` | `null` | a GitHub label: the open issues of the project's GitHub remote with it become tasks of the project's tracker; collaborators' comments are copied as they are, the issue author's as information, nobody else's; when the task is done the issue gets the line "Fixed; it ships in vX.Y.Z" and is closed when that release is published ([GitHub issues taken into your tracker](features.md#several-trackers-for-one-project)). Not for a project whose tracker is GitHub. The token of the GitHub profile the remote takes needs Issues: Read and write |
-| `projects[].remoteProfiles` | `{}` | `{ "github": "<profile id>", "forgejo": "<profile id>", "gitlab": "<profile id>" }` — the profile the remote's CI and pull requests take, per kind; a missing one, or one that does not fit the remote (another kind, another Forgejo host or GitLab installation, removed), is the automatic choice ([CI and pull requests](setup.md#ci-and-pull-requests)) |
-| `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: warning and danger thresholds in percent of a session's context window, which the agent gives (Claude Code's `/context`, Codex's session files); `window`, in tokens, stands in while it has not |
+| `projects[].commands.beforeStart` | `[]` | shell commands (`cmd.exe` on Windows) run in order in the task's worktree or slot before a new session starts, such as `npm ci`; output goes to the service log. A failed one pauses the chain with its output on the page; a resumed session does not run them again |
+| `projects[].commands.check` | `[]` | the project's check, run in order when no CI of `ci.kinds` will judge `main` (none counted, or one not answering): before a session's merge, in its worktree, by the [agent-bridge](../../plugins/agent-bridge) plugin's hook — a failure blocks the merge; and on `main` in the next task's worktree when `main` moved during the task, or when the hook did not report a passed check before the merge (no plugin, an old one) — a failure is fixed as a red CI is |
+| `projects[].commands.afterGreen` | `[]` | shell commands run in order in the project's main checkout once a pushed `main` is green by the CI or `commands.check`, such as building and restarting the project's service on this machine; only while that checkout is on the main branch at the green commit, once per commit. A push of `main` you make yourself while Even Keel runs counts too, once a CI of `ci.kinds` passes it; a red one only shows in the CI panel, with no fix. The next task waits for them; a failure is a warning on the page, not a red `main`. A command that restarts Even Keel itself goes last and as one process (`pwsh -NoProfile -Command "Restart-Service EvenKeel"`, not `net stop … && net start …`): the commands after it do not run. Needs `ci.guard` |
+| `projects[].pullRequests` | `false` | `true` — PR mode: a session does not merge its branch; Even Keel pushes it, opens a pull request on GitHub or Forgejo (a merge request on GitLab) and takes the next task. Whose remarks reach the session, the token it takes and what happens without a remote or a token: [Pull requests](ci.md#pull-requests) |
+
+### Sessions and agents
+
+| Key | Default | What it does |
+| --- | --- | --- |
 | `provider` | `claude` | what sessions run on: `claude`, `codex`, `opencode` or `copilot`. In the Agent section of project and shared settings, click a provider's block or its corner circle to select it; arrow keys move between the circles. A missing Checked copy asks for download consent; cancel keeps the choice and the chain waits. A task's own run, set on its card, can override this choice. Model, account and auto-compaction window fields in every block stay editable without selecting it |
-| `cli.<provider>` | `system` | Shared CLI version source for each provider: `system` (Yours on the page) uses your CLI and never installs globally. `checked` downloads Even Keel's copy only after explicit consent; sessions wait for it. Installs from before v0.2 that never set it keep `checked`. Download failure saves `system` for that provider, except Claude under `execution.claude: sdk`, which stays on `checked`; Try downloading again selects Checked and retries. Header and agent-card bands show byte progress. Old copies are removed after download and on version sweeps, retrying folders still held by a process |
 | `models` | `{ "claude": "opus" }` | model by provider, as the CLI takes it (`--model`, Codex's and OpenCode's `-m`), such as `{ "claude": "sonnet", "codex": "gpt-5.6-luna", "opencode/opencode": "opencode/big-pickle", "copilot": "gpt-6-luna" }`; a provider without one — the CLI's own default (for Codex the model of its `config.toml`, for Copilot `auto`). OpenCode's model is `<provider>/<model>` and is kept per provider its account signs in to: `opencode/openai` (ChatGPT or an OpenAI key), `opencode/anthropic`, `opencode/openrouter`, `opencode/github-copilot`, `opencode/opencode-go`, `opencode/opencode` (no sign-in) |
 | `accounts` | `{ "claude": "global", "codex": "codex" }` | account by provider, by its folder key (the "folder" in the tip of the account's icons on `/accounts`, not its name); one per provider, no switching on a spent limit. The entry of `provider` is the account the header shows first and switches; next to it the header shows the limits of every other account a project runs on. An account named here or in a project's own `accounts` cannot be removed; the default alone keeps an account only while a project runs on it. OpenCode and Copilot have no default account: add one on `/accounts` |
+| `cli.<provider>` | `system` | Shared CLI version source for each provider: `system` (Yours on the page) uses your CLI and never installs globally. `checked` downloads Even Keel's copy only after explicit consent; sessions wait for it. Installs from before v0.2 that never set it keep `checked`. Download failure saves `system` for that provider, except Claude under `execution.claude: sdk`, which stays on `checked`; Try downloading again selects Checked and retries. Header and agent-card bands show byte progress. Old copies are removed after download and on version sweeps, retrying folders still held by a process |
 | `execution` | `{}` | How each agent's sessions run. `claude`: `auto` (the default) runs an API key account through the Agent SDK and a subscription on `claude --bg`; `bg` or `sdk` runs every Claude account that way. `sdk` runs only on `cli.claude` `checked`: picking it on the page switches the CLI version to Checked and locks it there, and `sdk` with `system` is a config error; with `EVEN_KEEL_CLAUDE_BIN` sessions go on `--bg`; Anthropic asks products built on it to sign in with an API key, so on a subscription it is your call; on a subscription it also spends the 5-hour limit about twice as fast as `--bg` and the weekly one about a quarter faster (no such penalty on an API key). `codex`: `bypass` runs Codex sessions with `--dangerously-bypass-approvals-and-sandbox` instead of `--approve-for-me`: no sandbox and no automatic reviewer, the agent can do anything your account can. Needed under the Windows service, where the Codex sandbox does not start. Shared only; OpenCode and Copilot have no modes. A change applies to new sessions |
+| `cliCheck` | `false` | run a short live check of a new CLI version, and weekly of the checked one, in the account folder your projects use; it waits for the folder to be free, holds that account's chains for its few minutes and spends the account's limits ([CLI copies](agents.md#cli-copies)) |
+| `projects[].provider`, `.models`, `.accounts`, `.promptLanguage`, `.cacheTtl`, `.contextHandoffs`, `.stats.checkpointTokens`, `.stats.checkpointShares` | the shared ones | the project's own values of the keys below; an entry of `models` or `accounts` overrides the shared one of that provider only; a project's `null` for `cacheTtl` or `stats.checkpointTokens` is its own value |
+| `brief` | `null` | put the task's title and description into the prompt. `null` — auto: exactly when no package of the project brings the tracker's MCP server; `true` or `false` overrides it. With `false` and no package bringing that server a session would not see its task: the chain pauses with the reason and buttons to turn the package or the description on, and goes on by itself once one is |
 | `prompt` | none | text added to the prompt of every new session of every project, whatever agent runs it (first start and handoff; a resumed session already has it), before the project's own `prompt`; passed as written, Markdown is fine. One place for the rules every agent should follow, since Claude Code, Codex, OpenCode and Copilot each keep their own global instructions file and Even Keel does not copy one into another; empty — none |
+| `projects[].prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it), after the shared `prompt`, which it adds to rather than replaces; empty — none |
 | `modelPrompts` | `{}` | ordered prompts by `provider \| model` pattern, e.g. `{ "Claude \| haiku*": "Keep answers short.", "* \| *sonnet*": "Check the tests." }`. Only `*` is special (any string); case is ignored and spaces around `\|` are trimmed. Every matching prompt is added in table order to a new session (first start and handoff), never to chat replies or automatic resumes, even after a model change. A bare `Codex` includes its CLI default; explicit model patterns require a known model. Old model keys are migrated automatically to `* \| <model>` |
-| `stats.compare` | `{ "minTasks": 5, "minSessions": 10, "days": 7 }` | before/after comparisons on `/stats`: minimum sample and days on each side |
-| `stats.moves` | `{}` | moved folders on `/stats`, `{ "old path": "new path" }`: sessions in the old one count under the new one |
-| `stats.otherBelow` | `0` | folder groups that cost less than this (USD, all time) are shown as one Other row on `/stats` |
+| `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
+| `projects[].standards` | `[]` | the project's [standards](sessions.md#standards): each `{ "doc": "docs/design.md", "files": ["**/*.tsx"], "except": ["**/*.test.*"], "shots": true }` — a document inside the repository, at least one mask of the files it guards, masks of those it leaves alone, and whether a branch that changed them waits for shots and answers before its merge; a document once |
+| `protection` | every built-in group on | shared and per project (`projects[].protection`): see [Protection setting](#protection-setting) below |
+| `trimTools` | `true` | the **Trim the tools** switch in **Settings → Sessions**: chain sessions get no claude.ai skills and plugins, and the `hiddenSkills` only through `/name` |
+| `hiddenSkills` | `update-config`, `loop`, `schedule`, `init` and a few more | bundled skills that trimmed chain sessions get only through `/name` |
+
+### Context, cache and handoffs
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: warning and danger thresholds in percent of a session's context window, which the agent gives (Claude Code's `/context`, Codex's session files); `window`, in tokens, stands in while it has not |
 | `contextHandoffs` | `true` | `false` — the [agent-bridge](../../plugins/agent-bridge) plugin never asks a chain session for a handoff because of its context size, and the agent compacts its context by itself; the plugin's other work (chat messages, the check before the merge, standards) and the handoffs on a usage limit stay. Shared and per project; applies to running sessions at their next tool call |
 | `stats.checkpointTokens` | `null` | context size, from 100000 tokens, at which the [agent-bridge](../../plugins/agent-bridge) plugin first asks a chain session for a handoff; `null` leaves it to the calibration shown on `/stats`, kept under `stats.checkpointShares.first` of the session's context window. The task label `Break \| compaction` pins it to 999999; `Break \| handoff` or no label uses the project's threshold. Both labels together are ignored |
 | `stats.checkpointShares` | `{ "first": 72, "late": 85, "hard": 95 }` | the most of a session's context window, in whole percents with `first < late < hard`, that the plugin's first nudge, its later nudges and the hard threshold of a task with many handoffs may come at; each key on its own, shared and per project. A share only lowers the plugin's own threshold (250000 late and 300000 hard, or its `CHECKPOINT_*_TOKENS` variables), never raises it past it; for a Claude Code session the later nudges and the hard threshold also stay before the point it compacts its context at by itself, about 32000 short of the window (at most 62000 and 47000 short of it), whatever the share; a pinned `stats.checkpointTokens` ignores the shares |
-| `tally` | `null` | where the statistics go: `off`, `local` (the embedded database) or `server` (your Postgres from `TALLY_DB_*`); `null` — not chosen yet, the page asks and nothing is collected. An install that already ran Tally keeps what it ran on |
-| `language` | the browser's | language of the page: `en` or `ru` |
-| `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
-| `hiddenSkills` | `update-config`, `loop`, `schedule`, `init` and a few more | bundled skills that trimmed chain sessions get only through `/name` |
 | `cacheTtl` | `null` | prompt cache lifetime of chain sessions, `"5m"` or `"1h"`; `null` leaves it to Claude Code (1 hour on a subscription, 5 minutes on an API key). A 1-hour cache write costs more but survives longer waits |
+| `keepWarm` | `0` | whole hours, 0–24, that the prompt cache of a Claude Code or Codex chain session waiting for your reply is kept warm, counted from its last answer; `0` — off. A ping to a copy of the session goes out shortly before the cache would expire, and spends the account's limits ([Keeping a waiting session warm](sessions.md#keeping-a-waiting-session-warm)) |
 | `autoCompactWindow` | `null` | positive whole tokens for the auto-compaction window of Claude chain sessions. Shared and per project (`projects[].autoCompactWindow`); the project overrides the shared value, and a project's explicit `null` selects the account window. Empty in the page means the account window. Applies to new sessions after saving, while running sessions keep their launch value. Manual sessions use the account's own window. Checkpoint shares and margins use the measured session window |
 | `codexAutoCompactWindow` | `null` | positive whole tokens for the context window of Codex chain sessions; they compact about 32k before it, where Claude does with the same window. Shared and per project (`projects[].codexAutoCompactWindow`); the project overrides the shared value, and a project's explicit `null` selects the model's own window. Empty in the page means the model's window. Applies to new sessions after saving, while running sessions keep their launch value. Hand-started Codex sessions and `config.toml` are left alone |
 | `openCodeAutoCompactWindow` | `null` | positive whole tokens for the context window of OpenCode chain sessions; they compact about 32k before it, as Claude and Codex do. It is a ceiling: a model whose own window is smaller keeps its own, and a session without a chosen model keeps the model's window. Shared and per project (`projects[].openCodeAutoCompactWindow`); the project overrides the shared value, and a project's explicit `null` selects the model's own window. Empty in the page means the model's window. Applies to new sessions after saving, while running sessions keep their launch value. GitHub Copilot has no such setting |
-| `keepWarm` | `0` | whole hours, 0–24, that the prompt cache of a Claude Code or Codex chain session waiting for your reply is kept warm, counted from its last answer; `0` — off. A ping to a copy of the session goes out shortly before the cache would expire, and spends the account's limits ([Keeping a waiting session warm](features.md#keeping-a-waiting-session-warm)) |
-| `cliCheck` | `false` | run a short live check of a new CLI version, and weekly of the checked one, in the account folder your projects use; it waits for the folder to be free, holds that account's chains for its few minutes and spends the account's limits ([CLI copies](features.md#cli-copies)) |
-| `updates.check` | `true` | ask GitHub for the Even Keel releases at start and every 12 hours, without a token, though not before the first start's setup is through (it asks this); `false` — never go there, and the update window has nothing to offer ([Updating](setup.md#updating)) |
-| `updates.notify` | `true` | a newer release gets a notification in the corner of the page; `false` — only the mark next to the version in the gear menu |
-| `notices` | `{}` | warnings turned off, by kind: `{ "protection.remote": false }`. Even Keel's may name `protection.noRules`, `protection.remote`, `branch.drift`, `cli.versions`, `cli.check`, `usage.unread`, `unattended`; a project's own only the first three, over Even Keel's. `cli.versions` is still accepted but turns nothing off: unchecked CLI versions are only in the event log now. Written by **Don't show again** and **Settings → Notices** ([Closing warnings](features.md#closing-warnings)) |
-| `unattended` | `false` | [unattended mode](features.md#unattended-mode), the switch in **Settings → Chain** |
-| `trimTools` | `true` | the **Trim the tools** switch in **Settings → Sessions**: chain sessions get no claude.ai skills and plugins, and the `hiddenSkills` only through `/name` |
 
-Statuses are matched by name, case-insensitively. Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status. Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`; GitLab's are `Opened` and `Closed`; Jira's are the project's workflow statuses; Linear's are the team's workflow states), as in the example.
+### Statistics
 
-On localized Jira sites, use the displayed workflow names in explicit status lists. The default rules recognize a translated Backlog by its original name. Automatically created Jira tasks use the standard Task type by its original name, or the first available standard type; epics and subtasks are excluded.
+| Key | Default | What it does |
+| --- | --- | --- |
+| `tally` | `null` | where the statistics go: `off`, `local` (the embedded database) or `server` (your Postgres from `TALLY_DB_*`); `null` — not chosen yet, the page asks and nothing is collected. An install that already ran Tally keeps what it ran on |
+| `stats.compare` | `{ "minTasks": 5, "minSessions": 10, "days": 7 }` | before/after comparisons on `/stats`: minimum sample and days on each side |
+| `stats.moves` | `{}` | moved folders on `/stats`, `{ "old path": "new path" }`: sessions in the old one count under the new one |
+| `stats.otherBelow` | `0` | folder groups that cost less than this (USD, all time) are shown as one Other row on `/stats` |
+
+## Protection setting
+
+`protection` is shared and per project, edited in **Sessions → Protection**. Its default is `{ "disabled": [], "claude": [], "codex": [], "copilot": [], "opencode": [] }`: all built-in groups on, no extra native rules.
+
+`disabled` lists groups to turn off: `forcePush`, `mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, `ownAddress` (requests to Even Keel's own address), and one per tracker: `deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`, `deleteForgejo`.
+
+The other fields add native deny rules: Claude permission strings, Codex arrays of command arguments (for example `["terraform", "destroy"]`), Copilot tool strings, and OpenCode bash command glob patterns (for example `git reset --hard*`).
+
+A project's field replaces its shared counterpart; omitted fields inherit.
+
+New launches only; see [coverage and limits](protection.md).
+
+## Task labels
+
+Automation clients can call `POST /api/task/labels` with a task ID in `task` and lists of label names in `add` and `remove`.
+
+Huly, GitHub, GitLab, Linear, Jira and Forgejo support it.
+
+Removals precede additions; names are matched without case and surrounding whitespace, and labels already present keep their spelling.
+
+Missing label definitions are created in the workspace, repository, project or team as appropriate; Jira uses free labels.
+
+The profile needs permission to edit issues and labels.
+
+Saved labels, including their effect on model selection and chain rules, appear in service state immediately.
+
+If the tracker refuses, refresh the task and check its labels before retrying: a multi-request operation may have partly completed. See the [adapter reference](../trackers.md) for details.
+
+For a deterministic compaction/handoff experiment from a source checkout, `npm run break-labels -- <project key or GUID> ...` assigns explicit break labels to open tasks: even numbers get `Break | compaction`, odd numbers get `Break | handoff`.
+
+Existing break labels are preserved and logged, including conflicts; `--dry-run` previews assignments.
+
+The script reads the installation's state database and tracker profiles. It runs separately from the service; see the [protocol and optional schedule](../posts/compaction-ab.md).

@@ -55,7 +55,7 @@ people's text in as tasks or comments:
 - Huly's GitHub integration, which copies a repository's issues and comments.
 
 Keep such tasks out of the chain until you have read them: in a status the chain does not take, or behind a required
-label you put on yourself ([the chain](features.md#the-chain)).
+label you put on yourself ([the chain](chain.md#which-tasks-enter-the-chain)).
 
 ## What a session may do
 
@@ -77,7 +77,7 @@ label you put on yourself ([the chain](features.md#the-chain)).
     It has no sandbox.
 - **Protection is patterns, not isolation.** It refuses the destructive commands it recognizes — force pushes,
   recursive deletes, deleting tracker records — and a command spelled another way can get past it
-  ([Protection](features.md#protection)).
+  ([Protection](protection.md)).
 - **It reaches the network and Even Keel.** A request from this machine reaches Even Keel's page without a token,
   so a session can change settings, answer questions, start a chain or write to another project's tasks the way the
   page does. The Protection group **Requests to Even Keel's address** refuses a shell command that sends such a request

@@ -1,218 +1,22 @@
 # Setting up Even Keel
 
-The [README](../../README.md) has the quick start. This is the rest: the CLIs Even Keel depends on, projects, trackers and plugins, reaching the page, running it from a clone, the service, updating and uninstalling. Every variable and key is in the [reference](reference.md).
-
-## The CLIs it depends on
-
-Installing a CLI or signing into it does not add an Even Keel account. Use **Add account** on the setup's Agent step, the Accounts page or the project wizard. If a global Claude Code or Codex folder is already signed in, choose **Use this sign-in** to add it or **Sign in with another account** to keep a separate folder. Without an existing sign-in the normal choices open directly. The first account you add for a provider becomes its shared account. Claude Code on Amazon Bedrock needs no sign-in, only AWS credentials the user Even Keel runs as can read: with the Windows service under another user, sign in to AWS (`aws sso login`, `aws configure`) as that user, or give the keys in the dialog ([Bedrock accounts](features.md#accounts)). Google Vertex AI is the same: run `gcloud auth application-default login` as that user, or give a service account key file the user can read ([Vertex accounts](features.md#accounts)). Microsoft Foundry's Entra ID way needs `az login` as that user, or give the resource's API key ([Foundry accounts](features.md#accounts)).
-
-**Even Keel depends on undocumented behaviour of the Claude Code CLI**: `claude agents --json`, the `sessions/<pid>.json` records and the `jobs/<id>/state.json` job files, the background daemon (`claude --bg`, `--bg --resume`, `claude daemon`), the transcript format, the text of `/usage`, the layout of `~/.claude.json`, `.credentials.json` and `plugins/installed_plugins.json`, and on macOS the name of the Keychain item that holds a folder's sign-in. None of it is a public API.
-
-A version becomes the checked one after one live session on it went through a launch, a question answered from the chat, the chat's feed, a checkpoint and a stop (`npm run cli-check`, [docs/releases.md](../releases.md)). By default chain sessions run on your own CLI, on whatever version it has updated itself to, and the event log (**Log** in the header) gets a warning when that is another version than the checked one: the stage, the context fill or a limit may then be read wrong, at worst a session does not start. "CLI version" `Checked` (in the setup's Agent step or Settings → Providers and models, which the log's warning opens) runs them on the checked version instead: Even Keel downloads it from Anthropic into `state/cli/claude/<version>/` (~340 MB a version, checked against Anthropic's sha256) only after you press Download, waits for that copy before starting chain sessions, and turns the auto-updater off for those sessions so they never update your own install ([docs/sessions/cli-versions.md](../sessions/cli-versions.md#the-checked-cli-btn-250-srcagentpinnedts)). Installs from before v0.2 stay on `Checked`. The pin has limits:
-
-- A session runs on the version of its account folder's daemon. A daemon on another version is restarted only once no session of that folder is live, and a newer `claude --bg` or `claude agents` run in the same account folder replaces the pinned daemon with its own version: keep your own background sessions out of the chain's account folder. Whether a terminal reaches the service's daemon on Windows to do that has not been checked.
-- Anthropic's servers may refuse an old version, and an old version may not know a new model's alias; Codex lists models by the client's version. Then the checked version is raised in a new release of Even Keel.
-- The transcripts your own sessions write on a newer version are read as before: the pin covers how chain sessions are run, not those files.
-
-**The same goes for the Codex CLI**: the events of `codex exec --json` (`thread.started`, `item.completed`, `turn.completed`, `turn.failed`), `-c` overrides of its config keys (`mcp_servers`, `marketplaces`, `plugins`, `hooks.state`), the rollout files `sessions/YYYY/MM/DD/rollout-*.jsonl` and their `session_meta`, `turn_context`, `event_msg` (`token_count` with the context fill and the rate limit windows, `task_complete`, errors) and `response_item` lines, the `plugin/install` and `hooks/list` calls of `codex app-server`, the `[plugins.*]` tables of `config.toml` and the `plugins/cache` layout, the claims of the ID token in `auth.json`, the text of `codex login status` and of its quota errors, and the layout of the npm package on Windows. With `Checked`, Codex sessions run on the checked version the same way: Even Keel unpacks the platform's npm package `@openai/codex@<version>-<platform>` (Apache-2.0, checked against the registry's sha512) into `state/cli/codex/<version>/`.
-
-Where Even Keel finds the CLIs: Claude Code's native install in `~/.local/bin` (`claude.exe` on Windows), then the binary of the VS Code extension, then `claude` on `PATH`; `EVEN_KEEL_CLAUDE_BIN` overrides. Codex's own folder is `CODEX_HOME` or `~/.codex`, the accounts added from the page live in `~/.codex-accounts`; `EVEN_KEEL_CODEX_BIN` overrides the binary.
-
-**OpenCode too**: Even Keel relies on the JSON events of `opencode run --format json`, its `-s` and `--title`, `OPENCODE_CONFIG_CONTENT`, the XDG folders, `auth.json`, the tables `session`, `message` and `part` of `opencode.db`, and the text of `opencode providers login`. With `Checked`, its sessions run on the checked version: Even Keel unpacks the platform's npm package of its native binary (`opencode-windows-x64@<version>` and the like, MIT, checked against the registry's sha512, ~80 MB a version) into `state/cli/opencode/<version>/`, with self-update turned off. An x64 processor without AVX2 needs OpenCode's `-baseline` build, which Even Keel does not take: keep its "CLI version" on `Yours` there. With `Yours`, sessions run on the `opencode` you installed (`npm install -g opencode-ai`; on Windows Even Keel takes the native `opencode.exe` inside the global npm package); `EVEN_KEEL_OPENCODE_BIN` overrides both. Its accounts live only in `~/.opencode-accounts`: your own OpenCode's folders are not listed.
-
-**GitHub Copilot too**: Even Keel relies on the JSONL of `copilot -p --output-format json`, its `--session-id`, `--resume`, `--no-ask-user`, `--add-dir`, `--additional-mcp-config`, `--disable-mcp-server` and `--plugin-dir`, `COPILOT_HOME` and `COPILOT_GITHUB_TOKEN`, and the events of `session-state/<id>/events.jsonl`. With `Checked`, its sessions run on the checked version: Even Keel unpacks the platform's npm package of its native binary (`@github/copilot-win32-x64@<version>` and the like, checked against the registry's sha512, ~155 MB a version) into `state/cli/copilot/<version>/`, with `--no-auto-update` and `COPILOT_AUTO_UPDATE=false`. With `Yours`, sessions run on the `copilot` you installed: on Windows Even Keel finds by itself the `copilot.exe` of `winget install GitHub.Copilot` and the native `copilot.exe` of `npm install -g @github/copilot` (npm's own `copilot` wrappers need a shell and are not run); `EVEN_KEEL_COPILOT_BIN` overrides both, for a binary installed anywhere else. When the binary cannot be started, the chain pauses and says so, with a button to the CLI version setting. Sign in once with `copilot login`, or add accounts with tokens on the accounts page. Its accounts live only in `~/.copilot-accounts`: your own `~/.copilot` is not listed.
-
-On Linux without a keyring, Copilot's own sign-in needs a terminal and the managed account's folder. When the CLI confirms that folder is signed out, the accounts page shows a copyable command using its folder and the same CLI binary as sessions. Run it on the machine running Even Keel, as the same OS user: in cmd on Windows, standard sh on Linux/macOS. The command temporarily removes `COPILOT_GITHUB_TOKEN`, `GH_TOKEN` and `GITHUB_TOKEN` and selects the account's `COPILOT_HOME`; your terminal's environment stays intact after success or failure. The CLI asks whether to save the token as plaintext in that folder's `config.json` when no keyring is available. Login without `COPILOT_HOME` saves into your own `~/.copilot`, which managed sessions do not read; login without a terminal may report "token was not saved" without asking about plaintext. The card updates after the next account check, without restarting Even Keel; restarting also checks again. An unavailable CLI, timeout, empty or unreadable status shows "Could not check" and allows sessions to start. An explicit signed-out answer shows "Sign-in needed" and the command; a successful check clears the warning. You can instead add a token through the accounts page; a folder's own token takes priority over the machine's sign-in. A successful own OAuth sign-in has no remaining-allowance bar.
-
-The setup's **Agent** step has three parts: the agent cards, each saying only whether its CLI is installed and on which version; "Which version to run" for the chosen agent, **Yours** or **Checked**; and its accounts as a table, the one sessions run on checked, **+ Add** in the heading. Without your CLI, Yours shows the command that installs it and **Check again**. Choosing **Checked** there or in Settings → Providers and models asks before downloading: the dialog shows the version and approximate size, and Cancel keeps Yours. Blue bands under the header and in the agent's block show downloaded bytes while it runs; in the setup, adding an account opens by itself once the download ends, since the sign-in goes through the CLI. **Next** waits until the agent has something to run on (your CLI, or the copy, even still downloading) and an account. A provider already on Checked whose copy is missing asks the same when you select it or add its account; closing the dialog keeps the choice and leaves the chain waiting. No startup, sign-in or version check downloads a copy by itself.
-
-If downloading fails, **CLI version** switches to **Yours** for that provider and offers **Try downloading again**. An installed CLI can then run sessions; without one, the block shows an installation command, **Check again**, and Checked to choose again. Even Keel never installs a global CLI. Old copies are removed, retrying folders still held by a process at startup and each version check.
-
-## Projects
-
-Git is needed only for projects that live in a repository. The setup's **Git** step first asks **Use git?**: **Yes** goes on to the check of git and the name and e-mail for commits; **No** is for [projects without git](features.md#the-chain) and goes on at once, asking nothing of git. Where git is already installed, **Yes** is picked in advance. The answer is what the project wizard starts on for a new project, each project still picking its own; change it later on the Git step or in Settings → Chain → **New projects**.
-
-On macOS, the setup's **Git** step always offers `xcode-select --install`, even when Homebrew is installed.
-It installs only Command Line Tools; Xcode from the App Store is not needed. After installation, press **Check again**.
-If full Xcode is already installed but its license has not been accepted, run `sudo xcodebuild -license accept`.
-The macOS git stub reporting `xcrun: error: invalid active developer path` is treated as missing git; a license error
-remains a git command error with its original message.
-
-With no project yet, the home page offers two ways: **Watch the demo** or **Connect your own**. The demo takes about two minutes and needs only git: Even Keel makes a small repository in its state folder and a project `DEMO` on the built-in tracker, and its chain goes through three tasks while you watch — one waits for another, and one asks you a question in the session's chat. The agent is a script, so no account is used and nothing is spent; the demo stays out of the launch chart and the statistics. A band over the demo's project leads to your own project; when the demo is over, its card offers to run it again or remove it. It is never removed by itself: the project wizard's **Remove the demo** (on by default) removes it once your project is added, and **Remove** in the band's **⋯** stops it and deletes its project, tasks and folder at any moment.
-
-The projects and the settings live in Even Keel's database and are edited on the page; there is no file to create. The first start walks a short setup, each choice saved as you make it and changed later in **Settings**: the languages of the page and of the session prompts; git — whether it is installed (Even Keel never installs it and shows the command that does) and the name and e-mail commits are made as, written into git's global config of the user Even Keel runs as; the agent all projects run on by default, its account (sign in, or add one in a dialog over the step) and, for each provider, whether sessions run on the CLI version Even Keel was checked on (downloaded with your consent, about 340 MB for Claude Code) or on the one installed; a tracker profile (or later); whether Even Keel may ask GitHub twice a day for a new release — nothing is asked until you answer; and the [statistics](features.md#statistics-optional). A step is checked on the line only once it has its answer, and a step you skip is not offered again. If you leave the setup unfinished, **Add project** (or **Connect your own** in the demo) first asks whether to finish it: **Set up** goes back to the step it stopped at, **Not now** leaves you where you are. Then the page opens the wizard that adds a project. You pick the agent of the project (the shared one unless you choose another; the wizard says whether it has a CLI and a signed-in account, and **Add an account** opens a dialog over it), give it the repository's folder or address, pick a tracker profile (or add one right there) and the project in that tracker, which it suggests from the tracker's list and, on GitHub and GitLab, from the repository's remote (on GitLab, a remote on the profile's server). The wizard checks the repository and its main branch (it suggests the checkout's current branch and offers the others; a branch the repository lacks is created when the project is added, and the checkout switches to the branch you name; a folder that is not a repository yet, or one with no commits, gets a button that runs `git init` and makes an empty first commit on that branch), the project in the tracker (it shows how many open tasks it sees), Claude Code's trust in the folder (a task's own run can give it to Claude Code whatever the project's agent) and where tasks run — **Own folder per task** (a git worktree made for the task and removed after Done) or **Permanent folders** (a few folders a task switches the branch in). All the steps are on one page, each marked once its check passes or with the reason under its field when it fails, and **What will be created** at the bottom sums the project up before **Add project**.
-
-When you add the project, Even Keel checks the repository again before saving it.
-
-The repository need not be on the machine yet. A project in git has one field, **Folder or repository address**, and Even Keel works out from what you type what to do; a short line with an icon under the field says how it read it:
-
-- **An address** — `https://…`, `ssh://…`, `git://…` or `git@host:owner/repo.git` — is a clone. Even Keel asks the remote right away, so a wrong address or a missing sign-in shows before you add anything. A private repository needs git on Even Keel's machine signed in to that server as the user Even Keel runs as (its credential helper or an SSH key). An SSH server that user has never connected to is refused until its host key is accepted once: the wizard shows the `ssh -T` command to run in that user's terminal. A main branch the remote lacks is created when the project is added.
-- **The folder of a repository** — a clone already on the machine — is taken as it is; the line names its remote, or says it has none. A folder inside a repository is refused with a button that puts the repository's top folder into the field.
-- **A folder without git** becomes a new repository: whatever it already holds goes into the first commit, except what its `.gitignore` files leave out, and the wizard says how many files and how much that is.
-- **A path that is not there** — Even Keel makes the folder and a new repository in it; the line shows the full path, so a typo is visible.
-- **Just a name**, such as `my-app` — a new folder with a repository in Even Keel's projects folder (`projects` in its data folder), numbered if the name is taken.
-
-A path must be full: a relative one such as `./my-app` is refused, and so are a whole disk and the home folder. A clone goes into the projects folder under a name it suggests from the address; type another name, or press **another folder…** for a full path anywhere. A clone needs an empty folder or one that is not there yet. If the projects folder already has a clone of the same remote and branch that no project uses, the wizard offers **Use it**. A clone and a new repository need git's name and e-mail for commits: without them the wizard says so under the field, and **Set them** asks for both in a window over the wizard, keeping everything typed. The same button stands under the error if the creation window gets there, and the failed step is retried once they are saved. A project without git takes a folder the same way as a clone, with no address.
-
-**Add project** opens a window with the steps: the folder, the clone with its progress (and its Git LFS files, if it has any) or the first commit, the project itself, Claude Code's trust and the project's packages. A step that fails says why and offers **Retry**; when only the Git LFS files fail — say, one was never pushed to the server — the clone is kept and **Retry** downloads just those files. **Cancel** removes only what Even Keel made — a folder it created, or what it put into an empty one — and only until the project is saved; after that the project stays and the window offers **Open the project**.
-
-Leaving the project wizard and returning keeps the fields you changed yourself. Untouched Git and tracker choices
-follow the current setup settings on each visit; a choice you made in the form takes precedence. A failed check or
-add keeps your edits. Adding the project or reloading the browser page clears the draft.
-
-The folder accepts `~` for the home folder of the user Even Keel runs as. On Windows it also accepts environment
-variables such as `%USERPROFILE%\Projects\example`, with any letter case. They come from Even Keel's own environment:
-a service running as another user uses that user's values. Unknown or empty variables stay as typed; values are
-expanded once. `$NAME` and PowerShell's `$env:NAME` are not expanded, and on Linux/macOS percent signs stay literal.
-Checking, creating a repository and adding the project use the same expansion; the saved folder is absolute, so
-later environment changes do not move an existing project.
-
-The wizard shows a validation error under the field that needs correcting and marks its step in red. Empty required fields are named at the bottom of the form.
-
-Each project needs:
-
-- a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
-- for Claude Code in the background, Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. On Windows it writes the forward-slash path Claude reads, copying an older backslash entry when needed and preserving the original. Its task worktrees inherit that trust. This also enables repository hooks. The Agent SDK and other agents do not write Claude trust.
-
-The rule that a session commits and merges its branch into `main` when the task is done comes with the launch and handoff prompts, plugin or not (in PR mode the prompt says to end the turn for a pull request instead).
-
-A session gets the project's `CLAUDE.md`, `AGENTS.md` and skills as they are committed on the main branch: its worktree is checked out from there, so a file you have not committed yet does not reach it. Which of them each agent reads is in [the project's instructions and skills](features.md#the-projects-instructions-and-skills).
-
-A project is removed at the bottom of its **Settings** → **Repository**; the page refuses while its chain runs or waits in the queue, a session works for it or in its folders, or a task still holds a place, and says which. Removal does not touch the repository, its worktrees or branches.
-
-## Trackers and plugins
-
-GitHub, Linear, GitLab and Forgejo profiles have nothing to set for MCP: their **MCP for sessions** box says the sessions use the token entered above. In a Jira profile's box, choose OAuth or Jira's separate MCP token: one is enough, and the token is unused while OAuth is connected. The profile list shows **MCP: connected through OAuth** or **MCP: reconnect needed**. **Check** verifies both REST and the selected MCP OAuth access, refreshing it if necessary; Jira also checks that MCP can reach the profile's site. Even Keel renews access automatically, so no short-lived token expiry is shown. After browser consent, press **Check and save**: an unsaved grant is lost when the dialog closes and expires ten minutes after consent was started. The dialog asks before closing with an unsaved grant.
-
-A profile whose server is down for a while — a test server you stopped, say — can be turned off with the switch at the end of its row. Even Keel then does not contact that server at all: its projects' tasks are not read, its CI is not watched, and the projects stay on the home page dimmed with **Turn on**. A profile with a chain running, paused or queued on it cannot be turned off until you stop the chain. Turning it on starts nothing: the chain's **Start** comes back once the tasks have been read again, so the chain never goes by a list from before. Sessions you start by hand keep the default profile's values either way. The same rule holds after any tracker outage: until its tasks are read again, **Start** reads them first.
-
-### No account: the built-in tracker
-
-Even Keel has a tracker of its own, kept in its state database: no account, no token, nothing to connect. It is the first choice of the tracker in the setup and in **Add project**, and the one picked when you have no tracker profile; you give the project only its key (`APP` for `APP-12`). **Status** and **Settings** → **Trackers and CI** always show it. In a built-in project's **Tracker** → **Configure** only **Project tasks** is left: its statuses and labels are fixed, and the milestones you name there are created in it on save. A project with another tracker's tasks cannot move to the built-in one.
-
-To take a built-in project to a real tracker, open its **Settings** → **Tracker** and press **Move to another tracker**. Pick the tracker profile and the project in it (and a key where the tracker needs one); the window then says how many tasks move and what will not — labels and milestones the tracker lacks (create them there and press **Check again**), priority or estimates it cannot hold, links to closed tasks. **Move** copies the open tasks with their statuses, parents, links, attachments and journal; closed ones stay in Even Keel. The copy runs in the service: close the window or the tab and come back to it. If it stops (a refused write, a restart), **Continue** goes on from where it stopped. While it runs, the project's tasks cannot be edited. Once every task is copied, **Switch to <tracker>** moves the project: the chain takes its tasks from there in the same order, and the old tasks stay in Even Keel marked "Moved to <key>". The switch waits until the chain no longer works on the project: stop or pause it, and let a task it holds finish.
-
-A screenshot or any file pasted (Ctrl+V) or dropped into a task's description while you edit it becomes the task's attachment: a picture shows in the text, every file is listed under **Attachments** in the card, and the task's session gets their paths to open. The files lie next to the state database, in `state/even-keel/files`, and `npm run storage -- backup` copies them. A file over 25 MB is refused; the limit is **Attachment size limit, MB** in **Settings** → **Interface**.
-
-An edit of a task's title or description in its card is saved when you leave the field, close the card or close the tab; only Escape on the title and **Cancel** in the description editor drop it. The browser keeps what you typed until Even Keel takes it, so an edit cut off by a closed tab is sent again the next time you open the card, and a note you have not sent waits in its field.
-
-For sessions to file and edit its tasks themselves — record decisions, split a task, link a blocker — a project needs the package `tasks@even-keel`. A project you add gets it on from the start; one added before it, or one where you turned it off, turns it on in the project's packages (the project's settings → **Sessions** → **Project packages**, the first button of the tab). Each session keeps its own task in the prompt and gets five short tools for the others; nothing can be deleted through them. A session you start by hand reaches the same tools when the `tasks` plugin is installed in it (`claude plugin install tasks@even-keel --scope project`), as long as Even Keel is running, since the tools are the service's own: see [`plugins/tasks/README.md`](../../plugins/tasks/README.md). The same package and plugin work for a project on Huly, GitHub, Linear, Jira, GitLab or Forgejo too, with a few limits of each tracker listed there, and for a project's task feeds: a session on a feed's task comments and files its blockers in the feed's tracker, and a task search covers every tracker of the project.
-
-### Minimum: the adapter only
-
-After a tracker read times out, Even Keel retries that read with an increasing delay, from 20 seconds to five minutes. Saving a changed profile clears the delay. Repeated timeouts produce one diagnostic line and a recovery line with their count in the service log.
-
-Even Keel reads the tasks itself, puts the title and description of the task into the session's prompt, and closes the task when its branch lands in `main`. You add a **tracker profile** on `/settings` → **Trackers and CI** → **Add profile**, and nothing else: pick the tracker, fill in its fields, and press **Check and save**. Even Keel checks the account and saves it if the check succeeds; an error leaves the dialog open without saving. **Check** alone shows whom the profile signs in as without saving. A duplicate-account warning stops automatic saving; press **Check and save** again to accept it. The page never shows a saved token or password again. Profiles live in Even Keel's state database on your machine, not in git.
-
-- **Huly:** the server address, the workspace, and the e-mail and password of a separate Huly account with access to the projects — create one for Even Keel. A token instead only if your Huly shows an API tokens page in the account settings: released self-hosted Huly has none, and its sign-in token comes from the e-mail and password anyway ([plugins/huly/README.md](../../plugins/huly/README.md#credentials)). The project key is the Huly project identifier (`ABC` for `ABC-12`). Installed with npm, Even Keel does not carry Huly's client (about 20 MB): it installs it with npm into `state/huly-client` of the data folder once you have a Huly profile, which takes a minute or two the first time. Until then the profile's check says the client is being installed — press it again a little later — and `/status` shows the install, with **Retry** if npm failed; Huly projects wait for it. A clone has the client already.
-- **GitHub:** a [fine-grained token](https://github.com/settings/personal-access-tokens/new) on the repositories, with the rights in [Token permissions](#token-permissions). A fine-grained token covers one owner: a personal repository and an organization's need a profile each. The profile shows when its token expires. A project names its repository: `{ "repo": "…", "tracker": "github", "github": "octo-org/abc" }`. GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`. In a public repository anyone with a GitHub account can open an issue, and a session gives its text to an agent that runs commands on your machine. So an issue opened by someone who is not the repository's owner, a member of its organization or a collaborator never enters the chain by itself: without required labels it waits in the backlog until you press **Into the chain** on it, which puts the label `even-keel: approved` on it (only people with triage rights can label an issue); with required labels it needs one of them, like any other issue. Until it has that label, a session's `tasks@even-keel` tools do not show it either: the task list only counts such issues, and reading one gives no title, description or files. The issues of the repository's own people enter at once unless you set required labels: the wizard says so for a public repository, and the project page keeps saying it in a band, with **Rules** next to it, for as long as the repository is public and has no required labels — also when it was made public after the project was added. For the same reason Even Keel reads only the comments of the repository's owner, the members of its organization, its collaborators and the token's own account — as an answer to a question, and in PR mode as a review or a comment on a pull request. Anyone else's is skipped with a line in the service log; the task card on the page still shows it. Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](../../plugins/github/README.md).
-- **Linear:** a [personal API key](https://linear.app/settings/account/security) ([Token permissions](#token-permissions)). The project key is the team key (`ENG` for `ENG-12`); `"linear": "Web app"` narrows the team down to one Linear project: `{ "repo": "…", "tracker": "linear", "linear": "Web app" }`, so two repositories of one team run as two projects, each on its Linear project. Details and the mapping: [plugins/linear/README.md](../../plugins/linear/README.md).
-- **GitLab:** a personal access token with the `api` scope, and optionally your server's web address (default `https://gitlab.com`, without `/api/v4`; a server under a path prefix keeps it, such as `https://example.com/gitlab`). Use GitLab.com or a self-managed GitLab 19.5 or later: those are the versions Even Keel was checked on, and older ones may build parent and child issues differently, so the chain may miss a subtask or close a parent too early. The profile checks the account and shows the token expiry when the server exposes it. Pick the project including subgroups: `{ "key": "APP", "repo": "…", "tracker": "gitlab", "gitlab": "group/subgroup/project" }`; issue `iid` 12 becomes `APP-12`. Opened issues are ready, closed ones done; use **Required labels** to keep unread issues out, especially in public projects. An issue opened by someone without Reporter access waits for **Into the chain** even without them, as on GitHub. Only members with Reporter access or above and the token owner can answer sessions through comments. **GitLab Free has only related links, so no blocking order**: the chain follows milestones and priority; Premium or Ultimate adds native blocking links. Text such as `blocked by #12` is ignored. Details: [plugins/gitlab/README.md](../../plugins/gitlab/README.md).
-- **Jira Cloud:** the site address (`https://<site>.atlassian.net`), the e-mail of an Atlassian account that sees the projects and its [API token](https://id.atlassian.com/manage-profile/security/api-tokens), classic or with scopes ([Token permissions](#token-permissions)). The project key is the Jira project key (`ABC` for `ABC-12`): `{ "key": "ABC", "repo": "…", "tracker": "jira" }`. Statuses of the To Do category are ready and enter the chain, except one named Backlog; a board whose backlog is not a status needs **Required labels** or the project's own active statuses. The chain is ordered by the `Blocks` link type: if your site renamed or deleted it, the profile's projects do not start until a link type of that name is back. Details: [plugins/jira/README.md](../../plugins/jira/README.md); the live checks are in [verified.md](../verified/trackers.md).
-- **Forgejo** (also Gitea and Codeberg): the server's web address (with its path prefix if it has one) and an access token with the rights in [Token permissions](#token-permissions). The same profile serves the repository's issues, its Forgejo Actions and PR mode. A project names its repository: `{ "key": "APP", "repo": "…", "tracker": "forgejo", "forgejo": "owner/name" }`; issue 12 becomes `APP-12`. Open issues are ready, closed ones done; Forgejo has no backlog, so keep entry on a label with **Required labels**, and in a public repository an issue opened by anyone but the owner, a collaborator or the token's account waits for **Into the chain** even without one, as on GitHub; the wizard says so. The chain is ordered by the issues' native dependencies ("depends on"). **A repository with dependencies turned off has no blocking order**: the chain then follows milestones and priority only, and text such as `blocked by #12` is ignored. Priority comes from labels `priority: high`, `priority/high` or `priority::high`; there are no subtasks and no estimates. Only comments of the repository's owner, its collaborators and the token's own account answer a session; anyone else's is skipped with a line in the service log. Details: [plugins/forgejo/README.md](../../plugins/forgejo/README.md).
-
-A project can take tasks from a second tracker too: in the project's settings, **Tracker** → **Task feeds** → **Add a feed**, pick the profile (it names the tracker), the place (a repository, a team — the profile's projects are suggested as you type, as in the wizard) and a key for the ids ([Several trackers for one project](features.md#several-trackers-for-one-project)). The chain rules a feed's tasks go by are the project's own, then its profile's, then the shared ones: a GitHub feed on a public repository needs its label as much as a GitHub project does, so set `requiredLabels` on that GitHub profile (its tab under **Chain rules**, or **Rules** on its row in **Trackers and CI**) when the project's own rules do not set it. The wizard's warning does not cover feeds, but the project page's band does: it names each public source that takes tasks without a label, the feeds included, and the feed's window says it too.
-
-On this level the session does not write to the tracker. What you do not get:
-
-- **Postponing on a blocker.** The session cannot file a blocker for its task, so it cannot hand the task back and let the blocker run first. Blockers you link yourself still order the chain.
-- **Question tasks.** A session cannot file a `Question: …` task for a decision it took on its own; it can only tell you in its final message.
-- **Comments and decisions.** Nothing is written back: no closing comment, no decisions folded into the description, no new tasks for bugs found on the way.
-- **Attachments and discussion.** The session sees only the title and the description.
-
-### With the plugin
-
-On top of the adapter, a Claude Code plugin from this repository gives the sessions the tracker's MCP server and a skill for working a task: the session reads the task and its attachments, records decisions in the description, files blockers and question tasks, creates new tasks, leaves a closing comment and merges.
-
-With the `tasks@even-keel` package, `task_read` downloads files from Huly, Jira, GitLab, Forgejo and Linear tasks and their comments into `.temp/task-files/<KEY>/` and returns their local paths. Linear also collects uploaded files linked in the description and comments; external attachment links stay links. Files over **Attachment size limit, MB** are listed as `too large`, and failed downloads as `file unavailable`; the task text remains readable. Linear does not provide a file size on the card, so repeated reads download its files again. Two different files of one name get separate path prefixes. [Adapter details](../trackers.md#the-tasks-server-btn-768-srctaskmcp).
-
-There are two kinds of tracker package, and a project needs one of them:
-
-- **`tasks@even-keel`, the default.** A new project gets it on as soon as it is added, installed in the background if the catalog lacks it; it is an ordinary package, which you turn off or remove like any other. Even Keel's own tasks server: five tools with short answers, statuses, labels and milestones by name, description patches instead of resending it, no deletes; the same on every tracker. Its tools are the service's own, so a session you start by hand with the `tasks` plugin needs Even Keel running — when it is not, the session says so when it starts, and `/mcp` reconnects the server once the service is up.
-- **The tracker's own plugin** (`huly@even-keel`, `github@even-keel`, `linear@even-keel`, `gitlab@even-keel`, `jira@even-keel`, `forgejo@even-keel`). The tracker's own MCP server with its skills: more tools and more context, and it works without the service. Take it instead of `tasks` when you want that tracker's full set or a particular server.
-
-Wherever the page offers a tracker package, `tasks` comes first and the tracker's own plugin beside it. Turning both on in one project works but is not worth it: two tool sets of one tracker double the context and the agent writes through one or the other, so the project's packages warn about it, with **Turn off tasks** beside the warning.
-
-Even Keel offers its own plugins from this folder, with no marketplace to add first:
-
-1. In **Settings → Packages** (the package catalog), press **Add a package**, choose **Plugin** and pick `tasks@even-keel` or the tracker's own plugin for every project or one. Even Keel copies the plugin, installs a pinned version of its MCP server and gives both to every chain session at launch. A project turns a package on or off in its own packages: the project's settings → **Sessions** → **Project packages** at the top of the tab, where each package has a switch and ↺ puts back the catalog's default. A plugin your projects already had enabled when you upgraded is in the catalog already. A shortcut for one project: **Project packages** beside **Task description in the prompt** in the project's settings, or the **What sessions get** chip in the project's head while its tip says a tracker package is missing, opens the project's packages with the add dialog over them, `tasks@even-keel` and the project already picked; while the project lacks a tracker package, its packages show a button for each kind.
-2. The MCP server takes the credentials of the project's tracker profile: it runs behind a local gateway on `127.0.0.1:4748` (`EVEN_KEEL_MCP_PORT`), so the sessions never see them. Another key a package needs shows in the package's details in the catalog; until it is set the project's chain pauses with that reason and **Open the project's packages** beside it, and goes on by itself once the key is there.
-3. Nothing to switch off: once a package of the project brings the tracker's MCP server, the prompt carries only the task ID and the session reads the task itself (`brief` left as auto). The package `tasks@even-keel` counts as that server too: a project with it on and the tracker's plugin off also gets only the task ID. `brief: true` or `false` overrides that; with `false` the chain waits while no package of the project brings the server.
-
-The GitLab plugin enables the `issues,milestones` toolsets: sessions read issues through REST `get_issue` on GitLab.com and self-managed servers, including CE/Free. Work-item tools are disabled because the pinned MCP version's GraphQL queries fail on CE/Free; native parent-child changes need a compatible work-item tool.
-
-The Forgejo plugin brings the official [Gitea MCP server](https://gitea.com/gitea/gitea-mcp), a single program rather than an npm package: Even Keel does not install it. Download `gitea-mcp` for your system from its releases and put it on the `PATH` of the account the service runs as; without it the plugin's MCP server cannot start.
-
-**MCP through OAuth.** The Jira profile has **Connect MCP through OAuth** in its dialog, on a new profile too: a window asks Atlassian for consent, and Even Keel keeps the access and refreshes it; sessions still see only the gateway's address. It connects to Rovo MCP v2 and requests the permissions its server advertises; an older Jira MCP OAuth connection needs connecting again in the profile dialog. GitHub, Linear and GitLab have no OAuth connection: their MCP servers take the profile's token, and an OAuth connection saved by an earlier version is dropped.
-
-Jira uses [Atlassian's OAuth domain rules](https://support.atlassian.com/security-and-access-policies/docs/available-atlassian-mcp-server-domains/): `localhost` is supported by default. A custom HTTPS callback needs a matching allowed-domain rule. Without one, v2's consent page says **Access to this domain is restricted** and disables **Accept**, even though client registration succeeds. Your Atlassian organization's admin adds the **callback domain of your Even Keel page** to the allowed domains, not the authorization server's `auth.atlassian.com` address; the rule must match the callback URL shown in the dialog. In the current Atlassian Administration this is **Connectors → Atlassian MCP server → Add domain**; older screens call it **Rovo → Rovo MCP server → Domain settings** ([Atlassian's instructions](https://support.atlassian.com/security-and-access-policies/docs/control-atlassian-mcp-server-settings/)). Then retry **Connect MCP through OAuth**.
-
-Open the page over HTTPS, directly or through a local proxy such as Tailscale Service, or on `localhost` of the machine Even Keel runs on: a plain HTTP address of another machine is refused as a callback. With direct network access, sign in to the page before connecting OAuth and allow its cookies. The callback returns to the tracker settings without authorization parameters in the address, including when access is refused. When access cannot be renewed, the profile's row says **MCP: reconnect needed**; open the profile and press **Connect again**. Atlassian grants access to whoever is signed in to Atlassian in that browser: if it is another person than the profile's API token, the dialog and the profile's row warn that sessions will write as that person. Saving is still allowed; if it was not on purpose, sign in to Atlassian with the right account and press **Connect again**. The MCP token below remains the other way, for a machine without a browser.
-
-If MCP OAuth fails to connect or renew, the service log names the tracker kind, the failed step and the provider's HTTP error or exception message. The page shows the connection error; diagnostic details stay in the log, with credentials and callback values redacted. See [As a service](#as-a-service) for the log location.
-
-The Jira plugin is Atlassian's own Rovo MCP server and needs a separate token from the REST adapter (or the OAuth connection above). First ask your Atlassian organization's admin to enable **API token** authentication for the Atlassian MCP server in the organization's settings (Connectors → Atlassian MCP server → Authentication). Then [create an Atlassian MCP V2 token with all scopes](https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&appId=mcp-v2&selectedScopes=all) for the same e-mail and enter it in **Atlassian MCP V2 token (optional)** in the Jira profile. Leave it empty for projects without `jira@even-keel`. The profile check calls `getAccessibleAtlassianResources` and requires that it include the profile's site; if the list is empty or lacks the site, create the MCP token again after enabling API token authentication. A successful tool listing alone does not prove access. Details: [plugins/jira/README.md](../../plugins/jira/README.md#plugin).
-
-Sessions you start by hand get none of this. For them, Claude Code needs this repository as a marketplace: **Accounts** offers **+ Even Keel marketplace** in the **Claude Code** card while your default config (no `CLAUDE_CONFIG_DIR` set) does not know it; a check mark replaces the button once added. The card appears after adding a Claude Code account. Its tip has both commands to copy, or run `claude plugin marketplace add <git URL or local path of this repository>` yourself. Then `claude plugin install huly@even-keel --scope project` in the project and the credentials in the `env` of `~/.claude/settings.json` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_PERSONAL_ACCESS_TOKEN`; `LINEAR_API_KEY`; `GITLAB_PERSONAL_ACCESS_TOKEN` and optional `GITLAB_URL`; `JIRA_BASIC_AUTH`, the base64 of `e-mail:MCP-token`, using the separate Atlassian MCP V2 token). Even Keel writes each tracker's default profile there itself; the GitHub, Linear, GitLab and Jira MCP variables above use different names, so supply those explicitly for sessions started by hand. Such a session never gets another profile.
-
-The GitHub skill sets "blocked by" links through the [GitHub CLI](https://cli.github.com/), so `gh auth login` once. Everything else — troubleshooting, what the skills do — is in [plugins/huly/README.md](../../plugins/huly/README.md), [plugins/github/README.md](../../plugins/github/README.md), [plugins/linear/README.md](../../plugins/linear/README.md), [plugins/gitlab/README.md](../../plugins/gitlab/README.md) and [plugins/jira/README.md](../../plugins/jira/README.md).
-
-### Several trackers
-
-Each project has its own tracker (`tracker` in the project's entry, GitHub when a file you write names none), and they work at the same time: project A on Huly, project B on GitHub. A tracker can have several profiles — two Huly workspaces, a personal GitHub token and an organization's — and each project picks one (the **Profile** field when you add it, or in its settings until its first task runs). One profile of each tracker is the default: projects without a choice run on it, it is the one sessions started by hand get, and it gives the GitHub Actions token to projects of other trackers. Making another profile the default does not move a project whose tasks have already run: it stays on the old profile, now as its own choice. A profile whose token is refused turns red on **Trackers and CI**, and the chains on it pause until it is fixed.
-
-Git is not part of this: pushes go through your own git and its credentials (SSH, the credential manager), whatever the profiles are. A project on Huly with a remote on GitHub works as is, and its CI is found by the remote.
-
-### CI and pull requests
-
-The CI is read with a profile too. GitLab CI is found from a root `.gitlab-ci.yml` file on `gitlab.com` or a host named by a GitLab profile's address. Nested groups are supported. When several GitLab installations share a host, HTTP(S) remotes use the longest matching URL prefix from the profiles, falling back to a root profile. The token comes from the project's GitLab profile for that installation, otherwise its default profile, otherwise its first profile. A profile for another installation on the same host is excluded, even when explicitly chosen. SSH remotes have no installation prefix in their path: the first installation on the host is used, with a log entry when the choice is ambiguous. GitHub Actions on a `github.com` remote takes the token of the project's GitHub profile, or of the default GitHub profile for a project on another tracker. CI on a Forgejo remote takes a **Forgejo** profile (**Add profile** → Forgejo: the server's address and an access token) on the remote's host. Pull requests of PR mode take the same token as the remote's CI. What each token needs is in [Token permissions](#token-permissions). With several GitHub, Forgejo or GitLab profiles, a project can pick the one its CI and pull requests take in **Settings** → **Check and CI** (`remoteProfiles`); "Automatic" is the choice above. A CI that no profile reaches is not shown at all. CI supports GitHub, Forgejo (or Gitea) and GitLab. PR mode supports GitHub, Forgejo and GitLab (merge requests, on the same profile as the remote's GitLab CI). A remote on `bitbucket.org` has no CI and cannot use PR mode. An unknown host is taken for Forgejo until a GitLab profile identifies it; a Forgejo profile's check on GitLab asks you to add a GitLab profile instead. A `FORGEJO_TOKEN` left in `.env` from an older install becomes a Forgejo profile on the first start, one per host — that of `FORGEJO_URL` if `.env` has it, and those of the projects' Forgejo remotes; after that it is not read. A Forgejo profile is a tracker profile too: the same token serves the issues once it has `write:issue`.
-
-### Token permissions
-
-What a profile's token needs, by what it is used for. The profile dialog lists the same for the kind you pick.
-
-| Profile | Tracker | CI | Pull requests (PR mode) |
-| --- | --- | --- | --- |
-| Huly | a separate account with access to the projects: its e-mail and password, or a token | — | — |
-| GitHub, a fine-grained token for the repositories' owner | **Issues: Read and write** | **Actions: Read** | **Pull requests: Read and write**, **Contents: Read**, **Actions: Read** |
-| Linear, a personal API key | write access | — | — |
-| GitLab, a personal access token | `api` scope (`read_api` cannot close issues or post comments) | `api` scope, with access to the project and its pipelines | `api` scope, Developer access or above in the project (pushing the branch, opening a merge request, reading its discussions and the members) |
-| Jira Cloud, an Atlassian API token | Browse projects, Add comments, Transition issues and Edit issues in the projects; a token with scopes also needs `read:jira-work`, `write:jira-work` and `read:jira-user` | — | — |
-| Jira plugin, a separate Atlassian MCP V2 token | All scopes of the Atlassian MCP V2 application; enable API token authentication for the Atlassian MCP server before creating it. The REST token cannot be reused | — | — |
-| Forgejo, an access token | `write:issue` (reading issues and their dependencies, comments, closing, labels and milestones), `read:repository` (the repository list and the collaborators), `read:user` (the sign-in check) | `read:repository` (the repositories and their Actions), `read:user` (the sign-in check) | `write:repository` (opening a pull request, reading its reviews and its reviewers' access), `read:issue` (comments in its conversation), `read:user`; for reviewers other than the account and the repository's owner the account must be an admin of the repository |
-
-PR mode pushes the task's branch with `git push`, on the git credentials of the account the service runs as (its SSH keys or credential manager), not with a profile's token: without them PR mode stops at the push. A forge that refuses to open a pull request with the token marks the profile's row **PR refused** and names the right it lacks. If the chain pauses because a pull request could not be opened, fix the token or select a profile with access in the project's **Check and CI** settings, then press **Resume**. Even Keel retries the same pull request mark without sending anything to the task's session; another failure pauses the chain with its new cause. Changing the profile alone does not retry it. A push refused because the branch on the forge has commits the task's session lacks — you resolved a conflict on the forge, say — does not pause the chain: the session is told to merge the branch from the forge and mark the pull request again. Even Keel never force-pushes, so your commits on the forge stay. The Forgejo rights for pull requests follow from the API calls Even Keel makes and are not yet checked against a real server ([What has not been verified](../unverified.md)).
-
-## The page
-
-`http://localhost:4747` by default. The page can be installed as an app (the install button in the address bar of Chrome or Edge) and then opens in its own window; browsers offer this on `localhost` or over HTTPS only.
-
-### Answering from the phone
-
-Sessions can be answered from the page's chat or the tracker. To answer them in Claude's own app as well, turn on Remote Control at startup in `/config` of Claude Code; the page links each session's Remote Control. Codex sessions have no remote control: they run through `codex exec`, whose threads the Codex app and ChatGPT on the phone do not list, so they are answered only from the page's chat or the tracker ([docs/sessions/codex.md](../sessions/codex.md#codex-btn-168-srccodex)).
-
-### Reaching the page from another machine
-
-By default the page listens on `127.0.0.1` only, and nothing else on the network sees it. That is on purpose: the page starts sessions with automatic permissions, writes answers into waiting sessions and signs Claude accounts in and out, so whoever reaches it drives your machine. Every request is also checked whatever `EVEN_KEEL_HOST` is:
-
-- its `Host` must be `localhost`, `127.0.0.1`, `[::1]`, `EVEN_KEEL_HOST` or a name in `allowedHosts`, otherwise it gets 403. This stops DNS rebinding — a foreign site whose name was pointed at `127.0.0.1`;
-- an `Origin`, if the request has one, must be the page's own: the same name and port as its `Host` (`https://name` matches a `Host` of `name` without a port, as an HTTPS proxy sends it). So neither another site open in your browser nor another app on the same name — a dev server on `localhost:5173`, a service on another port of your tailnet name — can post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass;
-- a `POST` to `/api/` must be `Content-Type: application/json`, otherwise it gets 415: a browser cannot send that type to another site without asking it first. A script posting to the API sends the header, as `curl -H 'Content-Type: application/json'` does.
-
-Open Even Keel directly in a tab or its installed app: the page and the access-token form cannot be embedded in a frame, even on the same site. Its content security policy permits scripts and connections only from its own origin, with inline styles and local/data/blob images and media. The page sends no referrer. If using a reverse proxy, preserve these response headers. An already open tab receives a new policy when reloaded.
-
-Two ways to reach it from elsewhere:
-
-- **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Its requests come from loopback, so the page asks them for no token: who gets in is decided by the tailnet's access rules.
-- **Listening on the network.** Set `EVEN_KEEL_HOST` in `.env` to `0.0.0.0` or the machine's address, put the names or addresses you open it by into `allowedHosts` (the configured address itself is let in), and set `EVEN_KEEL_TOKEN` in `.env`. Without the token the service does not start. A request from another machine then needs the token: open the page once as `http://<address>:4747/?token=<token>`, and the service keeps it in an `HttpOnly`, `SameSite=Strict` cookie and drops it from the address; scripts send `Authorization: Bearer <token>`. Plain HTTP shows the token to anyone on the way, so prefer a proxy with HTTPS.
-
-Any proxy or tunnel running on the same machine must control who can reach Even Keel. The page does not ask for a token on connections from this machine, through loopback or its own address, even when `EVEN_KEEL_TOKEN` is set. Once the forwarded name is accepted by the `Host` check, a public tunnel without its own authentication lets anyone who knows its address drive the page and start sessions with automatic permissions. `allowedHosts` permits a name; it does not authenticate visitors. HTTPS encrypts the connection but does not decide who may enter.
-
-The page and the MCP gateway trust every OS user account on this machine, not just the account running Even Keel. Another local user can call the page at `127.0.0.1:4747` or the gateway at `127.0.0.1:4748` (the default ports) without a token, including the tasks server's tools for any project, and can run code as the service account. Install Even Keel on a machine with no other users, or trust every user as much as the service account.
-
-Starting MCP OAuth also sets a separate ten-minute `HttpOnly`, `SameSite=Lax` cookie for the callback alone, so the browser can return from the provider. The page's access cookie stays `SameSite=Strict`; the callback cookie cannot open other pages or API routes.
-
-## From a clone
+The [README](../../README.md) has the quick start. This page is the rest, in the order a new installation meets it: installing, the first start, a project, its tracker, the page on other devices, the service, updates and removal. Every variable and key is in the [reference](reference.md).
+
+1. [Installing](#installing) — from npm or from a clone, and a look at the page on fake data
+2. [The first start](#the-first-start) — the setup's steps: git, the agent and its account, the demo
+3. [Projects](#projects) — the wizard, the repository's folder or address, what a project needs
+4. [Trackers and plugins](#trackers-and-plugins) — the built-in tracker, a profile per tracker, packages for sessions, CI and token permissions
+5. [The page](#the-page) — answering from the phone, reaching the page from another machine
+6. [As a service](#as-a-service) — npm, a clone, Windows, Linux and macOS
+7. [Updating](#updating) — from the page or by hand, plugins, stored state, going back
+8. [Uninstall](#uninstall) — and what stays on the machine
+9. [The CLIs it depends on](#the-clis-it-depends-on) — what Even Keel relies on in each agent's CLI, and the checked versions
+
+## Installing
+
+The README's quick start installs Even Keel with `npx even-keel`, which also sets it up as a service: the details are in [Installed with npm](#installed-with-npm). The other way is a clone of the repository.
+
+### From a clone
 
 A clone keeps its data and logs in its own folder and runs its sources:
 
@@ -235,6 +39,603 @@ The page with a made-up chain, no tracker and no sessions, after `npm install`; 
 ```sh
 npm run dev:fake
 ```
+
+## The first start
+
+The projects and the settings live in Even Keel's database and are edited on the page; there is no file to create. The first start walks a short setup, each choice saved as you make it and changed later in **Settings**:
+
+- the languages of the page and of the session prompts;
+- git — whether it is installed (Even Keel never installs it and shows the command that does) and the name and e-mail commits are made as, written into git's global config of the user Even Keel runs as;
+- the agent all projects run on by default, its account (sign in, or add one in a dialog over the step) and, for each provider, whether sessions run on the CLI version Even Keel was checked on (downloaded with your consent, about 340 MB for Claude Code) or on the one installed;
+- a tracker profile (or later);
+- whether Even Keel may ask GitHub twice a day for a new release — nothing is asked until you answer;
+- and the [statistics](stats.md#statistics).
+
+A step is checked on the line only once it has its answer, and a step you skip is not offered again.
+
+If you leave the setup unfinished, **Add project** (or **Connect your own** in the demo) first asks whether to finish it: **Set up** goes back to the step it stopped at, **Not now** leaves you where you are.
+
+### The Git step
+
+Git is needed only for projects that live in a repository.
+
+The setup's **Git** step first asks **Use git?**: **Yes** goes on to the check of git and the name and e-mail for commits; **No** is for [projects without git](chain.md#a-project-without-git) and goes on at once, asking nothing of git.
+
+Where git is already installed, **Yes** is picked in advance.
+
+The answer is what the project wizard starts on for a new project, each project still picking its own; change it later on the Git step or in Settings → Chain → **New projects**.
+
+On macOS, the setup's **Git** step always offers `xcode-select --install`, even when Homebrew is installed.
+
+It installs only Command Line Tools; Xcode from the App Store is not needed. After installation, press **Check again**.
+
+If full Xcode is already installed but its license has not been accepted, run `sudo xcodebuild -license accept`.
+
+The macOS git stub reporting `xcrun: error: invalid active developer path` is treated as missing git; a license error remains a git command error with its original message.
+
+### The Agent step
+
+The setup's **Agent** step has three parts: the agent cards, each saying only whether its CLI is installed and on which version; "Which version to run" for the chosen agent, **Yours** or **Checked**; and its accounts as a table, the one sessions run on checked, **+ Add** in the heading.
+
+Without your CLI, Yours shows the command that installs it and **Check again**.
+
+Choosing **Checked** there or in Settings → Providers and models asks before downloading: the dialog shows the version and approximate size, and Cancel keeps Yours.
+
+Blue bands under the header and in the agent's block show downloaded bytes while it runs; in the setup, adding an account opens by itself once the download ends, since the sign-in goes through the CLI.
+
+**Next** waits until the agent has something to run on (your CLI, or the copy, even still downloading) and an account.
+
+A provider already on Checked whose copy is missing asks the same when you select it or add its account; closing the dialog keeps the choice and leaves the chain waiting.
+
+No startup, sign-in or version check downloads a copy by itself.
+
+If downloading fails, **CLI version** switches to **Yours** for that provider and offers **Try downloading again**.
+
+An installed CLI can then run sessions; without one, the block shows an installation command, **Check again**, and Checked to choose again.
+
+Even Keel never installs a global CLI.
+
+Old copies are removed, retrying folders still held by a process at startup and each version check.
+
+### Accounts
+
+Installing a CLI or signing into it does not add an Even Keel account.
+
+Use **Add account** on the setup's Agent step, the Accounts page or the project wizard.
+
+If a global Claude Code or Codex folder is already signed in, choose **Use this sign-in** to add it or **Sign in with another account** to keep a separate folder.
+
+Without an existing sign-in the normal choices open directly.
+
+The first account you add for a provider becomes its shared account.
+
+Claude Code on Amazon Bedrock needs no sign-in, only AWS credentials the user Even Keel runs as can read: with the Windows service under another user, sign in to AWS (`aws sso login`, `aws configure`) as that user, or give the keys in the dialog ([Bedrock accounts](accounts.md#amazon-bedrock)).
+
+Google Vertex AI is the same: run `gcloud auth application-default login` as that user, or give a service account key file the user can read ([Vertex accounts](accounts.md#google-vertex-ai)).
+
+Microsoft Foundry's Entra ID way needs `az login` as that user, or give the resource's API key ([Foundry accounts](accounts.md#microsoft-foundry)).
+
+### The demo
+
+With no project yet, the home page offers two ways: **Watch the demo** or **Connect your own**.
+
+The demo takes about two minutes and needs only git: Even Keel makes a small repository in its state folder and a project `DEMO` on the built-in tracker, and its chain goes through three tasks while you watch — one waits for another, and one asks you a question in the session's chat.
+
+The agent is a script, so no account is used and nothing is spent; the demo stays out of the launch chart and the statistics.
+
+A band over the demo's project leads to your own project; when the demo is over, its card offers to run it again or remove it.
+
+It is never removed by itself: the project wizard's **Remove the demo** (on by default) removes it once your project is added, and **Remove** in the band's **⋯** stops it and deletes its project, tasks and folder at any moment.
+
+## Projects
+
+A project is a repository — or a folder without git — with a tracker to take tasks from and an agent to run them. The wizard that adds one checks each of these as you fill it in.
+
+Then the page opens the wizard that adds a project.
+
+You pick the agent of the project (the shared one unless you choose another; the wizard says whether it has a CLI and a signed-in account, and **Add an account** opens a dialog over it), give it the repository's folder or address, pick a tracker profile (or add one right there) and the project in that tracker, which it suggests from the tracker's list and, on GitHub and GitLab, from the repository's remote (on GitLab, a remote on the profile's server).
+
+The wizard checks the repository and its main branch (it suggests the checkout's current branch and offers the others; a branch the repository lacks is created when the project is added, and the checkout switches to the branch you name; a folder that is not a repository yet, or one with no commits, gets a button that runs `git init` and makes an empty first commit on that branch), the project in the tracker (it shows how many open tasks it sees), Claude Code's trust in the folder (a task's own run can give it to Claude Code whatever the project's agent) and where tasks run — **Own folder per task** (a git worktree made for the task and removed after Done) or **Permanent folders** (a few folders a task switches the branch in).
+
+All the steps are on one page, each marked once its check passes or with the reason under its field when it fails, and **What will be created** at the bottom sums the project up before **Add project**.
+
+When you add the project, Even Keel checks the repository again before saving it.
+
+The wizard shows a validation error under the field that needs correcting and marks its step in red. Empty required fields are named at the bottom of the form.
+
+Leaving the project wizard and returning keeps the fields you changed yourself.
+
+Untouched Git and tracker choices follow the current setup settings on each visit; a choice you made in the form takes precedence.
+
+A failed check or add keeps your edits. Adding the project or reloading the browser page clears the draft.
+
+### The folder or the repository's address
+
+The repository need not be on the machine yet. A project in git has one field, **Folder or repository address**, and Even Keel works out from what you type what to do; a short line with an icon under the field says how it read it:
+
+- **An address** — `https://…`, `ssh://…`, `git://…` or `git@host:owner/repo.git` — is a clone. Even Keel asks the remote right away, so a wrong address or a missing sign-in shows before you add anything. A private repository needs git on Even Keel's machine signed in to that server as the user Even Keel runs as (its credential helper or an SSH key). An SSH server that user has never connected to is refused until its host key is accepted once: the wizard shows the `ssh -T` command to run in that user's terminal. A main branch the remote lacks is created when the project is added.
+- **The folder of a repository** — a clone already on the machine — is taken as it is; the line names its remote, or says it has none. A folder inside a repository is refused with a button that puts the repository's top folder into the field.
+- **A folder without git** becomes a new repository: whatever it already holds goes into the first commit, except what its `.gitignore` files leave out, and the wizard says how many files and how much that is.
+- **A path that is not there** — Even Keel makes the folder and a new repository in it; the line shows the full path, so a typo is visible.
+- **Just a name**, such as `my-app` — a new folder with a repository in Even Keel's projects folder (`projects` in its data folder), numbered if the name is taken.
+
+A path must be full: a relative one such as `./my-app` is refused, and so are a whole disk and the home folder.
+
+A clone goes into the projects folder under a name it suggests from the address; type another name, or press **another folder…** for a full path anywhere.
+
+A clone needs an empty folder or one that is not there yet.
+
+If the projects folder already has a clone of the same remote and branch that no project uses, the wizard offers **Use it**.
+
+A clone and a new repository need git's name and e-mail for commits: without them the wizard says so under the field, and **Set them** asks for both in a window over the wizard, keeping everything typed.
+
+The same button stands under the error if the creation window gets there, and the failed step is retried once they are saved.
+
+A project without git takes a folder the same way as a clone, with no address.
+
+The folder accepts `~` for the home folder of the user Even Keel runs as.
+
+On Windows it also accepts environment variables such as `%USERPROFILE%\Projects\example`, with any letter case.
+
+They come from Even Keel's own environment: a service running as another user uses that user's values.
+
+Unknown or empty variables stay as typed; values are expanded once. `$NAME` and PowerShell's `$env:NAME` are not expanded, and on Linux/macOS percent signs stay literal.
+
+Checking, creating a repository and adding the project use the same expansion; the saved folder is absolute, so later environment changes do not move an existing project.
+
+### Adding the project
+
+**Add project** opens a window with the steps: the folder, the clone with its progress (and its Git LFS files, if it has any) or the first commit, the project itself, Claude Code's trust and the project's packages.
+
+A step that fails says why and offers **Retry**; when only the Git LFS files fail — say, one was never pushed to the server — the clone is kept and **Retry** downloads just those files.
+
+**Cancel** removes only what Even Keel made — a folder it created, or what it put into an empty one — and only until the project is saved; after that the project stays and the window offers **Open the project**.
+
+### What a project needs
+
+Each project needs:
+
+- a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
+- for Claude Code in the background, Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. On Windows it writes the forward-slash path Claude reads, copying an older backslash entry when needed and preserving the original. Its task worktrees inherit that trust. This also enables repository hooks. The Agent SDK and other agents do not write Claude trust.
+
+The rule that a session commits and merges its branch into `main` when the task is done comes with the launch and handoff prompts, plugin or not (in PR mode the prompt says to end the turn for a pull request instead).
+
+A session gets the project's `CLAUDE.md`, `AGENTS.md` and skills as they are committed on the main branch: its worktree is checked out from there, so a file you have not committed yet does not reach it. Which of them each agent reads is in [the project's instructions and skills](sessions.md#the-projects-instructions-and-skills).
+
+### Removing a project
+
+A project is removed at the bottom of its **Settings** → **Repository**; the page refuses while its chain runs or waits in the queue, a session works for it or in its folders, or a task still holds a place, and says which. Removal does not touch the repository, its worktrees or branches.
+
+## Trackers and plugins
+
+A project's tasks come from a tracker. The built-in one needs nothing; any other needs a **tracker profile**, the account Even Keel signs in with. On top of that, a package gives the sessions tools to read and write tasks themselves.
+
+### No account: the built-in tracker
+
+Even Keel has a tracker of its own, kept in its state database: no account, no token, nothing to connect.
+
+It is the first choice of the tracker in the setup and in **Add project**, and the one picked when you have no tracker profile; you give the project only its key (`APP` for `APP-12`).
+
+**Status** and **Settings** → **Trackers and CI** always show it.
+
+In a built-in project's **Tracker** → **Configure** only **Project tasks** is left: its statuses and labels are fixed, and the milestones you name there are created in it on save.
+
+A project with another tracker's tasks cannot move to the built-in one.
+
+For sessions to file and edit its tasks themselves — record decisions, split a task, link a blocker — a project needs the package `tasks@even-keel`.
+
+A project you add gets it on from the start; one added before it, or one where you turned it off, turns it on in the project's packages (the project's settings → **Sessions** → **Project packages**, the first button of the tab).
+
+Each session keeps its own task in the prompt and gets five short tools for the others; nothing can be deleted through them.
+
+A session you start by hand reaches the same tools when the `tasks` plugin is installed in it (`claude plugin install tasks@even-keel --scope project`), as long as Even Keel is running, since the tools are the service's own: see [`plugins/tasks/README.md`](../../plugins/tasks/README.md).
+
+The same package and plugin work for a project on Huly, GitHub, Linear, Jira, GitLab or Forgejo too, with a few limits of each tracker listed there, and for a project's task feeds: a session on a feed's task comments and files its blockers in the feed's tracker, and a task search covers every tracker of the project.
+
+#### Attachments and edits
+
+A screenshot or any file pasted (Ctrl+V) or dropped into a task's description while you edit it becomes the task's attachment: a picture shows in the text, every file is listed under **Attachments** in the card, and the task's session gets their paths to open.
+
+The files lie next to the state database, in `state/even-keel/files`, and `npm run storage -- backup` copies them.
+
+A file over 25 MB is refused; the limit is **Attachment size limit, MB** in **Settings** → **Interface**.
+
+An edit of a task's title or description in its card is saved when you leave the field, close the card or close the tab; only Escape on the title and **Cancel** in the description editor drop it.
+
+The browser keeps what you typed until Even Keel takes it, so an edit cut off by a closed tab is sent again the next time you open the card, and a note you have not sent waits in its field.
+
+#### Moving to a real tracker
+
+To take a built-in project to a real tracker, open its **Settings** → **Tracker** and press **Move to another tracker**.
+
+Pick the tracker profile and the project in it (and a key where the tracker needs one); the window then says how many tasks move and what will not — labels and milestones the tracker lacks (create them there and press **Check again**), priority or estimates it cannot hold, links to closed tasks.
+
+**Move** copies the open tasks with their statuses, parents, links, attachments and journal; closed ones stay in Even Keel.
+
+The copy runs in the service: close the window or the tab and come back to it. If it stops (a refused write, a restart), **Continue** goes on from where it stopped.
+
+While it runs, the project's tasks cannot be edited.
+
+Once every task is copied, **Switch to <tracker>** moves the project: the chain takes its tasks from there in the same order, and the old tasks stay in Even Keel marked "Moved to <key>".
+
+The switch waits until the chain no longer works on the project: stop or pause it, and let a task it holds finish.
+
+### Minimum: the adapter only
+
+Even Keel reads the tasks itself, puts the title and description of the task into the session's prompt, and closes the task when its branch lands in `main`.
+
+You add a **tracker profile** on `/settings` → **Trackers and CI** → **Add profile**, and nothing else: pick the tracker, fill in its fields, and press **Check and save**.
+
+Even Keel checks the account and saves it if the check succeeds; an error leaves the dialog open without saving.
+
+**Check** alone shows whom the profile signs in as without saving.
+
+A duplicate-account warning stops automatic saving; press **Check and save** again to accept it.
+
+The page never shows a saved token or password again. Profiles live in Even Keel's state database on your machine, not in git.
+
+What each tracker's profile asks for:
+
+#### Huly
+
+The server address, the workspace, and the e-mail and password of a separate Huly account with access to the projects — create one for Even Keel.
+
+A token instead only if your Huly shows an API tokens page in the account settings: released self-hosted Huly has none, and its sign-in token comes from the e-mail and password anyway ([plugins/huly/README.md](../../plugins/huly/README.md#credentials)).
+
+The project key is the Huly project identifier (`ABC` for `ABC-12`).
+
+Installed with npm, Even Keel does not carry Huly's client (about 20 MB): it installs it with npm into `state/huly-client` of the data folder once you have a Huly profile, which takes a minute or two the first time.
+
+Until then the profile's check says the client is being installed — press it again a little later — and `/status` shows the install, with **Retry** if npm failed; Huly projects wait for it. A clone has the client already.
+
+#### GitHub
+
+A [fine-grained token](https://github.com/settings/personal-access-tokens/new) on the repositories, with the rights in [Token permissions](#token-permissions).
+
+A fine-grained token covers one owner: a personal repository and an organization's need a profile each. The profile shows when its token expires.
+
+A project names its repository: `{ "repo": "…", "tracker": "github", "github": "octo-org/abc" }`.
+
+GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`.
+
+In a public repository anyone with a GitHub account can open an issue, and a session gives its text to an agent that runs commands on your machine.
+
+So an issue opened by someone who is not the repository's owner, a member of its organization or a collaborator never enters the chain by itself: without required labels it waits in the backlog until you press **Into the chain** on it, which puts the label `even-keel: approved` on it (only people with triage rights can label an issue); with required labels it needs one of them, like any other issue.
+
+Until it has that label, a session's `tasks@even-keel` tools do not show it either: the task list only counts such issues, and reading one gives no title, description or files.
+
+The issues of the repository's own people enter at once unless you set required labels: the wizard says so for a public repository, and the project page keeps saying it in a band, with **Rules** next to it, for as long as the repository is public and has no required labels — also when it was made public after the project was added.
+
+For the same reason Even Keel reads only the comments of the repository's owner, the members of its organization, its collaborators and the token's own account — as an answer to a question, and in PR mode as a review or a comment on a pull request.
+
+Anyone else's is skipped with a line in the service log; the task card on the page still shows it.
+
+Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](../../plugins/github/README.md).
+
+#### Linear
+
+A [personal API key](https://linear.app/settings/account/security) ([Token permissions](#token-permissions)).
+
+The project key is the team key (`ENG` for `ENG-12`); `"linear": "Web app"` narrows the team down to one Linear project: `{ "repo": "…", "tracker": "linear", "linear": "Web app" }`, so two repositories of one team run as two projects, each on its Linear project.
+
+Details and the mapping: [plugins/linear/README.md](../../plugins/linear/README.md).
+
+#### GitLab
+
+A personal access token with the `api` scope, and optionally your server's web address (default `https://gitlab.com`, without `/api/v4`; a server under a path prefix keeps it, such as `https://example.com/gitlab`).
+
+Use GitLab.com or a self-managed GitLab 19.5 or later: those are the versions Even Keel was checked on, and older ones may build parent and child issues differently, so the chain may miss a subtask or close a parent too early.
+
+The profile checks the account and shows the token expiry when the server exposes it.
+
+Pick the project including subgroups: `{ "key": "APP", "repo": "…", "tracker": "gitlab", "gitlab": "group/subgroup/project" }`; issue `iid` 12 becomes `APP-12`.
+
+Opened issues are ready, closed ones done; use **Required labels** to keep unread issues out, especially in public projects.
+
+An issue opened by someone without Reporter access waits for **Into the chain** even without them, as on GitHub.
+
+Only members with Reporter access or above and the token owner can answer sessions through comments.
+
+**GitLab Free has only related links, so no blocking order**: the chain follows milestones and priority; Premium or Ultimate adds native blocking links. Text such as `blocked by #12` is ignored.
+
+Details: [plugins/gitlab/README.md](../../plugins/gitlab/README.md).
+
+#### Jira Cloud
+
+The site address (`https://<site>.atlassian.net`), the e-mail of an Atlassian account that sees the projects and its [API token](https://id.atlassian.com/manage-profile/security/api-tokens), classic or with scopes ([Token permissions](#token-permissions)).
+
+The project key is the Jira project key (`ABC` for `ABC-12`): `{ "key": "ABC", "repo": "…", "tracker": "jira" }`.
+
+Statuses of the To Do category are ready and enter the chain, except one named Backlog; a board whose backlog is not a status needs **Required labels** or the project's own active statuses.
+
+The chain is ordered by the `Blocks` link type: if your site renamed or deleted it, the profile's projects do not start until a link type of that name is back.
+
+Details: [plugins/jira/README.md](../../plugins/jira/README.md); the live checks are in [verified.md](../verified/trackers.md).
+
+#### Forgejo, Gitea and Codeberg
+
+The server's web address (with its path prefix if it has one) and an access token with the rights in [Token permissions](#token-permissions).
+
+The same profile serves the repository's issues, its Forgejo Actions and PR mode.
+
+A project names its repository: `{ "key": "APP", "repo": "…", "tracker": "forgejo", "forgejo": "owner/name" }`; issue 12 becomes `APP-12`.
+
+Open issues are ready, closed ones done; Forgejo has no backlog, so keep entry on a label with **Required labels**, and in a public repository an issue opened by anyone but the owner, a collaborator or the token's account waits for **Into the chain** even without one, as on GitHub; the wizard says so.
+
+The chain is ordered by the issues' native dependencies ("depends on").
+
+**A repository with dependencies turned off has no blocking order**: the chain then follows milestones and priority only, and text such as `blocked by #12` is ignored.
+
+Priority comes from labels `priority: high`, `priority/high` or `priority::high`; there are no subtasks and no estimates.
+
+Only comments of the repository's owner, its collaborators and the token's own account answer a session; anyone else's is skipped with a line in the service log.
+
+Details: [plugins/forgejo/README.md](../../plugins/forgejo/README.md).
+
+#### What the adapter alone does not give
+
+On this level the session does not write to the tracker. What you do not get:
+
+- **Postponing on a blocker.** The session cannot file a blocker for its task, so it cannot hand the task back and let the blocker run first. Blockers you link yourself still order the chain.
+- **Question tasks.** A session cannot file a `Question: …` task for a decision it took on its own; it can only tell you in its final message.
+- **Comments and decisions.** Nothing is written back: no closing comment, no decisions folded into the description, no new tasks for bugs found on the way.
+- **Attachments and discussion.** The session sees only the title and the description.
+
+#### A tracker that does not answer
+
+After a tracker read times out, Even Keel retries that read with an increasing delay, from 20 seconds to five minutes.
+
+Saving a changed profile clears the delay. Repeated timeouts produce one diagnostic line and a recovery line with their count in the service log.
+
+A profile whose server is down for a while — a test server you stopped, say — can be turned off with the switch at the end of its row.
+
+Even Keel then does not contact that server at all: its projects' tasks are not read, its CI is not watched, and the projects stay on the home page dimmed with **Turn on**.
+
+A profile with a chain running, paused or queued on it cannot be turned off until you stop the chain.
+
+Turning it on starts nothing: the chain's **Start** comes back once the tasks have been read again, so the chain never goes by a list from before.
+
+Sessions you start by hand keep the default profile's values either way.
+
+The same rule holds after any tracker outage: until its tasks are read again, **Start** reads them first.
+
+### With the plugin
+
+On top of the adapter, a Claude Code plugin from this repository gives the sessions the tracker's MCP server and a skill for working a task: the session reads the task and its attachments, records decisions in the description, files blockers and question tasks, creates new tasks, leaves a closing comment and merges.
+
+There are two kinds of tracker package, and a project needs one of them:
+
+- **`tasks@even-keel`, the default.** A new project gets it on as soon as it is added, installed in the background if the catalog lacks it; it is an ordinary package, which you turn off or remove like any other. Even Keel's own tasks server: five tools with short answers, statuses, labels and milestones by name, description patches instead of resending it, no deletes; the same on every tracker. Its tools are the service's own, so a session you start by hand with the `tasks` plugin needs Even Keel running — when it is not, the session says so when it starts, and `/mcp` reconnects the server once the service is up.
+- **The tracker's own plugin** (`huly@even-keel`, `github@even-keel`, `linear@even-keel`, `gitlab@even-keel`, `jira@even-keel`, `forgejo@even-keel`). The tracker's own MCP server with its skills: more tools and more context, and it works without the service. Take it instead of `tasks` when you want that tracker's full set or a particular server.
+
+Wherever the page offers a tracker package, `tasks` comes first and the tracker's own plugin beside it. Turning both on in one project works but is not worth it: two tool sets of one tracker double the context and the agent writes through one or the other, so the project's packages warn about it, with **Turn off tasks** beside the warning.
+
+Even Keel offers its own plugins from this folder, with no marketplace to add first:
+
+1. In **Settings → Packages** (the package catalog), press **Add a package**, choose **Plugin** and pick `tasks@even-keel` or the tracker's own plugin for every project or one. Even Keel copies the plugin, installs a pinned version of its MCP server and gives both to every chain session at launch. A project turns a package on or off in its own packages: the project's settings → **Sessions** → **Project packages** at the top of the tab, where each package has a switch and ↺ puts back the catalog's default. A plugin your projects already had enabled when you upgraded is in the catalog already. A shortcut for one project: **Project packages** beside **Task description in the prompt** in the project's settings, or the **What sessions get** chip in the project's head while its tip says a tracker package is missing, opens the project's packages with the add dialog over them, `tasks@even-keel` and the project already picked; while the project lacks a tracker package, its packages show a button for each kind.
+2. The MCP server takes the credentials of the project's tracker profile: it runs behind a local gateway on `127.0.0.1:4748` (`EVEN_KEEL_MCP_PORT`), so the sessions never see them. Another key a package needs shows in the package's details in the catalog; until it is set the project's chain pauses with that reason and **Open the project's packages** beside it, and goes on by itself once the key is there.
+3. Nothing to switch off: once a package of the project brings the tracker's MCP server, the prompt carries only the task ID and the session reads the task itself (`brief` left as auto). The package `tasks@even-keel` counts as that server too: a project with it on and the tracker's plugin off also gets only the task ID. `brief: true` or `false` overrides that; with `false` the chain waits while no package of the project brings the server.
+
+With the `tasks@even-keel` package, `task_read` downloads files from Huly, Jira, GitLab, Forgejo and Linear tasks and their comments into `.temp/task-files/<KEY>/` and returns their local paths.
+
+Linear also collects uploaded files linked in the description and comments; external attachment links stay links.
+
+Files over **Attachment size limit, MB** are listed as `too large`, and failed downloads as `file unavailable`; the task text remains readable.
+
+Linear does not provide a file size on the card, so repeated reads download its files again.
+
+Two different files of one name get separate path prefixes. [Adapter details](../trackers.md#the-tasks-server-btn-768-srctaskmcp).
+
+#### The GitLab and Forgejo plugins
+
+The GitLab plugin enables the `issues,milestones` toolsets: sessions read issues through REST `get_issue` on GitLab.com and self-managed servers, including CE/Free. Work-item tools are disabled because the pinned MCP version's GraphQL queries fail on CE/Free; native parent-child changes need a compatible work-item tool.
+
+The Forgejo plugin brings the official [Gitea MCP server](https://gitea.com/gitea/gitea-mcp), a single program rather than an npm package: Even Keel does not install it.
+
+Download `gitea-mcp` for your system from its releases and put it on the `PATH` of the account the service runs as; without it the plugin's MCP server cannot start.
+
+#### Jira: MCP through OAuth or a token
+
+GitHub, Linear, GitLab and Forgejo profiles have nothing to set for MCP: their **MCP for sessions** box says the sessions use the token entered above.
+
+In a Jira profile's box, choose OAuth or Jira's separate MCP token: one is enough, and the token is unused while OAuth is connected.
+
+The profile list shows **MCP: connected through OAuth** or **MCP: reconnect needed**.
+
+**Check** verifies both REST and the selected MCP OAuth access, refreshing it if necessary; Jira also checks that MCP can reach the profile's site.
+
+Even Keel renews access automatically, so no short-lived token expiry is shown.
+
+After browser consent, press **Check and save**: an unsaved grant is lost when the dialog closes and expires ten minutes after consent was started. The dialog asks before closing with an unsaved grant.
+
+The Jira profile has **Connect MCP through OAuth** in its dialog, on a new profile too: a window asks Atlassian for consent, and Even Keel keeps the access and refreshes it; sessions still see only the gateway's address.
+
+It connects to Rovo MCP v2 and requests the permissions its server advertises; an older Jira MCP OAuth connection needs connecting again in the profile dialog.
+
+GitHub, Linear and GitLab have no OAuth connection: their MCP servers take the profile's token, and an OAuth connection saved by an earlier version is dropped.
+
+Jira uses [Atlassian's OAuth domain rules](https://support.atlassian.com/security-and-access-policies/docs/available-atlassian-mcp-server-domains/): `localhost` is supported by default.
+
+A custom HTTPS callback needs a matching allowed-domain rule. Without one, v2's consent page says **Access to this domain is restricted** and disables **Accept**, even though client registration succeeds.
+
+Your Atlassian organization's admin adds the **callback domain of your Even Keel page** to the allowed domains, not the authorization server's `auth.atlassian.com` address; the rule must match the callback URL shown in the dialog.
+
+In the current Atlassian Administration this is **Connectors → Atlassian MCP server → Add domain**; older screens call it **Rovo → Rovo MCP server → Domain settings** ([Atlassian's instructions](https://support.atlassian.com/security-and-access-policies/docs/control-atlassian-mcp-server-settings/)).
+
+Then retry **Connect MCP through OAuth**.
+
+Open the page over HTTPS, directly or through a local proxy such as Tailscale Service, or on `localhost` of the machine Even Keel runs on: a plain HTTP address of another machine is refused as a callback.
+
+With direct network access, sign in to the page before connecting OAuth and allow its cookies.
+
+The callback returns to the tracker settings without authorization parameters in the address, including when access is refused.
+
+When access cannot be renewed, the profile's row says **MCP: reconnect needed**; open the profile and press **Connect again**.
+
+Atlassian grants access to whoever is signed in to Atlassian in that browser: if it is another person than the profile's API token, the dialog and the profile's row warn that sessions will write as that person.
+
+Saving is still allowed; if it was not on purpose, sign in to Atlassian with the right account and press **Connect again**.
+
+The MCP token below remains the other way, for a machine without a browser.
+
+If MCP OAuth fails to connect or renew, the service log names the tracker kind, the failed step and the provider's HTTP error or exception message.
+
+The page shows the connection error; diagnostic details stay in the log, with credentials and callback values redacted. See [As a service](#as-a-service) for the log location.
+
+The Jira plugin is Atlassian's own Rovo MCP server and needs a separate token from the REST adapter (or the OAuth connection above).
+
+First ask your Atlassian organization's admin to enable **API token** authentication for the Atlassian MCP server in the organization's settings (Connectors → Atlassian MCP server → Authentication).
+
+Then [create an Atlassian MCP V2 token with all scopes](https://id.atlassian.com/manage-profile/security/api-tokens?autofillToken&appId=mcp-v2&selectedScopes=all) for the same e-mail and enter it in **Atlassian MCP V2 token (optional)** in the Jira profile.
+
+Leave it empty for projects without `jira@even-keel`.
+
+The profile check calls `getAccessibleAtlassianResources` and requires that it include the profile's site; if the list is empty or lacks the site, create the MCP token again after enabling API token authentication.
+
+A successful tool listing alone does not prove access.
+
+Details: [plugins/jira/README.md](../../plugins/jira/README.md#plugin).
+
+#### Sessions you start by hand
+
+Sessions you start by hand get none of this.
+
+For them, Claude Code needs this repository as a marketplace: **Accounts** offers **+ Even Keel marketplace** in the **Claude Code** card while your default config (no `CLAUDE_CONFIG_DIR` set) does not know it; a check mark replaces the button once added.
+
+The card appears after adding a Claude Code account.
+
+Its tip has both commands to copy, or run `claude plugin marketplace add <git URL or local path of this repository>` yourself.
+
+Then `claude plugin install huly@even-keel --scope project` in the project and the credentials in the `env` of `~/.claude/settings.json` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_PERSONAL_ACCESS_TOKEN`; `LINEAR_API_KEY`; `GITLAB_PERSONAL_ACCESS_TOKEN` and optional `GITLAB_URL`; `JIRA_BASIC_AUTH`, the base64 of `e-mail:MCP-token`, using the separate Atlassian MCP V2 token).
+
+Even Keel writes each tracker's default profile there itself; the GitHub, Linear, GitLab and Jira MCP variables above use different names, so supply those explicitly for sessions started by hand.
+
+Such a session never gets another profile.
+
+The GitHub skill sets "blocked by" links through the [GitHub CLI](https://cli.github.com/), so `gh auth login` once. Everything else — troubleshooting, what the skills do — is in [plugins/huly/README.md](../../plugins/huly/README.md), [plugins/github/README.md](../../plugins/github/README.md), [plugins/linear/README.md](../../plugins/linear/README.md), [plugins/gitlab/README.md](../../plugins/gitlab/README.md) and [plugins/jira/README.md](../../plugins/jira/README.md).
+
+### Several trackers
+
+Each project has its own tracker (`tracker` in the project's entry, GitHub when a file you write names none), and they work at the same time: project A on Huly, project B on GitHub.
+
+A tracker can have several profiles — two Huly workspaces, a personal GitHub token and an organization's — and each project picks one (the **Profile** field when you add it, or in its settings until its first task runs).
+
+One profile of each tracker is the default: projects without a choice run on it, it is the one sessions started by hand get, and it gives the GitHub Actions token to projects of other trackers.
+
+Making another profile the default does not move a project whose tasks have already run: it stays on the old profile, now as its own choice.
+
+A profile whose token is refused turns red on **Trackers and CI**, and the chains on it pause until it is fixed.
+
+Git is not part of this: pushes go through your own git and its credentials (SSH, the credential manager), whatever the profiles are. A project on Huly with a remote on GitHub works as is, and its CI is found by the remote.
+
+A project can take tasks from a second tracker too: in the project's settings, **Tracker** → **Task feeds** → **Add a feed**, pick the profile (it names the tracker), the place (a repository, a team — the profile's projects are suggested as you type, as in the wizard) and a key for the ids ([Several trackers for one project](trackers.md#several-trackers-for-one-project)).
+
+The chain rules a feed's tasks go by are the project's own, then its profile's, then the shared ones: a GitHub feed on a public repository needs its label as much as a GitHub project does, so set `requiredLabels` on that GitHub profile (its tab under **Chain rules**, or **Rules** on its row in **Trackers and CI**) when the project's own rules do not set it.
+
+The wizard's warning does not cover feeds, but the project page's band does: it names each public source that takes tasks without a label, the feeds included, and the feed's window says it too.
+
+### CI and pull requests
+
+The CI is read with a profile too.
+
+GitLab CI is found from a root `.gitlab-ci.yml` file on `gitlab.com` or a host named by a GitLab profile's address.
+
+Nested groups are supported. When several GitLab installations share a host, HTTP(S) remotes use the longest matching URL prefix from the profiles, falling back to a root profile.
+
+The token comes from the project's GitLab profile for that installation, otherwise its default profile, otherwise its first profile. A profile for another installation on the same host is excluded, even when explicitly chosen.
+
+SSH remotes have no installation prefix in their path: the first installation on the host is used, with a log entry when the choice is ambiguous.
+
+GitHub Actions on a `github.com` remote takes the token of the project's GitHub profile, or of the default GitHub profile for a project on another tracker.
+
+CI on a Forgejo remote takes a **Forgejo** profile (**Add profile** → Forgejo: the server's address and an access token) on the remote's host.
+
+Pull requests of PR mode take the same token as the remote's CI. What each token needs is in [Token permissions](#token-permissions).
+
+With several GitHub, Forgejo or GitLab profiles, a project can pick the one its CI and pull requests take in **Settings** → **Check and CI** (`remoteProfiles`); "Automatic" is the choice above.
+
+A CI that no profile reaches is not shown at all. CI supports GitHub, Forgejo (or Gitea) and GitLab. PR mode supports GitHub, Forgejo and GitLab (merge requests, on the same profile as the remote's GitLab CI). A remote on `bitbucket.org` has no CI and cannot use PR mode.
+
+An unknown host is taken for Forgejo until a GitLab profile identifies it; a Forgejo profile's check on GitLab asks you to add a GitLab profile instead.
+
+A `FORGEJO_TOKEN` left in `.env` from an older install becomes a Forgejo profile on the first start, one per host — that of `FORGEJO_URL` if `.env` has it, and those of the projects' Forgejo remotes; after that it is not read.
+
+A Forgejo profile is a tracker profile too: the same token serves the issues once it has `write:issue`.
+
+### Token permissions
+
+What a profile's token needs, by what it is used for. The profile dialog lists the same for the kind you pick.
+
+| Profile | Tracker | CI | Pull requests (PR mode) |
+| --- | --- | --- | --- |
+| Huly | a separate account with access to the projects: its e-mail and password, or a token | — | — |
+| GitHub, a fine-grained token for the repositories' owner | **Issues: Read and write** | **Actions: Read** | **Pull requests: Read and write**, **Contents: Read**, **Actions: Read** |
+| Linear, a personal API key | write access | — | — |
+| GitLab, a personal access token | `api` scope (`read_api` cannot close issues or post comments) | `api` scope, with access to the project and its pipelines | `api` scope, Developer access or above in the project (pushing the branch, opening a merge request, reading its discussions and the members) |
+| Jira Cloud, an Atlassian API token | Browse projects, Add comments, Transition issues and Edit issues in the projects; a token with scopes also needs `read:jira-work`, `write:jira-work` and `read:jira-user` | — | — |
+| Jira plugin, a separate Atlassian MCP V2 token | All scopes of the Atlassian MCP V2 application; enable API token authentication for the Atlassian MCP server before creating it. The REST token cannot be reused | — | — |
+| Forgejo, an access token | `write:issue` (reading issues and their dependencies, comments, closing, labels and milestones), `read:repository` (the repository list and the collaborators), `read:user` (the sign-in check) | `read:repository` (the repositories and their Actions), `read:user` (the sign-in check) | `write:repository` (opening a pull request, reading its reviews and its reviewers' access), `read:issue` (comments in its conversation), `read:user`; for reviewers other than the account and the repository's owner the account must be an admin of the repository |
+
+PR mode pushes the task's branch with `git push`, on the git credentials of the account the service runs as (its SSH keys or credential manager), not with a profile's token: without them PR mode stops at the push.
+
+A forge that refuses to open a pull request with the token marks the profile's row **PR refused** and names the right it lacks.
+
+If the chain pauses because a pull request could not be opened, fix the token or select a profile with access in the project's **Check and CI** settings, then press **Resume**.
+
+Even Keel retries the same pull request mark without sending anything to the task's session; another failure pauses the chain with its new cause. Changing the profile alone does not retry it.
+
+A push refused because the branch on the forge has commits the task's session lacks — you resolved a conflict on the forge, say — does not pause the chain: the session is told to merge the branch from the forge and mark the pull request again.
+
+Even Keel never force-pushes, so your commits on the forge stay.
+
+The Forgejo rights for pull requests follow from the API calls Even Keel makes and are not yet checked against a real server ([What has not been verified](../unverified.md)).
+
+## The page
+
+`http://localhost:4747` by default. The page can be installed as an app (the install button in the address bar of Chrome or Edge) and then opens in its own window; browsers offer this on `localhost` or over HTTPS only.
+
+### Answering from the phone
+
+Sessions can be answered from the page's chat or the tracker.
+
+To answer them in Claude's own app as well, turn on Remote Control at startup in `/config` of Claude Code; the page links each session's Remote Control.
+
+Codex sessions have no remote control: they run through `codex exec`, whose threads the Codex app and ChatGPT on the phone do not list, so they are answered only from the page's chat or the tracker ([docs/sessions/codex.md](../sessions/codex.md#codex-btn-168-srccodex)).
+
+### Reaching the page from another machine
+
+By default the page listens on `127.0.0.1` only, and nothing else on the network sees it. That is on purpose: the page starts sessions with automatic permissions, writes answers into waiting sessions and signs Claude accounts in and out, so whoever reaches it drives your machine. Every request is also checked whatever `EVEN_KEEL_HOST` is:
+
+- its `Host` must be `localhost`, `127.0.0.1`, `[::1]`, `EVEN_KEEL_HOST` or a name in `allowedHosts`, otherwise it gets 403. This stops DNS rebinding — a foreign site whose name was pointed at `127.0.0.1`;
+- an `Origin`, if the request has one, must be the page's own: the same name and port as its `Host` (`https://name` matches a `Host` of `name` without a port, as an HTTPS proxy sends it). So neither another site open in your browser nor another app on the same name — a dev server on `localhost:5173`, a service on another port of your tailnet name — can post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass;
+- a `POST` to `/api/` must be `Content-Type: application/json`, otherwise it gets 415: a browser cannot send that type to another site without asking it first. A script posting to the API sends the header, as `curl -H 'Content-Type: application/json'` does.
+
+Open Even Keel directly in a tab or its installed app: the page and the access-token form cannot be embedded in a frame, even on the same site.
+
+Its content security policy permits scripts and connections only from its own origin, with inline styles and local/data/blob images and media. The page sends no referrer.
+
+If using a reverse proxy, preserve these response headers. An already open tab receives a new policy when reloaded.
+
+Two ways to reach it from elsewhere:
+
+- **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Its requests come from loopback, so the page asks them for no token: who gets in is decided by the tailnet's access rules.
+- **Listening on the network.** Set `EVEN_KEEL_HOST` in `.env` to `0.0.0.0` or the machine's address, put the names or addresses you open it by into `allowedHosts` (the configured address itself is let in), and set `EVEN_KEEL_TOKEN` in `.env`. Without the token the service does not start. A request from another machine then needs the token: open the page once as `http://<address>:4747/?token=<token>`, and the service keeps it in an `HttpOnly`, `SameSite=Strict` cookie and drops it from the address; scripts send `Authorization: Bearer <token>`. Plain HTTP shows the token to anyone on the way, so prefer a proxy with HTTPS.
+
+Any proxy or tunnel running on the same machine must control who can reach Even Keel.
+
+The page does not ask for a token on connections from this machine, through loopback or its own address, even when `EVEN_KEEL_TOKEN` is set.
+
+Once the forwarded name is accepted by the `Host` check, a public tunnel without its own authentication lets anyone who knows its address drive the page and start sessions with automatic permissions.
+
+`allowedHosts` permits a name; it does not authenticate visitors. HTTPS encrypts the connection but does not decide who may enter.
+
+The page and the MCP gateway trust every OS user account on this machine, not just the account running Even Keel.
+
+Another local user can call the page at `127.0.0.1:4747` or the gateway at `127.0.0.1:4748` (the default ports) without a token, including the tasks server's tools for any project, and can run code as the service account.
+
+Install Even Keel on a machine with no other users, or trust every user as much as the service account.
+
+Starting MCP OAuth also sets a separate ten-minute `HttpOnly`, `SameSite=Lax` cookie for the callback alone, so the browser can return from the provider. The page's access cookie stays `SameSite=Strict`; the callback cookie cannot open other pages or API routes.
 
 ## As a service
 
@@ -381,11 +782,25 @@ loginctl enable-linger $USER
 
 **macOS:** a launchd agent `local.even-keel`. It runs while you are signed in to the Mac's desktop, at the screen or through Screen Sharing; signing out stops it. An SSH login alone is not enough: the script then stops and asks you to sign in to the desktop first. A Mac without a screen keeps its desktop session through automatic login (System Settings → Users & Groups; needs FileVault off).
 
-On both systems the installer waits up to 60 seconds for the service and its page to answer before reporting success. It uses the address in your data folder's `.env`; `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT` set in the installer's shell take priority and are saved in the service definition. A protected page can pass without entering its token. On failure the installer exits with an error, shows the service state and recent log, and leaves the installation in place. Fix the reported problem and run the installer again. On macOS also check **System Settings → General → Login Items → Allow in the Background**: the entry may be called `node`. The service log records stop signals and fatal errors; it cannot record a forced kill or a machine failure.
+On both systems the installer waits up to 60 seconds for the service and its page to answer before reporting success.
+
+It uses the address in your data folder's `.env`; `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT` set in the installer's shell take priority and are saved in the service definition.
+
+A protected page can pass without entering its token.
+
+On failure the installer exits with an error, shows the service state and recent log, and leaves the installation in place. Fix the reported problem and run the installer again.
+
+On macOS also check **System Settings → General → Login Items → Allow in the Background**: the entry may be called `node`.
+
+The service log records stop signals and fatal errors; it cannot record a forced kill or a machine failure.
 
 ## Updating
 
-The gear menu in the header ends with the installed version. Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a mark next to the version and a notification in the corner of the page. Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config.
+The gear menu in the header ends with the installed version.
+
+Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a mark next to the version and a notification in the corner of the page.
+
+Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config.
 
 ### From the page
 
@@ -404,7 +819,13 @@ The button is there only when Even Keel runs as a service and its folder is:
 
 Otherwise the window says why and you update by hand. A checkout that was on a branch stays on it (moved to the new tag), so a later `git pull` still works.
 
-After an update the window and the gear menu also offer **Revert to &lt;previous version&gt;**, the same process in the other direction, as long as the update did not change the format of the stored state. When it did, the older version cannot read the state any more: the window says so, and going back is the manual way below, losing what was written since. In that case it is better to wait for a revert release, which keeps the new format. After a revert the newer release is offered again; nothing updates by itself. Once the version is changed by hand (below), the window no longer shows how the last update from the page went, nor offers to revert it.
+After an update the window and the gear menu also offer **Revert to &lt;previous version&gt;**, the same process in the other direction, as long as the update did not change the format of the stored state.
+
+When it did, the older version cannot read the state any more: the window says so, and going back is the manual way below, losing what was written since. In that case it is better to wait for a revert release, which keeps the new format.
+
+After a revert the newer release is offered again; nothing updates by itself.
+
+Once the version is changed by hand (below), the window no longer shows how the last update from the page went, nor offers to revert it.
 
 ### By hand
 
@@ -473,17 +894,37 @@ npm start
 
 ### Plugins
 
-The plugins come with the code; `agent-bridge` is built in and on in every project, so there is nothing to add for it. Chain sessions run the version of a package installed in **Settings → Packages**: its row shows the newer version the marketplace has and an **Update** button, or **Check** in its details when it knows of none (**Check all** above the catalog checks every package) (for a git URL marketplace both run `claude plugin marketplace update` first). Even Keel's own plugins are read from this folder, so after an update their rows offer the new version at once. For sessions you start by hand, a marketplace added from the local path of this folder is read from the folder, so they get the new plugins by themselves; one added from a git URL keeps its own copy: `claude plugin marketplace update even-keel`, then `claude plugin update huly@even-keel` (or `github@…`, `linear@…`, `tally@…`) in each project repository that installed it.
+The plugins come with the code; `agent-bridge` is built in and on in every project, so there is nothing to add for it.
+
+Chain sessions run the version of a package installed in **Settings → Packages**: its row shows the newer version the marketplace has and an **Update** button, or **Check** in its details when it knows of none (**Check all** above the catalog checks every package) (for a git URL marketplace both run `claude plugin marketplace update` first).
+
+Even Keel's own plugins are read from this folder, so after an update their rows offer the new version at once.
+
+For sessions you start by hand, a marketplace added from the local path of this folder is read from the folder, so they get the new plugins by themselves; one added from a git URL keeps its own copy: `claude plugin marketplace update even-keel`, then `claude plugin update huly@even-keel` (or `github@…`, `linear@…`, `tally@…`) in each project repository that installed it.
 
 If you installed the former `checkpoint@even-keel` plugin in Claude Code, run `claude plugin uninstall checkpoint@even-keel` in each configuration folder where it was installed. There is no need to install agent-bridge by hand: Even Keel supplies it to chain sessions, and its hooks stay silent in sessions started by hand.
 
 ### Stored state
 
-A new version may store the files of `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them). It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason.
+A new version may store the files of `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them).
 
-The projects, the settings, the chain's state, the questions posted to the tracker, the launch log and the handoff snapshots live in one database, the folder `state/even-keel/` (PGlite, the embedded Postgres the statistics use too). An Even Keel from before it kept them in a SQLite file `state/even-keel.db` or, earlier, in files: the first start of this version imports `even-keel.db`, or else `chain.json`, `questions.json`, `launches.jsonl` and `handoffs/`, in one go — all of it or nothing — and renames them to `<name>.imported`. The config file `even-keel.config.json` is imported the same way, once, and kept as `even-keel.config.json.imported`; a file put there later is not read (the log says so). A database written by a newer version leaves the service with only the page, like a newer file.
+It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason.
 
-If another process holds the database when Even Keel starts, the page names that process and the service waits, trying again every 3 seconds. Wait for a backup or another reader to finish, or close the other Even Keel instance. Once the database is free, the service starts and the page reconnects automatically; no restart is needed. A different storage error stays on the page until it is fixed and the service is restarted.
+The projects, the settings, the chain's state, the questions posted to the tracker, the launch log and the handoff snapshots live in one database, the folder `state/even-keel/` (PGlite, the embedded Postgres the statistics use too).
+
+An Even Keel from before it kept them in a SQLite file `state/even-keel.db` or, earlier, in files: the first start of this version imports `even-keel.db`, or else `chain.json`, `questions.json`, `launches.jsonl` and `handoffs/`, in one go — all of it or nothing — and renames them to `<name>.imported`.
+
+The config file `even-keel.config.json` is imported the same way, once, and kept as `even-keel.config.json.imported`; a file put there later is not read (the log says so).
+
+A database written by a newer version leaves the service with only the page, like a newer file.
+
+If another process holds the database when Even Keel starts, the page names that process and the service waits, trying again every 3 seconds.
+
+Wait for a backup or another reader to finish, or close the other Even Keel instance.
+
+Once the database is free, the service starts and the page reconnects automatically; no restart is needed.
+
+A different storage error stays on the page until it is fixed and the service is restarted.
 
 This copies the database and the built-in tracker's attachments, also while Even Keel runs; with `.env` it is what a move to another machine needs:
 
@@ -493,9 +934,25 @@ npm run storage -- backup <new folder>
 
 To restore, stop Even Keel and put the folder in place of `state/even-keel`.
 
-Even Keel also makes such a copy itself: once a day, and at the start of a new version before it changes the database. Each copy is opened back in a temporary folder and compared with the database before it counts; one that does not open whole is removed, and a failure shows a banner on every page while the older copies stay. The copies go into `state/backups/`, next to `state/even-keel/`, named `even-keel-auto-<date>-<time>-v<schema>`, and the newest 14 are kept. **Settings** → **Backups** shows the last checked copy, makes one at once, and sets **Copies folder** (`backup.dir`, an absolute path; a folder on another disk survives this one) and **Copies to keep** (`backup.keep`, 1–365). Folders of other names in it, such as your own backups, are never removed. A copy holds the trackers' tokens and keys in plain text: keep its folder as private as `.env`. To restore one, stop Even Keel and put it in place of `state/even-keel`, as above.
+Even Keel also makes such a copy itself: once a day, and at the start of a new version before it changes the database.
 
-The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction. Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one). On your own Postgres the collector migrates as `tally_writer`; if it is not the owner of the tables, it changes nothing and logs the statements to run and the role to run them as.
+Each copy is opened back in a temporary folder and compared with the database before it counts; one that does not open whole is removed, and a failure shows a banner on every page while the older copies stay.
+
+The copies go into `state/backups/`, next to `state/even-keel/`, named `even-keel-auto-<date>-<time>-v<schema>`, and the newest 14 are kept.
+
+**Settings** → **Backups** shows the last checked copy, makes one at once, and sets **Copies folder** (`backup.dir`, an absolute path; a folder on another disk survives this one) and **Copies to keep** (`backup.keep`, 1–365).
+
+Folders of other names in it, such as your own backups, are never removed.
+
+A copy holds the trackers' tokens and keys in plain text: keep its folder as private as `.env`.
+
+To restore one, stop Even Keel and put it in place of `state/even-keel`, as above.
+
+The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction.
+
+Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one).
+
+On your own Postgres the collector migrates as `tally_writer`; if it is not the owner of the tables, it changes nothing and logs the statements to run and the role to run them as.
 
 ### Going back
 
@@ -566,3 +1023,79 @@ npm uninstall --global even-keel
 - the GitHub Copilot ones in `~/.copilot-accounts` (`EVEN_KEEL_COPILOT_ACCOUNTS_DIR`), each a `COPILOT_HOME` of its own;
 - project memory, moved to `~/.claude-memory/<project>` with `~/.claude/projects/<project>/memory` linking to it: Claude Code keeps using it through the link, so leave it unless you want the memory gone too;
 - your skills, moved from `~/.claude/skills` to `~/.claude-skills/<name>` the same way, each leaving a link behind, and so `~/.claude/agents`, `commands`, `hooks` and `output-styles`, to `~/.claude-agents` and the like: leave them, or move the folders back in place of the links.
+
+## The CLIs it depends on
+
+Even Keel drives the agents' CLIs through behaviour none of them documents, so a CLI update can break it. This section lists what it relies on in each CLI, where it finds the binaries, and how the **Checked** version is downloaded and pinned.
+
+### Claude Code
+
+**Even Keel depends on undocumented behaviour of the Claude Code CLI**: `claude agents --json`, the `sessions/<pid>.json` records and the `jobs/<id>/state.json` job files, the background daemon (`claude --bg`, `--bg --resume`, `claude daemon`), the transcript format, the text of `/usage`, the layout of `~/.claude.json`, `.credentials.json` and `plugins/installed_plugins.json`, and on macOS the name of the Keychain item that holds a folder's sign-in. None of it is a public API.
+
+A version becomes the checked one after one live session on it went through a launch, a question answered from the chat, the chat's feed, a checkpoint and a stop (`npm run cli-check`, [docs/releases.md](../releases.md)).
+
+By default chain sessions run on your own CLI, on whatever version it has updated itself to, and the event log (**Log** in the header) gets a warning when that is another version than the checked one: the stage, the context fill or a limit may then be read wrong, at worst a session does not start.
+
+"CLI version" `Checked` (in the setup's Agent step or Settings → Providers and models, which the log's warning opens) runs them on the checked version instead: Even Keel downloads it from Anthropic into `state/cli/claude/<version>/` (~340 MB a version, checked against Anthropic's sha256) only after you press Download, waits for that copy before starting chain sessions, and turns the auto-updater off for those sessions so they never update your own install ([docs/sessions/cli-versions.md](../sessions/cli-versions.md#the-checked-cli-btn-250-srcagentpinnedts)).
+
+Installs from before v0.2 stay on `Checked`. The pin has limits:
+
+- A session runs on the version of its account folder's daemon. A daemon on another version is restarted only once no session of that folder is live, and a newer `claude --bg` or `claude agents` run in the same account folder replaces the pinned daemon with its own version: keep your own background sessions out of the chain's account folder. Whether a terminal reaches the service's daemon on Windows to do that has not been checked.
+- Anthropic's servers may refuse an old version, and an old version may not know a new model's alias; Codex lists models by the client's version. Then the checked version is raised in a new release of Even Keel.
+- The transcripts your own sessions write on a newer version are read as before: the pin covers how chain sessions are run, not those files.
+
+### Codex
+
+**The same goes for the Codex CLI**: the events of `codex exec --json` (`thread.started`, `item.completed`, `turn.completed`, `turn.failed`), `-c` overrides of its config keys (`mcp_servers`, `marketplaces`, `plugins`, `hooks.state`), the rollout files `sessions/YYYY/MM/DD/rollout-*.jsonl` and their `session_meta`, `turn_context`, `event_msg` (`token_count` with the context fill and the rate limit windows, `task_complete`, errors) and `response_item` lines, the `plugin/install` and `hooks/list` calls of `codex app-server`, the `[plugins.*]` tables of `config.toml` and the `plugins/cache` layout, the claims of the ID token in `auth.json`, the text of `codex login status` and of its quota errors, and the layout of the npm package on Windows.
+
+With `Checked`, Codex sessions run on the checked version the same way: Even Keel unpacks the platform's npm package `@openai/codex@<version>-<platform>` (Apache-2.0, checked against the registry's sha512) into `state/cli/codex/<version>/`.
+
+Where Even Keel finds the CLIs: Claude Code's native install in `~/.local/bin` (`claude.exe` on Windows), then the binary of the VS Code extension, then `claude` on `PATH`; `EVEN_KEEL_CLAUDE_BIN` overrides.
+
+Codex's own folder is `CODEX_HOME` or `~/.codex`, the accounts added from the page live in `~/.codex-accounts`; `EVEN_KEEL_CODEX_BIN` overrides the binary.
+
+### OpenCode
+
+**OpenCode too**: Even Keel relies on the JSON events of `opencode run --format json`, its `-s` and `--title`, `OPENCODE_CONFIG_CONTENT`, the XDG folders, `auth.json`, the tables `session`, `message` and `part` of `opencode.db`, and the text of `opencode providers login`.
+
+With `Checked`, its sessions run on the checked version: Even Keel unpacks the platform's npm package of its native binary (`opencode-windows-x64@<version>` and the like, MIT, checked against the registry's sha512, ~80 MB a version) into `state/cli/opencode/<version>/`, with self-update turned off.
+
+An x64 processor without AVX2 needs OpenCode's `-baseline` build, which Even Keel does not take: keep its "CLI version" on `Yours` there.
+
+With `Yours`, sessions run on the `opencode` you installed (`npm install -g opencode-ai`; on Windows Even Keel takes the native `opencode.exe` inside the global npm package); `EVEN_KEEL_OPENCODE_BIN` overrides both.
+
+Its accounts live only in `~/.opencode-accounts`: your own OpenCode's folders are not listed.
+
+### GitHub Copilot
+
+**GitHub Copilot too**: Even Keel relies on the JSONL of `copilot -p --output-format json`, its `--session-id`, `--resume`, `--no-ask-user`, `--add-dir`, `--additional-mcp-config`, `--disable-mcp-server` and `--plugin-dir`, `COPILOT_HOME` and `COPILOT_GITHUB_TOKEN`, and the events of `session-state/<id>/events.jsonl`.
+
+With `Checked`, its sessions run on the checked version: Even Keel unpacks the platform's npm package of its native binary (`@github/copilot-win32-x64@<version>` and the like, checked against the registry's sha512, ~155 MB a version) into `state/cli/copilot/<version>/`, with `--no-auto-update` and `COPILOT_AUTO_UPDATE=false`.
+
+With `Yours`, sessions run on the `copilot` you installed: on Windows Even Keel finds by itself the `copilot.exe` of `winget install GitHub.Copilot` and the native `copilot.exe` of `npm install -g @github/copilot` (npm's own `copilot` wrappers need a shell and are not run); `EVEN_KEEL_COPILOT_BIN` overrides both, for a binary installed anywhere else.
+
+When the binary cannot be started, the chain pauses and says so, with a button to the CLI version setting.
+
+Sign in once with `copilot login`, or add accounts with tokens on the accounts page.
+
+Its accounts live only in `~/.copilot-accounts`: your own `~/.copilot` is not listed.
+
+#### Copilot's own sign-in on Linux without a keyring
+
+On Linux without a keyring, Copilot's own sign-in needs a terminal and the managed account's folder.
+
+When the CLI confirms that folder is signed out, the accounts page shows a copyable command using its folder and the same CLI binary as sessions.
+
+Run it on the machine running Even Keel, as the same OS user: in cmd on Windows, standard sh on Linux/macOS.
+
+The command temporarily removes `COPILOT_GITHUB_TOKEN`, `GH_TOKEN` and `GITHUB_TOKEN` and selects the account's `COPILOT_HOME`; your terminal's environment stays intact after success or failure.
+
+The CLI asks whether to save the token as plaintext in that folder's `config.json` when no keyring is available.
+
+Login without `COPILOT_HOME` saves into your own `~/.copilot`, which managed sessions do not read; login without a terminal may report "token was not saved" without asking about plaintext.
+
+The card updates after the next account check, without restarting Even Keel; restarting also checks again.
+
+An unavailable CLI, timeout, empty or unreadable status shows "Could not check" and allows sessions to start. An explicit signed-out answer shows "Sign-in needed" and the command; a successful check clears the warning.
+
+You can instead add a token through the accounts page; a folder's own token takes priority over the machine's sign-in. A successful own OAuth sign-in has no remaining-allowance bar.
