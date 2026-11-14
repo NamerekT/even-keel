@@ -319,6 +319,22 @@
   }
 }
 
+/* Narrow phones (360–375, the Galaxy S line and the iPhone SE): tighter segments keep the chain's buttons on the line. */
+@media (max-width: 389px) {
+  .project__controls {
+    gap: var(--space-6);
+  }
+
+  .project__head .hblock__seg,
+  .project__head .feed-switch .segmented__item {
+    padding-inline: var(--space-6);
+  }
+
+  .project__head .project__buttons > .seg-button {
+    padding-inline: var(--space-8);
+  }
+}
+
 .seg-button {
   justify-content: center;
   border: 0;
