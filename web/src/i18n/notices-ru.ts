@@ -686,6 +686,7 @@ export const noticesRu: NoticeTexts = {
   'config.keepWarm': (p) => `keepWarm должен быть целым числом часов от 0 до ${p.max}, а не ${p.value}`,
   'config.attachmentLimit': (p) => `attachmentLimit должен быть целым числом мегабайт от 1 до ${p.max}, а не ${p.value}`,
   'config.backupDir': (p) => `backup.dir должен быть абсолютным путём к папке или пустым, а не ${p.value}`,
+  'config.backupDirFile': (p) => `backup.dir ${p.value} — файл, а не папка`,
   'config.backupKeep': (p) => `backup.keep должен быть целым числом копий от 1 до ${p.max}, а не ${p.value}`,
   'config.mergeInto': (p) => `${p.project} вливается в ${p.into}, а это не другой проект или он сам вливается в проект`,
   'config.mergeIntoValue': (p) => `${p.where} — ключ проекта или null`,

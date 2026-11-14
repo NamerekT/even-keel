@@ -5,7 +5,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { describe, expect, it } from 'vitest'
 import { BuiltinFiles } from '../builtin/files.js'
 import { BuiltinStore } from '../builtin/store.js'
-import { BackupError, CHECK_FILE, checkCopy, lastChecked, makeCopy, ownCopies, ownName, rotate, type CopyCheck } from './backup.js'
+import { BackupError, CHECK_FILE, checkCopiesDir, checkCopy, lastChecked, makeCopy, ownCopies, ownName, rotate, type CopyCheck } from './backup.js'
 import { rowsOf, rowsTextOf } from './copy.js'
 import { ABC } from './database.fixture.js'
 import { DATABASE_VERSION, databaseVersion, openDatabase, SQLITE_VERSIONS, STEPS } from './database.js'
@@ -144,5 +144,28 @@ describe('the rotation', () => {
     expect(ownCopies(dir)).toHaveLength(2)
     expect(lastChecked(dir)).toBeNull()
     expect(lastChecked(join(dir, 'missing'))).toBeNull()
+  })
+
+  it('are none where the folder is a file, and rotation removes nothing there', () => {
+    const file = join(folder('not-a-dir'), 'copies.txt')
+    writeFileSync(file, 'not a folder')
+    expect(ownCopies(file)).toEqual([])
+    expect(lastChecked(file)).toBeNull()
+    expect(rotate(file, 1)).toEqual([])
+  })
+})
+
+describe('the folder of the copies set from the page', () => {
+  it('is refused when it is a file, with a notice code', () => {
+    const file = join(folder('dir-file'), 'copies.txt')
+    writeFileSync(file, 'not a folder')
+    expect(() => checkCopiesDir(file)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.backupDirFile' }) }))
+  })
+
+  it('is taken when it is a folder, missing or the default', () => {
+    const dir = folder('dir-ok')
+    expect(() => checkCopiesDir(dir)).not.toThrow()
+    expect(() => checkCopiesDir(join(dir, 'later'))).not.toThrow()
+    expect(() => checkCopiesDir(null)).not.toThrow()
   })
 })

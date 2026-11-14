@@ -55,6 +55,7 @@ export const fieldsEn = {
   'config.keepWarm': (p) => `Whole hours from 0 to ${p.max}, not ${p.value}`,
   'config.attachmentLimit': (p) => `Whole megabytes from 1 to ${p.max}, not ${p.value}`,
   'config.backupDir': (p) => `An absolute folder path, or empty for the state folder, not ${p.value}`,
+  'config.backupDirFile': (p) => `${p.value} is a file: name a folder, or leave empty for the state folder`,
   'config.backupKeep': (p) => `Whole copies from 1 to ${p.max}, not ${p.value}`,
   'config.allowedHosts': () => 'A host name per line',
   'config.contextWindow': (p) => `A whole number of tokens from 1, not ${p.value}`,
