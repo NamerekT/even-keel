@@ -35,4 +35,14 @@ describe('noticesEn', () => {
     expect(renderNotice(refused, noticesRu)).toContain('«Снять с паузы»')
     expect(page(notice('review.noNote', { path: 'old.md' }))).toBe('the session left no pull request description at old.md')
   })
+
+  it('does not tell to fix access when the pause is on a refused PR note, in both languages (BTN-1148)', () => {
+    const cause = notice('review.noNote', { path: '.env.local', reason: 'secret', limit: 65_536 })
+    const paused = notice('review.notOpened', { task: 'ABC-1', note: true }, { cause })
+    expect(page(paused)).toMatch(/^the pull request of ABC-1 was not opened: PR description \.env\.local refused: /)
+    expect(page(paused)).not.toContain('access')
+    expect(renderNotice(paused, noticesRu)).toMatch(/^pull request задачи ABC-1 не открыт: описание PR \.env\.local отклонено: /)
+    expect(renderNotice(paused, noticesRu)).not.toContain('доступ')
+    expect(page(notice('review.notOpened', { task: 'ABC-1' }))).toContain('fix access')
+  })
 })

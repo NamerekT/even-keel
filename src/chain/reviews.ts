@@ -173,7 +173,7 @@ export class Reviews {
         // The session is told as a chat answer is, by `--resume` whatever its cache: the reply belongs to its own turn.
         this.deps.log(`review: ${task}: no pull request opened, ${englishOf(why)}; the session is told`)
         await this.handovers.deliver(chain, current, session, text, null, 'review')
-      } else this.host.hold(chain, notice('review.notOpened', { task }, { cause: why }))
+      } else this.host.hold(chain, notice('review.notOpened', why.code === 'review.noNote' ? { task, note: true } : { task }, { cause: why }))
       return
     }
     if (opened === null) return this.doneWithout(chain, current, session)

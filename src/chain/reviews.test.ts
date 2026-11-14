@@ -161,6 +161,16 @@ describe('Dispatcher in PR mode', () => {
     expect(launched).toEqual(['ABC/ABC-2'])
   })
 
+  it('marks the pause on a refused PR note, so its line does not tell to fix access (BTN-1148)', async () => {
+    const { pulls } = refusing(fail('review.noNote', { path: '.env.local', reason: 'secret', limit: 65_536 }))
+    const { dispatcher } = await running({ reviews: pulls.deps })
+
+    expect(dispatcher.state.active[0]).toMatchObject({
+      paused: true,
+      error: { code: 'review.notOpened', params: { task: 'ABC-1', note: true }, cause: { code: 'review.noNote' } },
+    })
+  })
+
   it('pauses with the new cause when a retry fails and waits for another explicit retry', async () => {
     const { pulls, tries } = refusing()
     const { dispatcher, relays, stopped, launched } = await running({ reviews: pulls.deps })

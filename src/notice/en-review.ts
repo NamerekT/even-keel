@@ -15,7 +15,10 @@ export type NoteRefusal = keyof typeof NOTE_REFUSALS
 
 export const REVIEW_NOTICES = {
   'review.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to write pull requests of the repository`,
-  'review.notOpened': (p: { task: string }) => `the pull request of ${p.task} was not opened (fix access and press Resume, answer its session from the chat, or skip the task)`,
+  /** `note`: the cause is a refused PR note (`review.noNote`), whose own text says what to do; access is fine then. */
+  'review.notOpened': (p: { task: string; note?: boolean }) => p.note === true
+    ? `the pull request of ${p.task} was not opened`
+    : `the pull request of ${p.task} was not opened (fix access and press Resume, answer its session from the chat, or skip the task)`,
   'review.notCompleted': (p: { task: string }) => `${p.task} has nothing to open as a pull request, but it was not moved to done in the tracker (move it there yourself and resume the chain, or skip the task)`,
   'review.notReady': (p: { project: string }) =>
     `PR mode of ${p.project} has nowhere to open pull requests, so its chain starts no task; it goes on by itself within a minute once that is fixed, or turn PR mode off`,
