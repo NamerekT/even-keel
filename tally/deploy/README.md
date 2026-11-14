@@ -4,7 +4,7 @@ Postgres for session stats: the stack `/opt/stacks/tally-stats` on your own serv
 
 ## What is inside
 
-- `db` — `postgres:18`, port 5432 published only on the host's tailnet address (`BIND_ADDRESS`), not on the local network.
+- `db` — `postgres:18`, port 5432 published only on the host's tailnet address (`BIND_ADDRESS`), not on the local network. Its memory settings are not Postgres's defaults, sized for a 2 GB database on a shared 16 GB host (2026-11-14): `shared_buffers` 1GB (128MB held only the hot part of `messages`, the collector read `lines` from disk), `work_mem` 32MB (with 4MB the page's queries spilled to temp files — 2.9 TB written in five weeks), `effective_cache_size` 4GB, `maintenance_work_mem` 256MB, `random_page_cost` 1.1 (SSD) and `shm_size` 256mb for parallel queries (Docker's 64MB is too little for them). Each is overridden in the stack's `.env` by `PG_SHARED_BUFFERS`, `PG_WORK_MEM` and the like (`compose.yaml`); a change applies with `docker compose up -d`, which restarts `db`.
 - Roles (created by `initdb/10-roles.sh` on the first start with an empty volume):
   - `tally_writer` — owner of the database and the `public` schema, written to by the collector;
   - `tally_reader` — read-only: `SELECT` on everything `tally_writer` creates, transactions read-only by default. Even Keel and the sessions with the weekly summary use it.

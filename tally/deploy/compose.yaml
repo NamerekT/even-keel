@@ -4,6 +4,19 @@ services:
   db:
     image: postgres:18
     restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-1GB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-4GB}
+      - -c
+      - work_mem=${PG_WORK_MEM:-32MB}
+      - -c
+      - maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-256MB}
+      - -c
+      - random_page_cost=${PG_RANDOM_PAGE_COST:-1.1}
+    shm_size: ${PG_SHM_SIZE:-256mb}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
       TALLY_DB: ${TALLY_DB:-tally}
