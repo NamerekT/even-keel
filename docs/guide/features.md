@@ -84,7 +84,8 @@ them; the last matching OpenCode permission wins. Even Keel's built-in config ho
 after the account's and project's permissions, including `agent.build.permission`, so their broad or explicit
 allows do not override Protection. No extra package is needed. Keep server-side branch protection enabled.
 The page explains coverage in a help tip and warns when an agent runs without a sandbox and without Even Keel rules.
-Rules can reduce accidental actions; they are not an OS sandbox.
+Rules can reduce accidental actions; they are not an OS sandbox. What else a session may do, and whose text it reads:
+[security](security.md).
 
 The agent reads your own deny files alongside Protection. Claude Code and Codex let a deny outweigh an allow;
 OpenCode uses the permission order described above. Even Keel does not copy them; the `/tools` page shows what reaches a chain session. A `deny` or
