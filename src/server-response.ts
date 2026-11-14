@@ -103,7 +103,7 @@ export async function readJsonBody(request: IncomingMessage, limit: number): Pro
   let size = 0
   for await (const chunk of request as AsyncIterable<Buffer>) {
     size += chunk.length
-    if (size > limit) throw fail('request.tooLarge', {})
+    if (size > limit) throw fail('request.tooLarge', { limit })
     chunks.push(chunk)
   }
   const text = Buffer.concat(chunks).toString('utf8').trim()

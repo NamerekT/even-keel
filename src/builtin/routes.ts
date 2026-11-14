@@ -9,6 +9,13 @@ import type { RelationKind } from './model.js'
 
 type Query = (deps: ServerDeps, body: Record<string, unknown>, request: IncomingMessage) => Promise<unknown>
 
+/** The card's edit carries the old and the new text at once, so a description of ~2 MiB still saves (BTN-1183). */
+const TEXT_BODY_BYTES = 4 * 1024 * 1024
+/** Body limits of the commands that carry a task's text, over the server's general one. */
+export const BUILTIN_BODY_LIMITS: Record<string, number> = Object.fromEntries(
+  ['create', 'edit', 'description', 'patch', 'comment'].map((command) => [`/api/builtin/${command}`, TEXT_BODY_BYTES]),
+)
+
 /** The page's commands on the built-in tracker (BTN-767); each answers with what it changed. */
 export const BUILTIN_QUERIES: Record<string, Query> = {
   'builtin/create': (deps, body) => control(deps).create(projectOf(body), draftOf(body)),

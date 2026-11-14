@@ -71,6 +71,19 @@ describe('the built-in tracker over HTTP', () => {
     expect((await post('patch', { task: 'ABC-1', old: 'nothing', new: 'x' })).body.notice.code).toBe('builtin.patchMissing')
   })
 
+  it('edits a description far over the general body limit from the card, and names its own limit past that', async () => {
+    const { post } = await fixture()
+    await post('create', { project: ABC, title: 'Long' })
+    const old = 'a'.repeat(90_000)
+    expect((await post('edit', { task: 'ABC-1', field: 'description', from: '', to: old })).status).toBe(200)
+    const edited = await post('edit', { task: 'ABC-1', field: 'description', from: old, to: 'b'.repeat(90_000) })
+    expect(edited.status).toBe(200)
+    expect((await post('comment', { task: 'ABC-1', text: 'c'.repeat(90_000) })).status).toBe(200)
+    const huge = await post('description', { task: 'ABC-1', text: 'd'.repeat(5 * 1024 * 1024), rev: edited.body.descriptionRev })
+    expect(huge.status).toBe(400)
+    expect(huge.body.notice).toEqual({ code: 'request.tooLarge', params: { limit: 4 * 1024 * 1024 } })
+  })
+
   it('links tasks across its projects, sets a parent by id, comments and deletes without traces', async () => {
     const { refresh, post } = await fixture()
     await post('create', { project: ABC, title: 'Parent' })
