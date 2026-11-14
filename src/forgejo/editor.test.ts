@@ -51,7 +51,7 @@ function fixture(dependencies: 'on' | 'off' = 'on') {
     comment: async () => '5',
     upload: async (path, file) => void uploads.push([path, file.name]),
   })
-  return { editor, writes, relabels, uploads, recent, reads, state }
+  return { editor, writes, relabels, uploads, recent, reads, state, blockers, issues }
 }
 
 describe('forgejoEditor', () => {
@@ -162,11 +162,24 @@ describe('forgejoEditor', () => {
     await expect(editor.link('APP-1', 'APP-3', 'blocks', true)).rejects.toThrow(/dependencies turned off/)
   })
 
-  it('says a clear reason when Forgejo refuses to close an issue still blocking an open one (BTN-930)', async () => {
+  it('names the open blocker when Forgejo refuses to close a blocked issue (BTN-930, BTN-1165)', async () => {
     const { editor, state, writes } = fixture()
     state.refusedClose = 1
-    await expect(editor.set('APP-1', { field: 'status', to: 'Closed' })).rejects.toThrow(/APP-1 is still blocking an open issue; close that issue or remove the link first/)
+    await expect(editor.set('APP-1', { field: 'status', to: 'Closed' })).rejects.toThrow('APP-1 is blocked by an open issue (APP-3); close the blocker first or remove the link')
     expect(writes).toEqual([['PATCH', `${BASE}/1`, { state: 'closed' }]])
+  })
+
+  it('names several open blockers and leaves out closed ones', async () => {
+    const { editor, state, blockers, issues } = fixture()
+    state.refusedClose = 1
+    blockers[1] = [issues[3]!, issues[2]!, issues[10]!]
+    await expect(editor.set('APP-1', { field: 'status', to: 'Closed' })).rejects.toThrow('APP-1 is blocked by open issues (APP-3, APP-10); close the blockers first or remove the links')
+  })
+
+  it('says the refusal without a key when the blockers cannot be read', async () => {
+    const { editor, state } = fixture('off')
+    state.refusedClose = 1
+    await expect(editor.set('APP-1', { field: 'status', to: 'Closed' })).rejects.toThrow('APP-1 is blocked by an open issue; close the blocker first or remove the link')
   })
 
   it('exports the links Forgejo keeps without "relates" (BTN-930)', () => {

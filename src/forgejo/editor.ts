@@ -63,12 +63,20 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
     try {
       return await update(id, { state: target.category === 'Won' ? 'closed' : 'open' })
     } catch (error) {
-      // Forgejo refuses to close an issue that still blocks an open one (BTN-930).
-      if (error instanceof ForgejoHttpError && error.status === 412) {
-        throw new EditRefused(`${id} is still blocking an open issue; close that issue or remove the link first`)
-      }
+      // Forgejo refuses to close an issue that an open one still blocks (BTN-930, BTN-1165).
+      if (error instanceof ForgejoHttpError && error.status === 412) throw new EditRefused(await blockedRefusal(id))
       throw error
     }
+  }
+  const blockedRefusal = async (id: string): Promise<string> => {
+    const { repo, number } = addressOf(id)
+    const open = await deps.blockersOf(repo, number).then(
+      (blockers) => (blockers ?? []).filter((each) => each.state !== 'closed').map((each) => idOf(repos, each)),
+      () => [],
+    )
+    if (open.length === 0) return `${id} is blocked by an open issue; close the blocker first or remove the link`
+    if (open.length === 1) return `${id} is blocked by an open issue (${open[0]}); close the blocker first or remove the link`
+    return `${id} is blocked by open issues (${open.join(', ')}); close the blockers first or remove the links`
   }
   const slug = (repo: Repo) => `${repo.owner}/${repo.name}`
   const priorityLabel = async (repo: Repo, level: TaskPriority): Promise<string> => {
