@@ -34,6 +34,19 @@ describe('the statuses of the tracker', { timeout: 60_000 }, () => {
     await run.until(() => !existsSync(launches()[0]!.cwd), 'the worktree of ABC-1 removed')
   })
 
+  it('closes a task marked NO CHANGES: into the done status the project chose, as a merged one (BTN-1163)', async () => {
+    run.project.statusMoves = { done: 'Released' }
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    run.agent.script('ABC-1', async () => ({ noChanges: 'already done in main' }))
+    run.agent.script('ABC-2', commitAndMerge())
+    await run.start()
+    await run.startChain(PROJECT_ID)
+
+    await run.until(() => run.board.status('ABC-1') === 'Released', 'ABC-1 released')
+    await run.until(() => run.board.status('ABC-2') === 'Released', 'ABC-2 released')
+  })
+
   it('holds a merged task the tracker refuses to close, tries again every 30 s and goes on once it closes', async () => {
     run.board.add('ABC-1')
     run.board.add('ABC-2', 'ABC-1')

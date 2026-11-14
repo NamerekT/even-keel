@@ -4,6 +4,7 @@ import { ownsMilestone, type ChainRules } from '../chain/rules.js'
 import { MilestoneFiller } from '../chain/milestones.js'
 import { mergedCommits } from '../git/merged.js'
 import { runGit } from '../git/run.js'
+import type { PendingCloses } from './close.js'
 import { MergeCloser } from './closer.js'
 import type { MergeMarks } from './closes.js'
 import { worthBroadcast, type TrackerView } from './health.js'
@@ -42,6 +43,8 @@ export interface TrackerStartDeps {
   doneOf?: (project: string) => DoneMove | undefined
   /** The tasks the merge closer closed, of every tracker and kept in the state database (BTN-689); none — in memory. */
   marks?: MergeMarks
+  /** The merged pull requests' tasks whose close was refused, of every tracker (BTN-1163). */
+  pending?: PendingCloses
   /** The project's `fillMilestone` setting. */
   fillsMilestone: (project: string) => boolean
   /** The project's main branch, where a merged task branch lands. */
@@ -115,6 +118,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     done: (project) => deps.doneOf?.(project),
     onError: report,
     ...(deps.marks !== undefined && { marks: deps.marks }),
+    ...(deps.pending !== undefined && { pending: deps.pending }),
   })
 
   const parentCloser = new ParentCloser({

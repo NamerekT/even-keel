@@ -9,7 +9,9 @@ export const BACKLOG: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
 export const TODO: TaskStatus = { name: 'Todo', category: 'ToDo' }
 export const ACTIVE: TaskStatus = { name: 'In Progress', category: 'Active' }
 export const DONE: TaskStatus = { name: 'Done', category: 'Won' }
-const STATUSES = [BACKLOG, TODO, ACTIVE, DONE, { name: 'Canceled', category: 'Lost' }] as const
+/** A second done status, after the first: a source may choose it for its closes (BTN-554). */
+export const RELEASED: TaskStatus = { name: 'Released', category: 'Won' }
+const STATUSES = [BACKLOG, TODO, ACTIVE, DONE, RELEASED, { name: 'Canceled', category: 'Lost' }] as const
 
 /** The name the board's tracker goes under in `ADAPTERS` and in a project's `tracker`. */
 export const BOARD_TRACKER = 'board'

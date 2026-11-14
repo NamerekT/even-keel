@@ -48,6 +48,7 @@ import { issueLink } from '../tracker/model.js'
 import { readFresh } from '../tracker/health.js'
 import type { ServiceContext } from '../service.js'
 import { disabledBlock } from './accounts.js'
+import { wireClosing } from './closing.js'
 
 export type ChainContext = Pick<ServiceContext,
   | 'CHANGELOG_TIMEOUT_MS'
@@ -102,6 +103,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'noAccountFor'
   | 'occupantsOf'
   | 'packages'
+  | 'pendingCloses'
   | 'places'
   | 'planFor'
   | 'profileBlock'
@@ -112,6 +114,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'pullRefusals'
   | 'pullRequestsOn'
   | 'readerFor'
+  | 'readerMoves'
   | 'readerRules'
   | 'readers'
   | 'refreshProject'
@@ -236,6 +239,7 @@ export function wireKeepWarm(ctx: ChainContext): KeepWarm {
 }
 
 export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
+  const closing = wireClosing(ctx)
   return new Dispatcher(await loadChainState(ctx.db), {
     projects: () => Object.keys(ctx.configStore.current.projects),
     parallel: () => ctx.configStore.current.parallel,
@@ -446,9 +450,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       main: ctx.branchOf,
       on: ctx.pullRequestsOn,
       token: (project, target) => ctx.ciTokenOf(project, target)?.token ?? null,
-      complete: async (project, task) => {
-        await ctx.linkFor(project, task)?.run(async (tracker) => tracker.complete?.(task))
-      },
+      complete: closing.review,
       // The issue is named only to show the link on GitHub: a tracker that does not answer leaves the body as it is.
       closingRef: async (project, task) =>
         (await ctx.linkFor(project, task)?.run(async (tracker) => tracker.closingRef?.(task) ?? null).catch(() => null)) ?? null,
@@ -458,23 +460,8 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     }),
     unchanged: {
       changes: (project, workdir) => changesOf(runGit, workdir, ctx.branchOf(project)),
-      complete: async (project, task, comment) => {
-        const link = ctx.linkFor(project, task)
-        await link?.run(async (tracker) => tracker.complete?.(task))
-        // The task is done whatever becomes of the comment.
-        await link?.run(async (tracker) => tracker.comment?.(task, comment)).catch((error: unknown) => {
-          console.warn(`chain: ${task}: the comment on the task closed with no change did not reach the tracker: ${englishOf(noticeOf(error))}`)
-        })
-      },
-      accept: async (project, task, comment) => {
-        const link = ctx.linkFor(project, task)
-        if (link === undefined) throw new Error(`no tracker is linked to ${task}`)
-        await link.run(async (tracker) => {
-          if (tracker.comment === undefined || tracker.complete === undefined) throw new Error('the tracker cannot comment or close a task')
-          await tracker.comment(task, comment)
-          await tracker.complete(task)
-        })
-      },
+      complete: closing.unchanged,
+      accept: closing.accept,
     },
     main: mainCheckDeps({
       projects: () => Object.keys(ctx.configStore.current.projects),

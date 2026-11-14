@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { done, setup, todo } from '../chain/dispatcher.fixture.js'
+import { PendingCloses } from './close.js'
 import { MergeCloser } from './closer.js'
 import { MergeMarks, type MergeMark } from './closes.js'
 import { fakeTask } from './fixture.js'
@@ -236,6 +237,40 @@ describe('MergeCloser', () => {
     ])
     done = { status: 'Done', level: 'profile', fits: true }
     expect(await closer.sweep('ABC', ['ABC-1'])).toEqual(['ABC-1'])
+    expect(closer.failures('ABC')).toEqual([])
+  })
+
+  it('retries the refused close of a merged pull request with nothing of its branch in main, into the chosen status', async () => {
+    const pending = new PendingCloses()
+    let fail = true
+    const calls: [string, string | undefined][] = []
+    const closer = new MergeCloser({
+      merged: async () => [],
+      done: () => ({ status: 'Released', level: 'source', fits: true }),
+      complete: async (task, status) => {
+        calls.push([task, status])
+        if (fail) throw new Error('tracker: archived')
+        return true
+      },
+      pending,
+    })
+    const first = { code: 'tracker.completeRefused', params: { task: 'ABC-1', status: 'Released', level: 'source' }, detail: 'first' } as const
+    pending.note('ABC', 'ABC-1', first)
+    expect(closer.failures('ABC')).toEqual([first])
+    expect(await closer.sweep('ABC', ['ABC-1'])).toEqual([])
+    expect(closer.failures('ABC')).toEqual([{ ...first, detail: 'tracker: archived' }])
+    fail = false
+    expect(await closer.sweep('ABC', ['ABC-1'])).toEqual(['ABC-1'])
+    expect(calls).toEqual([['ABC-1', 'Released'], ['ABC-1', 'Released']])
+    expect(closer.failures('ABC')).toEqual([])
+    expect(pending.has('ABC', 'ABC-1')).toBe(false)
+  })
+
+  it('drops the pending close of a task no longer held', async () => {
+    const pending = new PendingCloses()
+    const closer = new MergeCloser({ merged: async () => [], complete: async () => true, pending })
+    pending.note('ABC', 'ABC-1', { code: 'tracker.completeRefused', params: { task: 'ABC-1' } })
+    await closer.sweep('ABC', [])
     expect(closer.failures('ABC')).toEqual([])
   })
 

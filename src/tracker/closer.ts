@@ -1,7 +1,7 @@
 import type { DoneMove } from '../chain/moves.js'
-import { notice, type Notice } from '../notice/notice.js'
+import { noticeOf, type Notice } from '../notice/notice.js'
+import { closeInto, type PendingCloses } from './close.js'
 import { MergeMarks } from './closes.js'
-import { errorText } from './link.js'
 
 export interface MergeCloserOptions {
   /** The own commits of the task's branches main has (`mergedCommits`); none — not merged. */
@@ -13,6 +13,8 @@ export interface MergeCloserOptions {
   onError?: (error: unknown) => void
   /** What was closed before, shared by the service's trackers and kept through a restart; none — this closer's own. */
   marks?: MergeMarks
+  /** The merged pull requests' tasks whose close was refused (BTN-1163), shared with the chain: retried here and shown with the closer's own. */
+  pending?: PendingCloses
 }
 
 export class MergeCloser {
@@ -24,7 +26,7 @@ export class MergeCloser {
   }
 
   failures(project: string): Notice[] {
-    return [...(this.refused.get(project)?.values() ?? [])]
+    return [...(this.refused.get(project)?.values() ?? []), ...(this.options.pending?.failures(project) ?? [])]
   }
 
   /**
@@ -47,32 +49,32 @@ export class MergeCloser {
         this.options.onError?.(error)
       }
     }
+    const pending = this.options.pending
+    pending?.keep(project, tasks)
     const closed: string[] = []
     for (const task of tasks) {
       const mark = this.marks.of(project, task)
-      if (mark !== undefined && !reopened.has(task)) continue
+      // A merged pull request's task whose close was refused is closed again whatever main has of its branch (BTN-1163).
+      const pulled = pending?.has(project, task) === true
+      if (mark !== undefined && !reopened.has(task) && !pulled) continue
       try {
         const commits = await this.options.merged(project, task)
-        if (commits.length === 0 || (mark !== undefined && commits.every((commit) => mark.includes(commit)))) {
+        if (!pulled && (commits.length === 0 || (mark !== undefined && commits.every((commit) => mark.includes(commit))))) {
           refused.delete(task)
-          continue
-        }
-        const done = this.options.done?.(project)
-        if (done !== undefined && !done.fits) {
-          refused.set(task, notice('statusMove.notDone', { task, status: done.status, level: done.level }))
           continue
         }
         let moved: boolean
         try {
-          moved = await (done === undefined ? this.options.complete(task) : this.options.complete(task, done.status))
+          const complete = (status?: string) => (status === undefined ? this.options.complete(task) : this.options.complete(task, status))
+          moved = await closeInto(task, this.options.done?.(project), complete, { ...(this.options.onError !== undefined && { onRefused: this.options.onError }) })
         } catch (error) {
-          const named = done === undefined ? {} : { status: done.status, level: done.level }
-          refused.set(task, notice('tracker.completeRefused', { task, ...named }, { detail: errorText(error) }))
-          this.options.onError?.(error)
+          if (pulled) pending!.note(project, task, noticeOf(error))
+          else refused.set(task, noticeOf(error))
           continue
         }
         refused.delete(task)
-        this.marks.mark(project, task, commits)
+        pending?.clear(project, task)
+        if (commits.length > 0) this.marks.mark(project, task, commits)
         if (moved) closed.push(task)
       } catch (error) {
         this.options.onError?.(error)

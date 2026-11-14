@@ -219,7 +219,7 @@ export class Reviews {
     this.refused.set(task, session.lastReplyAt)
     this.deps.log(`review: ${task}: no pull request opened, its branch has nothing beyond ${this.deps.mainBranch(task)} and its worktree is clean; the task is done`)
     try {
-      await this.review!.complete(project, task)
+      await this.review!.complete(project, task, false)
     } catch (error) {
       this.host.hold(chain, notice('review.notCompleted', { task }, { cause: noticeOf(error) }))
       return
@@ -309,7 +309,7 @@ export class Reviews {
 
   private async complete(project: string, task: string): Promise<void> {
     try {
-      await this.review!.complete(project, task)
+      await this.review!.complete(project, task, true)
       this.deps.log(`review: ${task} is moved to done in the tracker`)
     } catch (error) {
       this.deps.log(`review: ${task} was not moved to done in the tracker: ${englishOf(noticeOf(error))}`)

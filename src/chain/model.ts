@@ -310,8 +310,11 @@ export interface ReviewDeps {
    */
   open: (project: string, task: string, session: HandoffSession) => Promise<(Opened & { remote: string }) | null>
   check: (project: string, pull: PullRequest) => Promise<ReviewCheck>
-  /** Moves the task of a merged pull request, or of one with nothing to open, to Done in the tracker; one closed already is fine. */
-  complete: (project: string, task: string) => Promise<void>
+  /**
+   * Moves the task of a merged pull request (`merged`), or of one with nothing to open, to its done status in the
+   * tracker; one closed already is fine. A merged one's refusal is kept and retried with the merge closer's (BTN-1163).
+   */
+  complete: (project: string, task: string, merged: boolean) => Promise<void>
 }
 
 /** Out of PR mode, a task whose session marks it `NO CHANGES:` (EKR-10): nothing to merge, so no merge closes it. */

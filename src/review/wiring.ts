@@ -37,7 +37,7 @@ export interface ReviewWiring {
   on: (project: string) => boolean
   /** The token for the remote's forge (`ciToken`); `null` — no profile has one. */
   token: (project: string, target: CiTarget) => string | null
-  complete: (project: string, task: string) => Promise<void>
+  complete: ReviewDeps['complete']
   /** How the task's tracker names its issue to a forge (`TaskSource.closingRef`); `null` — it does not. */
   closingRef?: (project: string, task: string) => Promise<string | null>
   /** Where a token the forge refused to open a pull request with is told, for the profile's card (EKR-9). */

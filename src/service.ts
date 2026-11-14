@@ -12,6 +12,7 @@ import { KeySpend, readOpenRouterKey, saveKeySpend } from './account/spend.js'
 import { keyVendor } from './opencode/home.js'
 import { loadSavedLimits } from './limits/saved.js'
 import { loadRareEvents, pruneRareEvents, rareEvents, saveRareEvent } from './sessions/rare.js'
+import { PendingCloses } from './tracker/close.js'
 import { loadMergeMarks, MergeMarks, saveMergeMark } from './tracker/closes.js'
 import { TaskRuns, type TaskRun } from './sessions/runs.js'
 import { dropRunImport, dropTaskRun, loadRunImports, loadTaskRuns, saveTaskRun } from './sessions/runs-store.js'
@@ -258,6 +259,7 @@ const context = {
   get managementKeys() { return managementKeys },
   get mcpPort() { return mcpPort },
   get mergeMarks() { return mergeMarks },
+  get pendingCloses() { return pendingCloses },
   set mcpPort(value: typeof mcpPort) { mcpPort = value },
   get models() { return models },
   get monitor() { return monitor },
@@ -419,6 +421,8 @@ const savedWindows = await loadContextWindows(db)
 const savedSessionWindows = await loadSessionWindows(db)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
 const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add(`the close of ${mark.task}`, saveMergeMark(db, mark)))
+/** The merged pull requests' tasks whose close the tracker refused, retried by the merge closers (BTN-1163). */
+const pendingCloses = new PendingCloses()
 /** What each task's sessions run on, set on its card (BTN-983), and the projects whose run labels are still to be moved. */
 const taskRuns = new TaskRuns(await loadTaskRuns(db), await loadRunImports(db), {
   save: (run) => writes.add(`the run of ${run.task}`, saveTaskRun(db, run)),

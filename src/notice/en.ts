@@ -19,16 +19,17 @@ export const en = {
     : 'For this chain account, turn off additional paid usage or set its monthly budget in GitHub.',
   'account.overageSettings': () => 'Provider spending settings',
   'tracker.closePending': () => 'tracker refused closure',
-  'tracker.completeRefused': (p: { task: string; status?: string; level?: MoveLevel }) =>
+  // `held` — no retry of Even Keel's own: the cause of a paused chain or a refused "Accept as answer" (BTN-1163).
+  'tracker.completeRefused': (p: { task: string; status?: string; level?: MoveLevel; held?: true }) =>
     p.status === undefined
-      ? `${p.task} is merged, but the tracker refused to close it. Fill the required field or close the task in the tracker yourself; Even Keel retries by itself. Tracker response`
-      : `${p.task} is merged, but the tracker refused to move it to "${p.status}". Fill the required field, pick another status in ${MOVE_LABELS.done} or close the task yourself; Even Keel retries by itself. Tracker response`,
+      ? `${p.task} ${p.held ? 'is done' : 'is merged'}, but the tracker refused to close it. Fill the required field or close the task in the tracker yourself${p.held ? '' : '; Even Keel retries by itself'}. Tracker response`
+      : `${p.task} ${p.held ? 'is done' : 'is merged'}, but the tracker refused to move it to "${p.status}". Fill the required field, pick another status in ${MOVE_LABELS.done} or close the task yourself${p.held ? '' : '; Even Keel retries by itself'}. Tracker response`,
   'statusMove.refused': (p: { task: string; status: string; setting: MoveWhen; level: MoveLevel }) =>
     `The tracker did not move ${p.task} to "${p.status}" (${MOVE_LABELS[p.setting]}). The chain goes on; pick another status in ${MOVE_LABELS[p.setting]} or move the task yourself. Tracker response`,
   'statusMove.outside': (p: { task: string; status: string; setting: MoveWhen; level: MoveLevel }) =>
     `${p.task} stayed where it was: "${p.status}" of ${MOVE_LABELS[p.setting]} is out of the chain by its rules, and the chain would let the task go at once. Pick a status in the chain.`,
-  'statusMove.notDone': (p: { task: string; status: string; level: MoveLevel }) =>
-    `${p.task} is merged, but stays open: the chain rules do not take "${p.status}" of ${MOVE_LABELS.done} for done. Pick a done status there. Even Keel retries automatically.`,
+  'statusMove.notDone': (p: { task: string; status: string; level: MoveLevel; held?: true }) =>
+    `${p.task} ${p.held ? 'is done' : 'is merged'}, but stays open: the chain rules do not take "${p.status}" of ${MOVE_LABELS.done} for done. Pick a done status there${p.held ? ' or close the task yourself.' : '. Even Keel retries automatically.'}`,
   'statusMoves.outside': (p: { status: string; setting: MoveWhen }) =>
     `"${p.status}" of ${MOVE_LABELS[p.setting]} is out of the chain by the chain rules: the chain would let a task go as soon as it moved there. Pick a status in the chain.`,
   'statusMoves.notDone': (p: { status: string }) => `The chain rules do not take "${p.status}" of ${MOVE_LABELS.done} for done: the chain would never see a task there closed. Pick a done status.`,

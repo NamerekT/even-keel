@@ -46,6 +46,7 @@ type TrackersContext = Pick<ServiceContext,
   | 'liveView'
   | 'mergeMarks'
   | 'ownerOfReader'
+  | 'pendingCloses'
   | 'packages'
   | 'parentsByProject'
   | 'postedQuestions'
@@ -156,6 +157,7 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
           return plan === undefined ? undefined : doneMove(plan.rules, plan.profile, plan.source)
         },
         marks: ctx.mergeMarks,
+        pending: ctx.pendingCloses,
         fillsMilestone: (reader) => ctx.configStore.current.settings[ctx.ownerOfReader(reader)]?.fillMilestone ?? false,
         mainBranch: (reader) => ctx.branchOf(ctx.ownerOfReader(reader)),
         readKey: (reader) => readKeyOf(ctx.readers(), reader),
