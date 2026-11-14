@@ -1,4 +1,6 @@
 .project__head {
+  /* The chain's strip under its buttons; the head steps its lines past it. */
+  --run-strip: 20px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -250,13 +252,30 @@
 }
 
 .project__run {
-  --strip-height: 20px;
+  --strip-height: var(--run-strip);
   flex: none;
   margin-left: auto;
 }
 
 .project__run .project__buttons {
   width: 100%;
+}
+
+/* On a desktop the buttons stand level with the head's line and the strip hangs below them out of the line's height:
+   the head keeps the room for it, and a line under the head steps down past it (BTN-1162). */
+@media (min-width: 761px) {
+  .project__run {
+    margin-bottom: calc(-1 * var(--run-strip));
+  }
+
+  .project__head:has(> .project__controls:last-child) {
+    padding-bottom: var(--run-strip);
+  }
+
+  .project__controls + .project__wait,
+  .project__controls + .project__error {
+    margin-top: var(--run-strip);
+  }
 }
 
 .project__run .project__buttons > .seg-button {
