@@ -77,7 +77,9 @@ label you put on yourself ([the chain](features.md#the-chain)).
   ([Protection](features.md#protection)).
 - **It reaches the network and Even Keel.** A request from this machine reaches Even Keel's page without a token,
   so a session can change settings, answer questions, start a chain or write to another project's tasks the way the
-  page does.
+  page does. The Protection group **Requests to Even Keel's address** refuses a shell command that sends such a request
+  (`curl`, `wget`, `Invoke-WebRequest`, `node` or `python` with the address). It is a pattern too: a script the session
+  wrote or an address built in a string gets past it.
 - **Its work leaves the machine without a person looking.** Without PR mode a session merges its branch into the main
   branch itself and Even Keel pushes it to every remote. In PR mode Even Keel pushes the task's branch and opens a pull
   request, and CI runs on that branch. A change to CI workflows, hooks, `CLAUDE.md`, `AGENTS.md`, skills or package

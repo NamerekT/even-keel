@@ -2,11 +2,12 @@
 
 ## Protection
 
-`src/sessions/protection.ts` defines twelve default deny groups. `protection` has `disabled` (group ids), `claude`
+`src/sessions/protection.ts` defines thirteen default deny groups. `protection` has `disabled` (group ids), `claude`
 (permission strings), `codex` (arrays of literal command-prefix arguments), `copilot` (tool rules), and `opencode`
 (bash command glob patterns). Fields inherit
 from the shared level; a project's field replaces the shared one, including an empty list. Group ids are `forcePush`,
-`mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, and one per tracker (`TRACKER_GROUPS`):
+`mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, `ownAddress` ("Even Keel's address" below),
+and one per tracker (`TRACKER_GROUPS`):
 `deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`, `deleteForgejo` (BTN-476; a new group needs
 no migration: `disabled` names only the groups turned off). Sessions → Protection
 edits them. New launches read current values; running processes are left alone. These are pattern guardrails, not an
@@ -116,6 +117,26 @@ is not a call. Only for a command that calls git the hook asks `GET /api/session
 Even Keel not answering leaves the call to the native rule. Not caught anywhere: git run by a script or a program the
 session wrote, a shell alias or function, a renamed copy of the binary, `eval` of a built string. Unit tests only
 ([unverified.md](../unverified/sessions.md#git-refused-in-a-project-without-git-btn-1052)).
+
+### Even Keel's address (BTN-1127)
+
+`guard` (`src/guard.ts`) lets a request from this machine without `Origin` through without the page's token: the hooks
+and hand sessions go that way. A chain session is such a process too, so under someone else's text it could change
+Protection or `execution.codex`, answer a question or approve a tool call, start a chain, or create a task of another
+project through `/tasks`. The group `ownAddress` (on by default, like every new group) has no native rule: Codex's and
+Copilot's prefixes cannot see an address in the middle of a command. The `agent-bridge` hook does it for every agent,
+from 1.2.0: `git-ban.mjs` (and OpenCode's plugin) runs `addressRefusal` (`hooks/addressban.mjs`) after the git ban.
+`reachesService` wants both the address and a network tool: the address is `localhost`, `127.x.x.x`, `[::1]`,
+`0.0.0.0` or the host of the hook's `EVEN_KEEL_URL`, with its port, or the variable `EVEN_KEEL_URL` itself; the tool
+is a word `curl`, `wget`, `Invoke-WebRequest`/`iwr`, `Invoke-RestMethod`/`irm`, `http`/`https`/`xh`, `nc`, `ncat`,
+`telnet`, `node`, `python`, `py`, `deno`, `bun` anywhere in the command, or `fetch(`, `WebClient`, `HttpClient`,
+`urllib`, `requests.`, `http.get`/`http.request`, `socket`. `grep 127.0.0.1:4747` alone goes through. Only then the
+hook asks `/check`, whose answer has `ownAddress: true` while the project's group is on (`guardsOwnAddress`), and
+denies. The hooks' own requests run in their process, not through the session's shell, and are not touched. Not
+caught: a script or program the session wrote, an address built in a string, the machine's own network address, the
+Tailscale or other proxy name, `npm run` of a script that sends the request. The real fence is a separate OS account
+or machine (`docs/guide/security.md`); a session key on the API is BTN-1117's follow-up. Unit tests only
+([unverified.md](../unverified/sessions.md#even-keels-address-refused-btn-1127)).
 
 ## Project rules for every agent (BTN-340, `src/agent/projectRules.ts`)
 

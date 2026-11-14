@@ -41,6 +41,7 @@ import { sharedFile } from '../sessions/shareFile.js'
 import { deliveredMail, type SessionMail } from '../sessions/mail.js'
 import { mailFor } from '../sessions/mailRelay.js'
 import { noteFileOf, noteWritten } from '../sessions/note.js'
+import { guardsOwnAddress } from '../sessions/protection.js'
 import { root, source, stateDirOf } from '../locations.js'
 import { profileFor } from '../profiles/model.js'
 import { cleanRules, projectRules, rulesWith } from '../profiles/rules.js'
@@ -663,7 +664,14 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const settings = ctx.configStore.current.settings[run.project]
       const views = ctx.ciWatches.shown(run.project).map((watch) => watch.view)
       const commands = settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
-      return { commands, branch: ctx.branchOf(run.project), standards: settings?.standards ?? [], ...(isPlain(ctx.configStore.current, run.project) ? { git: false as const } : {}) }
+      const protection = settings?.protection ?? ctx.configStore.current.protection
+      return {
+        commands,
+        branch: ctx.branchOf(run.project),
+        standards: settings?.standards ?? [],
+        ...(isPlain(ctx.configStore.current, run.project) ? { git: false as const } : {}),
+        ...(guardsOwnAddress(protection) ? { ownAddress: true as const } : {}),
+      }
     },
     checkReport: (sessionId, report) => {
       const run = handoffsOf(ctx.launches, sessionId)

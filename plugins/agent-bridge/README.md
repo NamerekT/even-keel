@@ -42,6 +42,10 @@ The refusal is an explicit `permissionDecision: deny`, which also blocks nested 
 
 A project added to Even Keel "Without git" works in a folder that may still be a repository or lie inside someone else's. Its sessions get the agent's own deny rules on git from Even Keel; `git-ban.mjs` on `PreToolUse` of the shell tools refuses what those rules miss: git in any part of a compound command (`cd sub && git status`), behind `env`, `sudo` and the like, by its path, and in the text given to another shell (`bash -c "git …"`). A command that only names git (`grep git`, `cat .git/config`) goes through. The hook asks Even Keel (`/api/sessions/<id>/check`, `git: false`) only for a command that calls git, and stays silent for a project with git, a session Even Keel did not start and without Even Keel.
 
+## Even Keel's own address
+
+Even Keel lets a request from its own machine through without the page's token, so a chain session could change Protection or answer for the user with a plain `curl`. While the project's Protection group "Requests to Even Keel's address" is on, the same `git-ban.mjs` (and OpenCode's plugin) refuses a shell command that names the service's address — `localhost`, `127.x.x.x`, `[::1]`, `0.0.0.0` or the host of `EVEN_KEEL_URL` with its port, or `EVEN_KEEL_URL` itself — together with a network tool (`curl`, `wget`, `Invoke-WebRequest`, `irm`, `node`, `python` and the like, `fetch(`, `WebClient`). `grep 127.0.0.1:4747` alone goes through. The hook asks Even Keel (`/check`, `ownAddress: true`) only for such a command. A script the session wrote or an address built in a string gets past it: a guardrail, not a sandbox.
+
 ## Messages from the chat
 
 A message the user writes from Even Keel's chat window to a session in the middle of a turn waits in Even Keel's mailbox; the fourth hook, `mailbox.mjs`, takes it (`POST /api/sessions/<id>/mail` with the event) and hands it to the session without stopping it:

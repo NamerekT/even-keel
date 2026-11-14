@@ -8,10 +8,16 @@ export interface Protection {
 }
 
 export const DEFAULT_PROTECTION: Protection = { disabled: [], claude: [], codex: [], copilot: [], opencode: [] }
-export const PROTECTION_GROUPS = ['forcePush', 'mirrorPush', 'deleteRemote', 'deleteRoot', 'deleteHome', 'deleteParent', 'deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira', 'deleteForgejo'] as const
+export const PROTECTION_GROUPS = ['forcePush', 'mirrorPush', 'deleteRemote', 'deleteRoot', 'deleteHome', 'deleteParent', 'ownAddress', 'deleteHuly', 'deleteGithub', 'deleteGitlab', 'deleteLinear', 'deleteJira', 'deleteForgejo'] as const
 export type ProtectionGroup = (typeof PROTECTION_GROUPS)[number]
 /** Each tracker's own group, by the adapter's key: the MCP gateway refuses the delete calls of its server (BTN-541). */
 export const TRACKER_GROUPS: Readonly<Record<string, ProtectionGroup>> = { huly: 'deleteHuly', github: 'deleteGithub', gitlab: 'deleteGitlab', linear: 'deleteLinear', jira: 'deleteJira', forgejo: 'deleteForgejo' }
+
+/**
+ * A shell call's request to Even Keel's own address is refused (BTN-1127): the service lets a request from this
+ * machine through without the page's token. The `agent-bridge` hook enforces it for every agent; no native rule.
+ */
+export const guardsOwnAddress = (value: Protection): boolean => !value.disabled.includes('ownAddress')
 
 const wordsOf = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/)
 
@@ -86,7 +92,8 @@ const gitBan = (): Rules => {
  */
 export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes: readonly string[] = [], branch?: string, hulyServers: readonly string[] = ['plugin_huly_huly', 'huly'], noGit = false): Rules {
   const refspecs = (forms: (branch: string) => string[], copilot = false) => refspec(branch === undefined ? [] : forms(branch), remotes, copilot)
-  // Only Huly has native rules too; the other trackers' deletes are refused by the gateway alone (native ones: BTN-611).
+  // Only Huly has native rules too; the other trackers' deletes are refused by the gateway alone (native ones: BTN-611),
+  // and Even Keel's address by the agent-bridge hook alone.
   const gateway = (): Rules => ({ claude: [], codex: [], copilot: [], opencode: { bash: [], tools: [] } })
   const groups: Record<ProtectionGroup, Rules> = {
     forcePush: merge(push(['--force', '--force-with-lease', '-f'], remotes), refspecs(main => [`+${main}`, `+HEAD:${main}`, `+${main}:${main}`, `+${main}:refs/heads/${main}`, `+HEAD:refs/heads/${main}`], true)),
@@ -95,6 +102,7 @@ export function protectionRules(value: Protection = DEFAULT_PROTECTION, remotes:
     deleteRoot: merge(remove(['/', 'C:', 'D:']), removeSpelled(['C:\\', 'D:\\', 'C:/', 'D:/', '/*'])),
     deleteHome: merge(remove(['~', '$HOME']), removeSpelled(['~/', '~/*', '$HOME/', '$HOME/*'])),
     deleteParent: merge(remove(['..']), removeSpelled(['../', '../*'])),
+    ownAddress: gateway(),
     deleteGithub: gateway(),
     deleteGitlab: gateway(),
     deleteLinear: gateway(),

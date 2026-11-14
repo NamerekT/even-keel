@@ -53,6 +53,11 @@ uses the shared context window setting.
 deny rules. They start enabled. A project can turn a group off, add native rules, or use shared protection. Changes
 apply when a session starts; running sessions keep their existing settings.
 
+**Requests to Even Keel's address** refuses a shell command that sends a request to Even Keel itself: Even Keel lets a
+request from its own machine through without the page's token, so a session could otherwise change these switches or
+answer for you ([Security](security.md#what-a-session-may-do)). It holds for every agent, through the `agent-bridge`
+plugin. Turn it off for a project whose tasks work with Even Keel's API.
+
 **Deleting tracker records** has a switch per tracker: Huly, GitHub, GitLab, Linear, Jira and Forgejo. Even Keel's MCP gateway
 refuses the calls of that tracker's MCP server that delete a record, so this holds for every agent, Codex included;
 it covers tracker servers that reach the session through the project's packages. Jira's server runs every

@@ -373,6 +373,24 @@ describe.each(Object.entries(agents))("the git ban on %s input", (_agent, input)
     expect(await run("git-ban.mjs", shell(session, "git status"))).toEqual({ code: 0, stdout: "" });
     expect(await run("git-ban.mjs", shell(session, "git status"), "http://127.0.0.1:9")).toEqual({ code: 0, stdout: "" });
   });
+
+  it("denies a request to Even Keel's own address while the project's group is on, and only then", async () => {
+    const session = sessionOf();
+    const request = `cd sub && curl -s -X POST ${url}/api/chain/start`;
+    expect(await run("git-ban.mjs", shell(session, request))).toEqual({ code: 0, stdout: "" });
+    answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main" });
+    expect(await run("git-ban.mjs", shell(session, request))).toEqual({ code: 0, stdout: "" });
+    answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main", ownAddress: true });
+    for (const tool of ["Bash", "PowerShell"]) {
+      const denied = await run("git-ban.mjs", shell(session, request, tool));
+      expect(JSON.parse(denied.stdout).hookSpecificOutput).toEqual({
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: expect.stringMatching(/Even Keel's own address/),
+      });
+    }
+    expect(await run("git-ban.mjs", shell(session, `grep -rn "${url}" docs`))).toEqual({ code: 0, stdout: "" });
+  });
 });
 
 // OpenCode's plugin as OpenCode calls it, in its own process: the hooks with the call and their mutable output, the
@@ -461,6 +479,14 @@ describe("the OpenCode plugin", () => {
     await expect(shell(session, "grep -r git .")).resolves.toBeUndefined();
     answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main" });
     await expect(shell(session, "cd sub && git status")).resolves.toBeUndefined();
+  });
+
+  it("refuses a request to Even Keel's own address while the project's group is on", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main", ownAddress: true });
+    await expect(shell(session, `curl -X POST ${url}/api/chain/start`)).rejects.toThrow(/Even Keel's own address/);
+    answers.set(`/api/sessions/${session}/check`, { commands: [], branch: "main" });
+    await expect(shell(session, `curl -X POST ${url}/api/chain/start`)).resolves.toBeUndefined();
   });
 
   it("lets the merge go for a session Even Keel did not start, without Even Keel, and for other tools", async () => {
