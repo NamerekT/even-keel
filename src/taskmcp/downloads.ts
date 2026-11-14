@@ -20,9 +20,10 @@ class TooLarge extends Error {}
  * The `## Attachments` lines of `task_read` (BTN-923): a built-in file by its own path; a file the tracker serves
  * (`url: null`) downloaded into `<folder>/.temp/task-files/<KEY>/` and named by that copy's path; a public one by its
  * `url`. A file over `limit` bytes, one with no folder to go to and one that failed to download get a line that says so,
- * never an error: the card is the answer.
+ * never an error: the card is the answer. A file only outsiders' comments carry (BTN-1122) is left out altogether.
  */
-export async function attachmentLines(key: string, attachments: readonly TaskAttachment[], source: FileSource, folder: string | null, limit: number): Promise<string[]> {
+export async function attachmentLines(key: string, all: readonly TaskAttachment[], source: FileSource, folder: string | null, limit: number): Promise<string[]> {
+  const attachments = all.filter((each) => each.outsider !== true)
   const counts = new Map<string, number>()
   for (const each of attachments) counts.set(safeName(each.name), (counts.get(safeName(each.name)) ?? 0) + 1)
   const dir = folder === null ? null : join(folder, DOWNLOADS, safeName(key))

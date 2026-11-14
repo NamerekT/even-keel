@@ -1,4 +1,4 @@
-import type { TaskRef, TrackerCard } from '../tracker/card.js'
+import type { TaskAttachment, TaskRef, TrackerCard } from '../tracker/card.js'
 import { PRIORITIES, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TrackerPlace } from '../tracker/source.js'
 import { GitlabUploads } from './uploads.js'
@@ -94,11 +94,20 @@ export function toTrackerTask(issue: GitlabIssue, links: GitlabLink[], projects:
   }
 }
 
-export function toCard(issue: GitlabIssue, links: GitlabLink[], notes: GitlabNote[], projects: ProjectMap, hierarchy: Hierarchy = EMPTY_HIERARCHY): TrackerCard {
+/** `outsiders` — the ids of notes whose authors are not trusted (BTN-1122): the card marks them and the files only they carry. */
+export function toCard(issue: GitlabIssue, links: GitlabLink[], notes: GitlabNote[], projects: ProjectMap, hierarchy: Hierarchy = EMPTY_HIERARCHY, outsiders: ReadonlySet<number> = new Set()): TrackerCard {
   const task = toTrackerTask(issue, links, projects, hierarchy)
   const uploads = new GitlabUploads(projects.web, issue.web_url.replace(/\/(?:-\/)?(?:issues|work_items)\/\d+\/?$/, ''), issue.project_id)
   const comments = notes.filter((note) => !note.system).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.id - b.id)
-  const attachments = new Map([issue.description ?? '', ...comments.map((note) => note.body)].flatMap((text) => uploads.files(text)).map((file) => [file.file, file]))
+  const sources = [{ text: issue.description ?? '', outsider: false }, ...comments.map((note) => ({ text: note.body, outsider: outsiders.has(note.id) }))]
+  const attachments = new Map<string, TaskAttachment>()
+  for (const source of sources) {
+    for (const file of uploads.files(source.text)) {
+      const known = attachments.get(file.file)
+      if (known === undefined) attachments.set(file.file, source.outsider ? { ...file, outsider: true } : file)
+      else if (!source.outsider) delete known.outsider
+    }
+  }
   const refOf = (ref: GitlabRef): TaskRef => ({ id: projects.idOf(ref), title: ref.title, status: gitlabStatus(ref.state) })
   const estimate = gitlabEstimate(issue)
   return {
@@ -106,7 +115,10 @@ export function toCard(issue: GitlabIssue, links: GitlabLink[], notes: GitlabNot
     labels: task.labels, milestone: task.milestone, parent: hierarchy.parent === null ? null : refOf(hierarchy.parent),
     blockedBy: links.filter((link) => link.link_type === 'is_blocked_by').map(refOf),
     blocks: links.filter((link) => link.link_type === 'blocks').map(refOf), related: links.filter((link) => link.link_type === 'relates_to').map(refOf),
-    comments: comments.map((note) => ({ author: note.author?.username ?? null, at: Date.parse(note.created_at), text: uploads.rewrite(note.body, task.id) })),
+    comments: comments.map((note) => ({
+      author: note.author?.username ?? null, at: Date.parse(note.created_at), text: uploads.rewrite(note.body, task.id),
+      ...(outsiders.has(note.id) ? { outsider: true as const } : {}),
+    })),
     attachments: [...attachments.values()],
     ...(estimate === null ? {} : { estimate }),
   }

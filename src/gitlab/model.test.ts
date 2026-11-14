@@ -35,6 +35,14 @@ describe('GitLab issue model', () => {
     expect(card.comments.map((each) => each.text)).toEqual(['Note 1', 'Note 3'])
   })
 
+  it('marks outsiders’ notes and the files only they carry', () => {
+    const upload = (name: string) => `![${name}](/uploads/0123456789abcdef0123456789abcdef/${name})`
+    const notes = [note(1, { body: upload('shared.png') }), note(2, { body: `${upload('shared.png')} ${upload('theirs.png')}` })]
+    const card = toCard(issue(), [], notes, projects, undefined, new Set([2]))
+    expect(card.comments.map((each) => each.outsider)).toEqual([undefined, true])
+    expect(card.attachments.map((each) => [each.name, each.outsider])).toEqual([['shared.png', undefined], ['theirs.png', true]])
+  })
+
   it('maps projects by GUID and keys without losing subgroups or confusing another host', () => {
     expect(projects.pathOf('project-id')).toBe('group/subgroup/app')
     expect(projects.pathOfKey('APP')).toBe('group/subgroup/app')

@@ -39,4 +39,12 @@ describe('forgejo model', () => {
       { author: null, at: Date.parse('2026-10-01T00:00:03Z'), text: 'Comment 3' },
     ])
   })
+
+  it('marks outsiders’ comments and the files only they carry', () => {
+    const asset = (uuid: string) => ({ uuid, name: `${uuid}.png`, size: 10 })
+    const comments = [comment(1, { assets: [asset('shared')] }), comment(2, { assets: [asset('shared'), asset('theirs')] })]
+    const card = toCard(issue({ assets: [asset('own')] }), [], [], comments, repos, new Set([2]))
+    expect(card.comments.map((each) => each.outsider)).toEqual([undefined, true])
+    expect(card.attachments.map((each) => [each.file, each.outsider])).toEqual([['own', undefined], ['shared', undefined], ['theirs', true]])
+  })
 })

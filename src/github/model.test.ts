@@ -154,8 +154,8 @@ describe('github card', () => {
       raw({
         comments: {
           nodes: [
-            { author: null, createdAt: '2026-10-02T10:00:00Z', body: 'second' },
-            { author: { login: 'octocat' }, createdAt: '2026-10-01T10:00:00Z', body: 'first' },
+            { author: null, authorAssociation: 'NONE', createdAt: '2026-10-02T10:00:00Z', body: 'second' },
+            { author: { login: 'octocat' }, authorAssociation: 'OWNER', createdAt: '2026-10-01T10:00:00Z', body: 'first' },
           ],
         },
       }),
@@ -165,5 +165,11 @@ describe('github card', () => {
       { author: 'octocat', at: Date.parse('2026-10-01T10:00:00Z'), text: 'first' },
       { author: null, at: Date.parse('2026-10-02T10:00:00Z'), text: 'second' },
     ])
+  })
+
+  it('marks the comments the trust rule refuses', () => {
+    const node = (login: string, authorAssociation: string) => ({ author: { login }, authorAssociation, createdAt: '2026-10-01T10:00:00Z', body: login })
+    const card = toCard(raw({ comments: { nodes: [node('owner', 'OWNER'), node('stranger', 'NONE')] } }), repos, (comment) => comment.authorAssociation === 'OWNER')
+    expect(card.comments.map((each) => [each.author, each.outsider])).toEqual([['owner', undefined], ['stranger', true]])
   })
 })

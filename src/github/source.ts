@@ -92,7 +92,7 @@ const ISSUE_CARD = `query($owner: String!, $name: String!, $number: Int!) {
       blocking(first: 50) { nodes { ${CARD_REF} } }
       labels(first: 50) { nodes { name } }
       milestone { number title dueOn }
-      comments(first: 100) { nodes { author { login } createdAt body } }
+      comments(first: 100) { nodes { ${AUTHOR} createdAt body } }
     }
   }
 }`
@@ -317,7 +317,7 @@ export async function connectGithub(
 
     async card(id) {
       const { issue } = await issueOf<GithubCardIssue>(id, ISSUE_CARD)
-      return toCard(issue, repos)
+      return toCard(issue, repos, trusted)
     },
 
     async complete(id) {

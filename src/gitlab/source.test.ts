@@ -82,12 +82,22 @@ describe('GitLab task source', () => {
     expect(await source.commentsAfter!('APP-1', '1')).toEqual([])
   })
 
-  it('keeps untrusted comments on the user-facing card, but not system notes', async () => {
-    const { source } = await connect([{ body: issue() }, { body: [linked('blocks', 2)] }, { body: [note(1, { author: { id: 30, username: 'outsider' } }), note(2, { system: true })] }, NO_HIERARCHY])
+  it('keeps untrusted comments on the user-facing card, marked, but not system notes', async () => {
+    const notes = [
+      note(1, { author: { id: 30, username: 'outsider' } }), note(2, { system: true }), note(3, { author: { id: 31, username: 'reporter' } }),
+      note(4), note(5, { author: { id: 32, username: 'bot' } }), note(6, { author: null }), note(7, { author: { id: 30, username: 'outsider' } }),
+    ]
+    const { source, calls, remaining } = await connect([
+      { body: issue() }, { body: [linked('blocks', 2)] }, { body: notes }, NO_HIERARCHY,
+      { status: 404, body: {} }, { body: { access_level: 20 } }, { body: { access_level: 10 } },
+    ])
     const card = await source.card!('APP-1')
     expect(card.blocks[0]!.id).toBe('APP-2')
-    expect(card.comments).toHaveLength(1)
-    expect(card.comments[0]!.author).toBe('outsider')
+    expect(card.comments.map((each) => [each.author, each.outsider])).toEqual([
+      ['outsider', true], ['reporter', undefined], ['example-user', undefined], ['bot', true], [null, true], ['outsider', true],
+    ])
+    expect(calls.filter((call) => call.url.includes('/members/all/'))).toHaveLength(3)
+    expect(remaining()).toBe(0)
   })
 
   it('copies a milestone only into an empty issue of the same project', async () => {

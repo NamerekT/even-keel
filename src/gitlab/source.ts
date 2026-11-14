@@ -50,29 +50,43 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     })
   }
 
+  /** Whose notes on the task's project reach a session: the token's owner and Reporter or above; each author is asked once. */
+  function noteTrust(path: string): (note: GitlabNote) => Promise<boolean> {
+    const levels = new Map<number, boolean>()
+    return async (note) => {
+      if (note.author == null) return false
+      if (note.author.id === viewer.id) return true
+      if (!levels.has(note.author.id)) {
+        let level = 0
+        try {
+          level = (await api.rest<{ access_level: number }>(`${projectBase(path)}/members/all/${note.author.id}`)).access_level
+        } catch (error) {
+          if (!(error instanceof TrackerNotFound) && !(error instanceof GitlabHttpError && error.status === 403)) throw error
+        }
+        levels.set(note.author.id, level >= 20)
+      }
+      return levels.get(note.author.id)!
+    }
+  }
+
   async function trustedNotes(id: string, notes: GitlabNote[]): Promise<GitlabNote[]> {
     const path = addressOf(id).path
-    const levels = new Map<number, boolean>()
+    const trusted = noteTrust(path)
     const passed: GitlabNote[] = []
     for (const note of notes) {
       if (note.system) continue
-      let trusted = note.author?.id === viewer.id
-      if (!trusted && note.author != null) {
-        if (!levels.has(note.author.id)) {
-          let level = 0
-          try {
-            level = (await api.rest<{ access_level: number }>(`${projectBase(path)}/members/all/${note.author.id}`)).access_level
-          } catch (error) {
-            if (!(error instanceof TrackerNotFound) && !(error instanceof GitlabHttpError && error.status === 403)) throw error
-          }
-          levels.set(note.author.id, level >= 20)
-        }
-        trusted = levels.get(note.author.id) ?? false
-      }
-      if (trusted) passed.push(note)
+      if (await trusted(note)) passed.push(note)
       else skipped.note(String(note.id), `gitlab: ${id}: comment ${note.id} skipped: its author is not a Reporter or above in ${path}`)
     }
     return passed
+  }
+
+  /** The ids of the human notes whose authors `trustedNotes` would skip. */
+  async function outsiderNotes(path: string, notes: GitlabNote[]): Promise<Set<number>> {
+    const trusted = noteTrust(path)
+    const outsiders = new Set<number>()
+    for (const note of notes) if (!note.system && !(await trusted(note))) outsiders.add(note.id)
+    return outsiders
   }
 
   const source: TaskSource = {
@@ -147,7 +161,10 @@ export async function connectGitlab(settings: GitlabSettings, timeoutMs: number,
     async card(id) {
       const issue = await rawIssue(id)
       const { path, iid } = addressOf(id)
-      return toCard(issue, await linksOf(path, iid), await notesOf(id), projects, await hierarchy.read(path, iid))
+      const links = await linksOf(path, iid)
+      const notes = await notesOf(id)
+      const tree = await hierarchy.read(path, iid)
+      return toCard(issue, links, notes, projects, tree, await outsiderNotes(path, notes))
     },
 
     async file(id, file) {

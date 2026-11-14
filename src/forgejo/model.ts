@@ -86,16 +86,22 @@ export function toTrackerTask(issue: ForgejoIssue, blockedBy: ForgejoIssue[], re
   }
 }
 
-export function attachmentsOf(issue: ForgejoIssue, comments: ForgejoComment[]): TaskAttachment[] {
+/** `outsiders` — the ids of comments by untrusted authors: a file only they carry is marked (BTN-1122). */
+export function attachmentsOf(issue: ForgejoIssue, comments: ForgejoComment[], outsiders: ReadonlySet<number> = new Set()): TaskAttachment[] {
   const files = new Map<string, TaskAttachment>()
-  for (const asset of [issue, ...comments].flatMap((each) => each.assets ?? [])) {
-    if (!files.has(asset.uuid)) files.set(asset.uuid, { file: asset.uuid, name: asset.name, size: asset.size, type: '', url: null })
+  const sources = [{ assets: issue.assets, outsider: false }, ...comments.map((each) => ({ assets: each.assets, outsider: outsiders.has(each.id) }))]
+  for (const source of sources) {
+    for (const asset of source.assets ?? []) {
+      const known = files.get(asset.uuid)
+      if (known === undefined) files.set(asset.uuid, { file: asset.uuid, name: asset.name, size: asset.size, type: '', url: null, ...(source.outsider ? { outsider: true as const } : {}) })
+      else if (!source.outsider) delete known.outsider
+    }
   }
   return [...files.values()]
 }
 
-/** No subtasks in Forgejo, no "related" links. */
-export function toCard(issue: ForgejoIssue, blockedBy: ForgejoIssue[], blocks: ForgejoIssue[], comments: ForgejoComment[], repos: RepoMap): TrackerCard {
+/** No subtasks in Forgejo, no "related" links. `outsiders` — the ids of comments by untrusted authors (BTN-1122). */
+export function toCard(issue: ForgejoIssue, blockedBy: ForgejoIssue[], blocks: ForgejoIssue[], comments: ForgejoComment[], repos: RepoMap, outsiders: ReadonlySet<number> = new Set()): TrackerCard {
   const task = toTrackerTask(issue, blockedBy, repos)
   const refOf = (ref: ForgejoIssue): TaskRef => ({ id: idOf(repos, ref), title: ref.title, status: forgejoStatus(ref.state) })
   return {
@@ -112,7 +118,10 @@ export function toCard(issue: ForgejoIssue, blockedBy: ForgejoIssue[], blocks: F
     related: [],
     comments: [...comments]
       .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || a.id - b.id)
-      .map((comment) => ({ author: comment.user?.login ?? null, at: Date.parse(comment.created_at), text: comment.body })),
-    attachments: attachmentsOf(issue, comments),
+      .map((comment) => ({
+        author: comment.user?.login ?? null, at: Date.parse(comment.created_at), text: comment.body,
+        ...(outsiders.has(comment.id) ? { outsider: true as const } : {}),
+      })),
+    attachments: attachmentsOf(issue, comments, outsiders),
   }
 }

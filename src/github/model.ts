@@ -34,7 +34,14 @@ export interface GithubCardIssue extends Omit<GithubIssue, 'parent' | 'blockedBy
   parent: CardRef | null
   blockedBy: { nodes: CardRef[] }
   blocking: { nodes: CardRef[] }
-  comments: { nodes: { author: { login: string } | null; createdAt: string; body: string }[] }
+  comments: { nodes: GithubCardComment[] }
+}
+
+export interface GithubCardComment {
+  author: { login: string } | null
+  authorAssociation: string
+  createdAt: string
+  body: string
 }
 
 export interface Repo {
@@ -114,7 +121,8 @@ export class RepoMap {
   }
 }
 
-export function toCard(issue: GithubCardIssue, repos: RepoMap): TrackerCard {
+/** `trusted` — the rule of `commentsAfter` (`trustedAuthor`); a comment it refuses is marked `outsider` (BTN-1122). */
+export function toCard(issue: GithubCardIssue, repos: RepoMap, trusted: (comment: GithubCardComment) => boolean = () => true): TrackerCard {
   const labels = issue.labels.nodes.map((label) => label.name)
   const { milestone } = issue
   const refOf = (ref: CardRef): TaskRef => ({ id: repos.idOf(ref), title: ref.title, status: githubStatus(ref.state, ref.stateReason) })
@@ -132,7 +140,7 @@ export function toCard(issue: GithubCardIssue, repos: RepoMap): TrackerCard {
     related: [],
     comments: [...issue.comments.nodes]
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
-      .map((node) => ({ author: node.author?.login ?? null, at: Date.parse(node.createdAt), text: node.body })),
+      .map((node) => ({ author: node.author?.login ?? null, at: Date.parse(node.createdAt), text: node.body, ...(trusted(node) ? {} : { outsider: true as const }) })),
     attachments: [],
   }
 }

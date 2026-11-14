@@ -66,6 +66,14 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
     expect(readdirSync(dir())).toEqual([])
   })
 
+  it('a file only outsiders’ comments carry is neither listed nor downloaded (BTN-1122)', async () => {
+    bodies.set('f1', Buffer.from('picture'))
+    bodies.set('bad', Buffer.from('payload'))
+    const lines = await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7), attachment('bad', 'run.sh', 7, { outsider: true })], source, folder, 1024)
+    expect(lines).toEqual([`- shot.png (7 B) — ${join(dir(), 'shot.png')}`])
+    expect(served).toEqual(['ABC-1/f1'])
+  })
+
   it('with no working folder each file is "not downloaded", with no error', async () => {
     bodies.set('f1', Buffer.from('picture'))
     expect(await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, null, 1024)).toEqual(['- shot.png (7 B) — not downloaded'])

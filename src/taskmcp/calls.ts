@@ -670,7 +670,7 @@ function listLine(task: TrackerTask): string {
 
 /**
  * The card as Markdown: a head of what the task has, its description, the lines of its files (`attachmentLines`) and,
- * on request, its comments.
+ * on request, its comments. An outsider's comment (BTN-1122) keeps its head, its text is a line saying whose it was.
  */
 export function cardText(card: TrackerCard, rev: number, comments: boolean, roles: string | null = null, files: readonly string[] = [], run: string | null = null): string {
   const refs = (list: { id: string }[]) => list.map((each) => each.id).join(', ')
@@ -693,7 +693,8 @@ export function cardText(card: TrackerCard, rev: number, comments: boolean, role
   if (comments) {
     const head = (each: TaskComment) => {
       const model = each.journal?.model == null ? '' : ` (${each.journal.model})`
-      return `${each.author ?? 'Person'}${model}, ${new Date(each.at).toISOString().slice(0, 16).replace('T', ' ')}\n\n${each.text.trim()}`
+      const text = each.outsider ? `(comment by ${each.author === null ? 'a deleted account' : `@${each.author}`} hidden: its author is not a member of the repository)` : each.text.trim()
+      return `${each.author ?? 'Person'}${model}, ${new Date(each.at).toISOString().slice(0, 16).replace('T', ' ')}\n\n${text}`
     }
     const list = card.comments.map((each) =>
       [`### ${head(each)}`, ...(each.replies ?? []).map((reply) => `#### ↳ reply: ${head(reply)}`)].join('\n\n'),

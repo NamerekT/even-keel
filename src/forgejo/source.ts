@@ -157,7 +157,10 @@ export async function connectForgejo(settings: ForgejoSettings, timeoutMs: numbe
       const { base } = addressOf(id)
       const [blockedBy, comments] = await Promise.all([dependenciesOf(base, 'dependencies'), commentsOf(id)])
       const blocks = blockedBy === null ? [] : await dependenciesOf(base, 'blocks')
-      return toCard(issue, blockedBy ?? [], blocks ?? [], comments, repos)
+      const trust = trustIn(addressOf(id).repo)
+      const outsiders = new Set<number>()
+      for (const comment of comments) if (!(await trust(comment.user?.login))) outsiders.add(comment.id)
+      return toCard(issue, blockedBy ?? [], blocks ?? [], comments, repos, outsiders)
     },
 
     async file(id, file) {

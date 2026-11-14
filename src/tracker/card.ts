@@ -55,6 +55,8 @@ export interface TaskAttachment {
   missing?: true
   /** The attachment's record, by which the card deletes it; only the built-in tracker gives it. */
   id?: string
+  /** Only comments of outsiders (`TaskComment.outsider`) carry the file: the page shows it, `task_read` neither lists nor downloads it. */
+  outsider?: true
 }
 
 export interface TaskRef {
@@ -78,6 +80,11 @@ export interface TaskComment {
   text: string
   /** The replies in the comment's thread, oldest first; only a tracker with threads under comments gives them (Huly). */
   replies?: TaskComment[]
+  /**
+   * A public tracker's comment by someone the adapter does not trust, by the rule of its `commentsAfter` (BTN-1122):
+   * the page shows it, `task_read` hides its text from the session. Huly, Linear and Jira never set it: a guest there is invited.
+   */
+  outsider?: true
   /** Only the built-in tracker's journal (BTN-774) gives the rest. */
   journal?: JournalEntry
 }

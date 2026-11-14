@@ -310,6 +310,25 @@ describe('github source', () => {
     ])
   })
 
+  it('keeps every comment on the card and marks those the trust rule refuses', async () => {
+    const at = (minute: number) => `2026-10-01T10:0${minute}:00Z`
+    const nodes = [
+      { body: 'mine', createdAt: at(1), ...by('octocat', 'NONE') },
+      { body: 'stranger', createdAt: at(2), ...by('stranger', 'NONE') },
+      { body: 'member', createdAt: at(3), ...by('jdoe', 'MEMBER') },
+      { body: 'bot', createdAt: at(4), ...by('helper[bot]', 'NONE') },
+      { body: 'gone', createdAt: at(5), ...by(null, 'NONE') },
+    ]
+    const issue = {
+      id: 'I_7', number: 7, title: 'Task', state: 'OPEN', stateReason: null, body: '', repository: { nameWithOwner: 'octo-org/abc' }, subIssuesSummary: { total: 0 },
+      parent: null, blockedBy: { nodes: [] }, blocking: { nodes: [] }, labels: { nodes: [] }, milestone: null, comments: { nodes },
+    }
+    const { source, calls } = await connect([{ body: { data: { repository: { issue } } } }])
+    const card = await source.card!('ABC-7')
+    expect(calls[1]!.query).toContain('authorAssociation')
+    expect(card.comments.map((each) => [each.text, each.outsider])).toEqual([['mine', undefined], ['stranger', true], ['member', undefined], ['bot', true], ['gone', true]])
+  })
+
   it('gives a milestone’s tasks with the last comment of a collaborator', async () => {
     const comments = (nodes: unknown[]) => ({ comments: { nodes } })
     const { source } = await connect([

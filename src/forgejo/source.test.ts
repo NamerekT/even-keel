@@ -78,9 +78,37 @@ describe('connectForgejo', () => {
       [`GET ${BASE}/issues/1/dependencies`]: { body: [issue({ number: 2, title: 'Blocker' })] },
       [`GET ${BASE}/issues/1/blocks`]: { body: [issue({ number: 3, title: 'Waits' })] },
       [`GET ${BASE}/issues/1/comments`]: { body: [comment(1)] },
+      [`GET ${BASE}/collaborators/john-doe`]: { status: 204 },
     })
     const card = await source.card!('APP-1')
     expect([card.blockedBy.map((ref) => ref.id), card.blocks.map((ref) => ref.id), card.comments.length]).toEqual([['APP-2'], ['APP-3'], 1])
+  })
+
+  it('keeps outsiders’ comments on the card, marked: a stranger, a bot, a deleted account', async () => {
+    const { source } = await connect({
+      [`GET ${BASE}/issues/1`]: { body: issue({ number: 1 }) },
+      [`GET ${BASE}/issues/1/dependencies`]: { body: [] },
+      [`GET ${BASE}/issues/1/blocks`]: { body: [] },
+      [`GET ${BASE}/issues/1/comments`]: {
+        body: [
+          comment(1),
+          comment(2, { user: { login: 'jane-roe' } }),
+          comment(3, { user: { login: 'even-keel-bot' } }),
+          comment(4, { user: { login: 'example-org' } }),
+          comment(5, { user: { login: 'helper-bot' } }),
+          comment(6, { user: null }),
+        ],
+      },
+      [`GET ${BASE}/collaborators/john-doe`]: { status: 204 },
+      [`GET ${BASE}/collaborators/jane-roe`]: { status: 404, body: {} },
+      [`GET ${BASE}/collaborators/jane-roe/permission`]: { status: 403, body: {} },
+      [`GET ${BASE}/collaborators/helper-bot`]: { status: 404, body: {} },
+      [`GET ${BASE}/collaborators/helper-bot/permission`]: { body: { permission: 'read' } },
+    })
+    const card = await source.card!('APP-1')
+    expect(card.comments.map((each) => [each.author, each.outsider])).toEqual([
+      ['john-doe', undefined], ['jane-roe', true], ['even-keel-bot', undefined], ['example-org', undefined], ['helper-bot', true], [null, true],
+    ])
   })
 
   it('skips stale blocks while dependencies are off and reads them again once enabled', async () => {
@@ -90,6 +118,7 @@ describe('connectForgejo', () => {
       [`GET ${BASE}/issues/1/dependencies`]: () => enabled ? { body: [] } : { status: 404, body: {} },
       [`GET ${BASE}/issues/1/blocks`]: { body: [issue({ number: 3, title: 'Waits' })] },
       [`GET ${BASE}/issues/1/comments`]: { body: [comment(1)] },
+      [`GET ${BASE}/collaborators/john-doe`]: { status: 204 },
     })
     const card = await source.card!('APP-1')
     expect([card.blockedBy, card.blocks, card.comments.length]).toEqual([[], [], 1])
