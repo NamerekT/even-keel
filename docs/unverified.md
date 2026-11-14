@@ -45,7 +45,7 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 - Account folders: 120, 121 — BTN-904.
 - The README badge: 122, 126, 127, 129, 131, 132, 135 — BTN-919.
 - The state database: 149 — BTN-1084.
-- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 111, 117d, 118, 125, 136, 144, 145, 150, 151, 152, 163, 164, 165.
+- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 111, 117d, 118, 125, 144, 145, 150, 151, 152, 163, 164, 165.
 - Waiting for the event, no run: 1, 2, 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72, 86, 90, 92, 93, 94, 101 — BTN-821, 109, 112, 124, 128. Not checked by choice: 63, 138.
 
 | # | Entry | Who it hits | If the assumption is wrong |
@@ -54,8 +54,7 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 | 150 | [The effort on OpenCode and Copilot](unverified/sessions.md#the-effort-on-opencode-and-copilot-btn-1071) | OpenCode and Copilot tasks with an effort set on their card | a level the model lacks fails the session on its first turn and the chain pauses; pick a level the model has or "default" |
 | 151 | [The session's effort on the page of a running service](unverified/sessions.md#the-sessions-effort-on-the-page-of-a-running-service-btn-1098) | everyone who opens a Claude session's past window or chat | the page shows the model without the effort; nothing else breaks |
 | 139 | [OpenCode Go limits](unverified/opencode.md#opencode-go-limits-btn-803) | OpenCode folders with a Console Go key | percentages or resets differ from Console, no windows, or a replacement fails; compare Console, replace a refused key, pause the chain or switch accounts |
-| 136 | [Turning git on](unverified/sessions.md#turning-git-on-btn-884) | everyone who turns git on for a project without git | turning git on is refused with git's message, or the next task pauses on its worktree or merge; remove the project and add it again "Without git" on the same folder |
-| 145 | [The folder has become a repository](unverified/sessions.md#the-folder-has-become-a-repository-btn-1025) | everyone whose project without git gets a repository in its folder | the band never shows, shows again after "Not now", or shows for no repository; turn git on from the Repository tab |
+| 145 | [The folder has become a repository](unverified/sessions.md#the-folder-has-become-a-repository-btn-1025) | a project without git on a machine whose service has no git in `PATH` (the rest checked) | the band shows for a repository Even Keel cannot read; turn git on from the Repository tab |
 | 140 | [A stop that does not lose the mark in a project without git](unverified/sessions.md#a-stop-that-does-not-lose-the-mark-in-a-project-without-git-btn-1044) | everyone who stops the chain of a project without git, by "Stop after the turn" or "Stop" | a task whose turn ended with `TASK DONE` stays open and the next Start runs it again; press "Accept as answer" or close the task by hand before Start |
 | 133 | [A project without git](unverified/sessions.md#a-project-without-git-btn-883) | everyone who runs a project "Without git" on Codex, OpenCode or Copilot, and on Codex on macOS | a session refuses the folder, the task stays waiting after `TASK DONE`, or the comment is refused and the chain pauses; close the task by hand or press "Accept as answer", run the project on Claude Code |
 | 141 | [Git refused in a project without git](unverified/sessions.md#git-refused-in-a-project-without-git-btn-1052) | projects "Without git" whose folder is a repository or lies inside one, on Codex most of all (BTN-1174) | a session that ignores the prompt commits or changes branches there; keep such a project's folder outside any repository |
