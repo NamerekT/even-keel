@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
-import { createReadStream, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createReadStream, cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, type Dirent } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { PGlite } from '@electric-sql/pglite'
+import { fail } from '../notice/notice.js'
 import { tablesOf, writeRows, type Rows } from './copy.js'
 import { databaseVersion, SQLITE_VERSIONS, STEPS } from './database.js'
 import { dataDirOf, filesDirOf } from './owner.js'
@@ -13,6 +14,14 @@ import { dataDirOf, filesDirOf } from './owner.js'
 
 /** The folder of the automatic copies when the setting `backup.dir` names none: `backups/` next to the database's folder. */
 export const backupDirOf = (stateDir: string, setting: string | null) => setting ?? join(stateDir, 'backups')
+
+/**
+ * Refuses a `backup.dir` the page saves that names an existing file; a missing folder is fine, the copy creates it.
+ * Only the page's save checks the disk: the registry's check also runs in the browser and on every load.
+ */
+export function checkCopiesDir(dir: string | null): void {
+  if (dir !== null && statSync(dir, { throwIfNoEntry: false })?.isDirectory() === false) throw fail('config.backupDirFile', { value: dir })
+}
 
 /** What the check of a copy found, kept in the copy as `check.json`: a copy without it is no checked copy. */
 export interface CopyCheck {
@@ -138,10 +147,18 @@ export interface OwnCopy {
   check: CopyCheck | null
 }
 
-/** The automatic copies of the folder, oldest first; folders of other names are no copies of ours. */
+/**
+ * The automatic copies of the folder, oldest first; folders of other names are no copies of ours. A path that is no
+ * folder or cannot be read has none: the page's state is built from this and must not fail on it (BTN-1179).
+ */
 export function ownCopies(dir: string): OwnCopy[] {
-  if (!existsSync(dir)) return []
-  return readdirSync(dir, { withFileTypes: true })
+  let entries: Dirent[]
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  return entries
     .filter((entry) => entry.isDirectory() && OWN_NAME.test(entry.name))
     .map((entry) => ({ name: entry.name, path: join(dir, entry.name), check: checkOf(join(dir, entry.name)) }))
     .sort((a, b) => a.name.localeCompare(b.name))

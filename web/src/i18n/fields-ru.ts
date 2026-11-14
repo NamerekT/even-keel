@@ -51,6 +51,7 @@ export const fieldsRu: FieldTexts = {
   'config.keepWarm': (p) => `Целое число часов от 0 до ${p.max}, а не ${p.value}`,
   'config.attachmentLimit': (p) => `Целое число мегабайт от 1 до ${p.max}, а не ${p.value}`,
   'config.backupDir': (p) => `Абсолютный путь к папке или пусто — папка состояния, а не ${p.value}`,
+  'config.backupDirFile': (p) => `${p.value} — файл: укажите папку или оставьте пусто — папка состояния`,
   'config.backupKeep': (p) => `Целое число копий от 1 до ${p.max}, а не ${p.value}`,
   'config.allowedHosts': () => 'По имени хоста на строку',
   'config.contextWindow': (p) => `Целое число токенов от 1, а не ${p.value}`,

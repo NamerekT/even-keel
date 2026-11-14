@@ -690,6 +690,7 @@ export const en = {
   'config.keepWarm': (p: { value: string; max: string }) => `config: keepWarm must be a whole number of hours from 0 to ${p.max}, got ${p.value}`,
   'config.attachmentLimit': (p: { value: string; max: string }) => `config: attachmentLimit must be a whole number of megabytes from 1 to ${p.max}, got ${p.value}`,
   'config.backupDir': (p: { value: string }) => `config: backup.dir must be an absolute folder path or empty, got ${p.value}`,
+  'config.backupDirFile': (p: { value: string }) => `config: backup.dir ${p.value} is a file, not a folder`,
   'config.backupKeep': (p: { value: string; max: string }) => `config: backup.keep must be a whole number of copies from 1 to ${p.max}, got ${p.value}`,
   'config.mergeInto': (p: { project: string; into: string }) =>
     `config: ${p.project}.mergeInto names ${p.into}, which is not another project or merges into one itself`,

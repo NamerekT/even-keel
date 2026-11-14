@@ -20,6 +20,7 @@ import { DEFAULT_BRANCH, idPrefixOf, isPlain, listenOf, projectLabel, projectLab
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
 import { withDismissed } from '../notice/kinds.js'
+import { checkCopiesDir } from '../storage/backup.js'
 import { saveBrowserHotkeys } from '../storage/browser-hotkeys.js'
 import { englishOf, fail, notice, NoticeError, noticeOf } from '../notice/notice.js'
 import { isBadgeSlug, isHttp } from '../badge/settings.js'
@@ -393,6 +394,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         console.log(`page: the settings of ${project} are written to the config`)
       },
       saveShared: (form, base) => {
+        if (form.backup.dir !== base.backup.dir) checkCopiesDir(form.backup.dir)
         ctx.configStore.saveShared(form, base)
         console.log('page: the shared settings are written to the config')
       },
