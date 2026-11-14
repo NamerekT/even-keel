@@ -40,12 +40,12 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 - A project without git: 133 — BTN-965; 140 — BTN-1065; 141 — BTN-1053.
 - Copilot: 70, 75, 81, 85 — BTN-712.
 - Codex: 10, 27, 30, 32, 61, 87, 98 — BTN-713.
-- OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 79b, 80 — BTN-578; 104 — BTN-844; 107 — BTN-857.
+- OpenCode: 56, 57, 57a, 58, 67, 79, 79a, 79b, 80 — BTN-578; 104 — BTN-844; 107 — BTN-857; 108 — BTN-861; 114 — BTN-872.
 - Claude sessions and the CLI: 0a, 0g, 8, 8a, 10a, 21a, 44, 53, 77, 78, 78b — BTN-714.
 - Account folders: 120, 121 — BTN-904.
 - The README badge: 122, 126, 127, 129, 131, 132, 135 — BTN-919.
 - The state database: 149 — BTN-1084.
-- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 108, 111, 114, 117d, 118, 125, 136, 143, 144, 145, 150, 151, 152, 163, 164.
+- No task yet: 1c, 1d, 23b, 23c, 23d, 100, 102, 106, 111, 117d, 118, 125, 136, 143, 144, 145, 150, 151, 152, 163, 164.
 - Waiting for the event, no run: 1, 2, 17c, 17d, 17e, 18, 29, 37h1, 39a, 39b, 41, 46, 72, 86, 90, 92, 93, 94, 101 — BTN-821, 109, 112, 124, 128. Not checked by choice: 63.
 
 | # | Entry | Who it hits | If the assumption is wrong |
@@ -99,7 +99,7 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 | 0a | [Silent turn recovery](unverified/sessions.md#silent-turn-recovery-btn-496) | stalled live turns on any agent; file-size activity on macOS | output may not describe liveness well enough, or a replacement may fail to stop a real stalled provider |
 | 0 | [Protection across agent transports and remote servers](unverified/sessions.md#protection-across-agent-transports-and-remote-servers) | chain sessions using Protection | a native pattern may not be enforced, or a server's rules interpreted incompletely |
 | 0e | [Tracker deletes refused by the gateway](unverified/packages.md#tracker-deletes-refused-by-the-gateway-btn-541) | Jira sessions through `executeDestructive`, OpenCode on Huly through `get_tool_schema` (BTN-659; Claude and Codex on GitLab, GitHub and Huly, Codex on Linear, OpenCode's `invoke_tool` on Huly checked) | a record is deleted despite the switch, or a harmless call is refused |
-| 0b | [OpenCode Protection](unverified/opencode.md#opencode-protection-btn-486) | OpenCode on macOS, other agents/subagents; BTN-642's push spellings on Claude, Codex/Copilot outside Linux, Codex main-branch +refspec on Linux; Copilot's new force-refspec rules in a service-chain launch and outside Linux (EKR-74 checked generated CLI arguments and resume directly) | permissions or shell parsing may differ from the checked calls |
+| 0b | [OpenCode Protection](unverified/opencode.md#opencode-protection-btn-486) | OpenCode on macOS, other agents/subagents; Claude's and OpenCode's colon delete refspec (BTN-1173; Claude's BTN-642 spellings checked on Windows); BTN-642's push spellings on Codex/Copilot outside Linux, Codex main-branch +refspec on Linux; Copilot's new force-refspec rules in a service-chain launch and outside Linux (EKR-74 checked generated CLI arguments and resume directly) | permissions or shell parsing may differ from the checked calls |
 | 1 | [Temporary model errors](unverified/sessions.md#temporary-model-errors-btn-498) | chains on an overloaded model | an unknown refusal can still hold an unattended chain; a false match could resume unnecessarily |
 | 1 | [An early reset of a limit](unverified/claude-limits.md#an-early-reset-of-a-limit-btn-530) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 1c | [The first limits poll after a restart](unverified/claude-limits.md#the-first-limits-poll-after-a-restart-btn-595) | everyone on a subscription | a task starts into a used-up limit after a restart, or waits a few minutes for nothing |

@@ -37,12 +37,16 @@ to the project's session settings.
 
 Git's global options before `push` (`-C <dir>`, `-c <k=v>`, `--git-dir=…`, `--no-pager`) shift a command past the
 `git push` patterns (BTN-642). Claude and OpenCode get every push pattern a second time as `git -* push …`: any run
-of options starting with `-` between `git` and `push`, so `git commit -m "push --force"` stays allowed. Codex and
+of options starting with `-` between `git` and `push`, so `git commit -m "push --force"` stays allowed; with a global
+option before the subcommand the `*` runs on into the message, and `git -c <k=v> commit -m "push --force"` is refused
+(seen live on Claude, BTN-1159). Codex and
 Copilot have no wildcard inside a prefix and get only `git -C . push …` and `git --no-pager push …`. Not caught there:
 `-C` with any other folder (the worktree's absolute path included), `-c`, `--git-dir`, `--work-tree`, several global
 options together. Not caught anywhere: an alias (`git config alias.p push`), a `+` refspec in the remote's
-`remote.<name>.push` config, a push hidden in a script or shell wrapper. Checked by unit tests only
-([unverified.md](../unverified/opencode.md#opencode-protection-btn-486)).
+`remote.<name>.push` config, a push hidden in a script or shell wrapper. Claude's `git -* push …` spellings were
+seen refused live on Windows; Claude's colon delete refspec `git push * :*` matched no command there, likely because the
+CLI reads a trailing `:*` as its prefix syntax (BTN-1173) ([verified](../verified/opencode.md),
+[unverified.md](../unverified/opencode.md#opencode-protection-btn-486)).
 
 OpenCode receives the native groups through `OPENCODE_CONFIG_CONTENT` (`sessionConfig`): command patterns as
 `permission.bash[pattern]: "deny"`, and Huly deletion tools as `permission[<gatewayName>_<tool>]: "deny"`.
