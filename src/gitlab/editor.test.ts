@@ -216,6 +216,18 @@ describe('gitlabEditor', () => {
     expect(await editor.blockingLinks!()).toBe(false)
   })
 
+  it('takes a blocking link GitLab answers turned around as made (BTN-1164)', async () => {
+    const turned = fixture('blocks')
+    await turned.editor.link('APP-2', 'APP-10', 'blockedBy', true)
+    expect(turned.writes).toEqual([
+      ['POST', `${BASE}/2/links`, { target_project_id: 'group/subgroup/app', target_issue_iid: 10, link_type: 'is_blocked_by' }],
+    ])
+    expect(await turned.editor.blockingLinks!()).toBe(true)
+    const back = fixture('is_blocked_by')
+    await back.editor.link('APP-2', 'APP-10', 'blocks', true)
+    expect(back.writes.filter(([method]) => method === 'DELETE')).toEqual([])
+  })
+
   it('refuses a blocking link GitLab answers with HTTP 400 and every later one before the write (BTN-927)', async () => {
     const { editor, writes } = fixture(undefined, { refused: true })
     expect(await editor.blockingLinks!()).toBe(true)

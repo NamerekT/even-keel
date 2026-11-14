@@ -31,6 +31,8 @@ const SET_PARENT = `mutation($id: WorkItemID!, $parent: WorkItemID) {
 }`
 
 const LINK_TYPES: Record<TaskLink, GitlabLink['link_type']> = { blocks: 'blocks', blockedBy: 'is_blocked_by', relates: 'relates_to' }
+/** The type of a link read from its other end. */
+const TURNED: Partial<Record<GitlabLink['link_type'], GitlabLink['link_type']>> = { blocks: 'is_blocked_by', is_blocked_by: 'blocks' }
 const MARKER_LIMIT = 25
 const NO_BLOCKING = 'this GitLab keeps no blocking links (GitLab Free; they need Premium or Ultimate); name the order in the description, or link the tasks as "relates", which the chain does not read as an order'
 
@@ -221,6 +223,8 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
         throw error
       }
       if (made.link_type === undefined || made.link_type === type) return
+      // GitLab answers "is_blocked_by" as the same link seen from the other side: "blocks" with source and target swapped (BTN-1164).
+      if (link !== 'relates' && made.link_type === TURNED[type]) return
       // An instance that makes a "relates" link instead: take it back.
       for (const each of (await deps.linksOf(own.path, own.iid)).filter((each) => sameTask(each, other))) {
         await rest(`${own.base}/links/${each.issue_link_id}`, 'DELETE')
