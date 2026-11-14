@@ -215,6 +215,7 @@ export const en: Messages = {
   status: {
     levels: { ok: 'all good', warn: 'warnings', error: 'failures', off: 'no data' },
     waitingTitle: (tasks: string) => `Waiting for a reply: ${tasks}`,
+    waitingRow: 'Questions',
     heading: 'Status',
     trim: 'Trim the tools',
     trimHint:
@@ -285,6 +286,7 @@ export const en: Messages = {
   },
   queue: {
     title: 'Chain queue',
+    row: 'Chains',
     toggle: (names: string[], queued: number) =>
       `${names.length === 0 ? 'No chain is running' : `Chains: ${names.join(', ')}`}${queued > 0 ? `; queued: ${queued}` : ''}`,
     now: 'Now',

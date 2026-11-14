@@ -128,6 +128,10 @@ function fakeState(
     config: fakeConfig(account),
     runs: {
       ABC: {
+        // The chain's rows carry runs too, for the run label in the key's line on a phone (BTN-1162).
+        'ABC-5': { provider: 'claude', model: 'fable', effort: null },
+        'ABC-6': { provider: 'opencode', model: 'openrouter/minimax/minimax-m2-with-a-long-model-name', effort: null },
+        'ABC-7': { provider: 'codex', model: 'gpt-6.1-sol', effort: 'high' },
         'ABC-10': { provider: 'claude', model: 'sonnet', effort: 'high' },
         'ABC-11': { provider: 'opencode', model: 'opencode/deepseek-v4.1-flash-free', effort: null },
         'ABC-14': { provider: null, model: null, effort: 'low' },

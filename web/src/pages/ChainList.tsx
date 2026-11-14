@@ -26,6 +26,8 @@ import { cardAction, lampLabel } from './sessionStatus.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
+import { BlockTail } from './BlockTail.js'
+import { useNarrow } from '../layout/useNarrow.js'
 import './chain.css'
 import { ChangelogButton } from './ChangelogDialog.js'
 import { Forge } from './Forge.js'
@@ -555,6 +557,36 @@ function Block(props: BlockProps) {
     ...(share !== null && { '--estimate': share.toFixed(2) }),
     ...(offset !== undefined && { transform: `translate(${offset.x}px, ${offset.y}px)` }),
   } as CSSProperties
+  // On a phone the run, the links and the row's button stand in the key's line (BTN-1162).
+  const narrow = useNarrow()
+  const readyButton = ready === null ? null : (
+    <button
+      type="button"
+      className="block__ready"
+      disabled={onReady === undefined || ready.refused !== null}
+      aria-label={t.card.ready}
+      title={ready.refused === null ? t.card.ready : t.chain.readyRefused(say(ready.refused))}
+      draggable={false}
+      onClick={onReady}
+    >
+      <IntoChainIcon />
+    </button>
+  )
+  // Takes no room until the row is pointed at, then slides out at the row's end (BTN-1162).
+  const unreadyButton =
+    onUnready === null ? null : (
+      <button
+        type="button"
+        className="block__unready"
+        disabled={onUnready === undefined}
+        aria-label={t.card.unready}
+        title={t.card.unready}
+        draggable={false}
+        onClick={onUnready}
+      >
+        <OutOfChainIcon />
+      </button>
+    )
 
   return (
     <li
@@ -580,22 +612,12 @@ function Block(props: BlockProps) {
       {block.question && <span className="block__corner" role="img" aria-label={t.chain.questionTitle} title={t.chain.questionTitle} />}
       {share !== null && <span className="block__estimate" aria-hidden="true" />}
       {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
-      {ready === null ? (
+      {ready === null || narrow ? (
         <span className={ring === null ? `block__number block__number--${block.priority}` : 'block__number'} title={priorityTitle(block)}>
           {ring !== null ? <CacheRing cache={ring} /> : fix ? null : block.current ? <PlayIcon /> : number}
         </span>
       ) : (
-        <button
-          type="button"
-          className="block__ready"
-          disabled={onReady === undefined || ready.refused !== null}
-          aria-label={t.card.ready}
-          title={ready.refused === null ? t.card.ready : t.chain.readyRefused(say(ready.refused))}
-          draggable={false}
-          onClick={onReady}
-        >
-          <IntoChainIcon />
-        </button>
+        readyButton
       )}
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
@@ -616,6 +638,11 @@ function Block(props: BlockProps) {
           </Link>
         )}
       </div>
+      {narrow && (
+        <BlockTail run={block.run} links={links} onCard={onCard}>
+          {readyButton ?? unreadyButton}
+        </BlockTail>
+      )}
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">
         {/* Plain text: a press anywhere on the row lands on the key — the session panel, whose head opens the card (or a fix's CI), or a locked blocker's card. */}
@@ -633,7 +660,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
-        {block.run !== null && <RunLabelTag run={block.run} />}
+        {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (
           <span className="chip" title={t.chain.interruptedTitle}>
@@ -653,20 +680,8 @@ function Block(props: BlockProps) {
             {t.project.dismiss}
           </button>
         )}
-        {onUnready !== null && (
-          <button
-            type="button"
-            className="block__unready"
-            disabled={onUnready === undefined}
-            aria-label={t.card.unready}
-            title={t.card.unready}
-            draggable={false}
-            onClick={onUnready}
-          >
-            <OutOfChainIcon />
-          </button>
-        )}
-        <Links links={links} onCard={onCard} />
+        {!narrow && <Links links={links} onCard={onCard} />}
+        {!narrow && unreadyButton}
       </div>
     </li>
   )

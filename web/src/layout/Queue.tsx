@@ -13,7 +13,8 @@ import { useDragList } from '../ui/useDragList.js'
 import { chainWaits } from '../waits.js'
 import { usePopover } from './usePopover.js'
 
-export function QueueMenu({ state }: { state: EvenKeelState }) {
+/** The header's chains block; `row` is the burger's row: the word at the left, the lamp and the count at the right (BTN-1162). */
+export function QueueMenu({ state, row = false }: { state: EvenKeelState; row?: boolean }) {
   const { open, setOpen, rootRef } = usePopover()
   const { active, queue } = state.chain
   const kind = active.length === 0 ? 'idle' : active.every((chain) => chain.paused) ? 'paused' : 'running'
@@ -24,14 +25,26 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
     <div className="queue-menu" ref={rootRef}>
       <button
         type="button"
-        className={`queue-toggle queue-toggle--${kind}`}
+        className={row ? `gear__item queue-row queue-toggle--${kind}` : `queue-toggle queue-toggle--${kind}`}
         aria-expanded={open}
         aria-controls="queue-panel"
         aria-label={tip}
         title={tip}
         onClick={() => setOpen(!open)}
       >
-        <QueueContents state={state} />
+        {row ? (
+          <>
+            {t.queue.row}
+            <span className="gear__level">
+              <QueueContents state={state} />
+            </span>
+            <span className={open ? 'sheet__chevron sheet__chevron--open' : 'sheet__chevron'} aria-hidden="true">
+              ›
+            </span>
+          </>
+        ) : (
+          <QueueContents state={state} />
+        )}
       </button>
       {open && <QueuePanel state={state} />}
     </div>

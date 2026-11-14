@@ -250,22 +250,27 @@
   color: var(--fg-muted);
 }
 
-/* "To the backlog": quiet until the row is pointed at or holds the focus */
+/* "To the backlog" at the row's end (BTN-1162): no room of its own until the row is pointed at or holds the focus, then it
+   slides out and moves the links and the labels left. Still in the Tab order, so the keyboard opens it too. */
 .chain .block__unready {
   position: relative;
   display: grid;
   place-items: center;
   flex: none;
-  width: 22px;
+  width: 0;
   height: 22px;
+  margin-left: -10px;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 0 solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-muted);
   color: var(--fg-muted);
   cursor: pointer;
   opacity: 0;
+  pointer-events: none;
   transition:
+    width var(--motion-fast) ease-out,
+    margin-left var(--motion-fast) ease-out,
     opacity var(--motion-fast),
     border-color var(--motion-fast),
     color var(--motion-fast);
@@ -278,13 +283,28 @@
 }
 
 .chain .block:hover .block__unready,
-.chain .block:focus-within .block__unready {
+.chain .block:focus-within .block__unready,
+.chain .block__tail .block__unready {
+  width: 22px;
+  margin-left: 0;
+  border-width: 1px;
   opacity: 1;
+  pointer-events: auto;
 }
 
 @media (hover: none) {
   .chain .block__unready {
+    width: 22px;
+    margin-left: 0;
+    border-width: 1px;
     opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chain .block__unready {
+    transition: none;
   }
 }
 
@@ -522,7 +542,7 @@
   }
 
   .chain .block--acting {
-    grid-template-areas: 'number head' '. title' '. action' '. side';
+    grid-template-areas: 'number head tail' '. title title' '. action action' '. side side';
   }
 }
 

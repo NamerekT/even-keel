@@ -40,9 +40,9 @@ export function MobileMenu({ now }: { now: Date }) {
             <LogLink className="gear__item" />
           </nav>
           {state !== null && (
-            <div className="sheet__work">
-              <QueueMenu state={state} />
-              <Waiting sessions={state.sessions} tasks={state.tasks} />
+            <div className="sheet__rows sheet__work">
+              <QueueMenu state={state} row />
+              <Waiting sessions={state.sessions} tasks={state.tasks} row />
             </div>
           )}
           {state !== null && <AccountSheet account={state.account} limits={state.limits} now={now} />}

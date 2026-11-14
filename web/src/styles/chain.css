@@ -493,9 +493,10 @@ button.block__key {
 }
 
 @media (max-width: 760px) {
+  /* The key's line ends with the run, the links and the row's button (`BlockTail`, BTN-1162). */
   .block {
-    grid-template-columns: 2.5ch minmax(0, 1fr);
-    grid-template-areas: 'number head' '. title' '. side';
+    grid-template-columns: 2.5ch auto minmax(0, 1fr);
+    grid-template-areas: 'number head tail' '. title title' '. side side';
     padding: 10px 12px;
   }
 
@@ -506,6 +507,53 @@ button.block__key {
   .block__side {
     justify-content: flex-start;
   }
+
+  .block__side:empty {
+    display: none;
+  }
+}
+
+.block__tail {
+  grid-area: tail;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.block__tail > .run-label {
+  position: relative;
+  z-index: 1;
+  flex: 0 1 auto;
+}
+
+/* The provider and the model only; the effort is in the label's tip. */
+.block__tail .run-label__effort {
+  display: none;
+}
+
+.block__tail-links {
+  display: inline-flex;
+  flex: none;
+}
+
+.block__tail--folded > .block__tail-links {
+  display: none;
+}
+
+/* The lock and the key without their figures: lit when there is any. */
+.block__tail .links__number {
+  display: none;
+}
+
+.block__tail .links__count {
+  min-width: 0;
+}
+
+.chain .block__tail .block__ready {
+  flex: none;
+  grid-area: auto;
 }
 
 .context-meter {
