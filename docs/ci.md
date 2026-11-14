@@ -107,6 +107,12 @@ Since 2026-11-02 pushes and pull requests are checked on GitHub only: a run ther
 
 `.github/workflows/trackers-e2e.yml` ("Tracker contract", BTN-470) runs the tracker adapters' contract on live trackers every night at 03:00 UTC on `dev` and by hand (`docs/trackers.md`, "Contract tests on live trackers"), its stands from the secret `TRACKER_STANDS`, joining the tailnet first when the Tailscale secrets are set. Its runs are read like those of "Real CLIs" above — a run by hand on `dev` is in `dev`'s verdict — and a red night holds releases the same way: `publish.yml` runs `scripts/nights-green.sh` before `npm publish`.
 
+### Action dependencies
+
+Third-party actions (`tailscale/github-action`, `mxschmitt/action-tmate`) and every action in `publish.yml`, which can publish through npm OIDC, are pinned to full commit SHAs with the release version in a comment. Resolve a pin from the action's own repository; keep it pinned when updating. Other `actions/*` references still use major-version tags.
+
+`.github/dependabot.yml` checks `github-actions` weekly and proposes version updates, including SHA pins, as pull requests against `dev`; npm version updates are outside this configuration. Review and merge these through the release workflow, without automatic merging. GitHub reads the configuration from its default branch (`main`), so it starts working only after the release that brings the file there. `target-branch` applies to version updates; security updates still use the default branch ([Dependabot options](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#target-branch)). The first actual update PR is still [unverified](unverified/ci.md#pinned-actions-and-dependabot-btn-1132).
+
 ### macOS
 
 `.github/workflows/macos.yml` (BTN-730) runs on pushes to `main`, `dev` and `release/**` on `macos-latest`, a cheap layer before a live run on a Mac (BTN-312): `test` (install, typecheck, unit tests), `e2e` in three shards as in `test.yml`, and `service` — `service/install.sh` as the runner's user with `EVEN_KEEL_PORT=4799` in the checkout's `.env`, the agent `local.even-keel` in `launchctl list`, `GET /api/state` polled for up to 120 s, then `service/uninstall.sh` and the agent and its plist gone; on a failure the job prints `launchctl print` and the log's tail. Each job skips its work on a push of Markdown only, as below.
