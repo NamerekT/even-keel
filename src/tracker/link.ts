@@ -46,6 +46,15 @@ export class TrackerLink {
   }
 
   /**
+   * A read beside the chain's, such as a vocabulary (EKR-106): a refusal it gets is its own, and neither puts the tracker
+   * down nor brings it back; only a tracker that did not answer counts. Fails at once while the tracker does not answer, as `page`.
+   */
+  async aside<T>(call: (source: Tracker) => Promise<T>, operation?: string): Promise<T> {
+    if (this.unanswered !== undefined) throw this.unanswered
+    return this.call(call, operation, false, false)
+  }
+
+  /**
    * A write: a batch of `tasks_create`, a `task_update` (BTN-929). It runs as long as the tracker keeps answering:
    * `timeoutMs` bounds the silence between two answers — a finished HTTP request or a settled call of the source, its
    * editor and the editor's parts — not the whole call. After a timeout every next call of the source in it throws, so a
@@ -56,7 +65,7 @@ export class TrackerLink {
     return this.call(call, operation, true)
   }
 
-  private async call<T>(call: (source: Tracker) => Promise<T>, operation: string | undefined, write: boolean): Promise<T> {
+  private async call<T>(call: (source: Tracker) => Promise<T>, operation: string | undefined, write: boolean, judges = true): Promise<T> {
     if (this.closed) throw new Error(`${this.options.name}: link is closed`)
     const retry = operation === undefined || write ? undefined : this.timeouts.get(operation)
     if (retry !== undefined && Date.now() < retry.retryAt) throw retry.error
@@ -104,10 +113,11 @@ export class TrackerLink {
         this.slowLogged.set(diagnostics.operation, started + elapsed)
         this.diagnostic('slow call', elapsed, diagnostics)
       }
-      this.answered()
+      if (judges) this.answered()
       return result
     } catch (error) {
       const failure = error instanceof Error ? error : new Error(String(error))
+      if (!judges && !didNotAnswer(error)) throw error
       if (didNotAnswer(error)) {
         controller.abort(error)
         const kind = failure instanceof CallTimeout ? 'call timed out' : 'connection failed'

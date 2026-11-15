@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_RULES } from '../chain/rules.js'
 import { promptLines } from '../taskmcp/vocabulary.js'
 import type { Tracker } from '../tracker/source.js'
@@ -12,7 +12,7 @@ function context(down: string[] = []) {
   return {
     configStore: { current: { feeds: { p1: [{ id: 'f1' }, { id: 'f2' }] } } },
     readers: () => ({ projects: {}, keys: { p1: 'BTN', f1: 'BTNGH', f2: 'OLD' }, trackers: { p1: 'huly', f1: 'github', f2: 'removed' }, trackerProjects: {}, owners: {} }),
-    linkOf: (id: string) => ({ page: async <T>(call: (each: Tracker) => Promise<T>) => (down.includes(id) ? Promise.reject(new Error('down')) : call(tracker)) }),
+    linkOf: (id: string) => ({ aside: async <T>(call: (each: Tracker) => Promise<T>) => (down.includes(id) ? Promise.reject(new Error('down')) : call(tracker)) }),
     readerRules: (id: string) => ({ ...DEFAULT_RULES, excludedLabels: ['Manual'], ...(id === 'f1' && { active: ['Backlog'] }) }),
   } as never
 }
@@ -28,9 +28,12 @@ describe('promptTrackers', () => {
     ])
   })
 
-  it('a tracker that does not answer gets no line instead of holding the prompt', async () => {
+  it('a tracker that does not answer gets no line instead of holding the prompt, and the log says whose line is left out (EKR-106)', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
     const trackers = await promptTrackers(context(['p1']), 'p1')
     expect(trackers[0]!.terms).toBeNull()
+    expect(errors).toHaveBeenCalledWith('prompt: the BTN chain line is left out: down')
+    errors.mockRestore()
     expect(promptLines(trackers, 'BTN')).toEqual(['trackers: BTN — Huly (this task), BTNGH — GitHub', 'BTNGH chain: into it — Backlog; skip — Manual; question — Question; priority: yes; estimate: no; attachments: no'])
   })
 })
