@@ -79,6 +79,12 @@ describe('checkOpenRouterKey (BTN-843)', () => {
     expect(await checkOpenRouterKey(KEY, 1000, answer(403))).toEqual({ state: 'rejected' })
     expect(await checkOpenRouterKey(KEY, 1000, answer(502))).toEqual({ state: 'unknown', reason: 'HTTP 502' })
   })
+
+  it('marks a management key, which OpenRouter describes but takes for no model request (BTN-1205)', async () => {
+    const describing = (data: unknown): typeof fetch => async () => new Response(JSON.stringify({ data }), { status: 200 })
+    expect(await checkOpenRouterKey(KEY, 1000, describing({ usage: 0, limit: null, is_management_key: true }))).toEqual({ state: 'ok', management: true })
+    expect(await checkOpenRouterKey(KEY, 1000, describing({ usage: 0, limit: null, is_management_key: false }))).toEqual({ state: 'ok' })
+  })
 })
 
 describe("an OpenRouter key's own limit (BTN-847)", () => {

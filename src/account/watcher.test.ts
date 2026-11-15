@@ -148,6 +148,20 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
     expect(offline.homes.apiKeyOf(offline.home)).toBe(OLD)
   })
 
+  it('refuses an OpenRouter management key as a session key, on adding and on replacing (BTN-1205)', async () => {
+    const SESSION = 'sk-or-v1-session-fake-00000000000000'
+    const MANAGEMENT = 'sk-or-v1-management-fake-0000000000'
+    const { accounts, homes, options } = await watcher((key) => (key === MANAGEMENT ? { state: 'ok', management: true } : { state: 'ok' }))
+    options.name = () => {}
+    options.makeShared = () => {}
+    await expect(accounts.addApiKey('router', MANAGEMENT, OPENCODE)).rejects.toThrow(refusal('account.openRouterManagementKey'))
+    expect(homes.list().some((home) => home.agent === OPENCODE)).toBe(false)
+    await accounts.addApiKey('router', SESSION, OPENCODE)
+    const router = homes.list().find((home) => home.agent === OPENCODE)!
+    await expect(accounts.replaceApiKey(router.key, MANAGEMENT)).rejects.toThrow(refusal('account.openRouterManagementKey'))
+    expect(homes.apiKeyOf(router)).toBe(SESSION)
+  })
+
   it('refuses a malformed key before asking the provider', async () => {
     const { accounts, checked } = await watcher(() => ({ state: 'ok' }))
     await expect(accounts.replaceApiKey('work', 'short')).rejects.toThrow(refusal('account.apiKeyInvalid'))

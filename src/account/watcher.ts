@@ -472,6 +472,7 @@ export class AccountWatcher {
     const provider = keyProvider(agent, key)
     if (verdict.state === 'rejected') throw fail(REJECTED[provider], {})
     if (verdict.state === 'unknown') throw fail(UNCHECKED[provider], { reason: verdict.reason })
+    if (verdict.management === true) throw fail('account.openRouterManagementKey', {})
     return verdict
   }
 

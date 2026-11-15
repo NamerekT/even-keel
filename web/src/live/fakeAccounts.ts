@@ -569,6 +569,8 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     if (!/^\S{21,}$/.test(value) || !token) throw fail(`account.${kind}Invalid`, {})
     if (value.includes('rejected')) throw go ? fail('account.goKeyRejected', {}) : fail(`account.${kind}Rejected`, {})
     if (value.includes('offline')) throw go ? fail('account.goKeyUnchecked', { reason: 'fetch failed' }) : fail(`account.${kind}Unchecked`, { reason: 'fetch failed' })
+    // An OpenRouter management key is no session key (BTN-1205).
+    if (agent === OPENCODE && !go && value.startsWith('sk-or-') && value.includes('management')) throw fail('account.openRouterManagementKey', {})
     // A key of another organization than the account's is another account (BTN-418).
     if (name === 'account/key') {
       if (value.includes('other-org')) throw fail('account.keyOtherOrganization', { agent: String(agent) })

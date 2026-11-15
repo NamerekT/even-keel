@@ -23,9 +23,13 @@ export interface KeyLimit {
 
 /**
  * A working key's answer may name the organization that pays for it (BTN-418): a key of another one is another account.
- * A refused key's answer names none. `limit` — the key's own spending limit, when it has one (OpenRouter only).
+ * A refused key's answer names none. `limit` — the key's own spending limit, when it has one (OpenRouter only);
+ * `management` — an OpenRouter management key, which `/key` describes but no model request takes (BTN-1205).
  */
-export type KeyVerdict = { state: 'ok'; organization?: string; limit?: KeyLimit } | { state: 'rejected' } | { state: 'unknown'; reason: string }
+export type KeyVerdict = { state: 'ok'; organization?: string } & KeyTold | { state: 'rejected' } | { state: 'unknown'; reason: string }
+
+/** What a working key's answer tells besides its organization. */
+type KeyTold = { limit?: KeyLimit; management?: true }
 
 /** The key's own limit from the `data` of `GET /api/v1/key`; null — the key has none, or the answer does not tell it. */
 export function openRouterLimit(data: unknown): KeyLimit | null {
@@ -59,8 +63,10 @@ export async function checkOpenAiKey(key: string, timeoutMs: number, fetchImpl: 
 export async function checkOpenRouterKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
   return askModels(OPENROUTER_KEY_URL, { authorization: `Bearer ${key}` }, timeoutMs, fetchImpl, undefined, async (response) => {
     const body: unknown = await response.json()
-    const limit = openRouterLimit(typeof body === 'object' && body !== null ? (body as { data?: unknown }).data : null)
-    return limit === null ? {} : { limit }
+    const data = typeof body === 'object' && body !== null ? (body as { data?: unknown }).data : null
+    const limit = openRouterLimit(data)
+    const management = typeof data === 'object' && data !== null && (data as { is_management_key?: unknown }).is_management_key === true
+    return { ...(limit !== null && { limit }), ...(management && { management: true as const }) }
   })
 }
 
@@ -79,7 +85,7 @@ async function askModels(
   fetchImpl: typeof fetch,
   organizationHeader?: string,
   /** What a working key's answer tells besides; without it the body is dropped unread, and an unreadable one tells nothing. */
-  describe?: (response: Response) => Promise<{ limit?: KeyLimit }>,
+  describe?: (response: Response) => Promise<KeyTold>,
 ): Promise<KeyVerdict> {
   let response: Response
   try {

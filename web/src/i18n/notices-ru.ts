@@ -347,6 +347,8 @@ export const noticesRu: NoticeTexts = {
   'account.codexKeyUnchecked': (p) => `не удалось проверить ключ у OpenAI (${p.reason}) — попробуйте позже`,
   'account.openRouterKeyRejected': () => 'OpenRouter не принимает этот ключ: он неверный, отозван или отключён',
   'account.openRouterKeyUnchecked': (p) => `не удалось проверить ключ у OpenRouter (${p.reason}) — попробуйте позже`,
+  'account.openRouterManagementKey': () =>
+    'это management-ключ OpenRouter, сессии на нём не работают: вставьте сюда API-ключ, а management-ключ добавьте в аккаунт через ⋯ → «Management-ключ» в его строке',
   'account.managementKeyRejected': () =>
     'OpenRouter не читает баланс этим ключом: вставьте management-ключ из настроек OpenRouter (Management keys), а не API-ключ',
   'account.managementKeyUnchecked': (p) => `не удалось прочитать баланс у OpenRouter этим ключом (${p.reason}) — попробуйте позже`,
