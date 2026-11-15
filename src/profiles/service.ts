@@ -343,6 +343,7 @@ export class Profiles {
 
   start(): void {
     this.running = true
+    this.fillSessionEnv()
     const run = () => void this.recheck()
     this.timer = setTimeout(() => {
       run()
@@ -473,16 +474,33 @@ export class Profiles {
   private writeSessionEnv(kind: string): void {
     const adapter = this.deps.kinds[kind]
     if (adapter?.projects === undefined) return
-    const file = this.deps.settingsFile()
     const values = defaultProfile(this.set, kind)?.values ?? {}
+    this.editSessionEnv(adapter, (text) => adapter.variables.reduce((after, name) => withSessionEnv(after, name, values[name] ?? null), text))
+  }
+
+  /**
+   * A default profile stored before its values went into the sessions' settings (BTN-476) reaches them only here (BTN-1167):
+   * a variable missing there is added, one already there stays as it is, even when set by hand.
+   */
+  private fillSessionEnv(): void {
+    for (const [kind, adapter] of Object.entries(this.deps.kinds)) {
+      const values = adapter.projects === undefined ? undefined : defaultProfile(this.set, kind)?.values
+      if (values === undefined) continue
+      this.editSessionEnv(adapter, (text) => {
+        const env = sessionEnvOf(text)
+        return adapter.variables.reduce((after, name) => (Object.hasOwn(env, name) || !values[name] ? after : withSessionEnv(after, name, values[name])), text)
+      })
+    }
+  }
+
+  private editSessionEnv(adapter: ProfileKind, edit: (text: string) => string): void {
+    const file = this.deps.settingsFile()
     try {
       const before = readText(file)
-      let after = before
-      for (const name of adapter.variables) after = withSessionEnv(after, name, values[name] ?? null)
-      if (JSON.stringify(JSON.parse(after)) === JSON.stringify(before.trim() === '' ? {} : JSON.parse(before))) return
+      const after = edit(before)
+      if (after === before || JSON.stringify(JSON.parse(after)) === JSON.stringify(before.trim() === '' ? {} : JSON.parse(before))) return
       writeFileSync(file, after)
-      const env = (text: string) => ((text.trim() === '' ? {} : JSON.parse(text)) as { env?: Record<string, unknown> }).env ?? {}
-      if (adapter.variables.some((name) => Object.hasOwn(env(before), name) && !Object.hasOwn(env(after), name))) this.deps.expired()
+      if (adapter.variables.some((name) => Object.hasOwn(sessionEnvOf(before), name) && !Object.hasOwn(sessionEnvOf(after), name))) this.deps.expired()
     } catch (error) {
       this.deps.log(`profiles: the sessions' settings.json keeps the old ${adapter.title} values: ${englishOf(noticeOf(error))}`)
     }
@@ -533,4 +551,8 @@ function readText(file: string): string {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
     throw error
   }
+}
+
+function sessionEnvOf(text: string): Record<string, unknown> {
+  return ((text.trim() === '' ? {} : JSON.parse(text)) as { env?: Record<string, unknown> }).env ?? {}
 }

@@ -291,6 +291,33 @@ describe('Profiles', { timeout: 60_000 }, () => {
     })
   })
 
+  describe('the start fills the sessions\' settings from the stored defaults (BTN-1167)', () => {
+    it('writes a default profile stored before its values reached the sessions', () => {
+      const profiles = make({ profiles: [profile('p1', 'abc', true), profile('p2', 'org', false)], links: {} })
+      profiles.start()
+      profiles.stop()
+      expect(sessionEnv()).toEqual({ OTHER: 'x', FAKE_URL: 'https://fake.example.com', FAKE_TOKEN: 'abc' })
+      expect(expired).toBe(0)
+    })
+
+    it('keeps a value already there and takes nothing out', () => {
+      writeFileSync(settingsFile, JSON.stringify({ env: { OTHER: 'x', FAKE_TOKEN: 'by-hand', CIFAKE_URL: 'u' } }))
+      const ci: TrackerProfile = { ...profile('c1', 'ci', true), kind: 'cifake', values: { CIFAKE_URL: 'https://ci.example.com', CIFAKE_TOKEN: 't' } }
+      const profiles = make({ profiles: [profile('p1', 'abc', true), ci], links: {} })
+      profiles.start()
+      profiles.stop()
+      expect(sessionEnv()).toEqual({ OTHER: 'x', FAKE_TOKEN: 'by-hand', FAKE_URL: 'https://fake.example.com', CIFAKE_URL: 'u' })
+    })
+
+    it('leaves the file as it is when no kind has a default', () => {
+      const before = readFileSync(settingsFile, 'utf8')
+      const profiles = make()
+      profiles.start()
+      profiles.stop()
+      expect(readFileSync(settingsFile, 'utf8')).toBe(before)
+    })
+  })
+
   it('moves the default and links a project to a profile of its tracker only', async () => {
     const profiles = make({ profiles: [profile('p1', 'abc', true), profile('p2', 'org', false)], links: {} })
     profiles.setDefault('p2')
