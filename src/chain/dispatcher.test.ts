@@ -891,6 +891,39 @@ describe('Dispatcher', () => {
     expect(dispatcher.orders().ABC?.order).toEqual(['GH-13', 'GH-12', 'GH-11'])
   })
 
+  it('ranks the backlog with the chain on a rename: a backlog task the new tracker puts into the chain is not new (BTN-1199)', () => {
+    const { dispatcher, saved } = setup()
+    const v1 = { label: 'v1', targetDate: null }
+    const parked = task('ABC-1', backlog)
+    dispatcher.setTasks('ABC', [parked, { ...task('ABC-2'), milestone: v1 }, task('ABC-3')])
+    expect(dispatcher.orders().ABC?.backlog).toEqual(['ABC-1'])
+
+    dispatcher.rename('ABC', new Map([['ABC-1', 'GH-1'], ['ABC-2', 'GH-2'], ['ABC-3', 'GH-3']]))
+    expect(saved.at(-1)?.orders.ABC).toEqual(['GH-2', 'GH-1', 'GH-3'])
+    dispatcher.setTasks('ABC', [task('GH-1'), { ...task('GH-2'), milestone: v1 }, task('GH-3')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['GH-2', 'GH-1', 'GH-3'])
+  })
+
+  it('puts the backlog after a manual order on a rename, not at its head (BTN-1199)', () => {
+    const { dispatcher, saved } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2'), task('ABC-3')])
+    dispatcher.reorder('ABC', ['ABC-3', 'ABC-2'])
+
+    dispatcher.rename('ABC', new Map([['ABC-1', 'GH-1'], ['ABC-2', 'GH-2'], ['ABC-3', 'GH-3']]))
+    expect(saved.at(-1)?.orders.ABC).toEqual(['GH-3', 'GH-2', 'GH-1'])
+    dispatcher.setTasks('ABC', [task('GH-1'), task('GH-2'), task('GH-3')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['GH-3', 'GH-2', 'GH-1'])
+  })
+
+  it('drops a backlog task from the saved order once the new tracker keeps it out of the chain (BTN-1199)', () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2'), task('ABC-3')])
+    dispatcher.rename('ABC', new Map([['ABC-1', 'GH-1'], ['ABC-2', 'GH-2'], ['ABC-3', 'GH-3']]))
+    dispatcher.setTasks('ABC', [task('GH-1', backlog), task('GH-2'), task('GH-3')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['GH-2', 'GH-3'])
+    expect(dispatcher.state.orders.ABC).toEqual(['GH-2', 'GH-3'])
+  })
+
   it('saves no order on a rename when the chain has none to keep', () => {
     const { dispatcher } = setup()
     dispatcher.rename('ABC', new Map([['ABC-1', 'GH-11']]))

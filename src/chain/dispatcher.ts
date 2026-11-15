@@ -480,23 +480,31 @@ export class Dispatcher {
   /**
    * The project's tasks got new ids (BTN-1074, its tracker switched): the saved order and the skips follow; an id without
    * a new one stays. Without a saved order the computed one is saved (BTN-1195): the new tracker may keep no priority and
-   * numbers the tasks otherwise, so the same rules would build another order there.
+   * numbers the tasks otherwise, so the same rules would build another order there. The order ranks the backlog and the
+   * own waiting blockers too, after a manual order (BTN-1199): the new tracker may have no status to keep them out of the
+   * chain, and unranked they would be new there and go to its head; those it keeps out `placed` drops.
    */
   rename(project: string, names: ReadonlyMap<string, string>): void {
     const renamed = (ids: string[]) => ids.map((id) => names.get(id) ?? id)
-    const order = this.state.orders[project] ?? this.computedOrder(project)
+    const order = this.keptOrder(project)
     if (order !== undefined) this.state.orders[project] = renamed(order)
     if (this.state.skipped[project] !== undefined) this.state.skipped[project] = renamed(this.state.skipped[project])
     this.changed()
   }
 
-  private computedOrder(project: string): string[] | undefined {
-    const tasks = this.lists.tasks.get(project) ?? []
-    if (tasks.length === 0) return undefined
+  private keptOrder(project: string): string[] | undefined {
+    const stored = this.state.orders[project]
+    const chain = this.lists.tasks.get(project) ?? []
+    if (stored === undefined && chain.length === 0) return undefined
+    const outside = this.lists.outside.get(project) ?? []
+    const waiting = (this.lists.waiting.get(project) ?? []).filter((task) => !outside.includes(task))
+    const tasks = [...chain, ...waiting, ...(this.lists.backlog.get(project) ?? [])]
+    const current = this.currentOf(project)
+    const preferred = current === undefined ? stored : [current, ...(stored ?? []).filter((id) => id !== current)]
     try {
-      return chainOrder(tasks, undefined)
+      return chainOrder(tasks, preferred)
     } catch {
-      return undefined
+      return stored
     }
   }
 

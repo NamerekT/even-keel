@@ -189,7 +189,8 @@ The copy of a built-in project's open tasks into another tracker (`docs/trackers
 - an estimate reaches Huly and Linear, and comments by an agent or Even Keel get their headers;
 - a journal comment longer than a tracker's limit (GitHub's 65,536 characters) fits or fails cleanly;
 - a copy does not run into a tracker's rate limit before it ends; if it does, it stops and a start goes on (hundreds of tasks: BTN-1190, BTN-1191);
-- the window reopened or a tab reloaded mid-copy, and a run lost to a restart coming back as "Continue".
+- the window reopened or a tab reloaded mid-copy, and a run lost to a restart coming back as "Continue";
+- after a switch into GitHub the former backlog stands after the milestone in the saved order, not before it (BTN-1199's fix, seen only in tests).
 
 If one is wrong, the copy stops with `export.failed`, or a task is copied twice or without its parent, links or files. **Workaround:** the project stays on the built-in tracker; fix the target (create the missing labels and milestones, wait for the rate limit) and start the copy again; delete a doubled task in the tracker by hand. To check: on a bench, copy a built-in project with a parent and a child, a `blocks` pair, a label, a milestone, an estimate, an attachment and comments by a person, an agent and Even Keel into Jira, GitLab and Forgejo; cut the copy mid-way and start again; see no task, comment or file twice and "Moved to" in every old task.
 
