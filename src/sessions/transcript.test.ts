@@ -410,7 +410,7 @@ describe('TranscriptFold', () => {
     const empty = fold([assistant('m1', [text('working')]), apiError('billing_error', 'Credit balance is too low')]).summary()
     expect(empty.apiError).toMatchObject({ kind: 'credit', text: 'Credit balance is too low' })
     expect(fold([apiError('rate_limit', 'Request rejected (429)')]).summary().apiError).toMatchObject({ kind: 'limit' })
-    expect(fold([apiError('authentication_failed', 'Invalid API key')]).summary().apiError).toMatchObject({ kind: 'error' })
+    expect(fold([apiError('authentication_failed', 'Invalid API key')]).summary().apiError).toMatchObject({ kind: 'auth' })
   })
 
   it.each(['API', 'workspace API'])('recognizes a specified %s spending limit even when the CLI calls it unknown', (scope) => {
@@ -443,7 +443,7 @@ describe('TranscriptFold', () => {
 
   it('reports other API errors and forgets them once the session answers again', () => {
     const failed = fold([assistant('m1', [text('working')]), apiError('authentication_failed', 'OAuth session expired')])
-    expect(failed.summary().apiError).toMatchObject({ kind: 'error' })
+    expect(failed.summary().apiError).toMatchObject({ kind: 'auth' })
 
     failed.push(assistant('m2', [text('back')]))
     expect(failed.summary().apiError).toBeNull()

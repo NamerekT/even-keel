@@ -26,10 +26,12 @@ import { SHARE_TOOL, shareOf, type Share } from './share.js'
 
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
 /** `credit` — spent API credit; `spend` — a specified API spending cap, even when the CLI reports `unknown`. */
-export type ApiErrorKind = 'limit' | 'credit' | 'spend' | 'transient' | 'model' | 'error'
+export type ApiErrorKind = 'limit' | 'credit' | 'spend' | 'transient' | 'model' | 'auth' | 'error'
 
 const API_ERROR_KINDS = new Map<unknown, ApiErrorKind>([
   ['rate_limit', 'limit'],
+  // An error like any other for the session; the account on a long token learns from it that the token is refused (BTN-1005).
+  ['authentication_failed', 'auth'],
   ['billing_error', 'credit'],
   ['overloaded_error', 'transient'],
 ])

@@ -1,4 +1,4 @@
-export type RemoteOff = 'starting' | 'disabled' | 'no-bridge' | 'lost' | 'api-key'
+export type RemoteOff = 'starting' | 'disabled' | 'no-bridge' | 'lost' | 'api-key' | 'long-token'
 
 export interface RemoteLink {
   url: string | null
@@ -13,6 +13,8 @@ export interface RemoteFacts {
   enabled: boolean | null
   /** Remote Control needs a claude.ai sign-in: a session on an API key never has it (BTN-136). */
   apiKey: boolean
+  /** A long token of `claude setup-token` is inference-only: Remote Control is refused on it (BTN-1005). */
+  longToken?: boolean
   startedAt: number
   now: number
 }
@@ -37,6 +39,7 @@ export function remoteAtStartup(rawSettings: string | undefined): boolean {
 export function remoteLink(facts: RemoteFacts): RemoteLink {
   if (facts.enabled === null) return { url: null, off: null }
   if (facts.apiKey) return { url: null, off: 'api-key' }
+  if (facts.longToken === true) return { url: null, off: 'long-token' }
   if (facts.lost) return { url: null, off: 'lost' }
   const url = facts.bridge !== null ? remoteUrlOf(facts.bridge) : facts.transcriptUrl
   if (url !== null) return { url, off: null }

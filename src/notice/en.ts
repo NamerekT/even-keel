@@ -357,6 +357,8 @@ export const en = {
     `${p.agent}: the key is of another organization than the account's, so it is another account: add it as one; the old key stays`,
   'account.cloudNotReady': (p: { cloud: string }) => `claude: accounts on ${p.cloud} are not supported yet`,
   'account.cloudFieldInvalid': (p: { field: string }) => `claude: ${p.field} is one word, without spaces`,
+  'account.tokenInvalid': () => 'claude: a long token is one word starting with sk-ant-oat01-, as claude setup-token prints it',
+  'account.tokenRejected': (p: { reason: string }) => `claude: the check turn on the token failed, nothing was changed: ${p.reason}`,
   'account.cloudCheckFailed': (p: { reason: string }) => `claude: the check turn on the cloud failed, nothing was added: ${p.reason}`,
   'cloud.bedrockModelDenied': () =>
     "Amazon Bedrock refuses Anthropic's models to this AWS account: request access in the Bedrock console in its region. A new account with no payment history only AWS Support opens",

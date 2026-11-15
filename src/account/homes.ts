@@ -13,6 +13,7 @@ import { shortLivedProfile } from './aws.js'
 import { userCredentials } from './gcloud.js'
 import { cloudEnv, cloudOf, type CloudConnection, type CloudSummary } from './cloud.js'
 import { KeychainCredentials, keychainService } from './keychain.js'
+import { readLongToken, writeLongToken, type LongToken } from './longToken.js'
 import { CODEX_ACCOUNT, folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
 import type { AccountSettings } from './settingsLayer.js'
 import { API_KEY_VARIABLE, shareConfig } from './share.js'
@@ -230,6 +231,23 @@ export class AccountHomes {
     this.forget()
     writeFileSync(join(home.dir, 'settings.json'), JSON.stringify({ env: cloudEnv(connection) }, null, 2))
     return home
+  }
+
+  /**
+   * A subscription account on a long token of `claude setup-token` (BTN-1005): a Claude folder whose `settings.json`
+   * carries the token, as an API account's carries its key; named `token` when the name is blank.
+   */
+  addLongToken(name: string, token: string, now: Date, sameAs?: string): AccountHome {
+    const home = this.home(CLAUDE, folderName(name.trim() === '' ? 'token' : name, this.taken()))
+    mkdirSync(home.dir, { recursive: true })
+    this.forget()
+    writeLongToken(home.dir, token, now, sameAs)
+    return home
+  }
+
+  /** The long token a Claude folder runs on; null for a folder signed in any other way. */
+  longTokenOf(home: AccountHome): LongToken | null {
+    return home.agent === CLAUDE ? readLongToken(home.dir) : null
   }
 
   /** The cloud a Claude folder's `settings.json` connects to; null for any other folder. */

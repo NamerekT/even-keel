@@ -355,6 +355,18 @@ describe('mergeSettings', () => {
     expect(mergeSettings({ model: 'opus' }, { apiKeyHelper: 'folder-helper' })).toEqual({ model: 'opus', apiKeyHelper: 'folder-helper' })
   })
 
+  it("keeps a long-token folder's token over the global env", () => {
+    const global = { env: { HULY_TOKEN: 'fake-token', CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-global' } }
+    const folder = { env: { CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-fake', OLD: '1' } }
+    expect(mergeSettings(global, folder)).toEqual({ env: { HULY_TOKEN: 'fake-token', CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-fake' } })
+  })
+
+  it('moves no long token of the global env into a folder signed in otherwise', () => {
+    const global = { env: { HULY_TOKEN: 'fake-token', CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-global' } }
+    expect(mergeSettings(global, { model: 'sonnet' })).toEqual({ model: 'sonnet', env: { HULY_TOKEN: 'fake-token' } })
+    expect(mergeSettings({ env: { CLAUDE_CODE_OAUTH_TOKEN: 'sk-ant-oat01-global' } }, undefined)).toEqual({ env: {} })
+  })
+
   it("keeps a cloud folder's connection and takes none of the cloud's variables from the global env", () => {
     const global = { env: { HULY_TOKEN: 'fake-token', ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-opus-fake', AWS_PROFILE: 'other' } }
     const folder = { env: { CLAUDE_CODE_USE_BEDROCK: '1', AWS_PROFILE: 'work', AWS_REGION: 'eu-central-1', OLD: '1' } }

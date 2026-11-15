@@ -76,6 +76,8 @@ export interface AccountControl {
   addApiKey(name: string, key: string, agent: string, provider?: string): Promise<void>
   /** A Claude account on a cloud, checked by one short turn before it is kept (BTN-822). */
   addCloud(name: string, connection: CloudConnection): Promise<void>
+  /** A Claude subscription account on a long token of `claude setup-token`, checked by one short turn (BTN-1005). */
+  addLongToken(name: string, token: string, sameAs?: string): Promise<void>
   /** The AWS profiles of the service's user into `AccountView.aws`, for the cloud form. */
   readAws(): void
   /** The Google Cloud credentials of the service's user into `AccountView.gcloud`, for the Vertex form (BTN-823). */

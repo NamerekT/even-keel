@@ -13,6 +13,7 @@ import type { Transport } from './transport.js'
 import type { AwsProfiles, AzureCredentials, CloudSummary, GcloudCredentials } from './cloud.js'
 import type { AccountLevel } from './header-levels.js'
 import type { ReadKeyLimit } from './keycheck.js'
+import type { LongToken } from './longToken.js'
 
 export const GLOBAL_ACCOUNT = 'global'
 /** The key of Codex's own account folder, `CODEX_HOME` or `~/.codex` (`AccountHomes`). */
@@ -76,6 +77,8 @@ export interface AccountEntry {
   apiKey: boolean
   /** An API account whose folder keeps the key itself, so the page can put a new one in its place (BTN-418). */
   keyReplaceable?: boolean
+  /** The long token of `claude setup-token` a subscription folder runs on instead of a full sign-in (BTN-1005). */
+  longToken?: LongToken
   /** The cloud a Claude folder runs on (BTN-822), read from its `settings.json`; `apiKey` is false for it. */
   cloud?: CloudSummary
   /** The model that answered the check turn when the account was added, while the service runs. */

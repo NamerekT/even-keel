@@ -26,6 +26,11 @@ export interface LimitsWatcherOptions {
   apiKey: (account: string) => boolean
   /** A signed-out folder is not asked for limits; its account card already asks for sign-in. */
   needsLogin: (account: string) => boolean
+  /**
+   * A folder on a long token (BTN-1005): `/usage` gives it no limits, so it is never polled and shows what its sessions
+   * tell; with `sameAs` — the folder with a full sign-in of the same account, whose limits it shows and feeds.
+   */
+  longToken?: (account: string) => { sameAs?: string | undefined } | undefined
   /** The limits a poll or a session last told of each account before the restart (`account_limits`, BTN-631). */
   saved?: ReadonlyMap<string, RateLimits>
   /** Keeps the newest of what polls and sessions told; `undefined` — nothing is known any more. */
@@ -47,6 +52,8 @@ interface AccountLimits {
 }
 
 const WAITING: UsageHealth = { state: 'waiting', reason: null, since: null }
+/** A folder never polled reads its limits from its sessions: nothing is missing. */
+const FROM_SESSIONS: UsageHealth = { state: 'ok', reason: null, since: null }
 const OFF_REASON_PREFIX = 'claude -p /usage may have reached the model'
 
 export class LimitsWatcher {
@@ -70,7 +77,18 @@ export class LimitsWatcher {
     }
   }
 
+  /** A long-token folder's account with a full sign-in elsewhere: its limits live under that folder. */
+  private sameAs(account: string): string | undefined {
+    return this.options.longToken?.(account)?.sameAs
+  }
+
+  private sessionsOnly(account: string): boolean {
+    return this.options.longToken?.(account) !== undefined
+  }
+
   limits(account: string): RateLimits | null {
+    const same = this.sameAs(account)
+    if (same !== undefined) return this.limits(same)
     if (this.options.apiKey(account)) return null
     const now = new Date()
     const own = currentLimits(newestOf(this.accounts.get(account)), now, this.options.notBefore(account))
@@ -86,7 +104,7 @@ export class LimitsWatcher {
 
   /** The windows a session of the account reported between the polls, over the newest of what was known. */
   report(account: string, reported: SessionLimits, at = new Date().toISOString()): void {
-    const known = this.of(account)
+    const known = this.of(this.sameAs(account) ?? account)
     known.streamed = withSessionLimits(newestOf(known), reported, at)
     this.publish()
   }
@@ -101,7 +119,10 @@ export class LimitsWatcher {
   }
 
   usage(account: string): UsageHealth {
+    const same = this.sameAs(account)
+    if (same !== undefined) return this.usage(same)
     if (this.options.needsLogin(account) || this.options.apiKey(account)) return WAITING
+    if (this.sessionsOnly(account)) return FROM_SESSIONS
     return this.usageOff ?? this.accounts.get(account)?.health ?? WAITING
   }
 
@@ -188,8 +209,11 @@ export class LimitsWatcher {
 
   /** True when an account was skipped because its provider did not answer. */
   private async pollAll(): Promise<boolean> {
-    const homes = this.options.homes().filter((home) => !this.options.needsLogin(home.key) && !this.options.apiKey(home.key) && this.options.usage(home) !== undefined)
+    const homes = this.options
+      .homes()
+      .filter((home) => !this.options.needsLogin(home.key) && !this.options.apiKey(home.key) && !this.sessionsOnly(home.key) && this.options.usage(home) !== undefined)
     const keys = new Set(homes.map((home) => home.key))
+    for (const home of this.options.homes()) if (this.sessionsOnly(home.key) && !this.options.needsLogin(home.key)) keys.add(home.key)
     for (const key of this.accounts.keys()) if (!keys.has(key)) this.accounts.delete(key)
     let skipped = false
     for (const home of homes) {
@@ -247,6 +271,9 @@ export class LimitsWatcher {
 
   /** A polled account that no poll has answered since the start. */
   private unconfirmed(account: string): boolean {
+    const same = this.sameAs(account)
+    if (same !== undefined) return this.unconfirmed(same)
+    if (this.sessionsOnly(account)) return false
     if (this.usageOff !== undefined || this.options.needsLogin(account) || this.options.apiKey(account)) return false
     const home = this.options.homes().find((each) => each.key === account)
     if (home === undefined || this.options.usage(home) === undefined || this.options.limitsHidden?.(home) === true) return false

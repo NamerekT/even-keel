@@ -116,6 +116,12 @@ const COMMANDS: Record<string, Command> = {
       ...(body.provider === undefined ? [] : [textOf(body.provider, 'provider')]),
     ),
   'account/cloud': ({ account }, body) => account.addCloud(typeof body.name === 'string' ? body.name : '', cloudConnectionOf(body)),
+  'account/token': ({ account }, body) =>
+    account.addLongToken(
+      typeof body.name === 'string' ? body.name : '',
+      textOf(body.token, 'token'),
+      ...(typeof body.sameAs === 'string' && body.sameAs !== '' ? [body.sameAs] : []),
+    ),
   'account/aws': ({ account }) => account.readAws(),
   'account/gcloud': ({ account }) => account.readGcloud(),
   'account/azure': ({ account }) => account.readAzure(),

@@ -48,6 +48,7 @@ export const sessionEn = {
     'no-bridge': "The session didn't start Remote Control — it can't be opened from here.",
     lost: "Remote Control dropped — can't be opened from the phone. If the task isn't done — “New session”.",
     'api-key': 'No Remote Control on an API key or a cloud: it needs a claude.ai sign-in. Answer the session from the chat here or in the tracker.',
+    'long-token': 'No Remote Control on a long token: it needs a full sign-in. Answer the session from the chat here or in the tracker.',
   },
   panel: (task: string) => `Session of task ${task}`,
   closePanel: 'Close the panel',

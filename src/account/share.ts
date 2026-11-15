@@ -37,6 +37,8 @@ const ONBOARDING_KEYS = ['hasCompletedOnboarding', 'lastOnboardingVersion']
 const LINKED_DIRS = ['agents', 'commands', 'hooks', 'output-styles']
 const OWN_SKILLS = new Set(['synced', '.trash'])
 export const API_KEY_VARIABLE = 'ANTHROPIC_API_KEY'
+/** The long-lived token of `claude setup-token` (BTN-1005): it makes a long-token account, never shared between folders. */
+export const OAUTH_TOKEN_VARIABLE = 'CLAUDE_CODE_OAUTH_TOKEN'
 const COPIED_FILES = ['CLAUDE.md', join('plugins', 'installed_plugins.json'), join('plugins', 'known_marketplaces.json')]
 
 export interface SharedSources {
@@ -45,14 +47,19 @@ export interface SharedSources {
 }
 
 /**
- * The global settings win, except the folder's own API key and cloud connection: they are what makes an API or a cloud
- * account (`docs/accounts.md`). A cloud folder takes none of the cloud's variables from the global settings.
+ * The global settings win, except the folder's own API key, long token and cloud connection: they are what makes an API,
+ * a long-token or a cloud account (`docs/accounts.md`). A cloud folder takes none of the cloud's variables from the global
+ * settings, and no folder takes the global long token.
  */
 export function mergeSettings(global: Json, folder: Json | undefined): Json {
   const merged = { ...folder, ...global }
   const own = objectOf(folder?.env)
+  const globalEnv = Object.fromEntries(Object.entries(objectOf(global.env)).filter(([name]) => name !== OAUTH_TOKEN_VARIABLE))
+  if (OAUTH_TOKEN_VARIABLE in objectOf(global.env)) merged.env = globalEnv
   const key = own[API_KEY_VARIABLE]
-  if (typeof key === 'string') merged.env = { ...objectOf(global.env), [API_KEY_VARIABLE]: key }
+  if (typeof key === 'string') merged.env = { ...globalEnv, [API_KEY_VARIABLE]: key }
+  const token = own[OAUTH_TOKEN_VARIABLE]
+  if (typeof token === 'string') merged.env = { ...globalEnv, [OAUTH_TOKEN_VARIABLE]: token }
   if (cloudOf(own) !== null) {
     const shared = Object.fromEntries(Object.entries(objectOf(merged.env ?? global.env)).filter(([name]) => !isCloudVariable(name)))
     const cloud = Object.fromEntries(Object.entries(own).filter(([name]) => isCloudVariable(name)))

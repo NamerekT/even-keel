@@ -15,6 +15,8 @@ import type { AccountSettings, EditChoice } from './settingsLayer.js'
 import { CLAUDE } from '../claude/name.js'
 import type { AwsProfiles, AzureCredentials, CloudConnection, CloudSummary, GcloudCredentials } from './cloud.js'
 import { cloudErrorNotice, type Whose } from './cloud-errors.js'
+import { noteTokenRefused, tokenOver, type LongToken } from './longToken.js'
+import { addTokenAccount, replaceToken, type TokenAccounts } from './tokenAccount.js'
 import type { Transport } from './transport.js'
 import {
   cleanOutput,
@@ -153,6 +155,8 @@ interface Known {
   openRouter: boolean
   /** The cloud the folder's `settings.json` connects to (BTN-822). */
   cloud: CloudSummary | null
+  /** The long token the folder runs on (BTN-1005). */
+  longToken: LongToken | null
 }
 
 interface Running {
@@ -182,6 +186,10 @@ export class AccountWatcher {
   /** The account's own key `/credits` refused, by folder key: the balance is asked of the management key until it changes. */
   private readonly ownKeyRefused = new Map<string, string>()
 
+  private get tokens(): TokenAccounts {
+    return { homes: this.options.homes, check: this.options.checkCloud, now: this.options.now }
+  }
+
   constructor(private readonly options: AccountWatcherOptions) {
     this.keys = new KeyChecks(options.keyCheckMs)
     this.credit = new CreditChecks(options.creditCheckMs)
@@ -191,12 +199,24 @@ export class AccountWatcher {
   needsLogin(key: string): boolean {
     const known = this.known.find((entry) => entry.home.key === key)
     if (known === undefined) return true
+    if (known.longToken !== null && tokenOver(known.longToken, this.options.now())) return true
     return needsLogin(known.status, this.options.homes.times(known.home), this.options.now()) || (isApiKey(known.status) && this.keys.rejected(key))
+  }
+
+  /** The long token the account runs on, as of the last poll (BTN-1005). */
+  longToken(key: string): LongToken | undefined {
+    return this.known.find((entry) => entry.home.key === key)?.longToken ?? undefined
+  }
+
+  /** A session's request was refused as not signed in: on a long token the account needs a new one, as after a sign-out. */
+  tokenRefused(key: string, at: string): void {
+    const home = this.options.homes.find(key)
+    if (home !== undefined && this.longToken(key) !== undefined && noteTokenRefused(home.dir, at)) void this.refresh()
   }
 
   get view(): AccountView {
     const now = this.options.now()
-    const accounts = this.known.map(({ home, status, error, keyHeld, openRouter, cloud }): AccountEntry => {
+    const accounts = this.known.map(({ home, status, error, keyHeld, openRouter, cloud, longToken }): AccountEntry => {
       const times = this.options.homes.times(home)
       const transport = this.options.transportOf(home, paysPerToken(status))
       const seen = this.options.signedInAs?.(home.key)
@@ -221,7 +241,8 @@ export class AccountWatcher {
         configPending: this.options.configPending(home.key),
         ...this.settingsOf(home),
         apiKey: isApiKey(status),
-        keyReplaceable: keyHeld && (isApiKey(status) || status?.authMethod === 'subscription_key'),
+        keyReplaceable: (keyHeld && (isApiKey(status) || status?.authMethod === 'subscription_key')) || (longToken !== null && !home.global),
+        ...(longToken !== null && { longToken }),
         ...(cloud !== null && { cloud }),
         ...(this.checkedModels.has(home.key) && { checkedModel: this.checkedModels.get(home.key) ?? null }),
         ...(transport !== null && { transport }),
@@ -462,6 +483,14 @@ export class AccountWatcher {
     await this.refresh()
   }
 
+  /** A subscription account on a long token of `claude setup-token`, checked by one short turn (`addTokenAccount`). */
+  async addLongToken(name: string, token: string, sameAs?: string): Promise<void> {
+    const home = await addTokenAccount(this.tokens, name, token, sameAs)
+    this.options.name(home.key, name)
+    this.claimShared(home)
+    await this.refresh()
+  }
+
   /**
    * A new key in the folder of an API account (BTN-418): its name, roles and pools stay. Checked as a new account's key
    * is, and refused when the account's organization is known and the key's is another one. Running sessions go on with
@@ -470,6 +499,10 @@ export class AccountWatcher {
   async replaceApiKey(key: string, value: string): Promise<void> {
     const home = this.options.homes.find(key)
     if (home === undefined) throw fail('account.unknown', { key })
+    if (this.options.homes.longTokenOf(home) !== null) {
+      await replaceToken(this.tokens, home, value)
+      return this.refresh()
+    }
     const next = this.options.homes.replacement(home, value)
     const verdict = await this.accepted(home.agent, next, home.agent === 'opencode' && consoleKey(readAuth(home.dir)) !== null)
     const known = this.options.organizations.of(key)
@@ -632,7 +665,7 @@ export class AccountWatcher {
   private async drop(key: string): Promise<void> {
     const home = this.options.homes.find(key)!
     const status = this.known.find((known) => known.home.key === key)?.status
-    if (!home.global && status?.loggedIn === true && !paysPerToken(status)) await this.options.agentOf(home).logout(home)
+    if (!home.global && status?.loggedIn === true && !paysPerToken(status) && this.longToken(home.key) === undefined) await this.options.agentOf(home).logout(home)
     await this.options.homes.remove(home)
     this.options.forget(key)
     this.keys.forget(key)
@@ -665,14 +698,14 @@ export class AccountWatcher {
     const apiKey = home.global ? null : this.options.homes.apiKeyOf(home)
     const keyHeld = apiKey !== null
     const openRouter = apiKey !== null && keyProvider(home.agent, apiKey) === 'openrouter'
-    const cloud = this.options.homes.cloudOf(home)
-    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null, keyHeld, openRouter, cloud }
+    const facts = { home, keyHeld, openRouter, cloud: this.options.homes.cloudOf(home), longToken: this.options.homes.longTokenOf(home) }
+    if (!(await this.options.online(home))) return { ...facts, status: before?.status ?? null, error: before?.error ?? null }
     try {
-      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null, keyHeld, openRouter, cloud }
+      return { ...facts, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null }
     } catch (reason) {
       const error = noticeOf(reason)
       if (!sameNotice(error, before?.error ?? null)) this.options.onError(reason)
-      return { home, status: before?.status ?? null, error, keyHeld, openRouter, cloud }
+      return { ...facts, status: before?.status ?? null, error }
     }
   }
 

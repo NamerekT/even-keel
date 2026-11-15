@@ -216,6 +216,69 @@ describe('LimitsWatcher.report', () => {
   })
 })
 
+describe('LimitsWatcher on a long token (BTN-1005)', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  const window = (usedPercentage: number) => ({ usedPercentage, resetsAt: '2099-01-01T00:00:00.000Z' })
+  const FULL: AccountHome = { key: 'full', dir: '/home/john/.claude-accounts/full', global: false, agent: 'claude' }
+  const TOKEN: AccountHome = { key: 'token', dir: '/home/john/.claude-accounts/token', global: false, agent: 'claude' }
+
+  function tokenWatcher(sameAs: string | undefined) {
+    const asked: string[] = []
+    const watcher = new LimitsWatcher({
+      file: '/nonexistent/limits.json',
+      intervalMs: 60_000,
+      homes: () => [FULL, TOKEN],
+      ownerOf: () => undefined,
+      usage: (home) => async () => {
+        asked.push(home.key)
+        return { kind: 'limits', limits: { fiveHour: window(16), sevenDay: window(36), updatedAt: '2026-01-01T12:00:00.000Z', source: 'usage' } }
+      },
+      usageIntervalMs: 300_000,
+      online: async () => true,
+      offlineRetryMs: 30_000,
+      notBefore: () => null,
+      accessExpired: () => false,
+      ready: () => true,
+      apiKey: () => false,
+      needsLogin: () => false,
+      longToken: (key) => (key === TOKEN.key ? { sameAs } : undefined),
+      onChange: () => {},
+      onError: () => {},
+    })
+    const poll = async () => {
+      watcher.refresh()
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
+    }
+    return { watcher, asked, poll }
+  }
+
+  it('never asks /usage of the token folder, keeps what its sessions told across polls and counts it read', async () => {
+    const { watcher, asked, poll } = tokenWatcher(undefined)
+    expect(watcher.usage('token').state).toBe('ok')
+    expect(watcher.unread('token')).toBe(false)
+    watcher.report('token', { fiveHour: window(22), sevenDay: window(34) }, '2026-01-01T12:01:00.000Z')
+    await poll()
+    expect(asked).toEqual(['full'])
+    expect(watcher.limits('token')).toMatchObject({ fiveHour: window(22), sevenDay: window(34), source: 'sdk' })
+    expect(watcher.limits('full')).toMatchObject({ fiveHour: window(16), source: 'usage' })
+  })
+
+  it("shows the limits of the folder the token is of, and puts its sessions' windows there", async () => {
+    const { watcher, asked, poll } = tokenWatcher('full')
+    await poll()
+    expect(asked).toEqual(['full'])
+    expect(watcher.limits('token')).toEqual(watcher.limits('full'))
+    expect(watcher.usage('token')).toEqual(watcher.usage('full'))
+    watcher.report('token', { fiveHour: window(30) }, '2026-01-01T12:05:00.000Z')
+    expect(watcher.limits('full')).toMatchObject({ fiveHour: window(30), sevenDay: window(36), source: 'sdk' })
+  })
+})
+
 describe('LimitsWatcher.spendMonth', () => {
   beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))
   afterEach(() => {

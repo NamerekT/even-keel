@@ -275,6 +275,13 @@ export function wireLimits(ctx: AccountsContext): LimitsWatcher {
     ready: (): boolean => ctx.account.ready,
     apiKey: ctx.spendsByKey,
     needsLogin: (key) => ctx.account.needsLogin(key),
+    longToken: (key) => {
+      const token = ctx.account.longToken(key)
+      if (token === undefined) return undefined
+      // A folder since removed or put on a token itself is no source of limits any more.
+      const same = token.sameAs === undefined ? undefined : ctx.homes.find(token.sameAs)
+      return { sameAs: same !== undefined && ctx.account.longToken(same.key) === undefined ? same.key : undefined }
+    },
     saved: ctx.savedLimits,
     save: (key, limits) => ctx.writes.add(`the limits of ${key}`, saveLimits(ctx.db, key, limits)),
     onChange: () => {
@@ -561,6 +568,7 @@ export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, numbe
     homes: () => ctx.homes.list(),
     emailOf: (key) => ctx.account.emailOf(key),
     apiKey: (key) => ctx.account.apiKey(key),
+    longToken: (key) => ctx.account.longToken(key) !== undefined,
     keyLimits: (key) => ctx.account.apiKey(key) && !ctx.spendsByKey(key),
     projectKeys: () => sessionPrefixes(ctx.configStore.current),
     contextWindow: (key, model, task, settings) => (ctx.agentOf(ctx.homeOf(key)).contextWindow === undefined ? null : ctx.contextWindows.peek(key, model, task, settings)),
@@ -579,6 +587,10 @@ export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, numbe
     },
     onChange: (views) => {
       for (const view of views) {
+        if (view.apiErrorKind === 'auth') {
+          const refused = ctx.agents.find(agent => agent.sessionId === view.sessionId)?.account
+          if (refused !== undefined) ctx.account.tokenRefused(refused, new Date().toISOString())
+        }
         if (view.apiErrorKind !== 'model') continue
         if (ctx.sessions.some(before => before.sessionId === view.sessionId && before.apiErrorKind === 'model' && before.apiError === view.apiError)) continue
         const account = ctx.agents.find(agent => agent.sessionId === view.sessionId)?.account

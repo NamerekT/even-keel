@@ -363,6 +363,8 @@ export const noticesRu: NoticeTexts = {
   'account.keyOtherOrganization': () => 'ключ из другой организации, чем у аккаунта, — это другой аккаунт: добавьте его отдельно; старый ключ остался',
   'account.cloudNotReady': (p) => `аккаунты в ${p.cloud} пока не поддерживаются`,
   'account.cloudFieldInvalid': (p) => `${p.field} — одно слово, без пробелов`,
+  'account.tokenInvalid': () => 'долгий токен — одно слово, начинается с sk-ant-oat01-, как его печатает claude setup-token',
+  'account.tokenRejected': (p) => `проверочный ход на токене не прошёл, ничего не изменено: ${p.reason}`,
   'account.cloudCheckFailed': (p) => `проверочный ход в облаке не прошёл, ничего не добавлено: ${p.reason}`,
   'cloud.bedrockModelDenied': () =>
     'Amazon Bedrock не даёт этому аккаунту AWS модели Anthropic: запросите доступ в консоли Bedrock в его регионе. Новому аккаунту без истории оплат доступ открывает только поддержка AWS',

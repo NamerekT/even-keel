@@ -19,6 +19,8 @@ export interface SessionMonitorOptions {
   emailOf: (account: string) => string | null
   /** An API account waits out spent credit and spending caps, with no subscription usage window (`docs/accounts.md`). */
   apiKey: (account: string) => boolean
+  /** Optional. A subscription account on a long token: it waits out limits as any subscription, but has no Remote Control (BTN-1005). */
+  longToken?: (account: string) => boolean
   /** Optional. A key account with a usage window (Copilot's token, BTN-341): it waits out a spent quota as well as spent credit. */
   keyLimits?: (account: string) => boolean
   projectKeys: () => string[]
@@ -86,7 +88,7 @@ export class SessionMonitor {
     return [...this.tracked].map(([task, tracked]) => {
       const account = tracked.agent.account ?? GLOBAL_ACCOUNT
       const enabled = this.remoteEnabled.has(account) ? this.remoteEnabled.get(account)! : false
-      const remote = { enabled, apiKey: this.options.apiKey(account) }
+      const remote = { enabled, apiKey: this.options.apiKey(account), longToken: this.options.longToken?.(account) === true }
       const windowOf = (model: string) => this.options.contextWindow?.(account, model, task, tracked.agent.settings) ?? null
       const approval = tracked.present && tracked.agent.status === 'waiting' ? (this.options.approval?.(tracked.agent.sessionId) ?? null) : null
       const view = toView(task, tracked, remote, this.options.emailOf(account), now, windowOf, approval)
@@ -252,7 +254,7 @@ export class SessionMonitor {
 function toView(
   task: string,
   { agent, runsOn, present, transcript, bridge }: Tracked,
-  remoteOf: { enabled: boolean | null; apiKey: boolean },
+  remoteOf: { enabled: boolean | null; apiKey: boolean; longToken?: boolean },
   email: string | null,
   now: number,
   windowOf: (model: string) => number | null,
