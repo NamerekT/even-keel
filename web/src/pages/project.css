@@ -583,6 +583,11 @@
   text-align: left;
 }
 
+/* The acts of a play already told stay above the newest one, quieter. */
+.idle__meme--past {
+  color: var(--fg-muted);
+}
+
 .idle__chat {
   display: grid;
   gap: 6px;

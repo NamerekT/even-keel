@@ -2,9 +2,22 @@ import { type RefObject, useEffect, useRef, useState } from 'react'
 import { t } from '../i18n/index.js'
 import { useVisible } from '../layout/useVisible.js'
 import { stillMotion } from '../ui/landing.js'
-import { chatAt, type ChatLine, chatTime, longestRun, type Meme, type Motion, momentsOf, pickMeme, playMotion, type Scene } from '../ui/memes.js'
+import {
+  actEnd,
+  chatAt,
+  type ChatLine,
+  chatTime,
+  longestRun,
+  type Meme,
+  type Motion,
+  momentsOf,
+  pickMeme,
+  playMotion,
+  type Scene,
+  selectionAt,
+} from '../ui/memes.js'
 import { TypedLine } from '../ui/Typed.js'
-import { shownAt, typingTime } from '../ui/typing.js'
+import { shownAt, typedAt, typingTime } from '../ui/typing.js'
 import { VOYAGE_TICK_MS, VOYAGE_WIDTH, voyageFrame } from '../ui/voyage.js'
 
 const IDLE_PACE = { charMs: 40, pauseMs: 1500 }
@@ -20,6 +33,7 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   const [meme, setMeme] = useState<Meme>(() => draw())
   const parts = memeParts(meme, scene)
   const chat = 'chat' in meme ? t.project.idle.chats[meme.chat] : null
+  const play = 'play' in meme ? t.project.idle.plays[meme.play] : null
   const [shown, setShown] = useState(() => (stillMotion() ? Infinity : 0))
   const [said, setSaid] = useState<ReturnType<typeof chatAt>>({ said: [], selected: 0 })
   const [tick, setTick] = useState({ sea: 0, cloud: 0 })
@@ -34,7 +48,7 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   latest.current = { meme, parts, chat, cue, draw }
 
   // A general line, a moment's line and a chat go on their own; the drive stays until the moments change, and so does a
-  // moment's line with reduced motion. A play goes act by act; the picture keeps its last act for good.
+  // moment's line with reduced motion. A play piles up act by act; the picture keeps the pile for good.
   useEffect(() => {
     if ('line' in meme || 'play' in meme || 'chat' in meme || line.current.cue === cue) return
     if (stillMotion()) {
@@ -51,21 +65,32 @@ export function IdlePanel({ scene }: { scene: Scene }) {
     let frame = requestAnimationFrame(function step(now) {
       const { meme, parts, chat, cue, draw } = latest.current
       const elapsed = now - line.current.start
-      const acts = 'play' in meme ? t.project.idle.plays[meme.play].length : 0
-      const nextAct = 'play' in meme && meme.act < acts - 1 ? { play: meme.play, act: meme.act + 1 } : null
-      const held = (chat ? chatTime(chat, IDLE_PACE) : typingTime(parts, IDLE_PACE)) + HOLD_MS
-      const stays = 'play' in meme && meme.play === 'picture' && nextAct === null
-      const goes = 'line' in meme || 'moment' in meme || chat || ('play' in meme && !stays)
-      const eraseAt = goes ? held : 'play' in meme ? null : line.current.eraseAt
-      motion.current = 'play' in meme ? playMotion(meme.play, meme.act, acts, elapsed, parts, IDLE_PACE) : FORWARD
-      const count = shownAt(parts, elapsed, IDLE_PACE, eraseAt)
-      const lines = chat ? chatAt(chat, elapsed, IDLE_PACE, eraseAt) : { said: [], selected: 0 }
-      const gone = chat ? lines.said.every((shown) => shown < 0) : count === 0
-      if (eraseAt !== null && elapsed > eraseAt && gone) {
+      const next = (meme: Meme) => {
         line.current = { start: now, eraseAt: null, cue }
-        setMeme(nextAct ?? draw(meme))
+        setMeme(meme)
       }
-      setShown(count)
+      let lines: ReturnType<typeof chatAt>
+      if ('play' in meme) {
+        const acts = t.project.idle.plays[meme.play].length
+        const last = meme.act === acts - 1
+        motion.current = playMotion(meme.play, meme.act, acts, elapsed, parts, IDLE_PACE)
+        const end = last && meme.play === 'picture' ? null : actEnd(parts, IDLE_PACE, { last, holdMs: HOLD_MS })
+        const selected = last ? selectionAt(acts, elapsed, end) : 0
+        const count = typedAt(parts, elapsed, IDLE_PACE)
+        const said = Array.from({ length: acts }, (_, act) => (selected === null || act > meme.act ? -1 : act < meme.act ? Infinity : count))
+        lines = { said, selected: selected ?? 0 }
+        if (!last && elapsed > end!) next({ play: meme.play, act: meme.act + 1 })
+        else if (selected === null) next(draw(meme))
+      } else {
+        const held = (chat ? chatTime(chat, IDLE_PACE) : typingTime(parts, IDLE_PACE)) + HOLD_MS
+        const eraseAt = 'line' in meme || 'moment' in meme || chat ? held : line.current.eraseAt
+        motion.current = FORWARD
+        const count = shownAt(parts, elapsed, IDLE_PACE, eraseAt)
+        lines = chat ? chatAt(chat, elapsed, IDLE_PACE, eraseAt) : { said: [], selected: 0 }
+        const gone = chat ? lines.said.every((shown) => shown < 0) : count === 0
+        if (eraseAt !== null && elapsed > eraseAt && gone) next(draw(meme))
+        setShown(count)
+      }
       setSaid((current) => (current.said.join() === lines.said.join() && current.selected === lines.selected ? current : lines))
       frame = requestAnimationFrame(step)
     })
@@ -89,6 +114,8 @@ export function IdlePanel({ scene }: { scene: Scene }) {
         </pre>
         {chat ? (
           <ChatLines chat={chat} said={stillMotion() ? chatAt(chat, Infinity, IDLE_PACE, null) : said} />
+        ) : play ? (
+          <PlayActs acts={play} said={stillMotion() ? { said: play.map(() => Infinity), selected: 0 } : said} />
         ) : (
           <TypedLine text={parts.join('')} shown={shown} className="idle__meme" />
         )}
@@ -130,6 +157,19 @@ function ChatLines({ chat, said: { said, selected } }: { chat: ChatLine[]; said:
         ) : (
           <TypedLine key={index} text={`● ${line.agent}`} shown={count < 0 ? -1 : count + 2} className={className} />
         )
+      })}
+    </div>
+  )
+}
+
+/** A play's acts, laid out from the start like a chat's lines; the acts before the newest typed one are muted. */
+function PlayActs({ acts, said: { said, selected } }: { acts: readonly string[][]; said: ReturnType<typeof chatAt> }) {
+  return (
+    <div className="idle__chat">
+      {acts.map((parts, index) => {
+        const past = (said[index + 1] ?? -1) >= 0
+        const className = `idle__meme${past ? ' idle__meme--past' : ''}${index >= acts.length - selected ? ' idle__said--selected' : ''}`
+        return <TypedLine key={index} text={parts.join('')} shown={said[index] ?? -1} className={className} />
       })}
     </div>
   )

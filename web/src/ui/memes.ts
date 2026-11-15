@@ -16,7 +16,10 @@ export interface Scene {
   monthCost: number | null
 }
 
-/** Stories told in acts, one line each: the picture freezes the voyage and keeps its last act for good, the others go like a general line. */
+/**
+ * Stories told in acts, one line each, piled up like a chat's lines: the picture freezes the voyage and keeps the whole
+ * pile for good, the others are erased like a chat after their last act.
+ */
 export const PLAYS = ['picture', 'spoons', 'slip'] as const
 export type Play = (typeof PLAYS)[number]
 
@@ -97,7 +100,8 @@ export const CHAT_SELECT = { lineMs: 150, holdMs: 700 }
  */
 export function chatAt(chat: ChatLine[], elapsed: number, pace: Pace, eraseAt: number | null): { said: number[]; selected: number } {
   const said = chat.map(() => -1)
-  if (eraseAt !== null && elapsed >= eraseAt + (chat.length - 1) * CHAT_SELECT.lineMs + CHAT_SELECT.holdMs) return { said, selected: 0 }
+  const selected = selectionAt(chat.length, elapsed, eraseAt)
+  if (selected === null) return { said, selected: 0 }
   let left = eraseAt === null ? elapsed : Math.min(elapsed, eraseAt)
   for (const [index, line] of chat.entries()) {
     if ('human' in line) said[index] = line.human.length
@@ -108,8 +112,25 @@ export function chatAt(chat: ChatLine[], elapsed: number, pace: Pace, eraseAt: n
     left -= pace.pauseMs
     if (left < 0) break
   }
-  const selected = eraseAt === null || elapsed < eraseAt ? 0 : Math.min(chat.length, Math.floor((elapsed - eraseAt) / CHAT_SELECT.lineMs) + 1)
   return { said, selected }
+}
+
+/**
+ * How many of the last of `lines` piled lines are selected `elapsed` ms in, erased the way `CHAT_SELECT` says from
+ * `eraseAt` on (`null` — never); `null` once the pile is deleted.
+ */
+export function selectionAt(lines: number, elapsed: number, eraseAt: number | null): number | null {
+  if (eraseAt === null || elapsed < eraseAt) return 0
+  if (elapsed >= eraseAt + (lines - 1) * CHAT_SELECT.lineMs + CHAT_SELECT.holdMs) return null
+  return Math.min(lines, Math.floor((elapsed - eraseAt) / CHAT_SELECT.lineMs) + 1)
+}
+
+/**
+ * When an act typed from `parts` ends, ms after it starts. The acts pile up like a chat's lines: the next one comes a
+ * chat's pause after this one is typed; the last one is held `holdMs` before the whole pile is erased.
+ */
+export function actEnd(parts: string[], pace: Pace, { last, holdMs }: { last: boolean; holdMs: number }): number {
+  return typingTime(parts, pace) + (last ? holdMs : pace.pauseMs)
 }
 
 /** Which way the sea with the boat and the cloud move, per tick. */

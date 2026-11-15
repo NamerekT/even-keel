@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { ChainBlock } from '../state.js'
 import {
+  actEnd,
   CHAT_SELECT,
   chatAt,
   chatTime,
@@ -15,6 +16,7 @@ import {
   playMotion,
   punchline,
   type Scene,
+  selectionAt,
 } from './memes.js'
 
 const block = (id: string, extra: Partial<ChainBlock> = {}): ChainBlock =>
@@ -174,6 +176,40 @@ describe('chatAt', () => {
     expect(chatAt(chat, all - 1, pace, 500).selected).toBe(3)
     expect(chatAt(chat, all + holdMs - 1, pace, 500)).toEqual({ said: [2, 2, 5, 3], selected: 4 })
     expect(chatAt(chat, all + holdMs, pace, 500)).toEqual({ said: [-1, -1, -1, -1], selected: 0 })
+  })
+})
+
+describe('selectionAt', () => {
+  const { lineMs, holdMs } = CHAT_SELECT
+
+  it('selects nothing before the erase or without one', () => {
+    expect(selectionAt(3, Infinity, null)).toBe(0)
+    expect(selectionAt(3, 499, 500)).toBe(0)
+  })
+
+  it('selects a line per step from the bottom, holds them all, then deletes the pile at once', () => {
+    expect(selectionAt(3, 500, 500)).toBe(1)
+    expect(selectionAt(3, 500 + lineMs, 500)).toBe(2)
+    expect(selectionAt(3, 500 + 2 * lineMs + holdMs - 1, 500)).toBe(3)
+    expect(selectionAt(3, 500 + 2 * lineMs + holdMs, 500)).toBeNull()
+  })
+
+  it('selects a single line at once', () => {
+    expect(selectionAt(1, 500, 500)).toBe(1)
+    expect(selectionAt(1, 500 + holdMs, 500)).toBeNull()
+  })
+})
+
+describe('actEnd', () => {
+  const pace = { charMs: 10, pauseMs: 100 }
+  const parts = ['ab', 'cde']
+
+  it('hands an act over to the next one a chat pause after it is typed', () => {
+    expect(actEnd(parts, pace, { last: false, holdMs: 7000 })).toBe(150 + 100)
+  })
+
+  it('holds the last act for the whole hold before the pile is erased', () => {
+    expect(actEnd(parts, pace, { last: true, holdMs: 7000 })).toBe(150 + 7000)
   })
 })
 
