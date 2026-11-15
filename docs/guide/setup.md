@@ -119,7 +119,9 @@ Microsoft Foundry's Entra ID way needs `az login` as that user, or give the reso
 
 With no project yet, the home page offers two ways: **Watch the demo** or **Connect your own**.
 
-The demo takes about two minutes and needs only git: Even Keel makes a small repository in its state folder and a project `DEMO` on the built-in tracker, and its chain goes through three tasks while you watch — one waits for another, and one asks you a question in the session's chat.
+The demo takes about two minutes and needs nothing installed: Even Keel makes a small project folder in its state folder and a project `DEMO` on the built-in tracker, and its chain goes through three tasks while you watch — one waits for another, and one asks you a question in the session's chat.
+
+The folder follows the same rule as a new project ([the Git step](#the-git-step)): a git repository, where each task is committed and merged, unless you answered **No** or git does not start on the machine — then it is a [project without git](chain.md#a-project-without-git), whose tasks write their files in the folder and close by their answer. Each **Run again** picks the mode anew.
 
 The agent is a script, so no account is used and nothing is spent; the demo stays out of the launch chart and the statistics.
 

@@ -56,6 +56,8 @@ export type TurnEnd =
   | { say: string }
   | { checkpoint: string }
   | { noChanges: string }
+  /** The answer of a project without git, ended with the last line `TASK DONE` (BTN-883). */
+  | { done: string }
   /** PR mode's mark: the path of the pull request's note in the session's folder. */
   | { pullRequest: string }
   /** A question with its options; none — Yes and No. */
@@ -408,6 +410,10 @@ export class ScriptedAgent implements Agent {
     } else if ('noChanges' in end) {
       session.entry = resting
       session.summary = { ...said(`NO CHANGES: ${end.noChanges}`), noChanges: end.noChanges }
+    } else if ('done' in end) {
+      // A bare `TASK DONE` gives an empty reason, as `noChangesOf` reads it from a real transcript.
+      session.entry = resting
+      session.summary = { ...said(`${end.done}\n\nTASK DONE`), noChanges: '' }
     } else if ('pullRequest' in end) {
       session.entry = resting
       session.summary = { ...said(`PULL REQUEST: ${end.pullRequest}`), pullRequest: end.pullRequest }

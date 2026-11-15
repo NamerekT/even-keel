@@ -41,8 +41,9 @@ export interface DemoDeps {
 const DEMO_TASKS = 3
 
 /**
- * The demo on the first run (BTN-776): a real repository in the state folder, a project on the built-in tracker and the
- * demo's agent, run by the real chain. The project is the demo's by its repository: no other state marks it.
+ * The demo on the first run (BTN-776): a real repository in the state folder (a folder without git, EKR-108), a project
+ * on the built-in tracker and the demo's agent, run by the real chain. The project is the demo's by its folder: no other
+ * state marks it.
  */
 export class DemoService {
   readonly dir: string
@@ -92,7 +93,7 @@ export class DemoService {
     this.deps.changed()
   }
 
-  /** Makes the repository and the project and starts the chain; a demo already there is refused. */
+  /** Makes the folder and the project and starts the chain; a demo already there is refused. */
   start(language?: Language): Promise<string> {
     return this.serial(() => this.make(language ?? this.deps.language()))
   }
@@ -118,8 +119,9 @@ export class DemoService {
 
   private async make(language: Language): Promise<string> {
     if (this.project() !== undefined) throw fail('demo.exists', {})
+    let repository: boolean
     try {
-      await this.initRepo(language)
+      repository = await this.initFolder(language)
     } catch (error) {
       rmSync(this.dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
       throw error
@@ -138,6 +140,7 @@ export class DemoService {
       slot: 0,
       milestones: [],
       provider: null,
+      ...(!repository && { git: false }),
     }
     const project = this.deps.addProject(draft, { testProject: true })
     const ids: string[] = []
@@ -145,7 +148,7 @@ export class DemoService {
     await this.deps.builtin.relate(ids[0]!, ids[1]!, 'blocks', true)
     this.finished = false
     await this.deps.startChain(project)
-    console.log(`demo: the demo project ${project} is made and its chain started`)
+    console.log(`demo: the demo project ${project} is made ${repository ? 'in a repository' : 'without git'} and its chain started`)
     this.deps.changed()
     return project
   }
@@ -167,22 +170,37 @@ export class DemoService {
     this.deps.changed()
   }
 
-  /** A fresh repository on the main branch with a README and one commit, its own name and e-mail to commit with. */
-  private async initRepo(language: Language): Promise<void> {
+  /**
+   * A fresh folder with a README, made the way a new project is (EKR-108): a repository unless `defaultGit` is `false`,
+   * and without git, with no error, when git does not start. Returns whether it is a repository.
+   */
+  private async initFolder(language: Language): Promise<boolean> {
     rmSync(this.repo, { recursive: true, force: true })
     mkdirSync(this.repo, { recursive: true })
-    const git = async (...args: string[]) => {
-      const result = await this.deps.git(this.repo, args)
-      if (result.missing === true) throw fail('demo.noGit', {})
-      if (result.code !== 0) throw fail('git.initFailed', { path: this.repo }, { detail: result.out })
-      return result.out
-    }
-    await git('init', '-q', '-b', DEFAULT_BRANCH)
-    for (const [key, value] of [['user.name', 'Even Keel demo'], ['user.email', 'demo@example.com'], ['commit.gpgsign', 'false'], ['core.autocrlf', 'false']]) await git('config', key!, value!)
+    const repository = this.deps.config().defaultGit !== false && (await this.initRepo())
     writeFileSync(join(this.repo, 'README.md'), demoReadme(language))
+    if (!repository) return false
     writeFileSync(join(this.repo, '.gitignore'), '.claude/worktrees/\n.temp/\n')
-    await git('add', '-A')
-    await git('commit', '-q', '-m', 'Start the demo project')
+    await this.git('add', '-A')
+    await this.git('commit', '-q', '-m', 'Start the demo project')
+    return true
+  }
+
+  /** A repository on the main branch with its own name and e-mail to commit with; `false` — git does not start. */
+  private async initRepo(): Promise<boolean> {
+    const init = await this.deps.git(this.repo, ['init', '-q', '-b', DEFAULT_BRANCH])
+    if (init.missing === true) {
+      console.log('demo: git does not start, so the demo runs without git')
+      return false
+    }
+    if (init.code !== 0) throw fail('git.initFailed', { path: this.repo }, { detail: init.out })
+    for (const [key, value] of [['user.name', 'Even Keel demo'], ['user.email', 'demo@example.com'], ['commit.gpgsign', 'false'], ['core.autocrlf', 'false']]) await this.git('config', key!, value!)
+    return true
+  }
+
+  private async git(...args: string[]): Promise<void> {
+    const result = await this.deps.git(this.repo, args)
+    if (result.missing === true || result.code !== 0) throw fail('git.initFailed', { path: this.repo }, { detail: result.out })
   }
 
   /** Listed only while its folder exists (`AccountHomes.setDemo`): set again after a change, it is read anew. */
