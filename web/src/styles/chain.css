@@ -274,14 +274,15 @@
   cursor: grabbing;
 }
 
-/* Neutral, so a relation never reads as the current task's blue frame; its chip says which one it is. */
-.block.block--blocker {
-  border-color: var(--fg-muted);
+/* The pointed, selected or dragged task's links: its blockers light the key they hold for it, its dependents the lock it keeps shut. */
+.block--blocker .links__count--dependents,
+.block--dependent .links__count--blockers {
+  color: var(--accent);
 }
 
-.block.block--dependent {
-  border-style: dashed;
-  border-color: var(--fg-muted);
+/* A locked row is faded as a whole, and its lit key with it: a lit one shows at full strength. */
+.block--locked:is(.block--blocker, .block--dependent) {
+  opacity: 1;
 }
 
 .block--skipped {

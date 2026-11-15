@@ -304,8 +304,6 @@ export const chainEN: Messages['chain'] = {
       closed: 'The task is closed and the cleanup left this behind. Commit and merge it, or delete the folder, and the task goes to the archive; “Done” sends it there at once.',
       backlog: 'A backlog task has work that is not committed',
     },
-    blocker: 'blocks',
-    dependent: 'waits for it',
     ghost: 'will stand here',
     add: {
       task: 'Add task',
