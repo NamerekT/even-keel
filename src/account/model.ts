@@ -13,7 +13,17 @@ import type { Transport } from './transport.js'
 import type { AwsProfiles, AzureCredentials, CloudSummary, GcloudCredentials } from './cloud.js'
 import type { AccountLevel } from './header-levels.js'
 import type { ReadKeyLimit } from './keycheck.js'
-import type { LongToken } from './longToken.js'
+
+/**
+ * A Claude folder on a long token of `claude setup-token` (BTN-1005, `docs/accounts.md`): `until` — the day it runs out,
+ * null for a folder set up by hand; `sameAs` — the folder with a full sign-in of the same account; `refusedAt` — when a
+ * session's request was last refused with it.
+ */
+export interface LongToken {
+  until: string | null
+  sameAs?: string
+  refusedAt?: string
+}
 
 export const GLOBAL_ACCOUNT = 'global'
 /** The key of Codex's own account folder, `CODEX_HOME` or `~/.codex` (`AccountHomes`). */

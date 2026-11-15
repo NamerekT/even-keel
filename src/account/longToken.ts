@@ -1,6 +1,7 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fail } from '../notice/notice.js'
+import type { LongToken } from './model.js'
 import { OAUTH_TOKEN_VARIABLE } from './share.js'
 
 /** What Even Keel knows of a folder's long token beside the token itself; kept in the account folder, never in git. */
@@ -9,16 +10,7 @@ export const LONG_TOKEN_FILE = 'even-keel-token.json'
 const VALID_MS = 365 * 24 * 3600_000
 const TOKEN = /^sk-ant-oat\d\d-\S{20,}$/
 
-/**
- * A Claude folder on a long token of `claude setup-token` (BTN-1005, `docs/accounts.md`): `until` — the day it runs out,
- * null for a folder set up by hand; `sameAs` — the folder with a full sign-in of the same account; `refusedAt` — when a
- * session's request was last refused with it.
- */
-export interface LongToken {
-  until: string | null
-  sameAs?: string
-  refusedAt?: string
-}
+export type { LongToken }
 
 /** The trimmed token of the form `claude setup-token` prints; an API key or anything else is refused. */
 export function assertLongToken(token: string): string {
