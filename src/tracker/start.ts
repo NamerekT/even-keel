@@ -62,6 +62,8 @@ export interface TrackerStartDeps {
    * the folder is not that repository, or its branch cannot be read. Asked only of a tracker with `isPublic`.
    */
   issueTemplates?: (project: string) => Promise<IssueTemplate[] | null>
+  /** What the log names a reader by (`readerLabel`, BTN-1210); none — its id. */
+  labelOf?: (project: string) => string
 }
 
 /** A running tracker: its credentials change on the fly, and it stops when its projects or variables are gone. */
@@ -75,6 +77,7 @@ export interface TrackerHandle {
 export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): TrackerHandle {
   const { repoOf, rulesOf, links, tasksByProject, ranSince, dispatcher, fillsMilestone, mainBranch, readKey, broadcast, refreshers } = deps
   const { name, title, projects } = view
+  const label = deps.labelOf ?? ((project: string) => project)
   let current = setup
   let stopped = false
   let timer: NodeJS.Timeout | undefined
@@ -214,13 +217,13 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     const before = failures.get(project)
     if (failure === null) {
       failures.delete(project)
-      if (before !== undefined && !stopped) console.log(`${title}: ${project} reads again`)
+      if (before !== undefined && !stopped) console.log(`${title}: ${label(project)} reads again`)
       return
     }
     const text = errorText(failure.error)
     if (text === before) return
     failures.set(project, text)
-    if (!stopped) console.error(`${title}: ${project}: ${text}`)
+    if (!stopped) console.error(`${title}: ${label(project)}: ${text}`)
   }
   const visibilityFailures = new Map<string, string>()
   /** Whether anyone may open a task the reader takes; a failed check keeps the last answer and is logged once a failure. */
@@ -235,7 +238,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const text = errorText(error)
       if (visibilityFailures.get(project) === text) return
       visibilityFailures.set(project, text)
-      if (!stopped) console.error(`${title}: ${project}: visibility: ${text}`)
+      if (!stopped) console.error(`${title}: ${label(project)}: visibility: ${text}`)
     }
   }
   /** The required labels an issue template puts on for any author (BTN-1130); a failed read keeps the last answer. */
@@ -245,7 +248,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     try {
       templates = await deps.issueTemplates(project)
     } catch (error) {
-      if (!stopped) console.error(`${title}: ${project}: issue templates: ${errorText(error)}`)
+      if (!stopped) console.error(`${title}: ${label(project)}: issue templates: ${errorText(error)}`)
       return
     }
     if (stopped) return
