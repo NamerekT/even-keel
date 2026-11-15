@@ -252,6 +252,24 @@ describe('startTracker', () => {
     expect(logs).toHaveBeenCalledExactlyOnceWith('Huly: reads again')
   })
 
+  it("names a reader whose read fails by its label, not its id (BTN-1210)", async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const logs = vi.spyOn(console, 'log').mockImplementation(() => {})
+    let failing = true
+    const { refreshers } = start(['f-1'], async () => ({
+      chainTasks: async () => {
+        if (failing) throw new Error('no scope')
+        return { tasks: [], statuses: [] }
+      },
+      tasks: async () => [],
+      close: async () => {},
+    }), { labelOf: (reader) => (reader === 'f-1' ? 'ABC · FSC' : reader) })
+    await vi.waitFor(() => expect(errors).toHaveBeenCalledWith('Huly: ABC · FSC: no scope'))
+    failing = false
+    await refreshers.get('f-1')!()
+    expect(logs).toHaveBeenCalledWith('Huly: ABC · FSC reads again')
+  })
+
   it.each([true, false])('publishes the milestone in the same read only after a successful assignment (%s)', async (assigned) => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const milestone = { label: 'v0.2', targetDate: 1_800_000_000_000 }
