@@ -21,6 +21,13 @@ describe('ForgejoApi', () => {
   it('names every scope of the list', async () => {
     const error = await read({ status: 403, body: { message: 'token does not have at least one of required scope(s): [read:issue write:issue]' } }).catch((caught: unknown) => caught)
     expect((error as NoticeError).notice).toEqual({ code: 'forgejo.scope', params: { scope: 'read:issue, write:issue' } })
+    expect((error as Error).message).toContain('one of the scopes read:issue, write:issue')
+  })
+
+  it('advises a token with the scope it lacks, not always write:issue (EKR-106)', async () => {
+    const error = await read({ status: 403, body: { message: 'token does not have at least one of required scope(s): [read:organization]' } }).catch((caught: unknown) => caught)
+    expect((error as Error).message).toContain("lacks the read:organization scope. Make a token with it and the old one's scopes")
+    expect((error as Error).message).not.toContain('write:issue')
   })
 
   it('keeps a 401 a refused token and another 403 a plain HTTP error', async () => {

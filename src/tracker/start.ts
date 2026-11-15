@@ -3,6 +3,7 @@ import type { DoneMove } from '../chain/moves.js'
 import { ownsMilestone, type ChainRules } from '../chain/rules.js'
 import { MilestoneFiller } from '../chain/milestones.js'
 import { mergedCommits } from '../git/merged.js'
+import { NoticeError } from '../notice/notice.js'
 import { runGit } from '../git/run.js'
 import type { PendingCloses } from './close.js'
 import { MergeCloser } from './closer.js'
@@ -62,6 +63,8 @@ export interface TrackerStartDeps {
    * the folder is not that repository, or its branch cannot be read. Asked only of a tracker with `isPublic`.
    */
   issueTemplates?: (project: string) => Promise<IssueTemplate[] | null>
+  /** What the log names a reader by (`readerLabel`, BTN-1210); none — its id. */
+  labelOf?: (project: string) => string
 }
 
 /** A running tracker: its credentials change on the fly, and it stops when its projects or variables are gone. */
@@ -75,6 +78,7 @@ export interface TrackerHandle {
 export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): TrackerHandle {
   const { repoOf, rulesOf, links, tasksByProject, ranSince, dispatcher, fillsMilestone, mainBranch, readKey, broadcast, refreshers } = deps
   const { name, title, projects } = view
+  const label = deps.labelOf ?? ((project: string) => project)
   let current = setup
   let stopped = false
   let timer: NodeJS.Timeout | undefined
@@ -214,13 +218,13 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     const before = failures.get(project)
     if (failure === null) {
       failures.delete(project)
-      if (before !== undefined && !stopped) console.log(`${title}: ${project} reads again`)
+      if (before !== undefined && !stopped) console.log(`${title}: ${label(project)} reads again`)
       return
     }
     const text = errorText(failure.error)
     if (text === before) return
     failures.set(project, text)
-    if (!stopped) console.error(`${title}: ${project}: ${text}`)
+    if (!stopped) console.error(`${title}: ${label(project)}: ${text}`)
   }
   const visibilityFailures = new Map<string, string>()
   /** Whether anyone may open a task the reader takes; a failed check keeps the last answer and is logged once a failure. */
@@ -235,7 +239,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const text = errorText(error)
       if (visibilityFailures.get(project) === text) return
       visibilityFailures.set(project, text)
-      if (!stopped) console.error(`${title}: ${project}: visibility: ${text}`)
+      if (!stopped) console.error(`${title}: ${label(project)}: visibility: ${text}`)
     }
   }
   /** The required labels an issue template puts on for any author (BTN-1130); a failed read keeps the last answer. */
@@ -245,13 +249,36 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     try {
       templates = await deps.issueTemplates(project)
     } catch (error) {
-      if (!stopped) console.error(`${title}: ${project}: issue templates: ${errorText(error)}`)
+      if (!stopped) console.error(`${title}: ${label(project)}: issue templates: ${errorText(error)}`)
       return
     }
     if (stopped) return
     const hits = templates === null ? [] : templateHits(templates, rules.requiredLabels)
     if (hits.length > 0) (view.templateHits ??= {})[project] = hits
     else if (view.templateHits !== undefined) delete view.templateHits[project]
+  }
+  const termsReadSince = new Map<string, string | undefined>()
+  const termsFailures = new Map<string, string>()
+  /**
+   * The reader's vocabulary, once a live period (EKR-106): a new token resets the link, so its refusal is read again then.
+   * The refusal stays for the page; a failure without a notice is retried on the next read. Each text is logged once.
+   */
+  const checkTerms = async (project: string): Promise<void> => {
+    if (termsReadSince.has(project) && termsReadSince.get(project) === view.liveSince) return
+    termsReadSince.set(project, view.liveSince)
+    try {
+      await link.aside(async (tracker) => (tracker.vocabulary === undefined ? null : await tracker.vocabulary(project)), `vocabulary:${readKey(project)}`)
+      termsFailures.delete(project)
+      if (view.termsRefused !== undefined) delete view.termsRefused[project]
+    } catch (error) {
+      if (stopped) return
+      if (error instanceof NoticeError) (view.termsRefused ??= {})[project] = error.notice
+      else termsReadSince.delete(project)
+      const text = errorText(error)
+      if (termsFailures.get(project) === text) return
+      termsFailures.set(project, text)
+      console.error(`${title}: ${label(project)}: vocabulary: ${text}`)
+    }
   }
   const readProject = async (project: string): Promise<void> => {
     let failure: { error: unknown } | null = null
@@ -283,6 +310,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       view.readAt[project] = new Date().toISOString()
       await checkOpenToAll(project, rules)
       await checkTemplates(project, rules)
+      await checkTerms(project)
       if (stopped) return
       // Taken before the chain has followed the list just set: a task it releases meanwhile is not in this read (BTN-766).
       const released = dispatcher.released(project)

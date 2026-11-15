@@ -38,7 +38,9 @@ export const en = {
   'gitlab.url': () => 'Enter the GitLab server web address in Trackers and CI, without /api/v4.',
   'gitlab.token': () => 'Add a GitLab profile in Trackers and CI with a personal access token that has the api scope.',
   'forgejo.scope': (p: { scope: string }) =>
-    `The Forgejo token lacks the ${p.scope} scope. Make a token with write:issue on Forgejo's Applications page and save it in the Forgejo profile in Trackers and CI, or add a profile with it.`,
+    p.scope.includes(',')
+      ? `The Forgejo token lacks one of the scopes ${p.scope}. Make a token with one of them and the old one's scopes on Forgejo's Applications page and save it in the Forgejo profile in Trackers and CI.`
+      : `The Forgejo token lacks the ${p.scope} scope. Make a token with it and the old one's scopes on Forgejo's Applications page and save it in the Forgejo profile in Trackers and CI.`,
   'jira.url': () => 'Enter the Jira site address in Trackers and CI as https://<site>.atlassian.net, without a path.',
   'jira.incomplete': () => 'Fill in the site address, the e-mail and the API token of the Jira profile in Trackers and CI.',
   'jira.mcpSite': () => 'The MCP token cannot see this Jira site. Enable API token authentication for the Atlassian MCP server in your organization’s admin settings, then create a new Atlassian MCP V2 token.',

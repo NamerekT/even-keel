@@ -214,6 +214,13 @@ export function projectLabel(config: Pick<EvenKeelConfig, 'keys' | 'names' | 'se
   return `${key} (${apart((each) => config.names[each]) ?? apart((each) => config.settings[each]?.branch) ?? shortId(project)})`
 }
 
+/** What the log names a reader by (BTN-1210): a project by `projectLabel`, a feed as its project's label and its key. */
+export function readerLabel(config: EvenKeelConfig, reader: string): string {
+  const readers = readersOf(config)
+  const owner = readers.owners[reader]
+  return owner === undefined ? projectLabel(config, reader) : `${projectLabel(config, owner)} · ${readers.keys[reader]}`
+}
+
 /** The first project of each key, in the order of the file: Tally and the stats know a project by its key. */
 export function firstByKey(config: Pick<EvenKeelConfig, 'keys'>): Record<string, string> {
   const found: Record<string, string> = {}
@@ -532,7 +539,7 @@ export function readerOf(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'tra
  */
 function checkFeeds(config: EvenKeelConfig, adapters: AdapterShapes): void {
   const readers = readersOf(config)
-  const label = (reader: string) => (readers.owners[reader] === undefined ? projectLabel(config, reader) : `${projectLabel(config, readers.owners[reader])} · ${readers.keys[reader]}`)
+  const label = (reader: string) => readerLabel(config, reader)
   const all = Object.keys(readers.projects)
   // A tracker without `placeOf` (GitHub) reads by the key: its place is the repository the key names.
   const place = (reader: string) => {

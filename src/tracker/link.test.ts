@@ -236,6 +236,22 @@ describe('TrackerLink', () => {
     expect(link.health.notice).toBeUndefined()
   })
 
+  it('leaves the health and the connection alone when a call aside is refused (EKR-106)', async () => {
+    const connect = vi.fn(async () => fakeSource())
+    const link = new TrackerLink({ name: 'forgejo', connect, timeoutMs: 1000 })
+    await link.run(async () => 1)
+    const live = link.health
+    await expect(link.aside(async () => Promise.reject(fail('forgejo.scope', { scope: 'read:organization' })))).rejects.toThrow('read:organization')
+    expect(link.health).toBe(live)
+    await link.run(async () => 1)
+    expect(connect).toHaveBeenCalledTimes(1)
+
+    await expect(link.run(async () => Promise.reject(fail('forgejo.scope', { scope: 'read:issue' })))).rejects.toThrow()
+    const down = link.health
+    await expect(link.aside(async () => Promise.reject(fail('forgejo.scope', { scope: 'read:issue' })))).rejects.toThrow()
+    expect(link.health).toBe(down)
+  })
+
   it('names the cause of a failed fetch, which alone says only "fetch failed"', async () => {
     const failed = new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND huly.example.com') })
     const link = new TrackerLink({ name: 'huly', connect: async () => Promise.reject(failed), timeoutMs: 1000 })

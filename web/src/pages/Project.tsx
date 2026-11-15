@@ -70,7 +70,7 @@ import { ProjectNotices } from './ProjectNotices.js'
 import { DemoNotice } from './Demo.js'
 import { FixButton, NoticeFixButton } from './FixButtons.js'
 import { readLate } from './status.js'
-import { unreadWhy } from './trackerDown.js'
+import { feedsUnread, termsRefused, unreadWhy } from './trackerDown.js'
 import { PullFixButton } from './PullButtons.js'
 import { TrackerFixButtons } from './TrackerFixButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
@@ -248,6 +248,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         {/* The built-in tracker's empty state is the chain's own ghost. */}
         {!builtin && <EmptyCall state={state} project={key} />}
         {blocks.length > 0 && order === undefined && <TrackerDown project={key} tracker={tracker} />}
+        <FeedsDown state={state} project={key} />
+        <TermsRefused state={state} project={key} />
         {showParents ? (
           // The parents are out of the chain's order: no ghosts, no moves, no buttons that put a task in or out of the chain.
           <ChainList
@@ -450,6 +452,26 @@ function TrackerDown({ project, tracker }: { project: string; tracker: TrackerVi
       {unread.fix !== null && <FixButton project={project} fix={unread.fix} />}
     </div>
   )
+}
+
+/** Which feeds' tasks are not read while their tracker is down, and why, with the place it is fixed at (BTN-1210). */
+function FeedsDown({ state, project }: { state: EvenKeelState; project: string }) {
+  return feedsUnread(state, project).map(({ feeds, unread }) => (
+    <div key={feeds.join()} className="project__unread">
+      <p className="project__error">{t.project.feedsNotLoaded(feeds, unread.why)}</p>
+      {unread.fix !== null && <FixButton project={project} fix={unread.fix} />}
+    </div>
+  ))
+}
+
+/** The project and feeds whose tasks are read but whose vocabulary is refused, with the place it is fixed at (EKR-106). */
+function TermsRefused({ state, project }: { state: EvenKeelState; project: string }) {
+  return termsRefused(state, project).map(({ keys, why, fix }) => (
+    <div key={keys.join()} className="project__unread">
+      <p className="project__error">{t.project.termsRefused(keys, why)}</p>
+      <FixButton project={project} fix={fix} />
+    </div>
+  ))
 }
 
 /** A project with nothing to run says where the tasks come from and opens the project and its feeds in their trackers. */

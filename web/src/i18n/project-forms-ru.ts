@@ -188,6 +188,9 @@ export const projectRU = {
     readingTip: 'Задачи этого проекта ещё не прочитаны после того, как трекер снова ответил: запуск по старому списку мог бы взять не те задачи.',
     chainNotLoaded: 'Задачи ещё не загружены.',
     notLoadedBecause: (why: string) => `Задачи не загружены. ${why}`,
+    feedsNotLoaded: (feeds: string[], why: string) => `Задачи ${feeds.length === 1 ? 'ленты' : 'лент'} ${feeds.join(', ')} не загружены. ${why}`,
+    termsRefused: (keys: string[], why: string) =>
+      `Метки и вехи ${keys.join(', ')} не читаются: сессии не могут там заводить и менять задачи и не знают метку вопроса. ${why}`,
     chainLoading: 'Читаю задачи…',
     chainEmpty: 'Задач в цепочке нет.',
     backlog: (count: number) => `Бэклог · ${count}`,

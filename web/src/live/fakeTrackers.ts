@@ -143,3 +143,42 @@ export function withScopeRefusal(state: EvenKeelState): EvenKeelState {
   const { XYZ: _, ...projects } = state.chain.projects
   return { ...state, trackers: [...trackers, forgejo], tasks: state.tasks.filter((task) => task.project !== 'XYZ'), chain: { ...state.chain, projects } }
 }
+
+/**
+ * `?trackers=feedScope` (BTN-1210): ABC reads its own tasks as usual and a Forgejo feed FSC on a profile whose token has
+ * no issue scope, so the feed's tasks never come.
+ */
+export function withFeedScopeRefusal(state: EvenKeelState): EvenKeelState {
+  const scope = notice('forgejo.scope', { scope: 'read:issue' })
+  const feed = { id: 'feed-abc-forgejo', tracker: 'forgejo', key: 'FSC', place: 'example/demo-test' }
+  const forgejo: TrackerView = {
+    name: 'forgejo-ci',
+    kind: 'forgejo',
+    title: 'Forgejo · ci',
+    projects: [feed.id],
+    ready: true,
+    health: { state: 'down', lastOkAt: null, error: englishOf(scope), notice: scope },
+    readAt: {},
+  }
+  return { ...state, trackers: [...state.trackers, forgejo], config: { ...state.config, feeds: { ...state.config.feeds, ABC: [...(state.config.feeds.ABC ?? []), feed] } } }
+}
+
+/**
+ * `?trackers=orgScope` (EKR-106): ABC's Forgejo feed OC on an organization's repository reads its tasks, but the token
+ * has no `read:organization`, so its labels and milestones are refused.
+ */
+export function withOrgScopeRefusal(state: EvenKeelState): EvenKeelState {
+  const scope = notice('forgejo.scope', { scope: 'read:organization' })
+  const feed = { id: 'feed-abc-org', tracker: 'forgejo', key: 'OC', place: 'example-org/demo' }
+  const forgejo: TrackerView = {
+    name: 'forgejo-bot',
+    kind: 'forgejo',
+    title: 'Forgejo · bot',
+    projects: [feed.id],
+    ready: true,
+    health: { state: 'live', lastOkAt: new Date().toISOString(), error: null },
+    readAt: { [feed.id]: new Date().toISOString() },
+    termsRefused: { [feed.id]: scope },
+  }
+  return { ...state, trackers: [...state.trackers, forgejo], config: { ...state.config, feeds: { ...state.config.feeds, ABC: [...(state.config.feeds.ABC ?? []), feed] } } }
+}

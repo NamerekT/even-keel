@@ -462,6 +462,31 @@ describe('withUnattended', () => {
     }
     expect(withUnattended(prompt, false, 'en', false)).toBe(prompt)
   })
+
+  it('outranks the line that lets a session end its turn with a question (EKR-105)', () => {
+    expect(PROMPTS.ru.unattended).toContain('строки выше о вопросе пользователю')
+    expect(PROMPTS.en.unattended).toContain('the line above about a question to the user')
+  })
+})
+
+describe('a question to the user in git mode (EKR-105)', () => {
+  it('lets a PR-mode session end its turn with a question and without the closing line', () => {
+    expect(PROMPTS.ru.pullRequest('main')).toContain(
+      'Если без ответа пользователя не обойтись — задай вопрос и закончи ход без строки `PULL REQUEST:`: по ней Even Keel закрыл бы задачу, а так она останется ждать ответа.',
+    )
+    expect(PROMPTS.en.pullRequest('main')).toContain(
+      "If you cannot go on without the user's answer, ask the question and end the turn without the line `PULL REQUEST:`: on it Even Keel would close the task, and without it the task stays waiting for the answer.",
+    )
+  })
+
+  it('does the same for a merging session and its NO CHANGES line', () => {
+    expect(PROMPTS.ru.cleanup('main')).toContain(
+      'Если без ответа пользователя не обойтись — задай вопрос и закончи ход без строки `NO CHANGES:`: по ней Even Keel закрыл бы задачу, а так она останется ждать ответа.',
+    )
+    expect(PROMPTS.en.cleanup('main')).toContain(
+      "If you cannot go on without the user's answer, ask the question and end the turn without the line `NO CHANGES:`: on it Even Keel would close the task, and without it the task stays waiting for the answer.",
+    )
+  })
 })
 
 describe('prompts in English', () => {

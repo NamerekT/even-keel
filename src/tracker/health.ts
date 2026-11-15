@@ -48,6 +48,12 @@ export interface TrackerView {
    * any author (BTN-1130). A reader with none, or whose templates are not known, has no entry.
    */
   templateHits?: Record<string, TemplateHit[]>
+  /**
+   * By reader, read once each time the link turns live: why its vocabulary is refused while its tasks are read, such as
+   * a Forgejo token without `read:organization` on an organization's repository (EKR-106). The tasks tools refuse
+   * that reader's creates and edits, and a session's prompt goes without its line of roles. In memory only.
+   */
+  termsRefused?: Record<string, Notice>
   /** Status moves on a task's start or pull request that did not go through (BTN-554), by reader. In memory only. */
   moveFailures?: Record<string, Notice[]>
 }
