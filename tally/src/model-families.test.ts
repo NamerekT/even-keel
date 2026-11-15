@@ -11,7 +11,8 @@ const MODELS = [
   ['deepseek/deepseek-v4.1-flash', 'deepseek'], ['Qwen/Qwen3.5', 'qwen'],
   ['google/gemini-3', 'gemini'], ['kimi-k2', 'kimi'], ['glm-5', 'glm'],
   ['mistral/mistral-large', 'mistral'], ['meta/llama-4', 'llama'],
-  ['unknown', null], ['minimax-m2', null], ['', null], [null, null],
+  ['minimax/minimax-m3.1-flash', 'minimax'], ['MiniMax-M2', 'minimax'],
+  ['unknown', null], ['minimaxi', null], ['', null], [null, null],
 ] as const
 
 describe('task model families upgraded from v13', () => {

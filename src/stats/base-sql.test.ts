@@ -72,6 +72,8 @@ describe('stats base SQL', () => {
     ['opencode/DeepSeek-V3.2', 'deepseek'],
     ['google/gemini-3-pro', 'gemini'],
     ['qwen3-coder', 'qwen'],
+    ['minimax/minimax-m3.1-flash', 'minimax'],
+    ['MiniMax-M2', 'minimax'],
     ['big-pickle', null],
     [null, null],
   ])('groups model %s as %s', async (model, family) => {

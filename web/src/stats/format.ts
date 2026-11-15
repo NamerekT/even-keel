@@ -19,6 +19,7 @@ const MODELS: Record<string, string> = {
   glm: 'GLM',
   mistral: 'Mistral',
   llama: 'Llama',
+  minimax: 'MiniMax',
 }
 
 const ENTRYPOINTS: Record<string, string> = {

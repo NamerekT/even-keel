@@ -3,7 +3,7 @@ export const familyOf = (column: string) => `coalesce(
   substring(${column} from '^claude-([a-z]+)'),
   substring(${column} from '^(?:openai/)?gpt-[0-9.]+-(sol|luna|astra|terra)(?:-|$)'),
   substring(${column} from '^(?:openai/)?(gpt)-'),
-  substring(lower(${column}) from '^(?:[^/]+/)?(deepseek|qwen|gemini|kimi|glm|mistral|llama)(?:[-./0-9]|$)')
+  substring(lower(${column}) from '^(?:[^/]+/)?(deepseek|qwen|gemini|kimi|glm|mistral|llama|minimax)(?:[-./0-9]|$)')
 )`
 
 // $1 Even Keel project keys, $2 their repository paths without drive, $3 time zone, $4 scope, $5 account or null,
