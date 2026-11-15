@@ -21,10 +21,19 @@ export interface Leaving<T> {
   archived: boolean
 }
 
+/** The key prefixes the chain's tasks left and got at once: the project's tracker switched and its tasks were renamed (BTN-1200). */
+export interface Moved {
+  from: string[]
+  to: string[]
+}
+
+/** The summary of what changed out of sight: full counts, the tasks out of sight on the page included. */
 export interface Away {
   entered: number
   archived: number
   removed: number
+  /** The renamed tasks are in none of the counts. */
+  moved: Moved | null
 }
 
 export interface Motion<T> {
@@ -61,7 +70,10 @@ export const QUIET_MS = 6_000
 const QUIET_OVER = 5
 const BEATS: Beat[] = ['finish', 'leave', 'enter', 'take']
 
-/** The net change between two looks at the chain; what came and went in between is not in it. */
+/**
+ * The net change between two looks at the chain; what came and went in between is not in it. A task renamed by a tracker
+ * switch neither left nor came: the ids under the prefixes the switch swapped are left out, and the summary tells of it.
+ */
 export function motionOf<T extends { id: string; lamp: BlockLamp }>(
   prev: Frame<T>,
   next: Frame<T>,
@@ -69,18 +81,23 @@ export function motionOf<T extends { id: string; lamp: BlockLamp }>(
 ): Motion<T> | null {
   const before = new Set(prev.order)
   const after = new Set(next.order)
-  const entered = next.order.filter((id) => !before.has(id) && next.shown.has(id) && !skip.has(id))
-  const leaving = prev.order
-    .filter((id) => !after.has(id) && prev.shown.has(id) && !next.shown.has(id))
+  const moved = movedOf(prev.order, next.order)
+  const swapped = new Set(moved === null ? [] : [...moved.from, ...moved.to])
+  const kept = (id: string) => !swapped.has(prefixOf(id))
+  const came = next.order.filter((id) => !before.has(id) && !skip.has(id) && kept(id))
+  const left = prev.order.filter((id) => !after.has(id) && kept(id))
+  const entered = came.filter((id) => next.shown.has(id))
+  const leaving = left
+    .filter((id) => prev.shown.has(id) && !next.shown.has(id))
     .map((id) => ({ item: prev.items.get(id)!, after: anchorOf(prev.order, id, next.shown), archived: next.closed.has(id) }))
   const finished = next.order.filter(
     (id) => before.has(id) && next.shown.has(id) && next.items.get(id)!.lamp === 'done' && prev.items.get(id)!.lamp !== 'done',
   )
   const taken = next.current !== null && next.current !== prev.current && next.shown.has(next.current) ? next.current : null
 
-  if (entered.length + leaving.length > QUIET_OVER) {
-    const archived = leaving.filter((each) => each.archived).length
-    const quiet = { entered: entered.length, archived, removed: leaving.length - archived }
+  if (moved !== null || entered.length + leaving.length > QUIET_OVER) {
+    const archived = left.filter((id) => next.closed.has(id)).length
+    const quiet = { entered: came.length, archived, removed: left.length - archived, moved }
     return { entered, finished: [], taken: null, leaving: [], quiet, delays: {} }
   }
   if (entered.length + leaving.length + finished.length === 0 && taken === null) return null
@@ -89,6 +106,20 @@ export function motionOf<T extends { id: string; lamp: BlockLamp }>(
   const delays: Partial<Record<Beat, number>> = {}
   for (const beat of BEATS.filter((each) => present[each])) delays[beat] = Object.keys(delays).length * BEAT_MS
   return { entered, finished, taken, leaving, quiet: null, delays }
+}
+
+/** A prefix gone from the chain while another came: a feed that ends as another begins looks the same, and is rare. */
+function movedOf(prev: string[], next: string[]): Moved | null {
+  const was = new Set(prev.map(prefixOf))
+  const is = new Set(next.map(prefixOf))
+  const from = [...was].filter((prefix) => !is.has(prefix))
+  const to = [...is].filter((prefix) => !was.has(prefix))
+  return from.length > 0 && to.length > 0 ? { from, to } : null
+}
+
+function prefixOf(id: string): string {
+  const dash = id.lastIndexOf('-')
+  return dash < 0 ? '' : id.slice(0, dash)
 }
 
 /** How long the page keeps the marks of a motion. */

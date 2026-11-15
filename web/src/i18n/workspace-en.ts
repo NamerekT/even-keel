@@ -333,8 +333,9 @@ export const chainEN: Messages['chain'] = {
       answer: 'first answer',
     },
     openCard: 'Open the task card',
-    away: ({ entered, archived, removed }: { entered: number; archived: number; removed: number }) =>
+    away: ({ entered, archived, removed, moved }: { entered: number; archived: number; removed: number; moved: { from: string[]; to: string[] } | null }) =>
       `While you were away: ${[
+        moved === null ? '' : `the project moved, its tasks are under ${moved.to.join(', ')} keys instead of ${moved.from.join(', ')}`,
         entered > 0 ? `+${tasks(entered)}` : '',
         archived > 0 ? `${archived} archived` : '',
         removed > 0 ? `${removed} left the chain` : '',

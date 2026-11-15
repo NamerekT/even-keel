@@ -334,8 +334,9 @@ export const chainRU = {
       answer: 'первый ответ',
     },
     openCard: 'Открыть карточку задачи',
-    away: ({ entered, archived, removed }: { entered: number; archived: number; removed: number }) =>
+    away: ({ entered, archived, removed, moved }: { entered: number; archived: number; removed: number; moved: { from: string[]; to: string[] } | null }) =>
       `Пока вас не было: ${[
+        moved === null ? '' : `проект переехал, задачи под ключами ${moved.to.join(', ')} вместо ${moved.from.join(', ')}`,
         entered > 0 ? `+${tasks(entered)}` : '',
         archived > 0 ? `${archived} в архив` : '',
         removed > 0 ? `${removed} ушло из цепочки` : '',

@@ -86,12 +86,41 @@ describe('motionOf', () => {
     const before = frame('A:done B C D E F G', 'B')
     const after = frame('G:done H I J K', 'H', { closed: ['A', 'B', 'C', 'D', 'E', 'F', 'G'] })
     const motion = motionOf(before, after, none)!
-    expect(motion.quiet).toEqual({ entered: 4, archived: 6, removed: 0 })
+    expect(motion.quiet).toEqual({ entered: 4, archived: 6, removed: 0, moved: null })
     expect(motion.entered).toEqual(['H', 'I', 'J', 'K'])
     expect(motion.leaving).toEqual([])
     expect(motion.taken).toBeNull()
     expect(motion.finished).toEqual([])
     expect(motion.delays).toEqual({})
+  })
+
+  it('counts every task in the summary, the ones out of sight too, but marks only those in sight', () => {
+    const before = frame('A B')
+    const after = frame('A B C D E F G H I J', null, { hidden: ['I', 'J'] })
+    const motion = motionOf(before, after, none)!
+    expect(motion.quiet).toEqual({ entered: 8, archived: 0, removed: 0, moved: null })
+    expect(motion.entered).toEqual(['C', 'D', 'E', 'F', 'G', 'H'])
+  })
+
+  it('tells of a tracker switch instead of counting the renamed tasks as gone and new', () => {
+    const before = frame('MVT-1:working MVT-2 MVT-3 MVT-4 MVT-5', 'MVT-1')
+    const after = frame('MVU-68:working MVU-69 MVU-70 MVU-71 MVU-72 MVU-73 MVU-74', 'MVU-68', { hidden: ['MVU-74'] })
+    const motion = motionOf(before, after, none)!
+    expect(motion.quiet).toEqual({ entered: 0, archived: 0, removed: 0, moved: { from: ['MVT'], to: ['MVU'] } })
+    expect(motion.entered).toEqual([])
+    expect(motion.leaving).toEqual([])
+    expect(motion.taken).toBeNull()
+  })
+
+  it('tells of a switch even when only a few tasks were renamed', () => {
+    const motion = motionOf(frame('MVT-1 MVT-2'), frame('MVU-7 MVU-8'), none)!
+    expect(motion.quiet).toEqual({ entered: 0, archived: 0, removed: 0, moved: { from: ['MVT'], to: ['MVU'] } })
+  })
+
+  it('still counts the tasks of a feed that kept its keys through the switch', () => {
+    const motion = motionOf(frame('MVT-1 GH-1 GH-2'), frame('MVU-7 GH-1 GH-3', null, { closed: ['GH-2'] }), none)!
+    expect(motion.quiet).toEqual({ entered: 1, archived: 1, removed: 0, moved: { from: ['MVT'], to: ['MVU'] } })
+    expect(motion.entered).toEqual(['GH-3'])
   })
 })
 
@@ -169,7 +198,7 @@ describe('stageOf', () => {
   it('shows the summary of the newest quiet motion and marks its new tasks as fresh', () => {
     const quiet = motionOf(frame('A:done B C D E F G', 'B'), frame('G:done H I J K', 'H', { closed: ['A', 'B', 'C', 'D', 'E', 'F', 'G'] }), none)!
     const stage = stageOf([quiet])
-    expect(stage.quiet).toEqual({ entered: 4, archived: 6, removed: 0 })
+    expect(stage.quiet).toEqual({ entered: 4, archived: 6, removed: 0, moved: null })
     expect(stage.marks.get('H')).toEqual(new Map([['fresh', 0]]))
     expect(stage.bump).toBeNull()
   })
