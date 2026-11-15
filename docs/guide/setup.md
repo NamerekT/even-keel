@@ -781,6 +781,8 @@ New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name L
 loginctl enable-linger $USER
 ```
 
+A Linux without systemd (a Docker container, WSL without `systemd=true`, OpenRC or runit) has no service to install: the script writes no unit, says so and exits with code 3; `npx even-keel` still leaves the package installed. Run `even-keel` (a clone: `npm start`) in a terminal or under your own process manager. On WSL, systemd is turned on by `[boot]` and `systemd=true` in `/etc/wsl.conf`, then `wsl --shutdown`. The same message comes when systemd runs but the shell has no user session of its own (after `su` or `sudo -u`): sign in as that user directly.
+
 **macOS:** a launchd agent `local.even-keel`. It runs while you are signed in to the Mac's desktop, at the screen or through Screen Sharing; signing out stops it. An SSH login alone is not enough: the script then stops and asks you to sign in to the desktop first. A Mac without a screen keeps its desktop session through automatic login (System Settings → Users & Groups; needs FileVault off).
 
 On both systems the installer waits up to 60 seconds for the service and its page to answer before reporting success.

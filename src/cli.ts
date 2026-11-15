@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { hostArgsOf, hostDirOf, installAutostart, quitHost, registeredAutostart, uninstallAutostart } from './autostart.js'
-import { commandOf, serviceScriptOf, updateTargetOf } from './cli-args.js'
+import { commandOf, noServiceManagerCode, serviceScriptOf, updateTargetOf } from './cli-args.js'
 import { home, loadEnv, root, source } from './locations.js'
 import { accountsRoot } from './account/homes.js'
 import { removeAccountSettingsGuards } from './account/settingsGuard.js'
@@ -27,14 +27,16 @@ data folder: ${home}`
 const { name, version: installedVersion } = installed(root)
 const command = commandOf(process.argv.slice(2))
 
-function run(command: string[], what: string): void {
-  const error = attempt(command, what)
+/** `explained` — an exit code after which the command has already said why: this process exits with it, adding nothing. */
+function run(command: string[], what: string, explained?: number): void {
+  const error = attempt(command, what, explained)
   if (error !== null) fail(error)
 }
 
-function attempt([program, ...args]: string[], what: string): string | null {
+function attempt([program, ...args]: string[], what: string, explained?: number): string | null {
   const result = spawnSync(program!, args, { stdio: 'inherit', windowsHide: true, shell: process.platform === 'win32' && program === 'npm' })
   if (result.error !== undefined) return `${what}: ${result.error.message}`
+  if (explained !== undefined && result.status === explained) process.exit(explained)
   return result.status === 0 ? null : `${what} failed with code ${result.status}`
 }
 
@@ -86,7 +88,7 @@ async function installGlobally(): Promise<void> {
   }
   const { error, stderr } = await attemptKeepingErrors(npm('install', '--global', `${name}@${installedVersion}`, '--no-audit', '--no-fund'), 'npm install --global')
   if (error !== null) fail(posix && isAccessError(stderr) ? `${error}\n${npmPrefixAdvice(modules, process.env.SHELL, npx)}` : error)
-  run([process.execPath, join(modules, name, 'dist', 'src', 'cli.js'), 'install'], 'even-keel install')
+  run([process.execPath, join(modules, name, 'dist', 'src', 'cli.js'), 'install'], 'even-keel install', noServiceManagerCode)
 }
 
 function service(action: 'install' | 'uninstall'): void {
@@ -95,7 +97,7 @@ function service(action: 'install' | 'uninstall'): void {
     else removeWindows()
   } else {
     const [program, args] = serviceScriptOf(process.platform, root, action)
-    run([program, ...args], `service/${action}`)
+    run([program, ...args], `service/${action}`, action === 'install' ? noServiceManagerCode : undefined)
   }
   if (action === 'uninstall') {
     loadEnv()

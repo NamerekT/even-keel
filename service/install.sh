@@ -35,6 +35,27 @@ else
   esac
   logs="$data/logs"
 fi
+
+# Without a systemd user manager (a container, WSL without systemd, OpenRC or runit) there is nothing to install into:
+# no unit is written, and the exit code 3 (noServiceManagerCode of src/cli-args.ts) tells the CLI this is explained.
+if [ "$(uname -s)" = Linux ] && ! systemctl --user show-environment >/dev/null 2>&1; then
+  user=$(id -un)
+  if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+    echo "install: systemd runs here, but $user has no systemd user session in this shell, so Even Keel is not installed as a service. Sign in as $user directly (a desktop or SSH login, not su or sudo) and run this again." >&2
+  else
+    echo "install: systemd does not run here, so Even Keel is not installed as a service." >&2
+    # Not /proc/version: Docker Desktop's containers run on the WSL kernel too.
+    if [ -n "${WSL_DISTRO_NAME:-}" ] || [ -e /proc/sys/fs/binfmt_misc/WSLInterop ]; then
+      echo "On WSL, turn systemd on: add the lines [boot] and systemd=true to /etc/wsl.conf, run wsl --shutdown in Windows, open WSL again and run this again." >&2
+    fi
+  fi
+  if [ -z "$data" ]; then
+    echo "To run Even Keel without a service: npm start in $root, in a terminal or under your own process manager." >&2
+  else
+    echo "To run Even Keel without a service: even-keel in a terminal, or under your own process manager." >&2
+  fi
+  exit 3
+fi
 mkdir -p "$logs"
 
 # systemd expands % specifiers in unit files.

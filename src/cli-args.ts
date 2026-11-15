@@ -32,6 +32,12 @@ export function commandOf(argv: string[]): CliCommand {
   return { command: 'help', error: `unknown command ${name}` }
 }
 
+/**
+ * The exit code of `service/install.sh` that found no service manager to install into (Linux without a systemd user
+ * manager): the script has said why and how to run without one, so the CLI passes the code on with no "failed" line.
+ */
+export const noServiceManagerCode = 3
+
 export function serviceScriptOf(platform: NodeJS.Platform, root: string, action: 'install' | 'uninstall'): [string, string[]] {
   if (platform === 'win32') return ['pwsh', ['-NoProfile', '-File', win32.join(root, 'service', `${action}.ps1`)]]
   return ['/bin/sh', [posix.join(root, 'service', `${action}.sh`)]]
