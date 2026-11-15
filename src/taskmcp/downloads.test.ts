@@ -89,6 +89,19 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
     expect(readdirSync(dir())).toEqual(['notes.txt'])
   })
 
+  it('an empty body is "file unavailable", never a copy, and the next read downloads the file (BTN-1201)', async () => {
+    bodies.set('unsized-1', Buffer.alloc(0))
+    bodies.set('f2', Buffer.alloc(0))
+    const files = [attachment('unsized-1', 'note.txt', 0), attachment('f2', 'shot.png', 0)]
+    const lines = await attachmentLines('ABC-1', files, source, folder, 1024)
+    expect(lines).toEqual(['- note.txt — file unavailable', '- shot.png — file unavailable'])
+    expect(readdirSync(dir())).toEqual([])
+    bodies.set('unsized-1', Buffer.from('notes'))
+    const again = await attachmentLines('ABC-1', files.slice(0, 1), source, folder, 1024)
+    expect(again).toEqual([`- note.txt — ${join(dir(), 'note.txt')}`])
+    expect(readFileSync(join(dir(), 'note.txt'), 'utf8')).toBe('notes')
+  })
+
   it('two files of one name differ by the prefix of their file id', async () => {
     bodies.set('aaaaaaaa1111', Buffer.from('first'))
     bodies.set('bbbbbbbb2222', Buffer.from('second'))

@@ -56,7 +56,13 @@ export async function attachmentLines(key: string, all: readonly TaskAttachment[
   )
 }
 
-/** Writes the stream beside `target` and renames it in place, so a half-written file is never taken for a copy. */
+/** A tracker answered with no bytes: Linear's storage does so for a while right after an upload (BTN-1201). */
+class Empty extends Error {}
+
+/**
+ * Writes the stream beside `target` and renames it in place, so a half-written file is never taken for a copy. An empty
+ * body is no copy either: it is a storage not ready yet far more often than a file of zero bytes.
+ */
 async function download(body: AsyncIterable<Uint8Array>, target: string, limit: number): Promise<void> {
   const part = `${target}.part`
   const handle = await open(part, 'w')
@@ -67,6 +73,7 @@ async function download(body: AsyncIterable<Uint8Array>, target: string, limit: 
       if (written > limit) throw new TooLarge()
       await handle.write(chunk)
     }
+    if (written === 0) throw new Empty()
   } catch (error) {
     await handle.close()
     await rm(part, { force: true })
