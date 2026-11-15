@@ -92,7 +92,7 @@ A sync that cannot reach the remote (no connection, a timeout, DNS) is tried aga
 
 A task that needs no change in the repository — done in `main` already, research, an answer — has nothing to merge. Its session ends the turn with the last line `NO CHANGES: <one line — why>`, and Even Keel checks the worktree: with no commits beyond `main` and nothing uncommitted it moves the task to Done, puts the line in a comment on it and cleans up as after a merge.
 
-With commits or uncommitted changes the session is told to merge them or drop them and mark again. In PR mode the `PULL REQUEST:` mark does the same.
+With commits or uncommitted changes the session is told to merge them or drop them and mark again. In PR mode the `PULL REQUEST:` mark does the same. A session that cannot go on without your answer asks and ends its turn without either mark, and the task waits for the reply.
 
 A session may give its answer and forget the mark.
 

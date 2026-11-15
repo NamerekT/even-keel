@@ -137,6 +137,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       [
         fill`- Когда задача готова и проверки проходят, закоммить работу и сам влей ветку в ${main} основного чекаута (git merge --no-edit в основной рабочей копии): слияние закрывает задачу. Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel.`,
         fill`- Если задача не требует правок в репозитории (уже сделана в ${main}, исследование, ответ на вопрос) — вливать нечего: убери свои изменения, чтобы git status был пуст, а в ветке не было коммитов сверх ${main}, и закончи ход последней строкой \`NO CHANGES: <одна строка — почему>\`. Even Keel закроет задачу и запишет причину комментарием к ней.`,
+        '- Если без ответа пользователя не обойтись — задай вопрос и закончи ход без строки `NO CHANGES:`: по ней Even Keel закрыл бы задачу, а так она останется ждать ответа.',
       ].join('\n'),
     unchanged: {
       ahead: (main) =>
@@ -173,6 +174,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         fill`- Режим PR: ветку в ${main} не сливай — её сольёт человек через pull request. Это правило важнее шага слияния в навыке трекера, проверка перед слиянием тоже не нужна: проверяет CI на pull request.`,
         '- Когда работа готова (и одобрена, если в проекте есть ревьюер): закоммить всю работу (git status пуст), опиши pull request в .temp/pull-request.md (первая строка — заголовок, дальше тело) и закончи ход последней строкой `PULL REQUEST: .temp/pull-request.md`. Файл описания не коммить: Even Keel читает его из worktree, а `.temp/` git игнорирует. Ветку пушит и pull request открывает Even Keel; статус задачи не трогай.',
         fill`- Если задача не требует правок в репозитории (исследование, работа уже в ${main}) — всё равно закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`, файл описания тогда не нужен: Even Keel закроет задачу без pull request.`,
+        '- Если без ответа пользователя не обойтись — задай вопрос и закончи ход без строки `PULL REQUEST:`: по ней Even Keel закрыл бы задачу, а так она останется ждать ответа.',
         fill`- Если пишешь комментарий в своём pull request (merge request) — добавь в его текст строку ${SESSION_MARK}: без неё Even Keel примет комментарий за замечание ревьюера и вернёт его тебе.`,
       ].join('\n'),
     review: {
@@ -238,7 +240,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     lastMessage: 'Последнее сообщение прошлой сессии:',
     userMessage: 'Сообщение пользователя:',
     unattended: [
-      'Режим без присмотра: пользователь недоступен, на вопросы до утра никто не ответит. Это правило важнее правил навыков о вопросах и статусах.',
+      'Режим без присмотра: пользователь недоступен, на вопросы до утра никто не ответит. Это правило важнее правил навыков о вопросах и статусах и строки выше о вопросе пользователю.',
       '- Вопросов не задавай и ответа не жди: AskUserQuestion не вызывай, ход вопросом не заканчивай.',
       '- Сделай в задаче всё, что можно сделать без ответа. Вопрос держит только ту часть, которую решает; остальное — код, тесты, документацию — доведи до конца.',
       '- Вопрос с разумным вариантом по умолчанию тебя не держит: возьми вариант, который дешевле всего откатить, доведи задачу на нём и слей, а вопрос заведи отдельной задачей, как обычно.',
@@ -287,6 +289,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       [
         fill`- When the task is done and the checks pass, commit it and merge the branch into ${main} of the main checkout yourself (git merge --no-edit in the main working copy): the merge closes the task. After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up.`,
         fill`- If the task needs no change in the repository (already done in ${main}, research, an answer to a question), there is nothing to merge: remove your changes so that git status is clean and the branch has no commits beyond ${main}, and end the turn with the last line \`NO CHANGES: <one line — why>\`. Even Keel closes the task and puts the reason in a comment on it.`,
+        "- If you cannot go on without the user's answer, ask the question and end the turn without the line `NO CHANGES:`: on it Even Keel would close the task, and without it the task stays waiting for the answer.",
       ].join('\n'),
     unchanged: {
       ahead: (main) =>
@@ -323,6 +326,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         fill`- PR mode: do not merge the branch into ${main} — a human merges it through a pull request. This rule outranks the merge step of the tracker's skill, and the check before a merge is not needed either: the CI checks the pull request.`,
         '- Once the work is done (and approved, where your project has a reviewer): commit all the work (git status is clean), describe the pull request in .temp/pull-request.md (the first line is the title, the body follows) and end the turn with the last line `PULL REQUEST: .temp/pull-request.md`. Do not commit the description file: Even Keel reads it from the worktree, and git ignores `.temp/`. Even Keel pushes the branch and opens the pull request; leave the task status alone.',
         fill`- If the task needs no change in the repository (research, work already in ${main}), still end the turn with the line \`PULL REQUEST: .temp/pull-request.md\`; the description file is not needed then: Even Keel closes the task without a pull request.`,
+        "- If you cannot go on without the user's answer, ask the question and end the turn without the line `PULL REQUEST:`: on it Even Keel would close the task, and without it the task stays waiting for the answer.",
         fill`- If you write a comment on your own pull request (merge request), put the line ${SESSION_MARK} into its text: without it Even Keel takes the comment for a reviewer's remark and gives it back to you.`,
       ].join('\n'),
     review: {
@@ -388,7 +392,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     lastMessage: 'Last message of the previous session:',
     userMessage: 'The user\'s message:',
     unattended: [
-      'Unattended mode: the user is away, and nobody will answer a question until morning. This rule outranks what the skills say about questions and statuses.',
+      'Unattended mode: the user is away, and nobody will answer a question until morning. This rule outranks what the skills say about questions and statuses, and the line above about a question to the user.',
       '- Ask nothing and wait for no answer: do not call AskUserQuestion, do not end the turn with a question.',
       '- Do everything in the task that can be done without an answer. A question holds only the part it decides; finish the rest — code, tests, docs.',
       '- A question with a sensible default does not hold you: take the option that is cheapest to undo, finish the task on it and merge, and file the question as its own task, as usual.',
