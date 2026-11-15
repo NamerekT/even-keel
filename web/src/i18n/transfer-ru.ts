@@ -1,4 +1,5 @@
 import type { ExportLossKind } from '../../../src/tracker/export.js'
+import type { ExportStep } from '../pages/exportMeter.js'
 import { plural } from './plural.js'
 
 const tasks = (count: number) => `${count} ${plural('ru', count, { one: 'задача', few: 'задачи', many: 'задач', other: 'задачи' })}`
@@ -48,6 +49,21 @@ export const transferRu = {
   start: 'Перенести',
   startWithout: 'Перенести без них',
   progress: 'Перенесено',
+  stages: {
+    created: 'Создание задач',
+    linked: 'Связи',
+    attached: 'Вложения',
+    journaled: 'Комментарии',
+    marked: 'Пометки старых задач',
+  } satisfies Record<ExportStep, string>,
+  stageTips: {
+    created: 'Задачи создаются в трекере, родители первыми.',
+    linked: 'Между созданными задачами ставятся связи «блокирует» и «связана с».',
+    attached: 'К задачам прикладываются их файлы.',
+    journaled: 'Журнал каждой задачи переносится комментариями: кто писал и когда.',
+    marked: 'Каждая старая задача получает пометку «Перенесена» со ссылкой на новую.',
+  } satisfies Record<ExportStep, string>,
+  stageTip: (step: number, steps: number, what: string) => `Шаг ${step} из ${steps}: каждый шаг проходит все задачи, и полоса заполняется заново. ${what}`,
   progressOf: (done: number, total: number) => `${done} из ${total}`,
   running: 'Перенос идёт в службе: окно и вкладку можно закрыть, он не прервётся.',
   stopped: 'Перенос остановился, не дойдя до конца. Продолжите его — он пойдёт с того места, где остановился.',

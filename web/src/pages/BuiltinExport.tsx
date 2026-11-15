@@ -10,6 +10,7 @@ import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
+import { EXPORT_STEPS, meterOf } from './exportMeter.js'
 import { EMPTY_FIELDS, keyOfTyped, keyTyped, placeFields, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { ErrorStrip, FieldHead } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
@@ -283,14 +284,24 @@ function Losses({ plan, recheck, checking }: { plan: ExportPlan; recheck: (() =>
   )
 }
 
-/** "N of M" as the download meter shows its megabytes: the word, a bar, the figures. */
+/**
+ * "N of M" as the download meter shows its megabytes: the step the copy is at, a bar, the figures of that step (BTN-1194);
+ * "Moved" once every task is through.
+ */
 function Progress({ exported }: { exported: ExportState }) {
-  const done = exported.progress.marked
+  const { stage, step, done } = meterOf(exported.progress, exported.total)
   const total = Math.max(exported.total, done)
+  const name = stage === null ? t.transfer.progress : t.transfer.stages[stage]
   return (
     <div className="transfer__meter">
-      <span className="transfer__meter-name">{t.transfer.progress}</span>
-      <progress max={Math.max(total, 1)} value={total === 0 ? 1 : done} aria-label={t.transfer.progress} />
+      {stage === null ? (
+        <span className="transfer__meter-name">{name}</span>
+      ) : (
+        <Tipped tip={t.transfer.stageTip(step, EXPORT_STEPS.length, t.transfer.stageTips[stage])} focusable inline align="start" className="transfer__meter-name">
+          {name}
+        </Tipped>
+      )}
+      <progress max={Math.max(total, 1)} value={total === 0 ? 1 : done} aria-label={name} />
       <span className="transfer__figures">{t.transfer.progressOf(done, total)}</span>
     </div>
   )
