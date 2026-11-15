@@ -88,6 +88,8 @@ The lifetimes in `docs/sessions/cache.md` ("Every agent's cache") come from the 
 
 ## Handoffs by context size turned off (BTN-255)
 
+Entry 78b until 2026-11-15, renumbered 168: the number was shared.
+
 With `contextHandoffs` off the checkpoint endpoint answers `source: "off"` and the hook asks for no handoff at any context size (`docs/sessions/checkpoint.md`, "Checkpoint threshold"). Checked by tests of the hook's plan and the settings levels, and on 2026-10-26 by the real `context-checkpoint.mjs` process against a fake endpoint: at 500k tokens it stayed silent on `source: "off"` and nudged on `calibration`. The service's own answer for a live session was read on 2026-11-07 ([verified log](../verified/sessions.md)): `source: "off"` with the switch off on the project, `window` once it was back. Not run: a real chain session past its threshold with the switch off, and its own compaction afterwards. Assumed: that the session's `agent-bridge` package is 0.13.0 or later — an older one does not know `source: "off"` and keeps nudging at the threshold; that the agent's compaction then keeps the session going without a handoff. **Workaround:** if a session still gets the nudge, update the `agent-bridge` package on `/tools` and press "New session"; to stop the nudges at once, set the threshold to its highest value as before.
 
 ## A task label selecting compaction
