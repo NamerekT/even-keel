@@ -381,6 +381,12 @@
   .seg-button__label {
     display: none;
   }
+
+  /* The icon alone has no text baseline: inside a line box it would stand on the baseline, above the button's middle. */
+  .seg-button .tipped,
+  .seg-button .morph {
+    display: flex;
+  }
 }
 
 .seg-button:hover:not(:disabled),
