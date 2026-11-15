@@ -39,7 +39,8 @@ export interface CredentialTimes {
 }
 
 /**
- * An OpenRouter account's balance as its management key last read it (BTN-868), or that the key was refused, and when:
+ * An OpenRouter account's balance as its own key (BTN-1206) or its management key (BTN-868) last read it, or that the
+ * management key was refused, and when:
  * an answer that tells nothing keeps it.
  */
 export type ReadBalance = { usd: number; at: string } | { rejected: true; at: string }
@@ -93,7 +94,7 @@ export interface AccountEntry {
   keyLimit?: ReadKeyLimit
   /** Present only for an account on an OpenRouter key: whether it has a management key for the balance (BTN-868). */
   managementKey?: boolean
-  /** The account's balance as its management key last read it, or that the key was refused; absent — not read yet. */
+  /** The account's balance as last read, or that the management key was refused; absent — not read or no key reads it. */
   balance?: ReadBalance
 }
 

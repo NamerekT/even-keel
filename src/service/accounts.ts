@@ -498,7 +498,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
         ctx.writes.add(`the management key of ${key}`, forgetManagementKey(ctx.db, key))
       },
     },
-    readBalance: (managementKey) => readOpenRouterBalance(managementKey, KEY_CHECK_TIMEOUT_MS),
+    readBalance: (key) => readOpenRouterBalance(key, KEY_CHECK_TIMEOUT_MS),
     checkCredit: (agent, key) => CREDIT_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
     creditCheckMs: CREDIT_CHECK_MS,
     intervalMs: ctx.ACCOUNT_POLL_MS,

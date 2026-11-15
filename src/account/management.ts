@@ -1,12 +1,15 @@
 import type { Queryable } from '../storage/database.js'
 
-/** Tells the account's credits bought and used, only to a management key: the key a session runs on gets 403. */
+/**
+ * Tells the account's credits bought and used. Documented for a management key only, yet live it answered the key a
+ * session runs on too, with the same totals (2026-11-15, BTN-1206).
+ */
 const OPENROUTER_CREDITS_URL = 'https://openrouter.ai/api/v1/credits'
 
-/** What a management key read of the account's balance (BTN-868): dollars left, a refused key, or nothing learned. */
+/** What a read of the account's balance told (BTN-868): dollars left, a refused key, or nothing learned. */
 export type BalanceVerdict = { state: 'ok'; usd: number } | { state: 'rejected' } | { state: 'unknown'; reason: string }
 
-/** The account's balance, `total_credits` less `total_usage`; 401 and 403 are a key that is no management key. */
+/** The account's balance, `total_credits` less `total_usage`; 401 and 403 are a key OpenRouter does not tell it to. */
 export async function readOpenRouterBalance(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<BalanceVerdict> {
   let response: Response
   try {

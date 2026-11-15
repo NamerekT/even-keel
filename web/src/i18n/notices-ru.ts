@@ -350,7 +350,7 @@ export const noticesRu: NoticeTexts = {
   'account.openRouterManagementKey': () =>
     'это management-ключ OpenRouter, сессии на нём не работают: вставьте сюда API-ключ, а management-ключ добавьте в аккаунт через ⋯ → «Management-ключ» в его строке',
   'account.managementKeyRejected': () =>
-    'OpenRouter не читает баланс этим ключом: вставьте management-ключ из настроек OpenRouter (Management keys), а не API-ключ',
+    'OpenRouter не сообщает баланс этому ключу: вставьте management-ключ из настроек OpenRouter (Management keys)',
   'account.managementKeyUnchecked': (p) => `не удалось прочитать баланс у OpenRouter этим ключом (${p.reason}) — попробуйте позже`,
   'account.managementKeyNotOpenRouter': () => 'management-ключ читает баланс только у аккаунта на ключе OpenRouter',
   'account.copilotTokenInvalid': () =>

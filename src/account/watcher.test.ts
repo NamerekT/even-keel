@@ -398,18 +398,51 @@ describe('AccountWatcher.setManagementKey (BTN-868)', () => {
   }
 
   const entry = (accounts: AccountWatcher, key: string) => accounts.view.accounts.find((each) => each.key === key)
+  /** `/credits` refuses the account's own key and answers the management key with `answer` (the case BTN-868 assumed). */
+  const managementOnly = (answer: () => BalanceVerdict) => (key: string): BalanceVerdict => (key === ROUTER_KEY ? { state: 'rejected' } : answer())
 
   it('marks only an account on an OpenRouter key as one that may have a management key', async () => {
-    const { accounts } = await watcher(() => ({ state: 'ok', usd: 1 }))
+    const { accounts } = await watcher(managementOnly(() => ({ state: 'ok', usd: 1 })))
     expect(entry(accounts, 'router')).toMatchObject({ managementKey: false })
     expect(entry(accounts, 'router')?.balance).toBeUndefined()
     expect(entry(accounts, 'work')?.managementKey).toBeUndefined()
   })
 
+  it('reads the balance with the account\'s own key when OpenRouter answers it, without a management key (BTN-1206)', async () => {
+    const { accounts, read } = await watcher(() => ({ state: 'ok', usd: 12.3 }))
+    expect(read).toEqual([ROUTER_KEY])
+    expect(entry(accounts, 'router')).toMatchObject({ managementKey: false, balance: { usd: 12.3, at: '2026-11-08T12:00:00.000Z' } })
+    await accounts.readBalance('work')
+    expect(read).toEqual([ROUTER_KEY])
+  })
+
+  it('asks the management key once the own key is refused, and stops asking the refused key (BTN-1206)', async () => {
+    const { accounts, read } = await watcher(managementOnly(() => ({ state: 'ok', usd: 4 })), { router: MANAGEMENT })
+    expect(read).toEqual([ROUTER_KEY, MANAGEMENT])
+    expect(entry(accounts, 'router')?.balance).toMatchObject({ usd: 4 })
+    await accounts.readBalance('router')
+    expect(read).toEqual([ROUTER_KEY, MANAGEMENT, MANAGEMENT])
+  })
+
+  it('takes the balance away when the own key stops reading it and there is no management key; a failed read keeps it (BTN-1206)', async () => {
+    let answer: BalanceVerdict = { state: 'ok', usd: 2 }
+    const { accounts, read, changes } = await watcher(() => answer)
+    answer = { state: 'unknown', reason: 'fetch failed' }
+    await accounts.readBalance('router')
+    expect(entry(accounts, 'router')?.balance).toMatchObject({ usd: 2 })
+    const before = changes()
+    answer = { state: 'rejected' }
+    await accounts.readBalance('router')
+    expect(entry(accounts, 'router')?.balance).toBeUndefined()
+    expect(changes()).toBe(before + 1)
+    await accounts.readBalance('router')
+    expect(read).toHaveLength(3)
+  })
+
   it('keeps a key that reads the balance, shows the balance at once and never gives the page the key', async () => {
-    const { accounts, keys, read } = await watcher(() => ({ state: 'ok', usd: 74.75 }))
+    const { accounts, keys, read } = await watcher(managementOnly(() => ({ state: 'ok', usd: 74.75 })))
     await accounts.setManagementKey('router', `  ${MANAGEMENT}  `)
-    expect(read).toEqual([MANAGEMENT])
+    expect(read).toEqual([ROUTER_KEY, MANAGEMENT])
     expect(keys.get('router')).toBe(MANAGEMENT)
     expect(entry(accounts, 'router')).toMatchObject({ managementKey: true, balance: { usd: 74.75, at: '2026-11-08T12:00:00.000Z' } })
     expect(JSON.stringify(accounts.view)).not.toContain(MANAGEMENT)
@@ -427,26 +460,33 @@ describe('AccountWatcher.setManagementKey (BTN-868)', () => {
   })
 
   it('refuses a management key for an account that is not on an OpenRouter key, or one that is gone', async () => {
-    const { accounts, read } = await watcher(() => ({ state: 'ok', usd: 1 }))
+    const { accounts, read } = await watcher(managementOnly(() => ({ state: 'ok', usd: 1 })))
     await expect(accounts.setManagementKey('work', MANAGEMENT)).rejects.toThrow(refusal('account.managementKeyNotOpenRouter'))
     await expect(accounts.setManagementKey('gone', MANAGEMENT)).rejects.toThrow(refusal('account.unknown'))
-    expect(read).toEqual([])
+    expect(read).toEqual([ROUTER_KEY])
   })
 
   it('removes the key and its balance on an empty value', async () => {
-    const { accounts, keys, read } = await watcher(() => ({ state: 'ok', usd: 3 }), { router: MANAGEMENT })
+    const { accounts, keys, read } = await watcher(managementOnly(() => ({ state: 'ok', usd: 3 })), { router: MANAGEMENT })
     expect(entry(accounts, 'router')?.balance).toMatchObject({ usd: 3 })
     await accounts.setManagementKey('router', null)
     expect(keys.size).toBe(0)
     expect(entry(accounts, 'router')).toMatchObject({ managementKey: false })
     expect(entry(accounts, 'router')?.balance).toBeUndefined()
-    expect(read).toEqual([MANAGEMENT])
+    expect(read).toEqual([ROUTER_KEY, MANAGEMENT])
+  })
+
+  it('keeps the balance its own key read when the management key is removed (BTN-1206)', async () => {
+    const { accounts, keys } = await watcher(() => ({ state: 'ok', usd: 5 }), { router: MANAGEMENT })
+    await accounts.setManagementKey('router', '')
+    expect(keys.size).toBe(0)
+    expect(entry(accounts, 'router')?.balance).toMatchObject({ usd: 5 })
   })
 
   it('reads the balance with the hourly key check and between checks, keeps it on an answer that tells nothing, marks a refused key', async () => {
     let answer: BalanceVerdict = { state: 'ok', usd: 9.5 }
-    const { accounts, read, changes, later } = await watcher(() => answer, { router: MANAGEMENT })
-    expect(read).toEqual([MANAGEMENT])
+    const { accounts, read, changes, later } = await watcher(managementOnly(() => answer), { router: MANAGEMENT })
+    expect(read).toEqual([ROUTER_KEY, MANAGEMENT])
     expect(entry(accounts, 'router')?.balance).toEqual({ usd: 9.5, at: '2026-11-08T12:00:00.000Z' })
     answer = { state: 'unknown', reason: 'fetch failed' }
     const before = changes()
@@ -459,7 +499,7 @@ describe('AccountWatcher.setManagementKey (BTN-868)', () => {
     expect(entry(accounts, 'router')?.balance).toEqual({ rejected: true, at: '2026-11-08T12:01:00.000Z' })
     expect(changes()).toBe(before + 1)
     await accounts.readBalance('work')
-    expect(read).toHaveLength(3)
+    expect(read).toHaveLength(4)
   })
 })
 

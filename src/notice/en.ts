@@ -342,7 +342,7 @@ export const en = {
   'account.openRouterManagementKey': () =>
     "opencode: this is an OpenRouter management key, and sessions can't run on it: paste an API key here, and add the management key to the account with Management key in the row's ⋯ menu",
   'account.managementKeyRejected': () =>
-    "opencode: OpenRouter doesn't take this key for the balance: paste a management key from OpenRouter's settings (Management keys), not an API key",
+    "opencode: OpenRouter doesn't tell the balance to this key: paste a management key from OpenRouter's settings (Management keys)",
   'account.managementKeyUnchecked': (p: { reason: string }) => `opencode: could not read the balance with this key from OpenRouter (${p.reason}); try again later`,
   'account.managementKeyNotOpenRouter': () => 'opencode: a management key reads the balance only of an account on an OpenRouter key',
   'account.copilotTokenInvalid': () =>

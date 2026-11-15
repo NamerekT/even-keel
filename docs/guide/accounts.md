@@ -55,9 +55,9 @@ On an OpenRouter key a task's run or the run profile names any of OpenRouter's m
 
 If you set a spending limit on the key itself in OpenRouter, the account's row shows what is left of it ("Key limit left") next to the spend.
 
-The account's balance OpenRouter tells only to a management key: create one in OpenRouter's settings and add it with "Management key" in the account row's menu.
+The row shows the account's balance ("Balance"), read with the account's own key. OpenRouter documents the balance for management keys only, so if it ever stops telling it to the account's key, the key limit's tip says so: create a management key in OpenRouter's settings and add it with "Management key" in the account row's menu.
 
-It is checked before it is saved, kept in Even Keel's own state rather than in the account folder, so sessions never see it, and used only to show "Balance" on the row; the same item replaces or removes it.
+A management key is checked before it is saved, kept in Even Keel's own state rather than in the account folder, so sessions never see it, and used only to show "Balance" on the row; the same item replaces or removes it.
 
 The balance read [has not yet been checked live](../unverified/opencode.md#the-openrouter-balance-by-a-management-key-btn-868). Sessions on an OpenRouter key have [not yet been checked live](../unverified/opencode.md#opencode-on-an-openrouter-key-btn-843).
 

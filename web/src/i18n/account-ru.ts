@@ -43,15 +43,15 @@ export const accountRu = {
     keyLimitResets: { daily: 'сбрасывается каждый день', weekly: 'сбрасывается каждую неделю', monthly: 'сбрасывается каждый месяц', never: 'не сбрасывается' },
     keyLimitTitle: (left: string, limit: string, reset: string, ago: string) =>
       `Остаток лимита, заданного на ключе: ${left} из ${limit}, ${reset}; прочитан у OpenRouter ${ago}.`,
-    balanceNeedsKey: 'Баланс аккаунта читает только management-ключ: добавьте его пунктом «Management-ключ» в меню строки.',
+    balanceNeedsKey: 'Этому ключу OpenRouter баланс аккаунта не сообщает: добавьте management-ключ пунктом «Management-ключ» в меню строки.',
     balance: 'Баланс',
-    balanceTitle: (ago: string) => `Баланс аккаунта OpenRouter: купленные кредиты минус потраченные; прочитан management-ключом ${ago}.`,
+    balanceTitle: (ago: string) => `Баланс аккаунта OpenRouter: купленные кредиты минус потраченные; прочитан у OpenRouter ${ago}.`,
     balanceRefused: 'ключ не принят',
     balanceRefusedTitle: (ago: string) =>
       `OpenRouter не принял management-ключ ${ago}: он отозван или это не management-ключ. Вставьте новый пунктом «Management-ключ» в меню строки.`,
     managementKeyAction: 'Management-ключ',
     managementKeyLead:
-      'Management-ключ читает баланс аккаунта OpenRouter для этой карточки и больше ни для чего. Even Keel хранит его в своём состоянии: в папку аккаунта и в сессии он не попадает. Создать его можно в настройках OpenRouter, раздел Management keys.',
+      'Баланс аккаунта читается его собственным ключом, пока OpenRouter его этому ключу сообщает; если нет — management-ключом, только для этой карточки и больше ни для чего. Even Keel хранит его в своём состоянии: в папку аккаунта и в сессии он не попадает. Создать его можно в настройках OpenRouter, раздел Management keys.',
     managementKeyHeld: 'Management-ключ задан. Вставьте другой, чтобы заменить его, или удалите.',
     managementKeyField: 'Management-ключ',
     managementKeySave: 'Проверить и сохранить',
