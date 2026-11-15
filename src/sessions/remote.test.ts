@@ -46,6 +46,12 @@ describe('remoteLink', () => {
     expect(remoteLink({ ...base, apiKey: true, enabled: false, now: startedAt + 10_000 })).toEqual({ url: null, off: 'api-key' })
   })
 
+  it('says a session on a long token has no Remote Control, even with a link left in its transcript', () => {
+    expect(remoteLink({ ...base, longToken: true })).toEqual({ url: null, off: 'long-token' })
+    expect(remoteLink({ ...base, longToken: true, transcriptUrl: 'https://claude.ai/code/session_01Old' })).toEqual({ url: null, off: 'long-token' })
+    expect(remoteLink({ ...base, longToken: true, enabled: null })).toEqual({ url: null, off: null })
+  })
+
   it('prefers the registry bridge over the transcript', () => {
     expect(remoteLink({ ...base, bridge: 'session_01Registry', transcriptUrl: 'https://claude.ai/code/session_01Old' })).toEqual({
       url: 'https://claude.ai/code/session_01Registry',

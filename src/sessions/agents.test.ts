@@ -332,6 +332,11 @@ describe('lampOf', () => {
     expect(lampOf({ ...background, status: 'shell' }, 'credit')).toBe('limit')
   })
 
+  it('shows a refused sign-in as an error, and as working while the turn still runs', () => {
+    expect(lampOf(interactive, 'auth')).toBe('error')
+    expect(lampOf({ ...interactive, status: 'busy' }, 'auth')).toBe('working')
+  })
+
   it('shows the API error the idle session stopped on', () => {
     expect(lampOf(interactive, 'limit')).toBe('limit')
     expect(lampOf(interactive, 'error')).toBe('error')

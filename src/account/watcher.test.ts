@@ -109,6 +109,51 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
     expect(accounts.view.accounts[0]).toMatchObject({ needsLogin: false, usage: { state: 'ok' } })
   })
 
+  it('asks for a new long token once a session was refused on it or its year is over, and takes one through the key command (BTN-1005)', async () => {
+    const { accounts, homes, options } = await watcher(() => ({ state: 'ok' }))
+    const token = 'sk-ant-oat01-FAKE0000000000000000000000000000-example'
+    const next = 'sk-ant-oat01-FAKE1111111111111111111111111111-example'
+    const turns: string[] = []
+    let now = new Date('2026-10-26T12:00:00.000Z')
+    options.now = () => now
+    options.name = () => {}
+    options.makeShared = () => {}
+    options.forget = () => {}
+    options.managementKeys = { forget: () => {} } as never
+    options.checkCloud = async (home) => {
+      turns.push(home.key)
+      return { model: null }
+    }
+    options.agentOf = ((home: AccountHome) => ({
+      authStatus: async () => (home.key === 'work' ? API_STATUS : { loggedIn: true, authMethod: 'oauth_token', email: null, orgName: null, subscriptionType: null }),
+      logout: async () => {
+        throw new Error('a token folder has no sign-in to remove')
+      },
+    })) as never
+    await accounts.addLongToken('Spare', token)
+    const entry = () => accounts.view.accounts.find((each) => each.key === 'spare')!
+    expect(turns).toEqual(['spare'])
+    expect(entry()).toMatchObject({ needsLogin: false, keyReplaceable: true, apiKey: false, longToken: { until: '2027-10-26T12:00:00.000Z' } })
+    expect(accounts.view.accounts.find((each) => each.key === 'work')?.longToken).toBeUndefined()
+
+    accounts.tokenRefused('work', now.toISOString())
+    accounts.tokenRefused('spare', now.toISOString())
+    await vi.waitFor(() => expect(entry().needsLogin).toBe(true))
+    expect(entry().longToken).toMatchObject({ refusedAt: '2026-10-26T12:00:00.000Z' })
+    expect(accounts.needsLogin('work')).toBe(false)
+
+    await accounts.replaceApiKey('spare', next)
+    expect(turns).toEqual(['spare', 'spare'])
+    expect(entry()).toMatchObject({ needsLogin: false, longToken: { until: '2027-10-26T12:00:00.000Z' } })
+    expect(entry().longToken?.refusedAt).toBeUndefined()
+    expect(JSON.stringify(accounts.view)).not.toContain(next)
+
+    now = new Date('2027-10-26T12:00:00.000Z')
+    expect(accounts.needsLogin('spare')).toBe(true)
+    await accounts.remove('spare')
+    expect(homes.find('spare')).toBeUndefined()
+  })
+
   it('writes a key the provider takes, of the same organization, and clears the refusal at once', async () => {
     const { accounts, homes, home, organizations } = await watcher((key) => (key === OLD ? { state: 'rejected' } : { state: 'ok', organization: 'org-a' }), { work: 'org-a' })
     expect(accounts.view.accounts[0]).toMatchObject({ key: 'work', needsLogin: true, keyReplaceable: true })
