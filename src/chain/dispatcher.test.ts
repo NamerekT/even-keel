@@ -880,6 +880,23 @@ describe('Dispatcher', () => {
     expect(dispatcher.state.skipped.ABC).toEqual(['GH-14'])
   })
 
+  it('keeps the computed order across new task ids that lose the priority and the numbers behind it (BTN-1195)', () => {
+    const { dispatcher, saved } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), { ...task('ABC-2'), priority: 'high' }, task('ABC-3')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-2', 'ABC-1', 'ABC-3'])
+
+    dispatcher.rename('ABC', new Map([['ABC-1', 'GH-12'], ['ABC-2', 'GH-13'], ['ABC-3', 'GH-11']]))
+    expect(saved.at(-1)?.orders.ABC).toEqual(['GH-13', 'GH-12', 'GH-11'])
+    dispatcher.setTasks('ABC', [task('GH-11'), task('GH-12'), task('GH-13')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['GH-13', 'GH-12', 'GH-11'])
+  })
+
+  it('saves no order on a rename when the chain has none to keep', () => {
+    const { dispatcher } = setup()
+    dispatcher.rename('ABC', new Map([['ABC-1', 'GH-11']]))
+    expect(dispatcher.state.orders.ABC).toBeUndefined()
+  })
+
   it('puts a new task right after the running one', async () => {
     const { dispatcher } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])

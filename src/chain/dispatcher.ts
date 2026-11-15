@@ -477,12 +477,27 @@ export class Dispatcher {
     this.changed()
   }
 
-  /** The project's tasks got new ids (BTN-1074, its tracker switched): the saved order and the skips follow; an id without a new one stays. */
+  /**
+   * The project's tasks got new ids (BTN-1074, its tracker switched): the saved order and the skips follow; an id without
+   * a new one stays. Without a saved order the computed one is saved (BTN-1195): the new tracker may keep no priority and
+   * numbers the tasks otherwise, so the same rules would build another order there.
+   */
   rename(project: string, names: ReadonlyMap<string, string>): void {
     const renamed = (ids: string[]) => ids.map((id) => names.get(id) ?? id)
-    if (this.state.orders[project] !== undefined) this.state.orders[project] = renamed(this.state.orders[project])
+    const order = this.state.orders[project] ?? this.computedOrder(project)
+    if (order !== undefined) this.state.orders[project] = renamed(order)
     if (this.state.skipped[project] !== undefined) this.state.skipped[project] = renamed(this.state.skipped[project])
     this.changed()
+  }
+
+  private computedOrder(project: string): string[] | undefined {
+    const tasks = this.lists.tasks.get(project) ?? []
+    if (tasks.length === 0) return undefined
+    try {
+      return chainOrder(tasks, undefined)
+    } catch {
+      return undefined
+    }
   }
 
   requeue(order: string[]): void {
