@@ -162,3 +162,23 @@ export function withFeedScopeRefusal(state: EvenKeelState): EvenKeelState {
   }
   return { ...state, trackers: [...state.trackers, forgejo], config: { ...state.config, feeds: { ...state.config.feeds, ABC: [...(state.config.feeds.ABC ?? []), feed] } } }
 }
+
+/**
+ * `?trackers=orgScope` (EKR-106): ABC's Forgejo feed OC on an organization's repository reads its tasks, but the token
+ * has no `read:organization`, so its labels and milestones are refused.
+ */
+export function withOrgScopeRefusal(state: EvenKeelState): EvenKeelState {
+  const scope = notice('forgejo.scope', { scope: 'read:organization' })
+  const feed = { id: 'feed-abc-org', tracker: 'forgejo', key: 'OC', place: 'example-org/demo' }
+  const forgejo: TrackerView = {
+    name: 'forgejo-bot',
+    kind: 'forgejo',
+    title: 'Forgejo · bot',
+    projects: [feed.id],
+    ready: true,
+    health: { state: 'live', lastOkAt: new Date().toISOString(), error: null },
+    readAt: { [feed.id]: new Date().toISOString() },
+    termsRefused: { [feed.id]: scope },
+  }
+  return { ...state, trackers: [...state.trackers, forgejo], config: { ...state.config, feeds: { ...state.config.feeds, ABC: [...(state.config.feeds.ABC ?? []), feed] } } }
+}

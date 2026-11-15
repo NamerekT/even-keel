@@ -205,6 +205,7 @@ No entry meets both conditions at the moment.
 | 168 | [Handoffs by context size turned off](unverified/sessions.md#handoffs-by-context-size-turned-off-btn-255) | those who turn the switch off (on by default; the endpoint's answer checked) | a session still gets a handoff nudge, or compacts where it used to hand off | — |
 | 169 | [The OpenCode model check](unverified/opencode.md#the-opencode-model-check-btn-336) | OpenCode on Copilot, once it is unblocked | a model that works is refused at launch, or one the plan refuses passes (BTN-584); leave the model field empty | BTN-578 |
 | 170 | [Claude Code and OpenCode from npm without the postinstall](unverified/sessions.md#claude-code-and-opencode-from-npm-without-the-postinstall-btn-1196) | Linux and macOS installs through npm (Windows checked); OpenCode on an x64 without AVX2 | the agent shows as not installed after `npm install -g`, or a session starts a binary that exits at once; use the native installer or the `_BIN` variable | — |
+| 171 | [A vocabulary refused while tasks are read](unverified/trackers.md#a-vocabulary-refused-while-tasks-are-read-ekr-106) | Forgejo projects and feeds on an organization's repository with a token without `read:organization` | the band stays after the token is fixed, or never shows and sessions miss the question label | — |
 
 ### Waiting for the event / not checked by choice
 

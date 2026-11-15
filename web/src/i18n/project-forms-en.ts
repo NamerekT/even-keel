@@ -189,6 +189,8 @@ export const projectEN: Messages['project'] = {
     chainNotLoaded: 'Tasks are not loaded yet.',
     notLoadedBecause: (why: string) => `Tasks are not loaded. ${why}`,
     feedsNotLoaded: (feeds: string[], why: string) => `Tasks of the ${feeds.length === 1 ? 'feed' : 'feeds'} ${feeds.join(', ')} are not loaded. ${why}`,
+    termsRefused: (keys: string[], why: string) =>
+      `The labels and milestones of ${keys.join(', ')} are not read: sessions cannot create or edit tasks there and do not learn the question label. ${why}`,
     chainLoading: 'Reading the tasks…',
     chainEmpty: 'No tasks in the chain.',
     backlog: (count: number) => `Backlog · ${count}`,

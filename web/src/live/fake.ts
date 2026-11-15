@@ -41,7 +41,7 @@ import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
-import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withFeedScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
+import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
@@ -381,6 +381,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('trackers') === 'templates' && current.state !== null) current.state = withTemplateLabels(current.state)
   if (params.get('trackers') === 'scope' && current.state !== null) current.state = withScopeRefusal(current.state)
   if (params.get('trackers') === 'feedScope' && current.state !== null) current.state = withFeedScopeRefusal(current.state)
+  if (params.get('trackers') === 'orgScope' && current.state !== null) current.state = withOrgScopeRefusal(current.state)
   if (params.get('trackers') === 'off' && current.state !== null) current.state = withProfileOff(current.state)
   if (params.get('trackers') === 'down' && current.state !== null) current.state = withTrackerDown(current.state)
   if (params.get('hulyClient') === 'installing' && current.state !== null) current.state.hulyClient = notice('huly.clientInstalling', {})

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_RULES } from '../chain/rules.js'
 import * as merged from '../git/merged.js'
+import { fail } from '../notice/notice.js'
 import type { TrackerView } from './health.js'
 import { toTask, type TrackerTask } from './model.js'
 import { TrackerNotFound, type TaskSource, type TrackerSetup } from './source.js'
@@ -113,6 +114,29 @@ describe('startTracker', () => {
     const plain = start(['HUL'], async () => ({ chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {} }))
     await vi.waitFor(() => expect(plain.view.readAt.HUL).toBeDefined())
     expect(plain.view.openToAll).toBeUndefined()
+  })
+
+  it('reads each reader\'s vocabulary once the link is live and keeps a refusal for the page, the tracker staying live (EKR-106)', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let refused = true
+    const vocabulary = vi.fn(async (project: string) => {
+      if (refused && project === 'ORG') throw fail('forgejo.scope', { scope: 'read:organization' })
+      return { statuses: [], labels: [], milestones: [] }
+    })
+    const { view, refreshers } = start(['ORG', 'OWN'], async () => ({
+      chainTasks: async () => ({ tasks: [], statuses: [] }), tasks: async () => [], close: async () => {}, vocabulary,
+    }), { labelOf: (project) => `FED feed ${project}` })
+    await vi.waitFor(() => expect(view.termsRefused).toEqual({ ORG: { code: 'forgejo.scope', params: { scope: 'read:organization' } } }))
+    expect(view.health.state).toBe('live')
+    expect(errors).toHaveBeenCalledWith(expect.stringContaining('FED feed ORG: vocabulary:'))
+    await refreshers.get('ORG')!()
+    expect(vocabulary).toHaveBeenCalledTimes(2)
+
+    refused = false
+    view.liveSince = new Date(Date.now() + 1000).toISOString()
+    await refreshers.get('ORG')!()
+    expect(view.termsRefused).toEqual({})
+    expect(vocabulary).toHaveBeenCalledTimes(3)
   })
 
   it('rechecks on every read which required labels an issue template puts on (BTN-1130)', async () => {

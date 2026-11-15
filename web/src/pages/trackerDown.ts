@@ -33,6 +33,24 @@ export function unreadWhy(tracker: TrackerView | undefined): Unread | null {
 export type FeedsState = Pick<EvenKeelState, 'trackers' | 'config'>
 
 /**
+ * The project and its feeds whose tasks are read but whose vocabulary is refused (EKR-106), by their keys, one entry a
+ * reason: their sessions get no line of the chain's roles for them and the tasks tools refuse their creates and edits.
+ */
+export function termsRefused(state: FeedsState & Pick<EvenKeelState, 'projectKeys'>, project: string): { keys: string[]; why: string; fix: NoticeFix }[] {
+  const readers = [{ id: project, key: state.projectKeys[project] ?? project }, ...(state.config.feeds[project] ?? []).map((feed) => ({ id: feed.id, key: feed.key }))]
+  const found = new Map<string, { keys: string[]; why: string; fix: NoticeFix }>()
+  for (const reader of readers) {
+    const refused = state.trackers.find((view) => view.projects.includes(reader.id))?.termsRefused?.[reader.id]
+    if (refused === undefined) continue
+    const mark = JSON.stringify(refused)
+    const entry = found.get(mark) ?? { keys: [], why: say(refused), fix: noticeFixOf(refused) ?? PROFILES }
+    entry.keys.push(reader.key)
+    found.set(mark, entry)
+  }
+  return [...found.values()]
+}
+
+/**
  * The project's feeds left unread by a down tracker (BTN-1210), by their keys, one entry a tracker. A feed on the
  * project's own tracker is left out: the project's own line already says why.
  */
