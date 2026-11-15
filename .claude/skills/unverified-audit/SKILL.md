@@ -8,6 +8,8 @@ description: Audit docs/unverified for stale or bloated entries during the weekl
 1. Run `npm run --silent unverified-audit` first, from the repository root. Save stdout to `.temp/unverified-audit.md`. The script only reads; it neither edits entries nor removes them. It reports A (later task commits touching the entry's code), B (body size/history dates), C (new sibling notice codes), and D (names no longer found). Missing task history means A is unknown, not that the entry is current. Missing IDs and dangling index rows appear at the bottom.
 2. Read the rules in `docs/unverified.md` and `docs/verified.md`. For each A candidate, read its complete entry and inspect the culprit diffs with `git show <hash> -- <entry-code-files>`. Reconstruct those files from commits named by the entry's BTN/EKR tasks and existing backtick paths, limited to `src/`, `web/src/`, `tally/src/`, and `plugins/`; exclude tests and fixtures. Inspect all relevant culprit commits, including those marked as massive changes. Decide whether behaviour changed or only the implementation was refactored. Make the decisions yourself; do not ask the user about every entry. Give one summary at the end.
 
+A excludes shared files (listed at the top of the report), so a culprit that changed only shared files will not appear; entries explicitly about notices or a shared file need manual review.
+
 ## Decide and edit
 
 - **The entry is still correct; the culprit did not change its behaviour:** add `<!-- checked against: BTN-123, EKR-45 -->` immediately below the heading, using the actual culprit task IDs. Extend an existing comment without duplicating IDs. Change nothing else in that entry. This prevents the same culprit being reported next week.

@@ -32,14 +32,14 @@ describe('unverified audit on git history', () => {
     put('plugins/example/SKILL.md', 'old\n')
     put('test/fixtures/sample.ts', 'old\n')
     commit(1, '[BTN-1] Original feature')
-    const headings = ['Changed (BTN-1)', 'Acknowledged (BTN-1)', 'Fresh (BTN-1)', 'Unknown (EKR-99)', 'Bloated', 'Missing', 'Quiet', 'Words']
+    const headings = ['Changed (BTN-1)', 'Acknowledged (BTN-1)', 'Fresh (BTN-1)', 'Unknown (EKR-99)', 'Bloated', 'Missing', 'Quiet', 'Shared (BTN-3)', 'Words']
     const bodies = [
       '`statusMove.failed` and `existingName`.\n```ts\n## Not an entry\nRemovedInFence\n```',
       '<!-- checked against: BTN-2, BTN-3 -->\nStill open.',
       'Still open.', 'No matching commit.',
       '2024-01-01 2024-01-02 2024-01-03',
-      '`MissingSymbol` `Vanished` `src/gone.ts` `statusMove.removed` `settings.unknown` `--bg` `true` `123456` `run command` `<SomeType>`',
-      '`existingName` `src/feature.ts`', 'word '.repeat(400),
+      '`MissingSymbol` `Vanished` `src/gone.ts` `statusMove.removed` `settings.unknown` `--bg` `true` `123456` `run command` `<SomeType>` `other-repo/x.ts` `plugins/*.test.mjs` `plugins/?.test.mjs`',
+      '`existingName` `src/feature.ts`', '`src/notice/en.ts`', 'word '.repeat(400),
     ]
     put('docs/unverified/area.md', '# Area\n\n' + headings.map((h, i) => `## ${h}\n\n${bodies[i]}\n\n`).join(''))
     put('docs/unverified.md', '## What to check first\n### Then\n' +
@@ -61,6 +61,19 @@ describe('unverified audit on git history', () => {
     const area = readFileSync(resolve(root, 'docs/unverified/area.md'), 'utf8')
     put('docs/unverified/area.md', area.replace('## Fresh (BTN-1)\n\nStill open.', '## Fresh (BTN-1)\n\nUpdated after the changes.'))
     commit(7, 'Narrow just one entry')
+    put('src/feature.ts', 'export const existingName = 4\n')
+    commit(8, '[BTN-2] Same task touches the feature again')
+    put('src/notice/en.ts', readFileSync(resolve(root, 'src/notice/en.ts'), 'utf8') + '// Shared change\n')
+    commit(8, '[EKR-5] Shared notice change')
+    // Forty distinct tasks: feature.ts is exactly 5%, notices are above it.
+    // Import empty task commits together to avoid 35 process launches on Windows.
+    const ref = git('symbolic-ref', 'HEAD').trim()
+    const parent = git('rev-parse', 'HEAD').trim()
+    const input = Array.from({ length: 35 }, (_, i) => {
+      const subject = `[BTN-${i + 6}] No code changes`
+      return `commit ${ref}\ncommitter Test Author <test@example.com> 1735732800 +0000\ndata ${subject.length}\n${subject}\n${i === 0 ? `from ${parent}\n` : ''}\n`
+    }).join('')
+    execFileSync('git', ['fast-import', '--quiet'], { cwd: root, input })
   }, 30_000)
   afterAll(() => {
     if (root && root.startsWith(resolve('.temp') + sep)) {
@@ -72,12 +85,13 @@ describe('unverified audit on git history', () => {
     const before = git('status', '--porcelain')
     const result = audit(root)
     const byId = (id: string) => result.entries.find((entry) => entry.id === id)!
-    expect(result.entries).toHaveLength(8)
-    expect(byId('1').a.commits.map((c) => c.task).sort()).toEqual(['BTN-2', 'BTN-3'])
-    expect(byId('1').a.commits.find((c) => c.task === 'BTN-2')!.massive).toBe(true)
+    expect(result.entries).toHaveLength(9)
+    expect(byId('1').a.commits.map((c) => c.task)).toEqual(['BTN-2', 'BTN-2'])
+    expect(byId('1').files).toEqual(['src/feature.ts'])
+    expect(byId('1').a.commits.some((c) => c.massive)).toBe(true)
     expect(byId('1').date).toBe(Date.parse('2025-01-02T12:00:00Z') / 1000)
     expect(byId('2').a.commits).toEqual([])
-    expect(byId('3').a.commits).toEqual([])
+    expect(byId('3').a.commits.map((c) => c.task)).toEqual(['BTN-2'])
     expect(byId('3').date).toBe(Date.parse('2025-01-07T12:00:00Z') / 1000)
     expect(byId('4').a.unknown).toEqual(['EKR-99'])
     expect(byId('5').b).toEqual({ words: 3, dates: 3 })
@@ -86,7 +100,7 @@ describe('unverified audit on git history', () => {
     expect(result.entries.filter((entry) => entry.c.length).map((entry) => entry.id)).toEqual(['1'])
     expect(byId('6').d).toEqual(['MissingSymbol', 'Vanished', 'src/gone.ts', 'statusMove.removed'])
     expect(result.entries.filter((entry) => entry.d.length).map((entry) => entry.id)).toEqual(['6'])
-    expect(byId('7').a.commits.map((commit) => commit.task)).toEqual(['BTN-2'])
+    expect(byId('7').a.commits.map((commit) => commit.task)).toEqual(['BTN-2', 'BTN-2'])
     expect(byId('7').d).toEqual([])
     expect(byId('7').b).toBeUndefined()
     expect(result.missingEntries.map((r) => r.id)).toEqual(['99'])
@@ -100,5 +114,18 @@ describe('unverified audit on git history', () => {
     expect(report).toContain('| BTN-90 |')
     expect(report.indexOf('| 1 |')).toBeLessThan(report.indexOf('| 5 |'))
     expect(git('status', '--porcelain')).toBe(before)
+  }, 30_000)
+
+  it('reports shared files and marks entries left without A files, without making them candidates', () => {
+    const result = audit(root)
+    const shared = result.entries.find((entry) => entry.id === '8')!
+    expect(shared.files).toEqual([])
+    expect(shared.a.commits).toEqual([])
+    expect(shared.a.unknown).toEqual([])
+    const report = markdown(result)
+    expect(report).toContain('9 entries; 7 candidates.')
+    expect(report).toContain('src/notice/en.ts 8%')
+    expect(report.indexOf('src/notice/en.ts 8%')).toBeLessThan(report.indexOf('| ID |'))
+    expect(report).toContain('| 8 | docs/unverified/area.md#shared-btn-3 | only shared files |')
   }, 30_000)
 })
