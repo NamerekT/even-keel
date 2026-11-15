@@ -1,6 +1,6 @@
 import { Fold } from '../ui/Fold.js'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
-import { launchBlock, loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
+import { launchBlock, loginBlockNotice, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import { COPILOT } from '../../../src/copilot/name.js'
@@ -17,10 +17,8 @@ import { useLive } from '../live/context.js'
 import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
-import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { ClaudeIcon, CodexIcon, CopilotIcon, OpenCodeIcon } from '../ui/icons.js'
-import { MoreMenu } from '../ui/MoreMenu.js'
 import { Tipped } from '../ui/Tipped.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { installCommand } from './cliText.js'
@@ -457,47 +455,6 @@ export function TransportNote({ entry, brief = false }: Pick<NotesProps, 'entry'
 
 function staleNote(reason: Notice | null): string {
   return reason === null ? t.account.staleExpired : t.account.staleBusy
-}
-
-interface RemoveProps {
-  entry: AccountEntry
-  view: AccountView
-  sending: boolean
-  send: Send
-}
-
-/**
- * The card's rare actions behind ⋯: "Remove", behind a confirmation; a folder that is kept has it greyed with why
- * under it. A folder already being removed has none.
- */
-export function AccountMenu({ entry, view, sending, send }: RemoveProps) {
-  const [confirming, setConfirming] = useState(false)
-  const [replacing, setReplacing] = useState(false)
-  const kept = removeProblem(view, entry.key)
-
-  if (entry.removing) return null
-  const replace = entry.keyReplaceable === true ? [{ label: t.account.replaceKey[keyWord(entry)], pick: () => setReplacing(true) }] : []
-  return (
-    <>
-      <MoreMenu
-        label={t.account.more(accountName(entry, view.accounts))}
-        disabled={sending}
-        items={[...replace, { label: t.common.remove, danger: true, problem: kept === undefined ? undefined : say(kept), pick: () => setConfirming(true) }]}
-      />
-      {replacing && <ReplaceKeyDialog entry={entry} title={accountName(entry, view.accounts)} onClose={() => setReplacing(false)} />}
-      {confirming && (
-        <ConfirmDialog
-          title={accountName(entry, view.accounts)}
-          question={removeQuestion(entry)}
-          confirm={t.common.remove}
-          cancel={t.account.keep}
-          busy={sending}
-          onConfirm={() => void send('account/remove', { account: entry.key }).then(() => setConfirming(false))}
-          onClose={() => setConfirming(false)}
-        />
-      )}
-    </>
-  )
 }
 
 export function removeQuestion(entry: AccountEntry): string {
