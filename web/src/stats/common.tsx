@@ -70,7 +70,10 @@ export function AnswerNotice({ loaded, shape = 'lines' }: { loaded: Loaded<unkno
   if ('failure' in loaded) return <p className="notice notice--error">{t.stats.failed(loaded.failure)}</p>
   if (loaded.answer.state === 'off') return <OffNotice reason={loaded.answer.reason} />
   if (loaded.answer.state === 'error') return <p className="notice notice--error">{t.stats.dbError(loaded.answer.error)}</p>
-  if (loaded.answer.state === 'newer') return <p className="notice notice--error">{t.stats.newer(loaded.answer.version, loaded.answer.known)}</p>
+  if (loaded.answer.state === 'newer') {
+    const { version, known, restart } = loaded.answer
+    return <p className="notice notice--error">{restart ? t.stats.restart(version, known) : t.stats.newer(version, known)}</p>
+  }
   return null
 }
 

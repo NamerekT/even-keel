@@ -16,6 +16,8 @@ export const statsRU = {
     dbError: (error: string) => `База Tally недоступна: ${error}`,
     newer: (version: number, known: number) =>
       `База Tally уже на версии схемы ${version}, а этот Even Keel знает только до ${known}: его обновили и откатили. Обновите Even Keel снова — до тех пор статистика не читается и не собирается.`,
+    restart: (version: number, known: number) =>
+      `База Tally уже на версии схемы ${version}, а запущенный Even Keel знает только до ${known}: его обновили, но не перезапустили. Перезапустите Even Keel — до тех пор статистика не читается и не собирается.`,
     scopes: { all: 'все', chain: 'цепочка' },
     sessions: 'Сессии',
     account: 'Аккаунт',

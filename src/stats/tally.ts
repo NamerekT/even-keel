@@ -4,7 +4,7 @@ import { releaseOwn } from '../storage/claim.js'
 import type { TrackerPlace } from '../tracker/source.js'
 import { TALLY_DISABLED, TALLY_UNCHOSEN, type TallyHealth, type TallyMode } from './mode.js'
 import { readerSettings, type ReaderSettings } from './model.js'
-import { HALTED } from './tally-schema.js'
+import { HALTED, TALLY_SCHEMA_VERSION } from './tally-schema.js'
 
 // Tally inside the service (BTN-70): the collector runs every few minutes on a thread of its own, and in the local mode
 // the database is PGlite in <state>/tally, owned by another thread and served on a loopback port.
@@ -21,6 +21,8 @@ export interface CollectRun {
   settings: ReaderSettings | null
   huly: HulyProfiles
   trackers: TimeTracker[]
+  /** The schema version this service loaded at its start: a worker built later with more steps halts (BTN-1208). */
+  schema: number
 }
 
 /** A profile of a tracker that takes a task's time (`TrackerAdapter.logsTime`, EKR-35): the collector writes through it. */
@@ -175,7 +177,7 @@ export class TallyService {
     }
     const { root, home, env, evenKeelUrl, huly, trackers, log } = this.options
     const run = new Worker(workerFile('collect-worker'), {
-      workerData: { root, home, settings, huly: huly(), trackers: trackers() } satisfies CollectRun,
+      workerData: { root, home, settings, huly: huly(), trackers: trackers(), schema: TALLY_SCHEMA_VERSION } satisfies CollectRun,
       env: { ...process.env, EVEN_KEEL_URL: env.EVEN_KEEL_URL ?? evenKeelUrl() },
     })
     this.running = run

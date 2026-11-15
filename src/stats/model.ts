@@ -158,13 +158,14 @@ export interface AccountTokens {
 /** The dollars an account folder's messages cost, over the same two periods as `AccountTokens`. */
 export type AccountSpend = AccountTokens
 
-// newer — the database is at a schema version this code does not know (BTN-133). The reason of off is `disabled`,
+// newer — the database is at a schema version this code does not know (BTN-133); restart — the build on disk knows it,
+// the service was not restarted after an update (BTN-1208), otherwise it was rolled back. The reason of off is `disabled`,
 // `unchosen` (`src/stats/mode.ts`) or the `.env` variables the user's own Postgres lacks.
 export type StatsAnswer<T> =
   | { state: 'ok'; data: T }
   | { state: 'off'; reason: string }
   | { state: 'error'; error: string }
-  | { state: 'newer'; version: number; known: number }
+  | { state: 'newer'; version: number; known: number; restart: boolean }
 
 export interface ReaderSettings {
   host: string

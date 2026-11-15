@@ -20,7 +20,7 @@ import { checkpointThreshold, type CheckpointMeasure, type CheckpointThreshold }
 import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
 import { readSteps, readTaskActive, readTaskSteps } from './steps-reader.js'
-import { TALLY_SCHEMA_VERSION, tallyVersion } from './tally-schema.js'
+import { builtTallyVersion, TALLY_SCHEMA_VERSION, tallyVersion } from './tally-schema.js'
 import type { StatsSteps, StatsTaskStep } from './steps.js'
 import type { StatsConfig } from '../state.js'
 import type { CompareQuery, CompareSettings, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
@@ -476,6 +476,8 @@ export class StatsReader {
     /** The project's pinned checkpoint threshold, its own over the shared one; `null` — calibrated. */
     private readonly pinnedOf: (project: string) => number | null = () => statsConfig().checkpointTokens,
     private readonly testProjects: () => string[] = () => [],
+    /** The schema version of the build on disk: a database newer than this service but not than it asks for a restart. */
+    private readonly built: () => number = builtTallyVersion,
   ) {
     this.setReader(settings)
   }
@@ -695,7 +697,8 @@ export class StatsReader {
       const pool = await this.pool
       if (typeof pool === 'string') return { state: 'off', reason: pool }
       const version = await tallyVersion(pool)
-      return version > TALLY_SCHEMA_VERSION ? { state: 'newer', version, known: TALLY_SCHEMA_VERSION } : { state: 'ok', data: await read(pool) }
+      if (version > TALLY_SCHEMA_VERSION) return { state: 'newer', version, known: TALLY_SCHEMA_VERSION, restart: version <= this.built() }
+      return { state: 'ok', data: await read(pool) }
     } catch (error) {
       return { state: 'error', error: error instanceof Error ? error.message : String(error) }
     }

@@ -91,6 +91,15 @@ export function migratedLine(migration: Migration): string | null {
   return `tally: database schema ${migration.from === 0 ? 'unversioned' : `v${migration.from}`} → v${migration.to}`
 }
 
+/**
+ * One log line when this build knows more steps than the service that started it (BTN-1208): a build without a restart
+ * would migrate the shared database past the code that reads it. Null — it does not.
+ */
+export function newerBuildLine(service: number, known: number = STEPS.length): string | null {
+  if (known <= service) return null
+  return `tally: this build knows Tally schema v${known}, but the running service only v${service}: nothing is migrated or collected until Even Keel restarts`
+}
+
 /** One log line: what the database needs before the collector can migrate it. */
 export function deniedLine(migration: Extract<Migration, { state: 'denied' }>): string {
   const roles = [...new Set(migration.fixes.map((fix) => fix.role))]
