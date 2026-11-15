@@ -1,4 +1,4 @@
-import type { AccountLogin } from '../../src/account/model.js'
+import type { AccountEntry, AccountLogin } from '../../src/account/model.js'
 import { NO_SIGN_IN } from '../../src/agent/providers.js'
 import { PROVIDERS, type Provider } from './accounts.js'
 import { cloudDirty, type CloudDraft } from './cloudDraft.js'
@@ -108,13 +108,43 @@ export interface Draft {
   way: string
   /** The cloud way's fields (BTN-822). */
   cloud?: CloudDraft
+  /** How a Claude subscription signs in (BTN-1005): the CLI's full sign-in, the default, or a long token of `claude setup-token`. */
+  sign?: Sign
+  /** The long token typed, apart from the key of the key way. */
+  token?: string
+  /** The folder with a full sign-in the token is said to be of. */
+  sameAs?: string
+}
+
+export const SIGNS = ['full', 'token'] as const
+export type Sign = (typeof SIGNS)[number]
+
+/** A Claude subscription has two sign-ins to pick from; any other way has one. */
+export function signsOf(provider: Provider, way: Way): boolean {
+  return provider === 'claude' && way.id === 'subscription'
+}
+
+/** The way is a Claude subscription on a long token: a token checked first, not a sign-in through the CLI. */
+export function onToken(provider: Provider, way: Way, draft: Draft): boolean {
+  return signsOf(provider, way) && draft.sign === 'token'
+}
+
+/** The folders a long token can be said to be of: Claude subscriptions with a full sign-in, signed in now. */
+export function sameChoices(accounts: AccountEntry[]): AccountEntry[] {
+  return accounts.filter((entry) => entry.agent === 'claude' && !entry.apiKey && entry.cloud === undefined && entry.longToken === undefined && !entry.needsLogin)
+}
+
+/** The body of `account/token`; a folder picked earlier and gone since is left out. */
+export function tokenBody(draft: Draft, choices: AccountEntry[]): Record<string, unknown> {
+  const sameAs = choices.find((entry) => entry.key === draft.sameAs)?.key
+  return { name: draft.name, token: draft.token ?? '', ...(sameAs !== undefined && { sameAs }) }
 }
 
 export type Drafts = Partial<Record<Provider, Draft>>
 
-/** Whether closing loses something typed: a name, a key or a cloud's secret; a picked way alone is not worth asking about. */
+/** Whether closing loses something typed: a name, a key, a long token or a cloud's secret; a picked way alone is not worth asking about. */
 export function dirty(drafts: Drafts): boolean {
-  return Object.values(drafts).some((draft) => draft.name.trim() !== '' || draft.key.trim() !== '' || cloudDirty(draft.cloud))
+  return Object.values(drafts).some((draft) => draft.name.trim() !== '' || draft.key.trim() !== '' || (draft.token ?? '').trim() !== '' || cloudDirty(draft.cloud))
 }
 
 export type LoginRow = 'open' | 'signIn' | 'code'

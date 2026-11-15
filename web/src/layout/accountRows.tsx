@@ -7,6 +7,7 @@ import { accountName, agentLabel } from '../accountName.js'
 import { ACCESS_OWNER, accessGroups, accessOf, accountGroups, entrySlot, PROVIDERS, tightestWindow, type Access, type Provider } from '../accounts.js'
 import { formatAgo, formatSpan, formatTokens } from '../format.js'
 import { overageTexts, say, t } from '../i18n/index.js'
+import { tokenShort, tokenTag } from '../longToken.js'
 import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
 import { formatUsd } from '../stats/format.js'
 import { Card, Band } from '../ui/blocks.js'
@@ -115,6 +116,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
   const { view, now, send, sending, spend, tokens, page = false, fresh = [] } = props
   const held = rolesOf(entry, view, send).filter((role) => role.held)
   const plan = planText(entry)
+  const token = entry.longToken === undefined ? null : tokenShort(entry.longToken, now)
   const shared = sharedLimitText(entry, view.accounts)
   const mixup = signInMixup(entry, view.accounts)
   const unsupported = access === 'github' && hasCopilot(entry)
@@ -131,10 +133,11 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         <div className="account-who__name"><AccountMark entry={entry} now={now} dot /><AccountName entry={entry} accounts={view.accounts} whole={!page} />
           <OverageChip entry={entry} now={now} />
           {shared !== null && <Tipped className="account-shared" tip={shared} align="start" focusable inline>⇄</Tipped>}
-          {plan !== null && !entry.apiKey && entry.agent !== OPENCODE && <span className="tag account-plan">{plan}</span>}
+          {plan !== null && !entry.apiKey && entry.agent !== OPENCODE && <span className="tag account-plan">{entry.longToken === undefined ? plan : tokenTag(entry.longToken)}</span>}
         </div>
         {!page && roles}
-        {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : entry.cloud !== undefined ? t.account.checkFailedShort : t.account.needsLogin}</span>}
+        {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : entry.cloud !== undefined ? t.account.checkFailedShort : token ?? t.account.needsLogin}</span>}
+        {!entry.needsLogin && token !== null && <span className="account-row__warn">{token}</span>}
         {!entry.needsLogin && entry.error !== null && <span className="account-row__error">{t.account.checkFailedShort}</span>}
         {entry.status?.loggedIn === null && <span className="account-row__error account-row__unknown">{t.account.authUnknown}</span>}
         {mixup !== null && <span className="account-row__error">{mixup.short}</span>}

@@ -171,6 +171,33 @@
   line-height: 1.4;
 }
 
+/* What a sign-in gives and lacks (BTN-1005): short lines on its card, each under a plus or a minus. */
+.account-add__way-lines {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.account-add__way-line {
+  display: grid;
+  grid-template-columns: 1em 1fr;
+  gap: var(--space-4);
+}
+
+.account-add__way-line::before {
+  font-weight: 600;
+  text-align: center;
+}
+
+.account-add__way-line--plus::before {
+  content: '+';
+  color: var(--lamp-done);
+}
+
+.account-add__way-line--minus::before {
+  content: '−';
+  color: var(--lamp-waiting);
+}
+
 /* A sign-in through the CLI: numbered rows, the one to do now marked. */
 
 .login-rows {

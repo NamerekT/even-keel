@@ -14,6 +14,7 @@ import { CLI_MISSING, connectionOf, paysPerToken } from '../accounts.js'
 import { formatAgo, formatMoment, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { tokenProblem, tokenTag } from '../longToken.js'
 import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
@@ -131,12 +132,16 @@ const COPIED_MS = 2000
 export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; now: Date; dot?: boolean }) {
   const connection = connectionOf(entry)
   const left = loginLeft(entry.loginExpiresAt, now)
+  const accounts = useLive().state?.account?.accounts ?? []
+  const same = accounts.find((each) => each.key === entry.longToken?.sameAs && each.longToken === undefined)
   const tip = (
     <>
       <span className="tip__head">
         {agentLabel(entry.agent)} · {t.account.connections[connection]}
       </span>
       {!paysPerToken(entry) && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <span>{t.account.expiry(left.text)}</span>}
+      {entry.longToken !== undefined && <span>{tokenTag(entry.longToken)}</span>}
+      {entry.longToken !== undefined && <span>{same === undefined ? t.account.longTokenTip : t.account.longTokenSameTip(accountName(same, accounts))}</span>}
       {entry.cloud !== undefined && <span>{t.account.cloudTip}</span>}
       {entry.cloud?.cloud === 'bedrock' && <span>{t.account.cloudBedrockTip}</span>}
       {entry.cloud?.project !== undefined && <span>{t.account.cloudProject(entry.cloud.project)}</span>}
@@ -165,6 +170,7 @@ export function planText(entry: AccountEntry): string | null {
     return entry.cloud.resource === undefined ? null : t.account.cloudResource(entry.cloud.resource)
   }
   if (entry.apiKey) return t.account.connections.apiKey
+  if (entry.longToken !== undefined) return t.account.longToken
   return entry.status?.subscriptionType ?? null
 }
 
@@ -301,6 +307,9 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
   const spendAt = entry.spendingLimit?.resetsAt == null ? null : formatMoment(entry.spendingLimit.resetsAt, now)
   const mixup = signInMixup(entry, view.accounts)
   const goExpired = entry.usage.reason?.code === 'usage.goKeyExpired'
+  // A folder on a long token has no sign-in to renew: its fix is a new token (BTN-1005).
+  const signsIn = !paysPerToken(entry) && entry.longToken === undefined
+  const token = entry.longToken === undefined ? null : tokenProblem(entry.longToken, now)
 
   return (
     <>
@@ -330,13 +339,19 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
           {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
         </div>
       )}
-      {!paysPerToken(entry) && entry.needsLogin && entry.terminalLogin !== undefined && (
+      {token !== null && (
+        <div className="accounts__note accounts__note--warn">
+          <span>{token}</span>
+          {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
+        </div>
+      )}
+      {signsIn && entry.needsLogin && entry.terminalLogin !== undefined && (
         <div className="accounts__note accounts__note--warn accounts__note--command">
           <span>{t.account.terminalLogin(entry.terminalLogin.startsWith('cmd ') ? 'cmd' : 'sh')}</span>
           <CommandBlock command={entry.terminalLogin} />
         </div>
       )}
-      {!goExpired && !paysPerToken(entry) && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
+      {!goExpired && signsIn && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
         <div className="accounts__note accounts__note--warn">
           <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
           {actions(<RenewButton entry={entry} view={view} sending={sending} send={send} />)}
@@ -370,9 +385,9 @@ export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps
   const goExpired = entry.usage.reason?.code === 'usage.goKeyExpired'
   return (
     <>
-      {!goExpired && !paysPerToken(entry) && entry.terminalLogin === undefined && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
+      {!goExpired && !paysPerToken(entry) && entry.longToken === undefined && entry.terminalLogin === undefined && (left.renew || entry.needsLogin || signInMixup(entry, view.accounts) !== null) &&
         <RenewButton entry={entry} view={view} sending={sending} send={send} again={!left.renew} />}
-      {((entry.apiKey && entry.needsLogin) || goExpired) && entry.keyReplaceable === true && <ReplaceKeyButton entry={entry} view={view} sending={sending} />}
+      {((entry.apiKey && entry.needsLogin) || goExpired || (entry.longToken !== undefined && tokenProblem(entry.longToken, now) !== null)) && entry.keyReplaceable === true && <ReplaceKeyButton entry={entry} view={view} sending={sending} />}
       {entry.removing && <KeepButton entry={entry} sending={sending} send={send} />}
     </>
   )

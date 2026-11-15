@@ -4,12 +4,14 @@ import { COPILOT } from '../../../src/copilot/name.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { CommandBlock } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { secretInput } from '../ui/secret.js'
 import '../tools/addPackage.css'
 
-/** Copilot's account holds a GitHub token, the others an API key. */
-export function keyWord(entry: AccountEntry): 'key' | 'token' {
+/** Copilot's account holds a GitHub token, a Claude subscription may run on a long token (BTN-1005), the others hold an API key. */
+export function keyWord(entry: AccountEntry): 'key' | 'token' | 'longToken' {
+  if (entry.longToken !== undefined) return 'longToken'
   return entry.agent === COPILOT ? 'token' : 'key'
 }
 
@@ -56,7 +58,8 @@ export function ReplaceKeyDialog({ entry, title, onClose }: { entry: AccountEntr
           </button>
         </header>
         <div className="add-package__body">
-          <p className="add-package__note">{t.account.replaceKeyLead}</p>
+          <p className="add-package__note">{word === 'longToken' ? t.account.replaceTokenLead : t.account.replaceKeyLead}</p>
+          {word === 'longToken' && <CommandBlock command="claude setup-token" />}
           <label className="add-package__field">
             <span className="add-package__label">{t.account.newKey[word]}</span>
             {/* A refusal here is about the key (its form, the provider's answer, another organization), so it goes under it. */}

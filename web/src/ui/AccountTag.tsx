@@ -2,6 +2,7 @@ import { accountName, accountOf } from '../accountName.js'
 import { entrySlot } from '../accounts.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { tokenTag } from '../longToken.js'
 import { seriesStyle } from './series.js'
 
 /**
@@ -15,7 +16,7 @@ export function AccountTag({ account, agent }: { account: string | null | undefi
   const entry = accountOf(view, account, agent)
   const at = account.lastIndexOf('@')
   const name = entry === undefined ? (at > 0 ? account.slice(0, at) : account) : accountName(entry, view!.accounts)
-  const tip = entry === undefined ? account : [...new Set([entry.key, entry.status?.email ?? entry.key])].join(' · ')
+  const tip = entry === undefined ? account : [...new Set([entry.key, entry.status?.email ?? entry.key]), ...(entry.longToken === undefined ? [] : [tokenTag(entry.longToken)])].join(' · ')
   return (
     <span className="account-tag" style={seriesStyle(entry === undefined ? null : entrySlot(view!, entry))} title={t.session.account(tip)}>
       <span className="account-tag__name">{name}</span>

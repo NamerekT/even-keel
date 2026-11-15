@@ -210,6 +210,31 @@ export const addAccount = {
     waiting: 'Checked. Waiting for the account to show up…',
     done: 'Done',
   },
+  sign: {
+    legend: 'Sign-in',
+    full: {
+      title: 'Full sign-in',
+      tip: "The CLI's own sign-in in a new folder: a link, the sign-in and a code. Even Keel reads the account's limits every five minutes, each model's week too, sees an early reset at once and knows the account by its e-mail; its sessions have Remote Control. The sign-in renews itself, but it has dropped on its own after a reboot and after a night with Even Keel off: the account then asks to sign in again.",
+      lines: ['Remote Control', 'Limits every 5 minutes, model weeks too', 'An early reset is seen at once', 'Known by its e-mail'],
+      honest: 'Renews itself, but sometimes drops: then sign in again',
+    },
+    token: {
+      title: 'Long token',
+      tip: "A token Claude Code issues for a year, kept in the new folder's settings.json. It is not renewed, so it does not drop the way a full sign-in can, but it only runs sessions: no Remote Control, no limits between sessions, no week of a single model, and no e-mail to tell whose account it is. Whether it really lasts the year is not checked yet.",
+      lines: ['No Remote Control', 'Limits only while a session runs, no model weeks', 'An early reset is not seen', 'Not known by its e-mail', 'A new token in a year'],
+      sameLines: ['No Remote Control'],
+      field: 'Token',
+    },
+    resets:
+      "On a long token Even Keel learns the limits only from the account's sessions. An early reset, the reset buttons included, is not seen: a chain that hit the limit waits until the reset time it was told.",
+    command: 'Issue the token in a terminal',
+    commandNote: 'Run it on any machine with Claude Code, sign in with the account you need and paste the token it prints here. One short turn checks it before the account is added.',
+    sameAs: 'The same account as',
+    sameNone: 'Not said',
+    sameNote: "When the token is of an account that is already here with a full sign-in, its limits and resets are taken from that folder.",
+    checking: 'Checking: one short turn on the token, up to two minutes…',
+    action: 'Check and add token',
+  },
   rows: {
     open: 'Open the sign-in page',
     signIn: 'Sign in with the account you need',

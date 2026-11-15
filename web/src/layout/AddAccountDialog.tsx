@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import type { AccountLogin, AccountView } from '../../../src/account/model.js'
-import { addDepth, addOf, dirty, freshKeys, wayGiven, WAYS, withAdd, withoutAdd, type AddAt, type Draft, type Drafts, type Way } from '../accountAdd.js'
+import type { AccountEntry, AccountLogin, AccountView } from '../../../src/account/model.js'
+import { addDepth, addOf, dirty, freshKeys, onToken, sameChoices, signsOf, tokenBody, wayGiven, WAYS, withAdd, withoutAdd, type AddAt, type Draft, type Drafts, type Way } from '../accountAdd.js'
 import { cliMissing, deviceLogin, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -17,6 +17,7 @@ import type { AwsProfiles, AzureCredentials, GcloudCredentials } from '../../../
 import { cloudBody, cloudReady, EMPTY_CLOUD } from '../cloudDraft.js'
 import { AgentIcon, LOGIN_FOCUS, LoginSteps } from './accountParts.js'
 import { CloudFields } from './CloudFields.js'
+import { SignFields } from './SignFields.js'
 import '../tools/addPackage.css'
 import './accountAdd.css'
 
@@ -266,8 +267,13 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
             readGcloud={() => void send('account/gcloud')}
             azure={account.azure}
             readAzure={() => void send('account/azure')}
+            accounts={account.accounts}
             onSubmit={async (way, draft) => {
               before.current = account.accounts.map((entry) => entry.key)
+              if (onToken(provider, way, draft)) {
+                if (await send('account/token', tokenBody(draft, sameChoices(account.accounts)))) done()
+                return
+              }
               if (way.kind === 'cloud') {
                 if (await send('account/cloud', cloudBody(draft.name, draft.cloud ?? EMPTY_CLOUD))) setCloudAdded(true)
                 return
@@ -392,16 +398,18 @@ interface WaysProps {
   readGcloud: () => void
   azure: AzureCredentials | undefined
   readAzure: () => void
+  accounts: AccountEntry[]
   onSubmit: (way: Way, draft: Draft) => Promise<void>
 }
 
 /** The ways a provider's account signs in, as cards to pick one from, what the picked one needs under them, and its one action. */
-function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, aws, readAws, gcloud, readGcloud, azure, readAzure, onSubmit }: WaysProps) {
+function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, aws, readAws, gcloud, readGcloud, azure, readAzure, accounts, onSubmit }: WaysProps) {
   const group = useId()
   const text = wayText(provider, way)
   const key = way.kind === 'key'
   const cloud = way.kind === 'cloud'
-  const ready = !sending && (key ? draft.key.trim() !== '' : cloud ? cloudReady(draft.cloud ?? EMPTY_CLOUD) : true)
+  const token = onToken(provider, way, draft)
+  const ready = !sending && (token ? (draft.token ?? '').trim() !== '' : key ? draft.key.trim() !== '' : cloud ? cloudReady(draft.cloud ?? EMPTY_CLOUD) : true)
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (ready) void onSubmit(way, draft)
@@ -438,7 +446,8 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
             })}
           </div>
         </fieldset>
-        <p className="add-package__note">{text.next}</p>
+        {signsOf(provider, way) && <SignFields draft={draft} onDraft={onDraft} choices={sameChoices(accounts)} accounts={accounts} failure={failure} />}
+        {!token && <p className="add-package__note">{text.next}</p>}
         {text.rule !== '' && <p className="add-package__note">{text.rule}</p>}
         {key && (
           <>
@@ -458,7 +467,7 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
           </>
         )}
         {cloud && <CloudFields draft={draft.cloud ?? EMPTY_CLOUD} onDraft={(next) => onDraft({ ...draft, cloud: next })} aws={aws} readAws={readAws} gcloud={gcloud} readGcloud={readGcloud} azure={azure} readAzure={readAzure} />}
-        {(key || cloud) && (
+        {(key || cloud || token) && (
           <label className="add-package__field">
             <span className="add-package__label">{t.addAccount.name}</span>
             <input
@@ -470,13 +479,13 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
             />
           </label>
         )}
-        {cloud && sending && (
+        {(cloud || token) && sending && (
           <p className="add-package__note" role="status">
-            {t.addAccount.cloud.checking}
+            {token ? t.addAccount.sign.checking : t.addAccount.cloud.checking}
           </p>
         )}
       </div>
-      {failure !== null && !key && (
+      {failure !== null && !key && !token && (
         <p role="alert" className="notice notice--error add-package__failure">
           {failure}
         </p>
@@ -489,7 +498,7 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
         )}
         <span className="add-package__spacer" />
         <button type="submit" className="button button--primary" disabled={!ready}>
-          {text.action}
+          {token ? t.addAccount.sign.action : text.action}
         </button>
       </footer>
     </form>

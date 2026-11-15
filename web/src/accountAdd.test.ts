@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { AccountLogin } from '../../src/account/model.js'
+import type { AccountEntry, AccountLogin } from '../../src/account/model.js'
 import { NO_SIGN_IN, SIGN_INS } from '../../src/agent/providers.js'
 import { notice } from '../../src/notice/notice.js'
-import { addDepth, addOf, dirty, freshKeys, legacyAdd, loginRow, planRefused, retryBody, wayGiven, WAYS, withAdd, withoutAdd } from './accountAdd.js'
+import { addDepth, addOf, dirty, freshKeys, legacyAdd, loginRow, onToken, planRefused, retryBody, sameChoices, signsOf, tokenBody, wayGiven, WAYS, withAdd, withoutAdd } from './accountAdd.js'
 import { PROVIDERS } from './accounts.js'
 
 const search = (text: string) => new URLSearchParams(text)
@@ -105,6 +105,43 @@ describe('dirty', () => {
     expect(dirty({ claude: { name: ' ', key: '', way: 'apiKey' } })).toBe(false)
     expect(dirty({ claude: { name: '', key: '', way: 'apiKey' }, codex: { name: '', key: 'sk-x', way: 'apiKey' } })).toBe(true)
     expect(dirty({ copilot: { name: 'work', key: '', way: 'token' } })).toBe(true)
+    expect(dirty({ claude: { name: '', key: '', way: 'subscription', sign: 'token', sameAs: 'main' } })).toBe(false)
+    expect(dirty({ claude: { name: '', key: '', way: 'subscription', sign: 'token', token: 'sk-ant-oat01-x' } })).toBe(true)
+  })
+})
+
+describe('the long token of a Claude subscription (BTN-1005)', () => {
+  const subscription = WAYS.claude[0]!
+  const draft = { name: '', key: '', way: 'subscription' }
+  const folder = (key: string, patch: Partial<AccountEntry> = {}) => ({ key, agent: 'claude', apiKey: false, needsLogin: false, ...patch }) as AccountEntry
+
+  it('is offered for a Claude subscription only, the full sign-in being the default', () => {
+    expect(signsOf('claude', subscription)).toBe(true)
+    expect(signsOf('claude', WAYS.claude[1]!)).toBe(false)
+    expect(signsOf('codex', WAYS.codex[0]!)).toBe(false)
+    expect(onToken('claude', subscription, draft)).toBe(false)
+    expect(onToken('claude', subscription, { ...draft, sign: 'full' })).toBe(false)
+    expect(onToken('claude', subscription, { ...draft, sign: 'token' })).toBe(true)
+    expect(onToken('claude', WAYS.claude[1]!, { ...draft, sign: 'token' })).toBe(false)
+  })
+
+  it('can be said to be of a Claude folder with a full sign-in that is signed in', () => {
+    const accounts = [
+      folder('main'),
+      folder('out', { needsLogin: true }),
+      folder('api', { apiKey: true }),
+      folder('cloud', { cloud: { cloud: 'bedrock' } as never }),
+      folder('spare', { longToken: { until: null } }),
+      folder('codex', { agent: 'codex' }),
+    ]
+    expect(sameChoices(accounts).map((entry) => entry.key)).toEqual(['main'])
+  })
+
+  it('sends the name, the token and the folder picked, while that folder is still there', () => {
+    const typed = { ...draft, name: 'Spare', token: 'sk-ant-oat01-x', sameAs: 'main' }
+    expect(tokenBody(typed, [folder('main')])).toEqual({ name: 'Spare', token: 'sk-ant-oat01-x', sameAs: 'main' })
+    expect(tokenBody(typed, [])).toEqual({ name: 'Spare', token: 'sk-ant-oat01-x' })
+    expect(tokenBody(draft, [folder('main')])).toEqual({ name: '', token: '' })
   })
 })
 
