@@ -182,15 +182,15 @@ If one is wrong, a picture is not taken or not shown, or a session works without
 
 ## Copying built-in tasks into another tracker (BTN-1073)
 
-The copy of a built-in project's open tasks into another tracker (`docs/trackers.md`, "The copy into another tracker") is checked by tests on a fake `TaskEditor` (`src/tracker/export.test.ts`) and on the state database with the service's own lock (`src/builtin/export.test.ts`), not against a real tracker. Assumed:
+The copy of a built-in project's open tasks into another tracker (`docs/trackers.md`, "The copy into another tracker") is checked by tests on a fake `TaskEditor` (`src/tracker/export.test.ts`) and on the state database with the service's own lock (`src/builtin/export.test.ts`). Run live into GitHub, Huly and Linear (2026-11-15, [verified](../verified/trackers.md)): the plan's losses, parents, links, priorities, files, comments, "Moved to" in the old tasks and the switch were as described; a GitHub copy cut by an archived repository went on after "Continue" with nothing twice, through the page's window. Found there: BTN-1192 (fixed, not yet run through a cut), BTN-1193, BTN-1194, BTN-1195. Still assumed:
 
-- each tracker's editor takes the draft as the tests' fake does: the status of the same category, a parent created a moment earlier, the estimate, labels and milestones spelled as its vocabulary spells them;
-- a marker finds the task its create made, so a repeat after a failure mid-create does not make a second one (Huly, GitHub, Linear, Jira, GitLab, Forgejo each keep markers their own way);
-- `blocks`/`relates` written again on a repeat are no error, and attachments and long journal comments fit each tracker's limits;
-- a copy of tens of tasks does not run into a tracker's rate limit before it ends; if it does, it stops and a start goes on;
-- the page's window (BTN-1075, `docs/web/project-settings.md`) was seen only on `dev:fake` (`?export=`): its poll of a real copy, a window reopened or a tab reloaded mid-copy, a run lost to a restart coming back as "Continue", and the switch closing the window and the Tracker tab showing the new tracker.
+- Jira's, GitLab's and Forgejo's editors take the draft as the tests' fake does, and their markers find the task a cut create made;
+- an estimate reaches Huly and Linear, and comments by an agent or Even Keel get their headers;
+- a journal comment longer than a tracker's limit (GitHub's 65,536 characters) fits or fails cleanly;
+- a copy does not run into a tracker's rate limit before it ends; if it does, it stops and a start goes on (hundreds of tasks: BTN-1190, BTN-1191);
+- the window reopened or a tab reloaded mid-copy, and a run lost to a restart coming back as "Continue".
 
-If one is wrong, the copy stops with `export.failed`, or a task is copied twice or without its parent, links or files. **Workaround:** the project stays on the built-in tracker; fix the target (create the missing labels and milestones, wait for the rate limit) and start the copy again; delete a doubled task in the tracker by hand. To check (BTN-1077): on a bench, copy a built-in project with a parent and a child, a `blocks` pair, a label, a milestone, an estimate, an attachment and comments by a person, an agent and Even Keel into each tracker; break the token mid-copy and start again; see no task, comment or file twice and "Moved to" in every old task.
+If one is wrong, the copy stops with `export.failed`, or a task is copied twice or without its parent, links or files. **Workaround:** the project stays on the built-in tracker; fix the target (create the missing labels and milestones, wait for the rate limit) and start the copy again; delete a doubled task in the tracker by hand. To check: on a bench, copy a built-in project with a parent and a child, a `blocks` pair, a label, a milestone, an estimate, an attachment and comments by a person, an agent and Even Keel into Jira, GitLab and Forgejo; cut the copy mid-way and start again; see no task, comment or file twice and "Moved to" in every old task.
 
 ## Outsiders' comments hidden from `task_read` (BTN-1122)
 
