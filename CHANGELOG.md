@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **A Claude subscription can be added on a long token.** "Subscription" in the new Claude Code account dialog now offers two cards: the full sign-in, with what it gives, and the long token of `claude setup-token`, with what it lacks — no Remote Control, limits only while a session runs, no e-mail, a new token in a year. Paste the token and one short turn checks it before the account is added; say which full sign-in it is the same account as, and it shows that account's limits. The account's row shows "long token" and its last day, warns a month before it, and "Issue a new token" replaces a refused or outdated one in the same folder.
+
 ### Changed
 
 - **What a task runs on is set on its card, not by a tracker label.** A task's run — provider, model and effort — is kept by Even Keel: the card's **Runs on** picks it, and a session can set it through the tasks server's `run` field of `tasks_create` and `task_update`. The effort is new: Claude Code's `low` to `max` and Codex's `minimal` to `xhigh`; empty passes none. Labels `<Provider> | <model>` are no longer read. The update moves the run label of each open task into its run once, in the projects that had run labels on; the labels stay in the tracker. The setting `modelLabels` is removed.

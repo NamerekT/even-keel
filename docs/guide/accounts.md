@@ -39,6 +39,17 @@ An account uses its given name, else e-mail, else provider (numbered for duplica
 
 Your own Claude and Codex subscriptions — a personal and a work one, say — one config folder each.
 
+### Claude: a full sign-in or a long token
+
+A Claude subscription signs in one of two ways, picked in the add dialog:
+
+- **Full sign-in** — Claude Code's own: a link, the sign-in and a code. Even Keel reads the limits every five minutes, each model's week too, sees an early reset at once, knows the account by its e-mail, and its sessions have Remote Control. The sign-in renews itself, but it has dropped on its own after a reboot or a night with Even Keel off: the account then asks you to sign in again.
+- **Long token** — the token `claude setup-token` issues for a year. Run the command in a terminal on any machine with Claude Code, sign in with the account you need and paste the token into the dialog; one short turn checks it before the account is added. It is not renewed, so it does not drop the way a full sign-in can, but it only runs sessions: no Remote Control, limits only while a session of the account runs and without a model's own week, no e-mail on the page, and a new token in a year. An early reset is not seen either: a chain that hit the limit waits until the reset time it was told.
+
+Take the full sign-in when you watch the limits or use Remote Control; take the token for a machine left alone for weeks, where a dropped sign-in would stop the chain with nobody there. When the token belongs to an account that is already added with a full sign-in, say so in "The same account as": the token account then shows that account's limits and resets, and only Remote Control is missing.
+
+The account's row says "long token" and its last day. A month before it the row says the token ends soon; a refused or outdated token asks for a new one — "Issue a new token" puts it into the same folder, with the account's name and uses kept. Whether a token really lasts its year has not been checked yet.
+
 At most one ChatGPT account may be on the free plan across Codex and OpenCode: Even Keel refuses a different second free account and holds any already added. The same e-mail may be used in both agents, sharing its allowance.
 
 Paid plans have no limit on the number of accounts. An unreadable plan remains unknown; Even Keel does not guess that it is free ([docs/accounts.md](../accounts.md#the-codex-folders-btn-168-btn-176)).

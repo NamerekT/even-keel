@@ -8,6 +8,7 @@ import {
   type AccountLogin,
   type AccountView,
   type AccountStatus,
+  type LongToken,
   type PoolEntry,
 } from '../../../src/account/model.js'
 import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
@@ -131,6 +132,25 @@ function apiEntry(key: string, patch: Partial<AccountEntry> = {}): AccountEntry 
     keyReplaceable: true,
     ...patch,
   })
+}
+
+/** A Claude subscription on a long token: the CLI reports no e-mail and no plan, and its sessions run through `--bg`. */
+function tokenEntry(key: string, longToken: LongToken, patch: Partial<AccountEntry> = {}): AccountEntry {
+  return fakeEntry({
+    key,
+    global: false,
+    status: { loggedIn: true, authMethod: 'oauth_token', email: null, orgName: null, subscriptionType: null },
+    loginExpiresAt: null,
+    keyReplaceable: true,
+    longToken,
+    ...patch,
+  })
+}
+
+/** The check turn of a long token: one not shaped like a token is refused at once, one containing "rejected" by the provider. */
+function checkToken(value: string): void {
+  if (!/^sk-ant-oat01-\S{8,}$/.test(value)) throw fail('account.tokenInvalid', {})
+  if (value.includes('rejected')) throw fail('account.tokenRejected', { reason: 'Invalid bearer token' })
 }
 
 const OPENCODE_STATUS = { loggedIn: true, authMethod: 'none', email: null, orgName: null, subscriptionType: null }
@@ -391,6 +411,18 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     ]
     return { ...signedIn, active: 'jane.roe', accounts, pool }
   }
+  if (mode === 'token') {
+    const session = { ...limits, source: 'statusline' as const }
+    const accounts = [
+      global,
+      work,
+      tokenEntry('token', { until: inDays(340) }, { name: 'Night runs', limits: session, sessions: idle ? [] : ['ABC-5'] }),
+      tokenEntry('token-same', { until: inDays(200), sameAs: 'global' }, { limits }),
+      tokenEntry('token-ending', { until: inDays(12) }, { name: 'Build server', limits: session }),
+      tokenEntry('token-refused', { until: inDays(150), refusedAt: ago(40) }, { needsLogin: true }),
+    ]
+    return { ...signedIn, accounts }
+  }
   if (mode === 'api-noAdc') return { ...fakeAccount('api', idle, limits), gcloud: { ...FAKE_GCLOUD, adcType: null } }
   if (mode === 'api-noAz') return { ...fakeAccount('api', idle, limits), azure: { ...FAKE_AZURE, signedIn: false } }
   if (mode === 'api' || mode === 'spend' || mode === 'spendUnknown') {
@@ -558,6 +590,19 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     if (value.includes('offline')) throw fail('account.managementKeyUnchecked', { reason: 'fetch failed' })
     const read = value === '' ? { managementKey: false, balance: undefined } : { managementKey: true, balance: { usd: 42.17, at: ago(0) } }
     return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, ...read } : entry)) }
+  }
+  if (name === 'account/token') {
+    checkToken(String(body.token).trim())
+    const given = String(body.name ?? '').trim()
+    const folder = folderName(given || 'token', account.accounts.map((entry) => entry.key))
+    const sameAs = typeof body.sameAs === 'string' ? body.sameAs : undefined
+    const entry = tokenEntry(folder, { until: inDays(365), ...(sameAs !== undefined && { sameAs }) }, { name: given || null })
+    return { ...account, accounts: [...account.accounts, entry] }
+  }
+  if (name === 'account/key' && account.accounts.some((entry) => entry.key === key && entry.longToken !== undefined)) {
+    checkToken(String(body.key).trim())
+    return { ...account, accounts: account.accounts.map((entry) => (entry.key !== key || entry.longToken === undefined ? entry
+      : { ...entry, needsLogin: false, longToken: { until: inDays(365), ...(entry.longToken.sameAs !== undefined && { sameAs: entry.longToken.sameAs }) } })) }
   }
   if (name === 'account/api' || name === 'account/key') {
     const agent = name === 'account/key' ? (account.accounts.find((entry) => entry.key === key)?.agent ?? CLAUDE) : body.agent
