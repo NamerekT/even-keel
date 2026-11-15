@@ -140,6 +140,23 @@ export interface TaskMarkers {
   find(project: string, marker: string, limit?: number): Promise<string | null>
 }
 
+/**
+ * A task found by its marker after an interrupted create (`tasks_create` with a retry, BTN-922; a project's export,
+ * BTN-1192) gets every field of its draft again: some trackers write labels, a priority, a parent, an estimate or a
+ * status after the create, and a crash between them left those out. A value someone changed by hand since the crash is
+ * overwritten; a field holding its value already is no write.
+ */
+export async function restoreFields(editor: TaskEditor, id: string, draft: TaskDraft): Promise<void> {
+  if (draft.labels.length > 0) await editor.relabel(id, { add: draft.labels, remove: [] })
+  if (draft.priority !== null && draft.priority !== 'none') await editor.set(id, { field: 'priority', to: draft.priority })
+  if (draft.milestone !== null) await editor.set(id, { field: 'milestone', to: draft.milestone })
+  if (draft.parent !== null) await editor.set(id, { field: 'parent', to: draft.parent })
+  if (draft.component != null && editor.components) await editor.set(id, { field: 'component', to: draft.component })
+  if (draft.estimate != null && editor.estimate !== undefined) await editor.estimate(id, draft.estimate)
+  // Last, as the adapters' own create moves it.
+  if (draft.status !== null) await editor.set(id, { field: 'status', to: draft.status })
+}
+
 /** A write the tools refuse with a reason the agent can act on; the message is English and complete. */
 export class EditRefused extends Error {}
 

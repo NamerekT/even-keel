@@ -40,6 +40,8 @@ class FakeTracker {
   links: { id: string; other: string; link: TaskLink }[] = []
   attached: { id: string; names: string[] }[] = []
   comments: { id: string; body: string }[] = []
+  /** Writes after a create: `relabel`, `set`, `estimate`, one line each. */
+  fields: string[] = []
   private counts: Record<Call, number> = { create: 0, link: 0, attach: 0, comment: 0 }
   private markers = 0
   failOn: Partial<Record<Call, number>> = {}
@@ -79,8 +81,16 @@ class FakeTracker {
           find: async (_project: string, marker: string) => this.created.find((each) => each.marker === marker)?.key ?? null,
         },
       } : {}),
-      set: refused,
-      ...(estimate ? { estimate: refused } : {}),
+      set: async (id, field) => {
+        this.fields.push(`${id} ${field.field}=${field.to}`)
+        return true
+      },
+      ...(estimate ? {
+        estimate: async (id: string, minutes: number) => {
+          this.fields.push(`${id} estimate=${minutes}`)
+          return true
+        },
+      } : {}),
       ...(files ? {
         files: {
           attach: async (id: string, uploads: readonly TaskUpload[]) => {
@@ -100,7 +110,10 @@ class FakeTracker {
         this.tick('link')
         if (!this.links.some((each) => each.id === id && each.other === other && each.link === link)) this.links.push({ id, other, link })
       },
-      relabel: refused,
+      relabel: async (id, change) => {
+        this.fields.push(`${id} labels+${change.add.join(',')}`)
+        return change.add
+      },
       comment: async (id, body) => {
         this.tick('comment')
         this.comments.push({ id, body })
@@ -259,6 +272,19 @@ describe('runExport', () => {
     await runExport({ source, target: target(tracker), log })
     expect(tracker.created.map((each) => each.key)).toEqual(['GH-1', 'GH-2'])
     expect(log.saved.get('r1')).toMatchObject({ key: 'GH-1', url: 'https://tracker.example.com/GH-1', stage: 'marked' })
+  })
+
+  it('a task created before its labels failed is found by its marker and gets every field of its draft again', async () => {
+    const source = new FakeSource(tasks())
+    const tracker = new FakeTracker()
+    tracker.loseAnswerOn = 2
+    const log = new MemoryLog()
+    await expect(runExport({ source, target: target(tracker), log })).rejects.toThrow('lost')
+    expect(tracker.fields).toEqual([])
+    await runExport({ source, target: target(tracker), log })
+    expect(tracker.created.map((each) => each.key)).toEqual(['GH-1', 'GH-2'])
+    expect(tracker.fields).toEqual(['GH-2 labels+bug', 'GH-2 priority=high', 'GH-2 milestone=v1', 'GH-2 parent=GH-1', 'GH-2 estimate=20', 'GH-2 status=Doing'])
+    expect(log.saved.get('r3')).toMatchObject({ key: 'GH-2', stage: 'marked' })
   })
 
   it('leaves out what the target keeps no place for', async () => {

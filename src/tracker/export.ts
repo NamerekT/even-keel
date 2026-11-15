@@ -1,6 +1,6 @@
 import { sameName } from '../chain/rules.js'
 import type { Notice } from '../notice/notice.js'
-import type { TaskDraft, TaskEditor } from './editor.js'
+import { restoreFields, type TaskDraft, type TaskEditor } from './editor.js'
 import { isOpen, type TaskPriority, type TaskStatus } from './model.js'
 import type { TrackerVocabulary } from './source.js'
 
@@ -208,9 +208,12 @@ export async function runExport({ source, target, log, say = () => {} }: ExportR
   for (const task of moving) {
     const row = rows.get(task.ref)
     if (row !== undefined && row.key !== null) continue
+    const draft = draftOf(task, kept, task.parent === null ? null : keyOf(task.parent))
     if (row?.marker != null && editor.markers !== undefined) {
       const found = await editor.markers.find(project, row.marker)
       if (found !== null) {
+        // The create may have stopped after the task itself, before its labels, priority, estimate or status.
+        await restoreFields(editor, found, draft)
         await save({ ...row, key: found, url: target.url(found), stage: 'created', done: 0 })
         continue
       }
@@ -218,7 +221,7 @@ export async function runExport({ source, target, log, say = () => {} }: ExportR
     const marker = row?.marker ?? editor.markers?.make() ?? null
     const pending: ExportRow = { ref: task.ref, number: task.number, key: null, url: null, stage: 'pending', marker, done: 0 }
     await save(pending)
-    const key = await editor.create(project, draftOf(task, kept, task.parent === null ? null : keyOf(task.parent)), [], marker ?? undefined)
+    const key = await editor.create(project, draft, [], marker ?? undefined)
     await save({ ...pending, key, url: target.url(key), stage: 'created' })
   }
 
