@@ -78,10 +78,8 @@ interface Relatives {
   dependents: ReadonlySet<string>
 }
 
-interface Relation {
-  role: 'dragged' | 'blocker' | 'dependent'
-  badge: boolean
-}
+/** A blocker of the pointed, selected or dragged task lights its key, a dependent its lock (`block--blocker`, `block--dependent`). */
+type Relation = 'dragged' | 'blocker' | 'dependent'
 
 export function ChainList(props: Props) {
   const { project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard, adding = null, switcher, rowSearch } = props
@@ -541,9 +539,8 @@ function Block(props: BlockProps) {
   if (focused) classes.push('block--focus')
   if (movable) classes.push('block--movable')
   if (waits.length > 0) classes.push('block--blocked')
-  if (relation !== null) classes.push(`block--${relation.role}`)
+  if (relation !== null) classes.push(`block--${relation}`)
   if (arrival !== null) classes.push(arrival.flying ? 'block--arriving' : 'block--landed')
-  const badge = relation?.badge === true ? relation.role : null
   const metered = block.start === null && blockMetered(block) ? block.session : null
   const acting = metered !== null && showsAction(tier, metered.lamp)
   const action = metered === null ? null : cardAction(metered)
@@ -668,8 +665,6 @@ function Block(props: BlockProps) {
         )}
         {block.review !== undefined && <PullChip review={block.review} />}
         {block.work !== undefined && <WorkChip work={block.work} leftovers={block.leftovers} />}
-        {badge === 'blocker' && <span className="tag">{t.chain.blocker}</span>}
-        {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}
         {block.start !== null && <StartPill start={block.start} />}
         {/* A session that does not work shows no meter on its row: its lamp says its state, its panel the numbers (BTN-1162). */}
         {block.leftovers !== undefined && (
@@ -757,13 +752,16 @@ function relativesOf(blocks: ChainBlock[], id: string | null): Relatives | null 
 }
 
 function relationOf(id: string, drag: ChainDrag | null, selected: Relatives | null, pointed: Relatives | null): Relation | null {
-  if (drag !== null) return drag.id === id ? { role: 'dragged', badge: false } : roleIn(drag, id, true)
-  return (selected === null ? null : roleIn(selected, id, true)) ?? (pointed === null ? null : roleIn(pointed, id, false))
+  if (drag !== null) return drag.id === id ? 'dragged' : roleIn(drag, id)
+  // One task's links at a time: two tasks' keys and locks in one blue would not say whose they are. The pointed row
+  // goes first, so the open one never hides it; off the rows the open one shows its own.
+  const shown = pointed ?? selected
+  return shown === null ? null : roleIn(shown, id)
 }
 
-function roleIn(found: Relatives, id: string, badge: boolean): Relation | null {
-  if (found.blockers.has(id)) return { role: 'blocker', badge }
-  return found.dependents.has(id) ? { role: 'dependent', badge } : null
+function roleIn(found: Relatives, id: string): Relation | null {
+  if (found.blockers.has(id)) return 'blocker'
+  return found.dependents.has(id) ? 'dependent' : null
 }
 
 function openIds(blocks: ChainBlock[]): string[] {
