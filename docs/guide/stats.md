@@ -90,7 +90,7 @@ Money is at API prices (`prices` in `tally/tally.config.json`; a model it does n
 
 A project can show its chain in its README the way a CI badge shows a build: the tasks in work and what the agent is doing, the context fill, the chain as chips with the time each done task was closed (by your machine's clock), the milestone and the last 30 days' numbers.
 
-The milestone's card splits its tasks into done, queued for the agent and waiting for you, and says when the agent's part should be through at the chain's pace of the last week, next to the milestone's own date in the tracker.
+The milestone's card splits its tasks into done, queued for the agent and waiting for you. It shows no release date: a milestone grows as work goes on, so neither a forecast nor the tracker's date would hold.
 
 Even Keel pushes the project's state to a small Cloudflare Worker you deploy once for all your projects ([`deploy/badge`](../../deploy/badge/README.md)); the README shows the Worker's picture, so the page itself stays private.
 

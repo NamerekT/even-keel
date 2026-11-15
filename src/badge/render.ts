@@ -416,35 +416,18 @@ function drawPanels(draw: Drawing, state: BadgeState, top: number): number {
   return y + CARD_HEIGHT + 16
 }
 
-/** When the milestone is due: the forecast of the agent's part and the tracker's own date. The maintainer's part has none. */
-function whenOf(milestone: BadgeMilestone): { forecast: string | null; target: string | null } {
-  const eta = milestone.eta === undefined ? null : printed(milestone.eta)
-  const forecast = milestone.queued === undefined ? null : milestone.queued <= 0 ? "agent's part done" : eta === null ? null : `agent's part ≈ ${eta.day}`
-  return { forecast, target: (milestone.target === undefined ? null : printed(milestone.target))?.day ?? null }
-}
-
 /**
- * The milestone's card: its name, when it is due, the bar of its parts — done, queued for the agent and with the
- * maintainer — and their legend. A part of no task has neither a piece of the bar nor a legend entry.
+ * The milestone's card: its name, the bar of its parts — done, queued for the agent and with the maintainer — and their
+ * legend. A part of no task has neither a piece of the bar nor a legend entry. No release date (BTN-1197), even when an
+ * older service still sends `eta` and `target`.
  */
 function drawMilestone(draw: Drawing, milestone: BadgeMilestone, x: number, y: number, width: number): void {
   const { theme } = draw
   const base = y + 25
-  const { forecast, target } = whenOf(milestone)
-  const targetLead = forecast === null ? 'target ' : ' · target '
-  const whenWidth = (forecast === null ? 0 : measure(forecast, 'sans', 11.5)) + (target === null ? 0 : measure(`${targetLead}${target}`, 'sans', 11.5))
-  const room = width - (whenWidth === 0 ? 0 : whenWidth + 12)
-  const name = fit(milestone.name, 'sans-bold', 14, room)
+  const name = fit(milestone.name, 'sans-bold', 14, width)
   draw.text(x, base, name, 'sans-bold', 14, theme.fg)
   const after = measure(name, 'sans-bold', 14) + 8
-  if (after + measure('next release', 'sans', 11.5) <= room) draw.text(x + after, base, 'next release', 'sans', 11.5, theme.faint)
-  if (whenWidth > 0) {
-    const spans = [
-      forecast === null ? '' : `<tspan fill="${theme.fgMuted}">${escapeXml(forecast)}</tspan>`,
-      target === null ? '' : `<tspan fill="${theme.faint}">${targetLead}</tspan><tspan fill="${theme.fg}">${target}</tspan>`,
-    ]
-    draw.add(`<text x="${n(x + width)}" y="${base}" class="s" font-size="11.5" text-anchor="end" xml:space="preserve">${spans.join('')}</text>`)
-  }
+  if (after + measure('next release', 'sans', 11.5) <= width) draw.text(x + after, base, 'next release', 'sans', 11.5, theme.faint)
   const split = milestone.queued !== undefined
   const queued = Math.max(0, Math.min(milestone.left, milestone.queued ?? 0))
   const hatch = `fill="url(#ek-hold)" stroke="${theme.waiting}" stroke-opacity="0.6"`

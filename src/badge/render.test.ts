@@ -30,7 +30,7 @@ const live: BadgeState = {
       { key: 'ABC-16', state: 'queued' },
     ],
   },
-  milestone: { name: 'v1', done: 4, left: 5, queued: 2, eta: '2026-11-11', target: '2026-11-20' },
+  milestone: { name: 'v1', done: 4, left: 5, queued: 2 },
   stats: { sessions: 12, medianCost: 1.2, medianMinutes: 18 },
 }
 const two: BadgeState = {
@@ -207,22 +207,24 @@ describe('renderBadge', () => {
       expect(Number(/height="(\d+)"/.exec(renderBadge(undated, { theme: 'dark', now }))![1])).toBe(Number(/height="(\d+)"/.exec(svg)![1]) - 18)
     })
 
-    it('splits the milestone into done, queued for the agent and with the maintainer, and says when', () => {
+    it('splits the milestone into done, queued for the agent and with the maintainer', () => {
       const all = texts(live)
       expect(all).toEqual(expect.arrayContaining(['v1', 'next release', 'done', 'queued for the agent', 'with the maintainer', '4', '2', '3']))
-      const svg = renderBadge(live, { theme: 'dark', now })
-      expect(svg).toContain('agent&apos;s part ≈ Nov 11')
-      expect(svg).toMatch(/> · target <\/tspan><tspan[^>]*>Nov 20<\/tspan>/)
       expect(all).not.toContain('to go')
     })
 
-    it('leaves a part of no task out of the legend, says the agent\'s part is done and draws no forecast it lacks', () => {
-      const svg = renderBadge(STATES.idle!, { theme: 'dark', now })
+    it('draws no release date, even from an older service that still sends the forecast and the target (BTN-1197)', () => {
+      const dated = { ...live, milestone: { name: 'v1', done: 4, left: 5, queued: 2, eta: '2026-11-11', target: '2026-11-20' } } as BadgeState
+      for (const state of [dated, STATES.idle!]) {
+        const svg = renderBadge(state, { theme: 'dark', now })
+        expect(svg).not.toContain('agent&apos;s part')
+        expect(svg).not.toContain('target')
+        expect(svg).not.toContain('Nov 20')
+      }
+    })
+
+    it('leaves a part of no task out of the legend', () => {
       expect(texts(STATES.idle!)).not.toContain('queued for the agent')
-      expect(svg).toContain('agent&apos;s part done')
-      expect(svg).not.toContain('target')
-      const unpaced = renderBadge({ ...live, milestone: { name: 'v1', done: 4, left: 5, queued: 2 } }, { theme: 'dark', now })
-      expect(unpaced).not.toContain('agent&apos;s part')
     })
 
     it('draws a state of an older service, without the split, as done and to go', () => {

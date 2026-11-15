@@ -21,8 +21,8 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
 - `chain` — `state` (`running` | `paused` | `stopped` | `idle`), `next` (the task the chain takes next, `null` — none),
   `tasks` (chips: the last done ones, the working, the waiting, the ones on a limit and the queue; a done chip may
   carry `doneAt`).
-- `milestone` — `{ name, done, left, queued?, eta?, target? }` or `null`: `left` is every open task of the milestone,
-  `queued` those of them the chain takes, `eta` and `target` days `YYYY-MM-DD`.
+- `milestone` — `{ name, done, left, queued? }` or `null`: `left` is every open task of the milestone, `queued` those
+  of them the chain takes.
 - `stats` — `sessions`, `medianCost`, `medianMinutes`.
 
 The project picks its fields (`BADGE_FIELDS`); a field not picked leaves **no key**, never `null`
@@ -31,7 +31,7 @@ title (`translate.ts`); without it the badge shows the key alone.
 
 ### Close times and the milestone's split (BTN-970)
 
-The keys `doneAt`, `queued`, `eta` and `target` (BTN-970) only add to v1: a Worker of an older `even-keel-badge` does
+The keys `doneAt` and `queued` (BTN-970) only add to v1: a Worker of an older `even-keel-badge` does
 not read them and draws the old picture, and a state without them is drawn as before (the milestone as done and "to
 go"). Their times are the service's local clock with its offset (`2026-11-10T03:40:00+01:00`), never a zone's name:
 the picture prints the digits as written, so the night shows by the maintainer's hours (`src/badge/dates.ts`).
@@ -41,13 +41,14 @@ the picture prints the digits as written, so the night shows by the maintainer's
   dated ones, by number.
 - `queued` is the milestone's tasks in the chain's order (the result of its own filter) and the ones in work; the rest
   is with the maintainer — Backlog, skipped labels, waiting blockers.
-- `eta` is `queued` over the chain's pace: the project's tasks the archive has closed in the last 7 days, over 7. No
-  task closed in that week — no `eta`; `queued` 0 — none either, the picture says "agent's part done".
-- `target` is the milestone's `targetDate` from the tracker layer; absent where the tracker has none.
 - The milestone is the one of the task in work or of the next one; with neither, the one of the task the chain closed
   last, so an idle badge still shows what waits for the maintainer.
+- No release date (BTN-1197). BTN-970 also sent `eta`, `queued` over the chain's pace of the last 7 days, and
+  `target`, the milestone's `targetDate`; the forecast missed the milestone's growth (v0.3 grew from ~50 tasks to 200+
+  while it kept saying "soon") and the tracker's date read as a promise. The service sends neither; the Worker still
+  accepts them, well-formed, from an older service, and the picture ignores them, so they vanish without a redeploy.
 
-The dates go with the `chain` field, the split, `eta` and `target` with `milestone`; there are no new fields.
+The dates go with the `chain` field, the split with `milestone`; there are no new fields.
 
 ### A task on a spent limit (BTN-969)
 
@@ -180,8 +181,7 @@ instead, and one on a limit the same bar with a pause mark and "waiting for the 
 is left out once it has passed); while no task works and one is on a limit the header says "WAITING · <project> waits
 for the usage limit to reset". The chain's chips name a task of the project by its number (`895`), one of another project by its key, a
 done one with `Nov 10 03:40` under it (the month by name: `11-10` reads two ways), which makes the badge 18 px taller only
-when a chip has a time. Under the chips sit two cards: the milestone's on the left — its name, "next release", on the
-right "agent's part ≈ Nov 11 · target Nov 20", a bar of done (green), queued for the agent (blue) and with the
+when a chip has a time. Under the chips sit two cards: the milestone's on the left — its name and "next release", a bar of done (green), queued for the agent (blue) and with the
 maintainer (hatched in the waiting colour) with 3 px gaps, and a legend that leaves a part of no task out — and the
 stats' on the right, a 100 px tile per number (`1,710` / sessions / last 30 days, `$2.41*` / per task / median,
 `11 min` / per task / median) with "* at API list prices" under it. A number not picked has no tile; without tiles the

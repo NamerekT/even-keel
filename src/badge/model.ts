@@ -52,17 +52,14 @@ export interface BadgeChip {
 
 /**
  * `left` is every open task of the milestone, `queued` those of them the chain takes; the rest wait for the maintainer.
- * A state without `queued` is of a service before BTN-970.
+ * A state without `queued` is of a service before BTN-970. A service between BTN-970 and BTN-1197 also sends `eta` and
+ * `target` days: the Worker accepts them and the picture ignores them, the badge shows no release date.
  */
 export interface BadgeMilestone {
   name: string
   done: number
   left: number
   queued?: number
-  /** The day the chain gets through `queued` at its pace of the last 7 days, `YYYY-MM-DD`; absent — no pace to count by. */
-  eta?: string
-  /** The milestone's own date in the tracker, `YYYY-MM-DD`; absent — the tracker has none. */
-  target?: string
 }
 
 export interface BadgeStats {

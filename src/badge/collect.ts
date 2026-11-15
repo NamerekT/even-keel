@@ -1,14 +1,11 @@
 import type { EvenKeelState, SessionView } from '../state.js'
 import type { Task } from '../tracker/model.js'
-import { localDay, localStamp } from './dates.js'
+import { localStamp } from './dates.js'
 import { STATUS_FRESH_MS } from './status.js'
 import { BADGE_FIELDS, BADGE_VERSION, type BadgeAction, type BadgeChain, type BadgeField, type BadgeState, type BadgeStats, type BadgeTask } from './model.js'
 
 const DONE_CHIPS = 5
 const QUEUED_CHIPS = 12
-const DAY_MS = 86_400_000
-/** The agent's pace is counted over this many last days. */
-const PACE_DAYS = 7
 
 /** A task of the project the chain ran and saw closed, from its archive (`closed_tasks`). */
 export interface BadgeClosed {
@@ -26,7 +23,7 @@ export interface BadgeInputs {
   titleEn?: (task: string) => string | undefined
   /** Whether a session's own status line may be published (the filter of private data); none — every line may. */
   statusOk?: (text: string) => boolean
-  /** The project's tasks the chain closed, with the time (BTN-970); none — no chip has a time and there is no forecast. */
+  /** The project's tasks the chain closed, with the time (BTN-970); none — no chip has a time. */
   closed?: readonly BadgeClosed[]
   /** The zone the badge's dates and times are written in: the service's own by default. */
   tz?: string
@@ -48,7 +45,7 @@ export function badgeStateOf(state: EvenKeelState, project: string, inputs: Badg
   if (on.has('chain')) chain.tasks = chipsOf(tasks, active, order, closed, tz)
   const result: BadgeState = { v: BADGE_VERSION, at: inputs.now.toISOString(), project: { key, name: state.config.projects[project]?.name ?? key }, active, chain }
   const anchor = active[0]?.key ?? next ?? lastClosed(tasks, closed)
-  if (on.has('milestone')) result.milestone = milestoneOf(tasks, anchor, new Set([...order, ...working]), { closed, tz, now: inputs.now })
+  if (on.has('milestone')) result.milestone = milestoneOf(tasks, anchor, new Set([...order, ...working]))
   const stats = statsOf(inputs.stats, on)
   if (stats !== null) result.stats = stats
   return result
@@ -154,23 +151,16 @@ function lastClosed(tasks: Task[], closed: readonly BadgeClosed[]): string | nul
 
 /**
  * The milestone of `anchor` (BTN-970): its done tasks, the open ones, and those of them the chain takes — `queue`, the
- * chain's own order and the tasks in work. The forecast is the queue over the chain's pace of the last 7 days.
+ * chain's own order and the tasks in work. No release date (BTN-1197): neither a forecast of the agent's part, which
+ * missed the milestone's growth, nor the tracker's own date, which read as a promise.
  */
-function milestoneOf(tasks: Task[], anchor: string | null, queue: Set<string>, when: { closed: readonly BadgeClosed[]; tz: string; now: Date }): BadgeState['milestone'] {
+function milestoneOf(tasks: Task[], anchor: string | null, queue: Set<string>): BadgeState['milestone'] {
   const milestone = tasks.find((task) => task.id === anchor)?.milestone
   if (milestone === undefined || milestone === null) return null
   const of = tasks.filter((task) => task.milestone?.label === milestone.label)
   const open = of.filter((task) => task.status.category !== 'Won' && task.status.category !== 'Lost')
   const queued = open.filter((task) => queue.has(task.id)).length
-  const result: NonNullable<BadgeState['milestone']> = { name: milestone.label, done: of.filter((task) => task.status.category === 'Won').length, left: open.length, queued }
-  const now = when.now.getTime()
-  const recent = when.closed.filter((each) => {
-    const age = now - Date.parse(each.closedAt)
-    return age >= 0 && age <= PACE_DAYS * DAY_MS
-  }).length
-  if (queued > 0 && recent > 0) result.eta = localDay(new Date(now + (queued / (recent / PACE_DAYS)) * DAY_MS), when.tz)
-  if (milestone.targetDate) result.target = localDay(new Date(milestone.targetDate), when.tz)
-  return result
+  return { name: milestone.label, done: of.filter((task) => task.status.category === 'Won').length, left: open.length, queued }
 }
 
 function statsOf(stats: BadgeStats | null, on: Set<BadgeField>): BadgeStats | null {

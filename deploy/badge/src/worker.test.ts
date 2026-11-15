@@ -105,7 +105,9 @@ describe('POST /push/<slug>', () => {
     const env = envOf()
     const dated = { ...state, chain: { ...state.chain, tasks: [{ key: 'ABC-14', state: 'done', doneAt: '2026-11-09T03:40:00+01:00' }] }, milestone: { name: 'v1', done: 4, left: 5, queued: 2, eta: '2026-11-11', target: '2026-11-20' } }
     expect((await push(env, dated)).status).toBe(204)
-    expect(await (await show(env)).text()).toContain('queued for the agent')
+    const shown = await (await show(env)).text()
+    expect(shown).toContain('queued for the agent')
+    expect(shown).not.toContain('target')
     expect((await push(env, { ...dated, chain: { ...dated.chain, tasks: [{ key: 'ABC-14', state: 'done', doneAt: 'last night' }] } })).status).toBe(400)
     expect((await push(env, { ...dated, milestone: { ...dated.milestone, queued: '2' } })).status).toBe(400)
     expect((await push(env, { ...dated, milestone: { ...dated.milestone, eta: 'soon' } })).status).toBe(400)
