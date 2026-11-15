@@ -260,6 +260,12 @@ export const projectEN: Messages['project'] = {
           ['Sorry, I mean…', ' you write the tickets.', ' I take the night shift.'],
           ['For now.'],
         ],
+        reset: [
+          ['Tip: start a session 2–3h before the weekly reset.', ' Right after it you get two 5h windows back to back.'],
+          ['That makes no sense.', " You don't gain extra compute."],
+          ['Right, not more.', ' Faster.'],
+          ['You just shifted the reset 2.5 hours earlier', ' and crammed a 5h allowance into 2.5 hours.', ' - Redacted with help of AI to save time'],
+        ],
       },
       chats: {
         keepGoing: [

@@ -91,26 +91,28 @@ describe('pickMeme', () => {
   })
 
   it('takes a general line, the drive, a play from its first act or a chat above that quarter, and always without moments', () => {
-    const draws = [0.3, 0.45]
+    const draws = [0.3, 0.4]
     expect(pickMeme(['calm'], 5, () => draws.shift()!)).toEqual({ drive: true })
-    expect(pickMeme([], 5, () => 0.5)).toEqual({ play: 'picture', act: 0 })
-    expect(pickMeme([], 5, () => 0.6)).toEqual({ play: 'spoons', act: 0 })
-    expect(pickMeme([], 5, () => 0.65)).toEqual({ play: 'slip', act: 0 })
-    expect(pickMeme([], 5, () => 0.7)).toEqual({ chat: 'keepGoing' })
+    expect(pickMeme([], 5, () => 0.45)).toEqual({ play: 'picture', act: 0 })
+    expect(pickMeme([], 5, () => 0.55)).toEqual({ play: 'spoons', act: 0 })
+    expect(pickMeme([], 5, () => 0.6)).toEqual({ play: 'slip', act: 0 })
+    expect(pickMeme([], 5, () => 0.65)).toEqual({ play: 'reset', act: 0 })
+    expect(pickMeme([], 5, () => 0.75)).toEqual({ chat: 'keepGoing' })
     expect(pickMeme([], 5, () => 0.8)).toEqual({ chat: 'areYouSure' })
-    expect(pickMeme([], 5, () => 0.85)).toEqual({ chat: 'fixTest' })
+    expect(pickMeme([], 5, () => 0.9)).toEqual({ chat: 'fixTest' })
     expect(pickMeme([], 5, () => 0.99)).toEqual({ chat: 'recommended' })
     expect(pickMeme([], 5, () => 0)).toEqual({ line: 0 })
   })
 
   it('never draws the previous line again', () => {
     expect(pickMeme([], 5, () => 0, { line: 0 })).toEqual({ line: 1 })
-    expect(pickMeme([], 5, () => 0.4, { drive: true })).toEqual({ line: 4 })
+    expect(pickMeme([], 5, () => 0.35, { drive: true })).toEqual({ line: 4 })
     expect(pickMeme([], 5, () => 0.45, { drive: true })).toEqual({ play: 'picture', act: 0 })
     expect(pickMeme([], 5, () => 0.45, { play: 'picture', act: 3 })).toEqual({ drive: true })
-    expect(pickMeme([], 5, () => 0.55, { play: 'picture', act: 3 })).toEqual({ play: 'spoons', act: 0 })
+    expect(pickMeme([], 5, () => 0.5, { play: 'picture', act: 3 })).toEqual({ play: 'spoons', act: 0 })
     expect(pickMeme([], 5, () => 0.6, { play: 'spoons', act: 3 })).toEqual({ play: 'slip', act: 0 })
-    expect(pickMeme([], 5, () => 0.75, { chat: 'keepGoing' })).toEqual({ chat: 'areYouSure' })
+    expect(pickMeme([], 5, () => 0.7, { play: 'reset', act: 3 })).toEqual({ chat: 'keepGoing' })
+    expect(pickMeme([], 5, () => 0.8, { chat: 'keepGoing' })).toEqual({ chat: 'areYouSure' })
     expect(pickMeme([], 5, () => 0.99, { chat: 'recommended' })).toEqual({ chat: 'fixTest' })
     expect(pickMeme([], 1, () => 0.1, { line: 0 })).toEqual({ drive: true })
   })
