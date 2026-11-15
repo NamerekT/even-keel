@@ -1,12 +1,13 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { withBrief, withPrompts, withTracker, withVocabulary } from '../chain/relay.js'
+import { withBrief, withPrompts, withTracker, withUnbriefed, withVocabulary } from '../chain/relay.js'
 import { ChangelogDrafts } from '../changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { idPrefixOf, isPlain, projectLabel } from '../config.js'
 import { commitChangelog } from '../git/changelog.js'
 import { runGit } from '../git/run.js'
 import { fail } from '../notice/notice.js'
+import { TASKS_SERVER } from '../taskmcp/server.js'
 import { promptLines } from '../taskmcp/vocabulary.js'
 import type { ChainContext } from './chain.js'
 import { promptTrackers } from './vocabulary.js'
@@ -67,9 +68,9 @@ export function wireBriefed(ctx: ChainContext): (task: string, given: string, pr
     const own = idPrefixOf(ctx.readers(), reader).toUpperCase()
     const vocabulary = promptLines(await promptTrackers(ctx, project), own)
     const prompt = withVocabulary(withTracker(given, ctx.trackerPlace(reader), language), vocabulary, language)
-    if (!ctx.briefOn(project, reader)) return prompt
-    const link = ctx.linkOf(reader)
-    return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), ctx.promptLanguage(project))
+    const link = ctx.briefOn(project, reader) ? ctx.linkOf(reader) : undefined
+    const brief = link === undefined ? undefined : await link.run(async (tracker) => tracker.brief?.(task))
+    return brief === undefined ? withUnbriefed(prompt, task, ctx.packages.bringsServer(project, TASKS_SERVER), language) : withBrief(prompt, brief, language)
   }
 }
 

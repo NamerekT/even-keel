@@ -74,6 +74,11 @@ export function withBrief(prompt: string, brief: TaskBrief | undefined, language
   return prompt + lines.join('\n') + '\n'
 }
 
+/** A prompt without a brief names how to read the task (BTN-1202): a weak agent may never open the skill that says it. */
+export function withUnbriefed(prompt: string, task: string, tasks: boolean, language: Language): string {
+  return `${prompt}\n${PROMPTS[language].unbriefed(task, tasks)}\n`
+}
+
 export interface TrackerPlace {
   title: string
   project: string

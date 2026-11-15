@@ -22,6 +22,7 @@ import {
   withReset,
   withTracker,
   withUnattended,
+  withUnbriefed,
   withVocabulary,
   type HandoffReason,
   type HandoffSession,
@@ -539,6 +540,17 @@ describe('prompts in English', () => {
     expect(withVocabulary('ABC-1\n', [line], 'en')).toMatch(/^ABC-1\n\nThe trackers' terms for the task tools: .*not from a skill\.\nchain: into it — Ready; .*\n$/)
     expect(withVocabulary('ABC-1\n', [line], 'ru')).toContain(`не из навыка.\n${line}\n`)
     expect(withVocabulary('ABC-1\n', [], 'en')).toBe('ABC-1\n')
+  })
+
+  it('tells a session without a brief to read its task first (BTN-1202)', () => {
+    expect(withUnbriefed('ABC-1\n', 'ABC-1', true, 'en')).toBe(
+      "ABC-1\n\nThe task's title and description are not in this prompt: read them first with `task_read(\"ABC-1\", comments: true)` of the tasks tools.\n",
+    )
+    expect(withUnbriefed('ABC-1\n', 'ABC-1', false, 'en')).toBe(
+      "ABC-1\n\nThe task's title and description are not in this prompt: read ABC-1 with its comments first through the tracker's tools.\n",
+    )
+    expect(withUnbriefed('ABC-1\n', 'ABC-1', true, 'ru')).toContain('`task_read("ABC-1", comments: true)`')
+    expect(withUnbriefed('ABC-1\n', 'ABC-1', false, 'ru')).toMatch(/^ABC-1\n\n.*ABC-1.*\n$/)
   })
 
   it('has every prompt in every language', () => {
