@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve, sep } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { audit, markdown } from './unverified-audit.js'
+import { audit, culprits, markdown, type Finding } from './unverified-audit.js'
 
 describe('unverified audit on git history', () => {
   let root: string
@@ -128,4 +128,48 @@ describe('unverified audit on git history', () => {
     expect(report.indexOf('src/notice/en.ts 8%')).toBeLessThan(report.indexOf('| ID |'))
     expect(report).toContain('| 8 | docs/unverified/area.md#shared-btn-3 | only shared files |')
   }, 30_000)
+})
+
+describe('ranking A by the share of the entry\'s files', () => {
+  const commit = (task: string, files: string[], subject = `[${task}] Change`) =>
+    ({ hash: `${task}-hash`, time: 2, subject, task, files, massive: false })
+  const files = new Set(['a.ts', 'b.ts', 'c.ts', 'd.ts'])
+
+  it('groups commits by task and orders tasks by coverage', () => {
+    const ranked = culprits(files, [commit('BTN-2', ['a.ts', 'x.ts']), commit('BTN-3', ['a.ts', 'b.ts']), commit('BTN-3', ['b.ts', 'c.ts'])])
+    expect(ranked.map(({ task, coverage, commits }) => [task, coverage, commits.length])).toEqual([['BTN-3', 0.75, 2], ['BTN-2', 0.25, 1]])
+  })
+
+  const finding = (id: string, a: Finding['a']): Finding => ({
+    file: 'area.md', anchor: id, heading: id, body: '', start: 1, end: 1, id, task: '—', date: 1, files: [...files], a, c: [], d: [],
+  })
+  const ranked = (list: ReturnType<typeof commit>[]) => {
+    const tasks = culprits(files, list)
+    return { commits: list, culprits: tasks, score: tasks[0]?.coverage ?? 0, unknown: [], onlyShared: false }
+  }
+
+  it('lists only entries at or above the threshold, strongest first, and counts the weaker ones', () => {
+    const report = markdown({
+      entries: [
+        finding('weak', ranked([commit('BTN-2', ['a.ts'])])),
+        finding('strong', ranked([commit('BTN-3', ['a.ts', 'b.ts', 'c.ts'], '[BTN-3] Rework | it')])),
+        finding('full', ranked([commit('BTN-4', [...files]), commit('BTN-5', ['a.ts'])])),
+      ],
+      sharedFiles: [], missingIds: [], missingEntries: [],
+    })
+    expect(report).toContain('3 entries; 2 candidates.')
+    expect(report).not.toContain('| weak |')
+    expect(report).toContain('Weaker A (below 60%): 1 entries')
+    expect(report).toContain('BTN-3 75%, 1 commit: [BTN-3] Rework &#124; it')
+    expect(report).toContain('BTN-4 100%, 1 commit: [BTN-4] Change<br>BTN-5 25%, 1 commit')
+    expect(report.indexOf('| full |')).toBeLessThan(report.indexOf('| strong |'))
+  })
+
+  it('shows at most five tasks per entry', () => {
+    const many = ['BTN-1', 'BTN-2', 'BTN-3', 'BTN-4', 'BTN-5', 'BTN-6', 'BTN-7'].map((task) => commit(task, [...files]))
+    const report = markdown({ entries: [finding('many', ranked(many))], sharedFiles: [], missingIds: [], missingEntries: [] })
+    expect(report).toContain('BTN-5 100%')
+    expect(report).not.toContain('BTN-6 100%')
+    expect(report).toContain('+2 more')
+  })
 })

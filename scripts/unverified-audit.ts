@@ -9,6 +9,8 @@ const WORD_THRESHOLD = 400
 const DATE_THRESHOLD = 3
 const MASSIVE_FILES = 30
 const HUB_SHARE = 0.05
+const A_SHARE = 0.6
+const A_SHOWN = 5
 const NOTICE_FILE = 'src/notice/en.ts'
 const SEARCH_ROOTS = ['src', 'web/src', 'tally/src', 'plugins', 'scripts']
 const taskIds = (text: string): string[] => [...new Set(text.match(/\b(?:BTN|EKR)-\d+\b/g) ?? [])]
@@ -24,12 +26,19 @@ interface Commit {
   files: string[]
   massive: boolean
 }
+/** A later task and the share of the entry's files its commits touched. */
+export interface Culprit {
+  task: string
+  coverage: number
+  commits: Commit[]
+}
 export interface Finding extends Entry {
   id: string
   task: string
   date: number
   files: string[]
-  a: { commits: Commit[]; unknown: string[]; onlyShared: boolean }
+  /** `score` is the best culprit's coverage; below `A_SHARE` the entry counts as without A. */
+  a: { commits: Commit[]; culprits: Culprit[]; score: number; unknown: string[]; onlyShared: boolean }
   b?: { words: number; dates: number }
   c: string[]
   d: string[]
@@ -39,6 +48,18 @@ interface Audit {
   sharedFiles: { file: string; share: number }[]
   missingIds: Entry[]
   missingEntries: Row[]
+}
+
+export function culprits(files: Set<string>, commits: Commit[]): Culprit[] {
+  const byTask = new Map<string, { touched: Set<string>; commits: Commit[] }>()
+  for (const commit of commits) {
+    const group = byTask.get(commit.task!) ?? { touched: new Set<string>(), commits: [] }
+    for (const file of commit.files) if (files.has(file)) group.touched.add(file)
+    group.commits.push(commit)
+    byTask.set(commit.task!, group)
+  }
+  return [...byTask].map(([task, group]) => ({ task, coverage: files.size ? group.touched.size / files.size : 0, commits: group.commits }))
+    .sort((a, b) => b.coverage - a.coverage || a.task.localeCompare(b.task))
 }
 
 export function audit(root: string): Audit {
@@ -144,7 +165,9 @@ export function audit(root: string): Audit {
       }
       return token.length > 5 && /^[A-Za-z][A-Za-z\d]*$/.test(token) && /[a-z][A-Z]|^[A-Z][a-z]/.test(token) && !present(token)
     })
-    return { ...entry, id: row?.id ?? '?', task: row?.task ?? '—', date, files: [...files].sort(), a: { commits, unknown, onlyShared },
+    const ranked = culprits(files, commits)
+    return { ...entry, id: row?.id ?? '?', task: row?.task ?? '—', date, files: [...files].sort(),
+      a: { commits, culprits: ranked, score: ranked[0]?.coverage ?? 0, unknown, onlyShared },
       b: words >= WORD_THRESHOLD || dates >= DATE_THRESHOLD ? { words, dates } : undefined, c, d }
   })
   return { entries: findings, sharedFiles, missingIds: sections.filter((entry) => !rows.some((row) => key(row) === key(entry))),
@@ -153,20 +176,29 @@ export function audit(root: string): Audit {
 
 export function markdown(report: Audit): string {
   const escape = (text: string) => text.replaceAll('&', '&amp;').replaceAll('|', '&#124;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replace(/[\r\n]/g, ' ')
-  const signals = (entry: Finding) => Number(entry.a.commits.length > 0) + Number(Boolean(entry.b)) + Number(entry.c.length > 0) + Number(entry.d.length > 0)
+  const strong = (entry: Finding) => entry.a.score >= A_SHARE
+  const signals = (entry: Finding) => Number(strong(entry)) + Number(Boolean(entry.b)) + Number(entry.c.length > 0) + Number(entry.d.length > 0)
   const candidates = report.entries.filter((entry) => signals(entry) || entry.a.unknown.length)
+  const weaker = report.entries.filter((entry) => entry.a.commits.length && !strong(entry)).length
   const rows = report.entries.filter((entry) => signals(entry) || entry.a.unknown.length || entry.a.onlyShared)
-    .sort((a, b) => Number(b.a.commits.length > 0) - Number(a.a.commits.length > 0) || signals(b) - signals(a) || key(a).localeCompare(key(b)))
+    .sort((a, b) => (strong(b) ? b.a.score : 0) - (strong(a) ? a.a.score : 0) || signals(b) - signals(a) || key(a).localeCompare(key(b)))
   const lines = ['# Unverified audit', '', `${report.entries.length} entries; ${candidates.length} candidates. Read-only signals, not proof of changed behaviour.`, '',
     `Shared files (excluded from A): ${report.sharedFiles.map(({ file, share }) => `${escape(file)} ${Math.round(share * 100)}%`).join(', ') || 'none'}.`, '',
-    'A: later task commits touching the entry\'s code; unknown means task history was not found. Rows with only shared files are also shown, but that alone is not a candidate. B: body words/dates. C: newer sibling notices. D: names no longer found.', '',
+    `A: later tasks by the share of the entry's code files they touched, strongest first; an entry counts only from ${A_SHARE * 100}%. Unknown means task history was not found. Rows with only shared files are also shown, but that alone is not a candidate. B: body words/dates. C: newer sibling notices. D: names no longer found.`, '',
     '| ID | File#anchor | A | B (words/dates) | C | D | Task |', '| --- | --- | --- | --- | --- | --- | --- |']
   for (const entry of rows) {
-    const a = entry.a.commits.map((commit) => `${commit.hash.slice(0, 8)} ${escape(commit.subject)}${commit.massive ? ' (massive change, likely a rename)' : ''}`)
+    const shown = strong(entry) ? entry.a.culprits : []
+    const a = shown.slice(0, A_SHOWN).map(({ task, coverage, commits }) => {
+      const first = commits.at(-1)!
+      const count = `${commits.length} commit${commits.length === 1 ? '' : 's'}`
+      return `${task} ${Math.round(coverage * 100)}%, ${count}: ${escape(first.subject)}${commits.some((c) => c.massive) ? ' (massive change, likely a rename)' : ''}`
+    })
+    if (shown.length > A_SHOWN) a.push(`+${shown.length - A_SHOWN} more`)
     if (entry.a.onlyShared) a.push('only shared files')
     if (entry.a.unknown.length) a.push(`unknown: ${entry.a.unknown.join(', ')}`)
     lines.push(`| ${entry.id} | docs/unverified/${key(entry)} | ${a.join('<br>') || '—'} | ${entry.b ? `${entry.b.words}/${entry.b.dates}` : '—'} | ${entry.c.map(escape).join(', ') || '—'} | ${entry.d.length ? `name disappeared: ${entry.d.map(escape).join(', ')}` : '—'} | ${entry.task} |`)
   }
+  lines.push('', `Weaker A (below ${A_SHARE * 100}%): ${weaker} entries`)
   lines.push('', '## Entries without an index ID', '', ...report.missingIds.map((entry) => `- docs/unverified/${key(entry)}`))
   if (!report.missingIds.length) lines.push('None.')
   lines.push('', '## Index rows without an entry', '', ...report.missingEntries.map((row) => `- ${row.id}: docs/unverified/${key(row)}`))
