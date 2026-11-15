@@ -1,16 +1,16 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync, readdirSync } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type AccountStatus } from '../account/model.js'
 import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
+import { npmCliBinary, thisMachine, type BinaryMachine, type NpmCli } from '../agent/npm-global.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
-import { binaryPath, samePath } from '../paths.js'
+import { binaryPath, pathsOf, samePath } from '../paths.js'
 import { blockedAsk, blockedOn, launchedModel, launchedSettings, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
 import { rareEvents } from '../sessions/rare.js'
@@ -34,13 +34,31 @@ const WARM_TIMEOUT_MS = 3 * 60_000
  */
 const USAGE_TIMEOUT_MS = 2 * 60_000
 
-/** `EVEN_KEEL_CLAUDE_BIN`, else Even Keel's own copy of the checked version (`pinned`), else the installed CLI. */
-export function resolveClaudeBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
+/** The npm install of Claude Code: the native binary is in `@anthropic-ai/claude-code-<platform>-<arch>[-musl]`. */
+export function claudeNpm(platform: NodeJS.Platform, arch: string): NpmCli {
+  const wrapper = '@anthropic-ai/claude-code'
+  const file = platform === 'win32' ? 'claude.exe' : 'claude'
+  const base = `${wrapper}-${platform}-${arch}`
+  const natives = platform === 'linux' ? [base, `${base}-musl`] : [base]
+  return { wrapper, bin: 'bin/claude.exe', natives: natives.map((pkg) => ({ pkg, file })) }
+}
+
+/**
+ * `EVEN_KEEL_CLAUDE_BIN`, else Even Keel's own copy of the checked version (`pinned`), else the installed CLI: the
+ * native installer's, a global npm install's native binary (`npmCliBinary`: its PATH entry is a wrapper on Windows and
+ * a placeholder wherever npm ran no postinstall), the newest VS Code extension's, `claude` on the PATH.
+ */
+export function resolveClaudeBinary(env: NodeJS.ProcessEnv, pinned?: string, machine: BinaryMachine = thisMachine()): string {
   if (env.EVEN_KEEL_CLAUDE_BIN) return env.EVEN_KEEL_CLAUDE_BIN
   if (pinned !== undefined) return pinned
-  const standalone = join(homedir(), '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude')
-  if (existsSync(standalone)) return standalone
-  const extensions = join(homedir(), '.vscode', 'extensions')
+  const { platform, home, runnable } = machine
+  const paths = pathsOf(platform)
+  const file = platform === 'win32' ? 'claude.exe' : 'claude'
+  const standalone = paths.join(home, '.local', 'bin', file)
+  if (runnable(standalone)) return standalone
+  const npm = npmCliBinary(claudeNpm(platform, machine.arch), env, platform, runnable)
+  if (npm !== undefined) return npm
+  const extensions = paths.join(home, '.vscode', 'extensions')
   let dirs: string[] = []
   try {
     dirs = readdirSync(extensions)
@@ -49,7 +67,7 @@ export function resolveClaudeBinary(env: NodeJS.ProcessEnv, pinned?: string): st
   }
   const newest = newestExtensionBinary(dirs)
   if (newest === undefined) return 'claude'
-  return join(extensions, newest, 'resources', 'native-binary', process.platform === 'win32' ? 'claude.exe' : 'claude')
+  return paths.join(extensions, newest, 'resources', 'native-binary', file)
 }
 
 /** `claude plugin marketplace update`: the CLI fetches the marketplace into the configuration folder `env` names. */

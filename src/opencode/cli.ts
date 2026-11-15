@@ -8,6 +8,7 @@ import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
+import { npmCliBinary, thisMachine, type BinaryMachine, type NpmCli } from '../agent/npm-global.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { passedSkillFolders } from '../agent/projectRules.js'
 import { isAlive, killTree, stopTree } from '../agent/process.js'
@@ -50,15 +51,28 @@ export const LOGIN_METHODS: Readonly<Record<string, readonly string[]>> = {
 }
 
 /**
- * `EVEN_KEEL_OPENCODE_BIN`, else Even Keel's own copy of the checked version (`pinned`, BTN-347), else on Windows the
- * native `opencode.exe` of the global npm package (its `opencode` on the PATH is an npm wrapper), else `opencode` on the PATH.
+ * The npm install of OpenCode: the native binary is in `opencode-<windows|linux|darwin>-<arch>`, with `-baseline` and
+ * `-musl` builds. The postinstall picks the build for the CPU; without it the plain build goes first.
  */
-export function resolveOpenCodeBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
+export function openCodeNpm(platform: NodeJS.Platform, arch: string): NpmCli {
+  const base = `opencode-${platform === 'win32' ? 'windows' : platform}-${arch}`
+  const x64 = arch === 'x64'
+  const natives = platform === 'linux'
+    ? (x64 ? [base, `${base}-baseline`, `${base}-musl`, `${base}-baseline-musl`] : [base, `${base}-musl`])
+    : (x64 ? [base, `${base}-baseline`] : [base])
+  const file = platform === 'win32' ? 'bin/opencode.exe' : 'bin/opencode'
+  return { wrapper: 'opencode-ai', bin: 'bin/opencode.exe', natives: natives.map((pkg) => ({ pkg, file })) }
+}
+
+/**
+ * `EVEN_KEEL_OPENCODE_BIN`, else Even Keel's own copy of the checked version (`pinned`, BTN-347), else a global npm
+ * install's native binary (`npmCliBinary`: its PATH entry is a wrapper on Windows and a placeholder wherever npm ran no
+ * postinstall), else `opencode` on the PATH.
+ */
+export function resolveOpenCodeBinary(env: NodeJS.ProcessEnv, pinned?: string, machine: BinaryMachine = thisMachine()): string {
   if (env.EVEN_KEEL_OPENCODE_BIN) return env.EVEN_KEEL_OPENCODE_BIN
   if (pinned !== undefined) return pinned
-  if (process.platform !== 'win32' || env.APPDATA === undefined) return 'opencode'
-  const native = join(env.APPDATA, 'npm', 'node_modules', 'opencode-ai', 'node_modules', `opencode-windows-${process.arch}`, 'bin', 'opencode.exe')
-  return existsSync(native) ? native : 'opencode'
+  return npmCliBinary(openCodeNpm(machine.platform, machine.arch), env, machine.platform, machine.runnable) ?? 'opencode'
 }
 
 /**

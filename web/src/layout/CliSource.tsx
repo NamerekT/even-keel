@@ -7,7 +7,7 @@ import { CommandBlock } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import { CliProgress, mb, titleOf } from './CliCopies.js'
 import { cliLockOf, type CliSource } from './cliLock.js'
-import { cliText, INSTALL } from './cliText.js'
+import { cliText, installCommand } from './cliText.js'
 import './cliCopies.css'
 import '../tools/addPackage.css'
 
@@ -109,7 +109,7 @@ export function CliSourceChoice({ provider, label, execution, picked, onPick }: 
       </label>
     </div>
     {chosen === null && copy.status !== 'downloading' && <div className="cli-source__install">
-      <CommandBlock command={INSTALL[provider] ?? ''} />
+      <CommandBlock command={installCommand(provider, state.platform)} />
       <button type="button" className="button button--small" disabled={busy} onClick={() => void send('cli/check')}>{text.again}</button>
     </div>}
     {copy.status === 'downloading' && <div className="cli-copy"><CliProgress provider={provider} copy={copy} /></div>}

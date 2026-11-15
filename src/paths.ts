@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync, realpathSync, statSync } from 'node:fs'
 import { posix, win32 } from 'node:path'
 
 const SPAWN_EXTENSIONS = ['.com', '.exe']
@@ -115,11 +115,29 @@ export function isInside(path: string, folder: string, platform: NodeJS.Platform
   return inner === outer || inner.startsWith(`${outer}${pathsOf(platform).sep}`)
 }
 
+/** A real executable is megabytes; npm's placeholder `bin/claude.exe` or `bin/opencode.exe` is a few hundred bytes. */
+const PLACEHOLDER_MAX_BYTES = 4096
+
+/**
+ * Whether the file is there and is no npm placeholder: a wrapper package whose postinstall did not run (a newer npm
+ * runs none it was not allowed to) keeps a tiny shell script named `.exe` that only prints an error. A link on the
+ * PATH is followed to the file it names.
+ */
+export function isRunnable(path: string): boolean {
+  try {
+    const real = realpathSync(path)
+    return !(real.toLowerCase().endsWith('.exe') && statSync(real).size < PLACEHOLDER_MAX_BYTES)
+  } catch {
+    return false
+  }
+}
+
 /**
  * Whether `spawn` without a shell can start the CLI: a path as it is, a bare name on the PATH — on Windows only with
- * `.com` or `.exe`, the extensions it tries, so a `codex.cmd` or an npm wrapper `codex` alone does not count.
+ * `.com` or `.exe`, the extensions it tries, so a `codex.cmd` or an npm wrapper `codex` alone does not count, and
+ * nowhere an npm placeholder (`isRunnable`).
  */
-export function findBinary(bin: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform, exists: (path: string) => boolean = existsSync): boolean {
+export function findBinary(bin: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform, exists: (path: string) => boolean = isRunnable): boolean {
   const paths = pathsOf(platform)
   const windows = platform === 'win32'
   if (bin.includes('/') || (windows && bin.includes('\\'))) return exists(bin)

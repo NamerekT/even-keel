@@ -1,8 +1,42 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { binaryPath, findBinary, isInside, pathKey, relativeUnder, samePath, shownUnder, spelledUnder, workingFolder, writtenUnder } from './paths.js'
+import { binaryPath, findBinary, isInside, isRunnable, pathKey, relativeUnder, samePath, shownUnder, spelledUnder, workingFolder, writtenUnder } from './paths.js'
+
+describe('isRunnable', () => {
+  let root: string
+  const placeholder = 'echo "Error: native binary not installed." >&2\nexit 1\n'
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'even-keel-runnable-'))
+    mkdirSync(join(root, 'bin'))
+    writeFileSync(join(root, 'bin', 'stub.exe'), placeholder)
+    writeFileSync(join(root, 'bin', 'real.exe'), Buffer.alloc(64 * 1024))
+    writeFileSync(join(root, 'bin', 'script'), placeholder)
+  })
+
+  afterAll(() => rmSync(root, { recursive: true, force: true }))
+
+  it('refuses npm\'s placeholder, a tiny .exe, and a file that is not there', () => {
+    expect(isRunnable(join(root, 'bin', 'stub.exe'))).toBe(false)
+    expect(isRunnable(join(root, 'bin', 'gone.exe'))).toBe(false)
+  })
+
+  it('takes a real binary and a script without the extension', () => {
+    expect(isRunnable(join(root, 'bin', 'real.exe'))).toBe(true)
+    expect(isRunnable(join(root, 'bin', 'script'))).toBe(true)
+  })
+
+  it.skipIf(process.platform === 'win32')('looks through npm\'s link on the PATH at the file it names', () => {
+    symlinkSync(join(root, 'bin', 'stub.exe'), join(root, 'claude'))
+    symlinkSync(join(root, 'bin', 'real.exe'), join(root, 'opencode'))
+    expect(isRunnable(join(root, 'claude'))).toBe(false)
+    expect(isRunnable(join(root, 'opencode'))).toBe(true)
+    expect(findBinary('claude', { PATH: root }, 'linux')).toBe(false)
+    expect(findBinary('opencode', { PATH: root }, 'linux')).toBe(true)
+  })
+})
 
 describe('a folder behind a link', () => {
   let root: string
