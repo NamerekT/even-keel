@@ -36,7 +36,7 @@ If it is wrong: there is no icon or no start at sign-in — run `even-keel` in a
 
 Measured on a copy of the live database (2026-11-10, [verified](../verified/platforms.md)): `VACUUM FULL` with `ANALYZE` about a second, a plain `VACUUM` of the compacted database 42 ms; the tests cover that a rewritten table reuses its dead rows after a vacuum and shrinks after the compaction. Assumed: at the service's own start the compaction takes the same second on the live folder, and the hourly `VACUUM` between the service's writes and Tally's reads through the port stays in tens of milliseconds and keeps `chain_lists` and `session_windows` from growing over weeks.
 
-Not checked: the start of the real service with it (the `storage: the database was compacted in N ms` line and the `start:` summary's `storage` time), the sizes of the tables after a week of chains, an hourly vacuum landing in a busy poll.
+Seen in the real service's log (2026-11-15, [verified](../verified/platforms.md)): 142 starts from 2026-11-10 on compacted the live database in 1.0–7.5 s, median 1.4 s, and no `storage: the vacuum failed` line. Not checked: the sizes of the tables after a week of chains, an hourly vacuum landing in a busy poll.
 
 If it is wrong: the start is slower by more than a second, or the page stalls once an hour — `logs/even-keel.log` has the compaction's time and any `storage: the vacuum failed` line; a failed vacuum changes nothing else, the tables only keep growing as before BTN-952 (`docs/storage.md`, "Vacuum").
 
