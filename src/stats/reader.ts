@@ -44,7 +44,7 @@ const POOL_SIZE = 8
 export function readerPool(settings: ReaderSettings, Base: typeof pg.Client = pg.Client): pg.Pool {
   class Client extends Base {
     constructor(config: pg.ClientConfig) {
-      super({ ...config, connectionTimeoutMillis: CONNECT_MS })
+      super({ ...config, password: config.password, connectionTimeoutMillis: CONNECT_MS })
     }
   }
   // @types/pg types the option as a constructor without arguments, while pg-pool passes it the pool's options.

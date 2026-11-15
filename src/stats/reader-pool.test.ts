@@ -4,11 +4,11 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { CONNECT_MS, readerPool } from './reader.js'
 
 const QUERY_MS = 6_000
-const configs: Array<{ connectionTimeoutMillis?: number }> = []
+const configs: pg.ClientConfig[] = []
 
 // A client that connects at once and answers each query after QUERY_MS, as a busy Tally does.
 class SlowClient extends EventEmitter {
-  constructor(config: { connectionTimeoutMillis?: number }) {
+  constructor(config: pg.ClientConfig) {
     super()
     configs.push(config)
   }
@@ -44,4 +44,19 @@ it('gives each connection its own short connect timeout', async () => {
   client.release()
   expect(configs[0]?.connectionTimeoutMillis).toBe(CONNECT_MS)
   await pool.end()
+})
+
+it('passes the password hidden by pg-pool to every new client', async () => {
+  const pool = readerPool(settings, SlowClient as unknown as typeof pg.Client)
+  try {
+    expect(Object.getOwnPropertyDescriptor(pool.options, 'password')?.enumerable).toBe(false)
+    for (let i = 0; i < 2; i++) {
+      const client = await pool.connect()
+      client.release(true)
+    }
+    expect(configs).toHaveLength(2)
+    expect(configs.map(config => config.password)).toEqual([settings.password, settings.password])
+  } finally {
+    await pool.end()
+  }
 })

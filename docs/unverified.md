@@ -35,6 +35,7 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 - Forges and pull requests: 16b, 16c, 25, 25b, 26 — BTN-453; 37h2 — BTN-555; 37f2–37f4 — BTN-591; 37i1–37i3 — BTN-790; 153–158 — BTN-1142; 161 — BTN-1144.
 - Trackers: 95 — BTN-795; 96 — BTN-807; 110 — BTN-864; 117, 117a, 117b, 117c — BTN-898; 148 — BTN-1077.
 - Protection: 0, 0b, 0e — BTN-487.
+- Server Tally after the password fix: 166 — BTN-1185.
 - Packages: 7, 7a, 34, 45a, 79 — BTN-423; 159 — BTN-1143; 78c — BTN-446.
 - The chat, pauses and returns: 11, 11a–11e, 33 — BTN-710; 16a, 17, 17a, 36d — BTN-711.
 - A project without git: 133 — BTN-965; 140 — BTN-1065; 141 — BTN-1053.
@@ -235,3 +236,4 @@ The rows are checked in batches, one manual "Проверка" task each. This l
 | 161 | [Pinned actions and Dependabot](unverified/ci.md#pinned-actions-and-dependabot-btn-1132) | this repository's GitHub workflows and maintainers after the configuration reaches `main` | an action fails to load or pins stop receiving update PRs; review upstream releases and update SHAs manually on `dev` |
 | 163 | [Subtasks on any tracker's card](unverified/trackers.md#subtasks-on-any-trackers-card-btn-1152) | everyone who opens a parent task's card on Huly, GitHub, GitLab, Jira or Linear | the card shows no subtasks or only the open ones; open the parent in its tracker |
 | 164 | [A paused chain's toast and band in two lines](unverified/page.md#a-paused-chains-toast-and-band-in-two-lines-btn-1149) | everyone whose chain pauses on an error while the page is open | the toast or the band names the wrong cause, a second advice or no path; read the pause on the project page and on `/log` |
+| 166 | [Server Tally through the installed API after the password fix](unverified/page.md#server-tally-through-the-installed-api-after-the-password-fix-btn-1184) | installations using external Postgres for Tally | the installed reader may still show unavailable despite the working source reader; check the installed build and the service log |
