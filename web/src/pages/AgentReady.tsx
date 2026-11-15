@@ -8,7 +8,7 @@ import { useCommand } from '../live/useCommand.js'
 import { providerName } from './settingsRun.js'
 import { Status } from './TrackerFields.js'
 import { CommandBlock } from '../ui/blocks.js'
-import { INSTALL } from '../layout/cliText.js'
+import { installCommand } from '../layout/cliText.js'
 import type { StepCheck } from './wizard.js'
 import { copilotNote } from '../../../src/opencode/support.js'
 
@@ -39,7 +39,7 @@ function Ready({ state, provider }: { state: EvenKeelState; provider: string }) 
   const openAdd = useOpenAdd()
   const known = PROVIDERS.find((each) => each === provider)
   const ready = readinessOf(state.account, provider, state.config.shared.accounts[provider] ?? '')
-  if (ready.state === 'cliMissing') return <Status>{t.account.cliNotFound}{known !== undefined && <CommandBlock command={INSTALL[known]!} />}</Status>
+  if (ready.state === 'cliMissing') return <Status>{t.account.cliNotFound}{known !== undefined && <CommandBlock command={installCommand(known, state.platform)} />}</Status>
   if (ready.state === 'noAccount')
     return (
       <Status>

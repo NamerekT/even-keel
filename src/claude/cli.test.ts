@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { CallTimeout, FolderCalls, type CallOptions, type CallOutput } from './calls.js'
-import { callFailure, ClaudeCli, parseWarmAnswer, parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
+import { callFailure, ClaudeCli, parseWarmAnswer, parseWriteAnswer, promptArg, resolveClaudeBinary, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
 
 // EKR-102: at the service's start the chain's `claude agents` timed out behind the /context probes and paused the chain.
 describe('ClaudeCli.stop in a clogged folder queue', () => {
@@ -356,5 +356,39 @@ describe('a job the daemon no longer holds', () => {
   it('is not abandoned when the roster cannot be read', async () => {
     await writeFile(join(home.dir, 'daemon', 'roster.json'), '{')
     expect((await cli.agents(home))[0]?.abandoned).toBeUndefined()
+  })
+})
+
+describe('resolveClaudeBinary', () => {
+  const windows = (...files: string[]) => ({ platform: 'win32' as const, arch: 'x64', home: 'C:\\Users\\john', runnable: (path: string) => files.includes(path) })
+  const npm = 'C:\\Users\\john\\AppData\\Roaming\\npm'
+  const env = { APPDATA: 'C:\\Users\\john\\AppData\\Roaming', Path: `C:\\Windows;${npm}` }
+  const wrapper = `${npm}\\node_modules\\@anthropic-ai\\claude-code`
+  const native = `${wrapper}\\node_modules\\@anthropic-ai\\claude-code-win32-x64\\claude.exe`
+  const standalone = 'C:\\Users\\john\\.local\\bin\\claude.exe'
+
+  it('takes the variable, then the checked copy', () => {
+    expect(resolveClaudeBinary({ ...env, EVEN_KEEL_CLAUDE_BIN: 'D:\\tools\\claude.exe' }, 'D:\\copy\\claude.exe', windows(native))).toBe('D:\\tools\\claude.exe')
+    expect(resolveClaudeBinary(env, 'D:\\copy\\claude.exe', windows(native))).toBe('D:\\copy\\claude.exe')
+  })
+
+  it('finds the native claude.exe of an npm install whose postinstall did not run (BTN-1196)', () => {
+    expect(resolveClaudeBinary(env, undefined, windows(native))).toBe(native)
+    const hoisted = `${npm}\\node_modules\\@anthropic-ai\\claude-code-win32-x64\\claude.exe`
+    expect(resolveClaudeBinary(env, undefined, windows(hoisted))).toBe(hoisted)
+  })
+
+  it('puts the native installer first and falls back to the bare name', () => {
+    expect(resolveClaudeBinary(env, undefined, windows(standalone, native))).toBe(standalone)
+    expect(resolveClaudeBinary(env, undefined, windows(`${npm}\\claude.cmd`))).toBe('claude')
+  })
+
+  it('finds the platform package on Linux behind the placeholder npm links onto the PATH', () => {
+    const modules = '/usr/local/lib/node_modules/@anthropic-ai/claude-code/node_modules/@anthropic-ai'
+    const linux = (...files: string[]) => ({ platform: 'linux' as const, arch: 'arm64', home: '/home/john', runnable: (path: string) => files.includes(path) })
+    const glibc = `${modules}/claude-code-linux-arm64/claude`
+    const musl = `${modules}/claude-code-linux-arm64-musl/claude`
+    expect(resolveClaudeBinary({ PATH: '/usr/local/bin:/usr/bin' }, undefined, linux(glibc))).toBe(glibc)
+    expect(resolveClaudeBinary({ PATH: '/usr/local/bin:/usr/bin' }, undefined, linux(musl))).toBe(musl)
   })
 })

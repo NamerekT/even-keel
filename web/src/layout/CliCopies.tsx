@@ -7,7 +7,7 @@ import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { Banner } from './Banner.js'
-import { cliText, INSTALL } from './cliText.js'
+import { cliText, installCommand } from './cliText.js'
 import './cliCopies.css'
 import '../tools/addPackage.css'
 
@@ -45,7 +45,7 @@ export function CliActions({ provider, onDownload, onSystem, onChecked, primary 
   return <div className={line ? 'banner__inner' : 'cli-copy'}>
     {copy.status === 'downloading' ? <CliProgress provider={provider} copy={copy} /> : <>
       {line ? <span>{text.missingNamed(titleOf(provider))}</span> : copy.status === 'failed' ? <p className="notice notice--error">{say({ code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</p> : waiting && !primary && <p>{text.missing}</p>}
-      {missingSystem && <><p>{text.installingCli}</p><CommandBlock command={INSTALL[provider] ?? ''} /></>}
+      {missingSystem && <><p>{text.installingCli}</p><CommandBlock command={installCommand(provider, state.platform)} /></>}
       <div className={line ? 'banner__actions' : 'cli-copy__actions'}>
         {copy.source === 'checked' || copy.status === 'failed' ?
           <button type="button" className={`button button--small${primary ? ' button--primary' : ''}`} disabled={sending} onClick={async () => {

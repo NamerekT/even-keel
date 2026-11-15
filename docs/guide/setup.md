@@ -1053,7 +1053,7 @@ Installs from before v0.2 stay on `Checked`. The pin has limits:
 
 With `Checked`, Codex sessions run on the checked version the same way: Even Keel unpacks the platform's npm package `@openai/codex@<version>-<platform>` (Apache-2.0, checked against the registry's sha512) into `state/cli/codex/<version>/`.
 
-Where Even Keel finds the CLIs: Claude Code's native install in `~/.local/bin` (`claude.exe` on Windows), then the binary of the VS Code extension, then `claude` on `PATH`; `EVEN_KEEL_CLAUDE_BIN` overrides.
+Where Even Keel finds the CLIs: Claude Code's native install in `~/.local/bin` (`claude.exe` on Windows), then the native binary of `npm install -g @anthropic-ai/claude-code`, then the binary of the VS Code extension, then `claude` on `PATH`; `EVEN_KEEL_CLAUDE_BIN` overrides. The page suggests the native installer (`curl -fsSL https://claude.ai/install.sh | bash`, on Windows `irm https://claude.ai/install.ps1 | iex` in PowerShell): a newer npm skips the package's postinstall unless allowed, and then `claude` in a terminal prints "claude native binary not installed", though Even Keel still finds the binary inside the package.
 
 Codex's own folder is `CODEX_HOME` or `~/.codex`, the accounts added from the page live in `~/.codex-accounts`; `EVEN_KEEL_CODEX_BIN` overrides the binary.
 
@@ -1065,7 +1065,7 @@ With `Checked`, its sessions run on the checked version: Even Keel unpacks the p
 
 An x64 processor without AVX2 needs OpenCode's `-baseline` build, which Even Keel does not take: keep its "CLI version" on `Yours` there.
 
-With `Yours`, sessions run on the `opencode` you installed (`npm install -g opencode-ai`; on Windows Even Keel takes the native `opencode.exe` inside the global npm package); `EVEN_KEEL_OPENCODE_BIN` overrides both.
+With `Yours`, sessions run on the `opencode` you installed (`npm install -g opencode-ai`; Even Keel takes the native binary inside the global npm package, also when npm skipped the package's postinstall); `EVEN_KEEL_OPENCODE_BIN` overrides both.
 
 Its accounts live only in `~/.opencode-accounts`: your own OpenCode's folders are not listed.
 

@@ -23,7 +23,7 @@ import { ClaudeIcon, CodexIcon, CopilotIcon, OpenCodeIcon } from '../ui/icons.js
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { Tipped } from '../ui/Tipped.js'
 import { CommandBlock } from '../ui/blocks.js'
-import { INSTALL } from './cliText.js'
+import { installCommand } from './cliText.js'
 import { keyWord, ReplaceKeyDialog } from './ReplaceKeyDialog.js'
 import './accountAdd.css'
 
@@ -530,6 +530,7 @@ interface StepsProps {
  * failed one gives its error and "Try again" instead. The way out is the dialog's own.
  */
 export function LoginSteps({ login, device, sending, send }: StepsProps) {
+  const { state } = useLive()
   const [code, setCode] = useState('')
   const [opened, setOpened] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -555,7 +556,7 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
     return (
       <>
         <p className="notice notice--error">{missing ? say(login.error).split('\n\n')[0] : say(login.error)}</p>
-        {missing && <CommandBlock command={INSTALL[missing]!} />}
+        {missing && <CommandBlock command={installCommand(missing, state?.platform ?? '')} />}
         <div className="account__actions">
           <button type="button" className="button button--primary" disabled={sending} onClick={() => void send(...retryBody(login))}>
             {refused ? t.addAccount.otherAccount : t.common.retry}

@@ -10,6 +10,7 @@ import {
   parseModels,
   parseWriteAnswer,
   pluginFiles,
+  resolveOpenCodeBinary,
   sessionConfig,
   sessionOf,
   skillDirs,
@@ -263,5 +264,24 @@ describe('a hung turn', () => {
   it('leaves a session alone that has no live turn', () => {
     const resting: AgentEntry = { sessionId: 'ses_abc', kind: 'opencode', cwd: '/repo', startedAt: 0, status: 'idle', state: 'working', resting: true }
     expect(hungEntry(resting, 0, now)).toEqual(resting)
+  })
+})
+
+describe('resolveOpenCodeBinary', () => {
+  const machine = (platform: NodeJS.Platform, ...files: string[]) => ({ platform, arch: 'x64', home: '/home/john', runnable: (path: string) => files.includes(path) })
+
+  it('takes the native opencode.exe of the global npm package on Windows', () => {
+    const native = 'C:\\Users\\john\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\node_modules\\opencode-windows-x64\\bin\\opencode.exe'
+    expect(resolveOpenCodeBinary({ APPDATA: 'C:\\Users\\john\\AppData\\Roaming' }, undefined, machine('win32', native))).toBe(native)
+  })
+
+  it('takes the postinstall\'s binary on Linux, else the platform package\'s behind the placeholder', () => {
+    const modules = '/home/john/.nvm/versions/node/v24.1.0/lib/node_modules/opencode-ai'
+    const env = { PATH: '/home/john/.nvm/versions/node/v24.1.0/bin' }
+    const placed = `${modules}/bin/opencode.exe`
+    const baseline = `${modules}/node_modules/opencode-linux-x64-baseline/bin/opencode`
+    expect(resolveOpenCodeBinary(env, undefined, machine('linux', placed, baseline))).toBe(placed)
+    expect(resolveOpenCodeBinary(env, undefined, machine('linux', baseline))).toBe(baseline)
+    expect(resolveOpenCodeBinary(env, undefined, machine('linux'))).toBe('opencode')
   })
 })
