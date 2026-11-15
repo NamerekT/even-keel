@@ -25,8 +25,8 @@ function render(change: Partial<AccountEntry>) {
 const escaped = (text: string) => text.replaceAll("'", '&#x27;')
 
 describe("an OpenRouter account's balance (BTN-868)", () => {
-  it('without a management key shows no balance and its key limit tip says where to add one', () => {
-    const html = render({ managementKey: false })
+  it('with no key reading the balance shows none, and its key limit tip says where to add a management key', () => {
+    const html = render({ managementKey: false, balance: undefined })
     expect(html).not.toContain(`>${t.account.balance}<`)
     expect(html).toContain(escaped(t.account.balanceNeedsKey))
   })
@@ -35,6 +35,12 @@ describe("an OpenRouter account's balance (BTN-868)", () => {
     const html = render({ managementKey: true, balance: { usd: 74.75, at: new Date().toISOString() } })
     expect(html).toContain(`>${t.account.balance}<`)
     expect(html).toContain(formatUsd(74.75))
+    expect(html).not.toContain(escaped(t.account.balanceNeedsKey))
+  })
+
+  it('shows the balance the account\'s own key read without a management key, and does not ask for one (BTN-1206)', () => {
+    const html = render({ managementKey: false, balance: { usd: 12.3, at: new Date().toISOString() } })
+    expect(html).toContain(formatUsd(12.3))
     expect(html).not.toContain(escaped(t.account.balanceNeedsKey))
   })
 

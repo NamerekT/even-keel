@@ -175,14 +175,17 @@ function KeyLeft({ entry, now }: { entry: AccountEntry; now: Date }) {
   const used = limit > 0 ? (1 - remaining / limit) * 100 : 100
   const heat = remaining <= 0 || used >= FULL_PERCENT ? ' account-value--full' : used >= WARM_PERCENT ? ' account-value--warm' : ''
   const read = t.account.keyLimitTitle(formatUsd(remaining), formatUsd(limit), t.account.keyLimitResets[reset ?? 'never'], formatAgo(at, now))
-  const tip = entry.managementKey === false ? `${read} ${t.account.balanceNeedsKey}` : read
+  const tip = entry.managementKey === false && entry.balance === undefined ? `${read} ${t.account.balanceNeedsKey}` : read
   return <Tipped className={`account-sum${heat}`} tip={tip} align="start" focusable>
     <span className="account-meter__name">{t.account.keyLeft}</span>
     <strong>{formatUsd(remaining)}</strong>
   </Tipped>
 }
 
-/** The OpenRouter account's balance as its management key last read it (BTN-868), or that the key was refused. */
+/**
+ * The OpenRouter account's balance as its own key (BTN-1206) or its management key (BTN-868) last read it, or that the
+ * management key was refused.
+ */
 function Balance({ entry, now }: { entry: AccountEntry; now: Date }) {
   const balance = entry.balance!
   const ago = formatAgo(balance.at, now)

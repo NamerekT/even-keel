@@ -119,8 +119,8 @@ export interface AccountWatcherOptions {
   organizations: KeyOrganizations
   /** The management key of each OpenRouter account (BTN-868, `src/account/management.ts`). */
   managementKeys: ManagementKeys
-  /** The account's balance, read with its management key (`readOpenRouterBalance`). */
-  readBalance: (managementKey: string) => Promise<BalanceVerdict>
+  /** The account's balance, read with its own key or its management key (`readOpenRouterBalance`). */
+  readBalance: (key: string) => Promise<BalanceVerdict>
   /** Whether the key can pay again, asked of the agent's provider. */
   checkCredit: (agent: string, key: string) => Promise<CreditVerdict>
   creditCheckMs: number
@@ -177,8 +177,10 @@ export class AccountWatcher {
   /** The model each cloud account's check turn answered with, by folder key (BTN-822). */
   private readonly checkedModels = new Map<string, string | null>()
   private readonly credit: CreditChecks
-  /** Each OpenRouter account's balance as its management key last read it, by folder key (BTN-868). */
+  /** Each OpenRouter account's balance as last read, by folder key (BTN-868, BTN-1206). */
   private readonly balances = new Map<string, ReadBalance>()
+  /** The account's own key `/credits` refused, by folder key: the balance is asked of the management key until it changes. */
+  private readonly ownKeyRefused = new Map<string, string>()
 
   constructor(private readonly options: AccountWatcherOptions) {
     this.keys = new KeyChecks(options.keyCheckMs)
@@ -283,7 +285,7 @@ export class AccountWatcher {
     const next = value?.trim() ?? ''
     if (next === '') {
       this.options.managementKeys.forget(key)
-      this.balances.delete(key)
+      if (this.ownKeyRefused.has(key)) this.balances.delete(key)
       this.options.onChange()
       return
     }
@@ -295,22 +297,41 @@ export class AccountWatcher {
     this.options.onChange()
   }
 
-  /** Reads the balance of an account that has a management key, between the hourly checks; the page hears of a change. */
+  /** Reads the balance of an account on an OpenRouter key, between the hourly checks; the page hears of a change. */
   async readBalance(key: string): Promise<void> {
+    if (this.known.find((known) => known.home.key === key)?.openRouter !== true) return
     if (await this.noteBalance(key)) this.options.onChange()
   }
 
   /** True when the balance changed; an answer that tells nothing, or a key replaced meanwhile, keeps the last one. */
   private async noteBalance(key: string): Promise<boolean> {
-    const managementKey = this.options.managementKeys.of(key)
-    if (managementKey === undefined) return false
-    const verdict = await this.options.readBalance(managementKey)
-    if (verdict.state === 'unknown' || this.options.managementKeys.of(key) !== managementKey) return false
+    const verdict = await this.balanceOf(key)
+    if (verdict === null) return false
+    if (verdict === 'none') return this.balances.delete(key)
     const at = this.options.now().toISOString()
     const before = this.balances.get(key)
     const next: ReadBalance = verdict.state === 'ok' ? { usd: verdict.usd, at } : { rejected: true, at }
     this.balances.set(key, next)
     return before === undefined || ('usd' in before ? !('usd' in next) || before.usd !== next.usd : 'usd' in next)
+  }
+
+  /**
+   * The balance as the account's own key reads it, OpenRouter answering `/credits` to it too (BTN-1206), else as its
+   * management key does: null — nothing learned, `none` — the own key is refused and there is no management key.
+   */
+  private async balanceOf(key: string): Promise<Exclude<BalanceVerdict, { state: 'unknown' }> | 'none' | null> {
+    const home = this.options.homes.find(key)
+    const own = home === undefined ? null : this.options.homes.apiKeyOf(home)
+    if (own !== null && this.ownKeyRefused.get(key) !== own) {
+      const verdict = await this.options.readBalance(own)
+      if (verdict.state === 'ok') return this.options.homes.apiKeyOf(home!) === own ? verdict : null
+      if (verdict.state === 'rejected') this.ownKeyRefused.set(key, own)
+    }
+    const managementKey = this.options.managementKeys.of(key)
+    if (managementKey === undefined) return own !== null && this.ownKeyRefused.get(key) === own ? 'none' : null
+    const verdict = await this.options.readBalance(managementKey)
+    if (verdict.state === 'unknown' || this.options.managementKeys.of(key) !== managementKey) return null
+    return verdict
   }
 
   /** When an API key can pay again after a credit or spending refusal at `at`; asking keeps it checked. */
@@ -620,6 +641,7 @@ export class AccountWatcher {
     this.options.organizations.forget(key)
     this.options.managementKeys.forget(key)
     this.balances.delete(key)
+    this.ownKeyRefused.delete(key)
   }
 
   code(code: string): void {
