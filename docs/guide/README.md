@@ -7,7 +7,7 @@ The [README](../../README.md) says what Even Keel is and has the quick start. Th
 | Page | What is there |
 | --- | --- |
 | [Setting up](setup.md) | installing, the first start, adding a project, connecting a tracker, the page on other devices, the service, updating, uninstalling |
-| [The chain](chain.md) | which tasks the chain takes, in what order, what happens to a task from its start to Done, unattended mode, projects without git, slots |
+| [The chain](chain.md) | which tasks the chain takes, in what order and why one at a time, what happens to a task from its start to Done, unattended mode, projects without git, slots |
 | [Chat and questions](chat.md) | answering a session's question, the transcript, writing while a session works, the chat's commands |
 | [The page](page.md) | the project page and its legend, task cards, notices, the event log, the status screen, hotkeys, language and theme |
 

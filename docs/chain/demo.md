@@ -1,6 +1,6 @@
 # The demo on the first run (BTN-776)
 
-A person who has just installed Even Keel can watch the chain work before connecting anything: a real service, a real chain, real git and the built-in tracker, with a script in place of the agent. No account, no limits, no money.
+A person who has just installed Even Keel can watch the chain work before connecting anything: a real service, a real chain, real git where it is installed and the built-in tracker, with a script in place of the agent. No account, no limits, no money.
 
 ## Where it is
 
@@ -16,15 +16,18 @@ A person who has just installed Even Keel can watch the chain work before connec
 
 ## What it is made of
 
-- **The folder** `<state>/demo/`: the repository `repo/` and the agent's account folder `account/`, where `sessions.json` keeps its sessions. Nothing else marks the demo: a project is the demo's when its repository is `<state>/demo/repo` (`DemoService.project`).
-- **The repository** is made fresh on the project's main branch (`DEFAULT_BRANCH`) with a README, a `.gitignore` of `.claude/worktrees/` and `.temp/`, and one commit, under a local name and `demo@example.com`. No git — `demo.noGit`. Any failure while preparing the repository removes the whole `<state>/demo/` folder before returning the error; no project is made, and a later start can try again.
+- **The folder** `<state>/demo/`: the project's folder `repo/` and the agent's account folder `account/`, where `sessions.json` keeps its sessions. Nothing else marks the demo: a project is the demo's when its folder is `<state>/demo/repo` (`DemoService.project`).
+- **The mode** is chosen as for a new project (EKR-108), on every start and "Run again": `defaultGit` `false` — without git; `true` or `null` — a repository, or without git when git does not start (`missing` on `git init`; logged, no error). The demo is never refused for want of git.
+- **With git** the folder is a repository made fresh on the project's main branch (`DEFAULT_BRANCH`) with a README, a `.gitignore` of `.claude/worktrees/` and `.temp/`, and one commit, under a local name and `demo@example.com`. git that starts but fails in `init`, `config`, `add` or `commit` is `git.initFailed`.
+- **Without git** the folder has only the README, and the project has `git: false`: its sessions work in the folder itself, one at a time, and a task closes by the `TASK DONE` mark (`docs/guide/chain.md#a-project-without-git`).
+- Any failure while preparing the folder removes the whole `<state>/demo/` folder before returning the error; no project is made, and a later start can try again.
 - **The project** `DEMO` (name Demo / Демо) on the built-in tracker, with `testProject` on (BTN-206): out of the launch chart, `/stats` and Tally. The run settings are the demo's whatever the config says (`runOf`): agent `demo`, account `even-keel-demo`; a task's run cannot take it off the demo agent, whose pool has no other account.
 - **The account** `even-keel-demo` is listed by `AccountHomes` only while its folder exists (`setDemo`) and is never shown on the page: the accounts view filters it out, and the update check counts no demo project as the person's.
 - **The tasks**, in the page's language at the start: DEMO-1 (a welcome line in the README), DEMO-2 (a changelog) blocked by DEMO-1, DEMO-3 (the tone of a greeting) which asks a question with two options. A task the person adds (a ghost, BTN-770) gets a short generic turn: a note under `notes/`.
 
 ## The scenario
 
-Each turn reads, thinks and checks with pauses of 2–4 s (`PACE`), commits `[DEMO-n] <file>` on its branch and merges it into the main branch in the main checkout, as a session does; the chain then closes the task and starts the next. DEMO-3's first turn ends with the question; the answer from the page's chat resumes the session, which writes the chosen tone. The agent speaks the language its task was made in (`languageOf` the prompt's title); a task the person added, the page's.
+Each turn reads, thinks and checks with pauses of 2–4 s (`PACE`), commits `[DEMO-n] <file>` on its branch and merges it into the main branch in the main checkout, as a session does; the chain then closes the task and starts the next. Without git (no `.git` in the project's folder) the turn writes its file in the folder, skips the commit and the merge, and ends with its answer and the line `TASK DONE` (the scripted agent's `done` end), which the chain puts on the task as a comment before closing it. DEMO-3's first turn ends with the question; the answer from the page's chat resumes the session, which writes the chosen tone. The agent speaks the language its task was made in (`languageOf` the prompt's title); a task the person added, the page's.
 
 - **Deterministic**: the same pauses and texts every run, so `npm run shot` and the test see the same thing.
 - **A restart** finds the sessions in `sessions.json`; a session found mid-turn plays that turn again (its steps are idempotent), so the demo goes on where it was.

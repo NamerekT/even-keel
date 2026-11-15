@@ -132,7 +132,6 @@ export const en = {
   'cleanup.sessionNotStopped': (p: { session: string }) => `its session ${p.session} was not stopped`,
 
   'git.missing': () => 'git does not start on the machine of Even Keel, and every task needs it: install git, then try again',
-  'demo.noGit': () => 'The demo needs git, and git does not start on the machine of Even Keel: install git, then try again',
   'demo.exists': () => 'The demo is already here: open its project, or remove it to start anew',
   'git.noIdentity': () => 'git has no name and e-mail to commit with',
   'git.identityBlank': () => 'git needs both a name and an e-mail to commit with',

@@ -162,13 +162,12 @@ export const noticesRu: NoticeTexts = {
   'cleanup.sessionNotStopped': (p) => `её сессия ${p.session} не остановлена`,
 
   'git.missing': () => 'git не запускается на машине Even Keel, а без него не идёт ни одна задача: установите git и попробуйте снова',
-  'demo.noGit': () => 'Демо нужен git, а он не запускается на машине Even Keel: установите git и попробуйте снова',
   'demo.exists': () => 'Демо уже есть: откройте его проект или уберите демо, чтобы начать заново',
   'git.noIdentity': () => 'у git нет имени и почты для коммитов',
   'git.identityBlank': () => 'для коммитов git нужны и имя, и почта',
   'git.identityFailed': () => 'git не записал имя и почту в свой глобальный конфиг',
   'git.initFailed': (p) => `git не сделал ${p.path} репозиторием`,
-  'git.ignoreUnknown': (p) => `не понять, игнорирует ли ${p.repo} папку ${p.dir}`,
+  'git.ignoreUnknown': (p) => `не понять, игнорирует ли ${p.repo} ${p.dir.endsWith('/') ? 'папку' : 'файл'} ${p.dir}`,
   'git.remoteDenied': (p) => `у git нет доступа к ${p.remote}: войдите в git на машине Even Keel (Git Credential Manager) или проверьте адрес`,
   'git.remoteHostKey': (p) =>
     `SSH ещё не знает сервер ${p.host}: выполните один раз в терминале пользователя, от которого работает Even Keel, и подтвердите отпечаток`,

@@ -4,6 +4,7 @@ Even Keel takes a project's open tasks from the tracker, puts them in order and 
 
 - [Which tasks enter the chain](#which-tasks-enter-the-chain)
 - [The order](#the-order)
+- [Why one task at a time](#why-one-task-at-a-time)
 - [Several projects at once](#several-projects-at-once)
 - [What happens to a task](#what-happens-to-a-task)
 - [Warnings above the chain](#warnings-above-the-chain)
@@ -75,6 +76,19 @@ A "blocked by a task in a later milestone" or "blockers go against the milestone
 ### A milestone for tasks without one
 
 **Give the active milestone to tasks without one** assigns the current task's milestone to a task entering the chain without one, or the earliest milestone in the chain when the current task has none. The backlog's "will stand here" preview uses that milestone too. If the assignment would put a blocker after a task it holds, the task keeps no milestone. A successful assignment appears on the page in the same refresh; a milestone you later change or clear is left alone.
+
+## Why one task at a time
+
+Most agent orchestrators sell width: ten agents in parallel, each in its own worktree. Even Keel deliberately runs the tasks of a project one after another. Why:
+
+- **Backlog tasks are connected.** A parallel agent working on task B decides on its own what task A, not yet done, will look like. The sequential agent on B reads A's merged code.
+- **The bottleneck is human attention, not typing speed.** Questions, reviews and merges are yours to handle. Ten agents produce ten queues of them at once.
+- **A worktree isolates the work, not the result.** Conflicts, especially semantic ones that git does not see, move to merge time, where they are more expensive.
+- **The subscription limit is shared.** Parallel agents spend it sooner, not on more; and each of them reads the same area of the code again.
+
+Even Keel wins in time, not in width: the agent keeps working while you are away, and the chain survives what usually stops it — the usage limit running out, a context grown too large. That steady going is what the name means.
+
+One task at a time holds per folder, not per repository: different projects, or a second clone of the same repository on another branch, have chains of their own that run side by side.
 
 ## Several projects at once
 

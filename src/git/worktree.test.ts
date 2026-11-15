@@ -200,27 +200,32 @@ describe('ensureIgnored', () => {
     dir = mkdtempSync(join(tmpdir(), 'even-keel-exclude-'))
     const exclude = join(dir, 'exclude')
     writeFileSync(exclude, '# git ls-files --others --exclude-from=.git/info/exclude')
-    const { git } = fakeGit({ 'check-ignore -q .claude/worktrees/probe': { code: 1 }, 'rev-parse --git-path info/exclude': { out: exclude } })
+    const { git } = fakeGit({ 'check-ignore -q --no-index .claude/worktrees/probe': { code: 1 }, 'rev-parse --git-path info/exclude': { out: exclude } })
     await ensureIgnored(git, repo)
     expect(readFileSync(exclude, 'utf8')).toBe('# git ls-files --others --exclude-from=.git/info/exclude\n.claude/worktrees/\n')
   })
 
-  it('adds the scratch folder too, so a pull request description written there leaves the worktree clean', async () => {
+  it('adds the scratch folder and the Codex deny rules too, so neither makes a worktree dirty or lands in a commit', async () => {
     dir = mkdtempSync(join(tmpdir(), 'even-keel-exclude-'))
     const exclude = join(dir, 'exclude')
     const { git } = fakeGit({
-      'check-ignore -q .claude/worktrees/probe': { code: 1 },
-      'check-ignore -q .temp/probe': { code: 1 },
+      'check-ignore -q --no-index .claude/worktrees/probe': { code: 1 },
+      'check-ignore -q --no-index .temp/probe': { code: 1 },
+      'check-ignore -q --no-index .codex/rules/even-keel.generated.rules': { code: 1 },
       'rev-parse --git-path info/exclude': { out: exclude },
     })
     await ensureIgnored(git, repo)
-    expect(readFileSync(exclude, 'utf8')).toBe('.claude/worktrees/\n.temp/\n')
+    expect(readFileSync(exclude, 'utf8')).toBe('.claude/worktrees/\n.temp/\n/.codex/rules/even-keel.generated.rules\n')
   })
 
-  it('leaves the exclude file alone when both folders are already ignored', async () => {
-    const { git, calls } = fakeGit({ 'check-ignore -q .claude/worktrees/probe': { code: 0 }, 'check-ignore -q .temp/probe': { code: 0 } })
+  it('leaves the exclude file alone when everything is already ignored', async () => {
+    const { git, calls } = fakeGit()
     await ensureIgnored(git, repo)
-    expect(calls).toEqual(['check-ignore -q .claude/worktrees/probe', 'check-ignore -q .temp/probe'])
+    expect(calls).toEqual([
+      'check-ignore -q --no-index .claude/worktrees/probe',
+      'check-ignore -q --no-index .temp/probe',
+      'check-ignore -q --no-index .codex/rules/even-keel.generated.rules',
+    ])
   })
 })
 
