@@ -14,11 +14,6 @@ export function localStamp(at: Date, tz: string): string {
   return `${local}${offset < 0 ? '-' : '+'}${two(Math.floor(Math.abs(offset) / 60))}:${two(Math.abs(offset) % 60)}`
 }
 
-/** The day of a moment in `tz`: `2026-11-10`. */
-export function localDay(at: Date, tz: string): string {
-  return localStamp(at, tz).slice(0, 10)
-}
-
 /**
  * A local stamp or day as the badge prints it, the month by its name since `11-10` reads two ways: `Nov 10` and, of a
  * stamp, `03:40`. `null` — not such a text.

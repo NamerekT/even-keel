@@ -50,6 +50,7 @@ function isTask(task: unknown): boolean {
 function isMilestone(item: unknown): boolean {
   if (item === null) return true
   if (!isObject(item) || !isString(item.name) || !isNumber(item.done) || !isNumber(item.left)) return false
+  // `eta` and `target` come only from a service before BTN-1197; the picture ignores them.
   return optional(item.queued, isNumber) && optional(item.eta, isTime) && optional(item.target, isTime)
 }
 
