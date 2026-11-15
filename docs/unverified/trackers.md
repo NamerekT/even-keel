@@ -182,15 +182,14 @@ If one is wrong, a picture is not taken or not shown, or a session works without
 
 ## Copying built-in tasks into another tracker (BTN-1073)
 
-The copy of a built-in project's open tasks into another tracker (`docs/trackers.md`, "The copy into another tracker") is checked by tests on a fake `TaskEditor` (`src/tracker/export.test.ts`) and on the state database with the service's own lock (`src/builtin/export.test.ts`). Run live into GitHub, Huly and Linear (2026-11-15, [verified](../verified/trackers.md)): the plan's losses, parents, links, priorities, files, comments, "Moved to" in the old tasks and the switch were as described; a GitHub copy cut by an archived repository went on after "Continue" with nothing twice, through the page's window, twice. Found there: BTN-1192, BTN-1193, BTN-1194 (seen fixed), BTN-1195 (seen fixed; BTN-1199 left). Still assumed:
+The copy of a built-in project's open tasks into another tracker (`docs/trackers.md`, "The copy into another tracker") is checked by tests on a fake `TaskEditor` (`src/tracker/export.test.ts`) and on the state database with the service's own lock (`src/builtin/export.test.ts`). Run live into GitHub, Huly and Linear (2026-11-15, [verified](../verified/trackers.md)): the plan's losses, parents, links, priorities, files, comments, "Moved to" in the old tasks and the switch were as described; a GitHub copy cut by an archived repository went on after "Continue" with nothing twice, through the page's window, three times. Found there: BTN-1192, BTN-1193, BTN-1194, BTN-1195 and BTN-1199 (all but BTN-1192 and BTN-1193 seen fixed), BTN-1200. Still assumed:
 
-- a cut between a task's create and its labels: the marker finds the task and its labels, priority and status are put back (BTN-1192's fix; the cut after it fell between two tasks);
+- a cut between a task's create and its labels: the marker finds the task and its labels, priority and status are put back (BTN-1192's fix; the three cuts after it fell between two tasks — an archived repository still took a label a second after the archive, so archiving cannot aim there);
 - Jira's, GitLab's and Forgejo's editors take the draft as the tests' fake does, and their markers find the task a cut create made;
 - an estimate reaches Huly and Linear, and comments by an agent or Even Keel get their headers;
 - a journal comment longer than a tracker's limit (GitHub's 65,536 characters) fits or fails cleanly;
 - a copy does not run into a tracker's rate limit before it ends; if it does, it stops and a start goes on (hundreds of tasks: BTN-1190, BTN-1191);
-- the window reopened or a tab reloaded mid-copy, and a run lost to a restart coming back as "Continue";
-- after a switch into GitHub the former backlog stands after the milestone in the saved order, not before it (BTN-1199's fix, seen only in tests).
+- the window reopened or a tab reloaded mid-copy, and a run lost to a restart coming back as "Continue".
 
 If one is wrong, the copy stops with `export.failed`, or a task is copied twice or without its parent, links or files. **Workaround:** the project stays on the built-in tracker; fix the target (create the missing labels and milestones, wait for the rate limit) and start the copy again; delete a doubled task in the tracker by hand. To check: on a bench, copy a built-in project with a parent and a child, a `blocks` pair, a label, a milestone, an estimate, an attachment and comments by a person, an agent and Even Keel into Jira, GitLab and Forgejo; cut the copy mid-way and start again; see no task, comment or file twice and "Moved to" in every old task.
 
