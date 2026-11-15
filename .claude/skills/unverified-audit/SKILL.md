@@ -1,0 +1,23 @@
+---
+name: unverified-audit
+description: Audit docs/unverified for stale or bloated entries during the weekly audit or when asked to clean the unverified journal ("почисти журнал непроверенного", "аудит unverified"). Use git evidence to review candidates and preserve the verified history.
+---
+
+# Audit the unverified journal
+
+1. Run `npm run --silent unverified-audit` first, from the repository root. Save stdout to `.temp/unverified-audit.md`. The script only reads; it neither edits entries nor removes them. It reports A (later task commits touching the entry's code), B (body size/history dates), C (new sibling notice codes), and D (names no longer found). Missing task history means A is unknown, not that the entry is current. Missing IDs and dangling index rows appear at the bottom.
+2. Read the rules in `docs/unverified.md` and `docs/verified.md`. For each A candidate, read its complete entry and inspect the culprit diffs with `git show <hash> -- <entry-code-files>`. Reconstruct those files from commits named by the entry's BTN/EKR tasks and existing backtick paths, limited to `src/`, `web/src/`, `tally/src/`, and `plugins/`; exclude tests and fixtures. Inspect all relevant culprit commits, including those marked as massive changes. Decide whether behaviour changed or only the implementation was refactored. Make the decisions yourself; do not ask the user about every entry. Give one summary at the end.
+
+## Decide and edit
+
+- **The entry is still correct; the culprit did not change its behaviour:** add `<!-- checked against: BTN-123, EKR-45 -->` immediately below the heading, using the actual culprit task IDs. Extend an existing comment without duplicating IDs. Change nothing else in that entry. This prevents the same culprit being reported next week.
+- **Behaviour changed:** rewrite the entry around the current mechanics. Before removing already checked or obsolete history, find the corresponding row in `docs/verified/<area>.md`. If no row preserves that evidence, keep the text and flag it in the final summary; do not turn an inference from code into a live check.
+- **Behaviour was removed:** establish the removing task from the code diff. Before retiring the entry, run `git grep -n -F -e '<ID>' -- src` and inspect the matches, especially `rare: <ID>` log references. If code still refers to this entry ID, leave the entry and flag it in the summary. Otherwise remove its section and index row and append a row to `docs/verified/<area>.md` saying `entry <ID> retired: the behaviour was removed by <task>`. Name the removal commit and date, use `retired` as the result, and mark live-run fields as not applicable: this records retirement, not a successful live check. Never reuse the ID.
+- **Bloated (B):** retain only what remains open, **Workaround**, and the log-based check line if present. Move run history to `verified/` under the evidence rule above: if it has no verified row, retain it and flag it. Keep the heading and anchor unchanged because the index links to them.
+- **C or D without A:** read and mention the finding in the summary only. These weak signals alone never justify changing an entry. D distinguishes a removed notice from a configuration key using the history of `src/notice/en.ts`; it is not a complete static analysis.
+- **A is unknown:** investigate the missing task history if useful, but never infer unchanged or removed behaviour from missing commits.
+- **The index's Task column names a “Проверка” task:** do not edit or close that task. If its entry was rewritten or retired, name the entry and task in the summary for the user to decide.
+
+Use Edit/Write (the environment's file-editing tools), never `sed`, for journal changes. For an audit performed by hand, make one commit on `dev`, titled `Unverified audit: <ID> rewritten, <ID> retired, …`. When an audit runs in an assigned task worktree, follow that session's branch and commit instructions instead; do not switch it to `dev`.
+
+Run `npx vitest run scripts/unverified-index.test.ts scripts/unverified-audit.test.ts` after edits, then the repository's required pre-merge checks. Rerun the report to check the acknowledged culprits and index consistency. Summarize rewritten, retired and acknowledged entries, unresolved evidence or code references, weak signals, affected check tasks, and the report path. A report alone does not verify any behaviour live.

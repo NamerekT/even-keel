@@ -4,6 +4,10 @@ Even Keel is checked live on the author's machine with the author's accounts. So
 
 If you run into one of these, please open an issue with what you saw: it is the only way the entry gets checked. What has been checked is in [verified.md](verified.md).
 
+When code removes a behaviour, retire its entry and index row only after checking that its permanent ID is no longer referenced in code (`git grep -n -F -e '<ID>' -- src`, including `rare: <ID>` log keys). If a reference remains, keep the entry and report it. Otherwise append a row to `docs/verified/<area>.md`: `entry <ID> retired: the behaviour was removed by <task>`, with the removing commit and date and a `retired` result. This is a retirement record, not a live check; live-run fields are not applicable. An entry is never silently deleted and its ID is never reused.
+
+The weekly [unverified-audit skill](../.claude/skills/unverified-audit/SKILL.md) reviews stale and bloated entries. `npm run unverified-audit` prints a read-only Markdown report; later code changes are candidates for review, not proof that an entry is obsolete. The audit preserves checked history in the verified log and leaves manual check tasks for the user to decide.
+
 ## Areas
 
 The entries are kept in one file per area. [What has been verified](verified.md) has the same areas under the same file names, so one thing is looked up in the same place in both.
