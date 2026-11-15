@@ -5,7 +5,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { Toast, ToastList, useToastTimer } from '../ui/Toast.js'
-import { freshAlerts, lastId, placePath, useFirstReadMark, withFresh } from './eventLog.js'
+import { freshAlerts, lastId, openPlace, placePath, useFirstReadMark, withFresh } from './eventLog.js'
 import { EventTitle } from './EventSubject.js'
 import { toastOf } from './eventToast.js'
 
@@ -43,7 +43,7 @@ function EventToast({ entry, state, onClose }: { entry: EventEntry; state: EvenK
   const timer = useToastTimer(TOAST_MS, onClose)
   const path = placePath(entry.place, state)
   const text = toastOf(entry)
-  const open = path === null ? [] : [{ label: t.events.open, onClick: () => (onClose(), navigate(path)) }]
+  const open = path === null ? [] : [{ label: t.events.open, onClick: () => (onClose(), openPlace(entry.place), navigate(path)) }]
   return (
     <Toast
       source="Even Keel"

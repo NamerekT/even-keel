@@ -11,6 +11,8 @@ export type EventPlace =
   | { view: 'task'; project: string; task: string }
   | { view: 'ask'; project: string | null; task: string }
   | { view: 'settings'; project: string | null }
+  /** The Tracker tab of the project's settings, where the copy to another tracker is (BTN-1193). */
+  | { view: 'tracker'; project: string }
   | { view: 'packages'; project: string }
   | { view: 'accounts' }
 

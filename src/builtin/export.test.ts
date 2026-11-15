@@ -15,6 +15,7 @@ import { BuiltinStore } from './store.js'
 import type { SwitchDeps } from './switch.js'
 import { emptyChainState, type ChainState } from '../chain/model.js'
 import { parseConfig } from '../config.js'
+import type { EventDraft } from '../event-log/model.js'
 
 const ABC = '11111111-1111-4111-8111-111111111111'
 const PLACES = { [ABC]: { key: 'ABC' } }
@@ -204,6 +205,31 @@ describe('BuiltinExports', () => {
     expect((await builtinSource(db, PLACES).card(`ABC-${old}`)).parent?.moved).toEqual({ key: 'GH-1', url: 'https://github.example.com/GH-1' })
   })
 
+  it('writes the start, the stop with its cause, the repeat and the end into the event log (BTN-1193)', async () => {
+    await seed()
+    const events: EventDraft[] = []
+    const target = fakeTarget({ failComment: true })
+    const exports = new BuiltinExports({ db, places: () => PLACES, filesDir: dir, connect: async () => target.target(), refresh: async () => true, say: () => {}, event: (draft) => void events.push(draft) })
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    const tracker = { view: 'tracker', project: ABC }
+    expect(events).toEqual([
+      { level: 'info', notice: { code: 'eventLog.exportStarted', params: { project: ABC, tracker: 'GitHub', place: 'example/repo', newKey: 'GH', total: 2 } }, place: tracker },
+      { level: 'warning', notice: { code: 'eventLog.exportFailed', params: { project: ABC, tracker: 'GitHub' }, detail: 'HTTP 502' }, place: tracker },
+    ])
+    events.length = 0
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    expect(events).toEqual([
+      { level: 'info', notice: { code: 'eventLog.exportContinued', params: { project: ABC, tracker: 'GitHub', total: 2 } }, place: tracker },
+      { level: 'info', notice: { code: 'eventLog.exportFinished', params: { project: ABC, tracker: 'GitHub', copied: 2 } }, place: tracker },
+    ])
+    events.length = 0
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    expect(events, 'a finished copy with nothing new to take writes nothing').toEqual([])
+  })
+
   it('refuses a project not on the built-in tracker', async () => {
     expect(await refusal(exportsWith(fakeTarget()).plan('99999999-9999-4999-8999-999999999999', TARGET))).toBe('builtin.noProject')
   })
@@ -248,6 +274,22 @@ describe('the switch after the copy (BTN-1074)', () => {
     await exports.switch(ABC)
     expect(renamed).toEqual([new Map([['ABC-1', 'GH-1'], ['ABC-2', 'GH-2']])])
     expect(moved).toEqual([{ tracker: 'github', trackerProject: 'example/repo', key: 'GH', profile: 'gh' }])
+  })
+
+  it('writes the switch into the event log with the old key and the new one (BTN-1193)', async () => {
+    await seed()
+    const events: EventDraft[] = []
+    const exports = new BuiltinExports({
+      db, places: () => PLACES, filesDir: dir, connect: async () => fakeTarget().target(), refresh: async () => true, say: () => {},
+      switching: switching().deps, trackerTitle: (kind) => (kind === 'github' ? 'GitHub' : kind), event: (draft) => void events.push(draft),
+    })
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    events.length = 0
+    await exports.switch(ABC)
+    expect(events).toEqual([
+      { level: 'info', notice: { code: 'eventLog.trackerSwitched', params: { project: ABC, tracker: 'GitHub', from: 'ABC', to: 'GH' } }, place: { view: 'project', project: ABC } },
+    ])
   })
 
   it('refuses while a task filed after the copy is not copied, or while the copy runs', async () => {

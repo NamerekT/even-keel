@@ -11,15 +11,28 @@ export function fakeEvent(state: EvenKeelState, event: string): EvenKeelState {
   const next = changedBy(state, event)
   const now = new Date()
   const drafts = observe(observe(null, watchedOf(state), now).memory, watchedOf(next), now).drafts
-  return { ...next, eventLog: [...next.eventLog, ...entriesOf(drafts, next.eventLog, now)] }
+  return { ...next, eventLog: [...next.eventLog, ...entriesOf([...drafts, ...toldBy(state, event)], next.eventLog, now)] }
 }
+
+/** The entries the service writes when told, not seen in the state: a copy to another tracker that stopped (BTN-1193). */
+function toldBy(state: EvenKeelState, event: string): EventDraft[] {
+  const project = state.projects[0]
+  if (event !== 'exportFailed' || project === undefined) return []
+  return [exportFailed(project)]
+}
+
+const exportFailed = (project: string): EventDraft => ({
+  level: 'warning',
+  notice: notice('eventLog.exportFailed', { project, tracker: 'GitHub' }, { detail: 'HTTP 502: Bad Gateway' }),
+  place: { view: 'tracker', project },
+})
 
 function entriesOf(drafts: EventDraft[], log: EventEntry[], now: Date): EventEntry[] {
   const last = Number(log.at(-1)?.id ?? 0)
   return drafts.map((draft, index) => ({ id: String(last + index + 1), at: now.toISOString(), ...draft }))
 }
 
-/** A day of the log: the chain, its launches, a red main and its fix, a question, the settings, a CLI to check, a package and an account. */
+/** A day of the log: the chain, its launches, a red main and its fix, a question, the settings, a copy to another tracker, a CLI to check, a package and an account. */
 export function fakeEventLog(projects: string[]): EventEntry[] {
   const [first = 'ABC', second = 'DEMO'] = projects
   const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000)
@@ -29,6 +42,18 @@ export function fakeEventLog(projects: string[]): EventEntry[] {
     [500, { level: 'info', notice: notice('eventLog.continued', { task: `${first}-1`, why: 'answer' }), place: { view: 'task', project: first, task: `${first}-1` } }],
     [480, { level: 'info', notice: notice('eventLog.handoff', { task: `${first}-1`, why: 'checkpoint' }), place: { view: 'task', project: first, task: `${first}-1` } }],
     [470, { level: 'info', notice: notice('eventLog.projectSettings', { project: second }), place: { view: 'settings', project: second } }],
+    [
+      460,
+      {
+        level: 'info',
+        notice: notice('eventLog.exportStarted', { project: second, tracker: 'GitHub', place: 'example/demo', newKey: 'DEMOGH', total: 14 }),
+        place: { view: 'tracker', project: second },
+      },
+    ],
+    [455, exportFailed(second)],
+    [440, { level: 'info', notice: notice('eventLog.exportContinued', { project: second, tracker: 'GitHub', total: 14 }), place: { view: 'tracker', project: second } }],
+    [430, { level: 'info', notice: notice('eventLog.exportFinished', { project: second, tracker: 'GitHub', copied: 14 }), place: { view: 'tracker', project: second } }],
+    [428, { level: 'info', notice: notice('eventLog.trackerSwitched', { project: second, tracker: 'GitHub', from: 'DEMO', to: 'DEMOGH' }), place: { view: 'project', project: second } }],
     [400, { level: 'error', notice: notice('eventLog.red', { project: first, commit: 'a1b2c3d', cis: ['github'] }), place: { view: 'ci', project: first } }],
     [398, { level: 'info', notice: notice('eventLog.stopped', { task: `${first}-2` }), place: { view: 'project', project: first } }],
     [
@@ -84,7 +109,7 @@ function wrapperError(event: 'pulls' | 'tracker' | 'dirty', project: string, tas
   return notice('review.notOpened', { task }, { cause })
 }
 
-/** The state after the event `?event=limit|red|ciRed|redBoth|noNote|pulls|tracker|dirty|ask|conflict|work` names; the first chain, CI, session and project get it. */
+/** The state after the event `?event=limit|red|ciRed|redBoth|noNote|pulls|tracker|dirty|ask|conflict|work` names (`exportFailed` is `toldBy`); the first chain, CI, session and project get it. */
 function changedBy(state: EvenKeelState, event: string): EvenKeelState {
   const [first, second] = state.projects
   if (event === 'limit') {

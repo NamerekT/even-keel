@@ -24,6 +24,7 @@ describe('event categories', () => {
     ['eventLog.ask', 'questions'], ['eventLog.ciRed', 'main'],
     ['eventLog.usageOff', 'limits'], ['eventLog.packages', 'packages'],
     ['eventLog.projectRemoved', 'settings'], ['eventLog.settings', 'settings'],
+    ['eventLog.exportFailed', 'settings'], ['eventLog.trackerSwitched', 'settings'],
     ['agent.uncheckedVersion', 'system'], ['text', 'system'],
   ])('%s belongs to %s', (code, category) => {
     expect(categoryOf({ code, params: {} } as Notice)).toBe(category)

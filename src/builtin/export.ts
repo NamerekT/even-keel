@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
+import type { EventDraft, EventLevel, EventPlace } from '../event-log/model.js'
 import type { Db } from '../storage/database.js'
 import { exportPlan, progressOf, runExport, type ExportPlan, type ExportRow, type ExportSource, type ExportState } from '../tracker/export.js'
 import type { OpenedExportTarget } from '../tracker/export-target.js'
@@ -81,6 +82,10 @@ export interface BuiltinExportsDeps {
   say?: (line: string) => void
   /** The switch of the project to the copy's target (BTN-1074); without it the target's prefix goes unchecked and no switch is made. */
   switching?: SwitchDeps
+  /** An entry of the event log: a copy started, went on, stopped or ended, the project switched (BTN-1193). */
+  event?: (draft: EventDraft) => void
+  /** A tracker's name by its adapter's kind, for the switch's entry; without it the kind itself. */
+  trackerTitle?: (kind: string) => string
 }
 
 /**
@@ -167,10 +172,17 @@ export class BuiltinExports {
     const store = new BuiltinStore(this.deps.db, (key) => names.name(key))
     const [header, rows, ids, list] = await Promise.all([this.records.header(project), this.records.rows(project), store.rowIds(project), store.list([project])])
     const tasks = list.map((task) => ({ ref: ids.get(task.number)!, id: names.name(task), open: isOpen(task.status) }))
+    const from = switching.config().keys[project] ?? project
     const switched = switchTracker(switching, { project, header, rows, tasks })
     this.say(`export: ${project}: the project now reads its tasks from ${switched.move.tracker}, ${switched.names.size} of them under new ids`)
+    const tracker = this.deps.trackerTitle?.(switched.move.tracker) ?? switched.move.tracker
+    this.event('info', notice('eventLog.trackerSwitched', { project, tracker, from, to: switched.move.key }), { view: 'project', project })
     await this.deps.refresh(project).catch(() => {})
     return switched
+  }
+
+  private event(level: EventLevel, said: Notice, place: EventPlace): void {
+    this.deps.event?.({ level, notice: said, place })
   }
 
   private checkTarget(project: string, fields: ExportTargetFields): void {
@@ -201,18 +213,28 @@ export class BuiltinExports {
     const target = await this.deps.connect(project, fields)
     if (!same) await this.records.begin(project, fields)
     this.failures.delete(project)
+    const total = await this.total(project, await this.records.rows(project))
+    const said = same
+      ? notice('eventLog.exportContinued', { project, tracker: target.title, total })
+      : notice('eventLog.exportStarted', { project, tracker: target.title, place: fields.place, newKey: fields.key, total })
+    this.event('info', said, { view: 'tracker', project })
     return target
   }
 
   private async run(project: string, source: ExportSource, target: OpenedExportTarget): Promise<void> {
+    const place: EventPlace = { view: 'tracker', project }
     try {
       await whileExporting(project, () => runExport({ source, target, log: this.records.log(project), say: this.say }))
       await this.records.finish(project)
       this.say(`export: ${project}: the tasks are copied to ${target.title}`)
+      const copied = progressOf(await this.records.rows(project)).marked
+      this.event('info', notice('eventLog.exportFinished', { project, tracker: target.title, copied }), place)
     } catch (error) {
-      const failed = notice('export.failed', { tracker: target.title }, { detail: errorText(error) })
+      const detail = errorText(error)
+      const failed = notice('export.failed', { tracker: target.title }, { detail })
       this.failures.set(project, failed)
       this.say(`export: ${project}: ${englishOf(failed)}`)
+      this.event('warning', notice('eventLog.exportFailed', { project, tracker: target.title }, { detail }), place)
     } finally {
       await target.close().catch(() => {})
       await this.deps.refresh(project).catch(() => {})

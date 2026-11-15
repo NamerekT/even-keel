@@ -21,6 +21,7 @@ describe('placePath', () => {
     expect(placePath({ view: 'task', project: 'p-1', task: 'ABC 5' }, state)).toEqual({ pathname: '/p/p-1', search: '?task=ABC%205' })
     expect(placePath({ view: 'settings', project: 'p-1' }, state)).toEqual({ pathname: '/p/p-1', hash: 'settings' })
     expect(placePath({ view: 'settings', project: null }, state)).toEqual({ pathname: '/settings' })
+    expect(placePath({ view: 'tracker', project: 'p-1' }, state)).toEqual({ pathname: '/p/p-1', hash: 'settings' })
     expect(placePath({ view: 'project', project: 'p-1' }, state)).toEqual({ pathname: '/p/p-1' })
     expect(placePath({ view: 'packages', project: 'p-1' }, state)).toEqual({ pathname: '/p/p-1', search: '?pkg=1' })
     expect(placePath({ view: 'packages', project: 'p-gone' }, state)).toBeNull()

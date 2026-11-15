@@ -15,6 +15,9 @@ const BUILTIN_FIELDS: Record<BuiltinField, string> = {
 }
 
 const MOVE_LABELS = { start: '«При старте задачи»', review: '«При открытии PR»', done: '«При завершении задачи»' } as const
+const tasks = (count: number) => `${count} ${plural('ru', count, { one: 'задача', few: 'задачи', many: 'задач', other: 'задачи' })}`
+/** "перенос 1 задачи", "перенос 3 задач". */
+const ofTasks = (count: number) => `${count} ${plural('ru', count, { one: 'задачи', few: 'задач', many: 'задач', other: 'задачи' })}`
 const chats = (count: number) => `${count} ${plural('ru', count, { one: 'чат', few: 'чата', many: 'чатов', other: 'чата' })}`
 
 const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
@@ -783,6 +786,11 @@ export const noticesRu: NoticeTexts = {
   'eventLog.projectSettings': () => 'настройки изменены',
   'eventLog.projectAdded': () => 'проект добавлен',
   'eventLog.projectRemoved': () => 'проект удалён',
+  'eventLog.exportStarted': (p) => `начат перенос ${ofTasks(p.total)} в ${p.tracker}${p.place === '' ? '' : ` (${p.place})`} под ключом ${p.newKey}`,
+  'eventLog.exportContinued': (p) => `перенос задач в ${p.tracker} продолжен, всего ${tasks(p.total)}`,
+  'eventLog.exportFailed': (p) => `перенос задач в ${p.tracker} остановился: трекер отказал в записи. Ответ трекера`,
+  'eventLog.exportFinished': (p) => `перенос задач в ${p.tracker} закончен: ${plural('ru', p.copied, { one: 'перенесена', other: 'перенесено' })} ${tasks(p.copied)}`,
+  'eventLog.trackerSwitched': (p) => `проект переключён на ${p.tracker}: задачи теперь берутся оттуда, ключ ${p.from} сменился на ${p.to}`,
   'eventLog.packages': (p) => `${p.package === undefined ? 'набор пакетов' : `пакет ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}`,
   'eventLog.usageUnread': (p) => `Лимиты аккаунта ${p.account} не читаются, берутся из сессий`,
   'eventLog.usageOff': (p) => `Лимиты аккаунта ${p.account} не читаются до перезапуска`,

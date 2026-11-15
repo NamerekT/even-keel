@@ -324,6 +324,8 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     filesDir: attachmentsDirOf(stateDirOf()),
     connect: (project, target) => connectExportTarget(ADAPTERS, ctx.profiles.current(), BUILTIN, project, target, ctx.TRACKER_CHECK_MS),
     refresh: (project) => ctx.refreshProject(project),
+    event: (draft) => ctx.eventLog.add(draft),
+    trackerTitle: (kind) => ADAPTERS[kind]?.title ?? kind,
     switching: {
       config: () => ctx.configStore.current,
       raw: () => ctx.configStore.raw(),

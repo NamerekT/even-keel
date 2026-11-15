@@ -8,6 +8,7 @@ export const eventsRu = {
     'eventLog.uncommitted': 'Задача ушла из цепочки, а работа осталась в её папке.',
     'eventLog.unmerged': 'Задача ушла из цепочки, а работа осталась в её папке.',
     'eventLog.chainHeld': 'Откройте проект, чтобы продолжить.',
+    'eventLog.exportFailed': 'Проект остаётся на собственном трекере Even Keel. Откройте «Перенести в другой трекер» и нажмите «Продолжить».',
   } as Partial<Record<string, string>>,
   titles: {
     'review.notOpened': 'pull request не открыт',

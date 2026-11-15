@@ -9,6 +9,7 @@ export const eventsEn = {
     'eventLog.uncommitted': 'The task left the chain; its work is still in its folder.',
     'eventLog.unmerged': 'The task left the chain; its work is still in its folder.',
     'eventLog.chainHeld': 'Open the project to go on.',
+    'eventLog.exportFailed': 'The project stays on Even Keel’s own tracker. Open “Move to another tracker” and press “Continue”.',
   } as Partial<Record<string, string>>,
   /** A paused chain's toast title by the code of its error, read after the task: shorter than the error's own text, which names the task again. */
   titles: {

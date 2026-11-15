@@ -4,7 +4,7 @@ import type { EventEntry } from '../../../src/event-log/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { formatFullTime, formatLineTime, minuteMarks } from '../format.js'
 import { localized, t } from '../i18n/index.js'
-import { lastId, markRead, placePath, readMark } from '../layout/eventLog.js'
+import { lastId, markRead, openPlace, placePath, readMark } from '../layout/eventLog.js'
 import { EVENT_CATEGORIES, EVENT_THRESHOLDS, filtered, filterOf, projectOf, searchOf, subjectOf, type EventFilter } from '../layout/eventLogFilter.js'
 import { EventSubject } from '../layout/EventSubject.js'
 import { useNow } from '../layout/useNow.js'
@@ -115,7 +115,7 @@ function EntryList({ entries, state, read }: { entries: EventEntry[]; state: Eve
               {fresh && <span className="chip event-log__fresh">{t.events.fresh}</span>}
             </span>
             {path !== null && (
-              <Link to={path} className="row-action event-log__open" aria-label={t.events.open} title={t.events.open}>
+              <Link to={path} onClick={() => openPlace(entry.place)} className="row-action event-log__open" aria-label={t.events.open} title={t.events.open}>
                 <GoToIcon />
               </Link>
             )}

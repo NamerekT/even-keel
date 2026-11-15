@@ -37,6 +37,12 @@ const categories = {
   'eventLog.projectSettings': 'settings',
   'eventLog.projectAdded': 'settings',
   'eventLog.projectRemoved': 'settings',
+  // The copy to another tracker and the switch change where the project's tasks live: a project setting (BTN-1193).
+  'eventLog.exportStarted': 'settings',
+  'eventLog.exportContinued': 'settings',
+  'eventLog.exportFailed': 'settings',
+  'eventLog.exportFinished': 'settings',
+  'eventLog.trackerSwitched': 'settings',
 } satisfies Record<Extract<NoticeCode, `eventLog.${string}`>, EventCategory>
 
 export function categoryOf(notice: Notice): EventCategory {

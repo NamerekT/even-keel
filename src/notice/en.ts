@@ -801,6 +801,16 @@ export const en = {
   'eventLog.projectSettings': (_: { project: string }) => 'the settings changed',
   'eventLog.projectAdded': (_: { project: string }) => 'the project was added',
   'eventLog.projectRemoved': (_: { key: string }) => 'the project was removed',
+  // `newKey`, not `key`: a `key` param is the subject of an entry about a removed project (`subjectOf`).
+  'eventLog.exportStarted': (p: { project: string; tracker: string; place: string; newKey: string; total: number }) =>
+    `the copy of ${p.total} ${p.total === 1 ? 'task' : 'tasks'} to ${p.tracker}${p.place === '' ? '' : ` (${p.place})`} started, under the key ${p.newKey}`,
+  'eventLog.exportContinued': (p: { project: string; tracker: string; total: number }) =>
+    `the copy to ${p.tracker} goes on, ${p.total} ${p.total === 1 ? 'task' : 'tasks'} in all`,
+  'eventLog.exportFailed': (p: { project: string; tracker: string }) => `the copy to ${p.tracker} stopped: the tracker refused a write. Tracker response`,
+  'eventLog.exportFinished': (p: { project: string; tracker: string; copied: number }) =>
+    `the copy to ${p.tracker} is finished: ${p.copied} ${p.copied === 1 ? 'task' : 'tasks'} copied`,
+  'eventLog.trackerSwitched': (p: { project: string; tracker: string; from: string; to: string }) =>
+    `the project moved to ${p.tracker}: its tasks are read there now, the key ${p.from} is now ${p.to}`,
   'eventLog.packages': (p: { project: string; package?: string; problem: LoggedPackageProblem; detail: string }) =>
     `${p.package === undefined ? 'the package set' : `the package ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}`,
   'eventLog.usageUnread': (p: { account: string }) => `The limits of the account ${p.account} can't be read, taken from the sessions`,

@@ -3,7 +3,7 @@ import type { EventEntry, EventPlace } from '../../../src/event-log/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { BACKLOG_HASH } from '../pages/BacklogPanel.js'
 import { CI_HASH } from '../pages/CiChip.js'
-import { SETTINGS_HASH } from '../pages/settingsStore.js'
+import { openTab, projectScope, SETTINGS_HASH } from '../pages/settingsStore.js'
 import { projectPath } from '../state.js'
 import { PACKAGES_PARAM } from '../tools/packageGroups.js'
 
@@ -24,12 +24,17 @@ export function placePath(place: EventPlace | null, state: Pick<EvenKeelState, '
   if (!state.projects.includes(place.project)) return null
   const pathname = projectPath(place.project)
   if (place.view === 'packages') return { pathname, search: `?${PACKAGES_PARAM}=1` }
-  if (place.view === 'settings') return { pathname, hash: SETTINGS_HASH }
+  if (place.view === 'settings' || place.view === 'tracker') return { pathname, hash: SETTINGS_HASH }
   if (place.view === 'ask') return { pathname, hash: place.task }
   if (place.view === 'backlog') return { pathname, hash: BACKLOG_HASH }
   if (place.view === 'task') return { pathname, search: `?task=${encodeURIComponent(place.task)}` }
   if (place.view === 'ci' && state.ci[place.project] !== undefined) return { pathname, hash: CI_HASH }
   return { pathname }
+}
+
+/** Before going to the place: the copy to another tracker opens its project's settings on the Tracker tab (BTN-1193). */
+export function openPlace(place: EventPlace | null): void {
+  if (place?.view === 'tracker') openTab(projectScope(place.project), 'tracker')
 }
 
 const idOf = (entry: EventEntry) => Number(entry.id)
