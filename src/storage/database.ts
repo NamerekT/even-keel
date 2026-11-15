@@ -646,6 +646,29 @@ export const STEPS: readonly string[] = [
   where p.id = e.project_id
     and exists (select 1 from setting_values v where v.key = 'tracker' and v.project_id = p.id and v.qualifier = '' and v.value = '"builtin"');
   `,
+  // The hub's side of the hub ↔ machine link (BTN-988, `docs/machines.md`): the machines with the hash of their
+  // connection token's secret and both counters, and the commands a machine has not confirmed yet.
+  `
+  create table machines (
+    id           text primary key,
+    name         text not null,
+    secret_hash  text not null,
+    created_at   bigint not null,
+    revoked_at   bigint,
+    host         text,
+    api          integer,
+    seen_at      bigint,
+    last_event   bigint not null default 0,
+    last_command bigint not null default 0
+  );
+  create table machine_commands (
+    machine_id text not null,
+    seq        bigint not null,
+    command    text not null,
+    created_at bigint not null,
+    primary key (machine_id, seq)
+  );
+  `,
 ]
 
 /** The version this code reads and writes. */

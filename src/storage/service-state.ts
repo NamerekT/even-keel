@@ -9,7 +9,8 @@ import type { Queryable } from './database.js'
  * `cliCheck.history` — per agent, the automatic CLI check's last lookup, versions tried and last result (`CheckHistory`, BTN-569);
  * `notices.dismissed` — the page's "Got it" marks, a banner's id to the stamp it was closed at (BTN-759, `withDismissed`);
  * `eventLog.memory` — what the event log saw last, so a restart writes nothing that held before it (`EventMemory`, BTN-350);
- * `cli.downloaded` — the providers whose checked CLI copy was once downloaded with consent (`string[]`, BTN-1175).
+ * `cli.downloaded` — the providers whose checked CLI copy was once downloaded with consent (`string[]`, BTN-1175);
+ * `machines.certificate` — the hub's certificate and key for machines (`HubCertificate`, BTN-988, `hubIdentity`).
  */
 export type StateName =
   | 'updates.dismissed'
@@ -21,6 +22,7 @@ export type StateName =
   | 'notices.dismissed'
   | 'eventLog.memory'
   | 'cli.downloaded'
+  | 'machines.certificate'
 
 /** `undefined` — never written. */
 export async function stateValue(db: Queryable, name: StateName): Promise<unknown> {

@@ -16,6 +16,7 @@ For contributors and coding agents. These documents are dense: they are written 
 | [storage.md](storage.md) | the state database: owner, tables, schema steps, imports, backup |
 | [trackers.md](trackers.md) | the tracker layer, its adapters, the Claude Code plugins |
 | [ci.md](ci.md) | the CI layer, its adapters, polling |
+| [machines.md](machines.md) | the link between a hub and its machines: protocol, token, stores |
 | [sessions.md](sessions.md) | the agent CLIs, transcripts, models, prompt assembly, limits |
 | [packages.md](packages.md) | plugins and MCP servers of a project's set, keys, the MCP gateway, launch flags |
 | [accounts.md](accounts.md) | account folders, sign-in and switching |

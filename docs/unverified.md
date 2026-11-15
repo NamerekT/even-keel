@@ -22,6 +22,7 @@ The entries are kept in one file per area. [What has been verified](verified.md)
 - [Packages](unverified/packages.md) — plugins and MCP servers of a project's set, the gateway
 - [Trackers](unverified/trackers.md) — tracker profiles, statuses, OAuth, task feeds
 - [CI](unverified/ci.md) — CI runs, commands after a green main, conflicts
+- [Machines](unverified/machines.md) — the link between a hub and its machines
 
 A new entry goes into the file of its area, under a `##` heading that names the behaviour (and its task, in brackets), and gets a row in one of the tables of "What to check first" below that links to it (`unverified/<area>.md#<heading>`). An entry that fits no area goes into the closest one; a new area is a new file here and in `verified/`, and a line in both lists.
 
@@ -207,6 +208,7 @@ No entry meets both conditions at the moment.
 | 170 | [Claude Code and OpenCode from npm without the postinstall](unverified/sessions.md#claude-code-and-opencode-from-npm-without-the-postinstall-btn-1196) | Linux and macOS installs through npm (Windows checked); OpenCode on an x64 without AVX2 | the agent shows as not installed after `npm install -g`, or a session starts a binary that exits at once; use the native installer or the `_BIN` variable | — |
 | 171 | [A vocabulary refused while tasks are read](unverified/trackers.md#a-vocabulary-refused-while-tasks-are-read-ekr-106) | Forgejo projects and feeds on an organization's repository with a token without `read:organization` | the band stays after the token is fixed, or never shows and sessions miss the question label | — |
 | 172 | [A Claude subscription on a long token](unverified/accounts.md#a-claude-subscription-on-a-long-token-btn-1005) | Claude accounts added with a long token | a chain task fails to start on the token, a refused token is not told from another error, or the account shows no limits | — |
+| 173 | [The machines' stream through a real proxy](unverified/machines.md#the-machines-stream-through-a-real-proxy-btn-988) | machines that reach their hub through a proxy, once a machine can be connected | the machine only reconnects and shows offline without the notice about the proxy | BTN-1213 |
 
 ### Waiting for the event / not checked by choice
 

@@ -24,7 +24,7 @@ One row is one check.
 
 ## Areas
 
-One file per area, each with its own table. The first twelve are the areas of [`unverified.md`](unverified.md#areas) under the same file names.
+One file per area, each with its own table. The first thirteen are the areas of [`unverified.md`](unverified.md#areas) under the same file names.
 
 - [Platforms](verified/platforms.md) — operating systems, Node.js, git on Windows, the start at sign-in
 - [Updating](verified/updating.md) — the update button, npm, Huly's client, plugin marketplaces
@@ -36,6 +36,7 @@ One file per area, each with its own table. The first twelve are the areas of [`
 - [Packages](verified/packages.md) — plugins and MCP servers of a project's set, the gateway
 - [Trackers](verified/trackers.md) — tracker profiles, statuses, OAuth, task feeds
 - [CI](verified/ci.md) — CI runs, commands after a green main, pull requests and conflicts
+- [Machines](verified/machines.md) — the link between a hub and its machines
 - [Rule history hooks](verified/rule-history-hooks.md) — Tally's history of rule files and the size hook
 - [Seen in daily work](verified/seen-in-daily-work.md) — counts from the service log of what runs every day
 - [Unclear](verified/unclear.md) — commits that claim a live check without saying which entry it lifted

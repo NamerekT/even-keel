@@ -25,6 +25,9 @@ export const ADVICE = {
   'storage.newer': () => 'put back its *.bak copy or update Even Keel',
   'storage.held': () => 'wait for it to finish or close the other Even Keel instance',
   'storage.newerDatabase': () => 'update Even Keel',
+  'link.buffered': () => "turn the proxy's buffering off for the hub's address",
+  'link.token': () => 'connect the machine again with a new token from the hub',
+  'link.version': () => 'update the older of the two',
   'packages.port': () => "set another EVEN_KEEL_MCP_PORT in Even Keel's .env",
   'packages.marketplaceCliMissing': () => 'install it, then add the marketplace again on Accounts',
 } satisfies NoticeAdvice

@@ -22,6 +22,9 @@ export const adviceRu = {
   'storage.newer': () => 'верните его копию *.bak или обновите Even Keel',
   'storage.held': () => 'дождитесь его завершения или закройте другой экземпляр Even Keel',
   'storage.newerDatabase': () => 'обновите Even Keel',
+  'link.buffered': () => 'отключите у прокси буферизацию для адреса хаба',
+  'link.token': () => 'подключите машину заново с новым токеном из хаба',
+  'link.version': () => 'обновите ту, что старее',
   'packages.port': () => 'задайте другой EVEN_KEEL_MCP_PORT в .env Even Keel',
   'packages.marketplaceCliMissing': () => 'установите его и снова добавьте маркетплейс на странице «Аккаунты»',
 } satisfies Required<Pick<NoticeAdvice, keyof typeof ADVICE>>
