@@ -77,7 +77,7 @@ export function failure<T>(mode: string | null): StatsAnswer<T> | null {
   if (mode === 'off') return { state: 'off', reason: 'TALLY_DB_NAME, TALLY_READER_PASSWORD' }
   if (mode === TALLY_DISABLED || mode === TALLY_UNCHOSEN) return { state: 'off', reason: mode }
   if (mode === 'error') return { state: 'error', error: 'connect ETIMEDOUT 100.64.0.1:5432' }
-  if (mode === 'newer') return { state: 'newer', version: 3, known: 2, restart: false }
+  if (mode === 'newer' || mode === 'restart') return { state: 'newer', version: 3, known: 2, restart: mode === 'restart' }
   return null
 }
 
