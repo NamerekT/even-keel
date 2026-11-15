@@ -54,7 +54,8 @@
     "cli-compare": "tsx scripts/cli-sample-compare.ts",
     "cli-fetch": "tsx scripts/cli-fetch.ts",
     "design-baseline": "tsx scripts/design-baseline.ts",
-    "notice-lengths": "tsx scripts/notice-lengths.ts"
+    "notice-lengths": "tsx scripts/notice-lengths.ts",
+    "unverified-audit": "tsx scripts/unverified-audit.ts"
   },
   "devDependencies": {
     "@hcengineering/api-client": "0.7.423",

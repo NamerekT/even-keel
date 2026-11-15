@@ -1,50 +1,12 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { entries as readEntries, indexRows } from './unverified-entries.js'
 
 const docs = new URL('../docs/', import.meta.url)
 const read = (path: string): string => readFileSync(new URL(path, docs), 'utf8').replace(/\r\n/g, '\n')
 
-interface Row {
-  id: string
-  section: string
-  file: string
-  anchor: string
-  task: string
-}
-
-const indexRows = (): Row[] => {
-  const rows: Row[] = []
-  let section = ''
-  let inIndex = false
-  for (const line of read('unverified.md').split('\n')) {
-    if (line.startsWith('## ')) inIndex = line === '## What to check first'
-    if (!inIndex) continue
-    if (line.startsWith('### ')) section = line.slice(4)
-    const cells = line.match(/^\| (\S+) \| \[.*?\]\(unverified\/([\w-]+\.md)#(.+?)\) \|.* \| (\S+) \|$/)
-    if (cells) rows.push({ id: cells[1]!, section, file: cells[2]!, anchor: cells[3]!, task: cells[4]! })
-  }
-  return rows
-}
-
-/** GitHub's slug of a heading: lower case, punctuation but `_` and `-` dropped, spaces to hyphens. */
-const slug = (heading: string): string =>
-  heading
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .replace(/\s/g, '-')
-
-/** The `##` headings of an area file are all entries; fenced lines are skipped. */
-const entries = (): { file: string; anchor: string; heading: string }[] => {
-  const found: { file: string; anchor: string; heading: string }[] = []
-  for (const file of readdirSync(new URL('unverified/', docs)).filter((name) => name.endsWith('.md'))) {
-    let fenced = false
-    for (const line of read(`unverified/${file}`).split('\n')) {
-      if (line.startsWith('```')) fenced = !fenced
-      if (!fenced && line.startsWith('## ')) found.push({ file, anchor: slug(line.slice(3)), heading: line.slice(3) })
-    }
-  }
-  return found
-}
+const entries = () => readEntries(fileURLToPath(docs))
 
 const order = (id: string): [number, string, number] => {
   const parts = /^(\d+)([a-z]*)(\d*)$/.exec(id)!
@@ -57,7 +19,7 @@ const compare = (a: string, b: string): number => {
 }
 
 describe('docs/unverified.md index', () => {
-  const rows = indexRows()
+  const rows = indexRows(read('unverified.md'))
 
   it('puts every row into one of the three sections', () => {
     const allowed = ['Check first', 'Then', 'Waiting for the event / not checked by choice']
