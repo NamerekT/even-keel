@@ -2,6 +2,7 @@ import { appendFileSync, readFileSync } from 'node:fs'
 import { lstat, readdir, rm, unlink } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { GitStep } from '../notice/en.js'
+import { PROTECTION_FILE } from '../codex/protection.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import { samePath, shownUnder } from '../paths.js'
 import { requireStarted } from './setup.js'
@@ -34,13 +35,19 @@ export function parseWorktrees(text: string): Worktree[] {
     })
 }
 
-/** `.temp/` holds a session's scratch, the pull request's description among it: written there, it must not make the worktree dirty (BTN-221). */
-const IGNORED = [WORKTREES, '.temp/']
+/**
+ * `.temp/` holds a session's scratch, the pull request's description among it: written there, it must not make the
+ * worktree dirty (BTN-221). The Codex deny rules are written into a project's folder while git is off too, and the
+ * commit that turns git on must not take them in (EKR-107). The line is the one `writeProtection` writes.
+ */
+const IGNORED = [WORKTREES, '.temp/', `/.codex/rules/${PROTECTION_FILE}`]
 
+/** `--no-index`: a file already committed is still told by the patterns, so its line is not appended at every call. */
 export async function ensureIgnored(git: Git, repo: string): Promise<void> {
   const missing: string[] = []
   for (const dir of IGNORED) {
-    const probe = await git(repo, ['check-ignore', '-q', `${dir}probe`])
+    const path = dir.endsWith('/') ? `${dir}probe` : dir.slice(1)
+    const probe = await git(repo, ['check-ignore', '-q', '--no-index', path])
     if (probe.code === 1) missing.push(dir)
     else if (probe.code !== 0) throw fail('git.ignoreUnknown', { repo, dir }, { detail: probe.out })
   }

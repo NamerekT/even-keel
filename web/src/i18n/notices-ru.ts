@@ -168,7 +168,7 @@ export const noticesRu: NoticeTexts = {
   'git.identityBlank': () => 'для коммитов git нужны и имя, и почта',
   'git.identityFailed': () => 'git не записал имя и почту в свой глобальный конфиг',
   'git.initFailed': (p) => `git не сделал ${p.path} репозиторием`,
-  'git.ignoreUnknown': (p) => `не понять, игнорирует ли ${p.repo} папку ${p.dir}`,
+  'git.ignoreUnknown': (p) => `не понять, игнорирует ли ${p.repo} ${p.dir.endsWith('/') ? 'папку' : 'файл'} ${p.dir}`,
   'git.remoteDenied': (p) => `у git нет доступа к ${p.remote}: войдите в git на машине Even Keel (Git Credential Manager) или проверьте адрес`,
   'git.remoteHostKey': (p) =>
     `SSH ещё не знает сервер ${p.host}: выполните один раз в терминале пользователя, от которого работает Even Keel, и подтвердите отпечаток`,

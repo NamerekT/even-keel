@@ -24,6 +24,12 @@ function folder(): string {
 
 const out = async (cwd: string, ...args: string[]) => (await git(cwd, args)).out.trim()
 
+/** The Codex deny rules Even Keel writes into a project's folder before a turn (EKR-107), git forbidden while git is off. */
+function codexRules(path: string): void {
+  mkdirSync(join(path, '.codex', 'rules'), { recursive: true })
+  writeFileSync(join(path, '.codex', 'rules', 'even-keel.generated.rules'), 'prefix_rule(pattern=["git"], decision="forbidden")\n')
+}
+
 /**
  * An existing repository on main with a history of its own, as when it is added as a project without git and git is
  * turned on later (BTN-1054): the files written into it meanwhile stay uncommitted.
@@ -44,13 +50,16 @@ describe('turnGitOn', { timeout: 30_000 }, () => {
     writeFileSync(join(path, 'notes.md'), 'kept')
     mkdirSync(join(path, '.temp'))
     writeFileSync(join(path, '.temp', 'handoff-abc-1.md'), 'scratch')
+    codexRules(path)
+    writeFileSync(join(path, '.codex', 'rules', 'mine.rules'), 'prefix_rule(pattern=["rm"], decision="forbidden")\n')
     expect(await turnGitOn(git, path, 'ABC', 'trunk')).toEqual({ made: true, committed: false })
     expect(await out(path, 'symbolic-ref', '--short', 'HEAD')).toBe('trunk')
-    expect((await out(path, 'ls-tree', '--name-only', 'HEAD')).split(/\r?\n/)).toEqual(['notes.md'])
+    expect((await out(path, 'ls-tree', '-r', '--name-only', 'HEAD')).split(/\r?\n/)).toEqual(['.codex/rules/mine.rules', 'notes.md'])
     expect(await out(path, 'status', '--porcelain')).toBe('')
     const exclude = readFileSync(join(path, '.git', 'info', 'exclude'), 'utf8')
     expect(exclude).toContain('.claude/worktrees/')
     expect(exclude).toContain('.temp/')
+    expect(exclude).toContain('/.codex/rules/even-keel.generated.rules')
   })
 
   it('makes an empty folder a repository with an empty first commit', async () => {
@@ -82,12 +91,24 @@ describe('turnGitOn', { timeout: 30_000 }, () => {
     writeFileSync(join(path, 'loose.txt'), 'new')
     mkdirSync(join(path, '.temp'))
     writeFileSync(join(path, '.temp', 'handoff-abc-1.md'), 'scratch')
+    codexRules(path)
     expect(await uncommittedChanges(git, path)).toEqual(['M kept.txt', '?? loose.txt'])
     expect(await turnGitOn(git, path, 'ABC', 'main', { commit: true })).toEqual({ made: false, committed: true })
     expect(await out(path, 'rev-list', '--count', 'HEAD')).toBe('3')
     expect(await out(path, 'log', '-1', '--format=%s|%an|%ae')).toBe('Work done without git|John Doe|john@example.com')
     expect((await out(path, 'show', '--name-only', '--format=', 'HEAD')).split(/\r?\n/)).toEqual(['kept.txt', 'loose.txt'])
     expect(await out(path, 'status', '--porcelain')).toBe('')
+  })
+
+  it('writes the Codex rules line once into a repository that already committed the file', async () => {
+    const path = await repository()
+    codexRules(path)
+    await git(path, ['add', '-A'])
+    await git(path, ['commit', '-q', '-m', 'rules'])
+    await uncommittedChanges(git, path)
+    await uncommittedChanges(git, path)
+    const exclude = readFileSync(join(path, '.git', 'info', 'exclude'), 'utf8')
+    expect(exclude.split(/\r?\n/).filter((line) => line === '/.codex/rules/even-keel.generated.rules')).toHaveLength(1)
   })
 
   it('refuses a repository with work done without git when not asked to commit it, naming the changes', async () => {
