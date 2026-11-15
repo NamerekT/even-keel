@@ -2,7 +2,7 @@
 
 The [README](../../README.md) has the quick start. This page is the rest, in the order a new installation meets it: installing, the first start, a project, its tracker, the page on other devices, the service, updates and removal. Every variable and key is in the [reference](reference.md).
 
-1. [Installing](#installing) — from npm or from a clone, and a look at the page on fake data
+1. [Installing](#installing) — what it needs, from npm or from a clone, and a look at the page on fake data
 2. [The first start](#the-first-start) — the setup's steps: git, the agent and its account, the demo
 3. [Projects](#projects) — the wizard, the repository's folder or address, what a project needs
 4. [Trackers and plugins](#trackers-and-plugins) — the built-in tracker, a profile per tracker, packages for sessions, CI and token permissions
@@ -14,7 +14,22 @@ The [README](../../README.md) has the quick start. This page is the rest, in the
 
 ## Installing
 
-The README's quick start installs Even Keel with `npx even-keel`, which also sets it up as a service: the details are in [Installed with npm](#installed-with-npm). The other way is a clone of the repository.
+The README's quick start installs Even Keel with `npx even-keel` (`npx.cmd even-keel` on Windows, [why](#windows-powershell)), which also sets it up as a service: the details are in [Installed with npm](#installed-with-npm). To run it in a terminal instead of as a service:
+
+```sh
+npm install --global even-keel
+even-keel
+```
+
+The other way is a clone of the repository.
+
+### What it needs
+
+- **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`). On macOS the nodejs.org installer leaves npm's global folder to root: move it into your home first, with the [commands `npx even-keel` prints](#npms-global-folder-on-macos-and-linux), and never use `sudo`. On Windows the MSI installer of Node can sit on "Preparing to install…" for over 10 minutes: wait it out.
+- **An agent and an account of it:** [Claude Code](https://docs.claude.com/en/docs/claude-code/setup), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) (preview) or [GitHub Copilot CLI](https://github.com/github/copilot-cli) (preview), on a subscription or an API key; OpenCode also runs its free models. The setup can download the CLI for you.
+- **git**, recommended ([git-scm.com](https://git-scm.com/downloads)), with your name and e-mail set (`git config --global user.name` and `user.email`): sessions commit and merge under that name, and [the Git step](#the-git-step) of the setup sets both. Without git a project is a plain folder: [A project without git](chain.md#a-project-without-git).
+- **A tracker**, optional: a Huly workspace, GitHub, GitLab (GitLab.com or your own server) or Forgejo (Forgejo, Gitea or Codeberg) projects with Issues, a Linear workspace or a Jira Cloud site. Without one the tasks live in the [built-in tracker](#no-account-the-built-in-tracker).
+- **Windows, Linux or macOS.** Windows is where it runs every day; Linux and macOS (Apple silicon) were checked end to end.
 
 ### From a clone
 
