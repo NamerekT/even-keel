@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { Turn, TurnContext, TurnEnd } from '../agent/scripted.js'
@@ -13,6 +14,8 @@ interface Texts {
   reading: string
   thinking: string
   testing: string
+  /** The check of a folder without git, where nothing is committed. */
+  checking: string
   welcome: string
   changelog: string
   question: string
@@ -20,6 +23,8 @@ interface Texts {
   tones: { label: string; line: string }[]
   added(task: string): string
   done(task: string): string
+  /** The answer of a task done in a folder without git. */
+  written(task: string, file: string): string
 }
 
 const TEXTS: Record<Language, Texts> = {
@@ -33,6 +38,7 @@ const TEXTS: Record<Language, Texts> = {
     reading: 'Reading the task and the project\'s rules',
     thinking: 'Planning the change',
     testing: 'Checking the files before the commit',
+    checking: 'Checking the files',
     welcome: 'Welcome aboard: this log is kept by Even Keel\'s demo.',
     changelog: '# Changelog\n\n## Unreleased\n\n- The README greets its reader.\n',
     question: 'Which tone should the greeting take?',
@@ -42,6 +48,7 @@ const TEXTS: Record<Language, Texts> = {
     ],
     added: (task) => `# ${task}\n\nDone by the demo's script: a real session would do the task here.\n`,
     done: (task) => `${task} is done: committed and merged into the main branch.`,
+    written: (task, file) => `${task} is done: ${file} is written in the project folder.`,
   },
   ru: {
     readme: '# Судовой журнал\n\nМаленький проект, на котором работает демо Even Keel. Ничего отсюда не уходит за пределы папки.\n',
@@ -53,6 +60,7 @@ const TEXTS: Record<Language, Texts> = {
     reading: 'Читаю задачу и правила проекта',
     thinking: 'Планирую правку',
     testing: 'Проверяю файлы перед коммитом',
+    checking: 'Проверяю файлы',
     welcome: 'Добро пожаловать на борт: этот журнал ведёт демо Even Keel.',
     changelog: '# Журнал изменений\n\n## Не выпущено\n\n- README приветствует читателя.\n',
     question: 'Какой тон выбрать для приветствия?',
@@ -62,6 +70,7 @@ const TEXTS: Record<Language, Texts> = {
     ],
     added: (task) => `# ${task}\n\nСделано сценарием демо: настоящая сессия выполнила бы задачу здесь.\n`,
     done: (task) => `${task} готова: закоммичена и влита в основную ветку.`,
+    written: (task, file) => `${task} готова: ${file} записан в папку проекта.`,
   },
 }
 
@@ -131,9 +140,13 @@ async function wait(turn: TurnContext, ms: number): Promise<void> {
   if (!turn.live()) throw new Error(`demo: ${turn.task}: the turn is let go`)
 }
 
-/** Reads, edits `file`, checks, commits and merges, each step shown with a pause; done again after a restart, it changes nothing twice. */
+/**
+ * Reads, edits `file`, checks, commits and merges, each step shown with a pause; done again after a restart, it changes
+ * nothing twice. In a folder without git (EKR-108) it stops after the check and closes the task by the `TASK DONE` mark.
+ */
 async function work(turn: TurnContext, texts: Texts, file: string, text: () => Promise<string>): Promise<TurnEnd> {
   const { task, cwd, repo, git } = turn
+  const plain = !existsSync(join(repo, '.git'))
   await look(turn, texts)
   turn.show({ text: texts.thinking, stage: 'recon', context: 26_000 })
   await wait(turn, PACE[3]!)
@@ -141,8 +154,9 @@ async function work(turn: TurnContext, texts: Texts, file: string, text: () => P
   await mkdir(dirname(join(cwd, file)), { recursive: true })
   await writeFile(join(cwd, file), await text())
   await wait(turn, PACE[2]!)
-  turn.show({ text: texts.testing, tool: 'Bash', stage: 'test', context: 45_000 })
+  turn.show({ text: plain ? texts.checking : texts.testing, tool: 'Bash', stage: 'test', context: 45_000 })
   await wait(turn, PACE[1]!)
+  if (plain) return { done: texts.written(task, file) }
   turn.show({ text: `git commit -m "[${task}] …"`, tool: 'Bash', stage: 'commit', context: 49_000 })
   await git('add', file)
   if ((await runGit(cwd, ['diff', '--cached', '--quiet'])).code !== 0) await git('commit', '-q', '-m', `[${task}] ${file}`)

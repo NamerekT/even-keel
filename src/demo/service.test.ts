@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EvenKeelConfig } from '../config.js'
@@ -69,6 +69,88 @@ describe('failed demo repository preparation', () => {
 
     expect(existsSync(demo.dir)).toBe(false)
     expect(addProject).not.toHaveBeenCalled()
+  })
+})
+
+describe('the demo mode by the defaultGit setting (EKR-108)', () => {
+  let dir: string
+  let git: ReturnType<typeof vi.fn<Git>>
+  let addProject: ReturnType<typeof vi.fn<DemoDeps['addProject']>>
+  let defaultGit: boolean | null
+
+  const made = () =>
+    new DemoService({
+      stateDir: dir,
+      git,
+      config: () => ({ projects: {}, defaultGit }),
+      language: () => 'en',
+      homes: { setDemo: () => {} },
+      refreshAccounts: async () => {},
+      addProject,
+      builtin: { create: async () => ({ id: `task-${Math.random()}` }), relate: async () => {} },
+      startChain: async () => {},
+      changed: () => {},
+    } as unknown as DemoDeps)
+  const draft = () => addProject.mock.calls[0]![0]
+
+  beforeEach(() => {
+    const temp = join(process.cwd(), '.temp')
+    mkdirSync(temp, { recursive: true })
+    dir = mkdtempSync(join(temp, 'demo-mode-'))
+    git = vi.fn<Git>().mockResolvedValue({ code: 0, out: '' })
+    addProject = vi.fn<DemoDeps['addProject']>().mockReturnValue('demo-id')
+    defaultGit = null
+  })
+
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it.each([true, null])('makes a repository when defaultGit is %s and git starts', async (value) => {
+    defaultGit = value
+    const demo = made()
+    await demo.start('en')
+
+    expect(git.mock.calls.map(([, args]) => args[0])).toContain('commit')
+    expect(draft().git).toBeUndefined()
+    expect(existsSync(join(demo.repo, '.gitignore'))).toBe(true)
+    expect(existsSync(join(demo.repo, 'README.md'))).toBe(true)
+  })
+
+  it('makes a folder without git and never calls git when defaultGit is false', async () => {
+    defaultGit = false
+    const demo = made()
+    await demo.start('en')
+
+    expect(git).not.toHaveBeenCalled()
+    expect(draft()).toMatchObject({ git: false, key: 'DEMO', repo: demo.repo })
+    expect(existsSync(join(demo.repo, 'README.md'))).toBe(true)
+    expect(existsSync(join(demo.repo, '.gitignore'))).toBe(false)
+  })
+
+  it.each([true, null])('falls back to a folder without git when defaultGit is %s and git does not start', async (value) => {
+    defaultGit = value
+    git.mockResolvedValue({ code: -1, out: 'spawn git ENOENT', missing: true })
+    const demo = made()
+
+    await expect(demo.start('en')).resolves.toBe('demo-id')
+
+    expect(git).toHaveBeenCalledTimes(1)
+    expect(draft()).toMatchObject({ git: false, repo: demo.repo })
+    expect(readFileSync(join(demo.repo, 'README.md'), 'utf8')).toContain('Harbor log')
+    expect(existsSync(join(demo.repo, '.gitignore'))).toBe(false)
+  })
+
+  it('picks the mode anew when started again', async () => {
+    defaultGit = false
+    const demo = made()
+    await demo.start('en')
+    expect(draft().git).toBe(false)
+
+    defaultGit = null
+    addProject.mockClear()
+    await demo.again('en')
+    expect(draft().git).toBeUndefined()
+    expect(git).toHaveBeenCalled()
+    expect(existsSync(join(demo.repo, '.gitignore'))).toBe(true)
   })
 })
 

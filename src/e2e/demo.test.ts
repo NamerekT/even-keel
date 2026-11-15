@@ -87,20 +87,38 @@ describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
     expect(run.gitIn(demo().repo, 'show', 'HEAD:README.md')).toContain('Добро пожаловать на борт')
   })
 
-  it('refuses without git without leaving a folder and can be retried', async () => {
+  it('runs without git when git does not start, its tasks closed by the mark in the one folder (EKR-108)', async () => {
     await run.start()
     const path = process.env.PATH
     process.env.PATH = ''
     try {
-      const notice = await run.refused('demo/start', {})
-      expect(notice.code).toBe('demo.noGit')
+      await run.post('demo/start', {})
     } finally {
       process.env.PATH = path
     }
-    expect(run.service.getState().demo).toBeNull()
+    const id = project()
+    const repo = demo().repo
+    expect(run.service.configStore.current.settings[id]!.git).toBe(false)
+    expect(existsSync(join(repo, '.git'))).toBe(false)
+
+    await run.until(() => statusOf(1) === 'Done', 'DEMO-1 done')
+    await run.until(() => statusOf(2) === 'Done', 'DEMO-2 done')
+    await run.until(() => sessionOf('DEMO-3')?.ask != null, 'the question of DEMO-3')
+    const asking = sessionOf('DEMO-3')!
+    const question = asking.ask!.questions[0]!
+    await run.post('session/answer', { project: id, task: 'DEMO-3', sessionId: asking.sessionId, ask: asking.ask!.id, answers: { [question.question]: 'Friendly' }, text: '' })
+    await run.until(() => run.service.getState().demo?.finished === true, 'the demo finished')
+
+    expect(run.service.launches.filter((entry) => entry.project === id && entry.reason === undefined).map((entry) => entry.task)).toEqual(['DEMO-1', 'DEMO-2', 'DEMO-3'])
+    expect(readFileSync(join(repo, 'README.md'), 'utf8')).toContain('Welcome aboard')
+    expect(existsSync(join(repo, 'CHANGELOG.md'))).toBe(true)
+    expect(readFileSync(join(repo, 'GREETING.md'), 'utf8')).toContain('Hi there')
+    expect(existsSync(join(repo, '.git'))).toBe(false)
+    expect(existsSync(join(repo, '.claude', 'worktrees'))).toBe(false)
+    const comments = await new BuiltinStore(run.service.db).comments({ project: id, number: 1 })
+    expect(comments.map((each) => each.body).join('\n')).toContain('DEMO-1 is done: README.md is written in the project folder.')
+
+    await run.post('demo/remove', {})
     expect(existsSync(demo().dir)).toBe(false)
-    await run.post('demo/start', {})
-    expect(run.service.getState().demo?.project).toBe(project())
-    expect(existsSync(demo().repo)).toBe(true)
   })
 })
