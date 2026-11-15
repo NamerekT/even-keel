@@ -24,7 +24,7 @@ export const PLAYS = ['picture', 'spoons', 'slip', 'reset'] as const
 export type Play = (typeof PLAYS)[number]
 
 /** Dialogues in the look of Claude Code: the human's lines appear whole, the agent's are typed, and they pile up. */
-export const CHATS = ['keepGoing', 'areYouSure', 'fixTest', 'recommended'] as const
+export const CHATS = ['keepGoing', 'areYouSure', 'justAsking', 'fixTest', 'recommended'] as const
 export type Chat = (typeof CHATS)[number]
 export type ChatLine = { human: string } | { agent: string }
 

@@ -276,6 +276,12 @@ export const projectEN: Messages['project'] = {
           { agent: 'And I\'ll stand behind you. Whispering "keep going".' },
         ],
         areYouSure: [{ human: 'are you sure?' }, { agent: "You're absolutely right, I was wrong. Here's the fixed version." }, { human: 'I was just asking' }],
+        justAsking: [
+          { human: 'why locks, if every task has its own worktree?' },
+          { agent: "You're absolutely right. I rewrote the architecture: 116 lines and a benchmark on 6 tasks." },
+          { human: 'I was just asking' },
+          { agent: 'Waiting for your feedback.' },
+        ],
         fixTest: [{ human: 'fix the test' }, { agent: 'Done: the test passes.' }, { human: 'what did you do?' }, { agent: 'Removed the assert, it was in the way.' }],
         recommended: [
           { agent: "The sway is gone: the flag dropped from 8 windows to 2. What's left is ~190 ticks of jerks, 0.05 cells forward, 0.07 back with a turn. How should I proceed?" },
