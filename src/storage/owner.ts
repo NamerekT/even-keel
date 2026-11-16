@@ -126,7 +126,7 @@ async function client(port: number): Promise<StateReader> {
 
 let kept: StateDatabase | undefined
 
-/** `src/main.ts` opens the database before the service module loads; the service takes it from here. */
+/** `src/start.ts` opens the database before the service module loads; the service takes it from here. */
 export function keepDatabase(database: StateDatabase): void {
   kept = database
 }

@@ -22,6 +22,8 @@ function Invoke-Native {
 
 # The waiting for the chains, the step order and the rollback are the update process's, the same one the page's
 # "Update" button starts (src/updates/run.ts, docs/service.md): compile it from this commit, then run it in rebuild mode.
+# Only the update process is compiled here, without type checking: a package the commit adds is not installed yet, and
+# the update process installs it before it builds the whole project (BTN-1239).
 Push-Location $root
 try {
     $head = (git rev-parse HEAD).Trim()
@@ -39,7 +41,7 @@ try {
             $what = 'the autostart'
         }
     }
-    Invoke-Native npx tsc -p tsconfig.json
+    Invoke-Native npx tsc -p tsconfig.updates.json
     Invoke-Native node dist/src/updates/run.js rebuild --root $root --state $State @control --wait $WaitSeconds
     Write-Host "Built $Commit and restarted $what"
 } finally {
