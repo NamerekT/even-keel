@@ -5,7 +5,9 @@ import { KEY_SPEND_POLL_MS, KEY_SPEND_TAIL_MS, KEY_SPEND_TIMEOUT_MS } from '../a
 import { AccountSettings, loadAccountSettings, saveAccountSettings } from '../account/settingsLayer.js'
 import { KeySpend, readOpenRouterKey, saveKeySpend } from '../account/spend.js'
 import { copies } from '../agent/copies.js'
-import { plainProjects, projectLabel, type EvenKeelConfig } from '../config.js'
+import { isPlain, plainProjects, projectLabel, type EvenKeelConfig } from '../config.js'
+import { handoffNoteOf } from '../sessions/note.js'
+import { TASKS_SERVER } from '../taskmcp/server.js'
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
 import { fail } from '../notice/notice.js'
@@ -113,5 +115,24 @@ export function assembleSaveAccounts(ctx: Pick<ServiceContext, 'ledger' | 'accou
   return (next: AccountLedger) => {
     ctx.ledger = next
     saveLedger(ctx.accountFile, ctx.ledger)
+  }
+}
+
+/** The first answer `read` finds in any account folder. */
+export function assembleInHomes(ctx: Pick<ServiceContext, 'homes'>) {
+  return async <T>(read: (home: AccountHome) => Promise<T | undefined>): Promise<T | undefined> => {
+    for (const home of ctx.homes.list()) {
+      const found = await read(home)
+      if (found !== undefined) return found
+    }
+    return undefined
+  }
+}
+
+export function assembleTaskNote(ctx: Pick<ServiceContext, 'configuredProject' | 'packages' | 'configStore'>) {
+  return (task: string): string => {
+    const project = ctx.configuredProject(task)
+    const kept = project !== undefined && ctx.packages.bringsServer(project, TASKS_SERVER)
+    return handoffNoteOf(task, project === undefined || !isPlain(ctx.configStore.current, project), kept)
   }
 }

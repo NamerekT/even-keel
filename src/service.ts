@@ -48,6 +48,7 @@ import * as demoService from './service/demo.js'
 import * as hostingService from './service/hosting.js'
 import * as hubBootstrap from './service/hub-bootstrap.js'
 import * as lifecycleService from './service/lifecycle.js'
+import { startTicks } from './service/ticks.js'
 import * as machineBootstrap from './service/machine-bootstrap.js'
 import { wireLinkedMachine, type LinkedMachine } from './service/machine-link.js'
 import { laterTell, machineContext } from './service/machine-context.js'
@@ -766,14 +767,7 @@ const chainControl: ChainControl = hubBootstrap.assembleChainControl(context)
 
 let server = hostingService.wireServer(context)
 
-/** The first answer `read` finds in any account folder. */
-async function inHomes<T>(read: (home: AccountHome) => Promise<T | undefined>): Promise<T | undefined> {
-  for (const home of homes.list()) {
-    const found = await read(home)
-    if (found !== undefined) return found
-  }
-  return undefined
-}
+const inHomes = machineBootstrap.assembleInHomes(context)
 
 /**
  * The project of a task: the one whose list has it, else one whose task ids its id carries — projects on one tracker
@@ -785,11 +779,7 @@ function configuredProject(task: string): string | undefined { return trackersSe
  * The handoff note a session of the task writes: through the tasks server when its project has it (BTN-1046), else a
  * file, one of its own in a project without git, whose folder is shared (BTN-964).
  */
-function taskNote(task: string): string {
-  const project = configuredProject(task)
-  const kept = project !== undefined && packages.bringsServer(project, TASKS_SERVER)
-  return handoffNoteOf(task, project === undefined || !isPlain(configStore.current, project), kept)
-}
+function taskNote(task: string): string { return machineBootstrap.assembleTaskNote(context)(task) }
 
 const postedQuestions = await loadQuestions(db)
 const questions = trackersService.wireQuestions(context)
@@ -798,36 +788,8 @@ const questions = trackersService.wireQuestions(context)
 const intakePlaces = trackersService.wireIntakePlaces(context)
 const intake = trackersService.wireIntake(context)
 
-setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()
-setInterval(() => void questions.tick(), 15_000).unref()
-setInterval(() => settleMail(mailRelay), 15_000).unref()
-
-setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
-setInterval(() => void keepWarm.check(), KEEP_WARM_TICK_MS).unref()
-setInterval(sweepFiles, SWEEP_EVERY_MS).unref()
-setInterval(() => writes.add('the vacuum', vacuumDatabase(db)), VACUUM_EVERY_MS).unref()
-backups.start()
-setInterval(() => void cliChecks.check(), cliCheckService.CLI_CHECK_TICK_MS).unref()
-setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 const applyCi = hubBootstrap.assembleApplyCi(context)
-applyCi()
-setInterval(() => {
-  for (const watch of ciWatches.all()) void watch.tick()
-}, CI_TICK_MS).unref()
-setInterval(() => void forwards.tick().catch(() => { }), FORWARD_TICK_MS).unref()
-setInterval(() => void intake.tick(), INTAKE_TICK_MS).unref()
-const pollWorks = hubBootstrap.assemblePollWorks(machine)
-pollWorks()
-setInterval(pollWorks, WORK_TICK_MS).unref()
-setInterval(
-  () =>
-    void Promise.all([ciWatches.refresh(), remotes.apply(gitProjects(configStore.current))]).then(([changed, moved]) => {
-      if (changed || moved) dispatcher.check()
-      if (changed || moved) stateChanged()
-    }),
-  CI_TARGETS_MS,
-).unref()
-
+startTicks(context, machine, sweepFiles, () => void questions.tick(), () => void intake.tick())
 /**
  * The config's projects changed: removed ones let their chain go, the rest follows the config. The state names a
  * project by its id (BTN-271), so a renamed key carries nothing.
