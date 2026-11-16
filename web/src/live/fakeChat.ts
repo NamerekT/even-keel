@@ -39,6 +39,26 @@ export const FAKE_ASK: Ask = {
   ],
 }
 
+const LONG_QUESTION = [
+  'The chain found a cycle between ABC-3 and ABC-5 while building the order from the tracker\'s blocks relations.',
+  'ABC-3 says it blocks ABC-5 because the order table needs the new column first, and ABC-5 says it blocks ABC-3',
+  'because the column is named in the migration ABC-5 writes. Neither task has started yet, both are in Todo,',
+  'and the chain has stopped on the first of them. Stopping keeps the order honest, but it leaves the chain idle',
+  'until someone edits the tracker; skipping lets the rest of the chain go on, but the two tasks would wait',
+  'unnoticed until the end. A third way is to break the cycle at the task with the later number and warn about it',
+  'in the chain banner, which keeps the chain running and still says what happened. Which of these should the',
+  'chain do by default, given that the user usually reads the page from a phone and answers later in the day?',
+].join(' ')
+
+/** `?chain=ask&ask=long|single`: a question of ~900 characters before the short second one, or the first question alone. */
+export function fakeAsk(mode: string | null): Ask {
+  if (mode === 'single') return { ...FAKE_ASK, questions: FAKE_ASK.questions.slice(0, 1) }
+  if (mode !== 'long') return FAKE_ASK
+  const [first, second] = FAKE_ASK.questions as [Ask['questions'][number], Ask['questions'][number]]
+  const third = { label: 'Break it at the later task', description: 'The chain goes on and the banner names the link it dropped.' }
+  return { ...FAKE_ASK, questions: [{ ...first, question: LONG_QUESTION, options: [...first.options.map(({ label, description }) => ({ label, description })), third] }, second] }
+}
+
 /** The same question as the job file gives it in `?chain=unsaved`, the transcript not having the call yet: no headers, previews or multi-select. */
 export const FAKE_UNSAVED_ASK: Ask = {
   id: 'job:fake:open',
