@@ -13,7 +13,7 @@ export function withProtection(state: EvenKeelState, mode: string): EvenKeelStat
       shared: { ...state.config.shared, protection, execution: { ...state.config.shared.execution, codex: 'bypass' } },
       projects: { ...state.config.projects, ABC: { ...state.config.projects.ABC!, provider: openCode ? 'opencode' : 'codex', protection } },
     },
-    protection: { ABC: mode === 'twoRemotes' ? TWO_REMOTES : [{ remote: mode === 'unknown' ? 'upstream-with-a-long-name-for-the-shared-repository' : 'origin', branch: 'develop', status: mode === 'protected' || openCode ? 'protected' : mode === 'unknown' ? 'unknown' : 'unprotected', bypass: false, url: 'https://github.com/example/demo/settings/rules' }] },
+    protection: { ABC: mode === 'twoRemotes' ? TWO_REMOTES : [{ remote: mode === 'unknown' ? 'upstream-with-a-long-name-for-the-shared-repository' : 'origin', branch: 'develop', status: mode === 'protected' || openCode ? 'protected' : mode === 'unknown' || mode === 'unavailable' ? mode : 'unprotected', bypass: false, url: 'https://github.com/example/demo/settings/rules' }] },
   }
 }
 

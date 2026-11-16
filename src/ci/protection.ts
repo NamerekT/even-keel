@@ -9,8 +9,12 @@ export async function branchProtection(target: CiTarget, branch: string, token: 
   const base: RemoteProtection = { remote, branch, status: 'unknown', bypass: false, url: kind === 'gitlab' ? `${repository}/-/settings/repository` : `${repository}/settings/${kind === 'github' ? 'rules' : 'branches'}` }
   const get = async (url: string) => {
     const result = await fetcher(url, { headers: { accept: 'application/json', 'user-agent': 'even-keel', ...(token === null ? {} : { authorization: `${kind === 'forgejo' ? 'token' : 'Bearer'} ${token}` }) }, signal: AbortSignal.timeout(10_000), redirect: 'error' })
-    return { status: result.status, value: result.ok ? await result.json() as Record<string, any> : null }
+    if (result.ok) return { status: result.status, value: await result.json() as Record<string, any>, message: null }
+    const body = await result.json().catch(() => null) as Record<string, unknown> | null
+    return { status: result.status, value: null, message: typeof body?.message === 'string' ? body.message : null }
   }
+  // GitHub's refusal of branch protection and rulesets for a private repository on the free plan.
+  const planRefused = (answer: { status: number; message: string | null }) => answer.status === 403 && answer.message !== null && /upgrade to github pro|make this repository public/i.test(answer.message)
   const path = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
   try {
     if (kind === 'github') {
@@ -36,6 +40,7 @@ export async function branchProtection(target: CiTarget, branch: string, token: 
       }
       if (current.value?.protected === false && rules.status === 200) return { ...base, status: 'unprotected' }
       if (classic.status === 200 && rules.status === 200) return { ...base, status: 'unprotected' }
+      if (current.value?.protected === false && planRefused(classic) && planRefused(rules)) return { ...base, status: 'unavailable' }
       return base
     }
     if (kind !== 'forgejo' || token === null) return base

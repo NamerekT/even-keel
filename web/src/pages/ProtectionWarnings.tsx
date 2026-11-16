@@ -19,10 +19,20 @@ export function protectionAgents(state: EvenKeelState, project: string): string[
   })
 }
 
-export const remoteProtectionWarnings = (state: EvenKeelState, project: string) => (state.protection?.[project] ?? []).filter(item => item.status !== 'protected' || item.bypass)
+export const remoteProtectionWarnings = (state: EvenKeelState, project: string) => (state.protection?.[project] ?? []).filter(item => item.status !== 'unavailable' && (item.status !== 'protected' || item.bypass))
 
-/** The two protection bands of a project as they stand after "Got it" and "Don't show again" (BTN-759). */
+/**
+ * The mark of a repository whose plan has no branch protection: its stamp is the branch, which a later read does not
+ * change, so "Don't show again" holds for that repository and branch until either changes (EKR-121).
+ */
+const planMark = (project: string, item: RemoteProtection) => noticeId(`protection.plan:${item.url}`, project)
+
+export const planProtectionWarnings = (state: EvenKeelState, project: string) =>
+  (state.protection?.[project] ?? []).filter(item => item.status === 'unavailable' && notDismissed(state, planMark(project, item), item.branch))
+
+/** The protection bands of a project as they stand after "Got it" and "Don't show again" (BTN-759). */
 function protectionBands(state: EvenKeelState, project: string) {
+  const plans = planProtectionWarnings(state, project)
   const agents = protectionAgents(state, project)
   const agentsStamp = agents.join(',')
   const agentsMark = noticeId('protection.noRules', project)
@@ -32,23 +42,25 @@ function protectionBands(state: EvenKeelState, project: string) {
   return {
     agents: agents.length > 0 && kindShown(state, 'protection.noRules', project) && notDismissed(state, agentsMark, agentsStamp) ? { agents, stamps: { [agentsMark]: agentsStamp } } : null,
     remotes: remotes.length > 0 && kindShown(state, 'protection.remote', project) && notDismissed(state, remotesMark, remotesStamp) ? { remotes, stamps: { [remotesMark]: remotesStamp } } : null,
+    plans: plans.length > 0 && kindShown(state, 'protection.remote', project) ? { remotes: plans, stamps: Object.fromEntries(plans.map(item => [planMark(project, item), item.branch])) } : null,
   }
 }
 
 export function protectionShown(state: EvenKeelState, project: string): boolean {
   const bands = protectionBands(state, project)
-  return bands.agents !== null || bands.remotes !== null
+  return bands.agents !== null || bands.remotes !== null || bands.plans !== null
 }
 
 const AGENT_NAMES: Record<string, string> = { codex: 'Codex', copilot: 'Copilot', claude: 'Claude Code', opencode: 'OpenCode' }
 
 /**
  * An agent without the rules that guard the main branch, and a remote whose main branch the server does not protect:
- * one band each per project, the agents or the remotes listed in it, each remote with its own link (BTN-759).
+ * one band each per project, the agents or the remotes listed in it, each remote with its own link (BTN-759). A remote
+ * whose plan cannot protect a branch has its own band without a link: there are no rules to open (EKR-121).
  */
 export function ProtectionWarnings({ state, project }: { state: EvenKeelState; project: string }) {
   const text = protectionMessages()
-  const { agents, remotes } = protectionBands(state, project)
+  const { agents, remotes, plans } = protectionBands(state, project)
   return <FoldList items={[
     ...(agents === null ? [] : [{ key: 'agents', children: <Band tone="warn" action={<>
       <a className="button button--small" href={`${projectPath(project)}#settings`} onClick={() => openTab(projectScope(project), 'sessions')}>{text.title}</a>
@@ -59,6 +71,13 @@ export function ProtectionWarnings({ state, project }: { state: EvenKeelState; p
     ...(remotes === null ? [] : [{ key: 'remotes', children: <Band tone="warn" action={<NoticeButtons stamps={remotes.stamps} kind="protection.remote" project={project} small />}>
       <ul className="protection__remotes">
         {remoteGroups(remotes.remotes).map(group => <RemoteLine key={`${group.branch} ${group.status}`} group={group} />)}
+      </ul>
+    </Band> }]),
+    ...(plans === null ? [] : [{ key: 'plans', children: <Band tone="warn" action={<NoticeButtons stamps={plans.stamps} lasting small />}>
+      <ul className="protection__remotes">
+        {remoteGroups(plans.remotes).map(group => <li key={group.branch} className="protection__remote">
+          <span>{group.branch} ({group.items.map(item => item.remote).join(', ')}): {text.unavailable}</span>
+        </li>)}
       </ul>
     </Band> }]),
   ]} />

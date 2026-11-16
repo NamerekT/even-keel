@@ -101,4 +101,34 @@ describe('remote branch protection', () => {
     const bypass = (async () => response([{ rule_name: 'develop', enable_force_push: false, apply_to_admins: false }])) as typeof fetch
     expect(await branchProtection(forge, 'develop', 'fake', bypass)).toMatchObject({ status: 'protected', bypass: true })
   })
+
+  // GitHub's answers for a private repository on the free plan, as read live on 2026-11-16 (EKR-121).
+  const PLAN = { message: 'Upgrade to GitHub Pro or make this repository public to enable this feature.', documentation_url: 'https://docs.github.com/rest/branches/branch-protection#get-branch-protection', status: '403' }
+  const freePlan = (message: unknown, branch: unknown = { protected: false }) => (async (input: string | URL | Request) => {
+    const url = String(input)
+    return url.endsWith('/protection') || url.includes('/rules/branches/') ? response(message, 403) : response(branch)
+  }) as typeof fetch
+
+  it('tells a plan without branch protection from a permission failure', async () => {
+    expect((await branchProtection(target, 'main', 'fake', freePlan(PLAN))).status).toBe('unavailable')
+    expect((await branchProtection(target, 'main', null, freePlan({ ...PLAN, message: 'Upgrade to GitHub Pro to enable this feature.' }))).status).toBe('unavailable')
+  })
+
+  it.each([
+    ['another wording', freePlan({ message: 'Resource not accessible by personal access token' })],
+    ['a body that is no JSON', (async (input: string | URL | Request) => String(input).endsWith('/main') ? response({ protected: false }) : new Response('Upgrade to GitHub Pro', { status: 403 })) as typeof fetch],
+    ['a branch it calls protected', freePlan(PLAN, { protected: true })],
+    ['only one of the two answers', (async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.endsWith('/protection')) return response(PLAN, 403)
+      return url.includes('/rules/branches/') ? response({ message: 'Not Found' }, 404) : response({ protected: false })
+    }) as typeof fetch],
+  ])('keeps %s unknown', async (_, fetcher) => {
+    expect((await branchProtection(target, 'main', 'fake', fetcher)).status).toBe('unknown')
+  })
+
+  it('does not read a Forgejo refusal as a GitHub plan', async () => {
+    const forge = { ...target, kind: 'forgejo' as const }
+    expect((await branchProtection(forge, 'main', 'fake', (async () => response(PLAN, 403)) as typeof fetch)).status).toBe('unknown')
+  })
 })

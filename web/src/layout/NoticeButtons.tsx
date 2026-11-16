@@ -21,9 +21,10 @@ export const notDismissed = (state: EvenKeelState | null, id: string, stamp: str
 
 /**
  * "Got it" — the banner is closed until what it says changes; "Don't show again" — for a banner of a kind, that kind
- * is turned off: a project's kind for `project`, a shared one for Even Keel (BTN-759).
+ * is turned off: a project's kind for `project`, a shared one for Even Keel (BTN-759). `lasting`: the stamps never
+ * change by themselves, so the one button closes the banner for good and reads "Don't show again" (EKR-121).
  */
-export function NoticeButtons({ stamps, kind, project, small = false }: { stamps: Stamps; kind?: NoticeKind; project?: string; small?: boolean }) {
+export function NoticeButtons({ stamps, kind, project, small = false, lasting = false }: { stamps: Stamps; kind?: NoticeKind; project?: string; small?: boolean; lasting?: boolean }) {
   const { send, sending, failure } = useCommand()
   const texts = noticeTexts()
   const className = small ? 'button button--small' : 'button'
@@ -31,9 +32,9 @@ export function NoticeButtons({ stamps, kind, project, small = false }: { stamps
   return (
     <>
       <button type="button" className={className} disabled={sending} onClick={() => void send('notices/dismiss', { entries: stamps })}>
-        {texts.gotIt}
+        {lasting ? texts.mute : texts.gotIt}
       </button>
-      {kind !== undefined && (
+      {kind !== undefined && !lasting && (
         <button type="button" className={className} disabled={sending} onClick={() => void send('notices/mute', { project: own, kind, shown: false })}>
           {texts.mute}
         </button>
