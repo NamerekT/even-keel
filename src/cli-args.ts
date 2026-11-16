@@ -6,6 +6,9 @@ export type CliCommand =
   /** `version: null` — none given: `updateTargetOf` picks it from the dist-tags. */
   | { command: 'update'; version: string | null }
   | { command: 'help'; error?: string }
+  /** `root: null` — none given: the machine's own folder of projects. */
+  | { command: 'join'; line: string; root: string | null }
+  | { command: 'status' }
 
 /**
  * The version a bare `even-keel update` installs: the newest of `latest` and, for an installed prerelease, `next`
@@ -29,7 +32,19 @@ export function commandOf(argv: string[]): CliCommand {
   if (name === 'help' || name === '--help' || name === '-h') return { command: 'help' }
   if (name === 'install' || name === 'uninstall') return rest.length === 0 ? { command: name } : { command: 'help', error: `${name} takes no arguments` }
   if (name === 'update') return rest.length <= 1 ? { command: 'update', version: rest[0] ?? null } : { command: 'help', error: 'update takes one version at most' }
+  if (name === 'status') return rest.length === 0 ? { command: 'status' } : { command: 'help', error: 'status takes no arguments' }
+  if (name === 'join') return joinOf(rest)
   return { command: 'help', error: `unknown command ${name}` }
+}
+
+/** `join <connection string> [--root <folder>]`, the option before or after the string. */
+function joinOf(rest: string[]): CliCommand {
+  const at = rest.indexOf('--root')
+  const root = at === -1 ? null : rest[at + 1]
+  const lines = at === -1 ? rest : rest.filter((_, index) => index !== at && index !== at + 1)
+  if (root === undefined || root?.startsWith('--') === true) return { command: 'help', error: '--root needs a folder' }
+  if (lines.length !== 1) return { command: 'help', error: 'join takes one connection string' }
+  return { command: 'join', line: lines[0]!, root }
 }
 
 /**

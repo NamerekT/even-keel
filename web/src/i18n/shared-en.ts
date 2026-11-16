@@ -111,6 +111,12 @@ export const sharedEn = {
   allowedHostsHint: 'Names besides loopback and EVEN_KEEL_HOST the page may be reached by, such as a proxy name.',
   allowedHostsAdd: 'Add a name',
   allowedHostsEmpty: 'only this computer and the service’s own address',
+  machinesAddress: 'Hub address for machines',
+  machinesAddressHint:
+    'The name or IP other machines reach this hub by, with :port when a router or proxy forwards another one. Set — the hub listens for machines on port 4749, unless the service was installed with another; empty — it does not. A name behind a proxy (a Tailscale Service on the page’s port, say) works only if the proxy passes the machines’ port too.',
+  machinesAddressNone: 'Machines do not connect',
+  machinesAddressFrom: { allowedHosts: 'a name of the page', service: 'the service’s address' } as Record<string, string>,
+  machinesAddressAdapter: (adapter: string) => `network card ${adapter}`,
   updatesCheck: 'Check for new versions',
   updatesCheckHint: 'Twice a day the service asks GitHub for the latest Even Keel release, without a token. Off — it never goes there.',
   updatesNotify: 'Notify about new versions',

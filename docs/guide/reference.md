@@ -40,6 +40,7 @@ A variable set in the service's own environment rather than in `.env` cannot be 
 | `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | `127.0.0.1` and `4747` | where the page listens. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](setup.md#reaching-the-page-from-another-machine)). Changed, the page moves to the new address; if it cannot listen there, it stays on the old one and says so on the page. Sessions get the address as `EVEN_KEEL_URL` for the packages' hooks; sessions already running keep the old one. `host` and `port` left in an older config are not imported, the log says so once |
 | `EVEN_KEEL_TOKEN` | — | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Changed, open pages ask for the new one |
 | `EVEN_KEEL_MCP_PORT` | `4748` | port of the local MCP gateway the chain sessions reach their packages' servers through; always on `127.0.0.1`. Read at startup |
+| `EVEN_KEEL_MACHINES_PORT` | `4749` | port the hub listens on, on all interfaces, for other machines while `machinesAddress` is set; machines elsewhere do not run tasks yet. Read at startup |
 | `EVEN_KEEL_DATA` | the clone's own folder, or the platform's one of an npm install | the data folder — `.env`, `state/`, `logs/`. Set in the environment of the service or the terminal, not in `.env`, which is in it |
 | `EVEN_KEEL_STATE_DIR` | `state/` of the data folder | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database). Read at startup |
 | `EVEN_KEEL_CONFIG` | `even-keel.config.json` in the data folder | path to the config file of an older install, imported into the database at the first start. Read at startup |
@@ -97,6 +98,7 @@ The project wizard includes its started milestone row when adding the project.
 | Key | Default | What it does |
 | --- | --- | --- |
 | `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403 |
+| `machinesAddress` | `null` | "Hub address for machines": the name or IP other machines reach this one by, `:port` after it when a router or proxy forwards another; set, the hub listens on `EVEN_KEEL_MACHINES_PORT`. A proxy's name works only if the proxy passes that port too |
 | `language` | the browser's | language of the page: `en` or `ru` |
 | `updates.check` | `true` | ask GitHub for the Even Keel releases at start and every 12 hours, without a token, though not before the first start's setup is through (it asks this); `false` — never go there, and the update window has nothing to offer ([Updating](setup.md#updating)) |
 | `updates.notify` | `true` | a newer release gets a notification in the corner of the page; `false` — only the mark next to the version in the gear menu |

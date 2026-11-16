@@ -53,6 +53,7 @@
     "/keys/44444444-4444-4444-8444-444444444444": "ABCR",
     "/keys/55555555-5555-4555-8555-555555555555": "NOTE",
     "/language": "ru",
+    "/machinesAddress": "hub.example.com:8443",
     "/modelPrompts/haiku": "Be brief.",
     "/models/claude": "sonnet",
     "/models/codex": "gpt-6.1-sol",

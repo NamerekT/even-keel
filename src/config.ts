@@ -43,6 +43,8 @@ export interface EvenKeelConfig {
   protection: Protection
   /** Names besides loopback and `EVEN_KEEL_HOST` the page may be reached by — a proxy's name, say. */
   allowedHosts: string[]
+  /** The name machines reach the hub by, a port after it when not `EVEN_KEEL_MACHINES_PORT`; `null` — the hub does not listen for machines. */
+  machinesAddress: string | null
   /**
    * The repository of each project by its id, in the order of the file. Every map of a project here and in the service
    * names it by its id (a GUID that never changes, BTN-271): two projects may share a key.
@@ -299,6 +301,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
   const promptLanguage = (values: Values) => (values.promptLanguage as Language | undefined) ?? language ?? DEFAULT_LANGUAGE
   return {
     allowedHosts: shared.allowedHosts as string[],
+    machinesAddress: shared.machinesAddress as string | null,
     projects: byId((record) => record.repo),
     keys: byId((record) => record.key),
     names: byId((record) => record.name ?? undefined),

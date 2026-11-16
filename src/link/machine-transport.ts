@@ -3,8 +3,8 @@ import { connect, type TLSSocket } from 'node:tls'
 import { fingerprintOf } from './cert.js'
 import type { HubTransport, StreamSink } from './machine.js'
 import {
-  EVENTS_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, bearerOf, isRefusal,
-  type ConnectionToken, type EventsAnswer, type Frame, type McpAnswer, type Refusal,
+  API_VERSION, EVENTS_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, bearerOf, isRefusal,
+  type ConnectionToken, type EventsAnswer, type Frame, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal,
 } from './protocol.js'
 
 export interface TransportOptions {
@@ -76,47 +76,60 @@ export function frameReader(frame: (frame: Frame) => void): (chunk: string) => v
   }
 }
 
+/** A POST of JSON to the token's hub over a socket already checked, under the token's `Authorization`. */
+function sendTo(token: ConnectionToken, socket: TLSSocket, path: string, body: unknown) {
+  const url = new URL(token.hub)
+  const text = JSON.stringify(body)
+  const sent = request({
+    createConnection: () => socket,
+    method: 'POST',
+    path: `${url.pathname.replace(/\/+$/, '')}${path}`,
+    headers: {
+      Host: url.host,
+      Authorization: bearerOf(token),
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Length': Buffer.byteLength(text),
+      Accept: path === STREAM_PATH ? 'text/event-stream' : 'application/json',
+    },
+  })
+  sent.end(text)
+  return sent
+}
+
+/** One post on a connection of its own: the hub's answer when `whole` takes it, its refusal, or a throw. */
+async function postTo<T>(token: ConnectionToken, path: string, body: unknown, whole: (value: object) => boolean, timeoutMs: number, answerMs = timeoutMs): Promise<T | Refusal> {
+  const socket = await connectPinned(token, timeoutMs)
+  try {
+    const response = await new Promise<IncomingMessage>((resolve, reject) => {
+      const sent = sendTo(token, socket, path, body)
+      sent.setTimeout(answerMs, () => sent.destroy(new Error(`no answer from the hub in ${answerMs} ms`)))
+      sent.once('response', resolve)
+      sent.once('error', reject)
+    })
+    const value = parsed(await textOf(response))
+    if (isRefusal(value)) return value
+    if (response.statusCode === 200 && typeof value === 'object' && value !== null && whole(value)) return value as T
+    throw new Error(`the hub answered ${response.statusCode} to ${path}`)
+  } finally {
+    socket.destroy()
+  }
+}
+
+/**
+ * Exchanges a connection string for the machine's own token (BTN-1242): the same hub, certificate and id with the
+ * secret the hub gave back. A throw — the hub was not reached or answered something else.
+ */
+export async function joinHub(token: ConnectionToken, about: MachineAbout, timeoutMs: number = TIMEOUT_MS): Promise<ConnectionToken | Refusal> {
+  const answer = await postTo<JoinAnswer>(token, JOIN_PATH, { api: API_VERSION, about }, (value) => typeof (value as JoinAnswer).secret === 'string', timeoutMs)
+  return isRefusal(answer) ? answer : { ...token, secret: answer.secret }
+}
+
 /** The link over HTTPS: the stream is one long answer to a POST, each post a request of its own. */
 export function httpsTransport(token: ConnectionToken, options: TransportOptions): HubTransport {
-  const url = new URL(token.hub)
-  const base = url.pathname.replace(/\/+$/, '')
   const timeoutMs = options.timeoutMs ?? TIMEOUT_MS
-
-  const send = (socket: TLSSocket, path: string, body: unknown) => {
-    const text = JSON.stringify(body)
-    const sent = request({
-      createConnection: () => socket,
-      method: 'POST',
-      path: `${base}${path}`,
-      headers: {
-        Host: url.host,
-        Authorization: bearerOf(token),
-        'Content-Type': 'application/json; charset=utf-8',
-        'Content-Length': Buffer.byteLength(text),
-        Accept: path === STREAM_PATH ? 'text/event-stream' : 'application/json',
-      },
-    })
-    sent.end(text)
-    return sent
-  }
-
-  const post = async <T>(path: string, body: unknown, whole: (value: object) => boolean, answerMs = timeoutMs): Promise<T | Refusal> => {
-    const socket = await connectPinned(token, timeoutMs)
-    try {
-      const response = await new Promise<IncomingMessage>((resolve, reject) => {
-        const sent = send(socket, path, body)
-        sent.setTimeout(answerMs, () => sent.destroy(new Error(`no answer from the hub in ${answerMs} ms`)))
-        sent.once('response', resolve)
-        sent.once('error', reject)
-      })
-      const value = parsed(await textOf(response))
-      if (isRefusal(value)) return value
-      if (response.statusCode === 200 && typeof value === 'object' && value !== null && whole(value)) return value as T
-      throw new Error(`the hub answered ${response.statusCode} to ${path}`)
-    } finally {
-      socket.destroy()
-    }
-  }
+  const send = (socket: TLSSocket, path: string, body: unknown) => sendTo(token, socket, path, body)
+  const post = <T>(path: string, body: unknown, whole: (value: object) => boolean, answerMs = timeoutMs): Promise<T | Refusal> =>
+    postTo<T>(token, path, body, whole, timeoutMs, answerMs)
   const counted = (value: object): boolean => typeof (value as EventsAnswer).lastEvent === 'number'
   const answered = (value: object): boolean => {
     const { status, headers, body } = value as Partial<McpAnswer>

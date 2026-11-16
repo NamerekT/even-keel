@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bench } from './link.fixture.js'
 import type { MachineEnd } from './machine.js'
-import { API_VERSION, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, REFUSED_EVENT, encodeToken, parseToken } from './protocol.js'
+import {
+  API_VERSION, ASSIGN_COMMAND, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, INVITE_MS, REFUSED_EVENT, bearerOf, encodeToken, isRefusal, parseToken, type MachineAbout,
+} from './protocol.js'
 
 const PROJECT = '11111111-1111-4111-8111-111111111111'
+const ABOUT: MachineAbout = {
+  host: 'example-laptop', os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: { claude: '2.1.0', codex: null }, gitUser: true, root: '/home/example/projects',
+}
 const tick = (ms = 0) => vi.advanceTimersByTimeAsync(ms)
 
 describe('the hub ↔ machine link', () => {
@@ -292,6 +297,88 @@ describe('the hub ↔ machine link', () => {
       [REFUSED_EVENT, { seq: 4, type: 'example.sibling', reason: 'folder' }],
     ])
     expect(await machineStore.unfinishedCommands()).toEqual([])
+  })
+
+  it('agrees by itself to a project the hub puts inside its folder of projects, and to nothing outside it', async () => {
+    const made = await bench()
+    stopHub = () => made.hub.stop()
+    made.machineStore.rootFolder = '/home/example/projects'
+    const end = made.machine()
+    running.push(end)
+    await end.start()
+    await tick()
+    const { hub, token: { machine: id }, ran, taken, machineStore } = made
+    await hub.send(id, { type: 'example.before', project: PROJECT })
+    await hub.send(id, { type: ASSIGN_COMMAND, project: PROJECT, folder: '/home/example/projects/example' })
+    await hub.send(id, { type: ASSIGN_COMMAND, project: PROJECT, folder: '/home/example/elsewhere' })
+    await hub.send(id, { type: ASSIGN_COMMAND, folder: '/home/example/projects/no-project' })
+    await hub.send(id, { type: 'example.after', project: PROJECT })
+    await hub.send(id, { type: 'example.worktree', project: PROJECT, folder: '/home/example/projects/example/.claude/worktrees/abc-1' })
+    await hub.send(id, { type: 'example.outside', project: PROJECT, folder: '/home/example/elsewhere' })
+    await tick()
+    expect(ran.map((command) => command.type)).toEqual(['example.after', 'example.worktree'])
+    expect(await machineStore.consents()).toEqual([{ project: PROJECT, folder: '/home/example/projects/example' }])
+    expect(taken.map((event) => event.payload)).toEqual([
+      { seq: 1, type: 'example.before', reason: 'project' },
+      { seq: 3, type: ASSIGN_COMMAND, reason: 'folder' },
+      { seq: 4, type: ASSIGN_COMMAND, reason: 'folder' },
+      { seq: 7, type: 'example.outside', reason: 'folder' },
+    ])
+  })
+
+  it('never takes an assignment without a folder of projects, even into a folder it agreed to', async () => {
+    const { hub, id, taken, machineStore } = await started()
+    await machineStore.agree(PROJECT, '/repos/example')
+    await hub.send(id, { type: ASSIGN_COMMAND, project: PROJECT, folder: '/repos/example/inner' })
+    await tick()
+    expect(taken.map((event) => event.payload)).toEqual([{ seq: 1, type: ASSIGN_COMMAND, reason: 'project' }])
+    expect(await machineStore.consents()).toEqual([{ project: PROJECT, folder: '/repos/example' }])
+  })
+
+  it('tells the hub what it is at the handshake and when it heard the hub last', async () => {
+    const { end, hubStore, id } = await started({ about: async () => ABOUT })
+    expect(hubStore.machines.get(id)?.about).toEqual(ABOUT)
+    const heard = end.contact()
+    expect(heard).toBe(Date.now())
+    await tick(HEARTBEAT_MS)
+    expect(end.contact()).toBeGreaterThan(heard!)
+  })
+
+  it('exchanges a connection string once and before it expires, and the string opens nothing else', async () => {
+    const { hub, hubStore } = await bench()
+    stopHub = () => hub.stop()
+    const invite = await hub.invite('Example laptop', 'https://hub.example.com:4750', 'cd'.repeat(32))
+    const string = parseToken(invite.line)!
+    expect(invite.expiresAt).toBe(Date.now() + INVITE_MS)
+    const hello = { api: API_VERSION, host: 'example-laptop', lastCommand: 0 }
+    const sink = { send: () => {}, close: () => {} }
+    expect(await hub.open(bearerOf(string), hello, sink)).toEqual({ refused: 'token' })
+    expect(await hub.join(bearerOf({ ...string, secret: 'wrong' }), { api: API_VERSION, about: ABOUT })).toEqual({ refused: 'token' })
+    expect(await hub.join(bearerOf(string), { api: API_VERSION + 1, about: ABOUT })).toEqual({ refused: 'version', api: API_VERSION })
+    const joined = await hub.join(bearerOf(string), { api: API_VERSION, about: ABOUT })
+    if (isRefusal(joined)) throw new Error('refused')
+    expect(joined.secret).not.toBe(string.secret)
+    expect(await hub.join(bearerOf(string), { api: API_VERSION, about: ABOUT })).toEqual({ refused: 'used' })
+    expect(await hub.open(bearerOf(string), hello, sink)).toEqual({ refused: 'token' })
+    expect(isRefusal(await hub.open(bearerOf({ ...string, secret: joined.secret }), hello, sink))).toBe(false)
+    expect(hubStore.machines.get(string.machine)).toMatchObject({ about: ABOUT, joinedAt: Date.now() })
+
+    const late = parseToken((await hub.invite('Late laptop', 'https://hub.example.com:4750', '')).line)!
+    await tick(INVITE_MS + 1)
+    expect(await hub.join(bearerOf(late), { api: API_VERSION, about: ABOUT })).toEqual({ refused: 'expired' })
+  })
+
+  it('revokes the strings never joined with when it issues a new one, and keeps the joined machines', async () => {
+    const { hub, hubStore, token } = await bench()
+    stopHub = () => hub.stop()
+    const first = parseToken((await hub.invite('First', 'https://hub.example.com:4750', '')).line)!
+    const joined = parseToken((await hub.invite('Joined', 'https://hub.example.com:4750', '')).line)!
+    expect(isRefusal(await hub.join(bearerOf(joined), { api: API_VERSION, about: ABOUT }))).toBe(false)
+    const last = parseToken((await hub.invite('Last', 'https://hub.example.com:4750', '')).line)!
+    expect(await hub.join(bearerOf(first), { api: API_VERSION, about: ABOUT })).toEqual({ refused: 'token' })
+    expect(hubStore.machines.get(joined.machine)?.revokedAt).toBeNull()
+    expect(hubStore.machines.get(token.machine)?.revokedAt).toBeNull()
+    expect(isRefusal(await hub.join(bearerOf(last), { api: API_VERSION, about: ABOUT }))).toBe(false)
   })
 
   it('reports a command that failed and goes on with the next one', async () => {

@@ -1,10 +1,10 @@
 import { HubEnd, type Opened } from './hub.js'
-import type { HubStore, MachineRecord } from './hub-store.js'
+import type { HubStore, MachineRecord, NewMachine } from './hub-store.js'
 import { MachineEnd, type HubTransport, type MachineOptions, type StreamSink } from './machine.js'
 import type { Consent, MachineStore } from './machine-store.js'
 import {
   bearerOf, isRefusal, parseToken,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand, type Refusal,
+  type Command, type EventsAnswer, type EventsPost, type Frame, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand, type Refusal,
   type SnapshotPost,
 } from './protocol.js'
 
@@ -20,9 +20,25 @@ export class MemoryHubStore implements HubStore {
     return found === undefined ? undefined : { ...found }
   }
 
-  async addMachine(machine: Pick<MachineRecord, 'id' | 'name' | 'secretHash' | 'createdAt'>) {
-    this.machines.set(machine.id, { ...machine, revokedAt: null, host: null, lastEvent: 0, lastCommand: 0 })
+  async addMachine({ inviteExpires, ...machine }: NewMachine) {
+    this.machines.set(machine.id, { ...machine, revokedAt: null, host: null, lastEvent: 0, lastCommand: 0, inviteExpires: inviteExpires ?? null, joinedAt: null, about: null })
     this.commands.set(machine.id, [])
+  }
+
+  async listMachines() {
+    return [...this.machines.values()].map((record) => ({ ...record }))
+  }
+
+  async joined(id: string, secretHash: string, about: MachineAbout, at: number) {
+    const found = this.machines.get(id)
+    if (found === undefined || found.joinedAt !== null || found.revokedAt !== null) return false
+    Object.assign(found, { secretHash, about, joinedAt: at })
+    return true
+  }
+
+  async described(id: string, about: MachineAbout) {
+    const found = this.machines.get(id)
+    if (found !== undefined) found.about = about
   }
 
   async revoke(id: string, at: number) {
@@ -62,6 +78,7 @@ export class MemoryMachineStore implements MachineStore {
   next = 1
   readonly commands = new Map<number, { done: boolean }>()
   agreed: Consent[] = []
+  rootFolder: string | undefined
 
   async appendEvent(type: string, at: number, payload?: unknown) {
     const event: MachineEvent = { seq: this.next++, type, at, ...(payload === undefined ? {} : { payload }) }
@@ -101,8 +118,12 @@ export class MemoryMachineStore implements MachineStore {
     return [...this.agreed]
   }
 
+  async root() {
+    return this.rootFolder
+  }
+
   async agree(project: string, folder: string) {
-    this.agreed.push({ project, folder })
+    if (!this.agreed.some((consent) => consent.project === project && consent.folder === folder)) this.agreed.push({ project, folder })
   }
 
   async withdraw(project: string, folder?: string) {

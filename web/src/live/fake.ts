@@ -897,6 +897,13 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
       if (name === 'project/git/changes') return fakeGitChanges(params.get('gitChanges')) as T
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
+      if (name === 'machines/addresses') {
+        return [
+          { address: 'box.example.com', from: 'allowedHosts' },
+          { address: '192.168.1.20', from: 'adapter', adapter: 'Ethernet' },
+          { address: '100.64.0.7', from: 'adapter', adapter: 'Tailscale' },
+        ] as T
+      }
       const builtin = fakeExportQuery(current.state, name, body, params.get('export')) ?? fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
       if (builtin !== null) {
         current = { ...current, state: builtin.state }

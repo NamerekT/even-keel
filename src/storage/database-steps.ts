@@ -702,4 +702,11 @@ export const STEPS: readonly string[] = [
     primary key (project_id, name)
   );
   `,
+  // Machines over the network (BTN-1242, `docs/machines.md`): a connection string's time and the moment a machine joined
+  // with it, after which its own secret replaces the string's; what the machine told about itself, as JSON.
+  `
+  alter table machines add column invite_expires bigint;
+  alter table machines add column joined_at bigint;
+  alter table machines add column about text;
+  `,
 ]

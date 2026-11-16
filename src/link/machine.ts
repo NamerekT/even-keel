@@ -2,8 +2,8 @@ import { hostname } from 'node:os'
 import { isInside } from '../paths.js'
 import type { Consent, MachineStore } from './machine-store.js'
 import {
-  API_VERSION, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, isRefusal,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type HubHello, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
+  API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, isRefusal,
+  type Command, type EventsAnswer, type EventsPost, type Frame, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
   type Refusal, type SnapshotPost,
 } from './protocol.js'
 
@@ -46,6 +46,8 @@ export interface MachineOptions {
    */
   concurrent?: boolean
   host?: string
+  /** What the machine tells about itself at every handshake; the hub's own machine has nothing to tell. */
+  about?: () => Promise<MachineAbout>
   /** The status changed. */
   changed?: () => void
   heartbeatMs?: number
@@ -56,14 +58,16 @@ export interface MachineOptions {
 /**
  * Why the machine does not run a command: `project` — it never agreed to serve it, `folder` — the folder is outside
  * the ones agreed for the project, or named without a project. The folder a command touches is its `folder` field,
- * never something in its payload.
+ * never something in its payload. Inside the machine's folder of projects (`root`) any project's folder is agreed to;
+ * a project the machine knows no folder of is still refused when the command names none.
  */
-export function refusalOf(command: Command, consents: Consent[]): 'project' | 'folder' | undefined {
+export function refusalOf(command: Command, consents: Consent[], root?: string): 'project' | 'folder' | undefined {
   const { project, folder } = command
   if (project === undefined) return folder === undefined ? undefined : 'folder'
+  const inRoot = root !== undefined && folder !== undefined && isInside(folder, root)
   const agreed = consents.filter((consent) => consent.project === project)
-  if (agreed.length === 0) return 'project'
-  if (folder === undefined) return undefined
+  if (agreed.length === 0) return root === undefined || folder === undefined ? 'project' : inRoot ? undefined : 'folder'
+  if (folder === undefined || inRoot) return undefined
   return agreed.some((consent) => isInside(folder, consent.folder)) ? undefined : 'folder'
 }
 
@@ -76,6 +80,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 export class MachineEnd {
   private state: LinkState = 'offline'
   private notice: LinkNotice | undefined
+  private contactAt: number | undefined
   /** Grows with every connection and every break: what belongs to an older one is ignored. */
   private generation = 0
   private stopped = true
@@ -101,6 +106,11 @@ export class MachineEnd {
 
   status(): LinkStatus {
     return { state: this.state, ...(this.notice === undefined ? {} : { notice: this.notice }) }
+  }
+
+  /** When the hub was last heard: a frame or an answer to a post; `undefined` — not since the start. */
+  contact(): number | undefined {
+    return this.contactAt
   }
 
   async start(): Promise<void> {
@@ -161,12 +171,13 @@ export class MachineEnd {
     const mine = () => generation === this.generation && !this.stopped
     this.set('connecting', this.notice)
     const lastCommand = await this.options.store.lastCommand()
+    const about = await this.aboutNow()
     if (!mine()) return
     this.opened = false
     this.frames = 0
     this.posting = Promise.resolve()
     this.watch(generation)
-    const stream = this.options.transport.open({ api: this.api, host: this.options.host ?? hostname(), lastCommand }, {
+    const stream = this.options.transport.open({ api: this.api, host: this.options.host ?? hostname(), lastCommand, ...(about === undefined ? {} : { about }) }, {
       opened: () => { if (mine()) this.opened = true },
       frame: (frame) => { if (mine()) this.frame(generation, frame) },
       closed: (refusal) => { if (mine()) this.lost(refusal) },
@@ -175,8 +186,20 @@ export class MachineEnd {
     else stream.close()
   }
 
+  /** A report that fails to read leaves the hub with the last one it has: the connection does not wait for it. */
+  private async aboutNow(): Promise<MachineAbout | undefined> {
+    if (this.options.about === undefined) return undefined
+    try {
+      return await this.options.about()
+    } catch (error) {
+      this.options.log(`link: what the machine is could not be read: ${messageOf(error)}`)
+      return undefined
+    }
+  }
+
   private frame(generation: number, frame: Frame): void {
     this.frames += 1
+    this.contactAt = this.now()
     this.watch(generation)
     if (frame.kind === 'hello') this.greeted(generation, frame.hello)
     // The handshake alone may be a proxy's first flush; a pulse shows that the stream flows.
@@ -195,6 +218,7 @@ export class MachineEnd {
       const answer = await transport.snapshot({ connection: hello.connection, snapshot, lastCommand: await store.lastCommand() })
       if (!live()) return
       if (isRefusal(answer)) return this.lost(answer)
+      this.contactAt = this.now()
       await store.dropEvents(answer.lastEvent)
       if (!live()) return
       this.set('online', this.notice === 'link.buffered' ? this.notice : undefined)
@@ -218,6 +242,7 @@ export class MachineEnd {
         const answer = await transport.events({ connection: this.connection, events, lastCommand: await store.lastCommand() })
         if (!live()) return
         if (isRefusal(answer)) return this.lost(answer)
+        this.contactAt = this.now()
         await store.dropEvents(answer.lastEvent)
         // The hub did not take them all: the next pulse brings the rest again.
         if (!live() || events.length === 0 || answer.lastEvent < events.at(-1)!.seq) return
@@ -253,10 +278,20 @@ export class MachineEnd {
     const { seq, type } = command
     if (!(await store.commandReceived(seq, this.now()))) return
     void this.flush(true)
-    const reason = refusalOf(command, await store.consents())
+    // A project's folder the hub names counts as agreed only inside the root: an assignment never gets one of its own.
+    const assigned = type === ASSIGN_COMMAND
+    const reason = assigned && (command.project === undefined || command.folder === undefined)
+      ? 'folder'
+      : refusalOf(command, assigned ? [] : await store.consents(), await store.root())
     if (reason !== undefined) {
       this.options.log(`link: command ${seq} (${type}) is refused: ${reason === 'project' ? 'this machine did not agree to its project' : 'its folder is outside the agreed ones'}`)
       await this.emit(REFUSED_EVENT, { seq, type, reason })
+      await store.commandDone(seq, this.now())
+      return
+    }
+    if (assigned) {
+      await store.agree(command.project!, command.folder!)
+      this.options.log(`link: the hub put project ${command.project} into ${command.folder}`)
       await store.commandDone(seq, this.now())
       return
     }

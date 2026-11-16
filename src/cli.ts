@@ -23,6 +23,10 @@ const usage = `usage: even-keel [command]
   uninstall   remove the service; the package and the data folder stay
   update [v]  stop the service, install version v with npm, start it again; with no v the newest of the
               dist-tag latest and, for a release candidate, next; nothing when none is newer
+  join <string> [--root <folder>]
+              make this installation a machine of a hub: the string is the hub's connection string, the folder
+              the one its projects go into (by default projects/ in the data folder); stop the service first
+  status      whether this installation is a machine, of which hub, and when it last heard the hub
 data folder: ${home}`
 
 const { name, version: installedVersion } = installed(root)
@@ -295,4 +299,19 @@ switch (command.command) {
   case 'update':
     await update(command.version)
     break
+  case 'join': {
+    loadEnv()
+    const { joinFromCli } = await import('./machine/join-cli.js')
+    const joined = await joinFromCli(command.line, command.root, installedVersion)
+    if (typeof joined === 'string') fail(joined)
+    console.log(joined.join('\n'))
+    break
+  }
+  case 'status': {
+    loadEnv()
+    const { readLinkFile, statusLines } = await import('./machine/join.js')
+    const { stateDirOf } = await import('./locations.js')
+    console.log(statusLines(readLinkFile(stateDirOf()), Date.now()).join('\n'))
+    break
+  }
 }

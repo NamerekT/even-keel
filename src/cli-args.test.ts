@@ -17,6 +17,16 @@ describe('commandOf', () => {
     expect(commandOf(['install', 'now'])).toEqual({ command: 'help', error: 'install takes no arguments' })
     expect(commandOf(['update', '0.2.0', 'now'])).toEqual({ command: 'help', error: 'update takes one version at most' })
   })
+
+  it('joins a hub with a connection string and an optional folder of projects, and tells the status', () => {
+    expect(commandOf(['join', 'ekm1.abc'])).toEqual({ command: 'join', line: 'ekm1.abc', root: null })
+    expect(commandOf(['join', 'ekm1.abc', '--root', '/srv/projects'])).toEqual({ command: 'join', line: 'ekm1.abc', root: '/srv/projects' })
+    expect(commandOf(['join', '--root', 'D:\\projects', 'ekm1.abc'])).toEqual({ command: 'join', line: 'ekm1.abc', root: 'D:\\projects' })
+    expect(commandOf(['join'])).toEqual({ command: 'help', error: 'join takes one connection string' })
+    expect(commandOf(['join', 'ekm1.abc', '--root'])).toEqual({ command: 'help', error: '--root needs a folder' })
+    expect(commandOf(['status'])).toEqual({ command: 'status' })
+    expect(commandOf(['status', 'now'])).toEqual({ command: 'help', error: 'status takes no arguments' })
+  })
 })
 
 describe('updateTargetOf', () => {

@@ -97,6 +97,8 @@ const COMMANDS: Record<string, Command> = {
   'cli/check': ({ cli }) => cli?.check(),
   'huly/install': ({ hulyClient }) => hulyClient?.install(),
   'storage/backup': ({ backup }) => backup?.copyNow(),
+  'machines/revoke': ({ machines }, body) => machines?.revoke(textOf(body.machine, 'machine')),
+  'machines/projects': ({ machines }, body) => machines?.attach(textOf(body.machine, 'machine'), listOf({ order: body.projects }, 'request.projectList')),
   // The page sends its language: on the first run none is chosen yet, and the demo speaks the one the person reads.
   'demo/start': async ({ demo }, body) => void (await demo?.start(isLanguage(body.language) ? body.language : undefined)),
   'demo/again': async ({ demo }, body) => void (await demo?.again(isLanguage(body.language) ? body.language : undefined)),
@@ -179,6 +181,9 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'project/git/changes': ({ settings }, body) => settings.gitChanges(projectOf(body)),
   'project/badge/check': ({ settings }, body) => settings.checkBadge(projectOf(body), textOf(body.url, 'url'), textOf(body.slug, 'slug')),
   'project/trust': async ({ settings }, body) => settings.trust(projectOf(body), typeof body.account === 'string' && body.account !== '' ? body.account : null),
+  'machines/addresses': async ({ machines }) => machines?.addresses() ?? [],
+  'machines/list': async ({ machines }) => (await machines?.list()) ?? [],
+  'machines/invite': async ({ machines }, body) => machines?.invite(typeof body.name === 'string' ? body.name : ''),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),
   'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),
 }

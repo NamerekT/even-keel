@@ -2,9 +2,10 @@
  * The hub ↔ machine link (BTN-988, `docs/machines.md`): what goes over it, apart from how it is carried. The machine
  * opens the connection: the hub's commands come down one stream as frames, the machine's events go up as posts.
  */
+import type { MachineAbout } from './view.js'
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 5
+export const API_VERSION = 6
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -19,6 +20,14 @@ export const STREAM_PATH = '/link/stream'
 export const EVENTS_PATH = '/link/events'
 export const SNAPSHOT_PATH = '/link/snapshot'
 export const MCP_PATH = '/link/mcp'
+/** The one post of a connection string: it is exchanged for the machine's own secret (BTN-1242). */
+export const JOIN_PATH = '/link/join'
+
+/** How long a connection string can be joined with. */
+export const INVITE_MS = 30 * 60_000
+
+/** The link's own command: the hub names a project's folder on the machine, which agrees to it inside its root. */
+export const ASSIGN_COMMAND = 'projects.assign'
 
 /** How many events one post carries. */
 export const EVENT_BATCH = 100
@@ -43,6 +52,8 @@ export interface MachineEvent {
   payload?: unknown
 }
 
+export type { MachineAbout }
+
 /** The machine's first words on a stream. */
 export interface MachineHello {
   api: number
@@ -50,6 +61,19 @@ export interface MachineHello {
   host: string
   /** The highest command number the machine has taken: the hub sends what follows it. */
   lastCommand: number
+  /** What the machine is now; the hub's own machine leaves it out. */
+  about?: MachineAbout
+}
+
+/** A connection string exchanged for the machine's secret: under the string's own `Authorization`. */
+export interface JoinPost {
+  api: number
+  about: MachineAbout
+}
+
+/** The machine's own secret: it replaces the string's, which works no more. */
+export interface JoinAnswer {
+  secret: string
 }
 
 export interface HubHello {
@@ -63,8 +87,12 @@ export interface HubHello {
 
 export type Frame = { kind: 'hello'; hello: HubHello } | { kind: 'ping' } | { kind: 'command'; command: NumberedCommand }
 
-/** Why a hub turned a machine away: its token is unknown or revoked, the API versions differ, or the post came over a connection that is no longer the machine's. */
-export type Refusal = { refused: 'token' } | { refused: 'version'; api: number } | { refused: 'connection' }
+/**
+ * Why a hub turned a machine away: its token is unknown or revoked, the API versions differ, or the post came over a
+ * connection that is no longer the machine's. A connection string is also `expired` past its time and `used` once a
+ * machine joined with it.
+ */
+export type Refusal = { refused: 'token' } | { refused: 'version'; api: number } | { refused: 'connection' } | { refused: 'expired' } | { refused: 'used' }
 
 export interface EventsPost {
   connection: string
@@ -112,6 +140,17 @@ export interface McpPost {
 export const REFUSED_EVENT = 'command.refused'
 export const FAILED_EVENT = 'command.failed'
 export const INTERRUPTED_EVENT = 'command.interrupted'
+
+/** A machine's report as it came over the wire: every field of its type. */
+export function isAbout(value: unknown): value is MachineAbout {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const about = value as Record<string, unknown>
+  const text = (key: string) => typeof about[key] === 'string'
+  const textOrNull = (key: string) => about[key] === null || typeof about[key] === 'string'
+  const { agents } = about
+  const agentsWhole = typeof agents === 'object' && agents !== null && !Array.isArray(agents) && Object.values(agents).every((version) => version === null || typeof version === 'string')
+  return text('host') && text('os') && text('evenKeel') && text('node') && textOrNull('git') && textOrNull('root') && typeof about.gitUser === 'boolean' && agentsWhole
+}
 
 export const isRefusal = (value: unknown): value is Refusal =>
   typeof value === 'object' && value !== null && typeof (value as { refused?: unknown }).refused === 'string'

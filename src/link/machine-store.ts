@@ -26,6 +26,8 @@ export interface MachineStore {
   /** The commands recorded and never finished: the machine stopped in the middle of them. */
   unfinishedCommands(): Promise<number[]>
   consents(): Promise<Consent[]>
+  /** The folder of projects set on the machine (`install --machine`, `join`); `undefined` — none: only the consents count. */
+  root(): Promise<string | undefined>
   agree(project: string, folder: string): Promise<void>
   /** Without a folder — the whole project. */
   withdraw(project: string, folder?: string): Promise<void>
@@ -63,10 +65,39 @@ export const MACHINE_STEPS: readonly string[] = [
   `,
 ]
 
-/** The connection token line the machine connects with; `undefined` — it has none yet. */
-export async function storedToken(db: PGlite): Promise<string | undefined> {
-  const { rows } = await db.query<{ value: string }>(`select value from identity where key = 'token'`)
+/** The keys of `identity`: the own machine's token, the token of a hub elsewhere and the folder of projects. */
+type IdentityKey = 'token' | 'hub' | 'root'
+
+async function identityValue(db: PGlite, key: IdentityKey): Promise<string | undefined> {
+  const { rows } = await db.query<{ value: string }>('select value from identity where key = $1', [key])
   return rows[0]?.value
+}
+
+const setIdentity = async (db: Pick<PGlite, 'query'>, key: IdentityKey, value: string): Promise<void> => {
+  await db.query('insert into identity (key, value) values ($1, $2) on conflict (key) do update set value = excluded.value', [key, value])
+}
+
+/** The connection token line the machine connects with; `undefined` — it has none yet. */
+export const storedToken = (db: PGlite): Promise<string | undefined> => identityValue(db, 'token')
+
+/** The token of the hub elsewhere this installation joined (BTN-1242); `undefined` — it joined none. */
+export const storedHub = (db: PGlite): Promise<string | undefined> => identityValue(db, 'hub')
+
+export const storedRoot = (db: PGlite): Promise<string | undefined> => identityValue(db, 'root')
+
+/**
+ * What `join` keeps: the token with the machine's own secret and the folder of projects. The events and command
+ * numbers of an earlier token go, as with `storeToken`.
+ */
+export async function storeJoin(db: PGlite, token: string, root: string): Promise<void> {
+  await inTransaction(db, async (tx) => {
+    await tx.query('delete from outbox')
+    await tx.query(`select setval('outbox_seq_seq', 1, false)`)
+    await tx.query('delete from commands')
+    await tx.query('delete from consents')
+    await setIdentity(tx, 'hub', token)
+    await setIdentity(tx, 'root', root)
+  })
 }
 
 /**
@@ -78,9 +109,12 @@ export async function storeToken(db: PGlite, token: string): Promise<void> {
     await tx.query('delete from outbox')
     await tx.query(`select setval('outbox_seq_seq', 1, false)`)
     await tx.query('delete from commands')
-    await tx.query(`insert into identity (key, value) values ('token', $1) on conflict (key) do update set value = excluded.value`, [token])
+    await setIdentity(tx, 'token', token)
   })
 }
+
+/** The folder of the machine's own database inside the state folder, next to the hub's `even-keel/`. */
+export const MACHINE_DIR = 'machine'
 
 /** The machine's database in `dataDir` (in memory without one), brought to its current schema. */
 export const openMachineDatabase = (dataDir: string | undefined): Promise<PGlite> => openDatabase(dataDir, MACHINE_STEPS)
@@ -151,6 +185,10 @@ export class DatabaseMachineStore implements MachineStore {
   async consents(): Promise<Consent[]> {
     const { rows } = await this.db.query<{ project_id: string; folder: string }>('select project_id, folder from consents order by project_id, folder')
     return rows.map((row) => ({ project: row.project_id, folder: row.folder }))
+  }
+
+  root(): Promise<string | undefined> {
+    return storedRoot(this.db)
   }
 
   async agree(project: string, folder: string): Promise<void> {

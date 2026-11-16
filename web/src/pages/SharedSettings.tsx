@@ -50,6 +50,7 @@ import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows
 import { accountOptions, accountVendorName, modelKey, namedProviders, providerKeys, providerName, WINDOW_KEYS } from './settingsRun.js'
 import { ProviderChoices } from './ProviderChoices.js'
 import { SuggestField } from '../ui/SuggestField.js'
+import { HubAddressField } from './HubAddressField.js'
 import { ModelPrompts } from './ModelPrompts.js'
 import { profileGroup, ProfileRules } from './ProfileRules.js'
 import { profileAddOf } from './pullFix.js'
@@ -87,7 +88,7 @@ const GROUPS = [
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun'] },
   // The catalog of packages (BTN-802): each change is sent at once, no draft.
   { id: 'packages', keys: [] },
-  { id: 'page', keys: ['language', 'allowedHosts', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
+  { id: 'page', keys: ['language', 'allowedHosts', 'machinesAddress', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
   { id: 'backup', keys: ['backupDir', 'backupKeep'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
   { id: 'notices', keys: [] },
@@ -544,6 +545,22 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             />
             <FieldNote error={errorOf('allowedHosts')} />
           </div>
+          <Row
+            className={marks.box('machinesAddress')}
+            label={t.shared.machinesAddress}
+            hint={t.shared.machinesAddressHint}
+            htmlFor={fieldId('machinesAddress')}
+            mark={marks.note('machinesAddress', (value) => ((value as string).trim() === '' ? t.shared.machinesAddressNone : shown(value)))}
+            control={
+              <HubAddressField
+                id={fieldId('machinesAddress')}
+                value={text('machinesAddress')}
+                invalid={errorOf('machinesAddress') !== null}
+                onChange={(value) => edit('machinesAddress', value)}
+              />
+            }
+            error={errorOf('machinesAddress')}
+          />
         </Section>
       </>
     ),

@@ -7,6 +7,7 @@ import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { CI_KINDS, type CiKind, type RemoteProfiles } from '../ci/model.js'
 import type { EvenKeelConfig } from '../config.js'
 import { isLanguage, LANGUAGES } from '../language.js'
+import { hubUrlOf, MACHINES_PORT } from '../link/address.js'
 import { NOTICE_KINDS, PROJECT_KINDS } from '../notice/kinds.js'
 import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
@@ -212,6 +213,12 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     const names = Array.isArray(value) ? value.map((name) => (typeof name === 'string' ? name.trim().toLowerCase() : '')) : ['']
     if (names.some((name) => name === '' || /[/\\@?#\s]/.test(name))) throw fail('config.allowedHosts', {})
     return names
+  } },
+  // The name machines reach the hub by (BTN-1242): set, the hub listens for them; `null` — it does not.
+  { key: 'machinesAddress', kind: 'string', scopes: ['global'], lands: ['machinesAddress'], default: null, check: (value) => {
+    if (value === null || (typeof value === 'string' && value.trim() === '')) return null
+    if (typeof value !== 'string' || hubUrlOf(value, MACHINES_PORT) === undefined) throw fail('config.machinesAddress', { value: json(value) })
+    return value.trim().toLowerCase()
   } },
   { key: 'parallel', kind: 'integer', scopes: ['global'], lands: ['parallel'], default: 1, check: (value) => {
     if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.parallel', { value: json(value) })

@@ -682,6 +682,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     builtin,
     builtinExports,
     backup: ctx.backups,
+    machines: ctx.machineLink.network,
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)
@@ -772,6 +773,7 @@ export async function wireConfigStore(ctx: HostingContext): Promise<ConfigStore>
       ctx.dispatcher.check()
       ctx.updates.configChanged()
       void ctx.applyTally()
+      void ctx.machineLink.network.apply()
       ctx.eventLog.settingsSeen(ctx.configStore.raw())
       ctx.hub.broadcastSoon('state', ctx.getState)
     },

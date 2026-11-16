@@ -8,11 +8,15 @@ import { HubEnd } from './hub.js'
 import { createHubServer } from './hub-server.js'
 import { MemoryHubStore, MemoryMachineStore } from './link.fixture.js'
 import { MachineEnd } from './machine.js'
-import { connectPinned, frameReader, httpsTransport } from './machine-transport.js'
+import { connectPinned, frameReader, httpsTransport, joinHub } from './machine-transport.js'
 import {
-  API_VERSION, EVENTS_PATH, STREAM_PATH, bearerOf, parseToken,
-  type ConnectionToken, type Frame, type MachineEvent, type NumberedCommand,
+  API_VERSION, EVENTS_PATH, JOIN_PATH, STREAM_PATH, bearerOf, isRefusal, parseToken,
+  type ConnectionToken, type Frame, type MachineAbout, type MachineEvent, type NumberedCommand,
 } from './protocol.js'
+
+const ABOUT: MachineAbout = {
+  host: 'example-laptop', os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: { claude: '2.1.0' }, gitUser: false, root: null,
+}
 
 const until = async (holds: () => boolean, what: string) => {
   for (let waited = 0; !holds(); waited += 10) {
@@ -182,6 +186,22 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
     expect((await made.raw(STREAM_PATH, '', 'GET')).status).toBe(405)
     expect((await made.raw('/api/state', '{}')).status).toBe(404)
     expect((await made.raw(EVENTS_PATH, JSON.stringify({ connection: 'c', lastCommand: 0, events: [], filler: 'x'.repeat(5_000) }))).status).toBe(413)
+    expect((await made.raw(JOIN_PATH, JSON.stringify({ api: API_VERSION }))).status).toBe(400)
     expect(made.log).toEqual([])
+  })
+
+  it('exchanges a connection string for the machine its own secret, and the string works no more', async () => {
+    const made = await started()
+    const invite = await made.hub.invite('Example laptop', made.token.hub, made.certificate.fingerprint)
+    const string = parseToken(invite.line)!
+    const joined = await joinHub(string, ABOUT, 5_000)
+    if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+    expect(joined).toMatchObject({ hub: string.hub, fingerprint: string.fingerprint, machine: string.machine })
+    expect(joined.secret).not.toBe(string.secret)
+    expect(await joinHub(string, ABOUT, 5_000)).toEqual({ refused: 'used' })
+    expect((await made.raw(JOIN_PATH, JSON.stringify({ api: API_VERSION, about: ABOUT }), 'POST', bearerOf(string))).status).toBe(410)
+    const machine = made.machine(joined)
+    await machine.start()
+    await until(() => machine.status().state === 'online', 'the joined machine online')
   })
 })

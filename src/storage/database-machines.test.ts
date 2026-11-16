@@ -65,9 +65,8 @@ describe("step 51: the hub's machines and their commands (BTN-988)", { timeout: 
       await store.revoke(MACHINE, 100)
       await store.revoke(MACHINE, 200)
       expect((await store.machine(MACHINE))?.revokedAt).toBe(100)
-      await store.addMachine({ id: 'second', name: 'Second', secretHash: 'hash', createdAt: 5 })
-      await store.seen('second', 'other-host', 1, 6)
-      expect(await store.machine('second')).toEqual({ id: 'second', name: 'Second', secretHash: 'hash', createdAt: 5, revokedAt: null, host: 'other-host', lastEvent: 0 })
+      // The columns of step 55 are not there yet: the store reads them as empty.
+      expect(await store.machine(MACHINE)).toMatchObject({ inviteExpires: null, joinedAt: null, about: null })
     } finally {
       await db.close()
     }

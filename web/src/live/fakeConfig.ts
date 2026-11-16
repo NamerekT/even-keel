@@ -84,6 +84,7 @@ export const FAKE_SHARED: SharedForm = {
   setupPassed: [],
   cliCheck: false,
   allowedHosts: [],
+  machinesAddress: null,
   context: { window: 600_000, warn: 50, danger: 80 },
   stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: DEFAULT_SHARES },
   updates: { check: true, notify: true },

@@ -10,6 +10,8 @@ import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
 import type { EventHub } from './events.js'
 import type { GuardSettings } from './guard.js'
+import type { Invite } from './link/hub.js'
+import type { AddressChoice, MachineView } from './service/machine-network.js'
 import type { HotkeyBindings } from './hotkeys.js'
 import type { Language } from './language.js'
 import type { NoticeKind } from './notice/kinds.js'
@@ -247,6 +249,14 @@ export interface ServerDeps {
   hulyClient?: { install(): void }
   /** "Make a copy now" of the backup's settings (BTN-1083): refused while a copy runs. */
   backup?: { copyNow(): void }
+  /** The machines elsewhere (BTN-1242): their window is BTN-1056; without it the calls answer nothing. */
+  machines?: {
+    addresses(): AddressChoice[]
+    invite(name: string): Promise<Invite>
+    revoke(machine: string): Promise<void>
+    list(): Promise<MachineView[]>
+    attach(machine: string, projects: string[]): Promise<void>
+  }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
   /** The windows of step jobs (BTN-1048): "Retry" of a failed step, "Cancel", closing a finished one. */

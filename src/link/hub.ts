@@ -1,10 +1,17 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { HubStore, MachineRecord } from './hub-store.js'
 import {
-  API_VERSION, HEARTBEAT_MS, MISSED_PULSES, credentialsOf, encodeToken,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type Refusal,
-  type SnapshotPost,
+  API_VERSION, HEARTBEAT_MS, INVITE_MS, MISSED_PULSES, credentialsOf, encodeToken,
+  type Command, type EventsAnswer, type EventsPost, type Frame, type JoinAnswer, type JoinPost, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
+  type McpRequest, type Refusal, type SnapshotPost,
 } from './protocol.js'
+
+/** A connection string just issued: the line is shown once, the hub keeps only the hash of its secret. */
+export interface Invite {
+  line: string
+  machine: string
+  expiresAt: number
+}
 
 /** Where a machine's frames go: the stream of its connection. */
 export interface FrameSink {
@@ -30,6 +37,8 @@ export interface HubOptions {
   log: (line: string) => void
   heartbeatMs?: number
   now?: () => number
+  /** The machines this end serves; another one's token is refused here (the hub's own machine is not served over the network). */
+  admits?: (machine: string) => boolean
 }
 
 interface Live {
@@ -46,6 +55,11 @@ export interface Opened {
 }
 
 const hashOf = (secret: string): string => createHash('sha256').update(secret).digest('hex')
+const sameHash = (secret: string, hash: string): boolean => {
+  const given = Buffer.from(hashOf(secret))
+  const kept = Buffer.from(hash)
+  return given.length === kept.length && timingSafeEqual(given, kept)
+}
 
 /**
  * The hub's end of the link. Commands are numbered per machine and kept in the store until the machine names their
@@ -69,6 +83,44 @@ export class HubEnd {
     const secret = randomBytes(32).toString('base64url')
     await this.options.store.addMachine({ id: machine, name, secretHash: hashOf(secret), createdAt: this.now() })
     return encodeToken({ hub, fingerprint, machine, secret })
+  }
+
+  /**
+   * A connection string for a machine elsewhere (BTN-1242): it opens only the join, once and for `INVITE_MS`, where it
+   * is exchanged for the machine's own secret. A new one revokes the strings issued before and never joined with.
+   */
+  async invite(name: string, hub: string, fingerprint: string): Promise<Invite> {
+    const { store } = this.options
+    for (const record of await store.listMachines()) {
+      if (record.inviteExpires !== null && record.joinedAt === null && record.revokedAt === null) await store.revoke(record.id, this.now())
+    }
+    const machine = randomUUID()
+    const secret = randomBytes(32).toString('base64url')
+    const expiresAt = this.now() + INVITE_MS
+    await store.addMachine({ id: machine, name, secretHash: hashOf(secret), createdAt: this.now(), inviteExpires: expiresAt })
+    return { line: encodeToken({ hub, fingerprint, machine, secret }), machine, expiresAt }
+  }
+
+  /**
+   * A machine joins with its connection string: once, before it expires. The answer is the machine's own secret, and
+   * from here the string's works no more.
+   */
+  async join(authorization: string | undefined, post: JoinPost): Promise<JoinAnswer | Refusal> {
+    const credentials = credentialsOf(authorization)
+    if (credentials === undefined) return { refused: 'token' }
+    if (post.api !== API_VERSION) return { refused: 'version', api: API_VERSION }
+    return this.queued(credentials.machine, async () => {
+      const { store } = this.options
+      const record = await store.machine(credentials.machine)
+      if (record === undefined || record.revokedAt !== null || record.inviteExpires === null || this.options.admits?.(record.id) === false) return { refused: 'token' } as const
+      if (record.joinedAt !== null) return { refused: 'used' } as const
+      if (!sameHash(credentials.secret, record.secretHash)) return { refused: 'token' } as const
+      if (this.now() > record.inviteExpires) return { refused: 'expired' } as const
+      const secret = randomBytes(32).toString('base64url')
+      if (!(await store.joined(record.id, hashOf(secret), post.about, this.now()))) return { refused: 'used' } as const
+      this.options.log(`link: machine ${record.id} (${post.about.host}) joined with its connection string`)
+      return { secret }
+    })
   }
 
   /** The token stops working and the machine's connection is closed. Its commands stay: nothing takes them. */
@@ -105,6 +157,7 @@ export class HubEnd {
       if (fresh === undefined || fresh.revokedAt !== null) return { refused: 'token' } as const
       this.drop(machine)
       await store.seen(machine, hello.host, hello.api, this.now())
+      if (hello.about !== undefined) await store.described(machine, hello.about)
       await store.dropCommands(machine, hello.lastCommand)
       const connection = randomUUID()
       const live: Live = { connection, sink, ping: setInterval(() => sink.send({ kind: 'ping' }), this.heartbeatMs) }
@@ -185,8 +238,10 @@ export class HubEnd {
     const credentials = credentialsOf(authorization)
     if (credentials === undefined) return undefined
     const record = await this.options.store.machine(credentials.machine)
-    if (record === undefined || record.revokedAt !== null) return undefined
-    return timingSafeEqual(Buffer.from(hashOf(credentials.secret)), Buffer.from(record.secretHash)) ? record : undefined
+    if (record === undefined || record.revokedAt !== null || this.options.admits?.(record.id) === false) return undefined
+    // A connection string opens only the join.
+    if (record.inviteExpires !== null && record.joinedAt === null) return undefined
+    return sameHash(credentials.secret, record.secretHash) ? record : undefined
   }
 
   /** Two pulses without a post from the machine: the connection is broken. */

@@ -9,10 +9,14 @@ import { saveSnapshot } from '../chain/snapshots.js'
 import { CLAUDE } from '../claude/name.js'
 import { AccountIdentities } from '../limits/identity.js'
 import { AccountPolls, type AccountTie } from '../limits/polls.js'
+import { listenOf } from '../config.js'
+import { machinesPortOf } from '../link/address.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
+import { hubIdentity } from '../link/identity.js'
+import { MachineNetwork } from './machine-network.js'
 import { HubEnd } from '../link/hub.js'
 import { LOCAL_HEARTBEAT_MS, LocalTransport } from '../link/local.js'
-import { DatabaseMachineStore, openMachineDatabase } from '../link/machine-store.js'
+import { DatabaseMachineStore, MACHINE_DIR, openMachineDatabase } from '../link/machine-store.js'
 import { MachineEnd } from '../link/machine.js'
 import { bearerOf } from '../link/protocol.js'
 import { stateDirOf } from '../locations.js'
@@ -36,8 +40,7 @@ import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { HubMcp, machineTasks } from './hub-mcp.js'
 import { steer, wireMachine } from './machine-chain.js'
 
-/** The folder of the machine's own database inside the state folder, next to the hub's `even-keel/`. */
-export const MACHINE_DIR = 'machine'
+export { MACHINE_DIR }
 /** How long the start waits for the machine's first snapshot; past it the chain simply does not step until it comes. */
 const FIRST_SNAPSHOT_MS = 30_000
 /** How often the machine posts what changed when no step of the chain asked for it: the page's actions read the mirror too. */
@@ -52,6 +55,8 @@ export interface LinkedMachine {
   page: PageReads
   /** What the page, the hooks and the chat ask of the machine besides the chain: commands over the link. */
   services: MachineServices
+  /** The door for machines elsewhere (BTN-1242): open while "Hub address for machines" is set. */
+  network: MachineNetwork
   /**
    * Connects the machine to its hub and waits for its first snapshot. Called once the dispatcher exists: the machine's
    * facts read the chain's state. Until then the mirror is empty and the chains do not step.
@@ -178,6 +183,19 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
   })
   const token = await ownMachine({ hub, hubStore, db: ctx.db, machineDb, name: hostname() })
   own = token.machine
+  const network = new MachineNetwork({
+    db: ctx.db,
+    store: hubStore,
+    certificate: () => hubIdentity(ctx.db),
+    own: () => own,
+    address: () => ctx.configStore.current.machinesAddress,
+    port: machinesPortOf(process.env),
+    repoOf: (project) => ctx.configStore.current.projects[project],
+    allowedHosts: () => ctx.configStore.current.allowedHosts,
+    serviceHost: listenOf(process.env).host,
+    changed: () => ctx.hub.broadcast('machines', { changedAt: Date.now() }),
+    log,
+  })
 
   // The process before this one may have kept a command its machine never took: nothing waits for its result now, and a
   // launch among them would start a session the chain did not ask for again.
@@ -316,7 +334,9 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
     records,
     page: remote.page,
     services,
+    network,
     start: async () => {
+      await network.apply()
       await end.start()
       let waited: ReturnType<typeof setTimeout> | undefined
       await Promise.race([first, new Promise<void>((resolve) => (waited = setTimeout(resolve, FIRST_SNAPSHOT_MS)))])
@@ -337,6 +357,7 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
       await end.flushed()
       end.stop()
       hub.stop()
+      await network.close()
       await machineDb.close()
     },
   }

@@ -111,6 +111,12 @@ export const sharedRu = {
   allowedHostsHint: 'Имена, кроме loopback и EVEN_KEEL_HOST, по которым открывается страница, — например имя прокси.',
   allowedHostsAdd: 'Добавить имя',
   allowedHostsEmpty: 'только этот компьютер и адрес самого сервиса',
+  machinesAddress: 'Адрес хаба для машин',
+  machinesAddressHint:
+    'Имя или IP, по которому другие машины достают этот хаб, с :портом, если роутер или прокси пробрасывает другой. Задан — хаб слушает машины на порту 4749, если служба не установлена с другим; пусто — не слушает. Имя за прокси (например, Tailscale Service на порт страницы) работает, только если прокси пропускает и порт машин.',
+  machinesAddressNone: 'Машины не подключаются',
+  machinesAddressFrom: { allowedHosts: 'имя страницы', service: 'адрес службы' } as Record<string, string>,
+  machinesAddressAdapter: (adapter: string) => `сетевая карта ${adapter}`,
   updatesCheck: 'Проверять новые версии',
   updatesCheckHint: 'Дважды в сутки служба спрашивает у GitHub последний релиз Even Keel, без токена. Выключено — служба туда не ходит.',
   updatesNotify: 'Уведомлять о новых версиях',

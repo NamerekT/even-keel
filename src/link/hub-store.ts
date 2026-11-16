@@ -1,5 +1,5 @@
 import { inTransaction, type Db } from '../storage/database.js'
-import type { Command, NumberedCommand } from './protocol.js'
+import type { Command, MachineAbout, NumberedCommand } from './protocol.js'
 
 export interface MachineRecord {
   id: string
@@ -12,14 +12,27 @@ export interface MachineRecord {
   host: string | null
   /** The highest event number taken from the machine. */
   lastEvent: number
+  /** Until when its connection string can be joined with; `null` — a machine made without one (the hub's own). */
+  inviteExpires: number | null
+  /** When a machine joined with its connection string; until then the string's secret opens nothing but the join. */
+  joinedAt: number | null
+  /** What the machine told about itself last (BTN-1242). */
+  about: MachineAbout | null
 }
+
+export type NewMachine = Pick<MachineRecord, 'id' | 'name' | 'secretHash' | 'createdAt'> & { inviteExpires?: number }
 
 /** What the hub keeps about its machines' links: the tokens, the commands not confirmed yet and the last event taken. */
 export interface HubStore {
   machine(id: string): Promise<MachineRecord | undefined>
-  addMachine(machine: Pick<MachineRecord, 'id' | 'name' | 'secretHash' | 'createdAt'>): Promise<void>
+  addMachine(machine: NewMachine): Promise<void>
+  /** Every machine, the revoked ones too: for the hub's page. */
+  listMachines(): Promise<MachineRecord[]>
   revoke(id: string, at: number): Promise<void>
   seen(id: string, host: string, api: number, at: number): Promise<void>
+  /** The machine joined with its string: its own secret replaces the string's, once. `false` — it had joined already. */
+  joined(id: string, secretHash: string, about: MachineAbout, at: number): Promise<boolean>
+  described(id: string, about: MachineAbout): Promise<void>
   /** Keeps the command under the machine's next number. */
   addCommand(id: string, command: Command, at: number): Promise<number>
   commandsAfter(id: string, seq: number): Promise<NumberedCommand[]>
@@ -35,6 +48,27 @@ interface MachineRow {
   revoked_at: string | null
   host: string | null
   last_event: string
+  invite_expires?: string | null
+  joined_at?: string | null
+  about?: string | null
+}
+
+const countOf = (value: string | null | undefined): number | null => (value === null || value === undefined ? null : Number(value))
+
+/** Read with `*`: the stores of the steps before 55 are read through this one too. */
+function recordOf(row: MachineRow): MachineRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    secretHash: row.secret_hash,
+    createdAt: Number(row.created_at),
+    revokedAt: countOf(row.revoked_at),
+    host: row.host,
+    lastEvent: Number(row.last_event),
+    inviteExpires: countOf(row.invite_expires),
+    joinedAt: countOf(row.joined_at),
+    about: row.about === null || row.about === undefined ? null : (JSON.parse(row.about) as MachineAbout),
+  }
 }
 
 /** The hub's side in the state database: `machines` and `machine_commands` (step 51). */
@@ -42,22 +76,23 @@ export class DatabaseHubStore implements HubStore {
   constructor(private readonly db: Db) {}
 
   async machine(id: string): Promise<MachineRecord | undefined> {
-    const { rows } = await this.db.query<MachineRow>('select id, name, secret_hash, created_at, revoked_at, host, last_event from machines where id = $1', [id])
-    const row = rows[0]
-    if (row === undefined) return undefined
-    return {
-      id: row.id,
-      name: row.name,
-      secretHash: row.secret_hash,
-      createdAt: Number(row.created_at),
-      revokedAt: row.revoked_at === null ? null : Number(row.revoked_at),
-      host: row.host,
-      lastEvent: Number(row.last_event),
-    }
+    const { rows } = await this.db.query<MachineRow>('select * from machines where id = $1', [id])
+    return rows[0] === undefined ? undefined : recordOf(rows[0])
   }
 
-  async addMachine(machine: Pick<MachineRecord, 'id' | 'name' | 'secretHash' | 'createdAt'>): Promise<void> {
-    await this.db.query('insert into machines (id, name, secret_hash, created_at) values ($1, $2, $3, $4)', [machine.id, machine.name, machine.secretHash, machine.createdAt])
+  async listMachines(): Promise<MachineRecord[]> {
+    const { rows } = await this.db.query<MachineRow>('select * from machines order by created_at, id')
+    return rows.map(recordOf)
+  }
+
+  async addMachine(machine: NewMachine): Promise<void> {
+    const values = [machine.id, machine.name, machine.secretHash, machine.createdAt]
+    // The hub's own machine has no string to join with: made before step 55 runs (step 52's own machine), it names no new column.
+    if (machine.inviteExpires === undefined) {
+      await this.db.query('insert into machines (id, name, secret_hash, created_at) values ($1, $2, $3, $4)', values)
+      return
+    }
+    await this.db.query('insert into machines (id, name, secret_hash, created_at, invite_expires) values ($1, $2, $3, $4, $5)', [...values, machine.inviteExpires])
   }
 
   async revoke(id: string, at: number): Promise<void> {
@@ -66,6 +101,18 @@ export class DatabaseHubStore implements HubStore {
 
   async seen(id: string, host: string, api: number, at: number): Promise<void> {
     await this.db.query('update machines set host = $2, api = $3, seen_at = $4 where id = $1', [id, host, api, at])
+  }
+
+  async joined(id: string, secretHash: string, about: MachineAbout, at: number): Promise<boolean> {
+    const { rows } = await this.db.query<{ id: string }>(
+      'update machines set secret_hash = $2, about = $3, joined_at = $4 where id = $1 and joined_at is null and revoked_at is null returning id',
+      [id, secretHash, JSON.stringify(about), at],
+    )
+    return rows.length > 0
+  }
+
+  async described(id: string, about: MachineAbout): Promise<void> {
+    await this.db.query('update machines set about = $2 where id = $1', [id, JSON.stringify(about)])
   }
 
   addCommand(id: string, command: Command, at: number): Promise<number> {

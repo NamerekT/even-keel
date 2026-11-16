@@ -50,6 +50,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
   return structuredClone({
     ...common,
     allowedHosts: [],
+    machinesAddress: null,
     projects,
     keys: each((id) => id),
     names: {},

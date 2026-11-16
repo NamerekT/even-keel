@@ -230,6 +230,8 @@ export interface SharedForm {
   ci: CiSettings
   fillMilestone: boolean
   allowedHosts: string[]
+  /** The name machines reach the hub by; `null` — the hub does not listen for machines. */
+  machinesAddress: string | null
   context: ContextScale
   stats: StatsConfig
   /** The switches of `updates`; the closed version is written by the toast, not the form. */

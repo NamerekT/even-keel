@@ -49,13 +49,13 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats } = config
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, machinesAddress, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const backup = { dir: config.backup.dir, keep: config.backup.keep }
   const shared = {
     protection: config.protection,
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt },
-    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, context, stats, updates, backup },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, machinesAddress, context, stats, updates, backup },
     notices: config.notices,
   }
   return { projects, shared }
@@ -341,6 +341,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('ci', 'ci.rerunFailed', form.ci.rerunFailed),
     value('fillMilestone', 'fillMilestone', form.fillMilestone),
     value('allowedHosts', 'allowedHosts', names(form.allowedHosts).map((name) => name.toLowerCase())),
+    value('machinesAddress', 'machinesAddress', form.machinesAddress?.trim().toLowerCase() || undefined),
     ...(['window', 'warn', 'danger'] as const).map((key) => value('context', `context.${key}`, form.context[key])),
     ...(['minTasks', 'minSessions', 'days'] as const).map((key) => value('stats', `stats.compare.${key}`, form.stats.compare[key])),
     value('stats', 'stats.moves', form.stats.moves),

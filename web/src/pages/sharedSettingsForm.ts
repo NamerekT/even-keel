@@ -43,6 +43,7 @@ export const valuesOf = (form: SharedForm): Values => ({
   backupDir: form.backup.dir ?? '',
   backupKeep: String(form.backup.keep),
   allowedHosts: form.allowedHosts.join('\n'),
+  machinesAddress: form.machinesAddress ?? '',
   window: String(form.context.window),
   warn: String(form.context.warn),
   danger: String(form.context.danger),
@@ -120,6 +121,7 @@ export function formOf(values: Values): SharedForm | undefined {
     setupPassed: values.setupPassed as SharedForm['setupPassed'],
     cliCheck: values.cliCheck as boolean,
     allowedHosts: linesOf(text('allowedHosts')),
+    machinesAddress: text('machinesAddress').trim() === '' ? null : text('machinesAddress').trim(),
     context: { window: window!, warn, danger },
     stats: {
       compare: { minTasks: minTasks!, minSessions: minSessions!, days: days! },
