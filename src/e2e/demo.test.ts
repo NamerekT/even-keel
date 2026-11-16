@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { BuiltinStore, type BuiltinTask } from '../builtin/store.js'
+import type { SessionRecord } from '../state.js'
 import { Harness } from './service.fixture.js'
 
 describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
@@ -56,6 +57,13 @@ describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
     expect(existsSync(join(repo, 'CHANGELOG.md'))).toBe(true)
     expect(readFileSync(join(repo, 'GREETING.md'), 'utf8')).toContain('Good day')
     expect(run.gitIn(repo, 'log', '--format=%s').split('\n')).toEqual(expect.arrayContaining(['[DEMO-1] README.md', '[DEMO-2] CHANGELOG.md', '[DEMO-3] GREETING.md']))
+
+    // A finished session's window and its task's card read its record (EKR-114).
+    const record = await run.read<SessionRecord>(`sessions/${asking.sessionId}`)
+    expect(record).toMatchObject({ sessionId: asking.sessionId, agent: 'demo', model: 'demo', contextWindow: 200_000 })
+    expect(record!.feed.map((line) => line.text)).toEqual(expect.arrayContaining([expect.stringContaining('GREETING.md')]))
+    expect(record!.startedAt).not.toBeNull()
+    expect(record!.lastActivityAt).not.toBeNull()
 
     await run.post('demo/remove', {})
     expect(run.service.getState().demo).toBeNull()

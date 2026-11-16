@@ -183,11 +183,20 @@ export class Harness {
     return ((await answer.json()) as { notice: Notice }).notice
   }
 
-  private async send(command: string, body: Record<string, unknown>): Promise<Response> {
+  /** A read of the page, through the service's own server: the answer's JSON; `undefined` — 404; throws on another error. */
+  async read<T>(path: string): Promise<T | undefined> {
+    const answer = await this.send(path)
+    if (answer.status === 404) return undefined
+    if (!answer.ok) throw new Error(`e2e: ${path}: ${answer.status} ${await answer.text()}`)
+    return (await answer.json()) as T
+  }
+
+  private async send(command: string, body?: Record<string, unknown>): Promise<Response> {
     const { host, port } = this.service.listen
     let answer: Response | undefined
     let failure: unknown
-    void fetch(`http://${host}:${port}/api/${command}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(
+    const init: RequestInit = body === undefined ? {} : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
+    void fetch(`http://${host}:${port}/api/${command}`, init).then(
       (response) => (answer = response),
       (error: unknown) => (failure = error ?? new Error('fetch failed')),
     )

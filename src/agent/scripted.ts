@@ -7,6 +7,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import type { MailEvent } from '../sessions/mail.js'
 import { hungEntry } from '../sessions/silence.js'
 import { type FeedLine, type Stage, TranscriptFold, type TranscriptSummary } from '../sessions/transcript.js'
+import type { SessionRecord } from '../state.js'
 import type { Agent, AgentAdapter, AgentOptions, SessionHandle, SessionMcp, SessionStart } from './contract.js'
 
 /** What a turn of a scripted session sees: its task, its folder, the prompt it got and the main checkout to merge into. */
@@ -108,6 +109,8 @@ export interface ScriptedSession {
 
 export const SCRIPT_PID = 4242
 const FEED_SIZE = 30
+/** The lines a record keeps, as `readSessionRecord`'s fold does. */
+const RECORD_FEED = 5_000
 /** Captured before a scenario fakes the timers: `settled` polls in real time. */
 const realTimeout = globalThis.setTimeout
 
@@ -228,8 +231,27 @@ export class ScriptedAgent implements Agent {
     }
   }
 
-  async record(): Promise<undefined> {
-    return undefined
+  /** The session's record from what the script keeps of it, as an adapter's would be read from its transcript (EKR-114). */
+  async record(home: AccountHome, sessionId: string): Promise<Omit<SessionRecord, 'agent'> | undefined> {
+    const session = this.known.get(sessionId)
+    if (session === undefined || session.entry.account !== home.key) return undefined
+    const { summary } = session
+    return {
+      sessionId,
+      startedAt: new Date(session.entry.startedAt).toISOString(),
+      lastActivityAt: summary.lastActivityAt,
+      model: summary.model,
+      effort: summary.effort ?? null,
+      contextTokens: summary.contextTokens,
+      contextWindow: summary.contextWindow,
+      tokens: summary.tokens,
+      stage: summary.stage,
+      feed: session.lines.slice(-RECORD_FEED),
+      workdir: summary.workdir,
+      branch: summary.gitBranch,
+      apiError: summary.apiError?.text ?? null,
+      account: null,
+    }
   }
 
   async feed(_home: AccountHome, _sessionId: string, _after: number): Promise<{ lines: FeedLine[]; turn: TranscriptSummary['turn'] } | undefined> {
