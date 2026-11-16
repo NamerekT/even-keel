@@ -18,6 +18,8 @@ A restart is needed only for a new version of Even Keel (BTN-130). The service l
 
 `src/diagnostics/stop.ts` records `stopping: SIGINT`/`SIGTERM` before the existing shutdown. `main.ts` installs an `uncaughtExceptionMonitor` before storage starts: fatal exceptions and unhandled rejections write `stopping: uncaughtException`/`unhandledRejection` and the stack synchronously to stderr, preserving Node's default fatal exit. A missing stop line does not exclude SIGKILL, a machine shutdown or a native crash.
 
+Right after it `main.ts` sends every `fetch` and `WebSocket` of the process over HTTP/1.1 through a global dispatcher from the `undici` package (`src/fetch-dispatcher.ts`, BTN-1227). Node 26's own fetch takes HTTP/2 wherever a server offers it, and its bundled undici 8.12.2 crashed the service during a network failure: an idle HTTP/2 session's teardown emitted `error` on a stream nothing listened to (`InformationalError: socket idle timeout`).
+
 `src/diagnostics/start-watch.ts`, started by `src/main.ts` right after `.env` is read:
 
 - **`start: modules … s, storage … s, service … s`** — once the service's top level is done: the time from the process start to `main.ts`'s own modules loaded, then opening and upgrading the storage, then `service.ts` (its imports and its wiring up to the timers).

@@ -98,7 +98,8 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@electric-sql/pglite-socket": "^0.2.11",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "undici": "^8.12.4"
   },
   "overrides": {
     "@hcengineering/text": {
