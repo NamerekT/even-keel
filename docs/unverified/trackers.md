@@ -215,6 +215,8 @@ If it is wrong, an issue changed after its label reaches a session as if a perso
 
 The task card lists a parent's direct subtasks on every tracker but Forgejo (`TrackerCard.subtasks`, `docs/trackers.md`). Checked by tests against fake APIs for each adapter and on the fake page; Huly only through `toCard`, since its source has no fake client. Assumed: Huly keeps an issue's `subIssues` count up to date, so a parent with a count of zero is a leaf; GitHub's `subIssuesSummary.total` counts closed sub-issues too; GitLab's hierarchy widget lists every child, closed ones included; a Jira issue that is not an epic has its children only as `fields.subtasks`; Linear's `children` query with `includeArchived` is accepted on the card's every open and is not slow.
 
+Seen live on Huly, GitHub, GitLab.com, Jira Cloud and Linear (2026-11-16, [verified](../verified/trackers.md)): a parent with an open and a closed child listed both with their statuses, Linear an archived child too, and a child's card named its parent and listed no subtasks; a Linear card opened in 0.35–0.8 s, as fast as a leaf's. Not seen: a Jira epic's children, and a Huly parent whose `subIssues` count fell behind its children.
+
 If it is wrong, a parent's card shows no subtasks or only the open ones, or a Linear card opens slower. **Workaround:** open the parent in its tracker. To check: on each bench, open the card of a parent with an open and a closed child (an epic and a sub-task on Jira, an archived child on Linear) and compare the list and its "closed/all" with the tracker.
 
 ## A vocabulary refused while tasks are read (EKR-106)
