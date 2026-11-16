@@ -35,6 +35,36 @@ describe('Copilot CLI refusals', () => {
     expect(summary.apiError).toMatchObject({ kind: 'error', notice: { code: 'copilot.notSignedIn' } })
   })
 
+  it('reads the Error lines of a plain-text block that ends the output, advice after them included', () => {
+    // The tail CLI 1.0.106 left when the model list did not load under the service (EKR-113).
+    const output = [
+      '{"type":"session.mcp_server_tools_loaded","data":{"serverName":"plugin_playwright_playwright","toolCount":25},"ephemeral":true}',
+      'Error: Failed to load models',
+      '',
+      'Error: Model catalog request timed out after 30000ms',
+      '',
+      'Copilot could not connect to the Copilot API to retrieve the list of available models.',
+      '',
+      'To resolve this, try the following:',
+      '  • Check your network connection',
+      '  • If you use a proxy, verify that HTTPS_PROXY, HTTP_PROXY and NO_PROXY are set correctly and the proxy is reachable',
+      '  • If the problem persists, retry later or contact support',
+      '',
+    ].join('\n')
+    const error = outputError(output)
+    expect(error).toBe('Error: Failed to load models\nError: Model catalog request timed out after 30000ms')
+    expect(refusalNotice(error!)).toEqual({ code: 'copilot.apiUnreachable', params: {} })
+    const summary = withTurnError(foldEvents(''), { at: '2026-01-01T00:00:00Z', text: error! })
+    expect(summary.apiError).toMatchObject({ kind: 'error', text: error, notice: { code: 'copilot.apiUnreachable' } })
+    expect(summary.feed.at(-1)).toMatchObject({ kind: 'error', text: error })
+    expect(outputError(`{"type":"result","exitCode":0}\n${output.split('\n').slice(1).join('\n')}`)).toBeUndefined()
+  })
+
+  it('leaves an Error line an event came after, and a closing block without one', () => {
+    expect(outputError(`Error: MCP server failed\n{"type":"session.idle"}\n`)).toBeUndefined()
+    expect(outputError(`{"type":"session.start"}\nCopilot could not connect.\n\n  • Check your network connection\n`)).toBeUndefined()
+  })
+
   it('does not override later transcript activity or mutate the original summary', () => {
     const summary = foldEvents(JSON.stringify({ type: 'assistant.message', timestamp: '2026-01-02T00:00:00Z', data: { content: 'Recovered' } }))
     expect(withTurnError(summary, { at: '2026-01-01T00:00:00Z', text })).toBe(summary)

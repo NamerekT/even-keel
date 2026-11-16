@@ -302,6 +302,7 @@ export const en = {
   'copilot.binaryMissing': (p: { bin: string }) =>
     `Copilot CLI could not be started: “${p.bin}” is not a program Even Keel can run`,
   'copilot.modelUnavailable': (p: { model: string }) => `Copilot cannot use the model “${p.model}”. Choose an available model in Model in the project's session settings (or change the model on the task’s card, under “Runs on”), then choose “New session”.`,
+  'copilot.apiUnreachable': () => 'Copilot could not reach the Copilot API to load its models. Check the network of Even Keel’s machine and, behind a proxy, HTTPS_PROXY in its environment, then choose “New session”.',
   'copilot.notSignedIn': () => 'Copilot is not signed in on this machine. Run “gh auth login” as the user Even Keel runs as, or add a Copilot account with its own token on the Accounts page, then choose “New session”.',
   'copilot.resumeFailed': (p: { task: string; cwd: string }) => `copilot: could not resume ${p.task} in ${p.cwd}`,
   'copilot.unknownSession': (p: { session: string }) => `copilot: Even Keel did not start the session ${p.session}`,
