@@ -69,8 +69,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- **A project's lone `AGENTS.md` is no longer in a Claude session's context twice.** Claude Code reads the file by itself, so Even Keel stopped appending it to the system prompt; the same text reached every turn twice before.
-- **A project's lone `AGENTS.md` reaches a Claude session again when a `CLAUDE.md` lies in a folder above the checkout**, such as `~/.claude/CLAUDE.md` for a checkout in your home folder. Claude Code skips the file then, so Even Keel appends it to the system prompt in that case only.
+- **A project's lone `AGENTS.md` reaches a Claude session once, not twice.** Claude Code reads the file by itself, so Even Keel no longer appends it to the system prompt, except when a `CLAUDE.md` lies in a folder above the checkout (such as `~/.claude/CLAUDE.md` for a checkout in your home folder): Claude Code skips the file then.
 - **Claude's Protection rules against deleting a remote branch with a colon refspec and against `rm -rf C:`/`D:` now match**: they are written `:**`, which Claude Code reads as a pattern, instead of `:*`.
 - **Codex applies the project's Protection rules**: Even Keel marks the project's folder as trusted in the account's `config.toml` before each turn, since Codex reads the rules only in a trusted folder.
 - **Pull request mode: a session that asks you a question no longer has its task closed unanswered.** It now ends that turn without the `PULL REQUEST` line, so the chain waits for your answer. Before, a session could put the line under its question, and the task closed on an empty branch.
