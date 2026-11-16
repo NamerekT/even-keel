@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **`even-keel install`, `even-keel update` and the first install from `npx` print the page's address** once the page answers, taken from `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` of the environment and the data folder's `.env`. If the page has not answered after 30 s, they say where the log is instead. The first install from `npx` then opens the page in the browser. On Linux it does that only on a desktop with a display, never over SSH.
+
 ### Changed
 
 - **What a task runs on is set on its card, not by a tracker label.** A task's run — provider, model and effort — is kept by Even Keel: the card's **Runs on** picks it, and a session can set it through the tasks server's `run` field of `tasks_create` and `task_update`. The effort is new: Claude Code's `low` to `max` and Codex's `minimal` to `xhigh`; empty passes none. Labels `<Provider> | <model>` are no longer read. The update moves the run label of each open task into its run once, in the projects that had run labels on; the labels stay in the tracker. The setting `modelLabels` is removed.
@@ -15,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **The main branch field offers the repository's branches, and saving another branch switches the main checkout to it**, in a project's settings and in the wizard that adds one: a branch the repository lacks is created from where the checkout stands, one only on a remote is taken from there, and the line under the field says which before you save. The wizard fills in the checkout's current branch and no longer refuses a branch the repository lacks. A checkout switched by hand is shown in the settings and on the chain's card, with buttons to make its branch the main one or to put the folder back, instead of only when a task fails to start.
 - **The `checkpoint` plugin is now `agent-bridge`.** The first start after the update replaces `checkpoint@even-keel` with `agent-bridge@even-keel` in every project; a task already running keeps the old plugin until it ends. Let running tasks reach Done before you update: a task carried across the update on the old plugin was not tried through a handoff or a second restart. If you installed `checkpoint` into your own Claude Code by hand, uninstall it as [setup](docs/guide/setup.md#plugins) says.
 - **A page tab open over the update may need a reload.** Page commands now answer only `{ok:true}`. A tab opened before the update reloads itself once the new service answers, but one held by an open dialog or a field you are typing in waits, and a command sent from it before the reload leaves it broken: reload it by hand.
+- Even Keel has a new mark: a sloop with a mast and a narrow green fin keel.
 
 ### Security
 
@@ -28,6 +33,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **A project's lone `AGENTS.md` reaches a Claude session again when a `CLAUDE.md` lies in a folder above the checkout**, such as `~/.claude/CLAUDE.md` for a checkout in your home folder. Claude Code skips the file then, so Even Keel appends it to the system prompt in that case only.
 - The Forgejo plugin's `forgejo:task` skill loads again: its description is quoted, so the skill's frontmatter parses and chain sessions on Forgejo, Gitea and Codeberg projects get the skill (plugin 0.1.1). A test now parses the frontmatter of every bundled skill.
 - **`npx even-keel` on macOS and Linux says what to do when npm cannot write its global folder**, as with Node from the nodejs.org installer, whose folder under `/usr/local` belongs to root: it installs nothing and prints the commands that move the folder into your home, also after an `EACCES` of npm itself. It refuses to run as root, since the service would then be installed for root.
+- **Pull request mode: a session that asks you a question no longer has its task closed unanswered.** It now ends that turn without the `PULL REQUEST` line, so the chain waits for your answer. Before, a session could put the line under its question, and the task closed on an empty branch.
+- Forgejo: a project or feed on an organization's repository with a token without `read:organization` still reads its tasks, but not its labels and milestones. The project page now says so: it names what sessions lose, says to add `read:organization` instead of pointing to `write:issue`, and gives a button to Trackers and CI.
 
 ## [0.2.4] - 2026-11-11
 
