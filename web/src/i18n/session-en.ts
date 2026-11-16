@@ -85,12 +85,14 @@ export const sessionEn = {
     title: {
       launch: 'Starting a session',
       handover: 'Handing the task over',
+      resume: 'Continuing the session',
       boot: 'Session booting',
       answer: 'Session thinking',
     },
     text: {
       launch: 'Preparing the working copy and starting the agent.',
       handover: 'The old session stops, the new one starts with a handoff.',
+      resume: 'The same session goes on where it stopped.',
       boot: 'The agent is coming up: settings, plugins, MCP servers.',
       answer: 'The session is up and working on its first answer.',
     },

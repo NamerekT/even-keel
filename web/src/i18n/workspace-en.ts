@@ -329,6 +329,7 @@ export const chainEN: Messages['chain'] = {
     starting: {
       launch: 'starting',
       handover: 'handing over',
+      resume: 'continuing',
       boot: 'booting',
       answer: 'first answer',
     },

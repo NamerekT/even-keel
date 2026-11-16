@@ -4,7 +4,7 @@ import { useNow } from '../layout/useNow.js'
 import type { SessionStart, StartPhase } from '../state.js'
 import './start.css'
 
-const STEP: Record<StartPhase, number> = { launch: 0, handover: 0, boot: 1, answer: 2 }
+const STEP: Record<StartPhase, number> = { launch: 0, handover: 0, resume: 0, boot: 1, answer: 2 }
 
 function useElapsed(since: string): string {
   const now = useNow(1_000)

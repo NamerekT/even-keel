@@ -330,6 +330,7 @@ export const chainRU = {
     starting: {
       launch: 'запуск',
       handover: 'передача',
+      resume: 'продолжение',
       boot: 'загрузка',
       answer: 'первый ответ',
     },
