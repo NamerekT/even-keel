@@ -2,10 +2,11 @@ import type { NoteText } from '../chain/handoff-note.js'
 import type { HandoffSnapshot } from '../chain/snapshots.js'
 import { isOwnName } from '../chain/fix.js'
 import type { HandoffSession } from '../chain/relay.js'
+import { BRIEF_COMMAND, type HubBrief } from './brief.js'
 import { LIMITS_PLAN_COMMAND, type LimitsPlan } from '../limits/polls.js'
 import type { HubHandlers } from '../link/hub.js'
 import { FAILED_EVENT, INTERRUPTED_EVENT, REFUSED_EVENT, type Command, type MachineEvent } from '../link/protocol.js'
-import { asNotice, fail, NoticeError } from '../notice/notice.js'
+import { asNotice, fail, NoticeError, type Notice } from '../notice/notice.js'
 import type { AssignedTask } from '../tracker/source.js'
 import type { HeldChanges } from './assignments.js'
 import { applyPatch, mirrorReads, type MachineFacts } from './facts.js'
@@ -14,7 +15,7 @@ import type { LaunchBrief, MachinePort } from './port.js'
 import { pageReads, type PageReads } from './page.js'
 import { isRecordEvent } from './records.js'
 import { remoteServices, type MachineServices } from './services.js'
-import { COMMAND_PREFIX, DONE_EVENT, FACTS_EVENT, HANDOFF_EVENT, type CommandDone, type FactsPosted, type FactsSnapshot, type PortCommand } from './runner.js'
+import { COMMAND_PREFIX, DONE_EVENT, FACTS_EVENT, HANDOFF_EVENT, LEFTOVER_EVENT, TRANSCRIPT_EVENT, type CommandDone, type FactsPosted, type FactsSnapshot, type PortCommand } from './runner.js'
 
 export interface RemoteDeps {
   /** Keeps the command for the machine and gives its number. */
@@ -34,6 +35,12 @@ export interface RemoteDeps {
   saveSnapshot: (snapshot: HandoffSnapshot) => Promise<void> | void
   record?: (event: MachineEvent) => Promise<void>
   changed?: () => void
+  /** A session the chain asked to stop has stopped on the machine. */
+  stopped?: (session: HandoffSession) => void
+  /** What a cleanup the machine finished late left on a task (`LEFTOVER_EVENT`). */
+  leftover?: (project: string, task: string, notice: Notice) => void
+  /** A session's transcript changed on the machine (`TRANSCRIPT_EVENT`). */
+  transcript?: (sessionId: string) => void
   /** The task went to the machine with a launch; its place there is cleaned up. */
   assigned?: (project: string, task: string) => void
   released?: (project: string, task: string) => void
@@ -107,7 +114,10 @@ export class RemoteMachine {
         const prepared = brief ?? (project === undefined || isOwnName(task) ? undefined : await deps.brief?.(project, task))
         return call('relay', ofTask(task, session), [task, session, prompt, reason, prepared])
       },
-      stop: (session) => call('stop', ofSession(session), [session]),
+      stop: async (session) => {
+        await call('stop', ofSession(session), [session])
+        deps.stopped?.(session)
+      },
       locate: (session) => call('locate', ofSession(session), [session]),
       finish: async (project, task, pull) => {
         const outcome = await call<Awaited<ReturnType<MachinePort['finish']>>>('finish', { project }, [project, task, pull])
@@ -158,6 +168,11 @@ export class RemoteMachine {
   /** Tells the machine which account folders another machine polls and the newest limits of their accounts (BTN-991). */
   async tellLimits(plan: LimitsPlan): Promise<void> {
     await this.send(LIMITS_PLAN_COMMAND, {}, plan)
+  }
+
+  /** Hands the machine the hub's brief (`docs/machines.md`, "The brief"); it waits for the machine to take it. */
+  async tellBrief(brief: HubBrief): Promise<void> {
+    await this.send(BRIEF_COMMAND, {}, brief)
   }
 
   handlers(): HubHandlers {
@@ -263,6 +278,11 @@ export class RemoteMachine {
       else this.takeSaved(payload as unknown as MoveSaved)
     } else if (event.type === HANDOFF_EVENT) {
       await this.deps.saveSnapshot(payload as unknown as HandoffSnapshot)
+    } else if (event.type === LEFTOVER_EVENT) {
+      const { project, task, notice } = payload as { project: string; task: string; notice: Notice }
+      this.deps.leftover?.(project, task, asNotice(notice))
+    } else if (event.type === TRANSCRIPT_EVENT) {
+      this.deps.transcript?.(String(payload.sessionId))
     } else if (isRecordEvent(event.type)) {
       if (this.deps.record === undefined) throw new Error(`machine: no writer for ${event.type}`)
       await this.deps.record(event)

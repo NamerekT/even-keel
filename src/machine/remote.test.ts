@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountEntry } from '../account/model.js'
 import type { HandoffSnapshot } from '../chain/snapshots.js'
 import { noticeOf } from '../notice/notice.js'
-import type { SessionView } from '../state.js'
+import type { FoundRepository, SessionView, TaskWork } from '../state.js'
+import { emptyBrief } from './brief.js'
 import { bench, machineOf, PROJECT, tick } from './remote.fixture.js'
 import { HANDOFF_EVENT, MachineRunner } from './runner.js'
 
@@ -303,6 +304,21 @@ describe('the machine port over the link', () => {
     await tick()
     await told
     expect(state.plans).toEqual([plan])
+  })
+
+  it('hands the machine the hub brief, and mirrors the task folders and the repositories found (BTN-1246)', async () => {
+    const { state, remote, runner } = await started()
+    const brief = { ...emptyBrief(), unattended: true, tasks: { [PROJECT]: ['ABC-1'] } }
+    const told = remote.tellBrief(brief)
+    await tick()
+    await told
+    expect(state.briefs).toEqual([brief])
+    state.works = { [PROJECT]: { 'ABC-1': { ahead: 2 } as unknown as TaskWork } }
+    state.gitFound = { other: { url: 'https://example.com/repo.git' } as unknown as FoundRepository }
+    await runner.publish()
+    await tick()
+    expect(remote.page.works()).toEqual(state.works)
+    expect(remote.page.gitFound()).toEqual(state.gitFound)
   })
 })
 

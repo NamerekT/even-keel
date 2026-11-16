@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises'
 import type { HandoffSession } from '../chain/relay.js'
 import { fromCarried, toCarried, type CarriedFile, type MachineServices } from '../machine/services.js'
-import type { ServiceContext } from '../service.js'
+import type { MachineContext } from './machine-context.js'
 import { inboxImage, saveInbox } from '../sessions/inbox.js'
 import { deliveredMail } from '../sessions/mail.js'
 import { noteWritten } from '../sessions/note.js'
 import { sharedFile } from '../sessions/shareFile.js'
 
-export type MachineServicesContext = Pick<ServiceContext,
+export type MachineServicesContext = Pick<MachineContext,
   | 'account'
   | 'agentOf'
   | 'configStore'

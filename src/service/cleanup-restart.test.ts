@@ -33,7 +33,7 @@ function service(stored: LeftFolder[], store: ReturnType<typeof savedRows>['stor
   const lingering = new Lingering()
   lingering.restore(stored, store)
   const leftover = vi.fn()
-  const ctx = { launches: [], agents: [], agentsRead: false, lingering, dispatcher: { leftover } } as unknown as Parameters<typeof stopTaskSessions>[0] & {
+  const ctx = { launches: [], agents: [], agentsRead: false, lingering, tell: { leftover } } as unknown as Parameters<typeof stopTaskSessions>[0] & {
     agentsRead: boolean
   }
   return { ctx, leftover }

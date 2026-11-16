@@ -1,6 +1,7 @@
 import type { AccountLedger } from '../account/ledger.js'
 import type { AccountView } from '../account/model.js'
 import type { RateLimits } from '../limits/model.js'
+import { BRIEF_COMMAND, type HubBrief } from './brief.js'
 import { LIMITS_PLAN_COMMAND, type AccountTie, type LimitsPlan } from '../limits/polls.js'
 import type { UsageHealth } from '../limits/usage.js'
 import type { NumberedCommand } from '../link/protocol.js'
@@ -10,7 +11,7 @@ import { isMove, MOVE_PREFIX, type MoveCall, type MoveDone, type MoveName } from
 import type { MachinePort } from './port.js'
 import { serviceHandlers, type MachineServices } from './services.js'
 import type { SessionMail } from '../sessions/mail.js'
-import type { SessionView } from '../state.js'
+import type { FoundRepository, SessionView, TaskWork } from '../state.js'
 
 /** The port's commands and queries, as the link names them: `port.<member>` with `{ args }` as the payload. */
 export const PORT_COMMANDS = [
@@ -24,6 +25,10 @@ export const COMMAND_PREFIX = 'port.'
 export const DONE_EVENT = 'command.done'
 export const FACTS_EVENT = 'facts'
 export const HANDOFF_EVENT = 'handoff.snapshot'
+/** A cleanup the machine finished late left something on a task: `{ project, task, notice }`. */
+export const LEFTOVER_EVENT = 'task.leftover'
+/** A session's transcript changed on the machine: `{ sessionId }`, for the page's open feed. */
+export const TRANSCRIPT_EVENT = 'transcript.changed'
 
 /** What a command gave: its value, or the notice of what it threw with the message of the error under it. */
 export interface CommandDone {
@@ -74,6 +79,11 @@ export interface RunnerDeps {
   identities?: () => Record<string, AccountTie>
   /** Takes what the hub tells of the account folders: which ones another machine polls, and its newest limits. */
   limitsPlan?: (plan: LimitsPlan) => void
+  /** Takes the hub's brief (`BRIEF_COMMAND`): what the machine's assembly reads of the hub, replaced whole. */
+  brief?: (brief: HubBrief) => void
+  /** By project, what the task folders hold, and the repositories found in projects without git (`MachineFacts`). */
+  works?: () => Record<string, Record<string, TaskWork>>
+  gitFound?: () => Record<string, FoundRepository>
   /** Makes the moves of a task's session the hub asks for (`task.<move>`). */
   moves?: { run: (name: MoveName, call: MoveCall) => Promise<MoveDone> }
   /** Serves the page's, the hooks' and the chat's commands (`account.*`, `transcript.*`, `chat.*`, `records.*`). */
@@ -152,6 +162,12 @@ export class MachineRunner {
       const take = this.deps.limitsPlan
       if (take === undefined) throw new Error(`the machine does not serve ${command.type}`)
       return async () => void take(command.payload as LimitsPlan)
+    }
+    if (command.type === BRIEF_COMMAND) {
+      const take = this.deps.brief
+      if (take === undefined) throw new Error(`the machine does not serve ${command.type}`)
+      // Taken before the command's first await: a command after it reads the new brief, even one run concurrently.
+      return async () => void take(command.payload as HubBrief)
     }
     if (command.type.startsWith(MOVE_PREFIX)) {
       const name = command.type.slice(MOVE_PREFIX.length)
@@ -239,6 +255,8 @@ export class MachineRunner {
       ...(this.deps.owners === undefined ? {} : { owners: this.deps.owners() }),
       ...(this.deps.compactions === undefined ? {} : { compactions: this.deps.compactions() }),
       ...(this.deps.identities === undefined ? {} : { identities: this.deps.identities() }),
+      ...(this.deps.works === undefined ? {} : { works: this.deps.works() }),
+      ...(this.deps.gitFound === undefined ? {} : { gitFound: this.deps.gitFound() }),
       sessionsRead: local.sessionsRead(),
       accountsRead: local.accountsRead(),
       tasks,

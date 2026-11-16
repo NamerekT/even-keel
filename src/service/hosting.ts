@@ -83,7 +83,6 @@ type HostingContext = Pick<ServiceContext,
   | 'archive'
   | 'branchOf'
   | 'branches'
-  | 'gitFound'
   | 'backups'
   | 'chainControl'
   | 'changelogs'
@@ -164,7 +163,6 @@ type HostingContext = Pick<ServiceContext,
   | 'vocabularies'
   | 'profileStatuses'
   | 'statusMover'
-  | 'works'
   | 'writes'
 >
 
@@ -260,7 +258,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     launches: launchDays(ctx.launches, new Date(), ctx.LAUNCH_CHART_DAYS, (project) => ctx.configStore.current.keys[project] !== undefined),
     taskSessions: taskSessions(ctx.launches, machine.sessions(), (sessionId, at) => machine.sessionAccount(sessionId, at), (sessionId) => machine.compactionsOf(sessionId)),
     fixes: fixEpisodes(ctx.launches).episodes,
-    works: ctx.works.view(),
+    works: machine.works(),
     context: ctx.configStore.current.context,
     configError: ctx.configStore.error ?? ctx.listenError,
     packages: ctx.packages.view(),
@@ -280,7 +278,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     cliCopies: Object.fromEntries(Object.entries(ctx.cliCopies.view()).map(([name, copy]) => [name, { ...copy, installed: ctx.cliVersions.installedOf(name) }])),
     cliChecks: ctx.cliChecks.view(),
     git: gitSetup.view(),
-    gitFound: ctx.gitFound.view(),
+    gitFound: machine.gitFound(),
     jobs: stepJobs.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,

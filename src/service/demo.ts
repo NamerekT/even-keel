@@ -1,7 +1,7 @@
 import { builtinControl, builtinPlaces } from '../builtin/control.js'
 import { BuiltinStore } from '../builtin/store.js'
 import { forgetProjectRows } from '../chain/store.js'
-import { runSettings } from '../config.js'
+import { runSettings, type EvenKeelConfig } from '../config.js'
 import { DEMO_ACCOUNT, DEMO_AGENT } from '../demo/model.js'
 import { DemoService } from '../demo/service.js'
 import { runGit } from '../git/run.js'
@@ -31,7 +31,7 @@ type DemoContext = Pick<ServiceContext,
 const DEMO_RUN: RunSettings = { provider: DEMO_AGENT, models: {}, accounts: { [DEMO_AGENT]: DEMO_ACCOUNT } }
 
 /** The run settings of a project, the demo's own for the demo project (BTN-776). */
-export function runOf(ctx: Pick<ServiceContext, 'configStore' | 'demo'>, project: string | undefined): RunSettings {
+export function runOf(ctx: { configStore: { readonly current: EvenKeelConfig }; demo: { owns(project: string | undefined): boolean } }, project: string | undefined): RunSettings {
   return ctx.demo.owns(project) ? DEMO_RUN : runSettings(ctx.configStore.current, project)
 }
 

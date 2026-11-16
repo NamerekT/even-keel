@@ -41,7 +41,7 @@ function setup(stops: (Error | undefined)[]) {
     homeOf: (key: string) => ({ key }),
     stopIn,
     lingering: new Lingering(),
-    dispatcher: { leftover },
+    tell: { leftover },
   } as unknown as Parameters<typeof stopTaskSessions>[0]
   // Git no longer lists the worktree: it unregistered the folder and left it, as on a lock.
   const git = async (): Promise<GitResult> => ({ code: 0, out: '' })

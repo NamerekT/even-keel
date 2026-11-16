@@ -11,7 +11,7 @@ import { KEPT_WRITE_EVENT, MachineTasks, type KeptWrite } from '../taskmcp/machi
 import { tasksProjectOf } from '../taskmcp/server.js'
 import type { Queryable } from '../storage/database.js'
 import { installed } from '../updates/watcher.js'
-import type { ChainContext } from './chain.js'
+import type { MachineContext } from './machine-context.js'
 
 const RELAY_TIMEOUT_MS = 10 * 60_000
 const FORWARD = ['accept', 'content-type', 'mcp-session-id', 'mcp-protocol-version', 'last-event-id']
@@ -99,7 +99,7 @@ function refusalIn(body: string): string | undefined {
  * The working folder of a call on the machine: a chain session's worktree, otherwise the repository of the project
  * the call names (its project key or task key) or of the address's project.
  */
-export function machineFolderOf(ctx: Pick<ChainContext, 'sessions' | 'configStore' | 'readers'>, scope: TasksScope, named: string | null): string | null {
+export function machineFolderOf(ctx: Pick<MachineContext, 'sessions' | 'configStore' | 'readers'>, scope: TasksScope, named: string | null): string | null {
   const own = scope.task === null ? undefined : ctx.sessions.find((each) => each.task === scope.task && each.lamp !== 'finished' && each.cwd !== '')
   if (own !== undefined) return own.cwd
   const { projects } = ctx.configStore.current
@@ -114,7 +114,7 @@ export function machineFolderOf(ctx: Pick<ChainContext, 'sessions' | 'configStor
 }
 
 /** The tasks server of the machine's gateway, over the machine's end of the link. */
-export function machineTasks(ctx: Pick<ChainContext, 'sessions' | 'configStore' | 'readers' | 'briefed'>, end: MachineEnd): MachineTasks {
+export function machineTasks(ctx: Pick<MachineContext, 'sessions' | 'configStore' | 'readers' | 'briefed'>, end: MachineEnd): MachineTasks {
   return new MachineTasks({
     forward: (request) => end.mcp(request),
     keep: async (write) => void (await end.emit(KEPT_WRITE_EVENT, write)),
@@ -128,7 +128,7 @@ export function machineTasks(ctx: Pick<ChainContext, 'sessions' | 'configStore' 
 }
 
 /** The task's session on the machine that is making a call: the working one, else the newest one not finished. */
-export function writerOf(ctx: Pick<ChainContext, 'sessions'>, task: string): Omit<NoteWriter, 'at'> | undefined {
+export function writerOf(ctx: Pick<MachineContext, 'sessions'>, task: string): Omit<NoteWriter, 'at'> | undefined {
   const open = ctx.sessions.filter((each) => each.task === task && each.lamp !== 'finished')
   const session = open.find((each) => each.lamp === 'working') ?? open.at(-1)
   return session === undefined ? undefined : { session: session.sessionId, branch: session.branch }

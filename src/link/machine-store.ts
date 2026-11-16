@@ -63,6 +63,24 @@ export const MACHINE_STEPS: readonly string[] = [
     value text not null
   );
   `,
+  // What only this machine knows of its account folders and CLIs (BTN-1246): the folders' last limits, what was written
+  // into each folder's settings, and the machine's own values. Moved from the state database once (`importMachineStores`).
+  `
+  create table account_limits (
+    account text primary key,
+    limits  text not null
+  );
+  create table account_settings (
+    account  text primary key,
+    written  text not null,
+    own      text not null,
+    saved_at text not null
+  );
+  create table machine_state (
+    name  text primary key,
+    value text not null
+  );
+  `,
 ]
 
 /** The keys of `identity`: the own machine's token, the token of a hub elsewhere and the folder of projects. */

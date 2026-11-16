@@ -24,6 +24,11 @@ export class CheckReports {
     const prefix = `${project}\n`
     return [...this.reports.keys()].filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length))
   }
+
+  /** The project's reports by task: what the hub's brief hands its machine. */
+  ofProject(project: string): Record<string, CheckReport> {
+    return Object.fromEntries(this.tasks(project).map((task) => [task, this.of(project, task)!]))
+  }
 }
 
 /** The report in a request's body; `null` — not one. */

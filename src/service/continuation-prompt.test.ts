@@ -10,7 +10,7 @@ const instructions = 'Model-specific instructions.'
 function setup() {
   const home = { key: 'test', agent: 'claude' } as AccountHome
   const planning = {
-    dispatcher: { state: { unattended: true } },
+    unattended: () => true,
     promptLanguage: () => 'en', projectOf: () => undefined,
     knownTask: () => undefined, hasAccount: () => true, demo: { owns: () => false }, runOfTask: () => undefined,
     configStore: { current: {

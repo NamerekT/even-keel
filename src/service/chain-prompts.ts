@@ -4,7 +4,8 @@ import { withBrief, withMemory, withPrompts, withTracker, withUnbriefed, withVoc
 import { MEMORY_SERVER } from '../memory/mcp.js'
 import { ChangelogDrafts } from '../changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from '../changelog/file.js'
-import { idPrefixOf, isPlain, projectLabel } from '../config.js'
+import { idPrefixOf, isPlain, projectLabel, type EvenKeelConfig } from '../config.js'
+import type { Language } from '../language.js'
 import { commitChangelog } from '../git/changelog.js'
 import { runGit } from '../git/run.js'
 import { fail } from '../notice/notice.js'
@@ -63,8 +64,13 @@ export function wireChangelogs(ctx: ChainContext): ChangelogDrafts {
   })
 }
 
+/** The hub's half: the brief of a task's launch, read from its tracker and sent with the launch's command. */
 export interface Briefed {
   prepare(task: string, project?: string, retained?: boolean): Promise<LaunchBrief>
+}
+
+/** The machine's half: the brief a launch's command brought, kept for the task's later sessions and its tasks server. */
+export interface LaunchBriefs {
   apply(task: string, given: string, received?: LaunchBrief): string
   kept(task: string): TaskBrief | undefined
 }
@@ -73,7 +79,6 @@ export interface Briefed {
 const KEPT_BRIEFS = 200
 
 export function wireBriefed(ctx: ChainContext): Briefed {
-  const kept = new Map<string, LaunchBrief>()
   const prepared = new Map<string, LaunchBrief>()
   const prepare = async (task: string, project = ctx.projectOf(task), retained = false): Promise<LaunchBrief> => {
     if (project === undefined) return { prompt: '' }
@@ -99,8 +104,12 @@ export function wireBriefed(ctx: ChainContext): Briefed {
     if (prepared.size > KEPT_BRIEFS) prepared.delete(prepared.keys().next().value!)
     return result
   }
+  return { prepare }
+}
+
+export function launchBriefs(): LaunchBriefs {
+  const kept = new Map<string, LaunchBrief>()
   return {
-    prepare,
     apply: (task, given, received) => {
       if (received !== undefined) {
         kept.delete(task)
@@ -113,7 +122,7 @@ export function wireBriefed(ctx: ChainContext): Briefed {
   }
 }
 
-export function wireWithProject(ctx: ChainContext): (prompt: string, project: string | undefined) => string {
+export function wireWithProject(ctx: { configStore: { readonly current: EvenKeelConfig }; promptLanguage: (project?: string) => Language }): (prompt: string, project: string | undefined) => string {
   return (prompt: string, project: string | undefined): string => {
     const config = ctx.configStore.current
     const own = project === undefined ? null : (config.settings[project]?.prompt ?? null)

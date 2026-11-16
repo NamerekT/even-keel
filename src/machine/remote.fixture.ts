@@ -9,7 +9,8 @@ import { FINGERPRINT, HUB_ADDRESS, MemoryHubStore, MemoryMachineStore, Wire } fr
 import { MachineEnd } from '../link/machine.js'
 import { bearerOf, parseToken, type NumberedCommand } from '../link/protocol.js'
 import { fail } from '../notice/notice.js'
-import type { SessionView } from '../state.js'
+import type { FoundRepository, SessionView, TaskWork } from '../state.js'
+import type { HubBrief } from './brief.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { Writes, type Db } from '../storage/database.js'
 import { Assignments } from './assignments.js'
@@ -41,6 +42,9 @@ export function machineOf() {
     compactions: {} as Record<string, number>,
     identities: {} as Record<string, AccountTie>,
     plans: [] as LimitsPlan[],
+    briefs: [] as HubBrief[],
+    works: {} as Record<string, Record<string, TaskWork>>,
+    gitFound: {} as Record<string, FoundRepository>,
   }
   const local = {
     launch: async (_project: string, task: string) => {
@@ -133,6 +137,9 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
       compactions: () => state.compactions,
       identities: () => state.identities,
       limitsPlan: (plan) => void state.plans.push(plan),
+      brief: (brief) => void state.briefs.push(brief),
+      works: () => state.works,
+      gitFound: () => state.gitFound,
       moves: new MachineMoves({
         local,
         emit: (type, payload) => end.emit(type, payload),

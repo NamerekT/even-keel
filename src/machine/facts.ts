@@ -8,7 +8,7 @@ import type { OverageSession } from '../limits/overage-session.js'
 import type { UsageHealth } from '../limits/usage.js'
 import type { Notice } from '../notice/notice.js'
 import type { SessionMail } from '../sessions/mail.js'
-import type { SessionView } from '../state.js'
+import type { FoundRepository, SessionView, TaskWork } from '../state.js'
 import type { MachinePort } from './port.js'
 
 /** What the machine knows of a task's sessions; a field left out is the port's neutral answer. */
@@ -66,6 +66,10 @@ export interface MachineFacts {
   compactions?: Record<string, number>
   /** By account folder, the Claude folders signed in to claude.ai: whose account it is and whether it is polled (BTN-991). */
   identities?: Record<string, AccountTie>
+  /** By project, what each task's working folder holds (`TaskWorks.view`): the page's task rows. */
+  works?: Record<string, Record<string, TaskWork>>
+  /** By project without git, the repository its folder has become (`GitFound.view`, BTN-1025). */
+  gitFound?: Record<string, FoundRepository>
   sessionsRead: boolean
   accountsRead: boolean
   tasks: Record<string, TaskFacts>
@@ -79,7 +83,7 @@ export interface MachineFacts {
 
 export const resetKey = (account: string, at: string, text?: string): string => `${account}\n${at}\n${text ?? ''}`
 
-const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox', 'usage', 'owners', 'compactions', 'identities'] as const
+const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox', 'usage', 'owners', 'compactions', 'identities', 'works', 'gitFound'] as const
 type Section = (typeof SECTIONS)[number]
 
 /** The entries of one section that changed since the last post: `set` — new or changed, `gone` — no longer there. */

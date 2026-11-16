@@ -11,6 +11,7 @@ import { stateDirOf } from '../locations.js'
 import { importForgejo, importProfiles } from '../profiles/store.js'
 import { type ChainControl } from '../server.js'
 import type { ServiceContext } from '../service.js'
+import type { MachineContext } from './machine-context.js'
 import { dropRunImport, dropTaskRun, loadRunImports, loadTaskRuns, saveTaskRun } from '../sessions/runs-store.js'
 import { TaskRuns, type TaskRun } from '../sessions/runs.js'
 import { inferredTallyMode } from '../stats/mode.js'
@@ -225,10 +226,11 @@ export function assembleApplyCi(ctx: Pick<ServiceContext, 'ciWatches' | 'configS
     })
 }
 
-export function assemblePollWorks(ctx: Pick<ServiceContext, 'configStore' | 'works' | 'tasksByProject'>) {
+/** The machine reads its task folders on its own clock; a project whose tasks the hub has not listed yet waits. */
+export function assemblePollWorks(ctx: Pick<MachineContext, 'configStore' | 'works' | 'brief'>) {
   return () => {
     const projects = Object.keys(ctx.configStore.current.projects)
     ctx.works.keep(projects)
-    for (const project of projects) if (ctx.tasksByProject.has(project)) void ctx.works.poll(project)
+    for (const project of projects) if (ctx.brief.lists(project)) void ctx.works.poll(project)
   }
 }

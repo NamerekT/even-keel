@@ -22,18 +22,18 @@ import type { MachinePort } from '../machine/port.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { replyParts } from '../sessions/ask.js'
 import { typedText } from '../sessions/commandPrompt.js'
-import { KEEP_WARM_PROMPT, KeepWarm, warmTasks, type WarmFacts } from '../sessions/keepwarm.js'
+import { KEEP_WARM_PROMPT, KeepWarm, type WarmFacts } from '../sessions/keepwarm.js'
 import { slotOccupants } from '../sessions/occupants.js'
 import { locateWorktree } from '../sessions/place.js'
 import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from '../sessions/setup.js'
-import type { ChainContext } from './chain.js'
+import type { MachineContext } from './machine-context.js'
 import { deferLeftFolder, type stopTaskSessions } from './cleanup.js'
 
 /**
  * The single local implementation of the machine port. Settings and callbacks remain live.
  * `handedOver` takes a handoff snapshot on its way to the hub, which keeps it.
  */
-export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSnapshot) => Promise<void>): MachinePort {
+export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffSnapshot) => Promise<void>): MachinePort {
   return {
     launch: async (project, task, extra, brief) => {
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
@@ -103,7 +103,8 @@ export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSna
       const packages = ctx.packages.unready(project)
       return packages.length === 0 ? undefined : notice('chain.packagesNotReady', { project: projectLabel(ctx.configStore.current, project), packages })
     },
-    accountsRead: () => ctx.account.ready,
+    // Until the hub's first brief the machine knows none of its projects' settings: no chain steps on an empty config.
+    accountsRead: () => ctx.account.ready && ctx.brief.received,
     sessionsRead: () => ctx.agentsRead,
     resume: (task, session) => ctx.resumeWith(task, session, resumePrompt(ctx.promptLanguage(ctx.projectOf(task)))),
     reply: (task, session, prompt) => ctx.resumeWith(task, session, prompt),
@@ -145,8 +146,6 @@ export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSna
       (await runGit(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
     stop: async (session) => {
       await ctx.stopIn(ctx.homeOf(session.account), session)
-      const launch = ctx.journal.findLast((entry) => entry.sessionId === session.sessionId)
-      if (launch !== undefined) ctx.eventLog.stopped(launch.project, launch.task)
     },
     finish: async (project, task, pull) => {
       const repo = ctx.configStore.current.projects[project]!
@@ -194,7 +193,7 @@ export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSna
       git: runGit,
       settings: (project) => ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI,
       commands: (project) => ctx.configStore.current.settings[project]?.check ?? [],
-      reported: (project, task) => ctx.checkReports.of(project, task),
+      reported: (project, task) => ctx.brief.report(project, task),
       prepare: (project, task) => ctx.places.prepare(project, task),
       place: async (project, task) => (await ctx.places.readyAhead(project, task)).path,
       runCheck: (project, task, cwd) => runCheck(ctx.configStore.current.settings[project]?.check ?? [], ctx.taskRun(task, cwd, ctx.choiceFor(project, task).account)),
@@ -203,7 +202,7 @@ export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSna
   }
 }
 
-export function wirePlaces(ctx: ChainContext): TaskPlaces {
+export function wirePlaces(ctx: MachineContext): TaskPlaces {
   return new TaskPlaces({
     git: runGit,
     main: ctx.branchOf,
@@ -233,23 +232,23 @@ export function wirePlaces(ctx: ChainContext): TaskPlaces {
   })
 }
 
-export function taskRun(ctx: ChainContext, task: string, cwd: string, account: string): SetupRun {
+export function taskRun(ctx: MachineContext, task: string, cwd: string, account: string): SetupRun {
   const env = () => accountEnv(account, (key) => ctx.homes.find(key), ctx.envOf, sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own()))
   return { task, cwd, shell: systemShell(env), log: (line) => console.log(line) }
 }
 
-export async function syncProject(ctx: ChainContext, project: string): Promise<Notice | null> {
+export async function syncProject(ctx: MachineContext, project: string): Promise<Notice | null> {
   const repo = ctx.configStore.current.projects[project]!
   if (isPlain(ctx.configStore.current, project)) return null
   const remotes = (await runGit(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
   return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, ctx.branchOf(project))
 }
 
-export function wireKeepWarm(ctx: ChainContext): KeepWarm {
+export function wireKeepWarm(ctx: MachineContext): KeepWarm {
   return new KeepWarm({
     hours: () => ctx.configStore.current.keepWarm,
     sessions: (): WarmFacts[] =>
-      warmTasks(ctx.dispatcher.state).flatMap((each) => {
+      ctx.brief.warm().flatMap((each) => {
         const view = ctx.warmable(each)
         if (view === undefined) return []
         const busy = ctx.agentStatus(view.task) === 'busy' || ctx.monitor.holds.held(view.sessionId)
@@ -268,12 +267,12 @@ export function wireKeepWarm(ctx: ChainContext): KeepWarm {
   })
 }
 
-export function wireWorks(ctx: ChainContext): TaskWorks {
+export function wireWorks(ctx: MachineContext): TaskWorks {
   return new TaskWorks({
     read: async (project) =>
       isPlain(ctx.configStore.current, project)
         ? {}
-        : worksOf(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), (ctx.tasksByProject.get(project) ?? []).map((task) => task.id)),
+        : worksOf(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), ctx.brief.tasksOf(project)),
     ttlMs: ctx.WORK_TTL_MS,
     now: () => Date.now(),
     activity: (task) => {
@@ -281,12 +280,12 @@ export function wireWorks(ctx: ChainContext): TaskWorks {
       return times.length === 0 ? null : Math.max(...times)
     },
     busy: (task) => ctx.agentStatus(task) === 'busy',
-    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
+    onChange: () => ctx.tell.changed(),
     log: (line) => console.warn(line),
   })
 }
 
-export function resumeWith(ctx: ChainContext, task: string, session: HandoffSession, prompt: string): Promise<string> {
+export function resumeWith(ctx: MachineContext, task: string, session: HandoffSession, prompt: string): Promise<string> {
   return ctx.monitor.holds.during(session.sessionId, async () => {
     if (ctx.approved(task, session, prompt)) return session.sessionId
     const home = ctx.homeOf(session.account)
@@ -303,7 +302,7 @@ export function resumeWith(ctx: ChainContext, task: string, session: HandoffSess
   }, ctx.liveView(task)?.ask?.id ?? null)
 }
 
-export function approved(ctx: ChainContext, task: string, session: HandoffSession, prompt: string): boolean {
+export function approved(ctx: MachineContext, task: string, session: HandoffSession, prompt: string): boolean {
   const ask = ctx.approvals.ask(session.sessionId)
   const move = ask === null ? null : ctx.approvals.answer(session.sessionId, prompt)
   if (move === null) return false
@@ -316,23 +315,23 @@ export function approved(ctx: ChainContext, task: string, session: HandoffSessio
   return true
 }
 
-export function goOnWith(ctx: ChainContext, home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
+export function goOnWith(ctx: MachineContext, home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
   const { model } = ctx.planFor(task, prompt)
   const extras = ctx.agentExtras(home, ctx.projectOf(task), task)
   return { name: task, cwd: session.cwd, prompt, model, settings: ctx.settingsFor(task), ...extras }
 }
 
-export async function steer(ctx: ChainContext, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
+export async function steer(ctx: MachineContext, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
   const home = ctx.homeOf(session.account)
   return (await ctx.agentOf(home).reply?.(home, session, ctx.goOnWith(home, task, session, prompt))) != null
 }
 
-export function occupantsOf(ctx: ChainContext, slot: string, task: string): { idle: import("../sessions/occupants.js").Occupant[]; busy: import("../sessions/occupants.js").Occupant[]; } {
+export function occupantsOf(ctx: MachineContext, slot: string, task: string): { idle: import("../sessions/occupants.js").Occupant[]; busy: import("../sessions/occupants.js").Occupant[]; } {
   const owners = new Map(ctx.journal.map((entry) => [entry.sessionId, entry.task]))
   return slotOccupants(ctx.agents, owners, slot, task)
 }
 
-export function slotUse(ctx: ChainContext, slot: string, task: string): SlotUse {
+export function slotUse(ctx: MachineContext, slot: string, task: string): SlotUse {
   const { idle, busy } = ctx.occupantsOf(slot, task)
   return { idle: idle.length > 0, busy: busy.map((each) => `${each.task} (${each.agent.sessionId})`) }
 }
@@ -341,7 +340,7 @@ export function slotUse(ctx: ChainContext, slot: string, task: string): SlotUse 
  * Stops the live sessions other tasks left in the slot before `task` takes it, refusing while one is mid-turn.
  * `shared` — the folder of a project without git, which every task works in (BTN-962): the same stop, its own notices.
  */
-export async function vacateSlot(ctx: ChainContext, slot: string, task: string, shared = false): Promise<void> {
+export async function vacateSlot(ctx: MachineContext, slot: string, task: string, shared = false): Promise<void> {
   const { idle, busy } = ctx.occupantsOf(slot, task)
   if (busy.length > 0) {
     if (shared) throw fail('folder.busy', { tasks: [...new Set(busy.map((each) => each.task))], task })
@@ -360,7 +359,7 @@ export async function vacateSlot(ctx: ChainContext, slot: string, task: string, 
   }
 }
 
-export function slotSpan(ctx: ChainContext, project: string): number {
+export function slotSpan(ctx: MachineContext, project: string): number {
   const span = Math.max(ctx.slotsSeen.get(project) ?? 0, ctx.configStore.current.slots[project] ?? 0)
   ctx.slotsSeen.set(project, span)
   return span

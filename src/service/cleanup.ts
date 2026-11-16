@@ -6,7 +6,10 @@ import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isInside } from '../paths.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { rareEvents } from '../sessions/rare.js'
-import type { ChainContext } from './chain.js'
+import type { MachineContext, MachineTell } from './machine-context.js'
+
+/** What the cleanup reads of the machine: its sessions and folders; a leftover goes to the hub as an event. */
+export type CleanupContext = Pick<MachineContext, 'journal' | 'agents' | 'agentsRead' | 'lingering' | 'stopIn' | 'homeOf'> & { tell: Pick<MachineTell, 'leftover'> }
 
 /** How long a cleanup after Done keeps trying a stop that timed out in the folder's queue before it warns (EKR-99). */
 export const STOP_RETRY_MS = 5 * 60_000
@@ -19,7 +22,7 @@ export const STOP_RETRY_MS = 5 * 60_000
  * gives the task are its own.
  */
 export async function stopTaskSessions(
-  ctx: ChainContext,
+  ctx: CleanupContext,
   project: string,
   repo: string,
   task: string,
@@ -62,7 +65,7 @@ export async function stopTaskSessions(
  * (EKR-99), or one just stopped whose process or children have not let go yet (BTN-870). The folder is tried again on
  * each tick once no kept session of the task is left, and warned about only if it is still held after `STOP_RETRY_MS`.
  */
-export function deferLeftFolder(ctx: ChainContext, project: string, repo: string, task: string, warnings: Notice[]): Notice[] {
+export function deferLeftFolder(ctx: CleanupContext, project: string, repo: string, task: string, warnings: Notice[]): Notice[] {
   return warnings.filter((warning) => {
     if (warning.code !== 'cleanup.folderLeft') return true
     const path = warning.params.full ?? warning.params.path
@@ -77,7 +80,7 @@ export function deferLeftFolder(ctx: ChainContext, project: string, repo: string
  * out, and removes the folders they held (`stopTaskSessions`). What still fails once the wait is over is warned about
  * on the task, as the cleanup itself would have.
  */
-export function stopLingering(ctx: ChainContext, git: Git = runGit): Promise<void> {
+export function stopLingering(ctx: CleanupContext, git: Git = runGit): Promise<void> {
   return ctx.lingering.alone(async () => {
     for (const { task, agent, retry, project } of ctx.lingering.due(ctx.agents, midTurn)) {
       if (agent.id === undefined) continue
@@ -93,7 +96,7 @@ export function stopLingering(ctx: ChainContext, git: Git = runGit): Promise<voi
         console.warn(`cleanup: the session ${agent.sessionId} of ${task} was not stopped: ${englishOf(noticeOf(error))}`)
         if (project !== undefined) rareEvents.once('17c', 'stop-result', { ...agent, task, project },
           `cleanup-stop result=failed detail=${JSON.stringify(englishOf(noticeOf(error)))}; leaving the session as before`)
-        if (retry !== undefined) ctx.dispatcher.leftover(retry.project, task, notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
+        if (retry !== undefined) ctx.tell.leftover(retry.project, task, notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
       }
     }
     // The folders a previous run left wait for the first read of the sessions, as the cleanup itself does (BTN-646).
@@ -112,7 +115,7 @@ export function stopLingering(ctx: ChainContext, git: Git = runGit): Promise<voi
       }
       ctx.lingering.settle(folder)
       console.warn(`git: ${folder.task}: ${englishOf(left)}`)
-      ctx.dispatcher.leftover(folder.project, folder.task, left)
+      ctx.tell.leftover(folder.project, folder.task, left)
     }
   })
 }

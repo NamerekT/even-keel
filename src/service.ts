@@ -50,6 +50,8 @@ import * as hubBootstrap from './service/hub-bootstrap.js'
 import * as lifecycleService from './service/lifecycle.js'
 import * as machineBootstrap from './service/machine-bootstrap.js'
 import { wireLinkedMachine, type LinkedMachine } from './service/machine-link.js'
+import { laterTell, machineContext } from './service/machine-context.js'
+import { BriefCopy } from './machine/brief.js'
 import * as statsService from './service/stats.js'
 import * as trackersService from './service/trackers.js'
 import { type AgentEntry } from './sessions/agents.js'
@@ -72,6 +74,8 @@ import { Writes } from './storage/database.js'
 import { dropLeftFolder,loadLeftFolders,saveLeftFolder } from './storage/left-folders.js'
 import { keptDatabase } from './storage/owner.js'
 import { stateValue } from './storage/service-state.js'
+import { MACHINE_DIR, openMachineDatabase } from './link/machine-store.js'
+import { importMachineStores } from './machine/state.js'
 import { VACUUM_EVERY_MS,vacuumDatabase } from './storage/vacuum.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { PendingCloses } from './tracker/close.js'
@@ -120,7 +124,7 @@ const context = {
   get account() { return account },
   get accountNow() { return accountNow },
   get activeAccount() { return activeAccount },
-  get agentExtras() { return agentExtras },
+  get agentExtras() { return machine.agentExtras },
   get agentOf() { return agentOf },
   get badges() { return badges },
   get agentStatus() { return agentStatus },
@@ -160,6 +164,7 @@ const context = {
   get contextWindows() { return contextWindows },
   get daemons() { return daemons },
   get db() { return db },
+  get machineDb() { return machineDb },
   get demo() { return demo },
   get dismissedUpdate() { return dismissedUpdate },
   set dismissedUpdate(value: typeof dismissedUpdate) { dismissedUpdate = value },
@@ -236,7 +241,7 @@ const context = {
   get packages() { return packages },
   get pinnedCheckpoint() { return pinnedCheckpoint },
   get places() { return places },
-  get planFor() { return planFor },
+  get planFor() { return machine.planFor },
   get postedQuestions() { return postedQuestions },
   get profileBlock() { return profileBlock },
   get profileKindsOf() { return profileKindsOf },
@@ -281,10 +286,10 @@ const context = {
   get sessionAccount() { return sessionAccount },
   get sessions() { return sessions },
   set sessions(value: typeof sessions) { sessions = value },
-  get settingsFor() { return settingsFor },
+  get settingsFor() { return machine.settingsFor },
   get slotSpan() { return slotSpan },
   get slotUse() { return slotUse },
-  get slotsSeen() { return slotsSeen },
+  get slotsSeen() { return machine.slotsSeen },
   get spendsByKey() { return spendsByKey },
   get startedAt() { return startedAt },
   get stateDb() { return stateDb },
@@ -321,7 +326,7 @@ const context = {
   get vscode() { return vscode },
   get warmable() { return warmable },
   get wedgedSessions() { return wedgedSessions },
-  get withProject() { return withProject },
+  get withProject() { return machine.withProject },
   get withSource() { return withSource },
   get works() { return works },
   get writes() { return writes },
@@ -363,7 +368,10 @@ const keyOrganizations = await loadKeyOrganizations(db)
 /** The management key of each OpenRouter account, for its balance (BTN-868), held in memory and written behind. */
 const managementKeys = await loadManagementKeys(db)
 /** What polls and sessions last told of each account's limits before this start (BTN-631). */
-const savedLimits = await loadSavedLimits(db)
+/** The machine's own database (`docs/machines.md`, "The machine's stores"): closed by the machine link. */
+const machineDb = await openMachineDatabase(join(stateDirOf(), MACHINE_DIR))
+if (await importMachineStores(machineDb, db, new Date())) console.log('machine: the account limits, account settings and CLI copies moved into the machine database')
+const savedLimits = await loadSavedLimits(machineDb)
 /** The context windows the agents named before this start, per launch and per session (BTN-946). */
 const savedWindows = await loadContextWindows(db)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
@@ -457,7 +465,13 @@ const machineChanged = (): void => {
   void machineLinked?.port.catchUp?.()
   stateChanged()
 }
-const transcriptWatch = machineBootstrap.assembleTranscriptWatch(context)
+/**
+ * The own machine's assembly (`docs/machines.md`, "The machine's context"): this host's objects, and of the hub only
+ * what its brief hands over. What it tells the hub goes over the link, connected once the link is built.
+ */
+const machineTell = laterTell()
+const machine = machineContext(context, new BriefCopy(), machineTell)
+const transcriptWatch = machineBootstrap.assembleTranscriptWatch((sessionId) => machineTell.transcript(sessionId))
 const homes = await openAccountHomes(db, process.env)
 /** What the transfer wrote into each account folder's settings.json and each account's own layer (BTN-901), written behind. */
 const accountSettings = await machineBootstrap.assembleAccountSettings(context)
@@ -532,8 +546,8 @@ const protectionAudit = hubBootstrap.assembleProtectionAudit(context)
 const ciOn = hubBootstrap.assembleCiOn(context)
 const pullRefusals = new PullRefusals()
 const remotes = new ProjectRemotes(runGit)
-const gitFound = machineBootstrap.assembleGitFound(context)
-gitFound.changed = stateChanged
+const gitFound = machineBootstrap.assembleGitFound(machine)
+gitFound.changed = () => machineTell.changed()
 const ciWatches = chainService.wireCiWatches(context)
 /** The setting; an installation from before it that has not chosen keeps what Tally already ran on (BTN-247). */
 const tallyMode = hubBootstrap.assembleTallyMode(context)
@@ -630,11 +644,8 @@ const hasAccount = accountsService.wireHasAccount(context)
 
 /** What a new session of the task (or of the fix session `task`) runs on, and in which account folder. */
 const choiceFor = accountsService.wireChoiceFor(context)
-const planFor = accountsService.wirePlanFor(context)
 
-/** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
-const agentExtras = accountsService.wireAgentExtras(context)
-const noAccountFor = accountsService.wireNoAccountFor(context)
+const noAccountFor = accountsService.wireNoAccountFor()
 
 /** A draft is written in the project's main checkout, on the account and model a new session of its chain would get. */
 const changelogs = chainService.wireChangelogs(context)
@@ -650,15 +661,11 @@ const promptLanguage = (project?: string) => (project === undefined ? undefined 
 const trackerPlace = hubBootstrap.assembleTrackerPlace(context)
 const briefed = chainService.wireBriefed(context)
 
-/** Even Keel's prompt and the project's own, for a new session only: a resumed one already has them. */
-const withProject = chainService.wireWithProject(context)
-const settingsFor = machineBootstrap.assembleSettingsFor(context)
 function projectOf(task: string): string | undefined { return chainService.projectOf(context, task) }
 
-const slotsSeen = new Map<string, number>()
 /** How many slots the project's tasks may be in: the most it had since the start, so a pool shrunk on the fly still finds its busy slots. */
-function slotSpan(project: string): number { return chainService.slotSpan(context, project) }
-const places = chainService.wirePlaces(context)
+function slotSpan(project: string): number { return chainService.slotSpan(machine, project) }
+const places = chainService.wirePlaces(machine)
 
 /** Keeps a done task the chain ran in the database's archive, by what its tracker last said of it. */
 function archiveClosed(project: string, task: string): void { return chainService.archiveClosed(context, project, task) }
@@ -670,17 +677,19 @@ function withSource(entry: LaunchEntry): LaunchEntry { return chainService.withS
 function taskSource(project: string, task: string): { tracker: string; profile: string | null; url: string | null } { return chainService.taskSource(context, project, task) }
 
 /** A run of the project's commands for `task` (the project itself for `afterGreen`), in the environment of the account its sessions run on. */
-function taskRun(task: string, cwd: string, account: string): SetupRun { return chainService.taskRun(context, task, cwd, account) }
+function taskRun(task: string, cwd: string, account: string): SetupRun { return chainService.taskRun(machine, task, cwd, account) }
 
 /** Syncs the project's main with its remotes the way the cleanup after Done does. */
-function syncProject(project: string): Promise<Notice | null> { return chainService.syncProject(context, project) }
+function syncProject(project: string): Promise<Notice | null> { return chainService.syncProject(machine, project) }
 
 /** The live view of the session a running chain will go on in, if its agent can ping a fork of it (BTN-437). */
 const warmable = machineBootstrap.assembleWarmable(context)
 
-const keepWarm: KeepWarm = chainService.wireKeepWarm(context)
+const keepWarm: KeepWarm = chainService.wireKeepWarm(machine)
 
-const machineLink = await wireLinkedMachine(context)
+// The machine posts its task folders from its first snapshot on.
+const works = chainService.wireWorks(machine)
+const machineLink = await wireLinkedMachine(context, machine)
 machineLinked = machineLink
 const dispatcher = await chainService.wireDispatcher(context, machineLink.port)
 await machineLink.start()
@@ -693,7 +702,6 @@ function sameRepositoryOf(a: string, b: string): boolean | undefined { return ch
  * so a hand-made `config-import` is caught only by the carry, before it fetches anything.
  */
 function checkMergeTarget(project: string, form: ProjectForm): Promise<void> { return chainService.checkMergeTarget(context, project, form) }
-const works = chainService.wireWorks(context)
 const forwards = chainService.wireForwards(context)
 
 /**
@@ -701,14 +709,14 @@ const forwards = chainService.wireForwards(context)
  * `prompt` where its agent can (an SDK session, BTN-239); otherwise stops the session and resumes it, and the page
  * keeps it working, not finished, while it is respawned.
  */
-function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> { return chainService.resumeWith(context, task, session, prompt) }
+function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> { return chainService.resumeWith(machine, task, session, prompt) }
 
 /** The words that came with an allowed call wait in the session's mailbox: it goes on with its turn at once. */
-function approved(task: string, session: HandoffSession, prompt: string): boolean { return chainService.approved(context, task, session, prompt) }
-function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart { return chainService.goOnWith(context, home, task, session, prompt) }
+function approved(task: string, session: HandoffSession, prompt: string): boolean { return chainService.approved(machine, task, session, prompt) }
+function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart { return chainService.goOnWith(machine, home, task, session, prompt) }
 
 /** Puts a chat message into a working session that steers (BTN-291); `false` — it is not live here after all. */
-function steer(task: string, session: HandoffSession, prompt: string): Promise<boolean> { return chainService.steer(context, task, session, prompt) }
+function steer(task: string, session: HandoffSession, prompt: string): Promise<boolean> { return chainService.steer(machine, task, session, prompt) }
 
 const { mailRelay, answerSession } = createChat({
   dispatcher,
@@ -731,11 +739,11 @@ const { mailRelay, answerSession } = createChat({
   log: (line) => console.log(line),
   now: () => new Date(),
 })
-function occupantsOf(slot: string, task: string): { idle: import("./sessions/occupants.js").Occupant[]; busy: import("./sessions/occupants.js").Occupant[]; } { return chainService.occupantsOf(context, slot, task) }
-function slotUse(slot: string, task: string): SlotUse { return chainService.slotUse(context, slot, task) }
-function vacateSlot(slot: string, task: string, shared = false): Promise<void> { return chainService.vacateSlot(context, slot, task, shared) }
-function stopTaskSessions(project: string, repo: string, task: string, count: number, shared = false): ReturnType<typeof chainService.stopTaskSessions> { return chainService.stopTaskSessions(context, project, repo, task, count, shared) }
-function stopLingering(): Promise<void> { return chainService.stopLingering(context) }
+function occupantsOf(slot: string, task: string): { idle: import("./sessions/occupants.js").Occupant[]; busy: import("./sessions/occupants.js").Occupant[]; } { return chainService.occupantsOf(machine, slot, task) }
+function slotUse(slot: string, task: string): SlotUse { return chainService.slotUse(machine, slot, task) }
+function vacateSlot(slot: string, task: string, shared = false): Promise<void> { return chainService.vacateSlot(machine, slot, task, shared) }
+function stopTaskSessions(project: string, repo: string, task: string, count: number, shared = false): ReturnType<typeof chainService.stopTaskSessions> { return chainService.stopTaskSessions(machine, project, repo, task, count, shared) }
+function stopLingering(): Promise<void> { return chainService.stopLingering(machine) }
 
 /** What holds a project the page asks to remove: its chain, live sessions of its tasks or in its folders, the places it keeps. */
 function removalFacts(project: string, repo: string): RemovalFacts { return chainService.removalFacts(context, project, repo) }
@@ -808,7 +816,7 @@ setInterval(() => {
 }, CI_TICK_MS).unref()
 setInterval(() => void forwards.tick().catch(() => { }), FORWARD_TICK_MS).unref()
 setInterval(() => void intake.tick(), INTAKE_TICK_MS).unref()
-const pollWorks = hubBootstrap.assemblePollWorks(context)
+const pollWorks = hubBootstrap.assemblePollWorks(machine)
 pollWorks()
 setInterval(pollWorks, WORK_TICK_MS).unref()
 setInterval(

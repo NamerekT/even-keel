@@ -5,7 +5,7 @@ import { KEY_SPEND_POLL_MS, KEY_SPEND_TAIL_MS, KEY_SPEND_TIMEOUT_MS } from '../a
 import { AccountSettings, loadAccountSettings, saveAccountSettings } from '../account/settingsLayer.js'
 import { KeySpend, readOpenRouterKey, saveKeySpend } from '../account/spend.js'
 import { copies } from '../agent/copies.js'
-import { plainProjects, projectLabel } from '../config.js'
+import { plainProjects, projectLabel, type EvenKeelConfig } from '../config.js'
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
 import { fail } from '../notice/notice.js'
@@ -17,7 +17,7 @@ import { Approvals } from '../sessions/approvals.js'
 import { type WarmTask } from '../sessions/keepwarm.js'
 import { TranscriptWatch } from '../sessions/watch.js'
 import type { SessionView } from '../state.js'
-import { setStateValue, stateValue } from '../storage/service-state.js'
+import { machineValue, setMachineValue } from '../machine/state.js'
 import { createSessionSettings } from '../tools/sessionSettings.js'
 
 export function assembleKeySpend(ctx: Pick<ServiceContext, 'homes' | 'account' | 'writes' | 'db'>) {
@@ -43,17 +43,17 @@ export function assembleKeySpend(ctx: Pick<ServiceContext, 'homes' | 'account' |
   })
 }
 
-export async function assembleCliCopies(ctx: Pick<ServiceContext, 'runtimes' | 'configStore' | 'dispatcher' | 'stateChanged' | 'account' | 'cliVersions' | 'db' | 'writes'>) {
+export async function assembleCliCopies(ctx: Pick<ServiceContext, 'runtimes' | 'configStore' | 'dispatcher' | 'stateChanged' | 'account' | 'cliVersions' | 'machineDb' | 'writes'>) {
   return copies(ctx.runtimes, (name, source) => ctx.configStore.saveCli(name, source), (name) => ctx.configStore.fallBackCli(name),
     () => { ctx.dispatcher.check(); ctx.stateChanged(); void ctx.account.refresh() },
     async () => { await ctx.cliVersions.check(); await ctx.account.refresh() },
     {
-      downloaded: ((await stateValue(ctx.db, 'cli.downloaded')) as string[] | undefined) ?? [],
-      remember: (downloaded) => ctx.writes.add('the providers with a downloaded CLI copy', setStateValue(ctx.db, 'cli.downloaded', downloaded)),
+      downloaded: ((await machineValue(ctx.machineDb, 'cli.downloaded')) as string[] | undefined) ?? [],
+      remember: (downloaded) => ctx.writes.add('the providers with a downloaded CLI copy', setMachineValue(ctx.machineDb, 'cli.downloaded', downloaded)),
     })
 }
 
-export function assembleGitFound(ctx: Pick<ServiceContext, 'configStore'>) {
+export function assembleGitFound(ctx: { configStore: { readonly current: EvenKeelConfig } }) {
   return new GitFound({
     git: runGit,
     gitStarts: () => (gitSetup.view()?.version ?? null) !== null,
@@ -91,16 +91,17 @@ export function assembleApprovals(ctx: Pick<ServiceContext, 'configStore' | 'pro
   return new Approvals({ language: () => ctx.configStore.current.language ?? ctx.promptLanguage(), unattended: () => ctx.configStore.current.unattended })
 }
 
-export function assembleTranscriptWatch(ctx: Pick<ServiceContext, 'hub'>) {
+/** A change of a watched transcript goes to the hub as the link's event: the page is the hub's (`TRANSCRIPT_EVENT`). */
+export function assembleTranscriptWatch(tell: (sessionId: string) => void) {
   return new TranscriptWatch(
-    (sessionId) => ctx.hub.signal('transcript', { sessionId }),
+    tell,
     (error) => console.error(`sessions: watching a transcript: ${error instanceof Error ? error.message : String(error)}`),
   )
 }
 
-export async function assembleAccountSettings(ctx: Pick<ServiceContext, 'db' | 'homes' | 'writes'>) {
-  return new AccountSettings(await loadAccountSettings(ctx.db), ctx.homes.global.dir, (account, record) =>
-    ctx.writes.add(`the settings of ${account}`, saveAccountSettings(ctx.db, account, record, new Date())))
+export async function assembleAccountSettings(ctx: Pick<ServiceContext, 'machineDb' | 'homes' | 'writes'>) {
+  return new AccountSettings(await loadAccountSettings(ctx.machineDb), ctx.homes.global.dir, (account, record) =>
+    ctx.writes.add(`the settings of ${account}`, saveAccountSettings(ctx.machineDb, account, record, new Date())))
 }
 
 export function assembleClaudeConfigs(ctx: Pick<ServiceContext, 'claudeAccount' | 'homes'>) {

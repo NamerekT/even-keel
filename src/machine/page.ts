@@ -3,7 +3,7 @@ import type { AccountView } from '../account/model.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import type { SessionMail } from '../sessions/mail.js'
-import type { SessionView } from '../state.js'
+import type { FoundRepository, SessionView, TaskWork } from '../state.js'
 import type { MachineFacts } from './facts.js'
 
 const WAITING: UsageHealth = { state: 'waiting', reason: null, since: null }
@@ -30,6 +30,10 @@ export interface PageReads {
   /** The e-mail the session ran as: a live one's own, else its folder's at `at` (the folder's account may change). */
   sessionAccount(sessionId: string | null, at: string | null): string | null
   compactionsOf(sessionId: string): number
+  /** By project and task, what the task's working folder holds. */
+  works(): Record<string, Record<string, TaskWork>>
+  /** By project without git, the repository its folder has become. */
+  gitFound(): Record<string, FoundRepository>
 }
 
 export function pageReads(facts: () => MachineFacts | undefined): PageReads {
@@ -55,5 +59,7 @@ export function pageReads(facts: () => MachineFacts | undefined): PageReads {
       return key === undefined ? null : emailAt(key, at)
     },
     compactionsOf: (sessionId) => facts()?.compactions?.[sessionId] ?? 0,
+    works: () => facts()?.works ?? {},
+    gitFound: () => facts()?.gitFound ?? {},
   }
 }

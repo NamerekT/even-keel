@@ -31,7 +31,7 @@ import { OPENCODE } from '../opencode/name.js'
 import { folderVendor } from '../opencode/home.js'
 import { installForProfiles } from '../huly/client.js'
 import { withUnattended } from '../chain/relay.js'
-import { isPlain, localUrlOf, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings, sessionPrefixes } from '../config.js'
+import { isPlain, localUrlOf, type EvenKeelConfig, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings, sessionPrefixes } from '../config.js'
 import { saveLimits } from '../limits/saved.js'
 import { runOf } from './demo.js'
 import { LimitsWatcher } from '../limits/watcher.js'
@@ -42,7 +42,7 @@ import { Secrets } from '../secrets/service.js'
 import { settleMail } from '../sessions/mailRelay.js'
 import { isLive, lampOf, turnStatus } from '../sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice, type VendorOf } from '../sessions/launch.js'
-import { effortFor } from '../sessions/runs.js'
+import { effortFor, type TaskRun } from '../sessions/runs.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { rareEvents } from '../sessions/rare.js'
 import { isInside } from '../paths.js'
@@ -103,6 +103,7 @@ export type AccountsContext = Pick<ServiceContext,
   | 'dispatcher'
   | 'emailAt'
   | 'envFile'
+  | 'machineDb'
   | 'getState'
   | 'hasAccount'
   | 'homeOf'
@@ -287,7 +288,7 @@ export function wireLimits(ctx: AccountsContext): LimitsWatcher {
       return { sameAs: same !== undefined && ctx.account.longToken(same.key) === undefined ? same.key : undefined }
     },
     saved: ctx.savedLimits,
-    save: (key, limits) => ctx.writes.add(`the limits of ${key}`, saveLimits(ctx.db, key, limits)),
+    save: (key, limits) => ctx.writes.add(`the limits of ${key}`, saveLimits(ctx.machineDb, key, limits)),
     onChange: () => {
       ctx.machineChanged()
       ctx.dispatcher.check()
@@ -683,7 +684,7 @@ export function wireHasAccount(ctx: AccountsContext): (provider: string, key: st
 }
 
 /** The OpenCode provider of an OpenCode folder of the pool, read from its `auth.json` at each launch: a sign-in may change. */
-function vendorOfHome(ctx: AccountsContext, memo?: PassMemo): VendorOf {
+function vendorOfHome(ctx: Pick<AccountsContext, 'homes'>, memo?: PassMemo): VendorOf {
   return (provider, key) => {
     const home = provider === OPENCODE ? ctx.homes.find(key) : undefined
     if (home === undefined) return null
@@ -700,7 +701,17 @@ export interface ChoiceFor {
   pass<T>(body: () => T): T
 }
 
-export function wireChoiceFor(ctx: AccountsContext): ChoiceFor {
+/** The hub's config as a launch reads it: the service's store, or the machine's copy of the hub's brief. */
+type ConfigView = { readonly current: EvenKeelConfig }
+
+/** What a launch's choice reads: the task's own run, the project's settings and the account folders of this machine. */
+export type ChoiceContext = Pick<AccountsContext, 'homes' | 'hasAccount' | 'projectOf'> & {
+  configStore: ConfigView
+  runOfTask: (project: string | undefined, task: string) => TaskRun | undefined
+  demo: { owns(project: string | undefined): boolean }
+}
+
+export function wireChoiceFor(ctx: ChoiceContext): ChoiceFor {
   const memo = new PassMemo()
   const vendorOf = vendorOfHome(ctx, memo)
   const choiceFor = (project: string | undefined, task?: string): RunChoice =>
@@ -709,10 +720,10 @@ export function wireChoiceFor(ctx: AccountsContext): ChoiceFor {
   return Object.assign(choiceFor, { pass: <T>(body: () => T): T => memo.run(body) })
 }
 
-export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string, project?: string | undefined) => LaunchPlan {
+export function wirePlanFor(ctx: ChoiceContext & { unattended: () => boolean; promptLanguage: AccountsContext['promptLanguage'] }): (task: string, prompt: string, project?: string | undefined) => LaunchPlan {
   return (task: string, prompt: string, project = ctx.projectOf(task)): LaunchPlan => {
     const git = project === undefined || !isPlain(ctx.configStore.current, project)
-    const full = withUnattended(prompt, ctx.dispatcher.state.unattended, ctx.promptLanguage(project), git)
+    const full = withUnattended(prompt, ctx.unattended(), ctx.promptLanguage(project), git)
     return launchPlan(ctx.runOfTask(project, task), full, runOf(ctx, project), ctx.configStore.current.modelPrompts, ctx.hasAccount, vendorOfHome(ctx))
   }
 }
@@ -722,7 +733,7 @@ type AgentExtras = Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins' | 'pro
 /** The agents whose chain sessions take a window through `SessionStart.contextWindow`; Claude's goes in its settings. */
 const WINDOW_KEYS: Readonly<Record<string, WindowKey>> = { [CODEX]: 'codexAutoCompactWindow', [OPENCODE]: 'openCodeAutoCompactWindow' }
 
-export function wireAgentExtras(ctx: AccountsContext): (home: AccountHome, project: string | undefined, task: string) => AgentExtras {
+export function wireAgentExtras(ctx: Pick<ChoiceContext, 'configStore' | 'runOfTask'> & Pick<AccountsContext, 'branchOf' | 'packages'>): (home: AccountHome, project: string | undefined, task: string) => AgentExtras {
   return (home: AccountHome, project: string | undefined, task: string): AgentExtras => {
     const key = WINDOW_KEYS[home.agent]
     const window = key === undefined ? undefined : chainWindowOf(ctx.configStore.current, project, key)
@@ -739,7 +750,7 @@ export function wireAgentExtras(ctx: AccountsContext): (home: AccountHome, proje
   }
 }
 
-export function wireNoAccountFor(ctx: AccountsContext): (task: string, fallback: string, provider: string) => Notice {
+export function wireNoAccountFor(): (task: string, fallback: string, provider: string) => Notice {
   return (task: string, fallback: string, provider: string) =>
     notice('chain.noAccountFor', {
       task,

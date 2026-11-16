@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
-import { join } from 'node:path'
 import { chainOrder } from '../chain/order.js'
 import type { LaunchEntry } from '../chain/dispatcher.js'
 import { launchLine } from '../chain/log.js'
@@ -16,10 +15,9 @@ import { hubIdentity } from '../link/identity.js'
 import { MachineNetwork } from './machine-network.js'
 import { HubEnd } from '../link/hub.js'
 import { LOCAL_HEARTBEAT_MS, LocalTransport } from '../link/local.js'
-import { DatabaseMachineStore, MACHINE_DIR, openMachineDatabase } from '../link/machine-store.js'
+import { DatabaseMachineStore, MACHINE_DIR } from '../link/machine-store.js'
 import { MachineEnd } from '../link/machine.js'
 import { bearerOf } from '../link/protocol.js'
-import { stateDirOf } from '../locations.js'
 import { Assignments, fillPool } from '../machine/assignments.js'
 import { sameJson } from '../machine/facts.js'
 import { ownMachine } from '../machine/own.js'
@@ -28,14 +26,17 @@ import { MachineMoves } from '../machine/moves.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { LAUNCH_EVENT, MachineRecords, saveMachineRecord } from '../machine/records.js'
-import { HANDOFF_EVENT, MachineRunner } from '../machine/runner.js'
+import { HANDOFF_EVENT, LEFTOVER_EVENT, MachineRunner, TRANSCRIPT_EVENT } from '../machine/runner.js'
 import { samePath } from '../paths.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { loadMail } from '../sessions/mailbox.js'
 import type { MachineServices } from '../machine/services.js'
-import { wireMachineServices, type MachineServicesContext } from './machine-services.js'
+import { wireMachineServices } from './machine-services.js'
+import { BriefSender, hubBrief } from './hub-brief.js'
+import type { MachineContext } from './machine-context.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import type { ChainContext } from './chain.js'
+import type { ServiceContext } from '../service.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { HubMcp, machineTasks } from './hub-mcp.js'
 import { steer, wireMachine } from './machine-chain.js'
@@ -73,9 +74,9 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * the local port runs behind `MachineRunner`, and the two talk through `HubEnd` and `MachineEnd` over a carrier that
  * is a call. Nothing is connected until `start`.
  */
-export async function wireLinkedMachine(ctx: ChainContext & MachineServicesContext): Promise<LinkedMachine> {
+export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb'>, machine: MachineContext): Promise<LinkedMachine> {
   const log = (line: string): void => console.log(line)
-  const machineDb = await openMachineDatabase(join(stateDirOf(), MACHINE_DIR))
+  const { machineDb } = ctx
   const hubStore = new DatabaseHubStore(ctx.db)
   const machineStore = new DatabaseMachineStore(machineDb)
   let own = ''
@@ -111,6 +112,7 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
     try {
       await agree()
       if (end.status().state !== 'online') return
+      await briefs.send()
       await runner.publish()
       await end.flushed()
     } catch (error) {
@@ -131,7 +133,9 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
       const note = fileNote(snapshot, ctx.projectOf(snapshot.task), own)
       if (note !== undefined) await keepHandoffNote(ctx.db, note)
     },
-    record: async (event) => {
+    record: async (sent) => {
+      // Where the task is read from is the hub's to know (BTN-66): the machine's journal entry has no source.
+      const event = sent.type === LAUNCH_EVENT ? { ...sent, payload: ctx.withSource(sent.payload as LaunchEntry) } : sent
       if (!await saveMachineRecord(ctx.db, own, event)) return
       if (event.type === LAUNCH_EVENT) {
         const entry = event.payload as LaunchEntry
@@ -145,6 +149,12 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
     released: (project, task) => assignments.release(project, task),
     held: (named, live) => assignments.reconcile(own, named, live),
     catchUp,
+    stopped: (session) => {
+      const launch = ctx.launches.findLast((entry) => entry.sessionId === session.sessionId)
+      if (launch !== undefined) ctx.eventLog.stopped(launch.project, launch.task)
+    },
+    leftover: (project, task, notice) => ctx.dispatcher.leftover(project, task, notice),
+    transcript: (sessionId) => ctx.hub.signal('transcript', { sessionId }),
     changed: () => {
       steerLimits()
       ctx.hub.broadcastSoon('state', () => ctx.getState())
@@ -172,6 +182,8 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
       ...handlers,
       snapshot: (machine, snapshot) => {
         polls.connected(machine)
+        // A new connection may be a new process of the machine, which holds no brief yet.
+        briefs.forget()
         return handlers.snapshot(machine, snapshot)
       },
       offline: () => steerLimits(),
@@ -205,15 +217,28 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
     log(`machine: ${stale.length} command(s) the service kept before its restart are dropped: ${stale.map((command) => command.type).join(', ')}`)
   }
   await agree()
+  const briefs = new BriefSender(
+    () => hubBrief({
+      config: () => ctx.configStore.current,
+      // The own machine serves every project of its installation, in its folder (`agree`).
+      folders: () => ctx.configStore.current.projects,
+      runsOf: ctx.runsOfProject,
+      tasksOf: (project) => (ctx.tasksByProject.get(project) ?? []).map((task) => task.id),
+      state: () => ctx.dispatcher.state,
+      demoOwns: (project) => ctx.demo.owns(project),
+      reports: ctx.checkReports,
+    }),
+    (brief) => remote.tellBrief(brief),
+  )
 
-  const local = wireMachine(ctx, async (snapshot) => void (await end.emit(HANDOFF_EVENT, snapshot)))
+  const local = wireMachine(machine, async (snapshot) => void (await end.emit(HANDOFF_EVENT, snapshot)))
   /** Kept for one computation of the facts, which asks per project: `projectOf` scans every project's tasks. */
   let pass: Map<string, string[]> | undefined
   const passOf = (): Map<string, string[]> => {
     if (pass !== undefined) return pass
     const running = new Map<string, string[]>()
-    for (const task of ctx.monitor.tasks()) {
-      const project = ctx.projectOf(task)
+    for (const task of machine.monitor.tasks()) {
+      const project = machine.projectOf(task)
       if (project !== undefined) running.set(project, [...(running.get(project) ?? []), task])
     }
     return running
@@ -222,81 +247,86 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
     local,
     emit: (type, payload) => end.emit(type, payload),
     // The launch journal is the hub's record that the machine's outbox carries (`docs/machines.md`, "Journal").
-    journal: (launched) => {
-      const entry = ctx.withSource(launched)
-      ctx.writes.add(`the launch of ${entry.task}`, records.launch(entry))
-    },
+    journal: (entry) => machine.writes.add(`the launch of ${entry.task}`, records.launch(entry)),
     now: () => new Date(),
     log,
   })
   const identities = new AccountIdentities()
-  const ownRun = (project: string, task: string): boolean => !sameJson(ctx.choiceFor(project, task), ctx.choiceFor(project))
+  const ownRun = (project: string, task: string): boolean => !sameJson(machine.choiceFor(project, task), machine.choiceFor(project))
   const runner: MachineRunner = new MachineRunner({
     local,
     emit: (type, payload) => end.emit(type, payload),
     boot: randomUUID(),
-    projects: () => Object.keys(ctx.configStore.current.projects),
+    projects: () => Object.keys(machine.configStore.current.projects),
     tasks: () => {
       const sessions = new Map<string, Set<string>>()
       const of = (task: string): Set<string> => sessions.get(task) ?? sessions.set(task, new Set()).get(task)!
-      for (const task of ctx.monitor.tasks()) of(task)
-      for (const agent of ctx.agents) if (agent.name !== undefined) of(agent.name)
-      for (const view of ctx.sessions) of(view.task).add(view.sessionId)
+      for (const task of machine.monitor.tasks()) of(task)
+      for (const agent of machine.agents) if (agent.name !== undefined) of(agent.name)
+      for (const view of machine.sessions) of(view.task).add(view.sessionId)
       return [...sessions].map(([task, ids]) => ({ task, sessions: [...ids] }))
     },
     runs: (project) => {
-      const listed = (ctx.tasksByProject.get(project) ?? []).map((task) => task.id)
+      const listed = machine.brief.tasksOf(project)
       return [...new Set([...listed, ...(passOf().get(project) ?? [])])].filter((task) => ownRun(project, task))
     },
-    reported: (project) => ctx.checkReports.tasks(project),
-    model: (project, task) => ctx.choiceFor(project, task).model,
-    accounts: () => ctx.homes.all().map((home) => home.key),
-    limitsOf: (account) => ctx.limits.limits(account),
-    ledger: () => ctx.ledger.accounts,
-    sessions: () => ctx.sessions,
-    mailbox: () => Object.fromEntries(ctx.sessions.flatMap((view): [string, SessionMail][] => {
-      const mail = ctx.mailbox.of(view.sessionId)
-      const steers = ctx.agents.some((agent) => agent.sessionId === view.sessionId && agent.steers === true)
-      const listens = steers || ctx.mailbox.listens(view.sessionId)
+    reported: (project) => machine.brief.reported(project),
+    model: (project, task) => machine.choiceFor(project, task).model,
+    accounts: () => machine.homes.all().map((home) => home.key),
+    limitsOf: (account) => machine.limits.limits(account),
+    ledger: () => machine.ledger.accounts,
+    sessions: () => machine.sessions,
+    mailbox: () => Object.fromEntries(machine.sessions.flatMap((view): [string, SessionMail][] => {
+      const mail = machine.mailbox.of(view.sessionId)
+      const steers = machine.agents.some((agent) => agent.sessionId === view.sessionId && agent.steers === true)
+      const listens = steers || machine.mailbox.listens(view.sessionId)
       return listens || mail.length > 0 ? [[view.sessionId, { listens, steers, mail }]] : []
     })),
     // Read with the CLI copies the page shows, so it never sees a CLI as found there and missing here (BTN-639).
-    panel: () => ({ ...ctx.account.view, missing: ctx.account.missingNow() }),
-    usageOf: (account) => ctx.limits.usage(account),
+    panel: () => ({ ...machine.account.view, missing: machine.account.missingNow() }),
+    usageOf: (account) => machine.limits.usage(account),
     owners: () => {
       const owners: Record<string, string> = {}
-      for (const { sessionId } of ctx.journal) {
-        const key = ctx.owners.of(sessionId)
+      for (const { sessionId } of machine.journal) {
+        const key = machine.owners.of(sessionId)
         if (key !== undefined) owners[sessionId] = key
       }
-      for (const agent of ctx.agents) {
-        const key = agent.account ?? ctx.owners.of(agent.sessionId)
+      for (const agent of machine.agents) {
+        const key = agent.account ?? machine.owners.of(agent.sessionId)
         if (key !== undefined) owners[agent.sessionId] = key
       }
       return owners
     },
-    compactions: () => ctx.monitor.compactionCounts(),
+    compactions: () => machine.monitor.compactionCounts(),
     identities: () => {
       const ties: Record<string, AccountTie> = {}
-      for (const home of ctx.homes.all()) {
+      for (const home of machine.homes.all()) {
         if (home.agent !== CLAUDE) continue
-        const signed = identities.of(ctx.homes.configFile(home))
+        const signed = identities.of(machine.homes.configFile(home))
         if (signed === undefined) continue
-        ties[home.key] = { ...signed, polls: ctx.limits.pollable(home.key), ...(ctx.limits.skipped(home.key) && { skipped: true as const }) }
+        ties[home.key] = { ...signed, polls: machine.limits.pollable(home.key), ...(machine.limits.skipped(home.key) && { skipped: true as const }) }
       }
       return ties
     },
-    limitsPlan: (plan) => ctx.limits.plan(plan),
+    limitsPlan: (plan) => machine.limits.plan(plan),
+    brief: (brief) => {
+      const first = !machine.brief.received
+      machine.brief.take(brief)
+      // The projects without git are known from the first brief on: what their folders have become is read then.
+      if (first) void machine.gitFound.checkAll().catch((error: unknown) => log(`git: the projects without git were not read: ${messageOf(error)}`))
+    },
+    works: () => machine.works.view(),
+    gitFound: () => machine.gitFound.view(),
     moves,
-    services: wireMachineServices(ctx, {
-      steer: (task, session, prompt) => steer(ctx, task, session, prompt),
+    services: wireMachineServices(machine, {
+      steer: (task, session, prompt) => steer(machine, task, session, prompt),
       restore: async ({ launches, windows, mail }) => {
         records.restore(launches)
-        ctx.mailbox.restore(mail)
-        ctx.monitor.restoreWindows(windows)
+        machine.mailbox.restore(mail)
+        machine.monitor.restoreWindows(windows)
       },
     }),
-    scope: (body) => ctx.account.batch(() => ctx.choiceFor.pass(() => {
+    scope: (body) => machine.account.batch(() => machine.choiceFor.pass(() => {
       pass = passOf()
       try {
         return body()
@@ -321,9 +351,14 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
     log,
   })
   let publishing: ReturnType<typeof setInterval> | undefined
-  const records = new MachineRecords((type, payload) => end.emit(type, payload), ctx.journal)
+  const records = new MachineRecords((type, payload) => end.emit(type, payload), machine.journal)
+  machine.tell.connect({
+    leftover: (project, task, notice) => void end.emit(LEFTOVER_EVENT, { project, task, notice }).catch((error: unknown) => log(`machine: what the cleanup left on ${task} was not told: ${messageOf(error)}`)),
+    transcript: (sessionId) => void end.emit(TRANSCRIPT_EVENT, { sessionId }).catch(() => {}),
+    changed: () => void runner.publish().catch(() => {}),
+  })
   const services = remote.services()
-  ctx.mailbox.persistWith(async (change) => {
+  machine.mailbox.persistWith(async (change) => {
     await records.mailbox(change)
     await runner.publish()
   })
@@ -342,8 +377,9 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
       await Promise.race([first, new Promise<void>((resolve) => (waited = setTimeout(resolve, FIRST_SNAPSHOT_MS)))])
       clearTimeout(waited)
       if (end.status().state !== 'online') log('machine: the own machine has not posted its first snapshot yet; the chains wait for it')
+      else await briefs.send().catch((error: unknown) => log(`machine: the first brief was not taken: ${messageOf(error)}`))
       // From here the servers holding keys are reached over the link, as from a machine of its own (BTN-990).
-      ctx.packages.throughHub({ servers: () => ctx.packages.hubServers(), relay: (request) => end.mcp(request), tasks: machineTasks(ctx, end) })
+      machine.packages.throughHub({ servers: () => machine.packages.hubServers(), relay: (request) => end.mcp(request), tasks: machineTasks(machine, end) })
       await end.flushed()
       // The machine's journal, mailbox and windows are the hub's records, replayed ones included: handed over the link,
       // never read from the hub's database by the machine.
@@ -353,6 +389,7 @@ export async function wireLinkedMachine(ctx: ChainContext & MachineServicesConte
     },
     close: async () => {
       clearInterval(publishing)
+      await machine.writes.settled()
       await ctx.writes.settled()
       await end.flushed()
       end.stop()

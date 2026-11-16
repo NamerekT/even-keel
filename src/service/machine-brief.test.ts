@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { wireBriefed } from './chain-prompts.js'
+import { launchBriefs, wireBriefed } from './chain-prompts.js'
 import type { ChainContext } from './chain.js'
 
 describe('a brief carried from the hub', () => {
@@ -21,7 +21,7 @@ describe('a brief carried from the hub', () => {
     expect(sent.task).toEqual(task)
     expect(sent.prompt).toContain('Task text')
     expect(sent.prompt).toContain('Example tracker')
-    expect(hub.kept('ABC-1')).toBeUndefined()
+    expect('kept' in hub).toBe(false)
     expect(await hub.prepare('ABC-1', 'p1', true)).toEqual(sent)
     expect(read).toHaveBeenCalledTimes(1)
     await hub.prepare('ABC-1', 'p1')
@@ -47,18 +47,16 @@ describe('a brief carried from the hub', () => {
     expect(index).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the received task and prompt for a handoff without reading a tracker', () => {
-    const readerFor = vi.fn(() => { throw new Error('No tracker on a machine') })
-    const briefed = wireBriefed({ readerFor } as unknown as ChainContext)
+  it('keeps on the machine the received task and prompt for a handoff, with no tracker there', () => {
+    const briefed = launchBriefs()
     const sent = { prompt: '\nTracker terms\nTask text\n', task: { title: 'Example task', description: 'Task text' } }
     expect(briefed.apply('ABC-1', 'Start', sent)).toBe('Start' + sent.prompt)
     expect(briefed.kept('ABC-1')).toEqual(sent.task)
     expect(briefed.apply('ABC-1', 'Handoff')).toBe('Handoff' + sent.prompt)
-    expect(readerFor).not.toHaveBeenCalled()
   })
 
   it('replaces an old task brief when the next launch has no task text', () => {
-    const briefed = wireBriefed({} as ChainContext)
+    const briefed = launchBriefs()
     briefed.apply('ABC-1', '', { prompt: 'Old', task: { title: 'Old', description: 'Old' } })
     briefed.apply('ABC-1', '', { prompt: 'Read ABC-1 with tasks' })
     expect(briefed.kept('ABC-1')).toBeUndefined()
