@@ -10,23 +10,28 @@ export interface TurnError {
 /** The first line of the plain text the CLI exits with when nothing signs it in; a list of the ways in follows it. */
 const SIGN_IN_REFUSAL = 'Copilot can be authenticated with GitHub using '
 
+/** The first Error line the CLI exits with when it cannot fetch the model list from the Copilot API. */
+const MODELS_REFUSAL = 'Error: Failed to load models'
+
 /**
- * stdout also contains JSON events and warnings; only a terminal plain-text Error is a CLI refusal, and the sign-in
- * refusal, which ends with a list instead, is told by its first line.
+ * stdout also contains JSON events and warnings; a CLI refusal is the Error lines of the plain-text block after the
+ * last event, which may go on with advice (EKR-113), and the sign-in refusal, which has no Error line of its own, is
+ * told by its first line.
  */
 export function outputError(output: string): string | undefined {
   if (lastEvent(output)?.exitCode === 0) return undefined
   const lines = output.trimEnd().split('\n').map((line) => line.trim())
   const signIn = lines.find((line) => line.startsWith(SIGN_IN_REFUSAL))
   if (signIn !== undefined) return signIn
-  const last = lines.at(-1)
-  return last?.startsWith('Error: ') ? last : undefined
+  const errors = lines.slice(lines.findLastIndex((line) => line.startsWith('{')) + 1).filter((line) => line.startsWith('Error: '))
+  return errors.length === 0 ? undefined : errors.join('\n')
 }
 
-/** The notice of a refusal the page can fix: a model the account cannot use, or no sign-in on the machine. */
+/** The notice of a refusal the page can fix: a model the account cannot use, no sign-in, or no way to the Copilot API. */
 export function refusalNotice(text: string): Notice | undefined {
   if (text.startsWith(SIGN_IN_REFUSAL)) return notice('copilot.notSignedIn', {})
-  const model = /^Error: Model "([^"\r\n]+)" from --model flag is not available\.$/.exec(text)?.[1]
+  if (text.startsWith(MODELS_REFUSAL)) return notice('copilot.apiUnreachable', {})
+  const model = /^Error: Model "([^"\r\n]+)" from --model flag is not available\.$/m.exec(text)?.[1]
   return model === undefined ? undefined : notice('copilot.modelUnavailable', { model })
 }
 
