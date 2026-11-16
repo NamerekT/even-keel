@@ -13,6 +13,8 @@ const PACE_MS = 100
 const TURN_LIMIT_MS = 30 * 60_000
 /** The words `merge-check` opens its refusal with (`plugins/agent-bridge/hooks/merges.mjs`, `refusal`). */
 const REFUSED = "Even Keel's check before the merge failed"
+/** OpenCode's words for an ask `run` rejected on its own (`PermissionRejectedError`, OpenCode 1.19.5). */
+const REJECTED_ASK = 'The user rejected permission to use this specific tool call'
 /** Words of a project's `AGENTS.md` and `CLAUDE.md` that nothing else in a request says. */
 const AGENTS_WORD = 'ZEBRAFINCH'
 const CLAUDE_WORD = 'MARMOSET'
@@ -239,6 +241,28 @@ export function chainOnRealCli(kit: CliKit): void {
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
       const nudged = asked('ABC-1').find((request) => request.context.includes(NUDGED))
       expect(nudged?.context).toContain(CHECKPOINT_LINE)
+      expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
+      await playedOut('ABC-1')
+    })
+
+    /**
+     * OpenCode's default `read` rules ask for `*.env`, and `run` rejects every ask on its own: without
+     * `continue_loop_on_deny` the turn ended there, the model never asked again and the task stood (EKR-119).
+     */
+    it.runIf(kit.agent === 'opencode')('goes on with the turn after OpenCode rejects an ask, and finishes the task', async () => {
+      run.board.add('ABC-1')
+      const read: LateReply = (tools) => (tools.includes('read') ? { calls: [{ name: 'read', args: { filePath: join(sessionOf('ABC-1')!.cwd, '.env') } }] } : { text: `No read tool among ${tools.join(', ')}` })
+      const rejected: LateReply = (_tools, result) => (result.includes(REJECTED_ASK) ? commit('ABC-1') : { text: `The read was not rejected: ${result.slice(0, 300)}` })
+      model.script('ABC-1', read, rejected, merge('ABC-1'), { text: 'Merged ABC-1.' })
+      await start(() => {
+        writeFileSync(join(run.repo, '.env'), 'TOKEN=fake-value\n')
+        run.git('add', '.env')
+        run.git('commit', '-q', '-m', 'Add the env file')
+      })
+      await run.startChain(PROJECT_ID)
+
+      await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
+      expect(asked('ABC-1').some((request) => request.result.includes(REJECTED_ASK))).toBe(true)
       expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
       await playedOut('ABC-1')
     })

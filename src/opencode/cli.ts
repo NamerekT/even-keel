@@ -40,10 +40,18 @@ const STREAM_ERROR_EVENT = 'even_keel_stream_error'
 
 /**
  * Chain sessions run without a human: OpenCode's tools are allowed by default and an `ask` is rejected on its own in
- * `run`, so the session never hangs on one. A merge into the main checkout from a worktree is `external_directory`,
+ * `run`, so the session never hangs on one. A rejected `ask` ends the turn unless `CONTINUE_ON_DENY` is set, which
+ * every config of Even Keel's turns carries. A merge into the main checkout from a worktree is `external_directory`,
  * which is allowed for chain sessions (`sessionConfig`).
  */
 export const SESSION_MODE = 'default'
+
+/**
+ * A rejected `ask` (OpenCode's default `read` rules ask for `*.env` and `*.env.*`) and a dismissed question end the
+ * turn without it: the session would stand waiting with no question (EKR-119). With it the model gets the rejection
+ * as the tool's error and goes on. A Protection `deny` never ends the turn either way.
+ */
+const CONTINUE_ON_DENY = { experimental: { continue_loop_on_deny: true } }
 
 /** The sign-ins the page offers, as `opencode providers login` takes them through a pipe (BTN-214). */
 export const LOGIN_METHODS: Readonly<Record<string, readonly string[]>> = {
@@ -109,7 +117,7 @@ export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins' | 'pro
     ...(rules.bash.length > 0 ? { bash: Object.fromEntries(rules.bash.map(pattern => [pattern, 'deny'])) } : {}),
     ...Object.fromEntries(rules.tools.map(tool => [tool, 'deny'])),
   }
-  const config: Record<string, unknown> = { $schema: 'https://opencode.ai/config.json', permission, disabled_providers: ['github-copilot'] }
+  const config: Record<string, unknown> = { $schema: 'https://opencode.ai/config.json', permission, disabled_providers: ['github-copilot'], ...CONTINUE_ON_DENY }
   if (start.mcp !== undefined) {
     const own = Object.fromEntries(projectServers.map((name) => [name, { enabled: false }]))
     const gateway = Object.fromEntries(start.mcp.map((server) => [gatewayName(server), { type: 'remote', url: server.url, enabled: true }]))
@@ -158,6 +166,7 @@ export function writeConfig(projectServers: string[]): string {
     $schema: 'https://opencode.ai/config.json',
     disabled_providers: ['github-copilot'],
     permission: Object.fromEntries(WRITE_DENIED.map((tool) => [tool, 'deny'])),
+    ...CONTINUE_ON_DENY,
   }
   if (projectServers.length > 0) config.mcp = Object.fromEntries(projectServers.map((name) => [name, { enabled: false }]))
   return JSON.stringify(config)

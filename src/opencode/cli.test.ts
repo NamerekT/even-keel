@@ -97,6 +97,12 @@ describe('sessionConfig', () => {
     expect(config.permission.bash['git push --mirror*']).toBe('deny')
   })
 
+  it('goes on with the turn after a rejected ask, since run rejects every ask on its own and nobody answers it', () => {
+    expect(JSON.parse(sessionConfig({}, [], [])).experimental).toEqual({ continue_loop_on_deny: true })
+    const window = { model: 'openrouter/minimax/minimax-m3.1-flash', window: 250_000, output: 64_000 }
+    expect(JSON.parse(sessionConfig({ mcp: [server] }, [], [], [], window)).experimental).toEqual({ continue_loop_on_deny: true })
+  })
+
   it("turns the project's own servers off and puts the gateway's in their place", () => {
     const config = JSON.parse(sessionConfig({ mcp: [server] }, ['local-db'], []))
     expect(config.permission.external_directory).toBe('allow')
@@ -182,6 +188,7 @@ describe('a turn of its own', () => {
     const config = JSON.parse(writeConfig(['local-db']))
     for (const tool of ['edit', 'bash', 'webfetch', 'websearch', 'task', 'todowrite', 'skill', 'external_directory']) expect(config.permission[tool]).toBe('deny')
     expect(config.mcp).toEqual({ 'local-db': { enabled: false } })
+    expect(config.experimental).toEqual({ continue_loop_on_deny: true })
   })
 
   it("answers with the last step's text and every step's tokens and cost", () => {
