@@ -161,6 +161,25 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     })
   }
 
+  /** By project: the open parents and the other projects' blockers the chain was last given as outside it. */
+  const outsideByProject = new Map<string, { parents: Task[]; others: Task[] }>()
+  const setOutside = (project: string, parents: Task[], others: Task[]): void => {
+    outsideByProject.set(project, { parents, others })
+    dispatcher.setOutside(project, [...parents, ...others])
+  }
+  /**
+   * Closes the parents all of whose subtasks are closed, before the chain follows the tasks: one still open would hold the
+   * tasks it blocks and end the chain after its last subtask's Done (BTN-1236).
+   */
+  const closeParents = async (project: string, parents: Task[], tasks: Task[]): Promise<string[]> => {
+    const done = deps.doneOf?.(project)
+    // A done status the rules do not take closes no parent either; the merge closer says so.
+    if (!closesParents || done?.fits === false || parents.length === 0) return []
+    const closed = await parentCloser.sweep(parents, tasks, done?.status)
+    for (const task of closed) console.log(`${title}: closed ${task}, all its subtasks are closed`)
+    return closed
+  }
+
   const refreshing = new Map<string, Promise<void>>()
   /** One job on the project at a time: a read or a status change during another goes after it, so it works on the newer list. */
   const queued = (project: string, job: () => Promise<void>): Promise<void> => {
@@ -186,6 +205,11 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
           }),
         )
         if (stopped) return
+        const outside = outsideByProject.get(project)
+        const freed = outside?.parents.filter((parent) => updated.some((task) => task.parent === parent.id && byId.has(task.id) && !isOpen(task.status))) ?? []
+        const closed = await closeParents(project, freed, updated)
+        if (stopped) return
+        if (outside !== undefined && closed.length > 0) setOutside(project, outside.parents.filter((task) => !closed.includes(task.id)), outside.others)
         tasksByProject.set(project, updated)
         dispatcher.setTasks(project, updated)
         broadcast()
@@ -300,7 +324,9 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const unlisted = ranSince(project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
       const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted), JSON.stringify(['tasks', ...unlisted]))).filter((task) => !isOpen(task.status))
       if (stopped) return
-      dispatcher.setOutside(project, [...parents, ...others])
+      const closed = await closeParents(project, parents, tasks)
+      if (stopped) return
+      setOutside(project, parents.filter((task) => !closed.includes(task.id)), others)
       // A task the chain ran that has subtasks since stands among the parents, not in the chain's archive.
       deps.parents?.setParents(project, parentRows([...parents, ...closedParents, ...ran.filter((task) => !isLeaf(task))], [...read.tasks, ...read.parents]))
       const shown = await withMilestones(project, [...tasks, ...ran.filter(isLeaf)])
@@ -323,12 +349,6 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       if (stopped) return
       view.completionFailures ??= {}
       view.completionFailures[project] = closer.failures(project)
-      const done = deps.doneOf?.(project)
-      // A done status the rules do not take closes no parent either; the closer above already says so.
-      if (!closesParents || done?.fits === false) return
-      for (const task of await parentCloser.sweep(parents, tasks, done?.status)) {
-        console.log(`${title}: closed ${task}, all its subtasks are closed`)
-      }
     } catch (error) {
       failure = { error }
     } finally {

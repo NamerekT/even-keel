@@ -95,6 +95,8 @@ describe('the statuses of the tracker', { timeout: 60_000 }, () => {
     run.board.add('ABC-2', 'ABC-1')
     run.board.add('ABC-3', 'ABC-2')
     run.agent.script('ABC-9', commitAndMerge('ABC-9.txt'))
+    run.agent.script('ABC-2', commitAndMerge('ABC-2.txt'))
+    run.agent.script('ABC-3', commitAndMerge('ABC-3.txt'))
     await run.start()
     const order = () => run.service.getState().chain.projects[PROJECT_ID]
     await run.until(() => order() !== undefined, 'the order read')
@@ -103,6 +105,9 @@ describe('the statuses of the tracker', { timeout: 60_000 }, () => {
     await run.startChain(PROJECT_ID)
     await run.until(() => run.board.status('ABC-1') === 'Done', 'the parent done')
     expect(launches()[0]?.task).toBe('ABC-9')
+    // The chain goes on once the parent closes rather than ending while it is still open (BTN-1236).
+    await run.until(() => run.board.status('ABC-3') === 'Done', 'ABC-3 done')
+    expect(launches().map((call) => call.task)).toEqual(['ABC-9', 'ABC-2', 'ABC-3'])
   })
 
   it('takes a task from the backlog into the chain once it is moved to a ready status', async () => {
