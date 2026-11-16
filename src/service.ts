@@ -67,7 +67,7 @@ import type { EvenKeelState,ProjectForm,SessionView } from './state.js'
 import { tallyKey } from './stats/mode.js'
 import { takeStartFailure } from './storage/backup-schedule.js'
 import { loadBrowserHotkeys } from './storage/browser-hotkeys.js'
-import { loadContextWindows,loadSessionWindows } from './storage/context-windows.js'
+import { loadContextWindows } from './storage/context-windows.js'
 import { Writes } from './storage/database.js'
 import { dropLeftFolder,loadLeftFolders,saveLeftFolder } from './storage/left-folders.js'
 import { keptDatabase } from './storage/owner.js'
@@ -200,6 +200,7 @@ const context = {
   get taskRuns() { return taskRuns },
   get launchIn() { return launchIn },
   get launches() { return launches },
+  get journal() { return journal },
   get ledger() { return ledger },
   set ledger(value: typeof ledger) { ledger = value },
   get limitRetries() { return limitRetries },
@@ -365,7 +366,6 @@ const managementKeys = await loadManagementKeys(db)
 const savedLimits = await loadSavedLimits(db)
 /** The context windows the agents named before this start, per launch and per session (BTN-946). */
 const savedWindows = await loadContextWindows(db)
-const savedSessionWindows = await loadSessionWindows(db)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
 const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add(`the close of ${mark.task}`, saveMergeMark(db, mark)))
 /** The merged pull requests' tasks whose close the tracker refused, retried by the merge closers (BTN-1163). */
@@ -425,7 +425,8 @@ const readerMoves = trackersService.wireReaderMoves(context)
 const statusMover = trackersService.wireStatusMover(context)
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
-const mailbox = await Mailbox.open(db, writes, () => new Date())
+// The machine's mailbox: its messages come from the hub at the link's start (`records.restore`).
+const mailbox = Mailbox.detached(writes, () => new Date())
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const links = new Map<string, TrackerLink>()
@@ -512,6 +513,11 @@ lingering.restore(await loadLeftFolders(db), {
   drop: (path) => writes.add(`the settled left folder ${path}`, dropLeftFolder(db, path)),
 })
 const launches: LaunchEntry[] = await readLaunches(db)
+/**
+ * The machine's own launch journal: the hub hands it the one it keeps at the start (`records.restore`), the machine adds
+ * its launches. What runs on the machine reads this one, never `launches` (`docs/machines.md`, "One process").
+ */
+const journal: LaunchEntry[] = []
 /** The tasks the chain ran and saw closed, in memory as the database keeps them. */
 const archive: ClosedTask[] = await closedTasks(db)
 /** The trackers read by reader; the chain and the page get each project's readers as one (BTN-66). */
@@ -601,7 +607,7 @@ const sessionAccount = accountsService.wireSessionAccount(context)
 /** The account folder `key` (the active one unless given) as the chain judges a launch in it. */
 const accountNow = accountsService.wireAccountNow(context)
 const contextWindows = accountsService.wireContextWindows(context, savedWindows)
-const monitor = accountsService.wireMonitor(context, savedSessionWindows)
+const monitor = accountsService.wireMonitor(context)
 
 const wedgedSessions = new Set<string>()
 function logStartupDialogs(views: SessionView[]): void { return accountsService.logStartupDialogs(context, views) }
@@ -712,6 +718,8 @@ const { mailRelay, answerSession } = createChat({
   liveView: (task) => machineLink.page.liveView(task),
   midTurn: (task) => machineLink.port.midTurn(task),
   steering: (sessionId) => machineLink.page.steers(sessionId),
+  chat: machineLink.services.chat,
+  listens: (sessionId) => machineLink.page.mailbox()[sessionId]?.listens === true,
   machineLive: (task) => {
     const view = liveView(task)
     return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: agentStatus(task) === 'busy', asking: view.asking }

@@ -8,7 +8,7 @@ describe('the cleanup of a project without git (BTN-883)', () => {
     const agent = (sessionId: string): AgentEntry => ({ id: `job-${sessionId}`, sessionId, cwd: '/notes', kind: 'bg', startedAt: 0, pid: 1234, status: 'idle' })
     const stopIn = vi.fn(async () => {})
     const launches = [{ task: 'ABC-1', sessionId: 'own' }, { task: 'ABC-2', sessionId: 'next' }]
-    const ctx = { agents: [agent('own'), agent('next'), agent('by-hand')], launches, lingering: new Lingering(), homeOf: () => ({}), stopIn } as unknown as Parameters<typeof stopTaskSessions>[0]
+    const ctx = { agents: [agent('own'), agent('next'), agent('by-hand')], journal: launches, lingering: new Lingering(), homeOf: () => ({}), stopIn } as unknown as Parameters<typeof stopTaskSessions>[0]
     await stopTaskSessions(ctx, 'project-1', '/notes', 'ABC-1', 1, true)
     expect(stopIn.mock.calls.map((call) => (call as unknown[])[1])).toEqual([{ agentId: 'job-own', sessionId: 'own' }])
   })
@@ -21,7 +21,7 @@ describe('rare cleanup observations', () => {
     const agent: AgentEntry = { id: 'job', sessionId: `cleanup-${status}`, cwd: '/repo/.claude/worktrees/abc-1', kind: 'bg',
       startedAt: 0, pid: 1234, status }
     const stopIn = vi.fn(async () => { if (status === 'waiting') throw new Error('stop refused') })
-    const ctx = { agents: [agent], launches: [], lingering: new Lingering(), homeOf: () => ({}), stopIn } as unknown as Parameters<typeof stopTaskSessions>[0]
+    const ctx = { agents: [agent], journal: [], lingering: new Lingering(), homeOf: () => ({}), stopIn } as unknown as Parameters<typeof stopTaskSessions>[0]
     const rare = () => log.mock.calls.filter(([line]) => String(line).startsWith('rare: 17c'))
     try {
       await stopTaskSessions(ctx, 'project-1', '/repo', 'ABC-1', 1)

@@ -1,5 +1,3 @@
-import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { userInfo } from 'node:os'
 import { join } from 'node:path'
@@ -38,11 +36,10 @@ import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
 import { createEvenKeelServer } from '../server.js'
 import { answerComment, type AskAnswers } from '../sessions/ask.js'
-import { inboxImage } from '../sessions/inbox.js'
-import { sharedFile } from '../sessions/shareFile.js'
-import { deliveredMail } from '../sessions/mail.js'
+import { fromCarried, type CarriedFile } from '../machine/services.js'
 import { mailFor } from '../sessions/mailRelay.js'
-import { handoffNoteOf, noteWritten } from '../sessions/note.js'
+import { handoffNoteOf } from '../sessions/note.js'
+import type { TaskFile } from '../tracker/source.js'
 import { TASKS_SERVER } from '../taskmcp/server.js'
 import { guardsOwnAddress } from '../sessions/protection.js'
 import { root, source, stateDirOf } from '../locations.js'
@@ -298,11 +295,18 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
   return () => view(ctx.dispatcher.orders(), panel())
 }
 
+/** A file the machine read, as the page's answer streams it. */
+const taskFileOf = (file: CarriedFile | undefined): TaskFile | undefined => {
+  if (file === undefined) return undefined
+  const data = fromCarried(file)
+  return { type: file.type, size: data.length, body: Readable.from([data]) }
+}
+
 /** The accounts panel before the machine's first snapshot. */
 const EMPTY_PANEL: AccountView = { active: '', accounts: [], login: null, loginBlock: null, apps: [], pool: [], missing: [] }
 
 export function wireServer(ctx: HostingContext): import("http").Server<typeof import("http").IncomingMessage, typeof import("http").ServerResponse> {
-  const mailOf = (sessionId: string) => deliveredMail(ctx.mailbox.delivered(sessionId), ctx.configStore.current.language ?? ctx.promptLanguage(), ctx.taskNote)
+  const transcripts = ctx.machineLink.services.transcript
   const builtin = builtinControl({
     db: ctx.db,
     places: () => builtinPlaces(ctx.configStore.current),
@@ -361,14 +365,14 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       paused: ctx.dispatcher.state.active.filter((chain) => chain.paused).length,
     }),
     control: ctx.chainControl,
-    account: ctx.account,
+    account: ctx.machineLink.services.account,
     sessions: {
       answer: async ({ project, task, sessionId, ask, answers, text, files, renew }) => {
         await ctx.answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }, renew)
         if (ask !== null) journalAnswer(project, task, answers, text)
       },
-      dismissMail: (sessionId) => {
-        ctx.mailbox.dismiss(sessionId)
+      dismissMail: async (sessionId) => {
+        await ctx.machineLink.services.chat.dismiss(sessionId)
         ctx.hub.broadcastSoon('state', ctx.getState)
       },
     },
@@ -596,66 +600,28 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       if (ctx.lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(ctx.configStore.current, project) })
     }),
     launches: () => ctx.launches,
-    sessionRecord: async (sessionId) => {
-      for (const home of ctx.homes.list()) {
-        const found = await ctx.agentOf(home).record(home, sessionId)
-        if (found !== undefined) return {
-          ...found,
-          agent: home.agent,
-          contextWindow: found.contextWindow ?? ctx.monitor.contextWindowOf(sessionId),
-          account: ctx.sessionAccount(sessionId, found.startedAt) ?? ctx.emailAt(home.key, found.startedAt),
-        }
-      }
-      return undefined
-    },
-    transcript: (sessionId, after) =>
-      ctx.inHomes(async (home) => {
-        const agent = ctx.agentOf(home)
-        const feed = await agent.feed(home, sessionId, after, mailOf(sessionId))
-        if (feed !== undefined && agent.feedFile !== undefined) void ctx.transcriptWatch.keep(sessionId, () => agent.feedFile!(home, sessionId))
-        return feed
-      }),
-    transcriptImage: async (sessionId, tool, index) => {
-      const image = await ctx.inHomes(async (home) => ctx.agentOf(home).image?.(home, sessionId, tool, index))
-      if (image === undefined) return undefined
-      const data = Buffer.from(image.data, 'base64')
-      return { type: image.type, size: data.length, body: Readable.from([data]) }
-    },
-    inboxFile: async (sessionId, name) => {
-      const feed = await ctx.inHomes((home) => ctx.agentOf(home).feed(home, sessionId, 0, mailOf(sessionId)))
-      const found = inboxImage(feed?.lines.flatMap((line) => line.files ?? []) ?? [], name)
-      if (found === undefined) return undefined
-      const size = await stat(found.path).then((info) => info.size, () => null)
-      return size === null ? undefined : { type: found.type, size, body: createReadStream(found.path) }
-    },
-    sharedFile: async (sessionId, tool, index) => {
-      const feed = await ctx.inHomes((home) => ctx.agentOf(home).feed(home, sessionId, 0))
-      const share = feed?.lines.find((line) => line.tool === tool && line.share !== undefined)?.share
-      const found = share === undefined ? undefined : sharedFile(share, index)
-      if (found === undefined) return undefined
-      const size = await stat(found.path).then((info) => (info.isFile() ? info.size : null), () => null)
-      return size === null ? undefined : { type: found.type, size, body: createReadStream(found.path) }
-    },
+    sessionRecord: (sessionId) => transcripts.record(sessionId),
+    transcript: (sessionId, after) => transcripts.feed(sessionId, after),
+    transcriptImage: async (sessionId, tool, index) => taskFileOf(await transcripts.image(sessionId, tool, index)),
+    inboxFile: async (sessionId, name) => taskFileOf(await transcripts.inboxFile(sessionId, name)),
+    sharedFile: async (sessionId, tool, index) => taskFileOf(await transcripts.sharedFile(sessionId, tool, index)),
     checkpoint: async (sessionId) => {
       const run = handoffsOf(ctx.launches, sessionId)
       if (run === undefined) return undefined
-      const view = ctx.sessions.find((each) => each.sessionId === sessionId)
+      const view = ctx.machineLink.page.sessions().find((each) => each.sessionId === sessionId)
+      const { context, compactAt } = await transcripts.context(sessionId)
       const window = view?.contextWindow ?? ctx.configStore.current.context.window
       const task = ctx.tasksByProject.get(run.project)?.find((each) => each.id === run.task)
       const pinned = taskCheckpoint(ctx.pinnedCheckpoint(run.project), task?.labels)
       const { first, source } = await ctx.stats.checkpoint(ctx.configStore.current.keys[run.project] ?? run.project, pinned)
       const settings = ctx.configStore.current.settings[run.project]
       const shares = settings?.checkpointShares ?? ctx.configStore.current.stats.checkpointShares
-      const threshold = withinWindow({ first, source }, window, shares, view?.agent ?? null, ctx.monitor.compactAtOf(sessionId))
+      const threshold = withinWindow({ first, source }, window, shares, view?.agent ?? null, compactAt)
       const off = !(settings?.contextHandoffs ?? ctx.configStore.current.contextHandoffs)
       const note = handoffNoteOf(run.task, !isPlain(ctx.configStore.current, run.project), ctx.packages.bringsServer(run.project, TASKS_SERVER))
-      return { ...run, ...threshold, ...(off ? { source: 'off' as const } : {}), context: ctx.monitor.contextOf(sessionId) ?? null, note }
+      return { ...run, ...threshold, ...(off ? { source: 'off' as const } : {}), context, note }
     },
-    handoffNote: async (sessionId) => {
-      if (handoffsOf(ctx.launches, sessionId) === undefined) return undefined
-      const feed = await ctx.inHomes((home) => ctx.agentOf(home).feed(home, sessionId, 0))
-      return feed === undefined ? null : noteWritten(feed.lines)
-    },
+    handoffNote: async (sessionId) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : transcripts.note(sessionId)),
     mail: (sessionId, event) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : mailFor(ctx.mailRelay, sessionId, event)),
     mailContext: (sessionId, event) => (event === 'PreToolUse' || event === 'PostToolUse' ? ctx.badges.statusAsk(sessionId) : null),
     permission: (sessionId, tool, input, since) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : ctx.approvals.poll(sessionId, tool, input, since)),

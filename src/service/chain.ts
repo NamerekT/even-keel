@@ -70,6 +70,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'keepWarm'
   | 'launchIn'
   | 'launches'
+  | 'journal'
   | 'lingering'
   | 'ledger'
   | 'limits'

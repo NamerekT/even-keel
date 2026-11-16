@@ -8,6 +8,7 @@ import { noticeOf, type Notice } from '../notice/notice.js'
 import { patchOf, resetKey, type FactsPatch, type MachineFacts, type ProjectFacts, type RunFacts, type TaskFacts } from './facts.js'
 import { isMove, MOVE_PREFIX, type MoveCall, type MoveDone, type MoveName } from './move-call.js'
 import type { MachinePort } from './port.js'
+import { serviceHandlers, type MachineServices } from './services.js'
 import type { SessionMail } from '../sessions/mail.js'
 import type { SessionView } from '../state.js'
 
@@ -75,6 +76,8 @@ export interface RunnerDeps {
   limitsPlan?: (plan: LimitsPlan) => void
   /** Makes the moves of a task's session the hub asks for (`task.<move>`). */
   moves?: { run: (name: MoveName, call: MoveCall) => Promise<MoveDone> }
+  /** Serves the page's, the hooks' and the chat's commands (`account.*`, `transcript.*`, `chat.*`, `records.*`). */
+  services?: MachineServices
   /** Runs one computation of the facts, so its reads may share what they read (`AccountWatcher.batch`). */
   scope?: <T>(body: () => T) => T
   log: (line: string) => void
@@ -93,8 +96,11 @@ export class MachineRunner {
   private publishing: Promise<void> = Promise.resolve()
   /** The post queued behind `publishing` whose read has not begun yet. */
   private waiting: Promise<void> | undefined
+  private readonly served: Map<string, (...args: unknown[]) => unknown>
 
-  constructor(private readonly deps: RunnerDeps) {}
+  constructor(private readonly deps: RunnerDeps) {
+    this.served = deps.services === undefined ? new Map() : serviceHandlers(deps.services)
+  }
 
   /** What the machine holds now, for the first post of a connection; later posts carry only what changed since. */
   snapshot(): FactsSnapshot {
@@ -154,13 +160,15 @@ export class MachineRunner {
       if (moves === undefined) throw new Error(`the machine does not serve ${command.type}`)
       return () => moves.run(name, command.payload as MoveCall)
     }
+    const raw = (command.payload as { args?: unknown } | undefined)?.args
+    // JSON carries a left-out argument as `null`.
+    const args = (Array.isArray(raw) ? raw : []).map((arg: unknown) => (arg === null ? undefined : arg))
+    const served = this.served.get(command.type)
+    if (served !== undefined) return async () => served(...args)
     const name = command.type.startsWith(COMMAND_PREFIX) ? command.type.slice(COMMAND_PREFIX.length) : ''
     if (!isPortCommand(name)) throw new Error(`the machine knows no command ${command.type}`)
     const member = this.deps.local[name] as ((...args: unknown[]) => Promise<unknown>) | undefined
     if (member === undefined) throw new Error(`the machine does not serve ${command.type}`)
-    const raw = (command.payload as { args?: unknown } | undefined)?.args
-    // JSON carries a left-out argument as `null`.
-    const args = (Array.isArray(raw) ? raw : []).map((arg: unknown) => (arg === null ? undefined : arg))
     return () => member(...args)
   }
 

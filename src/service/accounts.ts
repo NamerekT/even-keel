@@ -63,7 +63,7 @@ import { PassMemo } from '../pass-memo.js'
 import type { ServiceContext } from '../service.js'
 
 export type AccountsContext = Pick<ServiceContext,
-  | 'launches'
+  | 'journal'
   | 'ACCOUNT_POLL_MS'
   | 'AGENT_TIMEOUT_MS'
   | 'CLI_VERSION_POLL_MS'
@@ -559,10 +559,10 @@ export function wireContextWindows(ctx: AccountsContext, saved: SavedWindow[] = 
   })
 }
 
-/** `sessionWindows` — the sessions' windows kept before this start, oldest first (BTN-946). */
+/** `sessionWindows` — the sessions' windows kept before this start, oldest first (BTN-946); the service's come with `records.restore`. */
 export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, number][] = []): SessionMonitor {
   rareEvents.projectOf = (session) => {
-    const launched = ctx.launches.find((entry) => entry.sessionId === session.sessionId)
+    const launched = ctx.journal.find((entry) => entry.sessionId === session.sessionId)
     const candidates = Object.entries(ctx.configStore.current.projects).filter(([, repo]) => isInside(session.cwd, repo))
     const project = launched?.project ?? (candidates.length === 1 ? candidates[0]![0] : undefined)
     return project === undefined ? undefined : projectLabel(ctx.configStore.current, project)

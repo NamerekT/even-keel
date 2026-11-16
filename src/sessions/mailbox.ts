@@ -41,12 +41,12 @@ export class Mailbox {
   private persist: (change: MailboxChange) => Promise<void>
 
   private constructor(
-    db: Db,
     private readonly writes: Writes,
     private mails: Mail[],
     private readonly now: () => Date,
+    persist: (change: MailboxChange) => Promise<void>,
   ) {
-    this.persist = (change) => inTransaction(db, (tx) => saveMailboxChange(tx, change))
+    this.persist = persist
   }
 
   /** The linked machine persists through its outbox instead of opening the hub's database. */
@@ -55,14 +55,20 @@ export class Mailbox {
   }
 
   static async open(db: Db, writes: Writes, now: () => Date): Promise<Mailbox> {
-    const { rows } = await db.query<Row>('select * from mailbox order by id')
-    return new Mailbox(db, writes, rows.map(mailOf), now)
+    return new Mailbox(writes, await loadMail(db), now, (change) => inTransaction(db, (tx) => saveMailboxChange(tx, change)))
   }
 
-  /** At startup, before hooks or chat run: include records replayed from the machine's retained outbox. */
-  async reload(db: Db): Promise<void> {
-    const { rows } = await db.query<Row>('select * from mailbox order by id')
-    this.mails = rows.map(mailOf)
+  /**
+   * A machine's mailbox, which never opens the hub's database: its messages come with `restore` (`records.restore`,
+   * `docs/machines.md`), its changes go out through `persistWith`.
+   */
+  static detached(writes: Writes, now: () => Date): Mailbox {
+    return new Mailbox(writes, [], now, () => Promise.reject(new Error('the mailbox has no store yet')))
+  }
+
+  /** At startup, before hooks or chat run: the messages the hub keeps, records replayed from the outbox included. */
+  restore(mails: Mail[]): void {
+    this.mails = mails.map((mail) => ({ ...mail }))
   }
 
   /** The session's hooks have asked for mail at least once since the service started. */
@@ -141,6 +147,12 @@ export class Mailbox {
   private write(change: MailboxChange): void {
     this.writes.add('a mailbox change', this.persist(structuredClone(change)))
   }
+}
+
+/** The messages the `mailbox` table keeps, oldest first. */
+export async function loadMail(db: Db): Promise<Mail[]> {
+  const { rows } = await db.query<Row>('select * from mailbox order by id')
+  return rows.map(mailOf)
 }
 
 function mailOf(row: Row): Mail {

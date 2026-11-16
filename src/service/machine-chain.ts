@@ -48,7 +48,7 @@ export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSna
       return { sessionId, fallback }
     },
     liveSession: (task) => ctx.sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
-    lastSession: (project, task) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
+    lastSession: (project, task) => ctx.journal.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
     modelRefusal: (task, sessionId) => ctx.sessions.find(view => view.task === task && view.sessionId === sessionId && view.apiErrorKind === 'model')?.apiErrorNotice,
     modelBlock: async (project, task) => {
       const choice = ctx.choiceFor(project, task)
@@ -145,7 +145,7 @@ export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSna
       (await runGit(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
     stop: async (session) => {
       await ctx.stopIn(ctx.homeOf(session.account), session)
-      const launch = ctx.launches.findLast((entry) => entry.sessionId === session.sessionId)
+      const launch = ctx.journal.findLast((entry) => entry.sessionId === session.sessionId)
       if (launch !== undefined) ctx.eventLog.stopped(launch.project, launch.task)
     },
     finish: async (project, task, pull) => {
@@ -328,7 +328,7 @@ export async function steer(ctx: ChainContext, task: string, session: HandoffSes
 }
 
 export function occupantsOf(ctx: ChainContext, slot: string, task: string): { idle: import("../sessions/occupants.js").Occupant[]; busy: import("../sessions/occupants.js").Occupant[]; } {
-  const owners = new Map(ctx.launches.map((entry) => [entry.sessionId, entry.task]))
+  const owners = new Map(ctx.journal.map((entry) => [entry.sessionId, entry.task]))
   return slotOccupants(ctx.agents, owners, slot, task)
 }
 

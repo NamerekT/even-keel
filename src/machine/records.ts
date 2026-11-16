@@ -13,12 +13,25 @@ export function isRecordEvent(type: string): boolean {
   return type === LAUNCH_EVENT || type === WINDOWS_EVENT || type === MAILBOX_EVENT
 }
 
-/** The machine's durable records go to its outbox; only the hub owns their tables. */
+/**
+ * The machine's durable records go to its outbox; only the hub owns their tables. The machine keeps its own launch
+ * journal in memory: what the hub handed it at the start (`restore`) and every launch since.
+ */
 export class MachineRecords {
-  constructor(private readonly emit: (type: string, payload: unknown) => Promise<unknown>) {}
+  constructor(
+    private readonly emit: (type: string, payload: unknown) => Promise<unknown>,
+    readonly journal: LaunchEntry[] = [],
+  ) {}
 
   async launch(entry: LaunchEntry): Promise<void> {
+    this.journal.push(entry)
     await this.emit(LAUNCH_EVENT, entry)
+  }
+
+  /** The journal the hub keeps, before the machine's own launches since: those are already in it once taken. */
+  restore(entries: LaunchEntry[]): void {
+    const own = this.journal.filter((entry) => !entries.some((kept) => kept.sessionId === entry.sessionId && kept.at === entry.at))
+    this.journal.splice(0, this.journal.length, ...entries, ...own)
   }
 
   async windows(windows: [string, number][], at: number): Promise<void> {

@@ -1,15 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import type { SessionTail } from '../agent/contract.js'
-import { createEvenKeelServer } from '../server.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { TranscriptFold } from '../sessions/transcript.js'
 import type { SessionRecord } from '../state.js'
 import { SESSION_WINDOWS_KEPT } from '../storage/context-windows.js'
-import { wireServer } from './hosting.js'
-
-vi.mock('../server.js', () => ({ createEvenKeelServer: vi.fn() }))
+import { wireMachineServices, type MachineServicesContext } from './machine-services.js'
 
 const monitors: SessionMonitor[] = []
 beforeEach(() => vi.useFakeTimers())
@@ -39,11 +36,11 @@ function rig(sessionWindows?: [string, number][]) {
     sessionId, startedAt: null, lastActivityAt: null, contextTokens: 212_000, contextWindow: null,
     tokens: summary.tokens, stage: null, feed: [], workdir: null, branch: null, apiError: null, account: null,
   }))
-  wireServer({
+  const services = wireMachineServices({
     homes: { list: () => [home] }, agentOf: () => ({ record }), monitor,
     sessionAccount: () => null, emailAt: () => 'test@example.com',
-  } as unknown as Parameters<typeof wireServer>[0])
-  const read = vi.mocked(createEvenKeelServer).mock.calls.at(-1)![0].sessionRecord
+  } as unknown as MachineServicesContext, { steer: async () => false, restore: async () => {} })
+  const read = (sessionId: string) => services.transcript.record(sessionId)
   monitor.start()
   return {
     read, record, monitor, saved,

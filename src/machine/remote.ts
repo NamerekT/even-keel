@@ -13,6 +13,7 @@ import { MOVE_PREFIX, MOVE_STATE_EVENT, type MoveDone, type MoveSaved } from './
 import type { LaunchBrief, MachinePort } from './port.js'
 import { pageReads, type PageReads } from './page.js'
 import { isRecordEvent } from './records.js'
+import { remoteServices, type MachineServices } from './services.js'
 import { COMMAND_PREFIX, DONE_EVENT, FACTS_EVENT, HANDOFF_EVENT, type CommandDone, type FactsPosted, type FactsSnapshot, type PortCommand } from './runner.js'
 
 export interface RemoteDeps {
@@ -141,6 +142,19 @@ export class RemoteMachine {
     }
   }
 
+  /**
+   * The page's, the hooks' and the chat's commands to the machine (`MachineServices`). A command that writes into a
+   * session's folder names it with its project, as the port's do: the machine checks it against what it agreed to.
+   */
+  services(): MachineServices {
+    return remoteServices((group, name, args) => {
+      let place: Place = {}
+      if (group === 'chat' && name === 'steer') place = this.placed(this.deps.projectOf(args[0] as string), args[1] as HandoffSession)
+      if (group === 'chat' && name === 'saveInbox') place = { project: args[0] as string, folder: args[1] as string }
+      return this.ask(`${group}.${name}`, place, args)
+    })
+  }
+
   /** Tells the machine which account folders another machine polls and the newest limits of their accounts (BTN-991). */
   async tellLimits(plan: LimitsPlan): Promise<void> {
     await this.send(LIMITS_PLAN_COMMAND, {}, plan)
@@ -193,8 +207,12 @@ export class RemoteMachine {
   }
 
   private call(name: PortCommand, place: Place, args: unknown[]): Promise<unknown> {
+    return this.ask(COMMAND_PREFIX + name, place, args)
+  }
+
+  private ask(type: string, place: Place, args: unknown[]): Promise<unknown> {
     while (args.length > 0 && args.at(-1) === undefined) args = args.slice(0, -1)
-    return this.send(COMMAND_PREFIX + name, place, { args })
+    return this.send(type, place, { args })
   }
 
   private async send(type: string, place: Place, payload: unknown): Promise<unknown> {

@@ -36,7 +36,7 @@ function setup(stops: (Error | undefined)[]) {
   })
   const leftover = vi.fn()
   const ctx = {
-    launches: [],
+    journal: [],
     agents: [agent],
     homeOf: (key: string) => ({ key }),
     stopIn,

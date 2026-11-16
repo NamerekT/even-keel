@@ -17,6 +17,7 @@ import { MachineMoves } from './moves.js'
 import type { MachinePort } from './port.js'
 import { RemoteMachine, type RemoteDeps } from './remote.js'
 import { MachineRunner } from './runner.js'
+import type { MachineServices } from './services.js'
 
 export const PROJECT = '11111111-1111-4111-8111-111111111111'
 export const REPO = 'C:/repos/example'
@@ -78,7 +79,7 @@ export function machineOf() {
 }
 
 /** The hub and one machine over the link; the machine makes the moves of a task's session (`MachineMoves`). */
-export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note']) {
+export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note'], services?: MachineServices) {
   const hubStore = new MemoryHubStore()
   const machineStore = new MemoryMachineStore()
   await machineStore.agree(PROJECT, REPO)
@@ -139,6 +140,7 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
         now: () => new Date(),
         log: (line) => log.push(line),
       }),
+      ...(services === undefined ? {} : { services }),
       log: (line) => log.push(line),
     })
     const end: MachineEnd = new MachineEnd({

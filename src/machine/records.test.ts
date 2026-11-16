@@ -5,7 +5,7 @@ import { HubEnd } from '../link/hub.js'
 import { FINGERPRINT, HUB_ADDRESS, MemoryMachineStore, Wire } from '../link/link.fixture.js'
 import { MachineEnd } from '../link/machine.js'
 import { bearerOf, parseToken } from '../link/protocol.js'
-import { Mailbox } from '../sessions/mailbox.js'
+import { loadMail, Mailbox } from '../sessions/mailbox.js'
 import { Writes } from '../storage/database.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import { memoryDatabase } from '../storage/memory.js'
@@ -142,7 +142,7 @@ describe('machine records over the wire', { timeout: 30_000 }, () => {
     await end.start()
     await vi.waitFor(() => expect(end.status().state).toBe('online'))
     await end.flushed()
-    await restarted.reload(db)
+    restarted.restore(await loadMail(db))
     expect(restarted.delivered('session-1')).toHaveLength(1)
     expect(restarted.post('ABC-2', 'session-2', 'Next message.', []).id).toBeGreaterThan(mail.id)
   })

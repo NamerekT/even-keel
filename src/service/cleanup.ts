@@ -26,7 +26,7 @@ export async function stopTaskSessions(
   count: number,
   shared = false,
 ): Promise<{ warnings: Notice[]; retrying: boolean }> {
-  const own = new Set(ctx.launches.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
+  const own = new Set(ctx.journal.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
   const slots = slotPaths(repo, count)
   const inPlace = (agent: AgentEntry) =>
     shared

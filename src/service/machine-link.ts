@@ -27,11 +27,14 @@ import { LAUNCH_EVENT, MachineRecords, saveMachineRecord } from '../machine/reco
 import { HANDOFF_EVENT, MachineRunner } from '../machine/runner.js'
 import { samePath } from '../paths.js'
 import type { SessionMail } from '../sessions/mail.js'
+import { loadMail } from '../sessions/mailbox.js'
+import type { MachineServices } from '../machine/services.js'
+import { wireMachineServices, type MachineServicesContext } from './machine-services.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import type { ChainContext } from './chain.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { HubMcp, machineTasks } from './hub-mcp.js'
-import { wireMachine } from './machine-chain.js'
+import { steer, wireMachine } from './machine-chain.js'
 
 /** The folder of the machine's own database inside the state folder, next to the hub's `even-keel/`. */
 export const MACHINE_DIR = 'machine'
@@ -47,6 +50,8 @@ export interface LinkedMachine {
   records: MachineRecords
   /** What the page and the chat read of the machine's sessions and accounts: its mirror, never the machine's objects. */
   page: PageReads
+  /** What the page, the hooks and the chat ask of the machine besides the chain: commands over the link. */
+  services: MachineServices
   /**
    * Connects the machine to its hub and waits for its first snapshot. Called once the dispatcher exists: the machine's
    * facts read the chain's state. Until then the mirror is empty and the chains do not step.
@@ -63,7 +68,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * the local port runs behind `MachineRunner`, and the two talk through `HubEnd` and `MachineEnd` over a carrier that
  * is a call. Nothing is connected until `start`.
  */
-export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachine> {
+export async function wireLinkedMachine(ctx: ChainContext & MachineServicesContext): Promise<LinkedMachine> {
   const log = (line: string): void => console.log(line)
   const machineDb = await openMachineDatabase(join(stateDirOf(), MACHINE_DIR))
   const hubStore = new DatabaseHubStore(ctx.db)
@@ -242,7 +247,7 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     usageOf: (account) => ctx.limits.usage(account),
     owners: () => {
       const owners: Record<string, string> = {}
-      for (const { sessionId } of ctx.launches) {
+      for (const { sessionId } of ctx.journal) {
         const key = ctx.owners.of(sessionId)
         if (key !== undefined) owners[sessionId] = key
       }
@@ -265,6 +270,14 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     },
     limitsPlan: (plan) => ctx.limits.plan(plan),
     moves,
+    services: wireMachineServices(ctx, {
+      steer: (task, session, prompt) => steer(ctx, task, session, prompt),
+      restore: async ({ launches, windows, mail }) => {
+        records.restore(launches)
+        ctx.mailbox.restore(mail)
+        ctx.monitor.restoreWindows(windows)
+      },
+    }),
     scope: (body) => ctx.account.batch(() => ctx.choiceFor.pass(() => {
       pass = passOf()
       try {
@@ -290,7 +303,8 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     log,
   })
   let publishing: ReturnType<typeof setInterval> | undefined
-  const records = new MachineRecords((type, payload) => end.emit(type, payload))
+  const records = new MachineRecords((type, payload) => end.emit(type, payload), ctx.journal)
+  const services = remote.services()
   ctx.mailbox.persistWith(async (change) => {
     await records.mailbox(change)
     await runner.publish()
@@ -301,6 +315,7 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     assignments,
     records,
     page: remote.page,
+    services,
     start: async () => {
       await end.start()
       let waited: ReturnType<typeof setTimeout> | undefined
@@ -310,9 +325,9 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
       // From here the servers holding keys are reached over the link, as from a machine of its own (BTN-990).
       ctx.packages.throughHub({ servers: () => ctx.packages.hubServers(), relay: (request) => end.mcp(request), tasks: machineTasks(ctx, end) })
       await end.flushed()
-      // These readers were built before the link: replay may have added a launch, settled mail or kept a window.
-      await ctx.mailbox.reload(ctx.db)
-      ctx.monitor.restoreWindows(await loadSessionWindows(ctx.db))
+      // The machine's journal, mailbox and windows are the hub's records, replayed ones included: handed over the link,
+      // never read from the hub's database by the machine.
+      await services.records.restore({ launches: ctx.launches, windows: await loadSessionWindows(ctx.db), mail: await loadMail(ctx.db) })
       publishing = setInterval(() => void catchUp(), PUBLISH_EVERY_MS)
       publishing.unref()
     },
