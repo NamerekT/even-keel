@@ -131,6 +131,51 @@ describe('the machine port over the link', () => {
     expect(port.liveSession('ABC-3')).toBe('session-3')
   })
 
+  it('squares the tasks of the machine with its snapshot: a row of a task it no longer knows goes, a live session gets one', async () => {
+    const { id, assignments, queries, state, end, log } = await started()
+    end.stop()
+    assignments.assign(PROJECT, 'ABC-1', id)
+    assignments.assign(PROJECT, 'ABC-2', id)
+    assignments.assign(PROJECT, 'ABC-3', 'another-machine')
+    state.stopped['ABC-2'] = 'session-2'
+    state.live['ABC-3'] = 'session-3'
+    state.live['ABC-4'] = 'session-4'
+    queries.length = 0
+    await end.start()
+    await tick()
+    expect(assignments.machineOf(PROJECT, 'ABC-1')).toBeUndefined()
+    expect(assignments.machineOf(PROJECT, 'ABC-2')).toBe(id)
+    expect(assignments.machineOf(PROJECT, 'ABC-3')).toBe(id)
+    expect(assignments.machineOf(PROJECT, 'ABC-4')).toBe(id)
+    expect(queries.map(({ sql, params }) => [sql.split(' ')[0], params[1]])).toEqual([['delete', 'ABC-1'], ['insert', 'ABC-3'], ['insert', 'ABC-4']])
+    expect(log.filter((line) => line.includes('machine_tasks'))).toEqual([
+      `machine: ABC-1 is no longer on machine ${id}, its row in machine_tasks is removed`,
+      `machine: ABC-3 has a live session on machine ${id} and was another-machine's in machine_tasks, it is ${id}'s now`,
+      `machine: ABC-4 has a live session on machine ${id} and no row in machine_tasks, it is added`,
+    ])
+  })
+
+  it('squares the tasks only once the machine has read its sessions', async () => {
+    const { id, assignments, state, end, runner } = await started()
+    end.stop()
+    assignments.assign(PROJECT, 'ABC-1', id)
+    state.read = false
+    await end.start()
+    await tick()
+    expect(assignments.machineOf(PROJECT, 'ABC-1')).toBe(id)
+    state.read = true
+    await runner.publish()
+    await tick()
+    expect(assignments.machineOf(PROJECT, 'ABC-1')).toBeUndefined()
+    // Between connections the record follows the launches and the cleanups, not the facts.
+    assignments.assign(PROJECT, 'ABC-1', id)
+    state.live['ABC-5'] = 'session-5'
+    await runner.publish()
+    await tick()
+    expect(assignments.machineOf(PROJECT, 'ABC-1')).toBe(id)
+    expect(assignments.machineOf(PROJECT, 'ABC-5')).toBeUndefined()
+  })
+
   it('gives the notice a command threw on the machine, by its code', async () => {
     const { port, state } = await started()
     state.refuseFinish = true

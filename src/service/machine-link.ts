@@ -121,6 +121,7 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     },
     assigned: (project, task) => assignments.assign(project, task, own),
     released: (project, task) => assignments.release(project, task),
+    held: (named, live) => assignments.reconcile(own, named, live),
     catchUp,
     changed: () => ctx.hub.broadcastSoon('state', () => ctx.getState()),
     log,

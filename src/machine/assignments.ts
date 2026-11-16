@@ -14,7 +14,13 @@ export interface AssignmentDeps {
   now?: () => number
 }
 
-const keyOf = (project: string, task: string): string => `${project}\n${task}`
+/** What squaring a machine's rows with its snapshot changed; `from` — the machine the task's row named before. */
+export interface HeldChanges {
+  removed: AssignedTask[]
+  added: Array<AssignedTask & { from?: string }>
+}
+
+const keyOf =(project: string, task: string): string => `${project}\n${task}`
 
 /**
  * Which machine runs which task (`machine_tasks`, `docs/machines.md`, "Tasks to machines"): a task goes to a machine
@@ -54,6 +60,24 @@ export class Assignments implements AssignedTasks {
   release(project: string, task: string): void {
     if (!this.held.delete(keyOf(project, task))) return
     this.deps.writes.add(`the machine of ${task}`, this.deps.db.query('delete from machine_tasks where project_id = $1 and task = $2', [project, task]))
+  }
+
+  /**
+   * Squares the machine's rows with its snapshot: a row of a task the machine no longer names goes, and a task with a
+   * live session there becomes its own. `named` is every task the machine knows a session of; a stopped one keeps its
+   * row, since its place is cleaned up only with `finish`.
+   */
+  reconcile(machine: string, named: ReadonlySet<string>, live: AssignedTask[]): HeldChanges {
+    const removed = this.of(machine).filter(({ task }) => !named.has(task))
+    for (const { project, task } of removed) this.release(project, task)
+    const added: HeldChanges['added'] = []
+    for (const { project, task } of live) {
+      const was = this.machineOf(project, task)
+      if (was === machine) continue
+      this.assign(project, task, machine)
+      added.push({ project, task, ...(was === undefined ? {} : { from: was }) })
+    }
+    return { removed, added }
   }
 
   machineOf(project: string, task: string): string | undefined {

@@ -3,6 +3,8 @@ import type { HandoffSession } from '../chain/relay.js'
 import type { HubHandlers } from '../link/hub.js'
 import { FAILED_EVENT, INTERRUPTED_EVENT, REFUSED_EVENT, type Command, type MachineEvent } from '../link/protocol.js'
 import { asNotice, fail, NoticeError } from '../notice/notice.js'
+import type { AssignedTask } from '../tracker/source.js'
+import type { HeldChanges } from './assignments.js'
 import { applyPatch, mirrorReads, type MachineFacts } from './facts.js'
 import { MOVE_PREFIX, MOVE_STATE_EVENT, type MoveDone, type MoveSaved } from './move-call.js'
 import type { MachinePort } from './port.js'
@@ -28,6 +30,12 @@ export interface RemoteDeps {
   assigned?: (project: string, task: string) => void
   released?: (project: string, task: string) => void
   /**
+   * Squares the hub's record of the machine's tasks with the first snapshot of a connection that has read the sessions
+   * (`docs/machines.md`, "Tasks to machines"): `named` — every task the machine knows a session of, `live` — the ones
+   * with a live session there.
+   */
+  held?: (named: ReadonlySet<string>, live: AssignedTask[]) => HeldChanges
+  /**
    * With the machine in this process: has it post what changed and waits until the hub took it, so a step of the chain
    * reads the machine as it is now. Absent for a machine elsewhere, whose mirror is as fresh as its last event.
    */
@@ -51,6 +59,8 @@ type Place = { project?: string | undefined; folder?: string | undefined }
  */
 export class RemoteMachine {
   private mirror: FactsSnapshot | undefined
+  /** The connection's snapshot came and the machine's tasks are not squared with it yet (`held`). */
+  private unsquared = false
   private readonly waiters = new Map<number, Waiter>()
   /** Results that came while a send had not yet learnt its number. */
   private readonly early = new Map<number, Outcome>()
@@ -117,9 +127,32 @@ export class RemoteMachine {
       snapshot: (machine, snapshot) => {
         if (!this.mine(machine)) return
         this.mirror = snapshot as FactsSnapshot
+        this.unsquared = true
+        this.square()
         this.deps.changed?.()
       },
       event: (machine, event) => (this.mine(machine) ? this.event(event) : undefined),
+    }
+  }
+
+  /** Once per connection: a machine that has not read its sessions yet names none, which would empty its rows. */
+  private square(): void {
+    const facts = this.mirror?.facts
+    const { held, log } = this.deps
+    if (!this.unsquared || held === undefined || facts?.sessionsRead !== true) return
+    this.unsquared = false
+    const live = Object.entries(facts.tasks).flatMap(([task, each]) => {
+      if (each.live === undefined) return []
+      const project = this.deps.projectOfSession(each.live) ?? this.deps.projectOf(task)
+      return project === undefined ? [] : [{ project, task }]
+    })
+    const machine = this.deps.machine()
+    const { removed, added } = held(new Set(Object.keys(facts.tasks)), live)
+    for (const { task } of removed) log(`machine: ${task} is no longer on machine ${machine}, its row in machine_tasks is removed`)
+    for (const { task, from } of added) {
+      log(from === undefined
+        ? `machine: ${task} has a live session on machine ${machine} and no row in machine_tasks, it is added`
+        : `machine: ${task} has a live session on machine ${machine} and was ${from}'s in machine_tasks, it is ${machine}'s now`)
     }
   }
 
@@ -171,6 +204,7 @@ export class RemoteMachine {
       // A post older than the snapshot of this connection, kept by the machine while it was away.
       if (this.mirror === undefined || boot !== this.mirror.boot || rev <= this.mirror.rev) return
       this.mirror = { boot, rev, facts: applyPatch(this.mirror.facts, patch) }
+      this.square()
       this.deps.changed?.()
     } else if (event.type === DONE_EVENT) {
       const done = payload as unknown as CommandDone

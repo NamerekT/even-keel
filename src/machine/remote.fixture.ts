@@ -10,6 +10,8 @@ import { bearerOf, parseToken, type NumberedCommand } from '../link/protocol.js'
 import { fail } from '../notice/notice.js'
 import type { SessionView } from '../state.js'
 import type { SessionMail } from '../sessions/mail.js'
+import { Writes, type Db } from '../storage/database.js'
+import { Assignments } from './assignments.js'
 import { MachineMoves } from './moves.js'
 import type { MachinePort } from './port.js'
 import { RemoteMachine } from './remote.js'
@@ -23,6 +25,8 @@ export const tick = (ms = 0) => vi.advanceTimersByTimeAsync(ms)
 export function machineOf() {
   const state = {
     live: {} as Record<string, string>,
+    /** Tasks whose session stopped: the machine still knows them, by session id. */
+    stopped: {} as Record<string, string>,
     launches: [] as string[],
     gate: Promise.resolve() as Promise<void>,
     read: true,
@@ -54,7 +58,7 @@ export function machineOf() {
     shell: () => false,
     asked: () => null,
     limited: () => undefined,
-    handoff: () => undefined,
+    handoff: (task: string) => (task in state.stopped ? { sessionId: state.stopped[task] } : undefined),
     sessionsRead: () => state.read,
     accountsRead: () => true,
     reportedTree: () => null,
@@ -79,6 +83,10 @@ export async function bench() {
   const snapshots: HandoffSnapshot[] = []
   const journal: LaunchEntry[] = []
   const { state, local } = machineOf()
+  const queries: Array<{ sql: string; params: unknown[] }> = []
+  const db = { query: async (sql: string, params: unknown[] = []) => (queries.push({ sql, params }), { rows: [] }) } as unknown as Db
+  const assignments = await Assignments.open({ db, writes: new Writes((line) => log.push(line)), order: () => [] })
+  queries.length = 0
   let id = ''
   const remote: RemoteMachine = new RemoteMachine({
     send: (machine, command) => hub.send(machine, command),
@@ -87,6 +95,9 @@ export async function bench() {
     projectOfSession: () => PROJECT,
     lastSession: () => undefined,
     saveSnapshot: (snapshot) => void snapshots.push(snapshot),
+    assigned: (project, task) => assignments.assign(project, task, id),
+    released: (project, task) => assignments.release(project, task),
+    held: (named, live) => assignments.reconcile(id, named, live),
     log: (line) => log.push(line),
   })
   const hub: HubEnd = new HubEnd({ store: hubStore, handlers: remote.handlers(), log: (line) => log.push(line) })
@@ -101,7 +112,7 @@ export async function bench() {
       emit: (type, payload) => end.emit(type, payload),
       boot: name,
       projects: () => [PROJECT],
-      tasks: () => Object.entries(state.live).map(([task, session]) => ({ task, sessions: [session] })),
+      tasks: () => Object.entries({ ...state.stopped, ...state.live }).map(([task, session]) => ({ task, sessions: [session] })),
       runs: () => [],
       reported: () => [],
       model: () => null,
@@ -137,5 +148,5 @@ export async function bench() {
     })
     return { runner, end }
   }
-  return { hub, hubStore, machineStore, wire, remote, port: remote.port(), state, local, log, snapshots, journal, ran, boot, id }
+  return { hub, hubStore, machineStore, wire, remote, port: remote.port(), state, local, log, snapshots, journal, ran, boot, id, assignments, queries }
 }

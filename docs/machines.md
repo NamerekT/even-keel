@@ -61,6 +61,7 @@ The snapshot members of the port read `MachineFacts` (`src/machine/facts.ts`), v
 ## Tasks to machines
 
 - `project_machines` is the pool: the machines a project may run on, each with `enabled`. `machine_tasks` is which machine runs which task: written with the task's launch (`Assignments.assign`), removed when its place there is cleaned up (`finish`), and with the project (`forgetProjectRows`). Both are the hub's own record, never a status (invariant 2): the tracker does not know about machines.
+- A connection's snapshot squares the machine's rows (`Assignments.reconcile`, `RemoteMachine`'s `held`), once the machine has read its sessions — at the snapshot, or at the first post after it that says so: a row of a task the snapshot does not name at all goes, a task with a live session there and no row (or another machine's) gets one; every change is a line in the log. A task whose session stopped is still named and keeps its row until `finish`. Between connections the rows follow only the launches and the cleanups.
 - `AssignedTasks` (`src/tracker/source.ts`) is the contract a machine's chain will read its work through, next to the trackers': "the tasks assigned to me, in this order" — `Assignments.assigned(machine)` gives them project by project in the chain's order. Nothing asks it yet: with one machine the hub's chain launches where the task goes.
 
 ## The link
