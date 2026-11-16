@@ -72,7 +72,7 @@ export function sideAnswer(side: Side, asked: Asked): string {
 
 /** The shell tool among the offered ones and its arguments for a command; `null` — none is offered. */
 export function shellCall(tools: string[], command: string): { name: string; args: Record<string, unknown> } | null {
-  const name = tools.find((tool) => tool in SHELLS)
+  const name = tools.find((tool) => Object.hasOwn(SHELLS, tool))
   return name === undefined ? null : { name, args: SHELLS[name]!(command) }
 }
 
