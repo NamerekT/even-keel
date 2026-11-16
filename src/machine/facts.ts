@@ -3,6 +3,7 @@ import { accountId, type AccountView } from '../account/model.js'
 import type { LimitsWait, ModelWeekHold } from '../chain/model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from '../chain/relay.js'
 import { limitReopenedAt, type RateLimits } from '../limits/model.js'
+import type { AccountTie } from '../limits/polls.js'
 import type { OverageSession } from '../limits/overage-session.js'
 import type { UsageHealth } from '../limits/usage.js'
 import type { Notice } from '../notice/notice.js'
@@ -63,6 +64,8 @@ export interface MachineFacts {
   owners?: Record<string, string>
   /** By session id: the compactions counted in its transcript, only the sessions with any. */
   compactions?: Record<string, number>
+  /** By account folder, the Claude folders signed in to claude.ai: whose account it is and whether it is polled (BTN-991). */
+  identities?: Record<string, AccountTie>
   sessionsRead: boolean
   accountsRead: boolean
   tasks: Record<string, TaskFacts>
@@ -76,7 +79,7 @@ export interface MachineFacts {
 
 export const resetKey = (account: string, at: string, text?: string): string => `${account}\n${at}\n${text ?? ''}`
 
-const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox', 'usage', 'owners', 'compactions'] as const
+const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox', 'usage', 'owners', 'compactions', 'identities'] as const
 type Section = (typeof SECTIONS)[number]
 
 /** The entries of one section that changed since the last post: `set` — new or changed, `gone` — no longer there. */

@@ -6,6 +6,9 @@ import type { LaunchEntry } from '../chain/dispatcher.js'
 import { launchLine } from '../chain/log.js'
 import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-notes.js'
 import { saveSnapshot } from '../chain/snapshots.js'
+import { CLAUDE } from '../claude/name.js'
+import { AccountIdentities } from '../limits/identity.js'
+import { AccountPolls, type AccountTie } from '../limits/polls.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { HubEnd } from '../link/hub.js'
 import { LOCAL_HEARTBEAT_MS, LocalTransport } from '../link/local.js'
@@ -132,15 +135,36 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     released: (project, task) => assignments.release(project, task),
     held: (named, live) => assignments.reconcile(own, named, live),
     catchUp,
-    changed: () => ctx.hub.broadcastSoon('state', () => ctx.getState()),
+    changed: () => {
+      steerLimits()
+      ctx.hub.broadcastSoon('state', () => ctx.getState())
+    },
     log,
   })
+  const polls = new AccountPolls({ hub: () => own, log })
+  /** One poller per account and the newest limits for the others (`docs/machines.md`, "Account limits"). */
+  const steerLimits = (): void => {
+    const facts = remote.facts()
+    if (facts === undefined) return
+    const machines = [{ machine: own, online: hub.connected(own), identities: facts.identities ?? {}, limits: facts.limits }]
+    for (const [machine, plan] of polls.plan(machines)) {
+      remote.tellLimits(plan).catch((error: unknown) => {
+        polls.connected(machine)
+        log(`limits: the plan for machine ${machine} was not taken: ${messageOf(error)}`)
+      })
+    }
+  }
   const hubMcp = new HubMcp({ db: ctx.db, origin: () => ctx.packages.hubOrigin, projects: () => Object.keys(ctx.configStore.current.projects), log })
   const handlers = remote.handlers()
   const hub: HubEnd = new HubEnd({
     store: hubStore,
     handlers: {
       ...handlers,
+      snapshot: (machine, snapshot) => {
+        polls.connected(machine)
+        return handlers.snapshot(machine, snapshot)
+      },
+      offline: () => steerLimits(),
       event: (machine, event) => (event.type === KEPT_WRITE_EVENT ? hubMcp.write(machine, event.payload as KeptWrite) : handlers.event(machine, event)),
       mcp: (machine, request) => hubMcp.relay(machine, request),
     },
@@ -182,6 +206,7 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     now: () => new Date(),
     log,
   })
+  const identities = new AccountIdentities()
   const ownRun = (project: string, task: string): boolean => !sameJson(ctx.choiceFor(project, task), ctx.choiceFor(project))
   const runner: MachineRunner = new MachineRunner({
     local,
@@ -228,6 +253,17 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
       return owners
     },
     compactions: () => ctx.monitor.compactionCounts(),
+    identities: () => {
+      const ties: Record<string, AccountTie> = {}
+      for (const home of ctx.homes.all()) {
+        if (home.agent !== CLAUDE) continue
+        const signed = identities.of(ctx.homes.configFile(home))
+        if (signed === undefined) continue
+        ties[home.key] = { ...signed, polls: ctx.limits.pollable(home.key), ...(ctx.limits.skipped(home.key) && { skipped: true as const }) }
+      }
+      return ties
+    },
+    limitsPlan: (plan) => ctx.limits.plan(plan),
     moves,
     scope: (body) => ctx.account.batch(() => ctx.choiceFor.pass(() => {
       pass = passOf()

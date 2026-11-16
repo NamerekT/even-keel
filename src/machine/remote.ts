@@ -2,6 +2,7 @@ import type { NoteText } from '../chain/handoff-note.js'
 import type { HandoffSnapshot } from '../chain/snapshots.js'
 import { isOwnName } from '../chain/fix.js'
 import type { HandoffSession } from '../chain/relay.js'
+import { LIMITS_PLAN_COMMAND, type LimitsPlan } from '../limits/polls.js'
 import type { HubHandlers } from '../link/hub.js'
 import { FAILED_EVENT, INTERRUPTED_EVENT, REFUSED_EVENT, type Command, type MachineEvent } from '../link/protocol.js'
 import { asNotice, fail, NoticeError } from '../notice/notice.js'
@@ -138,6 +139,11 @@ export class RemoteMachine {
         },
       },
     }
+  }
+
+  /** Tells the machine which account folders another machine polls and the newest limits of their accounts (BTN-991). */
+  async tellLimits(plan: LimitsPlan): Promise<void> {
+    await this.send(LIMITS_PLAN_COMMAND, {}, plan)
   }
 
   handlers(): HubHandlers {

@@ -291,6 +291,19 @@ describe('the machine port over the link', () => {
     expect(page.panel()?.missing).toEqual([])
     expect(page.liveView('ABC-1')).toBeUndefined()
   })
+
+  it('mirrors whose account each folder is, and hands the machine the hub limits plan (BTN-991)', async () => {
+    const { state, remote, runner } = await started()
+    state.identities = { main: { account: 'account-1', email: 'john@example.com', polls: true } }
+    await runner.publish()
+    await tick()
+    expect(remote.facts()?.identities).toEqual(state.identities)
+    const plan = { skip: ['main'] }
+    const told = remote.tellLimits(plan)
+    await tick()
+    await told
+    expect(state.plans).toEqual([plan])
+  })
 })
 
 describe('MachineRunner facts', () => {

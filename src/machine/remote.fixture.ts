@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 import type { AccountView } from '../account/model.js'
 import type { LaunchEntry } from '../chain/model.js'
 import type { HandoffSnapshot } from '../chain/snapshots.js'
+import type { AccountTie, LimitsPlan } from '../limits/polls.js'
 import type { UsageHealth } from '../limits/usage.js'
 import { HubEnd } from '../link/hub.js'
 import { FINGERPRINT, HUB_ADDRESS, MemoryHubStore, MemoryMachineStore, Wire } from '../link/link.fixture.js'
@@ -37,6 +38,8 @@ export function machineOf() {
     usage: {} as Record<string, UsageHealth>,
     owners: {} as Record<string, string>,
     compactions: {} as Record<string, number>,
+    identities: {} as Record<string, AccountTie>,
+    plans: [] as LimitsPlan[],
   }
   const local = {
     launch: async (_project: string, task: string) => {
@@ -127,6 +130,8 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
       usageOf: (account) => state.usage[account] ?? { state: 'waiting', reason: null, since: null },
       owners: () => state.owners,
       compactions: () => state.compactions,
+      identities: () => state.identities,
+      limitsPlan: (plan) => void state.plans.push(plan),
       moves: new MachineMoves({
         local,
         emit: (type, payload) => end.emit(type, payload),

@@ -1,6 +1,7 @@
 import type { AccountLedger } from '../account/ledger.js'
 import type { AccountView } from '../account/model.js'
 import type { RateLimits } from '../limits/model.js'
+import { LIMITS_PLAN_COMMAND, type AccountTie, type LimitsPlan } from '../limits/polls.js'
 import type { UsageHealth } from '../limits/usage.js'
 import type { NumberedCommand } from '../link/protocol.js'
 import { noticeOf, type Notice } from '../notice/notice.js'
@@ -68,6 +69,10 @@ export interface RunnerDeps {
   usageOf?: (account: string) => UsageHealth
   owners?: () => Record<string, string>
   compactions?: () => Record<string, number>
+  /** By folder, whose claude.ai account it is (`MachineFacts.identities`). */
+  identities?: () => Record<string, AccountTie>
+  /** Takes what the hub tells of the account folders: which ones another machine polls, and its newest limits. */
+  limitsPlan?: (plan: LimitsPlan) => void
   /** Makes the moves of a task's session the hub asks for (`task.<move>`). */
   moves?: { run: (name: MoveName, call: MoveCall) => Promise<MoveDone> }
   /** Runs one computation of the facts, so its reads may share what they read (`AccountWatcher.batch`). */
@@ -137,6 +142,11 @@ export class MachineRunner {
 
   /** A port member or a move of a task's session; what the machine does not know or serve throws. */
   private handler(command: NumberedCommand): () => Promise<unknown> {
+    if (command.type === LIMITS_PLAN_COMMAND) {
+      const take = this.deps.limitsPlan
+      if (take === undefined) throw new Error(`the machine does not serve ${command.type}`)
+      return async () => void take(command.payload as LimitsPlan)
+    }
     if (command.type.startsWith(MOVE_PREFIX)) {
       const name = command.type.slice(MOVE_PREFIX.length)
       const { moves } = this.deps
@@ -220,6 +230,7 @@ export class MachineRunner {
       ...(usageOf === undefined ? {} : { usage: Object.fromEntries([...accounts].map((account) => [account, usageOf(account)])) }),
       ...(this.deps.owners === undefined ? {} : { owners: this.deps.owners() }),
       ...(this.deps.compactions === undefined ? {} : { compactions: this.deps.compactions() }),
+      ...(this.deps.identities === undefined ? {} : { identities: this.deps.identities() }),
       sessionsRead: local.sessionsRead(),
       accountsRead: local.accountsRead(),
       tasks,

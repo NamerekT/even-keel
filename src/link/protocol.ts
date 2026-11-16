@@ -4,7 +4,7 @@
  */
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 3
+export const API_VERSION = 4
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000

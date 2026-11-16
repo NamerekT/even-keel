@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import type { AccountHome } from '../account/homes.js'
 import { currentLimits, limitsFileDir, newestLimits, parseLimitsFile, withMonthSpent, withSessionLimits, type RateLimits, type SessionLimits } from './model.js'
 import { englishOf, notice, sameNotice, type Notice } from '../notice/notice.js'
+import type { LimitsPlan } from './polls.js'
 import type { UsageAnswer, UsageHealth } from './usage.js'
 
 export interface LimitsWatcherOptions {
@@ -44,6 +45,8 @@ interface AccountLimits {
   polled: RateLimits | undefined
   /** From the `rate_limit_event`s of the account's SDK sessions. */
   streamed: RateLimits | undefined
+  /** What the hub handed over from the account's other machines (`plan`). */
+  hub: RateLimits | undefined
   /** The month a session's refusal spent, until a poll tells (`spendMonth`). */
   refused: RateLimits | undefined
   health: UsageHealth
@@ -54,6 +57,8 @@ interface AccountLimits {
 const WAITING: UsageHealth = { state: 'waiting', reason: null, since: null }
 /** A folder never polled reads its limits from its sessions: nothing is missing. */
 const FROM_SESSIONS: UsageHealth = { state: 'ok', reason: null, since: null }
+/** A folder another machine polls: its limits come from the hub. */
+const FROM_HUB: UsageHealth = FROM_SESSIONS
 const OFF_REASON_PREFIX = 'claude -p /usage may have reached the model'
 
 export class LimitsWatcher {
@@ -68,6 +73,10 @@ export class LimitsWatcher {
   private nextAt: string | null = null
   /** What `save` was last given per account, as JSON. */
   private readonly kept = new Map<string, string>()
+  /** The folders whose account another machine polls, as the hub told. */
+  private skip = new Set<string>()
+  /** A folder the hub gave back is polled no sooner than a poll interval after: its poller may have just polled it. */
+  private readonly resumeAt = new Map<string, number>()
 
   constructor(private readonly options: LimitsWatcherOptions) {
     // A saved session report goes back where it came from, so a poll's own rules (`missing` drops `polled`) stay as before.
@@ -118,11 +127,40 @@ export class LimitsWatcher {
     this.publish()
   }
 
+  /**
+   * What the hub tells of the account folders (`docs/machines.md`, "Account limits"): which ones another machine polls,
+   * and the newest limits the account's other machines told.
+   */
+  plan(plan: LimitsPlan): void {
+    if (plan.skip !== undefined) {
+      const skip = new Set(plan.skip)
+      for (const key of this.skip) if (!skip.has(key)) this.resumeAt.set(key, Date.now() + this.options.usageIntervalMs)
+      for (const key of skip) this.resumeAt.delete(key)
+      this.skip = skip
+    }
+    for (const [key, limits] of Object.entries(plan.picture ?? {})) {
+      const known = this.of(key)
+      known.hub = newestLimits(known.hub, limits)
+    }
+    this.publish()
+  }
+
+  skipped(account: string): boolean {
+    return this.skip.has(account)
+  }
+
+  /** The folder's limits could be polled here, whatever the hub said: the hub picks its poller among such folders. */
+  pollable(account: string): boolean {
+    const home = this.options.homes().find((each) => each.key === account)
+    return home !== undefined && this.polled(home)
+  }
+
   usage(account: string): UsageHealth {
     const same = this.sameAs(account)
     if (same !== undefined) return this.usage(same)
     if (this.options.needsLogin(account) || this.options.apiKey(account)) return WAITING
     if (this.sessionsOnly(account)) return FROM_SESSIONS
+    if (this.skip.has(account)) return FROM_HUB
     return this.usageOff ?? this.accounts.get(account)?.health ?? WAITING
   }
 
@@ -134,7 +172,7 @@ export class LimitsWatcher {
   unread(account: string): boolean {
     if (!this.unconfirmed(account)) return false
     const known = this.accounts.get(account)
-    const told = currentLimits(newestLimits(known?.polled, known?.streamed), new Date(), this.options.notBefore(account))
+    const told = currentLimits(newestLimits(newestLimits(known?.polled, known?.streamed), known?.hub), new Date(), this.options.notBefore(account))
     return told === null || !this.recent(told)
   }
 
@@ -209,15 +247,15 @@ export class LimitsWatcher {
 
   /** True when an account was skipped because its provider did not answer. */
   private async pollAll(): Promise<boolean> {
-    const homes = this.options
-      .homes()
-      .filter((home) => !this.options.needsLogin(home.key) && !this.options.apiKey(home.key) && !this.sessionsOnly(home.key) && this.options.usage(home) !== undefined)
+    const homes = this.options.homes().filter((home) => this.polled(home))
     const keys = new Set(homes.map((home) => home.key))
     for (const home of this.options.homes()) if (this.sessionsOnly(home.key) && !this.options.needsLogin(home.key)) keys.add(home.key)
     for (const key of this.accounts.keys()) if (!keys.has(key)) this.accounts.delete(key)
     let skipped = false
     for (const home of homes) {
       if (this.usageOff !== undefined) break
+      if (this.skip.has(home.key) || (this.resumeAt.get(home.key) ?? 0) > Date.now()) continue
+      this.resumeAt.delete(home.key)
       if (!(await this.options.online(home))) {
         skipped = true
         continue
@@ -273,11 +311,16 @@ export class LimitsWatcher {
   private unconfirmed(account: string): boolean {
     const same = this.sameAs(account)
     if (same !== undefined) return this.unconfirmed(same)
-    if (this.sessionsOnly(account)) return false
+    if (this.sessionsOnly(account) || this.skip.has(account)) return false
     if (this.usageOff !== undefined || this.options.needsLogin(account) || this.options.apiKey(account)) return false
     const home = this.options.homes().find((each) => each.key === account)
     if (home === undefined || this.options.usage(home) === undefined || this.options.limitsHidden?.(home) === true) return false
     return (this.accounts.get(account)?.health ?? WAITING).state === 'waiting'
+  }
+
+  /** The round polls the folder unless the hub said another machine does. */
+  private polled(home: AccountHome): boolean {
+    return !this.options.needsLogin(home.key) && !this.options.apiKey(home.key) && !this.sessionsOnly(home.key) && this.options.usage(home) !== undefined
   }
 
   private recent(limits: RateLimits): boolean {
@@ -302,7 +345,7 @@ export class LimitsWatcher {
   private of(key: string): AccountLimits {
     let known = this.accounts.get(key)
     if (known === undefined) {
-      known = { received: undefined, polled: undefined, streamed: undefined, refused: undefined, health: WAITING, failures: 0 }
+      known = { received: undefined, polled: undefined, streamed: undefined, hub: undefined, refused: undefined, health: WAITING, failures: 0 }
       this.accounts.set(key, known)
     }
     return known
@@ -325,5 +368,5 @@ function setHealth(account: AccountLimits, state: UsageHealth['state'], reason: 
 }
 
 function newestOf(known: AccountLimits | undefined): RateLimits | undefined {
-  return newestLimits(newestLimits(newestLimits(known?.received, known?.polled), known?.streamed), known?.refused)
+  return newestLimits(newestLimits(newestLimits(newestLimits(known?.received, known?.polled), known?.streamed), known?.hub), known?.refused)
 }

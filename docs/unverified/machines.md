@@ -42,3 +42,11 @@ To check on the bench, with a chain task in a Huly project and one in a GitHub p
 - `task_read` with an attachment, and a `task_comment` with a file from `.temp/`.
 - A tracker server's list call.
 - With the hub's gateway made unreachable mid-session, a comment the session is told is kept should arrive once the gateway is back, and a second task's read should answer that the hub is unreachable.
+
+## One account's limits across machines (BTN-991)
+
+The hub picks one machine to poll `/usage` per claude.ai account and hands the newest limits to the others (`docs/machines.md`, "Account limits"). `src/limits/polls.test.ts`, `src/limits/watcher-plan.test.ts` and `src/machine/remote.test.ts` cover the choice, the plan and its command over the wire in memory. With one machine nothing is sent, so a live installation runs none of it yet.
+
+Assumed: `oauthAccount.accountUuid` of `.claude.json` is the same for one account on every machine and every folder, and it changes in the file when another account signs in to the folder; the 30 s between reads of the file is soon enough after a sign-in. If the id differs per machine, both machines poll the account as before and may meet the 429; if it is stale after a switch, a folder skips polling an account it no longer has until the next read.
+
+To check, once a machine can be connected (BTN-992): sign one account in on the hub and on a machine and see the machine's log stay without its own `/usage` calls while its card shows the hub's numbers; then the account only on two machines, take the polling one off the link and see the other start polling no sooner than five minutes later, with a `limits: machine … polls` line.
