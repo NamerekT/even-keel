@@ -26,6 +26,10 @@ import { MachineMoves } from '../machine/moves.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { LAUNCH_EVENT, MachineRecords, saveMachineRecord } from '../machine/records.js'
+import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
+import { settleMail } from '../sessions/mailRelay.js'
+import { ADAPTERS } from '../tracker/adapters.js'
+import { servesTasks, TASKS_SERVER } from '../taskmcp/server.js'
 import { HANDOFF_EVENT, LEFTOVER_EVENT, MachineRunner, TRANSCRIPT_EVENT } from '../machine/runner.js'
 import { samePath } from '../paths.js'
 import type { SessionMail } from '../sessions/mail.js'
@@ -74,7 +78,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * the local port runs behind `MachineRunner`, and the two talk through `HubEnd` and `MachineEnd` over a carrier that
  * is a call. Nothing is connected until `start`.
  */
-export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb'>, machine: MachineContext): Promise<LinkedMachine> {
+export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb' | 'packageHub' | 'protectionAudit' | 'mailRelay'>, machine: MachineContext): Promise<LinkedMachine> {
   const log = (line: string): void => console.log(line)
   const { machineDb } = ctx
   const hubStore = new DatabaseHubStore(ctx.db)
@@ -127,6 +131,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     projectOfSession: (sessionId) => ctx.launches.findLast((entry) => entry.sessionId === sessionId)?.project,
     lastSession: (project, task) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
     brief: (project, task, retained) => ctx.briefed.prepare(task, project, retained),
+    audit: (project) => ctx.protectionAudit.check(project),
     note: (project, task) => lastHandoffNote(ctx.db, project, task),
     saveSnapshot: async (snapshot) => {
       await saveSnapshot(ctx.db, snapshot)
@@ -157,6 +162,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     transcript: (sessionId) => ctx.hub.signal('transcript', { sessionId }),
     changed: () => {
       steerLimits()
+      ctx.dispatcher.check()
       ctx.hub.broadcastSoon('state', () => ctx.getState())
     },
     log,
@@ -174,7 +180,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       })
     }
   }
-  const hubMcp = new HubMcp({ db: ctx.db, origin: () => ctx.packages.hubOrigin, projects: () => Object.keys(ctx.configStore.current.projects), log })
+  const hubMcp = new HubMcp({ db: ctx.db, origin: () => ctx.packageHub.hubOrigin, projects: () => Object.keys(ctx.configStore.current.projects), log })
   const handlers = remote.handlers()
   const hub: HubEnd = new HubEnd({
     store: hubStore,
@@ -187,7 +193,18 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         return handlers.snapshot(machine, snapshot)
       },
       offline: () => steerLimits(),
-      event: (machine, event) => (event.type === KEPT_WRITE_EVENT ? hubMcp.write(machine, event.payload as KeptWrite) : handlers.event(machine, event)),
+      event: async (machine, event) => {
+        if (event.type === 'sessions.read') {
+          void catchUp().then(() => settleMail(ctx.mailRelay)).catch((error: unknown) => log(`mail: ${messageOf(error)}`))
+        } else if (event.type === SELECTION_EVENT) {
+          const selection = event.payload as MachineSelection
+          if (selection.kind === 'cli') ctx.configStore.saveCli(selection.provider, selection.value as 'checked' | 'system')
+          else if (selection.kind === 'active') ctx.configStore.saveActive(selection.provider, selection.value)
+          else ctx.configStore.saveSharedAccount(selection.provider, selection.value)
+          await ctx.writes.settled()
+        } else if (event.type === KEPT_WRITE_EVENT) await hubMcp.write(machine, event.payload as KeptWrite)
+        else await handlers.event(machine, event)
+      },
       mcp: (machine, request) => hubMcp.relay(machine, request),
     },
     log,
@@ -227,6 +244,12 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       state: () => ctx.dispatcher.state,
       demoOwns: (project) => ctx.demo.owns(project),
       reports: ctx.checkReports,
+      hubServers: () => ctx.packageHub.hubServers(),
+      tracker: (project) => {
+        const adapter = ADAPTERS[ctx.configStore.current.trackers[project]!]!
+        const server = adapter?.mcpServer
+        return server === undefined ? undefined : { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
+      },
     }),
     (brief) => remote.tellBrief(brief),
   )
@@ -353,6 +376,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   let publishing: ReturnType<typeof setInterval> | undefined
   const records = new MachineRecords((type, payload) => end.emit(type, payload), machine.journal)
   machine.tell.connect({
+    record: async (type, payload) => void await end.emit(type, payload),
     leftover: (project, task, notice) => void end.emit(LEFTOVER_EVENT, { project, task, notice }).catch((error: unknown) => log(`machine: what the cleanup left on ${task} was not told: ${messageOf(error)}`)),
     transcript: (sessionId) => void end.emit(TRANSCRIPT_EVENT, { sessionId }).catch(() => {}),
     changed: () => void runner.publish().catch(() => {}),
@@ -379,7 +403,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       if (end.status().state !== 'online') log('machine: the own machine has not posted its first snapshot yet; the chains wait for it')
       else await briefs.send().catch((error: unknown) => log(`machine: the first brief was not taken: ${messageOf(error)}`))
       // From here the servers holding keys are reached over the link, as from a machine of its own (BTN-990).
-      machine.packages.throughHub({ servers: () => machine.packages.hubServers(), relay: (request) => end.mcp(request), tasks: machineTasks(machine, end) })
+      machine.packages.throughHub({ servers: () => machine.brief.hubServers(), relay: (request) => end.mcp(request), tasks: machineTasks(machine, end) })
       await end.flushed()
       // The machine's journal, mailbox and windows are the hub's records, replayed ones included: handed over the link,
       // never read from the hub's database by the machine.

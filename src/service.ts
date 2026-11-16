@@ -53,6 +53,7 @@ import * as machineBootstrap from './service/machine-bootstrap.js'
 import { wireLinkedMachine, type LinkedMachine } from './service/machine-link.js'
 import { laterTell, machineContext } from './service/machine-context.js'
 import { BriefCopy } from './machine/brief.js'
+import { wireMachinePackages } from './service/machine-packages.js'
 import * as statsService from './service/stats.js'
 import * as trackersService from './service/trackers.js'
 import { type AgentEntry } from './sessions/agents.js'
@@ -76,7 +77,8 @@ import { dropLeftFolder,loadLeftFolders,saveLeftFolder } from './storage/left-fo
 import { keptDatabase } from './storage/owner.js'
 import { stateValue } from './storage/service-state.js'
 import { MACHINE_DIR, openMachineDatabase } from './link/machine-store.js'
-import { importMachineStores } from './machine/state.js'
+import { importMachineStores, machineValue } from './machine/state.js'
+import type { CliChoices } from './machine/config.js'
 import { VACUUM_EVERY_MS,vacuumDatabase } from './storage/vacuum.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { PendingCloses } from './tracker/close.js'
@@ -240,6 +242,7 @@ const context = {
   get ownerOfReader() { return ownerOfReader },
   get owners() { return owners },
   get packages() { return packages },
+  get packageHub() { return packageHub },
   get pinnedCheckpoint() { return pinnedCheckpoint },
   get places() { return places },
   get planFor() { return machine.planFor },
@@ -365,16 +368,18 @@ const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undef
 /** By project, the issue templates that put its intake label on (BTN-1130); filled by the intake's ticks. */
 const intakeTemplateHits: Record<string, TemplateHit[]> = {}
 /** The organization each API account's key pays through (BTN-418), held in memory and written behind. */
-const keyOrganizations = await loadKeyOrganizations(db)
+
 /** The management key of each OpenRouter account, for its balance (BTN-868), held in memory and written behind. */
-const managementKeys = await loadManagementKeys(db)
+
 /** What polls and sessions last told of each account's limits before this start (BTN-631). */
 /** The machine's own database (`docs/machines.md`, "The machine's stores"): closed by the machine link. */
 const machineDb = await openMachineDatabase(join(stateDirOf(), MACHINE_DIR))
 if (await importMachineStores(machineDb, db, new Date())) console.log('machine: the account limits, account settings and CLI copies moved into the machine database')
+const keyOrganizations = await loadKeyOrganizations(machineDb)
+const managementKeys = await loadManagementKeys(machineDb)
 const savedLimits = await loadSavedLimits(machineDb)
 /** The context windows the agents named before this start, per launch and per session (BTN-946). */
-const savedWindows = await loadContextWindows(db)
+const savedWindows = await loadContextWindows(machineDb)
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
 const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add(`the close of ${mark.task}`, saveMergeMark(db, mark)))
 /** The merged pull requests' tasks whose close the tracker refused, retried by the merge closers (BTN-1163). */
@@ -471,45 +476,46 @@ const machineChanged = (): void => {
  * what its brief hands over. What it tells the hub goes over the link, connected once the link is built.
  */
 const machineTell = laterTell()
-const machine = machineContext(context, new BriefCopy(), machineTell)
+const machine = machineContext(context, new BriefCopy(), machineTell, (await machineValue(machineDb, 'cli') as CliChoices | undefined) ?? {})
 const transcriptWatch = machineBootstrap.assembleTranscriptWatch((sessionId) => machineTell.transcript(sessionId))
-const homes = await openAccountHomes(db, process.env)
+const homes = await openAccountHomes(machineDb, process.env, 'machine_state')
 /** What the transfer wrote into each account folder's settings.json and each account's own layer (BTN-901), written behind. */
 const accountSettings = await machineBootstrap.assembleAccountSettings(context)
 homes.useSettings(accountSettings)
 /** The demo on the first run (BTN-776): its account folder is listed from here on, before anything reads the folders. */
 const demo = demoService.wireDemo(context)
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
-const claudeAccount = () => configStore.current.accounts[CLAUDE]!
+const claudeAccount = () => machine.configStore.current.accounts[CLAUDE]!
 /** `.claude.json` files sessions read: the global one and that of a Claude account folder, the shared one by default. */
 const claudeConfigs = machineBootstrap.assembleClaudeConfigs(context)
 /** The hub's project memory folders mirrored into the records chain sessions read and write (BTN-1029). */
 const memory = accountsService.wireMemory(context)
-const packages: Packages = accountsService.wirePackages(context)
+const packages: Packages = wireMachinePackages(machine)
+const packageHub = accountsService.wirePackageHub(context)
 /**
  * Whether the project's prompts carry its task: its own `brief`, else on exactly when no package brings the tracker's
  * MCP server (BTN-225). A feed's task (`reader`, BTN-66) is judged by the feed's tracker: `brief: false` speaks of the
  * project's own tracker's server only, and a server signed in as another profile than the feed's does not see its task.
  */
 function briefOn(project: string, reader = project): boolean { return accountsService.briefOn(context, project, reader) }
-const approvals = machineBootstrap.assembleApprovals(context)
+const approvals = machineBootstrap.assembleApprovals(machine)
 const checkReports = new CheckReports()
-const runtimes = accountsService.wireRuntimes(context)
+const runtimes = accountsService.wireRuntimes(machine)
 /** The agent of an account folder: every session of the folder runs on it. */
-const agentOf = accountsService.wireAgentOf(context)
-const envOf = accountsService.wireEnvOf(context)
-const models = accountsService.wireModels(context)
+const agentOf = accountsService.wireAgentOf(machine)
+const envOf = accountsService.wireEnvOf(machine)
+const models = accountsService.wireModels(machine)
 /** A model the account does not have is refused here, before the agent starts a turn that dies on it (BTN-336). */
-const requireModel = accountsService.wireRequireModel(context)
+const requireModel = accountsService.wireRequireModel(machine)
 const secretsSaid = new Map<string, string>()
 /** Logs, once per account and list, the keys its `settings.json` sets that the chain's `--settings` blanks (BTN-436). */
-const sayBlankedSecrets = accountsService.wireSayBlankedSecrets(context)
+const sayBlankedSecrets = accountsService.wireSayBlankedSecrets(machine)
 /** The account folders the automatic CLI check holds, and the chain launches it waits out (BTN-569). */
 const cliLease = new AccountLease((home) => account.view.accounts.find((entry) => entry.key === home.key)?.name ?? home.key)
 /** `project` — whose checkout a refusal of an untrusted folder names (BTN-429): its trust covers the task's worktree. */
-const launchIn = accountsService.wireLaunchIn(context)
-const resumeIn = accountsService.wireResumeIn(context)
-const stopIn = accountsService.wireStopIn(context)
+const launchIn = accountsService.wireLaunchIn(machine)
+const resumeIn = accountsService.wireResumeIn(machine)
+const stopIn = accountsService.wireStopIn(machine)
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, Task[]>()
 const parentsByProject = new Map<string, ParentTask[]>()
@@ -523,9 +529,9 @@ let agents: AgentEntry[] = []
 let agentsRead = false
 const lingering = new Lingering()
 /** The worktree folders the cleanup left held before this start, tried again after the first read of the sessions (BTN-925). */
-lingering.restore(await loadLeftFolders(db), {
-  save: (folder) => writes.add(`the left folder ${folder.path}`, saveLeftFolder(db, folder)),
-  drop: (path) => writes.add(`the settled left folder ${path}`, dropLeftFolder(db, path)),
+lingering.restore(await loadLeftFolders(machineDb), {
+  save: (folder) => writes.add(`the left folder ${folder.path}`, saveLeftFolder(machineDb, folder)),
+  drop: (path) => writes.add(`the settled left folder ${path}`, dropLeftFolder(machineDb, path)),
 })
 const launches: LaunchEntry[] = await readLaunches(db)
 /**
@@ -564,12 +570,12 @@ const stats = statsService.wireStats(context)
 let ledger = loadLedger(accountFile)
 const saveAccounts = machineBootstrap.assembleSaveAccounts(context)
 const homeOf = machineBootstrap.assembleHomeOf(context)
-const reach = accountsService.wireReach(context)
+const reach = accountsService.wireReach(machine)
 /**
  * The real spend of chain sessions on an OpenRouter key, by its `usage` (BTN-860); the same read tells the account card
  * what is left of the key's own limit (BTN-847), and the account's balance is read beside it (BTN-868).
  */
-const keySpend = machineBootstrap.assembleKeySpend(context)
+const keySpend = machineBootstrap.assembleKeySpend(machine)
 const online = machineBootstrap.assembleOnline(context)
 const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
   homeOf: (key) => homes.find(key),
@@ -580,17 +586,17 @@ const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
   usage: (key) => limits.usage(key),
   spendMonth: (key, at) => limits.spendMonth(key, at),
 })
-const limits = accountsService.wireLimits(context)
+const limits = accountsService.wireLimits(machine)
 
 const release = installed(root)
 const updates = accountsService.wireUpdates(context)
 const releasesView = () => updatesView(release.version, updates.releases, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null })
 const updater = accountsService.wireUpdater(context)
-const cliVersions = accountsService.wireCliVersions(context)
-const cliChecks = cliCheckService.wireCliChecks(context, ((await stateValue(db, 'cliCheck.history')) as CheckHistory | undefined) ?? {})
-const daemons = accountsService.wireDaemons(context)
+const cliVersions = accountsService.wireCliVersions(machine)
+const cliChecks = cliCheckService.wireCliChecks(machine, ((await machineValue(machineDb, 'cliCheck.history')) as CheckHistory | undefined) ?? {})
+const daemons = accountsService.wireDaemons(machine)
 
-const cliCopies = await machineBootstrap.assembleCliCopies(context)
+const cliCopies = await machineBootstrap.assembleCliCopies(machine)
 const secrets = accountsService.wireSecrets(context)
 
 const profiles: Profiles = accountsService.wireProfiles(context)
@@ -611,28 +617,28 @@ const pullReadinessOf = (project: string, urls: Remote[]) => pullReadiness(proje
 const pullBlock = accountsService.wirePullBlock(context)
 
 const chatTitles = new ChatTitles()
-const vscode = accountsService.wireVscode(context)
-const account = accountsService.wireAccount(context)
-const owners = accountsService.wireOwners(context)
+const vscode = accountsService.wireVscode(machine)
+const account = accountsService.wireAccount(machine)
+const owners = accountsService.wireOwners(machine)
 
 /** The e-mail a folder had at `at` (the folder's account may change), else its current one. */
-const emailAt = accountsService.wireEmailAt(context)
-const sessionAccount = accountsService.wireSessionAccount(context)
+const emailAt = accountsService.wireEmailAt(machine)
+const sessionAccount = accountsService.wireSessionAccount(machine)
 
 /** The account folder `key` (the active one unless given) as the chain judges a launch in it. */
-const accountNow = accountsService.wireAccountNow(context)
-const contextWindows = accountsService.wireContextWindows(context, savedWindows)
-const monitor = accountsService.wireMonitor(context)
+const accountNow = accountsService.wireAccountNow(machine)
+const contextWindows = accountsService.wireContextWindows(machine, savedWindows)
+const monitor = accountsService.wireMonitor(machine)
 
 const wedgedSessions = new Set<string>()
-function logStartupDialogs(views: SessionView[]): void { return accountsService.logStartupDialogs(context, views) }
-const liveView = accountsService.wireLiveView(context)
+function logStartupDialogs(views: SessionView[]): void { return accountsService.logStartupDialogs(machine, views) }
+const liveView = accountsService.wireLiveView(machine)
 
 /** Whether a message goes into the live session mid-turn without its mailbox (`AgentEntry.steers`, BTN-291). */
-const steering = accountsService.wireSteering(context)
+const steering = accountsService.wireSteering(machine)
 
 /** A session just resumed is mid-turn until the daemon shows it working, which lags the resume by seconds (BTN-307). */
-const agentStatus = accountsService.wireAgentStatus(context)
+const agentStatus = accountsService.wireAgentStatus(machine)
 const knownTask = hubBootstrap.assembleKnownTask(context)
 /** The first look at a project that read run labels before BTN-983 moves them into runs, once its tasks are listed. */
 const moveRunLabels = hubBootstrap.assembleMoveRunLabels(context)
@@ -641,7 +647,7 @@ const runsOfProject = hubBootstrap.assembleRunsOfProject(context)
 /** The page's card and the tasks server set a run; a live session keeps what it started on. */
 const setTaskRun = hubBootstrap.assembleSetTaskRun(context)
 /** A pool entry counts only while its folder exists and belongs to the provider it is filed under. */
-const hasAccount = accountsService.wireHasAccount(context)
+const hasAccount = accountsService.wireHasAccount(machine)
 
 /** What a new session of the task (or of the fix session `task`) runs on, and in which account folder. */
 const choiceFor = accountsService.wireChoiceFor(context)
@@ -729,10 +735,6 @@ const { mailRelay, answerSession } = createChat({
   steering: (sessionId) => machineLink.page.steers(sessionId),
   chat: machineLink.services.chat,
   listens: (sessionId) => machineLink.page.mailbox()[sessionId]?.listens === true,
-  machineLive: (task) => {
-    const view = liveView(task)
-    return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: agentStatus(task) === 'busy', asking: view.asking }
-  },
   steer,
   language: promptLanguage,
   note: taskNote,
@@ -779,7 +781,11 @@ function configuredProject(task: string): string | undefined { return trackersSe
  * The handoff note a session of the task writes: through the tasks server when its project has it (BTN-1046), else a
  * file, one of its own in a project without git, whose folder is shared (BTN-964).
  */
-function taskNote(task: string): string { return machineBootstrap.assembleTaskNote(context)(task) }
+function taskNote(task: string): string {
+  const project = configuredProject(task)
+  const kept = project !== undefined && packages.bringsServer(project, TASKS_SERVER)
+  return handoffNoteOf(task, project === undefined || !isPlain(configStore.current, project), kept)
+}
 
 const postedQuestions = await loadQuestions(db)
 const questions = trackersService.wireQuestions(context)

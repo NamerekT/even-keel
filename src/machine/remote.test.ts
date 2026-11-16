@@ -6,8 +6,21 @@ import type { FoundRepository, SessionView, TaskWork } from '../state.js'
 import { emptyBrief } from './brief.js'
 import { bench, machineOf, PROJECT, tick } from './remote.fixture.js'
 import { HANDOFF_EVENT, MachineRunner } from './runner.js'
+import { RemoteMachine } from './remote.js'
 
 describe('the machine port over the link', () => {
+  it('audits launches on the hub, including fixes, carries and a supplied launch brief', async () => {
+    const send = vi.fn(async () => 1)
+    const audit = vi.fn(async () => { throw new Error('audit failed') })
+    const remote = new RemoteMachine({ send, audit, machine: () => 'example', projectOf: () => PROJECT, projectOfSession: () => PROJECT, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} })
+    const port = remote.port()
+    await expect(port.launch(PROJECT, 'ABC-1', undefined, { prompt: 'already prepared' })).rejects.toThrow('audit failed')
+    await expect(port.launchFix(PROJECT, 'fix', {} as never)).rejects.toThrow('audit failed')
+    await expect(port.launchCarry(PROJECT, 'carry', {} as never)).rejects.toThrow('audit failed')
+    expect(audit).toHaveBeenCalledTimes(3)
+    expect(send).not.toHaveBeenCalled()
+  })
+
   let stop: Array<() => void> = []
 
   const started = async () => {

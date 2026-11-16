@@ -10,6 +10,9 @@ import { home as dataHome, root } from '../locations.js'
 import { MemoryMcp } from '../memory/mcp.js'
 import { MemoryMirror } from '../memory/mirror.js'
 import { Packages } from '../packages/service.js'
+import { PackageHub } from '../packages/hub.js'
+import { loadPackages } from '../packages/store.js'
+import { emptyPackages } from '../packages/model.js'
 import { keyPool, profileFor, serverProfile } from '../profiles/model.js'
 import { TRACKER_GROUPS } from '../sessions/protection.js'
 import { servesTasks, TASKS_SERVER, TasksMcp } from '../taskmcp/server.js'
@@ -31,34 +34,12 @@ export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'ho
   })
 }
 
-export function wirePackages(ctx: AccountsContext): Packages {
-  return new Packages({
+export function wirePackageHub(ctx: AccountsContext): PackageHub {
+  return new PackageHub({
     memory: new MemoryMcp({ db: ctx.db, mirror: ctx.memory, now: () => new Date() }, installed(root).version),
-    file: join(ctx.stateDir, 'packages.json'),
-    cache: join(ctx.stateDir, 'packages'),
-    envFile: join(dataHome, '.env'),
-    get repos() {
-      return ctx.configStore.current.projects
-    },
-    globalDir: ctx.homes.global.dir,
-    ownDir: root,
-    skillsDir: join(ctx.stateDir, 'skills'),
-    skillRoots: () => [
-      { dir: join(ctx.homes.global.dir, 'skills'), from: CLAUDE },
-      { dir: join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'skills'), from: CODEX },
-      { dir: join(homedir(), '.agents', 'skills'), from: CODEX },
-    ],
-    claudeConfigs: ctx.claudeConfigs,
+    catalog: () => loadPackages(join(ctx.stateDir, 'packages.json')) ?? emptyPackages(),
+    get repos() { return ctx.configStore.current.projects },
     rules: trackerKeyRules(),
-    tracker: (project) => {
-      const adapter = ADAPTERS[ctx.configStore.current.trackers[project]!]!
-      const server = adapter.mcpServer
-      if (server === undefined) return undefined
-      return { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
-    },
-    agentOf: (project) => ctx.homes.find(ctx.choiceFor(project).account)?.agent ?? CLAUDE,
-    updateMarketplace: (marketplace) => ctx.agentOf(ctx.homes.global).updateMarketplace!(ctx.homes.global, marketplace, ctx.PLUGIN_UPDATE_TIMEOUT_MS),
-    addMarketplace: (dir) => ctx.agentOf(ctx.homes.global).addMarketplace!(ctx.homes.global, dir, ctx.PLUGIN_UPDATE_TIMEOUT_MS),
     baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own()),
     poolOf: (project) => keyPool(ctx.profiles.current(), ctx.profileKindsOf, process.env, project, ctx.configStore.current.trackers[project]!, ctx.configStore.current.feeds[project]),
     oauth: (project, server, url) => ctx.profiles.gateway(serverProfile(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!, ctx.configStore.current.feeds[project] ?? [], server)?.id, server, url),
@@ -102,12 +83,7 @@ export function wirePackages(ctx: AccountsContext): Packages {
       // `ctx.release` is set after the packages are wired.
       installed(root).version,
     ),
-    port: ctx.mcpPort,
     log: (line) => console.log(line),
-    onChange: () => {
-      ctx.dispatcher.check()
-      ctx.hub.broadcastSoon('state', ctx.getState)
-    },
   })
 }
 

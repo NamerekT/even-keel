@@ -2,7 +2,7 @@ import { AccountHomes, accountsRoot, codexAccountsRoot, copilotAccountsRoot, ope
 import { inTransaction, type Db } from '../storage/database.js'
 
 /** Registration belongs to this installation; a CLI's own folder and credentials remain the CLI's. */
-export async function openAccountHomes(db: Db, env: NodeJS.ProcessEnv): Promise<AccountHomes> {
+export async function openAccountHomes(db: Db, env: NodeJS.ProcessEnv, stateTable: 'service_state' | 'machine_state' = 'service_state'): Promise<AccountHomes> {
   const { rows } = await db.query<{ account: string }>('select account from global_accounts')
   const registration = {
     keys: new Set(rows.map((row) => row.account)),
@@ -11,12 +11,12 @@ export async function openAccountHomes(db: Db, env: NodeJS.ProcessEnv): Promise<
     },
   }
   const homes = new AccountHomes(env, accountsRoot(env), codexAccountsRoot(env), openCodeAccountsRoot(env), copilotAccountsRoot(env), registration)
-  const legacy = await db.query("select 1 from service_state where name = 'accounts.adoptLegacy'")
+  const legacy = await db.query(`select 1 from ${stateTable} where name = 'accounts.adoptLegacy'`)
   if (legacy.rows.length > 0) {
     const visible = homes.availableGlobals()
     await inTransaction(db, async (tx) => {
       for (const home of visible) await tx.query('insert into global_accounts (account) values ($1) on conflict do nothing', [home.key])
-      await tx.query("delete from service_state where name = 'accounts.adoptLegacy'")
+      await tx.query(`delete from ${stateTable} where name = 'accounts.adoptLegacy'`)
     })
     for (const home of visible) registration.keys.add(home.key)
   }

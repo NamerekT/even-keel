@@ -14,9 +14,8 @@ describe('a model refusal observed by the service', () => {
     const invalidate = vi.fn()
     const ctx = {
       sessions: [], agents: [{ sessionId: 'refused-session', account: 'actual-account' }],
-      models: { invalidate }, logStartupDialogs: vi.fn(), hub: { broadcastSoon: vi.fn() }, getState: vi.fn(),
-      dispatcher: { check: vi.fn() },
-      machineLink: { port: { catchUp: vi.fn(async () => {}) } },
+      models: { invalidate }, logStartupDialogs: vi.fn(), machineChanged: vi.fn(),
+      writes: { add: vi.fn() }, tell: { record: vi.fn(async () => {}) },
     } as unknown as Parameters<typeof wireMonitor>[0]
     wireMonitor(ctx)
     const refused = { sessionId: 'refused-session', apiErrorKind: 'model', apiError: 'Model unavailable' } as SessionView

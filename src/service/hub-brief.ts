@@ -15,6 +15,8 @@ export interface BriefSources {
   state: () => ChainState
   demoOwns: (project: string) => boolean
   reports: Pick<CheckReports, 'ofProject'>
+  hubServers?: () => string[]
+  tracker?: (project: string) => { server: string; required: boolean; also?: string } | undefined
 }
 
 /** What the machine's assembly reads of the hub now (`docs/machines.md`, "The brief"). */
@@ -27,6 +29,9 @@ export function hubBrief(sources: BriefSources): HubBrief {
   const current: Record<string, string> = {}
   for (const chain of state.active) if (chain.current !== null && projects.includes(chain.project)) current[chain.current.task] = chain.project
   return {
+    active: state.active.filter((chain) => projects.includes(chain.project)).map(({ project, paused }) => ({ project, paused })),
+    hubServers: sources.hubServers?.() ?? [],
+    trackers: Object.fromEntries(projects.flatMap((project) => { const tracker = sources.tracker?.(project); return tracker === undefined ? [] : [[project, tracker]] })),
     config: { ...config, projects: Object.fromEntries(projects.map((project) => [project, folders[project]!])) },
     runs: byProject(sources.runsOf),
     tasks: byProject(sources.tasksOf),

@@ -12,6 +12,11 @@ export const BRIEF_COMMAND = 'hub.brief'
  * and the parts of the chain's state and the trackers' lists a launch, a move or keep-warm asks about.
  */
 export interface HubBrief {
+  /** Running projects, including their pause state, for account sign-in protection. */
+  active?: { project: string; paused: boolean }[]
+  /** Routes whose servers belong to the hub; never their targets or credentials. */
+  hubServers?: string[]
+  trackers?: Record<string, { server: string; required: boolean; also?: string }>
   /** The hub's config; `projects` holds only the machine's projects, each with its folder on the machine. */
   config: EvenKeelConfig
   /** By project, the tasks with a run of their own (`TaskRuns.ofProject`). */
@@ -67,6 +72,10 @@ export class BriefCopy {
   get trimTools(): boolean {
     return this.brief.trimTools
   }
+
+  active(): { project: string; paused: boolean }[] { return this.brief.active ?? [] }
+  hubServers(): string[] { return this.brief.hubServers ?? [] }
+  tracker(project: string) { return this.brief.trackers?.[project] }
 
   warm(): WarmTask[] {
     return this.brief.warm

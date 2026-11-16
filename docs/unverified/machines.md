@@ -45,6 +45,8 @@ To check on the bench, with a chain task in a Huly project and one in a GitHub p
 - A tracker server's list call.
 - With the hub's gateway made unreachable mid-session, a comment the session is told is kept should arrive once the gateway is back, and a second task's read should answer that the hub is unreachable.
 
+BTN-1250 moves the account watcher, monitor, approvals, packages and CLI selection onto the machine context, separates the hub's credentialed gateway, and imports the remaining host stores with a second marker. OpenRouter spend now goes through the durable outbox. Unit and scripted service tests cover this separation and repeated delivery; a real upgrade with an active account and queued spend has not been checked, and a standalone machine service still depends on BTN-1247. On the upgrade bench compare global registrations, the management-key balance, context windows and CLI history before and after, change the active account and CLI choice, then restart with an unconfirmed spend event. A missing import loses the host's remembered state; a duplicate spend would inflate statistics. Preserve `state/machine/` before that check; the hub backup alone does not contain newer machine rows.
+
 ## One account's limits across machines (BTN-991)
 
 The hub picks one machine to poll `/usage` per claude.ai account and hands the newest limits to the others (`docs/machines.md`, "Account limits"). `src/limits/polls.test.ts`, `src/limits/watcher-plan.test.ts` and `src/machine/remote.test.ts` cover the choice, the plan and its command over the wire in memory. With one machine nothing is sent, so a live installation runs none of it yet.

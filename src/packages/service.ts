@@ -17,6 +17,7 @@ import { pageSettings } from './settings.js'
 import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn, TASKS_PLUGIN } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
+import { packageTarget } from './hub.js'
 import { isNewer } from './version.js'
 
 const run = promisify(execFile)
@@ -27,6 +28,9 @@ const AVAILABLE_MS = 60_000
 type Offer = ReturnType<typeof pluginOffer>
 
 export interface PackagesDeps {
+  /** False for a machine assembled with a separate hub gateway. */
+  hub?: boolean
+  hubServers?: () => string[]
   /** `state/packages.json`. */
   file: string
   /** `state/packages`. */
@@ -123,7 +127,7 @@ export class Packages {
       this.deps.log(`mcp gateway: ${(error as Error).message}`)
     }
     try {
-      await this.hubGateway.listen(0)
+      if (this.deps.hub !== false) await this.hubGateway.listen(0)
     } catch (error) {
       this.deps.log(`hub mcp gateway: ${(error as Error).message}`)
     }
@@ -548,7 +552,9 @@ export class Packages {
       agent: this.deps.agentOf(project),
       installing: this.installing,
       errors: this.errors,
-      keys: (server, entry) => keysOf(server, this.deps.oauth?.(project, server, entry.url) ? withoutAuthorization(entry) : entry, this.deps.rules, this.deps.poolOf(project)),
+      keys: (server, entry, name, install) => this.deps.hubServers?.().includes(routeOf(project, name, install, server))
+        ? { values: {}, env: {}, missing: [], names: [] }
+        : keysOf(server, this.deps.oauth?.(project, server, entry.url) ? withoutAuthorization(entry) : entry, this.deps.rules, this.deps.poolOf(project)),
       probe: (name, install, server) => this.probes.result(project, name, install, server),
       tracker: this.deps.tracker(project),
     })
@@ -570,16 +576,7 @@ export class Packages {
 
   /** The install the route names, with the project's settings and the pool's keys in its entry. */
   private target(route: { project: string; name: string; install: string; server: string }): GatewayTarget | null {
-    const project = route.project
-    const record = this.file.packages[route.name]
-    const server = record?.installs.find((each) => each.id === route.install)?.servers[route.server]
-    if (server === undefined) return null
-    let entry = applySettings(server.entry, { ...record?.settings, ...this.file.projects[project]?.settings[route.name] })
-    const oauth = this.deps.oauth?.(project, route.server, entry.url)
-    if (oauth) entry = withoutAuthorization(entry)
-    const keys = keysOf(route.server, entry, this.deps.rules, this.deps.poolOf(project))
-    const refuseDeletes = this.deps.refuseDeletes?.(project, route.server)
-    return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env, secrets: Object.values(keys.values), ...(oauth === undefined ? {} : { oauth }), ...(refuseDeletes === undefined ? {} : { refuseDeletes }) }
+    return packageTarget(this.file, this.deps, route)
   }
 
   /** `null` — the versions are those of the current install: nothing new is kept. */

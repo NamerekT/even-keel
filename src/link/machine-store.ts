@@ -81,6 +81,20 @@ export const MACHINE_STEPS: readonly string[] = [
     value text not null
   );
   `,
+  // The host's account registrations, credentials, lingering folders and measured windows (BTN-1250).
+  `
+  create table global_accounts (account text primary key);
+  create table key_organizations (account text primary key, organization text not null, seen_at text not null);
+  create table management_keys (account text primary key, key text not null, saved_at text not null);
+  create table left_folders (
+    path text primary key, project_id text not null, task text not null, repo text not null, until bigint not null
+  );
+  create table context_windows (
+    account text not null, model text not null, settings text, stamp text not null,
+    window_size integer, measured_at bigint not null,
+    unique nulls not distinct (account, model, settings)
+  );
+  `,
 ]
 
 /** The keys of `identity`: the own machine's token, the token of a hub elsewhere and the folder of projects. */

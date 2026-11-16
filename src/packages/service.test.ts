@@ -6,6 +6,7 @@ import { packageSettings, type ServerEntry } from './model.js'
 import { installPinned, type NpxSpec } from './npm.js'
 import { Packages, type PackagesDeps } from './service.js'
 import { loadPackages, savePackages } from './store.js'
+import { PackageHub } from './hub.js'
 
 vi.mock('./npm.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./npm.js')>()
@@ -61,6 +62,21 @@ function fixture() {
 }
 
 describe('hub server routes', () => {
+  it('lets a machine use hub routes without reading the hub credentials or resolving their local keys', async () => {
+    const { packages, deps, plugin, file } = fixture()
+    plugin('1.0.0', 'workitems', { url: 'https://example.com/mcp', headers: { Authorization: 'Bearer ${EXAMPLE_TOKEN}' } })
+    await packages.install('tools@example')
+    const hub = new PackageHub({ ...deps, catalog: () => loadPackages(file)!, poolOf: () => ({ EXAMPLE_TOKEN: 'fake-hub-only-key' }) })
+    const routes = JSON.parse(JSON.stringify(hub.hubServers())) as string[]
+    expect(routes).toHaveLength(1)
+    expect(JSON.stringify(routes)).not.toContain('fake-hub-only-key')
+    const localKeys = vi.fn(() => { throw new Error('the machine must not resolve a hub server') })
+    const machine = new Packages({ ...deps, hub: false, hubServers: () => routes, poolOf: localKeys })
+    expect(machine.view().projects.project?.cells['tools@example']?.problems.some((problem) => problem.kind === 'noKey')).toBe(false)
+    expect(localKeys).not.toHaveBeenCalled()
+    await Promise.all([machine.close(), hub.close(), packages.close()])
+  })
+
   it('publishes secret-free paths for every retained install and follows the hub pool live', async () => {
     const { packages, deps, plugin, file, reload } = fixture()
     const pool: NodeJS.ProcessEnv = { EXAMPLE_TOKEN: 'fake-hub-key' }

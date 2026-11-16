@@ -22,6 +22,7 @@ type LifecycleContext = Pick<ServiceContext,
   | 'monitor'
   | 'owners'
   | 'packages'
+  | 'packageHub'
   | 'profiles'
   | 'readers'
   | 'saveAccounts'
@@ -40,11 +41,11 @@ type LifecycleContext = Pick<ServiceContext,
  * What a stop signal closes before the exit. The gateway's servers go too: under systemd (`KillMode=process`) and
  * launchd (`AbandonProcessGroup`) they would outlive node with the tracker credentials of their start (BTN-720).
  */
-export function shutdown(ctx: Pick<LifecycleContext, 'backups' | 'cliChecks' | 'machineLink' | 'packages' | 'stateDb' | 'tally' | 'writes'>): Promise<unknown> {
+export function shutdown(ctx: Pick<LifecycleContext, 'backups' | 'cliChecks' | 'machineLink' | 'packages' | 'packageHub' | 'stateDb' | 'tally' | 'writes'>): Promise<unknown> {
   ctx.cliChecks.stop()
   // The hub's end of the link writes to the state database: both ends stop before it closes.
   const database = Promise.allSettled([ctx.backups.stop(), ctx.machineLink.close(), ctx.writes.settled()]).then(() => ctx.stateDb.close())
-  return Promise.allSettled([ctx.packages.close(), ctx.tally.stop(), database])
+  return Promise.allSettled([ctx.packages.close(), ctx.packageHub.close(), ctx.tally.stop(), database])
 }
 
 export function start(ctx: LifecycleContext): void {
@@ -74,6 +75,7 @@ export function start(ctx: LifecycleContext): void {
   ctx.vscode.start()
   ctx.configStore.watch()
   void ctx.packages.start()
+  void ctx.packageHub.start().catch((error: unknown) => console.warn(`hub mcp gateway: ${String(error)}`))
   ctx.tally.start()
   if (ctx.configStore.current.tally === null && ctx.tallyMode() !== null) {
     ctx.configStore.saveTally(ctx.tallyMode()!)

@@ -1,4 +1,4 @@
-export { wireMemory, wirePackages, briefOn } from './account-packages.js'
+export { wireMemory, wirePackageHub, briefOn } from './account-packages.js'
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { KEY_CHECK_MS, KEY_CHECK_TIMEOUT_MS, CREDIT_CHECK_MS, KEY_CHECKS, CREDIT_CHECKS, APP_POLL_MS, LOGIN_TIMEOUT_MS, CLOUD_CHECK_PROMPT, CLOUD_CHECK_TIMEOUT_MS } from '../account/service-defaults.js'
@@ -61,6 +61,8 @@ import { UpdateWatcher } from '../updates/watcher.js'
 import { firstRun } from '../setup.js'
 import { PassMemo } from '../pass-memo.js'
 import type { ServiceContext } from '../service.js'
+import type { MachineContext } from './machine-context.js'
+import { WINDOWS_EVENT } from '../machine/records.js'
 
 export type AccountsContext = Pick<ServiceContext,
   | 'journal'
@@ -167,7 +169,7 @@ export type AccountsContext = Pick<ServiceContext,
   | 'writes'
 >
 
-export function wireRuntimes(ctx: AccountsContext): Map<string, Agent> {
+export function wireRuntimes(ctx: MachineContext): Map<string, Agent> {
   return new Map<string, Agent>(
     Object.entries(AGENTS).map(([name, adapter]) => [
       name,
@@ -177,7 +179,7 @@ export function wireRuntimes(ctx: AccountsContext): Map<string, Agent> {
         workDir: ctx.stateDir,
         checkedCli: () => ctx.configStore.current.cli[name] !== 'system',
         log: (line) => console.log(line),
-        onCliChange: () => { void ctx.cliVersions.check(); ctx.dispatcher.check(); ctx.machineChanged() },
+        onCliChange: () => { void ctx.cliVersions.check(); ctx.machineChanged() },
         onCliFailure: () => { ctx.configStore.fallBackCli(name) },
         onCliProgress: () => ctx.machineChanged(),
         transport: (home): string | null => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], ctx.account.apiKey(home.key)),
@@ -189,7 +191,7 @@ export function wireRuntimes(ctx: AccountsContext): Map<string, Agent> {
   )
 }
 
-export function wireModels(ctx: AccountsContext): ModelCatalog {
+export function wireModels(ctx: MachineContext): ModelCatalog {
   return new ModelCatalog({
     list: async (home) => (await ctx.agentOf(home).models?.(home)) ?? null,
     title: (home) => AGENTS[home.agent]!.title,
@@ -199,14 +201,14 @@ export function wireModels(ctx: AccountsContext): ModelCatalog {
   })
 }
 
-export function wireRequireModel(ctx: AccountsContext): (home: AccountHome, start: SessionStart) => Promise<void> {
+export function wireRequireModel(ctx: MachineContext): (home: AccountHome, start: SessionStart) => Promise<void> {
   return async (home: AccountHome, start: SessionStart) => {
     const refusal = await ctx.models.refusal(home, start.name, start.model)
     if (refusal !== undefined) throw new NoticeError(refusal)
   }
 }
 
-export function wireSayBlankedSecrets(ctx: AccountsContext): (home: AccountHome) => void {
+export function wireSayBlankedSecrets(ctx: MachineContext): (home: AccountHome) => void {
   return (home: AccountHome) => {
     const names = settingsSecrets(readJson(join(home.dir, 'settings.json')), sessionSecrets(ctx.packages.keyNames())).join(', ')
     if (ctx.secretsSaid.get(home.key) === names) return
@@ -215,11 +217,10 @@ export function wireSayBlankedSecrets(ctx: AccountsContext): (home: AccountHome)
   }
 }
 
-export function wireLaunchIn(ctx: AccountsContext): (home: AccountHome, start: SessionStart, project: string | undefined) => Promise<string> {
+export function wireLaunchIn(ctx: MachineContext): (home: AccountHome, start: SessionStart, project: string | undefined) => Promise<string> {
   return async (home: AccountHome, start: SessionStart, project: string | undefined) => {
     const blocked = ctx.cliCopies.blocked(home.agent)
     if (blocked) throw new NoticeError(blocked)
-    if (project !== undefined) await ctx.protectionAudit.check(project)
     await ctx.requireModel(home, start)
     if (home.agent === CLAUDE && start.settings !== undefined) ctx.sayBlankedSecrets(home)
     const trusted = withTrust(ctx, start, project)
@@ -234,7 +235,7 @@ export function wireLaunchIn(ctx: AccountsContext): (home: AccountHome, start: S
   }
 }
 
-export function wireResumeIn(ctx: AccountsContext): (home: AccountHome, session: SessionHandle, start: SessionStart) => Promise<string> {
+export function wireResumeIn(ctx: MachineContext): (home: AccountHome, session: SessionHandle, start: SessionStart) => Promise<string> {
   return async (home: AccountHome, session: SessionHandle, start: SessionStart) => {
     const blocked = ctx.cliCopies.blocked(home.agent)
     if (blocked) throw new NoticeError(blocked)
@@ -252,13 +253,13 @@ export function wireResumeIn(ctx: AccountsContext): (home: AccountHome, session:
   }
 }
 
-function withTrust(ctx: AccountsContext, start: SessionStart, project: string | undefined): SessionStart {
+function withTrust(ctx: MachineContext, start: SessionStart, project: string | undefined): SessionStart {
   const config = ctx.configStore.current
   const folder = project === undefined ? undefined : config.projects[project]
   return { ...start, trustedRepo: folder }
 }
 
-export function wireLimits(ctx: AccountsContext): LimitsWatcher {
+export function wireLimits(ctx: MachineContext): LimitsWatcher {
   return new LimitsWatcher({
     file: ctx.limitsFile,
     intervalMs: ctx.LIMITS_POLL_MS,
@@ -291,7 +292,6 @@ export function wireLimits(ctx: AccountsContext): LimitsWatcher {
     save: (key, limits) => ctx.writes.add(`the limits of ${key}`, saveLimits(ctx.machineDb, key, limits)),
     onChange: () => {
       ctx.machineChanged()
-      ctx.dispatcher.check()
     },
     onError: (error) => console.error(`limits:${error instanceof Error ? error.message : String(error)}`),
   })
@@ -325,7 +325,7 @@ export function wireUpdater(ctx: AccountsContext): Updater {
   })
 }
 
-export function wireCliVersions(ctx: AccountsContext): VersionWatcher {
+export function wireCliVersions(ctx: MachineContext): VersionWatcher {
   return new VersionWatcher({
     agents: () =>
       [...ctx.runtimes].flatMap(([name, agent]) => {
@@ -341,12 +341,12 @@ export function wireCliVersions(ctx: AccountsContext): VersionWatcher {
         return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed, version, prune: () => agent.cli?.prune() ?? Promise.resolve(), runsOnInstalled }]
       }),
     intervalMs: ctx.CLI_VERSION_POLL_MS,
-    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
+    onChange: () => ctx.machineChanged(),
     log: (line) => console.log(line),
   })
 }
 
-export function wireDaemons(ctx: AccountsContext): DaemonRefresh {
+export function wireDaemons(ctx: MachineContext): DaemonRefresh {
   return new DaemonRefresh({
     share: (home) => ctx.homes.share(home),
     running: async (home) => liveSessions(await ctx.agentOf(home).sessions(home), home.key).length,
@@ -357,7 +357,7 @@ export function wireDaemons(ctx: AccountsContext): DaemonRefresh {
       return running === null ? null : { running, wanted: wanted! }
     },
     stopDaemon: async (home) => ctx.agentOf(home).stopDaemon?.(home),
-    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
+    onChange: () => ctx.machineChanged(),
     onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
   })
 }
@@ -420,7 +420,7 @@ export function wireProfiles(ctx: AccountsContext): Profiles {
   })
 }
 
-export function wireVscode(ctx: AccountsContext): VsCodeAccount {
+export function wireVscode(ctx: MachineContext): VsCodeAccount {
   return new VsCodeAccount({
     file: vscodeSettingsFile(process.env),
     homes: () => ctx.homes.list(),
@@ -433,7 +433,7 @@ export function wireVscode(ctx: AccountsContext): VsCodeAccount {
   })
 }
 
-export function wireAccount(ctx: AccountsContext): AccountWatcher {
+export function wireAccount(ctx: MachineContext): AccountWatcher {
   return new AccountWatcher({
     homes: ctx.homes,
     agentOf: ctx.agentOf,
@@ -446,15 +446,14 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
     active: () => ctx.activeAccount(),
     activate: (key) => {
       ctx.configStore.saveActive(ctx.homes.find(key)?.agent ?? CLAUDE, key)
-      ctx.hub.broadcastSoon('state', ctx.getState)
-      ctx.dispatcher.check()
+      ctx.machineChanged()
     },
     forget: (key) => ctx.saveAccounts(forgetAccount(ctx.ledger, key)),
     nameOf: (key) => ctx.ledger.accounts[key]?.name ?? null,
     signedInAs: (key) => ({ last: ctx.ledger.accounts[key]?.email ?? null, former: formerOwner(ctx.ledger, key) }),
     name: (key, name) => ctx.saveAccounts(nameAccount(ctx.ledger, key, name)),
     transportOf: (home, apiKey) => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], apiKey),
-    loginBlock: (): LoginBlock | null => loginBlock(ctx.dispatcher.state.active, ctx.agents, ctx.activeAccount()),
+    loginBlock: (): LoginBlock | null => loginBlock(ctx.brief.active(), ctx.agents, ctx.activeAccount()),
     sessionsIn: (key) => liveSessions(ctx.agents, key),
     workingIn: (key) => ctx.agents.some((agent) => (agent.account ?? 'global') === key && !agent.resting && isLive(agent) && lampOf(agent, null) === 'working'),
     projectsOn: (key) => projectsByAccount(ctx.configStore.current, Object.keys(ctx.configStore.current.projects))[key] ?? [],
@@ -462,7 +461,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
     makeShared: (agent, key) => {
       ctx.configStore.saveSharedAccount(agent, key)
       console.log(`accounts: ${key} is the shared ${agent} account, the shared one named no folder`)
-      ctx.dispatcher.check()
+      ctx.machineChanged()
     },
     missing: () => [...ctx.runtimes].flatMap(([name, agent]) => (agent.installed?.() === false ? [name] : [])),
     online: ctx.online,
@@ -492,22 +491,22 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
       of: (key) => ctx.keyOrganizations.get(key),
       note: (key, organization) => {
         ctx.keyOrganizations.set(key, organization)
-        ctx.writes.add(`the organization of ${key}`, saveKeyOrganization(ctx.db, key, organization, new Date()))
+        ctx.writes.add(`the organization of ${key}`, saveKeyOrganization(ctx.machineDb, key, organization, new Date()))
       },
       forget: (key) => {
         if (!ctx.keyOrganizations.delete(key)) return
-        ctx.writes.add(`the organization of ${key}`, forgetKeyOrganization(ctx.db, key))
+        ctx.writes.add(`the organization of ${key}`, forgetKeyOrganization(ctx.machineDb, key))
       },
     },
     managementKeys: {
       of: (key) => ctx.managementKeys.get(key),
       save: (key, value) => {
         ctx.managementKeys.set(key, value)
-        ctx.writes.add(`the management key of ${key}`, saveManagementKey(ctx.db, key, value, new Date()))
+        ctx.writes.add(`the management key of ${key}`, saveManagementKey(ctx.machineDb, key, value, new Date()))
       },
       forget: (key) => {
         if (!ctx.managementKeys.delete(key)) return
-        ctx.writes.add(`the management key of ${key}`, forgetManagementKey(ctx.db, key))
+        ctx.writes.add(`the management key of ${key}`, forgetManagementKey(ctx.machineDb, key))
       },
     },
     readBalance: (key) => readOpenRouterBalance(key, KEY_CHECK_TIMEOUT_MS),
@@ -526,13 +525,12 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
       }
       if (changed || ctx.limits.deferred) ctx.limits.refresh()
       ctx.machineChanged()
-      ctx.dispatcher.check()
     },
     onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
   })
 }
 
-export function wireOwners(ctx: AccountsContext): TranscriptOwners {
+export function wireOwners(ctx: MachineContext): TranscriptOwners {
   return new TranscriptOwners({
     homes: () => ctx.homes.list(),
     transcripts: (home) => ctx.agentOf(home).transcripts(home),
@@ -543,10 +541,10 @@ export function wireOwners(ctx: AccountsContext): TranscriptOwners {
 }
 
 /** `saved` — the windows measured before this start (BTN-946). */
-export function wireContextWindows(ctx: AccountsContext, saved: SavedWindow[] = []): ContextWindows {
+export function wireContextWindows(ctx: MachineContext, saved: SavedWindow[] = []): ContextWindows {
   return new ContextWindows({
     saved,
-    save: (window) => ctx.writes.add(`the context window of ${window.account} on ${window.model}`, saveContextWindow(ctx.db, window)),
+    save: (window) => ctx.writes.add(`the context window of ${window.account} on ${window.model}`, saveContextWindow(ctx.machineDb, window)),
     probe: async (key, model, _task, settings) => {
       const home = ctx.homeOf(key)
       return (await ctx.agentOf(home).contextWindow?.(home, model, settings)) ?? null
@@ -561,7 +559,7 @@ export function wireContextWindows(ctx: AccountsContext, saved: SavedWindow[] = 
 }
 
 /** `sessionWindows` — the sessions' windows kept before this start, oldest first (BTN-946); the service's come with `records.restore`. */
-export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, number][] = []): SessionMonitor {
+export function wireMonitor(ctx: MachineContext, sessionWindows: [string, number][] = []): SessionMonitor {
   rareEvents.projectOf = (session) => {
     const launched = ctx.journal.find((entry) => entry.sessionId === session.sessionId)
     const candidates = Object.entries(ctx.configStore.current.projects).filter(([, repo]) => isInside(session.cwd, repo))
@@ -578,7 +576,7 @@ export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, numbe
     projectKeys: () => sessionPrefixes(ctx.configStore.current),
     contextWindow: (key, model, task, settings) => (ctx.agentOf(ctx.homeOf(key)).contextWindow === undefined ? null : ctx.contextWindows.peek(key, model, task, settings)),
     sessionWindows,
-    onSessionWindows: (windows) => ctx.writes.add(`the context windows of ${windows.length} sessions`, ctx.machineLink.records.windows(windows, Date.now())),
+    onSessionWindows: (windows) => ctx.writes.add(`the context windows of ${windows.length} sessions`, ctx.tell.record(WINDOWS_EVENT, { windows, at: Date.now() })),
     approval: (sessionId) => ctx.approvals.ask(sessionId),
     intervalMs: ctx.SESSION_POLL_MS,
     onAgents: (list) => {
@@ -605,16 +603,14 @@ export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, numbe
       // Set with the views, not with the entries: the tick reads them after its entries, and `liveView` needs both.
       ctx.agentsRead = true
       ctx.logStartupDialogs(views)
-      void ctx.machineLink.port.catchUp?.()
-      ctx.hub.broadcastSoon('state', ctx.getState)
-      ctx.dispatcher.check()
-      settleMail(ctx.mailRelay)
+      ctx.machineChanged()
+      ctx.writes.add('the session monitor tick', ctx.tell.record('sessions.read', null))
     },
     onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
   })
 }
 
-export function logStartupDialogs(ctx: AccountsContext, views: SessionView[]): void {
+export function logStartupDialogs(ctx: MachineContext, views: SessionView[]): void {
   for (const view of views) {
     if (view.startupDialog === null || ctx.wedgedSessions.has(view.sessionId)) continue
     ctx.wedgedSessions.add(view.sessionId)
@@ -628,24 +624,24 @@ export function logStartupDialogs(ctx: AccountsContext, views: SessionView[]): v
   }
 }
 
-export function wireAgentOf(ctx: AccountsContext): (home: AccountHome) => Agent {
+export function wireAgentOf(ctx: MachineContext): (home: AccountHome) => Agent {
   return (home: AccountHome): Agent => ctx.runtimes.get(home.agent)!
 }
 
-export function wireEnvOf(ctx: AccountsContext): (home: AccountHome) => NodeJS.ProcessEnv {
+export function wireEnvOf(ctx: MachineContext): (home: AccountHome) => NodeJS.ProcessEnv {
   return (home: AccountHome) => ctx.agentOf(home).env(home)
 }
 
-export function wireStopIn(ctx: AccountsContext): (home: AccountHome, session: SessionHandle) => Promise<void> {
+export function wireStopIn(ctx: MachineContext): (home: AccountHome, session: SessionHandle) => Promise<void> {
   return (home: AccountHome, session: SessionHandle) => ctx.agentOf(home).stop(home, session)
 }
 
-export function wireEmailAt(ctx: AccountsContext): (key: string, at: string | null) => string | null {
+export function wireEmailAt(ctx: MachineContext): (key: string, at: string | null) => string | null {
   return (key: string, at: string | null): string | null =>
     (at === null ? null : accountAt(ctx.ledger, key, at)) ?? ctx.account.emailOf(key)
 }
 
-export function wireSessionAccount(ctx: AccountsContext): (sessionId: string | null, at: string | null) => string | null {
+export function wireSessionAccount(ctx: MachineContext): (sessionId: string | null, at: string | null) => string | null {
   return (sessionId: string | null, at: string | null): string | null => {
     if (sessionId === null) return null
     const live = ctx.sessions.find((view) => view.sessionId === sessionId)
@@ -655,19 +651,19 @@ export function wireSessionAccount(ctx: AccountsContext): (sessionId: string | n
   }
 }
 
-export function wireAccountNow(ctx: AccountsContext): (key?: string) => { id: string | null; ready: boolean; label: string; provider: string | undefined; } {
+export function wireAccountNow(ctx: MachineContext): (key?: string) => { id: string | null; ready: boolean; label: string; provider: string | undefined; } {
   return (key = ctx.account.view.active) => currentAccount(ctx.account.view, key)
 }
 
-export function wireLiveView(ctx: AccountsContext): (task: string) => SessionView | undefined {
+export function wireLiveView(ctx: MachineContext): (task: string) => SessionView | undefined {
   return (task: string) => ctx.sessions.find((each) => each.task === task && each.lamp !== 'finished')
 }
 
-export function wireSteering(ctx: AccountsContext): (sessionId: string) => boolean {
+export function wireSteering(ctx: MachineContext): (sessionId: string) => boolean {
   return (sessionId: string) => ctx.agents.some((each) => each.sessionId === sessionId && each.steers === true)
 }
 
-export function wireAgentStatus(ctx: AccountsContext): (task: string) => import("../sessions/agents.js").AgentStatus | undefined {
+export function wireAgentStatus(ctx: MachineContext): (task: string) => import("../sessions/agents.js").AgentStatus | undefined {
   return (task: string) => {
     const view = ctx.liveView(task)
     if (view === undefined) return undefined
@@ -679,7 +675,7 @@ export function wireAgentStatus(ctx: AccountsContext): (task: string) => import(
   }
 }
 
-export function wireHasAccount(ctx: AccountsContext): (provider: string, key: string) => boolean {
+export function wireHasAccount(ctx: MachineContext): (provider: string, key: string) => boolean {
   return (provider: string, key: string) => ctx.homes.find(key)?.agent === provider
 }
 
@@ -759,7 +755,7 @@ export function wireNoAccountFor(): (task: string, fallback: string, provider: s
     })
 }
 
-export function wireReach(ctx: AccountsContext): Reachability {
+export function wireReach(ctx: MachineContext): Reachability {
   return new Reachability({
     probe: (url) => answers(url, ctx.NETWORK_PROBE_MS),
     ttlMs: ctx.OFFLINE_RETRY_MS,

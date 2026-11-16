@@ -5,6 +5,7 @@ function contextOf(order: string[], packages: () => Promise<void> = async () => 
   return {
     cliChecks: { stop: () => void order.push('cliChecks') },
     packages: { close: packages },
+    packageHub: { close: async () => void order.push('packageHub') },
     tally: { stop: async () => void order.push('tally') },
     backups: { stop: async () => void order.push('backups') },
     machineLink: { close: async () => void order.push('machineLink') },

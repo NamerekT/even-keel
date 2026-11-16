@@ -358,7 +358,7 @@ export class Harness {
     await service.monitor.stop()
     await service.writes.settled()
     vi.clearAllTimers()
-    await Promise.allSettled([service.packages.close(), new Promise((resolve) => service.server.close(resolve)), service.tally.stop()])
+    await Promise.allSettled([service.packages.close(), service.packageHub.close(), new Promise((resolve) => service.server.close(resolve)), service.tally.stop()])
     service.server.closeAllConnections()
     await service.writes.settled()
     await service.machineLink.close()

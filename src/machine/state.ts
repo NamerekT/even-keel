@@ -6,7 +6,7 @@ import type { PGlite } from '@electric-sql/pglite'
  * `cli.downloaded` — the providers whose checked CLI copy was once downloaded with consent (`string[]`, BTN-1175);
  * `stores.imported` — when the machine's stores were moved from the state database (BTN-1246).
  */
-export type MachineStateName = 'cli.downloaded' | 'stores.imported'
+export type MachineStateName = 'cli.downloaded' | 'stores.imported' | 'stores.hostImported' | 'cliCheck.history' | 'accounts.adoptLegacy' | 'cli'
 
 export async function machineValue(db: Queryable, name: MachineStateName): Promise<unknown> {
   const { rows } = await db.query<{ value: string }>('select value from machine_state where name = $1', [name])
@@ -24,6 +24,25 @@ export async function setMachineValue(db: Queryable, name: MachineStateName, val
  * `true` — moved now.
  */
 export async function importMachineStores(machineDb: PGlite, stateDb: Queryable, now: Date): Promise<boolean> {
+  const initial = await importInitialStores(machineDb, stateDb, now)
+  if (await machineValue(machineDb, 'stores.hostImported') !== undefined) return initial
+  const tables = ['global_accounts', 'key_organizations', 'management_keys', 'left_folders', 'context_windows'] as const
+  const rows = await Promise.all(tables.map(async (table) => (await stateDb.query<Record<string, unknown>>(`select * from ${table}`)).rows))
+  const values = await stateDb.query<{ name: string; value: string }>("select name, value from service_state where name in ('cliCheck.history', 'accounts.adoptLegacy')")
+  await inTransaction(machineDb, async (tx) => {
+    for (const [index, table] of tables.entries()) {
+      for (const row of rows[index]!) {
+        const columns = Object.keys(row)
+        await tx.query(`insert into ${table} (${columns.join(', ')}) values (${columns.map((_, i) => `$${i + 1}`).join(', ')}) on conflict do nothing`, Object.values(row))
+      }
+    }
+    for (const { name, value } of values.rows) await tx.query('insert into machine_state (name, value) values ($1, $2) on conflict do nothing', [name, value])
+    await setMachineValue(tx, 'stores.hostImported', now.toISOString())
+  })
+  return true
+}
+
+async function importInitialStores(machineDb: PGlite, stateDb: Queryable, now: Date): Promise<boolean> {
   if (await machineValue(machineDb, 'stores.imported') !== undefined) return false
   const limits = await stateDb.query<{ account: string; limits: string }>('select account, limits from account_limits')
   const settings = await stateDb.query<{ account: string; written: string; own: string; saved_at: string }>('select account, written, own, saved_at from account_settings')

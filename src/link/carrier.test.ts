@@ -174,7 +174,7 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
     await until(() => newer.status().notice === 'link.version', 'the version notice')
     const hello = JSON.stringify({ api: API_VERSION, host: 'example-host', lastCommand: 0 })
     expect((await made.raw(STREAM_PATH, hello, 'POST', 'Bearer none.none')).status).toBe(401)
-    expect((await made.raw(STREAM_PATH, JSON.stringify({ api: 7, host: 'example-host', lastCommand: 0 }))).status).toBe(426)
+    expect((await made.raw(STREAM_PATH, JSON.stringify({ api: API_VERSION + 1, host: 'example-host', lastCommand: 0 }))).status).toBe(426)
     expect((await made.raw(EVENTS_PATH, JSON.stringify({ connection: 'gone', events: [], lastCommand: 0 }))).status).toBe(409)
   })
 

@@ -52,6 +52,26 @@ async function bench() {
 }
 
 describe('machine records over the wire', { timeout: 30_000 }, () => {
+  it('keeps offline key spend on the hub once after a lost confirmation', async () => {
+    const { db, records, end, wire, store } = await bench()
+    end.stop()
+    await records.spend({ sessionId: 'session-1', account: 'key', usd: 0.25, shared: false, at: entry.at })
+    expect((await db.query('select * from key_spends')).rows).toEqual([])
+    await end.start()
+    await vi.waitFor(() => expect(end.status().state).toBe('online'))
+    await end.flushed()
+    wire.loseAnswers = true
+    await records.spend({ sessionId: 'session-1', account: 'key', usd: 0.15, shared: false, at: entry.at })
+    await end.flushed()
+    end.stop()
+    wire.loseAnswers = false
+    await end.start()
+    await vi.waitFor(() => expect(end.status().state).toBe('online'))
+    await end.flushed()
+    expect((await db.query('select usd from key_spends')).rows).toEqual([{ usd: 0.4 }])
+    expect(store.outbox).toEqual([])
+  })
+
   it('keeps journal entries, session windows and chat changes at the hub', async () => {
     const { db, records, end, mailbox, writes } = await bench()
     await records.launch(entry)

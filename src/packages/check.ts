@@ -25,7 +25,7 @@ export interface CheckInput {
   installing: ReadonlySet<string>
   /** The failure of each package's last install. */
   errors: ReadonlyMap<string, Notice>
-  keys: (server: string, entry: ServerEntry) => ServerKeys
+  keys: (server: string, entry: ServerEntry, name: string, install: string) => ServerKeys
   /** Whether the server answered `initialize` through the gateway; `undefined` — not probed yet or still starting, held until it answers. */
   probe: (name: string, install: string, server: string) => boolean | undefined
   /**
@@ -67,7 +67,7 @@ export function projectPackages(input: CheckInput): ProjectPackages {
         for (const [server, { entry }] of Object.entries(install.servers)) {
           if (server === input.tracker?.server) hasTracker = true
           if (server === input.tracker?.also) hasAlso = true
-          const keys = input.keys(server, entry)
+          const keys = input.keys(server, entry, name, install.id)
           keys.missing.forEach((each) => missing.add(each))
           if (keys.missing.length > 0) continue
           const answered = input.probe(name, install.id, server)

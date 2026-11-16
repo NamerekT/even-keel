@@ -5,20 +5,18 @@ import { sessionBase } from '../agent/env.js'
 import { runCliCheck, CHECK_MODELS } from '../cli-check/run.js'
 import { CliChecks, type CheckAgent, type CheckHistory } from '../cli-check/scheduler.js'
 import { runSettings } from '../config.js'
-import { setStateValue } from '../storage/service-state.js'
-import type { ServiceContext } from '../service.js'
+import { setMachineValue } from '../machine/state.js'
+import type { MachineContext } from './machine-context.js'
 
-type CliCheckContext = Pick<ServiceContext,
+type CliCheckContext = Pick<MachineContext,
   | 'account'
   | 'agentOf'
   | 'cliLease'
   | 'configStore'
-  | 'db'
-  | 'dispatcher'
+  | 'machineDb'
+  | 'machineChanged'
   | 'envFile'
-  | 'getState'
   | 'homes'
-  | 'hub'
   | 'packages'
   | 'runtimes'
   | 'stateDir'
@@ -63,15 +61,15 @@ export function wireCliChecks(ctx: CliCheckContext, history: CheckHistory): CliC
         })
       } finally {
         // The check stopped the folder's daemon: the next launch starts one on the pinned version.
-        ctx.dispatcher.check()
+        ctx.machineChanged()
       }
     },
     lease: ctx.cliLease,
     history,
     accountLabel: (home) => ctx.account.view.accounts.find((entry) => entry.key === home.key)?.name ?? home.key,
-    save: async (next) => ctx.writes.add('the CLI check history', setStateValue(ctx.db, 'cliCheck.history', next)),
+    save: async (next) => ctx.writes.add('the CLI check history', setMachineValue(ctx.machineDb, 'cliCheck.history', next)),
     now: () => Date.now(),
-    changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
+    changed: () => ctx.machineChanged(),
     log: (line) => console.log(line),
   })
 }

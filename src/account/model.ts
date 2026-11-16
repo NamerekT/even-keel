@@ -308,7 +308,7 @@ export function liveSessions(agents: AgentEntry[], key: string): string[] {
     .map((agent) => agent.name ?? agent.sessionId.slice(0, 8))
 }
 
-export function loginBlock(chains: ActiveChain[], agents: AgentEntry[], active: string): LoginBlock | null {
+export function loginBlock(chains: Pick<ActiveChain, 'project' | 'paused'>[], agents: AgentEntry[], active: string): LoginBlock | null {
   const running = chains.filter((chain) => !chain.paused).map((chain) => chain.project)
   const busy = agents.flatMap((agent): LoginBlocker[] => {
     if ((agent.account ?? GLOBAL_ACCOUNT) !== active) return []

@@ -1,0 +1,53 @@
+import { isMemoryUrl } from '../memory/mcp.js'
+import { isTasksUrl } from '../taskmcp/server.js'
+import { hubOwned, McpGateway, withoutAuthorization, type GatewayTarget } from './gateway.js'
+import { applySettings, keysOf, substitute } from './keys.js'
+import { routeOf } from './launch.js'
+import type { PackagesFile } from './model.js'
+import type { PackagesDeps } from './service.js'
+
+type TargetDeps = Pick<PackagesDeps, 'rules' | 'poolOf' | 'oauth' | 'refuseDeletes'>
+type Route = { project: string; name: string; install: string; server: string }
+
+export function packageTarget(file: PackagesFile, deps: TargetDeps, route: Route): GatewayTarget | null {
+  const project = route.project
+  const record = file.packages[route.name]
+  const server = record?.installs.find((each) => each.id === route.install)?.servers[route.server]
+  if (server === undefined) return null
+  let entry = applySettings(server.entry, { ...record?.settings, ...file.projects[project]?.settings[route.name] })
+  const oauth = deps.oauth?.(project, route.server, entry.url)
+  if (oauth) entry = withoutAuthorization(entry)
+  const keys = keysOf(route.server, entry, deps.rules, deps.poolOf(project))
+  const refuseDeletes = deps.refuseDeletes?.(project, route.server)
+  return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env, secrets: Object.values(keys.values), ...(oauth === undefined ? {} : { oauth }), ...(refuseDeletes === undefined ? {} : { refuseDeletes }) }
+}
+
+/** The hub's gateway owns tracker credentials, OAuth, tasks and memory; the machine only receives its route names. */
+export class PackageHub {
+  private readonly gateway: McpGateway
+
+  constructor(private readonly deps: TargetDeps & Pick<PackagesDeps, 'repos' | 'baseEnv' | 'tasks' | 'memory' | 'log'> & { catalog: () => PackagesFile }) {
+    this.gateway = new McpGateway({ resolve: (route) => packageTarget(deps.catalog(), deps, route), baseEnv: deps.baseEnv, tasks: deps.tasks, memory: deps.memory, log: deps.log })
+  }
+
+  start(): Promise<void> { return this.gateway.listen(0) }
+  close(): Promise<void> { return this.gateway.close() }
+  get hubOrigin(): string | undefined { return this.gateway.listening ? this.gateway.origin : undefined }
+
+  hubServers(): string[] {
+    const file = this.deps.catalog()
+    const routes: string[] = []
+    for (const project of Object.keys(this.deps.repos)) {
+      for (const [name, record] of Object.entries(file.packages)) {
+        for (const install of record.installs) {
+          for (const server of Object.keys(install.servers)) {
+            const route = { project, name, install: install.id, server }
+            const target = packageTarget(file, this.deps, route)
+            if (target !== null && (isMemoryUrl(target.entry.url) || (!isTasksUrl(target.entry.url) && hubOwned(target)))) routes.push(routeOf(project, name, install.id, server))
+          }
+        }
+      }
+    }
+    return routes
+  }
+}

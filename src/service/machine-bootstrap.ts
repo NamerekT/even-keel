@@ -3,11 +3,11 @@ import { saveLedger, type AccountLedger } from '../account/ledger.js'
 import { providerUrl } from '../account/network.js'
 import { KEY_SPEND_POLL_MS, KEY_SPEND_TAIL_MS, KEY_SPEND_TIMEOUT_MS } from '../account/service-defaults.js'
 import { AccountSettings, loadAccountSettings, saveAccountSettings } from '../account/settingsLayer.js'
-import { KeySpend, readOpenRouterKey, saveKeySpend } from '../account/spend.js'
+import { KeySpend, readOpenRouterKey } from '../account/spend.js'
+import { SPEND_EVENT } from '../machine/records.js'
+import type { MachineContext } from './machine-context.js'
 import { copies } from '../agent/copies.js'
-import { isPlain, plainProjects, projectLabel, type EvenKeelConfig } from '../config.js'
-import { handoffNoteOf } from '../sessions/note.js'
-import { TASKS_SERVER } from '../taskmcp/server.js'
+import { plainProjects, projectLabel, type EvenKeelConfig } from '../config.js'
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
 import { fail } from '../notice/notice.js'
@@ -20,9 +20,8 @@ import { type WarmTask } from '../sessions/keepwarm.js'
 import { TranscriptWatch } from '../sessions/watch.js'
 import type { SessionView } from '../state.js'
 import { machineValue, setMachineValue } from '../machine/state.js'
-import { createSessionSettings } from '../tools/sessionSettings.js'
 
-export function assembleKeySpend(ctx: Pick<ServiceContext, 'homes' | 'account' | 'writes' | 'db'>) {
+export function assembleKeySpend(ctx: Pick<MachineContext, 'homes' | 'account' | 'writes' | 'tell'>) {
   return new KeySpend({
     metered: (key) => {
       const home = ctx.homes.find(key)
@@ -38,16 +37,16 @@ export function assembleKeySpend(ctx: Pick<ServiceContext, 'homes' | 'account' |
       if (read !== null) ctx.account.noteKeyLimit(key, read.limit)
       return read?.usage ?? null
     },
-    onSpend: (growth) => ctx.writes.add(`the key spend of session ${growth.sessionId}`, saveKeySpend(ctx.db, growth)),
+    onSpend: (growth) => ctx.writes.add(`the key spend of session ${growth.sessionId}`, ctx.tell.record(SPEND_EVENT, growth)),
     now: () => Date.now(),
     tailMs: KEY_SPEND_TAIL_MS,
     pollMs: KEY_SPEND_POLL_MS,
   })
 }
 
-export async function assembleCliCopies(ctx: Pick<ServiceContext, 'runtimes' | 'configStore' | 'dispatcher' | 'stateChanged' | 'account' | 'cliVersions' | 'machineDb' | 'writes'>) {
+export async function assembleCliCopies(ctx: Pick<MachineContext, 'runtimes' | 'configStore' | 'machineChanged' | 'account' | 'cliVersions' | 'machineDb' | 'writes'>) {
   return copies(ctx.runtimes, (name, source) => ctx.configStore.saveCli(name, source), (name) => ctx.configStore.fallBackCli(name),
-    () => { ctx.dispatcher.check(); ctx.stateChanged(); void ctx.account.refresh() },
+    () => { ctx.machineChanged(); void ctx.account.refresh() },
     async () => { await ctx.cliVersions.check(); await ctx.account.refresh() },
     {
       downloaded: ((await machineValue(ctx.machineDb, 'cli.downloaded')) as string[] | undefined) ?? [],
@@ -85,11 +84,7 @@ export function assembleWarmable(ctx: Pick<ServiceContext, 'liveView' | 'monitor
   }
 }
 
-export function assembleSettingsFor(ctx: Pick<ServiceContext, 'configStore' | 'packages' | 'homes' | 'dispatcher' | 'projectOf'>) {
-  return createSessionSettings({ config: () => ctx.configStore.current, packages: ctx.packages, globalDir: ctx.homes.global.dir, trim: () => ctx.dispatcher.state.trimTools, projectOf: ctx.projectOf })
-}
-
-export function assembleApprovals(ctx: Pick<ServiceContext, 'configStore' | 'promptLanguage'>) {
+export function assembleApprovals(ctx: Pick<MachineContext, 'configStore' | 'promptLanguage'>) {
   return new Approvals({ language: () => ctx.configStore.current.language ?? ctx.promptLanguage(), unattended: () => ctx.configStore.current.unattended })
 }
 
@@ -129,10 +124,3 @@ export function assembleInHomes(ctx: Pick<ServiceContext, 'homes'>) {
   }
 }
 
-export function assembleTaskNote(ctx: Pick<ServiceContext, 'configuredProject' | 'packages' | 'configStore'>) {
-  return (task: string): string => {
-    const project = ctx.configuredProject(task)
-    const kept = project !== undefined && ctx.packages.bringsServer(project, TASKS_SERVER)
-    return handoffNoteOf(task, project === undefined || !isPlain(ctx.configStore.current, project), kept)
-  }
-}

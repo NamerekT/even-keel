@@ -1,4 +1,5 @@
 import type { LaunchEntry } from '../chain/dispatcher.js'
+import { saveKeySpend, type KeySpendGrowth } from '../account/spend.js'
 import { appendLaunch } from '../chain/store.js'
 import type { MachineEvent } from '../link/protocol.js'
 import { saveMailboxChange, type MailboxChange } from '../sessions/mailbox-store.js'
@@ -8,9 +9,10 @@ import { inTransaction, type Db } from '../storage/database.js'
 export const LAUNCH_EVENT = 'launch.record'
 export const WINDOWS_EVENT = 'session.windows'
 export const MAILBOX_EVENT = 'chat.mailbox'
+export const SPEND_EVENT = 'key.spend'
 
 export function isRecordEvent(type: string): boolean {
-  return type === LAUNCH_EVENT || type === WINDOWS_EVENT || type === MAILBOX_EVENT
+  return type === LAUNCH_EVENT || type === WINDOWS_EVENT || type === MAILBOX_EVENT || type === SPEND_EVENT
 }
 
 /**
@@ -41,6 +43,10 @@ export class MachineRecords {
   async mailbox(change: MailboxChange): Promise<void> {
     await this.emit(MAILBOX_EVENT, change)
   }
+
+  async spend(growth: KeySpendGrowth): Promise<void> {
+    await this.emit(SPEND_EVENT, growth)
+  }
 }
 
 /**
@@ -57,6 +63,7 @@ export function saveMachineRecord(db: Db, machine: string, event: MachineEvent):
       const { windows, at } = event.payload as { windows: [string, number][]; at: number }
       await saveSessionWindows(tx, windows, at)
     } else if (event.type === MAILBOX_EVENT) await saveMailboxChange(tx, event.payload as MailboxChange)
+    else if (event.type === SPEND_EVENT) await saveKeySpend(tx, event.payload as KeySpendGrowth)
     else throw new Error(`machine: unknown record ${event.type}`)
     await tx.query('update machines set last_event = $2 where id = $1', [machine, event.seq])
     return true

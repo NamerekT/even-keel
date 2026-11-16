@@ -29,6 +29,8 @@ export interface RemoteDeps {
   lastSession: (project: string, task: string) => string | undefined
   /** `retained` avoids reading the tracker on every follow while a limit waits. */
   brief?: (project: string, task: string, retained?: boolean) => Promise<LaunchBrief>
+  /** Reads the hub's branch protection before a command that can launch a session. */
+  audit?: (project: string) => Promise<void>
   /** The task's newest handoff note (`lastHandoffNote`, BTN-1046): sent with a move that may hand the task over. */
   note?: (project: string, task: string) => Promise<NoteText | undefined>
   /** Keeps a handoff snapshot the machine sent; a throw leaves the event with the machine, which sends it again. */
@@ -138,6 +140,7 @@ export class RemoteMachine {
       ...(deps.catchUp === undefined ? {} : { catchUp: deps.catchUp }),
       moves: {
         run: async (name, move) => {
+          if (name !== 'guard') await deps.audit?.(move.project)
           const task = move.current?.task ?? move.args[0]
           const replyOnly = name === 'guard' || name === 'deliver' || name === 'deliverLoose'
           const brief = replyOnly || typeof task !== 'string' || isOwnName(task) ? undefined : await deps.brief?.(move.project, task, name === 'follow')
@@ -221,7 +224,8 @@ export class RemoteMachine {
     return typeof session.workdir === 'string' && session.workdir !== '' ? { project, folder: session.workdir } : { project }
   }
 
-  private call(name: PortCommand, place: Place, args: unknown[]): Promise<unknown> {
+  private async call(name: PortCommand, place: Place, args: unknown[]): Promise<unknown> {
+    if (place.project !== undefined && ['launch', 'launchFix', 'launchCarry', 'relay'].includes(name)) await this.deps.audit?.(place.project)
     return this.ask(COMMAND_PREFIX + name, place, args)
   }
 
