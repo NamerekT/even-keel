@@ -32,7 +32,9 @@ describe("the service's fetch", () => {
     expect(protocolOfFetch(`import { fetchOverHttp1 } from ${JSON.stringify(module)}; fetchOverHttp1()`)).toBe('http/1.1')
   })
 
-  it("would take HTTP/2 without it, which is what Node's own fetch does", () => {
+  // Node 24 (CI) bundles undici 7, whose fetch never offers HTTP/2; undici 8 (Node 26) offers it by default.
+  const bundledUndiciMajor = Number(process.versions.undici?.split('.')[0] ?? 0)
+  it.skipIf(bundledUndiciMajor < 8)("would take HTTP/2 without it, which is what Node's own fetch does", () => {
     expect(protocolOfFetch('')).toBe('h2')
   })
 })
