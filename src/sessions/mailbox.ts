@@ -1,5 +1,6 @@
-import type { Db, Writes } from '../storage/database.js'
+import { inTransaction, type Db, type Writes } from '../storage/database.js'
 import type { Mail, MailEvent, MailFate, MailReason } from './mail.js'
+import { saveMailboxChange, type MailboxChange } from './mailbox-store.js'
 
 const KEEP_MS = 7 * 24 * 60 * 60_000
 const SHOWN_DELIVERED = 3
@@ -37,17 +38,31 @@ interface Row {
 export class Mailbox {
   private readonly heard = new Set<string>()
   private readonly claimed = new Set<number>()
+  private persist: (change: MailboxChange) => Promise<void>
 
   private constructor(
-    private readonly db: Db,
+    db: Db,
     private readonly writes: Writes,
     private mails: Mail[],
     private readonly now: () => Date,
-  ) {}
+  ) {
+    this.persist = (change) => inTransaction(db, (tx) => saveMailboxChange(tx, change))
+  }
+
+  /** The linked machine persists through its outbox instead of opening the hub's database. */
+  persistWith(persist: (change: MailboxChange) => Promise<void>): void {
+    this.persist = persist
+  }
 
   static async open(db: Db, writes: Writes, now: () => Date): Promise<Mailbox> {
     const { rows } = await db.query<Row>('select * from mailbox order by id')
     return new Mailbox(db, writes, rows.map(mailOf), now)
+  }
+
+  /** At startup, before hooks or chat run: include records replayed from the machine's retained outbox. */
+  async reload(db: Db): Promise<void> {
+    const { rows } = await db.query<Row>('select * from mailbox order by id')
+    this.mails = rows.map(mailOf)
   }
 
   /** The session's hooks have asked for mail at least once since the service started. */
@@ -62,15 +77,7 @@ export class Mailbox {
     const id = Math.max(0, ...this.mails.map((each) => each.id)) + 1
     const mail: Mail = { id, task, sessionId, text, files, postedAt: at.toISOString(), fate: 'waiting', event: null, reason: null, settledAt: null }
     this.mails.push(mail)
-    this.write("delete from mailbox where fate <> 'waiting' and settled_at < $1", [before])
-    this.write("insert into mailbox (id, task, session_id, text, files, posted_at, fate) values ($1, $2, $3, $4, $5, $6, 'waiting')", [
-      id,
-      task,
-      sessionId,
-      text,
-      JSON.stringify(files),
-      mail.postedAt,
-    ])
+    this.write({ mails: [mail], before })
     return { ...mail }
   }
 
@@ -107,13 +114,7 @@ export class Mailbox {
       this.claimed.delete(mail.id)
       Object.assign(mail, { fate, event, reason, settledAt })
     }
-    this.write("update mailbox set fate = $1, event = $2, reason = $3, settled_at = $4 where id = any($5) and fate = 'waiting'", [
-      fate,
-      event,
-      reason,
-      settledAt,
-      settled.map((mail) => mail.id),
-    ])
+    this.write({ mails: settled })
     return settled.map((mail) => ({ ...mail }))
   }
 
@@ -122,7 +123,7 @@ export class Mailbox {
     const returned = this.mails.filter((mail) => mail.sessionId === sessionId && mail.fate === 'returned')
     if (returned.length === 0) return
     for (const mail of returned) mail.fate = 'dismissed'
-    this.write("update mailbox set fate = 'dismissed' where session_id = $1 and fate = 'returned'", [sessionId])
+    this.write({ mails: returned })
   }
 
   /** Every message the session got that the mailbox still keeps, oldest first: for a transcript that lacks them. */
@@ -137,8 +138,8 @@ export class Mailbox {
     return all.filter((mail) => mail.fate !== 'delivered' || delivered.includes(mail)).map((mail) => ({ ...mail }))
   }
 
-  private write(sql: string, params: unknown[]): void {
-    this.writes.add('a mailbox change', this.db.query(sql, params))
+  private write(change: MailboxChange): void {
+    this.writes.add('a mailbox change', this.persist(structuredClone(change)))
   }
 }
 

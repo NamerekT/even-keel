@@ -136,7 +136,7 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
     expect(answer.headers['cache-control']).toBe('no-cache, no-transform')
     expect(answer.headers['x-accel-buffering']).toBe('no')
     await until(() => answer.text().includes('\n\n'), 'the handshake frame')
-    expect(answer.text()).toMatch(/^event: hello\ndata: \{"kind":"hello","hello":\{"api":1,/)
+    expect(answer.text().startsWith(`event: hello\ndata: {"kind":"hello","hello":{"api":${API_VERSION},`)).toBe(true)
     await made.hub.send(made.token.machine, { type: 'example.run' })
     await until(() => answer.text().includes('event: command'), 'the command frame')
     answer.close()

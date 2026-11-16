@@ -5,6 +5,9 @@ import { FAILED_EVENT, INTERRUPTED_EVENT, REFUSED_EVENT, type Command, type Mach
 import { asNotice, fail, NoticeError } from '../notice/notice.js'
 import { applyPatch, mirrorReads, type MachineFacts } from './facts.js'
 import type { MachinePort } from './port.js'
+import { isRecordEvent } from './records.js'
+import type { SessionView } from '../state.js'
+import type { SessionMail } from '../sessions/mail.js'
 import { COMMAND_PREFIX, DONE_EVENT, FACTS_EVENT, HANDOFF_EVENT, type CommandDone, type FactsPosted, type FactsSnapshot, type PortCommand } from './runner.js'
 
 export interface RemoteDeps {
@@ -19,6 +22,8 @@ export interface RemoteDeps {
   lastSession: (project: string, task: string) => string | undefined
   /** Keeps a handoff snapshot the machine sent; a throw leaves the event with the machine, which sends it again. */
   saveSnapshot: (snapshot: HandoffSnapshot) => Promise<void> | void
+  record?: (event: MachineEvent) => Promise<void>
+  changed?: () => void
   /** The task went to the machine with a launch; its place there is cleaned up. */
   assigned?: (project: string, task: string) => void
   released?: (project: string, task: string) => void
@@ -54,6 +59,14 @@ export class RemoteMachine {
 
   facts(): MachineFacts | undefined {
     return this.mirror?.facts
+  }
+
+  sessions(): SessionView[] {
+    return Object.values(this.facts()?.sessions ?? {})
+  }
+
+  mailbox(): Record<string, SessionMail> {
+    return this.facts()?.mailbox ?? {}
   }
 
   port(): MachinePort {
@@ -100,6 +113,7 @@ export class RemoteMachine {
       snapshot: (machine, snapshot) => {
         if (!this.mine(machine)) return
         this.mirror = snapshot as FactsSnapshot
+        this.deps.changed?.()
       },
       event: (machine, event) => (this.mine(machine) ? this.event(event) : undefined),
     }
@@ -150,6 +164,7 @@ export class RemoteMachine {
       // A post older than the snapshot of this connection, kept by the machine while it was away.
       if (this.mirror === undefined || boot !== this.mirror.boot || rev <= this.mirror.rev) return
       this.mirror = { boot, rev, facts: applyPatch(this.mirror.facts, patch) }
+      this.deps.changed?.()
     } else if (event.type === DONE_EVENT) {
       const done = payload as unknown as CommandDone
       if (done.notice === undefined) this.settle(done.seq, event.type, { value: done.value })
@@ -162,6 +177,9 @@ export class RemoteMachine {
       this.settle(Number(payload.seq), event.type, { error: (type) => fail('machine.commandInterrupted', { command: type }) })
     } else if (event.type === HANDOFF_EVENT) {
       await this.deps.saveSnapshot(payload as unknown as HandoffSnapshot)
+    } else if (isRecordEvent(event.type)) {
+      if (this.deps.record === undefined) throw new Error(`machine: no writer for ${event.type}`)
+      await this.deps.record(event)
     } else {
       this.deps.log(`machine: an event ${event.type} this hub does not know is dropped`)
     }

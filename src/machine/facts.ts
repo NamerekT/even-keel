@@ -5,6 +5,8 @@ import type { AccountNow, HandoffSession, LimitedSession } from '../chain/relay.
 import { limitReopenedAt, type RateLimits } from '../limits/model.js'
 import type { OverageSession } from '../limits/overage-session.js'
 import type { Notice } from '../notice/notice.js'
+import type { SessionMail } from '../sessions/mail.js'
+import type { SessionView } from '../state.js'
 import type { MachinePort } from './port.js'
 
 /** What the machine knows of a task's sessions; a field left out is the port's neutral answer. */
@@ -49,6 +51,9 @@ export interface ProjectFacts {
  * `limitReopenedAt` — are computed by the hub from `ledger` and `limits`.
  */
 export interface MachineFacts {
+  /** Page state, keyed by session id; absent on a machine with no session monitor. */
+  sessions?: Record<string, SessionView>
+  mailbox?: Record<string, SessionMail>
   sessionsRead: boolean
   accountsRead: boolean
   tasks: Record<string, TaskFacts>
@@ -62,7 +67,7 @@ export interface MachineFacts {
 
 export const resetKey = (account: string, at: string, text?: string): string => `${account}\n${at}\n${text ?? ''}`
 
-const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets'] as const
+const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox'] as const
 type Section = (typeof SECTIONS)[number]
 
 /** The entries of one section that changed since the last post: `set` — new or changed, `gone` — no longer there. */
@@ -71,7 +76,7 @@ export interface SectionPatch<V> {
   gone?: string[]
 }
 
-export type FactsPatch = Partial<Pick<MachineFacts, 'sessionsRead' | 'accountsRead'>> & { [K in Section]?: SectionPatch<MachineFacts[K][string]> }
+export type FactsPatch = Partial<Pick<MachineFacts, 'sessionsRead' | 'accountsRead'>> & { [K in Section]?: SectionPatch<NonNullable<MachineFacts[K]>[string]> }
 
 /** `undefined` — nothing changed. */
 export function patchOf(before: MachineFacts, after: MachineFacts): FactsPatch | undefined {
@@ -79,8 +84,8 @@ export function patchOf(before: MachineFacts, after: MachineFacts): FactsPatch |
   if (before.sessionsRead !== after.sessionsRead) patch.sessionsRead = after.sessionsRead
   if (before.accountsRead !== after.accountsRead) patch.accountsRead = after.accountsRead
   for (const section of SECTIONS) {
-    const was = before[section] as Record<string, unknown>
-    const now = after[section] as Record<string, unknown>
+    const was = (before[section] ?? {}) as Record<string, unknown>
+    const now = (after[section] ?? {}) as Record<string, unknown>
     const set: Record<string, unknown> = {}
     for (const key of Object.keys(now)) if (!Object.hasOwn(was, key) || JSON.stringify(was[key]) !== JSON.stringify(now[key])) set[key] = now[key]
     const gone = Object.keys(was).filter((key) => !Object.hasOwn(now, key))

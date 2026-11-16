@@ -5,6 +5,8 @@ import { FINGERPRINT, HUB_ADDRESS, MemoryHubStore, MemoryMachineStore, Wire } fr
 import { MachineEnd } from '../link/machine.js'
 import { bearerOf, parseToken, type NumberedCommand } from '../link/protocol.js'
 import { fail, noticeOf } from '../notice/notice.js'
+import type { SessionView } from '../state.js'
+import type { SessionMail } from '../sessions/mail.js'
 import type { MachinePort } from './port.js'
 import { RemoteMachine } from './remote.js'
 import { HANDOFF_EVENT, MachineRunner } from './runner.js'
@@ -21,6 +23,8 @@ function machineOf() {
     gate: Promise.resolve() as Promise<void>,
     read: true,
     refuseFinish: false,
+    views: [] as SessionView[],
+    mail: {} as Record<string, SessionMail>,
   }
   const local = {
     launch: async (_project: string, task: string) => {
@@ -94,6 +98,8 @@ async function bench() {
       accounts: () => ['main'],
       limitsOf: () => null,
       ledger: () => ({}),
+      sessions: () => state.views,
+      mailbox: () => state.mail,
       log: (line) => log.push(line),
     })
     const end: MachineEnd = new MachineEnd({
@@ -266,5 +272,42 @@ describe('the machine port over the link', () => {
     await end.emit(HANDOFF_EVENT, snapshot)
     await tick()
     expect(snapshots).toEqual([snapshot])
+  })
+
+  it('mirrors session changes and removals, and reconnect replaces stale views', async () => {
+    const { state, remote, runner, end } = await started()
+    state.views = [{ sessionId: 'session-1', task: 'ABC-1', lamp: 'working', feed: [] } as unknown as SessionView]
+    await runner.publish()
+    await tick()
+    expect(remote.sessions()).toEqual(state.views)
+    end.stop()
+    state.views = [{ ...state.views[0]!, lamp: 'finished' }]
+    await runner.publish()
+    state.views = []
+    await end.start()
+    await tick()
+    expect(remote.sessions()).toEqual([])
+  })
+
+  it('mirrors chat messages and delivery without sharing the machine objects', async () => {
+    const { state, remote, runner } = await started()
+    state.mail = { 'session-1': { listens: true, steers: false, mail: [{
+      id: 1, task: 'ABC-1', sessionId: 'session-1', text: 'Continue.', files: [],
+      postedAt: '2026-11-16T10:00:00.000Z', fate: 'waiting', event: null, reason: null, settledAt: null,
+    }] } }
+    await runner.publish()
+    await tick()
+    expect(remote.mailbox()).toEqual(state.mail)
+    state.mail = { 'session-1': { ...state.mail['session-1']!, mail: [{
+      ...state.mail['session-1']!.mail[0]!, fate: 'delivered', event: 'Stop', settledAt: '2026-11-16T10:00:01.000Z',
+    }] } }
+    expect(remote.mailbox()['session-1']!.mail[0]!.fate).toBe('waiting')
+    await runner.publish()
+    await tick()
+    expect(remote.mailbox()).toEqual(state.mail)
+    state.mail = {}
+    await runner.publish()
+    await tick()
+    expect(remote.mailbox()).toEqual({})
   })
 })

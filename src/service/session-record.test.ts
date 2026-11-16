@@ -60,6 +60,14 @@ function rig(sessionWindows?: [string, number][]) {
 }
 
 describe('the context window of a session record', () => {
+  it('restores windows replayed from the machine outbox before the first poll', async () => {
+    const r = rig([['first', 200_000]])
+    r.monitor.restoreWindows([['first', 300_000], ['second', 400_000]])
+    expect(await r.read('first')).toMatchObject({ contextWindow: 300_000 })
+    expect(await r.read('second')).toMatchObject({ contextWindow: 400_000 })
+    expect(r.saved).toEqual([])
+  })
+
   it('keeps the observed window after the session finishes and another session takes its task', async () => {
     const r = rig()
     await r.poll('first')

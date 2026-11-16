@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { chainOrder } from '../chain/order.js'
+import type { LaunchEntry } from '../chain/dispatcher.js'
+import { launchLine } from '../chain/log.js'
 import { saveSnapshot } from '../chain/snapshots.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { HubEnd } from '../link/hub.js'
@@ -14,8 +16,12 @@ import { Assignments, fillPool } from '../machine/assignments.js'
 import { ownMachine } from '../machine/own.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
+import { LAUNCH_EVENT, MachineRecords, saveMachineRecord } from '../machine/records.js'
 import { HANDOFF_EVENT, MachineRunner } from '../machine/runner.js'
 import { samePath } from '../paths.js'
+import type { SessionView } from '../state.js'
+import type { SessionMail } from '../sessions/mail.js'
+import { loadSessionWindows } from '../storage/context-windows.js'
 import type { ChainContext } from './chain.js'
 import { wireMachine } from './machine-chain.js'
 
@@ -30,6 +36,9 @@ export interface LinkedMachine {
   /** The hub's side of the port: what the chain is given. */
   port: MachinePort
   assignments: Assignments
+  records: MachineRecords
+  sessions(): SessionView[]
+  mailbox(): Record<string, SessionMail>
   /**
    * Connects the machine to its hub and waits for its first snapshot. Called once the dispatcher exists: the machine's
    * facts read the chain's state. Until then the mirror is empty and the chains do not step.
@@ -98,9 +107,20 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     projectOfSession: (sessionId) => ctx.launches.findLast((entry) => entry.sessionId === sessionId)?.project,
     lastSession: (project, task) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
     saveSnapshot: (snapshot) => saveSnapshot(ctx.db, snapshot),
+    record: async (event) => {
+      if (!await saveMachineRecord(ctx.db, own, event)) return
+      if (event.type === LAUNCH_EVENT) {
+        const entry = event.payload as LaunchEntry
+        ctx.launches.push(entry)
+        ctx.eventLog.launched(entry)
+        log(launchLine(entry))
+      }
+      ctx.hub.broadcastSoon('state', () => ctx.getState())
+    },
     assigned: (project, task) => assignments.assign(project, task, own),
     released: (project, task) => assignments.release(project, task),
     catchUp,
+    changed: () => ctx.hub.broadcastSoon('state', () => ctx.getState()),
     log,
   })
   const hub: HubEnd = new HubEnd({ store: hubStore, handlers: remote.handlers(), log, heartbeatMs: LOCAL_HEARTBEAT_MS })
@@ -141,6 +161,13 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     accounts: () => ctx.homes.all().map((home) => home.key),
     limitsOf: (account) => ctx.limits.limits(account),
     ledger: () => ctx.ledger.accounts,
+    sessions: () => ctx.sessions,
+    mailbox: () => Object.fromEntries(ctx.sessions.flatMap((view): [string, SessionMail][] => {
+      const mail = ctx.mailbox.of(view.sessionId)
+      const steers = ctx.agents.some((agent) => agent.sessionId === view.sessionId && agent.steers === true)
+      const listens = steers || ctx.mailbox.listens(view.sessionId)
+      return listens || mail.length > 0 ? [[view.sessionId, { listens, steers, mail }]] : []
+    })),
     log,
   })
 
@@ -158,21 +185,35 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     log,
   })
   let publishing: ReturnType<typeof setInterval> | undefined
+  const records = new MachineRecords((type, payload) => end.emit(type, payload))
+  ctx.mailbox.persistWith(async (change) => {
+    await records.mailbox(change)
+    await runner.publish()
+  })
 
   return {
     port: remote.port(),
     assignments,
+    records,
+    sessions: () => remote.sessions(),
+    mailbox: () => remote.mailbox(),
     start: async () => {
       await end.start()
       let waited: ReturnType<typeof setTimeout> | undefined
       await Promise.race([first, new Promise<void>((resolve) => (waited = setTimeout(resolve, FIRST_SNAPSHOT_MS)))])
       clearTimeout(waited)
       if (end.status().state !== 'online') log('machine: the own machine has not posted its first snapshot yet; the chains wait for it')
-      publishing = setInterval(() => void runner.publish().catch(() => {}), PUBLISH_EVERY_MS)
+      await end.flushed()
+      // These readers were built before the link: replay may have added a launch, settled mail or kept a window.
+      await ctx.mailbox.reload(ctx.db)
+      ctx.monitor.restoreWindows(await loadSessionWindows(ctx.db))
+      publishing = setInterval(() => void catchUp(), PUBLISH_EVERY_MS)
       publishing.unref()
     },
     close: async () => {
       clearInterval(publishing)
+      await ctx.writes.settled()
+      await end.flushed()
       end.stop()
       hub.stop()
       await machineDb.close()

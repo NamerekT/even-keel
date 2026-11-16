@@ -1,10 +1,9 @@
 import { Dispatcher, type LaunchEntry } from '../chain/dispatcher.js'
 import { carryNameOf, fixNameOf, isCarryName, isFixName, isOwnName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { chainQuiet, ForwardMerger } from '../chain/forward.js'
-import { launchLine } from '../chain/log.js'
 import { hubMainDeps } from '../chain/mainci.js'
 import { PROMPTS } from '../chain/prompts.js'
-import { appendLaunch, loadChainState, saveChainState, saveClosedTask } from '../chain/store.js'
+import { loadChainState, saveChainState, saveClosedTask } from '../chain/store.js'
 import { gitlabUrls } from '../ci/adapters.js'
 import { createCiWatches } from '../ci/wiring.js'
 import { DEFAULT_BRANCH, DEFAULT_CI, isPlain, mergeTargetOf, projectLabel, readerIds } from '../config.js'
@@ -78,6 +77,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'linkOf'
   | 'liveView'
   | 'mailbox'
+  | 'machineLink'
   | 'models'
   | 'monitor'
   | 'noAccountFor'
@@ -174,10 +174,7 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
     },
     journal: (launched) => {
       const entry = ctx.withSource(launched)
-      ctx.writes.add(`the launch of ${entry.task}`, appendLaunch(ctx.db, entry))
-      ctx.launches.push(entry)
-      ctx.eventLog.launched(entry)
-      console.log(launchLine(entry))
+      ctx.writes.add(`the launch of ${entry.task}`, ctx.machineLink.records.launch(entry))
     },
     moveStatus: (project, task, when) => ctx.statusMover.move(project, task, when),
     now: () => new Date(),

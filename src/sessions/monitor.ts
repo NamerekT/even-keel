@@ -71,6 +71,12 @@ export class SessionMonitor {
     this.contextWindows = new Map(options.sessionWindows)
   }
 
+  /** Before the first poll: include windows replayed from the machine's retained outbox during startup. */
+  restoreWindows(windows: [string, number][]): void {
+    this.contextWindows.clear()
+    for (const [session, window] of windows) this.contextWindows.set(session, window)
+  }
+
   start(): void {
     if (!this.stopped) return
     this.stopped = false

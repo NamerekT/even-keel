@@ -39,7 +39,7 @@ import { createEvenKeelServer } from '../server.js'
 import { answerComment, type AskAnswers } from '../sessions/ask.js'
 import { inboxImage } from '../sessions/inbox.js'
 import { sharedFile } from '../sessions/shareFile.js'
-import { deliveredMail, type SessionMail } from '../sessions/mail.js'
+import { deliveredMail } from '../sessions/mail.js'
 import { mailFor } from '../sessions/mailRelay.js'
 import { noteFileOf, noteWritten } from '../sessions/note.js'
 import { guardsOwnAddress } from '../sessions/protection.js'
@@ -209,7 +209,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     })),
     // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
     // chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
-    sessions: ctx.sessions.map((view) =>
+    sessions: ctx.machineLink.sessions().map((view) =>
       view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view,
     ),
     limits: ctx.limits.limits(ctx.activeAccount()),
@@ -291,14 +291,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       task,
       notice: ctx.noAccountFor(task, fallback, runSettings(ctx.configStore.current, project).provider),
     })),
-    mailbox: Object.fromEntries(
-      ctx.sessions.flatMap((view): [string, SessionMail][] => {
-        const mail = ctx.mailbox.of(view.sessionId)
-        const steers = ctx.steering(view.sessionId)
-        const listens = steers || ctx.mailbox.listens(view.sessionId)
-        return listens || mail.length > 0 ? [[view.sessionId, { listens, steers, mail }]] : []
-      }),
-    ),
+    mailbox: ctx.machineLink.mailbox(),
     changelogs: ctx.changelogs.writtenTasks(),
     forwards: ctx.forwards.view(),
     eventLog: [...ctx.eventLog.entries],

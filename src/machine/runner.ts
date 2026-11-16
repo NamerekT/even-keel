@@ -4,6 +4,8 @@ import type { NumberedCommand } from '../link/protocol.js'
 import { noticeOf, type Notice } from '../notice/notice.js'
 import { patchOf, resetKey, type FactsPatch, type MachineFacts, type ProjectFacts, type RunFacts, type TaskFacts } from './facts.js'
 import type { MachinePort } from './port.js'
+import type { SessionMail } from '../sessions/mail.js'
+import type { SessionView } from '../state.js'
 
 /** The port's commands and queries, as the link names them: `port.<member>` with `{ args }` as the payload. */
 export const PORT_COMMANDS = [
@@ -56,6 +58,8 @@ export interface RunnerDeps {
   accounts: () => string[]
   limitsOf: (account: string) => RateLimits | null
   ledger: () => AccountLedger['accounts']
+  sessions?: () => SessionView[]
+  mailbox?: () => Record<string, SessionMail>
   log: (line: string) => void
 }
 
@@ -172,6 +176,8 @@ export class MachineRunner {
       }
     }
     return {
+      ...(this.deps.sessions === undefined ? {} : { sessions: Object.fromEntries(this.deps.sessions().map((view) => [view.sessionId, view])) }),
+      ...(this.deps.mailbox === undefined ? {} : { mailbox: this.deps.mailbox() }),
       sessionsRead: local.sessionsRead(),
       accountsRead: local.accountsRead(),
       tasks,
