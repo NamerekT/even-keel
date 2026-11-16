@@ -17,6 +17,7 @@ import {
   startPrompt,
   warmSince,
   withBrief,
+  withMemory,
   withPrompts,
   withReport,
   withReset,
@@ -587,6 +588,16 @@ describe('prompts in English', () => {
     expect(withVocabulary('ABC-1\n', [line], 'en')).toMatch(/^ABC-1\n\nThe trackers' terms for the task tools: .*not from a skill\.\nchain: into it — Ready; .*\n$/)
     expect(withVocabulary('ABC-1\n', [line], 'ru')).toContain(`не из навыка.\n${line}\n`)
     expect(withVocabulary('ABC-1\n', [], 'en')).toBe('ABC-1\n')
+  })
+
+  it("gives the project memory's tools and index, and says when it is empty (BTN-1029)", () => {
+    const lines = ['- tests-need-docker — the e2e tests need Docker running']
+    const en = withMemory('ABC-1\n', lines, 'en')
+    expect(en).toMatch(/^ABC-1\n\nThe project memory is kept by Even Keel.*memory_read.*memory_write.*\n- tests-need-docker — the e2e tests need Docker running\n$/s)
+    expect(withMemory('ABC-1\n', lines, 'ru')).toContain(`memory_write`)
+    expect(withMemory('ABC-1\n', lines, 'ru')).toContain(`\n${lines[0]}\n`)
+    expect(withMemory('ABC-1\n', [], 'en')).toMatch(/^ABC-1\n\nThe project memory is kept by Even Keel.*no records yet.*\n$/s)
+    expect(withMemory('ABC-1\n', [], 'ru')).toMatch(/Записей пока нет\.\n$/)
   })
 
   it('tells a session without a brief to read its task first (BTN-1202)', () => {

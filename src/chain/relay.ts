@@ -94,6 +94,12 @@ export function withVocabulary(prompt: string, lines: string[], language: Langua
   return lines.length === 0 ? prompt : `${prompt}\n${PROMPTS[language].vocabulary(lines)}\n`
 }
 
+/** The project memory's tools and the index lines of its records (BTN-1029): in place of the agent's own `MEMORY.md`. */
+export function withMemory(prompt: string, lines: string[], language: Language): string {
+  const texts = PROMPTS[language]
+  return `${prompt}\n${lines.length === 0 ? texts.memoryEmpty : texts.memory(lines)}\n`
+}
+
 /** The `prompt` settings of a new session: Even Keel's first, then the project's; an empty project one does not cancel Even Keel's. */
 export function withPrompts(prompt: string, texts: { shared: string | null; project: string | null }, language: Language): string {
   const shared = texts.shared === null ? prompt : `${prompt}\n${PROMPTS[language].shared(texts.shared)}\n`

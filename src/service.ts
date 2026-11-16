@@ -220,6 +220,7 @@ const context = {
   get mailbox() { return mailbox },
   get managementKeys() { return managementKeys },
   get mcpPort() { return mcpPort },
+  get memory() { return memory },
   get mergeMarks() { return mergeMarks },
   get pendingCloses() { return pendingCloses },
   set mcpPort(value: typeof mcpPort) { mcpPort = value },
@@ -466,6 +467,8 @@ const demo = demoService.wireDemo(context)
 const claudeAccount = () => configStore.current.accounts[CLAUDE]!
 /** `.claude.json` files sessions read: the global one and that of a Claude account folder, the shared one by default. */
 const claudeConfigs = machineBootstrap.assembleClaudeConfigs(context)
+/** The hub's project memory folders mirrored into the records chain sessions read and write (BTN-1029). */
+const memory = accountsService.wireMemory(context)
 const packages: Packages = accountsService.wirePackages(context)
 /**
  * Whether the project's prompts carry its task: its own `brief`, else on exactly when no package brings the tracker's

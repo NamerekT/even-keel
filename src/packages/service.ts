@@ -6,6 +6,7 @@ import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { isTasksUrl, TASKS_SERVER } from '../taskmcp/server.js'
+import { isMemoryUrl } from '../memory/mcp.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
@@ -62,6 +63,8 @@ export interface PackagesDeps {
   refuseDeletes?: (project: string, server: string) => string | undefined
   /** Even Keel's own tasks server, answered by the gateway (BTN-768). */
   tasks?: LocalMcp
+  /** Even Keel's own memory server, answered by the hub's gateway (BTN-1029). */
+  memory?: LocalMcp
   port: number
   log: (line: string) => void
   /** The view or what a project is held on changed. */
@@ -99,8 +102,8 @@ export class Packages {
     const repaired = loaded === undefined || this.builtIn === undefined ? [] : keepBuiltIn(this.file, this.builtIn)
     if (repaired.length > 0) deps.log(`packages: ${this.builtIn} is built in and restored: ${repaired.join(', ')}`)
     if (loaded === undefined || retired !== undefined || repaired.length > 0) savePackages(deps.file, this.file)
-    this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks })
-    this.hubGateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: (line) => deps.log(`hub ${line}`), tasks: deps.tasks })
+    this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks, memory: deps.memory })
+    this.hubGateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: (line) => deps.log(`hub ${line}`), tasks: deps.tasks, memory: deps.memory })
     this.probes = new Probes({
       urlOf: (project, name, install, server) => (this.gateway.listening ? `${this.gateway.origin}${routeOf(project, name, install, server)}` : undefined),
       now: () => Date.now(),
@@ -145,7 +148,8 @@ export class Packages {
         for (const install of record.installs) {
           for (const server of Object.keys(install.servers)) {
             const target = this.target({ project, name, install: install.id, server })
-            if (target !== null && !isTasksUrl(target.entry.url) && hubOwned(target)) routes.push(routeOf(project, name, install.id, server))
+            // The memory server is the hub's records, never a machine's (BTN-1029).
+            if (target !== null && (isMemoryUrl(target.entry.url) || (!isTasksUrl(target.entry.url) && hubOwned(target)))) routes.push(routeOf(project, name, install.id, server))
           }
         }
       }

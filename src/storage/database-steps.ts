@@ -12,7 +12,7 @@
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
  * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
  * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689); step 29 the event
- * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925); step 49 the copy of a built-in project's tasks into another tracker, `tracker_exports` and `tracker_export_tasks` (BTN-1073); step 50 the copied project's old key, `tracker_exports.source_key` (BTN-1076); step 52 the machines of each project and the machine of each task, `project_machines` and `machine_tasks` (BTN-1216); step 53 the handoff notes, `handoff_notes` (BTN-1046). A foreign key between tables is deferred, so that a copy inserts the
+ * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925); step 49 the copy of a built-in project's tasks into another tracker, `tracker_exports` and `tracker_export_tasks` (BTN-1073); step 50 the copied project's old key, `tracker_exports.source_key` (BTN-1076); step 52 the machines of each project and the machine of each task, `project_machines` and `machine_tasks` (BTN-1216); step 53 the handoff notes, `handoff_notes` (BTN-1046); step 54 the project memory, `memory_records` (BTN-1029). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -681,5 +681,25 @@ export const STEPS: readonly string[] = [
     note       text not null
   );
   create index handoff_notes_task on handoff_notes (project_id, task);
+  `,
+  // The project memory (BTN-1029, `docs/sessions/memory.md`): one record a fact, each with its own version; a deleted
+  // one stays as a mark so that a write over a version it had is refused. `file` and `file_hash` are the hub's
+  // memory folder as last mirrored.
+  `
+  create table memory_records (
+    project_id  text not null,
+    name        text not null,
+    description text not null,
+    type        text not null,
+    body        text not null,
+    version     integer not null,
+    deleted     boolean not null default false,
+    file        text,
+    file_hash   text,
+    task        text,
+    machine_id  text,
+    at          text not null,
+    primary key (project_id, name)
+  );
   `,
 ]

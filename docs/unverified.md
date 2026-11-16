@@ -215,6 +215,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 174 | [The demo without git](unverified/page.md#the-demo-without-git-ekr-108) | a first run on a machine without git, or after the setup's Git step answered No | the demo is refused or its tasks never close; set New projects to Without git and run it again | — |
 | 175 | [The page's address after install and update](unverified/updating.md#the-pages-address-after-install-and-update-ekr-111) | npm installs on macOS; a Linux desktop's browser | no address or a wrong one is printed, or the browser does not open or opens over SSH; open the address of `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` by hand | — |
 | 178 | [The handoff note through the tasks server](unverified/sessions.md#the-handoff-note-through-the-tasks-server-btn-1046) | chain sessions of projects whose set brings the tasks server, from the version with `handoff_write` and `agent-bridge` 1.3.0 | the next session starts without the note and only the last steps, or the old session's write is refused as stale; the log and the refusal text say which | — |
+| 179 | [The project memory through the memory server](unverified/sessions.md#the-project-memory-through-the-memory-server-btn-1029) | chain sessions of every project whose set has `agent-bridge` 1.4.0 | a session sees no memory or still writes files nobody reads, or a machine's write is lost; the gateway's log and the tool's answer say which | — |
 
 ### Waiting for the event / not checked by choice
 

@@ -1,11 +1,14 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { sessionBase } from '../agent/env.js'
+import { sharedMemory } from '../account/share.js'
 import { CLAUDE } from '../claude/name.js'
 import { writeHandoffNote } from '../chain/handoff-notes.js'
 import { CODEX } from '../codex/name.js'
 import { idPrefixOf, ownerOf, readerIds } from '../config.js'
 import { home as dataHome, root } from '../locations.js'
+import { MemoryMcp } from '../memory/mcp.js'
+import { MemoryMirror } from '../memory/mirror.js'
 import { Packages } from '../packages/service.js'
 import { keyPool, profileFor, serverProfile } from '../profiles/model.js'
 import { TRACKER_GROUPS } from '../sessions/protection.js'
@@ -16,8 +19,21 @@ import { runLabelText } from '../tracker/model.js'
 import { installed } from '../updates/watcher.js'
 import type { AccountsContext } from './accounts.js'
 
+export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'homes'>): MemoryMirror {
+  return new MemoryMirror({
+    db: ctx.db,
+    folderOf: (project) => {
+      const repo = ctx.configStore.current.projects[project]
+      return repo === undefined ? null : sharedMemory(ctx.homes.global.dir, repo)
+    },
+    now: () => new Date(),
+    log: (line) => console.log(line),
+  })
+}
+
 export function wirePackages(ctx: AccountsContext): Packages {
   return new Packages({
+    memory: new MemoryMcp({ db: ctx.db, mirror: ctx.memory, now: () => new Date() }, installed(root).version),
     file: join(ctx.stateDir, 'packages.json'),
     cache: join(ctx.stateDir, 'packages'),
     envFile: join(dataHome, '.env'),

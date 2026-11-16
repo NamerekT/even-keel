@@ -281,3 +281,14 @@ A session whose project has the tasks server gives its handoff note to `handoff_
 - a write kept in the outbox while the hub was away arrives before the handoff that needs it.
 
 If wrong, the next session starts with the last steps and no note, or the write is refused as stale and the session says so. **Check:** a chain task on Claude Code and on Codex with a low checkpoint threshold (`stats.checkpointTokens`), on a hub with its own machine: the session calls `handoff_write`, ends with `CHECKPOINT:`, the new session's prompt (the `handoffs` snapshot) carries the text, and `handoff_notes` has a row with the old session; then "New session" on the new one carries the steps and no note of the old one. **Workaround:** an older `agent-bridge` (before 1.3.0) asks for the file, which is still read and kept.
+
+## The project memory through the memory server (BTN-1029)
+
+Chain sessions whose set brings `agent-bridge` 1.4.0 read and write the project memory as records through the `memory` MCP server, with `autoMemoryEnabled: false` in their settings and the records' index in the prompt; the hub mirrors its memory folder into the records and back (`docs/sessions/memory.md`). Covered by unit tests of the step (`src/storage/database-memory.test.ts`), the server and its versioned writes, a race of two writers included (`src/memory/mcp.test.ts`), the mirror (`src/memory/mirror.test.ts`), the prompt (`src/chain/relay.test.ts`, `src/service/machine-brief.test.ts`) and the settings (`src/tools/panel.test.ts`); no session has called the tools. Assumed:
+
+- `autoMemoryEnabled: false` in `--settings` takes the file-memory instructions and `MEMORY.md` out of a Claude Code session's system prompt, as it does for the CLI check;
+- a Codex or OpenCode session uses the tools from the prompt's words alone, without memory instructions of its own;
+- a machine's call reaches the hub's server through `hub.servers()` and a refusal by version comes back to the session that wrote;
+- a hand edit in `~/.claude-memory/<project>` while a chain session works is taken in at the next call, and the CLI of a hand session reads the files and `MEMORY.md` lines the mirror writes.
+
+If wrong, a session sees no memory or still writes memory files nobody indexes, a machine's write is lost, or a hand session misses a record. **Check:** a chain task on Claude Code and on Codex, on a hub with its own machine, whose prompt asks to save one fact: the session's prompt has the index, `memory_write` lands in `memory_records` and as a file with a `MEMORY.md` line in the hub's folder; then a hand edit of that file and a second write by the old version is refused with the new text. **Workaround:** none in the settings, `agent-bridge` being built in; what was written stays in the records and, on the hub, as files of the project's memory folder that a hand session reads.

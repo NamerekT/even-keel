@@ -13,7 +13,7 @@ describe('chain auto-compaction window', () => {
     let config = parseConfig({ ...raw, autoCompactWindow: 300_000 })
     const settingsFor = createSessionSettings({
       config: () => config,
-      packages: { otherPlugins: () => ({}), keyNames: () => [] },
+      packages: { otherPlugins: () => ({}), keyNames: () => [], bringsServer: () => false },
       globalDir: 'C:/example-home', trim: () => false, projectOf: () => 'p',
     })
     const settings = () => JSON.parse(settingsFor('ABC-1')!)
@@ -49,7 +49,7 @@ describe('chain auto-compaction window', () => {
   it('probes with the chain settings and moves all thresholds with the measured window', () => {
     const settingsFor = createSessionSettings({
       config: () => parseConfig({ ...raw, autoCompactWindow: 300_000 }),
-      packages: { otherPlugins: () => ({}), keyNames: () => [] },
+      packages: { otherPlugins: () => ({}), keyNames: () => [], bringsServer: () => false },
       globalDir: 'C:/example-home', trim: () => false, projectOf: () => 'p',
     })
     const args = contextArgs('opus', settingsFor('ABC-1'))

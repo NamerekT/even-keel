@@ -83,6 +83,9 @@ export interface PromptTexts {
   unbriefed: (task: string, tasks: boolean) => string
   /** The roles lines of the project's trackers for the tasks tools (BTN-893), under a head; never called with none. */
   vocabulary: (lines: string[]) => string
+  /** The project memory through Even Keel's memory server (BTN-1029): its tools and the records' index lines, none — `memoryEmpty`. */
+  memory: (lines: string[]) => string
+  memoryEmpty: string
   shared: (text: string) => string
   project: (text: string) => string
   why: Record<HandoffReason, string>
@@ -132,6 +135,11 @@ export interface CarryFacts {
 }
 
 const carryOutput = (output: string): string[] => (output.trim() === '' ? [] : ['```', output.trim(), '```'])
+
+const MEMORY_EN =
+  "The project memory is kept by Even Keel, not in the agent's memory files: read a record with `memory_read`, save what later tasks will need (a trap of the environment, what did not work) with `memory_write`, remove a wrong one with `memory_delete`. A change of a record goes with the version `memory_read` gave; a refusal brings the record's current text — merge your edit into it and write again. A new record close to an existing one is refused with their list: update the old one instead."
+const MEMORY_RU =
+  'Память проекта ведёт Even Keel, а не файлы памяти агента: запись читай через `memory_read`, то, что пригодится следующим задачам (ловушка окружения, что не сработало), сохраняй через `memory_write`, неверную удаляй через `memory_delete`. Правка записи идёт с версией, которую дал `memory_read`; при отказе приходит её текущий текст — наложи свою правку на него и запиши снова. Новую запись, похожую на существующую, сервер отклонит со списком похожих: тогда обнови старую.'
 
 export const PROMPTS: Record<Language, PromptTexts> = {
   ru: {
@@ -212,6 +220,9 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         : fill`Заголовка и описания задачи в этом промпте нет: сначала прочитай ${task} с комментариями инструментами трекера.`,
     vocabulary: (lines) =>
       ['Словарь трекеров для инструментов задач: статус, с которым задача попадает в цепочку, метки пропуска и вопроса, вехи — бери отсюда, не из навыка.', ...lines.map((line) => fill`${line}`)].join('\n'),
+    memory: (lines) =>
+      [`${MEMORY_RU} Записи сейчас (имя — описание):`, ...lines.map((line) => fill`${line}`)].join('\n'),
+    memoryEmpty: `${MEMORY_RU} Записей пока нет.`,
     shared: (text) => fill`Указания для всех проектов:\n${text}`,
     project: (text) => fill`Указания для этого проекта:\n${text}`,
     why: {
@@ -369,6 +380,9 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         : fill`The task's title and description are not in this prompt: read ${task} with its comments first through the tracker's tools.`,
     vocabulary: (lines) =>
       ["The trackers' terms for the task tools: the status that puts a task into the chain, the skip and question labels, the milestones — take them from here, not from a skill.", ...lines.map((line) => fill`${line}`)].join('\n'),
+    memory: (lines) =>
+      [`${MEMORY_EN} The records now (name — description):`, ...lines.map((line) => fill`${line}`)].join('\n'),
+    memoryEmpty: `${MEMORY_EN} It has no records yet.`,
     shared: (text) => fill`Instructions for every project:\n${text}`,
     project: (text) => fill`Instructions for this project:\n${text}`,
     why: {

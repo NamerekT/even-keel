@@ -33,6 +33,8 @@ The `agent-bridge` plugin is built in: every project has it from the first start
 
 Handoffs, chat messages mid-turn, the check before a merge, standards and the badge's status line all run on its hooks; it puts nothing into a session's context until a hook has something to say, so each of these features is turned off by its own setting, not by the package.
 
+It also brings the `memory` MCP server: chain sessions keep the project memory through it, on this computer and on every machine, instead of the agent's own memory files. Each session's prompt lists what the memory holds; a fact one session changed while another was working is not overwritten, the second session gets the new text and writes its change over it. Sessions you start yourself keep Claude Code's memory folder, and Even Keel keeps that folder and the chain's memory in step both ways.
+
 Update, Check and its version work as for any package.
 
 ## Pinned versions

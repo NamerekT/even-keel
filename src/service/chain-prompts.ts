@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { withBrief, withPrompts, withTracker, withUnbriefed, withVocabulary } from '../chain/relay.js'
+import { withBrief, withMemory, withPrompts, withTracker, withUnbriefed, withVocabulary } from '../chain/relay.js'
+import { MEMORY_SERVER } from '../memory/mcp.js'
 import { ChangelogDrafts } from '../changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { idPrefixOf, isPlain, projectLabel } from '../config.js'
@@ -86,9 +87,13 @@ export function wireBriefed(ctx: ChainContext): Briefed {
     const prompt = withVocabulary(withTracker('', ctx.trackerPlace(reader), language), vocabulary, language)
     const link = ctx.briefOn(project, reader) ? ctx.linkOf(reader) : undefined
     const brief = link === undefined ? undefined : await link.run(async (tracker) => tracker.brief?.(task))
-    const result = brief === undefined
+    const told = brief === undefined
       ? { prompt: withUnbriefed(prompt, task, ctx.packages.bringsServer(project, TASKS_SERVER), language) }
       : { prompt: withBrief(prompt, brief, language), task: brief }
+    // The index stands in for the agent's own MEMORY.md, which a session with the memory server does not load (BTN-1029).
+    const result = ctx.packages.bringsServer(project, MEMORY_SERVER)
+      ? { ...told, prompt: withMemory(told.prompt, await ctx.memory.index(project), language) }
+      : told
     prepared.delete(key)
     prepared.set(key, result)
     if (prepared.size > KEPT_BRIEFS) prepared.delete(prepared.keys().next().value!)

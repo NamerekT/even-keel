@@ -79,6 +79,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'mailbox'
   | 'machineLink'
   | 'models'
+  | 'memory'
   | 'monitor'
   | 'noAccountFor'
   | 'occupantsOf'

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { gatewayName, type SessionMcp, type SessionPlugin } from '../agent/contract.js'
 import { isTasksUrl } from '../taskmcp/server.js'
+import { isMemoryUrl } from '../memory/mcp.js'
 import { current, enabledPackages, installsFor, pluginKey, type PackagesFile, type SessionReach } from './model.js'
 
 const ROUTE = /^\/mcp\/([^/]+)\/([^/]+)@([^/@]+)\/([^/]+)$/
@@ -89,8 +90,9 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
       })
     }
     for (const [server, entry] of Object.entries(install.servers)) {
-      // The tasks server learns the session's task from its address: the session's own task is in its prompt (BTN-768).
-      const own = isTasksUrl(entry.entry.url) ? `?task=${encodeURIComponent(task)}` : ''
+      // The tasks server learns the session's task from its address: the session's own task is in its prompt (BTN-768);
+      // the memory server stamps it on what the session writes (BTN-1029).
+      const own = isTasksUrl(entry.entry.url) || isMemoryUrl(entry.entry.url) ? `?task=${encodeURIComponent(task)}` : ''
       mcp.push({ name: server, plugin: record.plugin?.name ?? null, url: `${places.gateway}${routeOf(places.projectId, name, id, server)}${own}` })
     }
   }

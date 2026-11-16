@@ -11,6 +11,7 @@ import type { TasksScope } from '../taskmcp/calls.js'
 import { MACHINE_HEADER } from '../taskmcp/carried.js'
 import { AWAY_TEXT } from '../taskmcp/machine.js'
 import { isTasksUrl, tasksProjectOf } from '../taskmcp/server.js'
+import { isMemoryUrl } from '../memory/mcp.js'
 import { parseRoute } from './launch.js'
 import type { ServerEntry } from './model.js'
 
@@ -71,6 +72,8 @@ export interface GatewayDeps {
   log: (line: string) => void
   /** Even Keel's own tasks server (BTN-768), answered in the service: `/tasks[/<project id>]` and package routes to it. */
   tasks?: LocalMcp
+  /** Even Keel's own memory server (BTN-1029): package routes to it, answered only while the gateway is the hub's. */
+  memory?: LocalMcp
 }
 
 /** An MCP server answered in the gateway itself: a reply to one JSON-RPC message, `null` for none. */
@@ -186,6 +189,11 @@ export class McpGateway {
     if (route === null || target === null) return void res.writeHead(404).end()
     if (isTasksUrl(target.entry.url) && tasks !== undefined) {
       return this.local(req, res, tasks, { project: route.project, task: url.searchParams.get('task'), ...machine })
+    }
+    // The memory server answers only in the hub: a machine reaches it through `hub.servers()` above (BTN-1029).
+    if (isMemoryUrl(target.entry.url)) {
+      if (this.hub !== undefined || this.deps.memory === undefined) return void res.writeHead(404).end()
+      return this.local(req, res, this.deps.memory, { project: route.project, task: url.searchParams.get('task'), ...machine })
     }
     const label = `${route.name}/${route.server}`
     const key = `${route.project}\u0000${label}`

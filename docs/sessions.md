@@ -16,6 +16,7 @@ The area is split by subtopic, a file each in `docs/sessions/`: read this table,
 | [`models.md`](sessions/models.md) | Run profiles; Model lists; Context window; Prompts |
 | [`tools.md`](sessions/tools.md) | Extra tools |
 | [`checkpoint.md`](sessions/checkpoint.md) | Checkpoint threshold; the note kept with Even Keel (`handoff_write`) |
+| [`memory.md`](sessions/memory.md) | The project memory: records through the `memory` MCP server, versioned writes, the hub's folder mirror |
 | [`chat.md`](sessions/chat.md) | Chat mailbox; Permission dialogs; One-off turns |
 | [`limits.md`](sessions/limits.md) | Limits; Limits of OpenCode and Copilot |
 | [`cache.md`](sessions/cache.md) | Prompt cache lifetime; Every agent's cache (research); Keep-warm |

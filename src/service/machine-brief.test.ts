@@ -12,6 +12,7 @@ describe('a brief carried from the hub', () => {
       configStore: { current: { feeds: {} } },
       trackerPlace: () => ({ title: 'Example tracker', project: 'example' }),
       briefOn: () => true,
+      packages: { bringsServer: () => false },
       linkOf: () => ({ run: async (call: (tracker: { brief: typeof read }) => unknown) => call({ brief: read }) }),
     } as unknown as ChainContext
     const hub = wireBriefed(ctx)
@@ -25,6 +26,25 @@ describe('a brief carried from the hub', () => {
     expect(read).toHaveBeenCalledTimes(1)
     await hub.prepare('ABC-1', 'p1')
     expect(read).toHaveBeenCalledTimes(2)
+  })
+
+  it("carries the project memory's index when the project's set brings the memory server (BTN-1029)", async () => {
+    const index = vi.fn(async () => ['- tests-need-docker — the e2e tests need Docker running'])
+    const ctx = (memory: boolean) => ({
+      projectOf: () => 'p1', readerFor: () => 'p1', promptLanguage: () => 'en',
+      readers: () => ({ keys: { p1: 'ABC' }, trackers: {} }),
+      configStore: { current: { feeds: {} } },
+      trackerPlace: () => null,
+      briefOn: () => false,
+      packages: { bringsServer: (_project: string, server: string) => memory && server === 'memory' },
+      memory: { index },
+    }) as unknown as ChainContext
+    const sent = await wireBriefed(ctx(true)).prepare('ABC-1', 'p1')
+    expect(index).toHaveBeenCalledExactlyOnceWith('p1')
+    expect(sent.prompt).toMatch(/memory_write.*\n- tests-need-docker — the e2e tests need Docker running\n$/s)
+    const without = await wireBriefed(ctx(false)).prepare('ABC-1', 'p1')
+    expect(without.prompt).not.toContain('memory_write')
+    expect(index).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the received task and prompt for a handoff without reading a tracker', () => {

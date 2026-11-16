@@ -1,4 +1,4 @@
-export { wirePackages, briefOn } from './account-packages.js'
+export { wireMemory, wirePackages, briefOn } from './account-packages.js'
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { KEY_CHECK_MS, KEY_CHECK_TIMEOUT_MS, CREDIT_CHECK_MS, KEY_CHECKS, CREDIT_CHECKS, APP_POLL_MS, LOGIN_TIMEOUT_MS, CLOUD_CHECK_PROMPT, CLOUD_CHECK_TIMEOUT_MS } from '../account/service-defaults.js'
@@ -127,6 +127,7 @@ export type AccountsContext = Pick<ServiceContext,
   | 'machineChanged'
   | 'managementKeys'
   | 'mcpPort'
+  | 'memory'
   | 'models'
   | 'monitor'
   | 'online'
