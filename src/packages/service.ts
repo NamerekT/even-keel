@@ -98,7 +98,7 @@ export class Packages {
     if (loaded === undefined || retired !== undefined || repaired.length > 0) savePackages(deps.file, this.file)
     this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks })
     this.probes = new Probes({
-      urlOf: (project, name, install, server) => `${this.gateway.origin}${routeOf(project, name, install, server)}`,
+      urlOf: (project, name, install, server) => (this.gateway.listening ? `${this.gateway.origin}${routeOf(project, name, install, server)}` : undefined),
       now: () => Date.now(),
       onChange: deps.onChange,
     })
@@ -109,6 +109,8 @@ export class Packages {
     try {
       await this.gateway.listen(this.deps.port)
       this.deps.log(`mcp gateway: listening on ${this.gateway.origin}`)
+      // Servers held as probing until now get asked on the next state build.
+      this.deps.onChange()
     } catch (error) {
       this.gatewayError = noticeOf(error)
       this.deps.log(`mcp gateway: ${(error as Error).message}`)

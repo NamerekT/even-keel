@@ -197,6 +197,25 @@ describe('Probes', () => {
     await reaches(false)
   })
 
+  it('asks nothing while the gateway has no address, and asks at once when it gets one (BTN-1225)', async () => {
+    let asked = 0
+    server = createServer((_req, res) => {
+      asked++
+      res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":0,"result":{}}')
+    })
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve))
+    let url: string | undefined
+    const probes = new Probes({ urlOf: () => url, now: () => 0, onChange: () => {}, timeoutMs: 1_000 })
+    const result = () => probes.result('p-1', 'huly', 'i1', 'huly')
+    expect(result()).toBeUndefined()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(result()).toBeUndefined()
+    expect(asked).toBe(0)
+    url = `http://127.0.0.1:${(server.address() as { port: number }).port}/mcp`
+    await expect.poll(result, { timeout: 5_000, interval: 25 }).toBe(true)
+    expect(asked).toBe(1)
+  })
+
   it('asks a failing server again less and less often, at once after a retry (BTN-589)', async () => {
     let asked = 0
     server = createServer((_req, res) => {

@@ -97,7 +97,8 @@ export function projectPackages(input: CheckInput): ProjectPackages {
  * `initialize` through the gateway, the way a session opens a server: a good answer holds for 5 minutes, a failed one
  * is asked again after 30 seconds, then less and less often up to once an hour. Silence before the server's first answer
  * is a start that takes long (a cold `npx`), not a failure: it stays `undefined`, asked again at once, until the server
- * answers or the gateway says it is gone.
+ * answers or the gateway says it is gone. With no address yet (the gateway does not listen) nothing is asked and the
+ * result stays `undefined` (BTN-1225).
  */
 export class Probes {
   private readonly results = new Map<string, { ok: boolean | undefined; at: number; failures: number }>()
@@ -106,7 +107,7 @@ export class Probes {
 
   constructor(
     private readonly deps: {
-      urlOf: (project: string, name: string, install: string, server: string) => string
+      urlOf: (project: string, name: string, install: string, server: string) => string | undefined
       now: () => number
       /** A result changed. */
       onChange: () => void
@@ -120,7 +121,8 @@ export class Probes {
     const known = this.results.get(key)
     const wait = known?.ok ? PROBE_OK_MS : PROBE_FAILED_MS[Math.max(0, Math.min((known?.failures ?? 0) - 1, PROBE_FAILED_MS.length - 1))]!
     const stale = known === undefined || known.ok === undefined || this.deps.now() - known.at > wait
-    if (stale && !this.running.has(key)) void this.run(key, this.deps.urlOf(project, name, install, server))
+    const url = stale && !this.running.has(key) ? this.deps.urlOf(project, name, install, server) : undefined
+    if (url !== undefined) void this.run(key, url)
     return known?.ok
   }
 

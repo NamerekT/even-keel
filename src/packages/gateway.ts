@@ -111,6 +111,11 @@ export class McpGateway {
     return `http://127.0.0.1:${this.port}`
   }
 
+  /** Before `listen` the origin has port 0: nothing can be asked through it yet. */
+  get listening(): boolean {
+    return this.server !== undefined
+  }
+
   async listen(port: number): Promise<void> {
     const server = createServer((req, res) => void this.handle(req, res))
     await new Promise<void>((resolve, reject) => {

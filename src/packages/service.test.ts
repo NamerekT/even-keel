@@ -298,6 +298,23 @@ describe('a task pins versions, not the set (BTN-706)', () => {
   })
 })
 
+describe('servers before the gateway listens (BTN-1225)', () => {
+  it('counts an installed server as probing, not silent, until the gateway listens, then asks it', async () => {
+    const { deps } = fixture()
+    let changes = 0
+    const packages = new Packages({ ...deps, onChange: () => void changes++ })
+    await packages.install('tools@example')
+    const problems = () => packages.view().projects.project!.cells['tools@example']!.problems.map((problem) => problem.kind)
+    expect(problems()).toEqual(['probing'])
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(problems()).toEqual(['probing'])
+    changes = 0
+    await packages.start()
+    expect(changes).toBeGreaterThan(0)
+    await packages.close()
+  })
+})
+
 describe('packages only the user can make ready', () => {
   it('names an enabled package until it is installed', async () => {
     const { packages } = fixture()
