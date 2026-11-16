@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
 import { afterEach, describe, expect, it } from 'vitest'
 import { databaseVersion } from '../storage/database.js'
-import { DatabaseMachineStore, KEPT_COMMANDS, MACHINE_STEPS, openMachineDatabase } from './machine-store.js'
+import { DatabaseMachineStore, KEPT_COMMANDS, MACHINE_STEPS, openMachineDatabase, storedToken, storeToken } from './machine-store.js'
 
 describe("the machine's own database", { timeout: 120_000 }, () => {
   let db: PGlite | undefined
@@ -68,6 +68,22 @@ describe("the machine's own database", { timeout: 120_000 }, () => {
     expect(await store.consents()).toEqual([{ project: 'project-a', folder: 'C:/repos/a' }, { project: 'project-b', folder: 'C:/repos/b' }])
     await store.withdraw('project-a')
     expect(await store.consents()).toEqual([{ project: 'project-b', folder: 'C:/repos/b' }])
+  })
+
+  it('keeps the connection token, and a new token starts the numbering anew', async () => {
+    const store = await opened()
+    expect(await storedToken(db!)).toBeUndefined()
+    await storeToken(db!, 'ekm1.first')
+    await store.appendEvent('example.started', 1)
+    await store.appendEvent('example.idle', 2)
+    await store.commandReceived(5, 3)
+    await store.agree('project-a', 'C:/repos/a')
+    await storeToken(db!, 'ekm1.second')
+    expect(await storedToken(db!)).toBe('ekm1.second')
+    expect(await store.eventsAfter(0, 10)).toEqual([])
+    expect((await store.appendEvent('example.next', 4)).seq).toBe(1)
+    expect(await store.lastCommand()).toBe(0)
+    expect(await store.consents()).toEqual([{ project: 'project-a', folder: 'C:/repos/a' }])
   })
 
   it('finds everything again after a restart', async () => {

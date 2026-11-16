@@ -40,7 +40,9 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 
 ### Check first
 
-No entry meets both conditions at the moment.
+| # | Entry | Who it hits | If the assumption is wrong | Task |
+| ---: | --- | --- | --- | --- |
+| 176 | [The chain over the link in a live installation](unverified/machines.md#the-chain-over-the-link-in-a-live-installation-btn-1216) | every installation from the version with machines on | the chain pauses with "the machine refused …" or "the machine could not run …"; Resume once the cause is gone, the log names the command | BTN-1217 |
 
 ### Then
 

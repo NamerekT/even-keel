@@ -569,6 +569,7 @@ export class Dispatcher {
   }
 
   private async advance(): Promise<void> {
+    await this.deps.machine.catchUp?.()
     if (!this.deps.machine.accountsRead() || !this.deps.machine.sessionsRead()) return
     await this.cleanups.sweep()
     await this.reviews.sweep()

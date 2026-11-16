@@ -49,6 +49,7 @@ import * as hostingService from './service/hosting.js'
 import * as hubBootstrap from './service/hub-bootstrap.js'
 import * as lifecycleService from './service/lifecycle.js'
 import * as machineBootstrap from './service/machine-bootstrap.js'
+import { wireLinkedMachine } from './service/machine-link.js'
 import * as statsService from './service/stats.js'
 import * as trackersService from './service/trackers.js'
 import { type AgentEntry } from './sessions/agents.js'
@@ -187,6 +188,7 @@ const context = {
   get intakePlaces() { return intakePlaces },
   get intakeTemplateHits() { return intakeTemplateHits },
   get keepWarm() { return keepWarm },
+  get machineLink() { return machineLink },
   get keyOrganizations() { return keyOrganizations },
   get keySpend() { return keySpend },
   get knownTask() { return knownTask },
@@ -658,8 +660,9 @@ const warmable = machineBootstrap.assembleWarmable(context)
 
 const keepWarm: KeepWarm = chainService.wireKeepWarm(context)
 
-const machine = chainService.wireMachine(context)
-const dispatcher = await chainService.wireDispatcher(context, machine)
+const machineLink = await wireLinkedMachine(context)
+const dispatcher = await chainService.wireDispatcher(context, machineLink.port)
+await machineLink.start()
 
 /** Whether the checkouts of two projects are of one repository (BTN-285); `undefined` until both are read. */
 function sameRepositoryOf(a: string, b: string): boolean | undefined { return chainService.sameRepositoryOf(context, a, b) }
@@ -688,6 +691,7 @@ function steer(task: string, session: HandoffSession, prompt: string): Promise<b
 
 const { mailRelay, answerSession } = createChat({
   dispatcher,
+  catchUp: async () => machineLink.port.catchUp?.(),
   mailbox,
   configuredProject,
   liveView,

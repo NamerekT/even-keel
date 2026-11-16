@@ -98,6 +98,7 @@ type HostingContext = Pick<ServiceContext,
   | 'cliVersions'
   | 'configStore'
   | 'configuredProject'
+  | 'machineLink'
   | 'daemons'
   | 'db'
   | 'demo'
@@ -355,6 +356,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     git: gitSetup,
     jobs: stepJobs,
     demo: ctx.demo,
+    catchUp: async () => ctx.machineLink.port.catchUp?.(),
     hub: ctx.hub,
     publicDir: join(root, 'dist', 'web'),
     getState: ctx.getState,

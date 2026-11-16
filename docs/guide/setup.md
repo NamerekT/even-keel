@@ -933,6 +933,7 @@ A new version may store the files of `state/` in a newer format: at startup, bef
 It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason.
 
 The projects, the settings, the chain's state, the questions posted to the tracker, the launch log and the handoff snapshots live in one database, the folder `state/even-keel/` (PGlite, the embedded Postgres the statistics use too).
+Next to it Even Keel keeps a small folder `state/machine/` for the part of it that runs the sessions; it holds nothing to back up and is made anew when it is missing.
 
 An Even Keel from before it kept them in a SQLite file `state/even-keel.db` or, earlier, in files: the first start of this version imports `even-keel.db`, or else `chain.json`, `questions.json`, `launches.jsonl` and `handoffs/`, in one go — all of it or nothing — and renames them to `<name>.imported`.
 

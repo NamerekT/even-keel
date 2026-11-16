@@ -7,6 +7,7 @@ function contextOf(order: string[], packages: () => Promise<void> = async () => 
     packages: { close: packages },
     tally: { stop: async () => void order.push('tally') },
     backups: { stop: async () => void order.push('backups') },
+    machineLink: { close: async () => void order.push('machineLink') },
     writes: { settled: async () => void order.push('writes') },
     stateDb: { close: async () => void order.push('stateDb') },
   } as unknown as Parameters<typeof shutdown>[0]
@@ -20,6 +21,8 @@ describe('shutdown', () => {
     expect(order.indexOf('stateDb')).toBeGreaterThan(order.indexOf('writes'))
     // The backup reads the database: its copy is stopped before the database closes.
     expect(order.indexOf('stateDb')).toBeGreaterThan(order.indexOf('backups'))
+    // The hub's end of the machine link writes to it as well.
+    expect(order.indexOf('stateDb')).toBeGreaterThan(order.indexOf('machineLink'))
   })
 
   it('still closes the rest when the gateway fails to close', async () => {

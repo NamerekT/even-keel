@@ -253,6 +253,11 @@ export interface ServerDeps {
   jobs?: { retry(id: string): void; cancel(id: string): Promise<void>; close(id: string): void }
   /** The demo on the first run (BTN-776): its project goes into the state's `demo`. */
   demo?: { start(language?: Language): Promise<unknown>; again(language?: Language): Promise<unknown>; remove(): Promise<void> }
+  /**
+   * Brings the hub's mirror of its machine up to date before a command or a query runs: they refuse by what the mirror
+   * says of a session (`docs/machines.md`, "The mirror"). Absent — nothing to catch up with.
+   */
+  catchUp?: () => Promise<void>
   hub: EventHub
   publicDir: string
   getState: () => unknown

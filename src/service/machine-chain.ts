@@ -7,7 +7,7 @@ import { sessionBase } from '../agent/env.js'
 import { isOwnName } from '../chain/fix.js'
 import { TaskPlaces } from '../chain/places.js'
 import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, type HandoffSession } from '../chain/relay.js'
-import { readNote, saveSnapshot, snapshotReason } from '../chain/snapshots.js'
+import { readNote, snapshotReason, type HandoffSnapshot } from '../chain/snapshots.js'
 import { DEFAULT_CI, isPlain, projectLabel } from '../config.js'
 import { changesOf } from '../git/changes.js'
 import { runGit } from '../git/run.js'
@@ -29,8 +29,11 @@ import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type 
 import type { ChainContext } from './chain.js'
 import { deferLeftFolder, type stopTaskSessions } from './cleanup.js'
 
-/** The single local implementation of the machine port. Settings and callbacks remain live. */
-export function wireMachine(ctx: ChainContext): MachinePort {
+/**
+ * The single local implementation of the machine port. Settings and callbacks remain live.
+ * `handedOver` takes a handoff snapshot on its way to the hub, which keeps it.
+ */
+export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSnapshot) => Promise<void>): MachinePort {
   return {
     launch: async (project, task, extra) => {
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
@@ -118,7 +121,7 @@ export function wireMachine(ctx: ChainContext): MachinePort {
       const extras = ctx.agentExtras(home, project, task)
       const sessionId = await ctx.launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: ctx.settingsFor(task, project), ...extras }, project)
       const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
-      ctx.writes.add(`the handoff snapshot of ${task}`, saveSnapshot(ctx.db, snapshot))
+      ctx.writes.add(`the handoff snapshot of ${task}`, handedOver(snapshot))
       return sessionId
     },
     launchFix: async (project, name, report, reran) => {

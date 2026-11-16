@@ -497,6 +497,10 @@ export const en = {
   'link.buffered': () => 'link: the connection to the hub opens and nothing comes over it: a proxy on the way seems to hold the stream back',
   'link.token': () => "link: the hub does not take this machine's connection token: it was revoked or belongs to another hub",
   'link.version': () => 'link: the hub and this machine run different versions of Even Keel and do not talk to each other',
+  'machine.commandFailed': (p: { command: string; error: string }) => `machine: the machine could not run ${p.command}: ${p.error}`,
+  'machine.commandRefused': (p: { command: string; reason: 'project' | 'folder' }) =>
+    `machine: the machine refused ${p.command}: ${p.reason === 'project' ? 'it did not agree to serve this project' : "the folder is outside the project's agreed ones"}`,
+  'machine.commandInterrupted': (p: { command: string }) => `machine: the machine stopped in the middle of ${p.command} and does not run it again`,
   'packages.unknown': (p: { name: string }) => `packages: there is no package ${p.name}`,
   'packages.exists': (p: { name: string }) => `packages: ${p.name} is already in the catalog`,
   'packages.builtIn': (p: { name: string }) => `packages: ${p.name} is built into Even Keel: every project has it, it is neither turned off nor removed; each of its features has its own setting`,

@@ -385,6 +385,22 @@ export interface TrackerPlace {
   value?: string
 }
 
+/** A task the hub gave to a machine, by the Even Keel project's id. */
+export interface AssignedTask {
+  project: string
+  task: string
+}
+
+/**
+ * "The tasks assigned to me, in this order" (BTN-1216, `docs/machines.md`): what a machine asks about its work, next
+ * to the trackers' contract because a machine's chain reads its tasks from here as a hub's reads them from a tracker.
+ * The statuses stay in the tracker; who runs a task is the hub's own record (`machine_tasks`).
+ */
+export interface AssignedTasks {
+  /** The machine's tasks, project by project, each project's in its chain's order. */
+  assigned(machine: string): Promise<AssignedTask[]>
+}
+
 export interface ChainTasks {
   tasks: Task[]
   /** Tasks with subtasks that are open by the rules; they never enter the chain. */

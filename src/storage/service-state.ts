@@ -10,7 +10,8 @@ import type { Queryable } from './database.js'
  * `notices.dismissed` — the page's "Got it" marks, a banner's id to the stamp it was closed at (BTN-759, `withDismissed`);
  * `eventLog.memory` — what the event log saw last, so a restart writes nothing that held before it (`EventMemory`, BTN-350);
  * `cli.downloaded` — the providers whose checked CLI copy was once downloaded with consent (`string[]`, BTN-1175);
- * `machines.certificate` — the hub's certificate and key for machines (`HubCertificate`, BTN-988, `hubIdentity`).
+ * `machines.certificate` — the hub's certificate and key for machines (`HubCertificate`, BTN-988, `hubIdentity`);
+ * `machines.own` — the id of the machine this installation itself is (BTN-1216, `ownMachine`).
  */
 export type StateName =
   | 'updates.dismissed'
@@ -23,6 +24,7 @@ export type StateName =
   | 'eventLog.memory'
   | 'cli.downloaded'
   | 'machines.certificate'
+  | 'machines.own'
 
 /** `undefined` — never written. */
 export async function stateValue(db: Queryable, name: StateName): Promise<unknown> {

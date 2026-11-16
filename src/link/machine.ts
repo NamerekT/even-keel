@@ -38,6 +38,11 @@ export interface MachineOptions {
   /** Runs one command, already checked against what the machine agreed to. A throw is reported to the hub. */
   command: (command: NumberedCommand) => Promise<void> | void
   log: (line: string) => void
+  /**
+   * Commands are taken in order and their handlers run side by side: a long one — a check of main, a launch — does not
+   * hold a stop or a query behind it. Without it a handler ends before the next command is taken.
+   */
+  concurrent?: boolean
   host?: string
   /** The status changed. */
   changed?: () => void
@@ -118,6 +123,11 @@ export class MachineEnd {
     const event = await this.options.store.appendEvent(type, this.now(), payload)
     void this.flush(false)
     return event.seq
+  }
+
+  /** Resolves once the events kept at the call were posted to the hub; at once without a connection. */
+  flushed(): Promise<void> {
+    return this.flush(false)
   }
 
   private set(state: LinkState, notice: LinkNotice | undefined): void {
@@ -229,15 +239,23 @@ export class MachineEnd {
     if (reason !== undefined) {
       this.options.log(`link: command ${seq} (${type}) is refused: ${reason === 'project' ? 'this machine did not agree to its project' : 'its folder is outside the agreed ones'}`)
       await this.emit(REFUSED_EVENT, { seq, type, reason })
-    } else {
-      try {
-        await this.options.command(command)
-      } catch (error) {
-        this.options.log(`link: command ${seq} (${type}) failed: ${messageOf(error)}`)
-        await this.emit(FAILED_EVENT, { seq, type, error: messageOf(error) })
-      }
+      await store.commandDone(seq, this.now())
+      return
     }
-    await store.commandDone(seq, this.now())
+    const handled = this.handle(command)
+    if (this.options.concurrent === true) void handled.catch((error: unknown) => this.options.log(`link: command ${seq} (${type}) was not finished: ${messageOf(error)}`))
+    else await handled
+  }
+
+  private async handle(command: NumberedCommand): Promise<void> {
+    const { seq, type } = command
+    try {
+      await this.options.command(command)
+    } catch (error) {
+      this.options.log(`link: command ${seq} (${type}) failed: ${messageOf(error)}`)
+      await this.emit(FAILED_EVENT, { seq, type, error: messageOf(error) })
+    }
+    await this.options.store.commandDone(seq, this.now())
   }
 
   /** Two pulses without a frame: the connection is broken — or, if not one frame came over it, held back on the way. */

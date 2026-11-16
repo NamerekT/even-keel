@@ -361,6 +361,7 @@ export class Harness {
     await Promise.allSettled([service.packages.close(), new Promise((resolve) => service.server.close(resolve)), service.tally.stop()])
     service.server.closeAllConnections()
     await service.writes.settled()
+    await service.machineLink.close()
     await service.stateDb.close()
   }
 }

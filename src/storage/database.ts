@@ -31,7 +31,7 @@ export interface Queryable {
  * Claude on the checked CLI (BTN-610); step 22 the `reason` of a chat message that came back (BTN-558); step 23 copies a project's own chain rules into each
  * of its feeds (BTN-553); step 24 the profiles' status moves (BTN-554); step 25 each account's last known limits,
  * `account_limits` (BTN-631); step 26 the tasks the merge closer closed, `merge_closes` (BTN-689); step 29 the event
- * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925); step 49 the copy of a built-in project's tasks into another tracker, `tracker_exports` and `tracker_export_tasks` (BTN-1073); step 50 the copied project's old key, `tracker_exports.source_key` (BTN-1076). A foreign key between tables is deferred, so that a copy inserts the
+ * log, `event_log` (BTN-350); step 30 the built-in tracker, `builtin_*` (BTN-767); step 32 its attachments, `builtin_files` (BTN-773); step 43 the worktree folders a cleanup left held, `left_folders` (BTN-925); step 49 the copy of a built-in project's tasks into another tracker, `tracker_exports` and `tracker_export_tasks` (BTN-1073); step 50 the copied project's old key, `tracker_exports.source_key` (BTN-1076); step 52 the machines of each project and the machine of each task, `project_machines` and `machine_tasks` (BTN-1216). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -667,6 +667,23 @@ export const STEPS: readonly string[] = [
     command    text not null,
     created_at bigint not null,
     primary key (machine_id, seq)
+  );
+  `,
+  // Tasks to machines (BTN-1216, `docs/machines.md`): the machines a project may run on, and the machine each task
+  // went to with its launch, until its place there is cleaned up.
+  `
+  create table project_machines (
+    project_id text not null,
+    machine_id text not null,
+    enabled    boolean not null default true,
+    primary key (project_id, machine_id)
+  );
+  create table machine_tasks (
+    project_id  text not null,
+    task        text not null,
+    machine_id  text not null,
+    assigned_at bigint not null,
+    primary key (project_id, task)
   );
   `,
 ]

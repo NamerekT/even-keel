@@ -148,6 +148,13 @@ export interface MachinePort {
   packagesPause: (project: string) => Notice | undefined
   /** Snapshot. The server of the project's tracker that no installed package brings; `undefined` — one does. */
   trackerMissing: (project: string) => string | undefined
+
+  /**
+   * Brings the snapshot members up to the machine's state now, before a step of the chain reads them: the port over the
+   * link has the machine in this process post what changed (`docs/machines.md`, "The mirror"). Absent — the members
+   * read the machine itself, or a machine elsewhere whose mirror is as fresh as its last event.
+   */
+  catchUp?: () => Promise<void>
 }
 
 /** The part of the port the check of main works through. */

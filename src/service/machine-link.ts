@@ -1,0 +1,181 @@
+import { randomUUID } from 'node:crypto'
+import { hostname } from 'node:os'
+import { join } from 'node:path'
+import { chainOrder } from '../chain/order.js'
+import { saveSnapshot } from '../chain/snapshots.js'
+import { DatabaseHubStore } from '../link/hub-store.js'
+import { HubEnd } from '../link/hub.js'
+import { LOCAL_HEARTBEAT_MS, LocalTransport } from '../link/local.js'
+import { DatabaseMachineStore, openMachineDatabase } from '../link/machine-store.js'
+import { MachineEnd } from '../link/machine.js'
+import { bearerOf } from '../link/protocol.js'
+import { stateDirOf } from '../locations.js'
+import { Assignments, fillPool } from '../machine/assignments.js'
+import { ownMachine } from '../machine/own.js'
+import type { MachinePort } from '../machine/port.js'
+import { RemoteMachine } from '../machine/remote.js'
+import { HANDOFF_EVENT, MachineRunner } from '../machine/runner.js'
+import { samePath } from '../paths.js'
+import type { ChainContext } from './chain.js'
+import { wireMachine } from './machine-chain.js'
+
+/** The folder of the machine's own database inside the state folder, next to the hub's `even-keel/`. */
+export const MACHINE_DIR = 'machine'
+/** How long the start waits for the machine's first snapshot; past it the chain simply does not step until it comes. */
+const FIRST_SNAPSHOT_MS = 30_000
+/** How often the machine posts what changed when no step of the chain asked for it: the page's actions read the mirror too. */
+const PUBLISH_EVERY_MS = 5_000
+
+export interface LinkedMachine {
+  /** The hub's side of the port: what the chain is given. */
+  port: MachinePort
+  assignments: Assignments
+  /**
+   * Connects the machine to its hub and waits for its first snapshot. Called once the dispatcher exists: the machine's
+   * facts read the chain's state. Until then the mirror is empty and the chains do not step.
+   */
+  start(): Promise<void>
+  /** Stops both ends and closes the machine's database. */
+  close(): Promise<void>
+}
+
+const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+
+/**
+ * A hub and its own machine in one process (`docs/machines.md`, "One process"): the chain's port is `RemoteMachine`,
+ * the local port runs behind `MachineRunner`, and the two talk through `HubEnd` and `MachineEnd` over a carrier that
+ * is a call. Nothing is connected until `start`.
+ */
+export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachine> {
+  const log = (line: string): void => console.log(line)
+  const machineDb = await openMachineDatabase(join(stateDirOf(), MACHINE_DIR))
+  const hubStore = new DatabaseHubStore(ctx.db)
+  const machineStore = new DatabaseMachineStore(machineDb)
+  let own = ''
+
+  const assignments = await Assignments.open({
+    db: ctx.db,
+    writes: ctx.writes,
+    order: (project) => {
+      try {
+        return chainOrder(ctx.tasksByProject.get(project) ?? [], ctx.dispatcher.state.orders[project])
+      } catch {
+        return []
+      }
+    },
+  })
+
+  let agreedFor = ''
+  /** The machine serves the projects of its own installation, each in its folder; a project gone is served no longer. */
+  const agree = async (): Promise<void> => {
+    const { projects } = ctx.configStore.current
+    const signature = JSON.stringify(projects)
+    if (signature === agreedFor) return
+    for (const { project, folder } of await machineStore.consents()) {
+      const repo = projects[project]
+      if (repo === undefined || !samePath(repo, folder)) await machineStore.withdraw(project, folder)
+    }
+    for (const [project, repo] of Object.entries(projects)) await machineStore.agree(project, repo)
+    await fillPool(ctx.db, own, Object.keys(projects))
+    agreedFor = signature
+  }
+
+  const catchUp = async (): Promise<void> => {
+    try {
+      await agree()
+      if (end.status().state !== 'online') return
+      await runner.publish()
+      await end.flushed()
+    } catch (error) {
+      log(`machine: the hub could not catch up with its own machine: ${messageOf(error)}`)
+    }
+  }
+
+  const remote: RemoteMachine = new RemoteMachine({
+    send: (machine, command) => hub.send(machine, command),
+    machine: () => own,
+    projectOf: ctx.projectOf,
+    projectOfSession: (sessionId) => ctx.launches.findLast((entry) => entry.sessionId === sessionId)?.project,
+    lastSession: (project, task) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
+    saveSnapshot: (snapshot) => saveSnapshot(ctx.db, snapshot),
+    assigned: (project, task) => assignments.assign(project, task, own),
+    released: (project, task) => assignments.release(project, task),
+    catchUp,
+    log,
+  })
+  const hub: HubEnd = new HubEnd({ store: hubStore, handlers: remote.handlers(), log, heartbeatMs: LOCAL_HEARTBEAT_MS })
+  const token = await ownMachine({ hub, hubStore, db: ctx.db, machineDb, name: hostname() })
+  own = token.machine
+
+  // The process before this one may have kept a command its machine never took: nothing waits for its result now, and a
+  // launch among them would start a session the chain did not ask for again.
+  const stale = await hubStore.commandsAfter(own, 0)
+  if (stale.length > 0) {
+    await hubStore.dropCommands(own, stale.at(-1)!.seq)
+    log(`machine: ${stale.length} command(s) the service kept before its restart are dropped: ${stale.map((command) => command.type).join(', ')}`)
+  }
+  await agree()
+
+  const local = wireMachine(ctx, async (snapshot) => void (await end.emit(HANDOFF_EVENT, snapshot)))
+  const ownRun = (project: string, task: string): boolean => JSON.stringify(ctx.choiceFor(project, task)) !== JSON.stringify(ctx.choiceFor(project))
+  const runner: MachineRunner = new MachineRunner({
+    local,
+    emit: (type, payload) => end.emit(type, payload),
+    boot: randomUUID(),
+    projects: () => Object.keys(ctx.configStore.current.projects),
+    tasks: () => {
+      const sessions = new Map<string, Set<string>>()
+      const of = (task: string): Set<string> => sessions.get(task) ?? sessions.set(task, new Set()).get(task)!
+      for (const task of ctx.monitor.tasks()) of(task)
+      for (const agent of ctx.agents) if (agent.name !== undefined) of(agent.name)
+      for (const view of ctx.sessions) of(view.task).add(view.sessionId)
+      return [...sessions].map(([task, ids]) => ({ task, sessions: [...ids] }))
+    },
+    runs: (project) => {
+      const listed = (ctx.tasksByProject.get(project) ?? []).map((task) => task.id)
+      const running = ctx.monitor.tasks().filter((task) => ctx.projectOf(task) === project)
+      return [...new Set([...listed, ...running])].filter((task) => ownRun(project, task))
+    },
+    reported: (project) => ctx.checkReports.tasks(project),
+    model: (project, task) => ctx.choiceFor(project, task).model,
+    accounts: () => ctx.homes.all().map((home) => home.key),
+    limitsOf: (account) => ctx.limits.limits(account),
+    ledger: () => ctx.ledger.accounts,
+    log,
+  })
+
+  let online = (): void => {}
+  const first = new Promise<void>((resolve) => (online = resolve))
+  const end: MachineEnd = new MachineEnd({
+    transport: new LocalTransport(hub, bearerOf(token)),
+    store: machineStore,
+    concurrent: true,
+    snapshot: () => runner.snapshot(),
+    command: (command) => runner.command(command),
+    changed: () => {
+      if (end.status().state === 'online') online()
+    },
+    log,
+  })
+  let publishing: ReturnType<typeof setInterval> | undefined
+
+  return {
+    port: remote.port(),
+    assignments,
+    start: async () => {
+      await end.start()
+      let waited: ReturnType<typeof setTimeout> | undefined
+      await Promise.race([first, new Promise<void>((resolve) => (waited = setTimeout(resolve, FIRST_SNAPSHOT_MS)))])
+      clearTimeout(waited)
+      if (end.status().state !== 'online') log('machine: the own machine has not posted its first snapshot yet; the chains wait for it')
+      publishing = setInterval(() => void runner.publish().catch(() => {}), PUBLISH_EVERY_MS)
+      publishing.unref()
+    },
+    close: async () => {
+      clearInterval(publishing)
+      end.stop()
+      hub.stop()
+      await machineDb.close()
+    },
+  }
+}

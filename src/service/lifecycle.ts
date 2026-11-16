@@ -17,6 +17,7 @@ type LifecycleContext = Pick<ServiceContext,
   | 'homes'
   | 'ledger'
   | 'limits'
+  | 'machineLink'
   | 'listen'
   | 'monitor'
   | 'owners'
@@ -39,9 +40,10 @@ type LifecycleContext = Pick<ServiceContext,
  * What a stop signal closes before the exit. The gateway's servers go too: under systemd (`KillMode=process`) and
  * launchd (`AbandonProcessGroup`) they would outlive node with the tracker credentials of their start (BTN-720).
  */
-export function shutdown(ctx: Pick<LifecycleContext, 'backups' | 'cliChecks' | 'packages' | 'stateDb' | 'tally' | 'writes'>): Promise<unknown> {
+export function shutdown(ctx: Pick<LifecycleContext, 'backups' | 'cliChecks' | 'machineLink' | 'packages' | 'stateDb' | 'tally' | 'writes'>): Promise<unknown> {
   ctx.cliChecks.stop()
-  const database = Promise.allSettled([ctx.backups.stop(), ctx.writes.settled()]).then(() => ctx.stateDb.close())
+  // The hub's end of the link writes to the state database: both ends stop before it closes.
+  const database = Promise.allSettled([ctx.backups.stop(), ctx.machineLink.close(), ctx.writes.settled()]).then(() => ctx.stateDb.close())
   return Promise.allSettled([ctx.packages.close(), ctx.tally.stop(), database])
 }
 

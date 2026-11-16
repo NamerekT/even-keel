@@ -83,6 +83,11 @@ export class SessionMonitor {
     await this.running
   }
 
+  /** The tasks whose session the monitor follows. */
+  tasks(): string[] {
+    return [...this.tracked.keys()]
+  }
+
   views(): SessionView[] {
     const now = Date.now()
     return [...this.tracked].map(([task, tracked]) => {

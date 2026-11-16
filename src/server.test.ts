@@ -92,6 +92,23 @@ describe('Even Keel HTTP server', () => {
     expect(request.files[1]?.text.length).toBe(100 * 1024)
   })
 
+  it("catches the machine's mirror up before a command and a query, not before a read", async () => {
+    await close()
+    rmSync(publicDir, { recursive: true, force: true })
+    const order: string[] = []
+    ;({ hub, publicDir, calls, base, close } = await serverFixture({ catchUp: async () => void order.push('catchUp') }))
+    const post = (path: string) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC' }) })
+    await (await fetch(base + '/api/state')).arrayBuffer()
+    expect(order).toEqual([])
+    expect((await post('/api/chain/start')).status).toBe(200)
+    order.push(...calls.map(([name]) => String(name)))
+    expect(order).toEqual(['catchUp', 'start'])
+    await (await post('/api/forward/carry')).arrayBuffer()
+    expect(order.filter((name) => name === 'catchUp')).toHaveLength(2)
+    expect((await post('/api/nope')).status).toBe(404)
+    expect(order.filter((name) => name === 'catchUp')).toHaveLength(2)
+  })
+
   it('refuses an answer without its session', async () => {
     const response = await fetch(base + '/api/session/answer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', task: 'ABC-1', ask: null }) })
     expect(response.status).toBe(400)

@@ -10,6 +10,8 @@ import type { MailRelay } from './mailRelay.js'
 
 interface ChatDeps {
   dispatcher: Pick<Dispatcher, 'answerable' | 'answer' | 'renew' | 'closed'>
+  /** Brings the hub's mirror of its machine up to date: the dispatcher accepts or refuses a reply by it. */
+  catchUp?: () => Promise<void>
   mailbox: Mailbox
   configuredProject: (task: string) => string | undefined
   liveView: (task: string) => Pick<SessionView, 'sessionId' | 'asking' | 'ask'> | undefined
@@ -33,9 +35,10 @@ export function createChat(deps: ChatDeps) {
       const view = deps.liveView(task)
       return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: deps.midTurn(task), asking: view.asking }
     },
-    resume: (task, sessionId, prompt) => {
+    resume: async (task, sessionId, prompt) => {
       const project = deps.configuredProject(task)
       if (project === undefined) throw fail('config.unknownProject', { key: task })
+      await deps.catchUp?.()
       return dispatcher.answer(project, task, sessionId, null, prompt)
     },
     closed: async (task) => {
@@ -61,6 +64,7 @@ export function createChat(deps: ChatDeps) {
     reply: Omit<Reply, 'files'> & { files: InboxFile[] },
     renew = false,
   ): Promise<void> {
+    await deps.catchUp?.()
     const takes = reply.from === 'page' && (deps.steering(sessionId) || mailbox.listens(sessionId))
     const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes)
     // What the message asks would land in the worktree of a closed task: it is a new task (BTN-558).

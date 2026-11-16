@@ -54,7 +54,33 @@ export const MACHINE_STEPS: readonly string[] = [
     primary key (project_id, folder)
   );
   `,
+  // The machine's connection token (BTN-1216): the secret is kept here, on the machine, never in the hub's database.
+  `
+  create table identity (
+    key   text primary key,
+    value text not null
+  );
+  `,
 ]
+
+/** The connection token line the machine connects with; `undefined` — it has none yet. */
+export async function storedToken(db: PGlite): Promise<string | undefined> {
+  const { rows } = await db.query<{ value: string }>(`select value from identity where key = 'token'`)
+  return rows[0]?.value
+}
+
+/**
+ * Keeps a new token. The events not taken and the command numbers belong to the token before it, so they go with it:
+ * the new machine's numbering starts anew on both sides.
+ */
+export async function storeToken(db: PGlite, token: string): Promise<void> {
+  await inTransaction(db, async (tx) => {
+    await tx.query('delete from outbox')
+    await tx.query(`select setval('outbox_seq_seq', 1, false)`)
+    await tx.query('delete from commands')
+    await tx.query(`insert into identity (key, value) values ('token', $1) on conflict (key) do update set value = excluded.value`, [token])
+  })
+}
 
 /** The machine's database in `dataDir` (in memory without one), brought to its current schema. */
 export const openMachineDatabase = (dataDir: string | undefined): Promise<PGlite> => openDatabase(dataDir, MACHINE_STEPS)

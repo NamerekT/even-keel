@@ -28,6 +28,9 @@ export const ADVICE = {
   'link.buffered': () => "turn the proxy's buffering off for the hub's address",
   'link.token': () => 'connect the machine again with a new token from the hub',
   'link.version': () => 'update the older of the two',
+  'machine.commandFailed': () => 'see the log of the machine, then resume the chain',
+  'machine.commandRefused': () => "check the project's folder in its settings, then resume the chain",
+  'machine.commandInterrupted': () => 'check what the task has on the machine, then resume the chain',
   'packages.port': () => "set another EVEN_KEEL_MCP_PORT in Even Keel's .env",
   'packages.marketplaceCliMissing': () => 'install it, then add the marketplace again on Accounts',
 } satisfies NoticeAdvice

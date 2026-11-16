@@ -18,6 +18,12 @@ export class CheckReports {
   of(project: string, task: string): CheckReport | undefined {
     return this.reports.get(`${project}\n${task}`)
   }
+
+  /** The tasks of the project that have a report. */
+  tasks(project: string): string[] {
+    const prefix = `${project}\n`
+    return [...this.reports.keys()].filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length))
+  }
 }
 
 /** The report in a request's body; `null` — not one. */
