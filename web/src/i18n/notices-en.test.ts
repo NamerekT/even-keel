@@ -33,10 +33,16 @@ describe('noticesEn', () => {
   it('shows the PR note refusal and recovery action in both languages, and reads old notices', () => {
     const refused = notice('review.noNote', { path: '.temp/pull.md', reason: 'tooLarge', limit: 65_536 })
     expect(page(refused)).toContain('65536 bytes')
-    expect(page(refused)).toContain('press Resume')
     expect(russian(refused)).toContain('65536 байт')
-    expect(russian(refused)).toContain('«Снять с паузы»')
     expect(page(notice('review.noNote', { path: 'old.md' }))).toBe('the session left no pull request description at old.md')
+  })
+
+  it('tells the user to have the session mark again from the chat, not to mark or press Resume: its new mark opens by itself (EKR-118)', () => {
+    const refused = notice('review.noNote', { path: '.env.pr', reason: 'secret', limit: 65_536 })
+    expect(page(refused)).toMatch(/; answer its session from the chat to write it under \.temp\/ and mark again: the chain goes on by itself$/)
+    expect(page(refused)).not.toContain('Resume')
+    expect(russian(refused)).toMatch(/; ответьте её сессии в чате, чтобы она записала его в \.temp\/ и пометила заново: цепочка пойдёт сама$/)
+    expect(russian(refused)).not.toContain('Снять с паузы')
   })
 
   it('does not tell to fix access when the pause is on a refused PR note, in both languages (BTN-1148)', () => {
@@ -53,10 +59,11 @@ describe('noticesEn', () => {
     const refused = notice('review.noNote', { path: '.temp/pull.md', reason: 'outside', limit: 65_536 })
     const paused = notice('review.notOpened', { task: 'ABC-1' }, { cause: refused })
     expect(page(paused)).toBe(
-      'the pull request of ABC-1 was not opened: PR description .temp/pull.md refused: the file is outside the task folder; write a safe note in the task folder, mark again and press Resume',
+      'the pull request of ABC-1 was not opened: PR description .temp/pull.md refused: the file is outside the task folder; ' +
+        'answer its session from the chat to write it under .temp/ and mark again: the chain goes on by itself',
     )
-    expect(page(paused).match(/Resume/g)).toHaveLength(1)
-    expect(russian(paused).match(/Снять с паузы/g)).toHaveLength(1)
+    expect(page(paused)).not.toContain('Resume')
+    expect(russian(paused)).not.toContain('Снять с паузы')
     const denied = notice('review.notOpened', { task: 'ABC-1' }, { cause: notice('review.denied', { ci: 'GitHub', status: 403 }) })
     expect(page(denied)).toBe(
       'the pull request of ABC-1 was not opened (fix access and press Resume, answer its session from the chat, or skip the task): GitHub: the token was refused (HTTP 403); it needs to write pull requests of the repository',
@@ -64,7 +71,7 @@ describe('noticesEn', () => {
     expect(noticeParts(paused, noticesEn, ADVICE)).toEqual({
       head: 'the pull request of ABC-1 was not opened',
       reason: 'PR description .temp/pull.md refused: the file is outside the task folder',
-      advice: 'write a safe note in the task folder, mark again and press Resume',
+      advice: 'answer its session from the chat to write it under .temp/ and mark again: the chain goes on by itself',
     })
     expect(noticeParts(notice('chain.noSession', { task: 'ABC-1' }), noticesEn, ADVICE)).toEqual({ head: 'no session of ABC-1 is known' })
   })
