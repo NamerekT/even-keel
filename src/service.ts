@@ -49,7 +49,7 @@ import * as hostingService from './service/hosting.js'
 import * as hubBootstrap from './service/hub-bootstrap.js'
 import * as lifecycleService from './service/lifecycle.js'
 import * as machineBootstrap from './service/machine-bootstrap.js'
-import { wireLinkedMachine } from './service/machine-link.js'
+import { wireLinkedMachine, type LinkedMachine } from './service/machine-link.js'
 import * as statsService from './service/stats.js'
 import * as trackersService from './service/trackers.js'
 import { type AgentEntry } from './sessions/agents.js'
@@ -189,6 +189,7 @@ const context = {
   get intakeTemplateHits() { return intakeTemplateHits },
   get keepWarm() { return keepWarm },
   get machineLink() { return machineLink },
+  get machineChanged() { return machineChanged },
   get keyOrganizations() { return keyOrganizations },
   get keySpend() { return keySpend },
   get knownTask() { return knownTask },
@@ -444,6 +445,15 @@ hub.watch('state', (state) => eventLog.observe(state as EvenKeelState), 2_000)
  * declaration may fire while this module still starts — the Huly client's install does at once (EKR-52).
  */
 const stateChanged = (): void => hub.broadcastSoon('state', () => getState())
+let machineLinked: LinkedMachine | undefined
+/**
+ * Something of the own machine the page shows changed (accounts, limits, a CLI): the machine posts it to the hub's mirror,
+ * which the page reads. A change before the link is built goes with the first snapshot.
+ */
+const machineChanged = (): void => {
+  void machineLinked?.port.catchUp?.()
+  stateChanged()
+}
 const transcriptWatch = machineBootstrap.assembleTranscriptWatch(context)
 const homes = await openAccountHomes(db, process.env)
 /** What the transfer wrote into each account folder's settings.json and each account's own layer (BTN-901), written behind. */
@@ -661,6 +671,7 @@ const warmable = machineBootstrap.assembleWarmable(context)
 const keepWarm: KeepWarm = chainService.wireKeepWarm(context)
 
 const machineLink = await wireLinkedMachine(context)
+machineLinked = machineLink
 const dispatcher = await chainService.wireDispatcher(context, machineLink.port)
 await machineLink.start()
 
@@ -694,9 +705,13 @@ const { mailRelay, answerSession } = createChat({
   catchUp: async () => machineLink.port.catchUp?.(),
   mailbox,
   configuredProject,
-  liveView,
-  midTurn: (task) => agentStatus(task) === 'busy',
-  steering,
+  liveView: (task) => machineLink.page.liveView(task),
+  midTurn: (task) => machineLink.port.midTurn(task),
+  steering: (sessionId) => machineLink.page.steers(sessionId),
+  machineLive: (task) => {
+    const view = liveView(task)
+    return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: agentStatus(task) === 'busy', asking: view.asking }
+  },
   steer,
   language: promptLanguage,
   note: taskNote,

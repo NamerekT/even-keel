@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AccountEntry, AccountView } from '../account/model.js'
 import type { HandoffSnapshot } from '../chain/snapshots.js'
+import type { UsageHealth } from '../limits/usage.js'
 import { HubEnd } from '../link/hub.js'
 import { FINGERPRINT, HUB_ADDRESS, MemoryHubStore, MemoryMachineStore, Wire } from '../link/link.fixture.js'
 import { MachineEnd } from '../link/machine.js'
@@ -25,6 +27,10 @@ function machineOf() {
     refuseFinish: false,
     views: [] as SessionView[],
     mail: {} as Record<string, SessionMail>,
+    panel: { active: 'main', accounts: [], login: null, loginBlock: null, apps: [], pool: [], missing: [] } as AccountView,
+    usage: {} as Record<string, UsageHealth>,
+    owners: {} as Record<string, string>,
+    compactions: {} as Record<string, number>,
   }
   const local = {
     launch: async (_project: string, task: string) => {
@@ -100,6 +106,10 @@ async function bench() {
       ledger: () => ({}),
       sessions: () => state.views,
       mailbox: () => state.mail,
+      panel: () => state.panel,
+      usageOf: (account) => state.usage[account] ?? { state: 'waiting', reason: null, since: null },
+      owners: () => state.owners,
+      compactions: () => state.compactions,
       log: (line) => log.push(line),
     })
     const end: MachineEnd = new MachineEnd({
@@ -279,14 +289,14 @@ describe('the machine port over the link', () => {
     state.views = [{ sessionId: 'session-1', task: 'ABC-1', lamp: 'working', feed: [] } as unknown as SessionView]
     await runner.publish()
     await tick()
-    expect(remote.sessions()).toEqual(state.views)
+    expect(remote.page.sessions()).toEqual(state.views)
     end.stop()
     state.views = [{ ...state.views[0]!, lamp: 'finished' }]
     await runner.publish()
     state.views = []
     await end.start()
     await tick()
-    expect(remote.sessions()).toEqual([])
+    expect(remote.page.sessions()).toEqual([])
   })
 
   it('mirrors chat messages and delivery without sharing the machine objects', async () => {
@@ -297,18 +307,52 @@ describe('the machine port over the link', () => {
     }] } }
     await runner.publish()
     await tick()
-    expect(remote.mailbox()).toEqual(state.mail)
+    expect(remote.page.mailbox()).toEqual(state.mail)
     state.mail = { 'session-1': { ...state.mail['session-1']!, mail: [{
       ...state.mail['session-1']!.mail[0]!, fate: 'delivered', event: 'Stop', settledAt: '2026-11-16T10:00:01.000Z',
     }] } }
-    expect(remote.mailbox()['session-1']!.mail[0]!.fate).toBe('waiting')
+    expect(remote.page.mailbox()['session-1']!.mail[0]!.fate).toBe('waiting')
     await runner.publish()
     await tick()
-    expect(remote.mailbox()).toEqual(state.mail)
+    expect(remote.page.mailbox()).toEqual(state.mail)
     state.mail = {}
     await runner.publish()
     await tick()
-    expect(remote.mailbox()).toEqual({})
+    expect(remote.page.mailbox()).toEqual({})
+  })
+
+  it('gives the page the accounts and the sessions of the machine from the mirror, as fresh as its last post', async () => {
+    const { state, remote, runner } = await started()
+    const entry = { key: 'main', agent: 'claude', status: { loggedIn: true, email: 'john@example.com' } } as unknown as AccountEntry
+    state.panel = { ...state.panel, accounts: [entry], missing: ['codex'] }
+    state.usage = { main: { state: 'ok', reason: null, since: null } }
+    state.owners = { 'session-old': 'main' }
+    state.compactions = { 'session-old': 2 }
+    state.views = [{ sessionId: 'session-1', task: 'ABC-1', lamp: 'working', account: 'jane@example.com', feed: [] } as unknown as SessionView]
+    state.mail = { 'session-1': { listens: true, steers: true, mail: [] } }
+    const page = remote.page
+    expect(page.panel()?.accounts).toEqual([])
+    await runner.publish()
+    await tick()
+    expect(page.panel()).toEqual(state.panel)
+    expect(page.usage('main').state).toBe('ok')
+    expect(page.usage('other').state).toBe('waiting')
+    expect(page.hasAccount('claude', 'main')).toBe(true)
+    expect(page.hasAccount('codex', 'main')).toBe(false)
+    expect(page.sessionAccount('session-1', null)).toBe('jane@example.com')
+    expect(page.sessionAccount('session-old', null)).toBe('john@example.com')
+    expect(page.sessionAccount('session-unknown', null)).toBeNull()
+    expect(page.compactionsOf('session-old')).toBe(2)
+    expect(page.compactionsOf('session-1')).toBe(0)
+    expect(page.liveView('ABC-1')?.sessionId).toBe('session-1')
+    expect(page.steers('session-1')).toBe(true)
+    state.panel = { ...state.panel, missing: [] }
+    state.views = [{ ...state.views[0]!, lamp: 'finished' }]
+    expect(page.panel()?.missing).toEqual(['codex'])
+    await runner.publish()
+    await tick()
+    expect(page.panel()?.missing).toEqual([])
+    expect(page.liveView('ABC-1')).toBeUndefined()
   })
 })
 

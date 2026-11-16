@@ -120,6 +120,11 @@ export class SessionMonitor {
     return this.compactions.get(sessionId) ?? 0
   }
 
+  /** By session id, the sessions with any compaction. */
+  compactionCounts(): Record<string, number> {
+    return Object.fromEntries(this.compactions)
+  }
+
   /** Where Even Keel set the session to compact (`AgentEntry.compactAt`); `null` — the agent's own point. */
   compactAtOf(sessionId: string): number | null {
     for (const { agent } of this.tracked.values()) if (agent.sessionId === sessionId) return agent.compactAt ?? null

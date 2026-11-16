@@ -15,12 +15,12 @@ import { stateDirOf } from '../locations.js'
 import { Assignments, fillPool } from '../machine/assignments.js'
 import { sameJson } from '../machine/facts.js'
 import { ownMachine } from '../machine/own.js'
+import type { PageReads } from '../machine/page.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { LAUNCH_EVENT, MachineRecords, saveMachineRecord } from '../machine/records.js'
 import { HANDOFF_EVENT, MachineRunner } from '../machine/runner.js'
 import { samePath } from '../paths.js'
-import type { SessionView } from '../state.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import type { ChainContext } from './chain.js'
@@ -38,8 +38,8 @@ export interface LinkedMachine {
   port: MachinePort
   assignments: Assignments
   records: MachineRecords
-  sessions(): SessionView[]
-  mailbox(): Record<string, SessionMail>
+  /** What the page and the chat read of the machine's sessions and accounts: its mirror, never the machine's objects. */
+  page: PageReads
   /**
    * Connects the machine to its hub and waits for its first snapshot. Called once the dispatcher exists: the machine's
    * facts read the chain's state. Until then the mirror is empty and the chains do not step.
@@ -179,6 +179,22 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
       const listens = steers || ctx.mailbox.listens(view.sessionId)
       return listens || mail.length > 0 ? [[view.sessionId, { listens, steers, mail }]] : []
     })),
+    // Read with the CLI copies the page shows, so it never sees a CLI as found there and missing here (BTN-639).
+    panel: () => ({ ...ctx.account.view, missing: ctx.account.missingNow() }),
+    usageOf: (account) => ctx.limits.usage(account),
+    owners: () => {
+      const owners: Record<string, string> = {}
+      for (const { sessionId } of ctx.launches) {
+        const key = ctx.owners.of(sessionId)
+        if (key !== undefined) owners[sessionId] = key
+      }
+      for (const agent of ctx.agents) {
+        const key = agent.account ?? ctx.owners.of(agent.sessionId)
+        if (key !== undefined) owners[agent.sessionId] = key
+      }
+      return owners
+    },
+    compactions: () => ctx.monitor.compactionCounts(),
     scope: (body) => ctx.account.batch(() => ctx.choiceFor.pass(() => {
       pass = passOf()
       try {
@@ -214,8 +230,7 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     port: remote.port(),
     assignments,
     records,
-    sessions: () => remote.sessions(),
-    mailbox: () => remote.mailbox(),
+    page: remote.page,
     start: async () => {
       await end.start()
       let waited: ReturnType<typeof setTimeout> | undefined

@@ -124,6 +124,7 @@ export type AccountsContext = Pick<ServiceContext,
   | 'logStartupDialogs'
   | 'mailRelay'
   | 'machineLink'
+  | 'machineChanged'
   | 'managementKeys'
   | 'mcpPort'
   | 'models'
@@ -174,9 +175,9 @@ export function wireRuntimes(ctx: AccountsContext): Map<string, Agent> {
         workDir: ctx.stateDir,
         checkedCli: () => ctx.configStore.current.cli[name] !== 'system',
         log: (line) => console.log(line),
-        onCliChange: () => { void ctx.cliVersions.check(); ctx.dispatcher.check(); ctx.hub.broadcastSoon('state', ctx.getState) },
+        onCliChange: () => { void ctx.cliVersions.check(); ctx.dispatcher.check(); ctx.machineChanged() },
         onCliFailure: () => { ctx.configStore.fallBackCli(name) },
-        onCliProgress: () => ctx.hub.broadcastSoon('state', ctx.getState),
+        onCliProgress: () => ctx.machineChanged(),
         transport: (home): string | null => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], ctx.account.apiKey(home.key)),
         unattended: () => ctx.configStore.current.unattended,
         language: () => ctx.configStore.current.language ?? ctx.promptLanguage(),
@@ -287,7 +288,7 @@ export function wireLimits(ctx: AccountsContext): LimitsWatcher {
     saved: ctx.savedLimits,
     save: (key, limits) => ctx.writes.add(`the limits of ${key}`, saveLimits(ctx.db, key, limits)),
     onChange: () => {
-      ctx.hub.broadcastSoon('state', ctx.getState)
+      ctx.machineChanged()
       ctx.dispatcher.check()
     },
     onError: (error) => console.error(`limits:${error instanceof Error ? error.message : String(error)}`),
@@ -425,7 +426,7 @@ export function wireVscode(ctx: AccountsContext): VsCodeAccount {
     records: async (home) => (await ctx.agentOf(home).liveRecords?.(home)) ?? [],
     title: (home, sessionId) => ctx.chatTitles.of(join(home.dir, 'projects'), sessionId),
     intervalMs: APP_POLL_MS,
-    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
+    onChange: () => ctx.machineChanged(),
     onError: (error) => console.error(`vscode: ${error instanceof Error ? error.message : String(error)}`),
   })
 }
@@ -522,7 +523,7 @@ export function wireAccount(ctx: AccountsContext): AccountWatcher {
         changed = true
       }
       if (changed || ctx.limits.deferred) ctx.limits.refresh()
-      ctx.hub.broadcastSoon('state', ctx.getState)
+      ctx.machineChanged()
       ctx.dispatcher.check()
     },
     onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
@@ -534,7 +535,7 @@ export function wireOwners(ctx: AccountsContext): TranscriptOwners {
     homes: () => ctx.homes.list(),
     transcripts: (home) => ctx.agentOf(home).transcripts(home),
     rescanMs: ctx.OWNERS_RESCAN_MS,
-    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
+    onChange: () => ctx.machineChanged(),
     onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
   })
 }
@@ -585,7 +586,7 @@ export function wireMonitor(ctx: AccountsContext, sessionWindows: [string, numbe
       // Every tick, not only on a change of the views: a session in the task's folder may have none (BTN-616).
       void ctx.stopLingering()
       ctx.approvals.settle(new Set(list.filter((agent) => agent.status === 'waiting').map((agent) => agent.sessionId)))
-      if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.hub.broadcastSoon('state', ctx.getState)
+      if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.machineChanged()
     },
     onChange: (views) => {
       for (const view of views) {

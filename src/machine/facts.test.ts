@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { patchOf, sameJson, type MachineFacts } from './facts.js'
+import type { AccountView } from '../account/model.js'
+import { applyPatch, patchOf, sameJson, type MachineFacts } from './facts.js'
 
 const facts = (over: Partial<MachineFacts> = {}): MachineFacts => ({
   sessionsRead: true,
@@ -45,5 +46,14 @@ describe('patchOf', () => {
       accountsRead: true,
       tasks: { set: { 'ABC-1': { live: 'session-3' }, 'ABC-3': { shell: true } }, gone: ['ABC-2'] },
     })
+  })
+
+  it('posts the accounts panel whole, and only when something in it changed', () => {
+    const panel: AccountView = { active: 'main', accounts: [], login: null, loginBlock: null, apps: [], pool: [], missing: ['codex'] }
+    expect(patchOf(facts({ panel }), facts({ panel: { ...panel, missing: ['codex'] } }))).toBeUndefined()
+    const changed = { ...panel, missing: [] }
+    const patch = patchOf(facts({ panel }), facts({ panel: changed }))
+    expect(patch).toEqual({ panel: changed })
+    expect(applyPatch(facts({ panel }), patch!).panel).toEqual(changed)
   })
 })

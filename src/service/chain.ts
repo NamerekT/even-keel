@@ -82,6 +82,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'monitor'
   | 'noAccountFor'
   | 'occupantsOf'
+  | 'owners'
   | 'packages'
   | 'pendingCloses'
   | 'places'

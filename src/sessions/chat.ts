@@ -14,9 +14,15 @@ interface ChatDeps {
   catchUp?: () => Promise<void>
   mailbox: Mailbox
   configuredProject: (task: string) => string | undefined
+  /** The hub's reads of a reply's session, from its mirror of the machine. */
   liveView: (task: string) => Pick<SessionView, 'sessionId' | 'asking' | 'ask'> | undefined
   midTurn: (task: string) => boolean
   steering: (sessionId: string) => boolean
+  /**
+   * The machine's own read of the task's live session, for settling its mailbox: the machine settles it right after its
+   * monitor's read, before the mirror has it. Absent — the reads above.
+   */
+  machineLive?: MailRelay['live']
   steer: (task: string, session: HandoffSession, prompt: string) => Promise<boolean>
   language: (project?: string) => Language
   /** The task's handoff note (`noteFileOf`), for a `/handoff` from the page (BTN-964); absent — the shared one. */
@@ -31,10 +37,10 @@ export function createChat(deps: ChatDeps) {
   const mailRelay: MailRelay = {
     mailbox,
     ...(deps.note === undefined ? {} : { note: deps.note }),
-    live: (task) => {
+    live: deps.machineLive ?? ((task) => {
       const view = deps.liveView(task)
       return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: deps.midTurn(task), asking: view.asking }
-    },
+    }),
     resume: async (task, sessionId, prompt) => {
       const project = deps.configuredProject(task)
       if (project === undefined) throw fail('config.unknownProject', { key: task })

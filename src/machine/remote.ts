@@ -5,9 +5,8 @@ import { FAILED_EVENT, INTERRUPTED_EVENT, REFUSED_EVENT, type Command, type Mach
 import { asNotice, fail, NoticeError } from '../notice/notice.js'
 import { applyPatch, mirrorReads, type MachineFacts } from './facts.js'
 import type { MachinePort } from './port.js'
+import { pageReads, type PageReads } from './page.js'
 import { isRecordEvent } from './records.js'
-import type { SessionView } from '../state.js'
-import type { SessionMail } from '../sessions/mail.js'
 import { COMMAND_PREFIX, DONE_EVENT, FACTS_EVENT, HANDOFF_EVENT, type CommandDone, type FactsPosted, type FactsSnapshot, type PortCommand } from './runner.js'
 
 export interface RemoteDeps {
@@ -57,16 +56,11 @@ export class RemoteMachine {
 
   constructor(private readonly deps: RemoteDeps) {}
 
+  /** The page's and the chat's reads of the machine's sessions and accounts. */
+  readonly page: PageReads = pageReads(() => this.facts())
+
   facts(): MachineFacts | undefined {
     return this.mirror?.facts
-  }
-
-  sessions(): SessionView[] {
-    return Object.values(this.facts()?.sessions ?? {})
-  }
-
-  mailbox(): Record<string, SessionMail> {
-    return this.facts()?.mailbox ?? {}
   }
 
   port(): MachinePort {

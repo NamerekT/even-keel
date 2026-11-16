@@ -1,9 +1,10 @@
 import { accountAt, type AccountLedger } from '../account/ledger.js'
-import { accountId } from '../account/model.js'
+import { accountId, type AccountView } from '../account/model.js'
 import type { LimitsWait, ModelWeekHold } from '../chain/model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from '../chain/relay.js'
 import { limitReopenedAt, type RateLimits } from '../limits/model.js'
 import type { OverageSession } from '../limits/overage-session.js'
+import type { UsageHealth } from '../limits/usage.js'
 import type { Notice } from '../notice/notice.js'
 import type { SessionMail } from '../sessions/mail.js'
 import type { SessionView } from '../state.js'
@@ -54,6 +55,14 @@ export interface MachineFacts {
   /** Page state, keyed by session id; absent on a machine with no session monitor. */
   sessions?: Record<string, SessionView>
   mailbox?: Record<string, SessionMail>
+  /** The accounts panel (`AccountWatcher.view`, its `missing` read with it); absent on a machine with no account watcher. */
+  panel?: AccountView
+  /** `usage` by account folder, for the folders of `limits`. */
+  usage?: Record<string, UsageHealth>
+  /** By session id, for the sessions the page may list: the account folder of its agent, else of its transcript. */
+  owners?: Record<string, string>
+  /** By session id: the compactions counted in its transcript, only the sessions with any. */
+  compactions?: Record<string, number>
   sessionsRead: boolean
   accountsRead: boolean
   tasks: Record<string, TaskFacts>
@@ -67,7 +76,7 @@ export interface MachineFacts {
 
 export const resetKey = (account: string, at: string, text?: string): string => `${account}\n${at}\n${text ?? ''}`
 
-const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox'] as const
+const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox', 'usage', 'owners', 'compactions'] as const
 type Section = (typeof SECTIONS)[number]
 
 /** The entries of one section that changed since the last post: `set` — new or changed, `gone` — no longer there. */
@@ -76,7 +85,8 @@ export interface SectionPatch<V> {
   gone?: string[]
 }
 
-export type FactsPatch = Partial<Pick<MachineFacts, 'sessionsRead' | 'accountsRead'>> & { [K in Section]?: SectionPatch<NonNullable<MachineFacts[K]>[string]> }
+/** `panel` goes whole when anything in it changed: the page reads it as one view. */
+export type FactsPatch = Partial<Pick<MachineFacts, 'sessionsRead' | 'accountsRead' | 'panel'>> & { [K in Section]?: SectionPatch<NonNullable<MachineFacts[K]>[string]> }
 
 const hasJson = (value: unknown): boolean => typeof value === 'object' && value !== null && typeof (value as { toJSON?: unknown }).toJSON === 'function'
 
@@ -109,6 +119,7 @@ export function patchOf(before: MachineFacts, after: MachineFacts): FactsPatch |
   const patch: FactsPatch = {}
   if (before.sessionsRead !== after.sessionsRead) patch.sessionsRead = after.sessionsRead
   if (before.accountsRead !== after.accountsRead) patch.accountsRead = after.accountsRead
+  if (after.panel !== undefined && !sameJson(before.panel, after.panel)) patch.panel = after.panel
   for (const section of SECTIONS) {
     const was = (before[section] ?? {}) as Record<string, unknown>
     const now = (after[section] ?? {}) as Record<string, unknown>
@@ -125,6 +136,7 @@ export function applyPatch(facts: MachineFacts, patch: FactsPatch): MachineFacts
   const next: MachineFacts = { ...facts }
   if (patch.sessionsRead !== undefined) next.sessionsRead = patch.sessionsRead
   if (patch.accountsRead !== undefined) next.accountsRead = patch.accountsRead
+  if (patch.panel !== undefined) next.panel = patch.panel
   for (const section of SECTIONS) {
     const changed = patch[section] as SectionPatch<unknown> | undefined
     if (changed === undefined) continue

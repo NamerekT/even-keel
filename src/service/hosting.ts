@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { answers } from '../account/network.js'
 import { headerLevels } from '../account/header-levels.js'
+import type { AccountView } from '../account/model.js'
 import { AGENTS } from '../agent/adapters.js'
 import { outdatedDaemonView } from '../agent/versions.js'
 import { CLAUDE } from '../claude/name.js'
@@ -111,13 +112,9 @@ type HostingContext = Pick<ServiceContext,
   | 'forwards'
   | 'getState'
   | 'homes'
-  | 'owners'
-  | 'agents'
-  | 'hasAccount'
   | 'hub'
   | 'inHomes'
   | 'launches'
-  | 'limits'
   | 'linkFor'
   | 'listen'
   | 'listenError'
@@ -174,7 +171,10 @@ type HostingContext = Pick<ServiceContext,
 >
 
 export function wireGetState(ctx: HostingContext): () => EvenKeelState {
-  const view = (orders: ReturnType<HostingContext['dispatcher']['orders']>): EvenKeelState => ({
+  // The machine's sessions and accounts come from the hub's mirror (`docs/machines.md`, "The mirror"), never its objects.
+  const machine = ctx.machineLink.page
+  const panel = (): AccountView => ({ ...(machine.panel() ?? EMPTY_PANEL), active: ctx.activeAccount() })
+  const view = (orders: ReturnType<HostingContext['dispatcher']['orders']>, accounts: AccountView): EvenKeelState => ({
     protection: ctx.protectionAudit.view,
     intakeTemplates: ctx.intakeTemplateHits,
     startedAt: ctx.startedAt,
@@ -209,17 +209,15 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     })),
     // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
     // chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
-    sessions: ctx.machineLink.sessions().map((view) =>
+    sessions: machine.sessions().map((view) =>
       view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view,
     ),
-    limits: ctx.limits.limits(ctx.activeAccount()),
-    usage: ctx.limits.usage(ctx.activeAccount()),
+    limits: machine.limits(ctx.activeAccount()),
+    usage: machine.usage(ctx.activeAccount()),
     account: {
-      ...ctx.account.view,
+      ...accounts,
       // The demo's account is no account of the person's: the accounts' lists and pickers never show it (BTN-776).
-      accounts: ctx.account.view.accounts.filter((entry) => entry.key !== DEMO_ACCOUNT),
-      // Read with `cliCopies` below, so the page never sees a CLI as found there and missing here.
-      missing: ctx.account.missingNow(),
+      accounts: accounts.accounts.filter((entry) => entry.key !== DEMO_ACCOUNT),
       headerLevels: Object.fromEntries(Object.keys(ctx.configStore.current.projects).map((project) => [project, headerLevels({
         shared: runSettings(ctx.configStore.current, undefined),
         project: runOf(ctx, project),
@@ -228,8 +226,8 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
         order: orders[project]?.order ?? [],
         current: ctx.dispatcher.state.active.find((chain) => chain.project === project)?.current ?? null,
         holding: [...(ctx.dispatcher.state.skipped[project] ?? []), ...(orders[project]?.waiting ?? [])],
-        sessionAccount: (sessionId) => ctx.agents.find((entry) => entry.sessionId === sessionId)?.account ?? ctx.owners.of(sessionId),
-        hasAccount: ctx.hasAccount,
+        sessionAccount: (sessionId) => machine.ownerOf(sessionId),
+        hasAccount: (provider, key) => machine.hasAccount(provider, key),
       })])),
     },
     trackers: ctx.trackers.views().map((view) => {
@@ -262,7 +260,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
         }),
     ),
     launches: launchDays(ctx.launches, new Date(), ctx.LAUNCH_CHART_DAYS, (project) => ctx.configStore.current.keys[project] !== undefined),
-    taskSessions: taskSessions(ctx.launches, ctx.sessions, ctx.sessionAccount, (sessionId) => ctx.monitor.compactionsOf(sessionId)),
+    taskSessions: taskSessions(ctx.launches, machine.sessions(), (sessionId, at) => machine.sessionAccount(sessionId, at), (sessionId) => machine.compactionsOf(sessionId)),
     fixes: fixEpisodes(ctx.launches).episodes,
     works: ctx.works.view(),
     context: ctx.configStore.current.context,
@@ -291,13 +289,16 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       task,
       notice: ctx.noAccountFor(task, fallback, runSettings(ctx.configStore.current, project).provider),
     })),
-    mailbox: ctx.machineLink.mailbox(),
+    mailbox: machine.mailbox(),
     changelogs: ctx.changelogs.writtenTasks(),
     forwards: ctx.forwards.view(),
     eventLog: [...ctx.eventLog.entries],
   })
-  return () => view(ctx.dispatcher.orders())
+  return () => view(ctx.dispatcher.orders(), panel())
 }
+
+/** The accounts panel before the machine's first snapshot. */
+const EMPTY_PANEL: AccountView = { active: '', accounts: [], login: null, loginBlock: null, apps: [], pool: [], missing: [] }
 
 export function wireServer(ctx: HostingContext): import("http").Server<typeof import("http").IncomingMessage, typeof import("http").ServerResponse> {
   const mailOf = (sessionId: string) => deliveredMail(ctx.mailbox.delivered(sessionId), ctx.configStore.current.language ?? ctx.promptLanguage(), ctx.taskNote)
@@ -310,7 +311,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     busy: (task) =>
       ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
         ? 'current'
-        : ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished') ? 'live' : null,
+        : ctx.machineLink.page.liveView(task) !== undefined ? 'live' : null,
   })
   const builtinExports = new BuiltinExports({
     db: ctx.db,
@@ -355,7 +356,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     getState: ctx.getState,
     getTray: () => ({
       language: ctx.configStore.current.language,
-      asking: ctx.sessions.filter((session) => session.asking).length,
+      asking: ctx.machineLink.page.sessions().filter((session) => session.asking).length,
       paused: ctx.dispatcher.state.active.filter((chain) => chain.paused).length,
     }),
     control: ctx.chainControl,
@@ -720,7 +721,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     tasks: taskControl({
       configuredProject: ctx.configuredProject, linkFor: ctx.linkFor, disabled: (reader) => disabledNotice(ctx.profiles.disabledFor(reader)), rulesOf: ctx.rulesOf, readerFor: ctx.readerFor, refreshers: ctx.refreshers, readerTasks: ctx.readerTasks, refreshProject: ctx.refreshProject,
-      live: (task) => ctx.sessions.some((view) => view.task === task && view.lamp !== 'finished'),
+      live: (task) => ctx.machineLink.page.liveView(task) !== undefined,
       pollReviews: (project) => ctx.dispatcher.pollReviews(project),
       setRun: (project, task, run) => ctx.setTaskRun(project, task, run),
       broadcast: () => ctx.hub.broadcastSoon('state', ctx.getState),

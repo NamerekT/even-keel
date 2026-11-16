@@ -1,5 +1,7 @@
 import type { AccountLedger } from '../account/ledger.js'
+import type { AccountView } from '../account/model.js'
 import type { RateLimits } from '../limits/model.js'
+import type { UsageHealth } from '../limits/usage.js'
 import type { NumberedCommand } from '../link/protocol.js'
 import { noticeOf, type Notice } from '../notice/notice.js'
 import { patchOf, resetKey, type FactsPatch, type MachineFacts, type ProjectFacts, type RunFacts, type TaskFacts } from './facts.js'
@@ -60,6 +62,11 @@ export interface RunnerDeps {
   ledger: () => AccountLedger['accounts']
   sessions?: () => SessionView[]
   mailbox?: () => Record<string, SessionMail>
+  /** The accounts panel, `usage` by account folder, and by session the folder and the compactions (`MachineFacts`). */
+  panel?: () => AccountView
+  usageOf?: (account: string) => UsageHealth
+  owners?: () => Record<string, string>
+  compactions?: () => Record<string, number>
   /** Runs one computation of the facts, so its reads may share what they read (`AccountWatcher.batch`). */
   scope?: <T>(body: () => T) => T
   log: (line: string) => void
@@ -189,9 +196,14 @@ export class MachineRunner {
         })),
       }
     }
+    const { usageOf } = this.deps
     return {
       ...(this.deps.sessions === undefined ? {} : { sessions: Object.fromEntries(this.deps.sessions().map((view) => [view.sessionId, view])) }),
       ...(this.deps.mailbox === undefined ? {} : { mailbox: this.deps.mailbox() }),
+      ...(this.deps.panel === undefined ? {} : { panel: this.deps.panel() }),
+      ...(usageOf === undefined ? {} : { usage: Object.fromEntries([...accounts].map((account) => [account, usageOf(account)])) }),
+      ...(this.deps.owners === undefined ? {} : { owners: this.deps.owners() }),
+      ...(this.deps.compactions === undefined ? {} : { compactions: this.deps.compactions() }),
       sessionsRead: local.sessionsRead(),
       accountsRead: local.accountsRead(),
       tasks,
