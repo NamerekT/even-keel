@@ -678,6 +678,8 @@ even-keel uninstall
 
 `even-keel` with no command runs Even Keel in the terminal, on the same data folder.
 
+Once the service is set up, `even-keel install` and `even-keel update` wait up to 30 seconds for the page and print `Open <address>`, the address built from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT` (the environment, then `.env` of the data folder); a page that does not answer by then gets its address and the log's place. Only the first install from `npx` opens the address in your browser, and only when the page answered: never over SSH, and on Linux only with a display (`DISPLAY` or `WAYLAND_DISPLAY`) and `xdg-open`. On Linux without systemd there is no service, so it prints where the page will be once you run `even-keel`.
+
 #### npm's global folder on macOS and Linux
 
 Node from the nodejs.org installer puts npm's global folder under `/usr/local`, which belongs to root, so `npm install --global` fails with `EACCES`. `npx even-keel` checks the folder first and, when it cannot write there, installs nothing and prints these commands: they move the folder into your home (`~/.bashrc` instead of `~/.zshrc` in bash).

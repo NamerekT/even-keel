@@ -6,6 +6,7 @@ import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { hostArgsOf, hostDirOf, installAutostart, quitHost, registeredAutostart, uninstallAutostart } from './autostart.js'
 import { commandOf, noServiceManagerCode, serviceScriptOf, updateTargetOf } from './cli-args.js'
+import { browserCommandOf, opensBrowser, pageAddressOf, pageLogOf, pageMessageOf, waitForPage, type PageWait } from './cli-page.js'
 import { home, loadEnv, root, source } from './locations.js'
 import { accountsRoot } from './account/homes.js'
 import { removeAccountSettingsGuards } from './account/settingsGuard.js'
@@ -27,17 +28,73 @@ data folder: ${home}`
 const { name, version: installedVersion } = installed(root)
 const command = commandOf(process.argv.slice(2))
 
-/** `explained` — an exit code after which the command has already said why: this process exits with it, adding nothing. */
-function run(command: string[], what: string, explained?: number): void {
-  const error = attempt(command, what, explained)
+/**
+ * `explained` — an exit code after which the command has already said why: this process exits with it, adding nothing
+ * but what `beforeExit` prints.
+ */
+function run(command: string[], what: string, explained?: number, beforeExit?: () => void): void {
+  const error = attempt(command, what, explained, beforeExit)
   if (error !== null) fail(error)
 }
 
-function attempt([program, ...args]: string[], what: string, explained?: number): string | null {
+function attempt([program, ...args]: string[], what: string, explained?: number, beforeExit?: () => void): string | null {
   const result = spawnSync(program!, args, { stdio: 'inherit', windowsHide: true, shell: process.platform === 'win32' && program === 'npm' })
   if (result.error !== undefined) return `${what}: ${result.error.message}`
-  if (explained !== undefined && result.status === explained) process.exit(explained)
+  if (explained !== undefined && result.status === explained) {
+    beforeExit?.()
+    process.exit(explained)
+  }
   return result.status === 0 ? null : `${what} failed with code ${result.status}`
+}
+
+/** Any HTTP answer of the page, whatever its status; a refused or hung connection rejects. */
+const pageWait: PageWait = {
+  request: async (url) => {
+    const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(2_000) })
+    await response.body?.cancel()
+  },
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+}
+
+/**
+ * The page's address from the data folder's `.env`. Read only after the service is installed: `install.sh` writes the
+ * listen variables of its environment into the unit, and `.env`'s must not get there.
+ */
+function pageAddress(): ReturnType<typeof pageAddressOf> {
+  loadEnv()
+  return pageAddressOf(process.env)
+}
+
+/** Once the service is started: waits up to 30 s for its page and says where it is. Whether the page answered. */
+async function announcePage(): Promise<boolean> {
+  const address = pageAddress()
+  if ('error' in address) {
+    console.log(pageMessageOf({ kind: 'unknown', error: address.error }))
+    return false
+  }
+  const answered = await waitForPage(address.url, pageWait)
+  console.log(pageMessageOf(answered ? { kind: 'ready', url: address.url } : { kind: 'silent', url: address.url, log: pageLogOf(process.platform, home) }))
+  return answered
+}
+
+/** Linux without a systemd user manager: no service to wait for, only where its page will be. */
+function announceNoService(): void {
+  const address = pageAddress()
+  console.log(pageMessageOf('error' in address ? { kind: 'unknown', error: address.error } : { kind: 'noService', url: address.url }))
+}
+
+/** Opens the page in the default browser; a failure is silent, the address is already printed. */
+function openBrowser(url: string): void {
+  const command = browserCommandOf(process.platform, url)
+  if (command === null) return
+  try {
+    const child = spawn(command[0], command[1], { detached: true, stdio: 'ignore', windowsHide: true })
+    child.on('error', () => {})
+    child.unref()
+  } catch {
+    // No opener here.
+  }
 }
 
 function fail(message: string): never {
@@ -88,16 +145,24 @@ async function installGlobally(): Promise<void> {
   }
   const { error, stderr } = await attemptKeepingErrors(npm('install', '--global', `${name}@${installedVersion}`, '--no-audit', '--no-fund'), 'npm install --global')
   if (error !== null) fail(posix && isAccessError(stderr) ? `${error}\n${npmPrefixAdvice(modules, process.env.SHELL, npx)}` : error)
+  // The global copy waits for the page and prints its address; the browser opens only at this first install.
   run([process.execPath, join(modules, name, 'dist', 'src', 'cli.js'), 'install'], 'even-keel install', noServiceManagerCode)
+  const address = pageAddress()
+  if ('error' in address) return
+  const responded = await waitForPage(address.url, { ...pageWait, timeoutMs: 0 })
+  if (opensBrowser({ platform: process.platform, env: process.env, firstInstall: true, responded })) openBrowser(address.url)
 }
 
-function service(action: 'install' | 'uninstall'): void {
+async function service(action: 'install' | 'uninstall'): Promise<void> {
   if (process.platform === 'win32') {
-    if (action === 'install') autostart()
+    if (action === 'install') await autostart()
     else removeWindows()
   } else {
     const [program, args] = serviceScriptOf(process.platform, root, action)
-    run([program, ...args], `service/${action}`, action === 'install' ? noServiceManagerCode : undefined)
+    if (action === 'install') {
+      run([program, ...args], 'service/install', noServiceManagerCode, announceNoService)
+      await announcePage()
+    } else run([program, ...args], 'service/uninstall')
   }
   if (action === 'uninstall') {
     loadEnv()
@@ -113,7 +178,7 @@ function windowsService(): string | null {
 }
 
 /** One Even Keel per machine: the service of `install.ps1` would take the same port. */
-function autostart(): void {
+async function autostart(): Promise<void> {
   if (windowsService() !== null) fail('the Windows service EvenKeel is installed: remove it first with service\\uninstall.ps1 from PowerShell 7 as administrator')
   if (source === 'git') {
     // The running host holds esbuild's binary under node_modules: npm fails on it with EPERM.
@@ -130,6 +195,7 @@ function autostart(): void {
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error))
   }
+  await announcePage()
 }
 
 function removeWindows(): void {
@@ -181,7 +247,7 @@ function distTags(): Record<string, unknown> {
 }
 
 /** The page's button waits for the chains first; this does not, it is for a service that is down or a page out of reach. */
-function update(version: string | null): void {
+async function update(version: string | null): Promise<void> {
   if (source === 'git') fail('this is a git checkout: update it with git pull, or with the button on the page')
   const prefix = globalPrefixOf(root, process.platform)
   if (prefix === null) fail(`${root} is not a global npm install: npm install --global ${name}@${version ?? 'latest'}`)
@@ -191,11 +257,23 @@ function update(version: string | null): void {
     return
   }
   const control = installedService()
-  if (control !== null) run(control.stop, 'stopping the service')
+  if (control !== null) {
+    console.log('even-keel: stopping the service')
+    run(control.stop, 'stopping the service')
+  }
+  console.log(`even-keel: updating ${installedVersion} to ${target}`)
   // A failed install leaves the version that was there: the service starts again either way.
   const error = attempt(npm('install', '--global', '--prefix', prefix, `${name}@${target}`, '--no-audit', '--no-fund'), 'npm install --global')
-  if (control !== null) run(control.start, 'starting the service')
-  if (error !== null) fail(error)
+  if (control !== null) {
+    console.log('even-keel: starting the service')
+    run(control.start, 'starting the service')
+  }
+  if (error !== null) {
+    console.error(`even-keel: ${installedVersion} stays`)
+    fail(error)
+  }
+  if (control === null) console.log(`even-keel: updated to ${target}; no service of this install, so none was started`)
+  else await announcePage()
 }
 
 switch (command.command) {
@@ -209,12 +287,12 @@ switch (command.command) {
     break
   case 'install':
     if (fromNpxCache(root)) await installGlobally()
-    else service('install')
+    else await service('install')
     break
   case 'uninstall':
-    service('uninstall')
+    await service('uninstall')
     break
   case 'update':
-    update(command.version)
+    await update(command.version)
     break
 }
