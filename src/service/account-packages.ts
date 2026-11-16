@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { sessionBase } from '../agent/env.js'
 import { CLAUDE } from '../claude/name.js'
+import { writeHandoffNote } from '../chain/handoff-notes.js'
 import { CODEX } from '../codex/name.js'
 import { idPrefixOf, ownerOf, readerIds } from '../config.js'
 import { home as dataHome, root } from '../locations.js'
@@ -80,6 +81,7 @@ export function wirePackages(ctx: AccountsContext): Packages {
         refresh: (project) => ctx.refreshProject(project),
         attachmentLimit: () => ctx.configStore.current.attachmentLimit * 1024 * 1024,
         editedOf: (reader, task) => ctx.readerTasks.get(reader)?.find((each) => each.id === task)?.edited,
+        writeNote: (note) => writeHandoffNote(ctx.db, note),
       },
       // `ctx.release` is set after the packages are wired.
       installed(root).version,

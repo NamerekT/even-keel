@@ -61,7 +61,7 @@ export class TasksMcp {
     const result = (value: unknown): Message => ({ jsonrpc: '2.0', id, result: value })
     const meta = sessionMetaOf(params)
     const carried: CarriedFile[] = []
-    const called = meta === undefined ? scope : { ...scope, files: sentFiles(meta, carried) }
+    const called = meta === undefined ? scope : { ...scope, files: sentFiles(meta, carried), ...(meta.writer === undefined ? {} : { writer: meta.writer }) }
     const withFiles = (value: Message): Message => (carried.length === 0 ? value : { ...value, _meta: { [FILES_META]: carried } })
     switch (method) {
       case 'initialize':
@@ -73,7 +73,7 @@ export class TasksMcp {
       case 'ping':
         return result({})
       case 'tools/list':
-        return result({ tools: toolSpecs(scope.project !== null, await this.tools.fields(scope)) })
+        return result({ tools: toolSpecs(scope.project !== null, await this.tools.fields(scope), scope.task !== null) })
       case 'tools/call': {
         const name = typeof params.name === 'string' ? params.name : ''
         const args = typeof params.arguments === 'object' && params.arguments !== null ? (params.arguments as Message) : {}

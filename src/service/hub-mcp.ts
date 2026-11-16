@@ -6,6 +6,7 @@ import { root } from '../locations.js'
 import { poolOf } from '../machine/assignments.js'
 import { parseRoute } from '../packages/launch.js'
 import type { TasksScope } from '../taskmcp/calls.js'
+import { MACHINE_HEADER, type NoteWriter } from '../taskmcp/carried.js'
 import { KEPT_WRITE_EVENT, MachineTasks, type KeptWrite } from '../taskmcp/machine.js'
 import { tasksProjectOf } from '../taskmcp/server.js'
 import type { Queryable } from '../storage/database.js'
@@ -55,7 +56,7 @@ export class HubMcp {
     const origin = this.deps.origin()
     if (origin === undefined) return answerOf(503)
     try {
-      const headers = Object.fromEntries(Object.entries(request.headers).filter(([name]) => FORWARD.includes(name.toLowerCase())))
+      const headers = { ...Object.fromEntries(Object.entries(request.headers).filter(([name]) => FORWARD.includes(name.toLowerCase()))), [MACHINE_HEADER]: machine }
       const response = await fetch(`${origin}${request.path}`, { method: request.method, headers, body: request.body, signal: AbortSignal.timeout(RELAY_TIMEOUT_MS) })
       const back: Record<string, string> = {}
       for (const name of BACK) {
@@ -121,6 +122,14 @@ export function machineTasks(ctx: Pick<ChainContext, 'sessions' | 'configStore' 
     folderOf: (scope, named) => machineFolderOf(ctx, scope, named),
     attachmentLimit: () => ctx.configStore.current.attachmentLimit * 1024 * 1024,
     briefOf: (task) => ctx.briefed.kept(task),
+    writerOf: (task) => writerOf(ctx, task),
     version: installed(root).version,
   })
+}
+
+/** The task's session on the machine that is making a call: the working one, else the newest one not finished. */
+export function writerOf(ctx: Pick<ChainContext, 'sessions'>, task: string): Omit<NoteWriter, 'at'> | undefined {
+  const open = ctx.sessions.filter((each) => each.task === task && each.lamp !== 'finished')
+  const session = open.find((each) => each.lamp === 'working') ?? open.at(-1)
+  return session === undefined ? undefined : { session: session.sessionId, branch: session.branch }
 }

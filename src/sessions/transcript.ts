@@ -158,7 +158,8 @@ export const MESSAGE_LIMIT = 30_000
 const ERROR_LIMIT = 2000
 const WRAP_UP_TEXT = 'Usage limit reached: Claude Code told the session to wrap up the turn'
 const REMOTE_DROPPED = 'Remote Control disconnected'
-const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
+// The path is optional (BTN-1046): a note kept through `handoff_write` has none.
+const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*(?:\s*[`*_]*([^`*\s][^`*]*?))?[`*_]*$/
 const PULL_REQUEST_LINE = /^[`*_]*PULL REQUEST:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const NO_CHANGES_LINE = /^([`*_]*)NO CHANGES:([`*_]*)(.*)$/
 // The mark of a project without git (BTN-883); what follows it is optional.
@@ -566,8 +567,10 @@ function writtenTtl(usage: Usage): CacheTtl | null {
   return null
 }
 
+/** The note path a response's last line `CHECKPOINT: <path>` names; `''` — the bare line of a note kept with Even Keel. */
 export function checkpointOf(text: string): string | null {
-  return lastLineMark(text, CHECKPOINT_LINE)
+  const found = CHECKPOINT_LINE.exec(lastLine(text))
+  return found === null ? null : (found[1] ?? '')
 }
 
 /** The path a response's last line `PULL REQUEST: <path>` names. */

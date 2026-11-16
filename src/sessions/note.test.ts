@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { noteAtEnd, noteFileOf, noteWritten } from './note.js'
+import { handoffNoteOf, noteAtEnd, noteFileOf, noteWritten } from './note.js'
 import type { FeedLine } from './transcript.js'
 import { RolloutFold } from '../codex/rollout.js'
 
@@ -86,5 +86,21 @@ describe('the note of a task (BTN-964)', () => {
     expect(noteWritten([prompt('x'), note()])).toBe('.temp/handoff.md')
     expect(noteWritten([prompt('x'), note('.temp/handoff-ABC-12.md.bak')])).toBeNull()
     expect(noteWritten([prompt('x'), tool('Bash', 'test')])).toBeNull()
+  })
+})
+
+describe('the note kept with Even Keel (BTN-1046)', () => {
+  it('goes through the tasks server when the project has it, else to the task note file', () => {
+    expect(handoffNoteOf('ABC-12', true, true)).toBe('handoff_write')
+    expect(handoffNoteOf('ABC-12', false, true)).toBe('handoff_write')
+    expect(handoffNoteOf('ABC-12', false, false)).toBe('.temp/handoff-ABC-12.md')
+  })
+
+  it('is recognized by the tool call under any agent name of it near the end of the turn', () => {
+    for (const name of ['mcp__plugin_tasks_tasks__handoff_write', 'mcp__tasks__handoff_write', 'tasks.handoff_write', 'handoff_write']) {
+      expect(noteWritten([prompt('x'), tool(name), text('Kept.')])).toBe('handoff_write')
+    }
+    expect(noteWritten([prompt('x'), tool('mcp__tasks__handoff_write_old')])).toBeNull()
+    expect(noteWritten([prompt('x'), tool('mcp__tasks__handoff_write'), prompt('go on')])).toBeNull()
   })
 })

@@ -2,16 +2,16 @@ import type { McpAnswer, McpRequest } from '../link/protocol.js'
 import type { TaskBrief } from '../tracker/source.js'
 import type { TaskUpload } from '../tracker/editor.js'
 import { refusalText, type TasksScope } from './calls.js'
-import { FILES_META, SESSION_META, sentFile, type CarriedFile, type SentFile } from './carried.js'
+import { FILES_META, SESSION_META, sentFile, type CarriedFile, type NoteWriter, type SentFile } from './carried.js'
 import { folderSink } from './downloads.js'
 import { readUploads } from './files.js'
 import { TASKS_PATH } from './server.js'
-import { toolSpecs } from './tools.js'
+import { HANDOFF_TOOL, toolSpecs } from './tools.js'
 
 type Message = Record<string, unknown>
 
 /** The calls the machine keeps for the hub while it is away: they change the tracker and need no answer to go on. */
-export const KEPT_WRITES: ReadonlySet<string> = new Set(['task_comment', 'task_update', 'tasks_create'])
+export const KEPT_WRITES: ReadonlySet<string> = new Set(['task_comment', 'task_update', 'tasks_create', HANDOFF_TOOL])
 
 /** The machine's event of a kept write: the hub makes it on its tasks server once it takes the event. */
 export const KEPT_WRITE_EVENT = 'tasks.write'
@@ -23,6 +23,8 @@ export interface KeptWrite {
 }
 
 export const KEPT_TEXT = "Even Keel's hub is unreachable right now: this call is kept on the machine and goes to the tracker once the hub is back. Do not repeat it."
+export const KEPT_NOTE_TEXT =
+  "Even Keel's hub is unreachable right now: the note is kept on this machine and reaches the hub once it is back. Do not repeat the call; end your turn with a last line CHECKPOINT: alone."
 export const AWAY_TEXT = "Even Keel's hub is unreachable right now, and this server works through it: try again later."
 
 export interface MachineTasksDeps {
@@ -40,6 +42,11 @@ export interface MachineTasksDeps {
   attachmentLimit(): number
   /** The text of the task as the hub put it into its launch (`brief: true`). */
   briefOf(task: string): TaskBrief | undefined
+  /**
+   * The task's live session on this machine with its branch, as `handoff_write` names its writer (BTN-1046); the time
+   * is the call's, so a write kept while the hub is away is judged by the session of then; `undefined` — none.
+   */
+  writerOf?(task: string): Omit<NoteWriter, 'at'> | undefined
   version: string
   now?: () => Date
 }
@@ -81,6 +88,7 @@ export class MachineTasks {
     if (tool !== undefined) {
       try {
         sent = await this.withFiles(message, tool, folder)
+        if (tool.name === HANDOFF_TOOL) sent = this.withWriter(sent, scope)
       } catch (error) {
         return answered ? toolError(id, refusalText(error)) : null
       }
@@ -113,6 +121,17 @@ export class MachineTasks {
     const params = isObject(message.params) ? message.params : {}
     const meta = isObject(params._meta) ? params._meta : {}
     return { ...message, params: { ...params, _meta: { ...meta, [SESSION_META]: { attach, downloads: true } } } }
+  }
+
+  /** The note's writer in the call's `_meta`: the task's session on this machine now; without one the hub refuses the note. */
+  private withWriter(message: Message, scope: TasksScope): Message {
+    const writer = scope.task === null ? undefined : this.deps.writerOf?.(scope.task)
+    if (writer === undefined) return message
+    const params = isObject(message.params) ? message.params : {}
+    const meta = isObject(params._meta) ? params._meta : {}
+    const session = isObject(meta[SESSION_META]) ? meta[SESSION_META] : { attach: {}, downloads: false }
+    const stamped: NoteWriter = { ...writer, at: this.now().toISOString() }
+    return { ...message, params: { ...params, _meta: { ...meta, [SESSION_META]: { ...session, writer: stamped } } } }
   }
 
   /** The hub's reply with the downloaded files written into the folder and their paths in the text. */
@@ -162,7 +181,7 @@ export class MachineTasks {
     const tool = toolOf(message)!
     if (KEPT_WRITES.has(tool.name)) {
       await this.deps.keep({ path, message })
-      return result({ content: [{ type: 'text', text: KEPT_TEXT }] })
+      return result({ content: [{ type: 'text', text: tool.name === HANDOFF_TOOL ? KEPT_NOTE_TEXT : KEPT_TEXT }] })
     }
     const own = ownTask(tool, scope)
     const text = own === undefined ? undefined : this.ownText(own)

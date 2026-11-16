@@ -28,11 +28,14 @@ export interface ToolFields {
   attachments: boolean
 }
 
+/** The tool a chain session writes its handoff note with (BTN-1046): the hub keeps it for the next session. */
+export const HANDOFF_TOOL = 'handoff_write'
+
 /**
  * The five tools (BTN-768): short enough that an agent loads them at once, with no deferred schemas. Names, never ids;
- * no tool deletes anything.
+ * no tool deletes anything. A chain session's address names its task (`withTask`): it gets `handoff_write` too.
  */
-export function toolSpecs(withProject: boolean, fields: ToolFields = { components: true, attachments: true }): ToolSpec[] {
+export function toolSpecs(withProject: boolean, fields: ToolFields = { components: true, attachments: true }, withTask = true): ToolSpec[] {
   const scoped = (properties: Record<string, unknown>) => (withProject ? properties : { project, ...properties })
   const extra = (component: unknown) => ({
     ...(fields.components ? { component } : {}),
@@ -141,5 +144,20 @@ export function toolSpecs(withProject: boolean, fields: ToolFields = { component
         additionalProperties: false,
       },
     },
+    ...(withTask ? [handoffSpec] : []),
   ]
+}
+
+const handoffSpec: ToolSpec = {
+  name: HANDOFF_TOOL,
+  description:
+    "Keeps your task's handoff note with Even Keel; a fresh session gets its text in its prompt. Write it when asked for a checkpoint, then end your turn with a last line CHECKPOINT: alone. A later call replaces the note.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      text: { ...text, description: 'what is done, what is left, the current hypotheses, what was tried and ruled out, the files and symbols that matter, the exact next command' },
+    },
+    required: ['text'],
+    additionalProperties: false,
+  },
 }

@@ -214,6 +214,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 173 | [The machines' stream through a real proxy](unverified/machines.md#the-machines-stream-through-a-real-proxy-btn-988) | machines that reach their hub through a proxy, once a machine can be connected | the machine only reconnects and shows offline without the notice about the proxy | BTN-1213 |
 | 174 | [The demo without git](unverified/page.md#the-demo-without-git-ekr-108) | a first run on a machine without git, or after the setup's Git step answered No | the demo is refused or its tasks never close; set New projects to Without git and run it again | — |
 | 175 | [The page's address after install and update](unverified/updating.md#the-pages-address-after-install-and-update-ekr-111) | npm installs on macOS; a Linux desktop's browser | no address or a wrong one is printed, or the browser does not open or opens over SSH; open the address of `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` by hand | — |
+| 178 | [The handoff note through the tasks server](unverified/sessions.md#the-handoff-note-through-the-tasks-server-btn-1046) | chain sessions of projects whose set brings the tasks server, from the version with `handoff_write` and `agent-bridge` 1.3.0 | the next session starts without the note and only the last steps, or the old session's write is refused as stale; the log and the refusal text say which | — |
 
 ### Waiting for the event / not checked by choice
 

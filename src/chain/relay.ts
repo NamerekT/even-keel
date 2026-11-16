@@ -230,7 +230,11 @@ export function failedOf(session: HandoffSession): FailedSession {
   return { sessionId: session.sessionId, transcript: session.transcript, error }
 }
 
-/** `failed` — the sessions after `session` that failed before their first answer, oldest first. */
+/**
+ * `failed` — the sessions after `session` that failed before their first answer, oldest first; `kept` — the text of the
+ * note `session` kept with Even Keel (BTN-1046, `noteFrom`): it goes into the prompt whole, and after a checkpoint it
+ * stands alone, otherwise the session's last steps follow it. Without one a note file the checkpoint names is pointed at.
+ */
 export function handoffPrompt(
   task: string,
   session: HandoffSession,
@@ -240,6 +244,7 @@ export function handoffPrompt(
   pullRequests = false,
   failed: FailedSession[] = [],
   git = true,
+  kept: string | null = null,
 ): string {
   const text = PROMPTS[language]
   const lines = [fill`${task}`, '', text.why[reason], git ? text.workdir(session.workdir) : text.plain.folder(session.workdir)]
@@ -247,19 +252,23 @@ export function handoffPrompt(
   lines.push(!git ? text.plain.answer : pullRequests ? text.pullRequest(main) : text.cleanup(main))
   if (session.transcript !== null) lines.push(text.transcript(session.transcript))
   for (const empty of failed) lines.push(text.failed(empty.error, empty.transcript))
-  const note = noteOf(session)
+  const note = kept === null ? noteOf(session) : null
   if (note !== null) lines.push(text.note(note))
   lines.push(git ? text.begin(main) : text.plain.begin)
-  if (note !== null) return lines.join('\n') + '\n'
+  if (kept !== null) lines.push('', text.noteText, '', fill`${kept.trim()}`)
+  if (note !== null || (kept !== null && session.checkpoint !== null)) return lines.join('\n') + '\n'
   const steps = session.recent.filter(isStep).slice(-HANDOFF_STEPS)
   if (steps.length > 0) lines.push('', text.recentSteps, ...steps.map((line) => fill`- ${line.text}`))
   if (session.lastMessage !== null) lines.push('', text.lastMessage, '', fill`${session.lastMessage.slice(0, HANDOFF_MESSAGE)}`)
   return lines.join('\n') + '\n'
 }
 
-/** The handoff note the prompt points the new session at, as an absolute path; null — the prompt carries the recent steps instead. */
+/**
+ * The note file the prompt points the new session at, as an absolute path; null — none: no checkpoint, or the bare
+ * line of a note kept with Even Keel.
+ */
 export function noteOf(session: HandoffSession): string | null {
-  return session.checkpoint === null ? null : notePath(session.workdir, session.checkpoint)
+  return session.checkpoint === null || session.checkpoint === '' ? null : notePath(session.workdir, session.checkpoint)
 }
 
 function notePath(workdir: string, note: string): string {

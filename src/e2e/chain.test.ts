@@ -128,7 +128,9 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     expect(launches()).toHaveLength(3)
     expect(run.agent.calls.filter((call) => call.kind === 'stop').at(-1)?.sessionId).toBe(second!.sessionId)
     expect(third!.cwd).toBe(second!.cwd)
-    expect(third!.prompt).toContain('handoff.md')
+    // The first handoff read the note file and the hub kept it as the first session's note (BTN-1046): its text, not its path.
+    expect(third!.prompt).toContain('Handoff note of the previous session')
+    expect(third!.prompt).toContain('Half of it is done.')
     expect(third!.prompt).toContain('Invalid API key')
   })
 

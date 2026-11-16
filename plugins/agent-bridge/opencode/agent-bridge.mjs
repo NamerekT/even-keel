@@ -16,7 +16,7 @@
 import { addressRefusal } from "../hooks/addressban.mjs";
 import { checkOf, checkpointNote, mailOf, noteAtEnd, reportCheck, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
 import { gitRefusal } from "../hooks/gitban.mjs";
-import { hasMark, isNotePath } from "../hooks/handoff.mjs";
+import { hasMark, isKeptCall, isNotePath, markOf } from "../hooks/handoff.mjs";
 import { mergeRefusal } from "../hooks/merges.mjs";
 import { callOf, clearGiven, due, givenStore, standardsAt } from "../hooks/standards.mjs";
 
@@ -30,7 +30,7 @@ export const server = async ({ directory }) => {
   // Per session, the tool calls since this process saw it write the note: Even Keel is asked only then.
   const sinceNote = new Map();
   const counted = (input) => {
-    if (WRITES.has(input.tool) && isNotePath(input.args?.filePath)) sinceNote.set(input.sessionID, 0);
+    if ((WRITES.has(input.tool) && isNotePath(input.args?.filePath)) || isKeptCall(input.tool)) sinceNote.set(input.sessionID, 0);
     else if (sinceNote.has(input.sessionID)) {
       const calls = sinceNote.get(input.sessionID) + 1;
       if (calls < NEAR_END) sinceNote.set(input.sessionID, calls);
@@ -87,7 +87,7 @@ export const server = async ({ directory }) => {
       if (!sinceNote.has(input?.sessionID) || typeof output?.text !== "string" || hasMark(output.text)) return;
       const note = await noteAtEnd(input.sessionID).catch(() => null);
       if (note === null) return;
-      output.text = `${output.text.trimEnd()}\n\nCHECKPOINT: ${note}`;
+      output.text = `${output.text.trimEnd()}\n\n${markOf(note)}`;
     },
     event: async ({ event }) => {
       const session = event?.properties?.sessionID;

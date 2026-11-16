@@ -52,6 +52,7 @@ export class MachineMoves {
       mainBranch: () => context.mainBranch,
       pullRequests: () => context.pullRequests,
       plain: () => context.plain,
+      note: () => context.note,
     }
     const state = { active: call.active ? [chain] : [] }
     const handovers = new Handovers(state, deps, (_, notice) => (halt = { notice, keep: notice.code === 'chain.modelUnavailable' }), this.memory)

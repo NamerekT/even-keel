@@ -1,6 +1,6 @@
 // When the agent-bridge hook nudges and what it says: the thresholds from the environment, what Even Keel
 // answered about the session, and the mark a context size falls on.
-import { NOTE, noteIn } from "./handoff.mjs";
+import { KEPT, NOTE, noteIn } from "./handoff.mjs";
 
 const DEFAULTS = { first: 200_000, step: 50_000, late: 250_000, lateStep: 25_000, hard: 300_000, maxHandoffs: 3 };
 const VARIABLES = {
@@ -41,13 +41,22 @@ export function markOf(context, plan) {
   return mark > plan.first && plan.late - mark < plan.lateStep ? mark - plan.step : mark;
 }
 
-/** `note` — the task's note Even Keel named: one of its own in a project without git (BTN-964). */
+const WHAT =
+  "what is done, what is left, the current hypotheses, what was already tried and ruled out, the files " +
+  "and symbols that matter, the exact next command";
+
+/**
+ * `note` — the task's note Even Keel named: one of its own in a project without git (BTN-964), or `KEPT` when the
+ * session gives it to the tasks tool (BTN-1046).
+ */
 const howOf = (note) =>
-  `leave the working tree as it is (no commit needed), write \`${note}\` at the root of ` +
-  "the working tree — what is done, what is left, the current hypotheses, what was already tried " +
-  "and ruled out, the files and symbols that matter, the exact next command — and end your turn " +
-  `with a final line \`CHECKPOINT: ${note}\`. A fresh session picks the work up from that ` +
-  "note at a fraction of the cost.";
+  note === KEPT
+    ? `leave the working tree as it is (no commit needed), give the note to the tasks tool \`${KEPT}\` — ${WHAT} — ` +
+      "and end your turn with a final line `CHECKPOINT:` alone, without a path. A fresh session gets the note " +
+      "in its prompt and picks the work up at a fraction of the cost."
+    : `leave the working tree as it is (no commit needed), write \`${note}\` at the root of the working tree — ` +
+      `${WHAT} — and end your turn with a final line \`CHECKPOINT: ${note}\`. A fresh session picks the work up ` +
+      "from that note at a fraction of the cost.";
 
 /** `last` is the mark of the previous nudge, 0 when there was none. */
 export function nudge(context, last, plan) {

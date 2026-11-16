@@ -153,3 +153,41 @@ describe('the tasks server through the machine (BTN-990)', () => {
     expect(existsSync(join(tmpdir(), 'x.txt'))).toBe(false)
   })
 })
+
+describe('handoff_write through the machine (BTN-1046)', () => {
+  const writing = (writer: { session: string; branch: string | null } | undefined) =>
+    new MachineTasks({
+      forward: async (request): Promise<McpAnswer | undefined> => {
+        if (hubAway) return undefined
+        const message = JSON.parse(request.body!) as Message
+        asked.push({ request, message })
+        return { status: 200, headers: {}, body: JSON.stringify(text('kept')) }
+      },
+      keep: async (write) => void kept.push(write),
+      delivered: async () => void (delivered += 1),
+      folderOf: () => folder,
+      attachmentLimit: () => 1024,
+      briefOf: () => undefined,
+      writerOf: () => writer,
+      version: '1',
+      now: () => new Date('2026-11-16T10:00:00Z'),
+    })
+
+  it('names the task’s session on this machine at the time of the call, after what the outbox held', async () => {
+    await writing({ session: 's-2', branch: 'abc-1/parser' }).handle(call('handoff_write', { text: 'Next: npm test' }), SCOPE)
+    expect(delivered).toBe(1)
+    expect(sessionMetaOf(asked[0]!.message.params as Message)?.writer).toEqual({ session: 's-2', branch: 'abc-1/parser', at: '2026-11-16T10:00:00.000Z' })
+  })
+
+  it('keeps the note with its writer while the hub is away and tells the session to end its turn', async () => {
+    hubAway = true
+    const reply = await writing({ session: 's-2', branch: null }).handle(call('handoff_write', { text: 'Next: npm test' }), SCOPE)
+    expect(textOf(reply)).toMatch(/kept on this machine.*CHECKPOINT:/)
+    expect(sessionMetaOf(kept[0]!.message.params as Message)?.writer?.session).toBe('s-2')
+  })
+
+  it('names no writer without a session of the task: the hub refuses the note', async () => {
+    await writing(undefined).handle(call('handoff_write', { text: 'Next' }), SCOPE)
+    expect(sessionMetaOf(asked[0]!.message.params as Message)?.writer).toBeUndefined()
+  })
+})

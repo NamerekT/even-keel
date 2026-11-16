@@ -118,4 +118,14 @@ describe("nudge", () => {
     expect(nudge(201_000, 0, planOf({}, null))).toContain("`CHECKPOINT: .temp/handoff.md`");
     expect(planOf({}, { first: 200_000, source: "default", handoffs: 0, note: "../../secrets.md" }).note).toBe(".temp/handoff.md");
   });
+
+  it("asks for the note through the tasks tool and a bare CHECKPOINT line when Even Keel names it (BTN-1046)", () => {
+    const kept = planOf({}, { first: 200_000, source: "default", handoffs: 0, note: "handoff_write" });
+    for (const last of [0, 200_000]) {
+      const text = nudge(251_000, last, kept);
+      expect(text).toContain("tasks tool `handoff_write`");
+      expect(text).toContain("`CHECKPOINT:` alone");
+      expect(text).not.toContain(".temp/handoff");
+    }
+  });
 });

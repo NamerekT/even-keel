@@ -121,6 +121,8 @@ This also covers Codex writing the note through a shell command with a literal f
 
 In a project without git, whose tasks share one folder, each task's note is its own `.temp/handoff-<task>.md`.
 
+When the project's sessions have Even Keel's tasks server, the note is not a file: the session gives it to the server's `handoff_write` tool and ends its turn with a bare `CHECKPOINT:` line. Even Keel keeps the note in its database and puts its text straight into the next session's prompt. Only the task's current session can write it, so a late write from a session already replaced never overrides the newer one. A handoff without a note (a usage limit, **New session**, a crashed session) carries the last steps of the old session as before.
+
 ## A turn that writes nothing
 
 While a working turn writes nothing, the session card and **New session** tooltip show its last write and the times when replacement becomes available.

@@ -124,6 +124,14 @@ describe.each(Object.entries(agents))("hooks on %s input", (_agent, input) => {
     expect(blocked.reason).not.toContain(".temp/handoff.md");
   });
 
+  it("asks for the bare CHECKPOINT line after a note given to the tasks tool (BTN-1046)", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/note`, { note: true, path: "handoff_write" });
+    const blocked = JSON.parse((await run("checkpoint-mark.mjs", stop(session, "The note is kept."))).stdout);
+    expect(blocked.reason).toMatch(/You gave the handoff note to `handoff_write`.*the line `CHECKPOINT:`,/s);
+    expect((await run("checkpoint-mark.mjs", stop(session, "Kept.\n\nCHECKPOINT:"))).stdout).toBe("");
+  });
+
   it("lets a turn stop that wrote no note, and any turn without Even Keel", async () => {
     const session = sessionOf();
     expect(await run("checkpoint-mark.mjs", stop(session, "Done."))).toEqual({ code: 0, stdout: "" });
@@ -543,6 +551,13 @@ describe("the OpenCode plugin", () => {
     answers.set(`/api/sessions/${session}/note`, { note: true, path: ".temp/handoff-ABC-12.md" });
     await write(session, "C:\\data\\notes\\.temp\\handoff-ABC-12.md");
     expect(await text(session, "The note is ready.")).toBe("The note is ready.\n\nCHECKPOINT: .temp/handoff-ABC-12.md");
+  });
+
+  it("ends the text with the bare CHECKPOINT line after a call of the tasks tool's handoff_write (BTN-1046)", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/note`, { note: true, path: "handoff_write" });
+    await after({ tool: "tasks_handoff_write", sessionID: session, callID: "call_5", args: { text: "Done: the parser." } }, { title: "", output: "Kept.", metadata: {} });
+    expect(await text(session, "The note is kept.")).toBe("The note is kept.\n\nCHECKPOINT:");
   });
 
   it("leaves the text alone without the note, three calls after it, and without Even Keel", async () => {

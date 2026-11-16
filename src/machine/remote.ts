@@ -1,3 +1,4 @@
+import type { NoteText } from '../chain/handoff-note.js'
 import type { HandoffSnapshot } from '../chain/snapshots.js'
 import { isOwnName } from '../chain/fix.js'
 import type { HandoffSession } from '../chain/relay.js'
@@ -25,6 +26,8 @@ export interface RemoteDeps {
   lastSession: (project: string, task: string) => string | undefined
   /** `retained` avoids reading the tracker on every follow while a limit waits. */
   brief?: (project: string, task: string, retained?: boolean) => Promise<LaunchBrief>
+  /** The task's newest handoff note (`lastHandoffNote`, BTN-1046): sent with a move that may hand the task over. */
+  note?: (project: string, task: string) => Promise<NoteText | undefined>
   /** Keeps a handoff snapshot the machine sent; a throw leaves the event with the machine, which sends it again. */
   saveSnapshot: (snapshot: HandoffSnapshot) => Promise<void> | void
   record?: (event: MachineEvent) => Promise<void>
@@ -126,7 +129,8 @@ export class RemoteMachine {
           const task = move.current?.task ?? move.args[0]
           const replyOnly = name === 'guard' || name === 'deliver' || name === 'deliverLoose'
           const brief = replyOnly || typeof task !== 'string' || isOwnName(task) ? undefined : await deps.brief?.(move.project, task, name === 'follow')
-          const context = brief === undefined ? move.context : { ...move.context, brief }
+          const note = replyOnly || typeof task !== 'string' ? undefined : await deps.note?.(move.project, task)
+          const context = { ...move.context, ...(brief === undefined ? {} : { brief }), ...(note === undefined ? {} : { note }) }
           return this.send(MOVE_PREFIX + name, { project: move.project }, { ...move, context }) as Promise<MoveDone>
         },
         onSaved: (take) => {

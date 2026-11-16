@@ -1,3 +1,4 @@
+import type { NoteText } from '../chain/handoff-note.js'
 import type { DispatcherDeps } from '../chain/model.js'
 import type { Notice } from '../notice/notice.js'
 
@@ -13,4 +14,6 @@ export interface MoveDeps extends Pick<DispatcherDeps, 'machine' | 'journal' | '
   blocked: (project: string, task: string) => Notice | undefined
   /** The report of the red main or the carry a fix or carry session works on, for its handoff. */
   report: (task: string) => string | undefined
+  /** The task's newest handoff note the hub keeps (BTN-1046); absent or `undefined` — none. */
+  note?: (task: string) => NoteText | undefined
 }

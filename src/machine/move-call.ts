@@ -1,3 +1,4 @@
+import type { NoteText } from '../chain/handoff-note.js'
 import type { CurrentTask } from '../chain/model.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
@@ -43,6 +44,8 @@ export interface MoveContext {
   report: string | null
   /** A fresh hub brief for a possible handoff, including after a machine restart. */
   brief?: LaunchBrief
+  /** The task's newest handoff note the hub keeps, for a possible handoff (BTN-1046); absent — none. */
+  note?: NoteText
 }
 
 export interface MoveCall {

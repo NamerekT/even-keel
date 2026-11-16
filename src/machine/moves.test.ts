@@ -23,8 +23,8 @@ const session: HandoffSession = {
 }
 
 /** The hub's chain of the project with ABC-1 current, its moves over the bench's link and what they pause on. */
-async function linked(project = PROJECT, brief?: Parameters<typeof bench>[0]) {
-  const made = await bench(brief)
+async function linked(project = PROJECT, brief?: Parameters<typeof bench>[0], note?: Parameters<typeof bench>[1]) {
+  const made = await bench(brief, note)
   const machine = made.boot('first')
   await machine.end.start()
   await tick()
@@ -89,6 +89,22 @@ describe('the moves of a task session over the link', () => {
     await tick()
     expect(await handed).toBe('session-2')
     expect(relay).toHaveBeenCalledWith('ABC-1', session, expect.any(String), 'restart', brief)
+  })
+
+  it('puts the note the hub keeps into the handoff prompt only when the handed-over session wrote it (BTN-1046)', async () => {
+    const notes = { 'session-1': 'Done: the parser. Next: npm test -- parser.', 'session-0': 'An older session wrote this.' }
+    for (const [writer, text] of Object.entries(notes)) {
+      const made = await linked(PROJECT, undefined, async () => ({ sessionId: writer, at: NOW, note: text }))
+      stop.push(made.stop)
+      const relay = vi.fn(async (_task: string, _session: HandoffSession, _prompt: string) => 'session-2')
+      Object.assign(made.local, { relay, locate: async () => ({ ...session, checkpoint: '' }) })
+      const handed = made.moves.handOver(PROJECT, 'ABC-1', { ...session, checkpoint: '' }, 'checkpoint')
+      await tick()
+      expect(await handed).toBe('session-2')
+      const prompt = relay.mock.calls[0]?.[2] ?? ''
+      if (writer === 'session-1') expect(prompt).toContain(text)
+      else expect(prompt).not.toContain(text)
+    }
   })
 
   it('carries the limit hold the machine took back into the hub task', async () => {

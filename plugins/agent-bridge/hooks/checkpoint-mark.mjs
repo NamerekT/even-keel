@@ -4,7 +4,7 @@
 // turn wrote the note comes from Even Keel, which reads the transcript of either agent.
 import { readFileSync } from "node:fs";
 import { noteAtEnd } from "./evenkeel.mjs";
-import { hasMark } from "./handoff.mjs";
+import { hasMark, KEPT, markOf } from "./handoff.mjs";
 
 async function main() {
   const input = JSON.parse(readFileSync(0, "utf8"));
@@ -12,12 +12,13 @@ async function main() {
   if (typeof input.last_assistant_message !== "string" || hasMark(input.last_assistant_message)) return;
   const note = await noteAtEnd(input.session_id);
   if (note === null) return;
+  const wrote = note === KEPT ? `You gave the handoff note to \`${KEPT}\`` : `You wrote \`${note}\``;
   process.stdout.write(
     JSON.stringify({
       decision: "block",
       reason:
-        `You wrote \`${note}\` at the end of this turn, but your last message does not end with ` +
-        `the line \`CHECKPOINT: ${note}\`, so Even Keel will not hand the task to a fresh session ` +
+        `${wrote} at the end of this turn, but your last message does not end with ` +
+        `the line \`${markOf(note)}\`, so Even Keel will not hand the task to a fresh session ` +
         "and will wait for a reply instead. Reply with that line alone, nothing before or after it.",
     }),
   );

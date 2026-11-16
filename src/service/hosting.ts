@@ -42,7 +42,8 @@ import { inboxImage } from '../sessions/inbox.js'
 import { sharedFile } from '../sessions/shareFile.js'
 import { deliveredMail } from '../sessions/mail.js'
 import { mailFor } from '../sessions/mailRelay.js'
-import { noteFileOf, noteWritten } from '../sessions/note.js'
+import { handoffNoteOf, noteWritten } from '../sessions/note.js'
+import { TASKS_SERVER } from '../taskmcp/server.js'
 import { guardsOwnAddress } from '../sessions/protection.js'
 import { root, source, stateDirOf } from '../locations.js'
 import { profileFor } from '../profiles/model.js'
@@ -647,7 +648,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const shares = settings?.checkpointShares ?? ctx.configStore.current.stats.checkpointShares
       const threshold = withinWindow({ first, source }, window, shares, view?.agent ?? null, ctx.monitor.compactAtOf(sessionId))
       const off = !(settings?.contextHandoffs ?? ctx.configStore.current.contextHandoffs)
-      const note = noteFileOf(run.task, !isPlain(ctx.configStore.current, run.project))
+      const note = handoffNoteOf(run.task, !isPlain(ctx.configStore.current, run.project), ctx.packages.bringsServer(run.project, TASKS_SERVER))
       return { ...run, ...threshold, ...(off ? { source: 'off' as const } : {}), context: ctx.monitor.contextOf(sessionId) ?? null, note }
     },
     handoffNote: async (sessionId) => {

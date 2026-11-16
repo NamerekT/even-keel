@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { chainOrder } from '../chain/order.js'
 import type { LaunchEntry } from '../chain/dispatcher.js'
 import { launchLine } from '../chain/log.js'
+import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-notes.js'
 import { saveSnapshot } from '../chain/snapshots.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { HubEnd } from '../link/hub.js'
@@ -111,7 +112,12 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     projectOfSession: (sessionId) => ctx.launches.findLast((entry) => entry.sessionId === sessionId)?.project,
     lastSession: (project, task) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
     brief: (project, task, retained) => ctx.briefed.prepare(task, project, retained),
-    saveSnapshot: (snapshot) => saveSnapshot(ctx.db, snapshot),
+    note: (project, task) => lastHandoffNote(ctx.db, project, task),
+    saveSnapshot: async (snapshot) => {
+      await saveSnapshot(ctx.db, snapshot)
+      const note = fileNote(snapshot, ctx.projectOf(snapshot.task), own)
+      if (note !== undefined) await keepHandoffNote(ctx.db, note)
+    },
     record: async (event) => {
       if (!await saveMachineRecord(ctx.db, own, event)) return
       if (event.type === LAUNCH_EVENT) {

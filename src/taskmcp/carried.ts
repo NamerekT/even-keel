@@ -9,6 +9,8 @@ import { UPLOADS_PER_CALL, type SessionFiles } from './files.js'
  */
 export const SESSION_META = 'even-keel/session'
 export const FILES_META = 'even-keel/files'
+/** The machine whose call the hub's link carried to the hub's gateway (`HubMcp.relay`): never taken from the machine. */
+export const MACHINE_HEADER = 'x-even-keel-machine'
 
 export interface SentFile {
   name: string
@@ -22,6 +24,16 @@ export interface SessionMeta {
   attach: Record<string, SentFile>
   /** The session has a folder: `task_read` downloads its task's files. */
   downloads: boolean
+  /** The session of the task that made the call, as the machine found it then (`handoff_write`, BTN-1046). */
+  writer?: NoteWriter
+}
+
+/** Who wrote a handoff note: the machine names the task's live session when the call is made, not when it arrives. */
+export interface NoteWriter {
+  session: string
+  branch: string | null
+  /** ISO */
+  at: string
 }
 
 export interface CarriedFile {
@@ -42,7 +54,13 @@ export function sessionMetaOf(params: Record<string, unknown>): SessionMeta | un
   for (const [path, file] of Object.entries(isObject(meta.attach) ? meta.attach : {})) {
     if (isObject(file) && typeof file.name === 'string' && typeof file.type === 'string' && typeof file.data === 'string') attach[path] = { name: file.name, type: file.type, data: file.data }
   }
-  return { attach, downloads: meta.downloads === true }
+  const writer = isObject(meta.writer) ? meta.writer : undefined
+  const named = writer !== undefined && typeof writer.session === 'string' && typeof writer.at === 'string'
+  return {
+    attach,
+    downloads: meta.downloads === true,
+    ...(named ? { writer: { session: writer.session as string, branch: typeof writer.branch === 'string' ? writer.branch : null, at: writer.at as string } } : {}),
+  }
 }
 
 export function sentFile(upload: TaskUpload): SentFile {

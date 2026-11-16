@@ -12,7 +12,10 @@ import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 import { rolesLine, termsOf, vocabularyFor, type TrackerTerms } from './vocabulary.js'
 import type { SessionFiles } from './files.js'
 import { attachmentLines } from './downloads.js'
-import type { ToolFields } from './tools.js'
+import { HANDOFF_TOOL, type ToolFields } from './tools.js'
+import type { HandoffNote, NoteRefusal } from '../chain/handoff-note.js'
+import type { NoteWriter } from './carried.js'
+import { handoffWrite } from './handoff.js'
 
 /** Where a call came from: the project of the server's address and, for a chain session, its task. */
 export interface TasksScope {
@@ -24,6 +27,10 @@ export interface TasksScope {
    * repository of the project; absent — not known, nothing is attached or downloaded.
    */
   files?: SessionFiles
+  /** The task's session that made the call, as the machine's gateway names it (`handoff_write`, BTN-1046). */
+  writer?: NoteWriter
+  /** The machine whose gateway carried the call to the hub (`HubMcp`); absent — the hub's own gateway. */
+  machine?: string
 }
 
 /** A tracker of a project the tools serve (BTN-892): the project's own or one of its feeds. */
@@ -51,6 +58,8 @@ export interface TasksDeps {
   rulesOf(reader: string): ChainRules
   /** `<Provider> | <model>` of the live session of the project's task; `null` — not known. */
   modelOf(project: string, task: string): string | null
+  /** Keeps a session's handoff note (`writeHandoffNote`); absent — the hub keeps none (tests). */
+  writeNote?(note: HandoffNote): Promise<NoteRefusal | null>
   /** The run of the project's task (`TaskRuns`), and its change; `null` — as the project says again. */
   runOf(project: string, task: string): TaskRun | undefined
   setRun(project: string, task: string, run: TaskRun | null): void
@@ -94,6 +103,8 @@ export class TasksTools {
         return this.update(args, scope)
       case 'task_comment':
         return this.comment(args, scope)
+      case HANDOFF_TOOL:
+        return handoffWrite(args.required('text'), scope, this.deps.writeNote)
       default:
         throw new EditRefused(`there is no tool ${name}`)
     }

@@ -256,6 +256,28 @@ describe('handoffPrompt', () => {
     }
   })
 
+  it('puts the note kept with Even Keel into the prompt whole and leaves the last steps to it after a bare checkpoint (BTN-1046)', () => {
+    const recent = [line('Bash npm test')]
+    const prompt = handoffPrompt('ABC-1', session({ recent, lastMessage: 'Note kept.\n\nCHECKPOINT:', checkpoint: '' }), 'checkpoint', 'en', 'main', false, [], true, 'Done: the parser.\nNext: npm test -- parser.')
+    expect(prompt).toContain('Handoff note of the previous session')
+    expect(prompt).toContain('Done: the parser.\nNext: npm test -- parser.')
+    expect(prompt).not.toContain('Bash npm test')
+    expect(prompt).not.toContain('Note kept.')
+  })
+
+  it('points at no file for a bare checkpoint without a kept note and carries the last steps instead', () => {
+    const prompt = handoff('ABC-1', session({ recent: [line('Bash npm test')], lastMessage: 'Done.', checkpoint: '' }), 'checkpoint')
+    expect(prompt).not.toContain('Записка о передаче')
+    expect(prompt).toContain('Bash npm test')
+  })
+
+  it('carries the last steps after a kept note when the session did not checkpoint (a limit after an earlier note)', () => {
+    const prompt = handoffPrompt('ABC-1', session({ recent: [line('Bash npm test')], lastMessage: 'Working.' }), 'limit', 'ru', 'main', false, [], true, 'Done: the parser.')
+    expect(prompt).toContain('Записка о передаче от прошлой сессии')
+    expect(prompt).toContain('Done: the parser.')
+    expect(prompt).toContain('Bash npm test')
+  })
+
   it('says nothing of a handoff note when there is none', () => {
     expect(handoff('ABC-1', session())).not.toContain('handoff')
   })

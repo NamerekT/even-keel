@@ -622,6 +622,13 @@ describe('TranscriptFold', () => {
       expect(fold([assistant('m1', [text('Done.\n`CHECKPOINT: .temp/handoff.md`')])]).summary().checkpoint).toBe('.temp/handoff.md')
       expect(fold([assistant('m1', [text('**CHECKPOINT:** `.temp/handoff.md`  ')])]).summary().checkpoint).toBe('.temp/handoff.md')
     })
+
+    it('reads the bare line of a note kept with Even Keel as a checkpoint without a path (BTN-1046)', () => {
+      expect(fold([assistant('m1', [text('Note kept.\n\nCHECKPOINT:')])]).summary().checkpoint).toBe('')
+      expect(fold([assistant('m1', [text('**CHECKPOINT:**')])]).summary().checkpoint).toBe('')
+      expect(fold([assistant('m1', [text('`CHECKPOINT:`')])]).summary().checkpoint).toBe('')
+      expect(fold([assistant('m1', [text('CHECKPOINT:\nmore')])]).summary().checkpoint).toBeNull()
+    })
   })
 
   describe('pull request mark', () => {

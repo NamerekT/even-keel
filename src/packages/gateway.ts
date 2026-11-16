@@ -8,6 +8,7 @@ import type { McpAnswer, McpRequest } from '../link/protocol.js'
 import { fail } from '../notice/notice.js'
 import { deletesRecord } from '../sessions/protection.js'
 import type { TasksScope } from '../taskmcp/calls.js'
+import { MACHINE_HEADER } from '../taskmcp/carried.js'
 import { AWAY_TEXT } from '../taskmcp/machine.js'
 import { isTasksUrl, tasksProjectOf } from '../taskmcp/server.js'
 import { parseRoute } from './launch.js'
@@ -172,8 +173,11 @@ export class McpGateway {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     const own = tasksProjectOf(url.pathname)
     const tasks = this.hub?.tasks ?? this.deps.tasks
+    // The machine the hub's link carried the call from (BTN-1046); a machine's gateway sends the call on, it names none.
+    const carrier = this.hub === undefined ? req.headers[MACHINE_HEADER] : undefined
+    const machine = typeof carrier === 'string' && carrier !== '' ? { machine: carrier } : {}
     // The task of `/tasks` is the one the machine's gateway names when it carries a chain session's call (BTN-990).
-    if (own !== undefined && tasks !== undefined) return this.local(req, res, tasks, { project: own, task: url.searchParams.get('task') })
+    if (own !== undefined && tasks !== undefined) return this.local(req, res, tasks, { project: own, task: url.searchParams.get('task'), ...machine })
     const route = parseRoute(url.pathname)
     if (route !== null && this.hub?.servers().includes(url.pathname)) {
       return this.relayed(req, res, url, `${route.name}/${route.server}`, this.hub)
@@ -181,7 +185,7 @@ export class McpGateway {
     const target = route === null ? null : this.deps.resolve(route)
     if (route === null || target === null) return void res.writeHead(404).end()
     if (isTasksUrl(target.entry.url) && tasks !== undefined) {
-      return this.local(req, res, tasks, { project: route.project, task: url.searchParams.get('task') })
+      return this.local(req, res, tasks, { project: route.project, task: url.searchParams.get('task'), ...machine })
     }
     const label = `${route.name}/${route.server}`
     const key = `${route.project}\u0000${label}`

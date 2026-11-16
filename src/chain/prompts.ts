@@ -2,6 +2,7 @@ import type { Language } from '../language.js'
 import { SESSION_MARK } from '../review/model.js'
 import { fill } from '../sessions/prompt.js'
 import { MESSAGE_LIMIT } from '../sessions/transcript.js'
+import { HANDOFF_TOOL } from '../taskmcp/tools.js'
 import { closeFence } from './fence.js'
 import type { ReturnReason } from './model.js'
 
@@ -91,6 +92,8 @@ export interface PromptTexts {
   /** A session started after the previous one that failed before its first answer (BTN-650). */
   failed: (error: string | null, transcript: string | null) => string
   note: (path: string) => string
+  /** The head of the note Even Keel keeps (BTN-1046), put into the prompt after the begin line. */
+  noteText: string
   begin: (main: string) => string
   recentSteps: string
   lastMessage: string
@@ -107,7 +110,7 @@ export interface PromptTexts {
   carryRules: (main: string) => string
   /**
    * What the chat's `/handoff` asks the session for (BTN-557); `extra` — the user's words after the command, `note` —
-   * the task's note (`noteFileOf`, BTN-964).
+   * the task's note (`noteFileOf`, BTN-964), or `HANDOFF_TOOL` when the session keeps it with Even Keel (BTN-1046).
    */
   handoff: (extra: string | null, note: string) => string
 }
@@ -231,9 +234,14 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     failed: (error, transcript) =>
       `- Затем новая сессия упала до первого ответа${error === null ? '' : fill` (${error})`}${transcript === null ? '' : fill`, её транскрипт: ${transcript}`}.`,
     note: (path) => fill`- Записка о передаче: ${path} — прочитай её первой: что сделано, что осталось, следующая команда.`,
+    noteText: 'Записка о передаче от прошлой сессии — начни с неё: что сделано, что осталось, следующая команда.',
     begin: (main) => fill`- Начни с git status, git log ${main}..HEAD и описания задачи.`,
     handoff: (extra, note) => {
-      const ask = fill`Пользователь из чата Even Keel просит передать задачу новой сессии. Оставь рабочее дерево как есть (коммитить не нужно), запиши \`${note}\` в корне рабочего дерева — что сделано, что осталось, текущие гипотезы, что уже пробовали и отбросили, важные файлы и символы, точная следующая команда — и закончи ход последней строкой \`CHECKPOINT: ${note}\`. Новая сессия продолжит работу по этой записке.`
+      const what = 'что сделано, что осталось, текущие гипотезы, что уже пробовали и отбросили, важные файлы и символы, точная следующая команда'
+      const ask =
+        note === HANDOFF_TOOL
+          ? fill`Пользователь из чата Even Keel просит передать задачу новой сессии. Оставь рабочее дерево как есть (коммитить не нужно), передай записку инструментом задач \`${HANDOFF_TOOL}\` — ${what} — и закончи ход последней строкой \`CHECKPOINT:\` без пути. Новая сессия продолжит работу по этой записке.`
+          : fill`Пользователь из чата Even Keel просит передать задачу новой сессии. Оставь рабочее дерево как есть (коммитить не нужно), запиши \`${note}\` в корне рабочего дерева — ${what} — и закончи ход последней строкой \`CHECKPOINT: ${note}\`. Новая сессия продолжит работу по этой записке.`
       return extra === null ? ask : fill`${ask}\n\nК просьбе пользователь добавил — учти это в записке и в том, что делаешь до неё:\n${extra}`
     },
     recentSteps: 'Последние шаги прошлой сессии:',
@@ -383,9 +391,14 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     failed: (error, transcript) =>
       `- Then a new session failed before its first answer${error === null ? '' : fill` (${error})`}${transcript === null ? '' : fill`; its transcript: ${transcript}`}.`,
     note: (path) => fill`- Handoff note: ${path} — read it first: what is done, what is left, the next command.`,
+    noteText: 'Handoff note of the previous session — start from it: what is done, what is left, the next command.',
     begin: (main) => fill`- Start with git status, git log ${main}..HEAD and the task description.`,
     handoff: (extra, note) => {
-      const ask = fill`The user asks from Even Keel's chat to hand the task over to a fresh session. Leave the working tree as it is (no commit needed), write \`${note}\` at the root of the working tree — what is done, what is left, the current hypotheses, what was already tried and ruled out, the files and symbols that matter, the exact next command — and end your turn with a final line \`CHECKPOINT: ${note}\`. A fresh session picks the work up from that note.`
+      const what = 'what is done, what is left, the current hypotheses, what was already tried and ruled out, the files and symbols that matter, the exact next command'
+      const ask =
+        note === HANDOFF_TOOL
+          ? fill`The user asks from Even Keel's chat to hand the task over to a fresh session. Leave the working tree as it is (no commit needed), give the note to the tasks tool \`${HANDOFF_TOOL}\` — ${what} — and end your turn with a final line \`CHECKPOINT:\` alone, without a path. A fresh session picks the work up from that note.`
+          : fill`The user asks from Even Keel's chat to hand the task over to a fresh session. Leave the working tree as it is (no commit needed), write \`${note}\` at the root of the working tree — ${what} — and end your turn with a final line \`CHECKPOINT: ${note}\`. A fresh session picks the work up from that note.`
       return extra === null ? ask : fill`${ask}\n\nThe user adds to the request — take it into account in the note and in what you do before it:\n${extra}`
     },
     recentSteps: 'Last steps of the previous session:',

@@ -58,7 +58,8 @@ import { KEEP_WARM_TICK_MS,KeepWarm } from './sessions/keepwarm.js'
 import { Lingering } from './sessions/lingering.js'
 import { Mailbox } from './sessions/mailbox.js'
 import { settleMail } from './sessions/mailRelay.js'
-import { noteFileOf } from './sessions/note.js'
+import { handoffNoteOf } from './sessions/note.js'
+import { TASKS_SERVER } from './taskmcp/server.js'
 import { loadRareEvents,pruneRareEvents,rareEvents,saveRareEvent } from './sessions/rare.js'
 import { type SetupRun } from './sessions/setup.js'
 import { ChatTitles } from './sessions/title.js'
@@ -761,10 +762,14 @@ async function inHomes<T>(read: (home: AccountHome) => Promise<T | undefined>): 
  */
 function configuredProject(task: string): string | undefined { return trackersService.configuredProject(context, task) }
 
-/** The handoff note a session of the task writes: one of its own in a project without git, whose folder is shared (BTN-964). */
+/**
+ * The handoff note a session of the task writes: through the tasks server when its project has it (BTN-1046), else a
+ * file, one of its own in a project without git, whose folder is shared (BTN-964).
+ */
 function taskNote(task: string): string {
   const project = configuredProject(task)
-  return noteFileOf(task, project === undefined || !isPlain(configStore.current, project))
+  const kept = project !== undefined && packages.bringsServer(project, TASKS_SERVER)
+  return handoffNoteOf(task, project === undefined || !isPlain(configStore.current, project), kept)
 }
 
 const postedQuestions = await loadQuestions(db)

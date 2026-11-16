@@ -800,7 +800,7 @@ describe('the rest', () => {
   })
 
   it('has no tool that deletes', async () => {
-    expect(toolSpecs(true).map((tool) => tool.name)).toEqual(['tasks_list', 'task_read', 'tasks_create', 'task_update', 'task_comment'])
+    expect(toolSpecs(true).map((tool) => tool.name)).toEqual(['tasks_list', 'task_read', 'tasks_create', 'task_update', 'task_comment', 'handoff_write'])
     expect(toolSpecs(false).find((tool) => tool.name === 'tasks_create')!.inputSchema).toMatchObject({ properties: { project: { type: 'string' } } })
     for (const name of ['tasks_list', 'tasks_create']) {
       expect(toolSpecs(true).find((tool) => tool.name === name)!.inputSchema).toMatchObject({ properties: { tracker: { type: 'string' } } })

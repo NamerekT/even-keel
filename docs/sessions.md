@@ -15,7 +15,7 @@ The area is split by subtopic, a file each in `docs/sessions/`: read this table,
 | [`protection.md`](sessions/protection.md) | Protection; Project rules for every agent; The check before the merge; Project standards |
 | [`models.md`](sessions/models.md) | Run profiles; Model lists; Context window; Prompts |
 | [`tools.md`](sessions/tools.md) | Extra tools |
-| [`checkpoint.md`](sessions/checkpoint.md) | Checkpoint threshold |
+| [`checkpoint.md`](sessions/checkpoint.md) | Checkpoint threshold; the note kept with Even Keel (`handoff_write`) |
 | [`chat.md`](sessions/chat.md) | Chat mailbox; Permission dialogs; One-off turns |
 | [`limits.md`](sessions/limits.md) | Limits; Limits of OpenCode and Copilot |
 | [`cache.md`](sessions/cache.md) | Prompt cache lifetime; Every agent's cache (research); Keep-warm |

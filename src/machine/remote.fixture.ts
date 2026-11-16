@@ -75,7 +75,7 @@ export function machineOf() {
 }
 
 /** The hub and one machine over the link; the machine makes the moves of a task's session (`MachineMoves`). */
-export async function bench(brief?: RemoteDeps['brief']) {
+export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note']) {
   const hubStore = new MemoryHubStore()
   const machineStore = new MemoryMachineStore()
   await machineStore.agree(PROJECT, REPO)
@@ -95,6 +95,7 @@ export async function bench(brief?: RemoteDeps['brief']) {
     projectOfSession: () => PROJECT,
     lastSession: () => undefined,
     ...(brief === undefined ? {} : { brief }),
+    ...(note === undefined ? {} : { note }),
     saveSnapshot: (snapshot) => void snapshots.push(snapshot),
     assigned: (project, task) => assignments.assign(project, task, id),
     released: (project, task) => assignments.release(project, task),

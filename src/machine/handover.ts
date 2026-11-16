@@ -1,4 +1,5 @@
 import { isOwnName } from '../chain/fix.js'
+import { noteFrom } from '../chain/handoff-note.js'
 import type { ActiveChain, CurrentTask, Move, ReturnReason } from '../chain/model.js'
 import { PROMPTS } from '../chain/prompts.js'
 import {
@@ -351,7 +352,8 @@ export class Handovers {
     const { source, failed } = this.sourceOf(task, located)
     const { transcript, recent, lastMessage, checkpoint } = source
     const from = source === located ? located : { ...located, transcript, recent, lastMessage, checkpoint }
-    const prompt = handoffPrompt(task, from, reason, this.deps.promptLanguage(task), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false, failed, this.deps.plain?.(task) !== true)
+    const kept = noteFrom(this.deps.note?.(task), source.sessionId)
+    const prompt = handoffPrompt(task, from, reason, this.deps.promptLanguage(task), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false, failed, this.deps.plain?.(task) !== true, kept)
     const told = extra === undefined ? prompt : `${prompt}\n${extra}\n`
     const sessionId = await this.deps.machine.relay(task, from, told + report, reason)
     this.sources.set(task, { sessionId, source, failed })

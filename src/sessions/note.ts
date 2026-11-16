@@ -1,3 +1,4 @@
+import { HANDOFF_TOOL } from '../taskmcp/tools.js'
 import type { FeedLine } from './transcript.js'
 
 /** The handoff note of a task in a folder of its own: the worktree of a git project. */
@@ -14,6 +15,14 @@ const NEAR_END = 3
  */
 export function noteFileOf(task: string, git: boolean): string {
   return git ? HANDOFF_NOTE : `.temp/handoff-${task.replace(/[^A-Za-z0-9._-]+/g, '-')}.md`
+}
+
+/**
+ * Where a session of `task` puts its handoff note: `HANDOFF_TOOL` when the project's set brings the tasks server
+ * (`kept`, BTN-1046) — the note goes to Even Keel and the checkpoint line names no path; otherwise its file.
+ */
+export function handoffNoteOf(task: string, git: boolean, kept: boolean): string {
+  return kept ? HANDOFF_TOOL : noteFileOf(task, git)
 }
 
 /** The note a path names, as `.temp/handoff….md`; null — another file. */
@@ -39,16 +48,20 @@ function shellTarget(tokens: string[], i: number, token: string): string | null 
   return /^-(?:LiteralPath|Path|FilePath)$/i.test(next) ? tokens[i + 2] ?? '' : next
 }
 
+/** A call of the tasks server's `handoff_write`, by whatever name the agent gives an MCP tool (`mcp__…__`, `server_`, `server.`). */
+const isKept = (name: string): boolean => name === HANDOFF_TOOL || name.endsWith(`_${HANDOFF_TOOL}`) || name.endsWith(`.${HANDOFF_TOOL}`)
+
 /**
- * The note the turn wrote among its last few tool calls, as `.temp/handoff….md`, the latest one first; null — none.
- * With no `CHECKPOINT` line after it, the agent-bridge plugin's Stop hook sends the session back to add the line for
- * this note. `feed` is a whole transcript's.
+ * The note the turn wrote among its last few tool calls, as `.temp/handoff….md` or `HANDOFF_TOOL` for one kept with
+ * Even Keel, the latest one first; null — none. With no `CHECKPOINT` line after it, the agent-bridge plugin's Stop hook
+ * sends the session back to add the line for this note. `feed` is a whole transcript's.
  */
 export function noteWritten(feed: readonly FeedLine[]): string | null {
   const start = feed.findLastIndex((line) => line.kind === 'prompt' || line.kind === 'answer')
   const tools = feed.slice(start + 1).filter((line) => line.kind === 'tool')
   for (const line of tools.slice(-NEAR_END).reverse()) {
-    const note = WRITES.has(line.name ?? '') ? noteIn(line.subject ?? '') : SHELLS.has(line.name ?? '') ? shellNote(line.detail ?? '') : null
+    const name = line.name ?? ''
+    const note = isKept(name) ? HANDOFF_TOOL : WRITES.has(name) ? noteIn(line.subject ?? '') : SHELLS.has(name) ? shellNote(line.detail ?? '') : null
     if (note !== null) return note
   }
   return null
