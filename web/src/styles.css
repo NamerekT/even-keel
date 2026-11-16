@@ -27,6 +27,8 @@
   --lamp-idle: #9a988f;
   /* A fix of a red main that is over: a service record, not a task, so a colour no other lamp has. */
   --lamp-fix: #7c5cd6;
+  /* The logo's keel (web/public/favicon.svg): the boat drawn dark on a light ground, so the deeper green. */
+  --keel: #237a45;
 
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -147,6 +149,7 @@
   --accent: #7ea2ff;
 
   --lamp-done: #47c075;
+  --keel: #2e9d57;
   --lamp-working: #5b92ff;
   --lamp-waiting: #f0bd3c;
   --lamp-error: #ff6b5f;

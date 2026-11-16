@@ -27,6 +27,7 @@ Only these values. A colour, size, radius or duration that is not here is either
 | Page, card, inner box, line | `--bg`, `--surface`, `--surface-muted`, `--border` |
 | Text, quiet text, links and focus | `--fg`, `--fg-muted`, `--accent` |
 | A state | `--lamp-done` (fine), `--lamp-working`, `--lamp-waiting` (attention), `--lamp-error` (error or limit), `--lamp-idle`, `--lamp-fix` |
+| The logo's keel (the loader's boat), as in `favicon.svg` | `--keel` |
 | A project or a series in a chart | `--series-1`…`--series-8`, `--series-other` |
 | A neutral share (models, entry points) | `--tone-1`…`--tone-6` |
 | A band | `--warn-bg`/`--warn-fg`, `--error-bg`/`--error-fg` |
