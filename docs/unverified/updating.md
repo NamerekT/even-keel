@@ -30,7 +30,7 @@ If it is wrong: `npx even-keel` fails or the service does not start. Install fro
 
 ## The page's address after install and update (EKR-111)
 
-`even-keel install` (and the first install from `npx`) and `even-keel update` print the page's address from `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` of the environment and the data folder's `.env`, once the page answers or after 30 s with the log's place; the first install from `npx` then opens the browser (`cmd /c start`, `open`, `xdg-open` only with a display and not by SSH). Checked only by unit tests and a terminal run of the request and the Windows opener's arguments. Not checked: any of it from a real install on Windows, Linux or macOS, the Linux message without systemd, a Linux desktop's `xdg-open`, and an SSH session to a Mac.
+`even-keel install` (and the first install from `npx`) and `even-keel update` print the page's address from `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` of the environment and the data folder's `.env`, once the page answers or after 30 s with the log's place; the first install from `npx` then opens the browser (`cmd /c start`, `open`, `xdg-open` only with a display and not by SSH). Checked from real installs on Windows and Linux, over SSH and without systemd ([verified](../verified/updating.md)); on Linux the opener was a stub that logs its argument. Not checked: anything on macOS (`open`, an SSH session to a Mac), a real browser opened by `xdg-open` on a Linux desktop, and the 30 s wait running out.
 
 If it is wrong: the terminal says nothing after the install, gives a wrong address, or the browser does not open. Open `http://localhost:4747` (or the host and port of your `.env`) by hand; the log is in `logs/` of the data folder, `journalctl --user -u even-keel` on Linux.
 

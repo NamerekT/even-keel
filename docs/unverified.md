@@ -210,7 +210,7 @@ No entry meets both conditions at the moment.
 | 172 | [A Claude subscription on a long token](unverified/accounts.md#a-claude-subscription-on-a-long-token-btn-1005) | Claude accounts added with a long token | a chain task fails to start on the token, a refused token is not told from another error, or the account shows no limits | — |
 | 173 | [The machines' stream through a real proxy](unverified/machines.md#the-machines-stream-through-a-real-proxy-btn-988) | machines that reach their hub through a proxy, once a machine can be connected | the machine only reconnects and shows offline without the notice about the proxy | BTN-1213 |
 | 174 | [The demo without git](unverified/page.md#the-demo-without-git-ekr-108) | a first run on a machine without git, or after the setup's Git step answered No | the demo is refused or its tasks never close; set New projects to Without git and run it again | — |
-| 175 | [The page's address after install and update](unverified/updating.md#the-pages-address-after-install-and-update-ekr-111) | installs and updates through the npm CLI | no address or a wrong one is printed, or the browser does not open or opens over SSH; open the address of `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` by hand | EKR-112 |
+| 175 | [The page's address after install and update](unverified/updating.md#the-pages-address-after-install-and-update-ekr-111) | npm installs on macOS; a Linux desktop's browser | no address or a wrong one is printed, or the browser does not open or opens over SSH; open the address of `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` by hand | — |
 
 ### Waiting for the event / not checked by choice
 
