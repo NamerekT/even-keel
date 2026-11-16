@@ -810,7 +810,8 @@ export const noticesRu: NoticeTexts = {
   'eventLog.exportFailed': (p) => `перенос задач в ${p.tracker} остановился: трекер отказал в записи. Ответ трекера`,
   'eventLog.exportFinished': (p) => `перенос задач в ${p.tracker} закончен: ${plural('ru', p.copied, { one: 'перенесена', other: 'перенесено' })} ${tasks(p.copied)}`,
   'eventLog.trackerSwitched': (p) => `проект переключён на ${p.tracker}: задачи теперь берутся оттуда, ключ ${p.from} сменился на ${p.to}`,
-  'eventLog.packages': (p) => `${p.package === undefined ? 'набор пакетов' : `пакет ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}`,
+  'eventLog.packages': (p) =>
+    `${p.package === undefined ? 'набор пакетов' : `пакет ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}${(p.projects?.length ?? 0) > 1 ? ` в ${p.projects!.join(', ')}` : ''}`,
   'eventLog.usageUnread': (p) => `Лимиты аккаунта ${p.account} не читаются, берутся из сессий`,
   'eventLog.usageOff': (p) => `Лимиты аккаунта ${p.account} не читаются до перезапуска`,
 }

@@ -196,6 +196,27 @@ describe('observe', () => {
     expect(step(none, packages(true, passing))).toEqual([])
   })
 
+  it('writes a server that does not answer once for all the projects that have it, not once a project (BTN-1248)', () => {
+    const cell = (problems: object[]) => ({ choice: null, enabled: true, own: {}, problems })
+    const silent = (projects: string[], servers = ['huly']) =>
+      ({
+        ...none,
+        packages: {
+          gateway: null,
+          projects: Object.fromEntries(projects.map((project) => [project, { cells: { huly: cell([{ kind: 'noResponse', servers }]) }, problems: [], blocked: true, tracker: null }])),
+        },
+      }) as unknown as WatchInput
+    const entry = (detail: string, projects: string[]) => ({
+      level: 'error',
+      notice: notice('eventLog.packages', { project: projects[0]!, package: 'huly', problem: 'noResponse', detail, projects }),
+      place: { view: 'packages', project: projects[0] },
+    })
+    expect(step(none, silent(['p1', 'p2', 'p3']))).toEqual([entry('huly', ['p1', 'p2', 'p3'])])
+    expect(step(silent(['p1', 'p2', 'p3']), silent(['p2', 'p3']))).toEqual([])
+    expect(step(silent(['p1']), silent(['p1', 'p2']))).toEqual([])
+    expect(step(none, silent(['p1', 'p2'], ['huly', 'kb']))).toEqual([entry('huly', ['p1', 'p2']), entry('kb', ['p1', 'p2'])])
+  })
+
   it('writes the accounts of a pool whose limits are not read, as the usage banner tones them', () => {
     const entry = (key: string, state: string, fields: object = {}) => ({ key, needsLogin: false, usage: { state, reason: null, since: '2026-11-05T11:00:00Z' }, ...fields })
     const accounts = (list: object[], pool = ['a', 'b', 'c', 'd', 'e']) => ({ ...none, account: { accounts: list, pool: pool.map((account) => ({ account })) } }) as unknown as WatchInput

@@ -182,19 +182,59 @@ describe('Probes', () => {
       return result()
     }
     // On a loaded runner a probe may time out before its connection opens: polling asks again until the answer lands.
-    const reaches = (value: boolean) => expect.poll(result, { timeout: 5_000, interval: 25 }).toBe(value)
+    const reaches = (value: boolean | undefined) => expect.poll(result, { timeout: 5_000, interval: 25 }).toBe(value)
     expect(await settle()).toBeUndefined()
     now += 31_000
     mode = 'ok'
     await reaches(true)
     now += 6 * 60_000
     mode = 'hang'
+    await reaches(undefined)
+    now += 31_000
     await reaches(false)
     probes.forget('huly')
     expect(await settle()).toBeUndefined()
     now += 31_000
     mode = 'fail'
     await reaches(false)
+  })
+
+  it.each(['fail', 'hang'] as const)('counts a server that answered as failing only on its second miss in a row (BTN-1248): %s', async (miss) => {
+    let mode: 'ok' | 'fail' | 'hang' = 'ok'
+    let asked = 0
+    server = createServer((_req, res) => {
+      asked++
+      if (mode === 'ok') res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":0,"result":{}}')
+      else if (mode === 'fail') res.writeHead(502).end()
+    })
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve))
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/mcp`
+    let now = 0
+    const probes = new Probes({ urlOf: () => url, now: () => now, onChange: () => {}, timeoutMs: 50 })
+    const result = () => probes.result('p-1', 'huly', 'i1', 'huly')
+    const reaches = (value: boolean | undefined) => expect.poll(result, { timeout: 5_000, interval: 25 }).toBe(value)
+    // Not asked again while the clock stands: the first miss waits the 30 s of a failure, not asked at once.
+    const holds = async (value: boolean | undefined) => {
+      const before = asked
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      expect(result()).toBe(value)
+      expect(asked).toBe(before)
+    }
+    await reaches(true)
+    now += 6 * 60_000
+    mode = miss
+    await reaches(undefined)
+    await holds(undefined)
+    now += 31_000
+    mode = 'ok'
+    await reaches(true)
+    now += 6 * 60_000
+    mode = miss
+    await reaches(undefined)
+    await holds(undefined)
+    now += 31_000
+    await reaches(false)
+    await holds(false)
   })
 
   it('asks nothing while the gateway has no address, and asks at once when it gets one (BTN-1225)', async () => {

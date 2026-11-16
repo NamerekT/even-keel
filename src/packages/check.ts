@@ -98,10 +98,13 @@ export function projectPackages(input: CheckInput): ProjectPackages {
  * is asked again after 30 seconds, then less and less often up to once an hour. Silence before the server's first answer
  * is a start that takes long (a cold `npx`), not a failure: it stays `undefined`, asked again at once, until the server
  * answers or the gateway says it is gone. With no address yet (the gateway does not listen) nothing is asked and the
- * result stays `undefined` (BTN-1225).
+ * result stays `undefined` (BTN-1225). A server that has answered fails only on its second miss in a row: one miss is
+ * a blink of the host's network as often as the server's fault, so it stays `undefined` until the ask 30 seconds on
+ * (BTN-1248).
  */
 export class Probes {
-  private readonly results = new Map<string, { ok: boolean | undefined; at: number; failures: number }>()
+  /** `failures` — results `false` in a row, for the wait; `misses` — asks without an answer in a row. */
+  private readonly results = new Map<string, { ok: boolean | undefined; at: number; failures: number; misses: number }>()
   private readonly answered = new Set<string>()
   private readonly running = new Set<string>()
 
@@ -120,7 +123,8 @@ export class Probes {
     const key = `${name}\u0000${install}\u0000${server}`
     const known = this.results.get(key)
     const wait = known?.ok ? PROBE_OK_MS : PROBE_FAILED_MS[Math.max(0, Math.min((known?.failures ?? 0) - 1, PROBE_FAILED_MS.length - 1))]!
-    const stale = known === undefined || known.ok === undefined || this.deps.now() - known.at > wait
+    const starting = known?.ok === undefined && known?.misses === 0
+    const stale = known === undefined || starting || this.deps.now() - known.at > wait
     const url = stale && !this.running.has(key) ? this.deps.urlOf(project, name, install, server) : undefined
     if (url !== undefined) void this.run(key, url)
     return known?.ok
@@ -133,7 +137,7 @@ export class Probes {
 
   /** Something a failing server needs may have changed (a profile saved, a new grant): ask each one again at once. */
   retry(): void {
-    for (const [key, known] of this.results) if (known.ok === false) this.results.set(key, { ...known, at: -Infinity, failures: 0 })
+    for (const [key, known] of this.results) if (known.ok === false || known.misses > 0) this.results.set(key, { ...known, at: -Infinity, failures: 0 })
   }
 
   private async run(key: string, url: string): Promise<void> {
@@ -141,9 +145,12 @@ export class Probes {
     const outcome = await probe(url, this.deps.timeoutMs ?? PROBE_TIMEOUT_MS)
     this.running.delete(key)
     if (outcome === 'ok') this.answered.add(key)
-    const ok = outcome === 'silent' && !this.answered.has(key) ? undefined : outcome === 'ok'
     const before = this.results.get(key)
-    this.results.set(key, { ok, at: this.deps.now(), failures: ok === false ? (before?.failures ?? 0) + 1 : 0 })
+    const answered = this.answered.has(key)
+    const starting = outcome === 'silent' && !answered
+    const misses = outcome === 'ok' || starting ? 0 : (before?.misses ?? 0) + 1
+    const ok = starting || (answered && misses === 1) ? undefined : outcome === 'ok'
+    this.results.set(key, { ok, at: this.deps.now(), failures: ok === false ? (before?.failures ?? 0) + 1 : 0, misses })
     if (before?.ok !== ok) this.deps.onChange()
   }
 }

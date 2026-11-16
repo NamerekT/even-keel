@@ -75,8 +75,26 @@ export function watchedOf(state: WatchInput, relative: RelativeOf = () => null):
     const place = view.account === null ? { view: 'settings' as const, project: null } : null
     conditions.set(`cli|${view.agent}|${view.account ?? ''}|${view.installed}`, { level: 'warning', notice: view.notice, place })
   }
+  const silent = new Map<string, { name: string; server: string; projects: string[] }>()
   for (const [project, found] of Object.entries(state.packages.projects)) {
     for (const [key, draft] of packageDrafts(project, found)) conditions.set(key, draft)
+    for (const [name, cell] of Object.entries(found.cells)) {
+      if (!cell.enabled) continue
+      for (const problem of cell.problems) {
+        if (problem.kind !== 'noResponse') continue
+        for (const server of problem.servers) {
+          const key = `packages||${name}|noResponse|${server}`
+          const known = silent.get(key)
+          if (known === undefined) silent.set(key, { name, server, projects: [project] })
+          else if (!known.projects.includes(project)) known.projects.push(project)
+        }
+      }
+    }
+  }
+  // One server is probed once for all the projects that have its package: one entry names them all (BTN-1248).
+  for (const [key, { name, server, projects }] of silent) {
+    const params = { project: projects[0]!, package: name, problem: 'noResponse' as const, detail: server, projects }
+    conditions.set(key, { level: 'error', notice: notice('eventLog.packages', params), place: { view: 'packages', project: projects[0]! } })
   }
   const pooled = new Set(state.account.pool.map((entry) => entry.account))
   for (const entry of state.account.accounts) {
@@ -102,7 +120,10 @@ export function watchedOf(state: WatchInput, relative: RelativeOf = () => null):
   return { conditions, quiet, chains }
 }
 
-/** A project's package problems by their keys: of the set as a whole and of its enabled packages, as /tools counts them. */
+/**
+ * A project's package problems by their keys: of the set as a whole and of its enabled packages, as /tools counts them.
+ * A server that does not answer is no setting of the project: `watchedOf` writes it once for all of them.
+ */
 function packageDrafts(project: string, found: ProjectPackages): [string, EventDraft][] {
   const level: EventLevel = found.blocked ? 'error' : 'warning'
   const named: [string | null, PackageProblem][] = [
@@ -110,8 +131,8 @@ function packageDrafts(project: string, found: ProjectPackages): [string, EventD
     ...Object.entries(found.cells).flatMap(([name, cell]) => (cell.enabled ? cell.problems.map((problem): [string, PackageProblem] => [name, problem]) : [])),
   ]
   return named.flatMap(([name, problem]) => {
-    if (UNLOGGED.has(problem.kind)) return []
-    const detail = problem.kind === 'noKey' ? problem.variables.join(', ') : problem.kind === 'noResponse' ? problem.servers.join(', ') : problem.kind === 'noTrackerMcp' ? problem.server : ''
+    if (UNLOGGED.has(problem.kind) || problem.kind === 'noResponse') return []
+    const detail = problem.kind === 'noKey' ? problem.variables.join(', ') : problem.kind === 'noTrackerMcp' ? problem.server : ''
     const params = { project, ...(name !== null && { package: name }), problem: problem.kind as LoggedPackageProblem, detail }
     const cause = problem.kind === 'installFailed' ? { cause: problem.notice } : {}
     return [[`packages|${project}|${name ?? ''}|${JSON.stringify(problem)}`, { level, notice: notice('eventLog.packages', params, cause), place: { view: 'packages', project } }]]

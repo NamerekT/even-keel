@@ -830,8 +830,9 @@ export const en = {
     `the copy to ${p.tracker} is finished: ${p.copied} ${p.copied === 1 ? 'task' : 'tasks'} copied`,
   'eventLog.trackerSwitched': (p: { project: string; tracker: string; from: string; to: string }) =>
     `the project moved to ${p.tracker}: its tasks are read there now, the key ${p.from} is now ${p.to}`,
-  'eventLog.packages': (p: { project: string; package?: string; problem: LoggedPackageProblem; detail: string }) =>
-    `${p.package === undefined ? 'the package set' : `the package ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}`,
+  // `projects` — of a server that does not answer, every project that has it; ids, which the page shows by their labels.
+  'eventLog.packages': (p: { project: string; package?: string; problem: LoggedPackageProblem; detail: string; projects?: string[] }) =>
+    `${p.package === undefined ? 'the package set' : `the package ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}${(p.projects?.length ?? 0) > 1 ? ` in ${p.projects!.join(', ')}` : ''}`,
   'eventLog.usageUnread': (p: { account: string }) => `The limits of the account ${p.account} can't be read, taken from the sessions`,
   'eventLog.usageOff': (p: { account: string }) => `The limits of the account ${p.account} are not read until a restart`,
 }
