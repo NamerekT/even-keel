@@ -126,6 +126,27 @@ describe('trackerOf', () => {
     expect(adapter.asked).toEqual([todo])
   })
 
+  it('gives each task the line of open parents above it, a closed parent ending it (BTN-1235)', async () => {
+    const adapter = source([
+      raw('ABC-1', { subtasks: 1 }),
+      raw('ABC-2', { subtasks: 1, parent: 'ABC-1' }),
+      raw('ABC-3', { parent: 'ABC-2' }),
+      raw('ABC-4', { subtasks: 1, status: done }),
+      raw('ABC-5', { parent: 'ABC-4' }),
+      raw('ABC-6'),
+    ])
+    const { tasks, parents } = await trackerOf(adapter).chainTasks('ABC', DEFAULT_RULES)
+    expect(tasks.map((task) => [task.id, task.ancestors])).toEqual([
+      ['ABC-3', ['ABC-2', 'ABC-1']],
+      ['ABC-5', []],
+      ['ABC-6', undefined],
+    ])
+    expect(parents.map((task) => [task.id, task.ancestors])).toEqual([
+      ['ABC-1', undefined],
+      ['ABC-2', ['ABC-1']],
+    ])
+  })
+
   it('keeps parents among tasks asked for by id', async () => {
     expect((await trackerOf(source([raw('ABC-1', { subtasks: 2 })])).tasks(['ABC-1'])).map((task) => task.id)).toEqual(['ABC-1'])
   })

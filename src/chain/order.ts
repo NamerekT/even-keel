@@ -120,7 +120,16 @@ export function waitingBlockers(chain: Task[], outside: Task[]): Task[] {
   return [...found.values()].sort((a, b) => byNumber(a.id, b.id))
 }
 
-export function withWaiting(order: string[], waiting: string[], blockers: ReadonlyMap<string, readonly string[]>): string[] {
+/**
+ * The order with each waiting blocker in front of the first task it holds; a waiting parent right after its last
+ * subtask of the order when that comes earlier (BTN-1235). `ancestors` — a task's parents, as `ancestorsOf` gives them.
+ */
+export function withWaiting(
+  order: string[],
+  waiting: string[],
+  blockers: ReadonlyMap<string, readonly string[]>,
+  ancestors: ReadonlyMap<string, readonly string[]> = new Map(),
+): string[] {
   if (waiting.length === 0) return order
   const kept = new Set(waiting)
   const holds = new Map(waiting.map((id) => [id, [] as string[]]))
@@ -128,12 +137,16 @@ export function withWaiting(order: string[], waiting: string[], blockers: Readon
     for (const blocker of blockers.get(id) ?? []) if (kept.has(blocker)) holds.get(blocker)!.push(id)
   }
   const position = new Map(order.map((id, index) => [id, index]))
+  const afterSubtasks = new Map<string, number>()
+  for (const [index, id] of order.entries()) {
+    for (const parent of ancestors.get(id) ?? []) if (kept.has(parent)) afterSubtasks.set(parent, index + 1 < order.length ? index + 1 : Infinity)
+  }
   const first = new Map<string, number>()
   const firstHeld = (id: string): number => {
     if (position.has(id)) return position.get(id)!
     if (first.has(id)) return first.get(id)!
     first.set(id, Infinity)
-    const index = Math.min(Infinity, ...holds.get(id)!.map(firstHeld))
+    const index = Math.min(afterSubtasks.get(id) ?? Infinity, ...holds.get(id)!.map(firstHeld))
     first.set(id, index)
     return index
   }
@@ -192,13 +205,38 @@ function byDate(a: number | null, b: number | null): number {
 
 interface Plan {
   blockers: Map<string, string[]>
+  /** `task → blocker → parent`: the blocker stands for the parent of the task's `blockedBy`, which is outside the list. */
+  via: Map<string, Map<string, string>>
   earlier: Map<string, string[]>
   ranks: Map<string, number>
 }
 
+/** The task's open parents as far as the read knows them, nearest first. */
+export function ancestorsOf(task: Pick<Task, 'parent' | 'ancestors'>): readonly string[] {
+  return task.ancestors ?? (task.parent === null ? [] : [task.parent])
+}
+
 function planOf(tasks: Task[]): Plan {
   const ids = new Set(tasks.map((task) => task.id))
-  const blockers = new Map(tasks.map((task) => [task.id, task.blockedBy.filter((id) => ids.has(id))]))
+  // A parent closes only with its subtasks (BTN-1235): it waits for those in the list, and one outside the list that
+  // blocks a task stands for them.
+  const under = new Map<string, string[]>()
+  for (const task of tasks) {
+    for (const parent of ancestorsOf(task)) under.set(parent, [...(under.get(parent) ?? []), task.id])
+  }
+  const via = new Map<string, Map<string, string>>()
+  const blockers = new Map(
+    tasks.map((task) => {
+      const own = new Set(task.blockedBy.filter((id) => ids.has(id)))
+      const through = new Map<string, string>()
+      for (const parent of task.blockedBy.filter((id) => !ids.has(id))) {
+        for (const id of under.get(parent) ?? []) if (!own.has(id) && !through.has(id)) through.set(id, parent)
+      }
+      if (through.size > 0) via.set(task.id, through)
+      const subtasks = (under.get(task.id) ?? []).filter((id) => !own.has(id) && !through.has(id))
+      return [task.id, [...own, ...through.keys(), ...subtasks]]
+    }),
+  )
   const ranks = milestoneRanks(tasks)
   const earlier = new Map(
     tasks.map((task) => {
@@ -206,7 +244,7 @@ function planOf(tasks: Task[]): Plan {
       return [task.id, own === undefined ? [] : tasks.filter((other) => (ranks.get(other.id) ?? Infinity) < own).map((other) => other.id)]
     }),
   )
-  return { blockers, earlier, ranks }
+  return { blockers, via, earlier, ranks }
 }
 
 function milestoneRanks(tasks: Task[]): Map<string, number> {
@@ -246,7 +284,7 @@ function compareVersions(a: number[], b: number[]): number {
 
 function deadlock(pending: Graph, plan: Plan, tasks: Task[]): Error {
   const blockerKnot = knot(new Map([...pending.keys()].map((id) => [id, new Set(plan.blockers.get(id)!.filter((other) => pending.has(other)))])))
-  if (blockerKnot.size > 0) return fail('order.cycle', { path: findCycle(blockerKnot).join(' → ') })
+  if (blockerKnot.size > 0) return fail('order.cycle', { path: pathOf(findCycle(blockerKnot), plan) })
 
   const milestones = milestonesById(tasks)
   for (const id of [...pending.keys()].sort(byNumber)) {
@@ -257,7 +295,16 @@ function deadlock(pending: Graph, plan: Plan, tasks: Task[]): Error {
       return fail('order.later', { task: id, milestone: String(milestones.get(id)), blocker, blockerMilestone: String(milestones.get(blocker)) })
     }
   }
-  return fail('order.against', { path: findCycle(pending).join(' → ') })
+  return fail('order.against', { path: pathOf(findCycle(pending), plan) })
+}
+
+/** The cycle as the tracker's links make it: a parent outside the list stands between a task and its subtask. */
+function pathOf(cycle: string[], plan: Plan): string {
+  const path = cycle.flatMap((id, index) => {
+    const parent = plan.via.get(id)?.get(cycle[index + 1] ?? '')
+    return parent === undefined ? [id] : [id, parent]
+  })
+  return path.join(' → ')
 }
 
 function knot(graph: Graph): Graph {

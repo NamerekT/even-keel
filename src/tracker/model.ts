@@ -63,6 +63,11 @@ export interface TextEdit {
 
 export interface Task extends TrackerTask {
   question: boolean
+  /**
+   * The open parents above the task, `parent` first, as far as the read's open parents reach (`trackerOf`, BTN-1235);
+   * absent — only `parent` is known. A parent outside the chain that blocks a task stands for its subtasks in the order.
+   */
+  ancestors?: string[]
 }
 
 /** A task with subtasks as the page's "Parents" view shows it (BTN-1041). */
@@ -138,6 +143,19 @@ export function issueLink(template: string | null, task: string): string | null 
 
 export function isLeaf(task: TrackerTask): boolean {
   return task.subtasks === 0
+}
+
+/** Each task with a parent gets its `ancestors`: the line of the read's `open` parents above it, a closed one ends it. */
+export function withAncestors(tasks: Task[], open: (task: Task) => boolean): Task[] {
+  const parents = new Map(tasks.filter(open).map((task) => [task.id, task.parent]))
+  return tasks.map((task) => {
+    if (task.parent === null) return task
+    const ancestors: string[] = []
+    for (let above: string | null | undefined = task.parent; above != null && parents.has(above) && !ancestors.includes(above); above = parents.get(above)) {
+      ancestors.push(above)
+    }
+    return { ...task, ancestors }
+  })
 }
 
 export function isOpen(status: TaskStatus): boolean {

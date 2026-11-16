@@ -19,7 +19,8 @@ export function withOrder(chain: ChainBlock[], order: string[]): ChainBlock[] {
   if (open.length !== chain.filter(inOrder).length) return chain
   const locked = chain.filter((block) => block.locked).map((block) => block.id)
   const blockers = new Map(chain.map((block) => [block.id, block.blockedBy]))
-  const rows = withWaiting(open, locked, blockers).map((id) => byId.get(id)!)
+  const ancestors = new Map(chain.map((block) => [block.id, block.ancestors ?? []]))
+  const rows = withWaiting(open, locked, blockers, ancestors).map((id) => byId.get(id)!)
   const own = chain.filter((block) => block.open && isOwnName(block.id))
   placeOwn(chain, own, rows)
   return [...chain.filter((block) => !block.open && !block.locked), ...rows]

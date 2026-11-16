@@ -89,6 +89,22 @@ describe('the statuses of the tracker', { timeout: 60_000 }, () => {
     expect(run.log).toContain('Board: closed ABC-1, all its subtasks are closed')
   })
 
+  it('orders the open subtask of a parent that blocks tasks before them and runs it first (BTN-1235)', async () => {
+    run.board.add('ABC-1')
+    run.board.child('ABC-9', 'ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    run.board.add('ABC-3', 'ABC-2')
+    run.agent.script('ABC-9', commitAndMerge('ABC-9.txt'))
+    await run.start()
+    const order = () => run.service.getState().chain.projects[PROJECT_ID]
+    await run.until(() => order() !== undefined, 'the order read')
+    expect(order()).toMatchObject({ order: ['ABC-9', 'ABC-2', 'ABC-3'], waiting: ['ABC-1'], error: null })
+
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'the parent done')
+    expect(launches()[0]?.task).toBe('ABC-9')
+  })
+
   it('takes a task from the backlog into the chain once it is moved to a ready status', async () => {
     run.board.add('ABC-1')
     run.board.add('ABC-2')

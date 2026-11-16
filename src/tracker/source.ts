@@ -4,7 +4,7 @@ import type { RemoteRepo } from '../ci/remote.js'
 import type { TrackerCard } from './card.js'
 import type { TaskEditor } from './editor.js'
 import type { LabelChange } from './labels.js'
-import { isLeaf, toTask, type MilestonePick, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
+import { isLeaf, toTask, withAncestors, type MilestonePick, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
 export interface TaskFile {
   /** MIME type; empty when unknown. */
@@ -441,11 +441,12 @@ export interface Tracker {
 export function trackerOf(source: TaskSource): Tracker {
   const tracker: Tracker = {
     async chainTasks(project, rules) {
-      const { tasks, statuses } = await source.chainTasks(project, (status) => !isTerminal(rules, status))
+      const { tasks: read, statuses } = await source.chainTasks(project, (status) => !isTerminal(rules, status))
+      const tasks = withAncestors(read.map(toTask), (task) => !isLeaf(task) && !isTerminal(rules, task.status))
       return {
-        tasks: tasks.filter(isLeaf).map(toTask),
-        parents: tasks.filter((task) => !isLeaf(task) && !isTerminal(rules, task.status)).map(toTask),
-        closedParents: tasks.filter((task) => !isLeaf(task) && isTerminal(rules, task.status)).map(toTask),
+        tasks: tasks.filter(isLeaf),
+        parents: tasks.filter((task) => !isLeaf(task) && !isTerminal(rules, task.status)),
+        closedParents: tasks.filter((task) => !isLeaf(task) && isTerminal(rules, task.status)),
         unknownStatuses: unknownStatuses(rules, statuses),
       }
     },

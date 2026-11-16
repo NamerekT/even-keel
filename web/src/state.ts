@@ -4,7 +4,7 @@ export { accountBadge, entryBadge, headerAccounts, loginLeft, limitedUntil, canW
 import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
 import { fixNameOf, fixTaskOf, isCarryName, isFixName, isOwnName, liveFixId, projectOfFix, releaseOfCarry } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
-import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
+import { ancestorsOf, chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
 import { PROJECT_COLORS } from '../../src/projects/colors.js'
 import { isOpen, type StatusCategory, type Task, type TaskPriority } from '../../src/tracker/model.js'
@@ -66,6 +66,8 @@ export interface ChainBlock {
   priority: TaskPriority
   estimate: number | null
   parent: string | null
+  /** Its open parents, `ancestorsOf` the task: a waiting parent's row follows its last subtask (`withWaiting`); absent — none. */
+  ancestors?: readonly string[]
   labels: string[]
   /** What the task's sessions run on where its card set it (`state.runs`); `null` — as the project says. */
   run: TaskRun | null
@@ -557,7 +559,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const waiting = new Set(broken ? [] : order.waiting)
   const open = broken
     ? tasks.filter((task) => isOpen(task.status)).map((task) => task.id).sort(byNumber)
-    : withWaiting(order.order, order.waiting, new Map(known.map((task) => [task.id, task.blockedBy])))
+    : withWaiting(order.order, order.waiting, new Map(known.map((task) => [task.id, task.blockedBy])), new Map(known.map((task) => [task.id, ancestorsOf(task)])))
   const active = activeChain(state.chain, project)
   const current = active?.current?.task
   const running = active?.current ?? null
@@ -616,6 +618,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       priority: task?.priority ?? 'none',
       estimate: task?.estimate ?? null,
       parent: task?.parent ?? null,
+      ...(task !== undefined && { ancestors: ancestorsOf(task) }),
       labels: task?.labels ?? [],
       run: state.runs[project]?.[id] ?? null,
       session,
