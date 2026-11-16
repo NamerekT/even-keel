@@ -1,140 +1,98 @@
-import { existsSync, mkdirSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { type AccountHome } from './account/homes.js'
 import { openAccountHomes } from './account/globals.js'
-import { AccountSettings, loadAccountSettings, saveAccountSettings } from './account/settingsLayer.js'
-import { loadLedger, saveLedger, type AccountLedger } from './account/ledger.js'
-import { loadKeyOrganizations } from './account/organizations.js'
+import { type AccountHome } from './account/homes.js'
+import { loadLedger } from './account/ledger.js'
 import { loadManagementKeys } from './account/management.js'
-import { loadBrowserHotkeys } from './storage/browser-hotkeys.js'
-import { KEY_SPEND_POLL_MS, KEY_SPEND_TAIL_MS, KEY_SPEND_TIMEOUT_MS } from './account/service-defaults.js'
-import { KeySpend, readOpenRouterKey, saveKeySpend } from './account/spend.js'
-import { keyVendor } from './opencode/home.js'
-import { loadSavedLimits } from './limits/saved.js'
-import { loadRareEvents, pruneRareEvents, rareEvents, saveRareEvent } from './sessions/rare.js'
-import { PendingCloses } from './tracker/close.js'
-import { loadMergeMarks, MergeMarks, saveMergeMark } from './tracker/closes.js'
-import { TaskRuns, type TaskRun } from './sessions/runs.js'
-import { dropRunImport, dropTaskRun, loadRunImports, loadTaskRuns, saveTaskRun } from './sessions/runs-store.js'
-import { EventLog, loadEventLog, pruneEventLog, saveEventEntry, saveEventMemory } from './event-log/log.js'
-import type { EvenKeelState } from './state.js'
-import { providerUrl } from './account/network.js'
+import { loadKeyOrganizations } from './account/organizations.js'
 import type { SessionStart } from './agent/contract.js'
-import { copies } from './agent/copies.js'
-import { CLAUDE } from './claude/name.js'
-import { OPENCODE } from './opencode/name.js'
+import { attachBuiltin } from './builtin/adapter.js'
+import { attachmentsDirOf,SWEEP_EVERY_MS,sweepAttachments } from './builtin/files.js'
+import { BuiltinStore } from './builtin/store.js'
+import { CheckReports } from './chain/checkreports.js'
 import { type LaunchEntry } from './chain/dispatcher.js'
 import { launchedProjects } from './chain/launches.js'
-import { type HandoffSession, type TrackerPlace } from './chain/relay.js'
-import { pullReadiness } from './review/open.js'
-import { PullRefusals } from './review/refusals.js'
-import { closedTasks, loadQuestions, readLaunches, type ClosedTask } from './chain/store.js'
-import { ciToken, gitlabUrls, projectTargets } from './ci/adapters.js'
-import { ProtectionAudit } from './ci/protection-audit.js'
-import { type CiTarget, type Remote } from './ci/remote.js'
-import type { IntakeEntry } from './intake/model.js'
-import type { TemplateHit } from './tracker/templates.js'
-import { DEFAULT_BRANCH, gitProjects, isPlain, plainProjects, listenOf, mcpPortOf, ownerOf, projectLabel, projectLabels, readerIds, readerOf, readersOf, type EvenKeelConfig } from './config.js'
-import { EventHub } from './events.js'
-import { runGit } from './git/run.js'
-import { type SlotUse } from './git/slot.js'
-import { limitRecovery } from './limits/recovery.js'
-import { englishOf, fail, noticeOf, withLabels, type Notice } from './notice/notice.js'
-import { guardToken } from './guard.js'
-import { type RemovalFacts } from './projects/removal.js'
-import { ProjectRemotes } from './projects/remotes.js'
-import { GitFound } from './projects/git-found.js'
-import { Packages } from './packages/service.js'
-import { type ChainControl } from './server.js'
-import { Approvals } from './sessions/approvals.js'
-import { CheckReports } from './chain/checkreports.js'
-import { createChat } from './sessions/chat.js'
-import { noteFileOf } from './sessions/note.js'
-import { Mailbox } from './sessions/mailbox.js'
-import { settleMail } from './sessions/mailRelay.js'
-import { type AgentEntry } from './sessions/agents.js'
-import { Lingering } from './sessions/lingering.js'
-import { type SetupRun } from './sessions/setup.js'
-import { KEEP_WARM_TICK_MS, KeepWarm, type WarmTask } from './sessions/keepwarm.js'
-import { ChatTitles } from './sessions/title.js'
-import { TranscriptWatch } from './sessions/watch.js'
-import { loadEnv, root, source, stateDirOf } from './locations.js'
-import { hulyClient, installForProfiles } from './huly/client.js'
-import { gitSetup } from './git/setup.js'
-import { stepJobs } from './jobs/runner.js'
-import { profileKinds } from './profiles/model.js'
-import { Profiles } from './profiles/service.js'
-import { importForgejo, importProfiles } from './profiles/store.js'
-import type { ProjectForm, SessionView } from './state.js'
-import { Writes } from './storage/database.js'
-import { dropLeftFolder, loadLeftFolders, saveLeftFolder } from './storage/left-folders.js'
-import { VACUUM_EVERY_MS, vacuumDatabase } from './storage/vacuum.js'
-import { loadContextWindows, loadSessionWindows } from './storage/context-windows.js'
-import { keptDatabase } from './storage/owner.js'
-import { backupDirOf } from './storage/backup.js'
-import { Backups, copyOnThread, takeStartFailure } from './storage/backup-schedule.js'
-import { setStateValue, stateValue } from './storage/service-state.js'
-import { inferredTallyMode, tallyKey } from './stats/mode.js'
-import { createSessionSettings } from './tools/sessionSettings.js'
-import { ADAPTERS } from './tracker/adapters.js'
-import { attachBuiltin } from './builtin/adapter.js'
-import { attachmentsDirOf, SWEEP_EVERY_MS, sweepAttachments } from './builtin/files.js'
-import { BuiltinStore } from './builtin/store.js'
-import type { TrackerLink } from './tracker/link.js'
-import { type ParentTask, type Task } from './tracker/model.js'
-import { profileStatusesOf } from './tracker/statuses.js'
-import { KeptReads, Vocabularies } from './tracker/vocabulary.js'
-import { updatesView } from './updates/release.js'
-import { installed } from './updates/watcher.js'
-import * as accountsService from './service/accounts.js'
-import * as chainService from './service/chain.js'
-import * as hostingService from './service/hosting.js'
-import * as statsService from './service/stats.js'
-import * as trackersService from './service/trackers.js'
-import * as lifecycleService from './service/lifecycle.js'
-import * as cliCheckService from './service/cli-check.js'
-import * as demoService from './service/demo.js'
-import { wireBadges } from './service/badge.js'
+import { type HandoffSession } from './chain/relay.js'
+import { closedTasks,loadQuestions,readLaunches,type ClosedTask } from './chain/store.js'
+import { gitlabUrls } from './ci/adapters.js'
+import { type Remote } from './ci/remote.js'
+import { CLAUDE } from './claude/name.js'
 import { AccountLease } from './cli-check/lease.js'
 import type { CheckHistory } from './cli-check/scheduler.js'
-
-const SESSION_POLL_MS = 3_000
-/** How often the CLI and the account's settings are looked at for a context window that may have changed. */
-const WINDOW_RECHECK_MS = 60_000
-const AGENT_TIMEOUT_MS = 30_000
-const CHANGELOG_TIMEOUT_MS = 10 * 60_000
-const LIMITS_POLL_MS = 2_000
-const USAGE_POLL_MS = 5 * 60_000
-const OFFLINE_RETRY_MS = 30_000
-const NETWORK_PROBE_MS = 5_000
-const LAUNCH_CHART_DAYS = 14
-const FALLBACK_TOAST_MS = 24 * 60 * 60_000
-const ACCOUNT_POLL_MS = 60_000
-/** How often a release project's branch is looked at for commits the branch it merges into lacks (BTN-172). */
-const FORWARD_TICK_MS = 60_000
-/** A project's task folders are read at most once per `WORK_TTL_MS`; the tick only lets a project read just now wait less. */
-const WORK_TICK_MS = 15_000
-const WORK_TTL_MS = 60_000
-/** How often the labelled GitHub issues and the ones taken in are looked at (BTN-262). */
-const INTAKE_TICK_MS = 2 * 60_000
-const LIMIT_CHECK_MS = 30_000
-const OWNERS_RESCAN_MS = 5 * 60_000
-const CONFIG_POLL_MS = 2_000
-const TRACKER_CHECK_MS = 15_000
-const TALLY_INTERVAL_MS = 5 * 60_000
-const TALLY_FIRST_DELAY_MS = 15_000
-const SHUTDOWN_MS = 15_000
-const CI_TICK_MS = 5_000
-const CI_TARGETS_MS = 60_000
-const CI_TIMEOUT_MS = 15_000
-const UPDATE_POLL_MS = 12 * 60 * 60_000
-const CLI_VERSION_POLL_MS = 15 * 60_000
-const PLUGIN_UPDATE_TIMEOUT_MS = 2 * 60_000
+import { DEFAULT_BRANCH,gitProjects,isPlain,listenOf,mcpPortOf,ownerOf,projectLabels,readersOf,type EvenKeelConfig } from './config.js'
+import { EventHub } from './events.js'
+import { runGit } from './git/run.js'
+import { gitSetup } from './git/setup.js'
+import { type SlotUse } from './git/slot.js'
+import { guardToken } from './guard.js'
+import { hulyClient,installForProfiles } from './huly/client.js'
+import type { IntakeEntry } from './intake/model.js'
+import { stepJobs } from './jobs/runner.js'
+import { limitRecovery } from './limits/recovery.js'
+import { loadSavedLimits } from './limits/saved.js'
+import { loadEnv,root,stateDirOf } from './locations.js'
+import { englishOf,noticeOf,withLabels,type Notice } from './notice/notice.js'
+import { Packages } from './packages/service.js'
+import { profileKinds } from './profiles/model.js'
+import { Profiles } from './profiles/service.js'
+import { ProjectRemotes } from './projects/remotes.js'
+import { type RemovalFacts } from './projects/removal.js'
+import { pullReadiness } from './review/open.js'
+import { PullRefusals } from './review/refusals.js'
+import { type ChainControl } from './server.js'
+import * as accountsService from './service/accounts.js'
+import * as chainService from './service/chain.js'
+import * as cliCheckService from './service/cli-check.js'
+import { ACCOUNT_POLL_MS,AGENT_TIMEOUT_MS,CHANGELOG_TIMEOUT_MS,CI_TARGETS_MS,CI_TICK_MS,CI_TIMEOUT_MS,CLI_VERSION_POLL_MS,CONFIG_POLL_MS,FALLBACK_TOAST_MS,FORWARD_TICK_MS,INTAKE_TICK_MS,LAUNCH_CHART_DAYS,LIMIT_CHECK_MS,LIMITS_POLL_MS,NETWORK_PROBE_MS,OFFLINE_RETRY_MS,OWNERS_RESCAN_MS,PLUGIN_UPDATE_TIMEOUT_MS,SESSION_POLL_MS,SHUTDOWN_MS,TALLY_FIRST_DELAY_MS,TALLY_INTERVAL_MS,TRACKER_CHECK_MS,UPDATE_POLL_MS,USAGE_POLL_MS,WINDOW_RECHECK_MS,WORK_TICK_MS,WORK_TTL_MS } from './service/defaults.js'
+import * as demoService from './service/demo.js'
+import * as hostingService from './service/hosting.js'
+import * as hubBootstrap from './service/hub-bootstrap.js'
+import * as lifecycleService from './service/lifecycle.js'
+import * as machineBootstrap from './service/machine-bootstrap.js'
+import * as statsService from './service/stats.js'
+import * as trackersService from './service/trackers.js'
+import { type AgentEntry } from './sessions/agents.js'
+import { createChat } from './sessions/chat.js'
+import { KEEP_WARM_TICK_MS,KeepWarm } from './sessions/keepwarm.js'
+import { Lingering } from './sessions/lingering.js'
+import { Mailbox } from './sessions/mailbox.js'
+import { settleMail } from './sessions/mailRelay.js'
+import { noteFileOf } from './sessions/note.js'
+import { loadRareEvents,pruneRareEvents,rareEvents,saveRareEvent } from './sessions/rare.js'
+import { type SetupRun } from './sessions/setup.js'
+import { ChatTitles } from './sessions/title.js'
+import type { EvenKeelState,ProjectForm,SessionView } from './state.js'
+import { tallyKey } from './stats/mode.js'
+import { takeStartFailure } from './storage/backup-schedule.js'
+import { loadBrowserHotkeys } from './storage/browser-hotkeys.js'
+import { loadContextWindows,loadSessionWindows } from './storage/context-windows.js'
+import { Writes } from './storage/database.js'
+import { dropLeftFolder,loadLeftFolders,saveLeftFolder } from './storage/left-folders.js'
+import { keptDatabase } from './storage/owner.js'
+import { stateValue } from './storage/service-state.js'
+import { VACUUM_EVERY_MS,vacuumDatabase } from './storage/vacuum.js'
+import { ADAPTERS } from './tracker/adapters.js'
+import { PendingCloses } from './tracker/close.js'
+import { loadMergeMarks,MergeMarks,saveMergeMark } from './tracker/closes.js'
+import type { TrackerLink } from './tracker/link.js'
+import { type ParentTask,type Task } from './tracker/model.js'
+import type { TemplateHit } from './tracker/templates.js'
+import { updatesView } from './updates/release.js'
+import { installed } from './updates/watcher.js'
 
 export type ServiceContext = typeof context
 
 /** Live bindings keep callbacks lazy across initialization and later state/config changes. */
 const context = {
+  get stateChanged() { return stateChanged },
+  get attachmentsDir() { return attachmentsDir },
+  get importedAdapters() { return importedAdapters },
+  get trackerProfiles() { return trackerProfiles },
+  get moveRunLabels() { return moveRunLabels },
+  get startChain() { return startChain },
+  get SWITCHES() { return SWITCHES },
+  get reach() { return reach },
+  get accountFile() { return accountFile },
   get ACCOUNT_POLL_MS() { return ACCOUNT_POLL_MS },
   get AGENT_TIMEOUT_MS() { return AGENT_TIMEOUT_MS },
   get CHANGELOG_TIMEOUT_MS() { return CHANGELOG_TIMEOUT_MS },
@@ -374,26 +332,10 @@ sweepFiles()
 /** The database's writes are not waited for: the dispatcher and the page go on from what they hold in memory. */
 const writes = new Writes((line) => console.warn(line))
 /** What happened while nobody looked (BTN-350): the page's toasts and its /log come from it. */
-const eventLog = new EventLog(
-  await loadEventLog(db),
-  {
-    save: (entry) => writes.add(`the event log entry ${entry.id}`, saveEventEntry(db, entry)),
-    prune: (below) => writes.add('the old event log entries', pruneEventLog(db, below)),
-    remember: (memory) => writes.add('the event log memory', saveEventMemory(db, memory)),
-  },
-  undefined,
-  () => stateChanged(),
-)
+const eventLog = await hubBootstrap.assembleEventLog(context)
 const configStore = await hostingService.wireConfigStore(context)
 eventLog.settingsSeen(configStore.raw())
-const backups = new Backups({
-  db,
-  files: attachmentsDir,
-  settings: () => ({ dir: backupDirOf(stateDirOf(), configStore.current.backup.dir), keep: configStore.current.backup.keep }),
-  run: copyOnThread,
-  log: (line) => console.log(line),
-  changed: () => stateChanged(),
-})
+const backups = hubBootstrap.assembleBackups(context)
 const backupAtStart = takeStartFailure()
 if (backupAtStart !== null) backups.failedAtStart(backupAtStart)
 // The service names a project by its id (BTN-271): its log shows the project's label (`projectLabel`) instead.
@@ -424,11 +366,7 @@ const mergeMarks = new MergeMarks(await loadMergeMarks(db), (mark) => writes.add
 /** The merged pull requests' tasks whose close the tracker refused, retried by the merge closers (BTN-1163). */
 const pendingCloses = new PendingCloses()
 /** What each task's sessions run on, set on its card (BTN-983), and the projects whose run labels are still to be moved. */
-const taskRuns = new TaskRuns(await loadTaskRuns(db), await loadRunImports(db), {
-  save: (run) => writes.add(`the run of ${run.task}`, saveTaskRun(db, run)),
-  drop: (project, task) => writes.add(`the run of ${task}`, dropTaskRun(db, project, task)),
-  imported: (project) => writes.add(`the moved run labels of ${project}`, dropRunImport(db, project)),
-})
+const taskRuns = await hubBootstrap.assembleTaskRuns(context)
 /** The `rare:` lines already written and the pairs still open (BTN-814); unreadable rows only risk a repeated line. */
 rareEvents.restore(await loadRareEvents(db).catch((error: unknown) => {
   console.warn(`storage: the rare events not read: ${error instanceof Error ? error.message : String(error)}`)
@@ -445,22 +383,8 @@ const profileKindsOf = profileKinds(ADAPTERS)
  * Forgejo's are `importForgejo`'s: `FORGEJO_TOKEN` alone is the CI's older form and makes a profile per remote host.
  */
 const { forgejo: _forgejo, ...importedAdapters } = ADAPTERS
-const trackerProfiles = await importProfiles({
-  db,
-  env: process.env,
-  adapters: importedAdapters,
-  trackers: configStore.current.trackers,
-  log: (line) => console.log(line),
-})
-const importedProfiles = await importForgejo({
-  db,
-  env: process.env,
-  webs: async () => {
-    const targets = await Promise.all(Object.values(gitProjects(configStore.current)).map((repo) => projectTargets(runGit, repo, trackerProfiles.profiles).catch(() => [])))
-    return targets.flat().flatMap((target) => (target.kind === 'forgejo' ? [target.web] : []))
-  },
-  log: (line) => console.log(line),
-})
+const trackerProfiles = await hubBootstrap.assembleTrackerProfiles(context)
+const importedProfiles = await hubBootstrap.assembleImportedProfiles(context)
 let { listen, token, mcpPort } = (() => {
   try {
     const listen = listenOf(process.env)
@@ -479,8 +403,8 @@ const readers = () => readersOf(configStore.current)
 /** The project a reader serves. */
 const ownerOfReader = (reader: string) => ownerOf(readers(), reader)
 /** The reader of a project's task: the feed whose ids the task's id carries, else the project. */
-const readerFor = (project: string, task: string) => readerOf(configStore.current, project, task)
-const feedOf = (reader: string) => configStore.current.feeds[ownerOfReader(reader)]?.find((feed) => feed.id === reader)
+const readerFor = hubBootstrap.assembleReaderFor(context)
+const feedOf = hubBootstrap.assembleFeedOf(context)
 /** The projects and feeds whose tracker and profile stay: the chain has started a task of theirs. */
 const lockedReaders = () => launchedProjects(launches, readerFor)
 /** The readers whose profile's rules clash with their project's own, by the text logged: logged once while it lasts. */
@@ -491,7 +415,7 @@ const rulesClashes = new Map<string, string>()
  */
 const readerRules = trackersService.wireReaderRules(context)
 /** The project's rules; with a task, those of the feed it comes from. */
-const rulesOf = (project: string, task?: string) => readerRules(task === undefined ? project : readerFor(project, task))
+const rulesOf = hubBootstrap.assembleRulesOf(context)
 const readerMoves = trackersService.wireReaderMoves(context)
 const statusMover = trackersService.wireStatusMover(context)
 const stateDir = stateDirOf()
@@ -501,21 +425,14 @@ const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const links = new Map<string, TrackerLink>()
 /** The link of the reader's tracker — a project's, a feed's; `undefined` while that tracker is off. */
-const linkOf = (reader: string): TrackerLink | undefined => {
-  const key = trackers.keyOf(reader)
-  return key === undefined ? undefined : links.get(key)
-}
+const linkOf = hubBootstrap.assembleLinkOf(context)
 /** The link of the tracker a project's task is in. */
-const linkFor = (project: string, task: string) => linkOf(readerFor(project, task))
+const linkFor = hubBootstrap.assembleLinkFor(context)
 /** Reads the project's tasks anew from every tracker it reads; `false` — none reads it. */
-const refreshProject = async (project: string): Promise<boolean> => {
-  const found = readerIds(configStore.current, project).flatMap((reader) => refreshers.get(reader) ?? [])
-  await Promise.all(found.map((refresh) => refresh()))
-  return found.length > 0
-}
-const vocabularies = new Vocabularies(async (project) => linkOf(project)?.aside(async (tracker) => tracker.vocabulary?.(project)))
+const refreshProject = hubBootstrap.assembleRefreshProject(context)
+const vocabularies = hubBootstrap.assembleVocabularies(context)
 /** The statuses of each tracker profile (BTN-554), for its status moves. */
-const profileStatuses = new KeptReads((id) => profileStatusesOf(ADAPTERS, profiles.current(), id))
+const profileStatuses = hubBootstrap.assembleProfileStatuses(context)
 // The state goes to the page whole once, then by its changed parts, the sessions one by one (BTN-695).
 const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id' } })
 // The event log looks at the state also while no page listens, at most every two seconds (BTN-350).
@@ -525,22 +442,17 @@ hub.watch('state', (state) => eventLog.observe(state as EvenKeelState), 2_000)
  * declaration may fire while this module still starts — the Huly client's install does at once (EKR-52).
  */
 const stateChanged = (): void => hub.broadcastSoon('state', () => getState())
-const transcriptWatch = new TranscriptWatch(
-  (sessionId) => hub.signal('transcript', { sessionId }),
-  (error) => console.error(`sessions: watching a transcript: ${error instanceof Error ? error.message : String(error)}`),
-)
+const transcriptWatch = machineBootstrap.assembleTranscriptWatch(context)
 const homes = await openAccountHomes(db, process.env)
 /** What the transfer wrote into each account folder's settings.json and each account's own layer (BTN-901), written behind. */
-const accountSettings = new AccountSettings(await loadAccountSettings(db), homes.global.dir, (account, record) =>
-  writes.add(`the settings of ${account}`, saveAccountSettings(db, account, record, new Date())))
+const accountSettings = await machineBootstrap.assembleAccountSettings(context)
 homes.useSettings(accountSettings)
 /** The demo on the first run (BTN-776): its account folder is listed from here on, before anything reads the folders. */
 const demo = demoService.wireDemo(context)
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
 const claudeAccount = () => configStore.current.accounts[CLAUDE]!
 /** `.claude.json` files sessions read: the global one and that of a Claude account folder, the shared one by default. */
-const claudeConfigs = (account = claudeAccount()) =>
-  [...new Set([homes.global, homes.find(account)].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
+const claudeConfigs = machineBootstrap.assembleClaudeConfigs(context)
 const packages: Packages = accountsService.wirePackages(context)
 /**
  * Whether the project's prompts carry its task: its own `brief`, else on exactly when no package brings the tracker's
@@ -548,7 +460,7 @@ const packages: Packages = accountsService.wirePackages(context)
  * project's own tracker's server only, and a server signed in as another profile than the feed's does not see its task.
  */
 function briefOn(project: string, reader = project): boolean { return accountsService.briefOn(context, project, reader) }
-const approvals = new Approvals({ language: () => configStore.current.language ?? promptLanguage(), unattended: () => configStore.current.unattended })
+const approvals = machineBootstrap.assembleApprovals(context)
 const checkReports = new CheckReports()
 const runtimes = accountsService.wireRuntimes(context)
 /** The agent of an account folder: every session of the folder runs on it. */
@@ -592,78 +504,36 @@ const trackers = trackersService.wireTrackers(context)
 /**
  * The remote's CI token from the project's explicit choice or the automatic profile of its forge and host.
  */
-const ciTokenOf = (project: string, target: CiTarget) =>
-  ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
-const protectionAudit = new ProtectionAudit({ config: () => ({ ...configStore.current, projects: gitProjects(configStore.current) }), git: runGit, token: (project, target) => ciTokenOf(project, target)?.token ?? null, gitlabUrls: () => gitlabUrls(profiles.current().profiles), changed: stateChanged })
+const ciTokenOf = hubBootstrap.assembleCiTokenOf(context)
+const protectionAudit = hubBootstrap.assembleProtectionAudit(context)
 /** The remotes whose CI takes the profile's token, shown or not. */
-const ciOn = (profileId: string, hidden: boolean) =>
-  ciWatches
-    .places(hidden)
-    .filter(({ project, target }) => ciTokenOf(project, target)?.profile === profileId)
-    .map(({ project, target }) => ({ project, remote: target.remote }))
+const ciOn = hubBootstrap.assembleCiOn(context)
 const pullRefusals = new PullRefusals()
 const remotes = new ProjectRemotes(runGit)
-const gitFound = new GitFound({
-  git: runGit,
-  gitStarts: () => (gitSetup.view()?.version ?? null) !== null,
-  folders: () => plainProjects(configStore.current),
-  label: (project) => projectLabel(configStore.current, project),
-})
+const gitFound = machineBootstrap.assembleGitFound(context)
 gitFound.changed = stateChanged
 const ciWatches = chainService.wireCiWatches(context)
 /** The setting; an installation from before it that has not chosen keeps what Tally already ran on (BTN-247). */
-const tallyMode = () => configStore.current.tally ?? inferredTallyMode(process.env, existsSync(join(stateDir, 'tally', 'pgdata')))
+const tallyMode = hubBootstrap.assembleTallyMode(context)
 const newTally = statsService.wireNewTally(context)
 let tally = newTally()
 /** What `tally` runs on (`tallyKey`), and the restarts in turn: the page and `.env` may change it at once. */
 let tallyRuns = tallyKey(tallyMode(), process.env)
 let tallyRestarts = Promise.resolve()
 /** The project's pinned checkpoint threshold, its own over the shared one; `null` — calibrated. */
-const pinnedCheckpoint = (project: string | undefined) =>
-  project === undefined || configStore.current.settings[project] === undefined
-    ? configStore.current.stats.checkpointTokens
-    : configStore.current.settings[project].checkpointTokens
+const pinnedCheckpoint = hubBootstrap.assemblePinnedCheckpoint(context)
 // Tally knows a project by its key: projects that share one are one project of the stats, on the first one's repository.
 const stats = statsService.wireStats(context)
 let ledger = loadLedger(accountFile)
-
-const saveAccounts = (next: AccountLedger) => {
-  ledger = next
-  saveLedger(accountFile, ledger)
-}
-
-const homeOf = (key: string): AccountHome => {
-  const home = homes.find(key)
-  if (home === undefined) throw fail('account.homeGone', { key })
-  return home
-}
-
+const saveAccounts = machineBootstrap.assembleSaveAccounts(context)
+const homeOf = machineBootstrap.assembleHomeOf(context)
 const reach = accountsService.wireReach(context)
 /**
  * The real spend of chain sessions on an OpenRouter key, by its `usage` (BTN-860); the same read tells the account card
  * what is left of the key's own limit (BTN-847), and the account's balance is read beside it (BTN-868).
  */
-const keySpend = new KeySpend({
-  metered: (key) => {
-    const home = homes.find(key)
-    if (home === undefined || home.agent !== OPENCODE || home.global) return false
-    const apiKey = homes.apiKeyOf(home)
-    return apiKey !== null && keyVendor(apiKey) === 'openrouter'
-  },
-  read: async (key) => {
-    const home = homes.find(key)
-    const apiKey = home === undefined ? null : homes.apiKeyOf(home)
-    account.readBalance(key).catch((error: unknown) => console.error(`account: the balance of ${key}: ${error instanceof Error ? error.message : String(error)}`))
-    const read = apiKey === null ? null : await readOpenRouterKey(apiKey, KEY_SPEND_TIMEOUT_MS)
-    if (read !== null) account.noteKeyLimit(key, read.limit)
-    return read?.usage ?? null
-  },
-  onSpend: (growth) => writes.add(`the key spend of session ${growth.sessionId}`, saveKeySpend(db, growth)),
-  now: () => Date.now(),
-  tailMs: KEY_SPEND_TAIL_MS,
-  pollMs: KEY_SPEND_POLL_MS,
-})
-const online = (home: AccountHome) => reach.up(providerUrl(home.agent, home.agent === OPENCODE ? homes.apiKeyOf(home) : null))
+const keySpend = machineBootstrap.assembleKeySpend(context)
+const online = machineBootstrap.assembleOnline(context)
 const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
   homeOf: (key) => homes.find(key),
   agentOf,
@@ -673,27 +543,17 @@ const { spendsByKey, limitRetries, retryAfterLimit } = limitRecovery({
   usage: (key) => limits.usage(key),
   spendMonth: (key, at) => limits.spendMonth(key, at),
 })
-
 const limits = accountsService.wireLimits(context)
 
 const release = installed(root)
 const updates = accountsService.wireUpdates(context)
 const releasesView = () => updatesView(release.version, updates.releases, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null })
 const updater = accountsService.wireUpdater(context)
-
 const cliVersions = accountsService.wireCliVersions(context)
 const cliChecks = cliCheckService.wireCliChecks(context, ((await stateValue(db, 'cliCheck.history')) as CheckHistory | undefined) ?? {})
-
 const daemons = accountsService.wireDaemons(context)
 
-const cliCopies = copies(runtimes, (name, source) => configStore.saveCli(name, source), (name) => configStore.fallBackCli(name),
-  () => { dispatcher.check(); stateChanged(); void account.refresh() },
-  async () => { await cliVersions.check(); await account.refresh() },
-  {
-    downloaded: ((await stateValue(db, 'cli.downloaded')) as string[] | undefined) ?? [],
-    remember: (downloaded) => writes.add('the providers with a downloaded CLI copy', setStateValue(db, 'cli.downloaded', downloaded)),
-  })
-
+const cliCopies = await machineBootstrap.assembleCliCopies(context)
 const secrets = accountsService.wireSecrets(context)
 
 const profiles: Profiles = accountsService.wireProfiles(context)
@@ -715,27 +575,20 @@ const pullBlock = accountsService.wirePullBlock(context)
 
 const chatTitles = new ChatTitles()
 const vscode = accountsService.wireVscode(context)
-
 const account = accountsService.wireAccount(context)
-
 const owners = accountsService.wireOwners(context)
 
 /** The e-mail a folder had at `at` (the folder's account may change), else its current one. */
 const emailAt = accountsService.wireEmailAt(context)
-
 const sessionAccount = accountsService.wireSessionAccount(context)
 
 /** The account folder `key` (the active one unless given) as the chain judges a launch in it. */
 const accountNow = accountsService.wireAccountNow(context)
-
 const contextWindows = accountsService.wireContextWindows(context, savedWindows)
-
 const monitor = accountsService.wireMonitor(context, savedSessionWindows)
 
 const wedgedSessions = new Set<string>()
-
 function logStartupDialogs(views: SessionView[]): void { return accountsService.logStartupDialogs(context, views) }
-
 const liveView = accountsService.wireLiveView(context)
 
 /** Whether a message goes into the live session mid-turn without its mailbox (`AgentEntry.steers`, BTN-291). */
@@ -743,40 +596,22 @@ const steering = accountsService.wireSteering(context)
 
 /** A session just resumed is mid-turn until the daemon shows it working, which lags the resume by seconds (BTN-307). */
 const agentStatus = accountsService.wireAgentStatus(context)
-
-const knownTask = (task: string) => [...tasksByProject.values()].flat().find((each) => each.id === task)
+const knownTask = hubBootstrap.assembleKnownTask(context)
 /** The first look at a project that read run labels before BTN-983 moves them into runs, once its tasks are listed. */
-const moveRunLabels = (project: string): void => {
-  const tasks = tasksByProject.get(project)
-  if (tasks === undefined) return
-  const moved = taskRuns.importLabels(project, tasks)
-  if (moved.length > 0) console.log(`run labels moved into runs: ${moved.join(', ')}`)
-}
-const runOfTask = (project: string | undefined, task: string) => {
-  if (project === undefined) return undefined
-  moveRunLabels(project)
-  return taskRuns.of(project, task)
-}
-const runsOfProject = (project: string) => {
-  moveRunLabels(project)
-  return taskRuns.ofProject(project)
-}
+const moveRunLabels = hubBootstrap.assembleMoveRunLabels(context)
+const runOfTask = hubBootstrap.assembleRunOfTask(context)
+const runsOfProject = hubBootstrap.assembleRunsOfProject(context)
 /** The page's card and the tasks server set a run; a live session keeps what it started on. */
-const setTaskRun = (project: string, task: string, run: TaskRun | null): void => {
-  taskRuns.set(project, task, run)
-  stateChanged()
-}
+const setTaskRun = hubBootstrap.assembleSetTaskRun(context)
 /** A pool entry counts only while its folder exists and belongs to the provider it is filed under. */
 const hasAccount = accountsService.wireHasAccount(context)
 
 /** What a new session of the task (or of the fix session `task`) runs on, and in which account folder. */
 const choiceFor = accountsService.wireChoiceFor(context)
-
 const planFor = accountsService.wirePlanFor(context)
 
 /** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
 const agentExtras = accountsService.wireAgentExtras(context)
-
 const noAccountFor = accountsService.wireNoAccountFor(context)
 
 /** A draft is written in the project's main checkout, on the account and model a new session of its chain would get. */
@@ -790,26 +625,17 @@ const activeAccount = () => configStore.current.accounts[configStore.current.pro
 const promptLanguage = (project?: string) => (project === undefined ? undefined : configStore.current.settings[project]?.promptLanguage) ?? configStore.current.promptLanguage
 
 /** Where in its tracker a reader's tasks are — a project's, a feed's. */
-const trackerPlace = (reader: string): TrackerPlace | null => {
-  const all = readers()
-  const name = all.trackers[reader]!
-  const place = all.trackerProjects[reader]
-  return place === undefined ? null : { title: ADAPTERS[name]!.title, project: place }
-}
-
+const trackerPlace = hubBootstrap.assembleTrackerPlace(context)
 const briefed = chainService.wireBriefed(context)
 
 /** Even Keel's prompt and the project's own, for a new session only: a resumed one already has them. */
 const withProject = chainService.wireWithProject(context)
-
-const settingsFor = createSessionSettings({ config: () => configStore.current, packages, globalDir: homes.global.dir, trim: () => dispatcher.state.trimTools, projectOf })
-
+const settingsFor = machineBootstrap.assembleSettingsFor(context)
 function projectOf(task: string): string | undefined { return chainService.projectOf(context, task) }
 
 const slotsSeen = new Map<string, number>()
 /** How many slots the project's tasks may be in: the most it had since the start, so a pool shrunk on the fly still finds its busy slots. */
 function slotSpan(project: string): number { return chainService.slotSpan(context, project) }
-
 const places = chainService.wirePlaces(context)
 
 /** Keeps a done task the chain ran in the database's archive, by what its tracker last said of it. */
@@ -828,12 +654,7 @@ function taskRun(task: string, cwd: string, account: string): SetupRun { return 
 function syncProject(project: string): Promise<Notice | null> { return chainService.syncProject(context, project) }
 
 /** The live view of the session a running chain will go on in, if its agent can ping a fork of it (BTN-437). */
-const warmable = ({ task, sessionId }: WarmTask): SessionView | undefined => {
-  const view = liveView(task)
-  if (view === undefined || (sessionId !== null && view.sessionId !== sessionId)) return undefined
-  const session = monitor.handoff(task)
-  return session?.sessionId === view.sessionId && agentOf(homeOf(session.account)).warm !== undefined ? view : undefined
-}
+const warmable = machineBootstrap.assembleWarmable(context)
 
 const keepWarm: KeepWarm = chainService.wireKeepWarm(context)
 
@@ -847,9 +668,7 @@ function sameRepositoryOf(a: string, b: string): boolean | undefined { return ch
  * so a hand-made `config-import` is caught only by the carry, before it fetches anything.
  */
 function checkMergeTarget(project: string, form: ProjectForm): Promise<void> { return chainService.checkMergeTarget(context, project, form) }
-
 const works = chainService.wireWorks(context)
-
 const forwards = chainService.wireForwards(context)
 
 /**
@@ -861,7 +680,6 @@ function resumeWith(task: string, session: HandoffSession, prompt: string): Prom
 
 /** The words that came with an allowed call wait in the session's mailbox: it goes on with its turn at once. */
 function approved(task: string, session: HandoffSession, prompt: string): boolean { return chainService.approved(context, task, session, prompt) }
-
 function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart { return chainService.goOnWith(context, home, task, session, prompt) }
 
 /** Puts a chat message into a working session that steers (BTN-291); `false` — it is not live here after all. */
@@ -881,15 +699,10 @@ const { mailRelay, answerSession } = createChat({
   log: (line) => console.log(line),
   now: () => new Date(),
 })
-
 function occupantsOf(slot: string, task: string): { idle: import("./sessions/occupants.js").Occupant[]; busy: import("./sessions/occupants.js").Occupant[]; } { return chainService.occupantsOf(context, slot, task) }
-
 function slotUse(slot: string, task: string): SlotUse { return chainService.slotUse(context, slot, task) }
-
 function vacateSlot(slot: string, task: string, shared = false): Promise<void> { return chainService.vacateSlot(context, slot, task, shared) }
-
 function stopTaskSessions(project: string, repo: string, task: string, count: number, shared = false): ReturnType<typeof chainService.stopTaskSessions> { return chainService.stopTaskSessions(context, project, repo, task, count, shared) }
-
 function stopLingering(): Promise<void> { return chainService.stopLingering(context) }
 
 /** What holds a project the page asks to remove: its chain, live sessions of its tasks or in its folders, the places it keeps. */
@@ -901,29 +714,15 @@ const branches = chainService.wireBranches(context)
 const getState = hostingService.wireGetState(context)
 
 // The README badge (BTN-915): pushed on a state change, and on a timer for its delayed change and its pulse.
-const badges = wireBadges({
-  config: () => configStore.current,
-  state: getState,
-  period: (query) => stats.period(query),
-  read: (project) => agentsRead && readerIds(configStore.current, project).every((reader) => readerTasks.has(reader)),
-  closed: (project) => archive.filter((each) => each.project === project),
-})
+const badges = hubBootstrap.assembleBadges(context)
 hub.watch('state', () => void badges.tick(), 2_000)
 setInterval(() => void badges.tick(), 30_000).unref()
 
 // The chain's switches are Even Keel's setting rows: the page's switches write them, and `onChange` hands them to the dispatcher.
-const SWITCHES: Partial<Record<keyof ChainControl, (on: boolean) => void>> = {
-  setUnattended: (on) => configStore.saveChainSwitches({ unattended: on }),
-  setTrimTools: (on) => configStore.saveChainSwitches({ trimTools: on }),
-}
+const SWITCHES: Partial<Record<keyof ChainControl, (on: boolean) => void>> = hubBootstrap.assembleSWITCHES(context)
 // The chain's start reads the checkout, so its card warns of a moved folder before a task's launch refuses (BTN-754).
-const startChain = async (project: string) => {
-  await branches.refresh(project)
-  return dispatcher.start(project)
-}
-const chainControl: ChainControl = new Proxy(dispatcher, {
-  get: (target, key, receiver) => (key === 'start' ? startChain : (SWITCHES[key as keyof ChainControl] ?? Reflect.get(target, key, receiver))),
-})
+const startChain = hubBootstrap.assembleStartChain(context)
+const chainControl: ChainControl = hubBootstrap.assembleChainControl(context)
 
 let server = hostingService.wireServer(context)
 
@@ -966,23 +765,14 @@ setInterval(() => writes.add('the vacuum', vacuumDatabase(db)), VACUUM_EVERY_MS)
 backups.start()
 setInterval(() => void cliChecks.check(), cliCheckService.CLI_CHECK_TICK_MS).unref()
 setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
-
-const applyCi = () =>
-  void Promise.all([ciWatches.apply(gitProjects(configStore.current)), remotes.apply(gitProjects(configStore.current))]).then(() => {
-    dispatcher.check()
-    stateChanged()
-  })
+const applyCi = hubBootstrap.assembleApplyCi(context)
 applyCi()
 setInterval(() => {
   for (const watch of ciWatches.all()) void watch.tick()
 }, CI_TICK_MS).unref()
 setInterval(() => void forwards.tick().catch(() => { }), FORWARD_TICK_MS).unref()
 setInterval(() => void intake.tick(), INTAKE_TICK_MS).unref()
-const pollWorks = () => {
-  const projects = Object.keys(configStore.current.projects)
-  works.keep(projects)
-  for (const project of projects) if (tasksByProject.has(project)) void works.poll(project)
-}
+const pollWorks = hubBootstrap.assemblePollWorks(context)
 pollWorks()
 setInterval(pollWorks, WORK_TICK_MS).unref()
 setInterval(

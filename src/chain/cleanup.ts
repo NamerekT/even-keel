@@ -2,7 +2,7 @@ import { isNetworkFailure } from '../git/sync.js'
 import type { FinishOutcome } from '../git/types.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { MainCheck } from './maincheck.js'
-import type { ChainState, DispatcherDeps, PullCleanup } from './model.js'
+import type { ActiveChain, ChainState, DispatcherDeps, PullCleanup } from './model.js'
 import type { Reviews } from './reviews.js'
 
 /** The waits before each next try of a sync of main that could not reach a remote: three tries in all (BTN-267). */
@@ -140,5 +140,45 @@ export class Cleanups {
     const at = this.deps.now().toISOString()
     const leftovers = (this.state.leftovers[project] ??= [])
     leftovers.push(...warnings.map((notice) => ({ task, at, notice })))
+  }
+
+  /**
+   * Closes the task the chain left as `closing`: `done` — it is done by the tracker's last read, `quietTooLong` — its
+   * session, still working, has been quiet long enough to be left to the sweep. `false` — the chain waits.
+   */
+  async finish(chain: ActiveChain, task: string, done: boolean, quietTooLong: () => boolean): Promise<boolean> {
+    if (!done) {
+      delete chain.closing
+      this.deps.save(this.state)
+      return true
+    }
+    if (this.working(task)) {
+      if (!quietTooLong()) return false
+      delete chain.closing
+      const released = (this.state.released[chain.project] ??= [])
+      if (!released.includes(task)) released.push(task)
+      this.deps.save(this.state)
+      return true
+    }
+    await this.closeUp(chain.project, task)
+    delete chain.closing
+    this.deps.save(this.state)
+    return true
+  }
+
+  /** A warning about a finished task's cleanup that came after the cleanup itself: a stop tried again in vain (EKR-99). */
+  leftover(project: string, task: string, warning: Notice): void {
+    const leftovers = (this.state.leftovers[project] ??= [])
+    leftovers.push({ task, at: this.deps.now().toISOString(), notice: warning })
+    this.deps.save(this.state)
+  }
+
+  dismiss(project: string, task: string): void {
+    const leftovers = this.state.leftovers[project]
+    if (leftovers === undefined || !leftovers.some((each) => each.task === task)) return
+    const kept = leftovers.filter((each) => each.task !== task)
+    if (kept.length === 0) delete this.state.leftovers[project]
+    else this.state.leftovers[project] = kept
+    this.deps.save(this.state)
   }
 }

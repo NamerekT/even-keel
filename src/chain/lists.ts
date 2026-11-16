@@ -1,7 +1,7 @@
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isOpen, type Task } from '../tracker/model.js'
 import type { ChainState, DispatcherDeps, ProjectOrder } from './model.js'
-import { milestoneSequence, type SequencedMilestone } from './milestone-sequence.js'
+import { milestoneSequence, withMilestoneOrder, type SequencedMilestone } from './milestone-sequence.js'
 import { activeMilestone, milestoneCandidate, type ChainView } from './milestones.js'
 import { chainOrder, waitingBlockers, withFresh } from './order.js'
 import type { Reviews } from './reviews.js'
@@ -127,6 +127,30 @@ export class TaskLists {
   /** Whether the task is open in the tracker, in the chain or out of it. */
   readonly listedOpen = (project: string, task: string): boolean =>
     [...(this.tasks.get(project) ?? []), ...(this.waiting.get(project) ?? []), ...(this.backlog.get(project) ?? [])].some((each) => each.id === task)
+
+  /** The saved order with the backlog and the own waiting blockers ranked too; the stored one where the tasks give none. */
+  kept(project: string): string[] | undefined {
+    const stored = this.state.orders[project]
+    const chain = this.tasks.get(project) ?? []
+    if (stored === undefined && chain.length === 0) return undefined
+    const outside = this.outside.get(project) ?? []
+    const waiting = (this.waiting.get(project) ?? []).filter((task) => !outside.includes(task))
+    const tasks = [...chain, ...waiting, ...(this.backlog.get(project) ?? [])]
+    const current = this.currentOf(project)
+    const preferred = current === undefined ? stored : [current, ...(stored ?? []).filter((id) => id !== current)]
+    try {
+      return chainOrder(tasks, preferred)
+    } catch {
+      return stored
+    }
+  }
+
+  /** The view `Dispatcher.setTasks(project, tasks)` would give, the lists left as they are. */
+  preview(project: string, read: Task[]): ChainView {
+    const { chain, waiting } = this.sorted(project, withMilestoneOrder(read, this.deps.milestoneOrder?.(project) ?? []))
+    const outside = this.outside.get(project) ?? []
+    return { tasks: chain, blockers: waiting.filter((task) => !outside.includes(task)), current: this.currentOf(project) }
+  }
 
   private preferred(project: string, stored = this.state.orders[project]): string[] | undefined {
     const current = this.currentOf(project)
