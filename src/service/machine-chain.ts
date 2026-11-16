@@ -35,11 +35,11 @@ import { deferLeftFolder, type stopTaskSessions } from './cleanup.js'
  */
 export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSnapshot) => Promise<void>): MachinePort {
   return {
-    launch: async (project, task, extra) => {
+    launch: async (project, task, extra, brief) => {
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
       const place = await ctx.places.ready(project, task)
-      const started = ctx.withProject(await ctx.briefed(task, startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), !isPlain(ctx.configStore.current, project)), project), project)
+      const started = ctx.withProject(ctx.briefed.apply(task, startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), !isPlain(ctx.configStore.current, project)), brief), project)
       const { prompt, model, provider, fallback } = ctx.planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
       const extras = ctx.agentExtras(home, project, task)
       const sessionId = await ctx.launchIn(home, { name: task, cwd: place.path, prompt, model, settings: ctx.settingsFor(task, project), ...extras }, project)
@@ -107,13 +107,13 @@ export function wireMachine(ctx: ChainContext, handedOver: (snapshot: HandoffSna
     sessionsRead: () => ctx.agentsRead,
     resume: (task, session) => ctx.resumeWith(task, session, resumePrompt(ctx.promptLanguage(ctx.projectOf(task)))),
     reply: (task, session, prompt) => ctx.resumeWith(task, session, prompt),
-    relay: async (task, session, handoff, reason) => {
+    relay: async (task, session, handoff, reason, brief) => {
       const previous = ctx.homes.find(session.account)
       if (previous !== undefined && !session.stopped) await ctx.stopIn(previous, session)
       const project = ctx.projectOf(task)
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
-      const told = isOwnName(task) ? handoff : await ctx.briefed(task, handoff)
+      const told = isOwnName(task) ? handoff : ctx.briefed.apply(task, handoff, brief)
       const { prompt, model } = ctx.planFor(task, ctx.withProject(told, project), project)
       const notePath = noteOf(session)
       const note = await readNote(notePath)

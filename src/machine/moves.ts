@@ -38,7 +38,10 @@ export class MachineMoves {
       })
     }
     const deps: MoveDeps = {
-      machine: this.deps.local,
+      machine: context.brief === undefined ? this.deps.local : {
+        ...this.deps.local,
+        relay: (task, session, prompt, reason) => this.deps.local.relay(task, session, prompt, reason, context.brief),
+      },
       journal: this.deps.journal,
       now: this.deps.now,
       log: this.deps.log,

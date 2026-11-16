@@ -5,9 +5,9 @@ import { promisify } from 'node:util'
 import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
-import { TASKS_SERVER } from '../taskmcp/server.js'
+import { isTasksUrl, TASKS_SERVER } from '../taskmcp/server.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
-import { McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
+import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
@@ -135,6 +135,22 @@ export class Packages {
   /** The machine's gateway takes the servers holding keys and the tasks server from the hub from now on (BTN-990). */
   throughHub(hub: GatewayHub): void {
     this.gateway.throughHub(hub)
+  }
+
+  /** The hub publishes only route names to machines, never the resolved targets containing its keys. */
+  hubServers(): string[] {
+    const routes: string[] = []
+    for (const project of Object.keys(this.deps.repos)) {
+      for (const [name, record] of Object.entries(this.file.packages)) {
+        for (const install of record.installs) {
+          for (const server of Object.keys(install.servers)) {
+            const target = this.target({ project, name, install: install.id, server })
+            if (target !== null && !isTasksUrl(target.entry.url) && hubOwned(target)) routes.push(routeOf(project, name, install.id, server))
+          }
+        }
+      }
+    }
+    return routes
   }
 
   /** Where the link asks the hub's servers for a machine; `undefined` until the hub's gateway listens. */

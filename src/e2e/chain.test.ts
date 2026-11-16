@@ -96,6 +96,7 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
 
   it('hands a task over to a new session in the same folder on a checkpoint, pointing it at the note', async () => {
     run.board.add('ABC-1')
+    run.board.tasks.get('ABC-1')!.title = 'Carry this task brief through the hub'
     run.agent.script('ABC-1', checkpoint('.temp/handoff.md', 'Half of it is done.\n'), commitAndMerge())
     await run.start()
     await run.startChain(PROJECT_ID)
@@ -106,6 +107,8 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
     expect(second!.cwd).toBe(first!.cwd)
     expect(second!.sessionId).not.toBe(first!.sessionId)
     expect(second!.prompt).toContain('handoff.md')
+    expect(first!.prompt).toContain('Carry this task brief through the hub')
+    expect(second!.prompt).toContain('Carry this task brief through the hub')
     expect(run.agent.calls.filter((call) => call.kind === 'stop').map((call) => call.sessionId)).toContain(first!.sessionId)
   })
 

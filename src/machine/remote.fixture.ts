@@ -14,7 +14,7 @@ import { Writes, type Db } from '../storage/database.js'
 import { Assignments } from './assignments.js'
 import { MachineMoves } from './moves.js'
 import type { MachinePort } from './port.js'
-import { RemoteMachine } from './remote.js'
+import { RemoteMachine, type RemoteDeps } from './remote.js'
 import { MachineRunner } from './runner.js'
 
 export const PROJECT = '11111111-1111-4111-8111-111111111111'
@@ -75,7 +75,7 @@ export function machineOf() {
 }
 
 /** The hub and one machine over the link; the machine makes the moves of a task's session (`MachineMoves`). */
-export async function bench() {
+export async function bench(brief?: RemoteDeps['brief']) {
   const hubStore = new MemoryHubStore()
   const machineStore = new MemoryMachineStore()
   await machineStore.agree(PROJECT, REPO)
@@ -94,6 +94,7 @@ export async function bench() {
     projectOf: () => PROJECT,
     projectOfSession: () => PROJECT,
     lastSession: () => undefined,
+    ...(brief === undefined ? {} : { brief }),
     saveSnapshot: (snapshot) => void snapshots.push(snapshot),
     assigned: (project, task) => assignments.assign(project, task, id),
     released: (project, task) => assignments.release(project, task),

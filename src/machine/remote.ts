@@ -1,4 +1,5 @@
 import type { HandoffSnapshot } from '../chain/snapshots.js'
+import { isOwnName } from '../chain/fix.js'
 import type { HandoffSession } from '../chain/relay.js'
 import type { HubHandlers } from '../link/hub.js'
 import { FAILED_EVENT, INTERRUPTED_EVENT, REFUSED_EVENT, type Command, type MachineEvent } from '../link/protocol.js'
@@ -7,7 +8,7 @@ import type { AssignedTask } from '../tracker/source.js'
 import type { HeldChanges } from './assignments.js'
 import { applyPatch, mirrorReads, type MachineFacts } from './facts.js'
 import { MOVE_PREFIX, MOVE_STATE_EVENT, type MoveDone, type MoveSaved } from './move-call.js'
-import type { MachinePort } from './port.js'
+import type { LaunchBrief, MachinePort } from './port.js'
 import { pageReads, type PageReads } from './page.js'
 import { isRecordEvent } from './records.js'
 import { COMMAND_PREFIX, DONE_EVENT, FACTS_EVENT, HANDOFF_EVENT, type CommandDone, type FactsPosted, type FactsSnapshot, type PortCommand } from './runner.js'
@@ -22,6 +23,8 @@ export interface RemoteDeps {
   projectOfSession: (sessionId: string) => string | undefined
   /** The session of the task's newest entry in the hub's launch journal. */
   lastSession: (project: string, task: string) => string | undefined
+  /** `retained` avoids reading the tracker on every follow while a limit waits. */
+  brief?: (project: string, task: string, retained?: boolean) => Promise<LaunchBrief>
   /** Keeps a handoff snapshot the machine sent; a throw leaves the event with the machine, which sends it again. */
   saveSnapshot: (snapshot: HandoffSnapshot) => Promise<void> | void
   record?: (event: MachineEvent) => Promise<void>
@@ -84,8 +87,9 @@ export class RemoteMachine {
     const call = <T>(name: PortCommand, place: Place, args: unknown[]) => this.call(name, place, args) as Promise<T>
     return {
       ...mirrorReads(() => this.facts(), deps.lastSession),
-      launch: async (project, task, extra) => {
-        const launched = await call<Awaited<ReturnType<MachinePort['launch']>>>('launch', { project }, [project, task, extra])
+      launch: async (project, task, extra, brief) => {
+        const prepared = brief ?? await deps.brief?.(project, task)
+        const launched = await call<Awaited<ReturnType<MachinePort['launch']>>>('launch', { project }, [project, task, extra, prepared])
         deps.assigned?.(project, task)
         return launched
       },
@@ -93,7 +97,11 @@ export class RemoteMachine {
       launchCarry: (project, name, report) => call('launchCarry', { project }, [project, name, report]),
       resume: (task, session) => call('resume', ofTask(task, session), [task, session]),
       reply: (task, session, prompt) => call('reply', ofTask(task, session), [task, session, prompt]),
-      relay: (task, session, prompt, reason) => call('relay', ofTask(task, session), [task, session, prompt, reason]),
+      relay: async (task, session, prompt, reason, brief) => {
+        const project = deps.projectOf(task)
+        const prepared = brief ?? (project === undefined || isOwnName(task) ? undefined : await deps.brief?.(project, task))
+        return call('relay', ofTask(task, session), [task, session, prompt, reason, prepared])
+      },
       stop: (session) => call('stop', ofSession(session), [session]),
       locate: (session) => call('locate', ofSession(session), [session]),
       finish: async (project, task, pull) => {
@@ -114,7 +122,13 @@ export class RemoteMachine {
       modelBlock: (project, task) => call('modelBlock', { project }, [project, task]),
       ...(deps.catchUp === undefined ? {} : { catchUp: deps.catchUp }),
       moves: {
-        run: (name, move) => this.send(MOVE_PREFIX + name, { project: move.project }, move) as Promise<MoveDone>,
+        run: async (name, move) => {
+          const task = move.current?.task ?? move.args[0]
+          const replyOnly = name === 'guard' || name === 'deliver' || name === 'deliverLoose'
+          const brief = replyOnly || typeof task !== 'string' || isOwnName(task) ? undefined : await deps.brief?.(move.project, task, name === 'follow')
+          const context = brief === undefined ? move.context : { ...move.context, brief }
+          return this.send(MOVE_PREFIX + name, { project: move.project }, { ...move, context }) as Promise<MoveDone>
+        },
         onSaved: (take) => {
           this.takeSaved = take
         },

@@ -60,6 +60,28 @@ function fixture() {
   return { packages: new Packages(deps), deps, file, cache: deps.cache, plugin, lines, reload: () => new Packages(deps) }
 }
 
+describe('hub server routes', () => {
+  it('publishes secret-free paths for every retained install and follows the hub pool live', async () => {
+    const { packages, deps, plugin, file, reload } = fixture()
+    const pool: NodeJS.ProcessEnv = { EXAMPLE_TOKEN: 'fake-hub-key' }
+    deps.poolOf = () => pool
+    plugin('1.0.0', 'workitems', { url: 'https://example.com/mcp', headers: { Authorization: 'Bearer ${EXAMPLE_TOKEN}' } })
+    await packages.install('tools@example')
+    const stored = loadPackages(file)!
+    stored.pins.project = { 'ABC-1': { 'tools@example': stored.packages['tools@example']!.installs[0]!.id } }
+    savePackages(file, stored)
+    const hub = reload()
+    plugin('2.0.0', 'workitems', { url: 'https://example.com/mcp', headers: { Authorization: 'Bearer ${EXAMPLE_TOKEN}' } })
+    await hub.update('tools@example')
+    const routes = hub.hubServers()
+    expect(routes).toHaveLength(2)
+    expect(routes.every((path) => path.startsWith('/mcp/project/'))).toBe(true)
+    expect(JSON.stringify(routes)).not.toContain('fake-hub-key')
+    delete pool.EXAMPLE_TOKEN
+    expect(hub.hubServers()).toEqual([])
+  })
+})
+
 describe('pinned servers across plugin updates', () => {
   const npx = (version: string): ServerEntry => ({ command: 'npx', args: ['-y', `example-mcp@${version}`] })
   // Install ids are Date.now() in base 36: two installs within one millisecond would share a folder.

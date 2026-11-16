@@ -67,6 +67,21 @@ describe('the machine port over the link', () => {
     expect(await launched).toEqual({ sessionId: 'session-1' })
   })
 
+  it('prepares the brief on the hub and carries it as the fourth launch argument', async () => {
+    const brief = { prompt: '\nTask text\n', task: { title: 'Example', description: 'Task text' } }
+    const prepare = vi.fn(async () => brief)
+    const made = await bench(prepare)
+    const machine = made.boot('brief')
+    stop.push(() => made.hub.stop(), () => machine.end.stop())
+    await machine.end.start()
+    await tick()
+    const launched = made.port.launch(PROJECT, 'ABC-1')
+    await tick()
+    await launched
+    expect(prepare).toHaveBeenCalledExactlyOnceWith(PROJECT, 'ABC-1')
+    expect(made.ran[0]?.payload).toEqual({ args: [PROJECT, 'ABC-1', null, brief] })
+  })
+
   it('gets the result of a launch after a break between the command and its result', async () => {
     const { port, state, wire } = await started()
     let open = () => {}

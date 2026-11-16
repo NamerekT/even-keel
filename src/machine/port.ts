@@ -4,6 +4,13 @@ import type { Changes, FinishOutcome } from '../git/types.js'
 import type { OverageSession } from '../limits/overage-session.js'
 import type { Notice } from '../notice/notice.js'
 import type { MovesPort } from './move-call.js'
+import type { TaskBrief } from '../tracker/source.js'
+
+/** Prepared on the hub; applied and retained on the machine without a tracker read. */
+export interface LaunchBrief {
+  prompt: string
+  task?: TaskBrief
+}
 
 /**
  * Everything the hub's chain asks of the machine that runs the sessions (`docs/machines.md`, "The seam"). Today the
@@ -22,7 +29,7 @@ export interface MachinePort {
    * account in the pool. `extra` goes at the end of the prompt: the feedback on the task's pull request, or its pull
    * request closed unmerged.
    */
-  launch: (project: string, task: string, extra?: string) => Promise<Launched>
+  launch: (project: string, task: string, extra?: string, brief?: LaunchBrief) => Promise<Launched>
   /** Command. Starts the session that fixes a red main without a task, in a place of its own; `report` says what broke, `reran` — see `SessionFix`. */
   launchFix: (project: string, name: string, report: string, reran?: boolean) => Promise<string>
   /** Command. Starts the session that resolves a release project's carry (BTN-369) in a place of its own; `report` says what conflicted. */
@@ -32,7 +39,7 @@ export interface MachinePort {
   /** Command. Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
   reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>
   /** Command. Stops the session and starts a new one of the task in the same folder with the handoff prompt; returns its id. */
-  relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason) => Promise<string>
+  relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason, brief?: LaunchBrief) => Promise<string>
   /** Command. Stops a session, mid-turn too: a red main or detected subscription overage (invariant 1). */
   stop: (session: HandoffSession) => Promise<void>
   /** Query. The session with the folder it works in found on the machine's disk. */

@@ -12,6 +12,7 @@ import type { TaskBrief } from '../tracker/source.js'
 import { promptLines } from '../taskmcp/vocabulary.js'
 import type { ChainContext } from './chain.js'
 import { promptTrackers } from './vocabulary.js'
+import type { LaunchBrief } from '../machine/port.js'
 
 export function wireChangelogs(ctx: ChainContext): ChangelogDrafts {
   return new ChangelogDrafts({
@@ -61,31 +62,50 @@ export function wireChangelogs(ctx: ChainContext): ChangelogDrafts {
   })
 }
 
-/** A prompt with the task's text in it; `kept` — the text the task's last start had, what the machine answers while the hub is away (BTN-990). */
-export type Briefed = ((task: string, given: string, project?: string | undefined) => Promise<string>) & { kept(task: string): TaskBrief | undefined }
+export interface Briefed {
+  prepare(task: string, project?: string, retained?: boolean): Promise<LaunchBrief>
+  apply(task: string, given: string, received?: LaunchBrief): string
+  kept(task: string): TaskBrief | undefined
+}
 
 /** Briefs kept for that many tasks at most: a day's chain never comes near it. */
 const KEPT_BRIEFS = 200
 
 export function wireBriefed(ctx: ChainContext): Briefed {
-  const kept = new Map<string, TaskBrief>()
-  const briefed = async (task: string, given: string, project = ctx.projectOf(task)): Promise<string> => {
-    if (project === undefined) return given
+  const kept = new Map<string, LaunchBrief>()
+  const prepared = new Map<string, LaunchBrief>()
+  const prepare = async (task: string, project = ctx.projectOf(task), retained = false): Promise<LaunchBrief> => {
+    if (project === undefined) return { prompt: '' }
+    const key = `${project}\u0000${task}`
+    const previous = prepared.get(key)
+    if (retained && previous !== undefined) return previous
     const reader = ctx.readerFor(project, task)
     const language = ctx.promptLanguage(project)
     const own = idPrefixOf(ctx.readers(), reader).toUpperCase()
     const vocabulary = promptLines(await promptTrackers(ctx, project), own)
-    const prompt = withVocabulary(withTracker(given, ctx.trackerPlace(reader), language), vocabulary, language)
+    const prompt = withVocabulary(withTracker('', ctx.trackerPlace(reader), language), vocabulary, language)
     const link = ctx.briefOn(project, reader) ? ctx.linkOf(reader) : undefined
     const brief = link === undefined ? undefined : await link.run(async (tracker) => tracker.brief?.(task))
-    if (brief !== undefined) {
-      kept.delete(task)
-      kept.set(task, brief)
-      if (kept.size > KEPT_BRIEFS) kept.delete(kept.keys().next().value!)
-    }
-    return brief === undefined ? withUnbriefed(prompt, task, ctx.packages.bringsServer(project, TASKS_SERVER), language) : withBrief(prompt, brief, language)
+    const result = brief === undefined
+      ? { prompt: withUnbriefed(prompt, task, ctx.packages.bringsServer(project, TASKS_SERVER), language) }
+      : { prompt: withBrief(prompt, brief, language), task: brief }
+    prepared.delete(key)
+    prepared.set(key, result)
+    if (prepared.size > KEPT_BRIEFS) prepared.delete(prepared.keys().next().value!)
+    return result
   }
-  return Object.assign(briefed, { kept: (task: string) => kept.get(task) })
+  return {
+    prepare,
+    apply: (task, given, received) => {
+      if (received !== undefined) {
+        kept.delete(task)
+        kept.set(task, received)
+        if (kept.size > KEPT_BRIEFS) kept.delete(kept.keys().next().value!)
+      }
+      return given + (kept.get(task)?.prompt ?? '')
+    },
+    kept: (task) => kept.get(task)?.task,
+  }
 }
 
 export function wireWithProject(ctx: ChainContext): (prompt: string, project: string | undefined) => string {

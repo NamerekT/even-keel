@@ -23,8 +23,8 @@ const session: HandoffSession = {
 }
 
 /** The hub's chain of the project with ABC-1 current, its moves over the bench's link and what they pause on. */
-async function linked(project = PROJECT) {
-  const made = await bench()
+async function linked(project = PROJECT, brief?: Parameters<typeof bench>[0]) {
+  const made = await bench(brief)
   const machine = made.boot('first')
   await machine.end.start()
   await tick()
@@ -77,6 +77,18 @@ describe('the moves of a task session over the link', () => {
     const { moves, chain, current, ran } = await started()
     await moves.follow(chain, current)
     expect(ran.map((command) => command.type)).toEqual([])
+  })
+
+  it('carries a fresh hub brief to a handoff on a machine with no earlier launch', async () => {
+    const brief = { prompt: '\nUpdated task text\n', task: { title: 'Example', description: 'Updated task text' } }
+    const made = await linked(PROJECT, async () => brief)
+    stop.push(made.stop)
+    const relay = vi.fn(async () => 'session-2')
+    Object.assign(made.local, { relay, locate: async () => session })
+    const handed = made.moves.handOver(PROJECT, 'ABC-1', session, 'restart')
+    await tick()
+    expect(await handed).toBe('session-2')
+    expect(relay).toHaveBeenCalledWith('ABC-1', session, expect.any(String), 'restart', brief)
   })
 
   it('carries the limit hold the machine took back into the hub task', async () => {

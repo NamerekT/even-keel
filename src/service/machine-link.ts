@@ -110,6 +110,7 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     projectOf: ctx.projectOf,
     projectOfSession: (sessionId) => ctx.launches.findLast((entry) => entry.sessionId === sessionId)?.project,
     lastSession: (project, task) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
+    brief: (project, task, retained) => ctx.briefed.prepare(task, project, retained),
     saveSnapshot: (snapshot) => saveSnapshot(ctx.db, snapshot),
     record: async (event) => {
       if (!await saveMachineRecord(ctx.db, own, event)) return
@@ -265,7 +266,7 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
       clearTimeout(waited)
       if (end.status().state !== 'online') log('machine: the own machine has not posted its first snapshot yet; the chains wait for it')
       // From here the servers holding keys are reached over the link, as from a machine of its own (BTN-990).
-      ctx.packages.throughHub({ relay: (request) => end.mcp(request), tasks: machineTasks(ctx, end) })
+      ctx.packages.throughHub({ servers: () => ctx.packages.hubServers(), relay: (request) => end.mcp(request), tasks: machineTasks(ctx, end) })
       await end.flushed()
       // These readers were built before the link: replay may have added a launch, settled mail or kept a window.
       await ctx.mailbox.reload(ctx.db)

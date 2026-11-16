@@ -1,6 +1,7 @@
 import type { CurrentTask } from '../chain/model.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
+import type { LaunchBrief } from './port.js'
 
 /** The moves of a task's session the machine makes (`docs/machines.md`, "Moves"), as the link names them: `task.<move>`. */
 export const MOVES = ['follow', 'guard', 'deliver', 'deliverLoose', 'replace', 'renew', 'handOverCurrent', 'handOver'] as const
@@ -40,6 +41,8 @@ export interface MoveContext {
   plain: boolean
   /** The report of the red main or the carry, for a fix or carry session's handoff. */
   report: string | null
+  /** A fresh hub brief for a possible handoff, including after a machine restart. */
+  brief?: LaunchBrief
 }
 
 export interface MoveCall {

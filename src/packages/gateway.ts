@@ -82,6 +82,8 @@ export interface LocalMcp {
  * gateway carries its requests over the link; the tasks server is the machine's stand-in for the hub's.
  */
 export interface GatewayHub {
+  /** Route paths supplied by the hub, including pinned installs; no target or credential is needed on the machine. */
+  servers(): readonly string[]
   /** The hub's answer; `undefined` — the hub is unreachable now. */
   relay(request: McpRequest): Promise<McpAnswer | undefined>
   tasks: LocalMcp
@@ -173,13 +175,15 @@ export class McpGateway {
     // The task of `/tasks` is the one the machine's gateway names when it carries a chain session's call (BTN-990).
     if (own !== undefined && tasks !== undefined) return this.local(req, res, tasks, { project: own, task: url.searchParams.get('task') })
     const route = parseRoute(url.pathname)
+    if (route !== null && this.hub?.servers().includes(url.pathname)) {
+      return this.relayed(req, res, url, `${route.name}/${route.server}`, this.hub)
+    }
     const target = route === null ? null : this.deps.resolve(route)
     if (route === null || target === null) return void res.writeHead(404).end()
     if (isTasksUrl(target.entry.url) && tasks !== undefined) {
       return this.local(req, res, tasks, { project: route.project, task: url.searchParams.get('task') })
     }
     const label = `${route.name}/${route.server}`
-    if (this.hub !== undefined && hubOwned(target)) return this.relayed(req, res, url, label, this.hub)
     const key = `${route.project}\u0000${label}`
     const started = Date.now()
     let body: Buffer | undefined

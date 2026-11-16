@@ -43,7 +43,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | # | Entry | Who it hits | If the assumption is wrong | Task |
 | ---: | --- | --- | --- | --- |
 | 176 | [The chain over the link in a live installation](unverified/machines.md#the-chain-over-the-link-in-a-live-installation-btn-1216) | every installation from the version with machines on; journal, session and chat events since BTN-1219; moves of a session on the machine since BTN-1221 | the chain pauses on a refused command; a missed follow leaves a limit or checkpoint waiting; a failed record holds later events and leaves the page stale; the log names the command or record | BTN-1228 |
-| 177 | [MCP servers through the hub in a live installation](unverified/machines.md#mcp-servers-through-the-hub-in-a-live-installation-btn-990) | every installation from the version with machines on: the tracker's server and the tasks server of every chain session | a session's tracker or tasks calls answer "hub unreachable" or time out, and the chain waits on `noResponse`; the log names the refused or failed request | — |
+| 177 | [MCP servers through the hub in a live installation](unverified/machines.md#mcp-servers-through-the-hub-in-a-live-installation-btn-990) | every installation from the version with machines on: the tracker's server and the tasks server of every chain session; brief payloads and key-free route lists since BTN-1238 | a session's tracker or tasks calls answer "hub unreachable" or time out, and the chain waits on `noResponse`; a missing brief omits task text; the log names the refused or failed request | — |
 
 ### Then
 
