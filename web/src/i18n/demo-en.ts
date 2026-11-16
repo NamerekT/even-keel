@@ -16,6 +16,7 @@ export const demoEn: Messages['demo'] = {
   removeCancel: 'Keep it',
   endTitle: 'The demo is over',
   endText: 'The chain went through every task: a session did each, its branch merged into the main one, the task closed. Your own project runs the same way, only with a real agent.',
+  endTextPlain: "The chain went through every task: a session did each in the project's folder, its answer went into the task as a comment, the task closed. Your own project runs the same way, only with a real agent.",
   again: 'Run again',
   more: 'More demo actions',
   wizardRemove: 'Remove the demo',

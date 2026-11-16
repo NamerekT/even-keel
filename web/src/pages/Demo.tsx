@@ -122,9 +122,11 @@ function DemoEnd({ state }: { state: EvenKeelState }) {
   const { start, sending: starting, failure: startFailure } = useDemoStart(state)
   const { remove, sending: removing, failure: removeFailure } = useDemoRemove()
   const failure = startFailure ?? removeFailure
+  // A demo made without git (EKR-115) has no branches to merge: its sessions write in the folder, answers go to the task.
+  const plain = state.demo !== null && state.config.projects[state.demo.project]?.git === false
   return (
     <Card title={t.demo.endTitle} className="demo-end">
-      <p className="demo-end__text">{t.demo.endText}</p>
+      <p className="demo-end__text">{plain ? t.demo.endTextPlain : t.demo.endText}</p>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <div className="demo-end__actions">
         <button type="button" className="button" disabled={starting || removing} onClick={() => void remove()}>
