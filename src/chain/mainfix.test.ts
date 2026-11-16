@@ -644,7 +644,7 @@ describe('Dispatcher and the handover of a fix session', () => {
   it('refuses to hand a fix session over without its report, so no session starts', async () => {
     const { dispatcher, relays } = await fixing()
     delete dispatcher.state.ci.ABC!.fix!.report
-    const handOver = dispatcher['handovers'].handOver('ABC-FIX', sessionOf('session-2', '2026-09-26T11:50:00.000Z'), 'checkpoint')
+    const handOver = dispatcher['handovers'].handOver('ABC', 'ABC-FIX',sessionOf('session-2', '2026-09-26T11:50:00.000Z'), 'checkpoint')
     await expect(handOver).rejects.toMatchObject({ notice: { code: 'chain.fixReportMissing', params: { task: 'ABC-FIX' } } })
     expect(relays).toEqual([])
   })

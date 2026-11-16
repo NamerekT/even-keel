@@ -5,6 +5,7 @@ import type { UsageHealth } from '../limits/usage.js'
 import type { NumberedCommand } from '../link/protocol.js'
 import { noticeOf, type Notice } from '../notice/notice.js'
 import { patchOf, resetKey, type FactsPatch, type MachineFacts, type ProjectFacts, type RunFacts, type TaskFacts } from './facts.js'
+import { isMove, MOVE_PREFIX, type MoveCall, type MoveDone, type MoveName } from './move-call.js'
 import type { MachinePort } from './port.js'
 import type { SessionMail } from '../sessions/mail.js'
 import type { SessionView } from '../state.js'
@@ -67,6 +68,8 @@ export interface RunnerDeps {
   usageOf?: (account: string) => UsageHealth
   owners?: () => Record<string, string>
   compactions?: () => Record<string, number>
+  /** Makes the moves of a task's session the hub asks for (`task.<move>`). */
+  moves?: { run: (name: MoveName, call: MoveCall) => Promise<MoveDone> }
   /** Runs one computation of the facts, so its reads may share what they read (`AccountWatcher.batch`). */
   scope?: <T>(body: () => T) => T
   log: (line: string) => void
@@ -119,16 +122,10 @@ export class MachineRunner {
 
   /** Runs one command of the hub. An unknown one throws, which the link reports as `command.failed`. */
   async command(command: NumberedCommand): Promise<void> {
-    const name = command.type.startsWith(COMMAND_PREFIX) ? command.type.slice(COMMAND_PREFIX.length) : ''
-    if (!isPortCommand(name)) throw new Error(`the machine knows no command ${command.type}`)
-    const member = this.deps.local[name] as ((...args: unknown[]) => Promise<unknown>) | undefined
-    if (member === undefined) throw new Error(`the machine does not serve ${command.type}`)
-    const raw = (command.payload as { args?: unknown } | undefined)?.args
-    // JSON carries a left-out argument as `null`.
-    const args = (Array.isArray(raw) ? raw : []).map((arg: unknown) => (arg === null ? undefined : arg))
+    const run = this.handler(command)
     let done: CommandDone
     try {
-      const value = await member(...args)
+      const value = await run()
       done = { seq: command.seq, ...(value === undefined ? {} : { value }) }
     } catch (error) {
       const under = error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined
@@ -136,6 +133,25 @@ export class MachineRunner {
     }
     await this.publish().catch((error: unknown) => this.deps.log(`machine: the facts after command ${command.seq} were not posted: ${error instanceof Error ? error.message : String(error)}`))
     await this.deps.emit(DONE_EVENT, done)
+  }
+
+  /** A port member or a move of a task's session; what the machine does not know or serve throws. */
+  private handler(command: NumberedCommand): () => Promise<unknown> {
+    if (command.type.startsWith(MOVE_PREFIX)) {
+      const name = command.type.slice(MOVE_PREFIX.length)
+      const { moves } = this.deps
+      if (!isMove(name)) throw new Error(`the machine knows no command ${command.type}`)
+      if (moves === undefined) throw new Error(`the machine does not serve ${command.type}`)
+      return () => moves.run(name, command.payload as MoveCall)
+    }
+    const name = command.type.startsWith(COMMAND_PREFIX) ? command.type.slice(COMMAND_PREFIX.length) : ''
+    if (!isPortCommand(name)) throw new Error(`the machine knows no command ${command.type}`)
+    const member = this.deps.local[name] as ((...args: unknown[]) => Promise<unknown>) | undefined
+    if (member === undefined) throw new Error(`the machine does not serve ${command.type}`)
+    const raw = (command.payload as { args?: unknown } | undefined)?.args
+    // JSON carries a left-out argument as `null`.
+    const args = (Array.isArray(raw) ? raw : []).map((arg: unknown) => (arg === null ? undefined : arg))
+    return () => member(...args)
   }
 
   private facts(): MachineFacts {

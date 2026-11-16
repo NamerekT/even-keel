@@ -4,6 +4,7 @@ import type { HubHandlers } from '../link/hub.js'
 import { FAILED_EVENT, INTERRUPTED_EVENT, REFUSED_EVENT, type Command, type MachineEvent } from '../link/protocol.js'
 import { asNotice, fail, NoticeError } from '../notice/notice.js'
 import { applyPatch, mirrorReads, type MachineFacts } from './facts.js'
+import { MOVE_PREFIX, MOVE_STATE_EVENT, type MoveDone, type MoveSaved } from './move-call.js'
 import type { MachinePort } from './port.js'
 import { pageReads, type PageReads } from './page.js'
 import { isRecordEvent } from './records.js'
@@ -41,6 +42,7 @@ interface Waiter {
 }
 
 type Outcome = { value: unknown } | { error: Error | ((type: string) => Error) }
+type Place = { project?: string | undefined; folder?: string | undefined }
 
 /**
  * The hub's side of the port (`docs/machines.md`, "The chain over the link"). A command or a query goes to the machine
@@ -53,6 +55,8 @@ export class RemoteMachine {
   /** Results that came while a send had not yet learnt its number. */
   private readonly early = new Map<number, Outcome>()
   private sending = 0
+  /** Where the state of a move's task the machine kept goes: the chain's moves (`MovesPort.onSaved`). */
+  private takeSaved: ((saved: MoveSaved) => void) | undefined
 
   constructor(private readonly deps: RemoteDeps) {}
 
@@ -67,7 +71,7 @@ export class RemoteMachine {
     const { deps } = this
     const ofTask = (task: string, session: HandoffSession) => this.placed(deps.projectOf(task), session)
     const ofSession = (session: HandoffSession) => this.placed(deps.projectOfSession(session.sessionId), session)
-    const call = <T>(name: PortCommand, place: { project?: string | undefined; folder?: string | undefined }, args: unknown[]) => this.call(name, place, args) as Promise<T>
+    const call = <T>(name: PortCommand, place: Place, args: unknown[]) => this.call(name, place, args) as Promise<T>
     return {
       ...mirrorReads(() => this.facts(), deps.lastSession),
       launch: async (project, task, extra) => {
@@ -99,6 +103,12 @@ export class RemoteMachine {
       history: (project, commit, candidates) => call('history', { project }, [project, commit, candidates]),
       modelBlock: (project, task) => call('modelBlock', { project }, [project, task]),
       ...(deps.catchUp === undefined ? {} : { catchUp: deps.catchUp }),
+      moves: {
+        run: (name, move) => this.send(MOVE_PREFIX + name, { project: move.project }, move) as Promise<MoveDone>,
+        onSaved: (take) => {
+          this.takeSaved = take
+        },
+      },
     }
   }
 
@@ -125,14 +135,17 @@ export class RemoteMachine {
     return typeof session.workdir === 'string' && session.workdir !== '' ? { project, folder: session.workdir } : { project }
   }
 
-  private async call(name: PortCommand, place: { project?: string | undefined; folder?: string | undefined }, args: unknown[]): Promise<unknown> {
-    const type = COMMAND_PREFIX + name
+  private call(name: PortCommand, place: Place, args: unknown[]): Promise<unknown> {
     while (args.length > 0 && args.at(-1) === undefined) args = args.slice(0, -1)
+    return this.send(COMMAND_PREFIX + name, place, { args })
+  }
+
+  private async send(type: string, place: Place, payload: unknown): Promise<unknown> {
     const command: Command = {
       type,
       ...(place.project === undefined ? {} : { project: place.project }),
       ...(place.folder === undefined ? {} : { folder: place.folder }),
-      payload: { args },
+      payload,
     }
     this.sending += 1
     let seq: number
@@ -169,6 +182,9 @@ export class RemoteMachine {
       this.settle(Number(payload.seq), event.type, { error: (type) => fail('machine.commandRefused', { command: type, reason: payload.reason === 'folder' ? 'folder' : 'project' }) })
     } else if (event.type === INTERRUPTED_EVENT) {
       this.settle(Number(payload.seq), event.type, { error: (type) => fail('machine.commandInterrupted', { command: type }) })
+    } else if (event.type === MOVE_STATE_EVENT) {
+      if (this.takeSaved === undefined) this.deps.log('machine: the state of a move came before the chain, it is dropped')
+      else this.takeSaved(payload as unknown as MoveSaved)
     } else if (event.type === HANDOFF_EVENT) {
       await this.deps.saveSnapshot(payload as unknown as HandoffSnapshot)
     } else if (isRecordEvent(event.type)) {

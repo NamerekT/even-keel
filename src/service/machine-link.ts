@@ -16,6 +16,7 @@ import { Assignments, fillPool } from '../machine/assignments.js'
 import { sameJson } from '../machine/facts.js'
 import { ownMachine } from '../machine/own.js'
 import type { PageReads } from '../machine/page.js'
+import { MachineMoves } from '../machine/moves.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { LAUNCH_EVENT, MachineRecords, saveMachineRecord } from '../machine/records.js'
@@ -149,6 +150,17 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     }
     return running
   }
+  const moves = new MachineMoves({
+    local,
+    emit: (type, payload) => end.emit(type, payload),
+    // The launch journal is the hub's record that the machine's outbox carries (`docs/machines.md`, "Journal").
+    journal: (launched) => {
+      const entry = ctx.withSource(launched)
+      ctx.writes.add(`the launch of ${entry.task}`, records.launch(entry))
+    },
+    now: () => new Date(),
+    log,
+  })
   const ownRun = (project: string, task: string): boolean => !sameJson(ctx.choiceFor(project, task), ctx.choiceFor(project))
   const runner: MachineRunner = new MachineRunner({
     local,
@@ -195,6 +207,7 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
       return owners
     },
     compactions: () => ctx.monitor.compactionCounts(),
+    moves,
     scope: (body) => ctx.account.batch(() => ctx.choiceFor.pass(() => {
       pass = passOf()
       try {

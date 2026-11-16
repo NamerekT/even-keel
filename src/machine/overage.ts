@@ -1,11 +1,11 @@
-import type { MachineTaskDeps } from './host.js'
+import type { MoveDeps } from './host.js'
 import { noticeOf, type Notice } from '../notice/notice.js'
-import type { ActiveChain, ChainState } from '../chain/model.js'
+import type { ActiveChain } from '../chain/model.js'
 import { holdOf } from '../chain/relay.js'
 
 /** Stops only current chain sessions; its hold survives loss of the provider reading, the process and the service. */
 export class OverageStops {
-  constructor(private readonly state: ChainState, private readonly deps: MachineTaskDeps, private readonly halt: (chain: ActiveChain, error: Notice) => void) {}
+  constructor(private readonly deps: MoveDeps, private readonly halt: (chain: ActiveChain, error: Notice) => void) {}
 
   async guard(chain: ActiveChain): Promise<boolean> {
     const current = chain.current
@@ -20,13 +20,13 @@ export class OverageStops {
       const reset = this.deps.machine.limitResetAfter(session.account, session.limit.at, session.limit.text)
       held = { session, stopped: false }
       current.limit = { ...holdOf(session, this.deps.machine.accountAt(session.account, session.limit.at), reset), overage: held }
-      this.deps.save(this.state)
+      this.deps.save()
     }
     if (held.stopped) return true
     try {
       if (this.deps.machine.midTurn(current.task)) await this.deps.machine.stop(held.session)
       held.stopped = true
-      this.deps.save(this.state)
+      this.deps.save()
       const source = evidence?.session.sessionId === held.session.sessionId && evidence.session.limit.at === held.session.limit.at ? evidence.source : undefined
       const reason = source !== undefined && source !== 'claude-usage' ? 'paid usage detected' : 'included allowance exhausted; paid usage possible, not confirmed'
       this.deps.log(`chain: ${current.task}: ${reason} on account ${held.session.account}; session ${held.session.sessionId} stopped; waiting for included allowance`)

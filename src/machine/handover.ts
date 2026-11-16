@@ -1,5 +1,5 @@
 import { isOwnName } from '../chain/fix.js'
-import type { ActiveChain, ChainState, CurrentTask, Move, ReturnReason } from '../chain/model.js'
+import type { ActiveChain, CurrentTask, Move, ReturnReason } from '../chain/model.js'
 import { PROMPTS } from '../chain/prompts.js'
 import {
   answered,
@@ -17,9 +17,21 @@ import {
 import { LimitRetries } from '../limits/retry.js'
 import { isSpendingLimit } from '../limits/spending.js'
 import { englishOf, noticeOf, type Notice } from '../notice/notice.js'
-import type { MachineTaskDeps } from './host.js'
+import type { MoveDeps } from './host.js'
 
-const UNANSWERED_MS = 10 * 60_000
+/** What the moves of a machine remember between them, in memory only: kept by the machine, shared by every move. */
+export interface HandoverMemory {
+  transientRetries: LimitRetries
+  /** By task: the session its last handover started and the answered one it carried on from. */
+  sources: Map<string, { sessionId: string; source: HandoffSession; failed: FailedSession[] }>
+}
+
+export const handoverMemory = (): HandoverMemory => ({ transientRetries: new LimitRetries(), sources: new Map() })
+
+/** The chains a move checks its task is still current in: the hub's own, or the one the hub's command described. */
+export interface MoveState {
+  readonly active: readonly ActiveChain[]
+}
 
 function begin(current: CurrentTask, at: string, move: Move): void {
   current.starting = at
@@ -36,17 +48,20 @@ function settle(current: CurrentTask): void {
 
 // The session of a chain's current task that the dispatcher continues or replaces itself (invariant 1, exceptions
 // 1–3, 6 and 9–10): after a limit, on a checkpoint, by "New session", with the user's answer (also once the chain stopped)
-// and when a released task returns; and how long an unattended chain waits for a quiet one.
+// and when a released task returns. It runs on the machine (`docs/machines.md`, "Moves").
 export class Handovers {
-  private readonly transientRetries = new LimitRetries()
-  /** By task: the session its last handover started and the answered one it carried on from; in memory only. */
-  private readonly sources = new Map<string, { sessionId: string; source: HandoffSession; failed: FailedSession[] }>()
+  private readonly transientRetries: LimitRetries
+  private readonly sources: HandoverMemory['sources']
 
   constructor(
-    private readonly state: ChainState,
-    private readonly deps: MachineTaskDeps,
+    private readonly state: MoveState,
+    private readonly deps: MoveDeps,
     private readonly halt: (chain: ActiveChain, error: Notice) => void,
-  ) {}
+    memory: HandoverMemory = handoverMemory(),
+  ) {
+    this.transientRetries = memory.transientRetries
+    this.sources = memory.sources
+  }
 
   /** The current task's session on each step: a move a service restart cut short, a limit, a checkpoint. */
   async follow(chain: ActiveChain, current: CurrentTask): Promise<void> {
@@ -72,7 +87,7 @@ export class Handovers {
       }
       if (current.limit !== undefined && current.limit.acted === null) {
         delete current.limit
-        this.deps.save(this.state)
+        this.deps.save()
       }
       return false
     }
@@ -80,7 +95,7 @@ export class Handovers {
       if (this.deps.machine.account(chain.project, current.task).id === null) return true
       const reset = this.deps.machine.limitResetAfter(session.account, session.limit.at, session.limit.text)
       current.limit = holdOf(session, this.deps.machine.accountAt(session.account, session.limit.at), reset)
-      this.deps.save(this.state)
+      this.deps.save()
       const when = current.limit.resetsAt === null ? 'reset unknown' : `resets at ${current.limit.resetsAt}`
       const next = current.limit.then === 'resume' ? 'resume' : 'new session with handoff'
       this.deps.log(`chain: ${current.task}: limit reached on account ${session.account}; ${when}; next: ${next}`)
@@ -88,7 +103,7 @@ export class Handovers {
       const reset = this.deps.machine.limitResetAfter(session.account, current.limit.at, session.limit.text)
       if (reset !== null && (current.limit.resetsAt === null || Date.parse(reset) < Date.parse(current.limit.resetsAt))) {
         current.limit = withReset(current.limit, reset, session.warmMs)
-        this.deps.save(this.state)
+        this.deps.save()
         const next = current.limit.then === 'resume' ? 'resume' : 'new session with handoff'
         this.deps.log(`chain: ${current.task}: limit reset updated to ${current.limit.resetsAt}; next: ${next}`)
       }
@@ -103,7 +118,7 @@ export class Handovers {
 
     hold.acted = step
     begin(current, now.toISOString(), step)
-    this.deps.save(this.state)
+    this.deps.save()
     try {
       const sessionId = step === 'resume' ? await this.deps.machine.resume(current.task, session) : await this.handOver(current.task, session, 'limit')
       this.moved(chain, current, step, sessionId, session.sessionId)
@@ -124,7 +139,7 @@ export class Handovers {
     const open = this.deps.machine.limitReopenedAt(session.account, hold.at, named, project, current.task)
     if (open === null || Date.parse(open) >= Date.parse(named)) return
     current.limit = withReset(hold, open, session.warmMs)
-    this.deps.save(this.state)
+    this.deps.save()
     const next = current.limit.then === 'resume' ? 'resume' : 'new session with handoff'
     this.deps.log(`chain: ${current.task}: limit on account ${session.account} open again at ${open}, before the named reset at ${named}; next: ${next}`)
   }
@@ -138,7 +153,7 @@ export class Handovers {
     if (current.limit?.at !== session.limit.at) {
       const resetsAt = this.transientRetries.retryAfter(session.sessionId, session.limit.at)
       current.limit = { at: session.limit.at, account: session.account, resetsAt, lastReplyAt: session.lastReplyAt, then: 'resume', acted: null, transient: true }
-      this.deps.save(this.state)
+      this.deps.save()
       this.deps.log(`chain: ${current.task}: temporary model error; retry at ${resetsAt} in session ${session.sessionId}`)
     }
     const hold = current.limit
@@ -146,7 +161,7 @@ export class Handovers {
     if (this.deps.machine.midTurn(current.task) || !this.deps.machine.account(chain.project, current.task).ready || this.deps.blocked(chain.project, current.task) !== undefined) return true
     hold.acted = 'resume'
     begin(current, this.deps.now().toISOString(), 'resume')
-    this.deps.save(this.state)
+    this.deps.save()
     try {
       const prompt = this.deps.promptLanguage(current.task) === 'ru'
         ? 'Продолжай: предыдущий запрос завершился временной ошибкой модели.'
@@ -158,24 +173,6 @@ export class Handovers {
       this.halt(chain, noticeOf(error))
     }
     return true
-  }
-
-  unanswered(current: CurrentTask): boolean {
-    if (current.sessionId !== null && this.deps.machine.modelRefusal?.(current.task, current.sessionId) !== undefined) return false
-    const paidWait = current.limit?.acted === null && current.limit.overage !== undefined
-    if (!this.state.unattended || paidWait || this.deps.machine.midTurn(current.task) || this.deps.machine.limited(current.task) !== undefined) return false
-    const session = this.deps.machine.handoff(current.task)
-    if (session === undefined || session.sessionId !== current.sessionId || session.checkpoint !== null) return false
-    const moments = [current.since, current.resumedAt, session.lastReplyAt].filter((at) => at != null)
-    const quietSince = Math.max(...moments.map((at) => Date.parse(at)))
-    return this.deps.now().getTime() - quietSince >= UNANSWERED_MS
-  }
-
-  /** Unattended, the chain does not wait past ten quiet minutes for a session of a done task; the sweep cleans up after it. */
-  quietTooLong(task: string): boolean {
-    const lastReplyAt = this.deps.machine.handoff(task)?.lastReplyAt
-    if (!this.state.unattended || lastReplyAt == null) return false
-    return this.deps.now().getTime() - Date.parse(lastReplyAt) >= UNANSWERED_MS
   }
 
   async followCheckpoint(chain: ActiveChain, current: CurrentTask): Promise<void> {
@@ -222,7 +219,7 @@ export class Handovers {
     current.answering = true
     current.reply = prompt
     if (ask !== null) current.ask = ask
-    this.deps.save(this.state)
+    this.deps.save()
     try {
       const sessionId = await this.deps.machine.reply(current.task, session, prompt)
       this.moved(chain, current, move, sessionId, session.sessionId)
@@ -230,7 +227,7 @@ export class Handovers {
     } catch (error) {
       if (move === 'answer') {
         settle(current)
-        this.deps.save(this.state)
+        this.deps.save()
       } else this.halt(chain, noticeOf(error))
       return this.undelivered(current.task, session, englishOf(noticeOf(error)))
     }
@@ -266,7 +263,7 @@ export class Handovers {
     delete current.limit
     begin(current, this.deps.now().toISOString(), reason)
     if (extra !== undefined) current.reply = extra
-    this.deps.save(this.state)
+    this.deps.save()
     try {
       const sessionId = await this.handOver(current.task, session, reason, extra)
       this.moved(chain, current, reason, sessionId, session.sessionId)
@@ -298,7 +295,7 @@ export class Handovers {
     if (through) {
       if (move === 'answer' || move === 'resume' || (move === 'review' && answering)) this.moved(chain, current, move, session.sessionId, session.sessionId, starting)
       else settle(current)
-      this.deps.save(this.state)
+      this.deps.save()
       return true
     }
     this.deps.log(`chain: ${current.task}: a ${move} cut short by a service restart is made again`)
@@ -317,7 +314,7 @@ export class Handovers {
       return false
     }
     if (current.limit !== undefined) current.limit.acted = null
-    this.deps.save(this.state)
+    this.deps.save()
     return true
   }
 
@@ -340,7 +337,7 @@ export class Handovers {
     }
     if (sessionId !== previous) this.transientRetries.reset(previous)
     settle(current)
-    this.deps.save(this.state)
+    this.deps.save()
   }
 
   /**
@@ -348,7 +345,7 @@ export class Handovers {
    * and transcript, as the handover that started the failed one kept them; the folder and the stop stay the failed one's.
    */
   async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
-    const report = isOwnName(task) ? withReport(task, '', this.reportOf(task)) : ''
+    const report = isOwnName(task) ? withReport(task, '', this.deps.report(task)) : ''
     // A project without git: its folder may sit inside another repository, whose worktree is not the session's.
     const located = this.deps.plain?.(task) === true ? session : await this.deps.machine.locate(session)
     const { source, failed } = this.sourceOf(task, located)
@@ -365,10 +362,5 @@ export class Handovers {
     const earlier = this.sources.get(task)
     if (answered(session) || earlier?.sessionId !== session.sessionId) return { source: session, failed: [] }
     return { source: earlier.source, failed: [...earlier.failed, failedOf(session)] }
-  }
-
-  private reportOf(task: string): string | undefined {
-    const gates = Object.values(this.state.ci)
-    return gates.find((gate) => gate.fix?.task === task)?.fix?.report ?? gates.find((gate) => gate.carry?.task === task)?.carry?.report
   }
 }

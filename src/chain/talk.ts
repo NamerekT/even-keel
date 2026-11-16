@@ -1,7 +1,7 @@
 import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { acceptable, answerable } from './answers.js'
-import type { Handovers } from '../machine/handover.js'
+import type { TaskMoves as Handovers } from '../machine/tasks.js'
 import { requireLimit } from './limitNotice.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
 import type { LaunchPauses } from './pauses.js'

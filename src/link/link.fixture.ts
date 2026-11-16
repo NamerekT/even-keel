@@ -116,6 +116,9 @@ interface Stream {
   held: Frame[]
 }
 
+/** What crosses the wire is JSON, as on the real link: neither end holds an object of the other. */
+const carried = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+
 /** The carrier between the two ends, in memory, with the ways a real one breaks. */
 export class Wire implements HubTransport {
   /** The hub is not reachable: a stream closes at once, a post fails. */
@@ -144,8 +147,9 @@ export class Wire implements HubTransport {
     this.current = stream
     sink.opened()
     void this.hub.open(this.authorization, hello, {
-      send: (frame) => {
+      send: (sent) => {
         if (stream.shut || this.mute) return
+        const frame = carried(sent)
         if (this.hold) stream.held.push(frame)
         else sink.frame(frame)
       },
@@ -194,12 +198,12 @@ export class Wire implements HubTransport {
 
   async events(post: EventsPost): Promise<EventsAnswer | Refusal> {
     this.posts.push({ kind: 'events', post })
-    return this.carry(() => this.hub.events(this.authorization, post))
+    return this.carry(() => this.hub.events(this.authorization, carried(post)))
   }
 
   async snapshot(post: SnapshotPost): Promise<EventsAnswer | Refusal> {
     this.posts.push({ kind: 'snapshot', post })
-    return this.carry(() => this.hub.snapshot(this.authorization, post))
+    return this.carry(() => this.hub.snapshot(this.authorization, carried(post)))
   }
 
   private async carry<T>(call: () => Promise<T>): Promise<T> {

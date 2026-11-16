@@ -1,6 +1,4 @@
-import type { Handovers } from '../machine/handover.js'
-import type { OverageStops } from '../machine/overage.js'
-import { MachineTasks } from '../machine/tasks.js'
+import { taskMoves, type TaskMoves } from '../machine/tasks.js'
 import { englishOf, fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { type Task } from '../tracker/model.js'
@@ -28,10 +26,12 @@ import {
 import { byNumber, chainOrder, nextTask, openBlockers } from './order.js'
 import { LaunchPauses } from './pauses.js'
 import type { HandoffSession } from './relay.js'
+import { quietTooLong, unanswered } from './quiet.js'
 import { Reviews } from './reviews.js'
 import { excludes, isDone, isTerminal } from './rules.js'
 import { returned as returnedSession, shelve } from './shelved.js'
 import { wasSkipped } from './skippedown.js'
+import { inTurn, startTask } from './start.js'
 import { Talks } from './talk.js'
 import { Unchanged } from './unchanged.js'
 
@@ -56,14 +56,12 @@ export class Dispatcher {
   readonly main: MainCheck | null
   private readonly fixes: MainFix | null
   private readonly carries: MainCarry
-  private readonly execution: MachineTasks
-  private readonly handovers: Handovers
+  private readonly handovers: TaskMoves
   private readonly reviews: Reviews
   private readonly unchanged: Unchanged
   private readonly lists: TaskLists
   private readonly cleanups: Cleanups
   private readonly waits: MainWait
-  private readonly overage: OverageStops
   private readonly pauses: LaunchPauses
   private readonly talks: Talks
   private readonly arrange: Arrangement
@@ -73,9 +71,7 @@ export class Dispatcher {
     private readonly deps: DispatcherDeps,
   ) {
     this.pauses = new LaunchPauses(state, deps, (project, chain) => this.firstOf(project, chain))
-    this.execution = new MachineTasks(state, deps, (chain, error, keep) => this.halt(chain, error, keep))
-    this.handovers = this.execution.handovers
-    this.overage = this.execution.overage
+    this.handovers = taskMoves(state, deps, (chain, error, keep) => this.halt(chain, error, keep))
     this.reviews = new Reviews(state, deps, this.handovers, {
       hold: (chain, error) => this.halt(chain, error, true),
       letGo: (chain) => this.letGo(chain),
@@ -111,7 +107,7 @@ export class Dispatcher {
             take: (chain, current) => this.take(chain, current),
             release: (project, task) => this.remember(project, task),
             closeUp: (project, task) => this.cleanups.closeUp(project, task),
-            handOver: (task, session, reason, extra) => this.handovers.handOver(task, session, reason, extra),
+            handOver: (project, task, session, reason, extra) => this.handovers.handOver(project, task, session, reason, extra),
             heldByMain: (chain, task) => this.waits.heldByMain(chain, task, (this.lists.tasks.get(chain.project) ?? []).map((open) => open.id), false),
           })
     this.carries = new MainCarry(state, deps, { closeUp: (project, task) => this.cleanups.closeUp(project, task) })
@@ -275,7 +271,7 @@ export class Dispatcher {
     if (chain === undefined || (chain.stopAfter === true) === on) return
     const { current } = chain
     // A mark the ended turn may carry is the step's to follow first.
-    const waits = current !== null && (this.execution.inTurn(current) || (current.sessionId !== null && this.unchanged.closesByMark(current.task)))
+    const waits = current !== null && (inTurn(this.deps, current) || (current.sessionId !== null && this.unchanged.closesByMark(current.task)))
     if (on && chain.closing === undefined && !waits) {
       // Nothing to wait out: stop now instead of flashing "stops after the turn" until the next step.
       this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
@@ -580,7 +576,7 @@ export class Dispatcher {
       const chain = this.state.active.find((each) => !seen.has(each))
       if (chain === undefined) return
       seen.add(chain)
-      if (!(await this.overage.guard(chain))) continue
+      if (!(await this.handovers.guard(chain))) continue
       await this.step(chain)
     }
   }
@@ -595,7 +591,7 @@ export class Dispatcher {
       // Asked to stop, the chain only waits out the session's turn: no Done, handoff or relay is followed meanwhile.
       if (chain.stopAfter) {
         const current = chain.current
-        if (current !== null && this.execution.inTurn(current)) return
+        if (current !== null && inTurn(this.deps, current)) return
         // Only the dispatcher closes a task of a project without git, so the mark the turn ended with is still followed (BTN-1044).
         const closes = current !== null && current.sessionId !== null && this.unchanged.closesByMark(current.task) && tasks.some((open) => open.id === current.task)
         if (closes && (await this.unchanged.follow(chain, current))) {
@@ -634,7 +630,7 @@ export class Dispatcher {
         // A fix session is not let go by unattended mode: that would launch tasks on a red main (BTN-693).
         if (isCarryName(task)) {
           if (await this.carries.follow(chain, chain.current)) continue
-          if (!this.handovers.unanswered(chain.current)) {
+          if (!unanswered(this.state, this.deps, chain.current)) {
             await this.handovers.follow(chain, chain.current)
             return
           }
@@ -660,7 +656,7 @@ export class Dispatcher {
             // Feedback or a hint went to the session, which leads the chain on; a released or done task left the task list.
             if (chain.current !== null) return
             continue
-          } else if (this.handovers.unanswered(chain.current)) {
+          } else if (unanswered(this.state, this.deps, chain.current)) {
             const skipped = (this.state.skipped[chain.project] ??= [])
             if (!skipped.includes(task)) skipped.push(task)
             this.release(chain, 'skip', [])
@@ -769,14 +765,14 @@ export class Dispatcher {
       this.take(chain, current)
       this.deps.save(this.state)
       const feedback = own === undefined ? (this.reviews.feedbackOf(chain.project, task) ?? this.reviews.closedNoteOf(chain.project, task)) : undefined
-      await this.execution.start(chain, current, fix, carry, feedback,
+      await startTask(this.state, this.deps, chain, current, fix, carry, feedback,
         () => this.reviews.delivered(chain.project, task), (failure) => this.halt(chain, failure))
       return
     }
   }
 
   private finish(chain: ActiveChain, task: string): Promise<boolean> {
-    return this.cleanups.finish(chain, task, this.lists.done.get(chain.project)?.has(task) === true, () => this.handovers.quietTooLong(task))
+    return this.cleanups.finish(chain, task, this.lists.done.get(chain.project)?.has(task) === true, () => quietTooLong(this.state, this.deps, task))
   }
 
   /** `keep` — the current task stays current, for the user to act on it (`ReviewHost.hold`). */

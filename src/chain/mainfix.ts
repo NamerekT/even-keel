@@ -17,7 +17,7 @@ export interface FixHost {
   /** Remembers a task the chain no longer leads, for the cleanup once it is done. */
   release(project: string, task: string): void
   closeUp(project: string, task: string): Promise<void>
-  handOver(task: string, session: HandoffSession, reason: HandoffReason, extra: string): Promise<string>
+  handOver(project: string, task: string, session: HandoffSession, reason: HandoffReason, extra: string): Promise<string>
   /** Whether the launch waits for the CI's verdict on main. */
   heldByMain(chain: ActiveChain, task: string): boolean
 }
@@ -172,7 +172,7 @@ export class MainFix {
       account.id === this.deps.machine.accountAt(session.account, held.at) &&
       warmSince(session, now.getTime())
     try {
-      const sessionId = warm ? await this.deps.machine.reply(held.task, session, prompt) : await this.host.handOver(held.task, session, 'mainFixed', prompt)
+      const sessionId = warm ? await this.deps.machine.reply(held.task, session, prompt) : await this.host.handOver(project, held.task, session, 'mainFixed', prompt)
       this.deps.journal({ at, project, task: held.task, sessionId, reason: warm ? 'resume' : 'relay', cause: 'mainFixed' as const, previous: session.sessionId })
       current.sessionId = sessionId
       current.resumedAt = at

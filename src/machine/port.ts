@@ -3,6 +3,7 @@ import type { AccountNow, HandoffReason, HandoffSession, LimitedSession } from '
 import type { Changes, FinishOutcome } from '../git/types.js'
 import type { OverageSession } from '../limits/overage-session.js'
 import type { Notice } from '../notice/notice.js'
+import type { MovesPort } from './move-call.js'
 
 /**
  * Everything the hub's chain asks of the machine that runs the sessions (`docs/machines.md`, "The seam"). Today the
@@ -155,6 +156,12 @@ export interface MachinePort {
    * read the machine itself, or a machine elsewhere whose mirror is as fresh as its last event.
    */
   catchUp?: () => Promise<void>
+
+  /**
+   * Command. The moves of a task's session (limit, checkpoint, answer, handoff, paid usage) made by the machine
+   * (`docs/machines.md`, "Moves"). Absent — the hub's process makes them over the other members.
+   */
+  moves?: MovesPort
 }
 
 /** The part of the port the check of main works through. */

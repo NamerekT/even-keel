@@ -1,6 +1,8 @@
-import type { MachineTaskDeps } from './host.js'
 import { englishOf, notice, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
-import type { ActiveChain, CarrySession, ChainState, CurrentTask, SessionFix } from '../chain/model.js'
+import type { ActiveChain, CarrySession, ChainState, CurrentTask, DispatcherDeps, SessionFix } from './model.js'
+
+/** A launch is the hub's decision and one command of the port (`docs/machines.md`, "Moves"). */
+type StartDeps = Pick<DispatcherDeps, 'machine' | 'save' | 'journal' | 'moveStatus' | 'now' | 'log'>
 
 const SLOT_REFUSALS = new Set(['slot.noneFree', 'slot.busyStart'])
 
@@ -11,7 +13,7 @@ const LAUNCH_SEEN_MS = 60_000
  * Whether "Stop after the turn" has a turn to wait out: a session seen working, or one the chain started within the
  * last minute that has not replied yet and waits on no question — the monitor shows it working seconds later (BTN-1044).
  */
-export function inTurn(deps: MachineTaskDeps, current: CurrentTask): boolean {
+export function inTurn(deps: Pick<DispatcherDeps, 'machine' | 'now'>, current: CurrentTask): boolean {
   if (deps.machine.midTurn(current.task)) return true
   const fresh = (at: string) => deps.now().getTime() - Date.parse(at) < LAUNCH_SEEN_MS
   if (current.starting !== undefined) return fresh(current.starting)
@@ -23,7 +25,7 @@ export function inTurn(deps: MachineTaskDeps, current: CurrentTask): boolean {
 /** Starts the prepared task and records its session, or leaves an unattended chain waiting for a slot. */
 export async function startTask(
   state: ChainState,
-  deps: MachineTaskDeps,
+  deps: StartDeps,
   chain: ActiveChain,
   current: CurrentTask,
   fix: SessionFix | undefined,
@@ -71,7 +73,7 @@ export async function startTask(
 }
 
 /** The task never started, so it is not released: the chain picks it again once a slot frees up. */
-function waitForSlot(state: ChainState, deps: MachineTaskDeps, chain: ActiveChain, waiting: Notice): void {
+function waitForSlot(state: ChainState, deps: StartDeps,chain: ActiveChain, waiting: Notice): void {
   chain.current = null
   if (!sameNotice(chain.slotWait?.notice ?? null, waiting)) deps.log(`chain: ${chain.project}: ${englishOf(waiting)}`)
   chain.slotWait = { notice: waiting, at: deps.now().toISOString() }

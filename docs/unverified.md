@@ -42,7 +42,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 
 | # | Entry | Who it hits | If the assumption is wrong | Task |
 | ---: | --- | --- | --- | --- |
-| 176 | [The chain over the link in a live installation](unverified/machines.md#the-chain-over-the-link-in-a-live-installation-btn-1216) | every installation from the version with machines on; journal, session and chat events since BTN-1219 | the chain pauses on a refused command; a failed record holds later events and leaves the page stale; the log names the command or record | BTN-1217 |
+| 176 | [The chain over the link in a live installation](unverified/machines.md#the-chain-over-the-link-in-a-live-installation-btn-1216) | every installation from the version with machines on; journal, session and chat events since BTN-1219; moves of a session on the machine since BTN-1221 | the chain pauses on a refused command; a missed follow leaves a limit or checkpoint waiting; a failed record holds later events and leaves the page stale; the log names the command or record | BTN-1217 |
 
 ### Then
 
