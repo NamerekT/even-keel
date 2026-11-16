@@ -76,6 +76,8 @@ export class MachineRunner {
   private rev = 0
   private posted: MachineFacts | undefined
   private publishing: Promise<void> = Promise.resolve()
+  /** The post queued behind `publishing` whose read has not begun yet. */
+  private waiting: Promise<void> | undefined
 
   constructor(private readonly deps: RunnerDeps) {}
 
@@ -87,9 +89,14 @@ export class MachineRunner {
     return { boot: this.deps.boot, rev: this.rev, facts }
   }
 
-  /** Posts the facts that changed since the last post; nothing before the first snapshot, which carries them all. */
+  /**
+   * Posts the facts that changed since the last post; nothing before the first snapshot, which carries them all. Posts
+   * asked while one waits for its turn share it: its read has not begun, so it is as fresh as a read of each of them.
+   */
   publish(): Promise<void> {
+    if (this.waiting !== undefined) return this.waiting
     const run = this.publishing.then(async () => {
+      this.waiting = undefined
       if (this.posted === undefined) return
       const facts = this.facts()
       const patch = patchOf(this.posted, facts)
@@ -99,6 +106,7 @@ export class MachineRunner {
       await this.deps.emit(FACTS_EVENT, { boot: this.deps.boot, rev: this.rev, patch } satisfies FactsPosted)
     })
     this.publishing = run.catch(() => {})
+    this.waiting = run
     return run
   }
 

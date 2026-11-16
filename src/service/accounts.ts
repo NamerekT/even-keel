@@ -59,6 +59,7 @@ import { stateUrlOf, Updater } from '../updates/updater.js'
 import { runsAsService } from '../updates/control.js'
 import { UpdateWatcher } from '../updates/watcher.js'
 import { firstRun } from '../setup.js'
+import { PassMemo } from '../pass-memo.js'
 import type { ServiceContext } from '../service.js'
 
 export type AccountsContext = Pick<ServiceContext,
@@ -680,16 +681,30 @@ export function wireHasAccount(ctx: AccountsContext): (provider: string, key: st
 }
 
 /** The OpenCode provider of an OpenCode folder of the pool, read from its `auth.json` at each launch: a sign-in may change. */
-function vendorOfHome(ctx: AccountsContext): VendorOf {
+function vendorOfHome(ctx: AccountsContext, memo?: PassMemo): VendorOf {
   return (provider, key) => {
     const home = provider === OPENCODE ? ctx.homes.find(key) : undefined
-    return home === undefined ? null : folderVendor(home.dir)
+    if (home === undefined) return null
+    return memo === undefined ? folderVendor(home.dir) : memo.of(`vendor\n${home.dir}`, () => folderVendor(home.dir))
   }
 }
 
-export function wireChoiceFor(ctx: AccountsContext): (project: string | undefined, task?: string) => RunChoice {
-  return (project: string | undefined, task?: string): RunChoice =>
-    runChoice(task === undefined ? undefined : ctx.runOfTask(project ?? ctx.projectOf(task), task), runOf(ctx, project), ctx.hasAccount, vendorOfHome(ctx))
+export interface ChoiceFor {
+  (project: string | undefined, task?: string): RunChoice
+  /**
+   * Runs `body` with each choice computed once: one computation of the machine's facts asks for the same one up to
+   * six times per project and task, and an OpenCode choice reads its folder's `auth.json`.
+   */
+  pass<T>(body: () => T): T
+}
+
+export function wireChoiceFor(ctx: AccountsContext): ChoiceFor {
+  const memo = new PassMemo()
+  const vendorOf = vendorOfHome(ctx, memo)
+  const choiceFor = (project: string | undefined, task?: string): RunChoice =>
+    memo.of(JSON.stringify(['choice', project, task]), () =>
+      runChoice(task === undefined ? undefined : ctx.runOfTask(project ?? ctx.projectOf(task), task), runOf(ctx, project), ctx.hasAccount, vendorOf))
+  return Object.assign(choiceFor, { pass: <T>(body: () => T): T => memo.run(body) })
 }
 
 export function wirePlanFor(ctx: AccountsContext): (task: string, prompt: string, project?: string | undefined) => LaunchPlan {

@@ -357,4 +357,51 @@ describe('MachineRunner facts', () => {
     expect(scopes).toHaveBeenCalledTimes(2)
     expect(outside).toEqual([])
   })
+
+  it('reads once for the posts asked before it starts, and anew for a post asked while it runs', async () => {
+    const { state, local } = machineOf()
+    const scopes = vi.fn(<T>(body: () => T): T => body())
+    const posted: unknown[] = []
+    let release = (): void => {}
+    let hold = false
+    const runner = new MachineRunner({
+      local,
+      emit: async (_type, payload) => {
+        posted.push(payload)
+        if (hold) await new Promise<void>((resolve) => (release = resolve))
+      },
+      boot: 'boot-1',
+      projects: () => [PROJECT],
+      tasks: () => Object.entries(state.live).map(([task, session]) => ({ task, sessions: [session] })),
+      runs: () => [],
+      reported: () => [],
+      model: () => null,
+      accounts: () => ['main'],
+      limitsOf: () => null,
+      ledger: () => ({}),
+      scope: scopes,
+      log: () => {},
+    })
+    runner.snapshot()
+    scopes.mockClear()
+
+    state.live['ABC-1'] = 'session-1'
+    await Promise.all([runner.publish(), runner.publish(), runner.publish()])
+    expect(scopes).toHaveBeenCalledTimes(1)
+    expect(posted).toHaveLength(1)
+
+    hold = true
+    state.live['ABC-2'] = 'session-2'
+    const running = runner.publish()
+    await vi.waitFor(() => expect(posted).toHaveLength(2))
+    // Asked while the post above runs: it must read what changed after that read began.
+    state.live['ABC-3'] = 'session-3'
+    const later = [runner.publish(), runner.publish()]
+    hold = false
+    release()
+    await Promise.all([running, ...later])
+    expect(scopes).toHaveBeenCalledTimes(3)
+    expect(posted).toHaveLength(3)
+    expect(posted[2]).toMatchObject({ patch: { tasks: { set: { 'ABC-3': { live: 'session-3' } } } } })
+  })
 })

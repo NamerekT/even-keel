@@ -78,6 +78,32 @@ export interface SectionPatch<V> {
 
 export type FactsPatch = Partial<Pick<MachineFacts, 'sessionsRead' | 'accountsRead'>> & { [K in Section]?: SectionPatch<NonNullable<MachineFacts[K]>[string]> }
 
+const hasJson = (value: unknown): boolean => typeof value === 'object' && value !== null && typeof (value as { toJSON?: unknown }).toJSON === 'function'
+
+/**
+ * Whether two values would be posted as the same JSON, without writing them out: a computation of the facts compares
+ * every entry of every section. The order of an object's keys does not count; a key whose value is `undefined` is absent.
+ */
+export function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (hasJson(a) || hasJson(b)) return JSON.stringify(a) === JSON.stringify(b)
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    return a.every((each, index) => sameJson(each, b[index]))
+  }
+  const was = a as Record<string, unknown>
+  const now = b as Record<string, unknown>
+  let held = 0
+  for (const key of Object.keys(was)) {
+    if (was[key] === undefined) continue
+    held += 1
+    if (!sameJson(was[key], now[key])) return false
+  }
+  for (const key of Object.keys(now)) if (now[key] !== undefined) held -= 1
+  return held === 0
+}
+
 /** `undefined` — nothing changed. */
 export function patchOf(before: MachineFacts, after: MachineFacts): FactsPatch | undefined {
   const patch: FactsPatch = {}
@@ -87,7 +113,7 @@ export function patchOf(before: MachineFacts, after: MachineFacts): FactsPatch |
     const was = (before[section] ?? {}) as Record<string, unknown>
     const now = (after[section] ?? {}) as Record<string, unknown>
     const set: Record<string, unknown> = {}
-    for (const key of Object.keys(now)) if (!Object.hasOwn(was, key) || JSON.stringify(was[key]) !== JSON.stringify(now[key])) set[key] = now[key]
+    for (const key of Object.keys(now)) if (!Object.hasOwn(was, key) || !sameJson(was[key], now[key])) set[key] = now[key]
     const gone = Object.keys(was).filter((key) => !Object.hasOwn(now, key))
     if (Object.keys(set).length === 0 && gone.length === 0) continue
     ;(patch as Record<string, unknown>)[section] = { ...(Object.keys(set).length > 0 && { set }), ...(gone.length > 0 && { gone }) }
