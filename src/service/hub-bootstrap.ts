@@ -150,15 +150,15 @@ export function assembleKnownTask(ctx: Pick<ServiceContext, 'tasksByProject'>) {
 export function assembleMoveRunLabels(ctx: Pick<ServiceContext, 'tasksByProject' | 'taskRuns'>) {
   return (project: string): void => {
     const tasks = ctx.tasksByProject.get(project)
-    if(tasks === undefined) return
+    if (tasks === undefined) return
     const moved = ctx.taskRuns.importLabels(project, tasks)
-    if(moved.length > 0) console.log(`run labels moved into runs: ${moved.join(', ')}`)
+    if (moved.length > 0) console.log(`run labels moved into runs: ${moved.join(', ')}`)
   }
 }
 
 export function assembleRunOfTask(ctx: Pick<ServiceContext, 'moveRunLabels' | 'taskRuns'>) {
   return (project: string | undefined, task: string) => {
-    if(project === undefined) return undefined
+    if (project === undefined) return undefined
     ctx.moveRunLabels(project)
     return ctx.taskRuns.of(project, task)
   }
@@ -229,6 +229,6 @@ export function assemblePollWorks(ctx: Pick<ServiceContext, 'configStore' | 'wor
   return () => {
     const projects = Object.keys(ctx.configStore.current.projects)
     ctx.works.keep(projects)
-    for(const project of projects) if(ctx.tasksByProject.has(project)) void ctx.works.poll(project)
+    for (const project of projects) if (ctx.tasksByProject.has(project)) void ctx.works.poll(project)
   }
 }

@@ -658,7 +658,8 @@ const warmable = machineBootstrap.assembleWarmable(context)
 
 const keepWarm: KeepWarm = chainService.wireKeepWarm(context)
 
-const dispatcher = await chainService.wireDispatcher(context)
+const machine = chainService.wireMachine(context)
+const dispatcher = await chainService.wireDispatcher(context, machine)
 
 /** Whether the checkouts of two projects are of one repository (BTN-285); `undefined` until both are read. */
 function sameRepositoryOf(a: string, b: string): boolean | undefined { return chainService.sameRepositoryOf(context, a, b) }

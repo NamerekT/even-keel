@@ -44,17 +44,17 @@ export class MainFix {
     const fix = this.main.sessionFix(chain.project)
     if (fix === undefined) return false
     const { task } = current
-    const session = this.deps.handoff(task)
+    const session = this.deps.machine.handoff(task)
     // A missing monitor entry after launch is not evidence that the new turn has ended.
-    if (session?.sessionId !== current.sessionId && this.deps.liveSession(task) !== current.sessionId) return false
-    if (!this.deps.midTurn(task)) {
+    if (session?.sessionId !== current.sessionId && this.deps.machine.liveSession(task) !== current.sessionId) return false
+    if (!this.deps.machine.midTurn(task)) {
       this.host.letGo(chain)
       return true
     }
     if (await this.main.merged(chain.project, task)) return false
     if (session === undefined || session.sessionId !== current.sessionId) return false
     try {
-      await this.deps.stop(session)
+      await this.deps.machine.stop(session)
     } catch (error) {
       this.host.halt(chain, noticeOf(error))
       return true
@@ -73,7 +73,7 @@ export class MainFix {
     const { project } = chain
     const fix = this.main.sessionFix(project)
     if (fix !== undefined && fix.task === current.task) {
-      const working = this.deps.busy(current.task) && !this.deps.shell(current.task)
+      const working = this.deps.machine.busy(current.task) && !this.deps.machine.shell(current.task)
       if (working || !(await this.main.merged(project, fix.task))) return false
       await this.host.closeUp(project, fix.task)
       forgetSkipped(this.state, project, fix.task)
@@ -120,7 +120,7 @@ export class MainFix {
       this.host.release(project, held.task)
       return this.forget(chain)
     }
-    const live = this.deps.liveSession(held.task)
+    const live = this.deps.machine.liveSession(held.task)
     if (live !== undefined && live !== held.sessionId) {
       this.host.take(chain, { task: held.task, sessionId: live, since: held.since })
       return this.forget(chain)
@@ -132,7 +132,7 @@ export class MainFix {
       return false
     }
     if (waitsForLimits(this.deps, chain, held.task, () => this.deps.save(this.state))) return false
-    const reset = this.deps.limitReset(project, held.task)
+    const reset = this.deps.machine.limitReset(project, held.task)
     if (reset !== null) {
       if (chain.limitUntil !== reset) {
         chain.limitUntil = reset
@@ -141,7 +141,7 @@ export class MainFix {
       return false
     }
     // The model's own week is used up: the fix waits for it, and only the poll can say when it opens (BTN-816).
-    const week = this.deps.modelWeek?.(project, held.task) ?? null
+    const week = this.deps.machine.modelWeek?.(project, held.task) ?? null
     if (week !== null) {
       if (chain.modelWeek?.model !== week.model || chain.modelWeek.until !== week.until || chain.limitUntil !== undefined) {
         chain.modelWeek = week
@@ -150,9 +150,9 @@ export class MainFix {
       }
       return false
     }
-    const account = this.deps.account(project, held.task)
+    const account = this.deps.machine.account(project, held.task)
     if (!account.ready) return false
-    const session = this.deps.handoff(held.task)
+    const session = this.deps.machine.handoff(held.task)
     if (session === undefined || session.sessionId !== held.sessionId) {
       this.deps.log(`chain: ${project}: the session ${held.sessionId} of ${held.task}, stopped for the fix of main, is not found; the task starts anew`)
       return this.forget(chain)
@@ -169,10 +169,10 @@ export class MainFix {
     const prompt = mainFixedPrompt(held.commit, held.fixed ?? null, this.deps.promptLanguage(held.task), this.deps.mainBranch(held.task))
     const warm =
       account.id !== null &&
-      account.id === this.deps.accountAt(session.account, held.at) &&
+      account.id === this.deps.machine.accountAt(session.account, held.at) &&
       warmSince(session, now.getTime())
     try {
-      const sessionId = warm ? await this.deps.reply(held.task, session, prompt) : await this.host.handOver(held.task, session, 'mainFixed', prompt)
+      const sessionId = warm ? await this.deps.machine.reply(held.task, session, prompt) : await this.host.handOver(held.task, session, 'mainFixed', prompt)
       this.deps.journal({ at, project, task: held.task, sessionId, reason: warm ? 'resume' : 'relay', cause: 'mainFixed' as const, previous: session.sessionId })
       current.sessionId = sessionId
       current.resumedAt = at
@@ -200,7 +200,7 @@ export class MainFix {
   skip(chain: ActiveChain | undefined, name: string): void {
     if (chain === undefined || chain.current?.task !== name) throw fail('chain.notCurrent', { task: name })
     if (chain.current.sessionId === null) throw fail('chain.launching', { task: name })
-    if (this.deps.busy(name)) throw fail('chain.midTurn', { task: name })
+    if (this.deps.machine.busy(name)) throw fail('chain.midTurn', { task: name })
     this.main.dropFix(chain.project)
     rememberSkipped(this.state, chain.project, name, chain.current.sessionId)
     this.ended(chain, 'dropped', null)

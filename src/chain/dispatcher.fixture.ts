@@ -1,4 +1,5 @@
 import type { FinishOutcome } from '../git/types.js'
+import type { MachineMainPort, MachinePort } from '../machine/port.js'
 import { textNotice, type Notice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
@@ -6,7 +7,6 @@ import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from '
 import type { DispatcherDeps, LimitsWait, MainCheckDeps, ModelWeekHold, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 import { DEFAULT_RULES, type ChainRules } from './rules.js'
-
 export const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
 export const review: TaskStatus = { name: 'In Review', category: 'Active' }
 export const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -35,14 +35,14 @@ export interface SetupOptions {
   projects?: string[]
   parallel?: number
   blocked?: string | Notice | DispatcherDeps['blocked']
-  modelRefusal?: DispatcherDeps['modelRefusal']
-  modelBlock?: DispatcherDeps['modelBlock']
+  modelRefusal?: MachinePort['modelRefusal']
+  modelBlock?: MachinePort['modelBlock']
   limited?: Record<string, LimitedSession>
-  overage?: DispatcherDeps['overage']
+  overage?: MachinePort['overage']
   account?: AccountNow
   accountAt?: (account: string, at: string) => string | null
   failRelay?: boolean
-  reply?: DispatcherDeps['reply']
+  reply?: MachinePort['reply']
   failStop?: boolean
   limitReset?: string | null
   limitResetAfter?: (account: string, at: string, text?: string) => string | null
@@ -82,7 +82,7 @@ export interface SetupOptions {
   milestoneOrder?: Record<string, string[]>
   /** The status moves reject, as the service's never do. */
   failMove?: boolean
-  main?: MainCheckDeps
+  main?: MainCheckDeps & MachineMainPort
   reviews?: ReviewDeps
   unchanged?: UnchangedDeps
   /** PR mode without the review's deps; `reviews` turns it on too. */
@@ -128,33 +128,100 @@ export function setup(options: SetupOptions = {}) {
   const state = options.state ?? emptyChainState()
   if (options.unattended !== undefined) state.unattended = options.unattended
   const dispatcher = new Dispatcher(state, {
+    machine: {
+      launch: async (project, id, extra) => {
+        tried.push(`${project}/${id}`)
+        if (extra !== undefined) extras[id] = extra
+        if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
+        if (refuse[id] !== undefined) throw refuse[id]
+        launched.push(`${project}/${id}`)
+        return { sessionId: `session-${++counter}`, ...(options.fallback?.[id] !== undefined && { fallback: options.fallback[id] }) }
+      },
+      liveSession: (id) => live[id],
+      lastSession: (project, id) => journal.findLast((entry) => entry.project === project && entry.task === id)?.sessionId,
+      modelRefusal: options.modelRefusal,
+      modelBlock: options.modelBlock,
+      busy: (id) => busy.has(id) || shell.has(id) || waiting.has(id),
+      silentSince: (id) => options.silentSince?.[id] ?? null,
+      midTurn: (id) => (busy.has(id) || shell.has(id)) && !waiting.has(id),
+      shell: (id) => shell.has(id),
+      asked: (id) => options.asked?.[id] ?? null,
+      limited: (id) => limited[id],
+      overage: options.overage,
+      handoff: (id) => handoffs[id],
+      locate: async (session) => ({ ...session, ...options.located }),
+      account: () => account,
+      accountAt: options.accountAt ?? (() => account.id),
+      limitReset: () => options.limitReset ?? null,
+      limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
+      limitReopenedAt: options.limitReopenedAt ?? (() => null),
+      modelWeek: () => options.modelWeek ?? null,
+      limitsUnread: () => options.limitsUnread,
+      packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
+      packagesPause: () => options.packagesPause,
+      accountsRead: () => options.accountsRead ?? true,
+      sessionsRead: () => options.sessionsRead ?? true,
+      resume: async (_task, session) => {
+        relays.push({ kind: 'resume', task: '', sessionId: session.sessionId, ...(session.stopped && { stopped: true }) })
+        return session.sessionId
+      },
+      reply: options.reply ?? (async (id, session, prompt) => {
+        relays.push({ kind: 'reply', task: id, sessionId: session.sessionId, prompt })
+        return session.sessionId
+      }),
+      relay: async (id, session, prompt, reason) => {
+        if (options.failRelay) throw new Error(`claude: could not stop ${session.agentId}`)
+        relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir, reason, ...(session.stopped && { stopped: true }) })
+        return `session-${++counter}`
+      },
+      launchFix: async (project, name, report, reran) => {
+        if (name === options.failLaunch) throw new Error(`claude: could not start ${name}`)
+        launched.push(`${project}/${name}`)
+        fixes.push({ project, name, report, ...(reran === true ? { reran } : {}) })
+        return `session-${++counter}`
+      },
+      launchCarry: async (project, name, report) => {
+        launched.push(`${project}/${name}`)
+        carries.push({ project, name, report })
+        return `session-${++counter}`
+      },
+      carried: async (project, commit) => carried.has(`${project}/${commit}`),
+      stop: async (session) => {
+        if (options.failStop) throw new Error(`claude: could not stop ${session.agentId}`)
+        stopped.push(session.sessionId)
+      },
+      finish: async (project, id, pull) => {
+        finished.push(`${project}/${id}`)
+        if (pull !== undefined) pulled[id] = pull
+        return options.finish?.(id) ?? { warnings: [], syncError: null }
+      },
+      sync: async (project) => {
+        synced.push(project)
+        return options.sync?.(project) ?? null
+      },
+      launchBlock: () => undefined,
+      trackerMissing: () => undefined,
+      changes: (project, workdir) => options.unchanged?.changes(project, workdir) ?? Promise.resolve({ ahead: 0, files: 0 }),
+      head: async () => null,
+      prepare: async () => {},
+      reportedTree: () => null,
+      tree: async () => null,
+      checkMain: async () => ({ state: 'green' }),
+      merged: async () => false,
+      runAfterGreen: async () => ({ state: 'done' }),
+      history: async () => ({ commits: [], greens: [] }),
+      ...options.main,
+    },
     projects: () => options.projects ?? ['ABC', 'XYZ', 'DEF'],
     parallel: () => capacity.parallel,
     fillsMilestone: () => options.fillMilestone ?? false,
     milestoneOrder: (project) => options.milestoneOrder?.[project] ?? [],
     rules: (project, task) => (task === undefined ? undefined : options.rules?.[task.slice(0, task.lastIndexOf('-'))]) ?? options.rules?.[project] ?? DEFAULT_RULES,
-    launch: async (project, id, extra) => {
-      tried.push(`${project}/${id}`)
-      if (extra !== undefined) extras[id] = extra
-      if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
-      if (refuse[id] !== undefined) throw refuse[id]
-      launched.push(`${project}/${id}`)
-      return { sessionId: `session-${++counter}`, ...(options.fallback?.[id] !== undefined && { fallback: options.fallback[id] }) }
-    },
-    liveSession: (id) => live[id],
-    lastSession: (project, id) => journal.findLast((entry) => entry.project === project && entry.task === id)?.sessionId,
     blocked: (project, id) => {
       const blocked = options.blocked
       if (typeof blocked === 'function') return blocked(project, id)
       return typeof blocked === 'string' ? textNotice(blocked) : blocked
     },
-    modelRefusal: options.modelRefusal,
-    modelBlock: options.modelBlock,
-    busy: (id) => busy.has(id) || shell.has(id) || waiting.has(id),
-    silentSince: (id) => options.silentSince?.[id] ?? null,
-    midTurn: (id) => (busy.has(id) || shell.has(id)) && !waiting.has(id),
-    shell: (id) => shell.has(id),
-    asked: (id) => options.asked?.[id] ?? null,
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
     moveStatus: async (_project, id, when) => {
@@ -162,63 +229,10 @@ export function setup(options: SetupOptions = {}) {
       if (options.failMove) throw new Error(`tracker: could not move ${id}`)
     },
     now: () => clock.now,
-    limited: (id) => limited[id],
-    overage: options.overage,
-    handoff: (id) => handoffs[id],
-    locate: async (session) => ({ ...session, ...options.located }),
-    account: () => account,
-    accountAt: options.accountAt ?? (() => account.id),
-    limitReset: () => options.limitReset ?? null,
-    limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
-    limitReopenedAt: options.limitReopenedAt ?? (() => null),
-    modelWeek: () => options.modelWeek ?? null,
-    limitsUnread: () => options.limitsUnread,
-    packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
     trackerBlock: () => options.trackerBlock,
     ...(options.listBlock === undefined ? {} : { listBlock: options.listBlock }),
-    packagesPause: () => options.packagesPause,
-    accountsRead: () => options.accountsRead ?? true,
-    sessionsRead: () => options.sessionsRead ?? true,
     promptLanguage: () => 'ru',
     mainBranch: () => 'main',
-    resume: async (_task, session) => {
-      relays.push({ kind: 'resume', task: '', sessionId: session.sessionId, ...(session.stopped && { stopped: true }) })
-      return session.sessionId
-    },
-    reply: options.reply ?? (async (id, session, prompt) => {
-      relays.push({ kind: 'reply', task: id, sessionId: session.sessionId, prompt })
-      return session.sessionId
-    }),
-    relay: async (id, session, prompt, reason) => {
-      if (options.failRelay) throw new Error(`claude: could not stop ${session.agentId}`)
-      relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir, reason, ...(session.stopped && { stopped: true }) })
-      return `session-${++counter}`
-    },
-    launchFix: async (project, name, report, reran) => {
-      if (name === options.failLaunch) throw new Error(`claude: could not start ${name}`)
-      launched.push(`${project}/${name}`)
-      fixes.push({ project, name, report, ...(reran === true ? { reran } : {}) })
-      return `session-${++counter}`
-    },
-    launchCarry: async (project, name, report) => {
-      launched.push(`${project}/${name}`)
-      carries.push({ project, name, report })
-      return `session-${++counter}`
-    },
-    carried: async (project, commit) => carried.has(`${project}/${commit}`),
-    stop: async (session) => {
-      if (options.failStop) throw new Error(`claude: could not stop ${session.agentId}`)
-      stopped.push(session.sessionId)
-    },
-    finish: async (project, id, pull) => {
-      finished.push(`${project}/${id}`)
-      if (pull !== undefined) pulled[id] = pull
-      return options.finish?.(id) ?? { warnings: [], syncError: null }
-    },
-    sync: async (project) => {
-      synced.push(project)
-      return options.sync?.(project) ?? null
-    },
     refresh: async (project) => {
       refreshed.push(project)
       const tasks = tracker[project]

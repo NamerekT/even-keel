@@ -58,7 +58,7 @@ export class TaskLists {
     const current = this.currentOf(project) === task.id
     if (this.reviews.holds(project, task.id) && !current) return false
     if (isActive(rules, task.status)) return true
-    return current && this.deps.busy(task.id)
+    return current && this.deps.machine.busy(task.id)
   }
 
   orders(): Record<string, ProjectOrder> {

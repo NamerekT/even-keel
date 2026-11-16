@@ -1,7 +1,7 @@
 import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { acceptable, answerable } from './answers.js'
-import type { Handovers } from './handover.js'
+import type { Handovers } from '../machine/handover.js'
 import { requireLimit } from './limitNotice.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
 import type { LaunchPauses } from './pauses.js'
@@ -39,7 +39,7 @@ export class Talks {
     guardRestart(this.deps, task, current.sessionId, confirmed)
     this.pauses.require(project, task)
     requireLimit(this.deps, project, task)
-    const session = this.deps.handoff(task)
+    const session = this.deps.machine.handoff(task)
     if (session === undefined) throw fail('chain.noSession', { task })
     const replaced = current.sessionId
     this.host.setWork(this.host.work().then(() => {

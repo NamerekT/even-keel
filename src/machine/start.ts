@@ -1,5 +1,6 @@
+import type { MachineTaskDeps } from './host.js'
 import { englishOf, notice, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
-import type { ActiveChain, CarrySession, ChainState, CurrentTask, DispatcherDeps, SessionFix } from './model.js'
+import type { ActiveChain, CarrySession, ChainState, CurrentTask, SessionFix } from '../chain/model.js'
 
 const SLOT_REFUSALS = new Set(['slot.noneFree', 'slot.busyStart'])
 
@@ -10,19 +11,19 @@ const LAUNCH_SEEN_MS = 60_000
  * Whether "Stop after the turn" has a turn to wait out: a session seen working, or one the chain started within the
  * last minute that has not replied yet and waits on no question — the monitor shows it working seconds later (BTN-1044).
  */
-export function inTurn(deps: DispatcherDeps, current: CurrentTask): boolean {
-  if (deps.midTurn(current.task)) return true
+export function inTurn(deps: MachineTaskDeps, current: CurrentTask): boolean {
+  if (deps.machine.midTurn(current.task)) return true
   const fresh = (at: string) => deps.now().getTime() - Date.parse(at) < LAUNCH_SEEN_MS
   if (current.starting !== undefined) return fresh(current.starting)
-  if (current.sessionId === null || !fresh(current.since) || deps.busy(current.task)) return false
-  const session = deps.handoff(current.task)
+  if (current.sessionId === null || !fresh(current.since) || deps.machine.busy(current.task)) return false
+  const session = deps.machine.handoff(current.task)
   return session === undefined || session.sessionId !== current.sessionId || session.lastReplyAt === null
 }
 
 /** Starts the prepared task and records its session, or leaves an unattended chain waiting for a slot. */
 export async function startTask(
   state: ChainState,
-  deps: DispatcherDeps,
+  deps: MachineTaskDeps,
   chain: ActiveChain,
   current: CurrentTask,
   fix: SessionFix | undefined,
@@ -36,12 +37,12 @@ export async function startTask(
   try {
     const { sessionId, fallback } =
       fix !== undefined
-        ? { sessionId: await deps.launchFix(chain.project, task, fix.report, fix.reran === true) }
+        ? { sessionId: await deps.machine.launchFix(chain.project, task, fix.report, fix.reran === true) }
         : carry !== undefined
-          ? { sessionId: await deps.launchCarry(chain.project, task, carry.report) }
+          ? { sessionId: await deps.machine.launchCarry(chain.project, task, carry.report) }
           : feedback !== undefined
-            ? await deps.launch(chain.project, task, feedback)
-            : await deps.launch(chain.project, task)
+            ? await deps.machine.launch(chain.project, task, feedback)
+            : await deps.machine.launch(chain.project, task)
     if (feedback !== undefined) delivered()
     deps.journal({
       at: since,
@@ -70,7 +71,7 @@ export async function startTask(
 }
 
 /** The task never started, so it is not released: the chain picks it again once a slot frees up. */
-function waitForSlot(state: ChainState, deps: DispatcherDeps, chain: ActiveChain, waiting: Notice): void {
+function waitForSlot(state: ChainState, deps: MachineTaskDeps, chain: ActiveChain, waiting: Notice): void {
   chain.current = null
   if (!sameNotice(chain.slotWait?.notice ?? null, waiting)) deps.log(`chain: ${chain.project}: ${englishOf(waiting)}`)
   chain.slotWait = { notice: waiting, at: deps.now().toISOString() }

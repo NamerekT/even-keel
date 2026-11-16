@@ -24,7 +24,7 @@ export function assembleKeySpend(ctx: Pick<ServiceContext, 'homes' | 'account' |
   return new KeySpend({
     metered: (key) => {
       const home = ctx.homes.find(key)
-      if(home === undefined || home.agent !== OPENCODE || home.global) return false
+      if (home === undefined || home.agent !== OPENCODE || home.global) return false
       const apiKey = ctx.homes.apiKeyOf(home)
       return apiKey !== null && keyVendor(apiKey) === 'openrouter'
     },
@@ -33,7 +33,7 @@ export function assembleKeySpend(ctx: Pick<ServiceContext, 'homes' | 'account' |
       const apiKey = home === undefined ? null : ctx.homes.apiKeyOf(home)
       ctx.account.readBalance(key).catch((error: unknown) => console.error(`account: the balance of ${key}: ${error instanceof Error ? error.message : String(error)}`))
       const read = apiKey === null ? null : await readOpenRouterKey(apiKey, KEY_SPEND_TIMEOUT_MS)
-      if(read !== null) ctx.account.noteKeyLimit(key, read.limit)
+      if (read !== null) ctx.account.noteKeyLimit(key, read.limit)
       return read?.usage ?? null
     },
     onSpend: (growth) => ctx.writes.add(`the key spend of session ${growth.sessionId}`, saveKeySpend(ctx.db, growth)),
@@ -65,7 +65,7 @@ export function assembleGitFound(ctx: Pick<ServiceContext, 'configStore'>) {
 export function assembleHomeOf(ctx: Pick<ServiceContext, 'homes'>) {
   return (key: string): AccountHome => {
     const home = ctx.homes.find(key)
-    if(home === undefined) throw fail('account.homeGone', { key })
+    if (home === undefined) throw fail('account.homeGone', { key })
     return home
   }
 }
@@ -77,7 +77,7 @@ export function assembleOnline(ctx: Pick<ServiceContext, 'reach' | 'homes'>) {
 export function assembleWarmable(ctx: Pick<ServiceContext, 'liveView' | 'monitor' | 'agentOf' | 'homeOf'>) {
   return ({ task, sessionId }: WarmTask): SessionView | undefined => {
     const view = ctx.liveView(task)
-    if(view === undefined || (sessionId !== null && view.sessionId !== sessionId)) return undefined
+    if (view === undefined || (sessionId !== null && view.sessionId !== sessionId)) return undefined
     const session = ctx.monitor.handoff(task)
     return session?.sessionId === view.sessionId && ctx.agentOf(ctx.homeOf(session.account)).warm !== undefined ? view : undefined
   }

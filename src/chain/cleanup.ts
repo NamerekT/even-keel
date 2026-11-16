@@ -1,3 +1,4 @@
+import { isOwnName } from './fix.js'
 import { isNetworkFailure } from '../git/sync.js'
 import type { FinishOutcome } from '../git/types.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
@@ -64,7 +65,7 @@ export class Cleanups {
 
   /** Whether a done task's session holds its cleanup: a session whose turn ended on a background command does not. */
   working(task: string): boolean {
-    return this.deps.busy(task) && !this.deps.shell(task)
+    return this.deps.machine.busy(task) && !this.deps.machine.shell(task)
   }
 
   /** Cleans up after a done task and, once main is pushed, awaits the CI's verdict on it. */
@@ -92,7 +93,7 @@ export class Cleanups {
       retry.tries++
       let error: Notice | null
       try {
-        error = await this.deps.sync(project)
+        error = await this.deps.machine.sync(project)
       } catch (failure) {
         error = noticeOf(failure)
       }
@@ -127,7 +128,8 @@ export class Cleanups {
 
   private async cleanUp(project: string, task: string, pull?: PullCleanup): Promise<FinishOutcome> {
     try {
-      return await (pull === undefined ? this.deps.finish(project, task) : this.deps.finish(project, task, pull))
+      if (!isOwnName(task) && pull?.unmerged !== true) this.deps.archiveClosed?.(project, task)
+      return await (pull === undefined ? this.deps.machine.finish(project, task) : this.deps.machine.finish(project, task, pull))
     } catch (error) {
       return { warnings: [notice('cleanup.failed', {}, { cause: noticeOf(error) })], syncError: null }
     }

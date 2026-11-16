@@ -1,9 +1,6 @@
-import { englishOf, noticeOf, type Notice } from '../notice/notice.js'
-import { isSpendingLimit } from '../limits/spending.js'
-import { LimitRetries } from '../limits/retry.js'
-import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Move, ReturnReason } from './model.js'
-import { isOwnName } from './fix.js'
-import { PROMPTS } from './prompts.js'
+import { isOwnName } from '../chain/fix.js'
+import type { ActiveChain, ChainState, CurrentTask, Move, ReturnReason } from '../chain/model.js'
+import { PROMPTS } from '../chain/prompts.js'
 import {
   answered,
   failedOf,
@@ -16,7 +13,11 @@ import {
   type HandoffReason,
   type HandoffSession,
   type LimitedSession,
-} from './relay.js'
+} from '../chain/relay.js'
+import { LimitRetries } from '../limits/retry.js'
+import { isSpendingLimit } from '../limits/spending.js'
+import { englishOf, noticeOf, type Notice } from '../notice/notice.js'
+import type { MachineTaskDeps } from './host.js'
 
 const UNANSWERED_MS = 10 * 60_000
 
@@ -43,14 +44,14 @@ export class Handovers {
 
   constructor(
     private readonly state: ChainState,
-    private readonly deps: DispatcherDeps,
+    private readonly deps: MachineTaskDeps,
     private readonly halt: (chain: ActiveChain, error: Notice) => void,
   ) {}
 
   /** The current task's session on each step: a move a service restart cut short, a limit, a checkpoint. */
   async follow(chain: ActiveChain, current: CurrentTask): Promise<void> {
-    const refusal = current.sessionId === null ? undefined : this.deps.modelRefusal?.(current.task, current.sessionId)
-    if (refusal !== undefined && !this.deps.midTurn(current.task)) {
+    const refusal = current.sessionId === null ? undefined : this.deps.machine.modelRefusal?.(current.task, current.sessionId)
+    if (refusal !== undefined && !this.deps.machine.midTurn(current.task)) {
       this.halt(chain, refusal)
       return
     }
@@ -61,10 +62,10 @@ export class Handovers {
   async followLimit(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
     const retained = current.limit?.acted === null ? current.limit.overage : undefined
     const overage = retained === undefined ? undefined : { ...retained.session, ...(retained.stopped && { stopped: true as const }) }
-    const session = overage ?? this.deps.limited(current.task)
+    const session = overage ?? this.deps.machine.limited(current.task)
     if (session?.transient === true) return this.followTransient(chain, current, session)
     if (session === undefined) {
-      const recovered = this.deps.handoff(current.task)
+      const recovered = this.deps.machine.handoff(current.task)
       const hit = recovered === undefined ? null : this.transientRetries.lastAt(recovered.sessionId)
       if (recovered?.lastReplyAt != null && hit !== null && Date.parse(recovered.lastReplyAt) > Date.parse(hit)) {
         this.transientRetries.reset(recovered.sessionId)
@@ -76,15 +77,15 @@ export class Handovers {
       return false
     }
     if (current.limit?.at !== session.limit.at) {
-      if (this.deps.account(chain.project, current.task).id === null) return true
-      const reset = this.deps.limitResetAfter(session.account, session.limit.at, session.limit.text)
-      current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), reset)
+      if (this.deps.machine.account(chain.project, current.task).id === null) return true
+      const reset = this.deps.machine.limitResetAfter(session.account, session.limit.at, session.limit.text)
+      current.limit = holdOf(session, this.deps.machine.accountAt(session.account, session.limit.at), reset)
       this.deps.save(this.state)
       const when = current.limit.resetsAt === null ? 'reset unknown' : `resets at ${current.limit.resetsAt}`
       const next = current.limit.then === 'resume' ? 'resume' : 'new session with handoff'
       this.deps.log(`chain: ${current.task}: limit reached on account ${session.account}; ${when}; next: ${next}`)
     } else if (current.limit.resetsAt === null || isSpendingLimit(session.limit.text)) {
-      const reset = this.deps.limitResetAfter(session.account, current.limit.at, session.limit.text)
+      const reset = this.deps.machine.limitResetAfter(session.account, current.limit.at, session.limit.text)
       if (reset !== null && (current.limit.resetsAt === null || Date.parse(reset) < Date.parse(current.limit.resetsAt))) {
         current.limit = withReset(current.limit, reset, session.warmMs)
         this.deps.save(this.state)
@@ -95,16 +96,16 @@ export class Handovers {
     const now = this.deps.now()
     if (overage === undefined) this.reopenEarly(chain.project, current, session, now)
     const hold = current.limit
-    const spentUntil = overage === undefined ? null : this.deps.limitReset(chain.project, current.task)
+    const spentUntil = overage === undefined ? null : this.deps.machine.limitReset(chain.project, current.task)
     if (spentUntil !== null && Date.parse(spentUntil) > now.getTime()) return true
-    const step = relayStep(hold, now, this.deps.account(chain.project, current.task), session.warmMs)
+    const step = relayStep(hold, now, this.deps.machine.account(chain.project, current.task), session.warmMs)
     if (step === 'wait') return true
 
     hold.acted = step
     begin(current, now.toISOString(), step)
     this.deps.save(this.state)
     try {
-      const sessionId = step === 'resume' ? await this.deps.resume(current.task, session) : await this.handOver(current.task, session, 'limit')
+      const sessionId = step === 'resume' ? await this.deps.machine.resume(current.task, session) : await this.handOver(current.task, session, 'limit')
       this.moved(chain, current, step, sessionId, session.sessionId)
       const how = step === 'resume' ? `resume in session ${sessionId}` : `handoff to new session ${sessionId} from ${session.sessionId}`
       this.deps.log(`chain: ${current.task}: continued after the limit by ${how}`)
@@ -120,7 +121,7 @@ export class Handovers {
     if (hold.acted !== null || hold.credit === true || hold.resetsAt === null || isSpendingLimit(session.limit.text)) return
     if (Date.parse(hold.resetsAt) <= now.getTime()) return
     const named = hold.resetsAt
-    const open = this.deps.limitReopenedAt(session.account, hold.at, named, project, current.task)
+    const open = this.deps.machine.limitReopenedAt(session.account, hold.at, named, project, current.task)
     if (open === null || Date.parse(open) >= Date.parse(named)) return
     current.limit = withReset(hold, open, session.warmMs)
     this.deps.save(this.state)
@@ -142,7 +143,7 @@ export class Handovers {
     }
     const hold = current.limit
     if (hold.acted !== null || hold.resetsAt === null || this.deps.now().getTime() < Date.parse(hold.resetsAt)) return true
-    if (this.deps.midTurn(current.task) || !this.deps.account(chain.project, current.task).ready || this.deps.blocked(chain.project, current.task) !== undefined) return true
+    if (this.deps.machine.midTurn(current.task) || !this.deps.machine.account(chain.project, current.task).ready || this.deps.blocked(chain.project, current.task) !== undefined) return true
     hold.acted = 'resume'
     begin(current, this.deps.now().toISOString(), 'resume')
     this.deps.save(this.state)
@@ -150,7 +151,7 @@ export class Handovers {
       const prompt = this.deps.promptLanguage(current.task) === 'ru'
         ? 'Продолжай: предыдущий запрос завершился временной ошибкой модели.'
         : 'Continue: the previous request failed with a temporary model error.'
-      const sessionId = await this.deps.reply(current.task, session, prompt)
+      const sessionId = await this.deps.machine.reply(current.task, session, prompt)
       this.moved(chain, current, 'resume', sessionId, session.sessionId)
       this.deps.log(`chain: ${current.task}: continued after a temporary model error in session ${sessionId}`)
     } catch (error) {
@@ -160,10 +161,10 @@ export class Handovers {
   }
 
   unanswered(current: CurrentTask): boolean {
-    if (current.sessionId !== null && this.deps.modelRefusal?.(current.task, current.sessionId) !== undefined) return false
+    if (current.sessionId !== null && this.deps.machine.modelRefusal?.(current.task, current.sessionId) !== undefined) return false
     const paidWait = current.limit?.acted === null && current.limit.overage !== undefined
-    if (!this.state.unattended || paidWait || this.deps.midTurn(current.task) || this.deps.limited(current.task) !== undefined) return false
-    const session = this.deps.handoff(current.task)
+    if (!this.state.unattended || paidWait || this.deps.machine.midTurn(current.task) || this.deps.machine.limited(current.task) !== undefined) return false
+    const session = this.deps.machine.handoff(current.task)
     if (session === undefined || session.sessionId !== current.sessionId || session.checkpoint !== null) return false
     const moments = [current.since, current.resumedAt, session.lastReplyAt].filter((at) => at != null)
     const quietSince = Math.max(...moments.map((at) => Date.parse(at)))
@@ -172,18 +173,18 @@ export class Handovers {
 
   /** Unattended, the chain does not wait past ten quiet minutes for a session of a done task; the sweep cleans up after it. */
   quietTooLong(task: string): boolean {
-    const lastReplyAt = this.deps.handoff(task)?.lastReplyAt
+    const lastReplyAt = this.deps.machine.handoff(task)?.lastReplyAt
     if (!this.state.unattended || lastReplyAt == null) return false
     return this.deps.now().getTime() - Date.parse(lastReplyAt) >= UNANSWERED_MS
   }
 
   async followCheckpoint(chain: ActiveChain, current: CurrentTask): Promise<void> {
-    if (this.deps.busy(current.task)) return
-    const session = this.deps.handoff(current.task)
+    if (this.deps.machine.busy(current.task)) return
+    const session = this.deps.machine.handoff(current.task)
     if (session === undefined || session.checkpoint === null || session.sessionId !== current.sessionId) return
-    if (this.deps.blocked(chain.project, current.task) !== undefined || this.deps.limitReset(chain.project, current.task) !== null) return
+    if (this.deps.blocked(chain.project, current.task) !== undefined || this.deps.machine.limitReset(chain.project, current.task) !== null) return
     // The model's own week is used up: the new session of the task would be refused too (BTN-816).
-    if (this.deps.modelWeek?.(chain.project, current.task) != null) return
+    if (this.deps.machine.modelWeek?.(chain.project, current.task) != null) return
     await this.handOverCurrent(chain, current, session, 'checkpoint')
   }
 
@@ -214,7 +215,7 @@ export class Handovers {
     if (!this.state.active.includes(chain)) {
       return move === 'answer' ? this.deliverLoose(chain.project, current.task, session, prompt) : false
     }
-    if (chain.current !== current || current.sessionId !== session.sessionId || this.deps.handoff(current.task)?.sessionId !== session.sessionId) {
+    if (chain.current !== current || current.sessionId !== session.sessionId || this.deps.machine.handoff(current.task)?.sessionId !== session.sessionId) {
       return this.undelivered(current.task, session, 'the current session changed before delivery')
     }
     begin(current, this.deps.now().toISOString(), move)
@@ -223,7 +224,7 @@ export class Handovers {
     if (ask !== null) current.ask = ask
     this.deps.save(this.state)
     try {
-      const sessionId = await this.deps.reply(current.task, session, prompt)
+      const sessionId = await this.deps.machine.reply(current.task, session, prompt)
       this.moved(chain, current, move, sessionId, session.sessionId)
       return true
     } catch (error) {
@@ -237,11 +238,11 @@ export class Handovers {
 
   /** The answer to a session that lives on after its chain stopped: no chain to follow it or to pause on a failure. */
   async deliverLoose(project: string, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
-    if (this.deps.handoff(task)?.sessionId !== session.sessionId) return this.undelivered(task, session, 'the session changed before delivery')
+    if (this.deps.machine.handoff(task)?.sessionId !== session.sessionId) return this.undelivered(task, session, 'the session changed before delivery')
     if (this.state.active.some((chain) => chain.project === project)) return this.undelivered(task, session, 'a chain started before delivery')
     const at = this.deps.now().toISOString()
     try {
-      const sessionId = await this.deps.reply(task, session, prompt)
+      const sessionId = await this.deps.machine.reply(task, session, prompt)
       this.deps.journal({ at, project, task, sessionId, reason: 'answer', previous: session.sessionId })
       return true
     } catch (error) {
@@ -282,16 +283,16 @@ export class Handovers {
   async recover(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
     const { starting, move, reply, ask, answering } = current
     if (starting === undefined || move === undefined) return true
-    const session = this.deps.handoff(current.task) ?? current.limit?.overage?.session
+    const session = this.deps.machine.handoff(current.task) ?? current.limit?.overage?.session
     if (session === undefined) return false
     if (session.sessionId !== current.sessionId) {
       this.deps.log(`chain: ${current.task}: took ${session.sessionId}, started by a ${move} the service did not live to record`)
       this.moved(chain, current, move, session.sessionId, current.sessionId!, starting)
       return true
     }
-    const asked = this.deps.asked(current.task)
+    const asked = this.deps.machine.asked(current.task)
     const through =
-      this.deps.midTurn(current.task) ||
+      this.deps.machine.midTurn(current.task) ||
       (session.lastReplyAt !== null && Date.parse(session.lastReplyAt) > Date.parse(starting)) ||
       (asked !== null && asked !== ask)
     if (through) {
@@ -326,10 +327,10 @@ export class Handovers {
     const reason = returned ? 'relay' : move === 'message' ? 'restart' : move
     const cause =
       move === 'relay' ? (current.limit?.credit ? 'credit' : 'limit')
-      : move === 'resume' ? (current.limit?.transient ? 'transient' : current.limit?.credit ? 'credit' : 'limit')
-      : returned || move === 'message' ? move
-      : move === 'review' && sessionId !== previous ? 'review'
-      : undefined
+        : move === 'resume' ? (current.limit?.transient ? 'transient' : current.limit?.credit ? 'credit' : 'limit')
+          : returned || move === 'message' ? move
+            : move === 'review' && sessionId !== previous ? 'review'
+              : undefined
     this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, ...(cause === undefined ? {} : { cause }), previous })
     current.sessionId = sessionId
     current.resumedAt = at
@@ -349,13 +350,13 @@ export class Handovers {
   async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
     const report = isOwnName(task) ? withReport(task, '', this.reportOf(task)) : ''
     // A project without git: its folder may sit inside another repository, whose worktree is not the session's.
-    const located = this.deps.plain?.(task) === true ? session : await this.deps.locate(session)
+    const located = this.deps.plain?.(task) === true ? session : await this.deps.machine.locate(session)
     const { source, failed } = this.sourceOf(task, located)
     const { transcript, recent, lastMessage, checkpoint } = source
     const from = source === located ? located : { ...located, transcript, recent, lastMessage, checkpoint }
     const prompt = handoffPrompt(task, from, reason, this.deps.promptLanguage(task), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false, failed, this.deps.plain?.(task) !== true)
     const told = extra === undefined ? prompt : `${prompt}\n${extra}\n`
-    const sessionId = await this.deps.relay(task, from, told + report, reason)
+    const sessionId = await this.deps.machine.relay(task, from, told + report, reason)
     this.sources.set(task, { sessionId, source, failed })
     return sessionId
   }

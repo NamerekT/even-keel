@@ -42,7 +42,7 @@ export class Arrangement {
     const chain = this.host.chainOf(project)
     const holder = chain !== undefined && chain.current?.task === task ? chain : null
     if (holder?.current?.sessionId === null) throw fail('chain.launching', { task })
-    if (this.deps.busy(task)) throw fail('chain.midTurn', { task })
+    if (this.deps.machine.busy(task)) throw fail('chain.midTurn', { task })
     const skipped = (this.state.skipped[project] ??= [])
     if (!skipped.includes(task)) skipped.push(task)
     if (holder !== null) this.host.release(holder, 'skip', [])

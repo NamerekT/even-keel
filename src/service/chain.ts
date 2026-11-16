@@ -1,54 +1,34 @@
-export { wireChangelogs, wireBriefed, wireWithProject } from './chain-prompts.js'
-import { deferLeftFolder, midTurn, type stopTaskSessions } from './cleanup.js'
-export { deferLeftFolder, STOP_RETRY_MS, stopLingering, stopTaskSessions } from './cleanup.js'
-import { mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
-import { type AccountHome } from '../account/homes.js'
-import { accountAt } from '../account/ledger.js'
-import { accountId, launchBlock } from '../account/model.js'
-import type { SessionStart } from '../agent/contract.js'
-import { sessionBase } from '../agent/env.js'
 import { Dispatcher, type LaunchEntry } from '../chain/dispatcher.js'
 import { carryNameOf, fixNameOf, isCarryName, isFixName, isOwnName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { chainQuiet, ForwardMerger } from '../chain/forward.js'
-import { PROMPTS } from '../chain/prompts.js'
-import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, type HandoffSession } from '../chain/relay.js'
 import { launchLine } from '../chain/log.js'
-import { mainCheckDeps } from '../chain/mainci.js'
-import { TaskPlaces } from '../chain/places.js'
-import { readNote, saveSnapshot, snapshotReason } from '../chain/snapshots.js'
-import { reviewDeps } from '../review/wiring.js'
+import { hubMainDeps } from '../chain/mainci.js'
+import { PROMPTS } from '../chain/prompts.js'
 import { appendLaunch, loadChainState, saveChainState, saveClosedTask } from '../chain/store.js'
-import { changesOf } from '../git/changes.js'
-import { TaskWorks, worksOf } from '../git/work.js'
 import { gitlabUrls } from '../ci/adapters.js'
 import { createCiWatches } from '../ci/wiring.js'
 import { DEFAULT_BRANCH, DEFAULT_CI, isPlain, mergeTargetOf, projectLabel, readerIds } from '../config.js'
 import { runGit } from '../git/run.js'
-import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
-import { fastForwardMain, syncMain } from '../git/sync.js'
-import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from '../git/worktree.js'
-import { exhaustedReset, limitReopenedAt, spentModelWeek } from '../limits/model.js'
-import { overageSession } from '../limits/overage-session.js'
-import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
-import { type RemovalFacts } from '../projects/removal.js'
-import { checkoutRemotes, remotePeers, repositoryIds, sameRepository } from '../projects/remotes.js'
-import { replyParts } from '../sessions/ask.js'
-import { typedText } from '../sessions/commandPrompt.js'
-import { isLive, type AgentEntry } from '../sessions/agents.js'
-import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from '../sessions/setup.js'
-import { KEEP_WARM_PROMPT, KeepWarm, warmTasks, type WarmFacts } from '../sessions/keepwarm.js'
+import { slotPaths } from '../git/slot.js'
+import type { MachinePort } from '../machine/port.js'
+import { fail, notice } from '../notice/notice.js'
 import { isInside } from '../paths.js'
 import { profileFor } from '../profiles/model.js'
 import { BranchControl } from '../projects/branch-control.js'
-import { slotOccupants } from '../sessions/occupants.js'
-import { locateWorktree } from '../sessions/place.js'
-import type { ProjectForm } from '../state.js'
-import { issueLink } from '../tracker/model.js'
-import { readFresh } from '../tracker/health.js'
+import { checkoutRemotes, remotePeers, repositoryIds, sameRepository } from '../projects/remotes.js'
+import { type RemovalFacts } from '../projects/removal.js'
+import { reviewDeps } from '../review/wiring.js'
 import type { ServiceContext } from '../service.js'
+import { isLive } from '../sessions/agents.js'
+import type { ProjectForm } from '../state.js'
+import { readFresh } from '../tracker/health.js'
+import { issueLink } from '../tracker/model.js'
 import { disabledBlock } from './accounts.js'
+import { midTurn } from './cleanup.js'
 import { wireClosing } from './closing.js'
+export { wireBriefed, wireChangelogs, wireWithProject } from './chain-prompts.js'
+export { deferLeftFolder, STOP_RETRY_MS, stopLingering, stopTaskSessions } from './cleanup.js'
+export { approved, goOnWith, occupantsOf, resumeWith, slotSpan, slotUse, steer, syncProject, taskRun, vacateSlot, wireKeepWarm, wireMachine, wirePlaces, wireWorks } from './machine-chain.js'
 
 export type ChainContext = Pick<ServiceContext,
   | 'CHANGELOG_TIMEOUT_MS'
@@ -146,36 +126,6 @@ export type ChainContext = Pick<ServiceContext,
   | 'writes'
 >
 
-export function wirePlaces(ctx: ChainContext): TaskPlaces {
-  return new TaskPlaces({
-    git: runGit,
-    main: ctx.branchOf,
-    plain: (project) => isPlain(ctx.configStore.current, project),
-    place: async (project, task, { ahead = false, at } = {}) => {
-      const repo = ctx.configStore.current.projects[project]!
-      if (isPlain(ctx.configStore.current, project)) {
-        await mkdir(repo, { recursive: true })
-        // One session at a time in the folder: what released tasks left in it goes before the launch (exception 5).
-        if (!ahead) await ctx.vacateSlot(repo, task, true)
-        return { path: repo, branch: null }
-      }
-      const main = ctx.branchOf(project)
-      await requireBranch(runGit, repo, project, main)
-      if (!ahead) await requireCheckedOut(runGit, repo, project, main)
-      await ensureIgnored(runGit, repo)
-      // Not ahead: while the chain waits for the CI or the commands after green, main must stay at the commit they judge.
-      if (!ahead) await fastForwardMain(runGit, repo, main)
-      const count = ctx.configStore.current.slots[project]
-      const span = ctx.slotSpan(project)
-      if (isOwnName(task)) return prepareWorktree(runGit, repo, task, main, ahead)
-      if (count === undefined) return (span > 0 ? await heldSlot(runGit, repo, task, span) : undefined) ?? prepareWorktree(runGit, repo, task, main, ahead)
-      const pool = { count, span, main, ahead, occupancy: (path: string) => ctx.slotUse(path, task), vacate: (path: string) => ctx.vacateSlot(path, task) }
-      return prepareSlot(runGit, repo, task, at === undefined ? pool : { ...pool, at })
-    },
-    setUp: (project, task, path) => runBeforeStart(ctx.configStore.current.settings[project]?.beforeStart ?? [], ctx.taskRun(task, path, ctx.choiceFor(project, task).account)),
-  })
-}
-
 export function archiveClosed(ctx: ChainContext, project: string, task: string): void {
   const { tracker, profile, url } = ctx.taskSource(project, task)
   const known = ctx.tasksByProject.get(project)?.find((each) => each.id === task)
@@ -203,85 +153,21 @@ export function taskSource(ctx: ChainContext, project: string, task: string): { 
   }
 }
 
-export function taskRun(ctx: ChainContext, task: string, cwd: string, account: string): SetupRun {
-  const env = () => accountEnv(account, (key) => ctx.homes.find(key), ctx.envOf, sessionBase(process.env, ctx.packages.keyNames(), ctx.envFile.own()))
-  return { task, cwd, shell: systemShell(env), log: (line) => console.log(line) }
-}
-
-export async function syncProject(ctx: ChainContext, project: string): Promise<Notice | null> {
-  const repo = ctx.configStore.current.projects[project]!
-  if (isPlain(ctx.configStore.current, project)) return null
-  const remotes = (await runGit(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
-  return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, ctx.branchOf(project))
-}
-
-export function wireKeepWarm(ctx: ChainContext): KeepWarm {
-  return new KeepWarm({
-    hours: () => ctx.configStore.current.keepWarm,
-    sessions: (): WarmFacts[] =>
-      warmTasks(ctx.dispatcher.state).flatMap((each) => {
-        const view = ctx.warmable(each)
-        if (view === undefined) return []
-        const busy = ctx.agentStatus(view.task) === 'busy' || ctx.monitor.holds.held(view.sessionId)
-        return [{ task: view.task, sessionId: view.sessionId, busy, limited: view.lamp === 'limit', cache: view.cache }]
-      }),
-    ping: async ({ task, sessionId }) => {
-      const view = ctx.warmable({ task, sessionId })
-      const session = ctx.monitor.handoff(task)
-      if (view === undefined || session === undefined) throw new Error(`the session ${sessionId} is not live`)
-      const home = ctx.homeOf(session.account)
-      const start: SessionStart = { name: task, cwd: session.cwd, prompt: KEEP_WARM_PROMPT, model: view.model, settings: ctx.settingsFor(task), ...ctx.agentExtras(home, ctx.projectOf(task), task) }
-      return ctx.agentOf(home).warm!(home, session, start)
-    },
-    now: () => new Date(),
-    log: (line) => console.log(line),
-  })
-}
-
-export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
+export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): Promise<Dispatcher> {
   const closing = wireClosing(ctx)
   return new Dispatcher(await loadChainState(ctx.db), {
+    machine,
+    archiveClosed: ctx.archiveClosed,
     projects: () => Object.keys(ctx.configStore.current.projects),
     parallel: () => ctx.configStore.current.parallel,
     rules: ctx.rulesOf,
     fillsMilestone: (project) => ctx.configStore.current.settings[project]?.fillMilestone ?? false,
     milestoneOrder: (project) => ctx.configStore.current.settings[project]?.milestoneOrder ?? [],
-    launch: async (project, task, extra) => {
-      const home = ctx.homeOf(ctx.choiceFor(project, task).account)
-      await ctx.daemons.prepare(home)
-      const place = await ctx.places.ready(project, task)
-      const started = ctx.withProject(await ctx.briefed(task, startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), !isPlain(ctx.configStore.current, project)), project), project)
-      const { prompt, model, provider, fallback } = ctx.planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
-      const extras = ctx.agentExtras(home, project, task)
-      const sessionId = await ctx.launchIn(home, { name: task, cwd: place.path, prompt, model, settings: ctx.settingsFor(task, project), ...extras }, project)
-      if (fallback === null) return { sessionId }
-      console.warn(englishOf(ctx.noAccountFor(task, fallback, provider)))
-      return { sessionId, fallback }
-    },
-    liveSession: (task) => ctx.sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
-    lastSession: (project, task) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
-    modelRefusal: (task, sessionId) => ctx.sessions.find(view => view.task === task && view.sessionId === sessionId && view.apiErrorKind === 'model')?.apiErrorNotice,
-    modelBlock: async (project, task) => {
-      const choice = ctx.choiceFor(project, task)
-      return ctx.models.refusal(ctx.homeOf(choice.account), task, choice.model)
-    },
     blocked: (project, task) => {
       const reason = ctx.profileBlock(project) ?? ctx.pullBlock(project)
       if (reason !== undefined || task === undefined) return reason
-      const choice = ctx.choiceFor(project, task)
-      return ctx.cliCopies.blocked(choice.provider) ?? launchBlock(ctx.account.view, choice.account)
+      return machine.launchBlock(project, task)
     },
-    busy: (task) => {
-      const status = ctx.agentStatus(task)
-      return status === 'busy' || status === 'waiting'
-    },
-    midTurn: (task) => ctx.agentStatus(task) === 'busy',
-    silentSince: (task) => ctx.liveView(task)?.silentSince ?? null,
-    shell: (task) => {
-      const view = ctx.liveView(task)
-      return view !== undefined && ctx.agents.find((agent) => agent.sessionId === view.sessionId)?.status === 'shell'
-    },
-    asked: (task) => ctx.liveView(task)?.ask?.id ?? null,
     save: (state) => {
       ctx.writes.add('the chain state', saveChainState(ctx.db, state))
       ctx.hub.broadcastSoon('state', ctx.getState)
@@ -295,42 +181,8 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
     },
     moveStatus: (project, task, when) => ctx.statusMover.move(project, task, when),
     now: () => new Date(),
-    limited: (task) => ctx.monitor.limited(task),
-    overage: (task) => {
-      const session = ctx.monitor.handoff(task)
-      const entry = ctx.account.view.accounts.find((entry) => entry.key === session?.account)
-      const home = entry === undefined ? undefined : ctx.homes.find(entry.key)
-      const account = entry === undefined ? undefined : { ...entry, apiKey: entry.apiKey && (home === undefined || ctx.agentOf(home).keyUsage !== true) }
-      return overageSession(session, ctx.agents.find((agent) => agent.sessionId === session?.sessionId), account, new Date())
-    },
-    handoff: (task) => {
-      const session = ctx.monitor.handoff(task)
-      return session === undefined ? undefined : { ...session, warmedAt: ctx.keepWarm.warmedAt(session.sessionId) }
-    },
-    locate: locateWorktree,
-    account: (project, task) => {
-      const key = ctx.choiceFor(project, task).account
-      const now = ctx.accountNow(key)
-      const home = ctx.homes.find(key)
-      // A resume waits out the CLI check holding the folder (BTN-569), as it waits out a sign-in.
-      return home !== undefined && ctx.cliLease.held(home) ? { ...now, ready: false } : now
-    },
-    accountAt: (key, at) => accountId(key, accountAt(ctx.ledger, key, at)),
-    limitReset: (project, task) => exhaustedReset(ctx.limits.limits(ctx.choiceFor(project, task).account)),
-    modelWeek: (project, task) => {
-      const choice = ctx.choiceFor(project, task)
-      const week = spentModelWeek(ctx.limits.limits(choice.account), choice.model)
-      return week === null ? null : { model: week.model, until: week.resetsAt }
-    },
-    limitResetAfter: ctx.retryAfterLimit,
-    limitReopenedAt: (key, at, resetsAt, project, task) => limitReopenedAt(ctx.limits.limits(key), at, resetsAt, ctx.choiceFor(project, task).model),
-    limitsUnread: (project, task) => {
-      const { account } = ctx.choiceFor(project, task)
-      return ctx.limits.unread(account) ? { account, next: ctx.limits.nextPoll() } : undefined
-    },
-    packagesBlocked: (project) => ctx.packages.blocked(project),
     trackerBlock: (project) => {
-      const server = ctx.packages.trackerMissing(project)
+      const server = machine.trackerMissing(project)
       return server === undefined ? undefined : notice('chain.noTrackerMcp', { project: projectLabel(ctx.configStore.current, project), server })
     },
     listBlock: (project) => {
@@ -345,12 +197,6 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       }
       return undefined
     },
-    packagesPause: (project) => {
-      const packages = ctx.packages.unready(project)
-      return packages.length === 0 ? undefined : notice('chain.packagesNotReady', { project: projectLabel(ctx.configStore.current, project), packages })
-    },
-    accountsRead: () => ctx.account.ready,
-    sessionsRead: () => ctx.agentsRead,
     promptLanguage: (task) => ctx.promptLanguage(ctx.projectOf(task)),
     mainBranch: (task) => {
       const project = ctx.projectOf(task)
@@ -364,83 +210,6 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const project = ctx.projectOf(task)
       return project !== undefined && isPlain(ctx.configStore.current, project)
     },
-    resume: (task, session) => ctx.resumeWith(task, session, resumePrompt(ctx.promptLanguage(ctx.projectOf(task)))),
-    reply: (task, session, prompt) => ctx.resumeWith(task, session, prompt),
-    relay: async (task, session, handoff, reason) => {
-      const previous = ctx.homes.find(session.account)
-      if (previous !== undefined && !session.stopped) await ctx.stopIn(previous, session)
-      const project = ctx.projectOf(task)
-      const home = ctx.homeOf(ctx.choiceFor(project, task).account)
-      await ctx.daemons.prepare(home)
-      const told = isOwnName(task) ? handoff : await ctx.briefed(task, handoff)
-      const { prompt, model } = ctx.planFor(task, ctx.withProject(told, project), project)
-      const notePath = noteOf(session)
-      const note = await readNote(notePath)
-      const at = new Date().toISOString()
-      const extras = ctx.agentExtras(home, project, task)
-      const sessionId = await ctx.launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: ctx.settingsFor(task, project), ...extras }, project)
-      const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
-      ctx.writes.add(`the handoff snapshot of ${task}`, saveSnapshot(ctx.db, snapshot))
-      return sessionId
-    },
-    launchFix: async (project, name, report, reran) => {
-      const home = ctx.homeOf(ctx.choiceFor(project).account)
-      await ctx.daemons.prepare(home)
-      const place = await ctx.places.ready(project, name)
-      const text = fixPrompt(report, place, ctx.promptLanguage(project), ctx.branchOf(project), reran === true)
-      const { prompt, model } = ctx.planFor(name, ctx.withProject(text, project), project)
-      const extras = ctx.agentExtras(home, project, name)
-      return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: ctx.settingsFor(name, project), ...extras }, project)
-    },
-    launchCarry: async (project, name, report) => {
-      const home = ctx.homeOf(ctx.choiceFor(project).account)
-      await ctx.daemons.prepare(home)
-      const place = await ctx.places.ready(project, name)
-      const { prompt, model } = ctx.planFor(name, ctx.withProject(carryPrompt(report, place, ctx.promptLanguage(project), ctx.branchOf(project)), project), project)
-      const extras = ctx.agentExtras(home, project, name)
-      return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: ctx.settingsFor(name, project), ...extras }, project)
-    },
-    carried: async (project, commit) =>
-      (await runGit(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
-    stop: async (session) => {
-      await ctx.stopIn(ctx.homeOf(session.account), session)
-      const launch = ctx.launches.findLast((entry) => entry.sessionId === session.sessionId)
-      if (launch !== undefined) ctx.eventLog.stopped(launch.project, launch.task)
-    },
-    finish: async (project, task, pull) => {
-      if (!isOwnName(task) && pull?.unmerged !== true) ctx.archiveClosed(project, task)
-      const repo = ctx.configStore.current.projects[project]!
-      if (isPlain(ctx.configStore.current, project)) {
-        // The folder is the project's and stays: only the task's own sessions and packages go.
-        const { warnings } = await ctx.stopTaskSessions(project, repo, task, 0, true)
-        ctx.packages.release(project, task)
-        for (const warning of warnings) console.warn(`cleanup: ${task}: ${englishOf(warning)}`)
-        // The task's agent may have made the folder a repository: the page then offers to turn git on (BTN-1025).
-        void ctx.gitFound.check(project)
-        return { warnings, syncError: null }
-      }
-      const span = isOwnName(task) ? 0 : ctx.slotSpan(project)
-      let stopped: Awaited<ReturnType<typeof stopTaskSessions>>
-      let finished: Awaited<ReturnType<typeof finishWorktree>>
-      try {
-        stopped = await ctx.stopTaskSessions(project, repo, task, Math.max(span, 1))
-        const main = ctx.branchOf(project)
-        const drop = pull === undefined ? {} : { force: pull.force, remote: pull.remote }
-        finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main, drop) : finishWorktree(runGit, repo, task, main, drop))
-      } catch (error) {
-        console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
-        throw error
-      }
-      ctx.packages.release(project, task)
-      const left = deferLeftFolder(ctx, project, repo, task, finished.warnings)
-      const outcome = { ...finished, warnings: [...stopped.warnings, ...left] }
-      for (const warning of outcome.warnings) console.warn(`git: ${task}: ${englishOf(warning)}`)
-      if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
-      // The task's row shows what the cleanup left as soon as the cleanup is over, not the folder it has just removed.
-      await ctx.works.refresh(project)
-      return outcome
-    },
-    sync: ctx.syncProject,
     refresh: async (project) => void (await ctx.refreshProject(project)),
     log: (message) => console.log(message),
     reviews: reviewDeps({
@@ -459,21 +228,15 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       timeoutMs: ctx.CI_TIMEOUT_MS,
     }),
     unchanged: {
-      changes: (project, workdir) => changesOf(runGit, workdir, ctx.branchOf(project)),
       complete: closing.unchanged,
       accept: closing.accept,
     },
-    main: mainCheckDeps({
+    main: hubMainDeps({
       projects: () => Object.keys(ctx.configStore.current.projects),
       peers: (project) => remotePeers(ctx.remotes.view, ctx.branchOf, project),
-      repo: (project) => ctx.configStore.current.projects[project]!,
-      plain: (project) => isPlain(ctx.configStore.current, project),
-      main: ctx.branchOf,
-      git: runGit,
       watches: (project) => (ctx.ciWatches.found ? ctx.ciWatches.shown(project) : null),
       settings: (project) => ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI,
       commands: (project) => ctx.configStore.current.settings[project]?.check ?? [],
-      reported: (project, task) => ctx.checkReports.of(project, task),
       language: () => ctx.configStore.current.language ?? ctx.promptLanguage(),
       promptLanguage: ctx.promptLanguage,
       create: async (task) => (await ctx.linkOf(task.project)?.run(async (tracker) => tracker.create?.(task))) ?? null,
@@ -482,15 +245,11 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
         const link = project === undefined ? undefined : ctx.linkFor(project, task)
         await link?.run(async (tracker) => tracker.comment?.(task, body))
       },
-      prepare: (project, task) => ctx.places.prepare(project, task),
-      place: async (project, task) => (await ctx.places.readyAhead(project, task)).path,
-      runCheck: (project, task, cwd) => runCheck(ctx.configStore.current.settings[project]?.check ?? [], ctx.taskRun(task, cwd, ctx.choiceFor(project, task).account)),
       afterGreen: (project) => ctx.configStore.current.settings[project]?.afterGreen ?? [],
-      runAfterGreen: (project, cwd) => runAfterGreen(ctx.configStore.current.settings[project]?.afterGreen ?? [], ctx.taskRun(project, cwd, ctx.choiceFor(project).account)),
       fixName: (project) => fixNameOf(ctx.configStore.current.keys, project),
       event: (draft) => ctx.eventLog.add(draft),
       now: () => new Date(),
-    }),
+    }, machine),
   })
 }
 
@@ -502,24 +261,6 @@ export async function checkMergeTarget(ctx: ChainContext, project: string, form:
   if (into === null || repo === undefined || into === project) return
   const [own, target] = await Promise.all([form.repo, repo].map(async (folder) => repositoryIds(await checkoutRemotes(runGit, folder), folder)))
   if (!sameRepository(own!, target!)) throw fail('config.mergeIntoForeign', { project: projectLabel(current, project), into: projectLabel(current, into) })
-}
-
-export function wireWorks(ctx: ChainContext): TaskWorks {
-  return new TaskWorks({
-    read: async (project) =>
-      isPlain(ctx.configStore.current, project)
-        ? {}
-        : worksOf(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), (ctx.tasksByProject.get(project) ?? []).map((task) => task.id)),
-    ttlMs: ctx.WORK_TTL_MS,
-    now: () => Date.now(),
-    activity: (task) => {
-      const times = ctx.sessions.filter((each) => each.task === task && each.lastActivityAt !== null).map((each) => Date.parse(each.lastActivityAt!))
-      return times.length === 0 ? null : Math.max(...times)
-    },
-    busy: (task) => ctx.agentStatus(task) === 'busy',
-    onChange: () => ctx.hub.broadcastSoon('state', ctx.getState),
-    log: (line) => console.warn(line),
-  })
 }
 
 export function wireForwards(ctx: ChainContext): ForwardMerger {
@@ -558,80 +299,6 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
       ctx.dispatcher.carry(from, { task: carryNameOf(config.keys, from), into: ask.into, at, commit: ask.commit, commits: ask.commits, report })
     },
   })
-}
-
-export function resumeWith(ctx: ChainContext, task: string, session: HandoffSession, prompt: string): Promise<string> {
-  return ctx.monitor.holds.during(session.sessionId, async () => {
-    if (ctx.approved(task, session, prompt)) return session.sessionId
-    const home = ctx.homeOf(session.account)
-    const start = ctx.goOnWith(home, task, session, prompt)
-    const went = session.stopped || ctx.liveView(task)?.hungSince != null ? undefined : await ctx.agentOf(home).reply?.(home, session, start)
-    if (went != null) return went
-    const started = Date.now()
-    if (!session.stopped) await ctx.stopIn(home, session)
-    const stopped = Date.now()
-    await ctx.daemons.prepare(home)
-    const sessionId = await ctx.resumeIn(home, session, start)
-    console.log(`sessions: ${task} resumed in ${Date.now() - started} ms (stop ${stopped - started} ms)`)
-    return sessionId
-  }, ctx.liveView(task)?.ask?.id ?? null)
-}
-
-export function approved(ctx: ChainContext, task: string, session: HandoffSession, prompt: string): boolean {
-  const ask = ctx.approvals.ask(session.sessionId)
-  const move = ask === null ? null : ctx.approvals.answer(session.sessionId, prompt)
-  if (move === null) return false
-  if (move.kind === 'allow' && move.message !== null) {
-    const { text, files } = replyParts(prompt, ask)
-    // The mailbox keeps a chat command as typed: the hook expands it again when it delivers the message.
-    ctx.mailbox.post(task, session.sessionId, typedText(text), files)
-  }
-  console.log(`sessions: ${task}: the user ${move.kind === 'allow' ? 'allowed' : 'denied'} the call the session ${session.sessionId} waited to have approved`)
-  return true
-}
-
-export function goOnWith(ctx: ChainContext, home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
-  const { model } = ctx.planFor(task, prompt)
-  const extras = ctx.agentExtras(home, ctx.projectOf(task), task)
-  return { name: task, cwd: session.cwd, prompt, model, settings: ctx.settingsFor(task), ...extras }
-}
-
-export async function steer(ctx: ChainContext, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
-  const home = ctx.homeOf(session.account)
-  return (await ctx.agentOf(home).reply?.(home, session, ctx.goOnWith(home, task, session, prompt))) != null
-}
-
-export function occupantsOf(ctx: ChainContext, slot: string, task: string): { idle: import("../sessions/occupants.js").Occupant[]; busy: import("../sessions/occupants.js").Occupant[]; } {
-  const owners = new Map(ctx.launches.map((entry) => [entry.sessionId, entry.task]))
-  return slotOccupants(ctx.agents, owners, slot, task)
-}
-
-export function slotUse(ctx: ChainContext, slot: string, task: string): SlotUse {
-  const { idle, busy } = ctx.occupantsOf(slot, task)
-  return { idle: idle.length > 0, busy: busy.map((each) => `${each.task} (${each.agent.sessionId})`) }
-}
-
-/**
- * Stops the live sessions other tasks left in the slot before `task` takes it, refusing while one is mid-turn.
- * `shared` — the folder of a project without git, which every task works in (BTN-962): the same stop, its own notices.
- */
-export async function vacateSlot(ctx: ChainContext, slot: string, task: string, shared = false): Promise<void> {
-  const { idle, busy } = ctx.occupantsOf(slot, task)
-  if (busy.length > 0) {
-    if (shared) throw fail('folder.busy', { tasks: [...new Set(busy.map((each) => each.task))], task })
-    throw fail('slot.busyStart', { slot, sessions: busy.map((each) => `${each.task} (${each.agent.sessionId})`), task })
-  }
-  for (const { agent, task: owner } of idle) {
-    try {
-      await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id!, sessionId: agent.sessionId })
-    } catch (error) {
-      const params = { session: agent.sessionId, owner, task }
-      throw shared
-        ? fail('folder.stopFailed', params, { cause: noticeOf(error) }, { cause: error })
-        : fail('slot.stopFailed', { ...params, slot }, { cause: noticeOf(error) }, { cause: error })
-    }
-    console.log(`${shared ? 'folder' : 'slot'}: stopped the session ${agent.sessionId} of ${owner} before ${task} took ${slot}`)
-  }
 }
 
 export function removalFacts(ctx: ChainContext, project: string, repo: string): RemovalFacts {
@@ -685,12 +352,6 @@ export function projectOf(ctx: ChainContext, task: string): string | undefined {
       ? projectOfCarry(keys, (from) => settings[from]?.mergeInto ?? undefined, task)
       : undefined
   return fixed ?? ctx.dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
-}
-
-export function slotSpan(ctx: ChainContext, project: string): number {
-  const span = Math.max(ctx.slotsSeen.get(project) ?? 0, ctx.configStore.current.slots[project] ?? 0)
-  ctx.slotsSeen.set(project, span)
-  return span
 }
 
 export function sameRepositoryOf(ctx: ChainContext, a: string, b: string): boolean | undefined {

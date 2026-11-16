@@ -40,8 +40,8 @@ export class MainCarry {
     if (found === undefined) this.ended(chain, 'dropped', {})
     else {
       const [from, carry] = found
-      if (this.deps.busy(current.task) && !this.deps.shell(current.task)) return false
-      if (!(await this.deps.carried(chain.project, carry.commit).catch(() => false))) return false
+      if (this.deps.machine.busy(current.task) && !this.deps.machine.shell(current.task)) return false
+      if (!(await this.deps.machine.carried(chain.project, carry.commit).catch(() => false))) return false
       await this.host.closeUp(chain.project, carry.task)
       forgetSkipped(this.state, chain.project, carry.task)
       delete this.state.ci[from]!.carry
@@ -66,7 +66,7 @@ export class MainCarry {
     }
     if (chain === undefined || chain.current?.task !== name) throw fail('chain.notCurrent', { task: name })
     if (chain.current.sessionId === null) throw fail('chain.launching', { task: name })
-    if (this.deps.busy(name)) throw fail('chain.midTurn', { task: name })
+    if (this.deps.machine.busy(name)) throw fail('chain.midTurn', { task: name })
     this.letGo(chain, 'is skipped')
   }
 

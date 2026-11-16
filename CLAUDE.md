@@ -16,7 +16,7 @@ This file holds only the rules and traps every session needs. How things are bui
 | `docs/storage.md` | the state database `state/even-keel/` (PGlite): owner, tables, schema steps, imports, backup, readers outside the service |
 | `docs/trackers.md` | the `src/tracker/` layer, the Huly, GitHub and Linear adapters, Claude Code plugins |
 | `docs/ci.md` | the `src/ci/` layer, the Forgejo and GitHub Actions adapters, polling |
-| `docs/machines.md` | the hub ↔ machine link (`src/link/`), not started yet |
+| `docs/machines.md` | the hub/machine seam (`MachinePort`, `src/machine/`); the link (`src/link/`), not started yet |
 | `docs/sessions.md` | the agent CLIs, transcripts, the model by label, prompt assembly, limits |
 | `docs/packages.md` | plugins and MCP servers of a project's set, keys, the MCP gateway, launch flags |
 | `docs/accounts.md` | account folders, sign-in and switching, the apps panel |

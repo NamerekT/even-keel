@@ -1,16 +1,16 @@
 import type { CiVerdict, RedRun } from '../ci/verdict.js'
 import type { EventDraft } from '../event-log/model.js'
-import type { Changes, FinishOutcome } from '../git/types.js'
+import type { Changes } from '../git/types.js'
 import type { Language } from '../language.js'
+import type { MachinePort } from '../machine/port.js'
 import type { Notice } from '../notice/notice.js'
-import type { OverageSession } from '../limits/overage-session.js'
+import type { Opened, PullRequest, ReviewCheck } from '../review/model.js'
 import type { Task, TaskMilestone } from '../tracker/model.js'
 import type { NewTask } from '../tracker/source.js'
-import type { Opened, PullRequest, ReviewCheck } from '../review/model.js'
 import type { SequencedMilestone } from './milestone-sequence.js'
 import type { MoveWhen } from './moves.js'
+import type { HandoffSession, LimitHold, RelayAction } from './relay.js'
 import type { ChainRules } from './rules.js'
-import type { AccountNow, HandoffReason, HandoffSession, LimitedSession, LimitHold, RelayAction } from './relay.js'
 
 export interface CurrentTask {
   task: string
@@ -331,6 +331,10 @@ export interface UnchangedDeps {
 }
 
 export interface DispatcherDeps {
+  /** The machine executes commands and supplies session, account and repository facts. */
+  machine: MachinePort
+  /** Hub: keep the task in the archive before its machine cleanup. */
+  archiveClosed?: (project: string, task: string) => void
   /** The projects of the config as it is now. */
   projects: () => string[]
   /** How many chains run at once; the rest wait in the queue. */
@@ -342,35 +346,10 @@ export interface DispatcherDeps {
   /** The project's saved milestone order by label (BTN-792); empty or absent — the automatic one. */
   milestoneOrder?: (project: string) => readonly string[]
   /**
-   * Starts a new session of the task; `fallback` — the task's run named a provider without an account in the pool.
-   * `extra` goes at the end of the prompt: the feedback on the task's pull request, or its pull request closed unmerged.
-   */
-  launch: (project: string, task: string, extra?: string) => Promise<Launched>
-  liveSession: (task: string) => string | undefined
-  /** The session of the task's newest entry in the launch journal; absent — the journal is not read. */
-  lastSession?: (project: string, task: string) => string | undefined
-  /**
    * Why no session of the project starts now; `task` — the one about to start, its label may pick another agent.
    * Without a task only the project's own requirements are checked, not an agent or account (BTN-521).
    */
   blocked: (project: string, task?: string) => Notice | undefined
-  /** A completed turn refused its model. Reporting it pauses the chain without touching the session. */
-  modelRefusal?: (task: string, sessionId: string) => Notice | undefined
-  /**
-   * Why the account `task` would start on refuses its model (`chain.unknownModel`), asked again while the chain is
-   * paused on one so that the pause lifts once the model is fixed (BTN-679). Absent — such a pause waits for Resume.
-   */
-  modelBlock?: (project: string, task: string) => Promise<Notice | undefined>
-  busy: (task: string) => boolean
-  silentSince?: (task: string) => string | null
-  midTurn: (task: string) => boolean
-  /**
-   * The session's turn has ended and only its own background command runs (`shell`); `busy` and `midTurn` count it
-   * until the command looks hung. A merged fix or a done task does not wait for it.
-   */
-  shell: (task: string) => boolean
-  /** The id of the `AskUserQuestion` the task's session waits on, `null` for none. */
-  asked: (task: string) => string | null
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
   /**
@@ -379,43 +358,6 @@ export interface DispatcherDeps {
    */
   moveStatus?: (project: string, task: string, when: MoveWhen) => Promise<void>
   now: () => Date
-  limited: (task: string) => LimitedSession | undefined
-  /** Fresh paid-usage or exhausted-allowance evidence for this working session. */
-  overage?: (task: string) => OverageSession | undefined
-  handoff: (task: string) => HandoffSession | undefined
-  locate: (session: HandoffSession) => Promise<HandoffSession>
-  /** The account a new session of the project (or of `task`) would start on. */
-  account: (project: string, task?: string) => AccountNow
-  accountAt: (account: string, at: string) => string | null
-  /** When the spent limit of the account the project's session (or `task`'s) would start on resets; `null` — not spent. */
-  limitReset: (project: string, task?: string) => string | null
-  /**
-   * The model's own week used up on the account the project's session (or `task`'s) would start on (BTN-816): the chain
-   * holds the task until the week opens. `null` — no such week.
-   */
-  modelWeek?: (project: string, task?: string) => ModelWeekHold | null
-  /** When the limit hit at `at` resets; a key's recovery may precede the spending reset in `text`. */
-  limitResetAfter: (account: string, at: string, text?: string) => string | null
-  /**
-   * When a poll after the limit hit at `at` showed the account open before `resetsAt` for the model `task` runs on now
-   * (BTN-530); `null` — it did not.
-   */
-  limitReopenedAt: (account: string, at: string, resetsAt: string, project: string, task: string) => string | null
-  /**
-   * The account the project's session (or `task`'s) would start on has not answered its first limits poll since the
-   * service started: until then a spent limit looks like no limit at all (BTN-595). `undefined` — it has answered.
-   */
-  limitsUnread: (project: string, task?: string) => LimitsWait | undefined
-  /**
-   * The project's set of packages has a problem that holds its sessions (BTN-174): installing, no answer yet, or the
-   * gateway down. The chain waits and the page says so (BTN-657).
-   */
-  packagesBlocked: (project: string) => boolean
-  /**
-   * A package of the set needs the user: not installed, failed to install or lacks a key (`chain.packagesNotReady`,
-   * BTN-657). The chain pauses on it, except for a fix session of a red main, and goes on by itself once it is fixed.
-   */
-  packagesPause: (project: string) => Notice | undefined
   /**
    * `brief` is off and no package of the project brings its tracker's MCP server (`chain.noTrackerMcp`, BTN-656): a
    * session would not see its task. The chain pauses on it and goes on by itself once it is gone.
@@ -426,16 +368,6 @@ export interface DispatcherDeps {
    * read before its tracker last answered again. Start reads the tracker anew first and refuses if the reason stays.
    */
   listBlock?: (project: string) => Notice | undefined
-  /**
-   * The service has read its account folders once since its start. Until then every folder looks gone, so the chains
-   * do nothing rather than pause on it; the first read checks them again.
-   */
-  accountsRead: () => boolean
-  /**
-   * The monitor has read the sessions once since the service's start. Until then `busy`, `liveSession` and the
-   * sessions a cleanup stops know nothing, so the chains do nothing rather than take a working session for a free one (BTN-646).
-   */
-  sessionsRead: () => boolean
   /** The language of the prompts of the task's project. */
   promptLanguage: (task: string) => Language
   /** The main branch of the task's project, which the prompts name. */
@@ -447,22 +379,6 @@ export interface DispatcherDeps {
    * merge, and the mark at a turn's end closes the task with the session's last message as the comment. Absent — it has.
    */
   plain?: (task: string) => boolean
-  resume:(task: string, session: LimitedSession) => Promise<string>
-  /** Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
-  reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>
-  relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason) => Promise<string>
-  /** Starts the session that fixes a red main without a task, in a place of its own; `report` says what broke, `reran` — see `SessionFix`. */
-  launchFix: (project: string, name: string, report: string, reran?: boolean) => Promise<string>
-  /** Starts the session that resolves a release project's carry (BTN-369) in a place of its own; `report` says what conflicted. */
-  launchCarry: (project: string, name: string, report: string) => Promise<string>
-  /** Whether the project's main branch has the commit: the carry's release commit is in. */
-  carried: (project: string, commit: string) => Promise<boolean>
-  /** Stops a session, mid-turn too: a red main or detected subscription overage (invariant 1). */
-  stop: (session: HandoffSession) => Promise<void>
-  /** Cleans up after the task; `pull` — after a task whose pull request was closed. */
-  finish: (project: string, task: string, pull?: PullCleanup) => Promise<FinishOutcome>
-  /** Syncs the project's main the way the cleanup does (`syncMain`): the next try of a sync that could not reach a remote. */
-  sync: (project: string) => Promise<Notice | null>
   /** Reads the project's tasks from its tracker anew and hands them over (`setTasks`); resolves once done or failed. */
   refresh: (project: string) => Promise<void>
   log: (message: string) => void
@@ -471,14 +387,12 @@ export interface DispatcherDeps {
   /** Without it no project is in PR mode. */
   reviews?: ReviewDeps
   /** Without it a `NO CHANGES:` mark closes nothing. */
-  unchanged?: UnchangedDeps
+  unchanged?: Pick<UnchangedDeps, 'complete' | 'accept'>
 }
 
 export interface MainCheckDeps {
   /** The other projects guarding the same main of the same remote (BTN-217): a red main of one is red for all. */
   peers: (project: string) => string[]
-  /** The commit main is at in the project's checkout; `null` — unknown. */
-  head: (project: string) => Promise<string | null>
   /** What the project's counted CIs say of a commit pushed at `since`. */
   verdict: (project: string, commit: string, since: string) => CiVerdict
   /** The project's counted CIs are asked again for a while, though no run is under way: a rerun may change a verdict (EKR-88). */
@@ -498,25 +412,14 @@ export interface MainCheckDeps {
   /** Creates a task in the project's tracker ready for the chain; `null` — the tracker cannot create tasks. */
   create: (project: string, task: Omit<NewTask, 'project'>) => Promise<string | null>
   comment: (task: string, body: string) => Promise<void>
-  /** Prepares the place of the next task while the chain waits; its launch then reuses it. */
-  prepare: (project: string, task: string) => Promise<void>
-  /** The tree the check before the task's merge reported it passed on, with the project's commands now; `null` — no such report. */
-  reportedTree: (project: string, task: string) => string | null
-  tree: (project: string, commit: string) => Promise<string | null>
   /** The project's check (BTN-104): no commands — none; `recheck` — run it on main when main is not what it ran on. */
   checking: (project: string) => { commands: string[]; recheck: boolean }
-  /** Runs the project's check on main in the place of the task about to start, which keeps it for the launch. */
-  checkMain: (project: string, task: string, commit: string) => Promise<MainCheckRun>
   /** `ci.fixTask`: a red main becomes a task in the tracker rather than a session without one. */
   fixTask: (project: string) => boolean
   /** The name the project's fix session runs under: `ABC-FIX`. */
   fixName: (project: string) => string
-  /** Whether the branch of the task, or of the fix session, is in main with commits of its own. */
-  merged: (project: string, task: string) => Promise<boolean>
   /** Whether the project has `commands.afterGreen` (BTN-156). */
   afterGreen: (project: string) => boolean
-  /** Runs them in the project's checkout, if it is on main at `commit`. */
-  runAfterGreen: (project: string, commit: string) => Promise<AfterGreenRun>
 }
 
 /** `skipped` — the guard kept the checkout untouched, or the run could not start. */
