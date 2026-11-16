@@ -52,7 +52,7 @@
 }
 
 .ui-loader__keel {
-  fill: var(--lamp-done);
+  fill: var(--keel);
 }
 
 /* The sea fades out at both sides, so its ends never show. */
