@@ -45,7 +45,7 @@ jobs:
       - run: npm ci
 
       # The checked copies the job's file needs, unpacked by its first run (`checkedCopy`).
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .temp/e2e-cli
           key: e2e-cli-${{ matrix.cli }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(matrix.checked) }}
