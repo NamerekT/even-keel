@@ -23,7 +23,7 @@ On Windows: `npx.cmd even-keel`. It installs Even Keel and sets it up as a servi
 
 Open `http://localhost:4747`: a short setup, a wizard that adds a project, then **Start** — the chain takes its first task.
 
-**Needs** Node.js 24 and an agent's CLI with an account; git is recommended; a tracker is optional — without one the tasks live in the built-in one. In full: [What it needs](docs/guide/setup.md#what-it-needs).
+**Needs** Node.js 24 or newer and an agent's CLI with an account; git is recommended; a tracker is optional — without one the tasks live in the built-in one. In full: [What it needs](docs/guide/setup.md#what-it-needs).
 
 **Sessions don't ask you before each tool call:** read [Before you run it](#before-you-run-it) first.
 
@@ -71,7 +71,7 @@ Parallel agents decide on their own what an unfinished task will look like, hand
 
 ## Before you run it
 
-- **Even Keel depends on undocumented behaviour of the agents' CLIs**, none of it a public API. Last checked against **Claude Code 2.1.319**, **codex-cli 0.167.0**, **OpenCode 1.19.5** and **Copilot CLI 1.0.106**; the page warns when yours is another version and can run sessions on the checked one instead. A CLI update may break a part of Even Keel until it is adapted — please open an issue when it does. Details: [setup](docs/guide/setup.md#the-clis-it-depends-on).
+- **Even Keel depends on undocumented behaviour of the agents' CLIs**, none of it a public API. Last checked against **Claude Code 2.1.325**, **codex-cli 0.169.0**, **OpenCode 1.19.5** and **Copilot CLI 1.0.112**; the page warns when yours is another version and can run sessions on the checked one instead. A CLI update may break a part of Even Keel until it is adapted — please open an issue when it does. Details: [setup](docs/guide/setup.md#the-clis-it-depends-on).
 - **Your subscription, the providers' terms.** A project runs on one account per provider, and a spent limit is waited out, never got round by switching accounts. Even Keel does not share, pool or resell access. Each agent's sessions fall under its provider's terms, listed below.
 - **Sessions don't ask you before each tool call** (Claude in auto mode, Codex with `--approve-for-me` or, if you choose, with no sandbox). Protection refuses destructive commands; set up any other permissions and hooks in your agents' settings before you start a chain. Whoever writes a task's text steers its session: read [whose text a session reads and what it may do](docs/guide/security.md) before a chain runs on a public repository.
 - **Your sign-in stays with the CLIs.** Even Keel reads only expiry dates, the e-mail and the plan; tokens are never copied or sent anywhere. An API key you add goes only to its own provider.

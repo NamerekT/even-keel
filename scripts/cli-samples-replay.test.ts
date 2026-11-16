@@ -4,6 +4,17 @@ import { checkRolloutUsage, checkUsage } from '../src/cli-check/support.js'
 import { loadSamples, replaySample, sampleSummary } from './cli-samples.js'
 
 const samples = loadSamples(join(import.meta.dirname, '../test/fixtures/cli'))
+
+/**
+ * Claude Code from 2.1.325 on writes an open `AskUserQuestion` into the transcript neither while it waits nor after
+ * the stop: the page takes the question from the job file (`blockedAsk`), so such a capture's transcript holds none.
+ */
+function questionOnlyInJobFile(sample: { provider: string; version: string }): boolean {
+  if (sample.provider !== 'claude') return false
+  const [major = 0, minor = 0, patch = 0] = sample.version.split('.').map(Number)
+  return major * 1e8 + minor * 1e4 + patch >= 2 * 1e8 + 1 * 1e4 + 325
+}
+
 describe('recorded CLI formats', () => {
   it('has real question and answer captures for every provider', () => {
     for (const provider of ['claude', 'codex', 'opencode', 'copilot']) {
@@ -11,7 +22,7 @@ describe('recorded CLI formats', () => {
       expect(own.length, provider).toBeGreaterThan(0)
       for (const sample of own) {
         expect(sample.snapshots.map((snapshot) => snapshot.phase)).toEqual(['question', 'answer'])
-        expect(sample.snapshots[0]!.expected.question).toBe(true)
+        expect(sample.snapshots[0]!.expected.question).toBe(!questionOnlyInJobFile(sample))
         expect(sample.snapshots[0]!.expected.answer).toBe(false)
         expect(sample.snapshots[1]!.expected).toMatchObject({ checkpoint: 'answer.txt', answer: true, lastReply: true })
       }
