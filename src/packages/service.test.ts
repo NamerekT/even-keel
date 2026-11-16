@@ -362,6 +362,26 @@ describe('packages only the user can make ready', () => {
   })
 })
 
+describe('one pass of reads (BTN-1254)', () => {
+  it('checks a project once in a pass, with its key pool built once, and anew outside it', async () => {
+    const { deps } = fixture()
+    const poolOf = vi.fn(() => ({}))
+    const packages = new Packages({ ...deps, poolOf })
+    await packages.install('tools@example')
+    const ask = () => [packages.unready('project'), packages.trackerMissing('project'), packages.blocked('project')]
+    poolOf.mockClear()
+    packages.pass(() => {
+      ask()
+      ask()
+    })
+    expect(poolOf).toHaveBeenCalledTimes(1)
+    poolOf.mockClear()
+    ask()
+    expect(poolOf).toHaveBeenCalledTimes(3)
+    await packages.close()
+  })
+})
+
 describe('adding the manual Claude marketplace', () => {
   it('explains a missing Claude executable without exposing spawn ENOENT', async () => {
     const { deps } = fixture()

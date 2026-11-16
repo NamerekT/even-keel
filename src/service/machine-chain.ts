@@ -25,6 +25,7 @@ import { typedText } from '../sessions/commandPrompt.js'
 import { KEEP_WARM_PROMPT, KeepWarm, type WarmFacts } from '../sessions/keepwarm.js'
 import { slotOccupants } from '../sessions/occupants.js'
 import { locateWorktree } from '../sessions/place.js'
+import { agentOfSession, liveViewOf, viewOf } from '../sessions/view-index.js'
 import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from '../sessions/setup.js'
 import type { MachineContext } from './machine-context.js'
 import { deferLeftFolder, type stopTaskSessions } from './cleanup.js'
@@ -47,9 +48,12 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       console.warn(englishOf(ctx.noAccountFor(task, fallback, provider)))
       return { sessionId, fallback }
     },
-    liveSession: (task) => ctx.sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
+    liveSession: (task) => liveViewOf(ctx.sessions, task)?.sessionId,
     lastSession: (project, task) => ctx.journal.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
-    modelRefusal: (task, sessionId) => ctx.sessions.find(view => view.task === task && view.sessionId === sessionId && view.apiErrorKind === 'model')?.apiErrorNotice,
+    modelRefusal: (task, sessionId) => {
+      const view = viewOf(ctx.sessions, task, sessionId)
+      return view?.apiErrorKind === 'model' ? view.apiErrorNotice : undefined
+    },
     modelBlock: async (project, task) => {
       const choice = ctx.choiceFor(project, task)
       return ctx.models.refusal(ctx.homeOf(choice.account), task, choice.model)
@@ -62,7 +66,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
     silentSince: (task) => ctx.liveView(task)?.silentSince ?? null,
     shell: (task) => {
       const view = ctx.liveView(task)
-      return view !== undefined && ctx.agents.find((agent) => agent.sessionId === view.sessionId)?.status === 'shell'
+      return view !== undefined && agentOfSession(ctx.agents, view.sessionId)?.status === 'shell'
     },
     asked: (task) => ctx.liveView(task)?.ask?.id ?? null,
     limited: (task) => ctx.monitor.limited(task),
@@ -71,7 +75,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       const entry = ctx.account.view.accounts.find((entry) => entry.key === session?.account)
       const home = entry === undefined ? undefined : ctx.homes.find(entry.key)
       const account = entry === undefined ? undefined : { ...entry, apiKey: entry.apiKey && (home === undefined || ctx.agentOf(home).keyUsage !== true) }
-      return overageSession(session, ctx.agents.find((agent) => agent.sessionId === session?.sessionId), account, new Date())
+      return overageSession(session, session === undefined ? undefined : agentOfSession(ctx.agents, session.sessionId), account, new Date())
     },
     handoff: (task) => {
       const session = ctx.monitor.handoff(task)

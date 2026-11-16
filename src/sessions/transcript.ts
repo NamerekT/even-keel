@@ -211,6 +211,7 @@ export class TranscriptFold {
   private readonly runningTools = new Map<string, string>()
   /** The CLI's queue of messages for the session, in order; `line` — `null` for one that is not the user's. */
   private readonly queue: { content: string | undefined; line: FeedLine | null }[] = []
+  private summed: TranscriptSummary | undefined
 
   /** `whole` keeps texts and prompts as written and adds shell commands to tool lines. */
   constructor(
@@ -219,6 +220,7 @@ export class TranscriptFold {
   ) {}
 
   push(line: string): void {
+    this.summed = undefined
     const entry = parseEntry(line)
     if (entry === undefined || entry.isSidechain === true) return
     if (typeof entry.gitBranch === 'string' && entry.gitBranch !== '') this.gitBranch = entry.gitBranch
@@ -264,7 +266,15 @@ export class TranscriptFold {
     else this.pushUser(entry)
   }
 
+  /**
+   * Kept until the next line: the machine's facts ask every session's summary on each pass (BTN-1254). Callers share
+   * the object and must not change it.
+   */
   summary(): TranscriptSummary {
+    return (this.summed ??= this.sum())
+  }
+
+  private sum(): TranscriptSummary {
     const tokens: TokenTotals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
     for (const usage of this.usageById.values()) {
       tokens.input += usage.input_tokens ?? 0

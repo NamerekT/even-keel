@@ -45,6 +45,7 @@ import { launchPlan, runChoice, type LaunchPlan, type RunChoice, type VendorOf }
 import { effortFor, type TaskRun } from '../sessions/runs.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { rareEvents } from '../sessions/rare.js'
+import { agentOfSession, liveViewOf, steers } from '../sessions/view-index.js'
 import { isInside } from '../paths.js'
 import { TranscriptOwners } from '../sessions/owners.js'
 import { home as dataHome, root, source } from '../locations.js'
@@ -656,11 +657,11 @@ export function wireAccountNow(ctx: MachineContext): (key?: string) => { id: str
 }
 
 export function wireLiveView(ctx: MachineContext): (task: string) => SessionView | undefined {
-  return (task: string) => ctx.sessions.find((each) => each.task === task && each.lamp !== 'finished')
+  return (task: string) => liveViewOf(ctx.sessions, task)
 }
 
 export function wireSteering(ctx: MachineContext): (sessionId: string) => boolean {
-  return (sessionId: string) => ctx.agents.some((each) => each.sessionId === sessionId && each.steers === true)
+  return (sessionId: string) => steers(ctx.agents, sessionId)
 }
 
 export function wireAgentStatus(ctx: MachineContext): (task: string) => import("../sessions/agents.js").AgentStatus | undefined {
@@ -668,7 +669,7 @@ export function wireAgentStatus(ctx: MachineContext): (task: string) => import("
     const view = ctx.liveView(task)
     if (view === undefined) return undefined
     if (ctx.monitor.holds.turning(view.sessionId, view.ask?.id ?? null)) return 'busy'
-    const agent = ctx.agents.find((each) => each.sessionId === view.sessionId)
+    const agent = agentOfSession(ctx.agents, view.sessionId)
     const handoff = ctx.monitor.handoff(task)
     const marked = view.checkpoint || (handoff?.sessionId === view.sessionId && (handoff.pullRequest ?? null) !== null)
     return turnStatus(agent?.status, view.lastActivityAt, new Date(), view.lamp === 'limit', agent?.state === 'blocked', marked)

@@ -37,10 +37,23 @@ export function npmGlobalModules(env: NodeJS.ProcessEnv, platform: NodeJS.Platfo
 }
 
 /**
+ * How long a search of this machine's disk is kept: the machine's facts ask for every CLI on each pass, and each search
+ * reads a dozen paths (BTN-1254). An install or a removal is seen this much later.
+ */
+export const NPM_BINARY_TTL_MS = 15_000
+const searched = new Map<string, { at: number; found: string | undefined }>()
+
+/** Drops the kept searches, so the next one reads the disk. */
+export function forgetNpmBinaries(): void {
+  searched.clear()
+}
+
+/**
  * The binary of a global npm install that runs: the wrapper's `bin` once the postinstall has replaced the placeholder
  * (it took the build that fits the machine), else the platform package's own, inside the wrapper or hoisted beside it.
+ * A search of this machine's disk is kept `NPM_BINARY_TTL_MS`; one with a `runnable` of its own is not.
  */
-export function npmCliBinary(cli: NpmCli, env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform, runnable: (path: string) => boolean = isRunnable): string | undefined {
+export function npmCliBinary(cli: NpmCli, env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform, runnable: (path: string) => boolean = isRunnable, now: () => number = Date.now): string | undefined {
   const paths = pathsOf(platform)
   const parts = (path: string) => path.split('/')
   const candidates = npmGlobalModules(env, platform).flatMap((modules) => {
@@ -51,5 +64,11 @@ export function npmCliBinary(cli: NpmCli, env: NodeJS.ProcessEnv, platform: Node
       ...cli.natives.map(({ pkg, file }) => paths.join(modules, ...parts(pkg), ...parts(file))),
     ]
   })
-  return candidates.find(runnable)
+  if (runnable !== isRunnable) return candidates.find(runnable)
+  const key = candidates.join('\n')
+  const kept = searched.get(key)
+  if (kept !== undefined && now() - kept.at < NPM_BINARY_TTL_MS) return kept.found
+  const found = candidates.find(runnable)
+  searched.set(key, { at: now(), found })
+  return found
 }

@@ -9,7 +9,8 @@ export class AccountLease {
 
   constructor(private readonly label: (home: AccountHome) => string = home => home.key) {}
 
-  held(home: AccountHome): boolean { return this.checks.has(pathKey(home.dir)) }
+  /** Asked for every task on each pass of the machine's facts: without a check running, no path is resolved (BTN-1254). */
+  held(home: AccountHome): boolean { return this.checks.size > 0 && this.checks.has(pathKey(home.dir)) }
 
   reserve(home: AccountHome): (() => void) | undefined {
     const key = pathKey(home.dir)

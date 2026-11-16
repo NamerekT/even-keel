@@ -57,6 +57,17 @@ describe('watchLoopDelay', () => {
     expect(lines).toEqual([])
     expect(histogram.disabled).toBe(true)
   })
+
+  it('watches for as long as the service runs without a time of its own', () => {
+    const windows = Array.from({ length: 100 }, () => ({ max: 30, p99: 20 }))
+    windows[90] = { max: 2_500, p99: 2_000 }
+    const histogram = fakeHistogram(windows)
+    const lines: string[] = []
+    watchLoopDelay({ everyMs: 5_000, thresholdMs: 1_000, log: (line) => lines.push(line), histogram })
+    vi.advanceTimersByTime(95 * 5_000)
+    expect(lines).toEqual(['event loop: blocked up to 2500 ms in the last 5 s (p99 2000 ms)'])
+    expect(histogram.disabled).toBe(false)
+  })
 })
 
 describe('profileSecondsOf', () => {

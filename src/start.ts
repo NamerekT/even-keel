@@ -24,7 +24,7 @@ fetchOverHttp1()
 loadEnv()
 const profileSeconds = profileSecondsOf(process.env)
 if (profileSeconds !== undefined) await profileStart(profileSeconds, join(home, 'logs'), (line) => console.log(line)).catch((error: unknown) => console.error(`cpu profile: not started: ${String(error)}`))
-watchLoopDelay({ forMs: 180_000, everyMs: 5_000, thresholdMs: 1_000, log: (line) => console.log(line) })
+watchLoopDelay({ everyMs: 5_000, thresholdMs: 1_000, log: (line) => console.log(line) })
 const modulesMs = performance.now()
 const ready = await startWithStorageRetry({
   prepare: async () => {

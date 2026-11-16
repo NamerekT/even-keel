@@ -34,6 +34,7 @@ import { HANDOFF_EVENT, LEFTOVER_EVENT, MachineRunner, TRANSCRIPT_EVENT } from '
 import { samePath } from '../paths.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { loadMail } from '../sessions/mailbox.js'
+import { steers } from '../sessions/view-index.js'
 import type { MachineServices } from '../machine/services.js'
 import { wireMachineServices } from './machine-services.js'
 import { BriefSender, hubBrief } from './hub-brief.js'
@@ -301,9 +302,9 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     sessions: () => machine.sessions,
     mailbox: () => Object.fromEntries(machine.sessions.flatMap((view): [string, SessionMail][] => {
       const mail = machine.mailbox.of(view.sessionId)
-      const steers = machine.agents.some((agent) => agent.sessionId === view.sessionId && agent.steers === true)
-      const listens = steers || machine.mailbox.listens(view.sessionId)
-      return listens || mail.length > 0 ? [[view.sessionId, { listens, steers, mail }]] : []
+      const steered = steers(machine.agents, view.sessionId)
+      const listens = steered || machine.mailbox.listens(view.sessionId)
+      return listens || mail.length > 0 ? [[view.sessionId, { listens, steers: steered, mail }]] : []
     })),
     // Read with the CLI copies the page shows, so it never sees a CLI as found there and missing here (BTN-639).
     panel: () => ({ ...machine.account.view, missing: machine.account.missingNow() }),
@@ -349,14 +350,14 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         machine.monitor.restoreWindows(windows)
       },
     }),
-    scope: (body) => machine.account.batch(() => machine.choiceFor.pass(() => {
+    scope: (body) => machine.account.batch(() => machine.packages.pass(() => machine.choiceFor.pass(() => {
       pass = passOf()
       try {
         return body()
       } finally {
         pass = undefined
       }
-    })),
+    }))),
     log,
   })
 

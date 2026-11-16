@@ -7,6 +7,7 @@ import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { isTasksUrl, TASKS_SERVER } from '../taskmcp/server.js'
 import { isMemoryUrl } from '../memory/mcp.js'
+import { PassMemo } from '../pass-memo.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
@@ -93,6 +94,7 @@ export class Packages {
   private imports: Record<string, string[]> = {}
   private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace']; skills: PackagesView['skills']['list'] } | undefined
   private offers: { at: number; byName: Map<string, Offer> } | undefined
+  private readonly checks = new PassMemo()
 
   /** The package every project has (BTN-986); `undefined` when the checkout's marketplace lacks the plugin. */
   private readonly builtIn: string | undefined
@@ -545,7 +547,17 @@ export class Packages {
     this.probes.retry()
   }
 
+  /** Runs one pass of reads, such as one computation of the machine's facts: each project's set is checked once in it. */
+  pass<T>(body: () => T): T {
+    return this.checks.run(body)
+  }
+
   private check(project: string): ProjectPackages {
+    return this.checks.of(project, () => this.checkNow(project))
+  }
+
+  private checkNow(project: string): ProjectPackages {
+    let pool: NodeJS.ProcessEnv | undefined
     const view = projectPackages({
       file: this.file,
       project,
@@ -554,7 +566,7 @@ export class Packages {
       errors: this.errors,
       keys: (server, entry, name, install) => this.deps.hubServers?.().includes(routeOf(project, name, install, server))
         ? { values: {}, env: {}, missing: [], names: [] }
-        : keysOf(server, this.deps.oauth?.(project, server, entry.url) ? withoutAuthorization(entry) : entry, this.deps.rules, this.deps.poolOf(project)),
+        : keysOf(server, this.deps.oauth?.(project, server, entry.url) ? withoutAuthorization(entry) : entry, this.deps.rules, (pool ??= this.deps.poolOf(project))),
       probe: (name, install, server) => this.probes.result(project, name, install, server),
       tracker: this.deps.tracker(project),
     })

@@ -26,7 +26,8 @@ export function stallLine(window: DelayWindow, everyMs: number, thresholdMs: num
 }
 
 export interface LoopWatch {
-  forMs: number
+  /** How long to watch; unset — for as long as the process runs. */
+  forMs?: number
   everyMs: number
   thresholdMs: number
   log: (line: string) => void
@@ -34,8 +35,8 @@ export interface LoopWatch {
 }
 
 /**
- * Logs the delay of the event loop for a while after the start, a window only when it was blocked past the threshold,
- * and a summary at the end when any was: what holds the thread shows in the log next to the calls that timed out.
+ * Logs the delay of the event loop, a window only when it was blocked past the threshold: what holds the thread shows
+ * in the log next to the calls that timed out. A watch with `forMs` stops then with a summary when any window was.
  */
 export function watchLoopDelay(watch: LoopWatch): void {
   const histogram = watch.histogram ?? monitorEventLoopDelay({ resolution: 20 })
@@ -53,7 +54,7 @@ export function watchLoopDelay(watch: LoopWatch): void {
       longest = Math.max(longest, window.max)
       watch.log(line)
     }
-    if (elapsed < watch.forMs) return
+    if (watch.forMs === undefined || elapsed < watch.forMs) return
     clearInterval(timer)
     histogram.disable()
     if (stalls > 0)

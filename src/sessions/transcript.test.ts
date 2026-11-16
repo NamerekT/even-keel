@@ -88,6 +88,17 @@ function fold(lines: string[]): TranscriptFold {
 }
 
 describe('TranscriptFold', () => {
+  it('keeps its summary until the next line (BTN-1254)', () => {
+    const transcript = fold([assistant('m1', [text('first')], { input: 5, output: 7 })])
+    const first = transcript.summary()
+    expect(transcript.summary()).toBe(first)
+    transcript.push(assistant('m2', [text('second')], { input: 9, output: 1 }))
+    const next = transcript.summary()
+    expect(next).not.toBe(first)
+    expect(next.tokens.input).toBe(14)
+    expect(first.tokens.input).toBe(5)
+  })
+
   it('takes the context from the last assistant answer', () => {
     const summary = fold([
       assistant('m1', [text('first')], { input: 5, cacheRead: 100, cacheWrite: 20, output: 7 }),
