@@ -137,7 +137,21 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
   await agree()
 
   const local = wireMachine(ctx, async (snapshot) => void (await end.emit(HANDOFF_EVENT, snapshot)))
-  const ownRun = (project: string, task: string): boolean => JSON.stringify(ctx.choiceFor(project, task)) !== JSON.stringify(ctx.choiceFor(project))
+  /** Kept for one computation of the facts, which asks per project: `projectOf` scans every project's tasks. */
+  let pass: { running: Map<string, string[]>; defaults: Map<string, string> } | undefined
+  const passOf = () => {
+    if (pass !== undefined) return pass
+    const running = new Map<string, string[]>()
+    for (const task of ctx.monitor.tasks()) {
+      const project = ctx.projectOf(task)
+      if (project !== undefined) running.set(project, [...(running.get(project) ?? []), task])
+    }
+    return { running, defaults: new Map<string, string>() }
+  }
+  const ownRun = (project: string, task: string, defaults: Map<string, string>): boolean => {
+    const fallback = defaults.get(project) ?? defaults.set(project, JSON.stringify(ctx.choiceFor(project))).get(project)!
+    return JSON.stringify(ctx.choiceFor(project, task)) !== fallback
+  }
   const runner: MachineRunner = new MachineRunner({
     local,
     emit: (type, payload) => end.emit(type, payload),
@@ -152,9 +166,9 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
       return [...sessions].map(([task, ids]) => ({ task, sessions: [...ids] }))
     },
     runs: (project) => {
+      const { running, defaults } = passOf()
       const listed = (ctx.tasksByProject.get(project) ?? []).map((task) => task.id)
-      const running = ctx.monitor.tasks().filter((task) => ctx.projectOf(task) === project)
-      return [...new Set([...listed, ...running])].filter((task) => ownRun(project, task))
+      return [...new Set([...listed, ...(running.get(project) ?? [])])].filter((task) => ownRun(project, task, defaults))
     },
     reported: (project) => ctx.checkReports.tasks(project),
     model: (project, task) => ctx.choiceFor(project, task).model,
@@ -168,6 +182,14 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
       const listens = steers || ctx.mailbox.listens(view.sessionId)
       return listens || mail.length > 0 ? [[view.sessionId, { listens, steers, mail }]] : []
     })),
+    scope: (body) => ctx.account.batch(() => {
+      pass = passOf()
+      try {
+        return body()
+      } finally {
+        pass = undefined
+      }
+    }),
     log,
   })
 

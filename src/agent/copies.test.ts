@@ -14,16 +14,24 @@ function fixture(system = true, { downloaded = [] as string[], hadCopy = false, 
   const changed = vi.fn()
   const save = vi.fn((_name: string, next: 'checked' | 'system') => { source = next })
   const remember = vi.fn()
+  const view = vi.fn(() => ({ version: '1.0.0', source, status, system, received: 0, total: 0, approximate: 100 }))
   const cli = {
-    view: () => ({ version: '1.0.0', source, status, system, received: 0, total: 0, approximate: 100 }),
+    view,
+    state: () => ({ source, status }),
     download, prune: async () => {}, hadCopy: () => hadCopy,
   }
   const manager = copies(new Map([['codex', { cli } as unknown as Agent]]), save, (name) => save(name, 'system'), changed, async () => {}, { downloaded, remember })
   const done = async () => { await vi.waitFor(() => expect(download).toHaveBeenCalled()); finish() }
-  return { manager, download, save, changed, remember, done }
+  return { manager, download, save, changed, remember, done, view }
 }
 
 describe('CLI copy control', () => {
+  it('answers whether a launch is blocked without the whole view, which searches the disk for the system binary', () => {
+    const { manager, view } = fixture(true, { source: 'system' })
+    expect(manager.blocked('codex')).toBeUndefined()
+    expect(view).not.toHaveBeenCalled()
+  })
+
   it('waits for consent even with an installed binary and only downloads on request', async () => {
     const { manager, download, done } = fixture()
     expect(manager.blocked('codex')?.code).toBe('agent.copyMissing')

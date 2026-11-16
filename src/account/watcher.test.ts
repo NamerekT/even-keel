@@ -609,3 +609,60 @@ describe('AccountWatcher settings edits (BTN-901)', () => {
     await expect(accounts.resolveSettingsEdit('global', 'model', 'own')).rejects.toThrow(/global/)
   })
 })
+
+describe('AccountWatcher.batch', () => {
+  let root: string
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  it('builds the view once for every read inside a batch and anew after it', async () => {
+    root = mkdtempSync(join(tmpdir(), 'even-keel-watcher-'))
+    const homes = new AccountHomes({ CLAUDE_CONFIG_DIR: join(root, 'global'), CODEX_HOME: join(root, 'no-codex') }, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'), join(root, 'copilot'))
+    homes.addApiKey('work', OLD)
+    const limits = vi.fn(() => null)
+    const options = {
+      homes,
+      agentOf: () => ({ authStatus: async () => API_STATUS }),
+      apps: { list: () => [] },
+      prepare: async () => {},
+      active: () => 'work',
+      nameOf: () => null,
+      transportOf: () => null,
+      loginBlock: () => null,
+      sessionsIn: () => [],
+      projectsOn: () => [],
+      pool: () => [],
+      missing: () => [],
+      online: async () => true,
+      sessionsKnown: () => true,
+      removing: () => false,
+      configPending: () => false,
+      limits,
+      usage: () => ({ state: 'ok' }),
+      checkKey: async () => ({ state: 'ok' }),
+      keyCheckMs: 60 * 60_000,
+      checkCredit: async () => ({ state: 'unknown', reason: 'none' }),
+      creditCheckMs: 60 * 60_000,
+      organizations: { of: () => undefined, note: () => {}, forget: () => {} },
+      now: () => new Date('2026-11-09T12:00:00.000Z'),
+      onChange: () => {},
+      onError: (error: unknown) => {
+        throw error
+      },
+    } as unknown as AccountWatcherOptions
+    const accounts = new AccountWatcher(options)
+    await accounts.refresh()
+    const keys = homes.all().length
+    limits.mockClear()
+
+    const read = accounts.batch(() => {
+      const first = accounts.view
+      expect(accounts.batch(() => accounts.view)).toBe(first)
+      return [first, accounts.view]
+    })
+    expect(read[1]).toBe(read[0])
+    expect(limits).toHaveBeenCalledTimes(keys)
+
+    expect(accounts.view).not.toBe(read[0])
+    expect(limits).toHaveBeenCalledTimes(2 * keys)
+  })
+})

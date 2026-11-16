@@ -60,6 +60,8 @@ export interface RunnerDeps {
   ledger: () => AccountLedger['accounts']
   sessions?: () => SessionView[]
   mailbox?: () => Record<string, SessionMail>
+  /** Runs one computation of the facts, so its reads may share what they read (`AccountWatcher.batch`). */
+  scope?: <T>(body: () => T) => T
   log: (line: string) => void
 }
 
@@ -122,6 +124,10 @@ export class MachineRunner {
   }
 
   private facts(): MachineFacts {
+    return this.deps.scope === undefined ? this.read() : this.deps.scope(() => this.read())
+  }
+
+  private read(): MachineFacts {
     const { local } = this.deps
     const tasks: Record<string, TaskFacts> = {}
     const resets: Record<string, string | null> = {}
