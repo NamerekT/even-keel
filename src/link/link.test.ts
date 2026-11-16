@@ -41,6 +41,25 @@ describe('the hub ↔ machine link', () => {
     expect(hubStore.machines.get(id)?.host).toBe('example-host')
   })
 
+  it('carries a request to an MCP server of the hub and its answer', async () => {
+    const { end, asked, id } = await started()
+    const answer = await end.mcp({ path: '/tasks/example', method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+    expect(answer).toEqual({ status: 200, headers: { 'content-type': 'application/json' }, body: '{"echo":"/tasks/example"}' })
+    expect(asked).toEqual([{ machine: id, request: { path: '/tasks/example', method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' } }])
+  })
+
+  it('has no answer of the hub for an MCP request while the hub is away, and stays connected after a lost one', async () => {
+    const { end, wire, asked } = await started()
+    const request = { path: '/tasks', method: 'POST', headers: {}, body: '{}' }
+    wire.loseAnswers = true
+    expect(await end.mcp(request)).toBeUndefined()
+    wire.loseAnswers = false
+    expect(end.status().state).toBe('online')
+    end.stop()
+    expect(await end.mcp(request)).toBeUndefined()
+    expect(asked).toHaveLength(1)
+  })
+
   it('numbers the commands per machine and runs them in order', async () => {
     const { hub, id, ran, hubStore } = await started()
     expect(await hub.send(id, { type: 'example.first' })).toBe(1)

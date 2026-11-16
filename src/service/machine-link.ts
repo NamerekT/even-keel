@@ -25,6 +25,8 @@ import { samePath } from '../paths.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import type { ChainContext } from './chain.js'
+import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
+import { HubMcp, machineTasks } from './hub-mcp.js'
 import { wireMachine } from './machine-chain.js'
 
 /** The folder of the machine's own database inside the state folder, next to the hub's `even-keel/`. */
@@ -126,7 +128,18 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
     changed: () => ctx.hub.broadcastSoon('state', () => ctx.getState()),
     log,
   })
-  const hub: HubEnd = new HubEnd({ store: hubStore, handlers: remote.handlers(), log, heartbeatMs: LOCAL_HEARTBEAT_MS })
+  const hubMcp = new HubMcp({ db: ctx.db, origin: () => ctx.packages.hubOrigin, projects: () => Object.keys(ctx.configStore.current.projects), log })
+  const handlers = remote.handlers()
+  const hub: HubEnd = new HubEnd({
+    store: hubStore,
+    handlers: {
+      ...handlers,
+      event: (machine, event) => (event.type === KEPT_WRITE_EVENT ? hubMcp.write(machine, event.payload as KeptWrite) : handlers.event(machine, event)),
+      mcp: (machine, request) => hubMcp.relay(machine, request),
+    },
+    log,
+    heartbeatMs: LOCAL_HEARTBEAT_MS,
+  })
   const token = await ownMachine({ hub, hubStore, db: ctx.db, machineDb, name: hostname() })
   own = token.machine
 
@@ -251,6 +264,8 @@ export async function wireLinkedMachine(ctx: ChainContext): Promise<LinkedMachin
       await Promise.race([first, new Promise<void>((resolve) => (waited = setTimeout(resolve, FIRST_SNAPSHOT_MS)))])
       clearTimeout(waited)
       if (end.status().state !== 'online') log('machine: the own machine has not posted its first snapshot yet; the chains wait for it')
+      // From here the servers holding keys are reached over the link, as from a machine of its own (BTN-990).
+      ctx.packages.throughHub({ relay: (request) => end.mcp(request), tasks: machineTasks(ctx, end) })
       await end.flushed()
       // These readers were built before the link: replay may have added a launch, settled mail or kept a window.
       await ctx.mailbox.reload(ctx.db)

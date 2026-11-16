@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, open, rename, rm, stat } from 'node:fs/promises'
+import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { megabytes } from '../notice/en.js'
 import type { TaskAttachment } from '../tracker/card.js'
@@ -13,6 +13,17 @@ export interface FileSource {
   file?(id: string, file: string): Promise<TaskFile | null>
 }
 
+/**
+ * Where a task's downloaded files go: the session's working folder (`folderSink`) or, in the hub, the answer that the
+ * machine's gateway writes into that folder (BTN-990). `name` is already a safe file name.
+ */
+export interface FileSink {
+  /** The path of a copy of this size already there; `null` — none, or not known. */
+  existing(key: string, name: string, size: number): Promise<string | null>
+  /** Keeps the file and gives what its line names: its path. */
+  put(key: string, name: string, bytes: Uint8Array): Promise<string>
+}
+
 /** A file got larger than the limit while it streamed. */
 class TooLarge extends Error {}
 
@@ -22,23 +33,22 @@ class TooLarge extends Error {}
  * `url`. A file over `limit` bytes, one with no folder to go to and one that failed to download get a line that says so,
  * never an error: the card is the answer. A file only outsiders' comments carry (BTN-1122) is left out altogether.
  */
-export async function attachmentLines(key: string, all: readonly TaskAttachment[], source: FileSource, folder: string | null, limit: number): Promise<string[]> {
+export async function attachmentLines(key: string, all: readonly TaskAttachment[], source: FileSource, sink: FileSink | null, limit: number): Promise<string[]> {
   const attachments = all.filter((each) => each.outsider !== true)
   const counts = new Map<string, number>()
   for (const each of attachments) counts.set(safeName(each.name), (counts.get(safeName(each.name)) ?? 0) + 1)
-  const dir = folder === null ? null : join(folder, DOWNLOADS, safeName(key))
   return Promise.all(
     attachments.map(async (each) => {
       const line = (where: string) => `- ${each.name}${each.size > 0 ? ` (${sizeText(each.size)})` : ''} — ${where}`
       if (each.path !== undefined) return line(each.missing ? 'file missing' : each.path)
       if (each.url !== null) return line(each.url)
       if (each.size > limit) return line('too large')
-      if (source.file === undefined || dir === null) return line('not downloaded')
+      if (source.file === undefined || sink === null) return line('not downloaded')
       const prefix = /^https?:\/\//.test(each.file) ? createHash('sha256').update(each.file).digest('hex').slice(0, 8) : safeName(each.file).slice(0, 8)
       const name = counts.get(safeName(each.name))! > 1 ? `${prefix}-${safeName(each.name)}` : safeName(each.name)
-      const target = join(dir, name)
       try {
-        if (each.size > 0 && (await stat(target).catch(() => null))?.size === each.size) return line(target)
+        const there = each.size > 0 ? await sink.existing(key, name, each.size) : null
+        if (there !== null) return line(there)
         const got = await source.file(key, each.file)
         if (got === null) return line('file unavailable')
         if (got.size !== null && got.size > limit) {
@@ -46,9 +56,7 @@ export async function attachmentLines(key: string, all: readonly TaskAttachment[
           await got.body[Symbol.asyncIterator]().return?.()
           return line('too large')
         }
-        await mkdir(dir, { recursive: true })
-        await download(got.body, target, limit)
-        return line(target)
+        return line(await sink.put(key, name, await bytesOf(got.body, limit)))
       } catch (error) {
         return line(error instanceof TooLarge ? 'too large' : 'file unavailable')
       }
@@ -60,31 +68,48 @@ export async function attachmentLines(key: string, all: readonly TaskAttachment[
 class Empty extends Error {}
 
 /**
- * Writes the stream beside `target` and renames it in place, so a half-written file is never taken for a copy. An empty
- * body is no copy either: it is a storage not ready yet far more often than a file of zero bytes.
+ * The whole stream, no more than `limit` bytes. An empty body is no copy: it is a storage not ready yet far more often
+ * than a file of zero bytes.
  */
-async function download(body: AsyncIterable<Uint8Array>, target: string, limit: number): Promise<void> {
-  const part = `${target}.part`
-  const handle = await open(part, 'w')
-  try {
-    let written = 0
-    for await (const chunk of body) {
-      written += chunk.byteLength
-      if (written > limit) throw new TooLarge()
-      await handle.write(chunk)
-    }
-    if (written === 0) throw new Empty()
-  } catch (error) {
-    await handle.close()
-    await rm(part, { force: true })
-    throw error
+async function bytesOf(body: AsyncIterable<Uint8Array>, limit: number): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = []
+  let read = 0
+  for await (const chunk of body) {
+    read += chunk.byteLength
+    if (read > limit) throw new TooLarge()
+    chunks.push(chunk)
   }
-  await handle.close()
-  await rename(part, target)
+  if (read === 0) throw new Empty()
+  return Buffer.concat(chunks)
+}
+
+/** The task's files in `<folder>/.temp/task-files/<KEY>/`, each written beside its place and renamed in, so a half-written file is never taken for a copy. */
+export function folderSink(folder: string): FileSink {
+  const pathOf = (key: string, name: string) => join(folder, DOWNLOADS, safeName(key), safeName(name))
+  return {
+    existing: async (key, name, size) => {
+      const target = pathOf(key, name)
+      return (await stat(target).catch(() => null))?.size === size ? target : null
+    },
+    put: async (key, name, bytes) => {
+      const target = pathOf(key, name)
+      if ((await stat(target).catch(() => null))?.size === bytes.byteLength) return target
+      await mkdir(join(folder, DOWNLOADS, safeName(key)), { recursive: true })
+      const part = `${target}.part`
+      try {
+        await writeFile(part, bytes)
+        await rename(part, target)
+      } catch (error) {
+        await rm(part, { force: true })
+        throw error
+      }
+      return target
+    },
+  }
 }
 
 /** A file name that stays one name on every system: no separators, no characters Windows refuses, never `.` or `..`. */
-function safeName(name: string): string {
+export function safeName(name: string): string {
   const clean = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/[. ]+$/, '').trim()
   return clean === '' || /^\.+$/.test(clean) ? 'file' : clean
 }

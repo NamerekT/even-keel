@@ -2,7 +2,8 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import type { HubStore, MachineRecord } from './hub-store.js'
 import {
   API_VERSION, HEARTBEAT_MS, MISSED_PULSES, credentialsOf, encodeToken,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type MachineEvent, type MachineHello, type Refusal, type SnapshotPost,
+  type Command, type EventsAnswer, type EventsPost, type Frame, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type Refusal,
+  type SnapshotPost,
 } from './protocol.js'
 
 /** Where a machine's frames go: the stream of its connection. */
@@ -19,6 +20,8 @@ export interface HubHandlers {
   online?(machine: string): void
   /** The connection is gone: the stream closed, two pulses were missed, a newer connection took its place or the token was revoked. */
   offline?(machine: string): void
+  /** A session's request to an MCP server of the hub, carried by the machine's gateway (BTN-990). */
+  mcp?(machine: string, request: McpRequest): Promise<McpAnswer>
 }
 
 export interface HubOptions {
@@ -138,6 +141,21 @@ export class HubEnd {
       await this.options.handlers.snapshot(machine, post.snapshot)
       return lastEvent
     })
+  }
+
+  /**
+   * A request of the machine's gateway to an MCP server of the hub. Not queued with the machine's other work: a call
+   * may take minutes, and the machine's events and pulse must not wait behind it. It counts as the machine's pulse.
+   */
+  async mcp(authorization: string | undefined, post: McpPost): Promise<McpAnswer | Refusal> {
+    const known = await this.known(authorization)
+    if (known === undefined) return { refused: 'token' }
+    const live = this.live.get(known.id)
+    if (live === undefined || live.connection !== post.connection) return { refused: 'connection' }
+    this.watch(known.id, live)
+    const handler = this.options.handlers.mcp
+    if (handler === undefined) return { status: 404, headers: {}, body: '' }
+    return handler(known.id, post.request)
   }
 
   /** Closes every connection, for the shutdown. */

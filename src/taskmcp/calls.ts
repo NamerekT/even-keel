@@ -1,6 +1,6 @@
 import { englishOf, NoticeError } from '../notice/notice.js'
 import type { Queryable } from '../storage/database.js'
-import { CreatedThenRefused, EditRefused, restoreFields, type TaskDraft, type TaskEditor, type TaskField, type TaskFiles, type TaskLink } from '../tracker/editor.js'
+import { CreatedThenRefused, EditRefused, restoreFields, type TaskDraft, type TaskEditor, type TaskField, type TaskFiles, type TaskLink, type TaskUpload } from '../tracker/editor.js'
 import { parseTaskId, type TextEdit, type TrackerTask } from '../tracker/model.js'
 import type { Tracker } from '../tracker/source.js'
 import { didNotAnswer } from '../tracker/link.js'
@@ -10,7 +10,7 @@ import { patchedRun, sameRun, taskRunText, type TaskRun } from '../sessions/runs
 import { Args, checkToolArgs } from './args.js'
 import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 import { rolesLine, termsOf, vocabularyFor, type TrackerTerms } from './vocabulary.js'
-import { readUploads } from './files.js'
+import type { SessionFiles } from './files.js'
 import { attachmentLines } from './downloads.js'
 import type { ToolFields } from './tools.js'
 
@@ -19,6 +19,11 @@ export interface TasksScope {
   /** The project's id; `null` — an address without one (a session started by hand): each call names its project. */
   project: string | null
   task: string | null
+  /**
+   * The session's working folder as the call may use it (BTN-895, BTN-990): a chain session's worktree, otherwise the
+   * repository of the project; absent — not known, nothing is attached or downloaded.
+   */
+  files?: SessionFiles
 }
 
 /** A tracker of a project the tools serve (BTN-892): the project's own or one of its feeds. */
@@ -51,11 +56,6 @@ export interface TasksDeps {
   setRun(project: string, task: string, run: TaskRun | null): void
   /** The project's tasks changed: the chain reads them anew. */
   refresh(project: string): Promise<unknown>
-  /**
-   * The folder whose files the session may attach (BTN-895): a chain session's worktree, otherwise the repository of
-   * `project`; `null` — not known, nothing is attached.
-   */
-  folderOf(scope: TasksScope, project: string): string | null
   /** The attachment size limit, bytes, read per call: the setting is live. */
   attachmentLimit(): number
   /**
@@ -169,7 +169,7 @@ export class TasksTools {
       const [card, rev, terms] = await Promise.all([tracker.card(key), editor.revision(key), this.termsOf(tracker, reader.id).catch(() => null)])
       const why = shut(rules, card, (id) => this.deps.editedOf(reader.id, id))
       // A shut card's files are the outsider's too: none is downloaded.
-      const files = why !== null ? [] : await attachmentLines(card.id, card.attachments, tracker, this.deps.folderOf(scope, reader.project), this.deps.attachmentLimit())
+      const files = why !== null ? [] : await attachmentLines(card.id, card.attachments, tracker, scope.files?.downloads ?? null, this.deps.attachmentLimit())
       return { card, rev, terms, files, why }
     })
     const run = this.deps.runOf(reader.project, key)
@@ -193,7 +193,7 @@ export class TasksTools {
       const planned = items.map((item, index) => plannedTask(item, index, items.length, terms, reader.prefix))
       // Every file is read before anything is created: a refused path refuses the whole batch.
       const uploads = await Promise.all(
-        planned.map((each) => (each.attach.length === 0 ? [] : this.uploads(each.attach, scope, reader))),
+        planned.map((each) => (each.attach.length === 0 ? [] : this.uploads(each.attach, scope))),
       )
       const run = async (retry: Retry): Promise<string> => {
         const refOf = (ref: string) => (ref.startsWith('#') ? retry.ids[Number(ref.slice(1)) - 1]! : ref.toUpperCase())
@@ -350,7 +350,7 @@ export class TasksTools {
       const add = labels.add.map((each) => labelName(each, terms))
       if (estimate !== null) estimateOf(editor, terms)
       if (attach.length > 0) filesOf(editor, terms, reader.prefix)
-      return { fields, add, terms, files: attach.length === 0 ? [] : await this.uploads(attach, scope, reader) }
+      return { fields, add, terms, files: attach.length === 0 ? [] : await this.uploads(attach, scope) }
     }
     /** The writes of one task; `said` holds what changed, also when a later write throws. */
     const apply = async (tracker: Tracker, project: string, key: string, plan: UpdatePlan, said: string[]): Promise<void> => {
@@ -461,7 +461,7 @@ export class TasksTools {
         return []
       }
       const files = filesOf(editor, await this.termsOf(tracker, reader.id), reader.prefix)
-      const uploads = await this.uploads(attach, scope, reader)
+      const uploads = await this.uploads(attach, scope)
       await files.comment(key, body, uploads, model, notes)
       return uploads.map((file) => file.name)
     }, 'comment')
@@ -470,10 +470,9 @@ export class TasksTools {
   }
 
   /** The files `paths` names, read from the session's working folder. */
-  private async uploads(paths: string[], scope: TasksScope, reader: TaskReader) {
-    const folder = this.deps.folderOf(scope, reader.project)
-    if (folder === null) throw new EditRefused("this session's working folder is not known: nothing can be attached; name the file in the text instead")
-    return readUploads(paths, folder, this.deps.attachmentLimit())
+  private async uploads(paths: string[], scope: TasksScope) {
+    if (scope.files === undefined) throw new EditRefused("this session's working folder is not known: nothing can be attached; name the file in the text instead")
+    return scope.files.read(paths, this.deps.attachmentLimit())
   }
 
   private async termsOf(tracker: Tracker, reader: string): Promise<TrackerTerms> {
@@ -524,7 +523,7 @@ interface UpdatePlan {
   /** The labels to add, in the tracker's spelling. */
   add: string[]
   terms: TrackerTerms
-  files: Awaited<ReturnType<typeof readUploads>>
+  files: TaskUpload[]
 }
 
 /** The tasks of a `task_update`: `key`, or `keys` for the same change to several; upper case, each once. */

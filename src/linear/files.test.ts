@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { attachmentLines } from '../taskmcp/downloads.js'
+import { attachmentLines, folderSink } from '../taskmcp/downloads.js'
 import { issue } from './fixture.js'
 import { connectLinear } from './source.js'
 
@@ -48,7 +48,7 @@ describe('Linear task files', () => {
     await mkdir(scratch, { recursive: true })
     const folder = await mkdtemp(join(scratch, 'linear-files-'))
     try {
-      const lines = await attachmentLines('ENG-1', card.attachments, source, folder, 100)
+      const lines = await attachmentLines('ENG-1', card.attachments, source, folderSink(folder), 100)
       expect(lines[0]).toBe(`- shot.png — ${join(folder, '.temp', 'task-files', 'ENG-1', 'shot.png')}`)
       expect(lines[1]).toBe('- External reference — https://example.com/reference')
       expect(await readFile(join(folder, '.temp', 'task-files', 'ENG-1', 'note.txt'), 'utf8')).toBe('ok')
@@ -72,7 +72,7 @@ describe('Linear task files', () => {
 
   it.each([403, 404, 500])('keeps the card when an upload fails (%s)', async (status) => {
     const { source } = await connect(status)
-    const lines = await attachmentLines('ENG-1', [{ file: shot, name: 'shot.png', size: 0, type: '', url: null }], source, resolve('.temp'), 100)
+    const lines = await attachmentLines('ENG-1', [{ file: shot, name: 'shot.png', size: 0, type: '', url: null }], source, folderSink(resolve('.temp')), 100)
     expect(lines).toEqual(['- shot.png — file unavailable'])
   })
 })

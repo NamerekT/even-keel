@@ -4,7 +4,7 @@
  */
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 2
+export const API_VERSION = 3
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -18,6 +18,7 @@ export const RECONNECT_MAX_MS = 30_000
 export const STREAM_PATH = '/link/stream'
 export const EVENTS_PATH = '/link/events'
 export const SNAPSHOT_PATH = '/link/snapshot'
+export const MCP_PATH = '/link/mcp'
 
 /** How many events one post carries. */
 export const EVENT_BATCH = 100
@@ -81,6 +82,30 @@ export interface SnapshotPost {
   connection: string
   snapshot: unknown
   lastCommand: number
+}
+
+/**
+ * A session's request to an MCP server that runs in the hub (BTN-990), carried by the machine's gateway: the path
+ * under the hub's gateway, the method, the MCP headers and the body as text.
+ */
+export interface McpRequest {
+  path: string
+  method: string
+  headers: Record<string, string>
+  body?: string
+}
+
+/** The hub's answer to it, whole: a stream the server opens is not carried. */
+export interface McpAnswer {
+  status: number
+  headers: Record<string, string>
+  body: string
+}
+
+/** Not an event and not numbered: it waits for its answer, and a lost one is the session's to repeat. */
+export interface McpPost {
+  connection: string
+  request: McpRequest
 }
 
 /** The events a machine writes about the link itself. */

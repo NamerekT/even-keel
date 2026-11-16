@@ -21,3 +21,22 @@ To check (BTN-1228): on a second installation, update from a commit before BTN-1
 BTN-1219 also sends launch records, session windows and mailbox changes through the machine's outbox, and reads the page's sessions and mailbox from its mirror. Wire tests cover an offline producer, a lost answer, failure of the separate receipt after a commit, rollback on a failed write, and stale views at reconnect. A live process crash with pending chat changes has not been checked: on the bench, send and deliver mail, restart, and compare the journal, the retained window and the chat before and after; no launch or message should appear twice. A failed record remains in the outbox and holds later events; the service log names the record that failed.
 
 BTN-1221 makes the moves of a task's session on the machine (`docs/machines.md`, "Moves"): a limit, a temporary error, a checkpoint, an answer, "New session", a returned task and the paid-usage stop are commands `task.<move>`, and their state comes back as `task.state` and the result. `src/machine/moves.test.ts` covers them over the wire in memory, and every `src/e2e/` scenario runs them through the one-process link. Assumed: the hub's task gets the move's marks before the session is touched, so a restart mid-move is seen through as before; a `follow` sent only when the mirror shows a refusal, a limit, a move under way or a checkpoint misses none of them. If one is missed, a limit or checkpoint waits until the next fact changes; a move's link failure pauses the chain with "the machine could not run task.…". To check on the bench: a limit with a resume and a handover, a checkpoint, an answer from the chat and a restart of the service in the middle of a handover; the log's `chain:` lines should be the same as before the version.
+
+## MCP servers through the hub in a live installation (BTN-990)
+
+Once the link has started, the machine's gateway carries every server that holds a key to the hub, together with the tasks server (`docs/machines.md`, "MCP through the hub"). `src/packages/gateway.test.ts`, `src/service/hub-mcp.test.ts`, `src/taskmcp/machine.test.ts` and `src/link/link.test.ts` cover the route, the pool check, the hub's absence, the files and the kept writes. No live session has gone this way yet.
+
+Assumed:
+
+- huly-mcp, the GitHub and Forgejo servers and a remote server with OAuth answer a whole POST as they did when the gateway proxied them directly.
+- An SSE answer to a POST, read whole and then sent back, is read by Claude Code, Codex, OpenCode and Copilot.
+- A server's own messages on a GET stream are not needed: the gateway answers that GET with 405.
+- A file a session attaches arrives in the tracker unchanged.
+
+If one of these is wrong, the session's calls of that server fail or time out, the probe holds the chain on `noResponse`, and the log names the request (`link: …`, `hub mcp gateway: …`).
+
+To check on the bench, with a chain task in a Huly project and one in a GitHub project:
+
+- `task_read` with an attachment, and a `task_comment` with a file from `.temp/`.
+- A tracker server's list call.
+- With the hub's gateway made unreachable mid-session, a comment the session is told is kept should arrive once the gateway is back, and a second task's read should answer that the hub is unreachable.

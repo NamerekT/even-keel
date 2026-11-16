@@ -4,7 +4,8 @@ import { MachineEnd, type HubTransport, type MachineOptions, type StreamSink } f
 import type { Consent, MachineStore } from './machine-store.js'
 import {
   bearerOf, isRefusal, parseToken,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type MachineEvent, type MachineHello, type NumberedCommand, type Refusal, type SnapshotPost,
+  type Command, type EventsAnswer, type EventsPost, type Frame, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand, type Refusal,
+  type SnapshotPost,
 } from './protocol.js'
 
 export const HUB_ADDRESS = 'https://hub.example.com:4750'
@@ -206,6 +207,10 @@ export class Wire implements HubTransport {
     return this.carry(() => this.hub.snapshot(this.authorization, carried(post)))
   }
 
+  async mcp(post: McpPost): Promise<McpAnswer | Refusal> {
+    return this.carry(async () => carried(await this.hub.mcp(this.authorization, carried(post))))
+  }
+
   private async carry<T>(call: () => Promise<T>): Promise<T> {
     if (this.down) throw new Error('the hub is unreachable')
     if (this.hang) return new Promise<T>(() => {})
@@ -225,6 +230,7 @@ export async function bench() {
   const presence: string[] = []
   const ran: NumberedCommand[] = []
   const refuseEvents = { on: false }
+  const asked: { machine: string; request: McpRequest }[] = []
   const hub = new HubEnd({
     store: hubStore,
     log: (line) => log.push(line),
@@ -236,6 +242,10 @@ export async function bench() {
       snapshot: (_machine, snapshot) => void snapshots.push(snapshot),
       online: () => void presence.push('online'),
       offline: () => void presence.push('offline'),
+      mcp: async (machine, request) => {
+        asked.push({ machine, request })
+        return { status: 200, headers: { 'content-type': 'application/json' }, body: `{"echo":${JSON.stringify(request.path)}}` }
+      },
     },
   })
   const token = parseToken(await hub.issue('Example server', HUB_ADDRESS, FINGERPRINT))!
@@ -249,5 +259,5 @@ export async function bench() {
     log: (line) => log.push(line),
     ...options,
   })
-  return { hub, hubStore, machineStore, wire, token, machine, log, taken, snapshots, presence, ran, refuseEvents }
+  return { hub, hubStore, machineStore, wire, token, machine, log, taken, snapshots, presence, ran, refuseEvents, asked }
 }

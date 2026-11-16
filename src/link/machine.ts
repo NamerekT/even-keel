@@ -3,7 +3,8 @@ import { isInside } from '../paths.js'
 import type { Consent, MachineStore } from './machine-store.js'
 import {
   API_VERSION, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, isRefusal,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type HubHello, type MachineHello, type NumberedCommand, type Refusal, type SnapshotPost,
+  type Command, type EventsAnswer, type EventsPost, type Frame, type HubHello, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
+  type Refusal, type SnapshotPost,
 } from './protocol.js'
 
 /** What a stream tells the machine: it is connected, a frame came, it ended (with the hub's refusal, if it gave one). */
@@ -18,6 +19,7 @@ export interface HubTransport {
   open(hello: MachineHello, sink: StreamSink): { close(): void }
   events(post: EventsPost): Promise<EventsAnswer | Refusal>
   snapshot(post: SnapshotPost): Promise<EventsAnswer | Refusal>
+  mcp(post: McpPost): Promise<McpAnswer | Refusal>
 }
 
 export type LinkState = 'offline' | 'connecting' | 'online'
@@ -123,6 +125,22 @@ export class MachineEnd {
     const event = await this.options.store.appendEvent(type, this.now(), payload)
     void this.flush(false)
     return event.seq
+  }
+
+  /**
+   * A session's request to an MCP server of the hub (BTN-990); `undefined` — the hub is not reachable now: no
+   * connection, the post failed or was refused. It does not break the connection: the pulse tells a lost hub.
+   */
+  async mcp(request: McpRequest): Promise<McpAnswer | undefined> {
+    const connection = this.connection
+    if (connection === undefined || this.state !== 'online') return undefined
+    try {
+      const answer = await this.options.transport.mcp({ connection, request })
+      return isRefusal(answer) ? undefined : answer
+    } catch (error) {
+      this.options.log(`link: a request to an MCP server of the hub did not get through: ${messageOf(error)}`)
+      return undefined
+    }
   }
 
   /** Resolves once the events kept at the call were posted to the hub; at once without a connection. */

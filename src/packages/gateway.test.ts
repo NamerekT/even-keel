@@ -3,7 +3,8 @@ import { EventEmitter } from 'node:events'
 import { createServer, type Server } from 'node:http'
 import { connect } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { McpGateway, refusal, shellQuoted, stopProcess, type GatewayTarget } from './gateway.js'
+import type { McpRequest } from '../link/protocol.js'
+import { awayReplies, hubOwned, McpGateway, refusal, shellQuoted, stopProcess, type GatewayTarget } from './gateway.js'
 import { routeOf } from './launch.js'
 
 const ECHO = `
@@ -393,5 +394,44 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
     const url = await start(null)
     expect((await post(url, {})).status).toBe(404)
     expect((await post(`${gateway!.origin}/other`, {})).status).toBe(404)
+  })
+
+  describe('through the hub (BTN-990)', () => {
+    const keyed: GatewayTarget = { entry: { type: 'http', url: 'http://127.0.0.1:1/mcp', headers: { Authorization: 'Bearer secret' } }, npm: null, env: {}, secrets: ['secret'] }
+
+    it('carries a server holding a key to the hub whole and gives back its answer; a server without one stays here', async () => {
+      const relayed: McpRequest[] = []
+      const url = await start(keyed)
+      gateway!.throughHub({ relay: async (request) => (relayed.push(request), { status: 200, headers: { 'content-type': 'application/json', 'mcp-session-id': 'h-1', 'set-cookie': 'x' }, body: '{"from":"hub"}' }), tasks: { handle: async () => null } })
+      const response = await post(`${url}?task=ABC-1`, { jsonrpc: '2.0', id: 1, method: 'initialize' }, 's-1')
+      expect(await response.json()).toEqual({ from: 'hub' })
+      expect(response.headers.get('mcp-session-id')).toBe('h-1')
+      expect(response.headers.get('set-cookie')).toBeNull()
+      expect(relayed).toEqual([{ path: `${routeOf('p-1', 'echo', 'i1', 'echo')}?task=ABC-1`, method: 'POST', headers: { accept: '*/*', 'content-type': 'application/json', 'mcp-session-id': 's-1' }, body: '{"jsonrpc":"2.0","id":1,"method":"initialize"}' }])
+      // No stream is opened through the hub.
+      expect((await fetch(url)).status).toBe(405)
+      expect(hubOwned({ entry: { command: 'node' }, npm: null, env: {} })).toBe(false)
+      expect(hubOwned({ entry: { command: 'node' }, npm: null, env: { KEY: 'v' } })).toBe(true)
+      expect(hubOwned({ entry: { command: 'node' }, npm: null, env: {}, refuseDeletes: 'Huly' })).toBe(true)
+    })
+
+    it('while the hub is away answers a call with a tool error and the rest with a JSON-RPC one', async () => {
+      const url = await start(keyed)
+      gateway!.throughHub({ relay: async () => undefined, tasks: { handle: async () => null } })
+      const call = await (await post(url, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'list_issues' } })).json()
+      expect(call).toMatchObject({ id: 1, result: { isError: true, content: [{ text: expect.stringContaining('unreachable') }] } })
+      expect(await (await post(url, [{ jsonrpc: '2.0', id: 2, method: 'tools/list' }])).json()).toMatchObject([{ id: 2, error: { code: -32000 } }])
+      expect((await post(url, { jsonrpc: '2.0', method: 'notifications/initialized' })).status).toBe(202)
+      expect((await fetch(url, { method: 'DELETE' })).status).toBe(503)
+      expect(awayReplies('{')).toBeUndefined()
+    })
+
+    it('answers the tasks server with the machine’s stand-in, the task of the address in its scope', async () => {
+      const scopes: unknown[] = []
+      await start(keyed)
+      gateway!.throughHub({ relay: async () => undefined, tasks: { handle: async (message, scope) => (scopes.push(scope), { jsonrpc: '2.0', id: message.id, result: {} }) } })
+      await post(`${gateway!.origin}/tasks/p-1?task=ABC-1`, { jsonrpc: '2.0', id: 1, method: 'ping' })
+      expect(scopes).toEqual([{ project: 'p-1', task: 'ABC-1' }])
+    })
   })
 })

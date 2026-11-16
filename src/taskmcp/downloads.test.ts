@@ -1,10 +1,10 @@
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { TaskAttachment } from '../tracker/card.js'
 import type { TaskFile } from '../tracker/source.js'
-import { attachmentLines, type FileSource } from './downloads.js'
+import { attachmentLines, folderSink, type FileSource } from './downloads.js'
 
 let folder: string
 let served: string[]
@@ -36,7 +36,7 @@ beforeEach(() => {
 describe('task_read files of a tracker that serves them (BTN-923)', () => {
   it('downloads a file into .temp/task-files/<KEY>/ by its name and gives the path', async () => {
     bodies.set('f1', Buffer.from('picture'))
-    const lines = await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, folder, 1024)
+    const lines = await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, folderSink(folder), 1024)
     expect(lines).toEqual([`- shot.png (7 B) — ${join(dir(), 'shot.png')}`])
     expect(readFileSync(join(dir(), 'shot.png'), 'utf8')).toBe('picture')
     expect(readdirSync(dir())).toEqual(['shot.png'])
@@ -44,12 +44,12 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
 
   it('does not download again a file already there with the same size', async () => {
     bodies.set('f1', Buffer.from('picture'))
-    await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, folder, 1024)
-    const again = await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, folder, 1024)
+    await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, folderSink(folder), 1024)
+    const again = await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, folderSink(folder), 1024)
     expect(served).toEqual(['ABC-1/f1'])
     expect(again).toEqual([`- shot.png (7 B) — ${join(dir(), 'shot.png')}`])
     writeFileSync(join(dir(), 'shot.png'), 'old')
-    await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, folder, 1024)
+    await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7)], source, folderSink(folder), 1024)
     expect(served).toEqual(['ABC-1/f1', 'ABC-1/f1'])
     expect(readFileSync(join(dir(), 'shot.png'), 'utf8')).toBe('picture')
   })
@@ -59,17 +59,17 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
     bodies.set('sized', Buffer.alloc(4096))
     bodies.set('unsized', Buffer.alloc(4096))
     const files = [attachment('big', 'video.mp4', 4096), attachment('sized', 'log.txt', 0), attachment('unsized', 'dump.bin', 0)]
-    const lines = await attachmentLines('ABC-1', files, source, folder, 1024)
+    const lines = await attachmentLines('ABC-1', files, source, folderSink(folder), 1024)
     expect(lines).toEqual(['- video.mp4 (4 KB) — too large', '- log.txt — too large', '- dump.bin — too large'])
     // The tracker's size refuses before a byte is read; a stream with no size is cut at the limit and its part removed.
     expect(served).toEqual(['ABC-1/sized', 'ABC-1/unsized'])
-    expect(readdirSync(dir())).toEqual([])
+    expect(existsSync(dir())).toBe(false)
   })
 
   it('a file only outsiders’ comments carry is neither listed nor downloaded (BTN-1122)', async () => {
     bodies.set('f1', Buffer.from('picture'))
     bodies.set('bad', Buffer.from('payload'))
-    const lines = await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7), attachment('bad', 'run.sh', 7, { outsider: true })], source, folder, 1024)
+    const lines = await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7), attachment('bad', 'run.sh', 7, { outsider: true })], source, folderSink(folder), 1024)
     expect(lines).toEqual([`- shot.png (7 B) — ${join(dir(), 'shot.png')}`])
     expect(served).toEqual(['ABC-1/f1'])
   })
@@ -84,7 +84,7 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
     bodies.set('ok', Buffer.from('notes'))
     bodies.set('broken', 'fail')
     bodies.set('gone', 'gone')
-    const lines = await attachmentLines('ABC-1', [attachment('broken', 'a.png', 3), attachment('gone', 'b.png', 3), attachment('ok', 'notes.txt', 5)], source, folder, 1024)
+    const lines = await attachmentLines('ABC-1', [attachment('broken', 'a.png', 3), attachment('gone', 'b.png', 3), attachment('ok', 'notes.txt', 5)], source, folderSink(folder), 1024)
     expect(lines).toEqual(['- a.png (3 B) — file unavailable', '- b.png (3 B) — file unavailable', `- notes.txt (5 B) — ${join(dir(), 'notes.txt')}`])
     expect(readdirSync(dir())).toEqual(['notes.txt'])
   })
@@ -93,11 +93,11 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
     bodies.set('unsized-1', Buffer.alloc(0))
     bodies.set('f2', Buffer.alloc(0))
     const files = [attachment('unsized-1', 'note.txt', 0), attachment('f2', 'shot.png', 0)]
-    const lines = await attachmentLines('ABC-1', files, source, folder, 1024)
+    const lines = await attachmentLines('ABC-1', files, source, folderSink(folder), 1024)
     expect(lines).toEqual(['- note.txt — file unavailable', '- shot.png — file unavailable'])
-    expect(readdirSync(dir())).toEqual([])
+    expect(existsSync(dir())).toBe(false)
     bodies.set('unsized-1', Buffer.from('notes'))
-    const again = await attachmentLines('ABC-1', files.slice(0, 1), source, folder, 1024)
+    const again = await attachmentLines('ABC-1', files.slice(0, 1), source, folderSink(folder), 1024)
     expect(again).toEqual([`- note.txt — ${join(dir(), 'note.txt')}`])
     expect(readFileSync(join(dir(), 'note.txt'), 'utf8')).toBe('notes')
   })
@@ -105,14 +105,14 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
   it('two files of one name differ by the prefix of their file id', async () => {
     bodies.set('aaaaaaaa1111', Buffer.from('first'))
     bodies.set('bbbbbbbb2222', Buffer.from('second'))
-    const lines = await attachmentLines('ABC-1', [attachment('aaaaaaaa1111', 'image.png', 5), attachment('bbbbbbbb2222', 'image.png', 6)], source, folder, 1024)
+    const lines = await attachmentLines('ABC-1', [attachment('aaaaaaaa1111', 'image.png', 5), attachment('bbbbbbbb2222', 'image.png', 6)], source, folderSink(folder), 1024)
     expect(lines).toEqual([`- image.png (5 B) — ${join(dir(), 'aaaaaaaa-image.png')}`, `- image.png (6 B) — ${join(dir(), 'bbbbbbbb-image.png')}`])
     expect(readFileSync(join(dir(), 'bbbbbbbb-image.png'), 'utf8')).toBe('second')
   })
 
   it('a name never leaves the folder', async () => {
     bodies.set('f1', Buffer.from('x'))
-    const lines = await attachmentLines('ABC-1', [attachment('f1', '../../evil.txt', 1)], source, folder, 1024)
+    const lines = await attachmentLines('ABC-1', [attachment('f1', '../../evil.txt', 1)], source, folderSink(folder), 1024)
     expect(lines).toEqual([`- ../../evil.txt (1 B) — ${join(dir(), '.._.._evil.txt')}`])
   })
 
@@ -120,7 +120,7 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
     const urls = ['https://uploads.linear.app/org/first', 'https://uploads.linear.app/org/second']
     bodies.set(urls[0]!, Buffer.from('first'))
     bodies.set(urls[1]!, Buffer.from('second'))
-    const lines = await attachmentLines('ABC-1', urls.map((url) => attachment(url, 'image.png', 0)), source, folder, 1024)
+    const lines = await attachmentLines('ABC-1', urls.map((url) => attachment(url, 'image.png', 0)), source, folderSink(folder), 1024)
     const paths = lines.map((line) => line.split(' — ')[1]!)
     expect(new Set(paths).size).toBe(2)
     expect(paths.map((path) => readFileSync(path, 'utf8'))).toEqual(['first', 'second'])
@@ -136,7 +136,7 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
         attachment('s', 'served.png', 10),
       ],
       {},
-      folder,
+      folderSink(folder),
       1024,
     )
     expect(lines).toEqual(['- logo.png (10 B) — https://example.com/logo.png', '- screen.png (10 B) — /files/abc', '- old.log (1 B) — file missing', '- served.png (10 B) — not downloaded'])

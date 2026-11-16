@@ -4,6 +4,7 @@ import { sniffedType } from '../builtin/files.js'
 import { megabytes } from '../notice/en.js'
 import { EditRefused, type TaskUpload } from '../tracker/editor.js'
 import { isInside } from '../paths.js'
+import { folderSink, type FileSink } from './downloads.js'
 
 /** The most files one call attaches. */
 export const UPLOADS_PER_CALL = 10
@@ -19,6 +20,20 @@ function secret(inner: string): boolean {
   const parts = inner.split(/[\\/]/).map((each) => each.toLowerCase())
   const name = parts.at(-1)!
   return parts.includes('.git') || ((name === '.env' || name.startsWith('.env.')) && name !== '.env.example')
+}
+
+/**
+ * What a call may do with the session's working folder: read the files it attaches, keep the files `task_read`
+ * downloads. Only the machine's gateway touches the folder (BTN-990); the hub gets the files sent with the call.
+ */
+export interface SessionFiles {
+  read(paths: readonly string[], limit: number): Promise<TaskUpload[]>
+  /** `null` — nowhere to keep them: each file's line says "not downloaded". */
+  downloads: FileSink | null
+}
+
+export function folderFiles(folder: string): SessionFiles {
+  return { read: (paths, limit) => readUploads(paths, folder, limit), downloads: folderSink(folder) }
 }
 
 const sizeText = (bytes: number) => (bytes < 1024 * 1024 ? `${bytes} B` : `${megabytes(bytes)} MB`)

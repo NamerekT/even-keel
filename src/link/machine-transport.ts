@@ -3,8 +3,8 @@ import { connect, type TLSSocket } from 'node:tls'
 import { fingerprintOf } from './cert.js'
 import type { HubTransport, StreamSink } from './machine.js'
 import {
-  EVENTS_PATH, SNAPSHOT_PATH, STREAM_PATH, bearerOf, isRefusal,
-  type ConnectionToken, type EventsAnswer, type Frame, type Refusal,
+  EVENTS_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, bearerOf, isRefusal,
+  type ConnectionToken, type EventsAnswer, type Frame, type McpAnswer, type Refusal,
 } from './protocol.js'
 
 export interface TransportOptions {
@@ -14,6 +14,8 @@ export interface TransportOptions {
 }
 
 const TIMEOUT_MS = 15_000
+/** An MCP call waits as long as the gateway waits for a server of its own. */
+const MCP_TIMEOUT_MS = 10 * 60_000
 
 /**
  * A TLS connection to the token's hub, checked before a byte is written to it, so the secret goes to no other server.
@@ -98,22 +100,27 @@ export function httpsTransport(token: ConnectionToken, options: TransportOptions
     return sent
   }
 
-  const post = async (path: string, body: unknown): Promise<EventsAnswer | Refusal> => {
+  const post = async <T>(path: string, body: unknown, whole: (value: object) => boolean, answerMs = timeoutMs): Promise<T | Refusal> => {
     const socket = await connectPinned(token, timeoutMs)
     try {
       const response = await new Promise<IncomingMessage>((resolve, reject) => {
         const sent = send(socket, path, body)
-        sent.setTimeout(timeoutMs, () => sent.destroy(new Error(`no answer from the hub in ${timeoutMs} ms`)))
+        sent.setTimeout(answerMs, () => sent.destroy(new Error(`no answer from the hub in ${answerMs} ms`)))
         sent.once('response', resolve)
         sent.once('error', reject)
       })
       const value = parsed(await textOf(response))
       if (isRefusal(value)) return value
-      if (response.statusCode === 200 && typeof value === 'object' && value !== null && typeof (value as EventsAnswer).lastEvent === 'number') return value as EventsAnswer
+      if (response.statusCode === 200 && typeof value === 'object' && value !== null && whole(value)) return value as T
       throw new Error(`the hub answered ${response.statusCode} to ${path}`)
     } finally {
       socket.destroy()
     }
+  }
+  const counted = (value: object): boolean => typeof (value as EventsAnswer).lastEvent === 'number'
+  const answered = (value: object): boolean => {
+    const { status, headers, body } = value as Partial<McpAnswer>
+    return typeof status === 'number' && typeof headers === 'object' && headers !== null && typeof body === 'string'
   }
 
   return {
@@ -159,7 +166,8 @@ export function httpsTransport(token: ConnectionToken, options: TransportOptions
         },
       }
     },
-    events: (body) => post(EVENTS_PATH, body),
-    snapshot: (body) => post(SNAPSHOT_PATH, body),
+    events: (body) => post<EventsAnswer>(EVENTS_PATH, body, counted),
+    snapshot: (body) => post<EventsAnswer>(SNAPSHOT_PATH, body, counted),
+    mcp: (body) => post<McpAnswer>(MCP_PATH, body, answered, MCP_TIMEOUT_MS),
   }
 }

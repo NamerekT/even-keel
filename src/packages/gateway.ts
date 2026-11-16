@@ -4,9 +4,11 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createServer as createNetServer } from 'node:net'
 import { Readable } from 'node:stream'
 import { errorReason } from '../error-reason.js'
+import type { McpAnswer, McpRequest } from '../link/protocol.js'
 import { fail } from '../notice/notice.js'
 import { deletesRecord } from '../sessions/protection.js'
 import type { TasksScope } from '../taskmcp/calls.js'
+import { AWAY_TEXT } from '../taskmcp/machine.js'
 import { isTasksUrl, tasksProjectOf } from '../taskmcp/server.js'
 import { parseRoute } from './launch.js'
 import type { ServerEntry } from './model.js'
@@ -75,6 +77,22 @@ export interface LocalMcp {
   handle(message: Record<string, unknown>, scope: TasksScope): Promise<Record<string, unknown> | null>
 }
 
+/**
+ * The machine's way to the hub's MCP servers (BTN-990): a server holding a key runs only in the hub, the machine's
+ * gateway carries its requests over the link; the tasks server is the machine's stand-in for the hub's.
+ */
+export interface GatewayHub {
+  /** The hub's answer; `undefined` — the hub is unreachable now. */
+  relay(request: McpRequest): Promise<McpAnswer | undefined>
+  tasks: LocalMcp
+}
+
+/** A server that holds a key of the hub's — a key, a token, the tracker Protection guards: it runs only in the hub. */
+export function hubOwned(target: GatewayTarget): boolean {
+  if (target.oauth !== undefined || target.refuseDeletes !== undefined || Object.keys(target.env).length > 0) return true
+  return (target.secrets ?? []).some((value) => value !== '')
+}
+
 /** Why a request is refused before its route is looked at, or `null`: the gateway has no token, a browser must not reach it. */
 export function refusal(method: string, headers: IncomingMessage['headers']): number | null {
   const host = headers.host
@@ -104,8 +122,14 @@ export class McpGateway {
   private readonly bridges = new Map<string, Bridge>()
   /** The last error of each route's server, logged once until it changes or the server answers again (BTN-589). */
   private readonly failing = new Map<string, string>()
+  private hub: GatewayHub | undefined
 
   constructor(private readonly deps: GatewayDeps) {}
+
+  /** From now on the servers holding keys and the tasks server are the hub's, reached over the link. */
+  throughHub(hub: GatewayHub): void {
+    this.hub = hub
+  }
 
   get origin(): string {
     return `http://127.0.0.1:${this.port}`
@@ -145,14 +169,17 @@ export class McpGateway {
     if (refused !== null) return void res.writeHead(refused).end()
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     const own = tasksProjectOf(url.pathname)
-    if (own !== undefined && this.deps.tasks !== undefined) return this.local(req, res, this.deps.tasks, { project: own, task: null })
+    const tasks = this.hub?.tasks ?? this.deps.tasks
+    // The task of `/tasks` is the one the machine's gateway names when it carries a chain session's call (BTN-990).
+    if (own !== undefined && tasks !== undefined) return this.local(req, res, tasks, { project: own, task: url.searchParams.get('task') })
     const route = parseRoute(url.pathname)
     const target = route === null ? null : this.deps.resolve(route)
     if (route === null || target === null) return void res.writeHead(404).end()
-    if (isTasksUrl(target.entry.url) && this.deps.tasks !== undefined) {
-      return this.local(req, res, this.deps.tasks, { project: route.project, task: url.searchParams.get('task') })
+    if (isTasksUrl(target.entry.url) && tasks !== undefined) {
+      return this.local(req, res, tasks, { project: route.project, task: url.searchParams.get('task') })
     }
     const label = `${route.name}/${route.server}`
+    if (this.hub !== undefined && hubOwned(target)) return this.relayed(req, res, url, label, this.hub)
     const key = `${route.project}\u0000${label}`
     const started = Date.now()
     let body: Buffer | undefined
@@ -187,6 +214,33 @@ export class McpGateway {
         if (this.failing.get(key) !== message) this.deps.log(`mcp gateway: ${label}: ${message}`)
         this.failing.set(key, message)
       }
+      if (!res.headersSent) res.writeHead(502)
+      res.end()
+    }
+  }
+
+  /**
+   * A request to a server of the hub's, carried whole: the hub's answer is read to the end before it comes back, so no
+   * stream is opened through it (GET). While the hub is away each call gets a tool error and every other request one of
+   * JSON-RPC.
+   */
+  private async relayed(req: IncomingMessage, res: ServerResponse, url: URL, label: string, hub: GatewayHub): Promise<void> {
+    const method = req.method ?? 'GET'
+    if (method === 'GET') return void res.writeHead(405, { allow: 'POST, DELETE' }).end()
+    try {
+      const body = method === 'POST' ? (await readBody(req)).toString('utf8') : undefined
+      const headers = Object.fromEntries(FORWARD.flatMap((name) => (typeof req.headers[name] === 'string' ? [[name, req.headers[name]]] : [])))
+      const answer = await hub.relay({ path: `${url.pathname}${url.search}`, method, headers, ...(body === undefined ? {} : { body }) })
+      if (answer !== undefined) {
+        const back = Object.fromEntries(Object.entries(answer.headers).filter(([name]) => BACK.includes(name.toLowerCase())))
+        return void res.writeHead(answer.status, back).end(answer.body)
+      }
+      const replies = body === undefined ? undefined : awayReplies(body)
+      if (replies === undefined) return void res.writeHead(503).end()
+      if (replies.length === 0) return void res.writeHead(202).end()
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(replies.length === 1 && !body!.trimStart().startsWith('[') ? replies[0] : replies))
+    } catch (error) {
+      this.deps.log(`mcp gateway: ${label} through the hub: ${errorReason(error)}`)
       if (!res.headersSent) res.writeHead(502)
       res.end()
     }
@@ -553,6 +607,23 @@ export function shellQuoted(arg: string): string {
 function secretsOf(target: GatewayTarget): string[] {
   return [...target.secrets ?? [], ...Object.values(target.env), ...Object.values(stringsOf(target.entry.env)), ...Object.values(stringsOf(target.entry.headers))]
     .flatMap((value) => [value, ...value.split(/\r?\n/), ...(/^\s*(?:Bearer|Basic)\s+(.+?)\s*$/i.exec(value)?.slice(1) ?? [])])
+}
+
+/** The replies to a body while the hub is away, none for notifications; `undefined` — not JSON-RPC. */
+export function awayReplies(body: string): Record<string, unknown>[] | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return undefined
+  }
+  const messages = (Array.isArray(parsed) ? parsed : [parsed]).filter((each): each is Record<string, unknown> => typeof each === 'object' && each !== null)
+  return messages.flatMap((message): Record<string, unknown>[] => {
+    const { id, method } = message
+    if (id === undefined || id === null) return []
+    if (method === 'tools/call') return [{ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: AWAY_TEXT }], isError: true } }]
+    return [{ jsonrpc: '2.0', id, error: { code: -32000, message: AWAY_TEXT } }]
+  })
 }
 
 function stringsOf(value: unknown): Record<string, string> {

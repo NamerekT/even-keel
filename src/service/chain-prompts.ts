@@ -8,6 +8,7 @@ import { commitChangelog } from '../git/changelog.js'
 import { runGit } from '../git/run.js'
 import { fail } from '../notice/notice.js'
 import { TASKS_SERVER } from '../taskmcp/server.js'
+import type { TaskBrief } from '../tracker/source.js'
 import { promptLines } from '../taskmcp/vocabulary.js'
 import type { ChainContext } from './chain.js'
 import { promptTrackers } from './vocabulary.js'
@@ -60,8 +61,15 @@ export function wireChangelogs(ctx: ChainContext): ChangelogDrafts {
   })
 }
 
-export function wireBriefed(ctx: ChainContext): (task: string, given: string, project?: string | undefined) => Promise<string> {
-  return async (task: string, given: string, project = ctx.projectOf(task)): Promise<string> => {
+/** A prompt with the task's text in it; `kept` — the text the task's last start had, what the machine answers while the hub is away (BTN-990). */
+export type Briefed = ((task: string, given: string, project?: string | undefined) => Promise<string>) & { kept(task: string): TaskBrief | undefined }
+
+/** Briefs kept for that many tasks at most: a day's chain never comes near it. */
+const KEPT_BRIEFS = 200
+
+export function wireBriefed(ctx: ChainContext): Briefed {
+  const kept = new Map<string, TaskBrief>()
+  const briefed = async (task: string, given: string, project = ctx.projectOf(task)): Promise<string> => {
     if (project === undefined) return given
     const reader = ctx.readerFor(project, task)
     const language = ctx.promptLanguage(project)
@@ -70,8 +78,14 @@ export function wireBriefed(ctx: ChainContext): (task: string, given: string, pr
     const prompt = withVocabulary(withTracker(given, ctx.trackerPlace(reader), language), vocabulary, language)
     const link = ctx.briefOn(project, reader) ? ctx.linkOf(reader) : undefined
     const brief = link === undefined ? undefined : await link.run(async (tracker) => tracker.brief?.(task))
+    if (brief !== undefined) {
+      kept.delete(task)
+      kept.set(task, brief)
+      if (kept.size > KEPT_BRIEFS) kept.delete(kept.keys().next().value!)
+    }
     return brief === undefined ? withUnbriefed(prompt, task, ctx.packages.bringsServer(project, TASKS_SERVER), language) : withBrief(prompt, brief, language)
   }
+  return Object.assign(briefed, { kept: (task: string) => kept.get(task) })
 }
 
 export function wireWithProject(ctx: ChainContext): (prompt: string, project: string | undefined) => string {

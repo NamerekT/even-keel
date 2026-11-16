@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { attachmentLines } from '../taskmcp/downloads.js'
+import { attachmentLines, folderSink } from '../taskmcp/downloads.js'
 import { comment, issue, WEB } from './fixture.js'
 import { connectForgejo } from './source.js'
 
@@ -37,12 +37,12 @@ describe('Forgejo task files', () => {
     await mkdir(scratch, { recursive: true })
     const folder = await mkdtemp(join(scratch, 'forgejo-files-'))
     try {
-      const lines = await attachmentLines('APP-1', card.attachments, source, folder, 100)
+      const lines = await attachmentLines('APP-1', card.attachments, source, folderSink(folder), 100)
       expect(lines).toEqual(card.attachments.map((file) => `- ${file.name} (${file.size} B) — ${join(folder, '.temp', 'task-files', 'APP-1', file.name)}`))
       expect(await readFile(join(folder, '.temp', 'task-files', 'APP-1', 'shot.png'), 'utf8')).toBe('png')
       expect(await readFile(join(folder, '.temp', 'task-files', 'APP-1', 'note.txt'), 'utf8')).toBe('ok')
       const before = calls.length
-      await attachmentLines('APP-1', card.attachments, source, folder, 100)
+      await attachmentLines('APP-1', card.attachments, source, folderSink(folder), 100)
       expect(calls).toHaveLength(before)
     } finally {
       await rm(folder, { recursive: true, force: true })
@@ -68,7 +68,7 @@ describe('Forgejo task files', () => {
 
   it.each([403, 404, 500])('reports a failed download (%s) as unavailable', async (status) => {
     const { source } = await connect(status)
-    const lines = await attachmentLines('APP-1', [{ file: shot.uuid, name: 'missing.png', size: 0, type: '', url: null }], source, resolve('.temp'), 100)
+    const lines = await attachmentLines('APP-1', [{ file: shot.uuid, name: 'missing.png', size: 0, type: '', url: null }], source, folderSink(resolve('.temp')), 100)
     expect(lines).toEqual(['- missing.png — file unavailable'])
   })
 })

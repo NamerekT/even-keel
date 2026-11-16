@@ -1,6 +1,6 @@
 import type { HubEnd, Opened } from './hub.js'
 import type { HubTransport, StreamSink } from './machine.js'
-import { isRefusal, type EventsAnswer, type EventsPost, type MachineHello, type Refusal, type SnapshotPost } from './protocol.js'
+import { isRefusal, type EventsAnswer, type EventsPost, type MachineHello, type McpAnswer, type McpPost, type Refusal, type SnapshotPost } from './protocol.js'
 
 /**
  * The pulse of a link inside one process: there is no network to lose, and a timer of days never fires between two
@@ -60,5 +60,9 @@ export class LocalTransport implements HubTransport {
 
   snapshot(post: SnapshotPost): Promise<EventsAnswer | Refusal> {
     return this.hub.snapshot(this.authorization, carried(post))
+  }
+
+  async mcp(post: McpPost): Promise<McpAnswer | Refusal> {
+    return carried(await this.hub.mcp(this.authorization, carried(post)))
   }
 }

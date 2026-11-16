@@ -1,5 +1,6 @@
 import type { TrackerAdapter } from '../tracker/source.js'
 import { refusalText, TasksTools, type TasksDeps, type TasksScope } from './calls.js'
+import { FILES_META, sentFiles, sessionMetaOf, type CarriedFile } from './carried.js'
 import { toolSpecs } from './tools.js'
 
 /** The server's name in a session: its tools are `mcp__plugin_tasks_tasks__*` in the `tasks` plugin. */
@@ -58,6 +59,10 @@ export class TasksMcp {
     if (id === undefined || id === null || typeof method !== 'string') return null
     const params = typeof message.params === 'object' && message.params !== null ? (message.params as Message) : {}
     const result = (value: unknown): Message => ({ jsonrpc: '2.0', id, result: value })
+    const meta = sessionMetaOf(params)
+    const carried: CarriedFile[] = []
+    const called = meta === undefined ? scope : { ...scope, files: sentFiles(meta, carried) }
+    const withFiles = (value: Message): Message => (carried.length === 0 ? value : { ...value, _meta: { [FILES_META]: carried } })
     switch (method) {
       case 'initialize':
         return result({
@@ -73,7 +78,7 @@ export class TasksMcp {
         const name = typeof params.name === 'string' ? params.name : ''
         const args = typeof params.arguments === 'object' && params.arguments !== null ? (params.arguments as Message) : {}
         try {
-          return result({ content: [{ type: 'text', text: await this.tools.call(name, args, scope) }] })
+          return result(withFiles({ content: [{ type: 'text', text: await this.tools.call(name, args, called) }] }))
         } catch (error) {
           return result({ content: [{ type: 'text', text: refusalText(error) }], isError: true })
         }

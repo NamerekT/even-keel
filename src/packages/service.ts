@@ -7,7 +7,7 @@ import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { TASKS_SERVER } from '../taskmcp/server.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
-import { McpGateway, withoutAuthorization, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
+import { McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
@@ -77,7 +77,10 @@ export class Packages {
   private readonly notes = new Map<string, Notice>()
   /** By package: how many dependencies its last install's npm installs changed against the install before. */
   private readonly changedDependencies = new Map<string, number>()
+  /** The machine's gateway: sessions and probes reach their servers here. */
   private readonly gateway: McpGateway
+  /** The hub's (BTN-990): the servers holding keys and the tasks server, asked only by the link on behalf of a machine. */
+  private readonly hubGateway: McpGateway
   private readonly probes: Probes
   private gatewayError: Notice | null = null
   private imports: Record<string, string[]> = {}
@@ -97,6 +100,7 @@ export class Packages {
     if (repaired.length > 0) deps.log(`packages: ${this.builtIn} is built in and restored: ${repaired.join(', ')}`)
     if (loaded === undefined || retired !== undefined || repaired.length > 0) savePackages(deps.file, this.file)
     this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks })
+    this.hubGateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: (line) => deps.log(`hub ${line}`), tasks: deps.tasks })
     this.probes = new Probes({
       urlOf: (project, name, install, server) => (this.gateway.listening ? `${this.gateway.origin}${routeOf(project, name, install, server)}` : undefined),
       now: () => Date.now(),
@@ -115,12 +119,27 @@ export class Packages {
       this.gatewayError = noticeOf(error)
       this.deps.log(`mcp gateway: ${(error as Error).message}`)
     }
+    try {
+      await this.hubGateway.listen(0)
+    } catch (error) {
+      this.deps.log(`hub mcp gateway: ${(error as Error).message}`)
+    }
     for (const [name, record] of Object.entries(this.file.packages)) if (record.removed !== true && record.installs.length === 0) void this.install(name).catch(() => {})
     await this.readImports()
   }
 
-  close(): Promise<void> {
-    return this.gateway.close()
+  async close(): Promise<void> {
+    await Promise.all([this.gateway.close(), this.hubGateway.close()])
+  }
+
+  /** The machine's gateway takes the servers holding keys and the tasks server from the hub from now on (BTN-990). */
+  throughHub(hub: GatewayHub): void {
+    this.gateway.throughHub(hub)
+  }
+
+  /** Where the link asks the hub's servers for a machine; `undefined` until the hub's gateway listens. */
+  get hubOrigin(): string | undefined {
+    return this.hubGateway.listening ? this.hubGateway.origin : undefined
   }
 
   /** The projects of the config changed: the repositories are read for servers anew. */

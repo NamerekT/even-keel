@@ -3,12 +3,14 @@ import { createServer, type Server } from 'node:https'
 import type { HubCertificate } from './cert.js'
 import type { HubEnd } from './hub.js'
 import {
-  EVENTS_PATH, SNAPSHOT_PATH, STREAM_PATH, isRefusal,
-  type EventsPost, type Frame, type MachineHello, type Refusal, type SnapshotPost,
+  EVENTS_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, isRefusal,
+  type EventsPost, type Frame, type MachineHello, type McpPost, type Refusal, type SnapshotPost,
 } from './protocol.js'
 
 /** A snapshot names every session of the machine; an events post is `EVENT_BATCH` events at most. */
 const MAX_BODY_BYTES = 8 * 1024 * 1024
+/** An MCP call carries the files a session attaches, each up to the attachment limit, as base64. */
+const MAX_MCP_BYTES = 256 * 1024 * 1024
 
 export interface HubServerOptions {
   hub: HubEnd
@@ -62,6 +64,16 @@ function eventsOf(body: unknown): EventsPost {
   return { connection: post.connection, lastCommand: post.lastCommand, events: events as EventsPost['events'] }
 }
 
+function mcpOf(body: unknown): McpPost {
+  if (!isObject(body) || typeof body.connection !== 'string' || !isObject(body.request)) throw new BadRequest(400, 'not an MCP request of a machine')
+  const { path, method, headers, body: text } = body.request
+  const strings = isObject(headers) && Object.values(headers).every((value) => typeof value === 'string')
+  if (typeof path !== 'string' || !path.startsWith('/') || typeof method !== 'string' || !strings || (text !== undefined && typeof text !== 'string')) {
+    throw new BadRequest(400, 'not an MCP request of a machine')
+  }
+  return { connection: body.connection, request: { path, method, headers: headers as Record<string, string>, ...(text === undefined ? {} : { body: text }) } }
+}
+
 function answer(response: ServerResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body)
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(text), 'Cache-Control': 'no-store' })
@@ -106,15 +118,17 @@ async function stream(options: HubServerOptions, request: IncomingMessage, respo
  */
 export function createHubServer(options: HubServerOptions): Server {
   const limit = options.maxBodyBytes ?? MAX_BODY_BYTES
+  const mcpLimit = Math.max(limit, MAX_MCP_BYTES)
   return createServer({ cert: options.certificate.cert, key: options.certificate.key }, (request, response) => {
     const path = new URL(request.url ?? '/', 'https://hub').pathname
     const handled = (async () => {
-      if (![STREAM_PATH, EVENTS_PATH, SNAPSHOT_PATH].includes(path)) throw new BadRequest(404, 'no such path')
+      if (![STREAM_PATH, EVENTS_PATH, SNAPSHOT_PATH, MCP_PATH].includes(path)) throw new BadRequest(404, 'no such path')
       if (request.method !== 'POST') throw new BadRequest(405, 'POST only')
       if (path === STREAM_PATH) return stream(options, request, response, limit)
-      const body = await bodyOf(request, limit)
+      const body = await bodyOf(request, path === MCP_PATH ? mcpLimit : limit)
       const { authorization } = request.headers
       if (path === EVENTS_PATH) return answerOf(response, await options.hub.events(authorization, eventsOf(body)))
+      if (path === MCP_PATH) return answerOf(response, await options.hub.mcp(authorization, mcpOf(body)))
       const post = postOf(body)
       const snapshot: SnapshotPost = { connection: post.connection, lastCommand: post.lastCommand, snapshot: post.snapshot }
       return answerOf(response, await options.hub.snapshot(authorization, snapshot))

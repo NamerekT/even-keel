@@ -14,6 +14,7 @@ import type { TrackerCard } from '../tracker/card.js'
 import type { TextEdit, TrackerTask } from '../tracker/model.js'
 import { CreatedThenRefused, EditRefused, type TaskEditor, type TaskField, type TaskLink } from '../tracker/editor.js'
 import { TasksTools, cardText, type TaskReader, type TasksScope } from './calls.js'
+import { folderFiles } from './files.js'
 import { TasksMcp } from './server.js'
 import { toolSpecs } from './tools.js'
 
@@ -62,12 +63,11 @@ const deps = () => ({
   runOf: (project: string, task: string) => runs.of(project, task),
   setRun: (project: string, task: string, run: TaskRun | null) => runs.set(project, task, run),
   refresh: async (project: string) => void refreshed.push(project),
-  folderOf: () => folder,
   attachmentLimit: () => 1024 * 1024,
   editedOf: (_reader: string, task: string) => edits.get(task),
 })
 
-const call = (name: string, args: Record<string, unknown>, scope = CHAIN) => tools.call(name, args, scope)
+const call = (name: string, args: Record<string, unknown>, scope = CHAIN) => tools.call(name, args, folder === null ? scope : { ...scope, files: folderFiles(folder) })
 const refusal = async (work: Promise<unknown>): Promise<string> => {
   try {
     await work
