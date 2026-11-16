@@ -45,7 +45,7 @@ The optional `rerun(run)` (BTN-846) reruns only a run's failed jobs, the run kee
 "ci": { "guard": true, "kinds": ["forgejo", "github", "gitlab"], "waitMinutes": 30, "recheckMain": true, "fixTask": false, "rerunFailed": true }
 ```
 
-- `guard` — the guard of `main` as a whole, `true` by default. `false`: no counted CI and no check (`mainCheckDeps` gives the verdict `none`, `checking` no commands, `checkMain` is `skipped`, `mergeCheck` `[]`) — a push is not waited for, nothing is checked before the merge or on `main`, and no fix is made. The other keys are kept and apply again once it is back on. A wait from before it was turned off is released at the next settle; a fix session already running is left alone.
+- `guard` — the guard of `main` as a whole, `true` by default. `false`: no counted CI and no check (`hubMainDeps` gives the verdict `none`, `checking` no commands, `checkMain` is `skipped`, `mergeCheck` `[]`) — a push is not waited for, nothing is checked before the merge or on `main`, and no fix is made. The other keys are kept and apply again once it is back on. A wait from before it was turned off is released at the next settle; a fix session already running is left alone.
 - `kinds` — the CIs whose verdict the chain waits for; without the key — all three (`DEFAULT_CI` in `src/settings/defaults.ts`); empty — none, and the project's own check takes over (below).
 - `waitMinutes` — how long the next launch waits after the push: `null` or no key — as long as it takes, `0` — not at all (faster, but the next task may start on a broken `main`).
 - `recheckMain` — `false` turns off the second run of the project's check on a `main` that moved (below); a merge whose check before it did not report is checked on `main` anyway.

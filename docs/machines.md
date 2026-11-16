@@ -1,6 +1,24 @@
-# Hub and machines: the link
+# Hub and machines
 
-How a hub and a machine talk (`src/link/`). The roles themselves — what the hub decides and what a machine runs — are the map of BTN-137; this is its first step, the transport. **Nothing starts it yet:** the service neither listens for machines nor connects to a hub, there is no setting and no port; the cut of the service into the two roles wires it in.
+The hub decides, a machine runs the sessions; the map of the roles is BTN-137. Two steps of it are in the code: the seam between the two roles inside the service ("The seam") and the transport that will carry it (`src/link/`, the rest of this document). **Nothing starts the link yet:** the service neither listens for machines nor connects to a hub, there is no setting and no port, and the hub calls its one machine directly, in the same process.
+
+## The seam
+
+One installation is a hub and a machine in one process, and there is one code path: the chain (`src/chain/`) reaches sessions, accounts, packages and working folders only through `MachinePort` (`src/machine/port.ts`), which `DispatcherDeps.machine` carries. `wireMachine` (`src/service/machine-chain.ts`) is its only implementation; `wireDispatcher` (`src/service/chain.ts`) builds the hub's side and takes the port as an argument.
+
+| Side | In the chain | In the service's assembly |
+| --- | --- | --- |
+| Hub | `Dispatcher`: order, the queue and its fill, pauses, skips, released and shelved tasks, `MainCheck`, `MainFix`, `MainWait`, `MainCarry`, `Reviews`, `TaskLists`, `Cleanups`, `Unchanged`, questions to the tracker; the rest of `DispatcherDeps` and `MainCheckDeps` (`hubMainDeps`): projects, rules, `parallel`, the chain's state, statuses and comments in the tracker, the CI of main, PR mode | `src/service/hub-bootstrap.ts`, `src/service/chain.ts`: the state database, tracker and CI profiles, projects and settings, the page, Tally |
+| Machine | `src/machine/`: `MachineTasks` with `startTask` and `inTurn` (`start.ts`), `Handovers` (`handover.ts`: limit, resume, relay, checkpoint), `OverageStops` (`overage.ts`), the git and check side of the CI of main (`mainMachineDeps`, `main.ts`) | `src/service/machine-bootstrap.ts`, `src/service/machine-chain.ts`: accounts and limits, packages and the MCP gateway, slots and worktrees (`wirePlaces`), the session monitor, the launch journal for the slots' occupants, keep-warm |
+
+- **A member of the port** is a command, a query or a snapshot field; the comment of each in `port.ts` says which. A command (`launch`, `launchFix`, `launchCarry`, `resume`, `reply`, `relay`, `stop`, `finish`, `sync`, `prepare`, `checkMain`, `runAfterGreen`) will be a numbered command of the link with its result as an event; a query (`locate`, `head`, `tree`, `merged`, `carried`, `changes`, `history`, `modelBlock`) changes nothing on the machine; the facts (`liveSession`, `lastSession`, `busy`, `midTurn`, `shell`, `asked`, `silentSince`, `limited`, `overage`, `handoff`, `modelRefusal`, `sessionsRead`, `reportedTree`, `account`, `accountAt`, `launchBlock`, `limitReset`, `modelWeek`, `limitResetAfter`, `limitReopenedAt`, `limitsUnread`, `accountsRead`, `packagesBlocked`, `packagesPause`, `trackerMissing`) will be read from the hub's mirror of the machine's snapshot.
+- **An action of both sides is the hub's decision and one call of the port.** A red main: `MainFix` decides, `stop` stops. The cleanup after Done: `Cleanups` decides and records the closed task (`archiveClosed`), `finish` stops the sessions and removes the folder. The report of a red main: the hub writes it, `history` gives the commits.
+- **Every touch of a session is the same exception to invariant 1 as before** (`docs/chain/exceptions.md`), now made on the machine's side.
+- **What is not cut yet.** `MachineTasks` runs inside the hub's serialized step and changes the chain's records in place: `MachineTaskDeps` (`src/machine/host.ts`) still gives it the hub's `save`, `journal`, `moveStatus` and `blocked`. With the link these become the machine's events and the hub's mirror; so do the machine's own state, the table of which machine has which task, and a machine apart from its hub.
+
+## The link
+
+How a hub and a machine talk (`src/link/`).
 
 | File | What it holds |
 | --- | --- |

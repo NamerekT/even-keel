@@ -1,19 +1,16 @@
 import type { CiView } from '../ci/model.js'
 import { redReport, type FailedRun } from '../ci/report.js'
-import { CI_TITLES, shortCommit, verdictOf, type RedRun } from '../ci/verdict.js'
+import { CI_TITLES, verdictOf, type RedRun } from '../ci/verdict.js'
 import type { EventDraft } from '../event-log/model.js'
-import { fail, notice } from '../notice/notice.js'
-import { branchMerged } from '../git/merged.js'
 import type { Git } from '../git/types.js'
 import type { Language } from '../language.js'
+import { mainMachineDeps } from '../machine/main.js'
+import type { MachineMainPort } from '../machine/port.js'
+import { fail } from '../notice/notice.js'
 import type { CiSettings } from '../state.js'
 import type { NewTask } from '../tracker/source.js'
 import type { CheckReport } from './checkreports.js'
 import type { CheckFailure, MainCheckDeps } from './model.js'
-
-/** The commits a fix task lists, from the last green commit; without one, the latest of main. */
-const COMMITS_SINCE_GREEN = 50
-const COMMITS_WITHOUT_GREEN = 20
 
 export interface MainCiWatch {
   view: CiView
@@ -75,21 +72,15 @@ export function mergeCheck(commands: string[], settings: CiSettings, views: CiVi
 
 // What the chain's check of main (BTN-103, BTN-104) needs from the service: git of the project, its counted CIs,
 // its own check and the tracker. With the guard of main off no CI counts and there is no check, so a push is never awaited.
-export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
+export function hubMainDeps(deps: Pick<MainCiDeps, 'projects' | 'peers' | 'watches' | 'settings' | 'commands' | 'language' | 'promptLanguage' | 'create' | 'comment' | 'afterGreen' | 'fixName' | 'event' | 'now'>, machine: Pick<MachineMainPort, 'history'>): MainCheckDeps {
   const counted = (project: string): MainCiWatch[] | null => {
     const { guard, kinds } = deps.settings(project)
     return guard ? (deps.watches(project)?.filter((watch) => kinds.includes(watch.view.kind)) ?? null) : []
-  }
-  const plain = (project: string) => deps.plain?.(project) === true
-  const revision = async (cwd: string, rev: string) => {
-    const read = await deps.git(cwd, ['rev-parse', '--verify', '--quiet', rev])
-    return read.code === 0 ? read.out.trim() : null
   }
 
   return {
     // A project with the guard off neither holds nor is held by the others.
     peers: (project) => (deps.settings(project).guard ? deps.peers(project).filter((peer) => deps.settings(peer).guard) : []),
-    head: async (project) => (plain(project) ? null : revision(deps.repo(project), `refs/heads/${deps.main(project)}`)),
     verdict(project, commit, since) {
       // Right after a start the CIs are not found yet: without the wait an awaited push would pass for one without a CI.
       const watches = counted(project)
@@ -128,16 +119,7 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       return minutes === null ? null : minutes * 60_000
     },
     async report(project, push, failure, candidates) {
-      const repo = deps.repo(project)
-      // A peer's green commit may be past the red one or not fetched here yet: only those behind it bound the list.
-      const greens: string[] = []
-      for (const green of candidates) {
-        if (green === push.commit) continue
-        if ((await deps.git(repo, ['merge-base', '--is-ancestor', green, push.commit])).code === 0) greens.push(green)
-      }
-      const range = greens.length === 0 ? [`-${COMMITS_WITHOUT_GREEN}`, push.commit] : [`-${COMMITS_SINCE_GREEN}`, push.commit, ...greens.map((green) => `^${green}`)]
-      const log = await deps.git(repo, ['log', '--format=%h %s', ...range])
-      const commits = log.code === 0 ? log.out.split(/\r?\n/).filter((line) => line.trim() !== '') : []
+      const { commits, greens } = await machine.history(project, push.commit, candidates)
       const facts = { commit: push.commit, commits, greens, tasks: push.tasks }
       if ('check' in failure) return redReport({ ...facts, runs: [], check: failure.check }, deps.language(), deps.promptLanguage(project))
       const watches = counted(project) ?? []
@@ -148,44 +130,18 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     },
     create: (project, task) => deps.create({ project, ...task }),
     comment: deps.comment,
-    prepare: deps.prepare,
-    // A check of other commands than the project's now proves nothing about them.
-    reportedTree(project, task) {
-      if (plain(project)) return null
-      const report = deps.reported(project, task)
-      const commands = deps.commands(project)
-      const same = report !== undefined && report.commands.length === commands.length && report.commands.every((command, at) => command === commands[at])
-      return same ? report.tree : null
-    },
-    tree: async (project, commit) => (plain(project) ? null : revision(deps.repo(project), `${commit}^{tree}`)),
     checking(project) {
       const { guard, recheckMain } = deps.settings(project)
       return { commands: guard ? deps.commands(project) : [], recheck: recheckMain }
     },
-    async checkMain(project, task) {
-      // A check of main due from before the guard was turned off.
-      if (!deps.settings(project).guard) return { state: 'skipped', reason: 'the guard of main is off' }
-      const path = await deps.place(project, task)
-      const branch = deps.main(project)
-      const [head, main] = await Promise.all([revision(path, 'HEAD'), revision(deps.repo(project), `refs/heads/${branch}`)])
-      if (head === null || head !== main) return { state: 'skipped', reason: `the place of ${task} (${path}) is not on ${branch}` }
-      const failure = await deps.runCheck(project, task, path)
-      return failure === null ? { state: 'green' } : { state: 'red', failure }
-    },
     fixTask: (project) => deps.settings(project).fixTask,
     fixName: deps.fixName,
-    merged: async (project, task) => !plain(project) && branchMerged(deps.git, deps.repo(project), task, deps.main(project)),
     afterGreen: (project) => deps.settings(project).guard && deps.afterGreen(project).length > 0,
-    // The only place the dispatcher touches the project's own checkout, so only when it stands on main at the green commit.
-    async runAfterGreen(project, commit) {
-      const repo = deps.repo(project)
-      const branch = deps.main(project)
-      const [on, head] = await Promise.all([deps.git(repo, ['symbolic-ref', '--quiet', '--short', 'HEAD']), revision(repo, 'HEAD')])
-      const current = on.code === 0 ? on.out.trim() : null
-      if (current !== branch) return { state: 'skipped', reason: notice('afterGreen.offBranch', { branch, on: current }) }
-      if (head !== commit) return { state: 'skipped', reason: notice('afterGreen.pastCommit', { head: shortCommit(head ?? 'nothing') }) }
-      const failure = await deps.runAfterGreen(project, repo)
-      return failure === null ? { state: 'done' } : { state: 'failed', failure }
-    },
   }
+}
+
+/** Combined assembly for callers testing the two sides together; production wires each side separately. */
+export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps & MachineMainPort {
+  const machine = mainMachineDeps(deps)
+  return { ...hubMainDeps(deps, machine), ...machine }
 }

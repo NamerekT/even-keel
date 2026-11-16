@@ -1,3 +1,4 @@
+import type { MachineMainPort } from '../machine/port.js'
 import { failedKey } from '../ci/model.js'
 import { shortCommit, type CiVerdict, type RedRun } from '../ci/verdict.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
@@ -60,6 +61,7 @@ export class MainCheck {
   constructor(
     private readonly state: ChainState,
     private readonly deps: MainCheckDeps,
+    private readonly machine: MachineMainPort,
     private readonly now: () => Date,
     private readonly log: (message: string) => void,
     /** `save` — the state must reach the disk now; `wake` — a run of `commands.afterGreen` ended. */
@@ -100,7 +102,7 @@ export class MainCheck {
   /** The tree the check before the task's merge reported, read before its cleanup; `null` — no report. */
   reportedTree(project: string, task: string): string | null {
     try {
-      return this.deps.reportedTree(project, task)
+      return this.machine.reportedTree(project, task)
     } catch {
       return null
     }
@@ -110,7 +112,7 @@ export class MainCheck {
   async pushed(project: string, task: string, tree: string | null): Promise<void> {
     let commit: string | null
     try {
-      commit = await this.deps.head(project)
+      commit = await this.machine.head(project)
     } catch (error) {
       this.log(`ci: ${project}: main after ${task} is unknown: ${englishOf(noticeOf(error))}`)
       return
@@ -125,7 +127,7 @@ export class MainCheck {
     }
     if (gate.green === commit) return
     this.late.delete(project)
-    const checked = tree !== null && (await this.deps.tree(project, commit).catch(() => null)) === tree
+    const checked = tree !== null && (await this.machine.tree(project, commit).catch(() => null)) === tree
     const earlier = [...(gate.local?.tasks ?? []), ...(gate.check?.tasks ?? [])]
     delete gate.local
     const push: MainPush = {
@@ -225,7 +227,7 @@ export class MainCheck {
   }
 
   merged(project: string, task: string): Promise<boolean> {
-    return this.deps.merged(project, task).catch(() => false)
+    return this.machine.merged(project, task).catch(() => false)
   }
 
   /** The fix task goes before the chain's order while it is open in the chain. */
@@ -238,7 +240,7 @@ export class MainCheck {
   ahead(project: string, task: string): void {
     if (this.prepared.get(project) === task) return
     this.prepared.set(project, task)
-    this.deps.prepare(project, task).catch((error: unknown) => {
+    this.machine.prepare(project, task).catch((error: unknown) => {
       this.log(`chain: ${project}: ${task} was not prepared ahead: ${englishOf(noticeOf(error))}`)
     })
   }
@@ -255,7 +257,7 @@ export class MainCheck {
     if (gate === undefined || push === undefined) return null
     let run: MainCheckRun
     try {
-      run = await this.deps.checkMain(project, task, push.commit)
+      run = await this.machine.checkMain(project, task, push.commit)
     } catch (error) {
       run = { state: 'skipped', reason: englishOf(noticeOf(error)) }
     }
@@ -463,7 +465,7 @@ export class MainCheck {
     this.afterRuns.set(project, { commit: push.commit, since })
     this.hooks.save()
     this.log(`afterGreen: ${project}: running the commands after ${shortCommit(push.commit)}`)
-    void this.deps
+    void this.machine
       .runAfterGreen(project, push.commit)
       .catch((error: unknown): AfterGreenRun => ({ state: 'skipped', reason: noticeOf(error) }))
       .then((run) => this.afterGreenEnded(project, push, run))

@@ -2,7 +2,7 @@ import type { Changes } from '../git/types.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { MESSAGE_LIMIT, withoutMark } from '../sessions/transcript.js'
 import { isFixName, isOwnName } from './fix.js'
-import type { Handovers } from './handover.js'
+import type { Handovers } from '../machine/handover.js'
 import type { ActiveChain, CurrentTask, DispatcherDeps } from './model.js'
 import { PROMPTS } from './prompts.js'
 import type { HandoffSession } from './relay.js'
@@ -38,7 +38,7 @@ export class Unchanged {
     try {
       if (this.deps.plain?.(task) === true) {
         // The comment is the answer, so it goes first and a failed one leaves the task open, as "Accept as answer" does.
-        const message = this.deps.handoff(task)?.lastMessage ?? ''
+        const message = this.deps.machine.handoff(task)?.lastMessage ?? ''
         this.deps.log(`chain: ${task} is marked as done by its session; its last message goes on the task and the task is done`)
         await this.deps.unchanged!.accept(project, task, texts.answered(withoutMark(message) || mark.reason, message.length >= MESSAGE_LIMIT))
       } else {
@@ -67,9 +67,9 @@ export class Unchanged {
    */
   left(project: string, task: string): string | undefined {
     if (!this.closesByMark(task)) return undefined
-    const session = this.deps.handoff(task)
+    const session = this.deps.machine.handoff(task)
     if (session === undefined || (session.noChanges ?? null) === null) return undefined
-    return this.deps.lastSession?.(project, task) === session.sessionId ? session.sessionId : undefined
+    return this.deps.machine.lastSession?.(project, task) === session.sessionId ? session.sessionId : undefined
   }
 
   /**
@@ -85,7 +85,7 @@ export class Unchanged {
     if (unchanged === undefined) throw fail('accept.notChecked', { task })
     let changes: Changes
     try {
-      changes = this.deps.plain?.(task) === true ? { ahead: 0, files: 0 } : await unchanged.changes(project, session.workdir)
+      changes = this.deps.plain?.(task) === true ? { ahead: 0, files: 0 } : await this.deps.machine.changes(project, session.workdir)
     } catch (error) {
       throw fail('accept.notChecked', { task }, { cause: noticeOf(error) })
     }
@@ -112,11 +112,11 @@ export class Unchanged {
     const { project } = chain
     const { task } = current
     // A turn that ended on a background command is over, as for Done (BTN-202): only a clean branch goes on without it.
-    const busy = this.deps.busy(task)
-    const shell = busy && this.deps.shell(task)
+    const busy = this.deps.machine.busy(task)
+    const shell = busy && this.deps.machine.shell(task)
     // A fix of main merges by itself even in PR mode, so it marks no pull request either.
     if (unchanged === undefined || (busy && !shell) || (!isFixName(task) && this.deps.pullRequests?.(task) === true)) return null
-    const session = this.deps.handoff(task)
+    const session = this.deps.machine.handoff(task)
     if (session === undefined || session.sessionId !== current.sessionId) return null
     const reason = session.noChanges ?? null
     if (reason === null) return null
@@ -129,7 +129,7 @@ export class Unchanged {
     let changes: Changes
     try {
       // A folder without git has nothing to count: the mark alone closes the task (BTN-883).
-      changes = this.deps.plain?.(task) === true ? { ahead: 0, files: 0 } : await unchanged.changes(project, session.workdir)
+      changes = this.deps.plain?.(task) === true ? { ahead: 0, files: 0 } : await this.deps.machine.changes(project, session.workdir)
     } catch (error) {
       this.hold(chain, notice('chain.unchangedNotChecked', { task }, { cause: noticeOf(error) }))
       return 'acted'

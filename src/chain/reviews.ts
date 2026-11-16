@@ -2,7 +2,7 @@ import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { eventKey, outcomeOf } from '../review/events.js'
 import { closedText, feedbackText, withFeedback } from '../review/feedback.js'
 import type { PullRequest, ReviewCheck } from '../review/model.js'
-import type { Handovers } from './handover.js'
+import type { Handovers } from '../machine/handover.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, PullCleanup, ReviewDeps, ReviewView } from './model.js'
 import { PROMPTS } from './prompts.js'
 import { warmSince, type HandoffSession } from './relay.js'
@@ -138,13 +138,13 @@ export class Reviews {
   async follow(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
     const { project } = chain
     const { task } = current
-    if (this.review === undefined || this.deps.busy(task)) return false
+    if (this.review === undefined || this.deps.machine.busy(task)) return false
     const pull = this.recordOf(project, task)
     if (pull?.closed === 'unmerged' && pull.cleaned !== true) {
       this.host.letGo(chain)
       return true
     }
-    const session = this.deps.handoff(task)
+    const session = this.deps.machine.handoff(task)
     if (session === undefined || session.sessionId !== current.sessionId) return false
     const mark = session.pullRequest ?? null
     const tried = pull?.markAt === session.lastReplyAt || (this.refused.has(task) && this.refused.get(task) === session.lastReplyAt)
@@ -153,7 +153,7 @@ export class Reviews {
       return true
     }
     if (pull?.feedback === undefined || pull.closed !== undefined) return false
-    if (this.deps.blocked(project, task) !== undefined || this.deps.limitReset(project, task) !== null) return false
+    if (this.deps.blocked(project, task) !== undefined || this.deps.machine.limitReset(project, task) !== null) return false
     await this.deliver(chain, current, pull, pull.feedback)
     return true
   }
@@ -230,13 +230,13 @@ export class Reviews {
 
   /** The feedback resumes the session while its cache is warm, else a new session takes the task with it. */
   private async deliver(chain: ActiveChain, current: CurrentTask, pull: PullRequest, feedback: string): Promise<void> {
-    const session = this.deps.handoff(current.task)!
-    const account = this.deps.account(chain.project, current.task)
+    const session = this.deps.machine.handoff(current.task)!
+    const account = this.deps.machine.account(chain.project, current.task)
     const now = this.deps.now().getTime()
     const warm =
       account.id !== null &&
       session.lastReplyAt !== null &&
-      account.id === this.deps.accountAt(session.account, session.lastReplyAt) &&
+      account.id === this.deps.machine.accountAt(session.account, session.lastReplyAt) &&
       warmSince(session, now)
     delete pull.feedback
     if (warm) await this.handovers.deliver(chain, current, session, feedback, null, 'review')

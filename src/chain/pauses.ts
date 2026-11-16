@@ -1,5 +1,6 @@
 import { englishOf, NoticeError, type Notice } from '../notice/notice.js'
 import { isFixName } from './fix.js'
+import { waitsForLimits } from './limitNotice.js'
 import type { ActiveChain, ChainState, DispatcherDeps } from './model.js'
 
 /** Launch blocks Start and Resume go in paused on and the chain lifts by itself once they are gone (`cleared`). */
@@ -39,9 +40,9 @@ export class LaunchPauses {
   }
 
   private async modelFits(project: string, task: string | undefined): Promise<boolean> {
-    if (task === undefined || this.deps.modelBlock === undefined) return false
+    if (task === undefined || this.deps.machine.modelBlock === undefined) return false
     try {
-      return (await this.deps.modelBlock(project, task)) === undefined
+      return (await this.deps.machine.modelBlock(project, task)) === undefined
     } catch (error) {
       this.deps.log(`chain: the model of ${task} was not checked: ${String(error)}`)
       return false
@@ -72,7 +73,36 @@ export class LaunchPauses {
    * see, then a package only the user can make ready, which a fix session of a red main does not wait for.
    */
   block(project: string, task?: string): Notice | undefined {
-    const packages = task !== undefined && isFixName(task) ? undefined : this.deps.packagesPause(project)
+    const packages = task !== undefined && isFixName(task) ? undefined : this.deps.machine.packagesPause(project)
     return this.deps.blocked(project, task) ?? this.deps.trackerBlock(project) ?? packages
+  }
+
+  /**
+   * Whether the launch of `task` waits without a pause: for its account's first limits poll, a limit's reset, the
+   * model's week or the project's packages. The wait is written into the chain for the page.
+   */
+  waits(chain: ActiveChain, task: string, fix: boolean): boolean {
+    if (waitsForLimits(this.deps, chain, task, () => this.deps.save(this.state))) return true
+    const reset = this.deps.machine.limitReset(chain.project, task)
+    if (reset !== null) {
+      if (chain.limitUntil !== reset || chain.modelWeek !== undefined) {
+        chain.limitUntil = reset
+        delete chain.modelWeek
+        this.deps.save(this.state)
+      }
+      return true
+    }
+    // The model's own week is used up: the task waits for it, and only the poll can say when it opens (BTN-816).
+    const week = this.deps.machine.modelWeek?.(chain.project, task) ?? null
+    if (week !== null) {
+      if (chain.modelWeek?.model !== week.model || chain.modelWeek.until !== week.until || chain.limitUntil !== undefined) {
+        chain.modelWeek = week
+        delete chain.limitUntil
+        this.deps.save(this.state)
+      }
+      return true
+    }
+    // A session would start without some of its tools; the page shows why (`packages` in the state).
+    return !fix && this.deps.machine.packagesBlocked(chain.project)
   }
 }

@@ -1,6 +1,7 @@
 import type { CiRun } from '../ci/model.js'
 import type { CiVerdict, RedRun } from '../ci/verdict.js'
 import type { EventDraft } from '../event-log/model.js'
+import type { MachineMainPort } from '../machine/port.js'
 import type { NewTask } from '../tracker/source.js'
 import { done, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { fixName } from './fix.js'
@@ -62,7 +63,8 @@ export function fakeMain(wait: number | null = null) {
     rerunError: null as unknown,
     events: [] as EventDraft[],
   }
-  const deps: MainCheckDeps = {
+  const deps: MainCheckDeps & MachineMainPort = {
+    history: async () => ({ commits: [], greens: [] }),
     peers: (project) => ci.peers[project] ?? [],
     head: async () => heads.shift() ?? null,
     verdict: () => ci.verdict,
