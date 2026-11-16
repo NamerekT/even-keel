@@ -17,12 +17,15 @@ export function cliCopy(copy: PinnedCli | undefined, options: { checkedCli(): bo
     return { received: whole, total: whole }
   }
   return {
-    view(): CliCopyView {
+    /** The view without `system`, which searches the disk: what a launch asks before each start. */
+    state(): Pick<CliCopyView, 'source' | 'status'> {
       return {
-        version, source: options.checkedCli() && !overridden() ? 'checked' : 'system',
+        source: options.checkedCli() && !overridden() ? 'checked' : 'system',
         status: downloading || copy?.downloading || extra?.downloading ? 'downloading' :copy?.error || extra?.error ? 'failed' : copy?.path() !== undefined && (extra === undefined || extra.path() !== undefined) ? 'ready' : 'missing',
-        system: system(), ...bytes(), approximate,
       }
+    },
+    view(): CliCopyView {
+      return { version, ...this.state(), system: system(), ...bytes(), approximate }
     },
     async download(): Promise<void> {
       if (!copy) throw new Error('No checked CLI for this platform')

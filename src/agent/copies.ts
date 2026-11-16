@@ -47,7 +47,7 @@ export function copies(
   }
   /** Missing, not failed: a failed download waits for the explicit retry. */
   const fetchesItself = (name: string) => {
-    const view = runtimes.get(name)?.cli?.view()
+    const view = runtimes.get(name)?.cli?.state()
     return consented.has(name) && view?.source === 'checked' && view.status === 'missing'
   }
   const auto = (name: string) => {
@@ -57,7 +57,7 @@ export function copies(
   return {
     view: () => Object.fromEntries([...runtimes].flatMap(([name, agent]) => agent.cli ? [[name, agent.cli.view()]] : [])),
     blocked(name: string) {
-      const view = runtimes.get(name)?.cli?.view()
+      const view = runtimes.get(name)?.cli?.state()
       if (view?.source !== 'checked' || view.status === 'ready') return undefined
       if (fetchesItself(name)) auto(name)
       return notice('agent.copyMissing', { title: AGENTS[name]!.title, agent: name })

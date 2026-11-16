@@ -185,6 +185,8 @@ export class AccountWatcher {
   private readonly balances = new Map<string, ReadBalance>()
   /** The account's own key `/credits` refused, by folder key: the balance is asked of the management key until it changes. */
   private readonly ownKeyRefused = new Map<string, string>()
+  private batching = false
+  private batched: AccountView | undefined
 
   private get tokens(): TokenAccounts {
     return { homes: this.options.homes, check: this.options.checkCloud, now: this.options.now }
@@ -214,7 +216,27 @@ export class AccountWatcher {
     if (home !== undefined && this.longToken(key) !== undefined && noteTokenRefused(home.dir, at)) void this.refresh()
   }
 
+  /**
+   * Runs `body` with one view for all its reads: a view reads every folder's files, and the machine's facts ask for it
+   * per project and per task. `body` must not change the accounts.
+   */
+  batch<T>(body: () => T): T {
+    if (this.batching) return body()
+    this.batching = true
+    try {
+      return body()
+    } finally {
+      this.batching = false
+      this.batched = undefined
+    }
+  }
+
   get view(): AccountView {
+    if (!this.batching) return this.build()
+    return (this.batched ??= this.build())
+  }
+
+  private build(): AccountView {
     const now = this.options.now()
     const accounts = this.known.map(({ home, status, error, keyHeld, openRouter, cloud, longToken }): AccountEntry => {
       const times = this.options.homes.times(home)

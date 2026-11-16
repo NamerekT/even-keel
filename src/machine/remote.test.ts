@@ -268,3 +268,50 @@ describe('the machine port over the link', () => {
     expect(snapshots).toEqual([snapshot])
   })
 })
+
+describe('MachineRunner facts', () => {
+  it('reads the local port inside one scope per snapshot and per post', async () => {
+    const { state, local } = machineOf()
+    let inside = false
+    const outside: string[] = []
+    const watched = new Proxy(local, {
+      get(target, key, receiver) {
+        const value: unknown = Reflect.get(target, key, receiver)
+        if (typeof value !== 'function') return value
+        return (...args: unknown[]) => {
+          if (!inside) outside.push(String(key))
+          return (value as (...each: unknown[]) => unknown).apply(target, args)
+        }
+      },
+    })
+    const scopes = vi.fn(<T>(body: () => T): T => {
+      inside = true
+      try {
+        return body()
+      } finally {
+        inside = false
+      }
+    })
+    const runner = new MachineRunner({
+      local: watched,
+      emit: async () => undefined,
+      boot: 'boot-1',
+      projects: () => [PROJECT],
+      tasks: () => Object.entries(state.live).map(([task, session]) => ({ task, sessions: [session] })),
+      runs: () => ['ABC-1'],
+      reported: () => [],
+      model: () => null,
+      accounts: () => ['main'],
+      limitsOf: () => null,
+      ledger: () => ({}),
+      scope: scopes,
+      log: () => {},
+    })
+    state.live['ABC-1'] = 'session-1'
+    runner.snapshot()
+    state.live['ABC-2'] = 'session-2'
+    await runner.publish()
+    expect(scopes).toHaveBeenCalledTimes(2)
+    expect(outside).toEqual([])
+  })
+})
