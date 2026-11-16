@@ -32,7 +32,7 @@ jobs:
       green: ${{ steps.runs.outputs.green }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: runs
         run: sh scripts/ci-already-green.sh "${{ github.event_name }}" "${{ github.sha }}"
@@ -46,7 +46,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: changes
         run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
@@ -78,7 +78,7 @@ jobs:
         shard: [1, 2, 3]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: changes
         run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
@@ -108,7 +108,7 @@ jobs:
       LABEL: local.even-keel
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: changes
         run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"

@@ -23,7 +23,7 @@ jobs:
       TAILNET_CLIENT: ${{ secrets.TS_OAUTH_CLIENT_ID }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
 
