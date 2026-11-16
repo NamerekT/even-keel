@@ -64,6 +64,13 @@ describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
     expect(record!.feed.map((line) => line.text)).toEqual(expect.arrayContaining([expect.stringContaining('GREETING.md')]))
     expect(record!.startedAt).not.toBeNull()
     expect(record!.lastActivityAt).not.toBeNull()
+    // The answer stands in the transcript between the question and the turn it went on with, not only in the window (EKR-116).
+    const asked = record!.feed.findIndex((line) => line.text === question.question)
+    const answered = record!.feed.findIndex((line) => line.kind === 'answer')
+    expect(asked).toBeGreaterThanOrEqual(0)
+    expect(answered).toBe(asked + 1)
+    expect(record!.feed[answered]!.answers).toEqual({ ask: asking.ask!.id, answers: { [question.question]: 'Formal' } })
+    expect(record!.feed.slice(answered + 1).map((line) => line.text)).toEqual(expect.arrayContaining([expect.stringContaining('GREETING.md')]))
 
     await run.post('demo/remove', {})
     expect(run.service.getState().demo).toBeNull()
