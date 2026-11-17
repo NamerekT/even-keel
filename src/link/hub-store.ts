@@ -104,9 +104,11 @@ export class DatabaseHubStore implements HubStore {
   }
 
   async joined(id: string, secretHash: string, about: MachineAbout, at: number): Promise<boolean> {
+    // A string issued without a name names the machine by its host (BTN-1056).
     const { rows } = await this.db.query<{ id: string }>(
-      'update machines set secret_hash = $2, about = $3, joined_at = $4 where id = $1 and joined_at is null and revoked_at is null returning id',
-      [id, secretHash, JSON.stringify(about), at],
+      `update machines set secret_hash = $2, about = $3, joined_at = $4, name = case when name = '' then $5 else name end
+        where id = $1 and joined_at is null and revoked_at is null returning id`,
+      [id, secretHash, JSON.stringify(about), at, about.host],
     )
     return rows.length > 0
   }

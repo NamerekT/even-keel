@@ -45,6 +45,8 @@ export interface LiveSource {
   transcript(sessionId: string, after: number): Promise<Feed | null>
   /** Calls `listener` each time the service says the session's transcript changed; returns the unsubscribe. */
   onTranscript(sessionId: string, listener: () => void): () => void
+  /** Calls `listener` each time a machine elsewhere joined, connected or went away (BTN-1056); returns the unsubscribe. */
+  onMachines(listener: () => void): () => void
   /** The checkpoint thresholds of a session the chain started; `null` — it started none. */
   checkpoint(sessionId: string): Promise<SessionCheckpoint | null>
   /** The address of picture `index` of the result of call `tool`, for an image line of the transcript. */
@@ -112,6 +114,7 @@ export class LiveConnection implements LiveSource {
   private base: EvenKeelState | null = null
   private readonly listeners = new Set<() => void>()
   private readonly transcriptListeners = new Map<string, Set<() => void>>()
+  private readonly machineListeners = new Set<() => void>()
   private stream: EventStream | null = null
   private retryMs = FIRST_RETRY_MS
   private retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -165,6 +168,11 @@ export class LiveConnection implements LiveSource {
       set.delete(listener)
       if (set.size === 0 && this.transcriptListeners.get(sessionId) === set) this.transcriptListeners.delete(sessionId)
     }
+  }
+
+  onMachines(listener: () => void): () => void {
+    this.machineListeners.add(listener)
+    return () => this.machineListeners.delete(listener)
   }
 
   checkpoint(sessionId: string): Promise<SessionCheckpoint | null> {
@@ -297,6 +305,10 @@ export class LiveConnection implements LiveSource {
       if (stream !== this.stream) return
       const { sessionId } = JSON.parse(event.data as string) as { sessionId: string }
       for (const listener of this.transcriptListeners.get(sessionId) ?? []) listener()
+    })
+    stream.addEventListener('machines', () => {
+      if (stream !== this.stream) return
+      for (const listener of this.machineListeners) listener()
     })
     stream.addEventListener('ping', () => {
       if (stream !== this.stream) return

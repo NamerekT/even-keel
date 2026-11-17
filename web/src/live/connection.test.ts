@@ -335,4 +335,13 @@ describe('LiveConnection', () => {
 
     expect(calls).toEqual(['first', 'second', 'second'])
   })
+
+  it('tells the listeners of the machines that one joined, connected or went away', () => {
+    let calls = 0
+    const off = live.onMachines(() => calls++)
+    last().emit('machines', { changedAt: 1 })
+    off()
+    last().emit('machines', { changedAt: 2 })
+    expect(calls).toBe(1)
+  })
 })

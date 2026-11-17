@@ -43,7 +43,7 @@ import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
-import { fakeMachineCommand, fakeMachineSignIns } from './fakeMachines.js'
+import { FakeNetwork, fakeMachineCommand, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -749,6 +749,7 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (params.get('milestones') === 'saved' && current.state !== null) current.state = withSavedMilestoneOrder(current.state, { project: 'ABC', order: ['v0.3 — служба', 'v0.1 — каркас'] })
   if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(prepareHeaderLevels(current.state, params.get('header'))))
+  const network = new FakeNetwork(params.get('machines'))
   const notify = () => {
     if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(current.state))
     for (const listener of listeners) listener()
@@ -813,6 +814,7 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       if (name === 'machines/takeOver' && params.get('chain') === 'folderTakenGone') throw fail('machines.notTaken', {})
+      if (network.command(name, body)) return
       const next =fakeBranchCommand(state, name, body, params.get('branch')) ?? fakeMachineCommand(state, name, body) ?? fakeCommand(state, name, body, launches)
       if (name === 'cli/download') setTimeout(() => {
         if (current.state === null) return
@@ -869,6 +871,7 @@ export function createFakeSource(search: string): LiveSource {
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },
     onTranscript: () => () => {},
+    onMachines: (listener) => network.on(listener),
     checkpoint: async (sessionId) => {
       await answer()
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
@@ -916,6 +919,8 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
       if (name === 'history/events') return current.state.eventLog as T
       if (name === 'history/task') return fakeTaskHistory(current.state, String(body.task)) as T
+      const machines = network.query(name, body)
+      if (machines !== undefined) return machines as T
       if (name === 'machines/addresses') {
         return [
           { address: 'box.example.com', from: 'allowedHosts' },

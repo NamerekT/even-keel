@@ -253,7 +253,8 @@ export interface ServerDeps {
   /** The machines elsewhere (BTN-1242): their window is BTN-1056; without it the calls answer nothing. */
   machines?: {
     addresses(): AddressChoice[]
-    invite(name: string): Promise<Invite>
+    /** `address` — "Hub address for machines" as the window chose it, written before the string is issued. */
+    invite(name: string, address?: string): Promise<Invite & { command: string }>
     revoke(machine: string): Promise<void>
     list(): Promise<MachineView[]>
     attach(machine: string, projects: string[]): Promise<void>

@@ -27,6 +27,14 @@ export interface AddressChoice {
   adapter?: string
 }
 
+/** The answer of `machines/invite`: the string, the machine it was issued for, until when it holds and the install command. */
+export interface MachineInvite {
+  line: string
+  machine: string
+  expiresAt: number
+  command: string
+}
+
 /** A machine of the network as the page sees it (BTN-1242; its window is BTN-1056). */
 export interface MachineView {
   id: string

@@ -26,7 +26,11 @@ Header account fixtures on `/p/ABC`: `?header=one|two|three|long|tokens|stale` s
 
 `?chain=modelWeek` gives the chain a task held by a model's own week (BTN-816) with a reset, `?chain=modelWeekUnknown` one without: the chip names the wait and the line under it the model and the reset, or says that the reset time is not known. Use them on `/p/ABC` and on a home card.
 
-`?machines=signIn|login|offline|nocli` adds two machines elsewhere (BTN-1245): "Example laptop" with no accounts — with a sign-in under way, off the link, or without the Claude CLI — and "Example desktop" signed in to every account. Use it on `/accounts`: each row gets "Not signed in on Example laptop", "Sign in" opens the machine's sign-in window (`login` opens it at once), and a code typed there signs the laptop in.
+`?machines=signIn|login|offline|nocli` adds two machines elsewhere (BTN-1245): "Example laptop" with no accounts — with a sign-in under way, off the link, or without the Claude CLI — and "Example desktop" signed in to every account. Use it on `/accounts`: each row gets "Not signed in on Example laptop", "Sign in" opens the machine's sign-in window (`login` opens it at once), and a code typed there signs the laptop in. The same machines are joined in the window "Add a machine" (BTN-1056): `&addMachine=machine-1` opens the laptop's step 3 (git without a user with `signIn`, no agent CLI with `nocli`, off the link with `offline`), `machine-2` the desktop's, an unknown id the "no such machine" state. `?addMachine=new` alone opens step 1; after "Issue the command" a fake machine joins 3 s later (`--wait '.add-machine__joined'`), and a window closed before that leaves a toast when it joins.
+
+```sh
+npm run shot -- '/p/ABC?addMachine=new&lang=ru' 'dialog[open]' --fill 'dialog .settings__text=hub.example.ts.net' --click 'dialog button[type=submit]' --wait '.add-machine__joined'
+```
 
 `scripts/shot.ts` is the cheap way for a session to look at the page: a Playwright MCP step returns the page's whole accessibility tree into the context, the script returns a few lines and the PNGs of the elements asked for, read only when needed. One run is ~4 s.
 

@@ -110,3 +110,11 @@ A machine of its own whose link is down follows and guards the tasks the hub gav
 Assumed: the hub's last word stays good while it is away — the task still open, its blockers, the unattended mode and the main branch as they were; the machine's own reads (the account's limits and its ledger) are enough to time the continuation; the kept brief carries what a handoff needs after a restart. If not, a session is continued for a task closed or paused meanwhile, or a handoff starts with an old prompt; the hub's log says `the machine moved its session while the hub was away`, the machine's `moved its session without the hub`.
 
 To check, on the benches, with a machine joined and running a chain session (entry 183): let the session hit a limit, stop the hub before the reset, see the machine continue it after the reset (and once more after a restart of the machine's service), start the hub and see the task's new session on the page and no second resume or handoff in either log.
+
+## The window "Add a machine" with a real machine (BTN-1056)
+
+The window (`docs/machines.md`, "Machines elsewhere") issues the command, waits for the machine and shows its report, projects and accounts. `src/service/machine-network.test.ts` covers the address saved with the string and the host's name for a nameless machine, `web/src/live/connection.test.ts` the `machines` event reaching the page, `web/src/machineAdd.test.ts` the checks and the accounts rows; the window itself ran only in `dev:fake`, where a machine joins 3 s after the command.
+
+Assumed: the `machines` event comes within a second of the join, so step 2 turns into step 3 by itself; an address picked in the window is the one the hub then listens and signs for (the door re-applied before the string is made); the report's host is a fitting name. If the event never comes, the window waits on step 2 until it is reopened; if the address is wrong, the machine's install says it cannot reach the hub.
+
+To check, on the benches (entry 181): open Settings → Interface → "+ Machine", pick an adapter's address, leave the name empty, issue, run the command on the second computer and see step 3 come without a reload, named by its host, with its Node, git and CLIs; tick a project, connect, and see its folder assigned on the machine; issue again, close the window, run the command and see the toast open step 3.

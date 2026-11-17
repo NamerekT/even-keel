@@ -32,7 +32,7 @@ export class MemoryHubStore implements HubStore {
   async joined(id: string, secretHash: string, about: MachineAbout, at: number) {
     const found = this.machines.get(id)
     if (found === undefined || found.joinedAt !== null || found.revokedAt !== null) return false
-    Object.assign(found, { secretHash, about, joinedAt: at })
+    Object.assign(found, { secretHash, about, joinedAt: at, name: found.name === '' ? about.host : found.name })
     return true
   }
 
