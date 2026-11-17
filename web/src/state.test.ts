@@ -920,10 +920,10 @@ describe('chainBlocks', () => {
     })
 
     it('labels each lane\'s task with its machine where the hub has more than one', () => {
-      const state = stateOf({ tasks, chain: chain({ active: lanes, projects }), machineNames: { pc: 'PC', srv: 'Server' } })
+      const state = stateOf({ tasks, chain: chain({ active: lanes, projects }), machineNames: { pc: 'PC', srv: 'Server' }, machineColors: { pc: '#6f8f7f', srv: '#a08060' } })
       expect(chainBlocks(state, 'ABC').map((block) => [block.id, block.machines])).toEqual([
-        ['ABC-1', ['PC']],
-        ['ABC-2', ['Server']],
+        ['ABC-1', [{ id: 'pc', name: 'PC', color: '#6f8f7f' }]],
+        ['ABC-2', [{ id: 'srv', name: 'Server', color: '#a08060' }]],
         ['ABC-3', undefined],
       ])
     })
@@ -935,7 +935,7 @@ describe('chainBlocks', () => {
         { sessionId: 's1', at: '2026-01-01T10:00:00.000Z', how: 'launch' as const, resumed: 0, answers: 0, machine: 'pc' },
       ]
       const state = stateOf({ tasks: [task('ABC-1', 'Won')], taskSessions: { 'ABC-1': runs }, chain: chain({ projects: { ABC: { order: [], waiting: [], backlog: [], error: null } } }), machineNames: { pc: 'PC', srv: 'Server' } })
-      expect(chainBlocks(state, 'ABC')[0]?.machines).toEqual(['PC', 'Server'])
+      expect(chainBlocks(state, 'ABC')[0]?.machines).toEqual([{ id: 'pc', name: 'PC' }, { id: 'srv', name: 'Server' }])
     })
 
     it('labels nothing with one machine', () => {

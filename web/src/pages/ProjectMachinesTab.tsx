@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import type { EvenKeelState, PoolMachine, ProjectPool } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
+import { machinePath } from '../machineColor.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
@@ -62,7 +64,9 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
                     <span className={`pool__dot${machine.online ? ' pool__dot--online' : ''}`} aria-hidden="true" />
                     <span className="pool__main">
                       <span className="pool__name">
-                        {machine.name}
+                        <Link to={machinePath(machine.id)} className="pool__link">
+                          {machine.name}
+                        </Link>
                         {machine.own && <span className="tag">{t.pool.own}</span>}
                         {!machine.online && <span className="pool__offline">{t.pool.offline}</span>}
                       </span>

@@ -43,7 +43,7 @@ import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
-import { FAKE_MACHINE_NAMES, FakeNetwork, fakeMachineCommand, fakeMachineSignIns } from './fakeMachines.js'
+import { FAKE_MACHINE_NAMES, FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -368,6 +368,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.has('machines') && current.state !== null) {
     current.state.machineSignIns = fakeMachineSignIns(current.state, params.get('machines'))
     current.state.machineNames = FAKE_MACHINE_NAMES
+    Object.assign(current.state, fakeMachineColors(FAKE_MACHINE_NAMES))
   }
   if (params.get('git') === 'plain' && current.state !== null) {
     const { projects } = current.state.config
@@ -520,6 +521,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('chain') === 'lanes' && active) {
     const state = current.state!
     state.machineNames = { pc: 'Workstation', srv: 'Home server' }
+    Object.assign(state, fakeMachineColors(state.machineNames))
     state.chain.active = [{ ...active, machine: 'pc' }, { project: active.project, machine: 'srv', current: { task: 'ABC-6', sessionId: null, since: ago(1) }, paused: false, error: null }, ...state.chain.active.slice(1)]
     const run = (sessionId: string, at: number, machine: string) => ({ sessionId, at: ago(at), how: 'checkpoint' as const, resumed: 0, answers: 0, machine })
     state.taskSessions['ABC-4'] = [run('lanes-2', 120, 'srv'), run('lanes-1', 300, 'pc')]
@@ -528,6 +530,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('chain') === 'stranded' && active) {
     const state = current.state!
     state.machineNames = { pc: 'Workstation', srv: 'Home server' }
+    Object.assign(state, fakeMachineColors(state.machineNames))
     state.stranded = { [active.project]: { 'ABC-6': { machine: 'srv', pushed: true }, 'ABC-7': { machine: 'srv', pushed: false } } }
   }
   const packageWaits: Record<string, string> = { packages: 'probing', packagesSilent: 'silent', gateway: 'gateway' }
@@ -831,7 +834,13 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       if (name === 'machines/takeOver' && params.get('chain') === 'folderTakenGone') throw fail('machines.notTaken', {})
-      if (network.command(name, body)) return
+      if (network.command(name, body)) {
+        // A colour or the own machine's capacity is the state's too: the chain's tags and the shared settings (BTN-1272).
+        if (name === 'machines/color' && state.machineNames !== undefined) current = { ...current, state: { ...state, machineColors: network.colorsOf(state.machineNames) } }
+        if (name === 'machines/capacity' && body.machine === state.ownMachine) current = { ...current, state: { ...state, chain: { ...state.chain, parallel: Number(body.capacity) } } }
+        notify()
+        return
+      }
       const next =fakeBranchCommand(state, name, body, params.get('branch')) ?? fakeMachineCommand(state, name, body) ?? fakeCommand(state, name, body, launches)
       if (name === 'cli/download') setTimeout(() => {
         if (current.state === null) return
@@ -936,6 +945,11 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
       if (name === 'history/events') return current.state.eventLog as T
       if (name === 'history/task') return fakeTaskHistory(current.state, String(body.task)) as T
+      if (name === 'machines/view') {
+        const page = network.page(String(body.machine), current.state)
+        if (page === undefined) throw fail('machines.unknown', {})
+        return page as T
+      }
       const machines = network.query(name, body)
       if (machines !== undefined) return machines as T
       if (name === 'machines/addresses') {

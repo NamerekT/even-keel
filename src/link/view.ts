@@ -100,6 +100,41 @@ export interface MachineAccount {
 /** The machine's sign-in under way as its panel shows it (`AccountLogin`); the code the person types goes back through the hub. */
 export type MachineLogin = Pick<AccountLogin, 'agent' | 'method' | 'target' | 'startedAt' | 'urls' | 'deviceCode' | 'output' | 'error' | 'codeSent'>
 
+/** The page of one machine, the own one or one elsewhere (BTN-1272, `docs/machines.md`, "The machine's page"). */
+export interface MachinePage {
+  id: string
+  name: string
+  /** The hub's own machine: always on the link, its capacity is `parallel`, it cannot be revoked. */
+  own: boolean
+  online: boolean
+  joinedAt: number | null
+  /** Its report; the own machine's is read when its page is first opened. `null` — it has not told one yet. */
+  about: MachineAbout | null
+  /** Its colour, its own or the palette's (`picked` says which), and the palette the page offers. */
+  color: string
+  picked: boolean
+  palette: string[]
+  /** How many of the hub's tasks it runs at once. */
+  capacity: number
+  projects: MachineProject[]
+  accounts: Array<MachineAccount & { limits: import('../limits/model.js').RateLimits | null }>
+  /** The agents whose CLI the machine does not find. */
+  missing: string[]
+  /** Its sessions not finished. */
+  sessions: Array<Pick<import('../state.js').SessionView, 'task' | 'sessionId' | 'agent' | 'model' | 'lamp' | 'cwd'>>
+  taken: TakenFolder[]
+}
+
+/** A project of a machine's pool as its page shows it: the folder there, whether it takes the tasks, its packages. */
+export interface MachineProject {
+  project: string
+  folder: string
+  enabled: boolean
+  /** The project's packages are not ready there: the chain takes none of its tasks on the machine. */
+  packagesBlocked: boolean
+  packagesPause: import('../notice/notice.js').Notice | null
+}
+
 /** A project's folder held by another machine (`docs/machines.md`, "The folder's mark"). */
 export interface TakenFolder {
   project: string

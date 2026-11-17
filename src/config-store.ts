@@ -175,6 +175,12 @@ export class ConfigStore {
     this.saveShared({ ...form, machinesAddress: address }, form)
   }
 
+  /** `parallel` alone: the own machine's capacity, set on its page (BTN-1272). */
+  saveParallel(parallel: number): void {
+    const form = this.view().shared
+    this.saveShared({ ...form, parallel }, form)
+  }
+
   saveCli(provider: string, source: 'checked' | 'system'): void {
     const form = this.view().shared
     this.saveShared({ ...form, cli: { ...form.cli, [provider]: source } }, form)

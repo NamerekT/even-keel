@@ -379,6 +379,14 @@
   width: 100%;
 }
 
+/* A value set elsewhere (this machine's capacity, BTN-1272): the value and the link to where it is set. */
+.settings__value-link {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-12);
+  font-size: var(--text-14);
+}
+
 .settings__control > .settings__text,
 .settings__control > .field-strip > .settings__text {
   width: 100%;

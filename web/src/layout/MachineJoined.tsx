@@ -13,8 +13,8 @@ import { MachineTokenDialog, type MachineTokenTarget } from './MachineTokenDialo
 
 const agentName = (agent: string): string => t.account.agents[agent as keyof typeof t.account.agents] ?? agent
 
-/** A check as its row reads: what was found, and what follows when it is missing. */
-function checkText(check: MachineCheck): { text: string; effect?: string } {
+/** A check as its row reads: what was found, and what follows when it is missing; the machine's page reads it too. */
+export function checkText(check: MachineCheck): { text: string; effect?: string } {
   const text = t.machines
   if (check.id === 'node') {
     const { version } = check as Extract<MachineCheck, { id: 'node' }>

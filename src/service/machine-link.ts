@@ -68,6 +68,8 @@ export interface LinkedMachine {
   records: MachineRecords
   /** What the page and the chat read of the machine's sessions and accounts: its mirror, never the machine's objects. */
   page: PageReads
+  /** The hub's mirror of a machine, the own one too; `undefined` — one elsewhere that has not posted a snapshot since the hub started. */
+  mirror(machine: string): RemoteMachine | undefined
   /** What the page, the hooks and the chat ask of the machine besides the chain: commands over the link. */
   services: MachineServices
   /** The door for machines elsewhere (BTN-1242): open while "Hub address for machines" is set. */
@@ -390,6 +392,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     reassigner,
     records,
     page: remote.page,
+    mirror: (machine) => (machine === own ? remote : network.remote(machine)),
     services,
     network,
     start: async () => {

@@ -107,6 +107,8 @@ const COMMANDS: Record<string, Command> = {
       ...(typeof body.folder === 'string' && body.folder.trim() !== '' && { folder: body.folder.trim() }),
     }),
   'machines/enable': ({ pool }, body) => pool?.enable(projectOf(body), textOf(body.machine, 'machine'), switchOf(body.enabled, 'enabled')),
+  'machines/capacity': ({ machinePage }, body) => machinePage?.capacity(textOf(body.machine, 'machine'), body.capacity as number),
+  'machines/color': ({ machinePage }, body) => machinePage?.color(textOf(body.machine, 'machine'), body.color === null ? null : textOf(body.color, 'color')),
   'machines/takeOver': ({ machines }, body) => machines?.takeOver(typeof body.machine === 'string' ? body.machine : undefined, textOf(body.project, 'project'), textOf(body.owner, 'owner')),
   'machines/login': ({ machines }, body) => machines?.login(
     textOf(body.machine, 'machine'),
@@ -204,6 +206,10 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'machines/addresses': async ({ machines }) => machines?.addresses() ?? [],
   'machines/list': async ({ machines }) => (await machines?.list()) ?? [],
   'machines/pool': async ({ pool }, body) => (await pool?.view(projectOf(body))) ?? { machines: [], others: [] },
+  'machines/view': async ({ machinePage }, body) => {
+    if (machinePage === undefined) throw fail('machines.unknown', {})
+    return machinePage.view(textOf(body.machine, 'machine'))
+  },
   'machines/invite': async ({ machines }, body) =>
     machines?.invite(typeof body.name === 'string' ? body.name : '', typeof body.address === 'string' ? body.address : undefined),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),

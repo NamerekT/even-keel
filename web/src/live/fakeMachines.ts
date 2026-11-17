@@ -1,5 +1,6 @@
 import { notice } from '../../../src/notice/notice.js'
-import type { EvenKeelState, JobStep, MachineAbout, MachineInvite, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
+import { MACHINE_PALETTE, machineColors } from '../../../src/link/colors.js'
+import type { EvenKeelState, JobStep, MachineAbout, MachineInvite, MachinePage, MachineProject, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
 
 /** A string issued in `dev:fake` is joined with this much later (BTN-1056). */
 const JOIN_MS = 3_000
@@ -75,11 +76,75 @@ export class FakeNetwork {
     for (const listener of this.listeners) listener()
   }
 
+  /** The colours picked on the machines' pages and their capacities (BTN-1272), by machine. */
+  private readonly colors = new Map<string, string | null>()
+  private readonly capacities = new Map<string, number>()
+
+  /** Each machine of `names` with its colour, the picked one or the palette's by its place. */
+  colorsOf(names: Record<string, string>): Record<string, string> {
+    return machineColors(Object.keys(names).map((id) => ({ id, color: this.colors.get(id) ?? null })))
+  }
+
+  /**
+   * The page of a machine of the state's `machineNames` (BTN-1272): the own one reports Windows and runs the state's
+   * sessions; the laptop is not signed in to the second account and the first project's packages are not ready there.
+   */
+  page(id: string, state: EvenKeelState): MachinePage | undefined {
+    const names = state.machineNames ?? {}
+    const name = names[id]
+    if (name === undefined) return undefined
+    const own = id === OWN
+    const view = this.machines.find((machine) => machine.id === id)
+    const report = own ? about('workstation', { os: 'win32 10.0.26200', root: null, agents: { claude: '2.1.322', codex: '0.98.0' } }) : (view?.about ?? about(name.toLowerCase().replace(/\W+/g, '-')))
+    const pooled = state.projects.filter((project) => own || this.pools.get(project)?.some((row) => row.id === id) || view?.projects.includes(project) || project === state.projects[0])
+    const projects: MachineProject[] = pooled.map((project, index) => {
+      const row = (own ? this.rows(project) : this.pools.get(project))?.find((each) => each.id === id)
+      return {
+        project,
+        folder: row?.folder ?? `${report.root ?? '/home/example/projects'}/${folderName(this.repoOf(project))}`,
+        enabled: row?.enabled ?? true,
+        packagesBlocked: id === 'machine-1' && index === 0,
+        packagesPause: null,
+      }
+    })
+    const color = this.colors.get(id) ?? null
+    return {
+      id,
+      name,
+      own,
+      online: own || (view?.online ?? true),
+      joinedAt: own ? null : (view?.joinedAt ?? Date.now() - 86_000_000),
+      about: report,
+      color: this.colorsOf(names)[id]!,
+      picked: color !== null,
+      palette: [...MACHINE_PALETTE],
+      capacity: this.capacities.get(id) ?? (own ? state.chain.parallel : 1),
+      projects,
+      accounts: state.account.accounts.map((entry, index) => {
+        const signedIn = own ? entry.status?.loggedIn === true : !(id === 'machine-1' && index > 0)
+        return { key: entry.key, agent: entry.agent, email: entry.status?.email ?? null, signedIn, limits: signedIn ? state.limits : null }
+      }),
+      missing: [],
+      sessions: own ? state.sessions.filter((session) => session.lamp !== 'finished').map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })) : [],
+      taken: [],
+    }
+  }
+
   /**
    * `machines/projects` and `machines/enable`; `false` — another command. `machines/connect` puts the machine into the
    * pool turned off and answers `false` too: its job is the state's, `fakeMachineCommand`.
    */
   command(name: string, body: Record<string, unknown>): boolean {
+    if (name === 'machines/capacity') {
+      this.capacities.set(String(body.machine), Number(body.capacity))
+      this.changed()
+      return true
+    }
+    if (name === 'machines/color') {
+      this.colors.set(String(body.machine), typeof body.color === 'string' ? body.color : null)
+      this.changed()
+      return true
+    }
     if (name === 'machines/enable') {
       const project = String(body.project)
       this.pools.set(project, this.rows(project).map((row) => (row.id === body.machine ? { ...row, enabled: body.enabled === true } : row)))
@@ -112,6 +177,12 @@ const OWN_NAME = 'Workstation'
 
 /** The machine names of `?machines=…`: the hub's own and the two machines elsewhere, so the project's "Machines" shows. */
 export const FAKE_MACHINE_NAMES: Record<string, string> = { [OWN]: OWN_NAME, 'machine-1': 'Example laptop', 'machine-2': 'Example desktop' }
+
+/** The state's machine colours and own machine where `dev:fake` has several machines (BTN-1272): the palette's, `pc` own. */
+export const fakeMachineColors = (names: Record<string, string>): Pick<EvenKeelState, 'machineColors' | 'ownMachine'> => ({
+  machineColors: machineColors(Object.keys(names).map((id) => ({ id }))),
+  ownMachine: OWN,
+})
 
 const folderName = (path: string): string => path.split(/[\\/]/).filter((part) => part !== '').pop() ?? 'project'
 

@@ -1,5 +1,5 @@
 import { createServer } from 'node:http'
-import { userInfo } from 'node:os'
+import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { answers } from '../account/network.js'
@@ -35,6 +35,10 @@ import { gitSwitchBlock, turnGitOn, uncommittedChanges } from '../projects/git-m
 import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
 import { onMachine, poolControl } from './machine-pool.js'
+import { machinePageControl } from './machine-page.js'
+import { machineAbout } from '../machine/about.js'
+import type { MachineAbout } from '../link/view.js'
+import { installed } from '../updates/watcher.js'
 import { createEvenKeelServer } from '../server.js'
 import { answerComment, type AskAnswers } from '../sessions/ask.js'
 import { fromCarried, type CarriedFile } from '../machine/services.js'
@@ -281,6 +285,8 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     gitFound: machine.gitFound(),
     machineSignIns: ctx.machineLink.network.signIns(),
     machineNames: ctx.machineLink.network.names(),
+    machineColors: ctx.machineLink.network.colors(),
+    ownMachine: ctx.machineLink.machines.own(),
     stranded: ctx.machineLink.reassigner.stranded(),
     jobs: stepJobs.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
@@ -385,6 +391,29 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const claude = runSettings(ctx.configStore.current, project).provider === CLAUDE
       return { repo, remotes: await remotesIn(runGit, repo), branch: ctx.branchOf(project), claude }
     },
+  })
+  const network = ctx.machineLink.network
+  let ownAbout: Promise<MachineAbout> | undefined
+  const machinePage = machinePageControl({
+    own: () => ctx.machineLink.machines.own(),
+    record: (machine) => network.record(machine),
+    online: (machine) => network.connected(machine),
+    mirror: (machine) => ctx.machineLink.mirror(machine),
+    ownAbout: () => {
+      ownAbout ??= machineAbout({ evenKeel: installed(root).version, root: null, git: runGit, home: homedir() }).catch((error: unknown) => {
+        ownAbout = undefined
+        throw error
+      })
+      return ownAbout
+    },
+    parallel: () => ctx.configStore.current.parallel,
+    setParallel: (count) => ctx.configStore.saveParallel(count),
+    folders: (machine) => network.foldersOf(machine),
+    colors: () => network.colors(),
+    taken: (machine) => network.takenOn(machine),
+    setCapacity: (machine, capacity) => network.setCapacity(machine, capacity),
+    setColor: (machine, color) => network.setColor(machine, color),
+    log: (line) => console.log(line),
   })
   return createEvenKeelServer({
     cli: ctx.cliCopies,
@@ -722,6 +751,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     backup: ctx.backups,
     machines: ctx.machineLink.network,
     pool,
+    machinePage,
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)

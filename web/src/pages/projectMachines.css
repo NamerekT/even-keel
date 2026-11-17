@@ -51,6 +51,16 @@
   font-weight: 600;
 }
 
+/* The machine's name opens its page (BTN-1272). */
+.pool__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pool__link:hover {
+  text-decoration: underline;
+}
+
 .pool__offline {
   color: var(--fg-muted);
   font-size: var(--text-12);

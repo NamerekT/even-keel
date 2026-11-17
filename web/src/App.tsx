@@ -25,6 +25,7 @@ import { EventLogPage } from './pages/EventLogPage.js'
 import { LOG_PATH } from './layout/eventLog.js'
 import { knownSessions, knownTasks, pruneDrafts } from './pages/chatDraft.js'
 import { Home } from './pages/Home.js'
+import { MachinePage } from './pages/MachinePage.js'
 import { NotFound } from './pages/NotFound.js'
 import { Project } from './pages/Project.js'
 import { ProjectAddPage } from './pages/ProjectAdd.js'
@@ -84,6 +85,7 @@ export function App() {
                 <Route path="/status" element={<StatusPage state={state} />} />
                 <Route path="/accounts" element={<AccountsPage state={state} />} />
                 <Route path="/accounts/add" element={<LegacyAdd />} />
+                <Route path="/machines/:id" element={<MachinePage state={state} />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BasementSlot.Provider>

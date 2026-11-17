@@ -1,6 +1,7 @@
 import { Fragment, useEffect, type ReactNode } from 'react'
 import { ProtectionSettings } from './ProtectionSettings.js'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
+import { machinePath } from '../machineColor.js'
 import { EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { CliSourceChoice } from '../layout/CliSource.js'
 import type { CliSource } from '../layout/cliLock.js'
@@ -264,7 +265,22 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             onChange={(on) => void modes.send('chain/unattended', { on })}
           />
           {modesFailure}
-          {numberRow('parallel', t.shared.parallel, wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null, t.shared.parallelHint)}
+          {/* With machines elsewhere `parallel` is this machine's capacity, set on its page (BTN-1272). */}
+          {Object.keys(state.machineNames ?? {}).length > 1 && state.ownMachine !== undefined ? (
+            <Row
+              className="settings__field"
+              label={t.machinePage.capacityOwn}
+              hint={t.machinePage.sharedHint}
+              control={
+                <span className="settings__value-link">
+                  <span>{text('parallel')}</span>
+                  <Link to={machinePath(state.ownMachine)}>{t.machinePage.open}</Link>
+                </span>
+              }
+            />
+          ) : (
+            numberRow('parallel', t.shared.parallel, wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null, t.shared.parallelHint)
+          )}
         </Section>
         <Section title={t.shared.sections.tasks}>
           {select(

@@ -19,7 +19,7 @@ import { say, t } from './i18n/index.js'
 import { shownWork } from '../../src/shown-work.js'
 import { taskLamp } from './taskLamp.js'
 import { completionTasks, needsReply } from './completion.js'
-import { laneOfTask, lanesOf, taskMachines } from './lanes.js'
+import { laneOfTask, lanesOf, taskMachines, type TaskMachine } from './lanes.js'
 
 type CiWait = NonNullable<ActiveChain['ciWait']>
 type LimitsWait = NonNullable<ActiveChain['limitsWait']>
@@ -78,8 +78,8 @@ export interface ChainBlock {
   start: SessionStart | null
   /** Since when the chain is delivering the user's answer to the task's session: stopping it and resuming it with the answer. */
   answering?: string
-  /** The names of the machines it ran on, oldest first, its lane's now last (`taskMachines`); absent — one machine. */
-  machines?: string[]
+  /** The machines it ran on, oldest first, its lane's now last (`taskMachines`); absent — one machine. */
+  machines?: TaskMachine[]
   /** A machine gone holds the task (BTN-1270): its name, and whether the task's branch is on the remote so it can move. */
   stranded?: { machine: string; pushed: boolean | null }
   /** A red main stopped the task's session; it goes on once main is fixed. */
@@ -613,7 +613,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
           ? { ...seen, lamp: 'working' as const }
           : seen
     const sessions = state.taskSessions[id] ?? []
-    const machines = taskMachines(state.machineNames, sessions, lane)
+    const machines = taskMachines(state, sessions, lane)
     const stranded = lane === undefined ? state.stranded?.[project]?.[id] : undefined
     const lamp = taskLamp(task, session, refused.has(id))
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)

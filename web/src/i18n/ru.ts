@@ -14,6 +14,7 @@ import { creationRu } from './creation-ru.js'
 import { transferRu } from './transfer-ru.js'
 import { machinesRu } from './machines-ru.js'
 import { poolRu } from './pool-ru.js'
+import { machinePageRu } from './machine-page-ru.js'
 import type { UpdateBlock, UpdateStep } from '../../../src/updates/model.js'
 import type { ContextResets } from '../state.js'
 import { noticesRu } from './notices-ru.js'
@@ -434,6 +435,7 @@ export const ru = {
   transfer: transferRu,
   machines: machinesRu,
   pool: poolRu,
+  machinePage: machinePageRu,
   basement: {
     tapes: ['ОСТОРОЖНО', 'НЕ ВХОДИТЬ', 'ИДУТ РАБОТЫ', 'ПРОХОД ЗАКРЫТ'],
     stats: ['Что ты тут забыл?', 'Мы ещё работаем над страницей, не мешай!'],

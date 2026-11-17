@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { taskRunText, type TaskRun } from '../../../src/sessions/runs.js'
+import type { TaskMachine } from '../lanes.js'
 import type { TaskLinks } from '../state.js'
 import { Links } from '../ui/Links.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
@@ -8,7 +9,7 @@ import { MachineTag } from '../ui/MachineTag.js'
 interface BlockTailProps {
   run: TaskRun | null
   /** The machines the task ran on (`ChainBlock.machines`); absent — one machine. */
-  machines?: string[] | undefined
+  machines?: TaskMachine[] | undefined
   links: TaskLinks
   onCard: (task: string) => void
   /** "To the backlog" or "To Todo", always at the end. */

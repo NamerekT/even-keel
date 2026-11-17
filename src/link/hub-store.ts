@@ -20,6 +20,8 @@ export interface MachineRecord {
   about: MachineAbout | null
   /** How many of the hub's tasks the machine runs at once (BTN-993); absent — a store before step 56, which counts 1. */
   capacity?: number
+  /** The colour picked on its page, `#rrggbb` (BTN-1272); `null` — the palette's; absent — a store before step 59. */
+  color?: string | null
 }
 
 export type NewMachine = Pick<MachineRecord, 'id' | 'name' | 'secretHash' | 'createdAt'> & { inviteExpires?: number }
@@ -36,6 +38,7 @@ export interface HubStore {
   joined(id: string, secretHash: string, about: MachineAbout, at: number): Promise<boolean>
   described(id: string, about: MachineAbout): Promise<void>
   setCapacity(id: string, capacity: number): Promise<void>
+  setColor(id: string, color: string | null): Promise<void>
   /** Keeps the command under the machine's next number. */
   addCommand(id: string, command: Command, at: number): Promise<number>
   commandsAfter(id: string, seq: number): Promise<NumberedCommand[]>
@@ -55,6 +58,7 @@ interface MachineRow {
   joined_at?: string | null
   about?: string | null
   capacity?: number | null
+  color?: string | null
 }
 
 const countOf = (value: string | null | undefined): number | null => (value === null || value === undefined ? null : Number(value))
@@ -73,6 +77,7 @@ function recordOf(row: MachineRow): MachineRecord {
     joinedAt: countOf(row.joined_at),
     about: row.about === null || row.about === undefined ? null : (JSON.parse(row.about) as MachineAbout),
     ...(row.capacity === undefined ? {} : { capacity: row.capacity ?? 1 }),
+    ...(row.color === undefined ? {} : { color: row.color }),
   }
 }
 
@@ -124,6 +129,10 @@ export class DatabaseHubStore implements HubStore {
 
   async setCapacity(id: string, capacity: number): Promise<void> {
     await this.db.query('update machines set capacity = $2 where id = $1', [id, capacity])
+  }
+
+  async setColor(id: string, color: string | null): Promise<void> {
+    await this.db.query('update machines set color = $2 where id = $1', [id, color])
   }
 
   addCommand(id: string, command: Command, at: number): Promise<number> {

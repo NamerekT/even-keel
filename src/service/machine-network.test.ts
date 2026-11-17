@@ -1,6 +1,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { createServer } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
+import { MACHINE_PALETTE } from '../link/colors.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { hubIdentity } from '../link/identity.js'
 import { MemoryMachineStore } from '../link/link.fixture.js'
@@ -41,7 +42,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
 
   const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>) => {
     const db = await PGlite.create()
-    await db.exec(fixture(58))
+    await db.exec(fixture(59))
     const settings = { address: null as string | null }
     const changes: number[] = []
     const network = new MachineNetwork({
@@ -108,6 +109,22 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     settings.address = null
     await network.apply()
     await expect(joinHub(pending, ABOUT, 2_000)).rejects.toThrow()
+  })
+
+  it("gives each machine its own colour or the palette's, and names the folders of its pool (BTN-1272)", async () => {
+    const LAPTOP = '99999999-9999-4999-8999-999999999999'
+    const { network } = await started()
+    await network.refresh()
+    expect(network.colors()).toEqual({ [OWN]: '#6f8f7f', [LAPTOP]: MACHINE_PALETTE[1] })
+    await network.setColor(LAPTOP, ' #8A8F5C ')
+    await network.setColor(OWN, '#123456')
+    expect(network.colors()).toEqual({ [OWN]: '#123456', [LAPTOP]: '#8a8f5c' })
+    await network.setColor(OWN, null)
+    expect(network.colors()[OWN]).toBe(MACHINE_PALETTE[0])
+    await expect(network.setColor(LAPTOP, 'teal')).rejects.toMatchObject({ notice: { code: 'request.required' } })
+
+    expect(await network.foldersOf(OWN)).toEqual([{ project: ABC, folder: 'D:\\repos\\example', enabled: true }])
+    expect(await network.foldersOf(LAPTOP)).toEqual([{ project: ABC, folder: '/home/example/work/abc', enabled: false }])
   })
 
   it("keeps the address the window issues a string with, and names a machine issued without a name by its host at the join", async () => {

@@ -5,6 +5,7 @@ import type { TokenAccountOf } from '../account/model.js'
 import { installCommandOf } from '../cli-install.js'
 import { fail } from '../notice/notice.js'
 import { hubUrlOf } from '../link/address.js'
+import { colorOf, machineColors } from '../link/colors.js'
 import type { HubCertificate } from '../link/cert.js'
 import { createHubServer } from '../link/hub-server.js'
 import type { HubStore, MachineRecord } from '../link/hub-store.js'
@@ -23,6 +24,7 @@ import { isInside, samePath } from '../paths.js'
 import type { Queryable } from '../storage/database.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { BriefSender } from './hub-brief.js'
+import { machineAccountOf } from './machine-page.js'
 
 export type { AddressChoice, MachineView }
 
@@ -130,6 +132,7 @@ export class MachineNetwork {
   private revokedIds = new Set<string>()
   private pools = new Map<string, string[]>()
   private machineNames: Record<string, string> = {}
+  private colorsById: Record<string, string> = {}
   /** By machine and project, the connect job's step that shows a clone's progress there. */
   private readonly clones = new Map<string, (progress: CloneProgress) => void>()
 
@@ -183,6 +186,11 @@ export class MachineNetwork {
     return this.machineNames
   }
 
+  /** The colour of each machine the hub ever had (BTN-1272), its own or the palette's, as `refresh` last read them. */
+  colors(): Record<string, string> {
+    return this.colorsById
+  }
+
   revoked(machine: string): boolean {
     return this.revokedIds.has(machine)
   }
@@ -203,6 +211,7 @@ export class MachineNetwork {
     const machines = await this.options.store.listMachines()
     this.revokedIds = new Set(machines.filter((record) => record.revokedAt !== null).map((record) => record.id))
     this.machineNames = Object.fromEntries(machines.map((record) => [record.id, record.name]))
+    this.colorsById = machineColors(machines)
     const { rows } = await this.options.db.query<{ project_id: string; machine_id: string }>('select project_id, machine_id from project_machines where enabled order by machine_id')
     const pools = new Map<string, string[]>()
     for (const row of rows) pools.set(row.project_id, [...(pools.get(row.project_id) ?? []), row.machine_id])
@@ -216,7 +225,43 @@ export class MachineNetwork {
     await this.options.store.setCapacity(record.id, capacity)
     const peer = this.peers.get(record.id)
     if (peer !== undefined) peer.capacity = capacity
+    this.options.log(`machines: machine ${record.id} (${record.name}) runs ${capacity} of the hub's task(s) at once`)
     this.options.changed()
+  }
+
+  /** The machine's colour (BTN-1272), the own one's too; `null` — back to the palette's. */
+  async setColor(machine: string, color: string | null): Promise<void> {
+    const record = await this.options.store.machine(machine)
+    if (record === undefined || record.revokedAt !== null) throw fail('machines.unknown', {})
+    const picked = color === null ? null : colorOf(color)
+    if (picked === undefined) throw fail('request.required', { field: 'color' })
+    await this.options.store.setColor(record.id, picked)
+    await this.refresh()
+    this.options.changed()
+  }
+
+  /** The projects of the machine's pool, each with its folder there and whether the machine takes its tasks. */
+  async foldersOf(machine: string): Promise<Array<{ project: string; folder: string; enabled: boolean }>> {
+    const own = machine === this.options.own()
+    const root = own ? null : ((await this.options.store.machine(machine))?.about?.root ?? null)
+    const { rows } = await this.options.db.query<{ project_id: string; folder: string | null; enabled: boolean }>(
+      'select project_id, folder, enabled from project_machines where machine_id = $1 order by project_id',
+      [machine],
+    )
+    return rows.flatMap((row) => {
+      const folder = own ? this.options.repoOf(row.project_id) : this.folderOf(row.project_id, row.folder, root)
+      return folder === undefined ? [] : [{ project: row.project_id, folder, enabled: row.enabled }]
+    })
+  }
+
+  /** The hub's row of a machine, the own one too. */
+  record(machine: string): Promise<MachineRecord | undefined> {
+    return this.options.store.machine(machine)
+  }
+
+  /** The projects whose folder on the machine another machine's mark holds. */
+  takenOn(machine: string): TakenFolder[] {
+    return [...(this.taken.get(machine)?.values() ?? [])]
   }
 
   /**
@@ -232,13 +277,7 @@ export class MachineNetwork {
         machine,
         name: peer.name,
         online: this.hub.connected(machine),
-        accounts: panel.accounts.map((entry) => ({
-          key: entry.key,
-          agent: entry.agent,
-          email: entry.status?.email ?? entry.longToken?.account?.email ?? entry.lastEmail ?? null,
-          signedIn: entry.status?.loggedIn === true && !entry.needsLogin,
-          ...(entry.longToken !== undefined && { longToken: true as const }),
-        })),
+        accounts: panel.accounts.map(machineAccountOf),
         login: login === null ? null : {
           agent: login.agent,
           ...(login.method !== undefined && { method: login.method }),
@@ -522,7 +561,7 @@ export class MachineNetwork {
       about: record.about,
       online: this.hub.connected(record.id),
       projects: rows.filter((row) => row.machine_id === record.id).map((row) => row.project_id),
-      taken: [...(this.taken.get(record.id)?.values() ?? [])],
+      taken: this.takenOn(record.id),
     }))
   }
 

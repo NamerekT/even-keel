@@ -27,6 +27,23 @@
   white-space: nowrap;
 }
 
+/* Each machine of the tag opens its page (BTN-1272), its colour a small square before the name: an account's is a dot. */
+.machine-tag__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.machine-tag__link:hover {
+  text-decoration: underline;
+}
+
+.machine-tag__mark {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-inline-end: var(--space-4);
+}
+
 @property --sweep {
   syntax: '<angle>';
   inherits: false;

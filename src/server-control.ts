@@ -13,7 +13,7 @@ import type { EventHub } from './events.js'
 import type { GuardSettings } from './guard.js'
 import type { Invite } from './link/hub.js'
 import type { AddressChoice, MachineView } from './service/machine-network.js'
-import type { ProjectPool } from './link/view.js'
+import type { MachinePage, ProjectPool } from './link/view.js'
 import type { ConnectRequest } from './service/machine-pool.js'
 import type { HotkeyBindings } from './hotkeys.js'
 import type { Language } from './language.js'
@@ -280,6 +280,12 @@ export interface ServerDeps {
     view(project: string): Promise<ProjectPool>
     connect(project: string, request: ConnectRequest): Promise<void>
     enable(project: string, machine: string, enabled: boolean): Promise<void>
+  }
+  /** The page of one machine (BTN-1272): its view, its capacity (the own one's is `parallel`) and its colour. */
+  machinePage?: {
+    view(machine: string): Promise<MachinePage>
+    capacity(machine: string, capacity: number): Promise<void>
+    color(machine: string, color: string | null): Promise<void>
   }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
