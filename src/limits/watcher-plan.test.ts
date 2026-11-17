@@ -16,9 +16,10 @@ function limits(updatedAt: string, used = 12): RateLimits {
   return { fiveHour: { usedPercentage: used, resetsAt: later(2 * HOUR_MS) }, sevenDay: null, updatedAt, source: 'usage' }
 }
 
-function watcherOf() {
+function watcherOf(planFirst = false) {
   const asked: string[] = []
   const watcher = new LimitsWatcher({
+    planFirst,
     file: '/nonexistent/limits.json',
     intervalMs: 60_000,
     homes: () => [WORK, OWN],
@@ -89,6 +90,33 @@ describe('LimitsWatcher and the hub plan (BTN-991)', () => {
     vi.advanceTimersByTime(INTERVAL_MS)
     for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
     expect(asked).toEqual(['own', 'own', 'work', 'own'])
+  })
+
+  it('on a machine on the network, does not poll before the hub sent its first plan (BTN-1247)', async () => {
+    const { watcher, asked } = watcherOf(true)
+    const settle = async () => {
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
+    }
+    watcher.start()
+    watcher.refresh()
+    await settle()
+    expect(asked).toEqual([])
+    watcher.plan({ skip: ['work'] })
+    await settle()
+    expect(asked).toEqual(['own'])
+  })
+
+  it('on a machine on the network, a plan before the start polls only once started', async () => {
+    const { watcher, asked } = watcherOf(true)
+    const settle = async () => {
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
+    }
+    watcher.plan({ skip: [] })
+    await settle()
+    expect(asked).toEqual([])
+    watcher.start()
+    await settle()
+    expect(asked).toEqual(['work', 'own'])
   })
 
   it('says which folders it could poll', () => {

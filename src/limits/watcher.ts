@@ -36,6 +36,8 @@ export interface LimitsWatcherOptions {
   saved?: ReadonlyMap<string, RateLimits>
   /** Keeps the newest of what polls and sessions told; `undefined` — nothing is known any more. */
   save?: (account: string, limits: RateLimits | undefined) => void
+  /** A machine on the network (BTN-1247): no /usage round before the hub's first `plan`, or it may poll what another machine polls. */
+  planFirst?: boolean
   onChange: () => void
   onError: (error: unknown) => void
 }
@@ -77,8 +79,10 @@ export class LimitsWatcher {
   private skip = new Set<string>()
   /** A folder the hub gave back is polled no sooner than a poll interval after: its poller may have just polled it. */
   private readonly resumeAt = new Map<string, number>()
+  private awaitsPlan: boolean
 
   constructor(private readonly options: LimitsWatcherOptions) {
+    this.awaitsPlan = options.planFirst === true
     // A saved session report goes back where it came from, so a poll's own rules (`missing` drops `polled`) stay as before.
     for (const [key, limits] of options.saved ?? []) {
       this.of(key)[limits.source === 'sdk' ? 'streamed' : 'polled'] = limits
@@ -143,6 +147,10 @@ export class LimitsWatcher {
       known.hub = newestLimits(known.hub, limits)
     }
     this.publish()
+    if (this.awaitsPlan) {
+      this.awaitsPlan = false
+      if (this.timer !== undefined) this.refresh()
+    }
   }
 
   skipped(account: string): boolean {
@@ -205,7 +213,7 @@ export class LimitsWatcher {
   }
 
   refresh(): void {
-    if (this.usageOff !== undefined) return
+    if (this.usageOff !== undefined || this.awaitsPlan) return
     this.waitsForAccounts = !this.options.ready()
     if (this.waitsForAccounts) return
     if (this.usageRunning) {

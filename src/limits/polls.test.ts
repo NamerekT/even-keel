@@ -43,7 +43,10 @@ describe('AccountPolls', () => {
     const { polls, lines } = pollsOf()
     const hub = machine(HUB, { global: tie('a', { polls: false }) })
     expect(polls.plan([hub, machine('m2', { x: tie('a') }), machine('m1', { y: tie('a') })])).toEqual(
-      new Map([['m2', { skip: ['x'] }]]),
+      new Map([
+        ['m2', { skip: ['x'] }],
+        ['m1', { skip: [] }],
+      ]),
     )
     expect(polls.poller('a')).toBe('m1')
     expect(lines.some((line) => line.includes('a@example.com') && line.includes('m1'))).toBe(true)
@@ -64,7 +67,12 @@ describe('AccountPolls', () => {
 
   it('leaves an account no machine can poll without a poller, and nobody skips it', () => {
     const { polls } = pollsOf()
-    expect(polls.plan([machine('m1', { y: tie('a', { polls: false }) }), machine('m2', { x: tie('a', { polls: false }) })])).toEqual(new Map())
+    expect(polls.plan([machine('m1', { y: tie('a', { polls: false }) }), machine('m2', { x: tie('a', { polls: false }) })])).toEqual(
+      new Map([
+        ['m1', { skip: [] }],
+        ['m2', { skip: [] }],
+      ]),
+    )
     expect(polls.poller('a')).toBeUndefined()
   })
 
@@ -76,7 +84,7 @@ describe('AccountPolls', () => {
       machine(HUB, { global: tie('a') }, { limits: { global: hubLimits } }),
       machine('m1', { work: tie('a', { skipped: true }) }, { limits: { work: m1Limits } }),
     ]
-    expect(polls.plan(at(newer, older))).toEqual(new Map([['m1', { picture: { work: newer } }]]))
+    expect(polls.plan(at(newer, older))).toEqual(new Map([['m1', { skip: ['work'], picture: { work: newer } }]]))
     expect(polls.plan(at(newer, older))).toEqual(new Map())
     // What the machine posts back with the same time is no news for the hub.
     expect(polls.plan(at(newer, newer))).toEqual(new Map())
@@ -93,9 +101,16 @@ describe('AccountPolls', () => {
     expect(polls.plan(state)).toEqual(new Map([['m1', { skip: ['work'], picture: { work: told } }]]))
   })
 
-  it('takes a reconnected machine at its word for what it skips', () => {
+  it('tells a newly connected machine what it skips even when it says it already skips it, and not again', () => {
     const { polls } = pollsOf()
-    expect(polls.plan([machine(HUB, { global: tie('a') }), machine('m1', { work: tie('a', { skipped: true }) })])).toEqual(new Map())
+    const state = [machine(HUB, { global: tie('a') }), machine('m1', { work: tie('a', { skipped: true }) })]
+    expect(polls.plan(state)).toEqual(new Map([['m1', { skip: ['work'] }]]))
+    expect(polls.plan(state)).toEqual(new Map())
+  })
+
+  it('tells a newly connected machine an empty skip: a machine on the network waits for its first plan (BTN-1247)', () => {
+    const { polls } = pollsOf()
+    expect(polls.plan([machine(HUB, { global: tie('a') }), machine('m1', { own: tie('b') })])).toEqual(new Map([['m1', { skip: [] }]]))
   })
 
   it('tells nothing to a machine off the link', () => {

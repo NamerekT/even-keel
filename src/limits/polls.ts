@@ -120,9 +120,8 @@ export class AccountPolls {
       .filter(([, tie]) => tie.polls && this.pollers.has(tie.account) && this.pollers.get(tie.account) !== target.machine)
       .map(([folder]) => folder)
       .sort()
-    // A machine that connected anew is taken at its word for what it skips.
-    const known = told.skip ?? folders.filter(([, tie]) => tie.skipped === true).map(([folder]) => folder).sort()
-    if (!sameJson(skip, known)) plan.skip = skip
+    // A machine that connected anew is always told, an empty list too: one on the network waits for it before its first poll.
+    if (told.skip === undefined ? target.machine !== this.options.hub() : !sameJson(skip, told.skip)) plan.skip = skip
     told.skip = skip
     for (const [folder, tie] of folders) {
       const newest = this.newestElsewhere(tie.account, target.machine, machines)
