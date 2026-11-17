@@ -5,7 +5,8 @@ import { isOpen, type ParentTask, type Task } from './model.js'
  * A read gives every open task, so the subtasks it lacks are closed.
  */
 export function parentRows(parents: Task[], tasks: Task[]): ParentTask[] {
-  const open = [...parents, ...tasks].filter((task) => task.parent !== null && isOpen(task.status))
+  const byId = new Map([...parents, ...tasks].map((task) => [task.id, task]))
+  const open = [...byId.values()].filter((task) => task.parent !== null && isOpen(task.status))
   return parents.map((parent) => ({ ...parent, closedSubtasks: Math.max(0, parent.subtasks - open.filter((task) => task.parent === parent.id).length) }))
 }
 

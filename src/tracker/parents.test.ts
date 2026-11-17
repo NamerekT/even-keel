@@ -97,4 +97,16 @@ describe('parentRows', () => {
     const one = fakeTask('ABC-1', { subtasks: 1 })
     expect(parentRows([one], [child('ABC-2', review), child('ABC-3', review)])[0]!.closedSubtasks).toBe(0)
   })
+
+  it('counts an open nested parent once when it comes both among the parents and the tasks', () => {
+    const root = fakeTask('ABC-1', { subtasks: 3 })
+    const nested = fakeTask('ABC-2', { parent: 'ABC-1', subtasks: 2 })
+    const grandchildren = [fakeTask('ABC-3', { parent: 'ABC-2', status: review }), fakeTask('ABC-4', { parent: 'ABC-2', status: review })]
+    // Of the three subtasks of ABC-1 only ABC-2 is open; the grandchildren belong to ABC-2 alone.
+    const rows = parentRows([root, nested], [nested, ...grandchildren, child('ABC-5', done)])
+    expect(rows.map((row) => [row.id, row.closedSubtasks])).toEqual([
+      ['ABC-1', 2],
+      ['ABC-2', 0],
+    ])
+  })
 })
