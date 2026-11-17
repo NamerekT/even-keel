@@ -6,14 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [0.3.2]
 
+A patch of 0.3: a permission question that no longer vanishes, and the README badge during a fix of the main branch or a release carry.
+
+### Changed
+
+- Chain sessions run on Copilot CLI 1.0.113, the version this release was checked against; Claude Code 2.1.326, codex-cli 0.169.0 and OpenCode 1.19.6 stay.
+
 ### Fixed
 
-- **The README badge of a red-main fix or a release carry:**
+- **A permission question of a Claude session through the SDK no longer disappears when the CLI stops waiting for your answer.** The CLI's built-in check of dangerous deletions waits two minutes and then refuses the call itself; before, the question simply vanished and there was nowhere to answer. The chat now marks the call "approval expired, not run" and adds a closing line, and the tracker gets a comment saying that the question expired.
+- **The README badge of a fix of the main branch or a release carry:**
   - The milestone card stays on the badge while the fix or carry runs. It shows the milestone of the chain's next task, or of the task closed last if no task is next.
-  - The badge gives the run a title. A fix of the main branch is titled on its own, and a fix started from the project's branch says "Fixing the red dev". A carry is titled "Carrying release v0.3 into dev", from the release project's branch and the branch it goes into.
+  - The run gets a title of its own. A fix names the project's main branch, such as "Fixing the red main"; a carry names the release and the branch it goes into, such as "Carrying release v0.3 into dev".
   - On a task with no title, the agent line stays on the line with the task's key. Before, it sat out of line under an empty title.
-- **A permission question no longer disappears when the CLI stops waiting for your answer**, as it does after two minutes on a check of a deletion. The chat now marks the call "approval expired, not run" and adds a closing line. The tracker gets a comment saying that the question expired.
-- In the chat's question card, holding the pointer over an option without a preview no longer makes the layout jump between two columns and one.
+- In the chat's question card, the layout no longer jumps between two columns and one when the pointer moves onto an option without a preview: the preview column stays and says "No preview for this option". **Deny** of a permission now previews the same call as **Allow**.
 - `/stats` prices gpt-6.2-astra and gpt-6.2-sol at their own prices, taken from OpenAI's model pages. A prompt over 272k tokens gets the long-prompt price.
 
 ## [0.3.1] - 2026-11-17
