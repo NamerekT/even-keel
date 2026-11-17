@@ -2,6 +2,8 @@ import { type ReactNode, useState } from 'react'
 import { Navigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
+import { useMachineFilter } from '../layout/MachineFilter.js'
+import { machineProjects } from '../machineView.js'
 import { openQuestions, ownProjects, projectSlots, questionPath } from '../state.js'
 import { EmptyState, PageHead } from '../ui/blocks.js'
 import { ClonesIcon, ColumnsIcon, GridIcon, NestedIcon } from '../ui/icons.js'
@@ -32,7 +34,11 @@ export function Home({ state }: { state: EvenKeelState }) {
   })
   const meme = memes[Math.floor(draw * memes.length)]!
   const [grouping, setGrouping] = useGrouping()
-  const blocks = homeBlocks(grouping, state.projects, state).map((block) => laidOut(block, (key) => zoneOf(state, key)))
+  // A machine's view shows the projects of its pool (BTN-1279).
+  const machines = useMachineFilter()
+  const picked = machines.selected
+  const projects = picked === null ? state.projects : machineProjects(machines.cards, state.projects, picked.id)
+  const blocks = homeBlocks(grouping, projects, state).map((block) => laidOut(block, (key) => zoneOf(state, key)))
   // Panels only when there is a group to set apart; a lone untitled block is the plain grid.
   const framed = blocks.some((block) => block.title !== null)
   // The punchlines go by the cards' order on the page.
@@ -79,6 +85,16 @@ export function Home({ state }: { state: EvenKeelState }) {
           >
             {t.home.empty}
           </EmptyState>
+        ) : picked !== null && projects.length === 0 ? (
+          <EmptyState
+            action={
+              <button type="button" className="button button--small" onClick={() => machines.select(null)}>
+                {t.machinePanel.view.homeAll}
+              </button>
+            }
+          >
+            {t.machinePanel.view.homeEmpty(picked.name)}
+          </EmptyState>
         ) : (
           <div className="home__groups">
             {blocks.map((block, index) => {
@@ -98,7 +114,7 @@ export function Home({ state }: { state: EvenKeelState }) {
           </div>
         )}
       </Typists>
-      <LaunchChart {...testLaunches(state.launches, projectSlots(state), state.projects.filter(id => state.config.projects[id]?.testProject))} />
+      <LaunchChart {...testLaunches(state.launches, projectSlots(state), state.projects.filter(id => state.config.projects[id]?.testProject || !projects.includes(id)))} />
     </section>
   )
 }

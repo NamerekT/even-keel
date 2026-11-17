@@ -73,6 +73,17 @@ export interface MachineCard {
   limitedUntil: Record<string, string>
   /** The projects of its pool: whether it takes their tasks and whether their packages hold them there. */
   projects: Array<{ project: string; enabled: boolean; packagesBlocked: boolean }>
+  /** Its accounts panel with the limits it read, for the header and the accounts page of its view (BTN-1279); empty before its first snapshot. */
+  accounts: MachineCardAccount[]
+  /** The account folder its panel names as the launch choice; `null` — none, or not told yet. */
+  active: string | null
+}
+
+/** An account of a machine's card: no token and no credentials. */
+export interface MachineCardAccount extends MachineAccount {
+  /** The name the person gave it on that machine. */
+  name: string | null
+  limits: import('../limits/model.js').RateLimits | null
 }
 
 /** A machine of a project's pool, as the section "Machines" of its settings shows it (BTN-1271). */

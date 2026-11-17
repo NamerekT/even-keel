@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import './projectSettingsTabs.css'
+import { useMachineFilter } from '../layout/MachineFilter.js'
+import { ProjectMachineSettings } from './ProjectMachineSettings.js'
 import { useRepoBranches } from './BranchField.js'
 import { GROUPS, keysOf, same, type GroupId } from './projectSettingsDraft.js'
 import { BUILTIN } from '../../../src/builtin/model.js'
@@ -58,6 +60,9 @@ export function SettingsPanel({
   const saved = valuesOf(form, profileRules)
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
   const draft = current!
+  const machine = useMachineFilter().selected
+  /** The machine whose view asked for the shared tabs; another machine picked opens on its own settings again. */
+  const [sharedFor, setSharedFor] = useState<string | null>(null)
   const [picked, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
   const shownGroups = GROUPS.filter(({ id }) => id !== 'machines' || poolShown(state))
   // A tab hidden since it was opened (the hub's last machine elsewhere revoked) gives way to the first one.
@@ -147,9 +152,37 @@ export function SettingsPanel({
     notices: () => <NoticeSettings project={project} />,
   }
 
+  // A machine's view opens on the machine in the project; the shared tabs are a press away (BTN-1279).
+  if (machine !== null && sharedFor !== machine.id) {
+    return (
+      <aside className="panel settings" aria-label={t.settings.title}>
+        <header className="panel__head settings__head">
+          <span className="settings__machine" style={{ '--machine': machine.color } as CSSProperties}>
+            <span className="settings__machine-mark" aria-hidden="true" />
+            {machine.name}
+          </span>
+          <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
+            ×
+          </button>
+        </header>
+        <div className="settings__form">
+          <ProjectMachineSettings project={project} card={machine} onShared={() => setSharedFor(machine.id)} />
+        </div>
+      </aside>
+    )
+  }
+
   return (
     <aside className="panel settings" aria-label={t.settings.title}>
-      <header className="panel__head settings__head">
+      <header className={machine === null ? 'panel__head settings__head' : 'panel__head settings__head settings__head--back'}>
+        {machine !== null && (
+          <div className="settings__back-row">
+            <button type="button" className="settings__back" style={{ '--machine': machine.color } as CSSProperties} onClick={() => setSharedFor(null)}>
+              <span className="settings__machine-mark" aria-hidden="true" />
+              {t.machinePanel.view.back(machine.name)}
+            </button>
+          </div>
+        )}
         <GroupTabs groups={shownGroups.map(({ id }) => ({ id, title: t.settings.groups[id] }))} open={open} dirty={dirty} onOpen={setOpen} />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           ×

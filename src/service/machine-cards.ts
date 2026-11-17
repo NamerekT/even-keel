@@ -1,7 +1,7 @@
-import type { AccountEntry } from '../account/model.js'
+import type { AccountView } from '../account/model.js'
 import { MACHINE_PALETTE } from '../link/colors.js'
 import type { MachineRecord } from '../link/hub-store.js'
-import type { MachineCard } from '../link/view.js'
+import type { MachineCard, MachineCardAccount } from '../link/view.js'
 import { currentLimits, exhaustedReset, type RateLimits } from '../limits/model.js'
 import type { RemoteMachine } from '../machine/remote.js'
 import { machineAccountOf } from './machine-page.js'
@@ -16,7 +16,7 @@ export interface MachineCardsDeps {
   folders: (machine: string) => Promise<Array<{ project: string; folder: string; enabled: boolean }>>
   mirror: (machine: string) => Pick<RemoteMachine, 'facts' | 'page'> | undefined
   /** The own machine's accounts panel, with the limits it read. */
-  ownAccounts: () => AccountEntry[]
+  ownAccounts: () => Pick<AccountView, 'accounts' | 'active'>
   /** Git on the own machine has a user name and e-mail; `null` — not read yet. */
   ownGitUser: () => boolean | null
   now: () => number
@@ -37,9 +37,12 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
     const isOwn = record.id === own
     const mirror = isOwn ? undefined : deps.mirror(record.id)
     const facts = mirror?.facts()
-    const accounts = isOwn
-      ? deps.ownAccounts().map((entry) => ({ agent: entry.agent, signedIn: machineAccountOf(entry).signedIn, limits: entry.limits }))
-      : (mirror?.page.panel()?.accounts ?? []).map((entry) => ({ agent: entry.agent, signedIn: machineAccountOf(entry).signedIn, limits: mirror!.page.limits(entry.key) }))
+    const panel = isOwn ? deps.ownAccounts() : mirror?.page.panel()
+    const accounts = (panel?.accounts ?? []).map((entry): MachineCardAccount => ({
+      ...machineAccountOf(entry),
+      name: entry.name ?? null,
+      limits: isOwn ? entry.limits : mirror!.page.limits(entry.key),
+    }))
     const online = isOwn || deps.online(record.id)
     return {
       id: record.id,
@@ -50,6 +53,8 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       offlineSince: online ? null : (deps.offlineSince(record.id) ?? null),
       gitUser: isOwn ? deps.ownGitUser() : (record.about?.gitUser ?? null),
       ...limitedOf(accounts.filter((account) => account.signedIn), now),
+      accounts,
+      active: panel?.active || null,
       projects: (await deps.folders(record.id)).map((row) => ({
         project: row.project,
         enabled: row.enabled,

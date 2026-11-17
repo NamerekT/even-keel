@@ -151,7 +151,8 @@ function Cards({ state }: { state: EvenKeelState }) {
   )
 }
 
-function CardLine({ view, now }: { view: MachineState; now: Date }) {
+/** The card's line under the name: the task, the next one, the limit, the block or how long it is off the link. */
+export function CardLine({ view, now }: { view: MachineState; now: Date }) {
   const key = (task: NonNullable<MachineState['task']>) => (
     <>
       <b className="machine-card__key">{task.id}</b>

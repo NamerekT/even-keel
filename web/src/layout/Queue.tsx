@@ -10,11 +10,15 @@ import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { useDragList } from '../ui/useDragList.js'
+import { mergeQueue } from '../machineView.js'
 import { chainWaits } from '../waits.js'
 import { usePopover } from './usePopover.js'
 
-/** The header's chains block; `row` is the burger's row: the word at the left, the lamp and the count at the right (BTN-1162). */
-export function QueueMenu({ state, row = false }: { state: EvenKeelState; row?: boolean }) {
+/**
+ * The header's chains block; `row` is the burger's row: the word at the left, the lamp and the count at the right (BTN-1162).
+ * `queue` — the whole queue where `state` shows a machine's part of it (BTN-1279): a move keeps the other projects' places.
+ */
+export function QueueMenu({ state, row = false, queue: whole }: { state: EvenKeelState; row?: boolean; queue?: string[] }) {
   const { open, setOpen, rootRef } = usePopover()
   const { active, queue } = state.chain
   const kind = active.length === 0 ? 'idle' : active.every((chain) => chain.paused) ? 'paused' : 'running'
@@ -46,7 +50,7 @@ export function QueueMenu({ state, row = false }: { state: EvenKeelState; row?: 
           <QueueContents state={state} />
         )}
       </button>
-      {open && <QueuePanel state={state} />}
+      {open && <QueuePanel state={state} whole={whole} />}
     </div>
   )
 }
@@ -62,7 +66,7 @@ export function QueueContents({ state }: { state: EvenKeelState }) {
   )
 }
 
-function QueuePanel({ state }: { state: EvenKeelState }) {
+function QueuePanel({ state, whole }: { state: EvenKeelState; whole: string[] | undefined }) {
   const { send, sending, failure } = useCommand()
   const [pending, setPending] = useState<string[] | null>(null)
   const served = state.chain.queue
@@ -72,7 +76,7 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
 
   const move = async (order: string[]) => {
     setPending(order)
-    if (!(await send('chain/queue', { order }))) setPending(null)
+    if (!(await send('chain/queue', { order: whole === undefined ? order : mergeQueue(whole, order) }))) setPending(null)
   }
 
   return (
