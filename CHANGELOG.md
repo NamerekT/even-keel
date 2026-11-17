@@ -4,11 +4,17 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1]
+## [0.3.1] - 2026-11-17
+
+A patch of 0.3: the CI and limit fixes that cost a chain time, and a clearer carry panel.
+
+### Added
+
+- **What a waiting carry brings.** The panel of a carry waiting for its turn shows the number of commits, the conflicted files with the conflict lines of each, and **Skip**.
+- **Update all** in the package catalog, to the right of **Check all**.
 
 ### Fixed
 
-- **A carry waiting for its turn no longer shows another carry's session.** Before, it could show the session of an earlier carry with the same name. Its panel now shows the commits, the conflicted files with their conflict lines, and **Skip**. After a service restart the panel still shows the files and lines instead of dashes.
 - **One CI poll that gets no answer no longer leaves the pushed commit unchecked.** Before, a single timed-out poll during a run dropped the commit, so a red main was never fixed. The push is now watched for up to an hour, and the CI's later result decides it: red means a rerun and then a fix session, green means it passed. Meanwhile the CI panel says the CI did not answer.
 - A Claude chain on a subscription no longer treats a session's cache as warm for an hour when the session writes the five-minute cache.
 - When a limit resets early, a task no longer stays held by "paid usage possible, not confirmed" until the announced reset with usage at 0%.
@@ -26,7 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The changelog window:
   - For a released milestone, it shows the released section of the file instead of an old draft under `[Unreleased]`.
   - On an account whose limit is spent, it shows a clear notice instead of the CLI's raw JSON answer.
-- The package catalog has **Update all** to the right of **Check all**, and a row's **Install** or **Update** button no longer stays stuck after the action.
+- A carry waiting for its turn no longer shows the session of an earlier carry with the same name.
+- A row's **Install** or **Update** button in the package catalog no longer stays stuck after the action.
 - On a phone, a long question in the chat window no longer covers the answer options, and the question switcher no longer wraps around the text.
 - The demo:
   - The session window opened from the task's sessions finds its transcript, and the card of a finished task shows what the session did.
