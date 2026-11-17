@@ -427,6 +427,11 @@ export interface ChangelogView {
   file: string
   /** The milestone's newest tag; `null` — not released. */
   released: string | null
+  /**
+   * The version is written and its section released by the tag since (EKR-129): the window shows the file's released
+   * section instead of the version, `null` there when the file has none, and offers only "Add N". `null` — not frozen.
+   */
+  frozen: { section: string | null } | null
   /** `null` — no draft yet: opening writes none, the user asks for it (`draft`). */
   version: ChangelogVersion | null
   /** Only without a version: the milestone's done and open tasks and the milestone's section the file has now. */
