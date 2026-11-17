@@ -177,7 +177,9 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
       ctx.hub.broadcastSoon('state', ctx.getState)
     },
     journal: (launched) => {
-      const entry = ctx.withSource(launched)
+      const link = ctx.machineLink
+      const machine = link.assignments.machineOf(launched.project, launched.task) ?? link.machines.own()
+      const entry = ctx.withSource(machine === '' ? launched : { ...launched, machine })
       ctx.writes.add(`the launch of ${entry.task}`, ctx.machineLink.records.launch(entry))
     },
     moveStatus: (project, task, when) => ctx.statusMover.move(project, task, when),

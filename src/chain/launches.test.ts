@@ -186,6 +186,23 @@ describe('taskSessions', () => {
     ])
   })
 
+  it('keeps the machine each session started on (BTN-993)', () => {
+    const list = taskSessions(
+      [
+        entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1', { machine: 'pc' }),
+        entry('2026-09-27T10:30:00.000Z', 'ABC-1', 's1', { reason: 'resume', machine: 'pc' }),
+        entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2', { reason: 'checkpoint', previous: 's1', machine: 'server' }),
+        entry('2026-09-27T12:00:00.000Z', 'ABC-1', 's3', { reason: 'restart', previous: 's2' }),
+      ],
+      [],
+    )
+    expect(list['ABC-1']?.map((row) => [row.sessionId, row.machine])).toEqual([
+      ['s3', undefined],
+      ['s2', 'server'],
+      ['s1', 'pc'],
+    ])
+  })
+
   it('counts the compactions of each session whose transcript has any', () => {
     const list = taskSessions(
       [entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'), entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2', { reason: 'checkpoint', previous: 's1' })],

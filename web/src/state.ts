@@ -19,6 +19,7 @@ import { say, t } from './i18n/index.js'
 import { shownWork } from '../../src/shown-work.js'
 import { taskLamp } from './taskLamp.js'
 import { completionTasks, needsReply } from './completion.js'
+import { laneOfTask, lanesOf, taskMachines } from './lanes.js'
 
 type CiWait = NonNullable<ActiveChain['ciWait']>
 type LimitsWait = NonNullable<ActiveChain['limitsWait']>
@@ -77,6 +78,8 @@ export interface ChainBlock {
   start: SessionStart | null
   /** Since when the chain is delivering the user's answer to the task's session: stopping it and resuming it with the answer. */
   answering?: string
+  /** The names of the machines it ran on, oldest first, its lane's now last (`taskMachines`); absent — one machine. */
+  machines?: string[]
   /** A red main stopped the task's session; it goes on once main is fixed. */
   interrupted?: true
   /** The fix of a red main leads the chain and this task is next: its live session takes no answer from the chat until the fix lands. */
@@ -359,7 +362,9 @@ export function chainStatus(chain: EvenKeelState['chain'], project: string): Cha
   const { queue } = chain
   const active = activeChain(chain, project)
   if (active !== undefined) {
-    if (active.paused) return { kind: 'paused', error: active.error }
+    // A paused lane pauses the project: Resume takes every lane.
+    const paused = lanesOf(chain, project).find((lane) => lane.paused)
+    if (paused !== undefined) return { kind: 'paused', error: paused.error }
     return {
       kind: 'running',
       limitUntil: active.limitUntil ?? null,
@@ -561,11 +566,16 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const open = broken
     ? tasks.filter((task) => isOpen(task.status)).map((task) => task.id).sort(byNumber)
     : withWaiting(order.order, order.waiting, new Map(known.map((task) => [task.id, task.blockedBy])), new Map(known.map((task) => [task.id, ancestorsOf(task)])))
-  const active = activeChain(state.chain, project)
+  const lanes = lanesOf(state.chain, project)
+  // The head lane alone fixes main and carries: the fix and carry rows follow it.
+  const active = lanes[0]
   const current = active?.current?.task
   const running = active?.current ?? null
-  const hold = active?.current?.limit
-  const pending = hold !== undefined && hold.acted === null ? hold : null
+  const pendingOf = (lane: ActiveChain | undefined) => {
+    const hold = lane?.current?.limit
+    return hold !== undefined && hold.acted === null ? hold : null
+  }
+  const pending = pendingOf(active)
   const skipped = new Set(state.chain.skipped[project] ?? [])
   const fix = fixNameOf(state.projectKeys, project)
   const next = current === fix && !broken && active?.interrupted === undefined ? nextTask(tasks, order.order, [...skipped, ...order.waiting]) : undefined
@@ -590,15 +600,18 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     }
     const task = byId.get(id)
     const seen = taskSession(state.sessions, id) ?? null
+    const lane = laneOfTask(lanes, id)
+    const ownRun = lane?.current ?? null
     // Delivering an answer stops the session for a few seconds; to the page it is already at work on it, as is a fresh
     // session idling before its prompt.
     const session =
-      seen !== null && running?.task === id && running.answering
+      seen !== null && ownRun?.answering === true
         ? { ...seen, lamp: 'working' as const, ask: null }
         : seen !== null && idleBeforePrompt(seen, now)
           ? { ...seen, lamp: 'working' as const }
           : seen
     const sessions = state.taskSessions[id] ?? []
+    const machines = taskMachines(state.machineNames, sessions, lane)
     const lamp = taskLamp(task, session, refused.has(id))
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
     const work = shownWork(state, project, id)
@@ -613,7 +626,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       blockedBy: task?.blockedBy ?? [],
       milestone: task?.milestone?.label ?? null,
       after: after.get(id) ?? [],
-      current: id === current,
+      current: lane !== undefined,
       skipped: skipped.has(id),
       question: task?.question ?? false,
       priority: task?.priority ?? 'none',
@@ -624,9 +637,10 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       run: state.runs[project]?.[id] ?? null,
       session,
       sessions,
-      limit: id === current ? pending : null,
-      start: running?.task === id ? sessionStart(running, seen, sessions, now) : null,
-      ...(running?.task === id && answeringSince(running)),
+      limit: pendingOf(lane),
+      start: ownRun === null ? null : sessionStart(ownRun, seen, sessions, now),
+      ...(ownRun !== null && answeringSince(ownRun)),
+      ...(machines !== undefined && { machines }),
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),

@@ -44,6 +44,8 @@ export interface TaskSession {
   compactions?: number
   /** The e-mail of the account the session ran on; `null` when it is not known. */
   account?: string | null
+  /** The machine the session started on (`LaunchEntry.machine`); absent — not known, the own one before machines. */
+  machine?: string
 }
 
 type HandOver = 'restart' | 'checkpoint'
@@ -138,7 +140,15 @@ export function taskSessions(
     const relayed = entry.reason === 'relay' || (entry.reason === 'review' && entry.cause !== undefined)
     const how = relayed ? 'relay' : entry.reason === 'restart' || entry.reason === 'checkpoint' ? entry.reason : 'launch'
     const cause = relayed || (entry.reason === 'restart' && entry.cause === 'message') ? entry.cause : undefined
-    rows.set(entry.sessionId, { sessionId: entry.sessionId, at: entry.at, how, ...(cause === undefined ? {} : { cause }), resumed: 0, answers: 0 })
+    rows.set(entry.sessionId, {
+      sessionId: entry.sessionId,
+      at: entry.at,
+      how,
+      ...(cause === undefined ? {} : { cause }),
+      resumed: 0,
+      answers: 0,
+      ...(entry.machine === undefined ? {} : { machine: entry.machine }),
+    })
     if ((how === 'restart' || how === 'checkpoint' || how === 'relay') && entry.previous !== undefined) {
       const old = rows.get(entry.previous)
       if (old !== undefined) old.replaced = { at: entry.at, how, ...(cause === undefined ? {} : { cause }) }

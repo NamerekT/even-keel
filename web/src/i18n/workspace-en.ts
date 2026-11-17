@@ -295,6 +295,7 @@ export const chainEN: Messages['chain'] = {
     fixRuns: 'Open the CI panel with the runs of these commits',
     interrupted: 'waits for main',
     interruptedTitle: 'Main went red: the session of this task was stopped and goes on once main is fixed',
+    machinesTitle: 'The machines this task ran on, the one it is on now last',
     review: {
       pull: (number: number) => `PR #${number}`,
       pullTitle: 'The task waits on its pull request outside the chain: open it',

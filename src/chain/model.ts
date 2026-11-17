@@ -243,6 +243,11 @@ export interface LaunchEntry {
   profile?: string
   url?: string
   title?: string
+  /**
+   * The machine the task ran on (BTN-993): its `machine_tasks` row, the own machine for a task without one. Set by the
+   * service; absent in an entry from before machines, which ran on the own one.
+   */
+  machine?: string
 }
 
 /** A session the chain started: its id, and the provider of a task's run it could not honour (`LaunchEntry.fallback`). */

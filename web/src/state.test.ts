@@ -901,6 +901,49 @@ describe('chainBlocks', () => {
     expect(chainBlocks(acted, 'ABC')[0]?.limit).toBeNull()
   })
 
+  describe('lanes (BTN-993)', () => {
+    const hold = { at: 't', account: 'john@example.com', resetsAt: 't', lastReplyAt: 't', then: 'relay' as const, acted: null }
+    const projects = { ABC: { order: ['ABC-1', 'ABC-2', 'ABC-3'], waiting: [], backlog: [], error: null } }
+    const tasks = [task('ABC-1', 'Active'), task('ABC-2', 'Active'), task('ABC-3', 'ToDo')]
+    const lanes = [
+      { ...running('ABC-1'), machine: 'pc' },
+      { ...running('ABC-2'), machine: 'srv', current: { task: 'ABC-2', sessionId: 's2', since: 't', limit: hold } },
+    ]
+
+    it('shows the current task of each lane of the project, each with its own limit', () => {
+      const blocks = chainBlocks(stateOf({ tasks, chain: chain({ active: lanes, projects }) }), 'ABC')
+      expect(blocks.map((block) => [block.id, block.current, block.limit !== null])).toEqual([
+        ['ABC-1', true, false],
+        ['ABC-2', true, true],
+        ['ABC-3', false, false],
+      ])
+    })
+
+    it('labels each lane\'s task with its machine where the hub has more than one', () => {
+      const state = stateOf({ tasks, chain: chain({ active: lanes, projects }), machineNames: { pc: 'PC', srv: 'Server' } })
+      expect(chainBlocks(state, 'ABC').map((block) => [block.id, block.machines])).toEqual([
+        ['ABC-1', ['PC']],
+        ['ABC-2', ['Server']],
+        ['ABC-3', undefined],
+      ])
+    })
+
+    it('keeps the machines a closed task moved across, oldest first', () => {
+      const runs = [
+        { sessionId: 's3', at: '2026-01-01T12:00:00.000Z', how: 'checkpoint' as const, resumed: 0, answers: 0, machine: 'srv' },
+        { sessionId: 's2', at: '2026-01-01T11:00:00.000Z', how: 'checkpoint' as const, resumed: 0, answers: 0, machine: 'pc' },
+        { sessionId: 's1', at: '2026-01-01T10:00:00.000Z', how: 'launch' as const, resumed: 0, answers: 0, machine: 'pc' },
+      ]
+      const state = stateOf({ tasks: [task('ABC-1', 'Won')], taskSessions: { 'ABC-1': runs }, chain: chain({ projects: { ABC: { order: [], waiting: [], backlog: [], error: null } } }), machineNames: { pc: 'PC', srv: 'Server' } })
+      expect(chainBlocks(state, 'ABC')[0]?.machines).toEqual(['PC', 'Server'])
+    })
+
+    it('labels nothing with one machine', () => {
+      const state = stateOf({ tasks, chain: chain({ active: lanes, projects }), machineNames: { pc: 'PC' } })
+      expect(chainBlocks(state, 'ABC').map((block) => block.machines)).toEqual([undefined, undefined, undefined])
+    })
+  })
+
   it('marks the tasks whose live session outlasted the stopped chain', () => {
     const loose = (state: EvenKeelState) => chainBlocks(state, 'ABC').filter((block) => block.loose).map((block) => block.id)
     const tasks = [task('ABC-1', 'Active'), task('ABC-2', 'ToDo'), task('ABC-3', 'ToDo')]

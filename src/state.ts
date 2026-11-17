@@ -336,6 +336,11 @@ export interface EvenKeelState {
   gitFound?: Record<string, FoundRepository>
   /** The accounts of each machine elsewhere that posted its facts, and its sign-in under way (BTN-1245); absent — an older service. */
   machineSignIns?: import('./link/view.js').MachineSignIn[]
+  /**
+   * The hub's name of each machine it ever had, the own one too (BTN-993): what the page labels a lane and a session
+   * by. One machine or none — the page shows no machine at all; absent — an older service.
+   */
+  machineNames?: Record<string, string>
   /** The work the service does in steps while a window shows it (BTN-1048): a project being created; absent — an older service. */
   jobs?: import('./jobs/model.js').StepJob[]
   /** The automatic CLI check of each agent (BTN-569): waiting, running or its last result; empty while the setting is off. */

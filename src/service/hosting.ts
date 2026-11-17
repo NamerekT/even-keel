@@ -185,7 +185,8 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     config: ctx.configStore.view(ctx.lockedReaders()),
     branchDrift: ctx.branches.view(),
     chain: {
-      active: ctx.dispatcher.state.active,
+      // The page names each lane's machine: one on the own machine gets its id too.
+      active: ctx.dispatcher.state.active.map((lane) => (lane.machine === undefined ? { ...lane, machine: ctx.machineLink.machines.own() } : lane)),
       parallel: ctx.configStore.current.parallel,
       queue: ctx.dispatcher.state.queue,
       projects: orders,
@@ -278,6 +279,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     git: gitSetup.view(),
     gitFound: machine.gitFound(),
     machineSignIns: ctx.machineLink.network.signIns(),
+    machineNames: ctx.machineLink.network.names(),
     jobs: stepJobs.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,

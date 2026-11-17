@@ -12,6 +12,7 @@ import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { useLive } from '../live/context.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
+import { MachineTag } from '../ui/MachineTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
 import { estimateShare, familyHue, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
@@ -635,7 +636,7 @@ function Block(props: BlockProps) {
         )}
       </div>
       {narrow && (
-        <BlockTail run={block.run} links={links} onCard={onCard}>
+        <BlockTail run={block.run} machines={block.machines} links={links} onCard={onCard}>
           {readyButton ?? unreadyButton}
         </BlockTail>
       )}
@@ -656,6 +657,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
+        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} />}
         {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (

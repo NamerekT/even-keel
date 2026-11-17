@@ -113,6 +113,7 @@ export class MachineNetwork {
   /** The machines revoked here and, by project, its pool turned on: read by `refresh`, so the chain asks without a query. */
   private revokedIds = new Set<string>()
   private pools = new Map<string, string[]>()
+  private machineNames: Record<string, string> = {}
 
   constructor(private readonly options: MachineNetworkOptions) {
     this.hub = new HubEnd({
@@ -159,6 +160,11 @@ export class MachineNetwork {
     return this.pools.get(project) ?? []
   }
 
+  /** The hub's name of each machine it ever had, the own one and the revoked ones too, as `refresh` last read them. */
+  names(): Record<string, string> {
+    return this.machineNames
+  }
+
   revoked(machine: string): boolean {
     return this.revokedIds.has(machine)
   }
@@ -173,6 +179,7 @@ export class MachineNetwork {
   async refresh(): Promise<void> {
     const machines = await this.options.store.listMachines()
     this.revokedIds = new Set(machines.filter((record) => record.revokedAt !== null).map((record) => record.id))
+    this.machineNames = Object.fromEntries(machines.map((record) => [record.id, record.name]))
     const { rows } = await this.options.db.query<{ project_id: string; machine_id: string }>('select project_id, machine_id from project_machines where enabled order by machine_id')
     const pools = new Map<string, string[]>()
     for (const row of rows) pools.set(row.project_id, [...(pools.get(row.project_id) ?? []), row.machine_id])

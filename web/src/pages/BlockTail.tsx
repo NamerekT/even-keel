@@ -3,9 +3,12 @@ import { taskRunText, type TaskRun } from '../../../src/sessions/runs.js'
 import type { TaskLinks } from '../state.js'
 import { Links } from '../ui/Links.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
+import { MachineTag } from '../ui/MachineTag.js'
 
 interface BlockTailProps {
   run: TaskRun | null
+  /** The machines the task ran on (`ChainBlock.machines`); absent — one machine. */
+  machines?: string[] | undefined
   links: TaskLinks
   onCard: (task: string) => void
   /** "To the backlog" or "To Todo", always at the end. */
@@ -16,7 +19,7 @@ interface BlockTailProps {
  * A chain row's line on a phone (BTN-1162): after the key, the run (provider and model), the lock and the key without
  * their figures, and the row's button. When the run would be cut, the lock and the key fold away together first.
  */
-export function BlockTail({ run, links, onCard, children }: BlockTailProps) {
+export function BlockTail({ run, machines, links, onCard, children }: BlockTailProps) {
   const box = useRef<HTMLDivElement>(null)
   const linksBox = useRef<HTMLSpanElement>(null)
   const linksWidth = useRef(0)
@@ -44,6 +47,7 @@ export function BlockTail({ run, links, onCard, children }: BlockTailProps) {
 
   return (
     <div ref={box} className={folded ? 'block__tail block__tail--folded' : 'block__tail'}>
+      {machines !== undefined && <MachineTag machines={machines} />}
       {run !== null && <RunLabelTag run={run} />}
       <span ref={linksBox} className="block__tail-links">
         <Links links={links} onCard={onCard} />

@@ -12,6 +12,21 @@
   max-width: 32ch;
 }
 
+/* On a phone the machine keeps its room in the row's head and the model gives way (BTN-993). */
+.chain .block__tail .block__machine {
+  max-width: 16ch;
+}
+
+/* The machine a task runs on (BTN-993): a short label, a long name cut, the whole of it in the tip. */
+.chain .block__machine {
+  max-width: 32ch;
+  min-width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @property --sweep {
   syntax: '<angle>';
   inherits: false;

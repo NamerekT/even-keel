@@ -296,6 +296,7 @@ export const chainRU = {
     fixRuns: 'Открыть панель CI с прогонами этих коммитов',
     interrupted: 'ждёт main',
     interruptedTitle: 'Main покраснел: сессия этой задачи остановлена и продолжит, когда main починят',
+    machinesTitle: 'Машины, на которых шла задача; последняя — где она сейчас',
     review: {
       pull: (number: number) => `PR #${number}`,
       pullTitle: 'Задача ждёт свой pull request вне цепочки: открыть его',

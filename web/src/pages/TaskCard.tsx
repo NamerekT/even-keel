@@ -19,7 +19,8 @@ import { StatusPill, Text, useMarkdown } from './CardText.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
-import { activeChain, taskProject } from '../state.js'
+import { taskProject } from '../state.js'
+import { laneOfTask, lanesOf } from '../lanes.js'
 import { recallCard, rememberCard } from './cardMemory.js'
 import { removeRefusal } from './cardEdit.js'
 import { DAY, LabelsField, MilestoneField, PriorityPick, StatusPick, TitleEdit } from './CardFields.js'
@@ -70,7 +71,7 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
   const reread = () => setRound((n) => n + 1)
   const editor = useCardEdit(project, task, reread)
   const editable = card?.edit != null ? (card as Card & { edit: NonNullable<Card['edit']> }) : null
-  const current = state !== null && activeChain(state.chain, project)?.current?.task === task
+  const current = state !== null && laneOfTask(lanesOf(state.chain, project), task) !== undefined
   // The card reads at its full height, so a long task does not move after it; a short one glides down to its content.
   // `busy` counts at once: the loader's phase turns a render later, and the empty body between would be painted.
   const busy = card === undefined && error === null

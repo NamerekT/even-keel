@@ -513,6 +513,14 @@ export function createFakeSource(search: string): LiveSource {
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
   if (params.get('chain') === 'closing' && active) current.state!.chain.active = [{ ...active, current: null, closing: 'ABC-4' }]
+  // Two lanes of ABC on two machines (BTN-993), and a closed task that moved from one to the other.
+  if (params.get('chain') === 'lanes' && active) {
+    const state = current.state!
+    state.machineNames = { pc: 'Workstation', srv: 'Home server' }
+    state.chain.active = [{ ...active, machine: 'pc' }, { project: active.project, machine: 'srv', current: { task: 'ABC-6', sessionId: null, since: ago(1) }, paused: false, error: null }, ...state.chain.active.slice(1)]
+    const run = (sessionId: string, at: number, machine: string) => ({ sessionId, at: ago(at), how: 'checkpoint' as const, resumed: 0, answers: 0, machine })
+    state.taskSessions['ABC-4'] = [run('lanes-2', 120, 'srv'), run('lanes-1', 300, 'pc')]
+  }
   const packageWaits: Record<string, string> = { packages: 'probing', packagesSilent: 'silent', gateway: 'gateway' }
   const packageWait = packageWaits[params.get('chain') ?? '']
   if (packageWait !== undefined && active) {
