@@ -36,7 +36,7 @@ Behaviour without a way to check it live gets an entry in `docs/unverified/<area
 
 The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A change of installation, a config key, an environment variable or behaviour described there edits the guide too; the README stays short and changes only when its short version stops being true. The guide has no task IDs and only links the internals.
 
-**Where to write new things.** Here goes only a rule or a trap without which a session will go wrong in any task, in a line or two. How a feature is built, its routes, parameters and measurements go into the area's document (none fits — a new one and a row above) or into JSDoc. The hook and a test hold this file to 13,000 bytes; only the user may raise the ceiling. Documentation in the repository is in English; Huly tasks stay in Russian.
+**Where to write new things.** Here goes only a rule or a trap without which a session will go wrong in any task, in a line or two. How a feature is built, its routes, parameters and measurements go into the area's document (none fits — a new one and a row above) or into JSDoc. The hook and a test hold this file to 13,000 bytes; only the user may raise the ceiling. Documentation in the repository is in English.
 
 ## Stack
 
@@ -73,13 +73,14 @@ The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A ch
 
 Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, public). `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetch from all remotes, merge, push to all), never `git push origin <branch>`. Task branches are not pushed, except by Even Keel in PR mode.
 
-Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own; the next version is built on `dev` (this checkout, Huly `BTN`), fixes of the released one on `release/v<x.y>` (the clone `even-keel-github`, Huly `EKR`), carried into `dev` by hand. Both folders share one auto-memory: a memory that holds only for one branch or folder names it.
+Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own; the next version is built on `dev` (this checkout, Huly `BTN`), fixes of the released one on `release/v<x.y>` (the clone `even-keel-github`, Huly `EKR`), carried into `dev` by Even Keel. Both folders share one auto-memory: a memory that holds only for one branch or folder names it.
 
 ## Tasks
 
-Work is tracked in Huly: `BTN` for the next version, `EKR` for fixes of the released one (the same rules with its own key). Tasks go through the `tasks` plugin: read `tasks:task` and `huly-tracker` (labels, statuses); what it lacks, the Huly API.
+Work is tracked in Huly: `BTN` for the next version, `EKR` for fixes of the released one. Tasks go through the `tasks` plugin: read `tasks:task` and `huly-tracker` (labels, statuses); what it lacks, the Huly API.
 
 - A session started by hand talks things through and files tasks; the chain codes them. A talk that ends in "do it" becomes a task in `BTN` (Backlog) and the session stops: no worktree, no code. Code by hand only when the user says to do it here (this overrides the global "without a task — commit at once"); such work is a commit to the checkout's branch, `dev` or `release/v<x.y>`, never `main`.
+- A bug of the released version goes to `EKR` instead, in its version's milestone, Todo, unless the user says it can wait.
 - Branch: `btn-<number>/short-description`. Commit: `[BTN-<number>] Message`. Task content is in Russian.
 - A session merges its task branch itself (`git merge --no-edit` in the main working copy) and reports what was done. A chain session then leaves the worktree, the branch and the push to Even Keel; a hand session cleans up per `tasks:task` and pushes through `git sync`.
 - GitHub issues are taken into `EKR` or `BTN` as `docs/releases.md` ("Trackers") says; decisions come only from the Huly task.
@@ -95,7 +96,7 @@ Even Keel prepares a task's worktree itself (`.claude/worktrees/<key>-<number>` 
 
 ## Service
 
-Without the service: `npm install`, `npm run build`, `npm start`. On Windows — the sign-in start with a tray icon (`even-keel install`) or the service `EvenKeel` (`service/install.ps1`), one per machine; on Linux and macOS — `service/install.sh`. The log is `logs/even-keel.log`; in detail — `docs/service.md`.
+Without the service: `npm install`, `npm run build`, `npm start`. On Windows — the sign-in start with a tray icon (`even-keel install`) or the service `EvenKeel` (`service/install.ps1`), one per machine; on Linux and macOS — `service/install.sh`. The log is `logs/even-keel.log`.
 
 ## Tests
 
