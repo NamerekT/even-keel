@@ -26,6 +26,14 @@
       "input": 10, "output": 50, "cacheRead": 1, "cacheWrite5m": 12.5, "cacheWrite1h": 0,
       "longPrompt": { "over": 272000, "input": 20, "output": 75, "cacheRead": 2, "cacheWrite5m": 25, "cacheWrite1h": 0 }
     },
+    "gpt-6.2-astra": {
+      "input": 8, "output": 40, "cacheRead": 0.4, "cacheWrite5m": 10, "cacheWrite1h": 0,
+      "longPrompt": { "over": 272000, "input": 16, "output": 60, "cacheRead": 0.8, "cacheWrite5m": 20, "cacheWrite1h": 0 }
+    },
+    "gpt-6.2-sol": {
+      "input": 2, "output": 10, "cacheRead": 0.1, "cacheWrite5m": 2.5, "cacheWrite1h": 0,
+      "longPrompt": { "over": 272000, "input": 4, "output": 15, "cacheRead": 0.2, "cacheWrite5m": 5, "cacheWrite1h": 0 }
+    },
     "gpt-6.1-sol": {
       "input": 2, "output": 10, "cacheRead": 0.1, "cacheWrite5m": 2.5, "cacheWrite1h": 0,
       "longPrompt": { "over": 272000, "input": 4, "output": 15, "cacheRead": 0.2, "cacheWrite5m": 5, "cacheWrite1h": 0 }
