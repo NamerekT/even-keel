@@ -154,6 +154,46 @@
   accent-color: var(--accent);
 }
 
+/* A project picked (BTN-1263): clone or a folder already there, and the folder, under its row. */
+.add-machine__place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6) var(--space-8);
+  padding: 0 var(--space-12) var(--space-8) calc(var(--space-12) + 13px + var(--space-8));
+}
+
+.add-machine__path {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.add-machine__place .add-package__note {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* Step 1's colour (BTN-1263): the palette, the next free one pressed. */
+.add-machine__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
+.add-machine__swatch {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.add-machine__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
 .add-machine__fact {
   flex: 1 1 auto;
   min-width: 0;

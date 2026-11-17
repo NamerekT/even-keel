@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { CLAUDE } from '../../../src/claude/name.js'
+import { JOIN_KIND, stepOf } from '../../../src/jobs/model.js'
 import type { EvenKeelState, MachineView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { machineAccounts, machineChecks, osLabel, signInOf, type MachineCheck } from '../machineAdd.js'
+import { folderOnMachine, joinRequests, machineAccounts, machineChecks, osLabel, signInOf, type MachineCheck, type ProjectPick } from '../machineAdd.js'
 import { machineLogin } from '../machineSignIn.js'
-import { projectName } from '../state.js'
+import { JobWindow } from '../pages/JobWindow.js'
+import { projectLabel, projectName } from '../state.js'
+import { Segmented } from '../stats/common.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -36,19 +39,26 @@ interface MachineJoinedProps {
 }
 
 /**
- * The machine that joined: what it reported, the projects to connect it to (cloned into its folder of projects) and
+ * The machine that joined: what it reported, the projects to connect it to (each cloned there or a folder already
+ * there, connected by one job in `JobWindow`, BTN-1263) and
  * the hub's accounts to sign in to there. The sign-in itself runs in `MachineLoginDialog`, over this window.
  */
 export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
   const { send, sending, failure } = useCommand()
-  const [chosen, setChosen] = useState<Set<string>>(() => new Set(machine.projects))
+  const [chosen, setChosen] = useState<Set<string>>(() => new Set())
+  const [picks, setPicks] = useState<Record<string, ProjectPick>>({})
   const hubAgents = [...new Set(state.account.accounts.map((entry) => entry.agent))]
   const about = machine.about
   const signIn = signInOf(machine, state.machineSignIns, hubAgents)
   const accounts = machineAccounts(state.account.accounts, signIn)
-  const fresh = [...chosen].filter((project) => !machine.projects.includes(project))
+  const fresh = joinRequests(
+    state.projects.filter((project) => !machine.projects.includes(project)),
+    chosen,
+    picks,
+  )
   const busy = sending || machineLogin(state.machineSignIns) !== undefined
   const [token, setToken] = useState<MachineTokenTarget | null>(null)
+  const job = state.jobs?.find((each) => each.kind === JOIN_KIND)
 
   const toggle = (project: string, on: boolean) =>
     setChosen((current) => {
@@ -57,8 +67,11 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
       else next.delete(project)
       return next
     })
-  const connect = async () => {
-    if (await send('machines/projects', { machine: machine.id, projects: fresh })) onClose()
+  const pick = (project: string, change: Partial<ProjectPick>) =>
+    setPicks((current) => ({ ...current, [project]: { clone: true, folder: '', ...current[project], ...change } }))
+  const connect = () => void send('machines/join', { machine: machine.id, projects: fresh })
+  const finish = async () => {
+    if (job !== undefined && (await send('job/close', { id: job.id }))) onClose()
   }
 
   return (
@@ -99,21 +112,32 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
             <ul className="add-machine__list">
               {state.projects.map((project) => {
                 const attached = machine.projects.includes(project)
-                const on = chosen.has(project)
+                const on = attached || chosen.has(project)
+                const key = state.projectKeys[project] ?? project
                 return (
                   <li key={project}>
                     <label className="add-machine__row add-machine__row--pick">
                       <input type="checkbox" checked={on} disabled={attached || sending} onChange={(event) => toggle(project, event.target.checked)} />
                       <span className="add-machine__fact">
-                        <span className="add-machine__key">{state.projectKeys[project] ?? project}</span> <span className="add-machine__muted">{projectName(state, project)}</span>
+                        <span className="add-machine__key">{key}</span> <span className="add-machine__muted">{projectName(state, project)}</span>
                       </span>
-                      <span className="add-machine__effect">{attached ? t.machines.attached : on ? t.machines.intoRoot : t.machines.skip}</span>
+                      {(attached || !on) && <span className="add-machine__effect">{attached ? t.machines.attached : t.machines.skip}</span>}
                     </label>
+                    {on && !attached && (
+                      <ProjectPlace
+                        label={key}
+                        pick={picks[project] ?? { clone: true, folder: '' }}
+                        placeholder={folderOnMachine(about!.root!, state.config.projects[project]?.repo ?? '')}
+                        disabled={sending}
+                        onChange={(change) => pick(project, change)}
+                      />
+                    )}
                   </li>
                 )
               })}
             </ul>
           )}
+          {fresh.length > 0 && <p className="add-package__note">{t.machines.checks}</p>}
         </section>
 
         <section className="add-machine__section">
@@ -186,11 +210,67 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
         <button type="button" className="button" onClick={onClose}>
           {t.machines.later}
         </button>
-        <button type="button" className="button button--primary" disabled={fresh.length === 0 || sending} onClick={() => void connect()}>
+        <button type="button" className="button button--primary" disabled={fresh.length === 0 || sending || job !== undefined} onClick={connect}>
           {t.machines.connect}
         </button>
       </footer>
       {token !== null && <MachineTokenDialog target={token} onClose={() => setToken(null)} />}
+      {job !== undefined && (
+        <JobWindow
+          job={job}
+          title={t.machines.window}
+          stepLabel={(id) => {
+            const { step } = stepOf(id)
+            return t.creation.window.steps[step] ?? step
+          }}
+          groupOf={(id) => {
+            const { project } = stepOf(id)
+            if (project === undefined) return undefined
+            const name = projectName(state, project)
+            return name === null ? projectLabel(state, project) : `${projectLabel(state, project)} · ${name}`
+          }}
+          done={{ label: t.pool.done, onDone: () => void finish() }}
+          undoNote={t.machines.undoable}
+        />
+      )}
     </>
+  )
+}
+
+interface ProjectPlaceProps {
+  /** The project's key, as its row shows it. */
+  label: string
+  pick: ProjectPick
+  /** The folder the hub names when none is given. */
+  placeholder: string
+  disabled: boolean
+  onChange: (change: Partial<ProjectPick>) => void
+}
+
+/** Under a project picked: "Clone here" or "Folder on the machine", and the folder on the machine, empty for the hub's name. */
+function ProjectPlace({ label, pick, placeholder, disabled, onChange }: ProjectPlaceProps) {
+  return (
+    <div className="add-machine__place">
+      <Segmented
+        label={t.machines.mode(label)}
+        options={[
+          ['clone', t.pool.dialog.clone],
+          ['folder', t.pool.dialog.folder],
+        ]}
+        value={pick.clone ? 'clone' : 'folder'}
+        onChange={(mode) => onChange({ clone: mode === 'clone' })}
+      />
+      <input
+        aria-label={t.machines.folderOf(label)}
+        className="add-package__input settings__text--mono add-machine__path"
+        autoComplete="off"
+        spellCheck={false}
+        value={pick.folder}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(event) => onChange({ folder: event.target.value })}
+      />
+      <p className="add-package__note">{pick.clone ? t.machines.cloneHint : t.machines.folderHint}</p>
+    </div>
   )
 }

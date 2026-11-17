@@ -12,6 +12,12 @@ export function colorOf(value: string): string | undefined {
   return HEX.test(color) ? color : undefined
 }
 
+/** The colour the window "Add a machine" offers (BTN-1263): the palette's first that no machine has, else round the palette. */
+export function nextColor(taken: readonly string[]): string {
+  const used = new Set(taken.map((color) => color.toLowerCase()))
+  return MACHINE_PALETTE.find((color) => !used.has(color)) ?? MACHINE_PALETTE[taken.length % MACHINE_PALETTE.length]!
+}
+
 /** Each machine's colour: its own, else the palette's by its place among the hub's machines, oldest first. */
 export function machineColors(machines: ReadonlyArray<{ id: string; color?: string | null }>): Record<string, string> {
   return Object.fromEntries(machines.map((machine, index) => [machine.id, machine.color ?? MACHINE_PALETTE[index % MACHINE_PALETTE.length]!]))

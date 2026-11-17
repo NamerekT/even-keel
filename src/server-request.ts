@@ -19,6 +19,7 @@ import { PROFILE_RULE_KEYS } from './profiles/model.js'
 import type { Protection } from './sessions/protection.js'
 import { PASSABLE_STEPS, type PassableStep } from './setup.js'
 import { BROWSER_ID, hotkeyBindingsOf, type HotkeyBindings } from './hotkeys.js'
+import type { JoinRequest } from './jobs/model.js'
 
 export function browserOf(body: Record<string, unknown>): string {
   if (typeof body.browser !== 'string' || !BROWSER_ID.test(body.browser)) throw fail('request.required', { field: 'browser' })
@@ -429,6 +430,17 @@ export function listOf(body: Record<string, unknown>, code: Extract<NoticeCode, 
   const { order } = body
   if (!Array.isArray(order) || !order.every((item) => typeof item === 'string')) throw fail(code, {})
   return order
+}
+
+/** The projects of "Connect" in the window "Add a machine" (BTN-1263): each with clone or not and its folder, if named. */
+export function joinRequestsOf(body: Record<string, unknown>): JoinRequest[] {
+  const { projects } = body
+  if (!Array.isArray(projects) || projects.length === 0) throw fail('request.projectList', {})
+  return projects.map((item: unknown) => {
+    const entry = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
+    const folder = typeof entry.folder === 'string' ? entry.folder.trim() : ''
+    return { project: projectOf(entry), clone: entry.clone === true, ...(folder !== '' && { folder }) }
+  })
 }
 
 

@@ -1,7 +1,35 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
-import { addMachineOf, joinedMachine, machineAccounts, machineChecks, osLabel, signInOf, withAddMachine } from './machineAdd.js'
+import { addMachineOf, folderOnMachine, joinedMachine, joinRequests, machineAccounts, machineChecks, osLabel, signInOf, takenColors, withAddMachine } from './machineAdd.js'
+
+describe('the folder a project gets on a machine', () => {
+  it("is the hub's folder name inside the machine's root, written the machine's way", () => {
+    expect(folderOnMachine('/home/example/projects', 'D:\\repos\\abc\\')).toBe('/home/example/projects/abc')
+    expect(folderOnMachine('C:\\projects\\', '/srv/repos/abc')).toBe('C:\\projects\\abc')
+    expect(folderOnMachine('/home/example/projects/', '')).toBe('/home/example/projects')
+  })
+})
+
+describe('the colours machines have', () => {
+  it('are those of the own machine and every joined one not revoked', () => {
+    const state = { machineNames: { pc: 'PC', a: 'A', b: 'B', c: 'C' }, machineColors: { pc: '#111111', a: '#222222', b: '#333333', c: '#444444' } }
+    const machines = [view({ id: 'a' }), view({ id: 'b', revokedAt: 5 }), view({ id: 'c', joinedAt: null })]
+    expect(takenColors(state, machines)).toEqual(['#111111', '#222222'])
+    expect(takenColors({ machineNames: { pc: 'PC' } }, [])).toEqual([])
+  })
+})
+
+describe('the projects "Connect" sends', () => {
+  it('takes the fresh ones in the hub order, a clone unless a folder is picked, a folder only when named', () => {
+    const picks = { b: { clone: false, folder: ' /srv/b ' }, c: { clone: false, folder: '' } }
+    expect(joinRequests(['a', 'b', 'c', 'd'], new Set(['c', 'a', 'b']), picks)).toEqual([
+      { project: 'a', clone: true },
+      { project: 'b', clone: false, folder: '/srv/b' },
+      { project: 'c', clone: false },
+    ])
+  })
+})
 
 const ABOUT: MachineAbout = {
   host: 'example-laptop', os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: { claude: '2.1.322' }, gitUser: true, root: '/home/example/projects',

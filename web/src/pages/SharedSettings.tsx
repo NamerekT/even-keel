@@ -72,6 +72,7 @@ import { noticeTexts } from '../i18n/notice-choices.js'
 import { useVocabularies, VocabularyReading } from './useVocabularies.js'
 import { amountOf, EXECUTED, formOf, promptsOf, same, valuesOf } from './sharedSettingsForm.js'
 import { useOpenAddMachine } from '../layout/AddMachineDialog.js'
+import { poolShown } from './ProjectMachinesTab.js'
 import './settings.css'
 
 const SCOPE = SHARED_SCOPE
@@ -580,8 +581,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             }
             error={errorOf('machinesAddress')}
           />
-          {/* Until the machines panel (BTN-1051) holds "+ Machine", the window opens from beside its address. */}
-          <Row
+          {/* With several machines "+ Machine" is at the foot of the machines panel; with one there is no panel, so the first is added from here. */}
+          {!poolShown(state) && <Row
             className="settings__field"
             label={t.machines.title}
             hint={t.machines.addHint}
@@ -590,7 +591,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
                 {t.machines.add}
               </button>
             }
-          />
+          />}
         </Section>
       </>
     ),

@@ -16,6 +16,7 @@ describe('the routes of a project pool', () => {
         view: async (project) => (calls.push(['view', project]), POOL),
         connect: async (project, request) => void calls.push(['connect', project, request]),
         enable: async (project, machine, enabled) => void calls.push(['enable', project, machine, enabled]),
+        join: async (machine, requests) => void calls.push(['join', machine, requests]),
       },
     })
     const post = (path: string, body: unknown) => fetch(`${base}/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -26,11 +27,17 @@ describe('the routes of a project pool', () => {
       expect((await post('machines/enable', { project: 'ABC', machine: 'srv', enabled: false })).status).toBe(200)
       expect((await post('machines/enable', { project: 'ABC', machine: 'srv' })).status).toBe(400)
       expect((await post('machines/connect', { project: 'ABC' })).status).toBe(400)
+      const projects = [{ project: 'ABC', clone: true }, { project: 'DEF', clone: false, folder: ' /srv/def ' }, { project: 'GHI', folder: '' }]
+      expect((await post('machines/join', { machine: 'srv', projects })).status).toBe(200)
+      expect((await post('machines/join', { machine: 'srv', projects: [] })).status).toBe(400)
+      expect((await post('machines/join', { machine: 'srv', projects: [{ clone: true }] })).status).toBe(400)
+      expect((await post('machines/join', { projects })).status).toBe(400)
       expect(calls).toEqual([
         ['view', 'ABC'],
         ['connect', 'ABC', { machine: 'srv', clone: true, folder: '/srv/abc' }],
         ['connect', 'ABC', { machine: 'srv', clone: false }],
         ['enable', 'ABC', 'srv', false],
+        ['join', 'srv', [{ project: 'ABC', clone: true }, { project: 'DEF', clone: false, folder: '/srv/def' }, { project: 'GHI', clone: false }]],
       ])
     } finally {
       await close()

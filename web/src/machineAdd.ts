@@ -1,5 +1,6 @@
 import type { AccountEntry } from '../../src/account/model.js'
-import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
+import type { EvenKeelState, MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
+import type { JoinRequest } from '../../src/jobs/model.js'
 import { paysPerToken } from './accounts.js'
 import { machineGaps, machineTokens, type MachineGap } from './machineSignIn.js'
 
@@ -25,6 +26,44 @@ export function withAddMachine(search: string, at: string | null): string {
 /** The machine the string was issued for, once it joined with it. */
 export function joinedMachine(machines: MachineView[], machine: string): MachineView | undefined {
   return machines.find((each) => each.id === machine && each.joinedAt !== null && each.revokedAt === null)
+}
+
+/**
+ * The folder a project gets inside a machine's folder of projects when none is named: the hub's folder name, in the
+ * machine's way of writing paths (`folderUnder` of the service).
+ */
+export function folderOnMachine(root: string, repo: string): string {
+  const windows = root.includes('\\') || /^[A-Za-z]:/.test(root)
+  const separator = windows ? '\\' : '/'
+  const name = repo.split(/[\\/]/).filter((part) => part !== '').pop()
+  const base = root.replace(/[\\/]+$/, '')
+  return name === undefined ? base : `${base}${separator}${name}`
+}
+
+/** The colours the hub's live machines have, the own one's too: a new machine is offered one none of them has. */
+export function takenColors(state: Pick<EvenKeelState, 'machineNames' | 'machineColors'>, machines: MachineView[]): string[] {
+  const gone = new Set(machines.filter((machine) => machine.revokedAt !== null || machine.joinedAt === null).map((machine) => machine.id))
+  return Object.keys(state.machineNames ?? {}).flatMap((id) => {
+    const color = state.machineColors?.[id]
+    return gone.has(id) || color === undefined ? [] : [color]
+  })
+}
+
+/** How a project is connected to a machine that joined: a clone made there, or a folder already there; a folder named or not. */
+export interface ProjectPick {
+  clone: boolean
+  folder: string
+}
+
+/** What "Connect" sends (`machines/join`): the projects picked and not yet connected, in the hub's order, cloned by default. */
+export function joinRequests(projects: string[], chosen: Set<string>, picks: Record<string, ProjectPick>): JoinRequest[] {
+  return projects
+    .filter((project) => chosen.has(project))
+    .map((project) => {
+      const pick = picks[project]
+      const folder = pick?.folder.trim() ?? ''
+      return { project, clone: pick?.clone ?? true, ...(folder !== '' && { folder }) }
+    })
 }
 
 const PLATFORMS: Record<string, string> = { linux: 'Linux', win32: 'Windows', darwin: 'macOS' }

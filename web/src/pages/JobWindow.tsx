@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { Fragment, useEffect, useId, useRef } from 'react'
 import type { JobStep, StepJob } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
@@ -18,6 +18,8 @@ interface JobWindowProps {
   done: { label: string; onDone: () => void }
   /** What Cancel takes back, when not a new project's folder. */
   undoNote?: string
+  /** The heading a step falls under, for a job over several projects; `undefined` — none. */
+  groupOf?: (id: string) => string | undefined
 }
 
 function StepMark({ state }: { state: JobStep['state'] }) {
@@ -56,7 +58,7 @@ function StepState({ step, now }: { step: JobStep; now: Date }) {
  * and speed, the failure with "Retry", and Cancel, which takes back what the job made while it still can. Not tied to
  * the wizard: the job's kind names its steps through `stepLabel`, and adding a machine to a project takes it too.
  */
-export function JobWindow({ job, title, stepLabel, done, undoNote }: JobWindowProps) {
+export function JobWindow({ job, title, stepLabel, done, undoNote, groupOf }: JobWindowProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useId()
   const { send, sending, failure } = useCommand()
@@ -66,6 +68,13 @@ export function JobWindow({ job, title, stepLabel, done, undoNote }: JobWindowPr
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
   }, [])
+
+  // A long job (several projects of a machine) runs below the window's fold: its current step is kept in view.
+  const current = job.steps.find((step) => step.state === 'running' || step.state === 'failed')?.id
+  const currentRow = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    currentRow.current?.scrollIntoView({ block: 'nearest' })
+  }, [current])
 
   const failed = job.failure !== null
   const retry = () => void send('job/retry', { id: job.id })
@@ -95,14 +104,21 @@ export function JobWindow({ job, title, stepLabel, done, undoNote }: JobWindowPr
         </header>
         <div className="add-package__body">
           <ol className="job-window__steps">
-            {job.steps.map((step) => (
-              <li key={step.id} className={`job-window__step job-window__step--${step.state}`}>
-                <StepMark state={step.state} />
-                <span className="job-window__label">{stepLabel(step.id)}</span>
-                <StepState step={step} now={now} />
-                <Progress step={step} />
-              </li>
-            ))}
+            {job.steps.map((step, index) => {
+              const group = groupOf?.(step.id)
+              const heading = group !== undefined && group !== groupOf?.(job.steps[index - 1]?.id ?? '') ? group : undefined
+              return (
+                <Fragment key={step.id}>
+                  {heading !== undefined && <li className="job-window__group">{heading}</li>}
+                  <li ref={step.id === current ? currentRow : undefined} className={`job-window__step job-window__step--${step.state}`}>
+                    <StepMark state={step.state} />
+                    <span className="job-window__label">{stepLabel(step.id)}</span>
+                    <StepState step={step} now={now} />
+                    <Progress step={step} />
+                  </li>
+                </Fragment>
+              )
+            })}
           </ol>
           {!job.done && <p className="settings__hint job-window__note">{job.undoable ? (undoNote ?? t.creation.window.undoable) : t.creation.window.kept}</p>}
         </div>

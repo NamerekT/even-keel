@@ -30,6 +30,17 @@
   list-style: none;
 }
 
+/* A job over several projects (BTN-1263): the project's key and name over its steps. */
+.job-window__group {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-weight: 600;
+}
+
+.job-window__group:not(:first-child) {
+  margin-top: var(--space-8);
+}
+
 .job-window__step {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) auto;

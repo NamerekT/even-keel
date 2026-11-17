@@ -12,7 +12,7 @@ import { isLanguage } from './language.js'
 import { englishOf, fail, type Notice } from './notice/notice.js'
 import { oauthCallback, PROFILE_QUERIES } from './profiles/routes.js'
 import { guardedServer } from './server-guard.js'
-import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, labelList, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
+import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
 import { eventWriter, readJsonBody, sendFailure, sendFile, sendJson, serveStatic } from './server-response.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
@@ -99,7 +99,7 @@ const COMMANDS: Record<string, Command> = {
   'huly/install': ({ hulyClient }) => hulyClient?.install(),
   'storage/backup': ({ backup }) => backup?.copyNow(),
   'machines/revoke': ({ machines }, body) => machines?.revoke(textOf(body.machine, 'machine')),
-  'machines/projects': ({ machines }, body) => machines?.attach(textOf(body.machine, 'machine'), listOf({ order: body.projects }, 'request.projectList')),
+  'machines/join': ({ pool }, body) => pool?.join(textOf(body.machine, 'machine'), joinRequestsOf(body)),
   'machines/connect': ({ pool }, body) =>
     pool?.connect(projectOf(body), {
       machine: textOf(body.machine, 'machine'),
@@ -212,7 +212,11 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
     return machinePage.view(textOf(body.machine, 'machine'))
   },
   'machines/invite': async ({ machines }, body) =>
-    machines?.invite(typeof body.name === 'string' ? body.name : '', typeof body.address === 'string' ? body.address : undefined),
+    machines?.invite(
+      typeof body.name === 'string' ? body.name : '',
+      typeof body.address === 'string' ? body.address : undefined,
+      typeof body.color === 'string' ? body.color : undefined,
+    ),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),
   'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),
   'history/events': async ({ history }) => history?.events() ?? [],

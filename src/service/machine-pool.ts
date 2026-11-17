@@ -1,4 +1,5 @@
 import type { Remote } from '../ci/remote.js'
+import { JOIN_KIND, type JoinRequest } from '../jobs/model.js'
 import type { JobPlan, StepDef } from '../jobs/runner.js'
 import { FOLDER_STEPS, throwOf, type FolderSpec } from '../machine/folder-check.js'
 import { fail } from '../notice/notice.js'
@@ -50,6 +51,7 @@ export function connectSteps(deps: ConnectDeps, project: () => string, target: P
   let spec: FolderSpec | undefined
   let facts: ProjectFacts | undefined
   let inserted = false
+  let enabled = false
   const prepared = async (): Promise<FolderSpec> => {
     if (spec !== undefined) return spec
     facts = await deps.factsOf(project())
@@ -94,12 +96,36 @@ export function connectSteps(deps: ConnectDeps, project: () => string, target: P
       const each = await prepared()
       await deps.network.setEnabled(each.project, target.id, true)
       if (request.only === true) await deps.network.setEnabled(each.project, deps.own(), false)
+      enabled = true
     },
   }
   return {
     steps: [...(request.clone ? [clone] : []), place, ...checks, enable],
+    // A project already connected stays: in a job over several, Cancel takes back only the rest.
     undo: async () => {
-      if (inserted && spec !== undefined) await deps.network.unplace(target.id, spec.project)
+      if (inserted && !enabled && spec !== undefined) await deps.network.unplace(target.id, spec.project)
+    },
+  }
+}
+
+/**
+ * The job of "Connect" in the window "Add a machine" (BTN-1263): the machine that joined connected to each project in
+ * turn, by the same steps as "Connect" of a project's section "Machines", each step named `<step>@<project>`. A failed
+ * step stops the job; Cancel takes back the projects not yet connected and keeps the rest.
+ */
+export async function joinPlan(deps: ConnectDeps, machine: string, requests: JoinRequest[]): Promise<JobPlan> {
+  if (requests.length === 0) throw fail('request.projectList', {})
+  const target = await deps.network.target(machine)
+  const each = requests.map((request) => {
+    const made = connectSteps(deps, () => request.project, target, { machine, clone: request.clone, ...(request.folder !== undefined && { folder: request.folder }) })
+    return { steps: made.steps.map((step) => ({ ...step, id: `${step.id}@${request.project}` })), undo: made.undo }
+  })
+  return {
+    kind: JOIN_KIND,
+    subject: target.name,
+    steps: each.flatMap((part) => part.steps),
+    undo: async () => {
+      for (const part of each) await part.undo()
     },
   }
 }
@@ -147,5 +173,8 @@ export function poolControl(deps: PoolControlDeps) {
       deps.start(await connectPlan(deps, project, request))
     },
     enable: (project: string, machine: string, enabled: boolean) => deps.network.setEnabled(project, machine, enabled),
+    join: async (machine: string, requests: JoinRequest[]) => {
+      deps.start(await joinPlan(deps, machine, requests))
+    },
   }
 }

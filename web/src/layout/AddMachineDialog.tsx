@@ -5,7 +5,8 @@ import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { formatLineTime } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { addMachineOf, joinedMachine, withAddMachine } from '../machineAdd.js'
+import { MACHINE_PALETTE, nextColor } from '../../../src/link/colors.js'
+import { addMachineOf, joinedMachine, takenColors, withAddMachine } from '../machineAdd.js'
 import { machineArrival } from '../machineArrival.js'
 import { HubAddressField } from '../pages/HubAddressField.js'
 import { useBackdropClose } from '../ui/backdrop.js'
@@ -133,7 +134,7 @@ function MachineDialog({ state, at }: { state: EvenKeelState; at: string }) {
             </>
           )
         ) : (
-          <InviteSteps state={state} invite={invite} onInvite={setInvite} onClose={close} />
+          <InviteSteps state={state} taken={takenColors(state, machines ?? [])} invite={invite} onInvite={setInvite} onClose={close} />
         )}
       </div>
     </dialog>
@@ -142,18 +143,27 @@ function MachineDialog({ state, at }: { state: EvenKeelState; at: string }) {
 
 interface InviteStepsProps {
   state: EvenKeelState
+  /** The colours the hub's machines have: the window offers the palette's next free one. */
+  taken: string[]
   invite: MachineInvite | null
   onInvite: (invite: MachineInvite) => void
   onClose: () => void
 }
 
-/** The address and the name, then the command and the wait under them: the fields stay, "Issue again" takes them anew. */
-function InviteSteps({ state, invite, onInvite, onClose }: InviteStepsProps) {
+/**
+ * The address, the name and the colour, then the command and the wait under them: the fields stay, "Issue again"
+ * takes them anew.
+ */
+function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsProps) {
   const { query } = useLive()
   const addressId = useId()
   const nameId = useId()
+  const colorId = useId()
   const [address, setAddress] = useState(state.config.shared.machinesAddress ?? '')
   const [name, setName] = useState('')
+  // Until one is pressed, the palette's next free colour: the machines read later may change which it is.
+  const [picked, setPicked] = useState<string | null>(null)
+  const color = picked ?? nextColor(taken)
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<Notice | null>(null)
   const blank = address.trim() === ''
@@ -162,7 +172,7 @@ function InviteSteps({ state, invite, onInvite, onClose }: InviteStepsProps) {
     setSending(true)
     setFailure(null)
     try {
-      onInvite(await query<MachineInvite>('machines/invite', { name: name.trim(), address: address.trim() }))
+      onInvite(await query<MachineInvite>('machines/invite', { name: name.trim(), address: address.trim(), color }))
     } catch (error) {
       setFailure(noticeOf(error))
     } finally {
@@ -189,6 +199,25 @@ function InviteSteps({ state, invite, onInvite, onClose }: InviteStepsProps) {
             {t.machines.name}
           </label>
           <input id={nameId} className="add-package__input" value={name} maxLength={60} placeholder={t.machines.namePlaceholder} onChange={(event) => setName(event.target.value)} />
+        </div>
+        <div className="add-package__field">
+          <span className="add-package__label" id={colorId}>
+            {t.machines.color}
+          </span>
+          <span className="add-machine__colors" role="group" aria-labelledby={colorId}>
+            {MACHINE_PALETTE.map((each) => (
+              <button
+                key={each}
+                type="button"
+                className="add-machine__swatch"
+                style={{ background: each }}
+                aria-label={t.machinePage.swatch(each)}
+                aria-pressed={each === color}
+                onClick={() => setPicked(each)}
+              />
+            ))}
+          </span>
+          <p className="add-package__note">{t.machines.colorHint}</p>
         </div>
         {invite !== null && <CommandPart invite={invite} sending={sending} blank={blank} onAgain={() => void issue()} />}
       </div>

@@ -14,6 +14,7 @@ import type { GuardSettings } from './guard.js'
 import type { Invite } from './link/hub.js'
 import type { AddressChoice, MachineView } from './service/machine-network.js'
 import type { MachineCard, MachinePage, ProjectPool } from './link/view.js'
+import type { JoinRequest } from './jobs/model.js'
 import type { ConnectRequest } from './service/machine-pool.js'
 import type { HotkeyBindings } from './hotkeys.js'
 import type { Language } from './language.js'
@@ -261,11 +262,13 @@ export interface ServerDeps {
   /** The machines elsewhere (BTN-1242): their window is BTN-1056; without it the calls answer nothing. */
   machines?: {
     addresses(): AddressChoice[]
-    /** `address` — "Hub address for machines" as the window chose it, written before the string is issued. */
-    invite(name: string, address?: string): Promise<Invite & { command: string }>
+    /**
+     * `address` — "Hub address for machines" as the window chose it, written before the string is issued; `color` —
+     * the machine's colour picked with its name (BTN-1263).
+     */
+    invite(name: string, address?: string, color?: string): Promise<Invite & { command: string }>
     revoke(machine: string): Promise<void>
     list(): Promise<MachineView[]>
-    attach(machine: string, projects: string[]): Promise<void>
     /** "Take the folder over" (BTN-1244), confirmed on the page: `owner` is the machine its refusal named; no `machine` — the own one. */
     takeOver(machine: string | undefined, project: string, owner: string): Promise<void>
     /** A sign-in on a machine elsewhere (BTN-1245): again in its folder `account` when it has one, else a new account. */
@@ -280,6 +283,8 @@ export interface ServerDeps {
     view(project: string): Promise<ProjectPool>
     connect(project: string, request: ConnectRequest): Promise<void>
     enable(project: string, machine: string, enabled: boolean): Promise<void>
+    /** "Connect" of the window "Add a machine" (BTN-1263): the machine that joined into several projects, one job. */
+    join(machine: string, requests: JoinRequest[]): Promise<void>
   }
   /** The page of one machine (BTN-1272): its view, its capacity (the own one's is `parallel`) and its colour. */
   machinePage?: {

@@ -1,5 +1,6 @@
 import { notice } from '../../../src/notice/notice.js'
 import { MACHINE_PALETTE, machineColors } from '../../../src/link/colors.js'
+import { JOIN_KIND, type JoinRequest } from '../../../src/jobs/model.js'
 import type { EvenKeelState, JobStep, MachineAbout, MachineCard, MachineInvite, MachinePage, MachineProject, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
 
 /** A string issued in `dev:fake` is joined with this much later (BTN-1056). */
@@ -47,6 +48,7 @@ export class FakeNetwork {
     const given = String(body.name ?? '').trim()
     this.machines = this.machines.filter((machine) => machine.joinedAt !== null)
     this.machines.push({ id, name: given, createdAt: Date.now(), revokedAt: null, inviteExpires: Date.now() + INVITE_MS, joinedAt: null, host: null, about: null, online: false, projects: [], taken: [] })
+    if (typeof body.color === 'string') this.colors.set(id, body.color)
     setTimeout(() => {
       const report = about('example-server', { agents: { claude: '2.1.322' } })
       this.machines = this.machines.map((machine) =>
@@ -178,7 +180,7 @@ export class FakeNetwork {
   }
 
   /**
-   * `machines/projects` and `machines/enable`; `false` — another command. `machines/connect` puts the machine into the
+   * The machines' commands; `false` — another command, or one whose job is the state's. `machines/connect` puts the machine into the
    * pool turned off and answers `false` too: its job is the state's, `fakeMachineCommand`.
    */
   command(name: string, body: Record<string, unknown>): boolean {
@@ -210,11 +212,14 @@ export class FakeNetwork {
       this.changed()
       return false
     }
-    if (name !== 'machines/projects') return false
-    const projects = (body.projects as string[]) ?? []
+    if (name !== 'machines/join') return false
+    // Its job is the state's (`fakeMachineCommand`); the projects the job connects show on the machine at once.
+    const requests = (body.projects as JoinRequest[] | undefined) ?? []
+    const failing = joinFailing(String(body.machine), requests)
+    const projects = requests.map((each) => each.project).filter((project) => project !== failing)
     this.machines = this.machines.map((machine) => (machine.id === body.machine ? { ...machine, projects: [...new Set([...machine.projects, ...projects])] } : machine))
     this.changed()
-    return true
+    return false
   }
 }
 
@@ -258,6 +263,41 @@ function connectJob(state: EvenKeelState, body: Record<string, unknown>): StepJo
   }
 }
 
+/** The project whose push check fails in the fake's "Connect" of the window "Add a machine": the laptop's last. */
+const joinFailing = (machine: string, requests: JoinRequest[]): string | undefined => (machine === 'machine-1' && requests.length > 1 ? requests.at(-1)?.project : undefined)
+
+/**
+ * The job "Connect" of the window "Add a machine" starts (BTN-1263): each project's steps done at once, except on the
+ * laptop with more than one project, where the last one's push check fails with what to do.
+ */
+function joinJob(state: EvenKeelState, body: Record<string, unknown>): StepJob {
+  const machine = String(body.machine)
+  const requests = (body.projects as JoinRequest[] | undefined) ?? []
+  const failing = joinFailing(machine, requests)
+  const at = new Date().toISOString()
+  let failed = false
+  const steps: JobStep[] = requests.flatMap(({ project, clone }) =>
+    [...(clone ? ['machine-clone'] : []), 'machine-place', ...CONNECT_CHECKS, 'machine-enable'].map((step): JobStep => {
+      const id = `${step}@${project}`
+      if (failed) return { id, state: 'waiting' }
+      if (project === failing && step === 'machine-push') {
+        failed = true
+        return { id, state: 'failed', startedAt: at, endedAt: at }
+      }
+      return { id, state: 'done', startedAt: at, endedAt: at }
+    }),
+  )
+  return {
+    id: `job-join-${Date.now()}`,
+    kind: JOIN_KIND,
+    subject: state.machineNames?.[machine] ?? (machine === 'machine-1' ? 'Example laptop' : machine),
+    steps,
+    failure: failed ? notice('pool.noPush', { remote: `https://git.example.com/acme/${(state.projectKeys[failing!] ?? 'abc').toLowerCase()}.git` }) : null,
+    done: !failed,
+    undoable: failed,
+  }
+}
+
 /**
  * `?machines=signIn|login|offline|nocli` (BTN-1245): a machine elsewhere where the active Claude account is not signed
  * in; `login` with its sign-in under way, `offline` gone from the link, `nocli` without the Claude CLI, `token` with the
@@ -286,6 +326,7 @@ const loginOf = (agent: string, target: string | null): MachineSignIn['login'] =
 /** The machines' sign-in commands on the fake state; `null` — not one of them. */
 export function fakeMachineCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   if (name === 'machines/connect') return { ...state, jobs: [...(state.jobs ?? []), connectJob(state, body)] }
+  if (name === 'machines/join') return { ...state, jobs: [...(state.jobs ?? []), joinJob(state, body)] }
   const machines = state.machineSignIns
   if (machines === undefined || !name.startsWith('machines/')) return null
   const change = (machine: string, patch: (each: MachineSignIn) => MachineSignIn): EvenKeelState => ({

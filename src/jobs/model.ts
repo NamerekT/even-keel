@@ -34,3 +34,19 @@ export interface StepJob {
   /** The project an existing project's job works on (connecting a machine to it). */
   project?: string
 }
+
+/** The job of "Connect" in the window "Add a machine" (BTN-1263): one machine, several projects in turn. */
+export const JOIN_KIND = 'machine-join'
+
+/** A project of that job: a clone made on the machine or a folder already there; no folder — the hub's name in its root. */
+export interface JoinRequest {
+  project: string
+  clone: boolean
+  folder?: string
+}
+
+/** A step of a job over several projects is `<step>@<project>`: the window names the step and groups it by project. */
+export function stepOf(id: string): { step: string; project?: string } {
+  const at = id.lastIndexOf('@')
+  return at === -1 ? { step: id } : { step: id.slice(0, at), project: id.slice(at + 1) }
+}

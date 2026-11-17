@@ -143,6 +143,13 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect((await network.list()).find((machine) => machine.id === named.machine)?.name).toBe('Example desktop')
   })
 
+  it('gives the machine the colour the window picked with its string', async () => {
+    const { network } = await started()
+    await expect(network.invite('Example desktop', '127.0.0.1', 'teal')).rejects.toThrow()
+    const invite = await network.invite('Example desktop', '127.0.0.1', '#A08060')
+    expect(network.colors()[invite.machine]).toBe('#a08060')
+  })
+
   it('shows a folder another machine holds, frees the mark of a machine it revoked, and takes a folder over only from the machine shown', async () => {
     const owned: [string, string][] = []
     const { db, network, settings } = await started(undefined, () => {}, async (project, owner) => void owned.push([project, owner]))
