@@ -5,7 +5,6 @@ import { Link } from 'react-router'
 import { TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
 import type { StatsAnswer } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
-import { activity } from '../live/activity.js'
 import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
 import { stepPath } from '../pages/setupSteps.js'
 import { issueLink } from '../state.js'
@@ -16,6 +15,10 @@ const REFRESH_MS = 5 * 60_000
 
 export type Loaded<T> = { key: string; answer: StatsAnswer<T> } | { key: string; failure: string }
 
+/**
+ * A Tally answer for `key`, read again every 5 minutes. It is a background read and stays off the top bar (BTN-1257):
+ * where it is shown says it is reading — a skeleton, the strip's own, a placeholder at the header's numbers.
+ */
 export function useStatsAnswer<T>(key: string | null, load: () => Promise<StatsAnswer<T>>, refresh = true): Loaded<T> | null {
   const [loaded, setLoaded] = useState<Loaded<T> | null>(null)
 
@@ -27,7 +30,7 @@ export function useStatsAnswer<T>(key: string | null, load: () => Promise<StatsA
         (answer) => alive && setLoaded({ key, answer }),
         (reason: unknown) => alive && setLoaded({ key, failure: reason instanceof Error ? reason.message : String(reason) }),
       )
-    void activity.track(run())
+    void run()
     const timer = refresh ? setInterval(() => void run(), REFRESH_MS) : undefined
     return () => {
       alive = false

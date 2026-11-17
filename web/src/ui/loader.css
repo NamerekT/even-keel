@@ -25,6 +25,18 @@
   min-height: calc(100dvh - var(--header-height) - 56px);
 }
 
+/* The window a select or a suggest field opens while its values are read (BTN-1257): a small boat, the window glides to the list after. */
+.ui-loader--menu {
+  --loader-width: 48px;
+  gap: var(--space-4);
+  min-height: 0;
+  padding: var(--space-8) var(--space-16);
+}
+
+.ui-loader--menu .ui-loader__label {
+  font-size: var(--text-12);
+}
+
 .ui-loader__scene {
   display: grid;
   width: var(--loader-width, 96px);

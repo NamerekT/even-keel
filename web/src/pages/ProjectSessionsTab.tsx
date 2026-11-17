@@ -19,7 +19,7 @@ import { labelOf, standardsShown, ttlLabel } from './projectSettingsDraft.js'
 import { protectionText } from './protectionDraft.js'
 import { ErrorStrip, FieldHead, fieldId, FieldNote, Inherit, ModelStrip, Row, Section, SHARE_KEYS, shareOf, sharesText } from './settingsParts.js'
 import { accountOptions, accountVendorName, modelKey, providerName, WINDOW_KEYS } from './settingsRun.js'
-import { offersOf, type ModelAnswer } from './useModels.js'
+import { modelsReading, offersOf, type ModelAnswer } from './useModels.js'
 
 /** The "Sessions" tab of the project settings panel: the project's packages, the agent, the prompt, the standards, protection and context. */
 export function ProjectSessionsTab({
@@ -145,6 +145,7 @@ export function ProjectSessionsTab({
                     mono
                     value={text(model)}
                     options={offers}
+                    loading={modelsReading(models, rowAccount(provider))}
                     placeholder={sharedModel}
                     invalid={errorOf(model) !== null}
                     onChange={(value) => edit(model, value)}

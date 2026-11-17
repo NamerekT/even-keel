@@ -9,7 +9,7 @@ import { changed, edited, reverted, type Values } from './settingsDraft.js'
 import { linesOf, marksOf, sameBy, SaveBar } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { useDraft } from './settingsStore.js'
-import { useVocabularies } from './useVocabularies.js'
+import { useVocabularies, VocabularyReading } from './useVocabularies.js'
 import { MovesSection, useProfileStatuses } from './MoveFields.js'
 import { movesFrom, profileMovesText, type MovesText } from './statusMoves.js'
 
@@ -38,7 +38,7 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
   const saved = textsOf(profile.rules)
   const [current, setDraft] = useDraft(profileGroup(profile.id), saved, same)
   const draft = current!
-  const vocabularies = useVocabularies(profile.projectIds)
+  const { vocabularies, reading } = useVocabularies(profile.projectIds)
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
   const tasks = state.tasks.filter((task) => profile.projectIds.includes(task.project))
@@ -60,6 +60,7 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
       }}
     >
       <p className="settings__hint">{profile.projectIds.length === 0 ? t.profiles.rulesNoProjects : t.profiles.rulesFor(profile.projects.join(', '))}</p>
+      <VocabularyReading.Provider value={reading}>
       <RuleForm
         level="profile"
         hint={t.profiles.rulesHint}
@@ -78,6 +79,7 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
         errorOf={() => null}
         marks={marks}
       />
+      </VocabularyReading.Provider>
       {moves.section}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <SaveBar

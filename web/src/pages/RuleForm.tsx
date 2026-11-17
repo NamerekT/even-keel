@@ -5,6 +5,7 @@ import { t } from '../i18n/index.js'
 import { PlusIcon, TrashIcon, UndoIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
+import { useVocabularyReading } from './useVocabularies.js'
 import {
   labelRows,
   milestoneModeOf,
@@ -157,6 +158,7 @@ const ruleOf = (rules: Pick<ChainRules, 'requiredLabels' | 'excludedLabels'>, na
 
 function LabelTable({ rules, inherited, origins, level, profileName, ownName, labels, marks, errorOf, put }: RuleFormProps & { put: Put }) {
   const id = useId()
+  const reading = useVocabularyReading()
   const [adding, setAdding] = useState('')
   const [rule, setRule] = useState<'required' | 'excluded'>('excluded')
   const rows = labelRows(rules, origins)
@@ -216,6 +218,7 @@ function LabelTable({ rules, inherited, origins, level, profileName, ownName, la
                 label={t.settings.labelAdd}
                 value={adding}
                 options={labels.filter((name) => !rows.some((row) => sameName(row.name, name)))}
+                loading={reading}
                 placeholder={t.settings.labelAdd}
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter') return
@@ -281,6 +284,7 @@ type MilestoneKey = 'requiredMilestones' | 'excludedMilestones'
  */
 export function MilestoneFields({ level, rules, inherited, origins, milestones, onlyUnavailable, text, onEdit, errorOf, marks }: MilestoneFieldsProps) {
   const id = useId()
+  const reading = useVocabularyReading()
   const tableDraft = useTableDraft()
   const pending = tableDraft?.draft.adding
   const effective = {
@@ -308,6 +312,7 @@ export function MilestoneFields({ level, rules, inherited, origins, milestones, 
       add={t.settings.ruleAdd[key]}
       empty={t.settings.milestonesEmpty}
       suggest={withoutListed(milestones, text(other))}
+      reading={reading}
       onChange={(value) => onEdit([[key, value]])}
     />
   )

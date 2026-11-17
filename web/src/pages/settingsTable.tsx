@@ -15,6 +15,8 @@ export interface Column {
   placeholder: string
   /** Offered while typing; any other value may still be typed. */
   suggest?: readonly string[]
+  /** The suggestions are still read: the list opened meanwhile shows the loader (BTN-1257). */
+  reading?: boolean
   /** A pick from these instead of typing. */
   options?: readonly { value: string; label: string }[]
   /** Enter breaks the line instead of ending the cell. */
@@ -64,6 +66,7 @@ function Cell({ column, value, label, taken, invalid = false, onChange, onEnter 
         mono={column.mono}
         value={value}
         options={column.suggest.filter((each) => !taken.includes(each))}
+        loading={column.reading}
         placeholder={onEnter === undefined ? undefined : column.placeholder}
         onKeyDown={onKeyDown}
         onChange={onChange}
@@ -253,6 +256,7 @@ export function ListTable({
   add,
   empty,
   suggest,
+  reading,
   mono = false,
   onChange,
 }: {
@@ -262,6 +266,7 @@ export function ListTable({
   add: string
   empty: string
   suggest?: readonly string[]
+  reading?: boolean
   mono?: boolean
   onChange: (value: string) => void
 }) {
@@ -270,7 +275,7 @@ export function ListTable({
       field={field}
       encode={(rows) => linesText(rows.map((row) => row[0]!))}
       label={label}
-      columns={[{ title: label, placeholder: add, suggest, mono }]}
+      columns={[{ title: label, placeholder: add, suggest, reading, mono }]}
       rows={rowsOf(value).map((row) => [row])}
       empty={empty}
       onChange={(rows) => onChange(linesText(rows.map((row) => row[0]!)))}

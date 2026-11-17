@@ -9,7 +9,7 @@ import { SuggestField } from '../ui/SuggestField.js'
 import { modelOf } from '../../../src/agent/model-slots.js'
 import { effortsOf, rememberModel, runPickChange, runPickOf, withProvider, type RunPick } from './runPick.js'
 import { accountVendor, providerName } from './settingsRun.js'
-import { offersOf, useModelCatalog } from './useModels.js'
+import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
 
 interface Props {
   task: string
@@ -79,6 +79,7 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
             label={t.card.run.model}
             value={draft.model}
             options={offersOf(models, account)}
+            loading={modelsReading(models, account)}
             placeholder={t.card.run.modelAsProject(projectModel)}
             disabled={sending}
             onChange={(model) => setDraft({ ...draft, model })}

@@ -15,7 +15,7 @@ import { ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { useDraft } from './settingsStore.js'
 import { SourceDialog, type SourceTab } from './SourceDialog.js'
 import { useSourceMoves } from './SourceMoves.js'
-import { useVocabularies } from './useVocabularies.js'
+import { useVocabularies, VocabularyReading } from './useVocabularies.js'
 
 const same = sameBy(RULE_KEYS)
 const RULE_TAB_KEYS: readonly RuleKey[] = ['active', 'terminal', 'requiredLabels', 'excludedLabels']
@@ -50,7 +50,7 @@ export function FeedDialog({ state, project, feed, tasks, initialTab, onClose }:
 }) {
   const { draft, setDraft, saved, inherited, profile, profileRules } = useFeedDraft(state, project, feed)
   const { send, sending, failure } = useCommand()
-  const vocabularies = useVocabularies([feed.id])
+  const { vocabularies, reading } = useVocabularies([feed.id])
   const own = sourceTasks(tasks, state.config.feeds[project] ?? [], feed.id)
   const choices = ruleChoicesOf(own, vocabularies)
   const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
@@ -112,6 +112,7 @@ export function FeedDialog({ state, project, feed, tasks, initialTab, onClose }:
   ]
   return (
     <TableDraft value={{ draft, setDraft }}>
+    <VocabularyReading.Provider value={reading}>
     <SourceDialog
       kind={feed.tracker}
       initialTab={initialTab}
@@ -128,6 +129,7 @@ export function FeedDialog({ state, project, feed, tasks, initialTab, onClose }:
       }}
       onClose={onClose}
     />
+    </VocabularyReading.Provider>
     </TableDraft>
   )
 }

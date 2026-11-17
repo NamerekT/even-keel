@@ -54,7 +54,7 @@ import { HubAddressField } from './HubAddressField.js'
 import { ModelPrompts } from './ModelPrompts.js'
 import { profileGroup, ProfileRules } from './ProfileRules.js'
 import { profileAddOf } from './pullFix.js'
-import { offersOf, useModelCatalog } from './useModels.js'
+import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
 import { useModelReset } from './modelReset.js'
 import { openTab, SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
@@ -68,7 +68,7 @@ import { BackupStatus } from './BackupStatus.js'
 import { PackageCatalog } from '../tools/PackageCatalog.js'
 import { PACKAGE_PARAM } from '../tools/packageGroups.js'
 import { noticeTexts } from '../i18n/notice-choices.js'
-import { useVocabularies } from './useVocabularies.js'
+import { useVocabularies, VocabularyReading } from './useVocabularies.js'
 import { amountOf, EXECUTED, formOf, promptsOf, same, valuesOf } from './sharedSettingsForm.js'
 import './settings.css'
 
@@ -123,7 +123,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     if (addsProfile) openTab(SCOPE, 'trackers')
     else if (asksPackage) openTab(SCOPE, 'packages')
   }, [addsProfile, asksPackage])
-  const vocabularies = useVocabularies(state.projects)
+  const { vocabularies, reading } = useVocabularies(state.projects)
   const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
   const choices = ruleChoicesOf(state.tasks, vocabularies)
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
@@ -198,7 +198,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     />
   )
   // The model is typed freely; the account is picked from the offered folders.
-  const model = (key: string, label: string, offers: readonly string[], vendor: string | null) => (
+  const model = (key: string, label: string, account: string, vendor: string | null) => (
     <div className={marks.box(key)}>
       <ModelStrip error={errorOf(key)} vendor={vendor}>
         <SuggestField
@@ -207,7 +207,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           label={label}
           mono
           value={text(key)}
-          options={offers}
+          options={offersOf(models, account)}
+          loading={modelsReading(models, account)}
           placeholder={t.settings.cliDefault}
           invalid={errorOf(key) !== null}
           onChange={(value) => edit(key, value)}
@@ -289,7 +290,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       </>
     ),
     rules: () => (
-      <>
+      <VocabularyReading.Provider value={reading}>
         <RuleForm
           level="shared"
           rules={chain}
@@ -319,7 +320,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             marks={marks}
           />
         </Section>
-      </>
+      </VocabularyReading.Provider>
     ),
     models: () => (
       <>
@@ -345,7 +346,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               if (column === 'models') {
                 const key = slotKey(provider)
                 const vendor = accountVendorName(state.account, text(`accounts.${provider}`))
-                return model(key, t.settings.modelOf(vendor === null ? name : `${name} · ${vendor}`), offersOf(models, text(`accounts.${provider}`)), vendor)
+                return model(key, t.settings.modelOf(vendor === null ? name : `${name} · ${vendor}`), text(`accounts.${provider}`), vendor)
               }
               if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
               if (column === 'window') return windowCell(provider)
@@ -722,5 +723,6 @@ function HiddenSkills({ state, value, onChange }: { state: EvenKeelState; value:
         ],
   )
   const suggest = [...new Set(known)].sort((a, b) => a.localeCompare(b))
-  return <ListTable field="hiddenSkills" label={t.shared.hiddenSkills} value={value} add={t.shared.hiddenSkillsAdd} empty={t.shared.none} suggest={suggest} mono onChange={onChange} />
+  const reading = state.projects.some((project) => (loaded.get(project)?.state ?? 'loading') === 'loading')
+  return <ListTable field="hiddenSkills" label={t.shared.hiddenSkills} value={value} add={t.shared.hiddenSkillsAdd} empty={t.shared.none} suggest={suggest} reading={reading} mono onChange={onChange} />
 }

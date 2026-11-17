@@ -67,7 +67,7 @@ function BlockLimits({ entry, now, spend, tokens }: { entry: AccountEntry | unde
   if (spans.length > 0) {
     return spans.map((span) => <LimitSegment key={span} window={entry.limits![span]!} now={now} outdated={entry.limitsOutdated === true} />)
   }
-  const text = spendsByKey(entry) ? spendText(spend, entry.key) : tokens === null ? null : formatTokens(tokens[entry.key]?.day ?? 0)
+  const text = spendsByKey(entry) ? spendText(spend, entry.key) : tokens === undefined ? '…' : tokens === null ? null : formatTokens(tokens[entry.key]?.day ?? 0)
   return text === null ? null : <span className="hblock__seg limit"><span className="limit__text"><span className="limit__value">{text}</span></span></span>
 }
 

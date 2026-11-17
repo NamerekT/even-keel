@@ -50,6 +50,7 @@ export const ru = {
     max: 'Макс.',
     noData: 'нет данных',
     reading: 'Читаю транскрипт…',
+    readingOptions: 'Читаю значения…',
     copyCommand: 'Скопировать команду',
     copyPath: 'Скопировать путь',
     commandCopied: 'Скопировано',

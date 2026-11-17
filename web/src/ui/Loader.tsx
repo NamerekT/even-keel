@@ -2,8 +2,8 @@ import type { CSSProperties, ReactNode } from 'react'
 import { LOADER_MS, useLoader, type LoaderPhase } from './loaderPhase.js'
 import './loader.css'
 
-/** How much room the loader takes: a box of its own, the rest of a flex column (a window), or most of the page. */
-export type LoaderFit = 'block' | 'fill' | 'page'
+/** How much room the loader takes: a box of its own, the rest of a flex column (a window), most of the page, or a small window of a field's list. */
+export type LoaderFit = 'block' | 'fill' | 'page' | 'menu'
 
 // The boat of the logo (web/public/favicon.svg), moved 8 units right to sit in the middle of a 48-wide sea.
 const MAST = 'M23.4 3h1.3v15h-1.3Z'

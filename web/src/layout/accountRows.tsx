@@ -126,7 +126,8 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
   const sums = spendsByKey(entry) ? spend?.[entry.key] ?? null : tokens?.[entry.key] ?? null
   const tip = entry.cloud !== undefined ? t.account.cloudSpendTitle : spendsByKey(entry) ? t.account.spendTitle : <>{limitsNote(entry)} · {t.account.tokensTitle}
     {entry.lastLimitAt != null && <span>{t.account.lastLimit(formatAgo(entry.lastLimitAt, now))}</span>}</>
-  const loaded = spendsByKey(entry) ? spend !== null : tokens !== null
+  const measured = spendsByKey(entry) ? spend : tokens
+  const loaded = measured != null
   return <AccountRowMenu entry={entry} view={view} send={send} sending={sending} fresh={fresh.includes(entry.key)} head={<NarrowMenuHead entry={entry} now={now} />}>
     <div className="account-grid">
       <div className="account-who">
@@ -148,7 +149,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         {spendsByKey(entry) || counted ? <>
           {(['day', 'month'] as const).map((period) => <Tipped key={period} className="account-sum" tip={tip} align="start" focusable>
             {named && <span className="account-meter__name">{period === 'day' ? t.account.tokensToday : t.account.tokensMonth}</span>}
-            <strong>{!loaded ? '—' : spendsByKey(entry) ? formatUsd(sums?.[period] ?? 0) : formatTokens(sums?.[period] ?? 0)}</strong>
+            <strong>{measured === undefined ? '…' : !loaded ? '—' : spendsByKey(entry) ? formatUsd(sums?.[period] ?? 0) : formatTokens(sums?.[period] ?? 0)}</strong>
           </Tipped>)}
           {spendsByKey(entry) && entry.keyLimit !== undefined && <KeyLeft entry={entry} now={now} />}
           {spendsByKey(entry) && entry.balance !== undefined && <Balance entry={entry} now={now} />}

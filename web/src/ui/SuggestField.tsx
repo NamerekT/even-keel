@@ -1,6 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { t } from '../i18n/index.js'
 import { CheckIcon } from './icons.js'
+import { listLoaderOf, listLookOf, useListGlide } from './listReading.js'
+import { Loader } from './Loader.js'
+import { useLoader } from './loaderPhase.js'
 import { place } from './Select.js'
 import { offersOf, stepOf, type Offer } from './selectKeys.js'
 import './select.css'
@@ -23,6 +27,8 @@ interface SuggestFieldProps {
   disabled?: boolean
   /** The values in the list in monospace, as the field shows them. */
   mono?: boolean
+  /** The options are still read: the list opened meanwhile shows the loader and glides to them once they come (BTN-1257). */
+  loading?: boolean
   /** The most rows the list shows, the best fits of the typed text: thousands of options would stall the page. */
   limit?: number
   /** A key the list did not take: Enter with no option active, Escape with the list closed. */
@@ -36,7 +42,7 @@ interface SuggestFieldProps {
  * replaces it; the list opened by focus, a click or an arrow shows every option and narrows only once the user types.
  * The list opens in the top layer like `Select`'s. Arrows move through it, Enter picks, Escape closes the list alone.
  */
-export function SuggestField({ value, options, onChange, id, className = '', label, placeholder, invalid = false, disabled = false, mono = false, limit, onKeyDown, onPick }: SuggestFieldProps) {
+export function SuggestField({ value, options, onChange, id, className = '', label, placeholder, invalid = false, disabled = false, mono = false, loading = false, limit, onKeyDown, onPick }: SuggestFieldProps) {
   const [open, setOpen] = useState(false)
   // `null` until the user types: the list then shows every option, whatever the field holds.
   const [typed, setTyped] = useState<string | null>(null)
@@ -51,7 +57,11 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
   const listId = useId()
   const offers = options.map((option) => (typeof option === 'string' ? { value: option } : option))
   const shown = offersOf(offers, typed, limit)
-  const visible = open && shown.length > 0
+  const busy = open && loading
+  const loader = listLoaderOf(useLoader(busy), busy)
+  const look = listLookOf(open, loader, shown.length)
+  const visible = look !== 'closed'
+  const listed = look === 'options'
   const optionId = (index: number) => `${listId}-${index}`
 
   useLayoutEffect(() => setHost(field.current?.closest('dialog') ?? document.body), [])
@@ -80,15 +90,17 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
     if (visible && popup.current !== null && owner !== null) place(popup.current, owner.getBoundingClientRect())
   }, [visible, shown.length])
 
+  useListGlide(popup, look, (element) => field.current !== null && place(element, field.current.getBoundingClientRect()))
+
   // Only the list scrolls to the active option: `scrollIntoView` would scroll the page too, and that closes the list.
   useEffect(() => {
     const box = list.current
     const item = box?.children[active]
-    if (!visible || box === null || !(item instanceof HTMLElement)) return
+    if (!listed || box === null || !(item instanceof HTMLElement)) return
     const top = item.offsetTop - box.offsetTop
     if (top < box.scrollTop) box.scrollTop = top
     else if (top + item.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = top + item.offsetHeight - box.clientHeight
-  }, [visible, active])
+  }, [listed, active])
 
   const show = () => {
     setTyped(null)
@@ -118,7 +130,7 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
       // The panel or the dialog around would take the same Escape as its own close.
       event.stopPropagation()
       close()
-    } else if (key === 'Enter' && visible && active >= 0) {
+    } else if (key === 'Enter' && listed && active >= 0) {
       event.preventDefault()
       pick(active)
     } else if (arrow && !visible) {
@@ -126,7 +138,7 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
       show()
     } else if (arrow) {
       event.preventDefault()
-      setActive(stepOf(key, active, shown.length) ?? -1)
+      if (listed) setActive(stepOf(key, active, shown.length) ?? -1)
     } else {
       if (key === 'Tab' || key === 'Enter') close()
       onKeyDown?.(event)
@@ -144,7 +156,8 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
         aria-autocomplete="list"
         aria-expanded={visible}
         aria-controls={listId}
-        aria-activedescendant={visible && active >= 0 ? optionId(active) : undefined}
+        aria-activedescendant={listed && active >= 0 ? optionId(active) : undefined}
+        aria-busy={loader !== null || undefined}
         aria-invalid={invalid || undefined}
         autoComplete="off"
         spellCheck={false}
@@ -176,8 +189,9 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
       {host !== null &&
         createPortal(
           <div ref={popup} popover="manual" className="select__list">
+            {loader !== null && <Loader phase={loader} label={t.common.readingOptions} fit="menu" />}
             <ul ref={list} id={listId} role="listbox" className={mono ? 'select__options suggest__options--mono' : 'select__options'} aria-label={label}>
-              {visible &&
+              {listed &&
                 shown.map((option, index) => (
                   <li
                     key={option.value}

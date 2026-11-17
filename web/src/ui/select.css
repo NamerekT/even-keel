@@ -62,6 +62,12 @@ button.select {
   flex-direction: column;
 }
 
+/* The window gliding from the loader's size to the list's (useListGlide, BTN-1257). */
+.select__list--glide {
+  overflow: hidden;
+  transition: width var(--motion-appear) ease-out, height var(--motion-appear) ease-out;
+}
+
 .select__options {
   min-height: 0;
   margin: 0;

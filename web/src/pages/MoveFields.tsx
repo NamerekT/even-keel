@@ -10,9 +10,9 @@ import type { Value } from './settingsDraft.js'
 import { fieldId, Row, Section, type Marks } from './settingsParts.js'
 import { missingMove, moveLabel, moveOptions, type MovesText } from './statusMoves.js'
 
-/** The statuses a tracker profile's tracker lists (BTN-554): `undefined` — reading, `null` — none read. */
+/** The statuses a tracker profile's tracker lists (BTN-554), off the top bar (BTN-1257): `undefined` — reading, `null` — none read. */
 export function useProfileStatuses(id: string | undefined): TaskStatus[] | null | undefined {
-  const { query } = useLive()
+  const { read: query } = useLive()
   const [found, setFound] = useState<TaskStatus[] | null | undefined>(undefined)
   useEffect(() => {
     let live = true
@@ -50,12 +50,11 @@ export function MoveFields({ rules, statuses, text, profile, idPrefix, marks, on
 }) {
   return (
     <>
-      {statuses === undefined && <p className="settings__hint">{t.profiles.moves.loading}</p>}
       {statuses === null && <p className="settings__hint">{t.profiles.moves.unread}</p>}
       {MOVE_SETTINGS.map((key) => {
         const [label, hint] = LABELS[key]()
         const id = fieldId(`${idPrefix}-move-${key}`)
-        const select = <Select id={id} className="settings__text" value={text[key]} options={moveOptions(key, rules, statuses ?? [], text[key], profile)} onChange={(value) => onEdit(key, value)} />
+        const select = <Select id={id} className="settings__text" value={text[key]} options={moveOptions(key, rules, statuses ?? [], text[key], profile)} loading={statuses === undefined} onChange={(value) => onEdit(key, value)} />
         const missing = missingMove(text[key], statuses ?? [])
         return (
           <Row

@@ -19,6 +19,7 @@ export function ProjectRepoTab({
   state,
   config,
   branches,
+  branchesReading,
   drift,
 }: {
   fields: PanelFields
@@ -27,6 +28,7 @@ export function ProjectRepoTab({
   state: EvenKeelState | null
   config: ConfigView
   branches: RepoBranches | null
+  branchesReading: boolean
   drift: BranchDrift | undefined
 }) {
   const { text, on, edit, marks, errorOf, notes, input, pick, number } = fields
@@ -61,7 +63,7 @@ export function ProjectRepoTab({
           htmlFor={fieldId('branch')}
           mark={marks.note('branch')}
           control={
-            <BranchField id={fieldId('branch')} value={text('branch')} repo={branches} placeholder="main" invalid={errorOf('branch') !== null} onChange={(value) => edit('branch', value)} />
+            <BranchField id={fieldId('branch')} value={text('branch')} repo={branches} loading={branchesReading} placeholder="main" invalid={errorOf('branch') !== null} onChange={(value) => edit('branch', value)} />
           }
           error={errorOf('branch')}
         >

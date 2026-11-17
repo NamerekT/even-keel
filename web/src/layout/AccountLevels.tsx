@@ -67,7 +67,7 @@ export function AccountCard({ account, entry, now }: { account: AccountView; ent
 }
 
 function AccountSummary({ entry, spend, tokens }: { entry: AccountEntry; spend: Spend; tokens: Tokens }) {
-  const text = spendsByKey(entry) ? spendText(spend, entry.key) : tokens === null ? null : t.account.tokens(formatTokens(tokens[entry.key]?.day ?? 0), formatTokens(tokens[entry.key]?.month ?? 0))
+  const text = spendsByKey(entry) ? spendText(spend, entry.key) : tokens === undefined ? t.account.tokensReading : tokens === null ? null : t.account.tokens(formatTokens(tokens[entry.key]?.day ?? 0), formatTokens(tokens[entry.key]?.month ?? 0))
   return text === null ? null : <span className="account-level__summary">{text}</span>
 }
 

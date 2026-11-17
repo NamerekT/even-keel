@@ -57,6 +57,7 @@ export function ProjectStandards({
           key={index}
           row={row}
           docs={docs}
+          reading={loaded === undefined || loaded.state === 'loading'}
           taken={rows.filter((_, at) => at !== index).map((each) => each.doc)}
           branch={branch}
           onChange={(patch) => change(index, patch)}
@@ -82,6 +83,7 @@ export function ProjectStandards({
 function Standard({
   row,
   docs,
+  reading,
   taken,
   branch,
   onChange,
@@ -89,6 +91,7 @@ function Standard({
 }: {
   row: StandardRow
   docs: string[] | null
+  reading: boolean
   taken: string[]
   branch: string | null
   onChange: (patch: Partial<StandardRow>) => void
@@ -129,6 +132,7 @@ function Standard({
             className="settings__text settings__text--mono"
             value={row.doc}
             options={options}
+            loading={reading}
             invalid={row.doc === '' || gone}
             search={{ placeholder: text.docSearch, none: text.docNone }}
             onChange={(doc) => onChange({ doc })}

@@ -16,7 +16,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { tokenProblem, tokenTag } from '../longToken.js'
 import { loginLeft } from '../state.js'
-import { loadedData, useStatsAnswer } from '../stats/common.js'
+import { loadedData, useStatsAnswer, type Loaded } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { ClaudeIcon, CodexIcon, CopilotIcon, OpenCodeIcon } from '../ui/icons.js'
@@ -28,26 +28,33 @@ import './accountAdd.css'
 
 export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
 
-/** The spend in dollars of today and of 30 days by account folder key; null while Tally has not answered. */
-export type Spend = Record<string, AccountSpend> | null
+/**
+ * The spend in dollars of today and of 30 days by account folder key; `undefined` while Tally is still reading — the
+ * numbers say so in place, the top bar does not (BTN-1257); null — it answered with no data.
+ */
+export type Spend = Record<string, AccountSpend> | null | undefined
 
 /** The spend by account folder from Tally, read only while there is an API account to show it for. */
 export function useSpend(account: AccountView): Spend {
   const { statsSpend } = useLive()
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const wanted = account.accounts.some(spendsByKey)
-  return loadedData(useStatsAnswer(wanted ? `spend|${tz}` : null, () => statsSpend(tz)))
+  return readingOr(wanted, useStatsAnswer(wanted ? `spend|${tz}` : null, () => statsSpend(tz)))
 }
 
-/** The tokens of today and of 30 days by account folder key; null while Tally has not answered. */
-export type Tokens = Record<string, AccountTokens> | null
+/** The tokens of today and of 30 days by account folder key; `undefined` while Tally is still reading, null — no data. */
+export type Tokens = Record<string, AccountTokens> | null | undefined
 
 /** The tokens from Tally, read only while there is an account whose limit nothing tells to show them for (BTN-342). */
 export function useTokens(account: AccountView): Tokens {
   const { statsTokens } = useLive()
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const wanted = account.accounts.some((entry) => !spendsByKey(entry) && !limitSpans(entry.limits).some((span) => entry.limits?.[span] != null))
-  return loadedData(useStatsAnswer(wanted ? `tokens|${tz}` : null, () => statsTokens(tz)))
+  return readingOr(wanted, useStatsAnswer(wanted ? `tokens|${tz}` : null, () => statsTokens(tz)))
+}
+
+function readingOr<T>(wanted: boolean, loaded: Loaded<T> | null): T | null | undefined {
+  return wanted && loaded === null ? undefined : loadedData(loaded)
 }
 
 /**
@@ -57,8 +64,8 @@ export function useTokens(account: AccountView): Tokens {
  * `plain` — on a line, inside a card that is itself a tip, so no tip of its own.
  */
 export function UnknownLimit({ entry, tokens, now, className, why }: { entry: AccountEntry; tokens: Tokens; now: Date; className: string; why: 'line' | 'tip' | 'plain' }) {
-  const counted = tokens === null ? null : (tokens[entry.key] ?? { day: 0, month: 0 })
-  const text = counted === null ? t.account.tokensNone : t.account.tokens(formatTokens(counted.day), formatTokens(counted.month))
+  const counted = tokens == null ? null : (tokens[entry.key] ?? { day: 0, month: 0 })
+  const text = tokens === undefined ? t.account.tokensReading : counted === null ? t.account.tokensNone : t.account.tokens(formatTokens(counted.day), formatTokens(counted.month))
   const tip = why === 'tip' ? (
     <>
       <span>{limitsNote(entry)}</span>
@@ -117,6 +124,7 @@ export function sharedLimitText(entry: AccountEntry, accounts: AccountEntry[]): 
 }
 
 export function spendText(spend: Spend, key: string): string {
+  if (spend === undefined) return t.account.todayReading
   if (spend === null) return t.account.todayNone
   return t.account.today(formatUsd(spend[key]?.day ?? 0))
 }

@@ -1,6 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { t } from '../i18n/index.js'
 import { CheckIcon, ChevronIcon } from './icons.js'
+import { listLoaderOf, listLookOf, useListGlide } from './listReading.js'
+import { Loader } from './Loader.js'
+import { useLoader } from './loaderPhase.js'
 import { filterOf, matchOf, stepOf } from './selectKeys.js'
 import './select.css'
 
@@ -28,6 +32,8 @@ interface SelectProps {
   disabled?: boolean
   /** A search field atop the open list, for a list too long to scroll: its placeholder and the line when nothing fits. */
   search?: { placeholder: string; none: string }
+  /** The options are still read: the list opened meanwhile shows the loader and glides to them once they come (BTN-1257). */
+  loading?: boolean
 }
 
 const TYPING_MS = 500
@@ -39,7 +45,7 @@ const EDGE = 8
  * so a panel or a table cell does not clip them. Keys as in a native select: arrows, Home, End, Enter, Space, Escape, typing.
  * With `search`, typing goes into the field atop the list and narrows it instead.
  */
-export function Select({ value, options, onChange, id, className = '', label, invalid = false, disabled = false, search }: SelectProps) {
+export function Select({ value, options, onChange, id, className = '', label, invalid = false, disabled = false, search, loading = false }: SelectProps) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const [query, setQuery] = useState('')
@@ -57,11 +63,17 @@ export function Select({ value, options, onChange, id, className = '', label, in
   )
   const chosen = shown.findIndex((option) => option.value === value)
   const optionId = (index: number) => `${listId}-${index}`
+  const busy = open && loading
+  const loader = listLoaderOf(useLoader(busy), busy)
+  // A list with a search stays open with none fitting: it says so under the field.
+  const look = listLookOf(open, loader, search === undefined ? shown.length : Math.max(shown.length, 1))
+  const visible = look !== 'closed'
+  const listed = look === 'options'
 
   useLayoutEffect(() => {
     const element = popup.current
     const owner = button.current
-    if (!open || element === null || owner === null) return
+    if (!visible || element === null || owner === null) return
     element.showPopover()
     element.style.width = ''
     place(element, owner.getBoundingClientRect())
@@ -86,18 +98,25 @@ export function Select({ value, options, onChange, id, className = '', label, in
       window.removeEventListener('resize', shut)
       if (element.matches(':popover-open')) element.hidePopover()
     }
-  }, [open])
+  }, [visible])
 
   useLayoutEffect(() => {
     const owner = button.current
-    if (open && search !== undefined && popup.current !== null && owner !== null) place(popup.current, owner.getBoundingClientRect())
-  }, [open, search, shown.length])
+    if (visible && search !== undefined && popup.current !== null && owner !== null) place(popup.current, owner.getBoundingClientRect())
+  }, [visible, search, shown.length])
+
+  useListGlide(popup, look, (element) => button.current !== null && place(element, button.current.getBoundingClientRect()), search !== undefined)
 
   useLayoutEffect(() => setHost(button.current?.closest('dialog') ?? document.body), [])
 
+  // Nothing to pick and nothing read: the window is gone, so the next press opens it again rather than closing it.
   useEffect(() => {
-    if (open && active >= 0) list.current?.children[active]?.scrollIntoView({ block: 'nearest' })
-  }, [open, active])
+    if (open && !visible) close(false)
+  }, [open, visible])
+
+  useEffect(() => {
+    if (listed && active >= 0) list.current?.children[active]?.scrollIntoView({ block: 'nearest' })
+  }, [listed, active])
 
   const show = (at: number) => {
     setActive(at)
@@ -146,8 +165,8 @@ export function Select({ value, options, onChange, id, className = '', label, in
       setOpen(true)
     } else if (key === 'Enter' || (key === ' ' && !typing(event)) || (!open && (key === 'ArrowDown' || key === 'ArrowUp'))) {
       event.preventDefault()
-      if (open) pick(active)
-      else show(Math.max(chosen, 0))
+      if (!open) show(Math.max(chosen, 0))
+      else if (listed) pick(active)
     } else if (printable) {
       event.preventDefault()
       type(event)
@@ -171,7 +190,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
       close(true)
     } else if (key === 'Enter') {
       event.preventDefault()
-      if (active >= 0) pick(active)
+      if (listed && active >= 0) pick(active)
     } else if (key === 'ArrowDown' || key === 'ArrowUp') {
       event.preventDefault()
       setActive(stepOf(key, active, shown.length) ?? -1)
@@ -189,9 +208,10 @@ export function Select({ value, options, onChange, id, className = '', label, in
         className={`select ${className}`}
         aria-label={label}
         aria-haspopup="listbox"
-        aria-expanded={open}
+        aria-expanded={visible}
         aria-controls={listId}
-        aria-activedescendant={open && active >= 0 && search === undefined ? optionId(active) : undefined}
+        aria-activedescendant={listed && active >= 0 && search === undefined ? optionId(active) : undefined}
+        aria-busy={loader !== null || undefined}
         aria-invalid={invalid}
         disabled={disabled}
         onClick={() => (open ? close(false) : show(Math.max(chosen, 0)))}
@@ -208,7 +228,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
       {host !== null &&
         createPortal(
           <div ref={popup} popover="manual" className="select__list">
-            {open && search !== undefined && (
+            {visible && search !== undefined && (
               <input
                 ref={field}
                 className="select__search"
@@ -224,8 +244,9 @@ export function Select({ value, options, onChange, id, className = '', label, in
                 onKeyDown={onSearchKeyDown}
               />
             )}
+            {loader !== null && <Loader phase={loader} label={t.common.readingOptions} fit="menu" />}
             <ul ref={list} id={listId} role="listbox" className="select__options" aria-label={label}>
-              {open &&
+              {listed &&
                 shown.map((option, index) => (
                   <li
                     key={option.value}
@@ -247,7 +268,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
                   </li>
                 ))}
             </ul>
-            {open && search !== undefined && shown.length === 0 && <p className="select__none">{search.none}</p>}
+            {listed && search !== undefined && shown.length === 0 && <p className="select__none">{search.none}</p>}
           </div>,
           host,
         )}

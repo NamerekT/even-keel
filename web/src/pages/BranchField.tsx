@@ -9,22 +9,29 @@ import { Band } from '../ui/blocks.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { branchOffers, cloneLine, moveLine, remoteOffers } from './branchLines.js'
 
-/** The main checkout's branches for the settings (BTN-754): read again once the project's branch or its drift changes. */
-export function useRepoBranches(project: string, branch: string, drift: BranchDrift | undefined): RepoBranches | null {
-  const { query } = useLive()
+/**
+ * The main checkout's branches for the settings (BTN-754): read again once the project's branch or its drift changes,
+ * off the top bar — the field shows its own loader when opened meanwhile (BTN-1257).
+ */
+export function useRepoBranches(project: string, branch: string, drift: BranchDrift | undefined): { repo: RepoBranches | null; reading: boolean } {
+  const { read } = useLive()
   const [found, setFound] = useState<RepoBranches | null>(null)
+  const [reading, setReading] = useState(true)
   const driftKey = drift === undefined ? '' : `${drift.branch}\n${drift.current ?? ''}`
   useEffect(() => {
     let live = true
-    query<RepoBranches>('project/branches', { project }).then(
-      (read) => live && setFound(read),
-      () => live && setFound(null),
-    )
+    setReading(true)
+    const done = (repo: RepoBranches | null) => {
+      if (!live) return
+      setFound(repo)
+      setReading(false)
+    }
+    read<RepoBranches>('project/branches', { project }).then(done, () => done(null))
     return () => {
       live = false
     }
   }, [project, branch, driftKey])
-  return found
+  return { repo: found, reading }
 }
 
 /** The most rows the branch list shows: a repository may have thousands of branches. */
@@ -36,6 +43,8 @@ interface BranchFieldProps {
   repo: RepoBranches | null
   /** A clone's remote, read (BTN-1096): its branches are offered instead of the checkout's. */
   remote?: RemoteBranchList
+  /** The branches are still read. */
+  loading?: boolean
   onChange: (value: string) => void
   placeholder?: string
   invalid?: boolean
@@ -43,7 +52,7 @@ interface BranchFieldProps {
 }
 
 /** The main branch with the checkout's branches offered, or a clone's remote's. */
-export function BranchField({ id, value, repo, remote, onChange, placeholder, invalid, disabled }: BranchFieldProps) {
+export function BranchField({ id, value, repo, remote, loading, onChange, placeholder, invalid, disabled }: BranchFieldProps) {
   return (
     <SuggestField
       id={id}
@@ -51,6 +60,7 @@ export function BranchField({ id, value, repo, remote, onChange, placeholder, in
       mono
       value={value}
       options={remote === undefined ? branchOffers(repo) : remoteOffers(remote)}
+      loading={remote === undefined && loading}
       limit={BRANCH_ROWS}
       placeholder={placeholder}
       invalid={invalid}

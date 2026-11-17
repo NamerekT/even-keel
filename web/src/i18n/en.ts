@@ -44,6 +44,7 @@ export const en: Messages = {
     max: 'Max',
     noData: 'no data',
     reading: 'Reading the transcript…',
+    readingOptions: 'Reading the values…',
     copyCommand: 'Copy the command',
     copyPath: 'Copy the path',
     commandCopied: 'Copied',

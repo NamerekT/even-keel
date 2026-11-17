@@ -54,6 +54,7 @@ import { withFeeds, withLongNames, withMixedNames } from './fakeLong.js'
 
 const TICK_MS = 2_000
 const ANSWER_MS = 300
+const SLOW_VOCABULARY_MS = 4000
 const CLOSE_TICKS = 5
 const HANDOVER_MS = 1_000
 const DEVICE_MS = 8_000
@@ -882,6 +883,7 @@ export function createFakeSource(search: string): LiveSource {
     vocabulary: async (projectId) => {
       await answer()
       const mode = params.get('vocabulary')
+      if (mode === 'slow') await new Promise((resolve) => setTimeout(resolve, SLOW_VOCABULARY_MS))
       if (mode === 'fail') throw new Error('huly: not connected')
       if (mode === 'none' || !FAKE_PROJECTS.includes(projectId) || current.state === null) return null
       return builtinTracker ? builtinVocabulary(current.state, projectId, FAKE_VOCABULARY) : FAKE_VOCABULARY

@@ -8,7 +8,13 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
   return <LiveContext.Provider value={source}>{children}</LiveContext.Provider>
 }
 
-export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'checkpoint' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'badgeUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
+/**
+ * The source with the person's own waits on the top bar (BTN-1257): commands, the session, the card, the project check,
+ * queries and files. `read` is a query off the bar, for the values a field offers: the field shows its own loader when
+ * opened meanwhile. Stats, the tracker's vocabulary and the tools' views stay off it too: whatever shows them shows its
+ * own reading (the Tools page's skeleton, "What sessions get"'s loader, a field's list).
+ */
+export function useLive(): LiveSnapshot & { read: LiveSource['query'] } & Pick<LiveSource,'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'checkpoint' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'badgeUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
@@ -25,11 +31,12 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
     sentFileUrl: (sessionId, name) => source.sentFileUrl(sessionId, name),
     sharedUrl: (sessionId, tool, index) => source.sharedUrl(sessionId, tool, index),
     badgeUrl: (project, theme, still) => source.badgeUrl(project, theme, still),
-    tools: (project) => activity.track(source.tools(project)),
+    tools: (project) => source.tools(project),
     card: (task) => activity.track(source.card(task)),
     vocabulary: (projectId) => source.vocabulary(projectId),
     checkProject: (draft, askTracker) => activity.track(source.checkProject(draft, askTracker)),
     query: (name, body, options) => activity.track(source.query(name, body, options)),
+    read: (name, body, options) => source.query(name, body, options),
     attach: (task, file) => activity.track(source.attach(task, file)),
     statsHistory: (filter) => source.statsHistory(filter),
     statsPeriod: (query) => source.statsPeriod(query),

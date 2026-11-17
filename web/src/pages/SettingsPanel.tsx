@@ -16,7 +16,7 @@ import { modelKey, namedProviders } from './settingsRun.js'
 import { GroupTabs, type RuleKey, rulesOf, SaveBar, unplaced, useFieldErrors } from './settingsParts.js'
 import { newMilestones, ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { useSourceMoves } from './SourceMoves.js'
-import { useVocabularies } from './useVocabularies.js'
+import { useVocabularies, VocabularyReading } from './useVocabularies.js'
 import { useModelCatalog } from './useModels.js'
 import { useModelReset } from './modelReset.js'
 import { formOf, profileOf, valuesOf } from './projectForm.js'
@@ -58,7 +58,7 @@ export function SettingsPanel({
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
   const draft = current!
   const [open, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
-  const vocabularies = useVocabularies(state?.projects.includes(project) === true ? [project] : [])
+  const { vocabularies, reading } = useVocabularies(state?.projects.includes(project) === true ? [project] : [])
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const shared = config.shared
@@ -72,7 +72,7 @@ export function SettingsPanel({
   const rowAccount = (provider: string) => text(`accounts.${provider}`) || (config.shared.accounts[provider] ?? '')
   const models = useModelCatalog(offered.map(rowAccount))
   const drift = state?.branchDrift[project]
-  const branches = useRepoBranches(project, form.branch, drift)
+  const { repo: branches, reading: branchesReading } = useRepoBranches(project, form.branch, drift)
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -111,8 +111,9 @@ export function SettingsPanel({
   const leftover = unplaced(project, failure, config)
 
   const groups: Record<GroupId, () => ReactNode> = {
-    repo: () => <ProjectRepoTab fields={fields} project={project} form={form} state={state} config={config} branches={branches} drift={drift} />,
+    repo: () => <ProjectRepoTab fields={fields} project={project} form={form} state={state} config={config} branches={branches} branchesReading={branchesReading} drift={drift} />,
     tracker: () => (
+      <VocabularyReading.Provider value={reading}>
       <ProjectTrackerTab
         fields={fields}
         project={project}
@@ -134,6 +135,7 @@ export function SettingsPanel({
         leftover={leftover}
         save={save}
       />
+      </VocabularyReading.Provider>
     ),
     sessions: () => <ProjectSessionsTab fields={fields} project={project} form={form} state={state} shared={shared} offered={offered} rowAccount={rowAccount} models={models} />,
     ci: () => <ProjectCiTab fields={fields} project={project} state={state} shared={shared} plain={!form.git} />,
