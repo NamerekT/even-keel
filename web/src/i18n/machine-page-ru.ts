@@ -7,7 +7,7 @@ export const machinePageRu = {
   online: 'на связи',
   offline: 'не на связи',
   version: (version: string) => `Even Keel ${version}`,
-  otherVersion: (machine: string, hub: string) => `На машине Even Keel ${machine}, у хаба ${hub}: свои задачи она доведёт, новых не возьмёт. Поставь на машине версию ${hub}:`,
+  otherVersion: (machine: string, hub: string) => `На машине Even Keel ${machine}, у хаба ${hub}: свои задачи она доведёт, новых не возьмёт. Поставьте на машине версию ${hub}:`,
   joined: (time: string) => `подключена ${time}`,
   more: 'Ещё',
   settings: 'Настройки машины',
