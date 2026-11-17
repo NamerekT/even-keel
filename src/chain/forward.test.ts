@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GitResult } from '../git/types.js'
 import { notice, type Notice } from '../notice/notice.js'
 import { chainQuiet, ForwardMerger, type CarryAsk, type ForwardPair } from './forward.js'
+import type { ConflictFile } from '../state.js'
 import { newChain, type ActiveChain } from './model.js'
 
 const dev = '/home/john/even-keel'
@@ -17,7 +18,10 @@ const fetchPush = (remote: string) => `fetch --no-tags --quiet ${remote} +refs/h
 const containsCarry = `merge-base --is-ancestor carry-commit ${pushedRef}`
 
 /** An answer given as a list is used up in order, the last one repeating. */
-function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {}, options: { quiet?: boolean; push?: Notice | null; auto?: boolean } = {}) {
+function setup(
+  answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {},
+  options: { quiet?: boolean; push?: Notice | null; auto?: boolean; files?: Record<string, string> } = {},
+) {
   const calls: string[] = []
   const state = {
     quiet: options.quiet ?? true,
@@ -26,6 +30,8 @@ function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]
     syncs: 0,
     same: true as boolean | undefined,
     agent: null as string | null,
+    /** The conflict the carry session keeps (EKR-135). */
+    kept: undefined as ConflictFile[] | undefined,
     asked: [] as [string, CarryAsk][],
   }
   const merger = new ForwardMerger({
@@ -42,6 +48,10 @@ function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]
       const answer = answers[command]
       return { code: 0, out: '', ...(Array.isArray(answer) ? (answer.length > 1 ? answer.shift() : answer[0]) : answer) }
     },
+    read: async (repo, path) => {
+      expect(repo).toBe(dev)
+      return options.files?.[path] ?? null
+    },
     sync: async () => {
       state.syncs += 1
       return options.push ?? null
@@ -51,11 +61,12 @@ function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]
       state.changes += 1
     },
     log: () => {},
-    carrying: () => state.agent,
+    carrying: () => (state.agent === null ? null : { task: state.agent, conflict: state.kept }),
     auto: () => options.auto ?? false,
     resolve: async (from, ask) => {
       state.asked.push([from, ask])
       state.agent = 'EKR-CARRY'
+      state.kept = ask.conflict
     },
   })
   return { merger, calls, state }
@@ -118,29 +129,38 @@ describe('ForwardMerger', () => {
   })
 
   it('aborts a conflict, holds the forward merge until carry now, and lets the hold go once the dev branch has the commits', async () => {
-    const { merger, calls, state } = setup({
-      [count]: [{ out: '2\n' }, { out: '2\n' }, { out: '2\n' }, { out: '0\n' }],
-      ...onDev,
-      [merge]: [{ code: 1, out: 'CONFLICT (content): Merge conflict in src/a.ts' }, { code: 0 }],
-      'diff --name-only --diff-filter=U': { out: 'src/a.ts\nsrc/b.ts\n' },
-    })
+    const { merger, calls, state } = setup(
+      {
+        [count]: [{ out: '2\n' }, { out: '2\n' }, { out: '2\n' }, { out: '0\n' }],
+        ...onDev,
+        [merge]: [{ code: 1, out: 'CONFLICT (content): Merge conflict in src/a.ts' }, { code: 0 }],
+        'diff --name-only --diff-filter=U': { out: 'src/a.ts\nsrc/b.ts\n' },
+        'ls-files --unmerged -z': { out: ['100644 a 1\tsrc/a.ts', '100644 b 2\tsrc/a.ts', '100644 c 3\tsrc/a.ts', '100644 d 1\tsrc/b.ts', '100644 e 2\tsrc/b.ts', ''].join('\0') },
+      },
+      { files: { 'src/a.ts': '<<<<<<< HEAD\nours\n=======\ntheirs\nmore\n>>>>>>> them\n' } },
+    )
     await merger.tick()
-    expect(calls.slice(-2)).toEqual(['diff --name-only --diff-filter=U', 'merge --abort'])
+    expect(calls.slice(-3)).toEqual(['diff --name-only --diff-filter=U', 'ls-files --unmerged -z', 'merge --abort'])
     expect(state.syncs).toBe(0)
     expect(merger.view().EKR).toMatchObject({
       behind: 2,
       held: true,
       hold: notice('forward.conflict', { from: 'EKR', into: 'BTN', files: ['src/a.ts', 'src/b.ts'] }, { detail: 'CONFLICT (content): Merge conflict in src/a.ts' }),
+      conflict: [
+        { path: 'src/a.ts', lines: 3 },
+        { path: 'src/b.ts', lines: null },
+      ],
     })
 
     calls.length = 0
     await merger.tick()
     expect(calls).toEqual([fetch, count])
-    expect(merger.view().EKR?.held).toBe(true)
+    expect(merger.view().EKR).toMatchObject({ held: true, conflict: [{ path: 'src/a.ts', lines: 3 }, { path: 'src/b.ts', lines: null }] })
 
     await merger.carry('EKR')
     expect(state.syncs).toBe(1)
     expect(merger.view().EKR).toMatchObject({ behind: 0, held: false, hold: null })
+    expect(merger.view().EKR?.conflict).toBeUndefined()
   })
 
   it('holds a merge that failed with no conflicted file as a failure, not a conflict, with git\'s message', async () => {
@@ -245,7 +265,7 @@ describe('ForwardMerger', () => {
       await merger.tick()
       await merger.resolve('EKR')
       expect(state.asked).toEqual([
-        ['EKR', { into: 'BTN', ref, commit: 'abc1234def', commits: 2, files: ['src/a.ts'], output: 'CONFLICT (content): Merge conflict in src/a.ts' }],
+        ['EKR', { into: 'BTN', ref, commit: 'abc1234def', commits: 2, files: ['src/a.ts'], output: 'CONFLICT (content): Merge conflict in src/a.ts', conflict: [{ path: 'src/a.ts', lines: 0 }] }],
       ])
       expect(merger.view().EKR).toMatchObject({ held: true, agent: 'EKR-CARRY' })
     })
@@ -260,6 +280,30 @@ describe('ForwardMerger', () => {
       await expect(merger.carry('EKR')).rejects.toThrow(/EKR-CARRY/)
       await merger.tick()
       expect(merger.view().EKR).toMatchObject({ behind: 0, held: false, hold: null })
+    })
+
+    it('shows the conflict its session keeps after a restart, until the conflict is read again (EKR-135)', async () => {
+      const kept = [{ path: 'src/a.ts', lines: 3 }, { path: 'src/b.ts', lines: null }]
+      const { merger, calls, state } = setup({ ...conflicted, [count]: [{ out: '2\n' }, { out: '0\n' }] })
+      state.agent = 'EKR-CARRY'
+      state.kept = kept
+      await merger.tick()
+      expect(calls).toEqual([fetch, count])
+      expect(merger.view().EKR).toMatchObject({ behind: 2, held: false, agent: 'EKR-CARRY', conflict: kept })
+      state.kept = undefined
+      expect(merger.view().EKR?.conflict).toBeUndefined()
+      state.kept = kept
+      state.agent = null
+      await merger.tick()
+      expect(merger.view().EKR?.conflict).toBeUndefined()
+    })
+
+    it('prefers the conflict read since the start to the one its session keeps', async () => {
+      const { merger, state } = setup(conflicted)
+      await merger.tick()
+      state.agent = 'EKR-CARRY'
+      state.kept = [{ path: 'src/old.ts', lines: 9 }]
+      expect(merger.view().EKR?.conflict).toEqual([{ path: 'src/a.ts', lines: 0 }])
     })
 
     it('is asked for only on a held conflict', async () => {
@@ -286,7 +330,7 @@ describe('ForwardMerger', () => {
     it('asks for the carry session as soon as the merge conflicts', async () => {
       const { merger, state } = setup(conflicted(['abc1234def']), { auto: true })
       await merger.tick()
-      expect(state.asked).toEqual([['EKR', { into: 'BTN', ref, commit: 'abc1234def', commits: 2, files: ['src/a.ts'], output: conflict.out }]])
+      expect(state.asked).toEqual([['EKR', { into: 'BTN', ref, commit: 'abc1234def', commits: 2, files: ['src/a.ts'], output: conflict.out, conflict: [{ path: 'src/a.ts', lines: 0 }] }]])
       expect(merger.view().EKR).toMatchObject({ held: true, agent: 'EKR-CARRY' })
     })
 

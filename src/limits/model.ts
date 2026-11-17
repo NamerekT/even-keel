@@ -7,6 +7,8 @@ export interface LimitWindow {
   left?: number
   /** What a counted allowance of unknown size has spent so far (Copilot's billing, BTN-341). */
   used?: number
+  /** The size of the allowance `used` counts against (a ChatGPT seat's monthly credits, EKR-132): the page shows both. */
+  limit?: number
 }
 
 export interface RateLimits {
@@ -34,8 +36,16 @@ export interface RateLimits {
   pool?: string
   /** Subscription extras with an independent timestamp; fresh evidence may stop managed paid usage. */
   overage?: Overage
-  /** ChatGPT's answer says whether the account may send now (`rate_limit.allowed` and not `limit_reached`, BTN-530). */
+  /**
+   * ChatGPT's answer says whether the account may send now (`rate_limit.allowed` and not `limit_reached`, BTN-530; and
+   * no reached `spendCap`).
+   */
   open?: boolean
+  /**
+   * A ChatGPT workspace seat's monthly credit cap set by its owner (`spend_control`, EKR-132): `reached` spends the
+   * `month` until a poll says otherwise. It and that month outlive newer snapshots of other sources, which lack both.
+   */
+  spendCap?: { reached: boolean; updatedAt: string }
 }
 
 /**
@@ -157,12 +167,15 @@ export function currentLimits(limits: RateLimits | undefined, now: Date, notBefo
 export function newestLimits(a: RateLimits | undefined, b: RateLimits | undefined): RateLimits | undefined {
   if (a === undefined || b === undefined) return a ?? b
   const latest = Date.parse(b.updatedAt) > Date.parse(a.updatedAt) ? b : a
+  const older = latest === a ? b : a
   const extra = newer(a.overage, b.overage)
   const models = newer(a.models, b.models)
+  const seat = latest.spendCap === undefined && older.spendCap !== undefined
   return {
     ...latest,
     ...(extra !== undefined && { overage: extra }),
     ...(models !== undefined && { models }),
+    ...(seat && { spendCap: older.spendCap, ...(latest.month === undefined && older.month !== undefined && { month: older.month }) }),
   }
 }
 

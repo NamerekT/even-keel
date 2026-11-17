@@ -1,6 +1,6 @@
 import { carryNameOf, fixEpisodeId, fixTaskOf } from '../../../src/chain/fix.js'
 import { fail, notice } from '../../../src/notice/notice.js'
-import type { EvenKeelState, SessionView } from '../../../src/state.js'
+import type { ConflictFile, EvenKeelState, SessionView } from '../../../src/state.js'
 
 const FROM = 'XYZ'
 const INTO = 'ABC'
@@ -14,9 +14,23 @@ const OUTPUT = [
   'Automatic merge failed; fix conflicts and then commit the result.',
 ].join('\n')
 
+/** The conflict of `?forward=asked`: files with lines and one deleted on one side (EKR-134). */
+const CONFLICT: ConflictFile[] = [
+  { path: 'src/service/chain.ts', lines: 41 },
+  { path: 'src/tools/panel.ts', lines: 6 },
+  { path: 'docs/unverified.md', lines: 10 },
+  { path: 'web/src/old-banner.tsx', lines: null },
+]
+
+/** The conflict of `?forward=asked-many`, more files than the Conflict fact shows before "N more files". */
+function manyFiles(count: number): ConflictFile[] {
+  return Array.from({ length: count }, (_, index) => ({ path: `src/module-${String(index + 1).padStart(3, '0')}/index.ts`, lines: 4 + ((index * 7) % 36) }))
+}
+
 /**
- * `?forward=conflict|asked|agent|carried` (BTN-369): XYZ, taken for a release project of ABC, hit a conflict carrying
- * its commit into ABC; the agent's session is asked for after ABC's current task; it leads ABC's chain; it is over.
+ * `?forward=conflict|asked|asked-many|agent|carried` (BTN-369): XYZ, taken for a release project of ABC, hit a conflict
+ * carrying its commit into ABC; the agent's session is asked for after ABC's current task, an earlier carry over
+ * (`asked-many`: a hundred files in conflict); it leads ABC's chain; it is over.
  */
 export function withCarry(state: EvenKeelState, mode: string, carrying: SessionView, at: string): EvenKeelState {
   if (mode.startsWith('warnings') || mode === 'warning' || mode === 'empty') {
@@ -46,7 +60,18 @@ export function withCarry(state: EvenKeelState, mode: string, carrying: SessionV
   const id = fixEpisodeId(NAME, episodes.filter((episode) => fixTaskOf(episode.id) === NAME).length + 1)
   const run = { sessionId: carrying.sessionId, at, how: 'launch' as const, resumed: 0, answers: 0, account: carrying.account }
   if (mode === 'conflict') return { ...state, forwards: { ...state.forwards, [FROM]: held } }
-  if (mode === 'asked') return { ...state, forwards: { ...state.forwards, [FROM]: { ...held, agent: NAME } } }
+  if (mode === 'asked' || mode === 'asked-many') {
+    // An earlier carry of the same name is over: its finished session is not the waiting row's (EKR-134).
+    const end = { at, how: 'carried' as const, commit: null, commits: 21 }
+    const asked = { ...held, behind: 4, agent: NAME, conflict: mode === 'asked' ? CONFLICT : manyFiles(100) }
+    return {
+      ...state,
+      forwards: { ...state.forwards, [FROM]: asked },
+      sessions: [...state.sessions, { ...carrying, task: NAME, lamp: 'finished', startedAt: at }],
+      taskSessions: { ...state.taskSessions, [id]: [run] },
+      fixes: { ...state.fixes, [INTO]: [...episodes, { id, red: COMMIT, at, end }] },
+    }
+  }
   if (mode === 'agent') {
     const active = state.chain.active.map((chain) => (chain.project === INTO ? { ...chain, current: { task: NAME, sessionId: carrying.sessionId, since: at } } : chain))
     return {

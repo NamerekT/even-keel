@@ -103,7 +103,7 @@ For Claude background sessions, Even Keel checks process creation times to disca
 
 The shared or a project's `provider` key (the shared one is also moved by giving the Even Keel role to the Codex account on the accounts page), or Codex picked on a task's card, runs the task's sessions on the OpenAI Codex CLI instead: one `codex exec --json` per turn, the transcript and context fill read from Codex's own session files, the project's packages passed on every turn.
 
-Limits (5-hour and weekly, or the free plan's 30-day one) are read from ChatGPT every five minutes, sharing a request with OpenCode on the same subscription; if the request fails, the latest limits in Codex's session files stand in.
+Limits (5-hour and weekly, or the free plan's 30-day one) are read from ChatGPT every five minutes, sharing a request with OpenCode on the same subscription; if the request fails, the latest limits in Codex's session files stand in. A seat in a workspace (Team, Business, Edu, Enterprise) also shows the month's credits against the cap its owner set; while the cap is spent, the account is held and its card says so, until the owner raises the cap or the month turns. This was never seen on a real seat ([What has not been verified](../unverified/accounts.md#a-chatgpt-workspace-seats-monthly-credit-cap-ekr-132)).
 
 If ChatGPT revokes the sign-in before it expires (for example after a plan change), Even Keel asks Codex to renew it once and reads the limits again, without a model turn or spending the allowance.
 

@@ -244,7 +244,7 @@ function CiSection({ view, now, urls, fixes, extras }: { view: CiView; now: Date
 function Hold({ hold, commit, now }: { hold: ChainHold; commit: string | null; now: Date }) {
   const text =
     hold.kind === 'late'
-      ? t.ci.hold.late(commit, formatMoment(hold.until, now))
+      ? (hold.unanswered === true ? t.ci.hold.unanswered : t.ci.hold.late)(commit, formatMoment(hold.until, now))
       : hold.kind === 'local'
         ? t.ci.hold.local(commit, formatMoment(hold.since, now))
         : t.ci.hold.verdict(commit, formatMoment(hold.since, now))

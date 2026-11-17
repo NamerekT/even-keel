@@ -1,0 +1,40 @@
+{
+  "plan_type": "education",
+  "rate_limit": {
+    "allowed": true,
+    "limit_reached": false,
+    "primary_window": {
+      "used_percent": 8,
+      "limit_window_seconds": 18000,
+      "reset_after_seconds": 10800,
+      "reset_at": 1894626000
+    },
+    "secondary_window": {
+      "used_percent": 23,
+      "limit_window_seconds": 604800,
+      "reset_after_seconds": 338400,
+      "reset_at": 1894953600
+    }
+  },
+  "code_review_rate_limit": null,
+  "additional_rate_limits": null,
+  "model_usage": {},
+  "credits": {
+    "has_credits": true,
+    "unlimited": false,
+    "overage_limit_reached": false,
+    "balance": null,
+    "approx_local_messages": null,
+    "approx_cloud_messages": null
+  },
+  "spend_control": {
+    "reached": false,
+    "individual_limit": null
+  },
+  "rate_limit_reached_type": null,
+  "promo": null,
+  "rate_limit_reset_credits": {
+    "available_count": 0,
+    "applicable_available_count": 0
+  }
+}

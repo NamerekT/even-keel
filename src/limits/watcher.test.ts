@@ -72,6 +72,16 @@ describe('LimitsWatcher', () => {
     expect(watcher.usage('global').state).toBe('ok')
   })
 
+  it('keeps the reason limits that were read give for holding the account, and drops it with the next answer', async () => {
+    const capped = { ...LIMITS, reason: { code: 'usage.chatGptSpendCap', params: {} } } as UsageAnswer
+    const { watcher, poll } = watcherOf([() => capped, () => LIMITS])
+    await poll()
+    expect(watcher.usage('global')).toMatchObject({ state: 'ok', reason: { code: 'usage.chatGptSpendCap' } })
+    await vi.advanceTimersByTimeAsync(300_000)
+    await poll()
+    expect(watcher.usage('global')).toMatchObject({ state: 'ok', reason: null })
+  })
+
   it('hides and forgets an unreadable poll when the account needs sign-in', async () => {
     let needsLogin = false
     const unread: UsageAnswer = { kind: 'unknown', reason: { code: 'usage.noSession', params: {} } }

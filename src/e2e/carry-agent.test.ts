@@ -60,14 +60,19 @@ describe('a carry conflict given to a session end to end', { timeout: 90_000 }, 
     expect(launch!.prompt).toContain(run.gitIn(run.releaseRepo, 'rev-parse', RELEASE_BRANCH))
     expect(view()?.agent).toBe(CARRY)
     expect(carry()).toMatchObject({ task: CARRY, into: PROJECT_ID, commits: 1 })
+    const conflict = view()?.conflict
+    expect(conflict).toHaveLength(1)
+    expect(carry()?.conflict).toEqual(conflict)
     expect((await run.refused('forward/carry', { project: RELEASE_ID })).code).toBe('forward.agent')
 
     // The hold is in memory and goes with the restart; the record does not, and nothing is merged or launched anew.
+    // The page shows the conflict the record keeps (EKR-135).
     await run.restart()
     expect(carry()).toMatchObject({ task: CARRY, into: PROJECT_ID })
     await run.pass(2 * TICK)
     expect(launches(CARRY)).toHaveLength(1)
     expect(view()?.agent).toBe(CARRY)
+    expect(view()?.conflict).toEqual(conflict)
     expect(clean(run.repo)).toBe(true)
     expect(subjects(run.repo)[0]).toBe('Main change')
 

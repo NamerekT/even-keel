@@ -20,6 +20,8 @@ export class Ci {
   rerunnable = false
   /** The ids of the runs the service reran. */
   readonly reran: number[] = []
+  /** How many of the next asks for the runs fail as a timed-out request does (EKR-136). */
+  failing = 0
   private readonly seen = new Set<string>()
   /** The branch each run is of, by its id. */
   private readonly branches = new Map<number, string>()
@@ -64,6 +66,10 @@ export class Ci {
     return {
       runs: async (limit, branch) => {
         this.polls++
+        if (this.failing > 0) {
+          this.failing--
+          throw new Error('The operation was aborted due to timeout')
+        }
         // Without a branch — PR mode's poll of a pull request's head — every branch pushed so far has its run.
         for (const each of branch === undefined ? await this.branchesOfRemote() : [branch]) await this.look(each)
         return this.runs.filter((run) => branch === undefined || this.branches.get(run.id) === branch).slice(0, limit).map((run) => ({ ...run }))

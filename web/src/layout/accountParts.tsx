@@ -336,6 +336,7 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
         </div>
       )}
       {held?.code === 'account.extraFree' && <p className="accounts__note accounts__note--warn">{say(held)}</p>}
+      {entry.usage.reason?.code === 'usage.chatGptSpendCap' && <p className="accounts__note accounts__note--warn">{say(entry.usage.reason)}</p>}
       {entry.spendingLimit != null && (
         <Tipped className="accounts__note accounts__note--warn" tip={t.session.spendWait(spendAt)} align="start" focusable>
           {t.session.spendUntil(spendAt)}

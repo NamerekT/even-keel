@@ -213,6 +213,7 @@ export const en: Messages = {
     left: (count: number) => `${count} left`,
     used: (count: number) => `${count} used`,
     usedShort: (count: number) => `${count} used`,
+    usedOf: (count: number, limit: number) => `${count} of ${limit}`,
     empty: (title: string, source: string) => `${title}: no data${source}`,
     reset: (title: string, resetIn: string, source: string) => `${title}: resets in ${resetIn}${source}`,
     resetAt: (resetIn: string, at: string) => `resets in ${resetIn} — ${at}`,

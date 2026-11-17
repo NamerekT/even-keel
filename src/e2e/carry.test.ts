@@ -71,6 +71,8 @@ describe('a release project carried forward end to end', { timeout: 90_000 }, ()
 
     await run.until(() => view()?.held === true, 'the conflict held')
     expect(view()?.hold).toMatchObject({ code: 'forward.conflict', params: { from: RELEASE_ID, into: PROJECT_ID, files: ['README.md'] } })
+    // The lines of each side of the one conflicting line, counted before the abort (EKR-134).
+    expect(view()?.conflict).toEqual([{ path: 'README.md', lines: 2 }])
     expect(clean(run.repo)).toBe(true)
     await run.pass(3 * TICK)
     expect(view()).toMatchObject({ held: true, behind: 1 })

@@ -61,7 +61,7 @@ export function usingOverage(entry: { agent: string; needsLogin: boolean; workin
   if (!(age >= 0 && age <= 10 * 60_000)) return false
   if (extra.source === 'claude-sdk') return extra.using === true
   if (extra.source !== 'chatgpt' || !['codex', 'opencode'].includes(entry.agent) || !(extra.available || extra.unlimited)) return false
-  return [entry.limits?.fiveHour, entry.limits?.sevenDay, entry.limits?.month]
+  return [entry.limits?.fiveHour, entry.limits?.sevenDay, chatGptPlanMonth(entry.limits)]
     .some((window) => window != null && window.usedPercentage >= 100 && Date.parse(window.resetsAt) > now.getTime())
 }
 
@@ -81,9 +81,14 @@ export function overageLimit(entry: { agent: string; needsLogin: boolean; apiKey
   if (extra === undefined || !fresh(extra.updatedAt)) return null
   const at = Date.parse(extra.updatedAt) < Date.parse(limits.updatedAt) ? extra.updatedAt : limits.updatedAt
   if (extra.source === 'chatgpt' && ['codex', 'opencode'].includes(entry.agent) && (extra.available === true || extra.unlimited === true) &&
-    [limits.fiveHour, limits.sevenDay, limits.month ?? null].some(exhausted)) return { at, source: 'chatgpt' }
+    [limits.fiveHour, limits.sevenDay, chatGptPlanMonth(limits)].some(exhausted)) return { at, source: 'chatgpt' }
   if (extra.source === 'github-quota' && ['copilot', 'opencode'].includes(entry.agent) && extra.enabled === true && exhausted(limits.month ?? null)) return { at, source: 'github-quota' }
   return null
+}
+
+/** The month a spent allowance of a ChatGPT plan can run on into credits: a seat's month is its credit cap itself (EKR-132). */
+function chatGptPlanMonth(limits: RateLimits | null): RateLimits['fiveHour'] {
+  return limits?.spendCap === undefined ? (limits?.month ?? null) : null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

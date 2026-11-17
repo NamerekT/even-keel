@@ -311,7 +311,7 @@ export class LimitsWatcher {
     } else {
       // A fallback (Codex reads its rollouts when ChatGPT does not answer) may be older than the last poll.
       account.polled = newestLimits(answer.limits, account.polled)
-      setHealth(account, 'ok', null, at)
+      setHealth(account, 'ok', answer.reason ?? null, at)
     }
   }
 

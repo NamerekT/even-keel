@@ -1,7 +1,10 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { Dispatcher, type LaunchEntry } from '../chain/dispatcher.js'
 import { carryNameOf, fixNameOf, isCarryName, isFixName, isOwnName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { chainQuiet, ForwardMerger } from '../chain/forward.js'
 import { hubMainDeps } from '../chain/mainci.js'
+import type { CarrySession } from '../chain/model.js'
 import { PROMPTS } from '../chain/prompts.js'
 import { loadChainState, saveChainState, saveClosedTask } from '../chain/store.js'
 import { gitlabUrls } from '../ci/adapters.js'
@@ -279,11 +282,12 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
       return chainQuiet(ctx.dispatcher.state.active.find((chain) => chain.project === project), (task) => status(task) === 'busy' || status(task) === 'waiting')
     },
     git: runGit,
+    read: (repo, path) => readFile(join(repo, path), 'utf8').catch(() => null),
     sync: ctx.syncProject,
     now: () => new Date(),
     changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (message) => console.log(message),
-    carrying: (from) => ctx.dispatcher.carrying(from)?.task ?? null,
+    carrying: (from) => ctx.dispatcher.carrying(from) ?? null,
     auto: (from) => ctx.configStore.current.settings[from]?.carryAgent === true || ctx.configStore.current.unattended,
     resolve: async (from, ask) => {
       const config = ctx.configStore.current
@@ -299,7 +303,9 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
         output: ask.output,
       })
       const at = new Date().toISOString()
-      ctx.dispatcher.carry(from, { task: carryNameOf(config.keys, from), into: ask.into, at, commit: ask.commit, commits: ask.commits, report })
+      const carry: CarrySession = { task: carryNameOf(config.keys, from), into: ask.into, at, commit: ask.commit, commits: ask.commits, report }
+      if (ask.conflict !== undefined) carry.conflict = ask.conflict
+      ctx.dispatcher.carry(from, carry)
     },
   })
 }

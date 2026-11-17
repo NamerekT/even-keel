@@ -112,4 +112,12 @@ describe('MainCheck.view: what the CI panel shows of main (BTN-829)', () => {
     expect(dispatcher.main!.view('ABC').late).toBeUndefined()
     expect(dispatcher.main!.view('ABC').judging).toBeUndefined()
   })
+
+  it('says the late watch is of a CI that did not answer (EKR-136)', async () => {
+    const { dispatcher, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.unreachable', { ci: 'GitHub Actions' })] }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.main!.view('ABC').late).toEqual({ commit: 'bbbbbbbbbb', until: '2026-09-26T13:00:00.000Z', unanswered: true })
+  })
 })

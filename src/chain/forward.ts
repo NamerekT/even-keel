@@ -1,6 +1,7 @@
 import type { Git } from '../git/types.js'
 import { englishOf, fail, notice, type Notice, type NoticeError } from '../notice/notice.js'
-import type { ForwardView } from '../state.js'
+import type { ConflictFile, ForwardView } from '../state.js'
+import { readConflict } from './conflict.js'
 import type { ActiveChain } from './model.js'
 
 /** A release project and the project whose branch its own one merges into (`mergeInto`). */
@@ -22,13 +23,15 @@ export interface ForwardDeps {
   /** Whether nothing of the project's chain may merge into its branch now (`chainQuiet`). */
   quiet: (project: string) => boolean
   git: Git
+  /** A file of the checkout as text, `null` — unreadable: the conflict's lines are counted in it. */
+  read: (repo: string, path: string) => Promise<string | null>
   /** Pushes the project's branch the way the cleanup after Done does (`syncMain`). */
   sync: (project: string) => Promise<Notice | null>
   now: () => Date
   changed: () => void
   log: (message: string) => void
-  /** The session that resolves the release project's carry or is about to (BTN-369); `null` — none. */
-  carrying: (from: string) => string | null
+  /** The session that resolves the release project's carry or is about to (BTN-369), with the conflict it was asked for (EKR-135); `null` — none. */
+  carrying: (from: string) => { task: string; conflict?: ConflictFile[] } | null
   /** Asks for that session after the current task of the project the release branch merges into. */
   resolve: (from: string, ask: CarryAsk) => Promise<void>
   /** Whether a conflict goes to that session by itself, without "Resolve with the agent" (`carryAgent` or unattended mode, BTN-370). */
@@ -43,6 +46,8 @@ export interface CarryAsk {
   commits: number
   files: string[]
   output: string
+  /** The conflicted files with their lines (EKR-134), kept with the session so the page shows them after a restart. */
+  conflict?: ConflictFile[]
 }
 
 /**
@@ -60,7 +65,8 @@ export function chainQuiet(chain: ActiveChain | undefined, busy: (task: string) 
  * Carries the branch of each release project into the branch of the project it merges into (BTN-172), in that
  * project's main checkout: by `merge --no-edit` once its chain is quiet, or at once on "Carry now". A failed merge
  * (a conflict, or git refusing with no conflicted file, BTN-314) is aborted, so the checkout stays clean and the chain goes on, and holds the carry until "Carry now", an agent's session or until the branch
- * has the commits by a merge by hand. The hold lives in memory: after a restart the carry is tried once more.
+ * has the commits by a merge by hand. The hold lives in memory: after a restart the carry is tried once more, unless a
+ * session resolves it; then the page shows the conflict that session was asked for (EKR-135).
  * A held conflict may be resolved by an agent (BTN-369); while its session is asked for, nothing is merged here.
  * With `auto` the session is asked for at the conflict itself (BTN-370), once per release commit: a held carry is then
  * tried again once the release branch has moved, and a session that did not land it gets no successor before that.
@@ -78,8 +84,10 @@ export class ForwardMerger {
   view(): Record<string, ForwardView> {
     return Object.fromEntries(
       [...this.views].map(([from, view]) => {
-        const agent = this.deps.carrying(from)
-        return [from, agent === null ? view : { ...view, agent }]
+        const carry = this.deps.carrying(from)
+        if (carry === null) return [from, view]
+        const conflict = view.conflict ?? carry.conflict
+        return [from, conflict === undefined ? { ...view, agent: carry.task } : { ...view, agent: carry.task, conflict }]
       }),
     )
   }
@@ -102,7 +110,7 @@ export class ForwardMerger {
     const pair = this.deps.pairs().find((each) => each.from === from)
     if (pair === undefined) return Promise.reject(fail('forward.notRelease', { project: from }))
     const agent = this.deps.carrying(from)
-    if (agent !== null) return Promise.reject(fail('forward.agent', { from, task: agent }))
+    if (agent !== null) return Promise.reject(fail('forward.agent', { from, task: agent.task }))
     return this.queue(() => this.step(pair, true))
   }
 
@@ -121,7 +129,9 @@ export class ForwardMerger {
 
   private ask(from: string, view: ForwardView, hold: Notice, commit: string): Promise<void> {
     const files = (hold.params as { files: string[] }).files
-    return this.deps.resolve(from, { into: view.into, ref: refOf(from), commit, commits: view.behind ?? 0, files, output: hold.detail ?? '' })
+    const ask: CarryAsk = { into: view.into, ref: refOf(from), commit, commits: view.behind ?? 0, files, output: hold.detail ?? '' }
+    if (view.conflict !== undefined) ask.conflict = view.conflict
+    return this.deps.resolve(from, ask)
   }
 
   /** The release commit fetched for the carry, or why it could not be read. */
@@ -141,7 +151,9 @@ export class ForwardMerger {
     const before = this.views.get(from)
     const view: ForwardView = { into, behind: before?.behind ?? null, hold: before?.hold ?? null, held: before?.held ?? false }
     if (before?.last !== undefined) view.last = before.last
+    if (before?.conflict !== undefined) view.conflict = before.conflict
     await this.carryInto(view, from, now)
+    if (!view.held) delete view.conflict
     if (JSON.stringify(view) !== JSON.stringify(before)) {
       this.views.set(from, view)
       this.deps.changed()
@@ -182,7 +194,10 @@ export class ForwardMerger {
     const merged = await git(repo, ['merge', '--no-edit', '-m', `Merge branch '${this.deps.branch(from)}' of ${this.deps.label(from)} into ${branch}`, ref])
     if (merged.code !== 0) {
       const files = (await git(repo, ['diff', '--name-only', '--diff-filter=U'])).out.split(/\r?\n/).filter((line) => line.trim() !== '')
+      const conflict = files.length > 0 ? await readConflict(git, repo, files, (path) => this.deps.read(repo, path)) : undefined
       await git(repo, ['merge', '--abort'])
+      if (conflict === undefined) delete view.conflict
+      else view.conflict = conflict
       const hold =
         files.length > 0 ? notice('forward.conflict', { from, into, files }, { detail: merged.out }) : notice('forward.failed', { from, into }, { detail: merged.out })
       this.deps.log(`forward: ${files.length > 0 ? englishOf(hold) : `${englishOf(hold)}: ${merged.out.trim()}`}`)

@@ -19,4 +19,12 @@ describe('windowValue', () => {
     setLanguage('ru')
     expect(windowValue({ ...window, used: 12 }, 4, true)).toBe('исп. 12')
   })
+
+  it('gives a count of a known size as spent of the size, the narrow column as the share', () => {
+    setLanguage('ru')
+    expect(windowValue({ ...window, used: 1250.4, limit: 5000 }, 25)).toBe('1250 из 5000')
+    expect(windowValue({ ...window, used: 1250.4, limit: 5000 }, 25, true)).toBe('25%')
+    setLanguage('en')
+    expect(windowValue({ ...window, used: 1250, limit: 5000 }, 25)).toBe('1250 of 5000')
+  })
 })

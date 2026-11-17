@@ -469,6 +469,8 @@ export const noticesRu: NoticeTexts = {
   'usage.chatGptExpired': () => 'токен входа ChatGPT истёк; запустите сессию или обновите вход аккаунта',
   'usage.chatGptRevoked': () => 'вход ChatGPT отозван, например после смены тарифа; обновите вход аккаунта',
   'usage.chatGptUnread': () => 'в ответе ChatGPT о лимитах нет читаемых окон',
+  'usage.chatGptSpendCap': () =>
+    'Месячный лимит кредитов этого места в пространстве исчерпан, аккаунт ждёт следующего месяца. Попросите владельца поднять лимит или выберите проекту другой аккаунт.',
   'usage.openCodeNone': () => 'нет подписки ChatGPT, Copilot или Go: у бесплатных моделей OpenCode и остальных API-ключей нет лимитов, которые можно прочитать',
   'usage.goKeyExpired': () => 'Ключ OpenCode Go истёк или отозван. Создайте новый ключ в OpenCode Console и выберите «Заменить ключ».',
   'account.goKeyRejected': () => 'OpenCode Console отклонил ключ. Создайте новый ключ в OpenCode Console и попробуйте снова.',

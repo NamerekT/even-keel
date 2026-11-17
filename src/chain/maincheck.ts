@@ -51,10 +51,11 @@ export class MainCheck {
   /** The latest push of main the chain did not make, by project (BTN-707): awaited only for `commands.afterGreen`, it holds no launch. */
   private readonly outside = new Map<string, MainPush>()
   /**
-   * The chain's push that stayed unchecked because no runner took it in time, by project (BTN-719): the launch went on,
-   * but a run taken later still judges it, a red one as any red main. The next push of the chain or `LATE_MS` ends the watch.
+   * The chain's push that stayed unchecked because no runner took it in time (BTN-719) or the CI did not answer
+   * (`unanswered`, EKR-136), by project: the launch went on, but a verdict said later still judges it, a red one as any
+   * red main. The next push of the chain or `LATE_MS` ends the watch.
    */
-  private readonly late = new Map<string, MainPush>()
+  private readonly late = new Map<string, { push: MainPush; unanswered: boolean }>()
   /** Who pushed the latest commits of each project's main the service saw (BTN-829), oldest first. */
   private readonly pushers = new Map<string, Map<string, PushBy>>()
 
@@ -77,12 +78,13 @@ export class MainCheck {
   /** What the CI panel shows of the project's main (BTN-829). */
   view(project: string): MainCiView {
     const late = this.late.get(project)
-    const judging = this.state.ci[project]?.check?.commit ?? late?.commit
+    const judging = this.state.ci[project]?.check?.commit ?? late?.push.commit
     const record = this.state.ci[project]?.afterGreenRun
     const after = record !== undefined && this.deps.afterGreen(project) ? { ...record, running: this.afterRuns.get(project)?.commit === record.commit } : undefined
+    const until = late === undefined ? '' : new Date(Date.parse(late.push.at) + LATE_MS).toISOString()
     return {
       ...(judging !== undefined && { judging }),
-      ...(late !== undefined && { late: { commit: late.commit, until: new Date(Date.parse(late.at) + LATE_MS).toISOString() } }),
+      ...(late !== undefined && { late: { commit: late.push.commit, until, ...(late.unanswered && { unanswered: true as const }) } }),
       ...(after !== undefined && { afterGreen: after }),
       pushes: Object.fromEntries(this.pushers.get(project) ?? []),
     }
@@ -300,10 +302,10 @@ export class MainCheck {
     return { changed, stops, fixes }
   }
 
-  /** A late verdict on a push left unchecked for want of a runner: green as any green, red files the fix as any red main. */
+  /** A late verdict on a push left unchecked: green as any green, red files the fix as any red main. */
   private async settleLate(open: IsOpen, stops: MainStop[], fixes: string[]): Promise<boolean> {
     let changed = false
-    for (const [project, push] of [...this.late]) {
+    for (const [project, { push }] of [...this.late]) {
       const gate = this.gate(project)
       const rerunBefore = gate.rerun
       const { verdict, reran } = await this.judged(project, gate, push)
@@ -427,9 +429,11 @@ export class MainCheck {
     if (commands.length === 0) {
       if (this.fixed(gate, push)) delete gate.fix
       if (reasons.length > 0) this.log(`ci: ${project}: ${commit} stays unchecked: ${why}`)
-      if (reasons.some((reason) => reason.code === 'ci.notTaken')) {
-        this.late.set(project, push)
-        this.log(`ci: ${project}: ${commit} is still watched: a run taken later judges it`)
+      // One failed poll in the middle of a run must not drop the commit (EKR-136): what the CI says later still judges it.
+      if (reasons.length > 0) {
+        const unanswered = !reasons.some((reason) => reason.code === 'ci.notTaken')
+        this.late.set(project, { push, unanswered })
+        this.log(`ci: ${project}: ${commit} is still watched: ${unanswered ? 'the CI judges it once it answers' : 'a run taken later judges it'}`)
       }
       return
     }

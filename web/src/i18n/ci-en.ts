@@ -43,6 +43,8 @@ export const ciEn = {
     // In the push's own card its line already says no runner took it.
     late: (commit: string | null, until: string) =>
       commit === null ? `A run taken before ${until} still judges this push` : `No runner took ${commit} in time: a run taken before ${until} still judges it`,
+    unanswered: (commit: string | null, until: string) =>
+      `The CI did not answer about ${commit ?? 'this push'}: what it says before ${until} still judges it`,
   },
   after: {
     label: 'After green',

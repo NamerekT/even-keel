@@ -14,7 +14,7 @@ const SKIPPED_QUOTA = 'completions'
  * The monthly allowance of a Copilot answer (BTN-341): the first limited `quota_snapshots` entry — premium requests, else
  * another one such as AI credits — or the free plan's `limited_user_quotas.chat` out of `monthly_quotas.chat`, as one
  * month window that counts what is left. AI credits without `remaining` use `entitlement - credits_used`.
- * `unlimited` — every quota is; `no-quota` — the provider gives no allowance; `undefined` — nothing readable.
+ * `unlimited` — every quota is, by a flag nothing contradicts (`spentDespiteFlag`); `no-quota` — the provider gives no allowance; `undefined` — nothing readable.
  */
 export function copilotLimits(body: unknown, at: string): RateLimits | 'unlimited' | 'no-quota' | undefined {
   if (!isRecord(body)) return undefined
@@ -25,12 +25,13 @@ export function copilotLimits(body: unknown, at: string): RateLimits | 'unlimite
     if (isRecord(premium) && (premium.has_quota === false ||
       (premium.token_based_billing === true && !(nonnegative(premium.entitlement) && premium.entitlement > 0)))) return 'no-quota'
     const quotas = Object.entries(snapshots).filter((entry): entry is [string, Record<string, unknown>] => entry[0] !== SKIPPED_QUOTA && isRecord(entry[1]))
-    const limited = quotas.filter(([, quota]) => quota.unlimited !== true).sort(([a], [b]) => Number(b === PREFERRED_QUOTA) - Number(a === PREFERRED_QUOTA))
+    const limited = quotas.filter(([, quota]) => quota.unlimited !== true || spentDespiteFlag(quota))
+      .sort(([a], [b]) => Number(b === PREFERRED_QUOTA) - Number(a === PREFERRED_QUOTA))
     for (const [, quota] of limited) {
       if (quota.has_quota === false) continue
       const left = quota.remaining === undefined && nonnegative(quota.entitlement) && nonnegative(quota.credits_used)
         ? Math.max(0, quota.entitlement - quota.credits_used) : quota.remaining
-      const window = counted(quota.entitlement, left, resetsAt)
+      const window = spentDespiteFlag(quota) ? { usedPercentage: 100, resetsAt, left: 0 } : counted(quota.entitlement, left, resetsAt)
       if (window !== undefined) {
         const overage = copilotOverage(quota, at)
         return { ...monthOnly(window, at), ...(overage !== undefined && { overage }) }
@@ -111,6 +112,15 @@ function quotaAnswer(body: unknown, at: string): UsageAnswer {
 function get(url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch): Promise<Response> {
   const headers = { Authorization: authorization, Accept: 'application/json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'even-keel' }
   return fetchImpl(url, { headers, signal: AbortSignal.timeout(timeoutMs) })
+}
+
+/**
+ * `unlimited: true` that the quota itself contradicts (EKR-133): nothing left or no allowance, something spent and no
+ * overage. A spent Business seat answers so; the same shape with overage permitted stays unlimited.
+ */
+function spentDespiteFlag(quota: Record<string, unknown>): boolean {
+  return quota.unlimited === true && (quota.remaining === 0 || quota.entitlement === 0) &&
+    nonnegative(quota.credits_used) && quota.credits_used > 0 && quota.overage_permitted === false
 }
 
 function counted(total: unknown, left: unknown, resetsAt: string): LimitWindow | undefined {

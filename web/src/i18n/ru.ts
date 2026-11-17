@@ -218,6 +218,7 @@ export const ru = {
     left: (count: number) => `осталось ${count}`,
     used: (count: number) => `использовано ${count}`,
     usedShort: (count: number) => `исп. ${count}`,
+    usedOf: (count: number, limit: number) => `${count} из ${limit}`,
     empty: (title: string, source: string) => `${title}: нет данных${source}`,
     reset: (title: string, resetIn: string, source: string) => `${title}: сброс через ${resetIn}${source}`,
     resetAt: (resetIn: string, at: string) => `сброс через ${resetIn} — ${at}`,
