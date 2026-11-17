@@ -4,6 +4,18 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2]
+
+### Fixed
+
+- **The README badge of a red-main fix or a release carry:**
+  - The milestone card stays on the badge while the fix or carry runs. It shows the milestone of the chain's next task, or of the task closed last if no task is next.
+  - The badge gives the run a title. A fix of the main branch is titled on its own, and a fix started from the project's branch says "Fixing the red dev". A carry is titled "Carrying release v0.3 into dev", from the release project's branch and the branch it goes into.
+  - On a task with no title, the agent line stays on the line with the task's key. Before, it sat out of line under an empty title.
+- **A permission question no longer disappears when the CLI stops waiting for your answer**, as it does after two minutes on a check of a deletion. The chat now marks the call "approval expired, not run" and adds a closing line. The tracker gets a comment saying that the question expired.
+- In the chat's question card, holding the pointer over an option without a preview no longer makes the layout jump between two columns and one.
+- `/stats` prices gpt-6.2-astra and gpt-6.2-sol at their own prices, taken from OpenAI's model pages. A prompt over 272k tokens gets the long-prompt price.
+
 ## [0.3.1] - 2026-11-17
 
 A patch of 0.3: the CI and limit fixes that cost a chain time, and a clearer carry panel.
