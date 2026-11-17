@@ -8,6 +8,8 @@ import { BasementSlot } from './layout/Basement.js'
 import { AppHeader } from './layout/AppHeader.js'
 import { LoginDialog } from './layout/LoginDialog.js'
 import { MachineLoginDialog } from './layout/MachineSignIns.js'
+import { AddMachineDialog } from './layout/AddMachineDialog.js'
+import { MachineArrivalToast } from './layout/MachineArrival.js'
 import { EventToasts } from './layout/EventToasts.js'
 import { FallbackToasts } from './layout/Fallbacks.js'
 import { UpdateProgressToast, UpdateResultToast, UpdateToast, UpdateWindow } from './layout/Updates.js'
@@ -92,6 +94,7 @@ export function App() {
       {/* The add dialog walks its own sign-in in place. */}
       {state !== null && state.account.login !== null && !addingAccount && <LoginDialog account={state.account} />}
       {state !== null && <AddAccountDialog account={state.account} />}
+      {state !== null && <AddMachineDialog state={state} />}
       {state !== null && state.account.login === null && <MachineLoginDialog />}
       <CliConsent />
       <UpdateWindow />
@@ -101,6 +104,7 @@ export function App() {
         <UpdateToast />
         <FallbackToasts />
         <EventToasts />
+        <MachineArrivalToast />
       </ToastStack>
     </div>
   )

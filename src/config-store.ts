@@ -169,6 +169,12 @@ export class ConfigStore {
     this.write(withExecution(this.raw(), provider, mode))
   }
 
+  /** "Hub address for machines" alone, as the window that adds a machine chose it (BTN-1056). */
+  saveMachinesAddress(address: string): void {
+    const form = this.view().shared
+    this.saveShared({ ...form, machinesAddress: address }, form)
+  }
+
   saveCli(provider: string, source: 'checked' | 'system'): void {
     const form = this.view().shared
     this.saveShared({ ...form, cli: { ...form.cli, [provider]: source } }, form)

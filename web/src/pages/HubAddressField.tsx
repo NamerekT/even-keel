@@ -32,10 +32,12 @@ interface HubAddressFieldProps {
   value: string
   invalid: boolean
   onChange: (value: string) => void
+  /** The settings' "Machines do not connect" by default; the window that adds a machine asks for an address instead. */
+  placeholder?: string
 }
 
 /** Typed freely — an IP, a name, a port after it — with the page's names and the network cards' addresses offered. */
-export function HubAddressField({ id, value, invalid, onChange }: HubAddressFieldProps) {
+export function HubAddressField({ id, value, invalid, onChange, placeholder = t.shared.machinesAddressNone }: HubAddressFieldProps) {
   const offers = useAddressOffers()
   return (
     <SuggestField
@@ -45,7 +47,7 @@ export function HubAddressField({ id, value, invalid, onChange }: HubAddressFiel
       value={value}
       options={offers ?? []}
       loading={offers === null}
-      placeholder={t.shared.machinesAddressNone}
+      placeholder={placeholder}
       invalid={invalid}
       onChange={onChange}
     />

@@ -70,6 +70,7 @@ import { PACKAGE_PARAM } from '../tools/packageGroups.js'
 import { noticeTexts } from '../i18n/notice-choices.js'
 import { useVocabularies, VocabularyReading } from './useVocabularies.js'
 import { amountOf, EXECUTED, formOf, promptsOf, same, valuesOf } from './sharedSettingsForm.js'
+import { useOpenAddMachine } from '../layout/AddMachineDialog.js'
 import './settings.css'
 
 const SCOPE = SHARED_SCOPE
@@ -104,6 +105,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const [current, setDraft] = useDraft(SCOPE, saved, same)
   const draft = current!
   const [tab, setOpen] = useTab<string>(SCOPE, 'chain')
+  const openAddMachine = useOpenAddMachine()
   // A tracker profile's rules are a tab of the rules group (BTN-66), one per profile; a removed profile's tab falls back to the shared rules.
   const ruled = state.profiles.profiles.filter((profile) => state.profiles.kinds.some((kind) => kind.kind === profile.kind && kind.tracker))
   const ruledOpen = ruled.find((profile) => profileGroup(profile.id) === tab)
@@ -561,6 +563,17 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               />
             }
             error={errorOf('machinesAddress')}
+          />
+          {/* Until the machines panel (BTN-1051) holds "+ Machine", the window opens from beside its address. */}
+          <Row
+            className="settings__field"
+            label={t.machines.title}
+            hint={t.machines.addHint}
+            control={
+              <button type="button" className="button" onClick={() => openAddMachine()}>
+                {t.machines.add}
+              </button>
+            }
           />
         </Section>
       </>

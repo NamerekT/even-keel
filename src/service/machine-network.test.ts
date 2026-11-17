@@ -51,6 +51,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       certificate: () => hubIdentity(db),
       own: () => OWN,
       address: () => settings.address,
+      saveAddress: (address) => void (settings.address = address),
       port: await freePort(),
       repoOf: (project) => (project === ABC ? 'D:\\repos\\example' : undefined),
       allowedHosts: () => ['box.example.com'],
@@ -105,6 +106,22 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     settings.address = null
     await network.apply()
     await expect(joinHub(pending, ABOUT, 2_000)).rejects.toThrow()
+  })
+
+  it("keeps the address the window issues a string with, and names a machine issued without a name by its host at the join", async () => {
+    const { network, settings } = await started()
+    const invite = await network.invite('  ', '127.0.0.1')
+    expect(settings.address).toBe('127.0.0.1')
+    const string = parseToken(invite.line)!
+    expect(new URL(string.hub).hostname).toBe('127.0.0.1')
+    expect((await network.list()).find((machine) => machine.id === string.machine)?.name).toBe('')
+    const joined = await joinHub(string, ABOUT, 5_000)
+    if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+    expect((await network.list()).find((machine) => machine.id === string.machine)?.name).toBe('example-laptop')
+
+    const named = parseToken((await network.invite('Example desktop', '127.0.0.1')).line)!
+    await joinHub(named, ABOUT, 5_000)
+    expect((await network.list()).find((machine) => machine.id === named.machine)?.name).toBe('Example desktop')
   })
 
   it('shows a folder another machine holds, frees the mark of a machine it revoked, and takes a folder over only from the machine shown', async () => {

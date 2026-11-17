@@ -125,7 +125,7 @@ export type { CloneProgress } from './git/clone-progress.js'
 export type { JobStep, StepJob } from './jobs/model.js'
 export type { BranchChoice, BranchDrift, BranchMove, RepoBranches } from './projects/branch.js'
 export type { RemoteBranchList } from './projects/remote-branches.js'
-export type { AddressChoice, MachineAbout, MachineAccount, MachineLogin, MachineSignIn, MachineView } from './link/view.js'
+export type { AddressChoice, MachineAbout, MachineAccount, MachineInvite, MachineLogin, MachineSignIn, MachineView } from './link/view.js'
 import type { BranchDrift } from './projects/branch.js'
 
 /** How a release project's branch goes into the branch of the project it merges into (`mergeInto`, BTN-172). */

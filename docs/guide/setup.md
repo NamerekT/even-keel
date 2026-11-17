@@ -820,9 +820,9 @@ The service log records stop signals and fatal errors; it cannot record a forced
 
 The first installation is the hub: it has the page, the trackers and the chains, and runs sessions itself. Another computer can join it as a machine: an installation with no page and no projects of its own that the hub gives projects to. **Preview:** a machine joins, reports itself and gets its projects' folders, but the chain still runs every task on the hub.
 
-1. On the hub, set **Settings → Hub address for machines** to the name or IP the other computer reaches the hub by. The hub then listens for machines on port 4749 (`EVEN_KEEL_MACHINES_PORT`).
-2. Issue a connection string for the machine: the page's window of machines is still to come, so for now it is the request `POST /api/machines/invite` with `{"name": "<a name for the machine>"}` (with the page's token when the page has one). The answer has the string and the command to run with it. A string is good for 30 minutes and one machine; issuing a new one takes back the one not used yet.
-3. On the other computer, with Node.js 24 and git installed, run the one command the answer gave, the same on Windows, Linux and macOS:
+1. On the hub, open **Settings → Interface** and press **+ Machine** under **Hub address for machines**.
+2. In the window, pick the **Hub address for machines** — the name or IP the other computer reaches the hub by: one of the page's allowed addresses, an address of a network adapter, or one you type — and give the machine a name if you like (without one it is named by its host name). **Issue the command** remembers the address for the next machines; the hub then listens for machines on port 4749 (`EVEN_KEEL_MACHINES_PORT`). The window shows the command with its connection string: good for 30 minutes and one machine; **Issue again** takes back the one not used yet.
+3. On the other computer, with Node.js 24 and git installed, run the command the window gave, the same on Windows, Linux and macOS:
 
    ```sh
    npx even-keel@<the hub's version> install --machine <connection string>
@@ -831,6 +831,8 @@ The first installation is the hub: it has the page, the trackers and the chains,
    The version is the hub's: a machine of another version is refused. `--root <folder>` names the folder the machine's projects go into (by default `projects` in its data folder); the hub puts each project in a folder of its own there and reaches nothing outside it.
 
 The command installs the package globally, joins the hub and installs the service the same way as for a hub: on Windows the start at sign-in with its tray icon (add `--service` for the Windows service `EvenKeel`, from PowerShell 7 as administrator, as in [Windows: without a sign-in](#windows-without-a-sign-in)), on Linux and macOS the user service. It then waits up to 30 seconds for the machine to reach the hub and says whether it did. Without Node.js 24 or git it installs nothing and says what is missing. Run it again (an update, a failed install) with the same string: the machine stays joined and only the service is installed again.
+
+The window waits for the machine and, when it joins, shows what it found there — Node.js, git with its user name and e-mail, the agents' CLIs — and what fails without a missing one, then the hub's projects to connect it to (each cloned into the machine's folder of projects) and the hub's accounts to sign in to there, with **Sign in on this machine**. You can close the window while it waits: when the machine joins, a notice opens the window at its projects. A machine takes no task of an agent it has no account for.
 
 The tray icon of a machine is green while it hears the hub and red when it has not for three minutes; it has no page to open. `even-keel status` prints the hub, the folder of projects and the last contact.
 

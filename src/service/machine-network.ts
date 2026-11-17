@@ -60,6 +60,8 @@ export interface MachineNetworkOptions {
   own: () => string
   /** "Hub address for machines", read live. */
   address: () => string | null
+  /** Writes "Hub address for machines" (a refused value throws); absent — `invite` never changes it. */
+  saveAddress?: (address: string) => void
   port: number
   /** The hub's folder of a project; `undefined` — no such project. */
   repoOf: (project: string) => string | undefined
@@ -357,15 +359,21 @@ export class MachineNetwork {
 
   /**
    * A connection string for a machine to join with, and the one command that installs the machine with it; the strings
-   * issued before and never joined with stop working.
+   * issued before and never joined with stop working. `given` — the address the window chose (BTN-1056): it becomes
+   * "Hub address for machines" first. No name — the machine is named by its host when it joins.
    */
-  async invite(name: string): Promise<Invite & { command: string }> {
+  async invite(name: string, given?: string): Promise<Invite & { command: string }> {
+    const chosen = given?.trim().toLowerCase()
+    if (chosen && chosen !== this.options.address()) {
+      this.options.saveAddress?.(chosen)
+      await this.apply()
+    }
     const address = this.options.address()
     const url = address === null ? undefined : hubUrlOf(address, this.options.port)
     if (url === undefined) throw fail('machines.noAddress', {})
     const { fingerprint } = await this.options.certificate()
-    const invite = await this.hub.invite(name.trim() || 'Machine', url, fingerprint)
-    this.options.log(`machines: a connection string for "${name.trim()}" was issued, good until ${new Date(invite.expiresAt).toISOString()}`)
+    const invite = await this.hub.invite(name.trim(), url, fingerprint)
+    this.options.log(`machines: a connection string for "${name.trim() || '(its host)'}" was issued, good until ${new Date(invite.expiresAt).toISOString()}`)
     return { ...invite, command: installCommandOf(this.options.version, invite.line) }
   }
 

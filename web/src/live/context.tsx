@@ -14,7 +14,7 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
  * opened meanwhile. Stats, the tracker's vocabulary and the tools' views stay off it too: whatever shows them shows its
  * own reading (the Tools page's skeleton, "What sessions get"'s loader, a field's list).
  */
-export function useLive(): LiveSnapshot & { read: LiveSource['query'] } & Pick<LiveSource,'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'checkpoint' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'badgeUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
+export function useLive(): LiveSnapshot & { read: LiveSource['query'] } & Pick<LiveSource,'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'onMachines' | 'checkpoint' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'badgeUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
@@ -26,6 +26,7 @@ export function useLive(): LiveSnapshot & { read: LiveSource['query'] } & Pick<L
     session: (sessionId) => activity.track(source.session(sessionId)),
     transcript: (sessionId, after) => source.transcript(sessionId, after),
     onTranscript: (sessionId, listener) => source.onTranscript(sessionId, listener),
+    onMachines: (listener) => source.onMachines(listener),
     checkpoint: (sessionId) => source.checkpoint(sessionId),
     imageUrl: (sessionId, tool, index) => source.imageUrl(sessionId, tool, index),
     sentFileUrl: (sessionId, name) => source.sentFileUrl(sessionId, name),
