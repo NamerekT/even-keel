@@ -35,7 +35,8 @@ export function runOf(ctx: { configStore: { readonly current: EvenKeelConfig }; 
   return ctx.demo.owns(project) ? DEMO_RUN : runSettings(ctx.configStore.current, project)
 }
 
-export function wireDemo(ctx: DemoContext): DemoService {
+/** `homes` — the account folders as soon as they are open, before the service's context has them (`assembleMachineHost`). */
+export function wireDemo(ctx: DemoContext, homes: DemoContext['homes'] = ctx.homes): DemoService {
   const chainOn = (project: string) => ctx.dispatcher.state.active.some((chain) => chain.project === project) || ctx.dispatcher.state.queue.includes(project)
   const demo = new DemoService({
     stateDir: ctx.stateDir,
@@ -49,7 +50,7 @@ export function wireDemo(ctx: DemoContext): DemoService {
     startChain: (project) => ctx.chainControl.start(project),
     stopChain: (project) => ctx.chainControl.stop(project),
     chainOn,
-    homes: ctx.homes,
+    homes,
     refreshAccounts: () => ctx.account.refresh(),
     forgetRows: async (project) => {
       await ctx.writes.settled()
