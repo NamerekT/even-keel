@@ -141,21 +141,41 @@ describe('TaskRuns', () => {
       task('ABC-5', { labels: ['Claude | haiku'], status: done }),
       task('ABC-6', { labels: ['bug'] }),
     ]
-    expect(runs.importLabels('p1', tasks)).toEqual(['ABC-1', 'ABC-2'])
+    expect(runs.importLabels('p1', new Map([['p1', tasks]]), ['p1'])).toEqual(['ABC-1', 'ABC-2'])
     expect(runs.ofProject('p1')).toEqual({
       'ABC-1': { provider: 'claude', model: 'opus', effort: null },
       'ABC-2': { provider: 'codex', model: null, effort: null },
       'ABC-4': { provider: 'codex', model: null, effort: 'low' },
     })
     expect(kept.calls).toEqual(['save ABC-1 claude|opus|null', 'save ABC-2 codex|null|null', 'imported p1'])
-    expect(runs.importLabels('p1', [task('ABC-7', { labels: ['Codex'] })])).toEqual([])
+    expect(runs.importLabels('p1', new Map([['p1', [task('ABC-7', { labels: ['Codex'] })]]]), ['p1'])).toEqual([])
     expect(runs.of('p1', 'ABC-7')).toBeUndefined()
+  })
+
+  it('moves the labels of a project with two readers as each answers and marks it once both have, in either order', () => {
+    for (const [first, second] of [['p1', 'feed'], ['feed', 'p1']] as const) {
+      const kept = store()
+      const runs = new TaskRuns([], ['p1'], kept)
+      const lists = { p1: [task('ABC-1', { labels: ['Codex'] })], feed: [task('GH-1', { labels: ['Claude | opus'] })] }
+      const readers = ['p1', 'feed']
+      const moved = runs.importLabels('p1', new Map([[first, lists[first]]]), readers)
+      expect(moved).toEqual([lists[first][0]!.id])
+      expect(runs.importLabels('p1', new Map([[first, lists[first]]]), readers)).toEqual([])
+      expect(kept.calls).not.toContain('imported p1')
+      runs.set('p1', lists[first][0]!.id, null)
+      const both = new Map([[first, lists[first]], [second, lists[second]]])
+      expect(runs.importLabels('p1', both, readers)).toEqual([lists[second][0]!.id])
+      expect(runs.of('p1', lists[first][0]!.id)).toBeUndefined()
+      expect(kept.calls.filter((call) => call === 'imported p1')).toHaveLength(1)
+      expect(kept.calls.at(-1)).toBe('imported p1')
+      expect(runs.importLabels('p1', both, readers)).toEqual([])
+    }
   })
 
   it('moves nothing for a project that did not read run labels', () => {
     const kept = store()
     const runs = new TaskRuns([], ['p1'], kept)
-    expect(runs.importLabels('p2', [task('ABC-1', { labels: ['Codex'] })])).toEqual([])
+    expect(runs.importLabels('p2', new Map([['p2', [task('ABC-1', { labels: ['Codex'] })]]]), ['p2'])).toEqual([])
     expect(kept.calls).toEqual([])
   })
 })

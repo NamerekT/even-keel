@@ -89,12 +89,14 @@ const keyOf = (project: string, task: string) => `${project}\n${task}`
 
 /**
  * The runs of the tasks, by project id and task, in memory and written behind into `task_runs` (`runs-store.ts`, step 47,
- * `docs/storage.md`). `pending` are the projects that read run labels before the update: the first list of a project's
- * tasks moves the run label of each open one into a run, once (`importLabels`).
+ * `docs/storage.md`). `pending` are the projects that read run labels before the update: the first list of each of a
+ * project's readers moves the run label of each open task into a run, once (`importLabels`).
  */
 export class TaskRuns {
   private readonly runs = new Map<string, StoredRun>()
   private readonly pending: Set<string>
+  /** By pending project: the readers whose labels are moved this run. */
+  private readonly movedReaders = new Map<string, Set<string>>()
 
   constructor(
     loaded: StoredRun[] = [],
@@ -129,34 +131,48 @@ export class TaskRuns {
   }
 
   /**
-   * Once per project that read run labels before the update: each open task with one run label and no run yet gets
-   * that label as its run. A task with several was launched as its project said, and still is. The labels stay in the
-   * tracker. Returns the tasks moved.
+   * Once per reader of a project that read run labels before the update: each open task of a reader's first list with
+   * one run label and no run yet gets that label as its run. A task with several was launched as its project said, and
+   * still is. The labels stay in the tracker. `lists` are the readers' lists so far, `readers` all of the project's: its
+   * mark goes once every reader has been moved (BTN-1253), until then a restart moves the moved readers again. Returns
+   * the tasks moved.
    */
-  importLabels(project: string, tasks: readonly Pick<Task, 'id' | 'labels' | 'status'>[]): string[] {
+  importLabels(project: string, lists: ReadonlyMap<string, readonly Pick<Task, 'id' | 'labels' | 'status'>[]>, readers: readonly string[]): string[] {
     if (!this.pending.has(project)) return []
+    const done = this.movedReaders.get(project) ?? new Set<string>()
+    this.movedReaders.set(project, done)
     const moved: string[] = []
-    for (const task of tasks) {
-      if (!isOpen(task.status) || this.runs.has(keyOf(project, task.id))) continue
-      const labels = new Map<string, RunLabel>()
-      for (const label of task.labels) {
-        const run = runLabelOf(label)
-        if (run !== null) labels.set(`${run.provider}|${run.model ?? ''}`, run)
-      }
-      const [only] = labels.values()
-      if (labels.size !== 1 || only === undefined) continue
-      this.set(project, task.id, { provider: only.provider, model: only.model, effort: null })
-      moved.push(task.id)
+    for (const [reader, tasks] of lists) {
+      if (done.has(reader)) continue
+      done.add(reader)
+      for (const task of tasks) if (this.importLabel(project, task)) moved.push(task.id)
     }
-    this.pending.delete(project)
-    this.store.imported(project)
+    if (readers.every((reader) => done.has(reader))) {
+      this.pending.delete(project)
+      this.movedReaders.delete(project)
+      this.store.imported(project)
+    }
     return moved
+  }
+
+  private importLabel(project: string, task: Pick<Task, 'id' | 'labels' | 'status'>): boolean {
+    if (!isOpen(task.status) || this.runs.has(keyOf(project, task.id))) return false
+    const labels = new Map<string, RunLabel>()
+    for (const label of task.labels) {
+      const run = runLabelOf(label)
+      if (run !== null) labels.set(`${run.provider}|${run.model ?? ''}`, run)
+    }
+    const [only] = labels.values()
+    if (labels.size !== 1 || only === undefined) return false
+    this.set(project, task.id, { provider: only.provider, model: only.model, effort: null })
+    return true
   }
 
   /** Drops the project's runs in memory; their rows go with `forgetProjectRows`. */
   forget(project: string): void {
     for (const [key, run] of this.runs) if (run.project === project) this.runs.delete(key)
     this.pending.delete(project)
+    this.movedReaders.delete(project)
   }
 
   /** The project's tasks got new ids (BTN-1074, its tracker switched): each run goes to its task's new id. */

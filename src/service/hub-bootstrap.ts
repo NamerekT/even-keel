@@ -148,11 +148,15 @@ export function assembleKnownTask(ctx: Pick<ServiceContext, 'tasksByProject'>) {
   return (task: string) => [...ctx.tasksByProject.values()].flat().find((each) => each.id === task)
 }
 
-export function assembleMoveRunLabels(ctx: Pick<ServiceContext, 'tasksByProject' | 'taskRuns'>) {
+export function assembleMoveRunLabels(ctx: Pick<ServiceContext, 'configStore' | 'readerTasks' | 'taskRuns'>) {
   return (project: string): void => {
-    const tasks = ctx.tasksByProject.get(project)
-    if (tasks === undefined) return
-    const moved = ctx.taskRuns.importLabels(project, tasks)
+    const readers = readerIds(ctx.configStore.current, project)
+    const lists = new Map(readers.flatMap((reader) => {
+      const tasks = ctx.readerTasks.get(reader)
+      return tasks === undefined ? [] : [[reader, tasks] as const]
+    }))
+    if (lists.size === 0) return
+    const moved = ctx.taskRuns.importLabels(project, lists, readers)
     if (moved.length > 0) console.log(`run labels moved into runs: ${moved.join(', ')}`)
   }
 }
