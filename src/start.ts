@@ -9,6 +9,7 @@ import { guardHosts, guardToken } from './guard.js'
 import { configPath, home, loadEnv, root, stateDirOf } from './locations.js'
 import { causeLine, englishOf, noticeWithCause, sameNotice } from './notice/notice.js'
 import { createBlockedServer } from './server.js'
+import { joinedHub } from './service/machine-process.js'
 import { prepareSettings } from './settings/import.js'
 import { copyBeforeSteps } from './storage/backup-schedule.js'
 import { upgradeStorage } from './storage/migrations.js'
@@ -26,7 +27,8 @@ const profileSeconds = profileSecondsOf(process.env)
 if (profileSeconds !== undefined) await profileStart(profileSeconds, join(home, 'logs'), (line) => console.log(line)).catch((error: unknown) => console.error(`cpu profile: not started: ${String(error)}`))
 watchLoopDelay({ everyMs: 5_000, thresholdMs: 1_000, log: (line) => console.log(line) })
 const modulesMs = performance.now()
-const ready = await startWithStorageRetry({
+// A machine of a hub elsewhere has no state database and no page (BTN-1247): `join` made it one.
+const ready = joinedHub(stateDirOf()) ? (await import('./machine-service.js'), false) : await startWithStorageRetry({
   prepare: async () => {
     upgradeStorage({ configFile: configPath(), stateDir: stateDirOf(), log: (line) => console.log(line) })
     const log = (line: string) => console.log(line)

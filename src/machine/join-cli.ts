@@ -43,7 +43,7 @@ export async function joinFromCli(line: string, root: string | null, version: st
     return [
       `even-keel: this installation is now a machine of the hub ${file.hub}`,
       `  its projects go into ${file.root}`,
-      '  the hub gives it projects from its page; start the service to connect (its machine role comes with a later version)',
+      '  the hub gives it projects from its page; start the service to connect: it runs as a machine, with no page of its own',
     ]
   } catch (error) {
     if (error instanceof JoinRefused) return `even-keel: not joined: ${error.message}`

@@ -48,6 +48,8 @@ export interface MachineHost {
   stateDir: string
   envFile: ReturnType<typeof loadEnv>
   machineDb: PGlite
+  /** A machine on the network: its limits watcher polls nothing before the hub's first plan (BTN-1247). */
+  planFirst?: boolean
   AGENT_TIMEOUT_MS: typeof AGENT_TIMEOUT_MS
   LIMITS_POLL_MS: typeof LIMITS_POLL_MS
   USAGE_POLL_MS: typeof USAGE_POLL_MS
@@ -143,6 +145,8 @@ export interface MachineHostInputs {
   listen: () => ReturnType<typeof listenOf>
   mcpPort: () => number
   tell: LaterTell
+  /** A machine on the network, which waits for the hub's plan of the account limits (`MachineHost.planFirst`). */
+  planFirst?: boolean
   /** The account folders are open and nothing has read them yet: the hub's demo lists its folder here (BTN-776). */
   homesOpened?: (homes: AccountHomes) => void
 }
@@ -165,6 +169,7 @@ export async function assembleMachineHost(inputs: MachineHostInputs): Promise<As
     stateDir,
     envFile: inputs.envFile,
     machineDb,
+    ...(inputs.planFirst === true && { planFirst: true }),
     AGENT_TIMEOUT_MS,
     LIMITS_POLL_MS,
     USAGE_POLL_MS,

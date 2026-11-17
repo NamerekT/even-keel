@@ -291,6 +291,7 @@ export function wireLimits(ctx: MachineContext): LimitsWatcher {
     },
     saved: ctx.savedLimits,
     save: (key, limits) => ctx.writes.add(`the limits of ${key}`, saveLimits(ctx.machineDb, key, limits)),
+    ...(ctx.planFirst === true && { planFirst: true }),
     onChange: () => {
       ctx.machineChanged()
     },
