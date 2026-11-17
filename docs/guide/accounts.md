@@ -48,6 +48,8 @@ A Claude subscription signs in one of two ways, picked in the add dialog:
 
 Take the full sign-in when you watch the limits or use Remote Control; take the token for a machine left alone for weeks, where a dropped sign-in would stop the chain with nobody there. When the token belongs to an account that is already added with a full sign-in, say so in "The same account as": the token account then shows that account's limits and resets, and only Remote Control is missing.
 
+A machine of a hub can run an account on a long token too: under the account's row, next to "Not signed in on …" with the machine's name, **Long token** opens a window with the same command and field (so does step 3 of **Add a machine**). The token goes to that machine, which checks it and keeps it in its own account folder; the hub then knows the token is that account's, gives the machine the limits it reads from its own full sign-in, and the row says so — the machine's name and "long token". One full sign-in of the account — on the hub — is enough for the limits of every machine on a token; the machines on a token still have no Remote Control, so answer their sessions from the page's chat or in the tracker.
+
 The account's row says "long token" and its last day. A month before it the row says the token ends soon; a refused or outdated token asks for a new one — "Issue a new token" puts it into the same folder, with the account's name and uses kept. Whether a token really lasts its year has not been checked yet.
 
 At most one ChatGPT account may be on the free plan across Codex and OpenCode: Even Keel refuses a different second free account and holds any already added. The same e-mail may be used in both agents, sharing its allowance.

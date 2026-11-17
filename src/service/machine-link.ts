@@ -287,6 +287,10 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       takeOvers.set(project, owner)
       await agree(true)
     },
+    hubAccount: (key) => {
+      const tie = remote.facts()?.identities?.[key]
+      return tie === undefined ? undefined : { account: tie.account, email: tie.email }
+    },
     log,
   })
 

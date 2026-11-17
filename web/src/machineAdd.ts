@@ -1,7 +1,7 @@
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
 import { paysPerToken } from './accounts.js'
-import { machineGaps, type MachineGap } from './machineSignIn.js'
+import { machineGaps, machineTokens, type MachineGap } from './machineSignIn.js'
 
 const KEY = 'addMachine'
 
@@ -75,6 +75,8 @@ export interface MachineAccountRow {
   entry: AccountEntry
   /** `null` — signed in on the machine. */
   gap: MachineGap | null
+  /** Signed in there only on a long token (BTN-1002): no Remote Control. */
+  token?: true
 }
 
 /** Each hub subscription signed in through a browser, once per agent and e-mail, with its sign-in on the machine. */
@@ -86,6 +88,6 @@ export function machineAccounts(accounts: AccountEntry[], machine: MachineSignIn
     const id = `${entry.agent} ${email.toLowerCase()}`
     if (seen.has(id)) return []
     seen.add(id)
-    return [{ entry, gap: machineGaps(entry, [machine])[0] ?? null }]
+    return [{ entry, gap: machineGaps(entry, [machine])[0] ?? null, ...(machineTokens(entry, [machine]).length > 0 && { token: true as const }) }]
   })
 }

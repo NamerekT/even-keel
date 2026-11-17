@@ -1,6 +1,7 @@
 import type { Server } from 'node:https'
 import { networkInterfaces } from 'node:os'
 import { basename, posix, win32 } from 'node:path'
+import type { TokenAccountOf } from '../account/model.js'
 import { installCommandOf } from '../cli-install.js'
 import { fail } from '../notice/notice.js'
 import { hubUrlOf } from '../link/address.js'
@@ -75,6 +76,8 @@ export interface MachineNetworkOptions {
   peers?: NetworkPeers
   /** The own machine takes the project's folder over from `owner`'s mark. */
   takeOverOwn?: (project: string, owner: string) => Promise<void>
+  /** The claude.ai account of a hub's Claude folder with a full sign-in; `undefined` — none known (BTN-1002). */
+  hubAccount?: (key: string) => TokenAccountOf | undefined
   log: (line: string) => void
 }
 
@@ -147,8 +150,9 @@ export class MachineNetwork {
         accounts: panel.accounts.map((entry) => ({
           key: entry.key,
           agent: entry.agent,
-          email: entry.status?.email ?? entry.lastEmail ?? null,
+          email: entry.status?.email ?? entry.longToken?.account?.email ?? entry.lastEmail ?? null,
           signedIn: entry.status?.loggedIn === true && !entry.needsLogin,
+          ...(entry.longToken !== undefined && { longToken: true as const }),
         })),
         login: login === null ? null : {
           agent: login.agent,
@@ -177,6 +181,19 @@ export class MachineNetwork {
     this.options.log(`machines: a sign-in of ${agent} is started on machine ${machine}${has ? ` in its folder ${account}` : ''}`)
     if (has) await control.renew(account)
     else await control.add(agent, method)
+  }
+
+  /**
+   * A Claude folder on the machine signed in with a long token of `claude setup-token` (BTN-1002), tied to the hub's
+   * folder `account`'s claude.ai account, so the hub hands it that account's limits. The token passes through the hub
+   * only as the command's payload and is not logged; the machine checks it with one short turn.
+   */
+  async token(machine: string, account: string, token: string, name = ''): Promise<void> {
+    const of = this.options.hubAccount?.(account)
+    if (of === undefined) throw fail('account.unknown', { key: account })
+    const control = await this.accountsOf(machine)
+    this.options.log(`machines: a long token of ${of.email ?? of.account} is added on machine ${machine}`)
+    await control.addLongToken(name, token, null, of)
   }
 
   /** The code the person got on the sign-in page, for the machine's CLI waiting for it; it is not logged. */

@@ -58,6 +58,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       serviceHost: '0.0.0.0',
       version: '0.4.0',
       changed: () => void changes.push(1),
+      hubAccount: (key) => (key === 'hub-folder' ? { account: 'uuid-1', email: 'john.doe@example.com' } : undefined),
       log,
     })
     closing.push(async () => {
@@ -243,7 +244,8 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       hook: () => Promise.resolve({ status: 200, body: '' }),
       write: async () => {},
     }
-    const { network, settings } = await started(peers)
+    const lines: string[] = []
+    const { network, settings } = await started(peers, (line) => void lines.push(line))
     settings.address = '127.0.0.1'
     await network.apply()
     const joined = await joinHub(parseToken((await network.invite('Example laptop')).line)!, ABOUT, 5_000)
@@ -252,13 +254,14 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
 
     const signedOut = { key: 'john.doe@example.com', agent: 'claude', status: { loggedIn: false, email: null }, lastEmail: 'john.doe@example.com', needsLogin: true }
     const signedIn = { key: 'codex', agent: 'codex', status: { loggedIn: true, email: 'jane.doe@example.com' }, needsLogin: false }
+    const onToken = { key: 'token', agent: 'claude', status: { loggedIn: true, email: null }, needsLogin: false, longToken: { until: null, account: { account: 'uuid-2', email: 'jane.roe@example.com' } } }
     const login = { agent: 'claude', target: null, startedAt: '2026-11-17T10:00:00.000Z', urls: ['https://claude.ai/oauth/authorize?code=true'], deviceCode: null, output: 'Paste code here', error: null, codeSent: false }
     const snapshot: FactsSnapshot = {
       boot: 'boot-1',
       rev: 1,
       facts: {
         sessionsRead: true, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {}, limits: {},
-        panel: { active: 'codex', accounts: [signedOut, signedIn], login, loginBlock: null, apps: [], pool: [], missing: ['opencode'] },
+        panel: { active: 'codex', accounts: [signedOut, signedIn, onToken], login, loginBlock: null, apps: [], pool: [], missing: ['opencode'] },
       } as unknown as FactsSnapshot['facts'],
     }
     const ran: NumberedCommand[] = []
@@ -283,6 +286,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       accounts: [
         { key: 'john.doe@example.com', agent: 'claude', email: 'john.doe@example.com', signedIn: false },
         { key: 'codex', agent: 'codex', email: 'jane.doe@example.com', signedIn: true },
+        { key: 'token', agent: 'claude', email: 'jane.roe@example.com', signedIn: true, longToken: true },
       ],
       login,
       missing: ['opencode'],
@@ -299,6 +303,10 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(sent('account.add')).toEqual([{ args: ['claude'] }, { args: ['codex', 'device'] }])
     expect(sent('account.code')).toEqual([{ args: ['one-time-code'] }])
     expect(sent('account.cancel')).toEqual([{ args: [] }])
+    await network.token(joined.machine, 'hub-folder', 'sk-ant-oat01-fake-fake-fake-fake-fake', 'Laptop')
+    expect(sent('account.addLongToken')).toEqual([{ args: ['Laptop', 'sk-ant-oat01-fake-fake-fake-fake-fake', null, { account: 'uuid-1', email: 'john.doe@example.com' }] }])
+    await expect(network.token(joined.machine, 'nowhere', 'sk-ant-oat01-fake-fake-fake-fake-fake')).rejects.toThrow(/nowhere/)
+    expect(lines.join(' ')).not.toContain('sk-ant-oat01')
     await expect(network.login(OWN, 'claude')).rejects.toThrow(/no such machine/)
   })
 })

@@ -70,9 +70,11 @@ export interface MachineSignIn {
 export interface MachineAccount {
   key: string
   agent: string
-  /** The e-mail its folder is signed in as, else the one it was last signed in as. */
+  /** The e-mail its folder is signed in as, else that of the hub's account its long token is of, else the last one. */
   email: string | null
   signedIn: boolean
+  /** Signed in with a long token (BTN-1002): no Remote Control there. */
+  longToken?: true
 }
 
 /** The machine's sign-in under way as its panel shows it (`AccountLogin`); the code the person types goes back through the hub. */

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CLAUDE } from '../../../src/claude/name.js'
 import type { EvenKeelState, MachineView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -8,6 +9,7 @@ import { projectName } from '../state.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
+import { MachineTokenDialog, type MachineTokenTarget } from './MachineTokenDialog.js'
 
 const agentName = (agent: string): string => t.account.agents[agent as keyof typeof t.account.agents] ?? agent
 
@@ -46,6 +48,7 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
   const accounts = machineAccounts(state.account.accounts, signIn)
   const fresh = [...chosen].filter((project) => !machine.projects.includes(project))
   const busy = sending || machineLogin(state.machineSignIns) !== undefined
+  const [token, setToken] = useState<MachineTokenTarget | null>(null)
 
   const toggle = (project: string, on: boolean) =>
     setChosen((current) => {
@@ -119,7 +122,7 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
             <p className="add-package__note">{t.machines.accountsNone}</p>
           ) : (
             <ul className="add-machine__list">
-              {accounts.map(({ entry, gap }) => (
+              {accounts.map(({ entry, gap, token: onToken }) => (
                 <li key={entry.key} className="add-machine__row">
                   <span className="add-machine__fact">
                     {entry.status?.email} <span className="add-machine__muted">{agentName(entry.agent)}</span>
@@ -127,18 +130,38 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
                   {gap === null ? (
                     <span className="add-machine__done">
                       <CheckIcon /> {t.machines.signedIn}
+                      {onToken === true && (
+                        <Tipped className="add-machine__muted" tip={t.account.machineOnTokenTip(machine.name)} align="end" inline focusable>
+                          {' · '}
+                          {t.account.machineOnToken}
+                        </Tipped>
+                      )}
                     </span>
                   ) : gap.noCli ? (
                     <span className="add-machine__effect">{t.machines.noCli(agentName(entry.agent))}</span>
                   ) : signIn.online ? (
-                    <button
-                      type="button"
-                      className="button button--small"
-                      disabled={busy}
-                      onClick={() => void send('machines/login', { machine: machine.id, agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }) })}
-                    >
-                      {t.machines.signIn}
-                    </button>
+                    <span className="add-machine__actions">
+                      {entry.agent === CLAUDE && (
+                        <Tipped tip={t.account.machineTokenTip} align="end" inline>
+                          <button
+                            type="button"
+                            className="button button--small"
+                            disabled={busy}
+                            onClick={() => setToken({ machine: machine.id, name: machine.name, account: entry.key, who: entry.status?.email ?? entry.key })}
+                          >
+                            {t.account.machineToken}
+                          </button>
+                        </Tipped>
+                      )}
+                      <button
+                        type="button"
+                        className="button button--small"
+                        disabled={busy}
+                        onClick={() => void send('machines/login', { machine: machine.id, agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }) })}
+                      >
+                        {t.machines.signIn}
+                      </button>
+                    </span>
                   ) : (
                     <Tipped tip={t.machines.offlineTip(machine.name)} align="end">
                       <button type="button" className="button button--small" aria-disabled="true">
@@ -167,6 +190,7 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
           {t.machines.connect}
         </button>
       </footer>
+      {token !== null && <MachineTokenDialog target={token} onClose={() => setToken(null)} />}
     </>
   )
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RateLimits } from './model.js'
-import { AccountPolls, type AccountTie, type MachineAccounts } from './polls.js'
+import { AccountPolls, accountTie, type AccountTie, type MachineAccounts } from './polls.js'
 
 const HUB = 'hub'
 const tie = (account: string, over: Partial<AccountTie> = {}): AccountTie => ({ account, email: `${account}@example.com`, polls: true, ...over })
@@ -125,5 +125,33 @@ describe('AccountPolls', () => {
     polls.plan(state)
     expect(lines.filter((line) => line.includes('share one limit window'))).toHaveLength(1)
     expect(polls.shared()).toEqual([{ account: 'a', email: 'a@example.com', machines: ['hub', 'm1'] }])
+  })
+
+  it("hands a machine's long-token folder the hub's polled limits and its session windows back (BTN-1002)", () => {
+    const { polls } = pollsOf()
+    const state = [
+      machine(HUB, { global: tie('a') }, { limits: { global: limits('2026-11-17T10:00:00.000Z') } }),
+      machine('m1', { token: tie('a', { polls: false }) }, { limits: { token: limits('2026-11-17T10:05:00.000Z', 30) } }),
+    ]
+    const plans = polls.plan(state)
+    expect(polls.poller('a')).toBe(HUB)
+    expect(plans.get('m1')).toEqual({ skip: [] })
+    expect(plans.get(HUB)).toEqual({ picture: { global: limits('2026-11-17T10:05:00.000Z', 30) } })
+  })
+
+  it('chooses no poller for an account only long tokens are signed in to', () => {
+    const { polls } = pollsOf()
+    polls.plan([machine(HUB, {}), machine('m1', { token: tie('a', { polls: false }) })])
+    expect(polls.poller('a')).toBeUndefined()
+  })
+})
+
+describe('accountTie', () => {
+  const signed = { account: 'a', email: 'a@example.com' }
+  it('takes the full sign-in first, else the account the long token was said to be of', () => {
+    expect(accountTie(signed, { account: 'b', email: null }, true, false)).toEqual({ ...signed, polls: true })
+    expect(accountTie(undefined, { account: 'b', email: null }, false, false)).toEqual({ account: 'b', email: null, polls: false })
+    expect(accountTie(signed, undefined, true, true)).toEqual({ ...signed, polls: true, skipped: true })
+    expect(accountTie(undefined, undefined, false, false)).toBeUndefined()
   })
 })

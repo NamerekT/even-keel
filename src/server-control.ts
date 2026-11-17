@@ -1,4 +1,5 @@
 import type { CloudConnection } from './account/cloud.js'
+import type { TokenAccountOf } from './account/model.js'
 import type { EditChoice } from './account/settingsLayer.js'
 import type { ModelList } from './agent/contract.js'
 import type { BadgeCheck } from './badge/check.js'
@@ -78,8 +79,11 @@ export interface AccountControl {
   addApiKey(name: string, key: string, agent: string, provider?: string): Promise<void>
   /** A Claude account on a cloud, checked by one short turn before it is kept (BTN-822). */
   addCloud(name: string, connection: CloudConnection): Promise<void>
-  /** A Claude subscription account on a long token of `claude setup-token`, checked by one short turn (BTN-1005). */
-  addLongToken(name: string, token: string, sameAs?: string): Promise<void>
+  /**
+   * A Claude subscription account on a long token of `claude setup-token`, checked by one short turn (BTN-1005);
+   * `account` — the hub's account a machine's token is of (BTN-1002). Through the link a left-out argument is null.
+   */
+  addLongToken(name: string, token: string, sameAs?: string | null, account?: TokenAccountOf | null): Promise<void>
   /** The AWS profiles of the service's user into `AccountView.aws`, for the cloud form. */
   readAws(): void
   /** The Google Cloud credentials of the service's user into `AccountView.gcloud`, for the Vertex form (BTN-823). */
@@ -264,6 +268,8 @@ export interface ServerDeps {
     login(machine: string, agent: string, account?: string, method?: string): Promise<void>
     code(machine: string, code: string): Promise<void>
     cancel(machine: string): Promise<void>
+    /** A long token on a machine elsewhere (BTN-1002), tied to the claude.ai account of the hub's folder `account`. */
+    token(machine: string, account: string, token: string, name?: string): Promise<void>
   }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }

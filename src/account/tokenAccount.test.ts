@@ -67,6 +67,15 @@ describe('long-token accounts (BTN-1005)', () => {
     expect(homes.longTokenOf(home)).toEqual({ until: '2027-11-15T12:00:00.000Z', sameAs: 'main' })
   })
 
+  it("keeps the hub's account a machine's token is of, through a new token too (BTN-1002)", async () => {
+    const of = { account: 'uuid-1', email: 'john.doe@example.com' }
+    // Through the link a left-out folder of the same account comes as null.
+    const home = await addTokenAccount(accounts, 'Spare', TOKEN, null, of)
+    expect(homes.longTokenOf(home)).toEqual({ until: '2027-11-15T12:00:00.000Z', account: of })
+    await replaceToken(accounts, home, NEXT)
+    expect(homes.longTokenOf(home)).toEqual({ until: '2027-11-15T12:00:00.000Z', account: of })
+  })
+
   it('refuses an unknown folder or a token folder as the same account', async () => {
     await expect(addTokenAccount(accounts, 'Spare', TOKEN, 'nowhere')).rejects.toThrow(refusal('account.unknown'))
     const first = await addTokenAccount(accounts, 'First', TOKEN)

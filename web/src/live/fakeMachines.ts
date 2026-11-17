@@ -64,14 +64,16 @@ export class FakeNetwork {
 
 /**
  * `?machines=signIn|login|offline|nocli` (BTN-1245): a machine elsewhere where the active Claude account is not signed
- * in; `login` with its sign-in under way, `offline` gone from the link, `nocli` without the Claude CLI. Its commands
- * go through `fakeMachineCommand`.
+ * in; `login` with its sign-in under way, `offline` gone from the link, `nocli` without the Claude CLI, `token` with the
+ * other machine on long tokens (BTN-1002). Its commands go through `fakeMachineCommand`.
  */
 export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): MachineSignIn[] | undefined {
   if (mode === null) return undefined
   const desktop: MachineSignIn = {
     machine: 'machine-2', name: 'Example desktop', online: true, login: null, missing: [],
-    accounts: state.account.accounts.filter((entry) => entry.status?.loggedIn === true).map((entry) => ({ key: entry.key, agent: entry.agent, email: entry.status?.email ?? null, signedIn: true })),
+    accounts: state.account.accounts
+      .filter((entry) => entry.status?.loggedIn === true)
+      .map((entry) => ({ key: entry.key, agent: entry.agent, email: entry.status?.email ?? null, signedIn: true, ...(mode === 'token' && { longToken: true as const }) })),
   }
   const laptop: MachineSignIn = {
     machine: 'machine-1', name: 'Example laptop', online: mode !== 'offline', login: null, missing: mode === 'nocli' ? ['claude'] : [], accounts: [],
@@ -95,6 +97,13 @@ export function fakeMachineCommand(state: EvenKeelState, name: string, body: Rec
   const machine = String(body.machine)
   if (name === 'machines/login') return change(machine, (each) => ({ ...each, login: loginOf(String(body.agent ?? 'claude'), typeof body.account === 'string' ? body.account : null) }))
   if (name === 'machines/cancel') return change(machine, (each) => ({ ...each, login: null }))
+  if (name === 'machines/token') {
+    const hub = state.account.accounts.find((entry) => entry.key === body.account)
+    return change(machine, (each) => ({
+      ...each,
+      accounts: [...each.accounts, { key: 'token', agent: 'claude', email: hub?.status?.email ?? null, signedIn: true, longToken: true }],
+    }))
+  }
   if (name === 'machines/code') {
     const active = state.account.accounts.find((entry) => entry.key === state.account.active)
     return change(machine, (each) => ({

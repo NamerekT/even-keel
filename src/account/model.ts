@@ -17,12 +17,20 @@ import type { ReadKeyLimit } from './keycheck.js'
 /**
  * A Claude folder on a long token of `claude setup-token` (BTN-1005, `docs/accounts.md`): `until` — the day it runs out,
  * null for a folder set up by hand; `sameAs` — the folder with a full sign-in of the same account; `refusedAt` — when a
- * session's request was last refused with it.
+ * session's request was last refused with it; `account` — the hub's claude.ai account a machine's token was said to be
+ * of (BTN-1002): `auth status` on a token gives no account.
  */
 export interface LongToken {
   until: string | null
   sameAs?: string
+  account?: TokenAccountOf
   refusedAt?: string
+}
+
+/** A claude.ai account as `oauthAccount` of a full sign-in names it (`ClaudeAccount` of `src/limits/identity.ts`). */
+export interface TokenAccountOf {
+  account: string
+  email: string | null
 }
 
 export const GLOBAL_ACCOUNT = 'global'

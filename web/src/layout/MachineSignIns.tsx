@@ -1,13 +1,15 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { AccountEntry } from '../../../src/account/model.js'
+import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { machineGaps, machineLogin, machineSend } from '../machineSignIn.js'
+import { machineGaps, machineLogin, machineSend, machineTokens } from '../machineSignIn.js'
 import { Tipped } from '../ui/Tipped.js'
 import { LOGIN_FOCUS, LoginSteps, type Send } from './accountParts.js'
+import { MachineTokenDialog, type MachineTokenTarget } from './MachineTokenDialog.js'
 import '../tools/addPackage.css'
 
 /**
@@ -16,24 +18,43 @@ import '../tools/addPackage.css'
  */
 export function MachineNotes({ entry, send, sending }: { entry: AccountEntry; send: Send; sending: boolean }) {
   const { state } = useLive()
+  const [token, setToken] = useState<MachineTokenTarget | null>(null)
   const machines = state?.machineSignIns
   const gaps = machineGaps(entry, machines)
-  if (gaps.length === 0) return null
+  const tokens = machineTokens(entry, machines)
+  if (gaps.length === 0 && tokens.length === 0) return null
   const busy = sending || machineLogin(machines) !== undefined
+  const who = entry.status?.email ?? entry.key
   return <div className="account-machines">
     {gaps.map((gap) => <div key={gap.machine} className="account-machines__row">
       <span>{gap.noCli ? t.account.machineNoCli(gap.name) : t.account.machineNotSigned(gap.name)}</span>
       {!gap.noCli && (gap.online ? (
-        <button type="button" className="button button--small" disabled={busy}
-          onClick={() => void send('machines/login', { machine: gap.machine, agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }) })}>
-          {t.account.login}
-        </button>
+        <>
+          <button type="button" className="button button--small" disabled={busy}
+            onClick={() => void send('machines/login', { machine: gap.machine, agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }) })}>
+            {t.account.login}
+          </button>
+          {entry.agent === CLAUDE && (
+            <Tipped tip={t.account.machineTokenTip} align="start">
+              <button type="button" className="button button--small" disabled={busy}
+                onClick={() => setToken({ machine: gap.machine, name: gap.name, account: entry.key, who })}>
+                {t.account.machineToken}
+              </button>
+            </Tipped>
+          )}
+        </>
       ) : (
         <Tipped className="account__actions" tip={t.account.machineOffline(gap.name)} align="start">
           <button type="button" className="button button--small" aria-disabled="true">{t.account.login}</button>
         </Tipped>
       ))}
     </div>)}
+    {tokens.map((each) => <div key={each.machine} className="account-machines__row">
+      <Tipped className="account-machines__token" tip={t.account.machineOnTokenTip(each.name)} align="start" focusable>
+        {each.name} · {t.account.machineOnToken}
+      </Tipped>
+    </div>)}
+    {token !== null && <MachineTokenDialog target={token} onClose={() => setToken(null)} />}
   </div>
 }
 
