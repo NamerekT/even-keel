@@ -12,6 +12,7 @@ const MODELS = [
   ['google/gemini-3', 'gemini'], ['kimi-k2', 'kimi'], ['glm-5', 'glm'],
   ['mistral/mistral-large', 'mistral'], ['meta/llama-4', 'llama'],
   ['minimax/minimax-m3.1-flash', 'minimax'], ['MiniMax-M2', 'minimax'],
+  ['gpt-6.2-astra', 'astra'], ['gpt-6.2-sol', 'sol'],
   ['unknown', null], ['minimaxi', null], ['', null], [null, null],
 ] as const
 

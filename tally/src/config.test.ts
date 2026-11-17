@@ -119,7 +119,7 @@ describe('the shipped tally.config.json', () => {
     shipped.prices.filter((price) => model.startsWith(price.model)).sort((a, b) => b.model.length - a.model.length)[0]
 
   it('prices the models Codex runs by their own entry, with the long prompt over 272k', () => {
-    for (const model of ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+    for (const model of ['gpt-6.2-astra', 'gpt-6.2-sol', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
       expect(priceOf(model)?.model).toBe(model)
       expect(priceOf(model)?.longPrompt?.over).toBe(272_000)
     }
