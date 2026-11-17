@@ -6,13 +6,12 @@ import { loadSamples, replaySample, sampleSummary } from './cli-samples.js'
 const samples = loadSamples(join(import.meta.dirname, '../test/fixtures/cli'))
 
 /**
- * Claude Code from 2.1.325 on writes an open `AskUserQuestion` into the transcript neither while it waits nor after
- * the stop: the page takes the question from the job file (`blockedAsk`), so such a capture's transcript holds none.
+ * Claude Code 2.1.325 wrote an open `AskUserQuestion` into the transcript neither while it waited nor after the stop:
+ * the page took the question from the job file (`blockedAsk`), so that capture's transcript holds none. 2.1.326 writes
+ * it while the job waits again, as 2.1.302–2.1.319 did.
  */
 function questionOnlyInJobFile(sample: { provider: string; version: string }): boolean {
-  if (sample.provider !== 'claude') return false
-  const [major = 0, minor = 0, patch = 0] = sample.version.split('.').map(Number)
-  return major * 1e8 + minor * 1e4 + patch >= 2 * 1e8 + 1 * 1e4 + 325
+  return sample.provider === 'claude' && sample.version === '2.1.325'
 }
 
 describe('recorded CLI formats', () => {
