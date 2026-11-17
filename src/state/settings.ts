@@ -63,6 +63,8 @@ export interface ProjectSettings {
   milestoneOrder?: string[]
   /** How many of the project's tasks run at once, each on a machine with a free place (BTN-993); the form leaves it alone. */
   width?: number
+  /** "Lanes by component" (BTN-1273): a lane takes no task of the tracker component a sibling lane runs; absent — off. */
+  componentLanes?: boolean
   /** The README badge (BTN-915): the project's form leaves it alone, the badge dialog writes it (`project/badge`); `null` — none. */
   badge?: import('../badge/model.js').BadgeSettings | null
   /** The changelog file, relative to the repository's root (BTN-209). */

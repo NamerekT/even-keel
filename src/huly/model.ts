@@ -29,11 +29,18 @@ export interface HulyIssueDoc {
   subIssues?: number
   labels?: number
   estimation?: number
+  /** The `_id` of the issue's component; absent or `null` — none. */
+  component?: string | null
 }
 
 export interface HulyLabelDoc {
   attachedTo: string
   title: string
+}
+
+export interface HulyComponentDoc {
+  _id: string
+  label: string
 }
 
 export interface HulyCardIssue extends HulyIssueDoc {
@@ -104,8 +111,10 @@ export function toTasks(
   otherIdentifiers: ReadonlyMap<string, string>,
   milestones: HulyMilestoneDoc[],
   labels: HulyLabelDoc[] = [],
+  components: HulyComponentDoc[] = [],
 ): TrackerTask[] {
   const statusById = new Map(statuses.map((doc) => [doc._id, doc]))
+  const componentById = new Map(components.map((doc) => [doc._id, doc.label]))
   const labelsById = new Map<string, string[]>()
   for (const doc of labels) labelsById.set(doc.attachedTo, [...(labelsById.get(doc.attachedTo) ?? []), doc.title])
   const milestoneById = new Map(milestones.map((doc) => [doc._id, { label: doc.label, targetDate: doc.targetDate }]))
@@ -115,7 +124,9 @@ export function toTasks(
   return issues.map((issue) => {
     const status = statusById.get(issue.status)
     if (status === undefined) throw new Error(`huly: ${issue.identifier} has unknown status ${issue.status}`)
+    const component = issue.component ? componentById.get(issue.component) : undefined
     return {
+      ...(component === undefined ? {} : { component }),
       id: issue.identifier,
       title: issue.title,
       status: toStatus(status),
@@ -293,6 +304,10 @@ export function missingBlockers(issues: HulyIssueDoc[]): string[] {
 
 export function milestonesOf(issues: HulyIssueDoc[]): string[] {
   return [...new Set(issues.flatMap((issue) => issue.milestone ?? []))]
+}
+
+export function componentsOf(issues: HulyIssueDoc[]): string[] {
+  return [...new Set(issues.flatMap((issue) => issue.component || []))]
 }
 
 export function labeled(issues: HulyIssueDoc[]): string[] {

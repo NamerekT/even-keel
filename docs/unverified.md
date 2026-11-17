@@ -236,6 +236,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 199 | [Tally of a machine elsewhere](unverified/machines.md#tally-of-a-machine-elsewhere-btn-1280) | a hub with Tally on and a machine elsewhere | `/stats` lacks the machine's sessions or their task time, or the machine's link drops during its first pass; the machine's `tally:` log lines say whether the hub refused the rows | — |
 | 200 | [Main of one remote pushed from several machines](unverified/machines.md#main-of-one-remote-pushed-from-several-machines-btn-995) | a project of width above 1 whose lanes run on the hub and a machine elsewhere | the hub's chain stands while a machine is off the link mid-cleanup, the CI waits on a wrong commit, a red merge of two machines is pushed, or the fix stops every lane | — |
 | 201 | [The next task past a spent limit on several machines](unverified/machines.md#the-next-task-past-a-spent-limit-on-several-machines-btn-996) | a hub with a machine elsewhere and "Go on where a limit is left" turned on | the task waits for the reset though another machine has limit left, or goes to a machine whose limit is spent too; the hub's `chain:` line and the event log say where it went | — |
+| 202 | [Lanes by component on a live tracker](unverified/machines.md#lanes-by-component-on-a-live-tracker-btn-1273) | a project of width above 1 on Huly or Jira with "Lanes by component" on | two tasks of one component run at once, as with the switch off; the lanes on the project page show it | — |
 
 ### Waiting for the event / not checked by choice
 

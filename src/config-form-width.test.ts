@@ -28,3 +28,15 @@ describe('saving the project width from the form', () => {
     expect(next.projects).toEqual([{ ...entry, width: 4, name: 'Example' }])
   })
 })
+
+describe('saving "Lanes by component" from the form (BTN-1273)', () => {
+  it('is off by default, writes the switch on and drops the key once it is off again', () => {
+    const raw = { projects: [entry] }
+    const base = formOf(raw)
+    expect(base.componentLanes).toBe(false)
+    const next = withProjectForm(raw, entry.id, { ...base, componentLanes: true }, base)
+    expect(next.projects).toEqual([{ ...entry, componentLanes: true }])
+    expect(formOf(next).componentLanes).toBe(true)
+    expect(withProjectForm(next, entry.id, { ...formOf(next), componentLanes: false }, formOf(next)).projects).toEqual([entry])
+  })
+})

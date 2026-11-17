@@ -10,6 +10,7 @@ export interface ChainMachineDeps {
   pool: (project: string) => readonly string[]
   /** The project's `width`. */
   width: (project: string) => number
+  componentLanes?: ChainMachines['componentLanes']
   machineOf: (project: string, task: string) => string | undefined
   revoked: (machine: string) => boolean
   /** The agent the task's sessions run on: its run's provider, else the project's. */
@@ -52,6 +53,7 @@ export function chainMachines(deps: ChainMachineDeps): ChainMachines {
       return !list().some(({ id }) => id !== machine && serves(project, id) && deps.agents(id)?.includes(agent) === true)
     },
     bind: deps.bind,
+    ...(deps.componentLanes === undefined ? {} : { componentLanes: deps.componentLanes }),
     ...(deps.switchOnLimit === undefined ? {} : { switchOnLimit: deps.switchOnLimit }),
     ...(deps.hasLimit === undefined ? {} : { hasLimit: deps.hasLimit }),
     ...(deps.limitMoved === undefined ? {} : { limitMoved: deps.limitMoved }),

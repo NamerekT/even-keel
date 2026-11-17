@@ -144,7 +144,9 @@ const EMPTY_MILESTONE = 'v0.4 — выпуск'
 export function builtinVocabulary(state: EvenKeelState, project: string, base: TrackerVocabulary): TrackerVocabulary {
   const carried = state.tasks.filter((each) => each.project === project).flatMap((each) => (each.milestone === null ? [] : [each.milestone.label]))
   const milestones = [...new Set(carried), ...(project === 'ABC' ? [EMPTY_MILESTONE] : [])]
-  return { ...base, statuses: [...BUILTIN_STATUSES], milestones }
+  // The built-in tracker keeps no components.
+  const { components: _, ...rest } = base
+  return { ...rest, statuses: [...BUILTIN_STATUSES], milestones }
 }
 
 /**

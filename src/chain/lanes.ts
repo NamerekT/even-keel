@@ -1,3 +1,4 @@
+import type { Task } from '../tracker/model.js'
 import type { ActiveChain, ChainMachines, ChainState } from './model.js'
 
 /** The project's lanes (BTN-993): its active chains in start order; the first is its head. */
@@ -45,14 +46,21 @@ export function widens(lanes: ActiveChain[]): boolean {
 }
 
 /**
- * The tasks a lane must not take: those its sibling lanes hold, those another machine holds, and those its machine
- * cannot run. `nextTask` holds back what depends on them as well.
+ * The tasks a lane must not take: those its sibling lanes hold, those another machine holds, those its machine cannot
+ * run and, with "Lanes by component" on (BTN-1273), those of a component a sibling's task is in. `nextTask` holds back
+ * what depends on them as well.
  */
-export function heldFrom(state: ChainState, machines: ChainMachines, project: string, machine: string, open: string[], lane?: ActiveChain): string[] {
+export function heldFrom(state: ChainState, machines: ChainMachines, project: string, machine: string, tasks: Task[], lane?: ActiveChain): string[] {
   const siblings = lanesOf(state, project).filter((chain) => chain !== lane).flatMap(laneTasks)
-  const others = open.filter((task) => {
-    const holder = machines.holder(project, task)
-    return (holder !== undefined && holder !== machine) || !machines.runs(project, task, machine)
+  const others = tasks.filter(({ id }) => {
+    const holder = machines.holder(project, id)
+    return (holder !== undefined && holder !== machine) || !machines.runs(project, id, machine)
   })
-  return [...siblings, ...others]
+  const busy = machines.componentLanes?.(project) === true ? componentsOf(tasks, siblings) : new Set<string>()
+  const shared = tasks.filter((task) => task.component !== undefined && busy.has(task.component))
+  return [...siblings, ...[...others, ...shared].map((task) => task.id)]
+}
+
+function componentsOf(tasks: Task[], ids: string[]): Set<string> {
+  return new Set(tasks.flatMap((task) => (ids.includes(task.id) && task.component !== undefined ? [task.component] : [])))
 }

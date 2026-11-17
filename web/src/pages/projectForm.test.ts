@@ -44,6 +44,15 @@ it('sends the width of the project, one when the form had none, and nothing for 
   for (const invalid of ['0', '', '1.5']) expect(formOf({ ...values, width: invalid }, null, config.shared)).toBeUndefined()
 })
 
+it('sends "Lanes by component", off when the form had none (BTN-1273)', () => {
+  const config = fakeConfig()
+  const form: ProjectForm = { ...config.projects.ABC!, componentLanes: true }
+  const values = valuesOf(form, {})
+  expect(formOf(values, null, config.shared)?.componentLanes).toBe(true)
+  const { componentLanes: _, ...none } = form
+  expect(formOf(valuesOf(none, {}), null, config.shared)?.componentLanes).toBe(false)
+})
+
 describe("the project form's standards", () => {
   it('go to the draft and back as they were', () => {
     const config = fakeConfig()

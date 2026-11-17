@@ -149,6 +149,8 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
   // A page open since before the width field (BTN-1271) sends none.
   const width = body.width ?? 1
   if (!Number.isInteger(width) || (width as number) < 1) throw fail('request.required', { field: 'width' })
+  // And one open since before "Lanes by component" (BTN-1273).
+  if (body.componentLanes !== undefined && typeof body.componentLanes !== 'boolean') throw fail('request.required', { field: 'componentLanes' })
   return {
     ...settings,
     name: name ?? null,
@@ -171,6 +173,7 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
     trackerProject,
     slot: slot as number,
     width: width as number,
+    componentLanes: body.componentLanes === true,
     color: color as number | null,
     brief: briefOf(brief),
     chain: rulesOf(chain),

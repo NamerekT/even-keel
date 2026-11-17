@@ -438,6 +438,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.width', { where: at(place, 'width') })
     return value
   } },
+  // A lane takes no task of the tracker component a sibling lane of the project runs (BTN-1273).
+  { key: 'componentLanes', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('componentLanes') },
   // The project's own milestone order by label (BTN-792), over the automatic one; `[]` — automatic.
   { key: 'milestoneOrder', kind: 'list', scopes: ['project'], lands: ['settings'], default: [], check: (value, place) => {
     if (!Array.isArray(value) || value.some((label) => typeof label !== 'string')) throw fail('config.milestoneOrder', { where: at(place, 'milestoneOrder') })

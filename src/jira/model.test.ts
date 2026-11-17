@@ -82,6 +82,12 @@ describe('toTrackerTask', () => {
     expect(toTrackerTask(issue('ABC-7'), ORDER, 4).subtasks).toBe(4)
   })
 
+  it('names the first component of an issue, and none for one without', () => {
+    const task = toTrackerTask(issue('ABC-4', { components: [{ id: '1', name: 'UI' }, { id: '2', name: 'Server' }] }), ORDER)
+    expect(task.component).toBe('UI')
+    expect('component' in toTrackerTask(issue('ABC-5', { components: [] }), ORDER)).toBe(false)
+  })
+
   it('reads the original estimate as hours for the chain and minutes for the card', () => {
     const sized = issue('ABC-8', { timetracking: { originalEstimate: '1h 30m', originalEstimateSeconds: 5400 } })
     expect(toTrackerTask(sized, ORDER).estimate).toBe(1.5)

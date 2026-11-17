@@ -54,6 +54,7 @@ export const FAKE_VOCABULARY: TrackerVocabulary = {
   ],
   labels: ['Bug', 'Feature', 'Docs', 'Later', 'Question', 'Research', 'UI'],
   milestones: ['v1.0', 'v1.1', 'v2.0'],
+  components: ['Server', 'UI'],
 }
 
 const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github', 'gitlab'], waitMinutes: null, recheckMain: true, fixTask: false, rerunFailed: true }

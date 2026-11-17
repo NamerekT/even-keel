@@ -70,7 +70,7 @@ export interface JiraComment {
 }
 
 /** The fields a task of the chain needs; the card adds the description and the files. */
-export const TASK_FIELDS = ['summary', 'status', 'priority', 'labels', 'fixVersions', 'parent', 'issuelinks', 'subtasks', 'issuetype', 'timetracking']
+export const TASK_FIELDS = ['summary', 'status', 'priority', 'labels', 'fixVersions', 'parent', 'issuelinks', 'subtasks', 'issuetype', 'timetracking', 'components']
 export const CARD_FIELDS = [...TASK_FIELDS, 'description', 'attachment']
 
 /** The link type the chain orders by; it is found by this name, so a site that renamed it has no blockers (`jira.blocksType`). */
@@ -134,10 +134,15 @@ export function milestoneOf(version: JiraVersion | null): TaskMilestone | null {
 
 const isBlocks = (link: JiraLink) => sameName(link.type.name, BLOCKS)
 
-/** `children` — how many issues have this one as their parent; Jira lists only sub-tasks on the issue itself. */
+/**
+ * `children` — how many issues have this one as their parent; Jira lists only sub-tasks on the issue itself. Of an
+ * issue in several components the task names the first, as the tasks tools set only one.
+ */
 export function toTrackerTask(issue: JiraIssue, order: readonly string[], children = issue.fields.subtasks?.length ?? 0): TrackerTask {
   const fields = issue.fields
+  const component = fields.components?.[0]?.name
   return {
+    ...(component === undefined ? {} : { component }),
     id: issue.key,
     title: fields.summary,
     status: jiraStatus(fields.status),

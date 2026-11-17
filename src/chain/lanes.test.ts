@@ -209,3 +209,43 @@ describe('Dispatcher with machines (BTN-993)', () => {
     expect(run.launched.sort()).toEqual(['ABC/ABC-1', 'ABC/ABC-2', 'XYZ/XYZ-1'])
   })
 })
+
+describe('Lanes by component (BTN-1273)', () => {
+  const tasks = () => [{ ...task('ABC-1'), component: 'UI' }, { ...task('ABC-2'), component: 'UI' }, { ...task('ABC-3'), component: 'Server' }]
+
+  it('with the option off, lanes take tasks by the order whatever their components', async () => {
+    const { machines } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 } })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', tasks())
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['server', 'ABC-2']])
+  })
+
+  it('with the option on, a lane passes over a task of the component a sibling lane runs', async () => {
+    const { machines } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 }, componentLanes: ['ABC'] })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', tasks())
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['server', 'ABC-3']])
+  })
+
+  it('lets a task without a component go beside any lane, and one without a component beside it', async () => {
+    const { machines } = fakeMachines({ pc: 3 }, { width: { ABC: 3 }, componentLanes: ['ABC'] })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [{ ...task('ABC-1'), component: 'UI' }, { ...task('ABC-2'), component: 'UI' }, task('ABC-3'), task('ABC-4')])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['pc', 'ABC-3'], ['pc', 'ABC-4']])
+  })
+
+  it('opens no second lane while every ready task shares the component of the running one', async () => {
+    const { machines } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 }, componentLanes: ['ABC'] })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [{ ...task('ABC-1'), component: 'UI' }, { ...task('ABC-2'), component: 'UI' }])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1']])
+  })
+})

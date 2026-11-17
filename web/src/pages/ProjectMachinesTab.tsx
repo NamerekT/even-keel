@@ -10,7 +10,8 @@ import { Tipped } from '../ui/Tipped.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
 import { JobWindow } from './JobWindow.js'
 import type { PanelFields } from './projectSettingsFields.js'
-import { fieldId, Row, Section, Switch, wholeOf } from './settingsParts.js'
+import { fieldId, Row, Section, Switch, SwitchField, wholeOf } from './settingsParts.js'
+import { useVocabularies } from './useVocabularies.js'
 import './projectMachines.css'
 
 /** The section "Machines" is shown only where the hub has a machine elsewhere: with one, there is nothing to pick. */
@@ -36,8 +37,11 @@ export function usePool(project: string): { pool: ProjectPool | null; reload: ()
 
 /** The tab "Machines" of the project settings (BTN-1271): the pool with each machine's switch, the width, "Connect". */
 export function ProjectMachinesTab({ fields, project, slot, state }: { fields: PanelFields; project: string; slot: number; state: EvenKeelState | null }) {
-  const { text, edit, marks, errorOf, number } = fields
+  const { text, on, edit, marks, errorOf, notes, number } = fields
   const { pool, reload } = usePool(project)
+  // The switch is the tracker's to offer: one that keeps no components has nothing to split the lanes by.
+  const { vocabularies } = useVocabularies([project])
+  const components = vocabularies.some((each) => (each.components?.length ?? 0) > 0) || on('componentLanes')
   const { send, sending } = useCommand()
   const [connecting, setConnecting] = useState(false)
   const job = state?.jobs?.find((each) => each.kind === 'machine' && each.project === project)
@@ -114,6 +118,18 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
           control={number('width', text('width'), wholeOf(text('width'), 1) === undefined || errorOf('width') !== null, (value) => edit('width', value))}
           error={errorOf('width')}
         />
+        {components && (
+          <SwitchField
+            className={marks.box('componentLanes')}
+            label={t.pool.componentLanes}
+            hint={t.pool.componentLanesHint}
+            checked={on('componentLanes')}
+            mark={marks.note('componentLanes')}
+            onChange={(checked) => edit('componentLanes', checked)}
+          >
+            {notes('componentLanes')}
+          </SwitchField>
+        )}
       </Section>
       {connecting && pool !== null && (
         <ConnectMachineDialog

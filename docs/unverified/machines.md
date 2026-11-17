@@ -190,3 +190,11 @@ To check, on the benches (entries 181 and 183): a project of width 2 with `comma
 Assumed: the mirror of a machine elsewhere holds the run facts of every project it serves, so `hasLimit` reads its limit for a task never bound to it; a machine whose account has not posted limits yet counts as one without limit left; the event log's entry names both machines. If not, the task waits for the reset though another machine could take it, or moves to a machine whose limit is spent too and waits there.
 
 To check, on the benches: a project of width 1 with its pool on the hub and a machine elsewhere signed in to another account; spend the hub account's 5-hour window (or set a short one on a cheap model), close the current task and see the next one start on the other machine, with the `chain:` line and the event log's entry; then turn the switch off and see the next task wait on the hub.
+
+## Lanes by component on a live tracker (BTN-1273)
+
+`docs/machines.md`, "The pool". `src/chain/lanes.test.ts` covers the choice of a lane with the switch off and on, tasks without a component and a second lane that does not open; `src/huly/model.test.ts` and `src/jira/model.test.ts` the component read from a fixture.
+
+Assumed: Huly's chain read gets the issue's `component` with the projection and finds its label among `tracker:class:Component`; Jira's search returns `components` with `TASK_FIELDS`; the switch shows on the "Machines" tab where the tracker names components. If not, every task reads as one without a component and the lanes take the same component's tasks at once, as with the switch off.
+
+To check, on the benches: a Huly project of width 2 with two machines (or `parallel` 2), two ready tasks of one component and one of another, the switch on; start the chain and see the second lane take the task of the other component, then turn the switch off and see both tasks of one component run at once.

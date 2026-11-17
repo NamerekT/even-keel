@@ -12,6 +12,7 @@ import {
   answersAfter,
   cardLinks,
   closingStatus,
+  componentsOf,
   hulyPriority,
   hulyStatuses,
   ISSUE_CLASS,
@@ -28,6 +29,7 @@ import {
   toTasks,
   vocabularyOf,
   type HulyAttachmentDoc,
+  type HulyComponentDoc,
   type HulyIssueDoc,
   type HulyLabelDoc,
   type HulyMilestoneDoc,
@@ -119,6 +121,7 @@ const ISSUE_FIELDS = {
   subIssues: 1,
   labels: 1,
   estimation: 1,
+  component: 1,
 } as const
 const MILESTONE_FIELDS = { label: 1, targetDate: 1 } as const
 /** Huly's `MilestoneStatus.Completed` and `Canceled`. */
@@ -218,7 +221,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     const missing = missingBlockers(issues)
     const planned = milestonesOf(issues)
     const tagged = labeled(issues)
-    const [blockers, milestones, labels] = await Promise.all([
+    const parts = componentsOf(issues)
+    const [blockers, milestones, labels, components] = await Promise.all([
       missing.length === 0
         ? []
         : client.findAll<HulyIssueDoc>(tracker.class.Issue, { _id: { $in: missing } }, { projection: { identifier: 1 } }),
@@ -228,8 +232,11 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       tagged.length === 0
         ? []
         : client.findAll<HulyLabelDoc>(TAG_REFERENCE, { attachedTo: { $in: tagged } }, { projection: LABEL_FIELDS }),
+      parts.length === 0
+        ? []
+        : client.findAll<HulyComponentDoc>(tracker.class.Component, { _id: { $in: parts } }, { projection: { label: 1 } }),
     ])
-    return toTasks(issues, statuses, new Map(blockers.map((doc) => [doc._id, doc.identifier])), milestones, labels)
+    return toTasks(issues, statuses, new Map(blockers.map((doc) => [doc._id, doc.identifier])), milestones, labels, components)
   }
 
   const projectIds = new Map<string, string>()

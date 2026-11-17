@@ -505,7 +505,7 @@ export class Dispatcher {
     const skipped = this.state.skipped[project] ?? []
     const machines = this.deps.machines
     const listed = tasks.map((task) => task.id)
-    const held = machines === undefined || machine === undefined ? [] : heldFrom(this.state, machines, project, machine, listed, lane)
+    const held = machines === undefined || machine === undefined ? [] : heldFrom(this.state, machines, project, machine, tasks, lane)
     const open = listed.filter((id) => !skipped.includes(id) && !held.includes(id))
     const lanes = lanesOf(this.state, project)
     const head = machine === undefined || lanes.length === 0 || lanes[0] === lane

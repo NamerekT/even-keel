@@ -89,6 +89,17 @@ describe('toTasks', () => {
     ])
   })
 
+  it('names the component of an issue by its label, and none for one without or of an unknown component', () => {
+    const issues: HulyIssueDoc[] = [
+      { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), component: 'c-ui' },
+      issue('i2', 'ABC-2', 'tracker:status:Todo'),
+      { ...issue('i3', 'ABC-3', 'tracker:status:Todo'), component: 'c-gone' },
+    ]
+    const tasks = toTasks(issues, statuses, new Map(), [], [], [{ _id: 'c-ui', label: 'UI' }])
+    expect(tasks.map((task) => task.component)).toEqual(['UI', undefined, undefined])
+    expect('component' in tasks[1]!).toBe(false)
+  })
+
   it('gives each issue of a three-level tree its nearest parent', () => {
     const issues: HulyIssueDoc[] = [
       { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), subIssues: 1 },

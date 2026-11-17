@@ -34,6 +34,7 @@ const project: ProjectSettings = {
   git: true,
   milestoneOrder: [],
   width: 1,
+  componentLanes: false,
   badge: null,
   changelog: 'CHANGELOG.md',
   standards: [],

@@ -17,6 +17,8 @@ export const poolEn: Messages['pool'] = {
   empty: 'The project runs on no machine: connect at least one.',
   width: "Project's tasks at once",
   widthHint: "How many of the project's tasks run at once, each on a machine with a free place. 1 — one task at a time, as without machines.",
+  componentLanes: 'Lanes by component',
+  componentLanesHint: "A task waits while another task of the project from the same tracker component runs, so tasks at once seldom edit the same files. A task without a component goes as usual.",
   connect: 'Connect a machine',
   connectHint: "Add a machine of the hub to the project's pool: Even Keel checks the folder there and turns the machine on.",
   dialog: {

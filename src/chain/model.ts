@@ -419,6 +419,11 @@ export interface ChainMachines {
   /** How many of the project's tasks run at once (`width`, 1 by default). */
   width: (project: string) => number
   /**
+   * "Lanes by component" (`componentLanes`, BTN-1273), off by default: a lane takes no task of the tracker component a
+   * sibling lane of the project holds; a task without one goes as ever. Absent — off.
+   */
+  componentLanes?: (project: string) => boolean
+  /**
    * The machine the task stays with, launched there and not cleaned up yet. One gone keeps it too (BTN-1270): only a
    * person moves it elsewhere ("Reassign").
    */

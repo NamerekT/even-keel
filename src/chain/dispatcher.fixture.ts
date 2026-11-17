@@ -107,6 +107,8 @@ export function fakeMachines(
     /** The switch "Go on where a limit is left" (BTN-996). */
     switchOnLimit?: boolean
     hasLimit?: ChainMachines['hasLimit']
+    /** The projects with "Lanes by component" on (BTN-1273). */
+    componentLanes?: string[]
   } = {},
 ) {
   const bound: Record<string, string> = { ...options.held }
@@ -118,6 +120,7 @@ export function fakeMachines(
     list: () => Object.entries(listed).map(([id, capacity]) => ({ id, capacity })),
     serves: options.serves ?? (() => true),
     width: (project) => options.width?.[project] ?? 1,
+    componentLanes: (project) => options.componentLanes?.includes(project) === true,
     holder: (_project, task) => bound[task],
     runs: options.runs ?? (() => true),
     gone: (machine) => options.gone?.has(machine) === true,
