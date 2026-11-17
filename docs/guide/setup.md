@@ -944,7 +944,7 @@ npm start
 
 The plugins come with the code; `agent-bridge` is built in and on in every project, so there is nothing to add for it.
 
-Chain sessions run the version of a package installed in **Settings → Packages**: its row shows the newer version the marketplace has and an **Update** button, or **Check** in its details when it knows of none (**Check all** above the catalog checks every package) (for a git URL marketplace both run `claude plugin marketplace update` first).
+Chain sessions run the version of a package installed in **Settings → Packages**: its row shows the newer version the marketplace has and an **Update** button, or **Check** in its details when it knows of none (for a git URL marketplace both run `claude plugin marketplace update` first). Above the catalog, **Check all** fetches the plugins' marketplaces again and only shows the newer versions; **Update all** then presses every row's **Install** and **Update** in turn, and a package that fails keeps its error in its row while the rest go on. A new npm version of an MCP server is found by its row's **Check**.
 
 Even Keel's own plugins are read from this folder, so after an update their rows offer the new version at once.
 

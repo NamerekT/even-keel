@@ -22,10 +22,12 @@ export function trackerFields(kind: ProfileKindView, alternative: number): Field
   return shownFields(kind, alternative).filter((field) => kind.mcpOAuth !== true || field.name !== 'JIRA_MCP_TOKEN')
 }
 
-/** The fields above the MCP block left blank, which a check and an MCP connection both need; a stored secret counts as filled. */
+/** The required fields above the MCP block left blank, which a check and an MCP connection both need; a stored secret counts as filled. */
 export function unfilled(kind: ProfileKindView, alternative: number, typed: Readonly<Record<string, string>>, profile: ProfileView | undefined): string[] {
   const kept = (name: string) => profile?.fields.some((field) => field.name === name && field.secret && field.set) === true
-  return trackerFields(kind, alternative).filter(({ name }) => (typed[name] ?? '').trim() === '' && !kept(name)).map(({ name }) => name)
+  return trackerFields(kind, alternative)
+    .filter(({ name, optional }) => optional !== true && (typed[name] ?? '').trim() === '' && !kept(name))
+    .map(({ name }) => name)
 }
 
 /** The values to check or save: a field of another set is `null` (removed), one not typed is blank (a stored secret stays). */

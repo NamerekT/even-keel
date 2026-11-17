@@ -178,19 +178,38 @@
 }
 
 .ask {
+  --ask-step: 28px;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  margin: 0;
-  padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   overflow: hidden;
 }
 
-.ask:disabled {
+.ask--off {
   opacity: 0.55;
+}
+
+/*
+ * The question with its options, one scroll (EKR-117): a long question no longer pushes the options and the buttons
+ * off a phone's screen. Low enough for the card, the composer and a phone's keyboard to share the chat window.
+ */
+.ask__scroll {
+  max-height: 50dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A flex column, so the floated legend is a flex item, not a float the options would squeeze beside. */
+.ask__fields {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 /* A legend sits on the fieldset's border unless it floats; floated full width, it is the card's head. */
@@ -212,10 +231,11 @@
   font-weight: 600;
 }
 
-/* The question switcher: a box on the card's surface, so it parts from the muted head. */
+/* The question switcher: a box on the card's surface, so it parts from the muted head. Last in the row on a wide screen. */
 .ask__pager {
   display: flex;
   flex: none;
+  order: 1;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2);
@@ -237,8 +257,8 @@
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: var(--ask-step);
+  height: var(--ask-step);
   padding: 0;
   border: 0;
   border-radius: var(--radius-small);
@@ -271,9 +291,8 @@
 }
 
 @media (pointer: coarse) {
-  .ask__step {
-    width: 36px;
-    height: 36px;
+  .ask {
+    --ask-step: 36px;
   }
 }
 
@@ -281,12 +300,11 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
-  max-height: 40dvh;
-  overflow-y: auto;
 }
 
 .ask__actions {
   display: flex;
+  border-top: 1px solid var(--border);
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
@@ -387,5 +405,28 @@
 @media (max-width: 760px) {
   .ask__body--preview {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ask__scroll {
+    max-height: 40dvh;
+  }
+
+  /* The switcher floats into the top right corner and the question flows around it, then on at full width. */
+  .ask__head {
+    display: flow-root;
+  }
+
+  .ask__pager {
+    float: right;
+    margin: 0 0 var(--space-4) var(--space-12);
+  }
+
+  /* Its first line centred on the switcher, so a one-line question reads as before. */
+  .ask__question {
+    display: block;
+  }
+
+  .ask__pager + .ask__question {
+    padding-top: max(0px, calc((var(--ask-step) + 2 * var(--space-2) + 2px - 1lh) / 2));
   }
 }

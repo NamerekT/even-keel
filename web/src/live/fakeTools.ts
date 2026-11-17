@@ -7,7 +7,8 @@ const HIDDEN = 'user-invocable-only'
 const REACH = { plugins: ['huly@even-keel', 'playwright@claude-plugins-official'], servers: ['plugin_huly_huly', 'plugin_playwright_playwright'] }
 
 /**
- * `mode`: `bloated` — a session that got claude.ai skills, accounts that drift; `empty` — no session yet.
+ * `mode`: `bloated` — a session that got claude.ai skills, accounts that drift, a main checkout's `settings.json` the
+ * sessions do not get (ignored in odd projects, edited in the rest); `empty` — no session yet.
  * Projects whose key starts with an odd letter code differ a little, so that the comparison has something to show.
  * `plain` — a project without git: its sessions run in the folder and read `settings.local.json`.
  */
@@ -59,6 +60,7 @@ export function fakeTools(project: string, trim: boolean, mode: string | null, p
           : { files: ['CLAUDE.md', 'AGENTS.md'], skills: [{ folder: '.claude/skills', names: ['migrate', 'review'] }] },
     // `docs/api-style.md`, a standard of ABC, is not among them: the editor warns about it.
     docs: mode === 'empty' ? [] : ['AGENTS.md', 'CLAUDE.md', 'README.md', 'docs/design.md', 'docs/setup.md'],
+    ...(bloated && !plain && { settingsDrift: odd ? ('ignored' as const) : ('edited' as const) }),
     ...(plain ? { plain: true as const } : {}),
   }
 }

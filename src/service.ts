@@ -605,7 +605,7 @@ function resumeWith(task: string, session: HandoffSession, prompt: string): Prom
 
 /** The words that came with an allowed call wait in the session's mailbox: it goes on with its turn at once. */
 function approved(task: string, session: HandoffSession, prompt: string): boolean { return chainService.approved(machine, task, session, prompt) }
-function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart { return chainService.goOnWith(machine, home, task, session, prompt) }
+function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): Promise<SessionStart> { return chainService.goOnWith(machine, home, task, session, prompt) }
 
 /** Puts a chat message into a working session that steers (BTN-291); `false` — it is not live here after all. */
 function steer(task: string, session: HandoffSession, prompt: string): Promise<boolean> { return chainService.steer(machine, task, session, prompt) }

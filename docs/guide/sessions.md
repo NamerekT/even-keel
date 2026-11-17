@@ -174,3 +174,5 @@ Each ping spends the account's limits.
 Chain sessions start without claude.ai skills and plugins, and with niche bundled skills reachable only through `/name`, so their skill listing does not eat the context; the project's own settings still win. It is a switch in **Settings → Sessions**, and the settings files stay untouched.
 
 The `/tools` page shows what sessions get, for one project or several side by side: what will not reach them, settings by level, and the skills and tools the last session actually saw.
+
+A chain session works in a worktree made from the project's branch, so it gets the `.claude/settings.json` committed there, and the page shows that version. A file kept in `.gitignore`, never committed, or edited without a commit in the main checkout does not reach the sessions; the page lists it among the problems with what to commit. A project without git runs its sessions in its own folder and reads the files there.

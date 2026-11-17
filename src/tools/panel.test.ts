@@ -162,6 +162,20 @@ describe('readRepoRules', { timeout: 30_000 }, () => {
     expect(await readBranchCodexRules(runGit, repo, 'trunk')).toEqual([{ pattern: 'git push', decision: 'deny' }])
     expect(await readBranchCodexRules(runGit, repo, 'missing')).toEqual([])
   })
+
+  it("shows the branch's settings.json and says the main checkout's file holds edits the sessions do not get", async () => {
+    await git('init', '-q', '-b', 'trunk')
+    mkdirSync(join(repo, '.claude'))
+    writeFileSync(join(repo, '.claude', 'settings.json'), JSON.stringify({ permissions: { deny: ['WebFetch'] } }))
+    await git('add', '-A')
+    await git('-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '-qm', 'settings')
+    writeFileSync(join(repo, '.claude', 'settings.json'), JSON.stringify({ permissions: { deny: ['WebFetch', 'WebSearch'] } }))
+    const places: ToolsPlaces = { repo, branch: 'trunk', git: runGit, globalDir: join(repo, 'home'), configs: [], accounts: [], homes: [], trim: false, hidden: [], mode: 'auto', reach: { plugins: [], servers: [] } }
+    const view = await readToolsView('ABC', places)
+    expect(view.settings.filter((row) => row.kind === 'permission').map((row) => [row.name, row.session])).toEqual([['WebFetch', 'deny']])
+    expect(view.settingsDrift).toBe('edited')
+    expect((await readToolsView('ABC', { ...places, plain: true })).settingsDrift).toBeUndefined()
+  })
 })
 
 describe('readToolsView with Codex', () => {

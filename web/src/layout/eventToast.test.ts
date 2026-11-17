@@ -21,12 +21,12 @@ describe('toastOf (BTN-1149)', () => {
     expect(toastOf(held(refusedNoteError('ABC-5')))).toEqual({
       subject: { task: 'ABC-5', project: 'p-1' },
       title: 'pull request not opened',
-      body: 'PR description .temp/note-link/pull.md refused: the file is outside the task folder. Write a safe note in the task folder, mark again and press Resume.',
+      body: 'PR description .temp/note-link/pull.md refused: the file is outside the task folder. Answer its session from the chat to write it under .temp/ and mark again: the chain goes on by itself.',
     })
     setLanguage('ru')
     expect(toastOf(held(refusedNoteError('ABC-5')))).toMatchObject({
       title: 'pull request не открыт',
-      body: 'Описание PR .temp/note-link/pull.md отклонено: файл находится вне папки задачи. Запишите безопасную заметку в папке задачи, повторите метку и нажмите «Снять с паузы».',
+      body: 'Описание PR .temp/note-link/pull.md отклонено: файл находится вне папки задачи. Ответьте её сессии в чате, чтобы она записала его в .temp/ и пометила заново: цепочка пойдёт сама.',
     })
   })
 

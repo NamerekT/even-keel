@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pause, setup, task } from './dispatcher.fixture.js'
+import { pause, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import type { LimitedSession } from './relay.js'
 import type { OverageSession } from '../limits/overage-session.js'
 
@@ -10,10 +10,10 @@ const session: LimitedSession = {
   lastReplyAt: '2026-09-26T11:59:00.000Z', recent: [], lastMessage: 'Keep the parser change', checkpoint: '.temp/handoff.md',
   limit: { at, text: 'Included subscription allowance exhausted; paid usage detected' },
 }
-async function running(reset: string | null = '2026-09-26T12:30:00.000Z') {
+async function running(reset: string | null = '2026-09-26T12:30:00.000Z', options: SetupOptions = {}) {
   const evidence = { current: undefined as OverageSession | undefined, reset }
   const c = setup({ busy: new Set(['ABC-1']), overage: (id) => id === 'ABC-1' ? evidence.current : undefined,
-    limitResetAfter: () => evidence.reset })
+    limitResetAfter: () => evidence.reset, ...options })
   c.dispatcher.setTasks('ABC', [task('ABC-1')])
   await c.dispatcher.start('ABC')
   await c.dispatcher.idle()
@@ -75,6 +75,35 @@ describe('chain overage stop', () => {
     expect(c.relays.map((r) => r.kind)).toEqual(['resume'])
     expect(c.relays[0]?.stopped).toBe(true)
     expect(c.stopped).toHaveLength(1)
+  })
+
+  it.each([
+    ['resume', '2026-09-26T12:12:00.000Z', '2026-09-26T12:14:00Z', 'resume in session session-1'],
+    ['new session with handoff', '2026-09-26T13:30:00.000Z', '2026-09-26T13:31:00Z', 'handoff to new session session-2 from session-1'],
+  ])('ends an unconfirmed paid hold once a poll shows the window open before the named reset: %s', async (next, open, now, how) => {
+    const c = await running('2026-09-26T15:00:00.000Z', { limitReopenedAt: () => open })
+    c.evidence.current!.source = 'claude-usage'
+    await check(c)
+    c.clock.now = new Date(now)
+    await check(c)
+    await check(c)
+    expect(c.relays.map((r) => r.stopped)).toEqual([true])
+    expect(c.log).toContain(`chain: ABC-1: limit on account global open again at ${open}, before the named reset at 2026-09-26T15:00:00.000Z; next: ${next}`)
+    expect(c.log).toContain(`chain: ABC-1: continued after the limit by ${how}`)
+    expect(c.relays).toHaveLength(1)
+  })
+
+  it('keeps waiting on a spent spending limit even when the subscription window opens early', async () => {
+    const spending = { ...session, limit: { at, text: 'You have reached your specified API usage limits. You will regain access on 2026-09-26 at 15:00 UTC.' } }
+    const c = await running('2026-09-26T15:00:00.000Z', { limitReopenedAt: () => '2026-09-26T12:12:00.000Z' })
+    c.evidence.current = { session: spending, source: 'claude-sdk' }
+    await check(c)
+    c.clock.now = new Date('2026-09-26T12:14:00Z')
+    await check(c)
+    await check(c)
+    expect(c.log.some((line) => line.includes('open again'))).toBe(false)
+    expect(c.relays).toEqual([])
+    expect(c.dispatcher.state.active[0]?.current?.limit?.resetsAt).toBe('2026-09-26T15:00:00.000Z')
   })
 
   it('hands over to another account with the original worktree, branch and note', async () => {

@@ -19,6 +19,13 @@ Both remotes reported protected without bypass warnings, using the project's sel
 unsupported GitLab checks yield unknown. The project page links to branch settings for missing/unverified protection
 and administrator bypasses.
 
+A private GitHub repository on the free plan has no branch protection or rulesets at all (EKR-121, read live on
+2026-11-16): `branches/<b>/protection` and `rules/branches/<b>` both answer 403 "Upgrade to GitHub Pro or make this
+repository public to enable this feature.", `branches/<b>` 200 with `protected: false`. Only that triple, matched on
+the 403 bodies' `message` already read, is `unavailable`; another wording falls back to `unknown`. The page gives it a
+band of its own with no link and one "Don't show again" — a "Got it" mark per repository URL
+(`protection.plan:<url>@<project>`) stamped with the branch, so later reads keep it closed (`planProtectionWarnings`).
+
 `src/ci/` is separate from the tracker layer and knows nothing of tasks beyond the `[KEY-N]` ids in commit subjects.
 
 | File | What is in it |

@@ -113,8 +113,18 @@ describe('problemsOf', () => {
         },
       }),
     )
-    expect(found).toEqual({ localDeny: [], unreached: [lost], claudeai: ['anthropic-skills:pdf'], mcpFailed: ['forgejo'] })
+    expect(found).toEqual({ localDeny: [], unreached: [lost], claudeai: ['anthropic-skills:pdf'], mcpFailed: ['forgejo'], settingsIgnored: [], settingsUncommitted: [], settingsEdited: [] })
     expect(problemCount(found)).toBe(3)
+  })
+
+  it.each([
+    ['ignored', 'settingsIgnored'],
+    ['uncommitted', 'settingsUncommitted'],
+    ['edited', 'settingsEdited'],
+  ] as const)("names the main checkout's settings.json the sessions do not get when it is %s", (drift, kind) => {
+    const found = problemsOf(view('A', [], { settingsDrift: drift }))
+    expect(found[kind]).toEqual(['.claude/settings.json'])
+    expect(problemCount(found)).toBe(1)
   })
 
   it('names a deny or an ask only settings.local.json has apart from the rest that does not reach the session', () => {
@@ -142,6 +152,14 @@ describe('sharedProblems', () => {
     const b = view('B', [lost('allow')])
     const c = view('C', [row('plugin', 'huly', { project: 'on' })])
     expect(sharedProblems([a, b, c])).toEqual([{ kind: 'unreached', name: 'Bash(x)', projects: ['A', 'B'], row: a.settings[0] }])
+  })
+
+  it("puts the settings.json drift after the settings' problems, once per kind", () => {
+    const views = [view('A', [], { settingsDrift: 'ignored' }), view('B', [], { settingsDrift: 'ignored' }), view('C', [], { settingsDrift: 'edited' })]
+    expect(sharedProblems(views)).toEqual([
+      { kind: 'settingsIgnored', name: '.claude/settings.json', projects: ['A', 'B'], row: null },
+      { kind: 'settingsEdited', name: '.claude/settings.json', projects: ['C'], row: null },
+    ])
   })
 })
 

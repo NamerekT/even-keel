@@ -43,7 +43,7 @@ Everyone else is an outsider:
 its text and its author's comments go in marked as the author's information, collaborators' comments as they are,
 anyone else's not at all. An issue an outsider changed after the label is not taken in until you put the label on again.
 
-In PR mode, Even Keel reads the description only from a regular file inside the task's working folder, with links resolved. Files named `.env` or `.env.*` (except `.env.example`) and anything under `.git` are refused, as are descriptions over 64 KiB (65,536 UTF-8 bytes, including the title). A refusal pauses the chain before pushing the branch. Correct the file, then press **Resume**; the usual note is `.temp/pull-request.md`.
+In PR mode, Even Keel reads the description only from a regular file inside the task's working folder, with links resolved. Files named `.env` or `.env.*` (except `.env.example`) and anything under `.git` are refused, as are descriptions over 64 KiB (65,536 UTF-8 bytes, including the title). A refusal pauses the chain before pushing the branch. Answer the task's session from the chat to write the description to `.temp/pull-request.md` and mark the pull request again: the new mark opens it and the chain goes on by itself. **Resume** reads the same path again, so it helps only after you correct that file yourself; a refused name, such as `.env.pr`, needs the session's new mark.
 
 ### Huly, Linear, Jira and the built-in tracker
 

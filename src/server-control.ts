@@ -216,6 +216,7 @@ export interface SettingsControl {
 export interface PackagesControl {
   install(name: string): Promise<void>
   update(name: string): Promise<void>
+  checkAll(): Promise<void>
   remove(name: string): void
   addMarketplace(): Promise<void>
   addPlugin(plugin: string, marketplace: string, project?: string): void

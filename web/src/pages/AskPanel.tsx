@@ -1,6 +1,6 @@
 import { Fold } from '../ui/Fold.js'
 import { ChevronIcon } from '../ui/icons.js'
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { chosenLabels, joinLabels, otherAnswer, type Ask, type AskAnswers, type AskQuestion } from '../../../src/sessions/ask.js'
 import { NO_PICK, chooseLabel, toggleOther, typeOther, type Pick } from './askPick.js'
 import { t } from '../i18n/index.js'
@@ -34,6 +34,11 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
   const shown = question.options.find((option) => option.label === pointed) ?? question.options.find((option) => pick.labels.includes(option.label))
   const preview = (shown ?? question.options.find((option) => option.preview !== undefined))?.preview
 
+  const scroll = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (scroll.current !== null) scroll.current.scrollTop = 0
+  }, [index])
+
   const choose = (label: string, on: boolean) => onPick(index, chooseLabel(question, pick, label, on))
   const advance = (form: HTMLFormElement | null) => {
     if (!last) setTab(index + 1)
@@ -41,75 +46,83 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
   }
 
   return (
-    <fieldset
-      className="ask"
-      disabled={disabled}
-      onKeyDown={(event) => {
-        // A radio or checkbox must not trigger the form's implicit submission.
-        if (event.key === 'Enter' && event.target instanceof HTMLInputElement && ['radio', 'checkbox'].includes(event.target.type)) {
-          event.preventDefault()
-        }
-      }}
-    >
-      <legend className="ask__head">
-        <span className="ask__question">{question.question}</span>
-        {count > 1 && (
-          <span className="ask__pager">
-            <button type="button" className="ask__step" aria-label={t.session.chat.previous} disabled={index === 0} onClick={() => setTab(index - 1)}>
-              <ChevronIcon />
-            </button>
-            <span className="ask__position">{t.session.chat.of(index + 1, count)}</span>
-            <button type="button" className="ask__step ask__step--next" aria-label={t.session.chat.nextQuestion} disabled={last} onClick={() => setTab(index + 1)}>
-              <ChevronIcon />
-            </button>
-          </span>
-        )}
-      </legend>
-      <div className={`ask__body${preview === undefined ? '' : ' ask__body--preview'}`}>
-        <ul className="ask__options">
-          {question.options.map((option) => (
-            <li key={option.label} onMouseEnter={() => setPointed(option.label)} onMouseLeave={() => setPointed(null)}>
-              <label className="ask__option">
-                <input
-                  type={question.multiSelect ? 'checkbox' : 'radio'}
-                  name={name}
-                  checked={pick.labels.includes(option.label)}
-                  onChange={(event) => choose(option.label, event.target.checked)}
-                  onFocus={() => setPointed(option.label)}
-                />
-                <span className="ask__label">{option.label}</span>
-                {option.description !== '' && <span className="ask__description">{option.description}</span>}
-              </label>
-            </li>
-          ))}
-          <li>
-            <label className="ask__option">
-              <input type={question.multiSelect ? 'checkbox' : 'radio'} name={name} checked={pick.otherOn} onChange={(event) => onPick(index, toggleOther(question, pick, event.target.checked))} />
-              <span className="ask__label">{t.session.chat.other}</span>
-            </label>
-            {pick.otherOn && (
-              <textarea
-                className="ask__other"
-                rows={2}
-                value={pick.other}
-                placeholder={t.session.chat.otherPlaceholder}
-                autoFocus
-                onChange={(event) => onPick(index, typeOther(pick, event.target.value))}
-                onKeyDown={(event) => {
-                  if (!sendsReply(event.nativeEvent, coarsePointer)) return
-                  event.preventDefault()
-                  advance(event.currentTarget.form)
-                }}
-              />
+    <div className={`ask${disabled ? ' ask--off' : ''}`}>
+      {/* The question and its options scroll as one (EKR-117); Skip and Next stay under them. */}
+      <div className="ask__scroll" ref={scroll}>
+        <fieldset
+          className="ask__fields"
+          disabled={disabled}
+          onKeyDown={(event) => {
+            // A radio or checkbox must not trigger the form's implicit submission.
+            if (event.key === 'Enter' && event.target instanceof HTMLInputElement && ['radio', 'checkbox'].includes(event.target.type)) {
+              event.preventDefault()
+            }
+          }}
+        >
+          {/* The first legend: its switcher stays live while the fieldset is disabled, so the other questions can still be read. */}
+          <legend className="ask__head">
+            {/* Before the text, so a narrow screen floats it into the top right corner with the text around it. */}
+            {count > 1 && (
+              <span className="ask__pager">
+                <button type="button" className="ask__step" aria-label={t.session.chat.previous} disabled={index === 0} onClick={() => setTab(index - 1)}>
+                  <ChevronIcon />
+                </button>
+                <span className="ask__position">{t.session.chat.of(index + 1, count)}</span>
+                <button type="button" className="ask__step ask__step--next" aria-label={t.session.chat.nextQuestion} disabled={last} onClick={() => setTab(index + 1)}>
+                  <ChevronIcon />
+                </button>
+              </span>
             )}
-          </li>
-        </ul>
-        {preview !== undefined && <pre className="ask__preview">{preview}</pre>}
+            <span className="ask__question">{question.question}</span>
+          </legend>
+          <div className={`ask__body${preview === undefined ? '' : ' ask__body--preview'}`}>
+            <ul className="ask__options">
+              {question.options.map((option) => (
+                <li key={option.label} onMouseEnter={() => setPointed(option.label)} onMouseLeave={() => setPointed(null)}>
+                  <label className="ask__option">
+                    <input
+                      type={question.multiSelect ? 'checkbox' : 'radio'}
+                      name={name}
+                      checked={pick.labels.includes(option.label)}
+                      onChange={(event) => choose(option.label, event.target.checked)}
+                      onFocus={() => setPointed(option.label)}
+                    />
+                    <span className="ask__label">{option.label}</span>
+                    {option.description !== '' && <span className="ask__description">{option.description}</span>}
+                  </label>
+                </li>
+              ))}
+              <li>
+                <label className="ask__option">
+                  <input type={question.multiSelect ? 'checkbox' : 'radio'} name={name} checked={pick.otherOn} onChange={(event) => onPick(index, toggleOther(question, pick, event.target.checked))} />
+                  <span className="ask__label">{t.session.chat.other}</span>
+                </label>
+                {pick.otherOn && (
+                  <textarea
+                    className="ask__other"
+                    rows={2}
+                    value={pick.other}
+                    placeholder={t.session.chat.otherPlaceholder}
+                    autoFocus
+                    onChange={(event) => onPick(index, typeOther(pick, event.target.value))}
+                    onKeyDown={(event) => {
+                      if (!sendsReply(event.nativeEvent, coarsePointer)) return
+                      event.preventDefault()
+                      advance(event.currentTarget.form)
+                    }}
+                  />
+                )}
+              </li>
+            </ul>
+            {preview !== undefined && <pre className="ask__preview">{preview}</pre>}
+          </div>
+        </fieldset>
       </div>
       <div className="ask__actions">
         <button
           type="button"
           className="button"
+          disabled={disabled}
           onClick={() => {
             onPick(index, NO_PICK)
             if (!last) setTab(index + 1)
@@ -117,12 +130,12 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
         >
           {t.session.chat.skip}
         </button>
-        <button type="button" className="button button--primary" disabled={last && !ready} onClick={(event) => advance(event.currentTarget.form)}>
+        <button type="button" className="button button--primary" disabled={disabled || (last && !ready)} onClick={(event) => advance(event.currentTarget.form)}>
           {last ? t.session.chat.submit : t.session.chat.next}
           {!coarsePointer && <kbd className="ask__keys">↵</kbd>}
         </button>
       </div>
-    </fieldset>
+    </div>
   )
 }
 

@@ -2,6 +2,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { SessionStart } from '../agent/contract.js'
 import type { HandoffSession } from '../chain/relay.js'
 import { DEFAULT_BRANCH, idPrefixOf, isPlain, ownerOf, readersOf } from '../config.js'
+import { runGit } from '../git/run.js'
 import type { SlotUse } from '../git/slot.js'
 import { BriefCopy } from '../machine/brief.js'
 import { MachineConfig, SELECTION_EVENT, type CliChoices } from '../machine/config.js'
@@ -70,7 +71,7 @@ export interface MachineOwn {
   syncProject: (project: string) => Promise<Notice | null>
   resumeWith: (task: string, session: HandoffSession, prompt: string) => Promise<string>
   approved: (task: string, session: HandoffSession, prompt: string) => boolean
-  goOnWith: (home: AccountHome, task: string, session: HandoffSession, prompt: string) => SessionStart
+  goOnWith: (home: AccountHome, task: string, session: HandoffSession, prompt: string) => Promise<SessionStart>
 }
 
 export type MachineContext = MachineHost & MachineOwn
@@ -153,7 +154,7 @@ export function machineContext(host: MachineHost, brief: BriefCopy, tell: LaterT
   lazy(own, 'choiceFor', () => wireChoiceFor(choosing))
   lazy(own, 'planFor', () => wirePlanFor({ ...choosing, homes: host.homes, hasAccount: host.hasAccount, unattended: () => brief.unattended, promptLanguage: own.promptLanguage }))
   lazy(own, 'agentExtras', () => wireAgentExtras({ configStore, runOfTask: own.runOfTask, branchOf: own.branchOf, packages: host.packages }))
-  lazy(own, 'settingsFor', () => createSessionSettings({ config, packages: host.packages, globalDir: host.homes.global.dir, trim: () => brief.trimTools, projectOf: own.projectOf }))
+  lazy(own, 'settingsFor', () => createSessionSettings({ config, packages: host.packages, globalDir: host.homes.global.dir, trim: () => brief.trimTools, projectOf: own.projectOf, git: runGit, branchOf: own.branchOf }))
   lazy(own, 'withProject', () => wireWithProject({ configStore, promptLanguage: own.promptLanguage }))
   const ctx = new Proxy(own, {
     get: (target, name: string) => (name in target ? target[name as keyof MachineOwn] : host[name as keyof MachineHost]),

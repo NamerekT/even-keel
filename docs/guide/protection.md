@@ -97,6 +97,8 @@ Before launching a project's session, Even Keel reads the main branch's protecti
 
 Missing protection, failed verification and potential administrator bypasses appear on the project page beside a link to the server's branch rules.
 
+GitHub's free plan has no branch protection for private repositories. For such a repository the page says so instead: make it public or upgrade to GitHub Pro. "Don't show again" closes that warning for the repository and branch for good.
+
 Enable rules blocking force pushes and branch deletion there, including enforcement for administrators where appropriate.
 
 Even Keel does not change server rules.

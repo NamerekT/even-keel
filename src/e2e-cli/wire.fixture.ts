@@ -76,10 +76,19 @@ export function shellCall(tools: string[], command: string): { name: string; arg
   return name === undefined ? null : { name, args: SHELLS[name]!(command) }
 }
 
+/**
+ * A worktree's index is in the main checkout's `.git`, which Codex's sandbox of `approve-for-me` keeps read-only on
+ * Linux and macOS: a real model asks to run a git command outside it and the guardian approves (`docs/verified/codex.md`).
+ * Codex's Windows sandbox lets git write there, so a session on Windows asks for nothing.
+ */
+export function escalated(cmd: string, platform: NodeJS.Platform = process.platform): Record<string, unknown> {
+  return platform !== 'win32' && /^git\s/.test(cmd) ? { sandbox_permissions: 'require_escalated', justification: "git writes the main checkout's .git" } : {}
+}
+
 const SHELLS: Record<string, (command: string) => Record<string, unknown>> = {
   bash: (command) => ({ command, description: 'Scripted step' }),
   Bash: (command) => ({ command, description: 'Scripted step' }),
-  exec_command: (cmd) => ({ cmd }),
+  exec_command: (cmd) => ({ cmd, ...escalated(cmd) }),
   shell_command: (command) => ({ command }),
 }
 

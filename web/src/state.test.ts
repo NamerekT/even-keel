@@ -1398,6 +1398,18 @@ describe('sessionStart', () => {
     expect(sessionStart(handing, old, [], now)).toEqual({ phase: 'handover', since: '2026-01-01T10:00:00.000Z' })
   })
 
+  it('is a handover while a limit hands the task to a new session', () => {
+    const old = live({ sessionId: 'old', lamp: 'limit', contextTokens: 170_000 })
+    const relaying = current({ sessionId: 'old', starting: '2026-01-01T10:00:00.000Z', move: 'relay' })
+    expect(sessionStart(relaying, old, [], now)).toEqual({ phase: 'handover', since: '2026-01-01T10:00:00.000Z' })
+  })
+
+  it('is a resume while the same session goes on after a limit or a temporary error', () => {
+    const old = live({ sessionId: 'old', lamp: 'limit', contextTokens: 170_000 })
+    const resuming = current({ sessionId: 'old', starting: '2026-01-01T10:00:00.000Z', move: 'resume' })
+    expect(sessionStart(resuming, old, [], now)).toEqual({ phase: 'resume', since: '2026-01-01T10:00:00.000Z' })
+  })
+
   it('is nothing while the answer goes to the same session', () => {
     const old = live({ sessionId: 'old', lamp: 'finished', contextTokens: 170_000 })
     const answering = current({ sessionId: 'old', starting: '2026-01-01T10:00:00.000Z', answering: true })

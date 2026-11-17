@@ -1,29 +1,63 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseConfig } from '../config.js'
 import { formsOf, withProjectForm, withSharedForm } from '../config-form.js'
 import { contextArgs, parseContextWindow } from '../claude/context.js'
+import type { Git } from '../git/types.js'
+import { runGit } from '../git/run.js'
 import { withinWindow } from '../stats/checkpoint.js'
 import { createSessionSettings } from './sessionSettings.js'
 
 const project = { id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'huly' }
 const raw = { projects: [project] }
+const noGit: Git = async () => ({ code: 128, out: 'not a git repository' })
+
+describe("the project's settings.json of a chain session", { timeout: 30_000 }, () => {
+  it("is the branch's version, as the task worktree has it, not the main checkout's edits", async () => {
+    const root = mkdtempSync(join(tmpdir(), 'session-settings-'))
+    try {
+      const git = async (...args: string[]) => {
+        const result = await runGit(root, args)
+        if (result.code !== 0) throw new Error(`git ${args.join(' ')} failed (${result.code}): ${result.out}`)
+      }
+      await git('init', '-q', '-b', 'trunk')
+      mkdirSync(join(root, '.claude'))
+      writeFileSync(join(root, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'design@market': true } }))
+      await git('add', '-A')
+      await git('-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '-qm', 'settings')
+      writeFileSync(join(root, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'notes@market': true } }))
+      const seen: unknown[][] = []
+      const settingsFor = createSessionSettings({
+        config: () => parseConfig({ projects: [{ ...project, repo: root }] }),
+        packages: { otherPlugins: (_project, _task, files) => (seen.push(files), {}), keyNames: () => [], bringsServer: () => false },
+        globalDir: join(root, 'home'), trim: () => true, projectOf: () => 'p', git: runGit, branchOf: () => 'trunk',
+      })
+      await settingsFor('ABC-1')
+      expect(seen[0]?.[1]).toEqual({ enabledPlugins: { 'design@market': true } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('chain auto-compaction window', () => {
-  it('takes the project override, including null, before the shared value at each launch', () => {
+  it('takes the project override, including null, before the shared value at each launch', async () => {
     let config = parseConfig({ ...raw, autoCompactWindow: 300_000 })
     const settingsFor = createSessionSettings({
       config: () => config,
       packages: { otherPlugins: () => ({}), keyNames: () => [], bringsServer: () => false },
-      globalDir: 'C:/example-home', trim: () => false, projectOf: () => 'p',
+      globalDir: 'C:/example-home', trim: () => false, projectOf: () => 'p', git: noGit, branchOf: () => 'main',
     })
-    const settings = () => JSON.parse(settingsFor('ABC-1')!)
-    expect(settings()).toHaveProperty('autoCompactWindow', 300_000)
+    const settings = async () => JSON.parse((await settingsFor('ABC-1'))!)
+    expect(await settings()).toHaveProperty('autoCompactWindow', 300_000)
     config = parseConfig({ autoCompactWindow: 300_000, projects: [{ ...project, autoCompactWindow: 400_000 }] })
-    expect(settings()).toHaveProperty('autoCompactWindow', 400_000)
+    expect(await settings()).toHaveProperty('autoCompactWindow', 400_000)
     config = parseConfig({ autoCompactWindow: 300_000, projects: [{ ...project, autoCompactWindow: null }] })
-    expect(settings()).not.toHaveProperty('autoCompactWindow')
+    expect(await settings()).not.toHaveProperty('autoCompactWindow')
     config = parseConfig(raw)
-    expect(settings()).not.toHaveProperty('autoCompactWindow')
+    expect(await settings()).not.toHaveProperty('autoCompactWindow')
   })
 
   it('round trips shared, project, account and inherited values through the forms', () => {
@@ -46,13 +80,13 @@ describe('chain auto-compaction window', () => {
     expect(() => parseConfig({ projects: [{ ...project, autoCompactWindow }] })).toThrow(/autoCompactWindow/)
   })
 
-  it('probes with the chain settings and moves all thresholds with the measured window', () => {
+  it('probes with the chain settings and moves all thresholds with the measured window', async () => {
     const settingsFor = createSessionSettings({
       config: () => parseConfig({ ...raw, autoCompactWindow: 300_000 }),
       packages: { otherPlugins: () => ({}), keyNames: () => [], bringsServer: () => false },
-      globalDir: 'C:/example-home', trim: () => false, projectOf: () => 'p',
+      globalDir: 'C:/example-home', trim: () => false, projectOf: () => 'p', git: noGit, branchOf: () => 'main',
     })
-    const args = contextArgs('opus', settingsFor('ABC-1'))
+    const args = contextArgs('opus', await settingsFor('ABC-1'))
     expect(JSON.parse(args[args.indexOf('--settings') + 1]!)).toHaveProperty('autoCompactWindow', 300_000)
     const measured = (window: string) => parseContextWindow(JSON.stringify({ result: `**Tokens:** 1k / ${window} (1%)` }))
     const threshold = { first: 250_000, source: 'calibrated' as const }

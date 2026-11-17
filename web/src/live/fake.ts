@@ -35,7 +35,7 @@ import { fakeCard } from './fakeCards.js'
 import { builtinVocabulary, fakeAttach, fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard, withBuiltinTracker } from './fakeBuiltin.js'
 import { fakeExportQuery, withMovedRefs } from './fakeExport.js'
 import { fakeBadgeCheck, fakeBadgeUrl, withFakeBadge } from './fakeBadge.js'
-import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, FAKE_UNSAVED_ASK } from './fakeChat.js'
+import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, fakeAsk, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
@@ -654,9 +654,15 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? stalled : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: stalled.sessionId, since: ago(42) } }]
   }
+  if ((params.get('chain') === 'relaying' || params.get('chain') === 'resuming') && current.state !== null && active) {
+    const limited = session('ABC-5', contextTokens, 'limit')
+    const move = params.get('chain') === 'resuming' ? 'resume' : 'relay'
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? limited : each))
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: limited.sessionId, since: ago(42), starting: ago(0), move } }]
+  }
   if ((params.get('chain') === 'ask' || params.get('chain') === 'unsaved') && current.state !== null && active) {
     const waiting = session('ABC-5', contextTokens, 'waiting')
-    const asking: SessionView = params.get('chain') === 'ask' ? waiting : { ...waiting, waitingFor: 'input needed', ask: FAKE_UNSAVED_ASK }
+    const asking: SessionView = params.get('chain') === 'ask' ? { ...waiting, ask: fakeAsk(params.get('ask')) } : { ...waiting, waitingFor: 'input needed', ask: FAKE_UNSAVED_ASK }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: asking.sessionId, since: ago(42) } }]
   }

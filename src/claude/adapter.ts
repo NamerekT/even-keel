@@ -10,7 +10,7 @@ import { cliVersionOf } from '../agent/versions.js'
 import { parseUsage } from '../limits/usage.js'
 import { findBinary } from '../paths.js'
 import { DEFAULT_LANGUAGE } from '../settings/defaults.js'
-import { WARM_CACHE_MS, warmCacheMs } from '../sessions/cache.js'
+import { warmCacheMs } from '../sessions/cache.js'
 import { readSessionRecord, readTranscript, readTranscriptImage, transcriptFile } from '../sessions/history.js'
 import { transcriptIds } from '../sessions/owners.js'
 import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
@@ -171,8 +171,8 @@ export const claude: AgentAdapter = {
         const { cwd, prompt, model, settings, mcp, plugins, effort } = start
         return cli.warm(home, sessionId, cwd, prompt, model, { settings, mcp, plugins, effort, instructions: agentsFallback(cwd) })
       },
-      // A subscription's cache lives an hour, a key's as `cacheTtl` wrote it.
-      warmMs: (cache, apiKey) => (apiKey ? warmCacheMs(cache?.ttl ?? null) : WARM_CACHE_MS),
+      // The lifetime the transcript last wrote (`cacheTtl`, a subscription's overage); before any write an hour on a subscription, five minutes on a key.
+      warmMs: (cache, apiKey) => warmCacheMs(cache?.ttl ?? (apiKey ? null : '1h')),
       liveRecords,
       remote: {
         enabled: remoteAt,

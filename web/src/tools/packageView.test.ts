@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
-import { heldLong, importOffers, passes, keyLabel, marketplaceCommand, problemCount, serverEntry, shownPackages, trackerDoubled, trackerPackage, trackerPackageOf } from './packageView.js'
+import { heldLong, importOffers, passes, keyLabel, marketplaceCommand, pendingCommands, problemCount, serverEntry, shownPackages, trackerDoubled, trackerPackage, trackerPackageOf } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked, tracker: null })
 
@@ -227,5 +227,31 @@ describe('keyLabel', () => {
   it('spells an unknown variable in words, abbreviations in capitals', () => {
     expect(keyLabel('SENTRY_AUTH_TOKEN', {})).toBe('Sentry auth token')
     expect(keyLabel('MY_API_URL', {})).toBe('My API URL')
+  })
+})
+
+describe('pendingCommands', () => {
+  const pkg = (name: string, over: Partial<PackageView> = {}): PackageView => ({
+    name, kind: 'plugin', installed: true, version: '1.0.0', latest: null, fetched: null, installing: false, error: null, note: null,
+    default: false, settings: {}, servers: [], unpinned: [], scripts: null, extras: false, removed: false, builtIn: false, ...over,
+  })
+
+  it('updates a package with a newer version and installs one not installed or failed, as their rows would', () => {
+    const packages = [
+      pkg('newer', { latest: '1.1.0' }),
+      pkg('missing', { installed: false, version: null }),
+      pkg('failed', { error: { code: 'packages.copyFailed', params: { name: 'failed' } }, latest: '1.1.0' }),
+      pkg('current'),
+    ]
+    expect(pendingCommands(view({ packages }))).toEqual([
+      { name: 'newer', command: 'packages/update' },
+      { name: 'missing', command: 'packages/install' },
+      { name: 'failed', command: 'packages/install' },
+    ])
+  })
+
+  it('leaves out a removed package and one being installed', () => {
+    const packages = [pkg('removed', { latest: '1.1.0', removed: true }), pkg('gone', { installed: false, removed: true }), pkg('busy', { installed: false, installing: true }), pkg('busier', { latest: '2.0.0', installing: true })]
+    expect(pendingCommands(view({ packages }))).toEqual([])
   })
 })

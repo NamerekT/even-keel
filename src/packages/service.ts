@@ -432,6 +432,36 @@ export class Packages {
     this.deps.onChange()
   }
 
+  /**
+   * Check all of the catalog: every fetched marketplace of an installed plugin is fetched again, once each, and the
+   * page shows the newer versions; nothing is installed — that is Update. Every marketplace is tried, the first failure thrown.
+   */
+  async checkAll(): Promise<void> {
+    const fetched = new Set<string>()
+    for (const [name, record] of Object.entries(this.file.packages)) {
+      if (record.plugin === undefined || record.removed === true || current(record) === undefined) continue
+      try {
+        if (FETCHED.has(locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local).kind)) fetched.add(record.plugin.marketplace)
+      } catch {
+        this.deps.log(`packages: ${name}: its marketplace is not found, not checked`)
+      }
+    }
+    let first: unknown
+    for (const marketplace of fetched) {
+      try {
+        await this.deps.updateMarketplace(marketplace)
+      } catch (error) {
+        this.deps.log(`packages: the marketplace ${marketplace} not fetched: ${(error as Error).message}`)
+        first ??= fail('packages.marketplaceUpdate', { marketplace }, { detail: (error as Error).message }, { cause: error })
+      }
+    }
+    if (this.wrapsSkills()) this.rewrap()
+    this.plugins = undefined
+    this.offers = undefined
+    this.deps.onChange()
+    if (first !== undefined) throw first
+  }
+
   remove(name: string): void {
     this.notBuiltIn(name)
     this.recordOf(name).removed = true
@@ -627,6 +657,8 @@ export class Packages {
       version ??= Object.values(planned).find((each) => each.npm !== null)?.npm ?? null
       const last = current(record)
       const scripts = record.scripts === true
+      // The offer is read again from the folder just copied: one cached before it would show Update over the new install.
+      this.offers?.byName.delete(name)
       if (last !== undefined && last.version === version && sameServers(last.servers, planned) && (last.scripts === true) === scripts) {
         rmSync(home, { recursive: true, force: true })
         return null

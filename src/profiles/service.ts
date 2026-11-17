@@ -165,7 +165,7 @@ export class Profiles {
         kind,
         title: each.title,
         tracker: each.projects !== undefined,
-        fields: each.variables.map((name) => ({ name, secret: isSecret(name) })),
+        fields: each.variables.map((name) => ({ name, secret: isSecret(name), ...(each.optionalVariables?.includes(name) === true ? { optional: true as const } : {}) })),
         hostVariables: [...each.hostVariables],
         alternatives: (each.alternatives ?? []).map((names) => [...names]),
         help: each.help,
