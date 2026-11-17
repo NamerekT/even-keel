@@ -170,6 +170,10 @@ export const ru = {
     identity: 'Указать',
     enableProfile: 'Включить',
     stopChains: (count: number): string => (count > 1 ? 'Остановить цепочки' : 'Остановить цепочку'),
+    takeOver: 'Перехватить папку',
+    takeOverTitle: 'Перехватить папку?',
+    takeOverQuestion: (project: string, machine: string): string =>
+      `Папка проекта ${project} забирается у машины ${machine}. Если та машина ещё работает, в этой папке она работать перестанет.`,
   },
   banner: {
     config: (error: string) => `Настройки не применены, работают последние исправные: ${error}`,

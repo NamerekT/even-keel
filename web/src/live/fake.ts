@@ -498,6 +498,10 @@ export function createFakeSource(search: string): LiveSource {
     const error = notice('git.noBranch', { project: active.project, branch: 'trunk', repo: 'D:/work/abc' })
     current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
   }
+  if ((params.get('chain') === 'folderTaken' || params.get('chain') === 'folderTakenGone') && active) {
+    const error = notice('machines.folderTaken', { name: 'Example desktop', owner: 'machine-elsewhere' })
+    current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
+  }
   withTrustPause(current.state, params, asService)
   if (params.get('chain') === 'slot' && active) {
     const dirty = notice('slot.dirty', { path: '.claude/worktrees/even-keel', full: 'D:/work/abc/.claude/worktrees/even-keel' },{ detail: 'M src/app.ts\n?? src/scratch.ts' })
@@ -802,7 +806,8 @@ export function createFakeSource(search: string): LiveSource {
     command: async (name, body = {}) => {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
-      const next = fakeBranchCommand(state, name, body, params.get('branch')) ?? fakeMachineCommand(state, name, body) ?? fakeCommand(state, name, body, launches)
+      if (name === 'machines/takeOver' && params.get('chain') === 'folderTakenGone') throw fail('machines.notTaken', {})
+      const next =fakeBranchCommand(state, name, body, params.get('branch')) ?? fakeMachineCommand(state, name, body) ?? fakeCommand(state, name, body, launches)
       if (name === 'cli/download') setTimeout(() => {
         if (current.state === null) return
         current = { ...current, state: finishFakeCli(current.state, String(body.agent)) }

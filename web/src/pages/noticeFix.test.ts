@@ -32,6 +32,12 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('git.noIdentity', {}))).toEqual({ to: 'identity' })
   })
 
+  it('takes over a folder another machine’s mark holds from the machine its refusal named (BTN-1261)', () => {
+    const taken = notice('machines.folderTaken', { name: 'Example desktop', owner: 'machine-elsewhere' })
+    expect(noticeFixOf(taken)).toEqual({ to: 'takeOver', owner: 'machine-elsewhere', name: 'Example desktop' })
+    expect(noticeFixOf(notice('machines.notTaken', {}))).toBeNull()
+  })
+
   it('sends a model the account does not have to the sessions tab of the project', () => {
     expect(noticeFixOf(notice('chain.modelUnavailable', { model: 'openai/denied' }))).toEqual({ to: 'project', tab: 'sessions' })
     expect(noticeFixOf(notice('chain.opencodeCopilot', {}))).toEqual({ to: 'project', tab: 'sessions' })

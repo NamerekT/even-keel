@@ -13,6 +13,7 @@ import { taskFeed } from './settingsRows.js'
 import { packagesPath } from '../tools/packageGroups.js'
 import { GitOnButton } from './GitSwitch.js'
 import { IdentityButton } from './IdentityDialog.js'
+import { TakeOverButton } from './TakeOverButton.js'
 
 /**
  * A button under a notice to the place it is fixed at; nothing where the page has none. `project` — the project it is
@@ -33,6 +34,9 @@ export function FixButton({ project, fix, className = 'button button--small noti
   }
   if (fix.to === 'resume') return project === null ? null : <ResumeButton project={project} className={className} />
   if (fix.to === 'gitOn') return project === null ? null : <GitOnButton state={state} project={project} className={className} />
+  if (fix.to === 'takeOver') {
+    return project === null ? null : <TakeOverButton project={project} owner={fix.owner} name={fix.name} machine={fix.machine} resume={fix.machine === undefined} className={className} />
+  }
   if (fix.to === 'enableProfile') return <SendButton command="profiles/disable" bodies={[{ id: fix.profile, disabled: false }]} label={t.fix.enableProfile} className={className} />
   if (fix.to === 'stopChains') return <SendButton command="chain/stop" bodies={fix.projects.map((each) => ({ project: each }))} label={t.fix.stopChains(fix.projects.length)} className={className} />
   const own = fix.to === 'moves' || fix.to === 'packages' || fix.to === 'milestoneOrder'
@@ -80,7 +84,7 @@ function SendButton({ command, bodies, label, className }: { command: string; bo
 export function useFix() {
   const navigate = useNavigate()
   const { state } = useLive()
-  return (fix: Exclude<NoticeFix, { to: 'resume' | 'enableProfile' | 'stopChains' | 'gitOn' | 'identity' }>, project: string | null) => {
+  return (fix: Exclude<NoticeFix, { to: 'resume' | 'enableProfile' | 'stopChains' | 'gitOn' | 'identity' | 'takeOver' }>, project: string | null) => {
     if (fix.to === 'accounts') return void navigate('/accounts')
     if (fix.to === 'tracker') return
     if (fix.to === 'shared') {

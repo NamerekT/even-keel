@@ -20,6 +20,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |
 | `?chain=paused` | the chain is paused: "Resume" is the filled button and "Stop" stays pressable |
 | `?chain=noBranch` | the chain is paused on `git.noBranch`: "Open the project's settings" under the error, to the Repository tab |
+| `?chain=folderTaken` | the chain is paused on `machines.folderTaken` (machine "Example desktop"): "Take the folder over" under the error opens its confirmation, then takes the folder and resumes; `folderTakenGone` refuses the takeover with `machines.notTaken` in the dialog |
 | `?chain=untrusted` | the chain is paused on `claude.untrusted`: one command pinned to the failed CLI/account and "Check again and resume" (as a Windows service, `runas` of the script `D:\even-keel\state\trust\ABC-5.ps1`; with `?host=terminal`, the PowerShell line); `untrustedLong` gives a long checkout path, `untrustedGlobal` clears the account override, `untrustedLegacy` keeps the old PATH commands; `trustWriteFailed` shows the file-repair notice, naming the account's `.claude.json`, without commands |
 | `?host=terminal` | Even Keel runs from `npm start` or the tray, not as a service: the trust commands of the wizard, the Sessions tab and the paused chain give no command from another user's terminal (BTN-687) |
 | `?chain=limit` | the chain is waiting for the limit reset |

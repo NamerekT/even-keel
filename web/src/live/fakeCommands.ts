@@ -276,6 +276,8 @@ function fakeRefresh(state: EvenKeelState, project: string): EvenKeelState {
 export function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
   if (name === 'chain/resume') return setPaused(state, String(body.project), false)
+  // The fake keeps no folder marks: the takeover is taken, and the pause it came from ends with the resume after it.
+  if (name === 'machines/takeOver') return state
   if (name === 'chain/stop') return stopChain(state, String(body.project), launches)
   if (name === 'chain/stopAfter') return setStopAfter(state, String(body.project), body.on === true)
   if (name === 'chain/queue') return requeue(state, body.order as string[])

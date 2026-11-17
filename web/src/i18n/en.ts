@@ -164,6 +164,10 @@ export const en: Messages = {
     identity: 'Set them',
     enableProfile: 'Turn on',
     stopChains: (count: number) => (count > 1 ? 'Stop the chains' : 'Stop the chain'),
+    takeOver: 'Take the folder over',
+    takeOverTitle: 'Take the folder over?',
+    takeOverQuestion: (project: string, machine: string) =>
+      `The folder of ${project} is taken from machine ${machine}. If that machine is still running, it stops working in this folder.`,
   },
   banner: {
     config: (error: string) => `The settings are not applied, the last valid ones are in use: ${error}`,
