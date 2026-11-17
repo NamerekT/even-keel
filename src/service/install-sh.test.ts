@@ -22,7 +22,7 @@ describe.skipIf(process.platform === 'win32')('install.sh on Linux', () => {
       symlinkSync(found, join(bin, tool))
     }
     stub('uname', 'echo Linux')
-    stub('node', 'exit 0')
+    node('24')
     unit = join(dir, 'home', '.config', 'systemd', 'user', 'even-keel.service')
   })
 
@@ -31,6 +31,11 @@ describe.skipIf(process.platform === 'win32')('install.sh on Linux', () => {
   function stub(name: string, body: string): void {
     writeFileSync(join(bin, name), `#!/bin/sh\n${body}\n`)
     chmodSync(join(bin, name), 0o755)
+  }
+
+  /** A node that answers the major version check with `major` and does nothing else. */
+  function node(major: string): void {
+    stub('node', `case "$1" in -p) echo ${major} ;; --version) echo v${major || 0}.0.0 ;; esac`)
   }
 
   function install() {
@@ -44,6 +49,16 @@ describe.skipIf(process.platform === 'win32')('install.sh on Linux', () => {
     expect(result.stderr).toBe('')
     expect(result.status).toBe(0)
     expect(existsSync(unit)).toBe(true)
+  })
+
+  it.each(['22', ''])('refuses a node whose major version is %j', (major) => {
+    stub('systemctl', 'exit 0')
+    node(major)
+    const result = install()
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('needs Node.js 24 or newer')
+    expect(result.stderr).not.toContain('Illegal number')
+    expect(existsSync(unit)).toBe(false)
   })
 
   it('writes no unit and says how to run it without systemctl', () => {

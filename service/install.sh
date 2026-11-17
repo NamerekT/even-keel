@@ -39,7 +39,9 @@ node=$(command -v node) || {
   echo "install: node is not on PATH: Even Keel needs Node.js 24 or newer, from nodejs.org" >&2
   exit 1
 }
-if [ "$("$node" -p 'process.versions.node.split(".")[0]')" -lt 24 ]; then
+major=$("$node" -p 'process.versions.node.split(".")[0]' 2>/dev/null) || major=
+case "$major" in '' | *[!0-9]*) major=0 ;; esac
+if [ "$major" -lt 24 ]; then
   echo "install: Even Keel needs Node.js 24 or newer; this is $("$node" --version). Install it from nodejs.org and run this again" >&2
   exit 1
 fi
