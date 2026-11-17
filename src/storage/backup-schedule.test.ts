@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { NoticeError, type Notice } from '../notice/notice.js'
 import { BackupError, CHECK_FILE, ownCopies, ownName, type CopyCheck, type CopyJob } from './backup.js'
-import { Backups, copyBeforeSteps, takeStartFailure } from './backup-schedule.js'
+import { Backups, copyBeforeSteps, copyOnThread, takeStartFailure } from './backup-schedule.js'
+import { rowsTextOf } from './copy.js'
 import { DATABASE_VERSION, openDatabase, SQLITE_VERSIONS, STEPS } from './database.js'
 import { memoryDatabase } from './memory.js'
 import { databaseDirOf, dataDirOf } from './owner.js'
@@ -191,5 +192,15 @@ describe('the copy before the schema steps', () => {
     await db.close()
     expect(takeStartFailure()).toMatchObject({ code: 'storage.backupFailed' })
     expect(takeStartFailure()).toBeNull()
+  })
+})
+
+describe('the copy on its own thread', () => {
+  it('loads its worker from the sources too, as the e2e service runs them', { timeout: 120_000 }, async () => {
+    const db = await memoryDatabase()
+    const dir = join(mkdtempSync(join(tmpdir(), 'ek-thread-')), 'copy')
+    const check = await copyOnThread({ rows: await rowsTextOf(db), version: DATABASE_VERSION, dir }, new AbortController().signal)
+    expect(check.version).toBe(DATABASE_VERSION)
+    expect(existsSync(join(dir, CHECK_FILE))).toBe(true)
   })
 })

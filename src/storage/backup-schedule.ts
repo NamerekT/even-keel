@@ -1,5 +1,7 @@
 import { mkdirSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { isAbsolute, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { Worker } from 'node:worker_threads'
 import type { PGlite } from '@electric-sql/pglite'
 import { fail, notice, type Notice } from '../notice/notice.js'
@@ -198,8 +200,13 @@ async function storedSettings(db: PGlite, stateDir: string): Promise<BackupSetti
   }
 }
 
+const fromSources = import.meta.url.endsWith('.ts')
 // The sources under tsx, the compiled `dist/src/storage/` from the build.
-const workerFile = new URL(`./backup-worker${import.meta.url.endsWith('.ts') ? '.ts' : '.js'}`, import.meta.url)
+const workerFile = new URL(`./backup-worker${fromSources ? '.ts' : '.js'}`, import.meta.url)
+// The sources' `./backup.js` imports resolve only through tsx's loader; a thread inherits it under `npm start` but not
+// under vitest, whose resolver stays on its own thread (the e2e service, BTN-1259). Replacing the inherited flags keeps
+// tsx from being registered twice; the build needs no loader.
+const workerArgv = fromSources ? ['--import', pathToFileURL(createRequire(import.meta.url).resolve('tsx/esm')).href] : undefined
 
 /** What the backup's thread answers: the check, or the stage that failed. */
 export type CopyAnswer = { check: CopyCheck } | { stage: BackupError['stage']; error: string }
@@ -207,7 +214,7 @@ export type CopyAnswer = { check: CopyCheck } | { stage: BackupError['stage']; e
 /** `Backups`' `run` of the service: the copy on its own thread, terminated on abort. */
 export function copyOnThread(job: CopyJob, signal: AbortSignal): Promise<CopyCheck> {
   return new Promise((resolve, reject) => {
-    const thread = new Worker(workerFile, { workerData: job })
+    const thread = new Worker(workerFile, { workerData: job, execArgv: workerArgv })
     let answer: CopyAnswer | null = null
     const onAbort = () => void thread.terminate()
     signal.addEventListener('abort', onAbort, { once: true })
