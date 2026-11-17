@@ -144,6 +144,22 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
     expect(view.version?.base).toBeNull()
     expect(prompt(1)).toContain('starting with its heading `## [0.1.1]`')
     expect(prompt(1)).toContain('## Already released — leave out what this section describes\n\n## [0.1.0] - 2026-10-21')
+    expect(view.frozen).toBeNull()
+  })
+
+  it("opens a released milestone on the file's released section, not on its last version", async () => {
+    const { state, deps, drafts } = setup()
+    await drafts.run('ABC', 'v0.1', { op: 'draft' })
+    expect((await drafts.run('ABC', 'v0.1', { op: 'open' })).frozen).toBeNull()
+    await drafts.run('ABC', 'v0.1', { op: 'write' })
+    state.file = state.file!.replace('## [Unreleased]\n\n- Change #1', '## [0.1.1] - 2026-10-25\n\n- Patched\n\n## [0.1.0] - 2026-10-21\n\n- Change #1, by hand')
+    state.tags = ['v0.1.0', 'v0.1.1']
+    const view = await drafts.run('ABC', 'v0.1', { op: 'open' })
+    expect(view.frozen).toEqual({ section: '## [0.1.1] - 2026-10-25\n\n- Patched' })
+    expect(view.version?.number).toBe(1)
+    state.file = HEAD
+    expect((await drafts.run('ABC', 'v0.1', { op: 'open' })).frozen).toEqual({ section: null })
+    expect(deps.write).toHaveBeenCalledTimes(1)
   })
 
   it('writes again from all done tasks, the section in the file as the base', async () => {

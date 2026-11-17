@@ -129,19 +129,21 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
 
   const version = view?.version ?? null
   const start = view?.start ?? null
-  const text = version?.text ?? start?.section ?? null
+  // A released milestone shows the section the file has under its tag: the version may be an old draft renamed since.
+  const frozen = view?.frozen ?? null
+  const text = frozen !== null ? frozen.section : (version?.text ?? start?.section ?? null)
   const missing = version === null || state === null ? 0 : unaccounted(state.tasks, project, milestone, version.tasks).length
   const idle = busy === null
   const nothingDone = version === null && start?.done === 0
 
   const copy = async () => {
-    if (version === null) return
+    if (text === null) return
     try {
-      await navigator.clipboard.writeText(version.text)
+      await navigator.clipboard.writeText(text)
     } catch {
       // Plain HTTP from another host has no clipboard API: copy the old way, from a field inside the modal dialog.
       const area = document.createElement('textarea')
-      area.value = version.text
+      area.value = text
       dialog.current?.append(area)
       area.select()
       document.execCommand('copy')
@@ -184,7 +186,11 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
                 {view.released !== null && <p className="changelog__counts">{t.changelog.released(view.released)}</p>}
                 <div className="changelog__status">
                   <span className="changelog__at">
-                    {version === null
+                    {frozen !== null
+                      ? frozen.section === null
+                        ? t.changelog.releasedGone(view.file)
+                        : t.changelog.releasedIn(view.file)
+                      : version === null
                       ? start?.section === null
                         ? t.changelog.noSection(view.file)
                         : t.changelog.inFile(view.file)
@@ -204,17 +210,19 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
                     />
                   )}
                 </div>
-                {version?.instruction != null && <p className="changelog__instruction">{t.changelog.instruction(version.instruction)}</p>}
+                {frozen === null && version?.instruction != null && <p className="changelog__instruction">{t.changelog.instruction(version.instruction)}</p>}
                 {text === null ? (
-                  <div className="changelog__text changelog__none">{t.changelog.none(start?.done ?? 0)}</div>
+                  <div className="changelog__text changelog__none">
+                    {frozen !== null ? t.changelog.releasedNone(view.released ?? '') : t.changelog.none(start?.done ?? 0)}
+                  </div>
                 ) : look === 'preview' ? (
                   <div className="changelog__text changelog__preview" role="document" aria-label={t.changelog.title(milestone)} tabIndex={0}>
                     <SessionMarkdown text={text} />
                   </div>
                 ) : (
-                  <Section lines={diffSection(version?.base ?? null, text)} label={t.changelog.title(milestone)} />
+                  <Section lines={diffSection(frozen !== null ? text : (version?.base ?? null), text)} label={t.changelog.title(milestone)} />
                 )}
-                {version !== null && (
+                {version !== null && frozen === null && (
                   <textarea
                     className="changelog__edit"
                     rows={2}
@@ -260,29 +268,35 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
               )}
               <span className="add-package__spacer" />
               {missing > 0 && (
-                <Tipped tip={t.changelog.addTip} inline>
+                <Tipped tip={frozen !== null ? t.changelog.addFrozenTip : t.changelog.addTip} inline>
                   <button type="button" className="button" disabled={!idle} onClick={() => void run('add')}>
                     {t.changelog.add(missing)}
                   </button>
                 </Tipped>
               )}
-              <button type="button" className="button" disabled={!idle} onClick={() => void run('again')}>
-                {t.changelog.again}
-              </button>
-              <button type="button" className="button" disabled={!idle} onClick={() => void copy()}>
-                {copied ? t.changelog.copied : t.changelog.copy}
-              </button>
-              <Tipped tip={t.changelog.writeTip(view?.file ?? '')} inline off={view === null}>
-                <button
-                  type="button"
-                  className="button button--primary"
-                  disabled={version.written !== null || !idle}
-                  aria-busy={busy === 'write'}
-                  onClick={() => void run('write')}
-                >
-                  {t.changelog.write}
+              {frozen === null && (
+                <button type="button" className="button" disabled={!idle} onClick={() => void run('again')}>
+                  {t.changelog.again}
                 </button>
-              </Tipped>
+              )}
+              {text !== null && (
+                <button type="button" className="button" disabled={!idle} onClick={() => void copy()}>
+                  {copied ? t.changelog.copied : t.changelog.copy}
+                </button>
+              )}
+              {frozen === null && (
+                <Tipped tip={t.changelog.writeTip(view?.file ?? '')} inline off={view === null}>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    disabled={version.written !== null || !idle}
+                    aria-busy={busy === 'write'}
+                    onClick={() => void run('write')}
+                  >
+                    {t.changelog.write}
+                  </button>
+                </Tipped>
+              )}
             </>
           )}
         </footer>
