@@ -402,6 +402,14 @@
   overflow: auto;
 }
 
+/* An option without a preview keeps the column, so the options under the pointer never reflow (EKR-139). */
+.ask__preview--none {
+  border-style: dashed;
+  color: var(--fg-muted);
+  font-family: var(--font);
+  white-space: normal;
+}
+
 @media (max-width: 760px) {
   .ask__body--preview {
     grid-template-columns: minmax(0, 1fr);

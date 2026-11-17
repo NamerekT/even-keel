@@ -2,7 +2,7 @@ import { Fold } from '../ui/Fold.js'
 import { ChevronIcon } from '../ui/icons.js'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { chosenLabels, joinLabels, otherAnswer, type Ask, type AskAnswers, type AskQuestion } from '../../../src/sessions/ask.js'
-import { NO_PICK, chooseLabel, toggleOther, typeOther, type Pick } from './askPick.js'
+import { NO_PICK, chooseLabel, shownPreview, toggleOther, typeOther, type Pick } from './askPick.js'
 import { t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { sendsReply } from './chatKeys.js'
@@ -31,8 +31,7 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
   const question = ask.questions[index]!
   const pick = picks[index] ?? NO_PICK
   const name = `ask-${ask.id}-${index}`
-  const shown = question.options.find((option) => option.label === pointed) ?? question.options.find((option) => pick.labels.includes(option.label))
-  const preview = (shown ?? question.options.find((option) => option.preview !== undefined))?.preview
+  const preview = shownPreview(question, pointed, pick.labels)
 
   const scroll = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -114,7 +113,8 @@ export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
                 )}
               </li>
             </ul>
-            {preview !== undefined && <pre className="ask__preview">{preview}</pre>}
+            {typeof preview === 'string' && <pre className="ask__preview">{preview}</pre>}
+            {preview === null && <p className="ask__preview ask__preview--none">{t.session.chat.noPreview}</p>}
           </div>
         </fieldset>
       </div>

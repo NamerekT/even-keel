@@ -5,7 +5,7 @@ import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { picture } from './fakeCards.js'
 
-/** The question ABC-5 waits on in `?chain=ask`: a single choice with previews and a multi-select. */
+/** The question ABC-5 waits on in `?chain=ask`: a single choice with previews on all options but one, and a multi-select. */
 export const FAKE_ASK: Ask = {
   id: 'toolu_fake_open',
   questions: [
@@ -24,6 +24,8 @@ export const FAKE_ASK: Ask = {
           description: 'Цепочка идёт дальше, задачи цикла уходят в пропущенные.',
           preview: 'ABC-1 ✓\nABC-2 ✓\nABC-3 ⤼ skipped (cycle)\nABC-5 ⤼ skipped (cycle)\nABC-6 …',
         },
+        // Without a preview: pointing at it keeps the column (EKR-139).
+        { label: 'Решу позже', description: 'Пока ничего не менять.' },
       ],
     },
     {
@@ -56,7 +58,7 @@ export function fakeAsk(mode: string | null): Ask {
   if (mode !== 'long') return FAKE_ASK
   const [first, second] = FAKE_ASK.questions as [Ask['questions'][number], Ask['questions'][number]]
   const third = { label: 'Break it at the later task', description: 'The chain goes on and the banner names the link it dropped.' }
-  return { ...FAKE_ASK, questions: [{ ...first, question: LONG_QUESTION, options: [...first.options.map(({ label, description }) => ({ label, description })), third] }, second] }
+  return { ...FAKE_ASK, questions: [{ ...first, question: LONG_QUESTION, options: [...first.options.slice(0, 2).map(({ label, description }) => ({ label, description })), third] }, second] }
 }
 
 /** The same question as the job file gives it in `?chain=unsaved`, the transcript not having the call yet: no headers, previews or multi-select. */
