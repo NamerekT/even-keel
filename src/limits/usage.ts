@@ -30,10 +30,39 @@ export function parseUsage(stdout: string, at: string): UsageAnswer {
   if (messages === undefined) return { kind: 'unknown', reason: notice('usage.notJson', {}) }
   const body = messages.findLast((message) => isRecord(message) && message.type === 'result') ?? (messages.length === 1 ? messages[0] : undefined)
   if (!isRecord(body)) return { kind: 'unknown', reason: notice('usage.notObject', {}) }
-  const answer = parseResult(body, at)
+  const rows = usageRows(messages)
+  const answer = spentOrFailed(body) ?? planWindowsOf(rows, at) ?? parseResult(body, at)
   if (answer.kind !== 'limits') return answer
-  const weeks = modelWeeksOf(usageRows(messages))
+  const weeks = modelWeeksOf(rows)
   return weeks === undefined ? answer : { kind: 'limits', limits: { ...answer.limits, models: { weeks, updatedAt: at } } }
+}
+
+/**
+ * The plan's windows from the rows of a usage answer (EKR-131): the `session` row is the five hours, `weekly_all` the
+ * all-models week, and a plan without one has no such row — a verified Ultra no `session`, a Team seat no `weekly_all`.
+ * Every row counts, whatever its `is_active`: that marks the one limit holding the account now, not the ones that apply.
+ * `undefined` — neither row, or one a window cannot be made of, so the text decides.
+ */
+function planWindowsOf(rows: unknown, at: string): UsageAnswer | undefined {
+  if (!Array.isArray(rows)) return undefined
+  const rowOf = (kind: string) => rows.find((row): row is Record<string, unknown> => isRecord(row) && row.kind === kind)
+  const session = rowOf('session')
+  const week = rowOf('weekly_all')
+  if (session === undefined && week === undefined) return undefined
+  const fiveHour = session === undefined ? null : rowWindowOf(session)
+  const sevenDay = week === undefined ? null : rowWindowOf(week)
+  if (fiveHour === undefined || sevenDay === undefined) return undefined
+  const absent = [...(session === undefined ? ['fiveHour' as const] : []), ...(week === undefined ? ['sevenDay' as const] : [])]
+  return { kind: 'limits', limits: { fiveHour, sevenDay, ...(absent.length > 0 && { absent }), updatedAt: at, source: 'usage' } }
+}
+
+/** A row's window; `null` — unused and without a reset, so not started; `undefined` — no window can be made of it. */
+function rowWindowOf(row: Record<string, unknown>): LimitWindow | null | undefined {
+  const { percent, resets_at: resets } = row
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) return undefined
+  const reset = typeof resets === 'string' ? Date.parse(resets) : Number.NaN
+  if (!Number.isNaN(reset)) return { usedPercentage: percent, resetsAt: new Date(reset).toISOString() }
+  return percent === 0 && (resets === null || resets === undefined) ? null : undefined
 }
 
 /**
@@ -77,11 +106,18 @@ function usageRows(messages: unknown[]): unknown {
   return undefined
 }
 
-function parseResult(body: Record<string, unknown>, at: string): UsageAnswer {
-  const { num_turns: turns, total_cost_usd: cost, is_error: failed, result } = body
+/** An answer that took a model turn, cost money or failed; `undefined` — a clean local answer. */
+function spentOrFailed(body: Record<string, unknown>): UsageAnswer | undefined {
+  const { num_turns: turns, total_cost_usd: cost, is_error: failed } = body
   if (turns !== 0) return { kind: 'spent', reason: notice('usage.turns', { value: JSON.stringify(turns) ?? 'missing' }) }
   if (cost !== 0) return { kind: 'spent', reason: notice('usage.cost', { value: JSON.stringify(cost) ?? 'missing' }) }
   if (failed !== false) return { kind: 'unknown', reason: notice('usage.isError', {}) }
+  return undefined
+}
+
+/** The plan's windows from the text of the `result`: the way for an answer without the rows. */
+function parseResult(body: Record<string, unknown>, at: string): UsageAnswer {
+  const { result } = body
   if (typeof result !== 'string') return { kind: 'unknown', reason: notice('usage.noResult', {}) }
 
   if (SUBSCRIPTION_LINE.test(result) && !LIMIT_LINE.test(result)) return { kind: 'missing', reason: notice('usage.noLimits', {}) }

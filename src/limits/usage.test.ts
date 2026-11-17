@@ -121,8 +121,8 @@ describe('parseUsage', () => {
 const sample = (name: string) => JSON.parse(readFileSync(new URL(`../../test/fixtures/limits/${name}`, import.meta.url), 'utf8')) as { limits: unknown }
 
 describe('modelWeeksOf', () => {
-  it('reads the model week of a Max plan, named by the server, without a reset the answer did not give', () => {
-    expect(modelWeeksOf(sample('claude-max-oauth-usage.json').limits)).toEqual([{ model: 'Fable', usedPercentage: 100, resetsAt: null }])
+  it('reads the model week of a Max plan, named by the server', () => {
+    expect(modelWeeksOf(sample('claude-max-oauth-usage.json').limits)).toEqual([{ model: 'Fable', usedPercentage: 100, resetsAt: '2030-01-09T11:00:00.000Z' }])
   })
 
   it.each(['claude-ultra-oauth-usage.json', 'claude-team-oauth-usage.json'])('reads the model week of %s, whose rows carry only a kind, a percent and a scope', (file) => {
@@ -158,25 +158,89 @@ describe('modelWeeksOf', () => {
 
 describe('parseUsage on the stream', () => {
   const report = (limits: unknown) => ({ session: {}, rate_limits: limits === undefined ? null : { limits } })
-  const stream = (usageReport?: unknown) => [
+  const stream = (usageReport?: unknown, text = TEXT) => [
     JSON.stringify({ type: 'system', subtype: 'init', session_id: 'x' }),
-    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: TEXT }] }, local_command_source: 'usage', ...(usageReport !== undefined && { usage_report: usageReport }) }),
-    answer(TEXT),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] }, local_command_source: 'usage', ...(usageReport !== undefined && { usage_report: usageReport }) }),
+    answer(text),
   ].join('\n')
 
-  it('reads the windows from the result line and the model weeks from the usage report', () => {
+  it('reads the windows and the model weeks from the usage report, inactive rows too', () => {
     const parsed = parseUsage(stream(report(sample('claude-max-oauth-usage.json').limits)), AT)
 
     expect(parsed).toEqual({
       kind: 'limits',
       limits: {
-        fiveHour: { usedPercentage: 33, resetsAt: '2026-09-27T17:49:00.000Z' },
-        sevenDay: { usedPercentage: 19, resetsAt: '2026-10-03T12:59:00.000Z' },
-        models: { weeks: [{ model: 'Fable', usedPercentage: 100, resetsAt: null }], updatedAt: AT },
+        fiveHour: { usedPercentage: 22, resetsAt: '2030-01-07T14:00:00.000Z' },
+        sevenDay: { usedPercentage: 61, resetsAt: '2030-01-10T16:00:00.000Z' },
+        models: { weeks: [{ model: 'Fable', usedPercentage: 100, resetsAt: '2030-01-09T11:00:00.000Z' }], updatedAt: AT },
         updatedAt: AT,
         source: 'usage',
       },
     })
+  })
+
+  const ultraRows = [
+    { kind: 'weekly_all', percent: 4, resets_at: '2030-01-12T20:59:59.000000+00:00' },
+    { kind: 'weekly_scoped', percent: 0, scope: { model: { display_name: 'Fable' } } },
+  ]
+
+  it('reads a verified Ultra, without a session row, as one weekly window whatever its text says', () => {
+    for (const text of [TEXT, 'Weekly limit (every model): 4% used', '']) {
+      expect(parseUsage(stream(report(ultraRows), text), AT)).toEqual({
+        kind: 'limits',
+        limits: {
+          fiveHour: null,
+          sevenDay: { usedPercentage: 4, resetsAt: '2030-01-12T20:59:59.000Z' },
+          absent: ['fiveHour'],
+          models: { weeks: [{ model: 'Fable', usedPercentage: 0, resetsAt: null }], updatedAt: AT },
+          updatedAt: AT,
+          source: 'usage',
+        },
+      })
+    }
+  })
+
+  it('reads a Team seat, without an all-models row, as the session alone', () => {
+    // The source cut out the rows' resets_at; a used session has one.
+    const rows = (sample('claude-team-oauth-usage.json').limits as Record<string, unknown>[])
+      .map((row) => (row.kind === 'session' ? { ...row, resets_at: '2030-01-07T14:00:00.000000+00:00' } : row))
+    const parsed = parseUsage(stream(report(rows), 'Session: 41%'), AT)
+
+    expect(parsed.kind === 'limits' && parsed.limits).toEqual({
+      fiveHour: { usedPercentage: 41, resetsAt: '2030-01-07T14:00:00.000Z' },
+      sevenDay: null,
+      absent: ['sevenDay'],
+      models: { weeks: [{ model: 'Fable', usedPercentage: 0, resetsAt: null }], updatedAt: AT },
+      updatedAt: AT,
+      source: 'usage',
+    })
+  })
+
+  it('takes an unused row without a reset as a window not started, not an absent one', () => {
+    const rows = [{ kind: 'session', percent: 0, resets_at: null }, { kind: 'weekly_all', percent: 61, resets_at: '2030-01-10T16:00:00.000000+00:00' }]
+    const parsed = parseUsage(stream(report(rows)), AT)
+
+    expect(parsed.kind === 'limits' && parsed.limits).toMatchObject({ fiveHour: null, sevenDay: { usedPercentage: 61, resetsAt: '2030-01-10T16:00:00.000Z' } })
+    expect(parsed.kind === 'limits' && parsed.limits).not.toHaveProperty('absent')
+  })
+
+  it.each([
+    ['no window rows', [{ kind: 'weekly_scoped', percent: 10, scope: { model: { display_name: 'Fable' } } }]],
+    ['a used row without a reset', [{ kind: 'session', percent: 33 }, { kind: 'weekly_all', percent: 19, resets_at: '2030-01-10T16:00:00.000000+00:00' }]],
+    ['a row without a percent', [{ kind: 'session', resets_at: '2030-01-07T14:00:00.000000+00:00' }]],
+  ])('reads the windows from the text when the report has %s', (_case, rows) => {
+    const parsed = parseUsage(stream(report(rows)), AT)
+
+    expect(parsed.kind === 'limits' && parsed.limits).toMatchObject({
+      fiveHour: { usedPercentage: 33, resetsAt: '2026-09-27T17:49:00.000Z' },
+      sevenDay: { usedPercentage: 19, resetsAt: '2026-10-03T12:59:00.000Z' },
+    })
+  })
+
+  it('still treats a report on an answer that took a model turn as spent', () => {
+    const output = stream(report(ultraRows)).replace(answer(TEXT), answer(TEXT, { num_turns: 1, total_cost_usd: 0.16 }))
+
+    expect(parseUsage(output, AT).kind).toBe('spent')
   })
 
   it('says the plan has no model week when the report lists no such row', () => {
@@ -185,12 +249,12 @@ describe('parseUsage on the stream', () => {
     expect(parsed.kind === 'limits' && parsed.limits.models).toEqual({ weeks: [], updatedAt: AT })
   })
 
-  it('knows no model weeks without a report, or with a report the CLI could not fill', () => {
+  it('reads the windows from the text and knows no model weeks without a report, or with a report the CLI could not fill', () => {
     for (const output of [stream(), stream(report(undefined)), stream({ session: {}, rate_limits: { limits: null } }), answer(TEXT)]) {
-      const parsed = parseUsage(output, AT)
-      expect(parsed.kind).toBe('limits')
-      expect(parsed.kind === 'limits' && parsed.limits).not.toHaveProperty('models')
+      expect(parseUsage(output, AT)).toEqual(parseUsage(answer(TEXT), AT))
+      expect(parseUsage(output, AT)).toMatchObject({ kind: 'limits', limits: { fiveHour: { usedPercentage: 33 }, sevenDay: { usedPercentage: 19 } } })
     }
+    expect(parseUsage(answer(TEXT), AT)).not.toHaveProperty('limits.models')
   })
 
   it('reads the same messages printed as one array', () => {
