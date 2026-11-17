@@ -53,6 +53,28 @@ export interface MachineView {
   taken: TakenFolder[]
 }
 
+/**
+ * A machine as the header's machines panel shows it (BTN-1051): the own one and every joined one not revoked. What it
+ * runs and what it takes next the page reads from the chain; this is what only the hub knows.
+ */
+export interface MachineCard {
+  id: string
+  name: string
+  color: string
+  own: boolean
+  online: boolean
+  /** Since when it is off the link, as this hub saw it go; `null` — online, or not seen since the hub started. */
+  offlineSince: number | null
+  /** Its git has a user name and e-mail: without them a session's commit fails, so it takes no task. `null` — not told yet. */
+  gitUser: boolean | null
+  /** The agents it has a signed-in account of. */
+  agents: string[]
+  /** By agent, when the first of its accounts frees, where every signed-in account of that agent there is at a limit. */
+  limitedUntil: Record<string, string>
+  /** The projects of its pool: whether it takes their tasks and whether their packages hold them there. */
+  projects: Array<{ project: string; enabled: boolean; packagesBlocked: boolean }>
+}
+
 /** A machine of a project's pool, as the section "Machines" of its settings shows it (BTN-1271). */
 export interface PoolMachine {
   id: string

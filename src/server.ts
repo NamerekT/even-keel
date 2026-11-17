@@ -206,6 +206,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'machines/addresses': async ({ machines }) => machines?.addresses() ?? [],
   'machines/list': async ({ machines }) => (await machines?.list()) ?? [],
   'machines/pool': async ({ pool }, body) => (await pool?.view(projectOf(body))) ?? { machines: [], others: [] },
+  'machines/cards': async ({ machineCards }) => (await machineCards?.()) ?? [],
   'machines/view': async ({ machinePage }, body) => {
     if (machinePage === undefined) throw fail('machines.unknown', {})
     return machinePage.view(textOf(body.machine, 'machine'))

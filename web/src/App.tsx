@@ -10,6 +10,8 @@ import { LoginDialog } from './layout/LoginDialog.js'
 import { MachineLoginDialog } from './layout/MachineSignIns.js'
 import { AddMachineDialog } from './layout/AddMachineDialog.js'
 import { MachineArrivalToast } from './layout/MachineArrival.js'
+import { MachineFilterProvider } from './layout/MachineFilter.js'
+import { MachinePanel } from './layout/MachinePanel.js'
 import { EventToasts } from './layout/EventToasts.js'
 import { FallbackToasts } from './layout/Fallbacks.js'
 import { UpdateProgressToast, UpdateResultToast, UpdateToast, UpdateWindow } from './layout/Updates.js'
@@ -64,9 +66,11 @@ export function App() {
     )
 
   return (
+    <MachineFilterProvider>
     <div className="app" key={language}>
       <ActivityBar />
       <AppHeader />
+      {state !== null && <MachinePanel state={state} />}
       <main className="content">
         <Loading busy={state === null && link !== 'stale'} label={t.app.connecting} fit="page">
           {state === null ? (
@@ -109,6 +113,7 @@ export function App() {
         <MachineArrivalToast />
       </ToastStack>
     </div>
+    </MachineFilterProvider>
   )
 }
 

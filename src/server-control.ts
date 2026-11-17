@@ -13,7 +13,7 @@ import type { EventHub } from './events.js'
 import type { GuardSettings } from './guard.js'
 import type { Invite } from './link/hub.js'
 import type { AddressChoice, MachineView } from './service/machine-network.js'
-import type { MachinePage, ProjectPool } from './link/view.js'
+import type { MachineCard, MachinePage, ProjectPool } from './link/view.js'
 import type { ConnectRequest } from './service/machine-pool.js'
 import type { HotkeyBindings } from './hotkeys.js'
 import type { Language } from './language.js'
@@ -287,6 +287,8 @@ export interface ServerDeps {
     capacity(machine: string, capacity: number): Promise<void>
     color(machine: string, color: string | null): Promise<void>
   }
+  /** The header's machines panel (BTN-1051): every machine with what only the hub knows of it. */
+  machineCards?: () => Promise<MachineCard[]>
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
   /** The windows of step jobs (BTN-1048): "Retry" of a failed step, "Cancel", closing a finished one. */

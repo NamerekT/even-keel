@@ -6,6 +6,7 @@ import { CliCheckBanner } from './CliCheckBanner.js'
 import { CliCopiesBanner } from './CliCopies.js'
 import { ConfigBanner } from './ConfigBanner.js'
 import { Header } from './Header.js'
+import { MachineStrip } from './MachinePanel.js'
 import { LinkBanner } from './LinkBanner.js'
 import { PackagesBanner } from './PackagesBanner.js'
 import { UnattendedBanner } from './UnattendedBanner.js'
@@ -31,6 +32,7 @@ export function AppHeader() {
   return (
     <div className="app__header" ref={ref}>
       <Header />
+      <MachineStrip />
       <div className="app__banners">
         <LinkBanner />
         {!setup && <>

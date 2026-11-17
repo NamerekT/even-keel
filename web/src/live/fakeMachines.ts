@@ -1,6 +1,6 @@
 import { notice } from '../../../src/notice/notice.js'
 import { MACHINE_PALETTE, machineColors } from '../../../src/link/colors.js'
-import type { EvenKeelState, JobStep, MachineAbout, MachineInvite, MachinePage, MachineProject, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
+import type { EvenKeelState, JobStep, MachineAbout, MachineCard, MachineInvite, MachinePage, MachineProject, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
 
 /** A string issued in `dev:fake` is joined with this much later (BTN-1056). */
 const JOIN_MS = 3_000
@@ -22,7 +22,7 @@ export class FakeNetwork {
   private readonly pools = new Map<string, PoolMachine[]>()
 
   /** `repoOf` — a project's folder here, the own machine's row of its pool. */
-  constructor(mode: string | null, private readonly repoOf: (project: string) => string = () => '') {
+  constructor(private readonly mode: string | null, private readonly repoOf: (project: string) => string = () => '') {
     if (mode === null) return
     const joined = (id: string, name: string, report: MachineAbout, online: boolean): MachineView => ({
       id, name, createdAt: Date.now() - 86_400_000, revokedAt: null, inviteExpires: null, joinedAt: Date.now() - 86_000_000, host: report.host, about: report, online, projects: [], taken: [],
@@ -83,6 +83,37 @@ export class FakeNetwork {
   /** Each machine of `names` with its colour, the picked one or the palette's by its place. */
   colorsOf(names: Record<string, string>): Record<string, string> {
     return machineColors(Object.keys(names).map((id) => ({ id, color: this.colors.get(id) ?? null })))
+  }
+
+  /**
+   * The header panel's cards of the state's machines (BTN-1051), one lamp of each kind: the own one runs every
+   * project; the laptop has git without a name (`?machines=nocli` — with one), off the link two hours ago with
+   * `?machines=offline`; the desktop's Claude accounts are at a limit till 18:40 with `?machines=limit`.
+   */
+  cards(state: EvenKeelState): MachineCard[] {
+    const names = state.machineNames ?? {}
+    const colors = this.colorsOf(names)
+    const own = state.ownMachine ?? OWN
+    const until = new Date()
+    until.setHours(18, 40, 0, 0)
+    if (until.getTime() < Date.now()) until.setDate(until.getDate() + 1)
+    const ids = [own, ...Object.keys(names).filter((id) => id !== own)]
+    return ids.map((id): MachineCard => {
+      const online = id === own || (this.machines.find((machine) => machine.id === id)?.online ?? true)
+      const pooled = state.projects.map((project, index) => ({
+        project,
+        enabled: id === own || this.pools.get(project)?.some((row) => row.id === id && row.enabled) === true || index === 0 || id === 'srv',
+        packagesBlocked: false,
+      }))
+      return {
+        id, name: names[id] ?? id, color: colors[id]!, own: id === own, online,
+        offlineSince: online ? null : Date.now() - 2 * 3_600_000,
+        gitUser: id === 'machine-1' ? this.mode === 'nocli' : true,
+        agents: id === own || id === 'machine-2' ? ['claude', 'codex'] : ['claude'],
+        limitedUntil: id === 'machine-2' && this.mode === 'limit' ? { claude: until.toISOString() } : {},
+        projects: pooled,
+      }
+    })
   }
 
   /**

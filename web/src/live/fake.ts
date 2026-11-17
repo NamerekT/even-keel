@@ -945,6 +945,7 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
       if (name === 'history/events') return current.state.eventLog as T
       if (name === 'history/task') return fakeTaskHistory(current.state, String(body.task)) as T
+      if (name === 'machines/cards') return network.cards(current.state) as T
       if (name === 'machines/view') {
         const page = network.page(String(body.machine), current.state)
         if (page === undefined) throw fail('machines.unknown', {})

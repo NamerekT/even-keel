@@ -7,6 +7,7 @@ import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { AccountBlock } from './AccountBlock.js'
 import { Limits } from './Limits.js'
 import { LogLink } from './LogLink.js'
+import { MachineBlock } from './MachinePanel.js'
 import { MobileMenu } from './Menu.js'
 import { QueueMenu } from './Queue.js'
 import { GearMenu, Waiting } from './Status.js'
@@ -61,11 +62,13 @@ export function Header() {
         </nav>
         {narrow ? (
           <div className="header__aside">
+            {live !== null && <MachineBlock />}
             {live !== null && <Waiting sessions={live.sessions} tasks={live.tasks} />}
             <MobileMenu now={now} />
           </div>
         ) : (
           <div className="header__aside">
+            {live !== null && <MachineBlock />}
             {live !== null && (
               <div className="work-anchor">
                 <div className="hblock work-block">

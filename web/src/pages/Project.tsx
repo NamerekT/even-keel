@@ -6,6 +6,8 @@ import type { TrackerView } from '../../../src/tracker/health.js'
 import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
+import { useMachineFilter } from '../layout/MachineFilter.js'
+import { machineBacklog, machineChain } from '../machineView.js'
 import { isNarrow, useNarrow } from '../layout/useNarrow.js'
 import { useWide } from '../layout/useWide.js'
 import { useCommand } from '../live/useCommand.js'
@@ -94,6 +96,9 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const hash = decodeURIComponent(location.hash.slice(1))
   const close = useCallback(() => navigate({ search: location.search, hash: '' }), [navigate, location.search])
   const blocks = useMemo(() => chainBlocks(state, key), [state, key])
+  const machines = useMachineFilter()
+  const machine = machines.selected?.id
+  const machineBlocks = useMemo(() => (machine === undefined ? blocks : machineChain(blocks, state, machines.cards, key, machine)), [blocks, state, machines.cards, key, machine])
   const parents = useMemo(() => parentBlocks(state, key), [state, key])
   // The feed shows the chain or, by the address, the project's parents (BTN-1041); the panel follows what it shows.
   const showParents = parentView(location.search, parents.length > 0)
@@ -159,7 +164,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const selected = shown.find((block) => block.id === focus && !block.locked)
   const status = chainStatus(state.chain, key)
   const switcher = parents.length === 0 ? undefined : <FeedSwitch parents={showParents} calls={chainCalls(blocks, status)} />
-  const backlog = backlogTasks(state, key)
+  const allBacklog = backlogTasks(state, key)
+  const backlog = machine === undefined ? allBacklog : machineBacklog(allBacklog, state, machines.cards, key, machine)
   const backlogWorks = backlogWork(state, key)
   // The built-in tracker's backlog always has its tab: its ghost makes the first task there.
   const backlogOpen = focus === BACKLOG_HASH && (backlog.length > 0 || builtin)
@@ -279,7 +285,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               <ChainList
                 key={key}
                 project={key}
-                chain={blocks}
+                chain={machineBlocks}
                 scale={state.context}
                 focus={feedFocus}
                 ghost={arrival.ghost}

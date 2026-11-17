@@ -135,6 +135,8 @@ export class MachineNetwork {
   private colorsById: Record<string, string> = {}
   /** By machine and project, the connect job's step that shows a clone's progress there. */
   private readonly clones = new Map<string, (progress: CloneProgress) => void>()
+  /** By machine off the link, when this hub saw it go (BTN-1051): kept in memory only. */
+  private readonly wentOff = new Map<string, number>()
 
   constructor(private readonly options: MachineNetworkOptions) {
     this.hub = new HubEnd({
@@ -189,6 +191,11 @@ export class MachineNetwork {
   /** The colour of each machine the hub ever had (BTN-1272), its own or the palette's, as `refresh` last read them. */
   colors(): Record<string, string> {
     return this.colorsById
+  }
+
+  /** When the machine went off the link while this hub ran; `undefined` — it is on it, or was not seen since the start. */
+  offlineSince(machine: string): number | undefined {
+    return this.hub.connected(machine) ? undefined : this.wentOff.get(machine)
   }
 
   revoked(machine: string): boolean {
@@ -257,6 +264,11 @@ export class MachineNetwork {
   /** The hub's row of a machine, the own one too. */
   record(machine: string): Promise<MachineRecord | undefined> {
     return this.options.store.machine(machine)
+  }
+
+  /** Every machine's row, the own and the revoked ones too. */
+  records(): Promise<MachineRecord[]> {
+    return this.options.store.listMachines()
   }
 
   /** The projects whose folder on the machine another machine's mark holds. */
@@ -348,15 +360,20 @@ export class MachineNetwork {
   }
 
   private handlers(): HubHandlers {
-    const { peers, changed, log } = this.options
+    const { peers, log } = this.options
+    const changed = (machine: string, online: boolean) => {
+      if (online) this.wentOff.delete(machine)
+      else this.wentOff.set(machine, Date.now())
+      this.options.changed()
+    }
     if (peers === undefined) {
       return {
         snapshot: () => {},
         event: () => {
           throw new Error('the events of a machine elsewhere are taken only by a hub that serves them')
         },
-        online: () => changed(),
-        offline: () => changed(),
+        online: (machine) => changed(machine, true),
+        offline: (machine) => changed(machine, false),
       }
     }
     return {
@@ -386,9 +403,9 @@ export class MachineNetwork {
       },
       mcp: (machine, request) => peers.mcp(machine, request),
       hook: (machine, request) => peers.hook(machine, request),
-      online: () => changed(),
-      offline: () => {
-        changed()
+      online: (machine) => changed(machine, true),
+      offline: (machine) => {
+        changed(machine, false)
         peers.changed()
       },
     }

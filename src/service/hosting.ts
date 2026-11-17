@@ -36,6 +36,7 @@ import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
 import { onMachine, poolControl } from './machine-pool.js'
 import { machinePageControl } from './machine-page.js'
+import { machineCards } from './machine-cards.js'
 import { machineAbout } from '../machine/about.js'
 import type { MachineAbout } from '../link/view.js'
 import { installed } from '../updates/watcher.js'
@@ -415,6 +416,21 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     setColor: (machine, color) => network.setColor(machine, color),
     log: (line) => console.log(line),
   })
+  const cards = () => machineCards({
+    own: () => ctx.machineLink.machines.own(),
+    records: () => network.records(),
+    online: (machine) => network.connected(machine),
+    offlineSince: (machine) => network.offlineSince(machine),
+    colors: () => network.colors(),
+    folders: (machine) => network.foldersOf(machine),
+    mirror: (machine) => ctx.machineLink.mirror(machine),
+    ownAccounts: () => ctx.getState().account.accounts,
+    ownGitUser: () => {
+      const git = ctx.getState().git
+      return git === undefined ? null : git.name !== null && git.email !== null
+    },
+    now: () => Date.now(),
+  })
   return createEvenKeelServer({
     cli: ctx.cliCopies,
     hulyClient,
@@ -752,6 +768,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     machines: ctx.machineLink.network,
     pool,
     machinePage,
+    machineCards: cards,
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)
