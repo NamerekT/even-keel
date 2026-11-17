@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canceled, done, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
+import { canceled, done, fakeMachines, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
 import type { HandoffSession } from './relay.js'
 import { englishOf, notice, textNotice } from '../notice/notice.js'
@@ -290,6 +290,56 @@ describe('Dispatcher finishing a done task', () => {
       expect(synced).toEqual(['ABC'])
       expect(dispatcher.state.leftovers).toEqual({
         ABC: [{ task: 'ABC-1', at: clock.now.toISOString(), notice: notice('cleanup.syncFailed', {}, { cause: refused }) }],
+      })
+    })
+
+    describe('on a machine that went off the link during the cleanup (BTN-995)', () => {
+      const lost = notice('machine.lockLost', { command: 'port.finish' })
+
+      it('is tried again on that machine once it is back, however long it was away', async () => {
+        const { machines, listed } = fakeMachines({ own: 1, pc: 1 })
+        const { dispatcher, synced, clock, log } = await closeAbc1({ machines, finish: () => ({ warnings: [], syncError: lost, machine: 'pc' }) })
+        delete listed.pc
+        later(clock, 3_600_000)
+        dispatcher.check()
+        await dispatcher.idle()
+        expect(synced).toEqual([])
+        expect(dispatcher.state.leftovers).toEqual({})
+
+        listed.pc = 1
+        dispatcher.check()
+        await dispatcher.idle()
+        expect(synced).toEqual(['ABC@pc'])
+        expect(dispatcher.state.leftovers).toEqual({})
+        expect(log.filter((line) => line.startsWith('git: sync of ABC after ABC-1'))).toHaveLength(2)
+      })
+
+      it('becomes a warning once the machine is revoked', async () => {
+        const gone = new Set<string>()
+        const { machines, listed } = fakeMachines({ own: 1, pc: 1 }, { gone })
+        const { dispatcher, synced, clock } = await closeAbc1({ machines, finish: () => ({ warnings: [], syncError: lost, machine: 'pc' }) })
+        delete listed.pc
+        gone.add('pc')
+        later(clock, 30_000)
+        dispatcher.check()
+        await dispatcher.idle()
+        expect(synced).toEqual([])
+        expect(dispatcher.state.leftovers).toEqual({
+          ABC: [{ task: 'ABC-1', at: clock.now.toISOString(), notice: notice('cleanup.syncFailed', {}, { cause: lost }) }],
+        })
+      })
+
+      it('stays awaited when the cleanup of a task on another machine syncs main', async () => {
+        const { machines } = fakeMachines({ own: 1, pc: 1 })
+        let outcome: { warnings: never[]; syncError: typeof lost | null; machine: string } = { warnings: [], syncError: lost, machine: 'pc' }
+        const { dispatcher, synced, clock } = await closeAbc1({ machines, finish: () => outcome })
+        outcome = { warnings: [], syncError: null, machine: 'own' }
+        dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2', done)])
+        await dispatcher.idle()
+        later(clock, 30_000)
+        dispatcher.check()
+        await dispatcher.idle()
+        expect(synced).toEqual(['ABC@pc'])
       })
     })
 

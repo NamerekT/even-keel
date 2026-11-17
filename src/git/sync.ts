@@ -17,17 +17,28 @@ export function isNetworkFailure(failure: Notice): boolean {
   return (failure.code === 'sync.fetch' || failure.code === 'sync.push' || failure.code === 'sync.alias') && UNREACHABLE.test(failure.detail ?? '')
 }
 
+/**
+ * The project's check run on main merged with commits another machine pushed, before the push (BTN-995); `null` — green.
+ * Only a project several machines work on at once has one.
+ */
+export interface MergeCheck {
+  run: () => Promise<{ command: string; code: number; output: string } | null>
+}
+
 // A `git sync` alias wins: the repository's own one always, the user's global one only for a branch named main,
 // since such an alias is written for main. Without it the main branch is merged from every remote and pushed
 // back to each, the same as the alias the project was built with. A push rejected because another clone of the
-// remote pushed between the fetch and the push (BTN-210) gets the whole sync once more.
-export async function syncMain(git: Git, repo: string, remotes: string[], main = 'main'): Promise<Notice | null> {
-  const first = await syncOnce(git, repo, remotes, main)
-  if (first === null || !(first.code === 'sync.push' || first.code === 'sync.alias') || !REJECTED.test(first.detail ?? '')) return first
-  return syncOnce(git, repo, remotes, main)
+// remote pushed between the fetch and the push (BTN-210) gets the whole sync once more; with a merge check, twice.
+export async function syncMain(git: Git, repo: string, remotes: string[], main = 'main', check?: MergeCheck): Promise<Notice | null> {
+  let result = await syncOnce(git, repo, remotes, main, check)
+  for (let repeat = check === undefined ? 1 : 2; repeat > 0; repeat--) {
+    if (result === null || !(result.code === 'sync.push' || result.code === 'sync.alias') || !REJECTED.test(result.detail ?? '')) return result
+    result = await syncOnce(git, repo, remotes, main, check)
+  }
+  return result
 }
 
-async function syncOnce(git: Git, repo: string, remotes: string[], main: string): Promise<Notice | null> {
+async function syncOnce(git: Git, repo: string, remotes: string[], main: string, check?: MergeCheck): Promise<Notice | null> {
   const alias = main === 'main' ? ['config', '--get', 'alias.sync'] : ['config', '--local', '--get', 'alias.sync']
   if ((await git(repo, alias)).code === 0) {
     const synced = await git(repo, ['sync'])
@@ -37,14 +48,26 @@ async function syncOnce(git: Git, repo: string, remotes: string[], main: string)
   const branch = (await git(repo, ['branch', '--show-current'])).out.trim()
   if (branch !== main) return notice('sync.notMain', { repo, branch, main })
 
+  const before = check === undefined ? '' : (await git(repo, ['rev-parse', 'HEAD'])).out.trim()
+  let mixed = false
   for (const remote of remotes) {
     const fetched = await git(repo, ['fetch', remote])
     if (fetched.code !== 0) return notice('sync.fetch', { remote }, { detail: fetched.out })
-    if ((await git(repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/${remote}/${main}`])).code !== 0) continue
+    const theirs = `refs/remotes/${remote}/${main}`
+    if ((await git(repo, ['rev-parse', '--verify', '--quiet', theirs])).code !== 0) continue
+    if (check !== undefined && !mixed) mixed = await diverged(git, repo, theirs)
     const merged = await git(repo, ['merge', '--no-edit', `${remote}/${main}`])
     if (merged.code !== 0) {
       await git(repo, ['merge', '--abort'])
       return notice('sync.merge', { remote, main }, { detail: merged.out })
+    }
+  }
+
+  if (check !== undefined && mixed) {
+    const red = await check.run()
+    if (red !== null) {
+      await git(repo, ['reset', '--keep', before])
+      return notice('sync.checkRed', { main, command: red.command, code: red.code }, { detail: red.output })
     }
   }
 
@@ -53,6 +76,12 @@ async function syncOnce(git: Git, repo: string, remotes: string[], main: string)
     if (pushed.code !== 0) return notice('sync.push', { remote, main }, { detail: pushed.out })
   }
   return null
+}
+
+/** Main and the remote's main each have commits the other lacks: merging them makes a commit nobody checked. */
+async function diverged(git: Git, repo: string, theirs: string): Promise<boolean> {
+  if ((await git(repo, ['merge-base', '--is-ancestor', 'HEAD', theirs])).code === 0) return false
+  return (await git(repo, ['merge-base', '--is-ancestor', theirs, 'HEAD'])).code !== 0
 }
 
 /**

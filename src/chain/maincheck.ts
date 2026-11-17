@@ -1,3 +1,4 @@
+import type { FinishOutcome } from '../git/types.js'
 import type { MachineMainPort } from '../machine/port.js'
 import { failedKey } from '../ci/model.js'
 import { shortCommit, type CiVerdict, type RedRun } from '../ci/verdict.js'
@@ -110,11 +111,15 @@ export class MainCheck {
     }
   }
 
-  /** After the cleanup of a done task synced main: the CI's verdict on the commit is awaited; `tree` — `reportedTree`. */
-  async pushed(project: string, task: string, tree: string | null): Promise<void> {
+  /**
+   * After the cleanup of a done task synced main: the CI's verdict on the commit is awaited; `tree` — `reportedTree`.
+   * `from` — what the machine that pushed said (BTN-995): the commit and tree it pushed, else the machine whose main to
+   * read; neither — the own machine's.
+   */
+  async pushed(project: string, task: string, tree: string | null, from: Pick<FinishOutcome, 'main' | 'machine'> = {}): Promise<void> {
     let commit: string | null
     try {
-      commit = await this.machine.head(project)
+      commit = from.main?.commit ?? (await this.machine.head(project, from.machine))
     } catch (error) {
       this.log(`ci: ${project}: main after ${task} is unknown: ${englishOf(noticeOf(error))}`)
       return
@@ -129,7 +134,8 @@ export class MainCheck {
     }
     if (gate.green === commit) return
     this.late.delete(project)
-    const checked = tree !== null && (await this.machine.tree(project, commit).catch(() => null)) === tree
+    const pushedTree = from.main?.tree ?? (tree === null ? null : await this.machine.tree(project, commit, from.machine).catch(() => null))
+    const checked = tree !== null && pushedTree === tree
     const earlier = [...(gate.local?.tasks ?? []), ...(gate.check?.tasks ?? [])]
     delete gate.local
     const push: MainPush = {

@@ -2,9 +2,10 @@ import { shortCommit } from '../ci/verdict.js'
 import { fail, noticeOf, type Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import { isFixName } from './fix.js'
+import { laneMachine, lanesOf } from './lanes.js'
 import { waitsForLimits } from './limitNotice.js'
 import type { MainCheck } from './maincheck.js'
-import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, FixOutcome, LaunchEntry } from './model.js'
+import { newChain, type ActiveChain, type ChainMachines, type ChainState, type CurrentTask, type DispatcherDeps, type FixOutcome, type LaunchEntry } from './model.js'
 import { mainFixedPrompt, warmSince, type HandoffReason, type HandoffSession } from './relay.js'
 import { forgetSkipped, rememberSkipped } from './skippedown.js'
 
@@ -22,12 +23,23 @@ export interface FixHost {
   heldByMain(chain: ActiveChain, task: string): boolean
 }
 
+/** The lane whose current task began last. */
+function latest(lanes: ActiveChain[]): ActiveChain | undefined {
+  let found: ActiveChain | undefined
+  for (const chain of lanes) {
+    if (chain.current !== null && (found === undefined || Date.parse(chain.current.since) > Date.parse(found.current!.since))) found = chain
+  }
+  return found
+}
+
 // A red main without a fix task (BTN-115, `ci.fixTask` off): the fix is a session of its own, the chain's current
 // work while it runs. The session of the current task that was mid-turn is stopped for it (invariant 1,
 // exception 7) and goes on with a message once the fix is judged.
 export class MainFix {
   /** The verdict last seen on the red commit of a fix session that found nothing to fix, for one log line per change. */
   private readonly verdicts = new Map<string, 'green' | 'red' | 'waiting'>()
+  /** The projects whose fix found no machine on the link, for one log line until one is found. */
+  private readonly unplaced = new Set<string>()
 
   constructor(
     private readonly state: ChainState,
@@ -37,12 +49,62 @@ export class MainFix {
   ) {}
 
   /**
-   * A fix is due while a task's session leads the chain: `true` — the task has made way for it. A working session
-   * is stopped; one that waits or sits idle is left as it is, and so is one whose branch is already in main.
+   * The lane that runs the project's fix session (BTN-995); `undefined` — none now, the fix waits. Without machines it
+   * is the head lane. With them the fix goes to a machine of the project's pool on the link, bound to it for good
+   * (`ChainMachines.bind`): first one whose lane of the project waits idle, then one with a free place, where a lane of
+   * its own is opened; with none free — the machine of the lane that began its task last, whose session alone makes way.
+   * A machine that went off the link after it was bound keeps the fix: only a person moves it.
+   */
+  fixer(project: string): ActiveChain | undefined {
+    const fix = this.main.sessionFix(project)
+    const lanes = lanesOf(this.state, project)
+    const machines = this.deps.machines
+    if (fix === undefined || machines === undefined) return lanes[0]
+    const machineOf = (chain: ActiveChain) => laneMachine(chain, machines)
+    let bound = machines.holder(project, fix.task)
+    if (bound === undefined) {
+      bound = this.fixMachine(project, lanes, machines)
+      if (bound === undefined) {
+        if (!this.unplaced.has(project)) this.deps.log(`chain: ${project}: no machine of its pool is on the link to fix main at ${shortCommit(fix.commit)}; the fix waits`)
+        this.unplaced.add(project)
+        return undefined
+      }
+      this.unplaced.delete(project)
+      machines.bind(project, fix.task, bound)
+      this.deps.log(`chain: ${project}: the fix of main at ${shortCommit(fix.commit)} goes to machine ${bound}`)
+    }
+    const there = lanes.filter((chain) => machineOf(chain) === bound)
+    const lane =
+      there.find((chain) => chain.current?.task === fix.task) ??
+      there.find((chain) => chain.interrupted?.commit === fix.commit) ??
+      there.find((chain) => chain.fixOnly === true || (chain.current === null && chain.interrupted === undefined)) ??
+      latest(there)
+    if (lane !== undefined || !machines.list().some(({ id }) => id === bound)) return lane
+    const opened: ActiveChain = { ...newChain(project), fixOnly: true, ...(bound === machines.own() ? {} : { machine: bound }) }
+    this.state.active.push(opened)
+    this.deps.save(this.state)
+    return opened
+  }
+
+  private fixMachine(project: string, lanes: ActiveChain[], machines: ChainMachines): string | undefined {
+    const online = machines.list()
+    const reachable = lanes.filter((chain) => !chain.paused && online.some(({ id }) => id === laneMachine(chain, machines)))
+    const idle = reachable.find((chain) => chain.current === null && chain.interrupted === undefined)
+    if (idle !== undefined) return laneMachine(idle, machines)
+    const free = online.find(({ id, capacity }) => machines.serves(project, id) && this.state.active.filter((chain) => laneMachine(chain, machines) === id).length < capacity)
+    if (free !== undefined) return free.id
+    const last = latest(reachable)
+    return last === undefined ? undefined : laneMachine(last, machines)
+  }
+
+  /**
+   * A fix is due while a task's session leads the chain: `true` — the task has made way for it. Only the lane that runs
+   * the fix makes way (`fixer`); the others go on and wait for main before their next launch. A working session is
+   * stopped; one that waits or sits idle is left as it is, and so is one whose branch is already in main.
    */
   async yields(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
     const fix = this.main.sessionFix(chain.project)
-    if (fix === undefined) return false
+    if (fix === undefined || this.fixer(chain.project) !== chain) return false
     const { task } = current
     const session = this.deps.machine.handoff(task)
     // A missing monitor entry after launch is not evidence that the new turn has ended.

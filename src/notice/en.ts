@@ -207,6 +207,8 @@ export const en = {
   'sync.fetch': (p: { remote: string }) => `sync: could not fetch ${p.remote}`,
   'sync.merge': (p: { remote: string; main: string }) => `sync: ${p.remote}/${p.main} does not merge cleanly into ${p.main}, merge it by hand`,
   'sync.push': (p: { remote: string; main: string }) => `sync: could not push ${p.main} to ${p.remote}`,
+  'sync.checkRed': (p: { main: string; command: string; code: number }) =>
+    `sync: ${p.main} merged with commits of another machine fails the project's check (${p.command} exited with ${p.code}); it is not pushed, merge it by hand`,
 
   'forward.busy': (p: { into: string }) => `the chain of ${p.into} is working; the release branch goes in once it is quiet`,
   'forward.notOnBranch': (p: { repo: string; branch: string; current: string }) =>
@@ -533,6 +535,7 @@ export const en = {
   'machine.commandRefused': (p: { command: string; reason: 'project' | 'folder' }) =>
     `machine: the machine refused ${p.command}: ${p.reason === 'project' ? 'it did not agree to serve this project' : "the folder is outside the project's agreed ones"}`,
   'machine.commandInterrupted': (p: { command: string }) => `machine: the machine stopped in the middle of ${p.command} and does not run it again`,
+  'machine.lockLost': (p: { command: string }) => `machine: the machine went off the link during ${p.command}; the sync of main is tried again once it is back`,
   'reassign.notHeld': (p: { task: string }) => `reassign: ${p.task} is not held by a machine elsewhere: there is nothing to move`,
   'reassign.machineOnline': (p: { task: string; machine: string }) => `reassign: ${p.task} is on ${p.machine}, which is connected: the chain goes on with it there`,
   'reassign.noRemote': (p: { task: string }) => `reassign: the project's repository has no remote, so ${p.task}'s branch cannot reach another machine`,

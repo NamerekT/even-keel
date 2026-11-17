@@ -21,6 +21,22 @@ describe('the machine port over the link', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
+  it('lets go of a cleanup and a sync of main when the machine goes off the link, and keeps waiting for the rest (BTN-995)', async () => {
+    let seq = 0
+    const remote = new RemoteMachine({ send: async () => ++seq, machine: () => 'example', projectOf: () => PROJECT, projectOfSession: () => PROJECT, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} })
+    const port = remote.port()
+    const finished = port.finish(PROJECT, 'ABC-1').then(() => undefined, (error: unknown) => noticeOf(error))
+    const synced = port.sync(PROJECT).then(() => undefined, (error: unknown) => noticeOf(error))
+    let head: unknown = 'waiting'
+    void port.head(PROJECT).then((value) => (head = value), () => (head = 'failed'))
+    await Promise.resolve()
+    remote.lost()
+    expect(await finished).toEqual({ code: 'machine.lockLost', params: { command: 'port.finish' } })
+    expect(await synced).toEqual({ code: 'machine.lockLost', params: { command: 'port.sync' } })
+    await Promise.resolve()
+    expect(head).toBe('waiting')
+  })
+
   let stop: Array<() => void> = []
 
   const started = async () => {

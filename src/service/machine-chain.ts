@@ -13,7 +13,7 @@ import { changesOf } from '../git/changes.js'
 import { pushTaskBranch, restoreBranch } from '../git/push.js'
 import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, type SlotUse } from '../git/slot.js'
-import { fastForwardMain, fastForwardTo, syncMain } from '../git/sync.js'
+import { fastForwardMain, fastForwardTo, syncMain, type MergeCheck } from '../git/sync.js'
 import { TaskWorks, worksOf } from '../git/work.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut } from '../git/worktree.js'
 import { exhaustedReset, limitReopenedAt, spentModelWeek } from '../limits/model.js'
@@ -178,7 +178,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       try {
         stopped = await ctx.stopTaskSessions(project, repo, task, Math.max(span, 1))
         const main = ctx.branchOf(project)
-        const drop = pull === undefined ? {} : { force: pull.force, remote: pull.remote }
+        const check = mergeCheck(ctx, project, repo)
+        const drop = { ...(pull === undefined ? {} : { force: pull.force, remote: pull.remote }), ...(check === undefined ? {} : { check }) }
         finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main, drop) : finishWorktree(runGit, repo, task, main, drop))
       } catch (error) {
         console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
@@ -256,7 +257,18 @@ export async function syncProject(ctx: MachineContext, project: string): Promise
   const repo = ctx.configStore.current.projects[project]!
   if (isPlain(ctx.configStore.current, project)) return null
   const remotes = (await runGit(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
-  return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, ctx.branchOf(project))
+  return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, ctx.branchOf(project), mergeCheck(ctx, project, repo))
+}
+
+/**
+ * The project's `commands.check` on main merged with another machine's commits, before its push (BTN-995): only for a
+ * project several tasks run at once (`width` above 1), whose lanes may push from different machines.
+ */
+function mergeCheck(ctx: MachineContext, project: string, repo: string): MergeCheck | undefined {
+  const settings = ctx.configStore.current.settings[project]
+  const commands = settings?.check ?? []
+  if ((settings?.width ?? 1) <= 1 || commands.length === 0) return undefined
+  return { run: () => runCheck(commands, ctx.taskRun(project, repo, ctx.choiceFor(project).account)) }
 }
 
 export function wireKeepWarm(ctx: MachineContext): KeepWarm {

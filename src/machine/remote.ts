@@ -67,6 +67,9 @@ interface Waiter {
   reject: (error: Error) => void
 }
 
+/** The commands that run under the lock of main: they sync it with its remote. */
+const LOCKED = new Set([COMMAND_PREFIX + 'finish', COMMAND_PREFIX + 'sync'])
+
 type Outcome = { value: unknown } | { error: Error | ((type: string) => Error) }
 type Place = { project?: string | undefined; folder?: string | undefined }
 
@@ -171,6 +174,19 @@ export class RemoteMachine {
       }
       return this.ask(`${group}.${name}`, place, args)
     })
+  }
+
+  /**
+   * The machine went off the link: the lock of main it held goes with the connection (BTN-995). A cleanup or a sync of
+   * main it ran is let go with `machine.lockLost`, so the hub's chain is not held until the machine is back; the cleanup
+   * tries the sync again on that machine (`Cleanups`). Other calls keep waiting for their results, which come after a break.
+   */
+  lost(): void {
+    for (const [seq, waiter] of this.waiters) {
+      if (!LOCKED.has(waiter.type)) continue
+      this.waiters.delete(seq)
+      waiter.reject(fail('machine.lockLost', { command: waiter.type }))
+    }
   }
 
   /** Tells the machine which account folders another machine polls and the newest limits of their accounts (BTN-991). */

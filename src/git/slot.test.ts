@@ -303,6 +303,8 @@ describe('finishSlot', () => {
       'push origin --delete abc-7/task',
       'config --get alias.sync',
       'sync',
+      'rev-parse --verify --quiet main',
+      'rev-parse --verify --quiet main^{tree}',
     ])
   })
 

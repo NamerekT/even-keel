@@ -771,9 +771,9 @@ export class Dispatcher {
         }
       }
 
-      // Only the project's head lane fixes main and carries a release project in (BTN-993).
+      // Only the project's head lane carries a release project in (BTN-993); the lane `fixer` chose fixes main (BTN-995).
       const head = lanesOf(this.state, chain.project)[0] === chain
-      const fix = head ? this.main?.sessionFix(chain.project) : undefined
+      const fix = this.fixes?.fixer(chain.project) === chain ? this.main?.sessionFix(chain.project) : undefined
       // A carry goes after the current task and the one a fix interrupted, before the next by the chain's order (BTN-369).
       const carry = head && fix === undefined && chain.interrupted === undefined ? this.carries.due(chain.project) : undefined
       const own = fix ?? carry

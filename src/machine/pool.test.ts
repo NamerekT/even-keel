@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HandoffSession } from '../chain/relay.js'
+import { fail, noticeOf } from '../notice/notice.js'
 import { machinePool, type PoolDeps } from './pool.js'
 import type { MachinePort } from './port.js'
 
@@ -51,7 +52,7 @@ describe('machinePool', () => {
     expect(await pool.launch('p', 'A-1')).toBe('server')
     expect(pool.busy('A-1')).toBe('server')
     expect(pool.liveSession('A-1')).toBe('server')
-    expect(await pool.finish('p', 'A-1')).toBe('server')
+    expect((await pool.finish('p', 'A-1')).machine).toBe('server')
     expect(pool.account('p', 'A-1')).toBe('server')
     expect(calls.every(([machine]) => machine === 'server')).toBe(true)
   })
@@ -70,6 +71,27 @@ describe('machinePool', () => {
     expect(await pool.launchFix('p', 'fix', 'red')).toBe('own')
     expect(pool.sessionsRead()).toBe('own')
     expect(pool.trackerMissing('p')).toBe('own')
+  })
+
+  it('names the machine a cleanup ran on, the own one for a task whose machine is gone (BTN-995)', async () => {
+    const { pool } = poolOf()
+    expect((await pool.finish('p', 'A-3')).machine).toBe('own')
+    expect((await pool.finish('p', 'A-2')).machine).toBe('own')
+  })
+
+  it('gives a cleanup cut off by the machine leaving the link as a sync to try again there (BTN-995)', async () => {
+    const lost = fail('machine.lockLost', { command: 'port.finish' })
+    const away = { finish: () => Promise.reject(lost) } as unknown as MachinePort
+    const { pool } = poolOf({ port: (machine) => (machine === 'server' ? away : fakePort(machine, [])) })
+    expect(await pool.finish('p', 'A-1')).toEqual({ warnings: [], syncError: noticeOf(lost), machine: 'server' })
+  })
+
+  it('syncs and reads main on the machine named, and runs a fix bound to a machine there (BTN-995)', async () => {
+    const { pool } = poolOf({ machineOf: (_project, task) => (task === 'P-FIX' ? 'pc' : undefined) })
+    expect(await pool.sync('p', 'server')).toBe('server')
+    expect(await pool.head('p', 'server')).toBe('server')
+    expect(await pool.tree('p', 'abc', 'server')).toBe('server')
+    expect(await pool.launchFix('p', 'P-FIX', 'red')).toBe('pc')
   })
 
   it('finds a session\'s machine for stop and locate, a folder\'s for changes', async () => {

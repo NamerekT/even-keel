@@ -7,7 +7,7 @@ import { fail, notice, type Notice } from '../notice/notice.js'
 import { samePath, shownUnder } from '../paths.js'
 import { taskRemote } from './push.js'
 import { requireStarted } from './setup.js'
-import { syncMain } from './sync.js'
+import { syncMain, type MergeCheck } from './sync.js'
 import type { FinishOutcome, Git, GitResult, TaskPlace } from './types.js'
 
 export type { FinishOutcome, Git, GitResult, TaskPlace }
@@ -118,11 +118,12 @@ export async function catchUp(git: Git, path: string, main = 'main'): Promise<bo
 /**
  * How a task's branch goes after it (BTN-205): `force` — deleted though not merged into main (the pull request was
  * merged on the forge, or closed); `remote` — the remote it was pushed to, by default the one task branches go to
- * (`taskRemote`: `origin`, else the first).
+ * (`taskRemote`: `origin`, else the first). `check` — the merge check of the sync of main after it (`syncMain`).
  */
 export interface BranchDrop {
   force?: boolean
   remote?: string
+  check?: MergeCheck
 }
 
 export async function finishWorktree(git: Git, repo: string, task: string, main = 'main', drop: BranchDrop = {}): Promise<FinishOutcome> {
@@ -212,7 +213,7 @@ export async function dropBranch(
   branch: string | null,
   warnings: Notice[],
   main = 'main',
-  { force = false, remote: named }: BranchDrop = {},
+  { force = false, remote: named, check }: BranchDrop = {},
 ): Promise<FinishOutcome> {
   let gone: string | null = null
   if (branch !== null) {
@@ -229,7 +230,13 @@ export async function dropBranch(
   }
 
   if (remotes.length === 0) return { warnings, syncError: null }
-  return { warnings, syncError: await syncMain(git, repo, remotes, main) }
+  const syncError = await syncMain(git, repo, remotes, main, check)
+  if (syncError !== null) return { warnings, syncError }
+  const commit = await git(repo, ['rev-parse', '--verify', '--quiet', main])
+  const tree = await git(repo, ['rev-parse', '--verify', '--quiet', `${main}^{tree}`])
+  const known = commit.code === 0 && tree.code === 0 && commit.out.trim() !== '' && tree.out.trim() !== ''
+  const pushed = known ? { main: { commit: commit.out.trim(), tree: tree.out.trim() } } : {}
+  return { warnings, syncError, ...pushed }
 }
 
 async function deleteOnRemote(git: Git, repo: string, remote: string, branch: string): Promise<Notice | null> {

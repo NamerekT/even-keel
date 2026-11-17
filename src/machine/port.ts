@@ -54,8 +54,11 @@ export interface MachinePort {
 
   /** Command. Cleans up after the task; `pull` — after a task whose pull request was closed. */
   finish: (project: string, task: string, pull?: PullCleanup) => Promise<FinishOutcome>
-  /** Command. Syncs the project's main the way the cleanup does (`syncMain`): the next try of a sync that could not reach a remote. */
-  sync: (project: string) => Promise<Notice | null>
+  /**
+   * Command. Syncs the project's main the way the cleanup does (`syncMain`): the next try of a sync that could not reach
+   * a remote. `machine` — the pool's only: the machine whose cleanup failed to sync (`FinishOutcome.machine`).
+   */
+  sync: (project: string, machine?: string) => Promise<Notice | null>
   /** Command. Prepares the place of the next task while the chain waits; its launch then reuses it. */
   prepare: (project: string, task: string) => Promise<void>
   /** Command. Runs the project's check on main in the place of the task about to start, which keeps it for the launch. */
@@ -65,10 +68,10 @@ export interface MachinePort {
    * elsewhere's clone, whose main is first brought up to `commit` by fast-forward (BTN-994).
    */
   runAfterGreen: (project: string, commit: string, forward?: boolean) => Promise<AfterGreenRun>
-  /** Query. The commit main is at in the project's checkout; `null` — unknown. */
-  head: (project: string) => Promise<string | null>
-  /** Query. The tree of a commit; `null` — unknown. */
-  tree: (project: string, commit: string) => Promise<string | null>
+  /** Query. The commit main is at in the project's checkout; `null` — unknown. `machine` — the pool's only: whose checkout. */
+  head: (project: string, machine?: string) => Promise<string | null>
+  /** Query. The tree of a commit; `null` — unknown. `machine` — the pool's only: whose checkout. */
+  tree: (project: string, commit: string, machine?: string) => Promise<string | null>
   /** Query. Whether the branch of the task, or of the fix session, is in main with commits of its own. */
   merged: (project: string, task: string) => Promise<boolean>
   /** Query. Whether the project's main branch has the commit: the carry's release commit is in. */

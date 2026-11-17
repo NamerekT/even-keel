@@ -11,22 +11,36 @@ const SYNC_RETRY_MS = [30_000, 120_000]
 
 /** A sync of main after a done task that could not reach a remote, awaiting its next try. */
 interface SyncRetry {
+  project: string
   task: string
+  /**
+   * The machine whose cleanup failed to sync (`FinishOutcome.machine`): its main holds the commits, so it gets the
+   * tries. One that went off the link mid-cleanup is waited for, its tries not counted until it is back (BTN-995).
+   */
+  machine?: string
   /** The tree the check before the task's merge reported, for the verdict once main is pushed (`MainCheck.reportedTree`). */
   tree: string | null
   /** The tries after the cleanup's own one. */
   tries: number
   /** When the next try is due, ms. */
   due: number
+  /** What the last try failed with. */
+  error?: Notice
 }
+
+const retryKey = (project: string, machine: string | undefined): string => `${project}\0${machine ?? ''}`
+
+/** A sync that may go through later: a remote out of reach, or a machine that went off the link mid-sync (BTN-995). */
+const retryable = (error: Notice): boolean => isNetworkFailure(error) || error.code === 'machine.lockLost'
 
 /** The cleanup after tasks the chain no longer leads: released ones once they are done, and ones whose pull request was closed. */
 export class Cleanups {
   /** The project's released tasks the tracker says are done, awaiting their cleanup. */
   readonly done = new Map<string, Set<string>>()
   /**
-   * By project. In memory: the chain goes on meanwhile, the next cleanup's sync takes the place of one awaiting its try,
-   * and after a restart the sync of the next done task pushes what this one could not.
+   * By project and machine (`retryKey`). In memory: the chain goes on meanwhile, the next cleanup's sync on the same
+   * machine takes the place of one awaiting its try, and after a restart the sync of the next done task there pushes
+   * what this one could not.
    */
   private readonly syncRetries = new Map<string, SyncRetry>()
 
@@ -73,14 +87,23 @@ export class Cleanups {
     const tree = this.main?.reportedTree(project, task) ?? null
     const outcome = await this.cleanUp(project, task, this.reviews.cleanupOf(project, task))
     this.reviews.closedUp(project, task)
-    this.syncRetries.delete(project)
-    if (outcome.syncError !== null && isNetworkFailure(outcome.syncError)) {
-      this.keepOutcome(project, task, { ...outcome, syncError: null })
-      this.retrySync(project, { task, tree, tries: 0, due: 0 }, outcome.syncError)
+    this.syncRetries.delete(retryKey(project, outcome.machine))
+    if (outcome.syncError !== null && retryable(outcome.syncError)) {
+      this.keepOutcome(project, task, { warnings: outcome.warnings, syncError: null })
+      const machine = outcome.machine === undefined ? {} : { machine: outcome.machine }
+      this.retrySync({ project, task, tree, tries: 0, due: 0, ...machine }, outcome.syncError)
       return
     }
     this.keepOutcome(project, task, outcome)
-    if (outcome.syncError === null) await this.main?.pushed(project, task, tree)
+    if (outcome.syncError === null) await this.main?.pushed(project, task, tree, outcome)
+  }
+
+  /** The machine of the retry is off the link now and not revoked: its tries wait for it. */
+  private awayFrom(retry: SyncRetry): boolean {
+    const machines = this.deps.machines
+    if (machines === undefined || retry.machine === undefined || retry.machine === machines.own()) return false
+    if (machines.gone?.(retry.machine) === true) return false
+    return !machines.list().some(({ id }) => id === retry.machine)
   }
 
   /**
@@ -88,23 +111,32 @@ export class Cleanups {
    * refused, becomes the cleanup's warning; one that goes through is pushed as the cleanup would have pushed it.
    */
   private async retrySyncs(): Promise<void> {
-    for (const [project, retry] of this.syncRetries) {
-      if (this.deps.now().getTime() < retry.due) continue
+    for (const [key, retry] of this.syncRetries) {
+      const { project } = retry
+      if (this.deps.now().getTime() < retry.due || this.awayFrom(retry)) continue
+      if (retry.machine !== undefined && this.deps.machines?.gone?.(retry.machine) === true) {
+        this.syncRetries.delete(key)
+        this.deps.log(`git: sync of ${project} after ${retry.task} is not tried again: machine ${retry.machine} was revoked`)
+        this.keepOutcome(project, retry.task, { warnings: [], syncError: retry.error ?? notice('machine.lockLost', { command: 'sync' }) })
+        this.deps.save(this.state)
+        continue
+      }
       retry.tries++
       let error: Notice | null
       try {
-        error = await this.deps.machine.sync(project)
+        error = await this.deps.machine.sync(project, retry.machine)
       } catch (failure) {
         error = noticeOf(failure)
       }
       if (error === null) {
-        this.syncRetries.delete(project)
+        this.syncRetries.delete(key)
         this.deps.log(`git: sync of ${project} after ${retry.task} went through on try ${retry.tries + 1}`)
-        await this.main?.pushed(project, retry.task, retry.tree)
-      } else if (isNetworkFailure(error) && retry.tries < SYNC_RETRY_MS.length) {
-        this.retrySync(project, retry, error)
+        await this.main?.pushed(project, retry.task, retry.tree, retry.machine === undefined ? {} : { machine: retry.machine })
+      } else if (retryable(error) && (error.code === 'machine.lockLost' || retry.tries < SYNC_RETRY_MS.length)) {
+        if (error.code === 'machine.lockLost') retry.tries--
+        this.retrySync(retry, error)
       } else {
-        this.syncRetries.delete(project)
+        this.syncRetries.delete(key)
         this.deps.log(`git: sync of ${project} after ${retry.task} failed on try ${retry.tries + 1}: ${englishOf(error)}`)
         this.keepOutcome(project, retry.task, { warnings: [], syncError: error })
         this.deps.save(this.state)
@@ -112,12 +144,13 @@ export class Cleanups {
     }
   }
 
-  private retrySync(project: string, retry: SyncRetry, error: Notice): void {
+  private retrySync(retry: SyncRetry, error: Notice): void {
     const wait = SYNC_RETRY_MS[retry.tries]!
     retry.due = this.deps.now().getTime() + wait
-    this.syncRetries.set(project, retry)
+    retry.error = error
+    this.syncRetries.set(retryKey(retry.project, retry.machine), retry)
     const failed = retry.tries === 0 ? 'failed' : `failed on try ${retry.tries + 1}`
-    this.deps.log(`git: sync of ${project} after ${retry.task} ${failed}, trying again in ${wait / 1000} s: ${englishOf(error)}`)
+    this.deps.log(`git: sync of ${retry.project} after ${retry.task} ${failed}, trying again in ${wait / 1000} s: ${englishOf(error)}`)
   }
 
   /** A task whose pull request was closed unmerged: its place and branch go, main is not pushed, the task stays open. */

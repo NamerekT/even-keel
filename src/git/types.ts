@@ -17,6 +17,10 @@ export interface TaskPlace {
 export interface FinishOutcome {
   warnings: Notice[]
   syncError: Notice | null
+  /** The commit and tree main went out at, read on the machine that pushed it (BTN-995); absent — not pushed or unknown. */
+  main?: { commit: string; tree: string }
+  /** The machine the cleanup ran on, which holds main's commits if its sync failed; set by the machine pool. */
+  machine?: string
 }
 
 /** What a task's folder holds beyond the main branch: the commits of its branch, and the files left out of a commit. */

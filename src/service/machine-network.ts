@@ -339,6 +339,7 @@ export class MachineNetwork {
       tally: (machine, rows) => peers.tally?.(machine, rows) ?? Promise.resolve({ taken: false }),
       online: (machine) => changed(machine, true),
       offline: (machine) => {
+        this.peers.get(machine)?.remote.lost()
         changed(machine, false)
         peers.changed()
       },

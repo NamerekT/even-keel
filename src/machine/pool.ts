@@ -1,4 +1,5 @@
 import type { HandoffSession } from '../chain/relay.js'
+import { noticeOf } from '../notice/notice.js'
 import type { MovesPort } from './move-call.js'
 import type { MachinePort } from './port.js'
 
@@ -35,6 +36,7 @@ export function machinePool(deps: PoolDeps): MachinePort {
     return port
   }
   const own = () => at(undefined)
+  const idOf = (machine: string | undefined): string => (machine !== undefined && deps.port(machine) !== undefined ? machine : deps.own())
   const byTask = (project: string | undefined, task: string | undefined): MachinePort =>
     at(project === undefined || task === undefined ? undefined : deps.machineOf(project, task))
   const ofTask = (task: string): MachinePort => byTask(deps.projectOf(task), task)
@@ -43,7 +45,8 @@ export function machinePool(deps: PoolDeps): MachinePort {
 
   return {
     launch: (project, task, extra, brief) => byTask(project, task).launch(project, task, extra, brief),
-    launchFix: (project, name, report, reran) => own().launchFix(project, name, report, reran),
+    // The chain binds the fix to the machine it chose (BTN-995); unbound, it runs on the own one.
+    launchFix: (project, name, report, reran) => byTask(project, name).launchFix(project, name, report, reran),
     launchCarry: (project, name, report) => own().launchCarry(project, name, report),
     resume: (task, session) => ofTask(task).resume(task, session),
     reply: (task, session, prompt) => ofTask(task).reply(task, session, prompt),
@@ -51,13 +54,24 @@ export function machinePool(deps: PoolDeps): MachinePort {
     stop: (session) => ofSession(session).stop(session),
     locate: (session) => ofSession(session).locate(session),
 
-    finish: (project, task, pull) => byTask(project, task).finish(project, task, pull),
-    sync: (project) => own().sync(project),
+    // The machine that cleaned up holds main's commits if its sync failed: its next try goes there (BTN-995).
+    // One that went off the link mid-cleanup is such a sync too (`RemoteMachine.lost`).
+    finish: async (project, task, pull) => {
+      const machine = idOf(deps.machineOf(project, task))
+      try {
+        return { ...(await at(machine).finish(project, task, pull)), machine }
+      } catch (error) {
+        const failure = noticeOf(error)
+        if (failure.code !== 'machine.lockLost') throw error
+        return { warnings: [], syncError: failure, machine }
+      }
+    },
+    sync: (project, machine) => at(machine).sync(project),
     prepare: (project, task) => byTask(project, task).prepare(project, task),
     checkMain: (project, task, commit) => byTask(project, task).checkMain(project, task, commit),
     runAfterGreen: (project, commit) => own().runAfterGreen(project, commit),
-    head: (project) => own().head(project),
-    tree: (project, commit) => own().tree(project, commit),
+    head: (project, machine) => at(machine).head(project),
+    tree: (project, commit, machine) => at(machine).tree(project, commit),
     merged: (project, task) => byTask(project, task).merged(project, task),
     carried: (project, commit) => own().carried(project, commit),
     changes: (project, workdir) => at(deps.folderMachine(workdir)).changes(project, workdir),

@@ -231,6 +231,7 @@ export const noticesRu: NoticeTexts = {
   'sync.fetch': (p) => `не удалось получить ${p.remote}`,
   'sync.merge': (p) => `${p.remote}/${p.main} не сливается в ${p.main} чисто — слейте вручную`,
   'sync.push': (p) => `не удалось отправить ${p.main} в ${p.remote}`,
+  'sync.checkRed': (p) => `${p.main} после слияния с коммитами другой машины не проходит проверку проекта (${p.command} завершилась с кодом ${p.code}); он не отправлен — слейте вручную`,
 
   'forward.busy': (p) => `цепочка ${p.into} работает — релизная ветка вольётся, когда она затихнет`,
   'forward.notOnBranch': (p) => `${p.repo} стоит на ${p.current || 'отцепленном HEAD'}, а не на ${p.branch} — релизная ветка ждёт`,
@@ -554,6 +555,7 @@ export const noticesRu: NoticeTexts = {
   'machine.commandRefused': (p) =>
     `машина отказалась выполнять ${p.command}: ${p.reason === 'project' ? 'она не соглашалась обслуживать этот проект' : 'папка вне согласованных для проекта'}`,
   'machine.commandInterrupted': (p) => `машина остановилась посреди ${p.command} и не выполняет её повторно`,
+  'machine.lockLost': (p) => `машина пропала со связи посреди ${p.command}; синхронизация main повторится, когда она вернётся`,
   'reassign.notHeld': (p) => `${p.task} не держит другая машина: переносить нечего`,
   'reassign.machineOnline': (p) => `${p.task} на машине ${p.machine}, она на связи: цепочка продолжает задачу там`,
   'reassign.noRemote': (p) => `у репозитория проекта нет удалённого: ветка ${p.task} не дойдёт до другой машины`,

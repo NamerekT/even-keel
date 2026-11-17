@@ -267,7 +267,14 @@ describe('finishWorktree', () => {
       'push origin --delete abc-7/task',
       'config --get alias.sync',
       'sync',
+      'rev-parse --verify --quiet main',
+      'rev-parse --verify --quiet main^{tree}',
     ])
+  })
+
+  it('returns the commit and the tree main went out at', async () => {
+    const { git } = fakeGit({ ...clean, 'rev-parse --verify --quiet main': { out: 'abc123\n' }, 'rev-parse --verify --quiet main^{tree}': { out: 'tree9\n' } })
+    expect(await finishWorktree(git, repo, 'ABC-7')).toEqual({ warnings: [], syncError: null, main: { commit: 'abc123', tree: 'tree9' } })
   })
 
   it('forces the branch of a pull request off, here and on the remote it was pushed to', async () => {

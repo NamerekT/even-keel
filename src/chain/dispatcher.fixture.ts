@@ -219,8 +219,8 @@ export function setup(options: SetupOptions = {}) {
         if (pull !== undefined) pulled[id] = pull
         return options.finish?.(id) ?? { warnings: [], syncError: null }
       },
-      sync: async (project) => {
-        synced.push(project)
+      sync: async (project, machine) => {
+        synced.push(machine === undefined ? project : `${project}@${machine}`)
         return options.sync?.(project) ?? null
       },
       launchBlock: () => undefined,
