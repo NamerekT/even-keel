@@ -1,7 +1,7 @@
 export { wireChangelogs, wireBriefed, wireWithProject } from './chain-prompts.js'
 import { deferLeftFolder, midTurn, type stopTaskSessions } from './cleanup.js'
 export { deferLeftFolder, STOP_RETRY_MS, stopLingering, stopTaskSessions } from './cleanup.js'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { type AccountHome } from '../account/homes.js'
 import { accountAt } from '../account/ledger.js'
@@ -535,6 +535,7 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
       return chainQuiet(ctx.dispatcher.state.active.find((chain) => chain.project === project), (task) => status(task) === 'busy' || status(task) === 'waiting')
     },
     git: runGit,
+    read: (repo, path) => readFile(join(repo, path), 'utf8').catch(() => null),
     sync: ctx.syncProject,
     now: () => new Date(),
     changed: () => ctx.hub.broadcastSoon('state', ctx.getState),

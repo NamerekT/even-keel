@@ -1,6 +1,7 @@
 import type { Git } from '../git/types.js'
 import { englishOf, fail, notice, type Notice, type NoticeError } from '../notice/notice.js'
 import type { ForwardView } from '../state.js'
+import { readConflict } from './conflict.js'
 import type { ActiveChain } from './model.js'
 
 /** A release project and the project whose branch its own one merges into (`mergeInto`). */
@@ -22,6 +23,8 @@ export interface ForwardDeps {
   /** Whether nothing of the project's chain may merge into its branch now (`chainQuiet`). */
   quiet: (project: string) => boolean
   git: Git
+  /** A file of the checkout as text, `null` — unreadable: the conflict's lines are counted in it. */
+  read: (repo: string, path: string) => Promise<string | null>
   /** Pushes the project's branch the way the cleanup after Done does (`syncMain`). */
   sync: (project: string) => Promise<Notice | null>
   now: () => Date
@@ -141,7 +144,9 @@ export class ForwardMerger {
     const before = this.views.get(from)
     const view: ForwardView = { into, behind: before?.behind ?? null, hold: before?.hold ?? null, held: before?.held ?? false }
     if (before?.last !== undefined) view.last = before.last
+    if (before?.conflict !== undefined) view.conflict = before.conflict
     await this.carryInto(view, from, now)
+    if (!view.held) delete view.conflict
     if (JSON.stringify(view) !== JSON.stringify(before)) {
       this.views.set(from, view)
       this.deps.changed()
@@ -182,7 +187,10 @@ export class ForwardMerger {
     const merged = await git(repo, ['merge', '--no-edit', '-m', `Merge branch '${this.deps.branch(from)}' of ${this.deps.label(from)} into ${branch}`, ref])
     if (merged.code !== 0) {
       const files = (await git(repo, ['diff', '--name-only', '--diff-filter=U'])).out.split(/\r?\n/).filter((line) => line.trim() !== '')
+      const conflict = files.length > 0 ? await readConflict(git, repo, files, (path) => this.deps.read(repo, path)) : undefined
       await git(repo, ['merge', '--abort'])
+      if (conflict === undefined) delete view.conflict
+      else view.conflict = conflict
       const hold =
         files.length > 0 ? notice('forward.conflict', { from, into, files }, { detail: merged.out }) : notice('forward.failed', { from, into }, { detail: merged.out })
       this.deps.log(`forward: ${files.length > 0 ? englishOf(hold) : `${englishOf(hold)}: ${merged.out.trim()}`}`)

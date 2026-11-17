@@ -17,7 +17,10 @@ const fetchPush = (remote: string) => `fetch --no-tags --quiet ${remote} +refs/h
 const containsCarry = `merge-base --is-ancestor carry-commit ${pushedRef}`
 
 /** An answer given as a list is used up in order, the last one repeating. */
-function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {}, options: { quiet?: boolean; push?: Notice | null; auto?: boolean } = {}) {
+function setup(
+  answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {},
+  options: { quiet?: boolean; push?: Notice | null; auto?: boolean; files?: Record<string, string> } = {},
+) {
   const calls: string[] = []
   const state = {
     quiet: options.quiet ?? true,
@@ -41,6 +44,10 @@ function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]
       calls.push(command)
       const answer = answers[command]
       return { code: 0, out: '', ...(Array.isArray(answer) ? (answer.length > 1 ? answer.shift() : answer[0]) : answer) }
+    },
+    read: async (repo, path) => {
+      expect(repo).toBe(dev)
+      return options.files?.[path] ?? null
     },
     sync: async () => {
       state.syncs += 1
@@ -118,29 +125,38 @@ describe('ForwardMerger', () => {
   })
 
   it('aborts a conflict, holds the forward merge until carry now, and lets the hold go once the dev branch has the commits', async () => {
-    const { merger, calls, state } = setup({
-      [count]: [{ out: '2\n' }, { out: '2\n' }, { out: '2\n' }, { out: '0\n' }],
-      ...onDev,
-      [merge]: [{ code: 1, out: 'CONFLICT (content): Merge conflict in src/a.ts' }, { code: 0 }],
-      'diff --name-only --diff-filter=U': { out: 'src/a.ts\nsrc/b.ts\n' },
-    })
+    const { merger, calls, state } = setup(
+      {
+        [count]: [{ out: '2\n' }, { out: '2\n' }, { out: '2\n' }, { out: '0\n' }],
+        ...onDev,
+        [merge]: [{ code: 1, out: 'CONFLICT (content): Merge conflict in src/a.ts' }, { code: 0 }],
+        'diff --name-only --diff-filter=U': { out: 'src/a.ts\nsrc/b.ts\n' },
+        'ls-files --unmerged -z': { out: ['100644 a 1\tsrc/a.ts', '100644 b 2\tsrc/a.ts', '100644 c 3\tsrc/a.ts', '100644 d 1\tsrc/b.ts', '100644 e 2\tsrc/b.ts', ''].join('\0') },
+      },
+      { files: { 'src/a.ts': '<<<<<<< HEAD\nours\n=======\ntheirs\nmore\n>>>>>>> them\n' } },
+    )
     await merger.tick()
-    expect(calls.slice(-2)).toEqual(['diff --name-only --diff-filter=U', 'merge --abort'])
+    expect(calls.slice(-3)).toEqual(['diff --name-only --diff-filter=U', 'ls-files --unmerged -z', 'merge --abort'])
     expect(state.syncs).toBe(0)
     expect(merger.view().EKR).toMatchObject({
       behind: 2,
       held: true,
       hold: notice('forward.conflict', { from: 'EKR', into: 'BTN', files: ['src/a.ts', 'src/b.ts'] }, { detail: 'CONFLICT (content): Merge conflict in src/a.ts' }),
+      conflict: [
+        { path: 'src/a.ts', lines: 3 },
+        { path: 'src/b.ts', lines: null },
+      ],
     })
 
     calls.length = 0
     await merger.tick()
     expect(calls).toEqual([fetch, count])
-    expect(merger.view().EKR?.held).toBe(true)
+    expect(merger.view().EKR).toMatchObject({ held: true, conflict: [{ path: 'src/a.ts', lines: 3 }, { path: 'src/b.ts', lines: null }] })
 
     await merger.carry('EKR')
     expect(state.syncs).toBe(1)
     expect(merger.view().EKR).toMatchObject({ behind: 0, held: false, hold: null })
+    expect(merger.view().EKR?.conflict).toBeUndefined()
   })
 
   it('holds a merge that failed with no conflicted file as a failure, not a conflict, with git\'s message', async () => {

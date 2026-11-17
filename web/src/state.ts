@@ -645,9 +645,11 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   }
   const liveBlock = (name: string, title: string, at: number, rows: ChainBlock[]): ChainBlock => {
     const id = liveFixId(name, episodes)
-    const seen = ownSession(name)
-    const session = seen !== null && idleBeforePrompt(seen, now) ? { ...seen, lamp: 'working' as const } : seen
     const sessions = state.taskSessions[id] ?? []
+    // A session of the name is the row's only once it runs or is one of this episode's: a carry asked for has none yet.
+    const named = ownSession(name)
+    const seen = named !== null && (name === current || sessions.some((run) => run.sessionId === named.sessionId)) ? named : null
+    const session = seen !== null && idleBeforePrompt(seen, now) ? { ...seen, lamp: 'working' as const } : seen
     return {
       ...fixRow(id, title, taskLamp(undefined, session), rows[at]?.milestone ?? null, session, sessions),
       open: true,

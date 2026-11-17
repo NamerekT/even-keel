@@ -1101,6 +1101,23 @@ describe('chainBlocks', () => {
       expect(fixBlockOf(chainBlocks(live, 'ABC'), 'XYZ-CARRY')).toBe('XYZ-CARRY.1')
     })
 
+    it('shows no session while asked for: the last carry of the same name is not its own (EKR-134)', () => {
+      const old = { ...view('XYZ-CARRY', 'finished', '2026-01-01T09:50:00.000Z'), sessionId: 'old' }
+      const carried = { id: 'XYZ-CARRY.1', red: 'abc1234', at: '2026-01-01T09:30:00.000Z', end: { at: '2026-01-01T10:00:00.000Z', how: 'carried' as const, commit: null, commits: 2 } }
+      const run = { sessionId: 'old', at: '2026-01-01T09:30:00.000Z', how: 'launch' as const, resumed: 0, answers: 0, account: null }
+      const asked = stateOf({
+        tasks,
+        sessions: [old],
+        taskSessions: { 'XYZ-CARRY.1': [run] },
+        fixes: { ABC: [carried] },
+        forwards: { XYZ: forward },
+        chain: chain({ active: running('ABC-2'), projects: order }),
+      })
+      const block = chainBlocks(asked, 'ABC').find((each) => each.id === 'XYZ-CARRY.2')
+      expect(block).toMatchObject({ session: null, sessions: [], lamp: 'ahead' })
+      expect(chainBlocks(asked, 'ABC').find((each) => each.id === 'XYZ-CARRY.1')?.session).toMatchObject({ sessionId: 'old' })
+    })
+
     it('stands among the closed tasks once over, named by the commits it carried', () => {
       const carried = { id: 'XYZ-CARRY.1', red: 'abc1234', at: '2026-01-01T09:30:00.000Z', end: { at: '2026-01-01T10:00:00.000Z', how: 'carried' as const, commit: null, commits: 2 } }
       const dropped = { id: 'XYZ-CARRY.2', red: 'abc1234', at: '2026-01-01T11:30:00.000Z', end: { at: '2026-01-01T12:00:00.000Z', how: 'dropped' as const, commit: null } }

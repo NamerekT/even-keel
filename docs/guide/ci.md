@@ -114,6 +114,8 @@ Press **Resolve with the agent** and a session without a tracker task, `<KEY>-CA
 
 A main project with no chain running gets one for this session alone.
 
+While the row waits for its turn, its panel shows what is to merge: how many commits, how many files conflict and how many lines are inside their conflict blocks, and each file with its lines and a small bar against the largest one, as `git diff --stat` draws it. A file deleted on one side and changed on the other says so. After a restart of Even Keel the panel shows only the commits until the conflict is met again.
+
 **Skip** on that row lets the session go and the conflict waits again.
 
 Turn on **Resolve a conflict with the agent by itself** under **Merges into**, or run unattended, and a conflict goes to that session at once, with no button to press; a session that did not land the carry gets no successor until the release branch moves, and then the carry is tried again.

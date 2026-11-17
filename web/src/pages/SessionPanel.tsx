@@ -34,6 +34,7 @@ import { LimitNotice } from './LimitNotice.js'
 import { NoticeFixButton } from './FixButtons.js'
 import type { LimitRefusal } from './limitMessages.js'
 import { CacheFact, ContextFact, ModelFact, TipValue, TokensFact } from './SessionFacts.js'
+import { CarryWait } from './CarryWait.js'
 import './facts.css'
 
 import type { WindowTask } from './TranscriptWindow.js'
@@ -91,6 +92,8 @@ export function SessionPanel({ block, scale, ci, onCard, onClose, onChatting }: 
     ...(block.subtasks !== undefined && { parent: true }),
   }
 
+  const waitingCarry = waitsToCarry(block)
+
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
   useEffect(() => {
@@ -144,6 +147,8 @@ export function SessionPanel({ block, scale, ci, onCard, onClose, onChatting }: 
             <Feed lines={block.session.feed} sessionId={block.session.sessionId} account={block.session.account} live task={windowTask} onChat={openChat} />
           )}
         </>
+      ) : block.session === null && waitingCarry ? (
+        <CarryWait forward={Object.values(state?.forwards ?? {}).find((view) => view.agent === fixTaskOf(block.id)) ?? null} />
       ) : block.session === null ? (
         <p className="placeholder">{block.sessions.length === 0 ? t.session.none : t.session.noneNow}</p>
       ) : (
@@ -164,6 +169,11 @@ export function SessionPanel({ block, scale, ci, onCard, onClose, onChatting }: 
       )}
     </aside>
   )
+}
+
+/** A carry asked for and not started yet (EKR-134): it shows what it waits to merge instead of a session, and only Skip. */
+function waitsToCarry(block: ChainBlock): boolean {
+  return isCarryName(block.id) && block.fix === undefined && !block.current && block.sessions.length === 0
 }
 
 interface ActionsProps {
@@ -241,8 +251,9 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
   // The runs of the commits a fix of main went from and landed, beside its chat.
   const runs = isFixName(block.id) && ci && block.fix !== undefined
 
-  // "Skip" on the fix of main is only for the session the chain waits on.
-  if (chatSession === null && (!block.open || fix) && block.review === undefined && !runs) return null
+  // "Skip" on the fix of main is only for the session the chain waits on, and on a carry asked for that has none yet.
+  const waitingCarry = waitsToCarry(block)
+  if (chatSession === null && (!block.open || (fix && !waitingCarry)) && block.review === undefined && !runs) return null
   return (
     <>
       <div className="panel__actions">
@@ -268,7 +279,7 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
             {t.ci.chip}
           </Link>
         )}
-        {block.open && (
+        {block.open && !waitingCarry && (
           <PanelButton
             tip={earlyRestart ? quietText! : t.session.restartTitle}
             held={restartHeld}

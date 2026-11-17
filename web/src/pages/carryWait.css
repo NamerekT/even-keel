@@ -1,0 +1,74 @@
+/* A carry waiting for its session (EKR-134): the conflict's files, each a box with its lines and a five-cell bar. */
+
+.carry-wait__files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.carry-wait__file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 32px;
+  padding: var(--space-4) var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.carry-wait__path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: var(--text-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carry-wait__stat {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+/* Figures of one width, right-aligned, so the bars stand in a column. */
+.carry-wait__lines {
+  min-width: 4ch;
+  color: var(--lamp-waiting);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.carry-wait__bar {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.carry-wait__cell {
+  width: 7px;
+  height: 7px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--fg-muted) 30%, transparent);
+}
+
+.carry-wait__cell--on {
+  background: var(--lamp-waiting);
+}
+
+.carry-wait__deleted {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.carry-wait__more {
+  display: block;
+  margin: var(--space-8) 0 0 auto;
+}
