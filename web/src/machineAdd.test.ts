@@ -85,4 +85,12 @@ describe('what the window that adds a machine shows', () => {
       ['codex', 'no cli'],
     ])
   })
+
+  it('marks an account the machine runs on a long token (BTN-1002)', () => {
+    const machine: MachineSignIn = {
+      machine: 'machine-1', name: 'Example laptop', online: true, login: null, missing: [],
+      accounts: [{ key: 'token', agent: 'claude', email: 'john.doe@example.com', signedIn: true, longToken: true }],
+    }
+    expect(machineAccounts([entry()], machine)).toEqual([{ entry: entry(), gap: null, token: true }])
+  })
 })

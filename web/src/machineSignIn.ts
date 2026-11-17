@@ -37,6 +37,19 @@ export function machineGaps(entry: AccountEntry, machines: MachineSignIn[] | und
   })
 }
 
+/**
+ * The machines elsewhere that run the hub's account only on a long token (BTN-1002): no Remote Control there. A machine
+ * with a full sign-in of the account as well is not named.
+ */
+export function machineTokens(entry: AccountEntry, machines: MachineSignIn[] | undefined): Array<{ machine: string; name: string }> {
+  const email = entry.status?.loggedIn === true ? entry.status.email : null
+  if (email === null) return []
+  return (machines ?? []).flatMap((machine) => {
+    const own = machine.accounts.filter((each) => each.agent === entry.agent && each.signedIn && sameEmail(each.email, email))
+    return own.length > 0 && own.every((each) => each.longToken === true) ? [{ machine: machine.machine, name: machine.name }] : []
+  })
+}
+
 /** The machine's sign-in under way, the first if several; `undefined` — none. */
 export function machineLogin(machines: MachineSignIn[] | undefined): MachineSignIn | undefined {
   return machines?.find((machine) => machine.login !== null)

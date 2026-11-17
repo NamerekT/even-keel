@@ -12,6 +12,21 @@ export interface AccountTie {
   skipped?: true
 }
 
+/**
+ * What the machine says of a Claude folder: the account of its full sign-in, else the hub's account its long token was
+ * said to be of (BTN-1002) — `auth status` on a token names none; `undefined` — neither is known.
+ */
+export function accountTie(
+  signed: { account: string; email: string | null } | undefined,
+  token: { account: string; email: string | null } | undefined,
+  polls: boolean,
+  skipped: boolean,
+): AccountTie | undefined {
+  const of = signed ?? token
+  if (of === undefined) return undefined
+  return { account: of.account, email: of.email, polls, ...(skipped && { skipped: true as const }) }
+}
+
 /** What the hub tells a machine of its account folders (the command `limits.plan`); a part left out did not change. */
 export interface LimitsPlan {
   /** The folders whose account another machine polls: the whole list. */

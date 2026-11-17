@@ -107,6 +107,8 @@ const COMMANDS: Record<string, Command> = {
     body.method === undefined ? undefined : textOf(body.method, 'method'),
   ),
   'machines/code': ({ machines }, body) => machines?.code(textOf(body.machine, 'machine'), codeOf(body)),
+  'machines/token': ({ machines }, body) =>
+    machines?.token(textOf(body.machine, 'machine'), textOf(body.account, 'account'), textOf(body.token, 'token'), typeof body.name === 'string' ? body.name : ''),
   'machines/cancel': ({ machines }, body) => machines?.cancel(textOf(body.machine, 'machine')),
   // The page sends its language: on the first run none is chosen yet, and the demo speaks the one the person reads.
   'demo/start': async ({ demo }, body) => void (await demo?.start(isLanguage(body.language) ? body.language : undefined)),

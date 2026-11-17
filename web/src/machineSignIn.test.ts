@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineSignIn } from '../../src/state.js'
-import { machineGaps, machineLogin, machineSend } from './machineSignIn.js'
+import { machineGaps, machineLogin, machineSend, machineTokens } from './machineSignIn.js'
 
 const hub = (patch: Partial<AccountEntry> = {}): AccountEntry => ({
   key: 'john.doe@example.com', name: null, global: false, agent: 'claude',
@@ -39,6 +39,19 @@ describe('a hub account on the machines elsewhere', () => {
     expect(machineGaps(hub({ cloud: { cloud: 'bedrock' } as unknown as AccountEntry['cloud'] }), machines)).toEqual([])
     expect(machineGaps(hub({ longToken: { until: null } }), machines)).toEqual([])
     expect(machineGaps(hub(), undefined)).toEqual([])
+  })
+
+  it('names the machines that run the account on a long token, and none where a full sign-in is there too (BTN-1002)', () => {
+    const onToken = { key: 'token', agent: 'claude', email: 'john.doe@example.com', signedIn: true, longToken: true as const }
+    const full = { key: 'full', agent: 'claude', email: 'john.doe@example.com', signedIn: true }
+    const machines = [
+      machine({ accounts: [onToken] }),
+      machine({ machine: 'machine-2', accounts: [onToken, full] }),
+      machine({ machine: 'machine-3', accounts: [{ ...onToken, email: 'jane.roe@example.com' }] }),
+      machine({ machine: 'machine-4', accounts: [{ ...onToken, signedIn: false }] }),
+    ]
+    expect(machineTokens(hub(), machines)).toEqual([{ machine: 'machine-1', name: 'Example laptop' }])
+    expect(machineGaps(hub(), machines).map((gap) => gap.machine)).toEqual(['machine-3', 'machine-4'])
   })
 
   it("finds the machine's sign-in under way and sends its steps to that machine", async () => {

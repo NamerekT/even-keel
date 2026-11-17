@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { CLAUDE } from '../claude/name.js'
 import { AccountIdentities } from '../limits/identity.js'
-import type { AccountTie } from '../limits/polls.js'
+import { accountTie, type AccountTie } from '../limits/polls.js'
 import { MachineEnd, type FolderMarks, type HubTransport } from '../link/machine.js'
 import type { MachineStore } from '../link/machine-store.js'
 import type { MachineAbout } from '../link/protocol.js'
@@ -142,8 +142,8 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       for (const home of machine.homes.all()) {
         if (home.agent !== CLAUDE) continue
         const signed = identities.of(machine.homes.configFile(home))
-        if (signed === undefined) continue
-        ties[home.key] = { ...signed, polls: machine.limits.pollable(home.key), ...(machine.limits.skipped(home.key) && { skipped: true as const }) }
+        const tie = accountTie(signed, machine.account.longToken(home.key)?.account, machine.limits.pollable(home.key), machine.limits.skipped(home.key))
+        if (tie !== undefined) ties[home.key] = tie
       }
       return ties
     },

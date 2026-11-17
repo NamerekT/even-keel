@@ -202,6 +202,12 @@
   font-size: var(--text-13);
 }
 
+.add-machine__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
 .add-machine__done .icon {
   width: 14px;
   height: 14px;

@@ -1,7 +1,7 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fail } from '../notice/notice.js'
-import type { LongToken } from './model.js'
+import type { LongToken, TokenAccountOf } from './model.js'
 import { OAUTH_TOKEN_VARIABLE } from './share.js'
 
 /** What Even Keel knows of a folder's long token beside the token itself; kept in the account folder, never in git. */
@@ -38,20 +38,36 @@ function tokenIn(dir: string): string | null {
 export function readLongToken(dir: string): LongToken | null {
   if (tokenIn(dir) === null) return null
   const kept = readObject(join(dir, LONG_TOKEN_FILE))
+  const account = accountOf(kept.account)
   return {
     until: typeof kept.until === 'string' ? kept.until : null,
     ...(typeof kept.sameAs === 'string' && kept.sameAs !== '' && { sameAs: kept.sameAs }),
+    ...(account !== undefined && { account }),
     ...(typeof kept.refusedAt === 'string' && { refusedAt: kept.refusedAt }),
   }
 }
 
+function accountOf(value: unknown): TokenAccountOf | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const { account, email } = value as Record<string, unknown>
+  if (typeof account !== 'string' || account === '') return undefined
+  return { account, email: typeof email === 'string' && email !== '' ? email : null }
+}
+
+/** Whose the token is, beside the token: the folder of the same account here, the hub's account it was said to be of. */
+export type TokenTie = Pick<LongToken, 'sameAs' | 'account'>
+
 /** The token into the folder's `settings.json`, the rest of the file as it was, and a year from `now` as its last day. */
-export function writeLongToken(dir: string, token: string, now: Date, sameAs?: string): void {
+export function writeLongToken(dir: string, token: string, now: Date, tie: TokenTie = {}): void {
   const file = join(dir, 'settings.json')
   const settings = readObject(file)
   const env = typeof settings.env === 'object' && settings.env !== null ? (settings.env as Record<string, unknown>) : {}
   writeFileSync(file, JSON.stringify({ ...settings, env: { ...env, [OAUTH_TOKEN_VARIABLE]: token } }, null, 2))
-  const kept: LongToken = { until: new Date(now.getTime() + VALID_MS).toISOString(), ...(sameAs !== undefined && { sameAs }) }
+  const kept: LongToken = {
+    until: new Date(now.getTime() + VALID_MS).toISOString(),
+    ...(tie.sameAs !== undefined && { sameAs: tie.sameAs }),
+    ...(tie.account !== undefined && { account: tie.account }),
+  }
   writeFileSync(join(dir, LONG_TOKEN_FILE), JSON.stringify(kept, null, 2))
 }
 

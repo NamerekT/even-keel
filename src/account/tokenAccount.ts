@@ -1,6 +1,7 @@
 import { CLAUDE } from '../claude/name.js'
 import { fail } from '../notice/notice.js'
 import type { AccountHome, AccountHomes } from './homes.js'
+import type { TokenAccountOf } from './model.js'
 import { assertLongToken, restoreLongToken, takeLongToken, writeLongToken } from './longToken.js'
 
 export interface TokenAccounts {
@@ -13,8 +14,8 @@ export interface TokenAccounts {
 const reasonOf = (reason: unknown) => (reason instanceof Error ? reason.message : String(reason)).slice(0, 500)
 
 /** The folder with a full sign-in the token is said to be of: a Claude folder that is on no token itself. */
-function sameAccount(homes: AccountHomes, key: string | undefined): string | undefined {
-  if (key === undefined || key === '') return undefined
+function sameAccount(homes: AccountHomes, key: string | null | undefined): string | undefined {
+  if (key === undefined || key === null || key === '') return undefined
   const home = homes.find(key)
   if (home === undefined || home.agent !== CLAUDE || homes.longTokenOf(home) !== null) throw fail('account.unknown', { key })
   return key
@@ -22,12 +23,19 @@ function sameAccount(homes: AccountHomes, key: string | undefined): string | und
 
 /**
  * A subscription account on a long token (BTN-1005): the folder is made, one short turn runs on it, and a refusal
- * removes it again, so no account is added that cannot run a session.
+ * removes it again, so no account is added that cannot run a session. `account` — the hub's account a machine's token
+ * is of (BTN-1002); `sameAs` may come as null through the link.
  */
-export async function addTokenAccount(accounts: TokenAccounts, name: string, token: string, sameAs?: string): Promise<AccountHome> {
+export async function addTokenAccount(
+  accounts: TokenAccounts,
+  name: string,
+  token: string,
+  sameAs?: string | null,
+  account?: TokenAccountOf | null,
+): Promise<AccountHome> {
   const value = assertLongToken(token)
   const same = sameAccount(accounts.homes, sameAs)
-  const home = accounts.homes.addLongToken(name, value, accounts.now(), same)
+  const home = accounts.homes.addLongToken(name, value, accounts.now(), { ...(same !== undefined && { sameAs: same }), ...(account != null && { account }) })
   try {
     await accounts.check(home)
   } catch (reason) {
@@ -45,8 +53,11 @@ export async function replaceToken(accounts: TokenAccounts, home: AccountHome, t
   const value = assertLongToken(token)
   const held = home.global ? null : takeLongToken(home.dir)
   if (held === null) throw fail('account.keyNotHeld', { agent: home.agent })
-  const sameAs = accounts.homes.longTokenOf(home)?.sameAs
-  writeLongToken(home.dir, value, accounts.now(), sameAs)
+  const known = accounts.homes.longTokenOf(home)
+  writeLongToken(home.dir, value, accounts.now(), {
+    ...(known?.sameAs !== undefined && { sameAs: known.sameAs }),
+    ...(known?.account !== undefined && { account: known.account }),
+  })
   try {
     await accounts.check(home)
   } catch (reason) {

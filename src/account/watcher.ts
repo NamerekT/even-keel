@@ -32,6 +32,7 @@ import {
   type AccountLogin,
   type AccountView,
   type ReadBalance,
+  type TokenAccountOf,
 } from './model.js'
 
 const MAX_OUTPUT_CHARS = 16 * 1024
@@ -393,8 +394,8 @@ export class AccountWatcher {
   }
 
   /** A subscription account on a long token of `claude setup-token`, checked by one short turn (`addTokenAccount`). */
-  async addLongToken(name: string, token: string, sameAs?: string): Promise<void> {
-    const home = await addTokenAccount(this.tokens, name, token, sameAs)
+  async addLongToken(name: string, token: string, sameAs?: string | null, account?: TokenAccountOf | null): Promise<void> {
+    const home = await addTokenAccount(this.tokens, name, token, sameAs, account)
     this.options.name(home.key, name)
     this.claimShared(home)
     await this.refresh()

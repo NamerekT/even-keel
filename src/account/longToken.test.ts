@@ -26,9 +26,16 @@ describe('a long token of an account folder', () => {
   it('keeps the token in settings.json, a year ahead and the folder of the same account next to it', () => {
     expect(readLongToken(dir)).toBeNull()
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ model: 'opus', env: { OTHER: '1' } }))
-    writeLongToken(dir, TOKEN, NOW, 'full')
+    writeLongToken(dir, TOKEN, NOW, { sameAs: 'full' })
     expect(settings()).toEqual({ model: 'opus', env: { OTHER: '1', CLAUDE_CODE_OAUTH_TOKEN: TOKEN } })
     expect(readLongToken(dir)).toEqual({ until: '2027-11-15T10:00:00.000Z', sameAs: 'full' })
+  })
+
+  it('keeps the account it was said to be of, and drops a malformed one', () => {
+    writeLongToken(dir, TOKEN, NOW, { account: { account: 'uuid-1', email: null } })
+    expect(readLongToken(dir)).toEqual({ until: '2027-11-15T10:00:00.000Z', account: { account: 'uuid-1', email: null } })
+    writeFileSync(join(dir, LONG_TOKEN_FILE), JSON.stringify({ until: null, account: { email: 'john.doe@example.com' } }))
+    expect(readLongToken(dir)).toEqual({ until: null })
   })
 
   it('reads a folder set up by hand as a token with no known last day', () => {
@@ -50,7 +57,7 @@ describe('a long token of an account folder', () => {
   })
 
   it('puts the old token and its file back after a new one failed', () => {
-    writeLongToken(dir, TOKEN, NOW, 'full')
+    writeLongToken(dir, TOKEN, NOW, { sameAs: 'full' })
     const held = takeLongToken(dir)!
     writeLongToken(dir, `${TOKEN}-new`, new Date('2026-12-01T00:00:00.000Z'))
     restoreLongToken(dir, held)
