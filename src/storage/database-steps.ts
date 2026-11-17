@@ -709,4 +709,9 @@ export const STEPS: readonly string[] = [
   alter table machines add column joined_at bigint;
   alter table machines add column about text;
   `,
+  // The capacity of a machine elsewhere (BTN-993, `docs/machines.md`, "The pool"): how many of the hub's tasks it runs
+  // at once; `null` — 1, so that the rows of a copy made before this step go in. The hub's own machine takes `parallel`.
+  `
+  alter table machines add column capacity integer;
+  `,
 ]

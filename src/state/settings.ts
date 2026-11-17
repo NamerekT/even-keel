@@ -61,6 +61,8 @@ export interface ProjectSettings {
   fillMilestone: boolean
   /** The project's own milestone order by label (BTN-792), read only: `project/milestone-order` writes it; empty — automatic. */
   milestoneOrder?: string[]
+  /** How many of the project's tasks run at once, each on a machine with a free place (BTN-993); the form leaves it alone. */
+  width?: number
   /** The README badge (BTN-915): the project's form leaves it alone, the badge dialog writes it (`project/badge`); `null` — none. */
   badge?: import('../badge/model.js').BadgeSettings | null
   /** The changelog file, relative to the repository's root (BTN-209). */

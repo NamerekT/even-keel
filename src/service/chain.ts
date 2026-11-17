@@ -163,6 +163,7 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
     archiveClosed: ctx.archiveClosed,
     projects: () => Object.keys(ctx.configStore.current.projects),
     parallel: () => ctx.configStore.current.parallel,
+    machines: ctx.machineLink.machines,
     rules: ctx.rulesOf,
     fillsMilestone: (project) => ctx.configStore.current.settings[project]?.fillMilestone ?? false,
     milestoneOrder: (project) => ctx.configStore.current.settings[project]?.milestoneOrder ?? [],

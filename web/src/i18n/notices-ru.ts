@@ -664,6 +664,7 @@ export const noticesRu: NoticeTexts = {
   'config.feedRules': (p) => `${p.where} должен быть объектом правил цепочки (${p.keys.join(', ')}), каждое — список имён; active и terminal могут быть null`,
   'config.statusMoves': (p) => `${p.where} должен быть объектом имён статусов: start и review — имя или null, done — имя`,
   'config.milestoneOrder': (p) => `${p.where} должен быть списком названий вех`,
+  'config.width': (p) => `${p.where} должен быть целым числом задач, не меньше 1`,
   'config.badge': (p) =>
     `${p.where} должен быть null или { on, url, slug, fields }: on — true или false, url — адрес http(s), slug — строчные буквы, цифры и дефисы, fields — известные поля бейджа`,
   'badge.url': () => 'Адрес Worker\'а должен начинаться с https://, например https://even-keel-badge.example.workers.dev',

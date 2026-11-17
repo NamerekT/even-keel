@@ -19,7 +19,7 @@ describe('Even Keel settings HTTP routes', () => {
   })
 
   // These read-only fields have dedicated routes and are not forwarded by project/settings.
-  const { protection, notices, milestoneOrder, badge, ...defaults } = projectFormDefaults()
+  const { protection, notices, milestoneOrder, badge, width, ...defaults } = projectFormDefaults()
   const chain = { ...defaults.chain, terminal: ['Done'], excludedLabels: ['Manual'] }
   const form = { ...defaults, name: 'Web shop', branch: 'master', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' },remoteProfiles: { forgejo: 'own' } }
 

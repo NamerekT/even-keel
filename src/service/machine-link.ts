@@ -5,7 +5,7 @@ import { launchLine } from '../chain/log.js'
 import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-notes.js'
 import { saveSnapshot } from '../chain/snapshots.js'
 import { AccountPolls } from '../limits/polls.js'
-import { listenOf, localUrlOf } from '../config.js'
+import { listenOf, localUrlOf, runSettings } from '../config.js'
 import { root } from '../locations.js'
 import { installed } from '../updates/watcher.js'
 import { machinesPortOf } from '../link/address.js'
@@ -25,6 +25,10 @@ import type { FolderOwner, MachineEnd } from '../link/machine.js'
 import type { PageReads } from '../machine/page.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
+import { machinePool } from '../machine/pool.js'
+import { chainMachines } from '../machine/chain-machines.js'
+import type { ChainMachines } from '../chain/model.js'
+import type { AssignedTask } from '../tracker/source.js'
 import { LAUNCH_EVENT, type MachineRecords, saveMachineRecord } from '../machine/records.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { settleMail } from '../sessions/mailRelay.js'
@@ -50,8 +54,10 @@ const FIRST_SNAPSHOT_MS = 30_000
 const PUBLISH_EVERY_MS = 5_000
 
 export interface LinkedMachine {
-  /** The hub's side of the port: what the chain is given. */
+  /** The hub's side of the port: what the chain is given, each call routed to the machine of its task (`machinePool`). */
   port: MachinePort
+  /** The machines the chain's lanes run on (BTN-993). */
+  machines: ChainMachines
   assignments: Assignments
   records: MachineRecords
   /** What the page and the chat read of the machine's sessions and accounts: its mirror, never the machine's objects. */
@@ -127,6 +133,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       else await machineStore.withdraw(project)
     }
     await fillPool(ctx.db, own, Object.keys(projects))
+    await network.refresh()
     agreedFor = signature
   }
 
@@ -186,6 +193,9 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     },
     leftover: (project: string, task: string, notice: Notice) => ctx.dispatcher.leftover(project, task, notice),
     transcript: (sessionId: string) => ctx.hub.signal('transcript', { sessionId }),
+    assigned: (project: string, task: string) => assignments.assign(project, task, machine()),
+    released: (project: string, task: string) => assignments.release(project, task),
+    held: (named: ReadonlySet<string>, live: AssignedTask[]) => assignments.reconcile(machine(), named, live),
     log,
   })
 
@@ -193,9 +203,6 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     ...remoteOf(() => own),
     send: (machine, command) => hub.send(machine, command),
     machine: () => own,
-    assigned: (project, task) => assignments.assign(project, task, own),
-    released: (project, task) => assignments.release(project, task),
-    held: (named, live) => assignments.reconcile(own, named, live),
     catchUp,
     stopped: (session) => {
       const launch = ctx.launches.findLast((entry) => entry.sessionId === session.sessionId)
@@ -314,9 +321,38 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   for (const [project, owner] of heldBy) end.hold(project, owner)
   let publishing: ReturnType<typeof setInterval> | undefined
   const services = remote.services()
+  const ownPort = remote.port()
+  const pageOf = (machine: string): PageReads | undefined => (machine === own ? remote.page : network.remote(machine)?.page)
+  const port = machinePool({
+    own: () => own,
+    port: (machine) => (machine === own ? ownPort : network.port(machine)),
+    machineOf: (project, task) => assignments.machineOf(project, task),
+    projectOf: ctx.projectOf,
+    sessionMachine: (sessionId) => {
+      if (remote.page.sessions().some((view) => view.sessionId === sessionId)) return own
+      const holder = network.holderOf(sessionId)
+      if (holder !== undefined) return holder
+      const launch = ctx.launches.findLast((entry) => entry.sessionId === sessionId)
+      return launch === undefined ? undefined : assignments.machineOf(launch.project, launch.task)
+    },
+    folderMachine: (folder) => (remote.page.sessions().some((view) => samePath(view.cwd, folder)) ? own : network.folderHolder(folder)),
+  })
+  const chain = chainMachines({
+    own: () => own,
+    parallel: () => ctx.configStore.current.parallel,
+    peers: () => network.takers(),
+    pool: (project) => network.poolOf(project),
+    width: (project) => ctx.configStore.current.settings[project]?.width ?? 1,
+    machineOf: (project, task) => assignments.machineOf(project, task),
+    revoked: (machine) => network.revoked(machine),
+    agentOf: (project, task) => ctx.runsOfProject(project)[task]?.provider ?? runSettings(ctx.configStore.current, project).provider,
+    agents: (machine) => pageOf(machine)?.panel()?.accounts.map((entry) => entry.agent),
+    bind: (project, task, machine) => assignments.assign(project, task, machine),
+  })
 
   return {
-    port: remote.port(),
+    port,
+    machines: chain,
     assignments,
     records,
     page: remote.page,

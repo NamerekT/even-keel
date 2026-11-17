@@ -15,7 +15,9 @@ import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
 import type { HubBrief } from '../machine/brief.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { RemoteMachine, type RemoteDeps } from '../machine/remote.js'
+import type { MachinePort } from '../machine/port.js'
 import type { MachineServices } from '../machine/services.js'
+import { samePath } from '../paths.js'
 import type { Queryable } from '../storage/database.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { BriefSender } from './hub-brief.js'
@@ -31,7 +33,7 @@ const SESSIONS_READ_EVENT = 'sessions.read'
  */
 export interface NetworkPeers {
   /** The hub's port of the machine, but how it sends and whom it stands for. */
-  remote: (machine: string) => Omit<RemoteDeps, 'send' | 'machine' | 'catchUp' | 'changed' | 'held'>
+  remote: (machine: string) => Omit<RemoteDeps, 'send' | 'machine' | 'catchUp' | 'changed'>
   /** The hub's brief for a machine whose projects are those of its pool, each in its folder there. */
   brief: (folders: Record<string, string>) => HubBrief
   /** A machine's facts or connection changed: the limits are planned again. */
@@ -46,6 +48,10 @@ export interface NetworkPeers {
 
 interface Peer {
   remote: RemoteMachine
+  /** The chain's port of the machine (`MachinePool`). */
+  port: MachinePort
+  /** How many of the hub's tasks it runs at once, read at each snapshot. */
+  capacity: number
   briefs: BriefSender
   /** The folders of the machine's pool, read before each brief. */
   folders: Record<string, string>
@@ -104,6 +110,9 @@ export class MachineNetwork {
   private readonly peers = new Map<string, Peer>()
   /** By machine and project, the machine whose mark holds the project's folder there; kept in memory, told again at the next assignment. */
   private readonly taken = new Map<string, Map<string, TakenFolder>>()
+  /** The machines revoked here and, by project, its pool turned on: read by `refresh`, so the chain asks without a query. */
+  private revokedIds = new Set<string>()
+  private pools = new Map<string, string[]>()
 
   constructor(private readonly options: MachineNetworkOptions) {
     this.hub = new HubEnd({
@@ -132,6 +141,52 @@ export class MachineNetwork {
   /** The mirror of a machine elsewhere; `undefined` — it has not posted a snapshot since the hub started. */
   remote(machine: string): RemoteMachine | undefined {
     return this.peers.get(machine)?.remote
+  }
+
+  /** The chain's port of a machine elsewhere; `undefined` — it has not posted a snapshot since the hub started, or was revoked. */
+  port(machine: string): MachinePort | undefined {
+    return this.peers.get(machine)?.port
+  }
+
+  /** The machines elsewhere that take the chain's tasks now: online, their sessions read (BTN-993). */
+  takers(): Array<{ id: string; capacity: number }> {
+    return [...this.peers].flatMap(([id, peer]) =>
+      this.hub.connected(id) && peer.remote.facts()?.sessionsRead === true ? [{ id, capacity: peer.capacity }] : [])
+  }
+
+  /** The machines of the project's pool, turned on, as `refresh` last read them. */
+  poolOf(project: string): readonly string[] {
+    return this.pools.get(project) ?? []
+  }
+
+  revoked(machine: string): boolean {
+    return this.revokedIds.has(machine)
+  }
+
+  /** The machine elsewhere one of whose sessions works in the folder; `undefined` — none of them. */
+  folderHolder(folder: string): string | undefined {
+    for (const [machine, peer] of this.peers) if (peer.remote.page.sessions().some((view) => samePath(view.cwd, folder))) return machine
+    return undefined
+  }
+
+  /** Reads the revoked machines and the projects' pools anew: at the start and after each change of them. */
+  async refresh(): Promise<void> {
+    const machines = await this.options.store.listMachines()
+    this.revokedIds = new Set(machines.filter((record) => record.revokedAt !== null).map((record) => record.id))
+    const { rows } = await this.options.db.query<{ project_id: string; machine_id: string }>('select project_id, machine_id from project_machines where enabled order by machine_id')
+    const pools = new Map<string, string[]>()
+    for (const row of rows) pools.set(row.project_id, [...(pools.get(row.project_id) ?? []), row.machine_id])
+    this.pools = pools
+  }
+
+  /** How many of the hub's tasks the machine runs at once (BTN-993). */
+  async setCapacity(machine: string, capacity: number): Promise<void> {
+    const record = await this.foreign(machine)
+    if (!Number.isInteger(capacity) || capacity < 1) throw fail('request.required', { field: 'capacity' })
+    await this.options.store.setCapacity(record.id, capacity)
+    const peer = this.peers.get(record.id)
+    if (peer !== undefined) peer.capacity = capacity
+    this.options.changed()
   }
 
   /**
@@ -238,7 +293,9 @@ export class MachineNetwork {
     return {
       snapshot: async (machine, snapshot) => {
         const peer = this.peer(machine, peers)
-        peer.name = (await this.options.store.machine(machine))?.name ?? machine
+        const record = await this.options.store.machine(machine)
+        peer.name = record?.name ?? machine
+        peer.capacity = record?.capacity ?? 1
         peers.connected(machine)
         // A new connection may be a new process of the machine, which holds no brief yet.
         peer.briefs.forget()
@@ -274,7 +331,7 @@ export class MachineNetwork {
       machine: () => machine,
       changed: () => peers.changed(),
     })
-    const made: Peer = { remote, folders: {}, name: machine, briefs: new BriefSender(() => peers.brief(made.folders), (brief) => remote.tellBrief(brief)) }
+    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, name: machine, briefs: new BriefSender(() => peers.brief(made.folders), (brief) => remote.tellBrief(brief)) }
     peer = made
     this.peers.set(machine, peer)
     return peer
@@ -354,7 +411,7 @@ export class MachineNetwork {
 
   /** Opens or closes the listener by the setting as it is now; called at the start and at every change of the settings. */
   apply(): Promise<void> {
-    this.applying = this.applying.then(() => this.applyNow()).catch((error: unknown) => {
+    this.applying = this.applying.then(() => this.refresh()).then(() => this.applyNow()).catch((error: unknown) => {
       this.options.log(`machines: the listener for machines did not start: ${error instanceof Error ? error.message : String(error)}`)
     })
     return this.applying
@@ -399,6 +456,7 @@ export class MachineNetwork {
     await this.hub.revoke(record.id)
     this.peers.delete(record.id)
     this.taken.delete(record.id)
+    this.revokedIds.add(record.id)
     this.options.log(`machines: machine ${record.id} (${record.name}) was revoked`)
     this.options.changed()
   }
@@ -440,6 +498,7 @@ export class MachineNetwork {
       this.taken.get(record.id)?.delete(project)
       await this.hub.send(record.id, { type: ASSIGN_COMMAND, project, folder: folderUnder(root, repo!) })
     }
+    await this.refresh()
     this.options.log(`machines: machine ${record.id} (${record.name}) was given ${projects.length} project(s)`)
     if (this.hub.connected(record.id)) void this.brief(record.id)
     this.options.changed()

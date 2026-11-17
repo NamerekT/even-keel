@@ -18,6 +18,8 @@ export interface MachineRecord {
   joinedAt: number | null
   /** What the machine told about itself last (BTN-1242). */
   about: MachineAbout | null
+  /** How many of the hub's tasks the machine runs at once (BTN-993); absent — a store before step 56, which counts 1. */
+  capacity?: number
 }
 
 export type NewMachine = Pick<MachineRecord, 'id' | 'name' | 'secretHash' | 'createdAt'> & { inviteExpires?: number }
@@ -33,6 +35,7 @@ export interface HubStore {
   /** The machine joined with its string: its own secret replaces the string's, once. `false` — it had joined already. */
   joined(id: string, secretHash: string, about: MachineAbout, at: number): Promise<boolean>
   described(id: string, about: MachineAbout): Promise<void>
+  setCapacity(id: string, capacity: number): Promise<void>
   /** Keeps the command under the machine's next number. */
   addCommand(id: string, command: Command, at: number): Promise<number>
   commandsAfter(id: string, seq: number): Promise<NumberedCommand[]>
@@ -51,6 +54,7 @@ interface MachineRow {
   invite_expires?: string | null
   joined_at?: string | null
   about?: string | null
+  capacity?: number | null
 }
 
 const countOf = (value: string | null | undefined): number | null => (value === null || value === undefined ? null : Number(value))
@@ -68,6 +72,7 @@ function recordOf(row: MachineRow): MachineRecord {
     inviteExpires: countOf(row.invite_expires),
     joinedAt: countOf(row.joined_at),
     about: row.about === null || row.about === undefined ? null : (JSON.parse(row.about) as MachineAbout),
+    ...(row.capacity === undefined ? {} : { capacity: row.capacity ?? 1 }),
   }
 }
 
@@ -115,6 +120,10 @@ export class DatabaseHubStore implements HubStore {
 
   async described(id: string, about: MachineAbout): Promise<void> {
     await this.db.query('update machines set about = $2 where id = $1', [id, JSON.stringify(about)])
+  }
+
+  async setCapacity(id: string, capacity: number): Promise<void> {
+    await this.db.query('update machines set capacity = $2 where id = $1', [id, capacity])
   }
 
   addCommand(id: string, command: Command, at: number): Promise<number> {

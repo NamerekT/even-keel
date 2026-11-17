@@ -41,6 +41,11 @@ export class MemoryHubStore implements HubStore {
     if (found !== undefined) found.about = about
   }
 
+  async setCapacity(id: string, capacity: number) {
+    const found = this.machines.get(id)
+    if (found !== undefined) found.capacity = capacity
+  }
+
   async revoke(id: string, at: number) {
     const found = this.machines.get(id)
     if (found !== undefined && found.revokedAt === null) found.revokedAt = at

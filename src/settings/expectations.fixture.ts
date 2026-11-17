@@ -33,6 +33,7 @@ const project: ProjectSettings = {
   carryAgent: false,
   git: true,
   milestoneOrder: [],
+  width: 1,
   badge: null,
   changelog: 'CHANGELOG.md',
   standards: [],

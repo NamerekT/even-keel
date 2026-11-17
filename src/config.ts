@@ -411,6 +411,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     carryAgent: values.carryAgent as boolean,
     fillMilestone: values.fillMilestone as boolean,
     milestoneOrder: values.milestoneOrder as string[],
+    width: values.width as number,
     badge: values.badge as BadgeSettings | null,
     changelog: values.changelog as string,
     standards: values.standards as Standard[],
