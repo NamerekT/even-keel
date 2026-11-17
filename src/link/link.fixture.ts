@@ -5,7 +5,7 @@ import type { Consent, MachineStore } from './machine-store.js'
 import {
   bearerOf, isRefusal, parseToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand, type Refusal,
-  type SnapshotPost,
+  type HookAnswer, type HookPost, type HookRequest, type SnapshotPost,
 } from './protocol.js'
 
 export const HUB_ADDRESS = 'https://hub.example.com:4750'
@@ -232,6 +232,10 @@ export class Wire implements HubTransport {
     return this.carry(async () => carried(await this.hub.mcp(this.authorization, carried(post))))
   }
 
+  async hook(post: HookPost): Promise<HookAnswer | Refusal> {
+    return this.carry(async () => carried(await this.hub.hook(this.authorization, carried(post))))
+  }
+
   private async carry<T>(call: () => Promise<T>): Promise<T> {
     if (this.down) throw new Error('the hub is unreachable')
     if (this.hang) return new Promise<T>(() => {})
@@ -252,6 +256,7 @@ export async function bench() {
   const ran: NumberedCommand[] = []
   const refuseEvents = { on: false }
   const asked: { machine: string; request: McpRequest }[] = []
+  const hooked: { machine: string; request: HookRequest }[] = []
   const hub = new HubEnd({
     store: hubStore,
     log: (line) => log.push(line),
@@ -267,6 +272,10 @@ export async function bench() {
         asked.push({ machine, request })
         return { status: 200, headers: { 'content-type': 'application/json' }, body: `{"echo":${JSON.stringify(request.path)}}` }
       },
+      hook: async (machine, request) => {
+        hooked.push({ machine, request })
+        return { status: 200, body: `{"echo":${JSON.stringify(request.path)}}` }
+      },
     },
   })
   const token = parseToken(await hub.issue('Example server', HUB_ADDRESS, FINGERPRINT))!
@@ -280,5 +289,5 @@ export async function bench() {
     log: (line) => log.push(line),
     ...options,
   })
-  return { hub, hubStore, machineStore, wire, token, machine, log, taken, snapshots, presence, ran, refuseEvents, asked }
+  return { hub, hubStore, machineStore, wire, token, machine, log, taken, snapshots, presence, ran, refuseEvents, asked, hooked }
 }

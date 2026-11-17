@@ -4,8 +4,10 @@ import { listenOf, mcpPortOf } from './config.js'
 import { stopOnSignals } from './diagnostics/stop.js'
 import { runGit } from './git/run.js'
 import { DatabaseMachineStore, MACHINE_DIR, openMachineDatabase, storedHub, storedRoot } from './link/machine-store.js'
+import type { MachineEnd } from './link/machine.js'
 import { httpsTransport } from './link/machine-transport.js'
 import { parseToken } from './link/protocol.js'
+import { HookReceiver } from './machine/hook-receiver.js'
 import { loadEnv, root, stateDirOf } from './locations.js'
 import { machineAbout } from './machine/about.js'
 import { folderMarks } from './machine/marks.js'
@@ -45,13 +47,22 @@ const version = installed(root).version
 
 const writes = new Writes((text) => console.warn(text))
 const tell = laterTell()
+// There is no page here: the sessions' hooks ask this receiver at the page's port, and it carries them to the hub's page.
+let linked: { end: MachineEnd } | undefined
+let accounts: (() => unknown) | undefined
+const receiver = new HookReceiver({
+  forward: async (request) => linked?.end.hook(request),
+  account: () => accounts?.() ?? null,
+  log,
+})
+await receiver.start(listenOf(process.env).port)
 const { host, machine } = await assembleMachineHost({
   machineDb,
   stateDir,
   writes,
   env: process.env,
   envFile: loadEnv(),
-  listen: () => listenOf(process.env),
+  listen: () => receiver.address,
   mcpPort: () => mcpPortOf(process.env),
   tell,
   planFirst: true,
@@ -67,6 +78,8 @@ const side = wireMachineSide(machine, {
   changed: (end) => keepContact(end.status().state === 'online', end.contact()),
   log,
 })
+linked = side
+accounts = () => machine.account.view
 const contact = setInterval(() => keepContact(side.end.status().state === 'online', side.end.contact()), CONTACT_EVERY_MS)
 contact.unref()
 
@@ -100,6 +113,7 @@ stopOnSignals(async () => {
   await Promise.allSettled([host.packages.close(), machine.writes.settled(), writes.settled()])
   await side.end.flushed().catch(() => {})
   side.end.stop()
+  await receiver.close()
   await machineDb.close()
   await held.release()
 }, SHUTDOWN_MS)

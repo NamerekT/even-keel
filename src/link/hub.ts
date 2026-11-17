@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import type { HubStore, MachineRecord } from './hub-store.js'
 import {
   API_VERSION, HEARTBEAT_MS, INVITE_MS, MISSED_PULSES, credentialsOf, encodeToken,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type JoinAnswer, type JoinPost, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
+  type Command, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type JoinAnswer, type JoinPost, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
   type McpRequest, type Refusal, type SnapshotPost,
 } from './protocol.js'
 
@@ -29,6 +29,8 @@ export interface HubHandlers {
   offline?(machine: string): void
   /** A session's request to an MCP server of the hub, carried by the machine's gateway (BTN-990). */
   mcp?(machine: string, request: McpRequest): Promise<McpAnswer>
+  /** A session's hook asking the hub's page, carried from the machine's receiver (BTN-1260). */
+  hook?(machine: string, request: HookRequest): Promise<HookAnswer>
 }
 
 export interface HubOptions {
@@ -201,14 +203,23 @@ export class HubEnd {
    * may take minutes, and the machine's events and pulse must not wait behind it. It counts as the machine's pulse.
    */
   async mcp(authorization: string | undefined, post: McpPost): Promise<McpAnswer | Refusal> {
+    const handler = this.options.handlers.mcp
+    return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.request) ?? { status: 404, headers: {}, body: '' })
+  }
+
+  /** A session's hook asking the hub's page (BTN-1260): as `mcp`, not queued and counted as the machine's pulse. */
+  async hook(authorization: string | undefined, post: HookPost): Promise<HookAnswer | Refusal> {
+    const handler = this.options.handlers.hook
+    return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.request) ?? { status: 404, body: '' })
+  }
+
+  private async asked<T>(authorization: string | undefined, connection: string, answer: (machine: string) => Promise<T> | T): Promise<T | Refusal> {
     const known = await this.known(authorization)
     if (known === undefined) return { refused: 'token' }
     const live = this.live.get(known.id)
-    if (live === undefined || live.connection !== post.connection) return { refused: 'connection' }
+    if (live === undefined || live.connection !== connection) return { refused: 'connection' }
     this.watch(known.id, live)
-    const handler = this.options.handlers.mcp
-    if (handler === undefined) return { status: 404, headers: {}, body: '' }
-    return handler(known.id, post.request)
+    return answer(known.id)
   }
 
   /** Closes every connection, for the shutdown. */

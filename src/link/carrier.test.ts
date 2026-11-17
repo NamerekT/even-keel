@@ -75,7 +75,11 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
       store: new MemoryHubStore(),
       heartbeatMs,
       log: (line) => log.push(line),
-      handlers: { event: (_machine, event) => void taken.push(event), snapshot: (_machine, snapshot) => void snapshots.push(snapshot) },
+      handlers: {
+        event: (_machine, event) => void taken.push(event),
+        snapshot: (_machine, snapshot) => void snapshots.push(snapshot),
+        hook: async (_machine, request) => ({ status: 200, body: JSON.stringify(request) }),
+      },
     })
     server = createHubServer({ hub, certificate, log: (line) => log.push(line), maxBodyBytes: 4_096 })
     server.on('request', (incoming: IncomingMessage) => requests.push(incoming.url ?? ''))
@@ -130,6 +134,15 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
     await new Promise((resolve) => setTimeout(resolve, 500))
     expect(made.requests.filter((path) => path === STREAM_PATH)).toHaveLength(1)
     expect(machine.status()).toEqual({ state: 'online' })
+  })
+
+  it('carries a hook’s request and the page’s answer over HTTPS (BTN-1260)', async () => {
+    const made = await started()
+    const machine = made.machine()
+    await machine.start()
+    await until(() => machine.status().state === 'online', 'the machine online')
+    const request = { path: '/api/sessions/s-1/checkpoint', method: 'GET' }
+    expect(await machine.hook(request)).toEqual({ status: 200, body: JSON.stringify(request) })
   })
 
   it('answers the stream with the headers that keep a proxy from holding it, each frame at once', async () => {

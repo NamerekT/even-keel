@@ -157,6 +157,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       changed: () => void (steered += 1),
       connected: (machine) => void connected.push(machine),
       mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      hook: () => Promise.resolve({ status: 200, body: '' }),
       write: async (machine, write) => void writes.push([machine, write]),
     }
     const { network, settings } = await started(peers, (line) => lines.push(line))
@@ -222,6 +223,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       changed: () => void (republished += 1),
       connected: () => {},
       mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      hook: () => Promise.resolve({ status: 200, body: '' }),
       write: async () => {},
     }
     const { network, settings } = await started(peers)

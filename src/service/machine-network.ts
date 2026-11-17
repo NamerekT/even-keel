@@ -8,7 +8,7 @@ import type { HubCertificate } from '../link/cert.js'
 import { createHubServer } from '../link/hub-server.js'
 import type { HubStore, MachineRecord } from '../link/hub-store.js'
 import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
-import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken, type McpAnswer, type McpRequest } from '../link/protocol.js'
+import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken, type HookAnswer, type HookRequest, type McpAnswer, type McpRequest } from '../link/protocol.js'
 import type { AddressChoice, MachineSignIn, MachineView, TakenFolder } from '../link/view.js'
 import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
 import type { HubBrief } from '../machine/brief.js'
@@ -38,6 +38,8 @@ export interface NetworkPeers {
   /** A new connection of the machine: what it was told before is not known to hold. */
   connected: (machine: string) => void
   mcp: (machine: string, request: McpRequest) => Promise<McpAnswer>
+  /** A hook of a session on the machine asking the hub's page (BTN-1260). */
+  hook: (machine: string, request: HookRequest) => Promise<HookAnswer>
   write: (machine: string, write: KeptWrite) => Promise<void>
 }
 
@@ -114,6 +116,12 @@ export class MachineNetwork {
       const facts = peer.remote.facts()
       return facts === undefined ? [] : [{ machine, online: this.hub.connected(machine), identities: facts.identities ?? {}, limits: facts.limits }]
     })
+  }
+
+  /** The machine elsewhere whose mirror holds the session; `undefined` — none of them. */
+  holderOf(sessionId: string): string | undefined {
+    for (const [machine, peer] of this.peers) if (peer.remote.page.sessions().some((view) => view.sessionId === sessionId)) return machine
+    return undefined
   }
 
   /** The mirror of a machine elsewhere; `undefined` — it has not posted a snapshot since the hub started. */
@@ -229,6 +237,7 @@ export class MachineNetwork {
         else await this.peer(machine, peers).remote.handlers().event(machine, event)
       },
       mcp: (machine, request) => peers.mcp(machine, request),
+      hook: (machine, request) => peers.hook(machine, request),
       online: () => changed(),
       offline: () => {
         changed()

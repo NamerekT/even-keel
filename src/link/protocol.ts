@@ -5,7 +5,7 @@
 import type { MachineAbout } from './view.js'
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 8
+export const API_VERSION = 9
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -20,6 +20,7 @@ export const STREAM_PATH = '/link/stream'
 export const EVENTS_PATH = '/link/events'
 export const SNAPSHOT_PATH = '/link/snapshot'
 export const MCP_PATH = '/link/mcp'
+export const HOOK_PATH = '/link/hook'
 /** The one post of a connection string: it is exchanged for the machine's own secret (BTN-1242). */
 export const JOIN_PATH = '/link/join'
 
@@ -152,6 +153,28 @@ export interface McpAnswer {
 export interface McpPost {
   connection: string
   request: McpRequest
+}
+
+/**
+ * A session's hook asking Even Keel's page (BTN-1260), carried from the machine's receiver to the hub's page: one of
+ * the routes of `hookRouteOf` (`./hooks.ts`), its path with the query and the body as text.
+ */
+export interface HookRequest {
+  method: string
+  path: string
+  body?: string
+}
+
+/** The page's answer: its status and its JSON body as text. */
+export interface HookAnswer {
+  status: number
+  body: string
+}
+
+/** Not an event and not numbered, as `McpPost`: a lost answer is the hook's to go without. */
+export interface HookPost {
+  connection: string
+  request: HookRequest
 }
 
 /** The events a machine writes about the link itself. */

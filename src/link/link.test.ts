@@ -65,6 +65,19 @@ describe('the hub ↔ machine link', () => {
     expect(asked).toHaveLength(1)
   })
 
+  it('carries a hook’s request to the hub’s page and its answer; none while the hub is away (BTN-1260)', async () => {
+    const { end, wire, hooked, id } = await started()
+    const request = { method: 'POST', path: '/api/sessions/s-1/mail', body: '{"event":"PreToolUse"}' }
+    expect(await end.hook(request)).toEqual({ status: 200, body: '{"echo":"/api/sessions/s-1/mail"}' })
+    expect(hooked).toEqual([{ machine: id, request }])
+    wire.down = true
+    expect(await end.hook(request)).toBeUndefined()
+    wire.down = false
+    end.stop()
+    expect(await end.hook(request)).toBeUndefined()
+    expect(hooked).toHaveLength(1)
+  })
+
   it('numbers the commands per machine and runs them in order', async () => {
     const { hub, id, ran, hubStore } = await started()
     expect(await hub.send(id, { type: 'example.first' })).toBe(1)

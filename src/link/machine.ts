@@ -3,7 +3,7 @@ import { isInside } from '../paths.js'
 import type { Consent, MachineStore } from './machine-store.js'
 import {
   API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, TAKEN_EVENT, isRefusal,
-  type AssignPayload, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
+  type AssignPayload, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
   type Refusal, type SnapshotPost,
 } from './protocol.js'
 
@@ -20,6 +20,7 @@ export interface HubTransport {
   events(post: EventsPost): Promise<EventsAnswer | Refusal>
   snapshot(post: SnapshotPost): Promise<EventsAnswer | Refusal>
   mcp(post: McpPost): Promise<McpAnswer | Refusal>
+  hook(post: HookPost): Promise<HookAnswer | Refusal>
 }
 
 export type LinkState = 'offline' | 'connecting' | 'online'
@@ -181,14 +182,23 @@ export class MachineEnd {
    * A session's request to an MCP server of the hub (BTN-990); `undefined` — the hub is not reachable now: no
    * connection, the post failed or was refused. It does not break the connection: the pulse tells a lost hub.
    */
-  async mcp(request: McpRequest): Promise<McpAnswer | undefined> {
+  mcp(request: McpRequest): Promise<McpAnswer | undefined> {
+    return this.ask('a request to an MCP server of the hub', (connection) => this.options.transport.mcp({ connection, request }))
+  }
+
+  /** A session's hook asking the hub's page (BTN-1260); `undefined` — the hub is not reachable now, as for `mcp`. */
+  hook(request: HookRequest): Promise<HookAnswer | undefined> {
+    return this.ask(`a hook's request ${request.method} ${request.path.split('?')[0]}`, (connection) => this.options.transport.hook({ connection, request }))
+  }
+
+  private async ask<T extends object>(what: string, post: (connection: string) => Promise<T | Refusal>): Promise<T | undefined> {
     const connection = this.connection
     if (connection === undefined || this.state !== 'online') return undefined
     try {
-      const answer = await this.options.transport.mcp({ connection, request })
+      const answer = await post(connection)
       return isRefusal(answer) ? undefined : answer
     } catch (error) {
-      this.options.log(`link: a request to an MCP server of the hub did not get through: ${messageOf(error)}`)
+      this.options.log(`link: ${what} did not get through: ${messageOf(error)}`)
       return undefined
     }
   }

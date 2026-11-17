@@ -5,7 +5,7 @@ import { launchLine } from '../chain/log.js'
 import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-notes.js'
 import { saveSnapshot } from '../chain/snapshots.js'
 import { AccountPolls } from '../limits/polls.js'
-import { listenOf } from '../config.js'
+import { listenOf, localUrlOf } from '../config.js'
 import { root } from '../locations.js'
 import { installed } from '../updates/watcher.js'
 import { machinesPortOf } from '../link/address.js'
@@ -39,6 +39,7 @@ import { loadSessionWindows } from '../storage/context-windows.js'
 import type { ChainContext } from './chain.js'
 import type { ServiceContext } from '../service.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
+import { HubHooks } from './hub-hooks.js'
 import { HubMcp } from './hub-mcp.js'
 import { wireMachineSide } from './machine-side.js'
 
@@ -220,6 +221,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     }
   }
   const hubMcp = new HubMcp({ db: ctx.db, origin: () => ctx.packageHub.hubOrigin, projects: () => Object.keys(ctx.configStore.current.projects), log })
+  const hubHooks = new HubHooks({
+    origin: () => localUrlOf(machine.listen),
+    holder: (session): string | undefined => (remote.page.sessions().some((view) => view.sessionId === session) ? own : network.holderOf(session)),
+    log,
+  })
   const handlers = remote.handlers()
   const hub: HubEnd = new HubEnd({
     store: hubStore,
@@ -273,6 +279,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       },
       connected: (machine) => polls.connected(machine),
       mcp: (machine, request) => hubMcp.relay(machine, request),
+      hook: (machine, request) => hubHooks.relay(machine, request),
       write: (machine, write) => hubMcp.write(machine, write),
     },
     takeOverOwn: async (project, owner) => {
