@@ -130,7 +130,7 @@ export class RemoteMachine {
       sync: (project) => call('sync', { project }, [project]),
       prepare: (project, task) => call('prepare', { project }, [project, task]),
       checkMain: (project, task, commit) => call('checkMain', { project }, [project, task, commit]),
-      runAfterGreen: (project, commit) => call('runAfterGreen', { project }, [project, commit]),
+      runAfterGreen: (project, commit, forward) => call('runAfterGreen', { project }, forward === true ? [project, commit, true] : [project, commit]),
       head: (project) => call('head', { project }, [project]),
       tree: (project, commit) => call('tree', { project }, [project, commit]),
       merged: (project, task) => call('merged', { project }, [project, task]),

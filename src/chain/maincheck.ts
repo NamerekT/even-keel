@@ -453,6 +453,8 @@ export class MainCheck {
     if (this.fixed(gate, push)) delete gate.fix
     this.log(`ci: ${project}: ${shortCommit(push.commit)} ${how}`)
     this.afterGreen(project, gate, push)
+    // The machines elsewhere run theirs beside the own one; no launch waits for them.
+    this.deps.green?.(project, push.commit)
   }
 
   /** The mark goes to the disk before the commands start: one of them may restart the service itself. */

@@ -12,6 +12,7 @@ import { isLanguage } from './language.js'
 import { englishOf, fail, type Notice } from './notice/notice.js'
 import { oauthCallback, PROFILE_QUERIES } from './profiles/routes.js'
 import { guardedServer } from './server-guard.js'
+import { cleanMachineSettings } from './service/machine-settings.js'
 import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
 import { eventWriter, readJsonBody, sendFailure, sendFile, sendJson, serveStatic } from './server-response.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
@@ -105,8 +106,10 @@ const COMMANDS: Record<string, Command> = {
       machine: textOf(body.machine, 'machine'),
       clone: body.clone === true,
       ...(typeof body.folder === 'string' && body.folder.trim() !== '' && { folder: body.folder.trim() }),
+      ...(typeof body.copyFrom === 'string' && body.copyFrom !== '' && { copyFrom: body.copyFrom }),
     }),
   'machines/enable': ({ pool }, body) => pool?.enable(projectOf(body), textOf(body.machine, 'machine'), switchOf(body.enabled, 'enabled')),
+  'machines/settings': ({ pool }, body) => pool?.settings(projectOf(body), textOf(body.machine, 'machine'), cleanMachineSettings(body.settings)),
   'machines/capacity': ({ machinePage }, body) => machinePage?.capacity(textOf(body.machine, 'machine'), body.capacity as number),
   'machines/color': ({ machinePage }, body) => machinePage?.color(textOf(body.machine, 'machine'), body.color === null ? null : textOf(body.color, 'color')),
   'machines/takeOver': ({ machines }, body) => machines?.takeOver(typeof body.machine === 'string' ? body.machine : undefined, textOf(body.project, 'project'), textOf(body.owner, 'owner')),
@@ -205,7 +208,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'project/trust': async ({ settings }, body) => settings.trust(projectOf(body), typeof body.account === 'string' && body.account !== '' ? body.account : null),
   'machines/addresses': async ({ machines }) => machines?.addresses() ?? [],
   'machines/list': async ({ machines }) => (await machines?.list()) ?? [],
-  'machines/pool': async ({ pool }, body) => (await pool?.view(projectOf(body))) ?? { machines: [], others: [] },
+  'machines/pool': async ({ pool }, body) => (await pool?.view(projectOf(body))) ?? { machines: [], others: [], servers: [] },
   'machines/cards': async ({ machineCards }) => (await machineCards?.()) ?? [],
   'machines/view': async ({ machinePage }, body) => {
     if (machinePage === undefined) throw fail('machines.unknown', {})

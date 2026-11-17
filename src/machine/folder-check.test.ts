@@ -20,7 +20,7 @@ const REMOTES = 'config --get-regexp ^remote\\..*\\.url$'
 const ok = (out = ''): GitResult => ({ code: 0, out })
 
 function depsOf(git: Git, extra: Partial<FolderCheckDeps> = {}): FolderCheckDeps {
-  return { git, claudeConfigs: () => [], packages: { installingOf: () => [], unready: () => [] }, ...extra }
+  return { git, claudeConfigs: () => [], packages: { installingOf: () => [], unready: () => [], localStdio: () => [] }, ...extra }
 }
 
 describe('checkFolderStep', () => {
@@ -69,18 +69,32 @@ describe('checkFolderStep', () => {
   it('packages: waits for an installation, then names what is not ready', async () => {
     let installing = ['huly']
     const waits: number[] = []
-    const packages = { installingOf: () => installing, unready: () => [] as string[] }
+    const packages = { installingOf: () => installing, unready: () => [] as string[], localStdio: () => [] }
     const wait = async (ms: number) => {
       waits.push(ms)
       installing = []
     }
     expect(await checkFolderStep(depsOf(gitOf({}), { packages, wait }), 'packages', spec)).toBeNull()
     expect(waits).toHaveLength(1)
-    const stuck = { installingOf: () => ['huly'], unready: () => [] as string[] }
+    const stuck = { installingOf: () => ['huly'], unready: () => [] as string[], localStdio: () => [] }
     expect(await checkFolderStep(depsOf(gitOf({}), { packages: stuck, wait: async () => {}, packagesWaitMs: 0 }), 'packages', spec))
       .toMatchObject({ code: 'pool.packagesInstalling', params: { names: 'huly' } })
-    const unready = { installingOf: () => [], unready: () => ['github', 'huly'] }
+    const unready = { installingOf: () => [], unready: () => ['github', 'huly'], localStdio: () => [] }
     expect(await checkFolderStep(depsOf(gitOf({}), { packages: unready }), 'packages', spec)).toMatchObject({ code: 'pool.packagesUnready', params: { names: 'github, huly' } })
+  })
+
+  it('packages: names a stdio server whose command the machine does not have (BTN-994)', async () => {
+    const servers = [
+      { package: 'files', server: 'files', command: '/opt/example/bin/files-mcp', args: [] },
+      { package: 'browser', server: 'playwright', command: 'node', args: ['/x/cli.js'] },
+    ]
+    const packages = { installingOf: () => [], unready: () => [], localStdio: () => servers }
+    const found = (command: string) => command === 'node'
+    expect(await checkFolderStep(depsOf(gitOf({}), { packages, found }), 'packages', spec)).toMatchObject({
+      code: 'pool.serverMissing',
+      params: { names: 'files/files (/opt/example/bin/files-mcp)' },
+    })
+    expect(await checkFolderStep(depsOf(gitOf({}), { packages, found: () => true }), 'packages', spec)).toBeNull()
   })
 
   it('push: a dry run of the main branch onto itself, refused with git\'s answer', async () => {

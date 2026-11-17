@@ -22,6 +22,7 @@ import { Assignments, fillPool } from '../machine/assignments.js'
 import { ownMachine } from '../machine/own.js'
 import { folderMarks } from '../machine/marks.js'
 import type { FolderOwner, MachineEnd } from '../link/machine.js'
+import type { MachineProjectSettings } from '../link/view.js'
 import type { PageReads } from '../machine/page.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
@@ -50,6 +51,8 @@ import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { HubHooks } from './hub-hooks.js'
 import { HubMcp } from './hub-mcp.js'
 import { wireMachineSide } from './machine-side.js'
+import { PoolAfterGreen } from './pool-after-green.js'
+import { DEFAULT_CI } from '../settings/defaults.js'
 
 export { MACHINE_DIR }
 /** How long the start waits for the machine's first snapshot; past it the chain simply does not step until it comes. */
@@ -60,6 +63,8 @@ const PUBLISH_EVERY_MS = 5_000
 export interface LinkedMachine {
   /** The hub's side of the port: what the chain is given, each call routed to the machine of its task (`machinePool`). */
   port: MachinePort
+  /** The commands after a green main on the machines elsewhere of each pool (BTN-994). */
+  afterGreen: PoolAfterGreen
   /** The machines the chain's lanes run on (BTN-993). */
   machines: ChainMachines
   assignments: Assignments
@@ -159,10 +164,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     }
   }
 
-  /** The hub's brief for a machine serving these projects, each in its folder there. */
-  const briefOf = (folders: Record<string, string>) => hubBrief({
+  /** The hub's brief for a machine serving these projects, each in its folder there with its own values. */
+  const briefOf = (folders: Record<string, string>, settings: Record<string, MachineProjectSettings> = {}) => hubBrief({
     config: () => ctx.configStore.current,
     folders: () => folders,
+    machineSettings: () => settings,
     runsOf: ctx.runsOfProject,
     tasksOf: (project) => (ctx.tasksByProject.get(project) ?? []).map((task) => task.id),
     state: () => ctx.dispatcher.state,
@@ -300,6 +306,9 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     serviceHost: listenOf(process.env).host,
     version: installed(root).version,
     changed: () => ctx.hub.broadcast('machines', { changedAt: Date.now() }),
+    projectSettings: (project) => ctx.configStore.current.settings[project],
+    servers: (project) => ctx.packages.localStdio(project),
+    briefed: (machine) => afterGreen.back(machine),
     peers: {
       remote: (machine) => remoteOf(() => machine),
       brief: briefOf,
@@ -321,6 +330,17 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       const tie = remote.facts()?.identities?.[key]
       return tie === undefined ? undefined : { account: tie.account, email: tie.email }
     },
+    log,
+  })
+
+  const afterGreen = new PoolAfterGreen({
+    own: () => own,
+    pool: (project, machine) => network.afterGreenPool(project, machine),
+    projectsOf: (machine) => network.projectsOf(machine),
+    mark: (project, machine, commit) => network.markAfterGreen(project, machine, commit),
+    ready: (machine) => network.connected(machine) && network.versionOf(machine) === installed(root).version,
+    port: (machine) => network.port(machine),
+    green: (project) => ((ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI).guard ? ctx.dispatcher.state.ci[project]?.green : undefined),
     log,
   })
 
@@ -387,6 +407,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
 
   return {
     port,
+    afterGreen,
     machines: chain,
     assignments,
     reassigner,

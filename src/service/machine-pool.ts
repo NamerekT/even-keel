@@ -1,6 +1,7 @@
 import type { Remote } from '../ci/remote.js'
 import { JOIN_KIND, type JoinRequest } from '../jobs/model.js'
 import type { JobPlan, StepDef } from '../jobs/runner.js'
+import type { MachineProjectSettings } from '../link/view.js'
 import { FOLDER_STEPS, throwOf, type FolderSpec } from '../machine/folder-check.js'
 import { fail } from '../notice/notice.js'
 import { folderUnder, insideRoot, type MachineNetwork, type PoolTarget } from './machine-network.js'
@@ -36,6 +37,8 @@ export interface ConnectRequest {
   clone: boolean
   /** The machine becomes the project's only one: the wizard's choice of where a new project runs. */
   only?: boolean
+  /** A machine of the pool whose own values in the project the machine takes, before the checks (BTN-994). */
+  copyFrom?: string
 }
 
 /** The remote a machine clones from: `origin`, else the first. */
@@ -80,7 +83,7 @@ export function connectSteps(deps: ConnectDeps, project: () => string, target: P
     id: 'machine-place',
     run: async () => {
       const each = await prepared()
-      if (await deps.network.place(target, each.project, each.folder)) inserted = true
+      if (await deps.network.place(target, each.project, each.folder, request.copyFrom)) inserted = true
     },
   }
   const checks: StepDef[] = FOLDER_STEPS.map((step) => ({
@@ -160,7 +163,7 @@ export async function onMachine(deps: ConnectDeps, plan: JobPlan, machine: strin
 }
 
 export interface PoolControlDeps extends ConnectDeps {
-  network: PoolNetwork & Pick<MachineNetwork, 'pool'>
+  network: PoolNetwork & Pick<MachineNetwork, 'pool' | 'setSettings'>
   start: (plan: JobPlan) => void
 }
 
@@ -173,6 +176,7 @@ export function poolControl(deps: PoolControlDeps) {
       deps.start(await connectPlan(deps, project, request))
     },
     enable: (project: string, machine: string, enabled: boolean) => deps.network.setEnabled(project, machine, enabled),
+    settings: (project: string, machine: string, values: MachineProjectSettings) => deps.network.setSettings(project, machine, values),
     join: async (machine: string, requests: JoinRequest[]) => {
       deps.start(await joinPlan(deps, machine, requests))
     },

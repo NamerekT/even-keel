@@ -464,6 +464,8 @@ export interface MainCheckDeps {
   fixName: (project: string) => string
   /** Whether the project has `commands.afterGreen` (BTN-156). */
   afterGreen: (project: string) => boolean
+  /** Main of the project went green at `commit`: the machines elsewhere of its pool run their commands after it (BTN-994). */
+  green?: (project: string, commit: string) => void
 }
 
 /** `skipped` — the guard kept the checkout untouched, or the run could not start. */

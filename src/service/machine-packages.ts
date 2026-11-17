@@ -27,6 +27,7 @@ export function wireMachinePackages(ctx: MachineContext): Packages {
     claudeConfigs: ctx.claudeConfigs,
     rules: trackerKeyRules(),
     tracker: (project) => ctx.brief.tracker(project),
+    serverOverride: (project, name, server) => ctx.brief.serverOf(project, name, server),
     agentOf: (project) => ctx.homes.find(ctx.choiceFor(project).account)?.agent ?? CLAUDE,
     updateMarketplace: (marketplace) => ctx.agentOf(ctx.homes.global).updateMarketplace!(ctx.homes.global, marketplace, ctx.PLUGIN_UPDATE_TIMEOUT_MS),
     addMarketplace: (dir) => ctx.agentOf(ctx.homes.global).addMarketplace!(ctx.homes.global, dir, ctx.PLUGIN_UPDATE_TIMEOUT_MS),

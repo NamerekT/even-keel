@@ -53,6 +53,8 @@ describe('Dispatcher and the commands after a green main', () => {
     expect(ci.ran).toEqual([])
     expect(dispatcher.state.ci.ABC).toEqual({ green: 'bbbbbbbbbb' })
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    // The machines elsewhere of the pool are told of the green commit either way: they may have commands of their own (BTN-994).
+    expect(ci.greens).toEqual(['ABC@bbbbbbbbbb'])
   })
 
   it('runs them on a main the project check passed', async () => {

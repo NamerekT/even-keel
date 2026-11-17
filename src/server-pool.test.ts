@@ -4,8 +4,9 @@ import { serverFixture } from '../test/server.fixture.js'
 import type { ProjectPool } from './link/view.js'
 
 const POOL: ProjectPool = {
-  machines: [{ id: 'pc', name: 'Workstation', own: true, online: true, folder: 'D:/example', enabled: true }],
+  machines: [{ id: 'pc', name: 'Workstation', own: true, online: true, folder: 'D:/example', enabled: true, settings: {}, afterGreen: [] }],
   others: [{ id: 'srv', name: 'Home server', own: false, online: true, folder: '/srv/example' }],
+  servers: [],
 }
 
 describe('the routes of a project pool', () => {
@@ -16,6 +17,7 @@ describe('the routes of a project pool', () => {
         view: async (project) => (calls.push(['view', project]), POOL),
         connect: async (project, request) => void calls.push(['connect', project, request]),
         enable: async (project, machine, enabled) => void calls.push(['enable', project, machine, enabled]),
+        settings: async (project, machine, values) => void calls.push(['settings', project, machine, values]),
         join: async (machine, requests) => void calls.push(['join', machine, requests]),
       },
     })
@@ -24,6 +26,9 @@ describe('the routes of a project pool', () => {
       expect(await (await post('machines/pool', { project: 'ABC' })).json()).toEqual(POOL)
       expect((await post('machines/connect', { project: 'ABC', machine: 'srv', clone: true, folder: ' /srv/abc ' })).status).toBe(200)
       expect((await post('machines/connect', { project: 'ABC', machine: 'srv', folder: '' })).status).toBe(200)
+      expect((await post('machines/connect', { project: 'ABC', machine: 'srv', copyFrom: 'lap' })).status).toBe(200)
+      expect((await post('machines/settings', { project: 'ABC', machine: 'srv', settings: { check: ['make check', ' '] } })).status).toBe(200)
+      expect((await post('machines/settings', { project: 'ABC', machine: 'srv', settings: { check: 'make check' } })).status).toBe(400)
       expect((await post('machines/enable', { project: 'ABC', machine: 'srv', enabled: false })).status).toBe(200)
       expect((await post('machines/enable', { project: 'ABC', machine: 'srv' })).status).toBe(400)
       expect((await post('machines/connect', { project: 'ABC' })).status).toBe(400)
@@ -36,6 +41,8 @@ describe('the routes of a project pool', () => {
         ['view', 'ABC'],
         ['connect', 'ABC', { machine: 'srv', clone: true, folder: '/srv/abc' }],
         ['connect', 'ABC', { machine: 'srv', clone: false }],
+        ['connect', 'ABC', { machine: 'srv', clone: false, copyFrom: 'lap' }],
+        ['settings', 'ABC', 'srv', { check: ['make check'] }],
         ['enable', 'ABC', 'srv', false],
         ['join', 'srv', [{ project: 'ABC', clone: true }, { project: 'DEF', clone: false, folder: '/srv/def' }, { project: 'GHI', clone: false }]],
       ])
@@ -49,7 +56,7 @@ describe('the routes of a project pool', () => {
     const { publicDir, base, close } = await serverFixture()
     try {
       const response = await fetch(`${base}/api/machines/pool`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"project":"ABC"}' })
-      expect(await response.json()).toEqual({ machines: [], others: [] })
+      expect(await response.json()).toEqual({ machines: [], others: [], servers: [] })
     } finally {
       await close()
       rmSync(publicDir, { recursive: true, force: true })

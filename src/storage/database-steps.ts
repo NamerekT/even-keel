@@ -738,4 +738,11 @@ export const STEPS: readonly string[] = [
   `
   alter table machines add column color text;
   `,
+  // A machine's own values in a project (BTN-994, `docs/machines.md`, "A machine in a project"), JSON of
+  // `MachineProjectSettings`; `null` — every value is the project's. `after_green` — the last green commit the
+  // machine's commands after a green main were started on there (`docs/machines.md`, "After a green main").
+  `
+  alter table project_machines add column settings text;
+  alter table project_machines add column after_green text;
+  `,
 ]

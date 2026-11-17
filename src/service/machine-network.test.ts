@@ -8,6 +8,7 @@ import { MemoryMachineStore } from '../link/link.fixture.js'
 import { MachineEnd } from '../link/machine.js'
 import { httpsTransport, joinHub } from '../link/machine-transport.js'
 import { ASSIGN_COMMAND, isRefusal, parseToken, type MachineAbout, type NumberedCommand } from '../link/protocol.js'
+import type { MachineProjectSettings } from '../link/view.js'
 import { LIMITS_PLAN_COMMAND } from '../limits/polls.js'
 import { BRIEF_COMMAND, type HubBrief } from '../machine/brief.js'
 import { SELECTION_EVENT } from '../machine/config.js'
@@ -42,7 +43,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
 
   const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>) => {
     const db = await PGlite.create()
-    await db.exec(fixture(59))
+    await db.exec(fixture(60))
     const settings = { address: null as string | null }
     const changes: number[] = []
     const network = new MachineNetwork({
@@ -60,6 +61,8 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       serviceHost: '0.0.0.0',
       version: '0.4.0',
       changed: () => void changes.push(1),
+      projectSettings: (project) => (project === ABC ? { beforeStart: [], check: [], afterGreen: ['npm run deploy'] } : undefined),
+      servers: (project) => (project === ABC ? [{ package: 'files', server: 'files', command: 'files-mcp', args: [] }] : []),
       hubAccount: (key) => (key === 'hub-folder' ? { account: 'uuid-1', email: 'john.doe@example.com' } : undefined),
       log,
     })
@@ -260,11 +263,13 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
 
   it("puts a machine into a project's pool turned off in a folder of its own, checks it there and turns it on", async () => {
     const briefed: Record<string, string>[] = []
+    const briefedSettings: Record<string, MachineProjectSettings>[] = []
     const peers: NetworkPeers = {
       remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
-      brief: (folders) => {
+      brief: (folders, settings) => {
         briefed.push({ ...folders })
-        return { config: { projects: folders } } as unknown as HubBrief
+        briefedSettings.push(settings)
+        return { config: { projects: folders }, servers: settings } as unknown as HubBrief
       },
       changed: () => {},
       connected: () => {},
@@ -282,8 +287,10 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
 
     // The sample's machine that never joined is left out; the own one shows the project's repository.
     expect(await network.pool(ABC)).toEqual({
-      machines: [{ id: OWN, name: 'Example server', own: true, online: true, folder: 'D:\\repos\\example', enabled: true }],
+      machines: [{ id: OWN, name: 'Example server', own: true, online: true, folder: 'D:\\repos\\example', enabled: true, settings: {}, afterGreen: ['npm run deploy'] }],
       others: [{ id: laptop, name: 'Example laptop', own: false, online: false, folder: '/home/example/projects/example' }],
+      servers: [{ package: 'files', server: 'files', command: 'files-mcp', args: [] }],
+      commands: { beforeStart: [], check: [], afterGreen: ['npm run deploy'] },
     })
     await expect(network.target(OWN)).rejects.toThrow(/hub's own machine/)
     await expect(network.target(pending)).rejects.toThrow(/has not joined yet/)
@@ -330,6 +337,29 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
 
     await expect(network.setEnabled(ABC, pending, true)).rejects.toThrow(/not in this project's pool/)
     await network.setEnabled(ABC, laptop, true)
+
+    // The machine's own values (BTN-994): the brief carries them, the pool shows them and what runs after a green main.
+    await expect(network.setSettings(ABC, OWN, { check: ['make check'] })).rejects.toThrow(/hub's own machine/)
+    await expect(network.setSettings(ABC, pending, { check: ['make check'] })).rejects.toThrow(/not in this project's pool/)
+    const own = { afterGreen: ['./deploy.sh'], servers: { files: { files: { command: '/opt/example/files-mcp' } } } }
+    await network.setSettings(ABC, laptop, own)
+    await until(() => briefedSettings.some((each) => each[ABC]?.afterGreen?.[0] === './deploy.sh'), "the brief of the machine's own values")
+    expect((await network.pool(ABC)).machines.find((machine) => machine.id === laptop)).toMatchObject({ settings: own, afterGreen: ['./deploy.sh'] })
+    const sampleGreen = 'c'.repeat(40)
+    expect(await network.afterGreenPool(ABC)).toEqual(
+      [{ machine: OWN, commands: ['npm run deploy'], ran: sampleGreen }, { machine: laptop, commands: ['./deploy.sh'], ran: null }].sort((a, b) => a.machine.localeCompare(b.machine)),
+    )
+    await network.markAfterGreen(ABC, laptop, 'd'.repeat(40))
+    expect(await network.afterGreenPool(ABC, laptop)).toEqual([{ machine: laptop, commands: ['./deploy.sh'], ran: 'd'.repeat(40) }])
+    expect(await network.projectsOf(laptop)).toEqual([ABC])
+    await network.setSettings(ABC, laptop, {})
+    expect((await network.pool(ABC)).machines.find((machine) => machine.id === laptop)).toMatchObject({ settings: {}, afterGreen: ['npm run deploy'] })
+    // "Copy from": the sample's row of the hub's machine has values of its own, which the laptop takes at its place.
+    await expect(network.place(target, ABC, '/home/example/projects/abc-work', pending)).rejects.toThrow(/not in this project's pool/)
+    await network.place(target, ABC, '/home/example/projects/abc-work', OWN)
+    expect((await network.pool(ABC)).machines.find((machine) => machine.id === laptop)?.settings).toMatchObject({ beforeStart: ['npm ci'], afterGreen: ['npm run deploy:server'] })
+    await network.setSettings(ABC, laptop, {})
+
     await network.setEnabled(ABC, OWN, false)
     expect(network.poolOf(ABC)).toEqual([laptop])
     await network.unplace(laptop, ABC)

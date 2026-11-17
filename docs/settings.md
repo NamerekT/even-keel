@@ -31,6 +31,23 @@ tab by `project/feed/rules`. The page edits the rules by status and by label, on
 Some settings are maps whose entries override one by one: `models`, `accounts` and `execution` by provider. A project's
 `models.codex` replaces only the shared `models.codex`; the shared `models.claude` still applies to it.
 
+### A machine in a project
+
+BTN-994: a machine elsewhere of a project's pool may have values of its own in that project, between the project and
+the task: `commands.beforeStart`, `commands.check` and `commands.afterGreen`, and the command and arguments of each
+stdio server of the project's packages (`MachineProjectSettings`, `src/link/view.ts`). They are kept in
+`project_machines.settings` (step 60, `docs/storage.md`), not in `setting_values`, so `config-export` leaves them out.
+
+- **A list replaces the project's whole list**; a list left empty or out is the project's. A server's `command` and
+  `args` replace the catalog's each on its own; one left out is the catalog's. Paths go into the arguments.
+- **The own machine has none**: its values are the project's. The settings tab of a machine elsewhere in the machine's
+  view edits them (`web/src/pages/MachineOwnValues.tsx`, the command `machines/settings`), each field showing the
+  project's value in grey; "Connect a machine" may copy them from another machine of the pool (`copyFrom`).
+- **The machine gets them in its brief** (`hubBrief`, `settingsOnMachine` in `src/service/machine-settings.ts`): its
+  copy of the project's settings carries its own lists in place of the project's, and `HubBrief.servers` its server
+  commands, which its packages' gateway puts in place of the catalog's (`withOverride` in `src/packages/stdio.ts`).
+- **The connection's packages check** refuses a server whose command the machine does not find (`pool.serverMissing`).
+
 ## Inventory
 
 As of 2026-10-20 (schema version 9, database step 9; BTN-187 widened levels, which needs no step). "Levels": G — Even Keel, P — project, T — task label. "Written

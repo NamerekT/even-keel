@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import type { ProjectPool } from '../../../src/state.js'
+import type { PoolMachine, ProjectPool } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { Segmented } from '../stats/common.js'
@@ -15,11 +15,27 @@ type Mode = 'folder' | 'clone'
  * of the project — one already there, or a clone made now. The checks run as a job in its own window; the hub's own
  * machine needs none and is only turned on.
  */
-export function ConnectMachineDialog({ project, others, onClose, onStarted }: { project: string; others: ProjectPool['others']; onClose: () => void; onStarted: () => void }) {
+export function ConnectMachineDialog({
+  project,
+  others,
+  pooled = [],
+  onClose,
+  onStarted,
+}: {
+  project: string
+  others: ProjectPool['others']
+  /** The pool's machines: one elsewhere with values of its own in the project may give them to the new one (BTN-994). */
+  pooled?: PoolMachine[]
+  onClose: () => void
+  onStarted: () => void
+}) {
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useId()
   const machineId = useId()
   const pathId = useId()
+  const copyId = useId()
+  const sources = pooled.filter((each) => !each.own && Object.keys(each.settings).length > 0)
+  const [copyFrom, setCopyFrom] = useState('')
   const { send, sending, failure } = useCommand()
   const [machine, setMachine] = useState(others[0]?.id ?? '')
   const chosen = others.find((each) => each.id === machine)
@@ -42,7 +58,7 @@ export function ConnectMachineDialog({ project, others, onClose, onStarted }: { 
     if (chosen === undefined || sending) return
     const started = own
       ? await send('machines/enable', { project, machine, enabled: true })
-      : await send('machines/connect', { project, machine, clone: mode === 'clone', folder: path.trim() })
+      : await send('machines/connect', { project, machine, clone: mode === 'clone', folder: path.trim(), ...(copyFrom !== '' && { copyFrom }) })
     if (started) onStarted()
   }
 
@@ -112,6 +128,21 @@ export function ConnectMachineDialog({ project, others, onClose, onStarted }: { 
                 />
                 <p className="add-package__note">{mode === 'clone' ? t.pool.dialog.cloneHint : t.pool.dialog.pathHint}</p>
               </div>
+              {sources.length > 0 && (
+                <div className="add-package__field">
+                  <label className="add-package__label" htmlFor={copyId}>
+                    {t.pool.dialog.copy}
+                  </label>
+                  <Select
+                    id={copyId}
+                    className="add-package__input"
+                    value={copyFrom}
+                    options={[{ value: '', label: t.pool.dialog.copyNone }, ...sources.map((each) => ({ value: each.id, label: t.pool.dialog.copyFrom(each.name) }))]}
+                    onChange={setCopyFrom}
+                  />
+                  <p className="add-package__note">{t.pool.dialog.copyHint}</p>
+                </div>
+              )}
               <p className="add-package__note">{t.pool.dialog.checks}</p>
             </>
           )}

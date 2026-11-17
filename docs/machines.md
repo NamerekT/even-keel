@@ -118,6 +118,35 @@ BTN-1271: the tab "Machines" of a project's settings (`web/src/pages/ProjectMach
 - **The wizard** (`web/src/pages/WizardMachine.tsx`): with a joined machine elsewhere, the step "Repository" of a git project asks for the machine. Another one than the own sends `ProjectDraft.machine`, and `onMachine` adds the steps above, with the clone, after the project's own; `machine-enable` then turns the own machine off, so the project runs only there. Cancel before the project is kept takes back both.
 - **`dev:fake`**: `?machines=signIn` names three machines, so the tab shows; "Connect" on the laptop fails at `machine-push`, on the desktop it is done at once (`web/src/live/fakeMachines.ts`).
 
+## A machine in a project
+
+BTN-994: a machine elsewhere of the pool may run the project with commands of its own — before the start, the check,
+after a green main — and its own command for each stdio server of the project's packages (`docs/settings.md`, "A
+machine in a project"). The settings tab of the machine in the project edits them; `ProjectPool` carries each row's
+values (`settings`), the commands it runs after a green main (`afterGreen`, its own else the project's), the stdio
+servers here (`servers`, `Packages.localStdio`) and the project's lists (`commands`) for the fields' grey. "Connect"
+takes `copyFrom`, a machine of the pool whose values the new row starts with (`MachineNetwork.place`). The machine's
+step `machine-packages` also refuses a server whose command it does not find on its `PATH` or as a path
+(`pool.serverMissing`, `missingCommands` in `src/packages/stdio.ts`).
+
+## After a green main
+
+BTN-994: a green `main` runs `commands.afterGreen` on every machine of the pool that has any, its own or the project's.
+
+- **The own machine** runs them in the project's checkout as before (BTN-156): `MainCheck` marks the commit, runs them
+  only on main at that commit, and the next launch waits for them.
+- **A machine elsewhere** is told by `MainCheckDeps.green` (`PoolAfterGreen`, `src/service/pool-after-green.ts`): for
+  each machine of the pool turned on, online and of the hub's version, with commands, the hub writes the commit into
+  `project_machines.after_green` (step 60) and sends `runAfterGreen(project, commit, true)`. The machine first brings
+  its clone's main up to the commit by fast-forward (`fastForwardTo`, `src/git/sync.ts`: fetch every remote, never past
+  the commit; a clone off main, with changes or diverged is left and the run skips as on the hub), then runs its
+  commands. One run at a time per machine and project; a green commit during one runs next, the latest only. No launch
+  waits for it; its end is a line in the log.
+- **A machine off the link** catches up once: when it is back and briefed (`MachineNetwork` option `briefed`), each
+  project of its pool whose last green commit (`ChainState.ci[project].green`, with the guard on) is not its
+  `after_green` runs once, on that commit only.
+- The tab "Machines" shows under each row's folder what it runs after a green main, the tip saying whose they are.
+
 ## The machine's page
 
 BTN-1272: `/machines/<id>` (`web/src/pages/MachinePage.tsx`), one page for the own machine and a machine elsewhere. It opens from a machine's name in a project's "Machines" tab and from a chain row's machine tag (`web/src/ui/MachineTag.tsx`, each name a link); a revoked or unknown id shows "No such machine".

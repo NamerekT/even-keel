@@ -9,6 +9,7 @@ import { packagesPath } from '../tools/packageGroups.js'
 import { Loading } from '../ui/Loader.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
 import { JobWindow } from './JobWindow.js'
+import { MachineOwnValues } from './MachineOwnValues.js'
 import { usePool } from './ProjectMachinesTab.js'
 import { Row, Section, Switch } from './settingsParts.js'
 import './projectMachines.css'
@@ -86,6 +87,7 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
           </p>
         )}
       </Section>
+      {pool !== null && row !== undefined && !row.own && <MachineOwnValues project={project} row={row} pool={pool} onSaved={reload} />}
       <div className="pool__actions pool__actions--machine">
         <button type="button" className="button" onClick={onShared}>
           {view.shared}
@@ -98,6 +100,7 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
         <ConnectMachineDialog
           project={project}
           others={other}
+          pooled={pool?.machines ?? []}
           onClose={() => setConnecting(false)}
           onStarted={() => {
             setConnecting(false)

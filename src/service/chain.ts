@@ -252,6 +252,7 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
         await link?.run(async (tracker) => tracker.comment?.(task, body))
       },
       afterGreen: (project) => ctx.configStore.current.settings[project]?.afterGreen ?? [],
+      green: (project, commit) => ctx.machineLink.afterGreen.green(project, commit),
       fixName: (project) => fixNameOf(ctx.configStore.current.keys, project),
       event: (draft) => ctx.eventLog.add(draft),
       now: () => new Date(),

@@ -3,6 +3,7 @@ import { remotesOf, type Remote } from '../ci/remote.js'
 import { sameRemote } from '../git/clone-progress.js'
 import type { Git } from '../git/types.js'
 import { fail, NoticeError, notice, type Notice } from '../notice/notice.js'
+import { missingCommands, type StdioServer } from '../packages/stdio.js'
 import { isTrusted } from '../projects/check.js'
 
 /** The checks of a project's folder on a machine before the machine joins the project's pool (BTN-1271), in order. */
@@ -25,7 +26,9 @@ export interface FolderCheckDeps {
   git: Git
   /** The `.claude.json` of every Claude account folder of the machine, read; `undefined` — a file that is none. */
   claudeConfigs: () => unknown[]
-  packages: { installingOf(project: string): string[]; unready(project: string): string[] }
+  packages: { installingOf(project: string): string[]; unready(project: string): string[]; localStdio(project: string): StdioServer[] }
+  /** Whether a server's command starts on the machine (`commandFound`). */
+  found?: (command: string) => boolean
   wait?: (ms: number) => Promise<void>
   /** How long the packages step waits for an installation under way. */
   packagesWaitMs?: number
@@ -71,7 +74,9 @@ export async function checkFolderStep(deps: FolderCheckDeps, step: FolderStep, s
     const installing = deps.packages.installingOf(spec.project)
     if (installing.length > 0) return notice('pool.packagesInstalling', { names: installing.join(', ') })
     const unready = deps.packages.unready(spec.project)
-    return unready.length > 0 ? notice('pool.packagesUnready', { names: unready.join(', ') }) : null
+    if (unready.length > 0) return notice('pool.packagesUnready', { names: unready.join(', ') })
+    const missing = missingCommands(deps.packages.localStdio(spec.project), deps.found)
+    return missing.length > 0 ? notice('pool.serverMissing', { names: missing.join(', ') }) : null
   }
   // A push of the main branch onto itself sends nothing, yet the remote checks the right to push before it answers.
   const remote = await projectRemote(git, spec)

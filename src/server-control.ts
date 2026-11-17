@@ -283,6 +283,8 @@ export interface ServerDeps {
     view(project: string): Promise<ProjectPool>
     connect(project: string, request: ConnectRequest): Promise<void>
     enable(project: string, machine: string, enabled: boolean): Promise<void>
+    /** A machine elsewhere's own values in the project (BTN-994). */
+    settings(project: string, machine: string, values: import('./link/view.js').MachineProjectSettings): Promise<void>
     /** "Connect" of the window "Add a machine" (BTN-1263): the machine that joined into several projects, one job. */
     join(machine: string, requests: JoinRequest[]): Promise<void>
   }

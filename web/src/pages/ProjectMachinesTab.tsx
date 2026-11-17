@@ -23,7 +23,7 @@ export function usePool(project: string): { pool: ProjectPool | null; reload: ()
   const [asked, setAsked] = useState(0)
   useEffect(() => {
     let live = true
-    const load = () => void read<ProjectPool>('machines/pool', { project }).then((next) => live && setPool(next), () => live && setPool((last) => last ?? { machines: [], others: [] }))
+    const load = () => void read<ProjectPool>('machines/pool', { project }).then((next) => live && setPool(next), () => live && setPool((last) => last ?? { machines: [], others: [], servers: [] }))
     load()
     const off = onMachines(load)
     return () => {
@@ -75,6 +75,13 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
                           {machine.folder}
                         </bdi>
                       </Tipped>
+                      {machine.afterGreen.length > 0 && (
+                        <Tipped tip={machine.settings.afterGreen !== undefined ? t.pool.afterGreenOwn : t.pool.afterGreenProject} inline align="start">
+                          <span className="pool__after">
+                            {t.pool.afterGreen} <bdi dir="ltr">{machine.afterGreen.join(' · ')}</bdi>
+                          </span>
+                        </Tipped>
+                      )}
                     </span>
                     {slot > 0 && (
                       <Tipped tip={t.pool.slotsTip} inline>
@@ -112,6 +119,7 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
         <ConnectMachineDialog
           project={project}
           others={pool.others}
+          pooled={pool.machines}
           onClose={() => setConnecting(false)}
           onStarted={() => {
             setConnecting(false)

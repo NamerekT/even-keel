@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
+import type { ServerOverride } from '../link/view.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { isTasksUrl, TASKS_SERVER } from '../taskmcp/server.js'
 import { isMemoryUrl } from '../memory/mcp.js'
@@ -19,6 +20,7 @@ import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace,
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
 import { packageTarget } from './hub.js'
+import { stdioOf, type StdioServer } from './stdio.js'
 import { isNewer } from './version.js'
 
 const run = promisify(execFile)
@@ -66,6 +68,8 @@ export interface PackagesDeps {
   oauth?: (project: string, server: string, url: unknown) => GatewayOAuth | undefined
   /** The tracker whose deletes the project's Protection refuses, when the server is that tracker's. */
   refuseDeletes?: (project: string, server: string) => string | undefined
+  /** A machine elsewhere's own stdio command of a package's server in the project, from the hub's brief (BTN-994). */
+  serverOverride?: (project: string, name: string, server: string) => ServerOverride | undefined
   /** Even Keel's own tasks server, answered by the gateway (BTN-768). */
   tasks?: LocalMcp
   /** Even Keel's own memory server, answered by the hub's gateway (BTN-1029). */
@@ -344,6 +348,23 @@ export class Packages {
   /** The enabled packages of the project being installed right now: a new project's window waits for them (BTN-1048). */
   installingOf(project: string): string[] {
     return Object.entries(this.check(project).cells).filter(([name, cell]) => cell.enabled && this.installing.has(name)).map(([name]) => name)
+  }
+
+  /**
+   * The stdio servers of the packages turned on in the project that this machine's gateway starts: not the hub's own
+   * (BTN-990), each with the machine's own command where the hub names one (BTN-994).
+   */
+  localStdio(project: string): StdioServer[] {
+    const hub = new Set(this.deps.hubServers?.() ?? [])
+    return Object.entries(this.check(project).cells).flatMap(([name, cell]) => {
+      const install = cell.enabled ? current(this.file.packages[name]!) : undefined
+      if (install === undefined) return []
+      return Object.keys(install.servers).flatMap((server) => {
+        const target = hub.has(routeOf(project, name, install.id, server)) ? null : this.target({ project, name, install: install.id, server })
+        const stdio = target === null || hubOwned(target) ? undefined : stdioOf(name, server, target.entry)
+        return stdio === undefined ? [] : [stdio]
+      })
+    })
   }
 
   /** The chain waits while the project's set has a problem that holds it. */

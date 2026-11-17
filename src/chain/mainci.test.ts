@@ -38,7 +38,7 @@ const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => 
 const unguarded = (kinds: CiKind[]): CiSettings => ({ ...all(kinds), guard: false })
 
 /** `views: null` — the service has yet to find the project's CIs. */
-function setup(settings: CiSettings, views: CiView[] | null, heads: Record<string, string> = {}, failure: CheckFailure | null = null, main = 'main') {
+function setup(settings: CiSettings, views: CiView[] | null, heads: Record<string, string> = {}, failure: CheckFailure | null = null, main = 'main', extra: Partial<Parameters<typeof mainCheckDeps>[0]> = {}) {
   const gitCalls: string[][] = []
   const checks: string[] = []
   /** The CIs asked to look again (`want`), by kind. */
@@ -99,6 +99,7 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
     fixName: (project) => `${project}-FIX`,
     event: () => {},
     now: () => new Date('2026-10-12T10:05:00Z'),
+    ...extra,
   })
   return { deps, gitCalls, checks, wanted, reran }
 }
@@ -292,6 +293,21 @@ describe('mainCheckDeps', () => {
     const detached = setup(all([]), [], { [`${repo} HEAD`]: 'c2', [`${repo} branch`]: '' })
     expect(await detached.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: notice('afterGreen.offBranch', { branch: 'main', on: null }) })
     expect([...moved.checks, ...elsewhere.checks, ...detached.checks]).toEqual([])
+  })
+
+  it('brings its main up to the green commit first on a machine elsewhere, never in the own checkout (BTN-994)', async () => {
+    const repo = 'D:/repos/abc'
+    const heads = { [`${repo} HEAD`]: 'c1' }
+    const forwarded: string[] = []
+    const forward = async (project: string, commit: string) => {
+      forwarded.push(`${project}@${commit}`)
+      heads[`${repo} HEAD`] = commit
+    }
+    const { deps } = setup(all([]), [], heads, null, 'main', { forward })
+    expect(await deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: notice('afterGreen.pastCommit', { head: 'c1' }) })
+    expect(forwarded).toEqual([])
+    expect(await deps.runAfterGreen('ABC', 'c2', true)).toEqual({ state: 'done' })
+    expect(forwarded).toEqual(['ABC@c2'])
   })
 })
 

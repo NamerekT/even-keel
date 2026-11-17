@@ -49,6 +49,8 @@ export function fakeMain(wait: number | null = null) {
     /** How the run of `commands.afterGreen` on a commit ends; done when missing, a promise holds it. */
     afterRuns: {} as Record<string, AfterGreenRun | Promise<AfterGreenRun>>,
     ran: [] as string[],
+    /** The green commits the machines elsewhere were told of (BTN-994). */
+    greens: [] as string[],
     /** The other projects of a project's remote and main branch (BTN-217); none when missing. */
     peers: {} as Record<string, string[]>,
     /** The remote's main the counted CIs of each project see (BTN-707); none when missing. */
@@ -107,6 +109,7 @@ export function fakeMain(wait: number | null = null) {
     fixName,
     merged: async (_project, id) => ci.merged.has(id),
     afterGreen: () => ci.afterGreen,
+    green: (project, commit) => void ci.greens.push(`${project}@${commit}`),
     runAfterGreen: async (project, commit) => {
       ci.ran.push(`${project}@${commit}`)
       return ci.afterRuns[commit] ?? { state: 'done' }

@@ -60,8 +60,11 @@ export interface MachinePort {
   prepare: (project: string, task: string) => Promise<void>
   /** Command. Runs the project's check on main in the place of the task about to start, which keeps it for the launch. */
   checkMain: (project: string, task: string, commit: string) => Promise<MainCheckRun>
-  /** Command. Runs `commands.afterGreen` in the project's checkout, if it is on main at `commit`. */
-  runAfterGreen: (project: string, commit: string) => Promise<AfterGreenRun>
+  /**
+   * Command. Runs `commands.afterGreen` in the project's checkout, if it is on main at `commit`; `forward` — a machine
+   * elsewhere's clone, whose main is first brought up to `commit` by fast-forward (BTN-994).
+   */
+  runAfterGreen: (project: string, commit: string, forward?: boolean) => Promise<AfterGreenRun>
   /** Query. The commit main is at in the project's checkout; `null` — unknown. */
   head: (project: string) => Promise<string | null>
   /** Query. The tree of a commit; `null` — unknown. */

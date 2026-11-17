@@ -13,7 +13,7 @@ import { changesOf } from '../git/changes.js'
 import { pushTaskBranch, restoreBranch } from '../git/push.js'
 import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, type SlotUse } from '../git/slot.js'
-import { fastForwardMain, syncMain } from '../git/sync.js'
+import { fastForwardMain, fastForwardTo, syncMain } from '../git/sync.js'
 import { TaskWorks, worksOf } from '../git/work.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut } from '../git/worktree.js'
 import { exhaustedReset, limitReopenedAt, spentModelWeek } from '../limits/model.js'
@@ -212,6 +212,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       place: async (project, task) => (await ctx.places.readyAhead(project, task)).path,
       runCheck: (project, task, cwd) => runCheck(ctx.configStore.current.settings[project]?.check ?? [], ctx.taskRun(task, cwd, ctx.choiceFor(project, task).account)),
       runAfterGreen: (project, cwd) => runAfterGreen(ctx.configStore.current.settings[project]?.afterGreen ?? [], ctx.taskRun(project, cwd, ctx.choiceFor(project).account)),
+      forward: (project, commit) => fastForwardTo(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), commit),
     }),
   }
 }

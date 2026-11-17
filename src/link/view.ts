@@ -99,6 +99,36 @@ export interface PoolMachine {
   folder: string
   /** The machine takes the project's tasks (`project_machines.enabled`). */
   enabled: boolean
+  /** Its own values in the project (`project_machines.settings`, BTN-994); the own machine has none. */
+  settings: MachineProjectSettings
+  /** The commands after a green main it runs in its clone: its own, else the project's; `[]` — none (BTN-994). */
+  afterGreen: string[]
+}
+
+/**
+ * A machine's own values in a project (BTN-994, `docs/settings.md`, "A machine in a project"): a command list left
+ * empty or out is the project's.
+ */
+export interface MachineProjectSettings {
+  beforeStart?: string[]
+  check?: string[]
+  afterGreen?: string[]
+  /** By package, then server: the stdio command that runs there instead of the catalog's. */
+  servers?: Record<string, Record<string, ServerOverride>>
+}
+
+/** A stdio server's command on one machine; a field left out is the catalog's. */
+export interface ServerOverride {
+  command?: string
+  args?: string[]
+}
+
+/** A stdio server of the project's packages on the hub, with the command the catalog runs (BTN-994). */
+export interface PoolServer {
+  package: string
+  server: string
+  command: string
+  args: string[]
 }
 
 /** The section "Machines" of a project: its pool, and the machines elsewhere that may still be connected to it. */
@@ -106,6 +136,10 @@ export interface ProjectPool {
   machines: PoolMachine[]
   /** Joined machines elsewhere not in the pool, with the folder a connection names by default. */
   others: Array<{ id: string; name: string; own: boolean; online: boolean; folder: string | null }>
+  /** The stdio servers of the project's packages a machine elsewhere may run with a command of its own. */
+  servers: PoolServer[]
+  /** The project's own command lists: what a machine with none of its own runs. */
+  commands?: { beforeStart: string[]; check: string[]; afterGreen: string[] }
 }
 
 /**

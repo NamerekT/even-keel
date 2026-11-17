@@ -34,6 +34,19 @@ describe('the hub brief', () => {
     expect(brief.reports['project-2']).toBeUndefined()
   })
 
+  it("runs the machine's own commands and server commands in its projects, the rest the project's (BTN-994)", () => {
+    const own = { 'project-1': { check: ['make check'], servers: { files: { files: { command: '/opt/example/files-mcp' } } } }, 'project-2': { check: ['never'] } }
+    const brief = hubBrief(sources({ machineSettings: () => own }))
+    expect(brief.config.settings['project-1']).toMatchObject({ check: ['make check'], beforeStart: [], afterGreen: [] })
+    expect(brief.config.settings['project-2']?.check).toEqual([])
+    expect(brief.servers).toEqual({ 'project-1': own['project-1'].servers })
+    const copy = new BriefCopy()
+    copy.take(brief)
+    expect(copy.serverOf('project-1', 'files', 'files')).toEqual({ command: '/opt/example/files-mcp' })
+    expect(copy.configStore.current.settings['project-1']?.check).toEqual(['make check'])
+    expect(hubBrief(sources()).config.settings['project-1']?.check).toEqual([])
+  })
+
   it('gives the machine copy the project of a listed task and of a chain current one', () => {
     const state = emptyChainState()
     state.active.push({ project: 'project-1', current: { task: 'ABC-9' } } as unknown as ChainState['active'][number])

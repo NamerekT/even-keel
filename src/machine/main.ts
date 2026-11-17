@@ -8,7 +8,7 @@ import type { MachineMainPort } from './port.js'
 const COMMITS_SINCE_GREEN = 50
 const COMMITS_WITHOUT_GREEN = 20
 
-export function mainMachineDeps(deps: Pick<MainCiDeps, 'repo' | 'plain' | 'main' | 'git' | 'commands' | 'reported' | 'settings' | 'prepare' | 'place' | 'runCheck' | 'runAfterGreen'>): MachineMainPort {
+export function mainMachineDeps(deps: Pick<MainCiDeps, 'repo' | 'plain' | 'main' | 'git' | 'commands' | 'reported' | 'settings' | 'prepare' | 'place' | 'runCheck' | 'runAfterGreen' | 'forward'>): MachineMainPort {
   const plain = (project: string) => deps.plain?.(project) === true
   const revision = async (cwd: string, rev: string) => {
     const read = await deps.git(cwd, ['rev-parse', '--verify', '--quiet', rev])
@@ -39,9 +39,11 @@ export function mainMachineDeps(deps: Pick<MainCiDeps, 'repo' | 'plain' | 'main'
     },
     merged: async (project, task) => !plain(project) && branchMerged(deps.git, deps.repo(project), task, deps.main(project)),
     // The only place the dispatcher touches the project's own checkout, so only when it stands on main at the green commit.
-    async runAfterGreen(project, commit) {
+    // A machine elsewhere's clone is the dispatcher's: its main is brought up to the commit first (BTN-994).
+    async runAfterGreen(project, commit, forward = false) {
       const repo = deps.repo(project)
       const branch = deps.main(project)
+      if (forward) await deps.forward?.(project, commit)
       const [on, head] = await Promise.all([deps.git(repo, ['symbolic-ref', '--quiet', '--short', 'HEAD']), revision(repo, 'HEAD')])
       const current = on.code === 0 ? on.out.trim() : null
       if (current !== branch) return { state: 'skipped', reason: notice('afterGreen.offBranch', { branch, on: current }) }

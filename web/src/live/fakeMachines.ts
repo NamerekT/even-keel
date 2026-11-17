@@ -61,7 +61,7 @@ export class FakeNetwork {
   }
 
   private rows(project: string): PoolMachine[] {
-    const rows = this.pools.get(project) ?? [{ id: OWN, name: OWN_NAME, own: true, online: true, folder: this.repoOf(project), enabled: true }]
+    const rows = this.pools.get(project) ?? [{ id: OWN, name: OWN_NAME, own: true, online: true, folder: this.repoOf(project), enabled: true, settings: {}, afterGreen: [] }]
     this.pools.set(project, rows)
     return rows
   }
@@ -71,7 +71,8 @@ export class FakeNetwork {
     const others = this.machines
       .filter((machine) => machine.joinedAt !== null && machine.revokedAt === null && !machines.some((row) => row.id === machine.id))
       .map((machine) => ({ id: machine.id, name: machine.name, own: false, online: machine.online, folder: `${machine.about?.root ?? '/home/example/projects'}/${folderName(this.repoOf(project))}` }))
-    return { machines: machines.map((row) => ({ ...row })), others }
+    const rows = machines.map((row) => ({ ...row, afterGreen: row.settings.afterGreen ?? FAKE_COMMANDS.afterGreen }))
+    return { machines: rows, others, servers: FAKE_SERVERS, commands: FAKE_COMMANDS }
   }
 
   private changed(): void {
@@ -201,14 +202,22 @@ export class FakeNetwork {
       this.changed()
       return true
     }
+    if (name === 'machines/settings') {
+      const project = String(body.project)
+      const settings = body.settings as PoolMachine['settings']
+      this.pools.set(project, this.rows(project).map((row) => (row.id === body.machine && !row.own ? { ...row, settings } : row)))
+      this.changed()
+      return true
+    }
     if (name === 'machines/connect') {
       const project = String(body.project)
       const machine = this.machines.find((each) => each.id === body.machine)
       const rows = this.rows(project)
       if (machine !== undefined && !rows.some((row) => row.id === machine.id)) {
         const folder = String(body.folder ?? '').trim() || this.poolOf(project).others.find((each) => each.id === machine.id)?.folder || ''
+        const settings = rows.find((row) => row.id === body.copyFrom)?.settings ?? {}
         // The fake's job fails on the laptop's push check: there the row stays off; elsewhere it is turned on.
-        rows.push({ id: machine.id, name: machine.name, own: false, online: machine.online, folder, enabled: machine.id !== 'machine-1' })
+        rows.push({ id: machine.id, name: machine.name, own: false, online: machine.online, folder, enabled: machine.id !== 'machine-1', settings: { ...settings }, afterGreen: [] })
       }
       this.changed()
       return false
@@ -223,6 +232,10 @@ export class FakeNetwork {
     return false
   }
 }
+
+/** The command lists and the stdio servers every project of `dev:fake` has, for a machine's own ones (BTN-994). */
+const FAKE_COMMANDS = { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], afterGreen: ['npm run build'] }
+const FAKE_SERVERS = [{ package: 'files', server: 'files', command: 'npx', args: ['-y', 'example-files-mcp', '/home/example/shared'] }]
 
 /** The hub's own machine in `dev:fake`, as `?machines=…` names it in `machineNames`. */
 const OWN = 'pc'

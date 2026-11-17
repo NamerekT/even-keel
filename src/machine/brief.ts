@@ -1,6 +1,7 @@
 import type { CheckReport } from '../chain/checkreports.js'
 import { isCarryName, isFixName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { parseConfig, type EvenKeelConfig } from '../config.js'
+import type { ServerOverride } from '../link/view.js'
 import type { WarmTask } from '../sessions/keepwarm.js'
 import type { TaskRun } from '../sessions/runs.js'
 
@@ -17,8 +18,13 @@ export interface HubBrief {
   /** Routes whose servers belong to the hub; never their targets or credentials. */
   hubServers?: string[]
   trackers?: Record<string, { server: string; required: boolean; also?: string }>
-  /** The hub's config; `projects` holds only the machine's projects, each with its folder on the machine. */
+  /**
+   * The hub's config; `projects` holds only the machine's projects, each with its folder on the machine, and their
+   * settings carry the machine's own command lists in place of the project's (BTN-994).
+   */
   config: EvenKeelConfig
+  /** By project, then package and server: the stdio command the machine runs instead of its catalog's (BTN-994). */
+  servers?: Record<string, Record<string, Record<string, ServerOverride>>>
   /** By project, the tasks with a run of their own (`TaskRuns.ofProject`). */
   runs: Record<string, Record<string, TaskRun>>
   /** By project, the ids of the tasks its trackers list, in no particular order. */
@@ -101,6 +107,8 @@ export class BriefCopy {
   active(): { project: string; paused: boolean }[] { return this.brief.active ?? [] }
   hubServers(): string[] { return this.brief.hubServers ?? [] }
   tracker(project: string) { return this.brief.trackers?.[project] }
+  /** The stdio command of a package's server on this machine in the project, where the hub names one. */
+  serverOf(project: string, name: string, server: string): ServerOverride | undefined { return this.brief.servers?.[project]?.[name]?.[server] }
 
   warm(): WarmTask[] {
     return this.brief.warm

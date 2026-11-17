@@ -19,12 +19,14 @@ import { RemoteMachine, type RemoteDeps } from '../machine/remote.js'
 import type { MachinePort } from '../machine/port.js'
 import { CLONE_PROGRESS_EVENT, type CloneTold, type MachineFolders, type MachineServices } from '../machine/services.js'
 import type { CloneProgress } from '../git/clone-progress.js'
-import type { ProjectPool } from '../link/view.js'
+import type { MachineProjectSettings, PoolServer, ProjectPool } from '../link/view.js'
 import { isInside, samePath } from '../paths.js'
+import type { ProjectSettings } from '../state.js'
 import type { Queryable } from '../storage/database.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { BriefSender } from './hub-brief.js'
 import { machineAccountOf } from './machine-page.js'
+import { afterGreenOn, settingsColumn, settingsFromColumn } from './machine-settings.js'
 
 export type { AddressChoice, MachineView }
 
@@ -38,8 +40,8 @@ const SESSIONS_READ_EVENT = 'sessions.read'
 export interface NetworkPeers {
   /** The hub's port of the machine, but how it sends and whom it stands for. */
   remote: (machine: string) => Omit<RemoteDeps, 'send' | 'machine' | 'catchUp' | 'changed'>
-  /** The hub's brief for a machine whose projects are those of its pool, each in its folder there. */
-  brief: (folders: Record<string, string>) => HubBrief
+  /** The hub's brief for a machine whose projects are those of its pool, each in its folder there with its own values. */
+  brief: (folders: Record<string, string>, settings: Record<string, MachineProjectSettings>) => HubBrief
   /** A machine's facts or connection changed: the limits are planned again. */
   changed: () => void
   /** A new connection of the machine: what it was told before is not known to hold. */
@@ -59,6 +61,8 @@ interface Peer {
   briefs: BriefSender
   /** The folders of the machine's pool, read before each brief. */
   folders: Record<string, string>
+  /** Its own values in each project of its pool (BTN-994), read with the folders. */
+  settings: Record<string, MachineProjectSettings>
   /** The hub's name of the machine, read at each snapshot: the page's state is built without a query. */
   name: string
   /** Even Keel's version its last report named, read at each snapshot; `null` — none reported. */
@@ -85,6 +89,12 @@ export interface MachineNetworkOptions {
   version: string
   /** A machine joined, connected or went away: the page asks for the list again. */
   changed: () => void
+  /** The project's settings, for the commands after a green main each machine of the pool runs. */
+  projectSettings?: (project: string) => Pick<ProjectSettings, 'beforeStart' | 'check' | 'afterGreen'> | undefined
+  /** The stdio servers of the project's packages here, which a machine elsewhere may run with a command of its own. */
+  servers?: (project: string) => PoolServer[]
+  /** A machine elsewhere connected and was given its brief: what it missed off the link may run there now. */
+  briefed?: (machine: string) => void
   peers?: NetworkPeers
   /** The own machine takes the project's folder over from `owner`'s mark. */
   takeOverOwn?: (project: string, owner: string) => Promise<void>
@@ -402,7 +412,7 @@ export class MachineNetwork {
         // A new connection may be a new process of the machine, which holds no brief yet.
         peer.briefs.forget()
         await peer.remote.handlers().snapshot(machine, snapshot)
-        void this.brief(machine)
+        void this.brief(machine).then(() => this.options.briefed?.(machine))
       },
       event: async (machine, event) => {
         if (event.type === SELECTION_EVENT) {
@@ -436,7 +446,7 @@ export class MachineNetwork {
       machine: () => machine,
       changed: () => peers.changed(),
     })
-    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, name: machine, version: null, briefs: new BriefSender(() => peers.brief(made.folders), (brief) => remote.tellBrief(brief)) }
+    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, settings: {}, name: machine, version: null, briefs: new BriefSender(() => peers.brief(made.folders, made.settings), (brief) => remote.tellBrief(brief)) }
     peer = made
     this.peers.set(machine, peer)
     return peer
@@ -515,13 +525,20 @@ export class MachineNetwork {
     if (peer === undefined) return
     try {
       const root = (await this.options.store.machine(machine))?.about?.root ?? null
-      const { rows } = await this.options.db.query<{ project_id: string; folder: string | null }>('select project_id, folder from project_machines where machine_id = $1', [machine])
+      const { rows } = await this.options.db.query<{ project_id: string; folder: string | null; settings: string | null }>(
+        'select project_id, folder, settings from project_machines where machine_id = $1',
+        [machine],
+      )
       const folders: Record<string, string> = {}
+      const settings: Record<string, MachineProjectSettings> = {}
       for (const row of rows) {
         const folder = this.folderOf(row.project_id, row.folder, root)
-        if (folder !== undefined) folders[row.project_id] = folder
+        if (folder === undefined) continue
+        folders[row.project_id] = folder
+        settings[row.project_id] = settingsFromColumn(row.settings)
       }
       peer.folders = folders
+      peer.settings = settings
       await peer.briefs.send()
     } catch (error) {
       this.options.log(`machines: the brief for machine ${machine} was not taken: ${error instanceof Error ? error.message : String(error)}`)
@@ -635,22 +652,66 @@ export class MachineNetwork {
     if (repo === undefined) throw fail('machines.unknownProject', {})
     const own = this.options.own()
     const records = (await this.options.store.listMachines()).filter((record) => record.revokedAt !== null ? false : record.id === own || record.joinedAt !== null)
-    const { rows } = await this.options.db.query<{ machine_id: string; folder: string | null; enabled: boolean }>(
-      'select machine_id, folder, enabled from project_machines where project_id = $1 order by machine_id',
+    const { rows } = await this.options.db.query<{ machine_id: string; folder: string | null; enabled: boolean; settings: string | null }>(
+      'select machine_id, folder, enabled, settings from project_machines where project_id = $1 order by machine_id',
       [project],
     )
+    const settings = this.options.projectSettings?.(project)
     const folderIn = (record: MachineRecord, folder: string | null) => (record.id === own ? repo : this.folderOf(project, folder, record.about?.root ?? null) ?? null)
     const online = (record: MachineRecord) => record.id === own || this.hub.connected(record.id)
     return {
       machines: rows.flatMap((row) => {
         const record = records.find((each) => each.id === row.machine_id)
         if (record === undefined) return []
-        return [{ id: record.id, name: record.name, own: record.id === own, online: online(record), folder: folderIn(record, row.folder) ?? '', enabled: row.enabled }]
+        const isOwn = record.id === own
+        const values = isOwn ? {} : settingsFromColumn(row.settings)
+        return [{ id: record.id, name: record.name, own: isOwn, online: online(record), folder: folderIn(record, row.folder) ?? '', enabled: row.enabled, settings: values, afterGreen: afterGreenOn(settings, values) }]
       }),
       others: records
         .filter((record) => !rows.some((row) => row.machine_id === record.id))
         .map((record) => ({ id: record.id, name: record.name, own: record.id === own, online: online(record), folder: folderIn(record, null) })),
+      servers: this.options.servers?.(project) ?? [],
+      ...(settings !== undefined && { commands: { beforeStart: settings.beforeStart, check: settings.check, afterGreen: settings.afterGreen } }),
     }
+  }
+
+  /**
+   * Keeps a machine elsewhere's own values in the project (BTN-994) and briefs it: its next session, check and command
+   * after a green main take them. The own machine has none: its values are the project's.
+   */
+  async setSettings(project: string, machine: string, values: MachineProjectSettings): Promise<void> {
+    if (this.options.repoOf(project) === undefined) throw fail('machines.unknownProject', {})
+    if (machine === this.options.own()) throw fail('pool.ownMachine', {})
+    const record = await this.foreign(machine)
+    const { rows } = await this.options.db.query('update project_machines set settings = $3 where project_id = $1 and machine_id = $2 returning machine_id', [project, record.id, settingsColumn(values)])
+    if (rows.length === 0) throw fail('pool.notInPool', {})
+    this.options.log(`machines: machine ${record.id} (${record.name}) has its own values in project ${project}: ${Object.keys(values).join(', ') || 'none'}`)
+    await this.poolChanged(record.id)
+  }
+
+  /**
+   * The machines of the project's pool turned on, each with the commands after a green main it runs and the last green
+   * commit they were started on there (BTN-994); `machine` — only that one.
+   */
+  async afterGreenPool(project: string, machine?: string): Promise<Array<{ machine: string; commands: string[]; ran: string | null }>> {
+    const { rows } = await this.options.db.query<{ machine_id: string; settings: string | null; after_green: string | null }>(
+      'select machine_id, settings, after_green from project_machines where project_id = $1 and enabled and ($2::text is null or machine_id = $2) order by machine_id',
+      [project, machine ?? null],
+    )
+    const own = this.options.own()
+    const settings = this.options.projectSettings?.(project)
+    return rows.map((row) => ({ machine: row.machine_id, commands: afterGreenOn(settings, row.machine_id === own ? {} : settingsFromColumn(row.settings)), ran: row.after_green }))
+  }
+
+  /** The projects whose pool has the machine turned on. */
+  async projectsOf(machine: string): Promise<string[]> {
+    const { rows } = await this.options.db.query<{ project_id: string }>('select project_id from project_machines where machine_id = $1 and enabled order by project_id', [machine])
+    return rows.map((row) => row.project_id)
+  }
+
+  /** The mark of the green commit the machine's commands after a green main start on, written before they start. */
+  async markAfterGreen(project: string, machine: string, commit: string): Promise<void> {
+    await this.options.db.query('update project_machines set after_green = $3 where project_id = $1 and machine_id = $2', [project, machine, commit])
   }
 
   /**
@@ -702,8 +763,9 @@ export class MachineNetwork {
   /**
    * Puts the project's folder on the machine into its pool turned off, tells the machine the folder and briefs it, so
    * its packages install before the checks. Answers whether the row is new: Cancel takes back only such a row.
+   * `copyFrom` — a machine of the pool whose own values in the project this one takes (BTN-994).
    */
-  async place(target: PoolTarget, project: string, folder: string): Promise<boolean> {
+  async place(target: PoolTarget, project: string, folder: string, copyFrom?: string): Promise<boolean> {
     if (!insideRoot(folder, target.root)) throw fail('pool.outside', { folder, root: target.root })
     const { rows } = await this.options.db.query<{ enabled: boolean }>('select enabled from project_machines where project_id = $1 and machine_id = $2', [project, target.id])
     await this.options.db.query(
@@ -711,6 +773,11 @@ export class MachineNetwork {
        on conflict (project_id, machine_id) do update set folder = $3`,
       [project, target.id, folder],
     )
+    if (copyFrom !== undefined && copyFrom !== target.id) {
+      const copied = await this.options.db.query<{ settings: string | null }>('select settings from project_machines where project_id = $1 and machine_id = $2', [project, copyFrom])
+      if (copied.rows.length === 0) throw fail('pool.notInPool', {})
+      await this.options.db.query('update project_machines set settings = $3 where project_id = $1 and machine_id = $2', [project, target.id, copied.rows[0]!.settings])
+    }
     this.taken.get(target.id)?.delete(project)
     await this.hub.send(target.id, { type: ASSIGN_COMMAND, project, folder })
     this.options.log(`machines: machine ${target.id} (${target.name}) is given the folder ${folder} of project ${project}, to be checked`)

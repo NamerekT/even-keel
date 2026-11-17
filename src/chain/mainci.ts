@@ -56,6 +56,10 @@ export interface MainCiDeps {
   afterGreen: (project: string) => string[]
   /** Runs them in a folder; `null` — all passed. */
   runAfterGreen: (project: string, cwd: string) => Promise<CheckFailure | null>
+  /** Main went green at a commit (`MainCheckDeps.green`). */
+  green?: (project: string, commit: string) => void
+  /** Brings a machine elsewhere's main up to the green commit by fast-forward, where it can (BTN-994). */
+  forward?: (project: string, commit: string) => Promise<void>
   /** The name the project's fix session runs under (`fixNameOf`). */
   fixName: (project: string) => string
   /** Writes an entry of the event log. */
@@ -72,7 +76,7 @@ export function mergeCheck(commands: string[], settings: CiSettings, views: CiVi
 
 // What the chain's check of main (BTN-103, BTN-104) needs from the service: git of the project, its counted CIs,
 // its own check and the tracker. With the guard of main off no CI counts and there is no check, so a push is never awaited.
-export function hubMainDeps(deps: Pick<MainCiDeps, 'projects' | 'peers' | 'watches' | 'settings' | 'commands' | 'language' | 'promptLanguage' | 'create' | 'comment' | 'afterGreen' | 'fixName' | 'event' | 'now'>, machine: Pick<MachineMainPort, 'history'>): MainCheckDeps {
+export function hubMainDeps(deps: Pick<MainCiDeps, 'projects' | 'peers' | 'watches' | 'settings' | 'commands' | 'language' | 'promptLanguage' | 'create' | 'comment' | 'afterGreen' | 'green' | 'fixName' | 'event' | 'now'>, machine: Pick<MachineMainPort, 'history'>): MainCheckDeps {
   const counted = (project: string): MainCiWatch[] | null => {
     const { guard, kinds } = deps.settings(project)
     return guard ? (deps.watches(project)?.filter((watch) => kinds.includes(watch.view.kind)) ?? null) : []
@@ -137,6 +141,7 @@ export function hubMainDeps(deps: Pick<MainCiDeps, 'projects' | 'peers' | 'watch
     fixTask: (project) => deps.settings(project).fixTask,
     fixName: deps.fixName,
     afterGreen: (project) => deps.settings(project).guard && deps.afterGreen(project).length > 0,
+    ...(deps.green !== undefined && { green: deps.green }),
   }
 }
 

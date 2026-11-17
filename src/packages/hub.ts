@@ -5,8 +5,9 @@ import { applySettings, keysOf, substitute } from './keys.js'
 import { routeOf } from './launch.js'
 import type { PackagesFile } from './model.js'
 import type { PackagesDeps } from './service.js'
+import { withOverride } from './stdio.js'
 
-type TargetDeps = Pick<PackagesDeps, 'rules' | 'poolOf' | 'oauth' | 'refuseDeletes'>
+type TargetDeps = Pick<PackagesDeps, 'rules' | 'poolOf' | 'oauth' | 'refuseDeletes' | 'serverOverride'>
 type Route = { project: string; name: string; install: string; server: string }
 
 export function packageTarget(file: PackagesFile, deps: TargetDeps, route: Route): GatewayTarget | null {
@@ -14,7 +15,8 @@ export function packageTarget(file: PackagesFile, deps: TargetDeps, route: Route
   const record = file.packages[route.name]
   const server = record?.installs.find((each) => each.id === route.install)?.servers[route.server]
   if (server === undefined) return null
-  let entry = applySettings(server.entry, { ...record?.settings, ...file.projects[project]?.settings[route.name] })
+  const own = withOverride(server.entry, deps.serverOverride?.(project, route.name, route.server))
+  let entry = applySettings(own, { ...record?.settings, ...file.projects[project]?.settings[route.name] })
   const oauth = deps.oauth?.(project, route.server, entry.url)
   if (oauth) entry = withoutAuthorization(entry)
   const keys = keysOf(route.server, entry, deps.rules, deps.poolOf(project))

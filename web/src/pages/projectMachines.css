@@ -77,6 +77,20 @@
   white-space: nowrap;
 }
 
+/* What the machine runs after a green main (BTN-994): a muted line under its folder. */
+.pool__after {
+  display: block;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool__after bdi {
+  font-family: var(--mono);
+}
+
 .pool__empty {
   margin: 0;
   color: var(--fg-muted);
@@ -85,6 +99,43 @@
 
 .pool__actions {
   display: flex;
+}
+
+/* A machine's own values in the project (BTN-994): a nested group per stdio server, the buttons at the right. */
+.machine-own__servers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* One column: the settings panel is too narrow for a path and its arguments side by side. */
+.machine-own__server {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.machine-own__name {
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.machine-own__part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-13);
+}
+
+.machine-own__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-8);
 }
 
 /* The settings tab in a machine's view (BTN-1279). */

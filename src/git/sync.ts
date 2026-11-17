@@ -62,13 +62,29 @@ async function syncOnce(git: Git, repo: string, remotes: string[], main: string)
  * after the task's Done deals with those.
  */
 export async function fastForwardMain(git: Git, repo: string, main = 'main'): Promise<void> {
-  if ((await git(repo, ['branch', '--show-current'])).out.trim() !== main) return
-  const status = await git(repo, ['status', '--porcelain', '--untracked-files=no'])
-  if (status.code !== 0 || status.out.trim() !== '') return
+  if (!(await cleanOnMain(git, repo, main))) return
   const remotes = (await git(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
   for (const remote of remotes) {
     if ((await git(repo, ['fetch', remote])).code !== 0) continue
     if ((await git(repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/${remote}/${main}`])).code !== 0) continue
     await git(repo, ['merge', '--ff-only', `${remote}/${main}`])
   }
+}
+
+/**
+ * Brings a machine elsewhere's main up to a green commit by fast-forward only, before its commands after a green main
+ * (BTN-994): not past it, so they run on the commit that was green. A checkout off main, with changes to tracked files,
+ * ahead or diverged is left as it is; the run then says why it skipped.
+ */
+export async function fastForwardTo(git: Git, repo: string, main: string, commit: string): Promise<void> {
+  if (!(await cleanOnMain(git, repo, main))) return
+  const remotes = (await git(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
+  for (const remote of remotes) await git(repo, ['fetch', remote])
+  await git(repo, ['merge', '--ff-only', commit])
+}
+
+async function cleanOnMain(git: Git, repo: string, main: string): Promise<boolean> {
+  if ((await git(repo, ['branch', '--show-current'])).out.trim() !== main) return false
+  const status = await git(repo, ['status', '--porcelain', '--untracked-files=no'])
+  return status.code === 0 && status.out.trim() === ''
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from './types.js'
-import { fastForwardMain, isNetworkFailure, syncMain } from './sync.js'
+import { fastForwardMain, fastForwardTo, isNetworkFailure, syncMain } from './sync.js'
 import { notice } from '../notice/notice.js'
 
 const repo = '/home/john/repo'
@@ -219,5 +219,28 @@ describe('fastForwardMain', () => {
     const { git, calls } = fakeGit({ ...clean, 'branch --show-current': { out: 'master' }, remote: { out: 'origin' } })
     await fastForwardMain(git, repo, 'master')
     expect(calls).toContain('merge --ff-only origin/master')
+  })
+})
+
+describe('fastForwardTo (BTN-994)', () => {
+  const clean = {
+    'branch --show-current': { out: 'main' },
+    'status --porcelain --untracked-files=no': { out: '' },
+    remote: { out: 'origin\nmirror' },
+  }
+  const commit = 'c'.repeat(40)
+
+  it('fetches every remote and fast-forwards main to the commit, not past it', async () => {
+    const { git, calls } = fakeGit({ ...clean, 'fetch origin': { code: 128 } })
+    await fastForwardTo(git, repo, 'main', commit)
+    expect(calls).toEqual(['branch --show-current', 'status --porcelain --untracked-files=no', 'remote', 'fetch origin', 'fetch mirror', `merge --ff-only ${commit}`])
+  })
+
+  it('leaves a checkout off main or with changes to tracked files', async () => {
+    const off = fakeGit({ ...clean, 'branch --show-current': { out: 'abc-7/task' } })
+    await fastForwardTo(off.git, repo, 'main', commit)
+    const changed = fakeGit({ ...clean, 'status --porcelain --untracked-files=no': { out: ' M a.ts' } })
+    await fastForwardTo(changed.git, repo, 'main', commit)
+    expect([...off.calls, ...changed.calls].some((call) => call.startsWith('fetch') || call.startsWith('merge'))).toBe(false)
   })
 })
