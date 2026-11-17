@@ -269,6 +269,7 @@ export async function bench() {
   const hooked: { machine: string; request: HookRequest }[] = []
   const hub = new HubEnd({
     store: hubStore,
+    version: '0.4.0',
     log: (line) => log.push(line),
     handlers: {
       event: (_machine, event) => {

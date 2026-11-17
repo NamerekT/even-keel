@@ -8,6 +8,7 @@ export const machinePageEn: Messages['machinePage'] = {
   online: 'online',
   offline: 'off the link',
   version: (version) => `Even Keel ${version}`,
+  otherVersion: (machine, hub) => `The machine runs Even Keel ${machine}, the hub ${hub}: it finishes its tasks and takes no new ones. Install ${hub} on the machine:`,
   joined: (time) => `joined ${time}`,
   more: 'More',
   settings: "The machine's settings",

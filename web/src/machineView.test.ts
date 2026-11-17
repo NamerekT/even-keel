@@ -29,6 +29,7 @@ describe('machineState', () => {
     const cards = [card('pc'), card('srv')]
     expect(machineState(view, cards, card('srv', { online: false, offlineSince: 5 }), 'ABC')).toEqual({ lamp: 'offline', since: 5 })
     expect(machineState(view, cards, cards[0]!, 'ABC')).toEqual({ lamp: 'working', task: { id: 'ABC-1', title: 'Title ABC-1' } })
+    expect(machineState(view, cards, card('srv', { otherVersion: '0.3.9', gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'version', version: '0.3.9' })
     expect(machineState(view, cards, card('srv', { gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'git' })
     expect(machineState(view, cards, card('srv', { projects: [{ project: 'ABC', enabled: true, packagesBlocked: true }] }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'packages' })
     expect(machineState(view, cards, card('srv', { limitedUntil: { claude: '2026-11-17T18:40:00Z' } }), 'ABC')).toEqual({ lamp: 'limit', until: '2026-11-17T18:40:00Z' })

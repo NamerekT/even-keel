@@ -32,6 +32,8 @@ export interface MachinePageDeps {
   taken: (machine: string) => TakenFolder[]
   setCapacity: (machine: string, capacity: number) => Promise<void>
   setColor: (machine: string, color: string | null) => Promise<void>
+  /** The hub's version of Even Keel: a machine of another one takes no new tasks (BTN-994). */
+  version: string
   log: (line: string) => void
 }
 
@@ -57,6 +59,7 @@ export function machinePageControl(deps: MachinePageDeps) {
         online: own || deps.online(record.id),
         joinedAt: record.joinedAt,
         about: own ? await deps.ownAbout() : record.about,
+        hubVersion: deps.version,
         color,
         picked: record.color !== undefined && record.color !== null,
         palette: [...MACHINE_PALETTE],

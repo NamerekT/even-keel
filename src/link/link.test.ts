@@ -441,7 +441,7 @@ describe('the hub ↔ machine link', () => {
     const sink = { send: () => {}, close: () => {} }
     expect(await hub.open(bearerOf(string), hello, sink)).toEqual({ refused: 'token' })
     expect(await hub.join(bearerOf({ ...string, secret: 'wrong' }), { api: API_VERSION, about: ABOUT })).toEqual({ refused: 'token' })
-    expect(await hub.join(bearerOf(string), { api: API_VERSION + 1, about: ABOUT })).toEqual({ refused: 'version', api: API_VERSION })
+    expect(await hub.join(bearerOf(string), { api: API_VERSION + 1, about: ABOUT })).toEqual({ refused: 'version', api: API_VERSION, evenKeel: '0.4.0' })
     const joined = await hub.join(bearerOf(string), { api: API_VERSION, about: ABOUT })
     if (isRefusal(joined)) throw new Error('refused')
     expect(joined.secret).not.toBe(string.secret)
@@ -523,11 +523,13 @@ describe('the hub ↔ machine link', () => {
   })
 
   it('refuses another API version in the handshake', async () => {
-    const { end, wire, presence, log } = await started({ api: API_VERSION + 1 })
+    const { end, wire, presence, log, hubStore, id } = await started({ api: API_VERSION + 1, about: async () => ({ ...ABOUT, evenKeel: '0.5.0' }) })
     expect(end.status()).toEqual({ state: 'offline', notice: 'link.version' })
     expect(presence).toEqual([])
     expect(wire.posts).toEqual([])
-    expect(log.some((line) => line.includes(`speaks API ${API_VERSION}`))).toBe(true)
+    // The hub keeps what the machine told, so its page names both versions (BTN-994).
+    expect(hubStore.machines.get(id)?.about?.evenKeel).toBe('0.5.0')
+    expect(log).toContain(`link: the hub speaks API ${API_VERSION} (Even Keel 0.4.0), this machine ${API_VERSION + 1}: install the hub's version here, even-keel update 0.4.0`)
   })
 
   it('gives the stream to the newest connection of a machine and refuses the posts of the older one', async () => {

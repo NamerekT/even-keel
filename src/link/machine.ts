@@ -432,7 +432,11 @@ export class MachineEnd {
       notice = 'link.token'
       wait = RECONNECT_MAX_MS
     } else if (refusal?.refused === 'version') {
-      if (notice !== 'link.version') this.options.log(`link: the hub speaks API ${refusal.api}, this machine ${this.api}: both need the same version of Even Keel`)
+      if (notice !== 'link.version') {
+        this.options.log(refusal.evenKeel === undefined
+          ? `link: the hub speaks API ${refusal.api}, this machine ${this.api}: both need the same version of Even Keel`
+          : `link: the hub speaks API ${refusal.api} (Even Keel ${refusal.evenKeel}), this machine ${this.api}: install the hub's version here, even-keel update ${refusal.evenKeel}`)
+      }
       notice = 'link.version'
       wait = RECONNECT_MAX_MS
     } else {

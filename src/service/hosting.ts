@@ -414,6 +414,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     taken: (machine) => network.takenOn(machine),
     setCapacity: (machine, capacity) => network.setCapacity(machine, capacity),
     setColor: (machine, color) => network.setColor(machine, color),
+    version: installed(root).version,
     log: (line) => console.log(line),
   })
   const cards = () => machineCards({
@@ -429,6 +430,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const git = ctx.getState().git
       return git === undefined ? null : git.name !== null && git.email !== null
     },
+    version: installed(root).version,
     now: () => Date.now(),
   })
   return createEvenKeelServer({

@@ -41,6 +41,8 @@ export interface HubOptions {
   now?: () => number
   /** The machines this end serves; another one's token is refused here (the hub's own machine is not served over the network). */
   admits?: (machine: string) => boolean
+  /** The hub's version of Even Keel, told to a machine of another API version with its refusal. */
+  version?: string
 }
 
 interface Live {
@@ -110,7 +112,7 @@ export class HubEnd {
   async join(authorization: string | undefined, post: JoinPost): Promise<JoinAnswer | Refusal> {
     const credentials = credentialsOf(authorization)
     if (credentials === undefined) return { refused: 'token' }
-    if (post.api !== API_VERSION) return { refused: 'version', api: API_VERSION }
+    if (post.api !== API_VERSION) return this.otherVersion()
     return this.queued(credentials.machine, async () => {
       const { store } = this.options
       const record = await store.machine(credentials.machine)
@@ -150,7 +152,11 @@ export class HubEnd {
   async open(authorization: string | undefined, hello: MachineHello, sink: FrameSink): Promise<Opened | Refusal> {
     const record = await this.known(authorization)
     if (record === undefined) return { refused: 'token' }
-    if (hello.api !== API_VERSION) return { refused: 'version', api: API_VERSION }
+    if (hello.api !== API_VERSION) {
+      // The report's shape has not changed since API 10: the page names the machine's version beside the hub's.
+      if (typeof hello.about === 'object' && hello.about !== null) await this.options.store.described(record.id, hello.about)
+      return this.otherVersion()
+    }
     const machine = record.id
     return this.queued(machine, async () => {
       const { store } = this.options
@@ -211,6 +217,10 @@ export class HubEnd {
   async hook(authorization: string | undefined, post: HookPost): Promise<HookAnswer | Refusal> {
     const handler = this.options.handlers.hook
     return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.request) ?? { status: 404, body: '' })
+  }
+
+  private otherVersion(): Refusal {
+    return { refused: 'version', api: API_VERSION, ...(this.options.version === undefined ? {} : { evenKeel: this.options.version }) }
   }
 
   private async asked<T>(authorization: string | undefined, connection: string, answer: (machine: string) => Promise<T> | T): Promise<T | Refusal> {

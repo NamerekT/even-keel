@@ -163,7 +163,7 @@ export function CardLine({ view, now }: { view: MachineState; now: Date }) {
   if (view.lamp === 'free')
     return <span className="machine-card__line">{view.task === undefined ? t.machinePanel.idle : <>{t.machinePanel.next} {key(view.task)}</>}</span>
   if (view.lamp === 'limit') return <span className="machine-card__line">{t.machinePanel.limit(formatMoment(view.until!, now))}</span>
-  if (view.lamp === 'blocked') return <span className="machine-card__line machine-card__line--error">{view.reason === 'git' ? t.machinePanel.git : t.machinePanel.packages}</span>
+  if (view.lamp === 'blocked') return <span className="machine-card__line machine-card__line--error">{view.reason === 'version' ? t.machinePanel.version(view.version!) : view.reason === 'git' ? t.machinePanel.git : t.machinePanel.packages}</span>
   const since = view.since ?? null
   return <span className="machine-card__line">{since === null ? t.machinePanel.offlineUnknown : t.machinePanel.offline(spanOf(now.getTime() - since))}</span>
 }

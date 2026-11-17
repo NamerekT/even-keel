@@ -61,6 +61,8 @@ interface Peer {
   folders: Record<string, string>
   /** The hub's name of the machine, read at each snapshot: the page's state is built without a query. */
   name: string
+  /** Even Keel's version its last report named, read at each snapshot; `null` — none reported. */
+  version: string | null
 }
 
 export interface MachineNetworkOptions {
@@ -143,6 +145,7 @@ export class MachineNetwork {
       store: options.store,
       admits: (machine) => machine !== options.own(),
       heartbeatMs: HEARTBEAT_MS,
+      version: options.version,
       log: options.log,
       handlers: this.handlers(),
     })
@@ -175,7 +178,15 @@ export class MachineNetwork {
   /** The machines elsewhere that take the chain's tasks now: online, their sessions read (BTN-993). */
   takers(): Array<{ id: string; capacity: number }> {
     return [...this.peers].flatMap(([id, peer]) =>
-      this.hub.connected(id) && peer.remote.facts()?.sessionsRead === true ? [{ id, capacity: peer.capacity }] : [])
+      this.hub.connected(id) && peer.remote.facts()?.sessionsRead === true && peer.version === this.options.version ? [{ id, capacity: peer.capacity }] : [])
+  }
+
+  /**
+   * Even Keel's version the machine elsewhere last reported, as its last snapshot read it (BTN-994): one other than the
+   * hub's goes on with the tasks it holds and takes no new ones. `undefined` — no such machine connected since the start.
+   */
+  versionOf(machine: string): string | null | undefined {
+    return this.peers.get(machine)?.version
   }
 
   /** The machines of the project's pool, turned on, as `refresh` last read them. */
@@ -382,6 +393,11 @@ export class MachineNetwork {
         const record = await this.options.store.machine(machine)
         peer.name = record?.name ?? machine
         peer.capacity = record?.capacity ?? 1
+        const version = record?.about?.evenKeel ?? null
+        if (version !== peer.version && version !== this.options.version) {
+          log(`machines: machine ${machine} (${peer.name}) runs Even Keel ${version ?? 'of no version reported'}, the hub ${this.options.version}: it takes no new tasks until it is updated`)
+        }
+        peer.version = version
         peers.connected(machine)
         // A new connection may be a new process of the machine, which holds no brief yet.
         peer.briefs.forget()
@@ -420,7 +436,7 @@ export class MachineNetwork {
       machine: () => machine,
       changed: () => peers.changed(),
     })
-    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, name: machine, briefs: new BriefSender(() => peers.brief(made.folders), (brief) => remote.tellBrief(brief)) }
+    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, name: machine, version: null, briefs: new BriefSender(() => peers.brief(made.folders), (brief) => remote.tellBrief(brief)) }
     peer = made
     this.peers.set(machine, peer)
     return peer

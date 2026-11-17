@@ -41,6 +41,7 @@ function deps(patch: Partial<MachineCardsDeps> = {}): MachineCardsDeps {
     mirror: () => undefined,
     ownAccounts: () => ({ accounts: [], active: '' }),
     ownGitUser: () => true,
+    version: '0.4.0',
     now: () => NOW,
     ...patch,
   }
@@ -63,6 +64,12 @@ describe('machineCards', () => {
     const records = async () => [record('pc'), record('laptop', { about: { ...ABOUT, gitUser: false } }), record('desk', { about: null })]
     const cards = await machineCards(deps({ records }))
     expect(cards.map((card) => card.gitUser)).toEqual([true, false, null])
+  })
+
+  it("names the version of a machine elsewhere that is not the hub's (BTN-994)", async () => {
+    const records = async () => [record('pc', { about: { ...ABOUT, evenKeel: '0.1.0' } }), record('laptop', { about: { ...ABOUT, evenKeel: '0.3.9' } }), record('desk'), record('new', { about: null })]
+    const cards = await machineCards(deps({ records }))
+    expect(cards.map((card) => card.otherVersion)).toEqual([undefined, '0.3.9', undefined, undefined])
   })
 
   it('marks an agent limited only when every signed-in account of it is spent, until the first frees', async () => {

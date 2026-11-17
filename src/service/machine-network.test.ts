@@ -413,4 +413,42 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(lines.join(' ')).not.toContain('sk-ant-oat01')
     await expect(network.login(OWN, 'claude')).rejects.toThrow(/no such machine/)
   })
+
+  it("pulls tasks only to a machine of the hub's version of Even Keel (BTN-994)", async () => {
+    const peers: NetworkPeers = {
+      remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
+      brief: () => ({ config: { projects: {} } }) as unknown as HubBrief,
+      changed: () => {},
+      connected: () => {},
+      mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      hook: () => Promise.resolve({ status: 200, body: '' }),
+      write: async () => {},
+    }
+    const lines: string[] = []
+    const { network, settings } = await started(peers, (line) => void lines.push(line))
+    settings.address = '127.0.0.1'
+    await network.apply()
+    const connect = async (name: string, about: MachineAbout) => {
+      const joined = await joinHub(parseToken((await network.invite(name)).line)!, about, 5_000)
+      if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+      const end: MachineEnd = new MachineEnd({
+        transport: httpsTransport(joined, { log: () => {}, timeoutMs: 5_000 }),
+        store: new MemoryMachineStore(),
+        snapshot: () => ({ boot: 'boot-1', rev: 1, facts: { sessionsRead: true, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {}, limits: {} } as unknown as FactsSnapshot['facts'] }),
+        command: async (command) => void (await end.emit(DONE_EVENT, { seq: command.seq, value: null })),
+        log: () => {},
+        about: () => Promise.resolve(about),
+      })
+      closing.push(async () => end.stop())
+      await end.start()
+      return joined.machine
+    }
+    const same = await connect('Example laptop', ABOUT)
+    const older = await connect('Example desktop', { ...ABOUT, host: 'example-desktop', evenKeel: '0.3.9' })
+    await until(() => network.remote(older)?.facts()?.sessionsRead === true && network.remote(same)?.facts()?.sessionsRead === true, 'both snapshots')
+
+    expect(network.takers()).toEqual([{ id: same, capacity: 1 }])
+    expect(network.versionOf(older)).toBe('0.3.9')
+    expect(lines.filter((line) => line.includes('0.3.9'))).toEqual([`machines: machine ${older} (Example desktop) runs Even Keel 0.3.9, the hub 0.4.0: it takes no new tasks until it is updated`])
+  })
 })

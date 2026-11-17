@@ -13,7 +13,7 @@ import { machineChecks, osLabel, type MachineCheck } from '../machineAdd.js'
 import { projectPath } from '../state.js'
 import { packagesPath } from '../tools/packageGroups.js'
 import { AccountTag } from '../ui/AccountTag.js'
-import { Band, Card, EmptyState, Fact, FactList, PageHead } from '../ui/blocks.js'
+import { Band, Card, CommandBlock, EmptyState, Fact, FactList, PageHead } from '../ui/blocks.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Lamp } from '../ui/Lamp.js'
 import { Loading } from '../ui/Loader.js'
@@ -86,6 +86,12 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
           {page.joinedAt !== null && !page.own && <span className="machine-page__muted">{text.joined(formatAgo(new Date(page.joinedAt).toISOString(), now))}</span>}
         </span>
       </PageHead>
+      {!page.own && page.about !== null && page.about.evenKeel !== page.hubVersion && (
+        <Band tone="warn" className="machine-page__version">
+          <span>{text.otherVersion(page.about.evenKeel, page.hubVersion)}</span>
+          <CommandBlock command={`even-keel update ${page.hubVersion}`} />
+        </Band>
+      )}
       {page.taken.map((each) => (
         <Band key={each.project} tone="warn">
           <ProjectLabel project={each.project} /> — {text.taken(each.name)}

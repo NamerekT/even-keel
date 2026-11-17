@@ -67,6 +67,8 @@ export interface MachineCard {
   offlineSince: number | null
   /** Its git has a user name and e-mail: without them a session's commit fails, so it takes no task. `null` — not told yet. */
   gitUser: boolean | null
+  /** Even Keel's version its report names, where it is not the hub's: it takes no new task (BTN-994). */
+  otherVersion?: string
   /** The agents it has a signed-in account of. */
   agents: string[]
   /** By agent, when the first of its accounts frees, where every signed-in account of that agent there is at a limit. */
@@ -143,6 +145,8 @@ export interface MachinePage {
   joinedAt: number | null
   /** Its report; the own machine's is read when its page is first opened. `null` — it has not told one yet. */
   about: MachineAbout | null
+  /** The hub's version of Even Keel: a machine elsewhere whose report names another goes on with its tasks and takes no new ones (BTN-994). */
+  hubVersion: string
   /** Its colour, its own or the palette's (`picked` says which), and the palette the page offers. */
   color: string
   picked: boolean

@@ -18,7 +18,9 @@ export interface MachineState {
   /** `limit` — when the first of its accounts frees. */
   until?: string
   /** `blocked` — why it takes no task. */
-  reason?: 'git' | 'packages'
+  reason?: 'git' | 'packages' | 'version'
+  /** `blocked` by `version` — Even Keel's version the machine runs. */
+  version?: string
   /** `offline` — since when, as the hub saw it go; `null` — not seen since the hub started. */
   since?: number | null
 }
@@ -59,6 +61,7 @@ export function machineState(state: View, cards: readonly MachineCard[], card: M
   const lanes = lanesOfMachine(state, card).filter((lane) => lane.current !== null && (project === undefined || lane.project === project))
   const running = lanes[0]?.current
   if (running) return { lamp: 'working', task: { id: running.task, title: titleOf(state, lanes[0]!.project, running.task) } }
+  if (card.otherVersion !== undefined) return { lamp: 'blocked', reason: 'version', version: card.otherVersion }
   if (card.gitUser === false) return { lamp: 'blocked', reason: 'git' }
   const projects = projectsOf(state, cards, card, project)
   if (project !== undefined && card.projects.some((row) => row.project === project && row.packagesBlocked)) return { lamp: 'blocked', reason: 'packages' }

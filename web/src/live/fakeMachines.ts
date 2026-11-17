@@ -29,7 +29,7 @@ export class FakeNetwork {
       id, name, createdAt: Date.now() - 86_400_000, revokedAt: null, inviteExpires: null, joinedAt: Date.now() - 86_000_000, host: report.host, about: report, online, projects: [], taken: [],
     })
     this.machines = [
-      joined('machine-1', 'Example laptop', about('example-laptop', mode === 'nocli' ? { agents: {} } : { gitUser: false }), mode !== 'offline'),
+      joined('machine-1', 'Example laptop', about('example-laptop', mode === 'nocli' ? { agents: {} } : mode === 'version' ? { evenKeel: '0.3.9' } : { gitUser: false }), mode !== 'offline'),
       joined('machine-2', 'Example desktop', about('example-desktop', { os: 'win32 10.0.26200', agents: { claude: '2.1.322', codex: '0.98.0' } }), true),
     ]
   }
@@ -164,6 +164,7 @@ export class FakeNetwork {
       online: own || (view?.online ?? true),
       joinedAt: own ? null : (view?.joinedAt ?? Date.now() - 86_000_000),
       about: report,
+      hubVersion: '0.4.0',
       color: this.colorsOf(names)[id]!,
       picked: color !== null,
       palette: [...MACHINE_PALETTE],

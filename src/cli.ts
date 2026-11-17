@@ -192,15 +192,16 @@ function joinInChild({ line, root: projects }: MachineJoin): void {
   run([process.execPath, join(root, 'dist', 'src', 'cli.js'), 'join', line, ...(projects === null ? [] : ['--root', projects])], 'even-keel join', 1)
 }
 
-/** Once a machine's service is started: waits up to 30 s for its first contact with the hub. */
-async function announceContact(since: number): Promise<void> {
+/** Once a machine's service is started: waits up to 30 s for its first contact with the hub; `false` — this is no machine. */
+async function announceContact(since: number): Promise<boolean> {
   loadEnv()
   const { readLinkFile } = await import('./machine/join.js')
   const stateDir = stateDirOf()
   const file = readLinkFile(stateDir)
-  if (file === undefined) return
+  if (file === undefined) return false
   const reached = await waitForContact(() => readLinkFile(stateDir), since, pageWait)
   console.log(contactMessageOf(reached, file.hub, pageLogOf(process.platform, home)))
+  return true
 }
 
 async function uninstall(): Promise<void> {
@@ -301,6 +302,7 @@ async function update(version: string | null): Promise<void> {
     return
   }
   const control = installedService()
+  const startedAt = Date.now()
   if (control !== null) {
     console.log('even-keel: stopping the service')
     run(control.stop, 'stopping the service')
@@ -317,7 +319,8 @@ async function update(version: string | null): Promise<void> {
     fail(error)
   }
   if (control === null) console.log(`even-keel: updated to ${target}; no service of this install, so none was started`)
-  else await announcePage()
+  // A machine of a hub has no page: it says whether it reached the hub instead (BTN-994).
+  else if (!(await announceContact(startedAt))) await announcePage()
 }
 
 switch (command.command) {

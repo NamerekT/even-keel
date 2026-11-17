@@ -111,7 +111,17 @@ export type Frame = { kind: 'hello'; hello: HubHello } | { kind: 'ping' } | { ki
  * connection that is no longer the machine's. A connection string is also `expired` past its time and `used` once a
  * machine joined with it.
  */
-export type Refusal = { refused: 'token' } | { refused: 'version'; api: number } | { refused: 'connection' } | { refused: 'expired' } | { refused: 'used' }
+export type Refusal = { refused: 'token' } | VersionRefusal | { refused: 'connection' } | { refused: 'expired' } | { refused: 'used' }
+
+/**
+ * Another API version: `api` is the hub's, `evenKeel` its version of Even Keel, the one to install on the machine
+ * (BTN-994; a hub before it sent `api` alone, so a machine reads it as optional).
+ */
+export interface VersionRefusal {
+  refused: 'version'
+  api: number
+  evenKeel?: string
+}
 
 export interface EventsPost {
   connection: string

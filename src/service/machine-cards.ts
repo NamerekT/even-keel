@@ -19,6 +19,8 @@ export interface MachineCardsDeps {
   ownAccounts: () => Pick<AccountView, 'accounts' | 'active'>
   /** Git on the own machine has a user name and e-mail; `null` — not read yet. */
   ownGitUser: () => boolean | null
+  /** The hub's version of Even Keel. */
+  version: string
   now: () => number
 }
 
@@ -52,6 +54,7 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       online,
       offlineSince: online ? null : (deps.offlineSince(record.id) ?? null),
       gitUser: isOwn ? deps.ownGitUser() : (record.about?.gitUser ?? null),
+      ...(!isOwn && record.about !== null && record.about.evenKeel !== deps.version && { otherVersion: record.about.evenKeel }),
       ...limitedOf(accounts.filter((account) => account.signedIn), now),
       accounts,
       active: panel?.active || null,
