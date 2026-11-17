@@ -802,7 +802,7 @@ const briefed = chainService.wireBriefed(context)
 /** Even Keel's prompt and the project's own, for a new session only: a resumed one already has them. */
 const withProject = chainService.wireWithProject(context)
 
-const settingsFor = createSessionSettings({ config: () => configStore.current, packages, globalDir: homes.global.dir, trim: () => dispatcher.state.trimTools, projectOf })
+const settingsFor = createSessionSettings({ config: () => configStore.current, packages, globalDir: homes.global.dir, trim: () => dispatcher.state.trimTools, projectOf, git: runGit, branchOf })
 
 function projectOf(task: string): string | undefined { return chainService.projectOf(context, task) }
 
@@ -862,7 +862,7 @@ function resumeWith(task: string, session: HandoffSession, prompt: string): Prom
 /** The words that came with an allowed call wait in the session's mailbox: it goes on with its turn at once. */
 function approved(task: string, session: HandoffSession, prompt: string): boolean { return chainService.approved(context, task, session, prompt) }
 
-function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart { return chainService.goOnWith(context, home, task, session, prompt) }
+function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): Promise<SessionStart> { return chainService.goOnWith(context, home, task, session, prompt) }
 
 /** Puts a chat message into a working session that steers (BTN-291); `false` — it is not live here after all. */
 function steer(task: string, session: HandoffSession, prompt: string): Promise<boolean> { return chainService.steer(context, task, session, prompt) }

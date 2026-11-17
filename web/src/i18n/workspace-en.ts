@@ -30,6 +30,9 @@ export const toolsEN: Messages['tools'] = {
     problem: {
       localDeny: 'Denies and asks only in settings.local.json — chain sessions run without them: a worktree does not read that file, and Even Keel does not carry them over',
       unreached: 'Will not reach the session — a session in a worktree does not read settings.local.json of the main checkout',
+      settingsIgnored: 'The main checkout’s .claude/settings.json is in .gitignore — chain sessions do not get it: a task worktree has only what the project’s branch holds',
+      settingsUncommitted: 'The main checkout’s .claude/settings.json is not committed — chain sessions do not get it: a task worktree has only what the project’s branch holds',
+      settingsEdited: 'The main checkout’s .claude/settings.json has uncommitted edits — chain sessions get the branch’s version, shown here',
       claudeai: 'claude.ai skills in the last session',
       mcpFailed: 'MCP servers that failed to connect',
     },
@@ -38,6 +41,9 @@ export const toolsEN: Messages['tools'] = {
         'Fix: move the rule to the project’s .claude/settings.json (it is committed and a worktree reads it), or add it to “Additional agent rules” of Protection in the project’s or the shared settings.',
       unreached:
         'Fix: move the setting to the project’s .claude/settings.json (it is committed and a worktree reads it), or to the settings Even Keel passes to chain sessions through --settings.',
+      settingsIgnored: 'Fix: remove .claude/settings.json from .gitignore and commit it to the project’s branch.',
+      settingsUncommitted: 'Fix: commit .claude/settings.json to the project’s branch.',
+      settingsEdited: 'Fix: commit the edits to the project’s branch, or drop them if the sessions should go on without them.',
       claudeai: 'Fix: turn on “Trim the tools” in Settings → Sessions — chain sessions then start with claude.ai skills and plugins off. The list is from the last session, so it may predate the switch.',
       mcpFailed:
         'Fix: open the project’s packages and look at the server’s package — whether it is on, its problems and settings; its install and key are in the catalog. The list is from the last session, so it may predate a fix.',

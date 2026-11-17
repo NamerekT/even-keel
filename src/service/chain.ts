@@ -230,7 +230,7 @@ export function wireKeepWarm(ctx: ChainContext): KeepWarm {
       const session = ctx.monitor.handoff(task)
       if (view === undefined || session === undefined) throw new Error(`the session ${sessionId} is not live`)
       const home = ctx.homeOf(session.account)
-      const start: SessionStart = { name: task, cwd: session.cwd, prompt: KEEP_WARM_PROMPT, model: view.model, settings: ctx.settingsFor(task), ...ctx.agentExtras(home, ctx.projectOf(task), task) }
+      const start: SessionStart = { name: task, cwd: session.cwd, prompt: KEEP_WARM_PROMPT, model: view.model, settings: await ctx.settingsFor(task), ...ctx.agentExtras(home, ctx.projectOf(task), task) }
       return ctx.agentOf(home).warm!(home, session, start)
     },
     now: () => new Date(),
@@ -253,7 +253,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const started = ctx.withProject(await ctx.briefed(task, startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), !isPlain(ctx.configStore.current, project)), project), project)
       const { prompt, model, provider, fallback } = ctx.planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
       const extras = ctx.agentExtras(home, project, task)
-      const sessionId = await ctx.launchIn(home, { name: task, cwd: place.path, prompt, model, settings: ctx.settingsFor(task, project), ...extras }, project)
+      const sessionId = await ctx.launchIn(home, { name: task, cwd: place.path, prompt, model, settings: await ctx.settingsFor(task, project), ...extras }, project)
       if (fallback === null) return { sessionId }
       console.warn(englishOf(ctx.noAccountFor(task, fallback, provider)))
       return { sessionId, fallback }
@@ -378,7 +378,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const note = await readNote(notePath)
       const at = new Date().toISOString()
       const extras = ctx.agentExtras(home, project, task)
-      const sessionId = await ctx.launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: ctx.settingsFor(task, project), ...extras }, project)
+      const sessionId = await ctx.launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: await ctx.settingsFor(task, project), ...extras }, project)
       const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
       ctx.writes.add(`the handoff snapshot of ${task}`, saveSnapshot(ctx.db, snapshot))
       return sessionId
@@ -390,7 +390,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const text = fixPrompt(report, place, ctx.promptLanguage(project), ctx.branchOf(project), reran === true)
       const { prompt, model } = ctx.planFor(name, ctx.withProject(text, project), project)
       const extras = ctx.agentExtras(home, project, name)
-      return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: ctx.settingsFor(name, project), ...extras }, project)
+      return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: await ctx.settingsFor(name, project), ...extras }, project)
     },
     launchCarry: async (project, name, report) => {
       const home = ctx.homeOf(ctx.choiceFor(project).account)
@@ -398,7 +398,7 @@ export async function wireDispatcher(ctx: ChainContext): Promise<Dispatcher> {
       const place = await ctx.places.ready(project, name)
       const { prompt, model } = ctx.planFor(name, ctx.withProject(carryPrompt(report, place, ctx.promptLanguage(project), ctx.branchOf(project)), project), project)
       const extras = ctx.agentExtras(home, project, name)
-      return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: ctx.settingsFor(name, project), ...extras }, project)
+      return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: await ctx.settingsFor(name, project), ...extras }, project)
     },
     carried: async (project, commit) =>
       (await runGit(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
@@ -564,7 +564,7 @@ export function resumeWith(ctx: ChainContext, task: string, session: HandoffSess
   return ctx.monitor.holds.during(session.sessionId, async () => {
     if (ctx.approved(task, session, prompt)) return session.sessionId
     const home = ctx.homeOf(session.account)
-    const start = ctx.goOnWith(home, task, session, prompt)
+    const start = await ctx.goOnWith(home, task, session, prompt)
     const went = session.stopped || ctx.liveView(task)?.hungSince != null ? undefined : await ctx.agentOf(home).reply?.(home, session, start)
     if (went != null) return went
     const started = Date.now()
@@ -590,15 +590,15 @@ export function approved(ctx: ChainContext, task: string, session: HandoffSessio
   return true
 }
 
-export function goOnWith(ctx: ChainContext, home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
+export async function goOnWith(ctx: ChainContext, home: AccountHome, task: string, session: HandoffSession, prompt: string): Promise<SessionStart> {
   const { model } = ctx.planFor(task, prompt)
   const extras = ctx.agentExtras(home, ctx.projectOf(task), task)
-  return { name: task, cwd: session.cwd, prompt, model, settings: ctx.settingsFor(task), ...extras }
+  return { name: task, cwd: session.cwd, prompt, model, settings: await ctx.settingsFor(task), ...extras }
 }
 
 export async function steer(ctx: ChainContext, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
   const home = ctx.homeOf(session.account)
-  return (await ctx.agentOf(home).reply?.(home, session, ctx.goOnWith(home, task, session, prompt))) != null
+  return (await ctx.agentOf(home).reply?.(home, session, await ctx.goOnWith(home, task, session, prompt))) != null
 }
 
 export function occupantsOf(ctx: ChainContext, slot: string, task: string): { idle: import("../sessions/occupants.js").Occupant[]; busy: import("../sessions/occupants.js").Occupant[]; } {

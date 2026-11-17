@@ -13,6 +13,7 @@ import type { CacheTtl } from '../state.js'
 import { protectionRules, type Protection } from '../sessions/protection.js'
 import { projectDirName } from '../sessions/paths.js'
 import type { ReceivedTools, ToolsView } from './model.js'
+import { readProjectSettings, type ProjectSettings } from './projectSettings.js'
 import { latestStarted, readReceived, skillSource } from './received.js'
 import { accountDrift, forPackageOff, settingRows, trimSettings } from './settings.js'
 
@@ -69,6 +70,7 @@ export function chainSettings(
   protection?: Protection,
   autoCompactWindow: number | null = null,
   noGit = false,
+  files: Pick<ProjectSettings, 'project' | 'local'> = { project: undefined, local: undefined },
 ): string {
   const always = {
     permissions: { deny: protectionRules(protection, [], undefined, undefined, noGit).claude },
@@ -82,15 +84,12 @@ export function chainSettings(
     ...(noGit && { worktree: { bgIsolation: 'none' } }),
   }
   if (!trim) return JSON.stringify(always)
-  const { project, local } = projectSettings(repo)
-  return JSON.stringify({ ...trimSettings(hidden, project, local), ...always })
+  return JSON.stringify({ ...trimSettings(hidden, files.project, files.local), ...always })
 }
 
 export async function readToolsView(project: string, places: ToolsPlaces): Promise<ToolsView> {
   const { repo } = places
   const user = readJson(join(places.globalDir, 'settings.json'))
-  const { project: shared, local } = projectSettings(repo)
-  const chain = places.trim ? trimSettings(places.hidden, shared, local) : undefined
   const configs = places.configs.map(readJson).filter((config) => config !== undefined)
   const localAllowed = configs.flatMap((config) => {
     const entries = Object.entries(objectOf(config.projects)).filter(([path]) => samePath(path, repo))
@@ -104,12 +103,14 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
 
   const plain = places.plain === true
   const files = plain ? folderFiles(repo) : []
-  const [received, rules, docs, codexProject] = await Promise.all([
+  const [{ project: shared, local, drift }, received, rules, docs, codexProject] = await Promise.all([
+    readProjectSettings(places.git, repo, places.branch, plain),
     readNewest(places.homes, repo),
     plain ? repoRulesOf(files) : readRepoRules(places.git, repo, places.branch),
     plain ? files.filter(isDoc).sort() : readBranchDocs(places.git, repo, places.branch),
     plain ? readFolderCodexRules(join(repo, CODEX_RULES)) : readBranchCodexRules(places.git, repo, places.branch),
   ])
+  const chain = places.trim ? trimSettings(places.hidden, shared, local) : undefined
   const codexUser = places.codexHome === undefined ? [] : readFolderCodexRules(join(places.codexHome, 'rules'))
   const known = { user: new Set(dirNames(join(places.globalDir, 'skills'))), project: new Set(dirNames(join(repo, '.claude', 'skills'))) }
 
@@ -124,6 +125,7 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     received: received === undefined ? null : { ...received, skills: received.skills.map((name) => ({ name, source: skillSource(name, known) })) },
     rules,
     docs,
+    ...(drift !== undefined && { settingsDrift: drift }),
     ...(plain ? { plain: true as const } : {}),
   }
 }
@@ -195,10 +197,6 @@ function readFolderCodexRules(dir: string): CodexRule[] {
 
 function isOwnRulesFile(file: string): boolean {
   return file.endsWith('.rules') && !file.endsWith(PROTECTION_FILE)
-}
-
-function projectSettings(repo: string): { project: Json | undefined; local: Json | undefined } {
-  return { project: readJson(join(repo, '.claude', 'settings.json')), local: readJson(join(repo, '.claude', 'settings.local.json')) }
 }
 
 /** The project's session that started last among the last touched transcripts, worktree ones first: chain sessions run there. */

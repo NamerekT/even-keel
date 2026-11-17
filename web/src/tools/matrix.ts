@@ -1,4 +1,4 @@
-import type { SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
+import type { SettingKind, SettingRow, SettingsDrift, ToolScope, ToolsView } from '../../../src/tools/model.js'
 
 export const HIDDEN = 'user-invocable-only'
 
@@ -82,23 +82,33 @@ export interface Problems {
   unreached: SettingRow[]
   claudeai: string[]
   mcpFailed: string[]
+  /** The main checkout's `.claude/settings.json` when it differs from the branch's, which sessions get (EKR-128): one kind per cause. */
+  settingsIgnored: string[]
+  settingsUncommitted: string[]
+  settingsEdited: string[]
 }
+
+const SETTINGS_FILE = '.claude/settings.json'
 
 export function problemsOf(view: ToolsView): Problems {
   const lost = view.settings.filter((row) => row.session === null)
+  const drift = (kind: SettingsDrift) => (view.settingsDrift === kind ? [SETTINGS_FILE] : [])
   return {
     localDeny: lost.filter(localDeny),
     unreached: lost.filter((row) => !localDeny(row)),
     claudeai: (view.received?.skills ?? []).filter((skill) => skill.source === 'claudeai').map((skill) => skill.name),
     mcpFailed: (view.received?.mcp ?? []).filter((server) => server.failed).map((server) => server.name),
+    settingsIgnored: drift('ignored'),
+    settingsUncommitted: drift('uncommitted'),
+    settingsEdited: drift('edited'),
   }
 }
 
 export function problemCount(problems: Problems): number {
-  return problems.localDeny.length + problems.unreached.length + problems.claudeai.length + problems.mcpFailed.length
+  return PROBLEM_KINDS.reduce((sum, kind) => sum + problems[kind].length, 0)
 }
 
-export const PROBLEM_KINDS = ['localDeny', 'unreached', 'claudeai', 'mcpFailed'] as const
+export const PROBLEM_KINDS = ['localDeny', 'unreached', 'settingsIgnored', 'settingsUncommitted', 'settingsEdited', 'claudeai', 'mcpFailed'] as const
 
 export interface SharedProblem {
   kind: (typeof PROBLEM_KINDS)[number]

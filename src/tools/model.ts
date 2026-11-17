@@ -21,6 +21,12 @@ export interface SettingRow {
   session: string | null
 }
 
+/**
+ * How the main checkout's `.claude/settings.json` differs from the branch's, which task worktrees get (EKR-128):
+ * `ignored` — `.gitignore` keeps it off the branch, `uncommitted` — never committed, `edited` — edits not committed.
+ */
+export type SettingsDrift = 'ignored' | 'uncommitted' | 'edited'
+
 /** Top-level keys of an account folder's `settings.json` that differ from the global one. */
 export interface AccountDrift {
   account: string
@@ -70,6 +76,8 @@ export interface ToolsView {
   rules: RepoRules | null
   /** The Markdown files committed on the project's branch, the documents a standard may name (BTN-359); `null` — as above. */
   docs: string[] | null
+  /** The `project` column is the branch's `settings.json`; this says how the main checkout's file differs from it. */
+  settingsDrift?: SettingsDrift
   /**
    * A project without git (BTN-883): its sessions run in the folder itself, so `rules`, `docs` and the project's Codex
    * rules are the folder's files and `settings.local.json` reaches the sessions.

@@ -64,9 +64,9 @@ describe('continuation prompts', () => {
     expect(reply).toHaveBeenCalledExactlyOnceWith(home, session, expect.objectContaining({ prompt: 'готово', model: 'sonnet' }))
   })
 
-  it('uses a changed model without adding its prompt to the continuation', () => {
+  it('uses a changed model without adding its prompt to the continuation', async () => {
     const { ctx, home, session, planning } = setup()
     planning.configStore.current.models.claude = 'haiku'
-    expect(goOnWith(ctx, home, 'ABC-1', session, 'Continue')).toMatchObject({ prompt: 'Continue', model: 'haiku' })
+    expect(await goOnWith(ctx, home, 'ABC-1', session, 'Continue')).toMatchObject({ prompt: 'Continue', model: 'haiku' })
   })
 })
