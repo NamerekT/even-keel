@@ -157,3 +157,33 @@ on 2026-12-03); its runs append to `.temp/break-labels.log`. The new collection 
 first session started after 13:14:16 UTC; a task first started earlier belongs to the void period and
 stays out, whatever its label. The stop rule
 is unchanged: 30 closed long tasks in each group, then unregister the task.
+
+## Amendment of 2026-11-17
+
+Written at about 16:30 UTC, before any outcome of the second start was computed. Looked at by then:
+group sizes, peak contexts and deviation counts, nothing else.
+
+**The long-task population is biased by the treatment.** A context handoff fires at a task peak of about
+160–180k, an auto-compaction at about 215k. A handoff-arm task therefore becomes "long" at a smaller size
+than a compaction-arm one, and the compaction arm keeps tasks of the same size among its "short" ones:
+of the closed Claude tasks so far, 20 of 94 are long in the compaction arm and 28 of 99 in the handoff arm,
+while 24 short compaction-arm tasks peaked above 150k against 10 short handoff-arm ones. Long against long
+compares big tasks with big and middle ones together. More tasks do not fix that, so:
+
+- **The primary comparison is every closed Claude task by its number's parity**, long or short. Assignment
+  does not depend on anything the treatment does, so the arms stay comparable. The metrics, the CLI-version
+  strata and the deviation counts are the ones above.
+- Long and short tasks stay as a secondary split, reported with this bias named.
+
+**The stopping rule is replaced by a change of a common condition.** On 2026-11-17 the project's prompt
+cache for chain sessions went from one hour to five minutes (Even Keel's `cacheTtl` project setting). The
+first BTN chain session writing the five-minute cache is BTN-1051's, started 2026-11-17 15:25:04.578 UTC.
+
+- **Phase 1**: tasks first started 2026-11-12 13:14:16 .. 2026-11-17 15:25:04.578 UTC, under the one-hour
+  cache. Analysed now, on the tasks closed by the analysis; the ones still open are counted.
+- **Phase 2**: the same assignment goes on under the five-minute cache; the schedule stays until it expires
+  on 2026-12-03, then all closed phase-2 tasks are analysed the same way, and the cache becomes one more
+  stratum beside the CLI version. A phase-1 task with sessions after the switch is a deviation.
+
+The queries are [compaction-ab.sql](compaction-ab.sql). The rollout deviations (a task first started
+before its label's `assigned` line) come from the label logs and are counted outside Tally.
