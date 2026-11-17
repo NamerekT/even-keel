@@ -7,7 +7,7 @@ import './carryWait.css'
 
 /**
  * What a carry asked for and not started yet waits to merge (EKR-134): the commits, the conflicted files and their
- * lines, each file with a bar against the largest one. The conflict is known only since the service's start.
+ * lines, each file with a bar against the largest one. After a restart the conflict is the one the carry session keeps (EKR-135).
  */
 export function CarryWait({ forward }: { forward: ForwardView | null }) {
   const [all, setAll] = useState(false)

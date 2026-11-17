@@ -3,6 +3,7 @@ import type { EventDraft } from '../event-log/model.js'
 import type { Changes, FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
+import type { ConflictFile } from '../state.js'
 import type { OverageSession } from '../limits/overage-session.js'
 import type { Task, TaskMilestone } from '../tracker/model.js'
 import type { NewTask } from '../tracker/source.js'
@@ -171,6 +172,8 @@ export interface CarrySession {
   commits: number
   /** The session's prompt in `into`'s `promptLanguage`: what to merge and what conflicted. */
   report: string
+  /** The conflicted files with their lines when asked (EKR-135): the page shows them after a restart, when the merger's memory has none. */
+  conflict?: ConflictFile[]
 }
 
 /** The fix of a red main a session without a task does or is about to do. */

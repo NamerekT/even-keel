@@ -100,6 +100,11 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
       since: '2026-10-01T09:30:00.000Z',
       end: { at: '2026-10-01T09:31:00.000Z', state: 'failed', command: 'npm run deploy', code: 1 },
     })
+    expect(state.ci[ABC]?.carry).toMatchObject({ task: 'ABC-CARRY', into: XYZ, commits: 2 })
+    expect(state.ci[ABC]?.carry?.conflict).toEqual([
+      { path: 'src/a.ts', lines: 3 },
+      { path: 'src/b.ts', lines: null },
+    ])
   })
 
   it('reads the questions, the launches and the accounts', async () => {

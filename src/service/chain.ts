@@ -11,6 +11,7 @@ import { sessionBase } from '../agent/env.js'
 import { Dispatcher, type LaunchEntry } from '../chain/dispatcher.js'
 import { carryNameOf, fixNameOf, isCarryName, isFixName, isOwnName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { chainQuiet, ForwardMerger } from '../chain/forward.js'
+import type { CarrySession } from '../chain/model.js'
 import { PROMPTS } from '../chain/prompts.js'
 import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, type HandoffSession } from '../chain/relay.js'
 import { launchLine } from '../chain/log.js'
@@ -540,7 +541,7 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
     now: () => new Date(),
     changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
     log: (message) => console.log(message),
-    carrying: (from) => ctx.dispatcher.carrying(from)?.task ?? null,
+    carrying: (from) => ctx.dispatcher.carrying(from) ?? null,
     auto: (from) => ctx.configStore.current.settings[from]?.carryAgent === true || ctx.configStore.current.unattended,
     resolve: async (from, ask) => {
       const config = ctx.configStore.current
@@ -556,7 +557,9 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
         output: ask.output,
       })
       const at = new Date().toISOString()
-      ctx.dispatcher.carry(from, { task: carryNameOf(config.keys, from), into: ask.into, at, commit: ask.commit, commits: ask.commits, report })
+      const carry: CarrySession = { task: carryNameOf(config.keys, from), into: ask.into, at, commit: ask.commit, commits: ask.commits, report }
+      if (ask.conflict !== undefined) carry.conflict = ask.conflict
+      ctx.dispatcher.carry(from, carry)
     },
   })
 }

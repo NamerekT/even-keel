@@ -134,7 +134,7 @@ export interface ForwardView {
   last?: { at: string; commits: number; push: Notice | null }
   /** The session that resolves the held conflict or is about to (BTN-369), a session of the chain of `into`. */
   agent?: string
-  /** The files of the held conflict with their conflict lines (EKR-134), kept in memory with the hold. */
+  /** The files of the held conflict with their conflict lines (EKR-134), kept in memory with the hold; after a restart, those its carry session keeps (EKR-135). */
   conflict?: ConflictFile[]
 }
 
