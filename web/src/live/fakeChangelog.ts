@@ -106,8 +106,8 @@ function edited(text: string): string {
 
 /**
  * `changelog/open|draft|again|add|edit|write` → the milestone's newest version, kept in memory per project and
- * milestone; `open` without one → what the first draft would start from. `?changelog=failed|unnoticed|empty|slow|dirty|file|fresh|released|released-none`
- * — the agent fails, finds nothing a user would notice, the milestone has no done task, writing never ends, the file is
+ * milestone; `open` without one → what the first draft would start from. `?changelog=failed|limit|unnoticed|empty|slow|dirty|file|fresh|released|released-none`
+ * — the agent fails, the account's 5-hour limit is spent, finds nothing a user would notice, the milestone has no done task, writing never ends, the file is
  * dirty, the file already has the milestone's section, no milestone starts written (also under `empty` and `file`), the
  * written milestone is released as `v0.1.0` with its section in the file or without it.
  */
@@ -140,6 +140,7 @@ export async function fakeChangelog(state: EvenKeelState, name: string, body: Re
   if (param === 'slow') await new Promise(() => {})
   await new Promise((resolve) => setTimeout(resolve, WRITE_MS))
   if (param === 'failed') throw fail('changelog.failed', { project }, { detail: 'claude exited with 1' })
+  if (param === 'limit') throw fail('changelog.limitSpent', { account: 'global', window: 'fiveHour', until: new Date(Date.now() + 47 * 60_000).toISOString() })
   const done = unaccounted(projectTasks(state, project), project, milestone, [])
   if (param === 'unnoticed') throw fail('changelog.unnoticed', { milestone, tasks: done })
   const next = (kind: ChangelogKind, text: string, base: string | null, instruction: string | null, tasks: string[]) => {

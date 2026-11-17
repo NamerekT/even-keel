@@ -13,6 +13,7 @@ import { useLive } from '../live/context.js'
 import { Segmented } from '../stats/common.js'
 import { formatUsd, modelVersionLabel } from '../stats/format.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { NoticeFixButton } from './FixButtons.js'
 import { DiffLines } from '../ui/DiffLines.js'
 import { ChangelogIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
@@ -242,7 +243,15 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
             )}
           </Loading>
         </div>
-        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
+        {failure !== null && (
+          <p role="alert" className="notice notice--error add-package__failure">
+            {say(failure)}{' '}
+            {/* The fix leads to the project's settings under this dialog: the click closes it on its way up. */}
+            <span onClick={onClose}>
+              <NoticeFixButton project={project} notice={failure} />
+            </span>
+          </p>
+        )}
         <footer className="add-package__foot changelog__foot">
           {view === null && busy === 'open' ? null : version === null ? (
             <>

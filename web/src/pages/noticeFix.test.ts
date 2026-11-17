@@ -46,6 +46,7 @@ describe('noticeFixOf', () => {
 
   it('sends a spent limit to the project pool and a lost sign-in to the accounts', () => {
     expect(noticeFixOf(notice('chain.limitSpent', { until: '12:00' }))).toEqual({ to: 'project', tab: 'sessions' })
+    expect(noticeFixOf(notice('changelog.limitSpent', { account: 'acc', window: 'fiveHour' }))).toEqual({ to: 'project', tab: 'sessions' })
     expect(noticeFixOf(notice('account.signedOut', {}))).toEqual({ to: 'accounts' })
     expect(noticeFixOf(notice('copilot.notSignedIn', {}))).toEqual({ to: 'accounts' })
   })

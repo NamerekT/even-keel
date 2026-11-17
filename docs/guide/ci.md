@@ -134,7 +134,7 @@ A button on a milestone's head in the chain opens that milestone's changelog: be
 
 Then the agent writes the section in the Keep a Changelog format, from the titles and closing comments of its done tasks, in the language of your `CHANGELOG.md` (or `README.md`).
 
-It runs read-only, on the account and model the project's next session would get, and starts from the section already in your changelog file, so your own edits there stay.
+It runs read-only, on the account and model the project's next session would get, and starts from the section already in your changelog file, so your own edits there stay. When that account's limit is spent, nothing is sent: the dialog says which limit and when it resets, with a button to the project's Sessions settings where you can give the project another account.
 
 It writes for someone upgrading from the previous release, whose section it is given: a fix of something new in this release is part of that feature's entry, not a line under Fixed.
 

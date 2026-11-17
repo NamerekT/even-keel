@@ -1,3 +1,4 @@
+import type { SpentWindow } from '../changelog/limit.js'
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 
@@ -10,6 +11,8 @@ export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forg
 export const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Anthropic', openai: 'OpenAI', openrouter: 'OpenRouter', github: 'GitHub' }
 /** The agents of the account folders by their registry name, as their adapters' `title`. */
 export const AGENT_NAMES: Record<string, string> = { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot', demo: 'Demo' }
+/** The limit windows of an account as a message names them. */
+export const SPENT_WINDOWS: Record<SpentWindow, string> = { fiveHour: '5-hour', sevenDay: 'weekly', month: 'monthly' }
 
 export type GitStep ='excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch' | 'commit'
 

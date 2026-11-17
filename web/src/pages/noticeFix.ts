@@ -54,6 +54,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'copilot.modelUnavailable': { to: 'project', tab: 'sessions' },
   'copilot.notSignedIn': ACCOUNTS,
   'chain.limitSpent': { to: 'project', tab: 'sessions' },
+  'changelog.limitSpent': { to: 'project', tab: 'sessions' },
   'account.signedOut': ACCOUNTS,
   'usage.goKeyExpired': ACCOUNTS,
   'account.loginExpired': ACCOUNTS,
