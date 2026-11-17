@@ -6,12 +6,45 @@ import { hubUrlOf } from '../link/address.js'
 import type { HubCertificate } from '../link/cert.js'
 import { createHubServer } from '../link/hub-server.js'
 import type { HubStore, MachineRecord } from '../link/hub-store.js'
-import { HubEnd, type Invite } from '../link/hub.js'
-import { ASSIGN_COMMAND, HEARTBEAT_MS } from '../link/protocol.js'
+import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
+import { ASSIGN_COMMAND, HEARTBEAT_MS, type McpAnswer, type McpRequest } from '../link/protocol.js'
 import type { AddressChoice, MachineView } from '../link/view.js'
+import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
+import type { HubBrief } from '../machine/brief.js'
+import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
+import { RemoteMachine, type RemoteDeps } from '../machine/remote.js'
 import type { Queryable } from '../storage/database.js'
+import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
+import { BriefSender } from './hub-brief.js'
 
 export type { AddressChoice, MachineView }
+
+/** The monitor's word that the machine has read its sessions: the hub catches it up with its brief. */
+const SESSIONS_READ_EVENT = 'sessions.read'
+
+/**
+ * What the hub gives a machine elsewhere past its door (BTN-1247): its own mirror, its brief, the plan of its account
+ * limits and the hub's MCP servers. Without it the machine's events stay in its outbox.
+ */
+export interface NetworkPeers {
+  /** The hub's port of the machine, but how it sends and whom it stands for. */
+  remote: (machine: string) => Omit<RemoteDeps, 'send' | 'machine' | 'catchUp' | 'changed' | 'held'>
+  /** The hub's brief for a machine whose projects are those of its pool, each in its folder there. */
+  brief: (folders: Record<string, string>) => HubBrief
+  /** A machine's facts or connection changed: the limits are planned again. */
+  changed: () => void
+  /** A new connection of the machine: what it was told before is not known to hold. */
+  connected: (machine: string) => void
+  mcp: (machine: string, request: McpRequest) => Promise<McpAnswer>
+  write: (machine: string, write: KeptWrite) => Promise<void>
+}
+
+interface Peer {
+  remote: RemoteMachine
+  briefs: BriefSender
+  /** The folders of the machine's pool, read before each brief. */
+  folders: Record<string, string>
+}
 
 export interface MachineNetworkOptions {
   db: Queryable
@@ -29,6 +62,7 @@ export interface MachineNetworkOptions {
   serviceHost: string
   /** A machine joined, connected or went away: the page asks for the list again. */
   changed: () => void
+  peers?: NetworkPeers
   log: (line: string) => void
 }
 
@@ -43,15 +77,16 @@ export function folderUnder(root: string, repo: string): string {
 
 /**
  * The hub's door for machines elsewhere (BTN-1242): a `HubEnd` of its own over the hub's store, serving every machine
- * but the hub's own, and the HTTPS listener behind it, open only while "Hub address for machines" is set. Until the
- * machine's process (BTN-1247) its machines' events stay in their outboxes: the hub takes their handshake, their
- * report and their snapshot, and sends them only the assignment of a project.
+ * but the hub's own, and the HTTPS listener behind it, open only while "Hub address for machines" is set. Each such
+ * machine has its own mirror (`RemoteMachine`), its brief of the projects in its pool and its plan of account limits
+ * (`peers`); the chain still launches only on the hub's own machine.
  */
 export class MachineNetwork {
   readonly hub: HubEnd
   private server: Server | undefined
   private listeningFor: string | null = null
   private applying: Promise<void> = Promise.resolve()
+  private readonly peers = new Map<string, Peer>()
 
   constructor(private readonly options: MachineNetworkOptions) {
     this.hub = new HubEnd({
@@ -59,15 +94,105 @@ export class MachineNetwork {
       admits: (machine) => machine !== options.own(),
       heartbeatMs: HEARTBEAT_MS,
       log: options.log,
-      handlers: {
+      handlers: this.handlers(),
+    })
+  }
+
+  /** The newest accounts of every machine elsewhere that has posted its facts: what the limits are planned from. */
+  accounts(): MachineAccounts[] {
+    return [...this.peers].flatMap(([machine, peer]) => {
+      const facts = peer.remote.facts()
+      return facts === undefined ? [] : [{ machine, online: this.hub.connected(machine), identities: facts.identities ?? {}, limits: facts.limits }]
+    })
+  }
+
+  /** The mirror of a machine elsewhere; `undefined` — it has not posted a snapshot since the hub started. */
+  remote(machine: string): RemoteMachine | undefined {
+    return this.peers.get(machine)?.remote
+  }
+
+  async tellLimits(machine: string, plan: LimitsPlan): Promise<void> {
+    const peer = this.peers.get(machine)
+    if (peer === undefined) throw new Error(`no mirror of machine ${machine}`)
+    await peer.remote.tellLimits(plan)
+  }
+
+  /** Sends every machine online the brief that changed since the one it took. */
+  async catchUp(): Promise<void> {
+    for (const machine of this.peers.keys()) if (this.hub.connected(machine)) await this.brief(machine)
+  }
+
+  private handlers(): HubHandlers {
+    const { peers, changed, log } = this.options
+    if (peers === undefined) {
+      return {
         snapshot: () => {},
         event: () => {
-          throw new Error('the events of a machine elsewhere are taken once it runs on its own (BTN-1247)')
+          throw new Error('the events of a machine elsewhere are taken only by a hub that serves them')
         },
-        online: () => options.changed(),
-        offline: () => options.changed(),
+        online: () => changed(),
+        offline: () => changed(),
+      }
+    }
+    return {
+      snapshot: async (machine, snapshot) => {
+        const peer = this.peer(machine, peers)
+        peers.connected(machine)
+        // A new connection may be a new process of the machine, which holds no brief yet.
+        peer.briefs.forget()
+        await peer.remote.handlers().snapshot(machine, snapshot)
+        void this.brief(machine)
       },
+      event: async (machine, event) => {
+        if (event.type === SELECTION_EVENT) {
+          // The hub's settings are its own machine's: a choice made on a machine elsewhere stays there.
+          const selection = event.payload as MachineSelection
+          log(`machines: machine ${machine} chose ${selection.kind} ${selection.value} for ${selection.provider}; the hub's settings are not changed by it`)
+        } else if (event.type === KEPT_WRITE_EVENT) await peers.write(machine, event.payload as KeptWrite)
+        else if (event.type === SESSIONS_READ_EVENT) void this.brief(machine)
+        else await this.peer(machine, peers).remote.handlers().event(machine, event)
+      },
+      mcp: (machine, request) => peers.mcp(machine, request),
+      online: () => changed(),
+      offline: () => {
+        changed()
+        peers.changed()
+      },
+    }
+  }
+
+  private peer(machine: string, peers: NetworkPeers): Peer {
+    let peer = this.peers.get(machine)
+    if (peer !== undefined) return peer
+    const remote: RemoteMachine = new RemoteMachine({
+      ...peers.remote(machine),
+      send: (to, command) => this.hub.send(to, command),
+      machine: () => machine,
+      changed: () => peers.changed(),
     })
+    const made: Peer = { remote, folders: {}, briefs: new BriefSender(() => peers.brief(made.folders), (brief) => remote.tellBrief(brief)) }
+    peer = made
+    this.peers.set(machine, peer)
+    return peer
+  }
+
+  /** The machine's brief, its pool's folders read anew: each inside its folder of projects, named as on the hub. */
+  private async brief(machine: string): Promise<void> {
+    const peer = this.peers.get(machine)
+    if (peer === undefined) return
+    try {
+      const root = (await this.options.store.machine(machine))?.about?.root ?? null
+      const { rows } = await this.options.db.query<{ project_id: string }>('select project_id from project_machines where enabled and machine_id = $1', [machine])
+      const folders: Record<string, string> = {}
+      for (const { project_id: project } of rows) {
+        const repo = this.options.repoOf(project)
+        if (repo !== undefined && root !== null) folders[project] = folderUnder(root, repo)
+      }
+      peer.folders = folders
+      await peer.briefs.send()
+    } catch (error) {
+      this.options.log(`machines: the brief for machine ${machine} was not taken: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   /** Opens or closes the listener by the setting as it is now; called at the start and at every change of the settings. */
@@ -106,6 +231,7 @@ export class MachineNetwork {
   async revoke(machine: string): Promise<void> {
     const record = await this.foreign(machine)
     await this.hub.revoke(record.id)
+    this.peers.delete(record.id)
     this.options.log(`machines: machine ${record.id} (${record.name}) was revoked`)
     this.options.changed()
   }
@@ -146,6 +272,7 @@ export class MachineNetwork {
       await this.hub.send(record.id, { type: ASSIGN_COMMAND, project, folder: folderUnder(root, repo!) })
     }
     this.options.log(`machines: machine ${record.id} (${record.name}) was given ${projects.length} project(s)`)
+    if (this.hub.connected(record.id)) void this.brief(record.id)
     this.options.changed()
   }
 
