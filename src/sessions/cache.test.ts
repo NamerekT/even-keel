@@ -25,8 +25,9 @@ describe('the warm window', () => {
     expect([ttlWithin(5 * MINUTE), ttlWithin(29.5 * MINUTE), ttlWithin(30 * MINUTE), ttlWithin(12 * 60 * MINUTE), ttlWithin(MINUTE)]).toEqual(['5m', '30m', '30m', '1h', '5m'])
   })
 
-  it('is an hour for Claude on a subscription and the written lifetime on a key', () => {
-    expect(windowOf('claude', '5m', false)).toBe(55 * MINUTE)
+  it("is Claude's written lifetime, an hour on a subscription and five minutes on a key without one", () => {
+    expect(windowOf('claude', '5m', false)).toBe(4 * MINUTE)
+    expect(windowOf('claude', '1h', false)).toBe(55 * MINUTE)
     expect(windowOf('claude', null, false)).toBe(55 * MINUTE)
     expect(windowOf('claude', '1h', true)).toBe(55 * MINUTE)
     expect(windowOf('claude', '5m', true)).toBe(4 * MINUTE)

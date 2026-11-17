@@ -1,7 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterAll, describe, expect, it } from 'vitest'
+import { AGENTS } from '../agent/adapters.js'
 import { setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import type { Dispatcher } from './dispatcher.js'
 import type { LimitedSession } from './relay.js'
+
+const workDir = mkdtempSync(join(tmpdir(), 'even-keel-handover-limit-'))
+afterAll(() => rmSync(workDir, { recursive: true, force: true }))
 
 const session = (overrides: Partial<LimitedSession> = {}): LimitedSession => ({
   sessionId: 'session-1',
@@ -110,6 +117,19 @@ describe('Limit lifecycle in the service log', () => {
     await check(dispatcher)
     expect(log.slice(1)).toEqual([
       'chain: ABC-1: limit on account global open again at 2026-09-26T13:30:00.000Z, before the named reset at 2026-09-26T15:00:00.000Z; next: new session with handoff',
+      'chain: ABC-1: continued after the limit by handoff to new session session-2 from session-1',
+    ])
+  })
+
+  it("hands over when a subscription session's transcript wrote a five-minute cache and the window opens 20 minutes after its last reply", async () => {
+    const claude = AGENTS.claude!.setup({ env: () => ({}), timeoutMs: 1000, workDir, checkedCli: () => false, log: () => {}, onCliChange: () => {} })
+    const warmMs = claude.warmMs!({ ttl: '5m', until: '2026-09-26T12:04:00.000Z' }, false)
+    const { dispatcher, limited, clock, log } = await running({ limitReopenedAt: () => '2026-09-26T12:19:00.000Z' })
+    limited['ABC-1'] = session({ warmMs })
+    clock.now = new Date('2026-09-26T12:20:00Z')
+    await check(dispatcher)
+    expect(log.slice(1)).toEqual([
+      'chain: ABC-1: limit on account global open again at 2026-09-26T12:19:00.000Z, before the named reset at 2026-09-26T15:00:00.000Z; next: new session with handoff',
       'chain: ABC-1: continued after the limit by handoff to new session session-2 from session-1',
     ])
   })
