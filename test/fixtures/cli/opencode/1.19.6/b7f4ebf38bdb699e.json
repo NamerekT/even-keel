@@ -1,0 +1,229 @@
+{
+  "provider": "opencode",
+  "version": "1.19.6",
+  "snapshots": [
+    {
+      "phase": "question",
+      "raw": {
+        "messages": [
+          {
+            "id": "example-id-17",
+            "at": 1794907263126,
+            "data": "{\"role\":\"user\",\"time\":{\"created\":1794907263126},\"agent\":\"build\",\"model\":{\"providerID\":\"opencode\",\"modelID\":\"big-pickle\"},\"summary\":{\"diffs\":[]}}"
+          },
+          {
+            "id": "example-id-18",
+            "at": 1794907263788,
+            "data": "{\"parentID\":\"example-id-17\",\"role\":\"assistant\",\"mode\":\"build\",\"agent\":\"build\",\"path\":{\"cwd\":\"example-private-5\",\"root\":\"example-private-5\"},\"cost\":0,\"tokens\":{\"total\":11393,\"input\":11295,\"output\":9,\"reasoning\":89,\"cache\":{\"write\":0,\"read\":0}},\"modelID\":\"big-pickle\",\"providerID\":\"opencode\",\"time\":{\"created\":1794907263788,\"completed\":1794907274485},\"finish\":\"stop\"}"
+          }
+        ],
+        "parts": [
+          {
+            "id": "example-id-19",
+            "message": "example-id-17",
+            "at": 1794907263143,
+            "data": "{\"type\":\"text\",\"text\":\"\\\"This is an automated check of the CLI. Do exactly this and nothing else: no other commands, no other files.\\n1. Reply with the line \\\\\\\"Which colour? Red or Blue?\\\\\\\" and end your turn.\\n2. When the user answers, write the chosen colour into the file answer.txt in the current folder: the word alone.\\n3. End your reply with this line, as it is: CHECKPOINT: answer.txt\\\"\"}",
+            "images": 0
+          },
+          {
+            "id": "example-id-20",
+            "message": "example-id-18",
+            "at": 1794907273564,
+            "data": "{\"snapshot\":\"3742238fbf9d5ccc4d1805d367dd7befaeb8215b\",\"type\":\"step-start\"}",
+            "images": 0
+          },
+          {
+            "id": "example-id-21",
+            "message": "example-id-18",
+            "at": 1794907273567,
+            "data": "{\"type\":\"reasoning\",\"text\":\"The user says this is an automated check of the CLI. They want me to reply with \\\"Which colour? Red or Blue?\\\" and end my turn. Then when the user answers, write the chosen colour into answer.txt, and end reply with \\\"CHECKPOINT: answer.txt\\\".\\n\\nStep 1: Reply with the line \\\"Which colour? Red or Blue?\\\" and end my turn. That's exactly what I should do now. No tools.\",\"time\":{\"start\":1794907273566,\"end\":1794907274022}}",
+            "images": 0
+          },
+          {
+            "id": "example-id-22",
+            "message": "example-id-18",
+            "at": 1794907274026,
+            "data": "{\"type\":\"text\",\"text\":\"Which colour? Red or Blue?\",\"time\":{\"start\":1794907274026,\"end\":1794907274194}}",
+            "images": 0
+          },
+          {
+            "id": "example-id-23",
+            "message": "example-id-18",
+            "at": 1794907274327,
+            "data": "{\"reason\":\"stop\",\"snapshot\":\"3742238fbf9d5ccc4d1805d367dd7befaeb8215b\",\"type\":\"step-finish\",\"tokens\":{\"total\":11393,\"input\":11295,\"output\":9,\"reasoning\":89,\"cache\":{\"write\":0,\"read\":0}},\"cost\":0}",
+            "images": 0
+          }
+        ]
+      },
+      "expected": {
+        "stage": null,
+        "asking": false,
+        "questions": null,
+        "checkpoint": null,
+        "contextTokens": 11295,
+        "contextWindow": null,
+        "model": "opencode/big-pickle",
+        "tokens": {
+          "input": 11295,
+          "output": 98,
+          "cacheRead": 0,
+          "cacheWrite": 0
+        },
+        "question": true,
+        "answer": false,
+        "lastReply": false
+      }
+    },
+    {
+      "phase": "answer",
+      "raw": {
+        "messages": [
+          {
+            "id": "example-id-17",
+            "at": 1794907263126,
+            "data": "{\"role\":\"user\",\"time\":{\"created\":1794907263126},\"agent\":\"build\",\"model\":{\"providerID\":\"opencode\",\"modelID\":\"big-pickle\"},\"summary\":{\"diffs\":[]}}"
+          },
+          {
+            "id": "example-id-18",
+            "at": 1794907263788,
+            "data": "{\"parentID\":\"example-id-17\",\"role\":\"assistant\",\"mode\":\"build\",\"agent\":\"build\",\"path\":{\"cwd\":\"example-private-5\",\"root\":\"example-private-5\"},\"cost\":0,\"tokens\":{\"total\":11393,\"input\":11295,\"output\":9,\"reasoning\":89,\"cache\":{\"write\":0,\"read\":0}},\"modelID\":\"big-pickle\",\"providerID\":\"opencode\",\"time\":{\"created\":1794907263788,\"completed\":1794907274485},\"finish\":\"stop\"}"
+          },
+          {
+            "id": "example-id-24",
+            "at": 1794907276543,
+            "data": "{\"role\":\"user\",\"time\":{\"created\":1794907276543},\"agent\":\"build\",\"model\":{\"providerID\":\"opencode\",\"modelID\":\"big-pickle\"},\"summary\":{\"diffs\":[{\"file\":\"answer.txt\",\"patch\":\"Index: answer.txt\\n===================================================================\\n--- answer.txt\\t\\n+++ answer.txt\\t\\n@@ -0,0 +1,1 @@\\n+Blue\\n\\\\ No newline at end of file\\n\",\"additions\":1,\"deletions\":0,\"status\":\"added\"}]}}"
+          },
+          {
+            "id": "example-id-25",
+            "at": 1794907277203,
+            "data": "{\"parentID\":\"example-id-24\",\"role\":\"assistant\",\"mode\":\"build\",\"agent\":\"build\",\"path\":{\"cwd\":\"example-private-5\",\"root\":\"example-private-5\"},\"cost\":0,\"tokens\":{\"total\":11616,\"input\":652,\"output\":44,\"reasoning\":168,\"cache\":{\"write\":0,\"read\":10752}},\"modelID\":\"big-pickle\",\"providerID\":\"opencode\",\"time\":{\"created\":1794907277203,\"completed\":1794907293653},\"finish\":\"tool-calls\"}"
+          },
+          {
+            "id": "example-id-26",
+            "at": 1794907293657,
+            "data": "{\"parentID\":\"example-id-24\",\"role\":\"assistant\",\"mode\":\"build\",\"agent\":\"build\",\"path\":{\"cwd\":\"example-private-5\",\"root\":\"example-private-5\"},\"cost\":0,\"tokens\":{\"total\":11637,\"input\":366,\"output\":7,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":11264}},\"modelID\":\"big-pickle\",\"providerID\":\"opencode\",\"time\":{\"created\":1794907293657,\"completed\":1794907296663},\"finish\":\"stop\"}"
+          }
+        ],
+        "parts": [
+          {
+            "id": "example-id-19",
+            "message": "example-id-17",
+            "at": 1794907263143,
+            "data": "{\"type\":\"text\",\"text\":\"\\\"This is an automated check of the CLI. Do exactly this and nothing else: no other commands, no other files.\\n1. Reply with the line \\\\\\\"Which colour? Red or Blue?\\\\\\\" and end your turn.\\n2. When the user answers, write the chosen colour into the file answer.txt in the current folder: the word alone.\\n3. End your reply with this line, as it is: CHECKPOINT: answer.txt\\\"\"}",
+            "images": 0
+          },
+          {
+            "id": "example-id-20",
+            "message": "example-id-18",
+            "at": 1794907273564,
+            "data": "{\"snapshot\":\"3742238fbf9d5ccc4d1805d367dd7befaeb8215b\",\"type\":\"step-start\"}",
+            "images": 0
+          },
+          {
+            "id": "example-id-21",
+            "message": "example-id-18",
+            "at": 1794907273567,
+            "data": "{\"type\":\"reasoning\",\"text\":\"The user says this is an automated check of the CLI. They want me to reply with \\\"Which colour? Red or Blue?\\\" and end my turn. Then when the user answers, write the chosen colour into answer.txt, and end reply with \\\"CHECKPOINT: answer.txt\\\".\\n\\nStep 1: Reply with the line \\\"Which colour? Red or Blue?\\\" and end my turn. That's exactly what I should do now. No tools.\",\"time\":{\"start\":1794907273566,\"end\":1794907274022}}",
+            "images": 0
+          },
+          {
+            "id": "example-id-22",
+            "message": "example-id-18",
+            "at": 1794907274026,
+            "data": "{\"type\":\"text\",\"text\":\"Which colour? Red or Blue?\",\"time\":{\"start\":1794907274026,\"end\":1794907274194}}",
+            "images": 0
+          },
+          {
+            "id": "example-id-23",
+            "message": "example-id-18",
+            "at": 1794907274327,
+            "data": "{\"reason\":\"stop\",\"snapshot\":\"3742238fbf9d5ccc4d1805d367dd7befaeb8215b\",\"type\":\"step-finish\",\"tokens\":{\"total\":11393,\"input\":11295,\"output\":9,\"reasoning\":89,\"cache\":{\"write\":0,\"read\":0}},\"cost\":0}",
+            "images": 0
+          },
+          {
+            "id": "example-id-27",
+            "message": "example-id-24",
+            "at": 1794907276550,
+            "data": "{\"type\":\"text\",\"text\":\"Blue\\n\"}",
+            "images": 0
+          },
+          {
+            "id": "example-id-28",
+            "message": "example-id-25",
+            "at": 1794907291880,
+            "data": "{\"snapshot\":\"3742238fbf9d5ccc4d1805d367dd7befaeb8215b\",\"type\":\"step-start\"}",
+            "images": 0
+          },
+          {
+            "id": "example-id-29",
+            "message": "example-id-25",
+            "at": 1794907291882,
+            "data": "{\"type\":\"reasoning\",\"text\":\"The user answered \\\"Blue\\\". I need to write the chosen colour into answer.txt in the current folder: the word alone. Then end my reply with the checkpoint line.\\n\\nThe instructions from the original task say: write the chosen colour into the file answer.txt in the current folder: the word alone. And end reply with \\\"CHECKPOINT: answer.txt\\\".\\n\\nLet me write \\\"Blue\\\" to answer.txt. The word alone. Should it be \\\"Blue\\\" with capital? The user answered \\\"Blue\\\". I'll write \\\"Blue\\\".\\n\\nActually, let me think about \\\"the word alone\\\" — meaning just the word, no extra text. I'll write \\\"Blue\\\".\\n\\nCurrent folder is /example/path-37 Use write tool with absolute path.\",\"time\":{\"start\":1794907291882,\"end\":1794907292858}}",
+            "images": 0
+          },
+          {
+            "id": "example-id-30",
+            "message": "example-id-25",
+            "at": 1794907292861,
+            "data": "{\"type\":\"tool\",\"tool\":\"write\",\"callID\":\"example-id-31\",\"state\":{\"status\":\"completed\",\"input\":{\"content\":\"Blue\",\"filePath\":\"/example/path-38/answer.txt\"},\"title\":\"answer.txt\",\"time\":{\"start\":1794907292959,\"end\":1794907292970}}}",
+            "images": 0
+          },
+          {
+            "id": "example-id-32",
+            "message": "example-id-25",
+            "at": 1794907293444,
+            "data": "{\"reason\":\"tool-calls\",\"snapshot\":\"2b8b91583f95838002d9f9e16df93edb922af3ba\",\"type\":\"step-finish\",\"tokens\":{\"total\":11616,\"input\":652,\"output\":44,\"reasoning\":168,\"cache\":{\"write\":0,\"read\":10752}},\"cost\":0}",
+            "images": 0
+          },
+          {
+            "id": "example-id-33",
+            "message": "example-id-25",
+            "at": 1794907293650,
+            "data": "{\"type\":\"patch\",\"hash\":\"3742238fbf9d5ccc4d1805d367dd7befaeb8215b\",\"files\":[\"/example/path-39/answer.txt\"]}",
+            "images": 0
+          },
+          {
+            "id": "example-id-34",
+            "message": "example-id-26",
+            "at": 1794907296335,
+            "data": "{\"snapshot\":\"2b8b91583f95838002d9f9e16df93edb922af3ba\",\"type\":\"step-start\"}",
+            "images": 0
+          },
+          {
+            "id": "example-id-35",
+            "message": "example-id-26",
+            "at": 1794907296338,
+            "data": "{\"type\":\"text\",\"text\":\"CHECKPOINT: answer.txt\",\"time\":{\"start\":1794907296338,\"end\":1794907296369}}",
+            "images": 0
+          },
+          {
+            "id": "example-id-36",
+            "message": "example-id-26",
+            "at": 1794907296518,
+            "data": "{\"reason\":\"stop\",\"snapshot\":\"2b8b91583f95838002d9f9e16df93edb922af3ba\",\"type\":\"step-finish\",\"tokens\":{\"total\":11637,\"input\":366,\"output\":7,\"reasoning\":0,\"cache\":{\"write\":0,\"read\":11264}},\"cost\":0}",
+            "images": 0
+          }
+        ]
+      },
+      "expected": {
+        "stage": "edit",
+        "asking": false,
+        "questions": null,
+        "checkpoint": "answer.txt",
+        "contextTokens": 11630,
+        "contextWindow": null,
+        "model": "opencode/big-pickle",
+        "tokens": {
+          "input": 12313,
+          "output": 317,
+          "cacheRead": 22016,
+          "cacheWrite": 0
+        },
+        "question": true,
+        "answer": true,
+        "lastReply": true
+      }
+    }
+  ],
+  "contextWindow": 200000
+}
