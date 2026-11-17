@@ -100,6 +100,8 @@ Each task gets a background session (`claude --bg`) in its own git worktree `.cl
 
 The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote.
 
+While the task runs, Even Keel pushes its branch to the repository's remote (`origin`, else its first one) whenever one session hands the task to the next — a limit, a checkpoint, a restart — and when it stops a task's session, so the work can go on from another machine of a hub. The branch on the remote goes with the local one after Done. A refused push is only a line in the log; the chain goes on.
+
 A sync that cannot reach the remote (no connection, a timeout, DNS) is tried again 30 s and 2 min later while the next task runs; only after the third failure does the project page show a warning to sync by hand.
 
 ### A task with nothing to merge

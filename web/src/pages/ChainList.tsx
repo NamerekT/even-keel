@@ -268,6 +268,7 @@ export function ChainList(props: Props) {
                     offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
                     onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
                     onDismiss={sending ? undefined : () => void send('chain/dismiss', { project, task: block.id })}
+                    onReassign={sending ? undefined : () => void send('chain/reassign', { project, task: block.id })}
                     ready={block.locked ? ready(block) : null}
                     onReady={sending ? undefined : () => void send('task/ready', { task: block.id })}
                     onUnready={!unready(block) ? null : sending ? undefined : () => void send('task/unready', { task: block.id })}
@@ -516,6 +517,8 @@ interface BlockProps {
   offset: Point | undefined
   onHover: (inside: boolean) => void
   onDismiss: (() => void) | undefined
+  /** "Reassign" of a task a machine gone holds (BTN-1270); `undefined` — off while a command is on its way. */
+  onReassign: (() => void) | undefined
   ready: ReadyButton | null
   onReady: (() => void) | undefined
   /** "To the backlog"; `null` — the row has no such button, `undefined` — it is off while a command is on its way. */
@@ -524,7 +527,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, ready, onReady, onUnready, onCard } =
+  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onUnready, onCard } =
     props
   const { state } = useLive()
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
@@ -657,8 +660,7 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
-        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} />}
-        {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
+        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} />}        {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (
           <span className="chip" title={t.chain.interruptedTitle}>
@@ -672,6 +674,23 @@ function Block(props: BlockProps) {
         {block.leftovers !== undefined && (
           <button type="button" className="button button--small block__return" disabled={onDismiss === undefined} onClick={onDismiss}>
             {t.project.dismiss}
+          </button>
+        )}
+        {block.stranded !== undefined && (
+          <button
+            type="button"
+            className="button button--small block__return"
+            disabled={onReassign === undefined || block.stranded.pushed !== true}
+            title={
+              block.stranded.pushed === true
+                ? t.chain.reassignTitle(block.stranded.machine)
+                : block.stranded.pushed === false
+                  ? t.chain.reassignUnpushed(block.stranded.machine)
+                  : t.chain.reassignUnknown(block.stranded.machine)
+            }
+            onClick={onReassign}
+          >
+            {t.chain.reassign}
           </button>
         )}
         {!narrow && unreadyButton}

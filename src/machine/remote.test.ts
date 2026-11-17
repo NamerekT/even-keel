@@ -184,6 +184,18 @@ describe('the machine port over the link', () => {
     ])
   })
 
+  it('leaves a task moved off the machine where it went, though the machine comes back with a live session of it (BTN-1270)', async () => {
+    const { id, assignments, moved, state, end, log } = await started()
+    end.stop()
+    assignments.assign(PROJECT, 'ABC-5', 'another-machine')
+    moved.set('ABC-5', id)
+    state.live['ABC-5'] = 'session-5'
+    await end.start()
+    await tick()
+    expect(assignments.machineOf(PROJECT, 'ABC-5')).toBe('another-machine')
+    expect(log).toContain(`machine: ABC-5 has a live session on machine ${id}, but was moved off it by hand: the chain goes on with it elsewhere and leaves that session alone`)
+  })
+
   it('squares the tasks only once the machine has read its sessions', async () => {
     const { id, assignments, state, end, runner } = await started()
     end.stop()

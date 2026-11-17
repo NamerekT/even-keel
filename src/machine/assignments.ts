@@ -11,13 +11,19 @@ export interface AssignmentDeps {
   writes: Writes
   /** The project's chain order, as the dispatcher holds it. */
   order: (project: string) => string[]
+  /** The machine the task was moved off by hand (`TaskMoves`, BTN-1270); `undefined` — it was not moved. */
+  movedFrom?: (project: string, task: string) => string | undefined
   now?: () => number
 }
 
-/** What squaring a machine's rows with its snapshot changed; `from` — the machine the task's row named before. */
+/**
+ * What squaring a machine's rows with its snapshot changed; `from` — the machine the task's row named before.
+ * `refused` — the tasks with a live session there that were moved off the machine: they stay where they went.
+ */
 export interface HeldChanges {
   removed: AssignedTask[]
   added: Array<AssignedTask & { from?: string }>
+  refused: AssignedTask[]
 }
 
 const keyOf =(project: string, task: string): string => `${project}\n${task}`
@@ -64,24 +70,34 @@ export class Assignments implements AssignedTasks {
 
   /**
    * Squares the machine's rows with its snapshot: a row of a task the machine no longer names goes, and a task with a
-   * live session there becomes its own. `named` is every task the machine knows a session of; a stopped one keeps its
-   * row, since its place is cleaned up only with `finish`.
+   * live session there becomes its own, unless it was moved off the machine by hand. `named` is every task the machine
+   * knows a session of; a stopped one keeps its row, since its place is cleaned up only with `finish`.
    */
   reconcile(machine: string, named: ReadonlySet<string>, live: AssignedTask[]): HeldChanges {
     const removed = this.of(machine).filter(({ task }) => !named.has(task))
     for (const { project, task } of removed) this.release(project, task)
     const added: HeldChanges['added'] = []
+    const refused: AssignedTask[] = []
     for (const { project, task } of live) {
       const was = this.machineOf(project, task)
       if (was === machine) continue
+      if (this.deps.movedFrom?.(project, task) === machine) {
+        refused.push({ project, task })
+        continue
+      }
       this.assign(project, task, machine)
       added.push({ project, task, ...(was === undefined ? {} : { from: was }) })
     }
-    return { removed, added }
+    return { removed, added, refused }
   }
 
   machineOf(project: string, task: string): string | undefined {
     return this.held.get(keyOf(project, task))?.machine
+  }
+
+  /** Every row, in the order the tasks went to their machines. */
+  all(): Array<AssignedTask & { machine: string }> {
+    return [...this.held.values()].map(({ project, task, machine }) => ({ project, task, machine }))
   }
 
   /** The machine's tasks in the order they went to it. */

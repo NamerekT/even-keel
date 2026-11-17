@@ -30,6 +30,8 @@ describe('step 54: the project memory (BTN-1029)', { timeout: 120_000 }, () => {
       await db.exec(STEPS[51]!)
       expect(await memoryRecords(db, ABC)).toEqual([])
       await db.query(`insert into memory_records (project_id, name, description, type, body, version, at) values ($1, 'a', 'b', 'project', 'c', 1, 'now')`, [ABC])
+      // `forgetProjectRows` clears every table of the current schema, the moves of step 57 among them.
+      for (const step of STEPS.slice(52)) await db.exec(step)
       await forgetProjectRows(db, ABC)
       expect(await memoryRecords(db, ABC, true)).toEqual([])
     } finally {

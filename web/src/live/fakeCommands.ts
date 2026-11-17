@@ -264,6 +264,12 @@ function dismiss(state: EvenKeelState, project: string, task: string): EvenKeelS
   return { ...state, chain: { ...state.chain, leftovers: kept.length === 0 ? rest : { ...rest, [project]: kept } } }
 }
 
+/** The task leaves its machine gone; the fake chain does not take it into a lane. */
+function reassign(state: EvenKeelState, project: string, task: string): EvenKeelState {
+  const { [task]: _moved, ...kept } = state.stranded?.[project] ?? {}
+  return { ...state, stranded: { ...state.stranded, [project]: kept } }
+}
+
 function dequeue(state: EvenKeelState, project: string): EvenKeelState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
@@ -286,6 +292,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'chain/skip') return skip(state, String(body.project), String(body.task))
   if (name === 'chain/unskip') return unskip(state, String(body.project), String(body.task))
   if (name === 'chain/dismiss') return dismiss(state, String(body.project), String(body.task))
+  if (name === 'chain/reassign') return reassign(state, String(body.project), String(body.task))
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task), body.confirmed)
   // The task goes to Done: the chain lets it go as the cleanup after Done would.
   if (name === 'chain/accept') return closeCurrent(state)

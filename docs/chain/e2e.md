@@ -20,7 +20,7 @@ The scope sits in `vitest.config.ts`, not in the scripts (BTN-1108): `src/e2e/`,
 
   | Area | Files |
   | --- | --- |
-  | the order, handovers, cleanup after Done, restarts | `chain`, `restarts`, `returns`, `turns`, `cleanup`, `plain`, `continuation-prompt` |
+  | the order, handovers, cleanup after Done, restarts | `chain`, `restarts`, `returns`, `turns`, `cleanup`, `plain`, `continuation-prompt`, `push` |
   | the service's start, `src/service.ts` wiring | `huly-client`, `restarts` |
   | session records and context windows | `session-context` |
   | questions, chat mail, pauses | `questions`, `mail`, `pauses` |
@@ -32,6 +32,7 @@ The scope sits in `vitest.config.ts`, not in the scripts (BTN-1108): `src/e2e/`,
   | the demo (`src/demo/`, `src/service/demo.ts`) | `demo`, `builtin`, `restarts` |
 
   - `chain.test.ts`: the order by `blocks` with cleanup after each Done; a question answered from the chat and resumed; a limit waited out and resumed after its reset; a limit whose reset comes after the session cache went cold, handed to a new session (`relay`, cause `limit`); a checkpoint handed to a new session in the same folder with the note; a handover past a session that failed before its first answer, carrying the text of the note file the hub kept at the first handoff (BTN-1046); a session the cleanup after Done found mid-turn stopped once its turn ends; a task closed by `NO CHANGES:` with its comment.
+  - `push.test.ts` (BTN-1270): the task's branch on the remote after a checkpoint's handover, gone from it after Done.
   - `restarts.test.ts`: a merge while the service is down, closed, cleaned up and followed by the next task once it is back; a restart mid-session that leaves the session alone and keeps the chain; a task done before the first read of the sessions after a restart — its session stopped, its folder removed; one done right after a restart — stopped only once its turn ends.
   - `continuation-prompt.test.ts`: the model's instructions (`modelPrompts`) and the unattended rule in the prompt of a launch and of "New session", and in neither a chat answer's resume after a service restart.
   - `session-context.test.ts`: the context window seen during a session's turn served after Done, with no probe for the card.

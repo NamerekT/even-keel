@@ -94,7 +94,10 @@ export interface SetupOptions {
 }
 
 /** The machines of the chain's pull for a test: `own` first, every one serving every project, each task free to bind. */
-export function fakeMachines(capacities: Record<string, number>, options: { width?: Record<string, number>; runs?: ChainMachines['runs']; held?: Record<string, string>; serves?: ChainMachines['serves'] } = {}) {
+export function fakeMachines(
+  capacities: Record<string, number>,
+  options: { width?: Record<string, number>; runs?: ChainMachines['runs']; held?: Record<string, string>; serves?: ChainMachines['serves']; gone?: Set<string> } = {},
+) {
   const bound: Record<string, string> = { ...options.held }
   const listed = { ...capacities }
   const machines: ChainMachines = {
@@ -104,6 +107,7 @@ export function fakeMachines(capacities: Record<string, number>, options: { widt
     width: (project) => options.width?.[project] ?? 1,
     holder: (_project, task) => bound[task],
     runs: options.runs ?? (() => true),
+    gone: (machine) => options.gone?.has(machine) === true,
     bind: (_project, task, machine) => {
       bound[task] = machine
     },

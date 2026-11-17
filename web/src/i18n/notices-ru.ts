@@ -535,6 +535,12 @@ export const noticesRu: NoticeTexts = {
   'machine.commandRefused': (p) =>
     `машина отказалась выполнять ${p.command}: ${p.reason === 'project' ? 'она не соглашалась обслуживать этот проект' : 'папка вне согласованных для проекта'}`,
   'machine.commandInterrupted': (p) => `машина остановилась посреди ${p.command} и не выполняет её повторно`,
+  'reassign.notHeld': (p) => `${p.task} не держит другая машина: переносить нечего`,
+  'reassign.machineOnline': (p) => `${p.task} на машине ${p.machine}, она на связи: цепочка продолжает задачу там`,
+  'reassign.noRemote': (p) => `у репозитория проекта нет удалённого: ветка ${p.task} не дойдёт до другой машины`,
+  'reassign.notPushed': (p) => `ветки ${p.branch} нет на удалённом: машина ${p.machine} пропала, не успев её отправить. Верните эту машину или доделайте ${p.task} на ней`,
+  'reassign.remoteUnknown': (p) => `не удалось спросить удалённый, есть ли на нём ветка ${p.task}: ${p.error}. Попробуйте снова, когда удалённый ответит`,
+  'reassign.notRestored': (p) => `машина не смогла получить ветку ${p.branch} задачи ${p.task} с удалённого: ${p.error}`,
   'packages.unknown': (p) => `пакета ${p.name} нет`,
   'packages.exists': (p) => `${p.name} уже есть в каталоге`,
   'packages.builtIn': (p) => `${p.name} встроен в Even Keel: он есть у каждого проекта и не выключается и не удаляется; каждая его функция выключается своей настройкой`,

@@ -513,6 +513,14 @@ export const en = {
   'machine.commandRefused': (p: { command: string; reason: 'project' | 'folder' }) =>
     `machine: the machine refused ${p.command}: ${p.reason === 'project' ? 'it did not agree to serve this project' : "the folder is outside the project's agreed ones"}`,
   'machine.commandInterrupted': (p: { command: string }) => `machine: the machine stopped in the middle of ${p.command} and does not run it again`,
+  'reassign.notHeld': (p: { task: string }) => `reassign: ${p.task} is not held by a machine elsewhere: there is nothing to move`,
+  'reassign.machineOnline': (p: { task: string; machine: string }) => `reassign: ${p.task} is on ${p.machine}, which is connected: the chain goes on with it there`,
+  'reassign.noRemote': (p: { task: string }) => `reassign: the project's repository has no remote, so ${p.task}'s branch cannot reach another machine`,
+  'reassign.notPushed': (p: { task: string; branch: string; machine: string }) =>
+    `reassign: ${p.branch} is not on the remote: ${p.machine} went away before pushing it. Bring that machine back, or finish ${p.task} there`,
+  'reassign.remoteUnknown': (p: { task: string; error: string }) => `reassign: could not ask the remote whether ${p.task}'s branch is there: ${p.error}. Try again once the remote answers`,
+  'reassign.notRestored': (p: { task: string; branch: string; error: string }) =>
+    `reassign: the machine could not bring ${p.branch} of ${p.task} from the remote: ${p.error}`,
   'packages.unknown': (p: { name: string }) => `packages: there is no package ${p.name}`,
   'packages.exists': (p: { name: string }) => `packages: ${p.name} is already in the catalog`,
   'packages.builtIn': (p: { name: string }) => `packages: ${p.name} is built into Even Keel: every project has it, it is neither turned off nor removed; each of its features has its own setting`,

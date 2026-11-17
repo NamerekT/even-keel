@@ -296,6 +296,10 @@ export const chainEN: Messages['chain'] = {
     interrupted: 'waits for main',
     interruptedTitle: 'Main went red: the session of this task was stopped and goes on once main is fixed',
     machinesTitle: 'The machines this task ran on, the one it is on now last',
+    reassign: 'Reassign',
+    reassignTitle: (machine: string) => `${machine} is gone: the task waits for it. Reassign — another machine goes on from the pushed branch and the last handoff note`,
+    reassignUnpushed: (machine: string) => `${machine} is gone and did not push this task's branch: there is nothing to go on from elsewhere`,
+    reassignUnknown: (machine: string) => `${machine} is gone; whether the remote has this task's branch is not known yet`,
     review: {
       pull: (number: number) => `PR #${number}`,
       pullTitle: 'The task waits on its pull request outside the chain: open it',

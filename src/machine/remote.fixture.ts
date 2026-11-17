@@ -93,7 +93,9 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
   const { state, local } = machineOf()
   const queries: Array<{ sql: string; params: unknown[] }> = []
   const db = { query: async (sql: string, params: unknown[] = []) => (queries.push({ sql, params }), { rows: [] }) } as unknown as Db
-  const assignments = await Assignments.open({ db, writes: new Writes((line) => log.push(line)), order: () => [] })
+  /** By task, the machine it was moved off by hand (BTN-1270). */
+  const moved = new Map<string, string>()
+  const assignments = await Assignments.open({ db, writes: new Writes((line) => log.push(line)), order: () => [], movedFrom: (_project, task) => moved.get(task) })
   queries.length = 0
   let id = ''
   const remote: RemoteMachine = new RemoteMachine({
@@ -177,5 +179,5 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
     })
     return { runner, end, moves }
   }
-  return { hub, hubStore, machineStore, wire, remote, port: remote.port(), state, local, log, snapshots, journal, ran, boot, id, assignments, queries, held: () => kept }
+  return { hub, hubStore, machineStore, wire, remote, port: remote.port(), state, local, log, snapshots, journal, ran, boot, id, assignments, moved, queries, held: () => kept }
 }

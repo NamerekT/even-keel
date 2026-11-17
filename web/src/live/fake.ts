@@ -521,6 +521,12 @@ export function createFakeSource(search: string): LiveSource {
     const run = (sessionId: string, at: number, machine: string) => ({ sessionId, at: ago(at), how: 'checkpoint' as const, resumed: 0, answers: 0, machine })
     state.taskSessions['ABC-4'] = [run('lanes-2', 120, 'srv'), run('lanes-1', 300, 'pc')]
   }
+  // The home server is gone (BTN-1270): one task of its pushed its branch and can move, the other did not.
+  if (params.get('chain') === 'stranded' && active) {
+    const state = current.state!
+    state.machineNames = { pc: 'Workstation', srv: 'Home server' }
+    state.stranded = { [active.project]: { 'ABC-6': { machine: 'srv', pushed: true }, 'ABC-7': { machine: 'srv', pushed: false } } }
+  }
   const packageWaits: Record<string, string> = { packages: 'probing', packagesSilent: 'silent', gateway: 'gateway' }
   const packageWait = packageWaits[params.get('chain') ?? '']
   if (packageWait !== undefined && active) {

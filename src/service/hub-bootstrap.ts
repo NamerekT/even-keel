@@ -216,10 +216,14 @@ export function assembleStartChain(ctx: Pick<ServiceContext, 'branches' | 'dispa
   }
 }
 
-export function assembleChainControl(ctx: Pick<ServiceContext, 'dispatcher' | 'startChain' | 'SWITCHES'>): ChainControl {
+export function assembleChainControl(ctx: Pick<ServiceContext, 'dispatcher' | 'startChain' | 'SWITCHES' | 'machineLink'>): ChainControl {
+  const own: Partial<ChainControl> = {
+    start: ctx.startChain,
+    reassign: (project, task) => ctx.machineLink.reassigner.reassign(project, task),
+  }
   return new Proxy(ctx.dispatcher, {
-    get: (target, key, receiver) => (key === 'start' ? ctx.startChain : (ctx.SWITCHES[key as keyof ChainControl] ?? Reflect.get(target, key, receiver))),
-  })
+    get: (target, key, receiver) => own[key as keyof ChainControl] ?? ctx.SWITCHES[key as keyof ChainControl] ?? Reflect.get(target, key, receiver),
+  }) as unknown as ChainControl
 }
 
 export function assembleApplyCi(ctx: Pick<ServiceContext, 'ciWatches' | 'configStore' | 'remotes' | 'dispatcher' | 'stateChanged'>) {

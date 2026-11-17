@@ -5,6 +5,7 @@ import type { GitStep } from '../notice/en.js'
 import { PROTECTION_FILE } from '../codex/protection.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import { samePath, shownUnder } from '../paths.js'
+import { taskRemote } from './push.js'
 import { requireStarted } from './setup.js'
 import { syncMain } from './sync.js'
 import type { FinishOutcome, Git, GitResult, TaskPlace } from './types.js'
@@ -116,7 +117,8 @@ export async function catchUp(git: Git, path: string, main = 'main'): Promise<bo
 
 /**
  * How a task's branch goes after it (BTN-205): `force` — deleted though not merged into main (the pull request was
- * merged on the forge, or closed); `remote` — the remote it was pushed to, `origin` by default.
+ * merged on the forge, or closed); `remote` — the remote it was pushed to, by default the one task branches go to
+ * (`taskRemote`: `origin`, else the first).
  */
 export interface BranchDrop {
   force?: boolean
@@ -210,7 +212,7 @@ export async function dropBranch(
   branch: string | null,
   warnings: Notice[],
   main = 'main',
-  { force = false, remote = 'origin' }: BranchDrop = {},
+  { force = false, remote: named }: BranchDrop = {},
 ): Promise<FinishOutcome> {
   let gone: string | null = null
   if (branch !== null) {
@@ -220,7 +222,8 @@ export async function dropBranch(
   }
 
   const remotes = (await must(git, repo, ['remote'], 'listRemotes')).out.split(/\s+/).filter(Boolean)
-  if (gone !== null && remotes.includes(remote)) {
+  const remote = named ?? taskRemote(remotes)
+  if (gone !== null && remote !== null && remotes.includes(remote)) {
     const warning = await deleteOnRemote(git, repo, remote, gone)
     if (warning !== null) warnings.push(warning)
   }

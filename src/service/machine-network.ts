@@ -169,6 +169,11 @@ export class MachineNetwork {
     return this.revokedIds.has(machine)
   }
 
+  /** The machine elsewhere is connected now and not revoked: a task it holds goes on there (BTN-1270). */
+  connected(machine: string): boolean {
+    return !this.revokedIds.has(machine) && this.hub.connected(machine)
+  }
+
   /** The machine elsewhere one of whose sessions works in the folder; `undefined` — none of them. */
   folderHolder(folder: string): string | undefined {
     for (const [machine, peer] of this.peers) if (peer.remote.page.sessions().some((view) => samePath(view.cwd, folder))) return machine

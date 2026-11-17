@@ -105,9 +105,8 @@ describe('step 52: the machines of a project and the machine of a task (BTN-1216
     const db = await PGlite.create()
     try {
       await db.exec(fixture(52))
-      // `forgetProjectRows` clears every table of the current schema, the handoff notes of step 53 and the memory of step 54 among them.
-      await db.exec(STEPS[50]!)
-      await db.exec(STEPS[51]!)
+      // `forgetProjectRows` clears every table of the current schema, so the sample is brought to it: the handoff notes of step 53, the memory of step 54, the moves of step 57 among them.
+      for (const step of STEPS.slice(50)) await db.exec(step)
       const writes = new Writes(() => {})
       let at = 100
       const deps = { db, writes, order: (project: string) => (project === ABC ? ['ABC-1', 'ABC-2', 'ABC-3'] : []), now: () => at++ }

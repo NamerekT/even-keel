@@ -31,11 +31,20 @@ describe('chainMachines', () => {
     expect(machines.serves('q', 'server')).toBe(false)
   })
 
-  it('names no holder for a task of a revoked machine', () => {
+  it('keeps a task with a revoked machine until a person moves it (BTN-1270)', () => {
     const { machines } = machinesOf()
     expect(machines.holder('p', 'A-1')).toBe('server')
-    expect(machines.holder('p', 'A-2')).toBeUndefined()
+    expect(machines.holder('p', 'A-2')).toBe('old')
     expect(machines.holder('p', 'A-3')).toBeUndefined()
+    expect(machines.gone?.('old')).toBe(true)
+    expect(machines.gone?.('server')).toBe(false)
+  })
+
+  it('never gives a moved task back to the machine it was moved off', () => {
+    const { machines } = machinesOf({ movedFrom: (_project, task) => (task === 'A-7' ? 'server' : undefined) })
+    expect(machines.runs('p', 'A-7', 'server')).toBe(false)
+    expect(machines.runs('p', 'A-7', 'pc')).toBe(true)
+    expect(machines.runs('p', 'A-8', 'server')).toBe(true)
   })
 
   it('gives a task only to a machine with its agent while another machine of the pool has one', () => {

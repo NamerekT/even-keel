@@ -66,6 +66,8 @@ export interface ChainControl {
   dismiss(project: string, task: string): void
   /** "Accept as answer" (BTN-885): the last message of the task's session `sessionId` goes on it as a comment, the task to Done. */
   accept(project: string, task: string, sessionId: string): Promise<void>
+  /** "Reassign" (BTN-1270): the task of a machine gone moves to another machine, from its pushed branch. */
+  reassign(project: string, task: string): Promise<void>
   setUnattended(on: boolean): void
   setTrimTools(on: boolean): void
 }

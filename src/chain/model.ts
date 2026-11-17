@@ -415,10 +415,18 @@ export interface ChainMachines {
   serves: (project: string, machine: string) => boolean
   /** How many of the project's tasks run at once (`width`, 1 by default). */
   width: (project: string) => number
-  /** The machine the task stays with, launched there and not cleaned up yet; a revoked machine holds nothing. */
+  /**
+   * The machine the task stays with, launched there and not cleaned up yet. One gone keeps it too (BTN-1270): only a
+   * person moves it elsewhere ("Reassign").
+   */
   holder: (project: string, task: string) => string | undefined
-  /** The machine has an account of the task's agent, or no machine of the project's pool has one. */
+  /**
+   * The machine has an account of the task's agent, or no machine of the project's pool has one; never the machine the
+   * task was moved off.
+   */
   runs: (project: string, task: string, machine: string) => boolean
+  /** The machine was revoked: its lanes end, their tasks staying with it. Absent — none is. */
+  gone?: (machine: string) => boolean
   /** The task goes to the machine: its facts and its launch are asked there from now on. */
   bind: (project: string, task: string, machine: string) => void
 }

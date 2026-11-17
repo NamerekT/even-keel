@@ -10,6 +10,7 @@ import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, type Handoff
 import { readNote, snapshotReason, type HandoffSnapshot } from '../chain/snapshots.js'
 import { DEFAULT_CI, isPlain, projectLabel } from '../config.js'
 import { changesOf } from '../git/changes.js'
+import { pushTaskBranch, restoreBranch } from '../git/push.js'
 import { runGit } from '../git/run.js'
 import { finishSlot, heldSlot, prepareSlot, type SlotUse } from '../git/slot.js'
 import { fastForwardMain, syncMain } from '../git/sync.js'
@@ -39,8 +40,13 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
     launch: async (project, task, extra, brief) => {
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
+      if (brief?.restore !== undefined) {
+        const error = await restoreBranch(runGit, ctx.configStore.current.projects[project]!, brief.restore.branch)
+        if (error !== null) throw fail('reassign.notRestored', { task, branch: brief.restore.branch, error })
+      }
       const place = await ctx.places.ready(project, task)
-      const started = ctx.withProject(ctx.briefed.apply(task, startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), !isPlain(ctx.configStore.current, project)), brief), project)
+      const plain = startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), !isPlain(ctx.configStore.current, project))
+      const started = ctx.withProject(ctx.briefed.apply(task, plain + (brief?.restore?.text ?? ''), brief), project)
       const { prompt, model, provider, fallback } = ctx.planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
       const extras = ctx.agentExtras(home, project, task)
       const sessionId = await ctx.launchIn(home, { name: task, cwd: place.path, prompt, model, settings: await ctx.settingsFor(task, project), ...extras }, project)
@@ -116,6 +122,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       const previous = ctx.homes.find(session.account)
       if (previous !== undefined && !session.stopped) await ctx.stopIn(previous, session)
       const project = ctx.projectOf(task)
+      // Behind the launch: a slow pre-push hook does not hold the next session, which only adds commits meanwhile.
+      ctx.writes.add(`the push of ${task}`, pushOf(ctx, project, task, session.workdir))
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
       const told = isOwnName(task) ? handoff : ctx.briefed.apply(task, handoff, brief)
@@ -150,6 +158,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       (await runGit(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
     stop: async (session) => {
       await ctx.stopIn(ctx.homeOf(session.account), session)
+      const task = ctx.sessions.find((view) => view.sessionId === session.sessionId)?.task
+      if (task !== undefined) ctx.writes.add(`the push of ${task}`, pushOf(ctx, ctx.projectOf(task), task, session.workdir))
     },
     finish: async (project, task, pull) => {
       const repo = ctx.configStore.current.projects[project]!
@@ -360,6 +370,22 @@ export async function vacateSlot(ctx: MachineContext, slot: string, task: string
         : fail('slot.stopFailed', { ...params, slot }, { cause: noticeOf(error) }, { cause: error })
     }
     console.log(`${shared ? 'folder' : 'slot'}: stopped the session ${agent.sessionId} of ${owner} before ${task} took ${slot}`)
+  }
+}
+
+/**
+ * Pushes the task's branch from its folder (BTN-1270, `docs/chain/worktrees.md`, "Task branches on the remote"), so
+ * another machine can take the task over. The chain's own sessions and plain projects have none; a refused push is a
+ * log line, never a stop of the chain.
+ */
+async function pushOf(ctx: MachineContext, project: string | undefined, task: string, folder: string): Promise<void> {
+  if (project === undefined || isOwnName(task) || isPlain(ctx.configStore.current, project)) return
+  try {
+    const pushed = await pushTaskBranch(runGit, folder, task)
+    if ('failed' in pushed && pushed.failed !== undefined) console.warn(`push: ${pushed.branch} of ${task} was not pushed to ${pushed.remote}: ${pushed.failed.trim()}`)
+    else if ('branch' in pushed) console.log(`push: ${pushed.branch} of ${task} is pushed to ${pushed.remote}`)
+  } catch (error) {
+    console.warn(`push: the branch of ${task} was not pushed: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 

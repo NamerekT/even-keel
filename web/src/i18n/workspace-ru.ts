@@ -297,6 +297,10 @@ export const chainRU = {
     interrupted: 'ждёт main',
     interruptedTitle: 'Main покраснел: сессия этой задачи остановлена и продолжит, когда main починят',
     machinesTitle: 'Машины, на которых шла задача; последняя — где она сейчас',
+    reassign: 'Переназначить',
+    reassignTitle: (machine: string) => `${machine} пропала, задача ждёт её. «Переназначить» — другая машина продолжит с отправленной ветки и последней записки о передаче`,
+    reassignUnpushed: (machine: string) => `${machine} пропала и не отправила ветку этой задачи: продолжать на другой машине не с чего`,
+    reassignUnknown: (machine: string) => `${machine} пропала; есть ли ветка этой задачи на удалённом, пока не известно`,
     review: {
       pull: (number: number) => `PR #${number}`,
       pullTitle: 'Задача ждёт свой pull request вне цепочки: открыть его',

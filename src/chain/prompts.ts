@@ -97,6 +97,8 @@ export interface PromptTexts {
   note: (path: string) => string
   /** The head of the note Even Keel keeps (BTN-1046), put into the prompt after the begin line. */
   noteText: string
+  /** The start of a task moved by hand off a machine gone (BTN-1270): its worktree comes from the pushed branch. */
+  moved: (machine: string, branch: string) => string
   begin: (main: string) => string
   recentSteps: string
   lastMessage: string
@@ -246,6 +248,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       `- Затем новая сессия упала до первого ответа${error === null ? '' : fill` (${error})`}${transcript === null ? '' : fill`, её транскрипт: ${transcript}`}.`,
     note: (path) => fill`- Записка о передаче: ${path} — прочитай её первой: что сделано, что осталось, следующая команда.`,
     noteText: 'Записка о передаче от прошлой сессии — начни с неё: что сделано, что осталось, следующая команда.',
+    moved: (machine, branch) =>
+      fill`Продолжение: задачу перенесли сюда с машины ${machine}, которая пропала. Рабочее дерево восстановлено из отправленной ветки ${branch}: в нём всё, что та машина успела отправить, а несохранённое после последней передачи потеряно. Сверься с git log и описанием задачи.`,
     begin: (main) => fill`- Начни с git status, git log ${main}..HEAD и описания задачи.`,
     handoff: (extra, note) => {
       const what = 'что сделано, что осталось, текущие гипотезы, что уже пробовали и отбросили, важные файлы и символы, точная следующая команда'
@@ -406,6 +410,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       `- Then a new session failed before its first answer${error === null ? '' : fill` (${error})`}${transcript === null ? '' : fill`; its transcript: ${transcript}`}.`,
     note: (path) => fill`- Handoff note: ${path} — read it first: what is done, what is left, the next command.`,
     noteText: 'Handoff note of the previous session — start from it: what is done, what is left, the next command.',
+    moved: (machine, branch) =>
+      fill`Continuation: the task was moved here from machine ${machine}, which is gone. The worktree was restored from the pushed branch ${branch}: it has what that machine managed to push, and whatever was left unpushed after the last handoff is lost. Check git log and the task description.`,
     begin: (main) => fill`- Start with git status, git log ${main}..HEAD and the task description.`,
     handoff: (extra, note) => {
       const what = 'what is done, what is left, the current hypotheses, what was already tried and ruled out, the files and symbols that matter, the exact next command'

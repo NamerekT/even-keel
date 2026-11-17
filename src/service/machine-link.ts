@@ -27,6 +27,10 @@ import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { machinePool } from '../machine/pool.js'
 import { chainMachines } from '../machine/chain-machines.js'
+import { movedText } from '../machine/reassign.js'
+import { TaskMoves } from '../machine/task-moves.js'
+import { PROMPTS } from '../chain/prompts.js'
+import { Reassigner } from './reassign.js'
 import type { ChainMachines } from '../chain/model.js'
 import type { AssignedTask } from '../tracker/source.js'
 import { LAUNCH_EVENT, type MachineRecords, saveMachineRecord } from '../machine/records.js'
@@ -59,6 +63,8 @@ export interface LinkedMachine {
   /** The machines the chain's lanes run on (BTN-993). */
   machines: ChainMachines
   assignments: Assignments
+  /** The tasks of machines gone and their move elsewhere by hand (BTN-1270). */
+  reassigner: Reassigner
   records: MachineRecords
   /** What the page and the chat read of the machine's sessions and accounts: its mirror, never the machine's objects. */
   page: PageReads
@@ -89,9 +95,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   const machineStore = new DatabaseMachineStore(machineDb)
   let own = ''
 
+  const moves = await TaskMoves.open({ db: ctx.db, writes: ctx.writes })
   const assignments = await Assignments.open({
     db: ctx.db,
     writes: ctx.writes,
+    movedFrom: (project, task) => moves.from(project, task),
     order: (project) => {
       try {
         return chainOrder(ctx.tasksByProject.get(project) ?? [], ctx.dispatcher.state.orders[project])
@@ -171,7 +179,14 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     projectOf: ctx.projectOf,
     projectOfSession: (sessionId: string) => ctx.launches.findLast((entry) => entry.sessionId === sessionId)?.project,
     lastSession: (project: string, task: string) => ctx.launches.findLast((entry) => entry.project === project && entry.task === task)?.sessionId,
-    brief: (project: string, task: string, retained?: boolean) => ctx.briefed.prepare(task, project, retained),
+    brief: async (project: string, task: string, retained?: boolean) => {
+      const brief = await ctx.briefed.prepare(task, project, retained)
+      const move = moves.of(project, task)
+      if (move === undefined || move.launched) return brief
+      const note = (await lastHandoffNote(ctx.db, project, task))?.note ?? null
+      const text = movedText(PROMPTS[ctx.promptLanguage(project)], network.names()[move.from] ?? move.from, move.branch, note)
+      return { ...brief, restore: { branch: move.branch, text } }
+    },
     audit: (project: string) => ctx.protectionAudit.check(project),
     note: (project: string, task: string) => lastHandoffNote(ctx.db, project, task),
     saveSnapshot: async (snapshot: HandoffSnapshot) => {
@@ -193,8 +208,14 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     },
     leftover: (project: string, task: string, notice: Notice) => ctx.dispatcher.leftover(project, task, notice),
     transcript: (sessionId: string) => ctx.hub.signal('transcript', { sessionId }),
-    assigned: (project: string, task: string) => assignments.assign(project, task, machine()),
-    released: (project: string, task: string) => assignments.release(project, task),
+    assigned: (project: string, task: string) => {
+      assignments.assign(project, task, machine())
+      moves.launched(project, task)
+    },
+    released: (project: string, task: string) => {
+      assignments.release(project, task)
+      moves.drop(project, task)
+    },
     held: (named: ReadonlySet<string>, live: AssignedTask[]) => assignments.reconcile(machine(), named, live),
     log,
   })
@@ -347,13 +368,26 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     revoked: (machine) => network.revoked(machine),
     agentOf: (project, task) => ctx.runsOfProject(project)[task]?.provider ?? runSettings(ctx.configStore.current, project).provider,
     agents: (machine) => pageOf(machine)?.panel()?.accounts.map((entry) => entry.agent),
+    movedFrom: (project, task) => moves.from(project, task),
     bind: (project, task, machine) => assignments.assign(project, task, machine),
+  })
+  const reassigner = new Reassigner({
+    own: () => own,
+    assignments,
+    moves,
+    connected: (machine) => network.connected(machine),
+    names: () => network.names(),
+    repoOf: (project) => ctx.configStore.current.projects[project],
+    moved: (project, task) => ctx.dispatcher.moved(project, task),
+    changed: () => ctx.hub.broadcastSoon('state', () => ctx.getState()),
+    log,
   })
 
   return {
     port,
     machines: chain,
     assignments,
+    reassigner,
     records,
     page: remote.page,
     services,

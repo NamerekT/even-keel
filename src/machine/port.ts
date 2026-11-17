@@ -10,6 +10,11 @@ import type { TaskBrief } from '../tracker/source.js'
 export interface LaunchBrief {
   prompt: string
   task?: TaskBrief
+  /**
+   * The task was moved here by hand off a machine gone (BTN-1270): the worktree is prepared from `branch` fetched from
+   * the remote, and `text` goes at the end of the start prompt.
+   */
+  restore?: { branch: string; text: string }
 }
 
 /**

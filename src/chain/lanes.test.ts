@@ -138,6 +138,66 @@ describe('Dispatcher with machines (BTN-993)', () => {
     expect(run.dispatcher.state.released['ABC']).toEqual(['ABC-2', 'ABC-1', 'ABC-3'])
   })
 
+  it('ends the lane of a revoked machine and leaves its task with that machine (BTN-1270)', async () => {
+    const gone = new Set<string>()
+    const { machines, bound, listed } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 }, held: { 'ABC-2': 'server' }, gone })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['server', 'ABC-2']])
+
+    gone.add('server')
+    delete listed.server
+    listed.pc = 2
+    run.dispatcher.check()
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['pc', 'ABC-3']])
+    expect(bound['ABC-2']).toBe('server')
+    expect(run.dispatcher.state.released['ABC'] ?? []).not.toContain('ABC-2')
+  })
+
+  it('takes a task moved off a machine gone into a lane elsewhere, never back on that machine', async () => {
+    let moved = false
+    const runs = (_project: string, task: string, machine: string) => !(moved && task === 'ABC-2' && machine === 'server')
+    const { machines, bound, listed } = fakeMachines({ pc: 2, server: 1 }, { width: { ABC: 2 }, held: { 'ABC-2': 'server' }, runs })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['server', 'ABC-2']])
+
+    delete listed.server
+    moved = true
+    delete bound['ABC-2']
+    run.dispatcher.moved('ABC', 'ABC-2')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['pc', 'ABC-2']])
+    expect(bound['ABC-2']).toBe('pc')
+    expect(run.launched.filter((each) => each === 'ABC/ABC-2')).toHaveLength(2)
+  })
+
+  it('goes on with a project whose only lane was on the machine its task was moved off', async () => {
+    let moved = false
+    const runs = (_project: string, task: string, machine: string) => !(moved && task === 'ABC-1' && machine === 'server')
+    const { machines, bound, listed } = fakeMachines({ pc: 1, server: 1 }, { held: { 'ABC-1': 'server' }, runs })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('XYZ', [task('XYZ-1')])
+    run.dispatcher.setTasks('ABC', [task('ABC-1')])
+    await run.dispatcher.start('XYZ')
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['server', 'ABC-1']])
+
+    delete listed.server
+    moved = true
+    delete bound['ABC-1']
+    run.dispatcher.moved('ABC', 'ABC-1')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([])
+    expect(run.dispatcher.state.queue).toEqual(['ABC'])
+  })
+
   it('fills a machine with lanes of several projects in the chain order', async () => {
     const { machines } = fakeMachines({ pc: 3 }, { width: { ABC: 2 } })
     const run = setup({ machines })

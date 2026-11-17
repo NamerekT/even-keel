@@ -44,6 +44,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
   'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body), restartConfirmation(body.confirmed)),
   'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
+  'chain/reassign': ({ control }, body) => control.reassign(projectOf(body), taskOf(body)),
   'chain/accept': ({ control }, body) => control.accept(projectOf(body), taskOf(body), textOf(body.sessionId, 'sessionId')),
   'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),

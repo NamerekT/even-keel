@@ -25,6 +25,20 @@ export function chainFor(state: ChainState, project: string, task: string): Acti
   return lanes.find((chain) => chain.current?.task === task) ?? lanes[0]
 }
 
+/**
+ * The lane ends without letting its task go (BTN-1270): the task stays with its machine's `machine_tasks` row, or went
+ * elsewhere by hand. A project left with no lane goes to the head of the queue, so its chain goes on on another machine.
+ */
+export function leaveLane(state: ChainState, chain: ActiveChain): void {
+  state.active = state.active.filter((each) => each !== chain)
+  if (lanesOf(state, chain.project).length === 0 && !state.queue.includes(chain.project)) state.queue.unshift(chain.project)
+}
+
+/** The lanes on a revoked machine: nothing reaches their sessions any more. */
+export function goneLanes(state: ChainState, machines: ChainMachines): ActiveChain[] {
+  return state.active.filter((chain) => chain.machine !== undefined && machines.gone?.(chain.machine) === true)
+}
+
 /** A project takes another lane only while none of its lanes is paused, winding down or held by a red main. */
 export function widens(lanes: ActiveChain[]): boolean {
   return lanes.every((chain) => !chain.paused && !chain.fixOnly && !chain.stopAfter && chain.interrupted === undefined)

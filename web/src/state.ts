@@ -80,6 +80,8 @@ export interface ChainBlock {
   answering?: string
   /** The names of the machines it ran on, oldest first, its lane's now last (`taskMachines`); absent — one machine. */
   machines?: string[]
+  /** A machine gone holds the task (BTN-1270): its name, and whether the task's branch is on the remote so it can move. */
+  stranded?: { machine: string; pushed: boolean | null }
   /** A red main stopped the task's session; it goes on once main is fixed. */
   interrupted?: true
   /** The fix of a red main leads the chain and this task is next: its live session takes no answer from the chat until the fix lands. */
@@ -612,6 +614,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
           : seen
     const sessions = state.taskSessions[id] ?? []
     const machines = taskMachines(state.machineNames, sessions, lane)
+    const stranded = lane === undefined ? state.stranded?.[project]?.[id] : undefined
     const lamp = taskLamp(task, session, refused.has(id))
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
     const work = shownWork(state, project, id)
@@ -641,6 +644,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       start: ownRun === null ? null : sessionStart(ownRun, seen, sessions, now),
       ...(ownRun !== null && answeringSince(ownRun)),
       ...(machines !== undefined && { machines }),
+      ...(stranded !== undefined && { stranded: { machine: state.machineNames?.[stranded.machine] ?? stranded.machine, pushed: stranded.pushed } }),
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),

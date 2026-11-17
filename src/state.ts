@@ -25,6 +25,14 @@ import type { TrackerView } from './tracker/health.js'
 import type { ParentTask, Task } from './tracker/model.js'
 import type { UpdatesView } from './updates/release.js'
 
+/** A task held by a machine gone (BTN-1270). */
+export interface StrandedTask {
+  /** The machine holding it; the page names it by `machineNames`. */
+  machine: string
+  /** The remote has its branch, so it can move; `null` — not known yet, or the remote did not answer. */
+  pushed: boolean | null
+}
+
 export interface SessionView {
   task: string
   sessionId: string
@@ -341,6 +349,11 @@ export interface EvenKeelState {
    * by. One machine or none — the page shows no machine at all; absent — an older service.
    */
   machineNames?: Record<string, string>
+  /**
+   * By project and task, the tasks a machine elsewhere holds while it is away or revoked (BTN-1270): the page offers to
+   * move them. Absent — an older service.
+   */
+  stranded?: Record<string, Record<string, StrandedTask>>
   /** The work the service does in steps while a window shows it (BTN-1048): a project being created; absent — an older service. */
   jobs?: import('./jobs/model.js').StepJob[]
   /** The automatic CLI check of each agent (BTN-569): waiting, running or its last result; empty while the setting is off. */

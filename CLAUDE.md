@@ -71,7 +71,7 @@ The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A ch
 
 ## Hosting
 
-Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, public). `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetch from all remotes, merge, push to all), never `git push origin <branch>`. Task branches are not pushed, except by Even Keel in PR mode.
+Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, public). `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetch from all remotes, merge, push to all), never `git push origin <branch>`. Task branches are pushed by Even Keel alone.
 
 Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own; the next version is built on `dev` (this checkout, Huly `BTN`), fixes of the released one on `release/v<x.y>` (the clone `even-keel-github`, Huly `EKR`), carried into `dev` by Even Keel. Both folders share one auto-memory: a memory that holds only for one branch or folder names it.
 

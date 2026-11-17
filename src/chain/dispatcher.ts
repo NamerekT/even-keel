@@ -24,7 +24,7 @@ import {
   type ProjectOrder,
   type ReleaseReason,
 } from './model.js'
-import { heldFrom, laneMachine, laneOf, lanesOf, widens } from './lanes.js'
+import { goneLanes, heldFrom, laneMachine, laneOf, lanesOf, leaveLane, widens } from './lanes.js'
 import { byNumber, chainOrder, nextTask, openBlockers } from './order.js'
 import { LaunchPauses } from './pauses.js'
 import type { HandoffSession } from './relay.js'
@@ -648,9 +648,24 @@ export class Dispatcher {
     this.work = this.work.then(() => this.advance())
   }
 
+  /** The task was moved by hand off a machine gone (BTN-1270): its lane there ends, and the project goes on elsewhere. */
+  moved(project: string, task: string): void {
+    const lane = laneOf(this.state, project, task)
+    if (lane === undefined) return
+    this.deps.log(`chain: ${task} was moved off machine ${lane.machine ?? this.deps.machines?.own()}: its lane there ends`)
+    leaveLane(this.state, lane)
+    this.changed()
+  }
+
   private async advance(): Promise<void> {
     await this.deps.machine.catchUp?.()
     if (!this.deps.machine.accountsRead() || !this.deps.machine.sessionsRead()) return
+    const gone = this.deps.machines === undefined ? [] : goneLanes(this.state, this.deps.machines)
+    for (const lane of gone) {
+      this.deps.log(`chain: machine ${lane.machine} of a lane of ${lane.project} was revoked: the lane ends, ${lane.current?.task ?? 'its task'} stays with that machine until moved by hand`)
+      leaveLane(this.state, lane)
+    }
+    if (gone.length > 0) this.deps.save(this.state)
     await this.cleanups.sweep()
     await this.reviews.sweep()
     await this.waits.settle()
