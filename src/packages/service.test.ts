@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { packageSettings, type ServerEntry } from './model.js'
 import { installPinned, type NpxSpec } from './npm.js'
 import { Packages, type PackagesDeps } from './service.js'
@@ -304,6 +304,65 @@ describe('packages only the user can make ready', () => {
     expect(packages.unready('project')).toEqual(['tools@example'])
     await packages.install('tools@example')
     expect(packages.unready('project')).toEqual([])
+  })
+})
+
+describe('Check all and the Update a row shows (EKR-127)', () => {
+  function remote(home: string, version: string) {
+    const put = (path: string, value: unknown) => {
+      mkdirSync(dirname(join(home, path)), { recursive: true })
+      writeFileSync(join(home, path), JSON.stringify(value))
+    }
+    put('global/plugins/known_marketplaces.json', {
+      remote: { source: { source: 'github', repo: 'example/remote' }, installLocation: join(home, 'market'), lastUpdated: '2026-11-17T00:00:00.000Z' },
+    })
+    put('market/.claude-plugin/marketplace.json', { name: 'remote', plugins: [{ name: 'web', source: './web' }] })
+    put('market/web/.claude-plugin/plugin.json', { name: 'web', version })
+  }
+
+  it('drops the version the marketplace offered once the install is delivered, though the offer was read before it', async () => {
+    const { packages, plugin } = fixture()
+    let now = Date.parse('2026-11-17T00:00:00Z')
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    onTestFinished(() => clock.mockRestore())
+    plugin('build-a', 'all')
+    await packages.install('tools@example')
+    plugin('build-b', 'all')
+    now += 61_000
+    expect(packages.view().packages[0]!.latest).toBe('build-b')
+    plugin('build-c', 'all')
+    now += 1_000
+    await packages.update('tools@example')
+    expect(packages.view().packages[0]).toMatchObject({ version: 'build-c', latest: null })
+  })
+
+  it('fetches each fetched marketplace of an installed plugin once, installs nothing and shows the newer version at once', async () => {
+    const { deps, file } = fixture()
+    remote(dir!, '1.0.0')
+    const stored = loadPackages(file)!
+    stored.packages['web@remote'] = { kind: 'plugin', plugin: { name: 'web', marketplace: 'remote' }, default: true, settings: {}, installs: [] }
+    savePackages(file, stored)
+    const updateMarketplace = vi.fn(async (_marketplace: string) => remote(dir!, '1.1.0'))
+    const packages = new Packages({ ...deps, updateMarketplace })
+    await packages.install('tools@example')
+    await packages.install('web@remote')
+    expect(packages.view().packages.find((each) => each.name === 'web@remote')!.latest).toBeNull()
+    await packages.checkAll()
+    expect(updateMarketplace.mock.calls).toEqual([['remote']])
+    const web = packages.view().packages.find((each) => each.name === 'web@remote')!
+    expect(web).toMatchObject({ version: '1.0.0', latest: '1.1.0' })
+    expect(loadPackages(file)!.packages['web@remote']!.installs).toHaveLength(1)
+  })
+
+  it('tries every marketplace and names the first that failed', async () => {
+    const { deps, file } = fixture()
+    remote(dir!, '1.0.0')
+    const stored = loadPackages(file)!
+    stored.packages['web@remote'] = { kind: 'plugin', plugin: { name: 'web', marketplace: 'remote' }, default: true, settings: {}, installs: [] }
+    savePackages(file, stored)
+    const packages = new Packages({ ...deps, updateMarketplace: async () => { throw new Error('offline') } })
+    await packages.install('web@remote')
+    await expect(packages.checkAll()).rejects.toMatchObject({ notice: { code: 'packages.marketplaceUpdate', params: { marketplace: 'remote' } } })
   })
 })
 

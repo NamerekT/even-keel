@@ -45,7 +45,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
       { ...base, name: 'huly@even-keel', kind: 'plugin', version: '0.4.2', latest: '0.4.3', default: true, settings: { TOOLSETS: 'issues,projects,comments' }, servers: ['huly'], scripts: false, extras: true, keys: ['HULY_EMAIL', 'HULY_PASSWORD'] },
       // Another tracker's plugin, off by default: a project's packages fold it under "1 more".
       { ...base, name: 'github@even-keel', kind: 'plugin', version: '0.2.0', default: false, settings: {}, servers: ['github'], extras: true, keys: [] },
-      { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
+      { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', latest: '1.1.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
       // Built in (BTN-986): every project has it, with no switches.
       { ...base, name: 'agent-bridge@even-keel', kind: 'plugin', version: '1.0.0', default: true, settings: {}, servers: [], extras: true, keys: [], builtIn: true },
       { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com', FORGEJO_WEBHOOK_SECRET: null }, servers: ['forgejo'], unpinned: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
@@ -136,8 +136,12 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
   const project = typeof body.project === 'string' ? body.project : undefined
   if (name === 'packages/server' && target !== undefined) throw fail('packages.exists', { name: target.name })
   if (['packages/remove', 'packages/project', 'packages/default'].includes(name) && target?.builtIn === true) throw fail('packages.builtIn', { name: target.name })
-  if (name === 'packages/install' && target !== undefined) target.installed = true
-  else if (name === 'packages/update' && target !== undefined) {
+  if (name === 'packages/install' && target !== undefined) Object.assign(target, { installed: true, error: null })
+  else if (name === 'packages/check') {
+    // The fetched marketplace has a newer playwright again.
+    const playwright = catalog.packages.find((each) => each.name === 'playwright@claude-plugins-official')
+    if (playwright !== undefined && playwright.latest === null) playwright.latest = '1.2.0'
+  } else if (name === 'packages/update' && target !== undefined) {
     if (target.latest === null) target.note = notice('packages.upToDate', { name: target.name })
     else {
       target.note = notice('packages.updated', { name: target.name, version: target.latest })

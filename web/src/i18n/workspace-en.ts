@@ -114,7 +114,11 @@ export const packagesEN: Messages['packages'] = {
     catalogHint:
       'Everything that changes a package for every project at once: install, update, the default, the shared values of its settings and the keys. A package in one project is turned on in the project’s settings → Sessions → Project packages, the first button of the tab.',
     checkAll: 'Check all',
-    checkAllTip: 'Fetch the marketplaces again and install newer versions of the installed packages where there are any.',
+    checkAllTip:
+      'Fetch the plugins’ marketplaces again and show where a newer version is; it installs nothing — Update all or a row’s Update does. A newer npm version of an MCP server is found and installed by its row’s Check.',
+    updateAll: 'Update all',
+    updateAllTip: 'Press every row’s Install and Update in turn: the newer versions and the packages not installed or failed. A package that fails keeps its error in its row, and the rest go on.',
+    updateAllNone: 'Nothing to install or update. Check all fetches the marketplaces again to find newer versions.',
     group: { own: 'Even Keel', mcp: 'MCP servers' },
     byDefault: 'Default',
     byDefaultTip: 'On in every project that does not turn it off.',

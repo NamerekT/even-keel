@@ -172,3 +172,22 @@ export function problemCount(view: PackagesView, project: string): number {
 export function shownPackages(view: PackagesView): PackageView[] {
   return [...view.packages].sort((a, b) => Number(a.removed) - Number(b.removed) || a.name.localeCompare(b.name))
 }
+
+export interface PendingCommand {
+  name: string
+  command: 'packages/install' | 'packages/update'
+}
+
+/** The catalog rows' Install and Update buttons, which Update all presses in turn (EKR-127). */
+export function pendingCommands(view: PackagesView): PendingCommand[] {
+  return view.packages.flatMap((pkg): PendingCommand[] => {
+    if (pkg.removed || pkg.installing) return []
+    if (rowNeedsInstall(pkg)) return [{ name: pkg.name, command: 'packages/install' }]
+    return pkg.latest === null ? [] : [{ name: pkg.name, command: 'packages/update' }]
+  })
+}
+
+/** A row offers Install, not Update: the package is not installed or its install failed. */
+export function rowNeedsInstall(pkg: PackageView): boolean {
+  return !pkg.installed || pkg.error !== null
+}

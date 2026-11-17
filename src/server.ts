@@ -133,6 +133,7 @@ const COMMANDS: Record<string, Command> = {
   'account/cancel': ({ account }) => account.cancel(),
   'packages/install': ({ packages }, body) => packages.install(nameOf(body)),
   'packages/update': ({ packages }, body) => packages.update(nameOf(body)),
+  'packages/check': ({ packages }) => packages.checkAll(),
   'packages/remove': ({ packages }, body) => packages.remove(nameOf(body)),
   'packages/marketplace': ({ packages }) => packages.addMarketplace(),
   'packages/plugin': ({ packages }, body) => packages.addPlugin(textOf(body.plugin, 'plugin'), textOf(body.marketplace, 'marketplace'), optionalProjectOf(body)),
