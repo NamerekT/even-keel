@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bench } from './link.fixture.js'
-import type { MachineEnd } from './machine.js'
+import type { FolderMarks, FolderOwner, MachineEnd } from './machine.js'
 import {
-  API_VERSION, ASSIGN_COMMAND, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, INVITE_MS, REFUSED_EVENT, bearerOf, encodeToken, isRefusal, parseToken, type MachineAbout,
+  API_VERSION, ASSIGN_COMMAND, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, INVITE_MS, REFUSED_EVENT, TAKEN_EVENT, bearerOf, encodeToken, isRefusal, parseToken, type MachineAbout,
 } from './protocol.js'
 
 const PROJECT = '11111111-1111-4111-8111-111111111111'
@@ -324,6 +324,80 @@ describe('the hub ↔ machine link', () => {
       { seq: 4, type: ASSIGN_COMMAND, reason: 'folder' },
       { seq: 7, type: 'example.outside', reason: 'folder' },
     ])
+  })
+
+  /** Marks in memory by folder, as `GitFolderMarks` keeps them in each folder's `.git`. */
+  const marksOf = (me: string, held: Map<string, FolderOwner>): FolderMarks => ({
+    claim: async (folder, takeOver) => {
+      const owner = held.get(folder)
+      if (owner !== undefined && owner.machine !== me && owner.machine !== takeOver) return owner
+      held.set(folder, { machine: me, name: 'Example laptop' })
+      return undefined
+    },
+    release: async (folders) => {
+      for (const folder of folders) if (held.get(folder)?.machine === me) held.delete(folder)
+    },
+  })
+
+  it('marks the folder it is given; one another machine holds it refuses by that machine, until told to take it over', async () => {
+    const made = await bench()
+    stopHub = () => made.hub.stop()
+    made.machineStore.rootFolder = '/home/example/projects'
+    const held = new Map<string, FolderOwner>([['/home/example/projects/taken', { machine: 'machine-other', name: 'Other desktop' }]])
+    const end = made.machine({ marks: marksOf(made.token.machine, held) })
+    running.push(end)
+    await end.start()
+    await tick()
+    const { hub, token: { machine: id }, ran, taken, machineStore } = made
+    await hub.send(id, { type: ASSIGN_COMMAND, project: PROJECT, folder: '/home/example/projects/example' })
+    await hub.send(id, { type: ASSIGN_COMMAND, project: 'project-2', folder: '/home/example/projects/taken' })
+    await hub.send(id, { type: 'example.step', project: 'project-2' })
+    await hub.send(id, { type: ASSIGN_COMMAND, project: 'project-2', folder: '/home/example/projects/taken', payload: { takeOver: 'machine-elsewhere' } })
+    await tick()
+    expect(held.get('/home/example/projects/example')?.machine).toBe(id)
+    expect(await machineStore.consents()).toEqual([{ project: PROJECT, folder: '/home/example/projects/example' }])
+    expect(ran).toEqual([])
+    expect(taken.map((event) => [event.type, event.payload])).toEqual([
+      [TAKEN_EVENT, { project: 'project-2', folder: '/home/example/projects/taken', machine: 'machine-other', name: 'Other desktop' }],
+      [REFUSED_EVENT, { seq: 3, type: 'example.step', reason: 'taken', machine: 'machine-other', name: 'Other desktop' }],
+      [TAKEN_EVENT, { project: 'project-2', folder: '/home/example/projects/taken', machine: 'machine-other', name: 'Other desktop' }],
+    ])
+
+    await hub.send(id, { type: ASSIGN_COMMAND, project: 'project-2', folder: '/home/example/projects/taken', payload: { takeOver: 'machine-other' } })
+    await hub.send(id, { type: 'example.step', project: 'project-2' })
+    await tick()
+    expect(held.get('/home/example/projects/taken')?.machine).toBe(id)
+    expect(ran.map((command) => command.type)).toEqual(['example.step'])
+  })
+
+  it('at its start gives up a folder another machine took over, and keeps marking the rest', async () => {
+    const made = await bench()
+    stopHub = () => made.hub.stop()
+    const held = new Map<string, FolderOwner>([['/repos/taken', { machine: 'machine-other', name: 'Other desktop' }]])
+    await made.machineStore.agree(PROJECT, '/repos/example')
+    await made.machineStore.agree('project-2', '/repos/taken')
+    const end = made.machine({ marks: marksOf(made.token.machine, held) })
+    running.push(end)
+    await end.settleMarks()
+    expect(await made.machineStore.consents()).toEqual([{ project: PROJECT, folder: '/repos/example' }])
+    expect(held.get('/repos/example')?.machine).toBe(made.token.machine)
+  })
+
+  it('takes its marks off its folders once the hub turns its token away', async () => {
+    const held = new Map<string, FolderOwner>()
+    const made = await bench()
+    stopHub = () => made.hub.stop()
+    await made.machineStore.agree(PROJECT, '/repos/example')
+    const end = made.machine({ marks: marksOf(made.token.machine, held) })
+    running.push(end)
+    await end.settleMarks()
+    await end.start()
+    await tick()
+    expect(held.size).toBe(1)
+    await made.hub.revoke(made.token.machine)
+    await tick(1_000)
+    expect(end.status().notice).toBe('link.token')
+    expect(held.size).toBe(0)
   })
 
   it('never takes an assignment without a folder of projects, even into a folder it agreed to', async () => {

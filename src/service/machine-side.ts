@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { CLAUDE } from '../claude/name.js'
 import { AccountIdentities } from '../limits/identity.js'
 import type { AccountTie } from '../limits/polls.js'
-import { MachineEnd, type HubTransport } from '../link/machine.js'
+import { MachineEnd, type FolderMarks, type HubTransport } from '../link/machine.js'
 import type { MachineStore } from '../link/machine-store.js'
 import type { MachineAbout } from '../link/protocol.js'
 import { sameJson } from '../machine/facts.js'
@@ -19,6 +19,8 @@ import { wireMachineServices } from './machine-services.js'
 export interface MachineSideOptions {
   transport: HubTransport
   store: MachineStore
+  /** The marks of the folders it agrees to (`docs/machines.md`, "The folder's mark"). */
+  marks?: FolderMarks
   /** What the machine tells of itself at each handshake: a machine on the network only. */
   about?: () => Promise<MachineAbout>
   /** The link's status changed. */
@@ -161,6 +163,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     snapshot: () => runner.snapshot(),
     command: (command) => runner.command(command),
     ...(options.about !== undefined && { about: options.about }),
+    ...(options.marks !== undefined && { marks: options.marks }),
     ...(options.heartbeatMs !== undefined && { heartbeatMs: options.heartbeatMs }),
     changed: () => {
       if (end.status().state === 'online') wentOnline()

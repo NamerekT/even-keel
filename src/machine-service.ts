@@ -1,4 +1,4 @@
-import { homedir } from 'node:os'
+import { homedir, hostname } from 'node:os'
 import { join } from 'node:path'
 import { listenOf, mcpPortOf } from './config.js'
 import { stopOnSignals } from './diagnostics/stop.js'
@@ -8,6 +8,7 @@ import { httpsTransport } from './link/machine-transport.js'
 import { parseToken } from './link/protocol.js'
 import { loadEnv, root, stateDirOf } from './locations.js'
 import { machineAbout } from './machine/about.js'
+import { folderMarks } from './machine/marks.js'
 import { KEEP_WARM_TICK_MS } from './sessions/keepwarm.js'
 import { Writes } from './storage/database.js'
 import { installed } from './updates/watcher.js'
@@ -60,6 +61,8 @@ const keepContact = contactKeeper(stateDir, log)
 const side = wireMachineSide(machine, {
   transport: httpsTransport(token, { log }),
   store: new DatabaseMachineStore(machineDb),
+  // The hub names the machine at its invitation; the machine knows itself by its host, so a mark names that.
+  marks: folderMarks(() => ({ machine: token.machine, name: hostname() }), process.env),
   about: () => machineAbout({ evenKeel: version, root: projectsRoot, git: runGit, home: homedir() }),
   changed: (end) => keepContact(end.status().state === 'online', end.contact()),
   log,
@@ -81,6 +84,7 @@ setInterval(() => void host.cliChecks.check(), CLI_CHECK_TICK_MS).unref()
 const pollWorks = assemblePollWorks(machine)
 setInterval(pollWorks, WORK_TICK_MS).unref()
 
+await side.end.settleMarks()
 await side.end.start()
 log(`machine: connecting to the hub ${token.hub} as machine ${token.machine}`)
 // The hub's servers are reached over the link once the first connection may have brought the brief that names them.

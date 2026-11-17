@@ -5,7 +5,7 @@
 import type { MachineAbout } from './view.js'
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 7
+export const API_VERSION = 8
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -28,6 +28,24 @@ export const INVITE_MS = 30 * 60_000
 
 /** The link's own command: the hub names a project's folder on the machine, which agrees to it inside its root. */
 export const ASSIGN_COMMAND = 'projects.assign'
+
+/** The payload of `projects.assign`: the machine whose mark in the folder the hub's user chose to take over. */
+export interface AssignPayload {
+  takeOver?: string
+}
+
+/**
+ * The machine's answer to an assignment of a folder another machine's mark holds (`docs/machines.md`, "The folder's
+ * mark"): the project, the folder and the machine the mark names. No consent is given.
+ */
+export const TAKEN_EVENT = 'projects.taken'
+
+export interface FolderTaken {
+  project: string
+  folder: string
+  machine: string
+  name: string
+}
 
 /** How many events one post carries. */
 export const EVENT_BATCH = 100

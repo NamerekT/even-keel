@@ -20,6 +20,8 @@ import type { HandoffSnapshot } from '../chain/snapshots.js'
 import type { Notice } from '../notice/notice.js'
 import { Assignments, fillPool } from '../machine/assignments.js'
 import { ownMachine } from '../machine/own.js'
+import { folderMarks } from '../machine/marks.js'
+import type { FolderOwner, MachineEnd } from '../link/machine.js'
 import type { PageReads } from '../machine/page.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
@@ -93,16 +95,36 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   })
 
   let agreedFor = ''
-  /** The machine serves the projects of its own installation, each in its folder; a project gone is served no longer. */
-  const agree = async (): Promise<void> => {
+  const marks = folderMarks(() => ({ machine: own, name: hostname() }), process.env)
+  /** By project, the machine whose mark the person chose to take the folder over from: used at the next `agree`. */
+  const takeOvers = new Map<string, string>()
+  /** By project, the machine whose mark holds its folder; the machine's end refuses the project's commands by it. */
+  const heldBy = new Map<string, FolderOwner>()
+  let linked: MachineEnd | undefined
+  /**
+   * The machine serves the projects of its own installation, each in its folder; a project gone is served no longer,
+   * and neither is one whose folder another machine's mark holds (`docs/machines.md`, "The folder's mark").
+   */
+  const agree = async (again = false): Promise<void> => {
     const { projects } = ctx.configStore.current
     const signature = JSON.stringify(projects)
-    if (signature === agreedFor) return
+    if (signature === agreedFor && !again) return
     for (const { project, folder } of await machineStore.consents()) {
       const repo = projects[project]
       if (repo === undefined || !samePath(repo, folder)) await machineStore.withdraw(project, folder)
     }
-    for (const [project, repo] of Object.entries(projects)) await machineStore.agree(project, repo)
+    for (const [project, repo] of Object.entries(projects)) {
+      let owner = await marks.claim(repo, takeOvers.get(project))
+      takeOvers.delete(project)
+      // The mark of a machine this hub revoked is free: the own machine made anew takes the old one's folders this way.
+      if (owner !== undefined && await network.holds(own, project, owner)) owner = await marks.claim(repo, owner.machine)
+      if (owner === undefined) await network.holds(own, project, undefined)
+      if (owner === undefined) heldBy.delete(project)
+      else heldBy.set(project, owner)
+      linked?.hold(project, owner)
+      if (owner === undefined) await machineStore.agree(project, repo)
+      else await machineStore.withdraw(project)
+    }
     await fillPool(ctx.db, own, Object.keys(projects))
     agreedFor = signature
   }
@@ -249,6 +271,10 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       mcp: (machine, request) => hubMcp.relay(machine, request),
       write: (machine, write) => hubMcp.write(machine, write),
     },
+    takeOverOwn: async (project, owner) => {
+      takeOvers.set(project, owner)
+      await agree(true)
+    },
     log,
   })
 
@@ -268,6 +294,8 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     store: machineStore,
     log,
   })
+  linked = end
+  for (const [project, owner] of heldBy) end.hold(project, owner)
   let publishing: ReturnType<typeof setInterval> | undefined
   const services = remote.services()
 

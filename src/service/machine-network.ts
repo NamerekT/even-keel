@@ -8,8 +8,8 @@ import type { HubCertificate } from '../link/cert.js'
 import { createHubServer } from '../link/hub-server.js'
 import type { HubStore, MachineRecord } from '../link/hub-store.js'
 import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
-import { ASSIGN_COMMAND, HEARTBEAT_MS, type McpAnswer, type McpRequest } from '../link/protocol.js'
-import type { AddressChoice, MachineView } from '../link/view.js'
+import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken, type McpAnswer, type McpRequest } from '../link/protocol.js'
+import type { AddressChoice, MachineView, TakenFolder } from '../link/view.js'
 import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
 import type { HubBrief } from '../machine/brief.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
@@ -66,6 +66,8 @@ export interface MachineNetworkOptions {
   /** A machine joined, connected or went away: the page asks for the list again. */
   changed: () => void
   peers?: NetworkPeers
+  /** The own machine takes the project's folder over from `owner`'s mark. */
+  takeOverOwn?: (project: string, owner: string) => Promise<void>
   log: (line: string) => void
 }
 
@@ -90,6 +92,8 @@ export class MachineNetwork {
   private listeningFor: string | null = null
   private applying: Promise<void> = Promise.resolve()
   private readonly peers = new Map<string, Peer>()
+  /** By machine and project, the machine whose mark holds the project's folder there; kept in memory, told again at the next assignment. */
+  private readonly taken = new Map<string, Map<string, TakenFolder>>()
 
   constructor(private readonly options: MachineNetworkOptions) {
     this.hub = new HubEnd({
@@ -151,7 +155,8 @@ export class MachineNetwork {
           // The hub's settings are its own machine's: a choice made on a machine elsewhere stays there.
           const selection = event.payload as MachineSelection
           log(`machines: machine ${machine} chose ${selection.kind} ${selection.value} for ${selection.provider}; the hub's settings are not changed by it`)
-        } else if (event.type === KEPT_WRITE_EVENT) await peers.write(machine, event.payload as KeptWrite)
+        } else if (event.type === TAKEN_EVENT) await this.refused(machine, event.payload as FolderTaken)
+        else if (event.type === KEPT_WRITE_EVENT) await peers.write(machine, event.payload as KeptWrite)
         else if (event.type === SESSIONS_READ_EVENT) void this.brief(machine)
         else await this.peer(machine, peers).remote.handlers().event(machine, event)
       },
@@ -177,6 +182,59 @@ export class MachineNetwork {
     peer = made
     this.peers.set(machine, peer)
     return peer
+  }
+
+  /**
+   * The project's folder on the machine is held by `owner`'s mark, or (`undefined`) no longer is. The mark of a machine
+   * this hub revoked is free (its marks came off with its token), so the hub alone tells the machine to take it over.
+   * Answers whether the folder is to be taken over.
+   */
+  async holds(machine: string, project: string, owner: { machine: string; name: string } | undefined): Promise<boolean> {
+    const held = this.taken.get(machine) ?? new Map<string, TakenFolder>()
+    if (owner === undefined) {
+      held.delete(project)
+      return false
+    }
+    const record = await this.options.store.machine(owner.machine)
+    if (record !== undefined && record.revokedAt !== null) {
+      held.delete(project)
+      this.options.log(`machines: the folder of project ${project} on machine ${machine} has the mark of machine ${owner.machine} (${record.name}), revoked here: it is taken over`)
+      return true
+    }
+    const name = record?.name ?? (owner.name || owner.machine)
+    held.set(project, { project, machine: owner.machine, name })
+    this.taken.set(machine, held)
+    this.options.log(`machines: the folder of project ${project} on machine ${machine} is served by machine ${owner.machine} (${name}): refused there`)
+    this.options.changed()
+    return false
+  }
+
+  private async refused(machine: string, taken: FolderTaken): Promise<void> {
+    if (await this.holds(machine, taken.project, taken)) {
+      await this.hub.send(machine, { type: ASSIGN_COMMAND, project: taken.project, folder: taken.folder, payload: { takeOver: taken.machine } satisfies AssignPayload })
+    }
+  }
+
+  /**
+   * "Take the folder over", confirmed by the person: the machine marks the project's folder as its own in place of
+   * `owner`'s mark, the one its refusal named. A folder no longer held by that machine is refused `machines.notTaken`.
+   * No `machine` — the hub's own, whose refusal the page shows as the chain's pause.
+   */
+  async takeOver(named: string | undefined, project: string, owner: string): Promise<void> {
+    const machine = named ?? this.options.own()
+    const isOwn = machine === this.options.own()
+    const record = isOwn ? undefined : await this.foreign(machine)
+    if (this.taken.get(machine)?.get(project)?.machine !== owner) throw fail('machines.notTaken', {})
+    this.taken.get(machine)!.delete(project)
+    this.options.log(`machines: machine ${machine} takes the folder of project ${project} over from machine ${owner}`)
+    if (isOwn) await this.options.takeOverOwn?.(project, owner)
+    else {
+      const root = record!.about?.root ?? null
+      const repo = this.options.repoOf(project)
+      if (root === null || repo === undefined) throw fail('machines.unknownProject', {})
+      await this.hub.send(machine, { type: ASSIGN_COMMAND, project, folder: folderUnder(root, repo), payload: { takeOver: owner } satisfies AssignPayload })
+    }
+    this.options.changed()
   }
 
   /** The machine's brief, its pool's folders read anew: each inside its folder of projects, named as on the hub. */
@@ -238,6 +296,7 @@ export class MachineNetwork {
     const record = await this.foreign(machine)
     await this.hub.revoke(record.id)
     this.peers.delete(record.id)
+    this.taken.delete(record.id)
     this.options.log(`machines: machine ${record.id} (${record.name}) was revoked`)
     this.options.changed()
   }
@@ -256,6 +315,7 @@ export class MachineNetwork {
       about: record.about,
       online: this.hub.connected(record.id),
       projects: rows.filter((row) => row.machine_id === record.id).map((row) => row.project_id),
+      taken: [...(this.taken.get(record.id)?.values() ?? [])],
     }))
   }
 
@@ -275,6 +335,7 @@ export class MachineNetwork {
         'insert into project_machines (project_id, machine_id) values ($1, $2) on conflict (project_id, machine_id) do update set enabled = true',
         [project, record.id],
       )
+      this.taken.get(record.id)?.delete(project)
       await this.hub.send(record.id, { type: ASSIGN_COMMAND, project, folder: folderUnder(root, repo!) })
     }
     this.options.log(`machines: machine ${record.id} (${record.name}) was given ${projects.length} project(s)`)

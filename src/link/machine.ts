@@ -2,8 +2,8 @@ import { hostname } from 'node:os'
 import { isInside } from '../paths.js'
 import type { Consent, MachineStore } from './machine-store.js'
 import {
-  API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, isRefusal,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
+  API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, TAKEN_EVENT, isRefusal,
+  type AssignPayload, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
   type Refusal, type SnapshotPost,
 } from './protocol.js'
 
@@ -32,9 +32,25 @@ export interface LinkStatus {
   notice?: LinkNotice
 }
 
+/** The machine that holds a project's folder, as its mark there names it (`docs/machines.md`, "The folder's mark"). */
+export interface FolderOwner {
+  machine: string
+  name: string
+}
+
+/** The marks `.git/even-keel-machine` of the folders a machine takes. */
+export interface FolderMarks {
+  /** Marks the folder as this machine's; another machine's mark is left and its machine named, unless it is `takeOver`. */
+  claim(folder: string, takeOver?: string): Promise<FolderOwner | undefined>
+  /** Removes this machine's marks from the folders; another machine's stays. */
+  release(folders: string[]): Promise<void>
+}
+
 export interface MachineOptions {
   transport: HubTransport
   store: MachineStore
+  /** The marks of the folders it agrees to; without them no folder is marked or refused. */
+  marks?: FolderMarks
   /** What the machine holds right now: its tasks, its live sessions and their state. */
   snapshot: () => unknown | Promise<unknown>
   /** Runs one command, already checked against what the machine agreed to. A throw is reported to the hub. */
@@ -97,6 +113,8 @@ export class MachineEnd {
   private commands: Promise<void> = Promise.resolve()
   private readonly api: number
   private readonly now: () => number
+  /** The projects whose folder another machine's mark holds: their commands are refused by that machine. */
+  private readonly taken = new Map<string, FolderOwner>()
 
   constructor(private readonly options: MachineOptions) {
     this.heartbeatMs = options.heartbeatMs ?? HEARTBEAT_MS
@@ -122,6 +140,28 @@ export class MachineEnd {
       await store.commandDone(seq, this.now())
     }
     await this.connect()
+  }
+
+  /** Another machine's mark holds the project's folder (`owner`), or no longer does: its commands are refused by it. */
+  hold(project: string, owner: FolderOwner | undefined): void {
+    if (owner === undefined) this.taken.delete(project)
+    else this.taken.set(project, owner)
+  }
+
+  /**
+   * Marks every folder the machine agreed to, before it connects: a folder that got its git since, or whose mark went.
+   * A folder another machine took over meanwhile is given up — the consent goes and its commands are refused.
+   */
+  async settleMarks(): Promise<void> {
+    const { marks, store, log } = this.options
+    if (marks === undefined) return
+    for (const { project, folder } of await store.consents()) {
+      const owner = await marks.claim(folder)
+      this.hold(project, owner)
+      if (owner === undefined) continue
+      log(`link: the folder ${folder} of project ${project} is served by machine ${owner.machine} (${owner.name}) now: this machine gives it up`)
+      await store.withdraw(project, folder)
+    }
   }
 
   stop(): void {
@@ -283,6 +323,13 @@ export class MachineEnd {
     const reason = assigned && (command.project === undefined || command.folder === undefined)
       ? 'folder'
       : refusalOf(command, assigned ? [] : await store.consents(), await store.root())
+    const holder = !assigned && reason === 'project' && command.project !== undefined ? this.taken.get(command.project) : undefined
+    if (holder !== undefined) {
+      this.options.log(`link: command ${seq} (${type}) is refused: the project's folder is served by machine ${holder.machine} (${holder.name})`)
+      await this.emit(REFUSED_EVENT, { seq, type, reason: 'taken', ...holder })
+      await store.commandDone(seq, this.now())
+      return
+    }
     if (reason !== undefined) {
       this.options.log(`link: command ${seq} (${type}) is refused: ${reason === 'project' ? 'this machine did not agree to its project' : 'its folder is outside the agreed ones'}`)
       await this.emit(REFUSED_EVENT, { seq, type, reason })
@@ -290,7 +337,19 @@ export class MachineEnd {
       return
     }
     if (assigned) {
-      await store.agree(command.project!, command.folder!)
+      const project = command.project!
+      const folder = command.folder!
+      const takeOver = (command.payload as AssignPayload | undefined)?.takeOver
+      const owner = await this.options.marks?.claim(folder, typeof takeOver === 'string' ? takeOver : undefined)
+      this.hold(project, owner)
+      if (owner !== undefined) {
+        this.options.log(`link: the hub put project ${project} into ${folder}, which machine ${owner.machine} (${owner.name}) serves: refused`)
+        await this.emit(TAKEN_EVENT, { project, folder, ...owner } satisfies FolderTaken)
+        await store.commandDone(seq, this.now())
+        return
+      }
+      if (takeOver !== undefined) this.options.log(`link: the folder ${folder} was taken over from machine ${takeOver}`)
+      await store.agree(project, folder)
       this.options.log(`link: the hub put project ${command.project} into ${command.folder}`)
       await store.commandDone(seq, this.now())
       return
@@ -338,13 +397,28 @@ export class MachineEnd {
     this.connection = undefined
   }
 
+  /** The hub no longer takes this machine: its marks come off its folders, so another machine may take them. */
+  private async unmark(): Promise<void> {
+    const { marks, store, log } = this.options
+    if (marks === undefined) return
+    try {
+      await marks.release((await store.consents()).map((consent) => consent.folder))
+      log('link: this machine\'s marks were taken off its folders')
+    } catch (error) {
+      log(`link: this machine's marks were not taken off its folders: ${messageOf(error)}`)
+    }
+  }
+
   /** The connection is gone: the next attempt comes after the pause, at once the longest one when the hub refused. */
   private lost(refusal?: Refusal): void {
     this.release()
     let wait = this.pause
     let notice = this.notice
     if (refusal?.refused === 'token') {
-      if (notice !== 'link.token') this.options.log('link: the hub does not take this machine\'s connection token: it is unknown to it or revoked')
+      if (notice !== 'link.token') {
+        this.options.log('link: the hub does not take this machine\'s connection token: it is unknown to it or revoked')
+        void this.unmark()
+      }
       notice = 'link.token'
       wait = RECONNECT_MAX_MS
     } else if (refusal?.refused === 'version') {

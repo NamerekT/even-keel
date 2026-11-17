@@ -1,5 +1,7 @@
+import { readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
@@ -35,6 +37,24 @@ describe('a chain that starts paused on what only the user can fix', { timeout: 
 
     await run.until(() => launches().length === 1, 'ABC-1 launched', { limitMs: 60_000 })
     expect(chain()).toMatchObject({ paused: false, error: null })
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
+  })
+
+  it('pauses on a folder another machine holds and goes on once the person takes it over', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', commitAndMerge())
+    const mark = join(run.repo, '.git', 'even-keel-machine')
+    await run.start(() => writeFileSync(mark, `${JSON.stringify({ machine: 'machine-elsewhere', name: 'Example desktop' })}\n`))
+    await run.startChain(PROJECT_ID)
+
+    await run.pass(60_000)
+    expect(chain()).toMatchObject({ paused: true, error: { code: 'machines.folderTaken', params: { name: 'Example desktop', owner: 'machine-elsewhere' } } })
+    expect(launches()).toEqual([])
+
+    await run.post('machines/takeOver', { project: PROJECT_ID, owner: 'machine-elsewhere' })
+    expect(JSON.parse(readFileSync(mark, 'utf8')).machine).not.toBe('machine-elsewhere')
+    await run.post('chain/resume', { project: PROJECT_ID })
+    await run.until(() => launches().length === 1, 'ABC-1 launched', { limitMs: 60_000 })
     await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
   })
 

@@ -38,13 +38,14 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     for (const close of closing.splice(0).reverse()) await close()
   })
 
-  const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}) => {
+  const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>) => {
     const db = await PGlite.create()
     await db.exec(fixture(55))
     const settings = { address: null as string | null }
     const changes: number[] = []
     const network = new MachineNetwork({
       ...(peers === undefined ? {} : { peers }),
+      ...(takeOverOwn === undefined ? {} : { takeOverOwn }),
       db,
       store: new DatabaseHubStore(db),
       certificate: () => hubIdentity(db),
@@ -104,6 +105,41 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     settings.address = null
     await network.apply()
     await expect(joinHub(pending, ABOUT, 2_000)).rejects.toThrow()
+  })
+
+  it('shows a folder another machine holds, frees the mark of a machine it revoked, and takes a folder over only from the machine shown', async () => {
+    const owned: [string, string][] = []
+    const { db, network, settings } = await started(undefined, () => {}, async (project, owner) => void owned.push([project, owner]))
+    settings.address = '127.0.0.1'
+    await network.apply()
+    const join = async (name: string) => {
+      const joined = await joinHub(parseToken((await network.invite(name)).line)!, ABOUT, 5_000)
+      if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+      return joined.machine
+    }
+    const laptop = await join('Example laptop')
+    const desktop = await join('Example desktop')
+    await network.attach(laptop, [ABC])
+
+    expect(await network.holds(laptop, ABC, { machine: desktop, name: 'desktop-host' })).toBe(false)
+    expect(await network.holds(laptop, 'project-2', { machine: 'machine-elsewhere', name: 'other-host' })).toBe(false)
+    expect((await network.list()).find((machine) => machine.id === laptop)?.taken).toEqual([
+      { project: ABC, machine: desktop, name: 'Example desktop' },
+      { project: 'project-2', machine: 'machine-elsewhere', name: 'other-host' },
+    ])
+
+    await expect(network.takeOver(laptop, ABC, 'machine-elsewhere')).rejects.toThrow(/nothing to take over/)
+    await network.takeOver(laptop, ABC, desktop)
+    const { rows } = await db.query<{ command: string }>('select command from machine_commands where machine_id = $1 order by seq', [laptop])
+    expect(JSON.parse(rows.at(-1)!.command)).toEqual({ type: ASSIGN_COMMAND, project: ABC, folder: '/home/example/projects/example', payload: { takeOver: desktop } })
+    expect((await network.list()).find((machine) => machine.id === laptop)?.taken.map((taken) => taken.project)).toEqual(['project-2'])
+    await expect(network.takeOver(laptop, ABC, desktop)).rejects.toThrow(/nothing to take over/)
+
+    await network.revoke(desktop)
+    expect(await network.holds(laptop, ABC, { machine: desktop, name: 'desktop-host' })).toBe(true)
+    expect(await network.holds(OWN, ABC, { machine: laptop, name: 'laptop-host' })).toBe(false)
+    await network.takeOver(OWN, ABC, laptop)
+    expect(owned).toEqual([[ABC, laptop]])
   })
 
   it("keeps a machine elsewhere in its own mirror, briefs it on its pool's folders and carries its limits, writes and choices", async () => {

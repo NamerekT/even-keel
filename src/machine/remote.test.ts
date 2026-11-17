@@ -213,6 +213,15 @@ describe('the machine port over the link', () => {
     expect((await failure)?.code).toBe('slot.busyStart')
   })
 
+  it('pauses on a project whose folder another machine holds, by that machine', async () => {
+    const { port, end, machineStore } = await started()
+    await machineStore.withdraw(PROJECT)
+    end.hold(PROJECT, { machine: 'machine-other', name: 'Example desktop' })
+    const refused = port.sync(PROJECT).then(() => undefined, (error: unknown) => noticeOf(error))
+    await tick()
+    expect(await refused).toEqual({ code: 'machines.folderTaken', params: { name: 'Example desktop', owner: 'machine-other' } })
+  })
+
   it('pauses on a command the machine refuses or cannot run', async () => {
     const { port, hub, remote, id } = await started()
     const refused = port.changes(PROJECT, 'C:/elsewhere').then(() => undefined, (error: unknown) => noticeOf(error))

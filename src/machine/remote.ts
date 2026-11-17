@@ -273,6 +273,8 @@ export class RemoteMachine {
       else this.settle(done.seq, event.type, { error: new NoticeError(asNotice(done.notice), done.cause === undefined ? undefined : { cause: new Error(done.cause) }) })
     } else if (event.type === FAILED_EVENT) {
       this.settle(Number(payload.seq), event.type, { error: (type) => fail('machine.commandFailed', { command: type, error: String(payload.error) }) })
+    } else if (event.type === REFUSED_EVENT && payload.reason === 'taken') {
+      this.settle(Number(payload.seq), event.type, { error: fail('machines.folderTaken', { name: String(payload.name || payload.machine), owner: String(payload.machine) }) })
     } else if (event.type === REFUSED_EVENT) {
       this.settle(Number(payload.seq), event.type, { error: (type) => fail('machine.commandRefused', { command: type, reason: payload.reason === 'folder' ? 'folder' : 'project' }) })
     } else if (event.type === INTERRUPTED_EVENT) {

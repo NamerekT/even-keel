@@ -256,6 +256,8 @@ export interface ServerDeps {
     revoke(machine: string): Promise<void>
     list(): Promise<MachineView[]>
     attach(machine: string, projects: string[]): Promise<void>
+    /** "Take the folder over" (BTN-1244), confirmed on the page: `owner` is the machine its refusal named; no `machine` — the own one. */
+    takeOver(machine: string | undefined, project: string, owner: string): Promise<void>
   }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }

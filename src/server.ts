@@ -99,6 +99,7 @@ const COMMANDS: Record<string, Command> = {
   'storage/backup': ({ backup }) => backup?.copyNow(),
   'machines/revoke': ({ machines }, body) => machines?.revoke(textOf(body.machine, 'machine')),
   'machines/projects': ({ machines }, body) => machines?.attach(textOf(body.machine, 'machine'), listOf({ order: body.projects }, 'request.projectList')),
+  'machines/takeOver': ({ machines }, body) => machines?.takeOver(typeof body.machine === 'string' ? body.machine : undefined, textOf(body.project, 'project'), textOf(body.owner, 'owner')),
   // The page sends its language: on the first run none is chosen yet, and the demo speaks the one the person reads.
   'demo/start': async ({ demo }, body) => void (await demo?.start(isLanguage(body.language) ? body.language : undefined)),
   'demo/again': async ({ demo }, body) => void (await demo?.again(isLanguage(body.language) ? body.language : undefined)),

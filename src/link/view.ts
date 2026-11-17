@@ -39,4 +39,14 @@ export interface MachineView {
   online: boolean
   /** The projects whose pool has it. */
   projects: string[]
+  /** The projects whose folder there another machine's mark holds, by that machine: the page offers to take it over. */
+  taken: TakenFolder[]
+}
+
+/** A project's folder held by another machine (`docs/machines.md`, "The folder's mark"). */
+export interface TakenFolder {
+  project: string
+  /** The machine the mark names, and its name: the hub's when it knows the machine, else the mark's. */
+  machine: string
+  name: string
 }
