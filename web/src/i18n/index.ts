@@ -70,6 +70,7 @@ function pageTexts(): NoticeTexts {
       until: localMoment(p.until, new Date(), language),
       provider: p.provider === undefined ? undefined : (t.account.agents as Record<string, string>)[p.provider] ?? p.provider,
     }),
+    'changelog.limitSpent': (p) => t.notice['changelog.limitSpent']({ ...p, until: p.until === undefined ? undefined : localMoment(p.until, new Date(), language) }),
   }
 }
 

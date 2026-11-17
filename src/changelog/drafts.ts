@@ -3,7 +3,7 @@ import type { ChangelogKind, ChangelogOp, ChangelogSpend, ChangelogStart, Change
 import type { Db } from '../storage/database.js'
 import type { MilestoneTask } from '../tracker/source.js'
 import { changelogPrompt, materialOf, type ChangelogMode } from './draft.js'
-import { answerSection, changelogPlan, withSection, type ChangelogPlan } from './file.js'
+import { answerSection, changelogPlan, newestReleased, withSection, type ChangelogPlan } from './file.js'
 import { addVersion, latestVersion, markWritten, spentOn, writtenTasks } from './store.js'
 
 export interface ChangelogDeps {
@@ -65,11 +65,14 @@ export class ChangelogDrafts {
     const latest = await latestVersion(db, project, milestone)
     const [file, tags] = await Promise.all([this.deps.file(project), this.deps.tags(project)])
     const plan = changelogPlan(file.text, milestone, tags)
+    // A written version whose section has since been released is frozen: only new tasks go on, into the next patch's section.
+    const frozen = latest !== null && latest.written !== null && plan.section === null && plan.tag !== null
     const view = async (version: ChangelogVersion | null, start: ChangelogStart | null = null): Promise<ChangelogView> => ({
       project,
       milestone,
       file: file.path,
       released: plan.tag,
+      frozen: frozen && version === latest ? { section: newestReleased(plan)?.text ?? null } : null,
       version,
       start,
       spent: await spentOn(db, project, milestone),
@@ -86,8 +89,6 @@ export class ChangelogDrafts {
     }
     if (op.op === 'draft' || op.op === 'again') return view(await this.fresh(project, milestone, plan, file.path, tags, op.op === 'draft' ? 'draft' : 'again'))
     if (latest === null) throw fail('changelog.noDraft', { milestone })
-    // A written version whose section has since been released is frozen: only new tasks go on, into the next patch's section.
-    const frozen = latest.written !== null && plan.section === null && plan.tag !== null
     if (frozen && op.op !== 'add') throw fail('changelog.released', { milestone, tag: plan.tag ?? '' })
     if (op.op === 'write') return view(latest.written === null ? await this.commit(project, milestone, latest, tags) : latest)
     // Once written, the file's section is where the user's own edits are: the next version starts from it.

@@ -27,6 +27,13 @@ const DRAFT = `## [Unreleased]
 
 - A question asked right before a limit is no longer lost.`
 
+const RELEASED = `## [0.1.0] - 2026-10-21
+
+### Added
+
+- The server skeleton: a health route, the config loaded from the environment and a log of every request.
+- Tasks are read from the tracker, with their \`blocks\` relations.`
+
 /** The milestone that has a written version from the start, so the head's counter and "Add" show; the rest start empty. */
 export function fakeWrittenChangelogs(): EvenKeelState['changelogs'] {
   return { ABC: { [WRITTEN_MILESTONE]: WRITTEN_TASKS } }
@@ -99,9 +106,10 @@ function edited(text: string): string {
 
 /**
  * `changelog/open|draft|again|add|edit|write` → the milestone's newest version, kept in memory per project and
- * milestone; `open` without one → what the first draft would start from. `?changelog=failed|unnoticed|empty|slow|dirty|file|fresh`
- * — the agent fails, finds nothing a user would notice, the milestone has no done task, writing never ends, the file is
- * dirty, the file already has the milestone's section, no milestone starts written (also under `empty` and `file`).
+ * milestone; `open` without one → what the first draft would start from. `?changelog=failed|limit|unnoticed|empty|slow|dirty|file|fresh|released|released-none`
+ * — the agent fails, the account's 5-hour limit is spent, finds nothing a user would notice, the milestone has no done task, writing never ends, the file is
+ * dirty, the file already has the milestone's section, no milestone starts written (also under `empty` and `file`), the
+ * written milestone is released as `v0.1.0` with its section in the file or without it.
  */
 export async function fakeChangelog(state: EvenKeelState, name: string, body: Record<string, unknown>, param: string | null): Promise<ChangelogView | null> {
   if (!name.startsWith('changelog/')) return null
@@ -111,14 +119,17 @@ export async function fakeChangelog(state: EvenKeelState, name: string, body: Re
   const history = historyOf(project, milestone, param)
   const latest = history.at(-1) ?? null
   const section = param === 'file' ? IN_FILE : null
-  const base = { project, milestone, file: FILE, released: null, spent: spentOf(history) }
-  const view = (each: ChangelogVersion): ChangelogView => ({ ...base, version: each, start: null })
+  const released = param === 'released' || param === 'released-none'
+  const base = { project, milestone, file: FILE, released: released ? 'v0.1.0' : null, spent: spentOf(history) }
+  // Released, the written version is frozen: the window shows the file's released section until "Add N" starts the next patch's.
+  const frozenOf = (each: ChangelogVersion) => (released && each.written !== null ? { section: param === 'released' ? RELEASED : null } : null)
+  const view = (each: ChangelogVersion): ChangelogView => ({ ...base, frozen: frozenOf(each), version: each, start: null })
   if ((op === 'open' || op === 'draft') && latest !== null) return view(latest)
   if (op === 'open') {
     const tasks = projectTasks(state, project).filter((task) => task.milestone?.label === milestone)
     const done = param === 'empty' ? 0 : unaccounted(tasks, project, milestone, []).length
     const open = tasks.filter((task) => task.status.category !== 'Won' && task.status.category !== 'Lost').length
-    return { ...base, version: null, start: { done, open, section } }
+    return { ...base, frozen: null, version: null, start: { done, open, section } }
   }
   if (op === 'write') {
     if (latest === null) throw fail('changelog.noDraft', { milestone })
@@ -129,6 +140,7 @@ export async function fakeChangelog(state: EvenKeelState, name: string, body: Re
   if (param === 'slow') await new Promise(() => {})
   await new Promise((resolve) => setTimeout(resolve, WRITE_MS))
   if (param === 'failed') throw fail('changelog.failed', { project }, { detail: 'claude exited with 1' })
+  if (param === 'limit') throw fail('changelog.limitSpent', { account: 'global', window: 'fiveHour', until: new Date(Date.now() + 47 * 60_000).toISOString() })
   const done = unaccounted(projectTasks(state, project), project, milestone, [])
   if (param === 'unnoticed') throw fail('changelog.unnoticed', { milestone, tasks: done })
   const next = (kind: ChangelogKind, text: string, base: string | null, instruction: string | null, tasks: string[]) => {

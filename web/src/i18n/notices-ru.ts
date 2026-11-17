@@ -496,6 +496,8 @@ export const noticesRu: NoticeTexts = {
   'changelog.empty': (p) => `в ${p.milestone} нет ни одной сделанной задачи, черновик писать не из чего`,
   'changelog.noAgent': (p) => `агент аккаунта, на котором идёт ${p.project}, не умеет писать черновик`,
   'changelog.failed': (p) => `агент не написал черновик ${p.project}`,
+  'changelog.limitSpent': (p) =>
+    `${p.window === undefined ? 'Лимит' : `${{ fiveHour: 'Пятичасовой', sevenDay: 'Недельный', month: 'Месячный' }[p.window]} лимит`} аккаунта «${p.account}» исчерпан${p.until === undefined ? '' : ` до ${p.until}`}, черновик не написан. Дождитесь сброса или смените аккаунт в пуле проекта в «Настройки проекта → Сессии».`,
   'changelog.unnoticed': (p) =>
     `агент не нашёл в сделанных задачах ${p.milestone} (${list(p.tasks)}) ничего заметного пользователю, и записей в разделе нет`,
   'changelog.noDraft':(p) => `у ${p.milestone} ещё нет черновика`,

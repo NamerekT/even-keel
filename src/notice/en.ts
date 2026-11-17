@@ -1,8 +1,9 @@
 import type { RelayCause } from '../chain/model.js'
+import type { SpentWindow } from '../changelog/limit.js'
 import type { CiKind } from '../ci/model.js'
 import type { UpdateBlock } from '../updates/model.js'
 import { STARTUP_NOTICES } from './en-startup.js'
-import { AGENT_NAMES, BUILTIN_FIELDS, FORGES, GIT_STEPS, MODELS_NAMED, MOVE_LABELS, PROVIDER_NAMES, UPDATE_BLOCKS, list, megabytes, sizeShown, whose, type BuiltinField, type ClaudeRecovery, type GitStep, type MoveLevel, type MoveWhen, type ShownPath } from './en-values.js'
+import { AGENT_NAMES, BUILTIN_FIELDS, FORGES, GIT_STEPS, MODELS_NAMED, MOVE_LABELS, PROVIDER_NAMES, SPENT_WINDOWS, UPDATE_BLOCKS, list, megabytes, sizeShown, whose, type BuiltinField, type ClaudeRecovery, type GitStep, type MoveLevel, type MoveWhen, type ShownPath } from './en-values.js'
 
 export { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, megabytes, sizeShown, whose, type BuiltinField, type GitStep, type MoveLevel } from './en-values.js'
 
@@ -492,6 +493,8 @@ export const en = {
   'changelog.empty': (p: { milestone: string }) => `changelog: ${p.milestone} has no done task to write a draft from`,
   'changelog.noAgent': (p: { project: string }) => `changelog: the agent of the account ${p.project} runs on cannot write a draft`,
   'changelog.failed': (p: { project: string }) => `changelog: the agent did not write the draft of ${p.project}`,
+  'changelog.limitSpent': (p: { account: string; window?: SpentWindow; until?: string }) =>
+    `changelog: the ${p.window === undefined ? 'usage' : SPENT_WINDOWS[p.window]} limit of the account “${p.account}” is spent${p.until === undefined ? '' : ` until ${p.until}`}, the draft is not written. Wait for the reset or change the account in the project's pool under Project settings → Sessions.`,
   'changelog.unnoticed': (p: { milestone: string; tasks: string[] }) =>
     `changelog: the agent found nothing a user would notice in the done tasks of ${p.milestone} (${list(p.tasks)}), so the section has no entry`,
   'changelog.noDraft':(p: { milestone: string }) => `changelog: ${p.milestone} has no draft yet`,

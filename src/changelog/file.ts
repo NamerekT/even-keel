@@ -123,6 +123,11 @@ export function changelogPlan(text: string | null, milestone: string, tags: stri
   }
 }
 
+/** The released section of the milestone's newest version in the file; `null` — the file has none. */
+export function newestReleased(plan: ChangelogPlan): Section | null {
+  return plan.released.reduce<Section | null>((newest, each) => (newest === null || byVersion(each.name, newest.name) > 0 ? each : newest), null)
+}
+
 /**
  * The sections of the newest version line older than the milestone: as long as the milestone's version (`0.1` for `v0.2`),
  * or the newest section's version without its last part for a milestone that is not a version.

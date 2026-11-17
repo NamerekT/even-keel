@@ -4,6 +4,7 @@ import { withBrief, withMemory, withPrompts, withTracker, withUnbriefed, withVoc
 import { MEMORY_SERVER } from '../memory/mcp.js'
 import { ChangelogDrafts } from '../changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from '../changelog/file.js'
+import { limitRefusalIn, spentLimitOf } from '../changelog/limit.js'
 import { idPrefixOf, isPlain, projectLabel, type EvenKeelConfig } from '../config.js'
 import type { Language } from '../language.js'
 import { commitChangelog } from '../git/changelog.js'
@@ -30,13 +31,23 @@ export function wireChangelogs(ctx: ChainContext): ChangelogDrafts {
       const home = ctx.homeOf(account)
       const agent = ctx.agentOf(home)
       if (agent.write === undefined) throw fail('changelog.noAgent', { project })
+      const known = spentLimitOf(ctx.limits.limits(home.key), new Date())
+      if (known !== null) {
+        console.log(`changelog: ${project} draft not sent, the ${known.window ?? 'usage'} limit of ${home.key} is spent until ${known.until ?? 'unknown'}`)
+        throw fail('changelog.limitSpent', { account: home.key, ...known })
+      }
       console.log(`changelog: ${project} writes a draft on ${home.key}`)
       try {
         const { text, spend } = await agent.write(home, { cwd: ctx.configStore.current.projects[project]!, prompt, model, timeoutMs: ctx.CHANGELOG_TIMEOUT_MS })
         console.log(`changelog: ${project} draft on ${home.key} cost ${spend.cost === null ? 'unknown' : `$${spend.cost.toFixed(2)}`}`)
         return { text, spend: { ...spend, account: home.key } }
       } catch (error) {
-        throw fail('changelog.failed', { project }, { detail: error instanceof Error ? error.message : String(error) }, { cause: error })
+        const detail = error instanceof Error ? error.message : String(error)
+        const refused = limitRefusalIn(detail)
+        if (refused === null) throw fail('changelog.failed', { project }, { detail }, { cause: error })
+        console.log(`changelog: ${project} draft refused on the limit of ${home.key}: ${detail}`)
+        const until = spentLimitOf(ctx.limits.limits(home.key), new Date())?.until
+        throw fail('changelog.limitSpent', { account: home.key, ...refused, ...(until !== undefined && { until }) })
       }
     },
     file: async (project) => {
