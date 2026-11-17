@@ -5,9 +5,10 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { hostArgsOf, hostDirOf, installAutostart, quitHost, registeredAutostart, uninstallAutostart } from './autostart.js'
-import { commandOf, noServiceManagerCode, serviceScriptOf, updateTargetOf } from './cli-args.js'
+import { commandOf, installArgsOf, noServiceManagerCode, serviceScriptOf, updateTargetOf, type InstallOptions, type MachineJoin } from './cli-args.js'
+import { contactMessageOf, prerequisiteRefusal, waitForContact } from './cli-install.js'
 import { browserCommandOf, opensBrowser, pageAddressOf, pageLogOf, pageMessageOf, waitForPage, type PageWait } from './cli-page.js'
-import { home, loadEnv, root, source } from './locations.js'
+import { home, loadEnv, root, source, stateDirOf } from './locations.js'
 import { accountsRoot } from './account/homes.js'
 import { removeAccountSettingsGuards } from './account/settingsGuard.js'
 import { globalBinOf, isAccessError, nearestExisting, npmPrefixAdvice, rootRefusal, writable } from './npm-access.js'
@@ -19,7 +20,10 @@ import { installed } from './updates/watcher.js'
 
 const usage = `usage: even-keel [command]
   (none)      run Even Keel in this terminal; from npx: install it globally and install the service
-  install     install the service: on Windows a start at sign-in with an icon in the tray, no administrator
+  install [--machine <string> [--root <folder>]] [--service]
+              install the service: on Windows a start at sign-in with an icon in the tray, no administrator;
+              --service: the Windows service EvenKeel instead, from PowerShell 7 as administrator; --machine:
+              join the hub first (as join below) and run as its machine, with no page of its own
   uninstall   remove the service; the package and the data folder stay
   update [v]  stop the service, install version v with npm, start it again; with no v the newest of the
               dist-tag latest and, for a release candidate, next; nothing when none is newer
@@ -101,6 +105,13 @@ function openBrowser(url: string): void {
   }
 }
 
+/** Node 24 for any install, git for a machine: refused before anything is installed. */
+function checkPrerequisites(machine: boolean): void {
+  const git = spawnSync('git', ['--version'], { encoding: 'utf8', windowsHide: true })
+  const refusal = prerequisiteRefusal({ node: process.versions.node, git: git.status === 0 ? git.stdout.trim() : null, machine })
+  if (refusal !== null) fail(refusal)
+}
+
 function fail(message: string): never {
   console.error(`even-keel: ${message}`)
   process.exit(1)
@@ -131,7 +142,7 @@ function npmOutput(...command: string[]): string {
 }
 
 /** npx keeps the package in a cache it may clear: the service runs from a global install of the same version. */
-async function installGlobally(): Promise<void> {
+async function installGlobally(options: InstallOptions): Promise<void> {
   const npx = `npx ${name}@${installedVersion}`
   const refusal = rootRefusal(process.platform, process.getuid?.(), npx)
   if (refusal !== null) fail(refusal)
@@ -150,29 +161,57 @@ async function installGlobally(): Promise<void> {
   const { error, stderr } = await attemptKeepingErrors(npm('install', '--global', `${name}@${installedVersion}`, '--no-audit', '--no-fund'), 'npm install --global')
   if (error !== null) fail(posix && isAccessError(stderr) ? `${error}\n${npmPrefixAdvice(modules, process.env.SHELL, npx)}` : error)
   // The global copy waits for the page and prints its address; the browser opens only at this first install.
-  run([process.execPath, join(modules, name, 'dist', 'src', 'cli.js'), 'install'], 'even-keel install', noServiceManagerCode)
+  run([process.execPath, join(modules, name, 'dist', 'src', 'cli.js'), 'install', ...installArgsOf(options)], 'even-keel install', noServiceManagerCode)
+  // A machine has no page, and the Windows service waits for its password in services.msc.
+  if (options.machine !== null || options.service) return
   const address = pageAddress()
   if ('error' in address) return
   const responded = await waitForPage(address.url, { ...pageWait, timeoutMs: 0 })
   if (opensBrowser({ platform: process.platform, env: process.env, firstInstall: true, responded })) openBrowser(address.url)
 }
 
-async function service(action: 'install' | 'uninstall'): Promise<void> {
-  if (process.platform === 'win32') {
-    if (action === 'install') await autostart()
-    else removeWindows()
-  } else {
-    const [program, args] = serviceScriptOf(process.platform, root, action)
-    if (action === 'install') {
-      run([program, ...args], 'service/install', noServiceManagerCode, announceNoService)
-      await announcePage()
-    } else run([program, ...args], 'service/uninstall')
+/** A machine joins inside the script on Linux and macOS and with `--service`, here for the start at sign-in. */
+async function install({ machine, service }: InstallOptions): Promise<void> {
+  const startedAt = Date.now()
+  if (process.platform === 'win32' && !service) await autostart(machine)
+  else {
+    const [program, args] = serviceScriptOf(process.platform, root, 'install', machine)
+    run([program, ...args], 'service/install', noServiceManagerCode, machine === null ? announceNoService : undefined)
+    // install.ps1 has said what is left: the password in services.msc, or where the log is.
+    if (service) return
   }
-  if (action === 'uninstall') {
-    loadEnv()
-    removeAccountSettingsGuards(accountsRoot(process.env), process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'))
+  if (machine === null) await announcePage()
+  else await announceContact(startedAt)
+}
+
+/**
+ * `even-keel join` in its own process: it reads the data folder's `.env`, which must not get into this one's
+ * environment and from there into the host or the unit.
+ */
+function joinInChild({ line, root: projects }: MachineJoin): void {
+  run([process.execPath, join(root, 'dist', 'src', 'cli.js'), 'join', line, ...(projects === null ? [] : ['--root', projects])], 'even-keel join', 1)
+}
+
+/** Once a machine's service is started: waits up to 30 s for its first contact with the hub. */
+async function announceContact(since: number): Promise<void> {
+  loadEnv()
+  const { readLinkFile } = await import('./machine/join.js')
+  const stateDir = stateDirOf()
+  const file = readLinkFile(stateDir)
+  if (file === undefined) return
+  const reached = await waitForContact(() => readLinkFile(stateDir), since, pageWait)
+  console.log(contactMessageOf(reached, file.hub, pageLogOf(process.platform, home)))
+}
+
+async function uninstall(): Promise<void> {
+  if (process.platform === 'win32') removeWindows()
+  else {
+    const [program, args] = serviceScriptOf(process.platform, root, 'uninstall')
+    run([program, ...args], 'service/uninstall')
   }
-  if (action === 'uninstall' && source === 'npm') console.log(`The package stays: npm uninstall --global ${name}. The data stays in ${home}.`)
+  loadEnv()
+  removeAccountSettingsGuards(accountsRoot(process.env), process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'))
+  if (source === 'npm') console.log(`The package stays: npm uninstall --global ${name}. The data stays in ${home}.`)
 }
 
 /** `sc.exe qc` of the Windows service `install.ps1` registers; `null` — not installed. */
@@ -182,15 +221,17 @@ function windowsService(): string | null {
 }
 
 /** One Even Keel per machine: the service of `install.ps1` would take the same port. */
-async function autostart(): Promise<void> {
+async function autostart(machine: MachineJoin | null): Promise<void> {
   if (windowsService() !== null) fail('the Windows service EvenKeel is installed: remove it first with service\\uninstall.ps1 from PowerShell 7 as administrator')
   if (source === 'git') {
     // The running host holds esbuild's binary under node_modules: npm fails on it with EPERM.
     const before = registeredAutostart()
     if (before !== null) quitHost(before.exe)
     run(npm('install', '--no-audit', '--no-fund'), 'npm install')
-    run(npm('run', 'build'), 'npm run build')
+    // A machine has no page: the server's code is enough.
+    run(npm('run', machine === null ? 'build' : 'build:machine'), `npm run ${machine === null ? 'build' : 'build:machine'}`)
   }
+  if (machine !== null) joinInChild(machine)
   const data = source === 'npm' ? home : null
   try {
     const { exe } = installAutostart(root, process.execPath, data, hostDirOf(root, source, home))
@@ -199,7 +240,6 @@ async function autostart(): Promise<void> {
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error))
   }
-  await announcePage()
 }
 
 function removeWindows(): void {
@@ -286,15 +326,21 @@ switch (command.command) {
     console.log(usage)
     break
   case 'run':
-    if (fromNpxCache(root)) await installGlobally()
-    else await import('./main.js')
+    if (fromNpxCache(root)) {
+      checkPrerequisites(false)
+      await installGlobally({ machine: null, service: false })
+    } else await import('./main.js')
     break
-  case 'install':
-    if (fromNpxCache(root)) await installGlobally()
-    else await service('install')
+  case 'install': {
+    const options: InstallOptions = { machine: command.machine, service: command.service }
+    if (options.service && process.platform !== 'win32') fail('--service is the Windows service EvenKeel; on Linux and macOS install is always a service of your user')
+    checkPrerequisites(options.machine !== null)
+    if (fromNpxCache(root)) await installGlobally(options)
+    else await install(options)
     break
+  }
   case 'uninstall':
-    await service('uninstall')
+    await uninstall()
     break
   case 'update':
     await update(command.version)
@@ -310,7 +356,6 @@ switch (command.command) {
   case 'status': {
     loadEnv()
     const { readLinkFile, statusLines } = await import('./machine/join.js')
-    const { stateDirOf } = await import('./locations.js')
     console.log(statusLines(readLinkFile(stateDirOf()), Date.now()).join('\n'))
     break
   }

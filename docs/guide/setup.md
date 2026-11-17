@@ -7,7 +7,7 @@ The [README](../../README.md) has the quick start. This page is the rest, in the
 3. [Projects](#projects) — the wizard, the repository's folder or address, what a project needs
 4. [Trackers and plugins](#trackers-and-plugins) — the built-in tracker, a profile per tracker, packages for sessions, CI and token permissions
 5. [The page](#the-page) — answering from the phone, reaching the page from another machine
-6. [As a service](#as-a-service) — npm, a clone, Windows, Linux and macOS
+6. [As a service](#as-a-service) — npm, a clone, Windows, Linux and macOS, a machine of a hub
 7. [Updating](#updating) — from the page or by hand, plugins, stored state, going back
 8. [Uninstall](#uninstall) — and what stays on the machine
 9. [The CLIs it depends on](#the-clis-it-depends-on) — what Even Keel relies on in each agent's CLI, and the checked versions
@@ -815,6 +815,28 @@ On failure the installer exits with an error, shows the service state and recent
 On macOS also check **System Settings → General → Login Items → Allow in the Background**: the entry may be called `node`.
 
 The service log records stop signals and fatal errors; it cannot record a forced kill or a machine failure.
+
+### A machine of a hub (preview)
+
+The first installation is the hub: it has the page, the trackers and the chains, and runs sessions itself. Another computer can join it as a machine: an installation with no page and no projects of its own that the hub gives projects to. **Preview:** a machine joins, reports itself and gets its projects' folders, but the chain still runs every task on the hub.
+
+1. On the hub, set **Settings → Hub address for machines** to the name or IP the other computer reaches the hub by. The hub then listens for machines on port 4749 (`EVEN_KEEL_MACHINES_PORT`).
+2. Issue a connection string for the machine: the page's window of machines is still to come, so for now it is the request `POST /api/machines/invite` with `{"name": "<a name for the machine>"}` (with the page's token when the page has one). The answer has the string and the command to run with it. A string is good for 30 minutes and one machine; issuing a new one takes back the one not used yet.
+3. On the other computer, with Node.js 24 and git installed, run the one command the answer gave, the same on Windows, Linux and macOS:
+
+   ```sh
+   npx even-keel@<the hub's version> install --machine <connection string>
+   ```
+
+   The version is the hub's: a machine of another version is refused. `--root <folder>` names the folder the machine's projects go into (by default `projects` in its data folder); the hub puts each project in a folder of its own there and reaches nothing outside it.
+
+The command installs the package globally, joins the hub and installs the service the same way as for a hub: on Windows the start at sign-in with its tray icon (add `--service` for the Windows service `EvenKeel`, from PowerShell 7 as administrator, as in [Windows: without a sign-in](#windows-without-a-sign-in)), on Linux and macOS the user service. It then waits up to 30 seconds for the machine to reach the hub and says whether it did. Without Node.js 24 or git it installs nothing and says what is missing. Run it again (an update, a failed install) with the same string: the machine stays joined and only the service is installed again.
+
+The tray icon of a machine is green while it hears the hub and red when it has not for three minutes; it has no page to open. `even-keel status` prints the hub, the folder of projects and the last contact.
+
+From a clone, build it first with `npm run build:machine` (a machine needs no page) and pass the string to the install script: `node dist/src/cli.js install --machine <string>` on Windows, `service/install.sh --machine <string>` on Linux and macOS, `service\install.ps1 -Machine <string>` for the Windows service (`-Projects <folder>` there for the folder of projects).
+
+**Behind a proxy.** The link is one long HTTPS stream from the hub. A reverse proxy in front of the machines' address must not buffer it and must keep it open: for nginx `proxy_buffering off; proxy_read_timeout 1h;`; a Cloudflare tunnel needs nothing. The machine says in its log when a proxy holds the stream. A proxy that ends TLS itself shows the machine its own certificate, and the machine refuses it: the string carries the hub's.
 
 ## Updating
 

@@ -7,11 +7,13 @@ import { MACHINE_DIR, openMachineDatabase, storeJoin } from '../link/machine-sto
 import { home, stateDirOf } from '../locations.js'
 import { databaseDirOf, readOwner, readStateDatabase } from '../storage/owner.js'
 import { machineAbout } from './about.js'
-import { joinAsMachine, JoinRefused } from './join.js'
+import { joinAsMachine, joinedWith, JoinRefused } from './join.js'
 
 /** `even-keel join` as the CLI runs it: the lines to print, or the reason it refused. */
 export async function joinFromCli(line: string, root: string | null, version: string): Promise<string[] | string> {
   const stateDir = stateDirOf()
+  const joined = joinedWith(stateDir, line)
+  if (joined !== undefined) return [`even-keel: this installation is a machine of the hub ${joined.hub} already, with this string; its projects go into ${joined.root}`]
   try {
     const file = await joinAsMachine(line, root ?? undefined, {
       stateDir,
@@ -46,7 +48,7 @@ export async function joinFromCli(line: string, root: string | null, version: st
       '  the hub gives it projects from its page; start the service to connect: it runs as a machine, with no page of its own',
     ]
   } catch (error) {
-    if (error instanceof JoinRefused) return `even-keel: not joined: ${error.message}`
+    if (error instanceof JoinRefused) return `not joined: ${error.message}`
     throw error
   }
 }

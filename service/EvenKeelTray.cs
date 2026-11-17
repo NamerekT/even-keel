@@ -12,12 +12,15 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 // The autostart at sign-in (BTN-372): the host with an icon in the tray instead of a Windows service. The icon shows
-// what GET /api/tray says, read on loopback.
+// what GET /api/tray says, read on loopback. A machine of a hub (BTN-1243) has no page: the icon shows how long ago it
+// heard the hub, the contactAt of state/machine-link.json.
 sealed class EvenKeelTray : ApplicationContext
 {
-    enum Status { Starting, Running, Paused, Asking, Stopped, Down }
+    enum Status { Starting, Running, Paused, Asking, Stopped, Down, Linked, Unlinked }
 
     static readonly TimeSpan StartGrace = TimeSpan.FromMinutes(2);
+    // The machine writes its contact at most once a minute while the link is up.
+    static readonly TimeSpan ContactFresh = TimeSpan.FromMinutes(3);
     const int PollMs = 10000;
 
     readonly EvenKeelService service;
@@ -31,6 +34,7 @@ sealed class EvenKeelTray : ApplicationContext
     readonly Dictionary<Status, Icon> icons = new Dictionary<Status, Icon>();
     bool russian = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru";
     bool ending;
+    bool machine;
 
     EvenKeelTray(EvenKeelService service)
     {
@@ -80,6 +84,14 @@ sealed class EvenKeelTray : ApplicationContext
 
     void Poll()
     {
+        string link = LinkFile();
+        machine = File.Exists(link);
+        open.Available = !machine;
+        if (machine)
+        {
+            ShowMachine(link);
+            return;
+        }
         if (client.IsBusy)
         {
             client.CancelAsync();
@@ -117,6 +129,37 @@ sealed class EvenKeelTray : ApplicationContext
         }
     }
 
+    void ShowMachine(string link)
+    {
+        if (service.Paused)
+        {
+            Show(Status.Stopped, 0);
+            return;
+        }
+        long contactAt = 0;
+        try
+        {
+            var file = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(File.ReadAllText(link));
+            object value;
+            if (file.TryGetValue("contactAt", out value) && value != null) contactAt = Convert.ToInt64(value);
+        }
+        catch (Exception)
+        {
+        }
+        DateTime heard = DateTimeOffset.FromUnixTimeMilliseconds(contactAt).UtcDateTime;
+        if (DateTime.UtcNow - heard < ContactFresh) Show(Status.Linked, 0);
+        else Show(DateTime.UtcNow - service.NodeStartedAt < StartGrace ? Status.Starting : Status.Unlinked, 0);
+    }
+
+    // state/machine-link.json as the service finds its state folder: EVEN_KEEL_STATE_DIR over `.env`, else state/ of the data folder.
+    string LinkFile()
+    {
+        string data = service.Data ?? service.Root;
+        var env = ReadEnv(Path.Combine(data, ".env"));
+        string state = Environment.GetEnvironmentVariable("EVEN_KEEL_STATE_DIR") ?? Value(env, "EVEN_KEEL_STATE_DIR") ?? Path.Combine(data, "state");
+        return Path.Combine(state, "machine-link.json");
+    }
+
     void Show(Status status, int count)
     {
         Icon image;
@@ -136,6 +179,8 @@ sealed class EvenKeelTray : ApplicationContext
             case Status.Asking: return (russian ? "ждёт ответа" : "waits for an answer") + many;
             case Status.Stopped: return russian ? "остановлен для обновления" : "stopped for an update";
             case Status.Down: return russian ? "не отвечает" : "not answering";
+            case Status.Linked: return russian ? "машина, хаб на связи" : "machine, the hub is connected";
+            case Status.Unlinked: return russian ? "машина, хаб не на связи" : "machine, the hub is not reached";
             default: return russian ? "запускается" : "starting";
         }
     }
@@ -179,16 +224,19 @@ sealed class EvenKeelTray : ApplicationContext
     {
         switch (status)
         {
-            case Status.Running: return Color.FromArgb(0x3f, 0xb9, 0x50);
+            case Status.Running:
+            case Status.Linked: return Color.FromArgb(0x3f, 0xb9, 0x50);
             case Status.Paused: return Color.FromArgb(0xd2, 0x99, 0x22);
             case Status.Asking: return Color.FromArgb(0x58, 0xa6, 0xff);
-            case Status.Down: return Color.FromArgb(0xf8, 0x51, 0x49);
+            case Status.Down:
+            case Status.Unlinked: return Color.FromArgb(0xf8, 0x51, 0x49);
             default: return Color.FromArgb(0x8b, 0x94, 0x9e);
         }
     }
 
     void OpenPage()
     {
+        if (machine) return;
         try
         {
             Process.Start(new ProcessStartInfo(Base()) { UseShellExecute = true });

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { encodeToken, type ConnectionToken, type MachineAbout } from '../link/protocol.js'
-import { joinAsMachine, readLinkFile, statusLines, TEST_INSTANCE_VAR, type JoinDeps } from './join.js'
+import { joinAsMachine, joinedWith, readLinkFile, statusLines, TEST_INSTANCE_VAR, type JoinDeps } from './join.js'
 
 const STRING: ConnectionToken = { hub: 'https://hub.example.com:4749', fingerprint: 'ab'.repeat(32), machine: 'machine-1', secret: 'string-secret' }
 const ABOUT: MachineAbout = { host: 'example-laptop', os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: null, agents: {}, gitUser: false, root: null }
@@ -60,6 +60,16 @@ describe('even-keel join', () => {
       expect(kept).toEqual([])
       expect(readLinkFile(stateDir)).toBeUndefined()
     }
+  })
+
+  it('knows a string this installation has joined with already, so an installer run again does not join twice', async () => {
+    const { deps, stateDir } = setup()
+    expect(joinedWith(stateDir, encodeToken(STRING))).toBeUndefined()
+    const file = await joinAsMachine(encodeToken(STRING), undefined, deps)
+    expect(joinedWith(stateDir, ` ${encodeToken(STRING)}\n`)).toEqual(file)
+    expect(joinedWith(stateDir, encodeToken({ ...STRING, machine: 'machine-2' }))).toBeUndefined()
+    expect(joinedWith(stateDir, encodeToken({ ...STRING, hub: 'https://other.example.com:4749' }))).toBeUndefined()
+    expect(joinedWith(stateDir, 'ekm1.broken')).toBeUndefined()
   })
 
   it('takes the folder of projects given with --root', async () => {

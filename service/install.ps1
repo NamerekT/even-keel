@@ -5,16 +5,27 @@
 # which also grants the account the "Log on as a service" right.
 # A checkout is built in place and keeps its data; the npm package comes built, and its data, logs and the host
 # live in -Data (EVEN_KEEL_DATA, otherwise %LOCALAPPDATA%\even-keel), since npm replaces the package's folder.
+# -Machine <connection string> installs a machine of a hub instead: no page is built, and the installation joins the
+# hub (even-keel join) before the service is registered; -Projects is its folder of projects.
 param(
     [string]$Account = "$env:USERDOMAIN\$env:USERNAME",
     [string]$Name = 'EvenKeel',
-    [string]$Data
+    [string]$Data,
+    [string]$Machine,
+    [string]$Projects
 )
 $ErrorActionPreference = 'Stop'
 
 # One Even Keel per machine: the autostart of `even-keel install` would take the same port.
 if (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name EvenKeel -ErrorAction SilentlyContinue) {
     throw 'Even Keel already starts at sign-in (even-keel install): remove that first with even-keel uninstall'
+}
+
+if ($Projects -and -not $Machine) { throw '-Projects is the folder of projects of a machine: give -Machine <connection string> too' }
+$major = [int]((& node --version) -replace '^v(\d+).*', '$1')
+if ($major -lt 24) { throw "Even Keel needs Node.js 24 or newer; this is $(& node --version). Install it from nodejs.org and run this again" }
+if ($Machine -and -not (Get-Command git -ErrorAction SilentlyContinue)) {
+    throw 'a machine needs git: it runs the tasks in worktrees of their repositories. Install it from git-scm.com and run this again'
 }
 
 $root = Split-Path $PSScriptRoot -Parent
@@ -54,10 +65,21 @@ if (-not $package) {
     try {
         npm install --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw "npm install failed with code $LASTEXITCODE" }
-        npm run build
-        if ($LASTEXITCODE -ne 0) { throw "npm run build failed with code $LASTEXITCODE" }
+        $build = if ($Machine) { 'build:machine' } else { 'build' }
+        npm run $build
+        if ($LASTEXITCODE -ne 0) { throw "npm run $build failed with code $LASTEXITCODE" }
     } finally {
         Pop-Location
+    }
+}
+
+if ($Machine) {
+    if ($package) { $env:EVEN_KEEL_DATA = $Data }
+    $join = @('join', $Machine) + $(if ($Projects) { @('--root', $Projects) } else { @() })
+    & $node (Join-Path $root 'dist\src\cli.js') @join
+    if ($LASTEXITCODE -ne 0) {
+        if ($existing) { Start-Service -Name $Name }
+        throw 'not joined, so the service is left as it was'
     }
 }
 

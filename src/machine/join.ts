@@ -92,6 +92,16 @@ export function readLinkFile(stateDir: string): LinkFile | undefined {
   }
 }
 
+/**
+ * The link of a join with this very string, the same hub and the same machine; `undefined` — not joined with it. The
+ * string is good for one join, so an installer run again (BTN-1243) goes on with the link it has.
+ */
+export function joinedWith(stateDir: string, line: string): LinkFile | undefined {
+  const token = parseToken(line)
+  const file = readLinkFile(stateDir)
+  return token !== undefined && file?.hub === token.hub && file.machine === token.machine ? file : undefined
+}
+
 /** What `even-keel status` prints. */
 export function statusLines(file: LinkFile | undefined, now: number): string[] {
   if (file === undefined) return ['not a machine: this installation has joined no hub (even-keel join <connection string>)']

@@ -6,6 +6,8 @@ import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-not
 import { saveSnapshot } from '../chain/snapshots.js'
 import { AccountPolls } from '../limits/polls.js'
 import { listenOf } from '../config.js'
+import { root } from '../locations.js'
+import { installed } from '../updates/watcher.js'
 import { machinesPortOf } from '../link/address.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { hubIdentity } from '../link/identity.js'
@@ -237,6 +239,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     repoOf: (project) => ctx.configStore.current.projects[project],
     allowedHosts: () => ctx.configStore.current.allowedHosts,
     serviceHost: listenOf(process.env).host,
+    version: installed(root).version,
     changed: () => ctx.hub.broadcast('machines', { changedAt: Date.now() }),
     peers: {
       remote: (machine) => remoteOf(() => machine),

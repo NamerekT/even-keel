@@ -12,6 +12,7 @@ export interface ServiceStatus {
 
 type Command = (file: string, args: string[]) => { ok: boolean; text: string }
 const WAIT_MS = 60_000
+const STEADY_MS = 10_000
 
 const command: Command = (file, args) => {
   const result = spawnSync(file, args, { encoding: 'utf8', timeout: 2_000 })
@@ -31,12 +32,20 @@ export function inspectService(platform: string, target: string, run: Command = 
   return { present: result.ok || state === 'activating', running: result.ok && state === 'active', details: `state = ${state || 'unavailable'}` }
 }
 
-export async function waitForService(url: string, inspect: () => ServiceStatus): Promise<{ ready: boolean; status: ServiceStatus; reason?: string }> {
+/**
+ * `url: null` — a machine of a hub (BTN-1243), which has no page: ready once its process has run `STEADY_MS` in a
+ * row, since one without a kept token exits at once and the manager starts it again.
+ */
+export async function waitForService(url: string | null, inspect: () => ServiceStatus): Promise<{ ready: boolean; status: ServiceStatus; reason?: string }> {
   const deadline = Date.now() + WAIT_MS
   let status = inspect()
   let answer = 'no HTTP answer'
+  let runningSince: number | null = null
   while (status.present && Date.now() < deadline) {
-    if (status.running) {
+    if (url === null) {
+      runningSince = status.running ? (runningSince ?? Date.now()) : null
+      if (runningSince !== null && Date.now() - runningSince >= STEADY_MS) return { ready: true, status }
+    } else if (status.running) {
       try {
         const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(Math.max(1, Math.min(1_000, deadline - Date.now()))) })
         await response.body?.cancel()
@@ -52,17 +61,18 @@ export async function waitForService(url: string, inspect: () => ServiceStatus):
     await new Promise((resolve) => setTimeout(resolve, delay))
     status = inspect()
   }
-  return { ready: false, status, reason: status.present ? `not ready at ${url} within 60 s (${answer})` : 'the service is no longer loaded or active' }
+  if (!status.present) return { ready: false, status, reason: 'the service is no longer loaded or active' }
+  return { ready: false, status, reason: url === null ? `the machine's process did not keep running for 10 s within 60 s` : `not ready at ${url} within 60 s (${answer})` }
 }
 
-export async function checkInstallation(platform: string, target: string, log: string, failed = false): Promise<number> {
+export async function checkInstallation(platform: string, target: string, log: string, failed = false, machine = false): Promise<number> {
   const inspect = () => inspectService(platform, target)
   let status = inspect()
   let reason = 'the service manager refused to start the service'
   if (!failed) {
     try {
       loadEnv()
-      const url = `${localUrlOf(listenOf(process.env))}/`
+      const url = machine ? null : `${localUrlOf(listenOf(process.env))}/`
       const result = await waitForService(url, inspect)
       if (result.ready) return 0
       status = result.status
@@ -80,5 +90,6 @@ export async function checkInstallation(platform: string, target: string, log: s
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
-  process.exitCode = await checkInstallation(process.argv[2]!, process.argv[3]!, process.argv[4] ?? '', process.argv[5] === '--failed')
+  const flags = process.argv.slice(5)
+  process.exitCode = await checkInstallation(process.argv[2]!, process.argv[3]!, process.argv[4] ?? '', flags.includes('--failed'), flags.includes('--machine'))
 }

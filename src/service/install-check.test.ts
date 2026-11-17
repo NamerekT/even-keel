@@ -63,6 +63,24 @@ describe('installation readiness', () => {
     expect(await result).toMatchObject({ ready: false, reason: expect.stringContaining('60 s') })
     expect(Date.now() - started).toBe(60_000)
   })
+
+  it('takes a machine, which has no page, for ready once its process has run 10 s in a row', async () => {
+    const states = [false, true, true, false, ...Array<boolean>(20).fill(true)]
+    const started = Date.now()
+    const result = waitForService(null, () => ({ ...running, running: states.shift() ?? true }))
+    const readyAt = result.then(() => Date.now())
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect((await result).ready).toBe(true)
+    expect((await readyAt) - started).toBe(14_000)
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it('does not take a machine that keeps exiting for ready', async () => {
+    let polls = 0
+    const result = waitForService(null, () => ({ ...running, running: polls++ % 5 !== 4 }))
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(await result).toMatchObject({ ready: false, reason: expect.stringContaining('did not keep running') })
+  })
 })
 
 describe('service manager diagnostics', () => {

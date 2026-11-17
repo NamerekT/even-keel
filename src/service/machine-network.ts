@@ -1,6 +1,7 @@
 import type { Server } from 'node:https'
 import { networkInterfaces } from 'node:os'
 import { basename, posix, win32 } from 'node:path'
+import { installCommandOf } from '../cli-install.js'
 import { fail } from '../notice/notice.js'
 import { hubUrlOf } from '../link/address.js'
 import type { HubCertificate } from '../link/cert.js'
@@ -60,6 +61,8 @@ export interface MachineNetworkOptions {
   allowedHosts: () => string[]
   /** `EVEN_KEEL_HOST`: offered when it is no loopback or wildcard address. */
   serviceHost: string
+  /** The hub's version of Even Keel: a machine installs the same one. */
+  version: string
   /** A machine joined, connected or went away: the page asks for the list again. */
   changed: () => void
   peers?: NetworkPeers
@@ -217,15 +220,18 @@ export class MachineNetwork {
     return choices.filter((choice, index) => choices.findIndex((other) => other.address === choice.address) === index)
   }
 
-  /** A connection string for a machine to join with; the strings issued before and never joined with stop working. */
-  async invite(name: string): Promise<Invite> {
+  /**
+   * A connection string for a machine to join with, and the one command that installs the machine with it; the strings
+   * issued before and never joined with stop working.
+   */
+  async invite(name: string): Promise<Invite & { command: string }> {
     const address = this.options.address()
     const url = address === null ? undefined : hubUrlOf(address, this.options.port)
     if (url === undefined) throw fail('machines.noAddress', {})
     const { fingerprint } = await this.options.certificate()
     const invite = await this.hub.invite(name.trim() || 'Machine', url, fingerprint)
     this.options.log(`machines: a connection string for "${name.trim()}" was issued, good until ${new Date(invite.expiresAt).toISOString()}`)
-    return invite
+    return { ...invite, command: installCommandOf(this.options.version, invite.line) }
   }
 
   async revoke(machine: string): Promise<void> {

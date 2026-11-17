@@ -54,6 +54,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       repoOf: (project) => (project === ABC ? 'D:\\repos\\example' : undefined),
       allowedHosts: () => ['box.example.com'],
       serviceHost: '0.0.0.0',
+      version: '0.4.0',
       changed: () => void changes.push(1),
       log,
     })
@@ -80,6 +81,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     const invite = await network.invite('Example laptop')
     const string = parseToken(invite.line)!
     expect(new URL(string.hub).hostname).toBe('127.0.0.1')
+    expect(invite.command).toBe(`npx even-keel@0.4.0 install --machine ${invite.line}`)
     const joined = await joinHub(string, ABOUT, 5_000)
     if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
 

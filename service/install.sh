@@ -5,15 +5,48 @@
 # PATH and the node binary are taken from this shell: sessions get the same PATH as your terminal.
 # The npm package comes built and keeps its data and logs in EVEN_KEEL_DATA, otherwise the platform's data
 # folder, since npm replaces the package's folder at every update; a checkout keeps them in itself.
+# --machine <connection string> installs a machine of a hub instead: no page is built, and the installation joins the
+# hub (even-keel join) before the service is installed; --root <folder> is its folder of projects.
 set -eu
+
+machine=
+projects=
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --machine | --root)
+    if [ $# -lt 2 ] || [ -z "$2" ]; then
+      echo "install: $1 needs a value: --machine the connection string the hub issued, --root a folder" >&2
+      exit 1
+    fi
+    if [ "$1" = --machine ]; then machine=$2; else projects=$2; fi
+    shift 2
+    ;;
+  *)
+    echo "install: unknown option $1; the options are --machine <connection string> and --root <folder>" >&2
+    exit 1
+    ;;
+  esac
+done
+if [ -n "$projects" ] && [ -z "$machine" ]; then
+  echo "install: --root is the folder of projects of a machine: give --machine <connection string> too" >&2
+  exit 1
+fi
 
 name=even-keel
 label=local.even-keel
 root=$(cd "$(dirname "$0")/.." && pwd)
 node=$(command -v node) || {
-  echo "install: node is not on PATH" >&2
+  echo "install: node is not on PATH: Even Keel needs Node.js 24 or newer, from nodejs.org" >&2
   exit 1
 }
+if [ "$("$node" -p 'process.versions.node.split(".")[0]')" -lt 24 ]; then
+  echo "install: Even Keel needs Node.js 24 or newer; this is $("$node" --version). Install it from nodejs.org and run this again" >&2
+  exit 1
+fi
+if [ -n "$machine" ] && ! command -v git >/dev/null 2>&1; then
+  echo "install: a machine needs git: it runs the tasks in worktrees of their repositories. Install it and run this again" >&2
+  exit 1
+fi
 # The agent goes into the desktop session's domain, which exists only while the user is signed in there:
 # over SSH alone bootstrap fails with "125: Domain does not support specified action". Checked before the build.
 domain="gui/$(id -u)"
@@ -27,13 +60,33 @@ if [ -f "$root/src/main.ts" ]; then
   data=
   logs="$root/logs"
   npm install --no-audit --no-fund
-  npm run build
+  # A machine has no page: the server's code is enough.
+  if [ -n "$machine" ]; then npm run build:machine; else npm run build; fi
 else
   case "$(uname -s)" in
   Darwin) data="${EVEN_KEEL_DATA:-$HOME/Library/Application Support/even-keel}" ;;
   *) data="${EVEN_KEEL_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/even-keel}" ;;
   esac
   logs="$data/logs"
+fi
+
+# Joined before anything is installed: a join refused leaves the service as it was. Run again with the same string, the
+# join says it is joined already and the install goes on.
+check_flags=
+if [ -n "$machine" ]; then
+  set -- join "$machine"
+  if [ -n "$projects" ]; then set -- "$@" --root "$projects"; fi
+  joined=0
+  if [ -n "$data" ]; then
+    EVEN_KEEL_DATA=$data "$node" "$root/dist/src/cli.js" "$@" || joined=$?
+  else
+    "$node" "$root/dist/src/cli.js" "$@" || joined=$?
+  fi
+  if [ "$joined" -ne 0 ]; then
+    echo "install: not joined, so the service is left as it was" >&2
+    exit 1
+  fi
+  check_flags=--machine
 fi
 
 # Without a systemd user manager (a container, WSL without systemd, OpenRC or runit) there is nothing to install into:
@@ -119,7 +172,8 @@ EOF
     "$node" "$root/dist/src/service/install-check.js" linux "$name.service" '' --failed
     exit 1
   fi
-  "$node" "$root/dist/src/service/install-check.js" linux "$name.service"
+  # shellcheck disable=SC2086 # empty for a hub
+  "$node" "$root/dist/src/service/install-check.js" linux "$name.service" '' $check_flags
   echo "Service $name started. Log: journalctl --user -u $name -f"
   if [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null)" != yes ]; then
     echo "It stops when you log out. To keep it running: loginctl enable-linger $(id -un)"
@@ -177,7 +231,8 @@ EOF
     "$node" "$root/dist/src/service/install-check.js" darwin "$domain/$label" "$log" --failed
     exit 1
   fi
-  "$node" "$root/dist/src/service/install-check.js" darwin "$domain/$label" "$log"
+  # shellcheck disable=SC2086 # empty for a hub
+  "$node" "$root/dist/src/service/install-check.js" darwin "$domain/$label" "$log" $check_flags
   echo "Agent $label started. Log: $log"
   ;;
 *)
