@@ -219,11 +219,18 @@ export function chainOnRealCli(kit: CliKit): void {
       const session = liveSession('ABC-1')
       await run.post('session/answer', { project: PROJECT_ID, task: 'ABC-1', sessionId: session.sessionId, ask: null, answers: {}, text: `The code word is ${MAIL_WORD}.` })
       const steers = session.steers === true
-      expect(run.service.mailbox.of(session.sessionId)).toEqual(steers ? [] : [expect.objectContaining({ fate: 'waiting' })])
+      // The turn's hook may take the message within milliseconds of the post, before this read.
+      const byTurnHook = { fate: 'delivered', event: expect.stringMatching(/^(PreToolUse|PostToolUse|Stop)$/) }
+      const posted = run.service.mailbox.of(session.sessionId)
+      if (steers) expect(posted).toEqual([])
+      else {
+        expect(posted).toHaveLength(1)
+        if (posted[0]?.fate !== 'waiting') expect(posted[0]).toMatchObject(byTurnHook)
+      }
 
       await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done', { limitMs: TURN_LIMIT_MS })
       // Delivered by a hook of the turn, not by a resume after it.
-      if (!steers) expect(run.service.mailbox.of(session.sessionId)[0]).toMatchObject({ fate: 'delivered', event: expect.stringMatching(/^(PreToolUse|PostToolUse|Stop)$/) })
+      if (!steers) expect(run.service.mailbox.of(session.sessionId)[0]).toMatchObject(byTurnHook)
       expect(asked('ABC-1').some((request) => request.context.includes(MAIL_WORD))).toBe(true)
       expect(run.git('log', '--format=%s', 'main')).toContain('[ABC-1] Work')
       await playedOut('ABC-1')
