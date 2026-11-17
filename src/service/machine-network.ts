@@ -1,130 +1,37 @@
 import type { Server } from 'node:https'
 import { networkInterfaces } from 'node:os'
-import { basename, posix, win32 } from 'node:path'
-import type { TokenAccountOf } from '../account/model.js'
 import { installCommandOf } from '../cli-install.js'
 import { fail } from '../notice/notice.js'
 import { hubUrlOf } from '../link/address.js'
 import { colorOf, machineColors } from '../link/colors.js'
-import type { HubCertificate } from '../link/cert.js'
 import { createHubServer } from '../link/hub-server.js'
-import type { HubStore, MachineRecord } from '../link/hub-store.js'
+import type { MachineRecord } from '../link/hub-store.js'
 import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
-import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken, type HookAnswer, type HookRequest, type McpAnswer, type McpRequest } from '../link/protocol.js'
+import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken } from '../link/protocol.js'
 import type { AddressChoice, MachineSignIn, MachineView, TakenFolder } from '../link/view.js'
 import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
-import type { HubBrief } from '../machine/brief.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
-import { RemoteMachine, type RemoteDeps } from '../machine/remote.js'
+import { RemoteMachine } from '../machine/remote.js'
 import type { MachinePort } from '../machine/port.js'
 import { CLONE_PROGRESS_EVENT, type CloneTold, type MachineFolders, type MachineServices } from '../machine/services.js'
 import type { CloneProgress } from '../git/clone-progress.js'
-import type { MachineProjectSettings, PoolServer, ProjectPool } from '../link/view.js'
-import { isInside, samePath } from '../paths.js'
-import type { ProjectSettings } from '../state.js'
-import type { Queryable } from '../storage/database.js'
+import type { MachineProjectSettings, ProjectPool } from '../link/view.js'
+import { samePath } from '../paths.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { BriefSender } from './hub-brief.js'
+import { folderUnder, insideRoot, type MachineNetworkOptions, type NetworkPeers, type Peer, type PoolTarget } from './machine-network-options.js'
 import { machineAccountOf } from './machine-page.js'
 import { afterGreenOn, settingsColumn, settingsFromColumn } from './machine-settings.js'
 
 export type { AddressChoice, MachineView }
+export { folderUnder, insideRoot }
+export type { MachineNetworkOptions, NetworkPeers, PoolTarget }
 
 /** The monitor's word that the machine has read its sessions: the hub catches it up with its brief. */
 const SESSIONS_READ_EVENT = 'sessions.read'
 
-/**
- * What the hub gives a machine elsewhere past its door (BTN-1247): its own mirror, its brief, the plan of its account
- * limits and the hub's MCP servers. Without it the machine's events stay in its outbox.
- */
-export interface NetworkPeers {
-  /** The hub's port of the machine, but how it sends and whom it stands for. */
-  remote: (machine: string) => Omit<RemoteDeps, 'send' | 'machine' | 'catchUp' | 'changed'>
-  /** The hub's brief for a machine whose projects are those of its pool, each in its folder there with its own values. */
-  brief: (folders: Record<string, string>, settings: Record<string, MachineProjectSettings>) => HubBrief
-  /** A machine's facts or connection changed: the limits are planned again. */
-  changed: () => void
-  /** A new connection of the machine: what it was told before is not known to hold. */
-  connected: (machine: string) => void
-  mcp: (machine: string, request: McpRequest) => Promise<McpAnswer>
-  /** A hook of a session on the machine asking the hub's page (BTN-1260). */
-  hook: (machine: string, request: HookRequest) => Promise<HookAnswer>
-  write: (machine: string, write: KeptWrite) => Promise<void>
-}
-
-interface Peer {
-  remote: RemoteMachine
-  /** The chain's port of the machine (`MachinePool`). */
-  port: MachinePort
-  /** How many of the hub's tasks it runs at once, read at each snapshot. */
-  capacity: number
-  briefs: BriefSender
-  /** The folders of the machine's pool, read before each brief. */
-  folders: Record<string, string>
-  /** Its own values in each project of its pool (BTN-994), read with the folders. */
-  settings: Record<string, MachineProjectSettings>
-  /** The hub's name of the machine, read at each snapshot: the page's state is built without a query. */
-  name: string
-  /** Even Keel's version its last report named, read at each snapshot; `null` — none reported. */
-  version: string | null
-}
-
-export interface MachineNetworkOptions {
-  db: Queryable
-  store: HubStore
-  certificate: () => Promise<HubCertificate>
-  /** The hub's own machine: served through the local link, never over the network. */
-  own: () => string
-  /** "Hub address for machines", read live. */
-  address: () => string | null
-  /** Writes "Hub address for machines" (a refused value throws); absent — `invite` never changes it. */
-  saveAddress?: (address: string) => void
-  port: number
-  /** The hub's folder of a project; `undefined` — no such project. */
-  repoOf: (project: string) => string | undefined
-  allowedHosts: () => string[]
-  /** `EVEN_KEEL_HOST`: offered when it is no loopback or wildcard address. */
-  serviceHost: string
-  /** The hub's version of Even Keel: a machine installs the same one. */
-  version: string
-  /** A machine joined, connected or went away: the page asks for the list again. */
-  changed: () => void
-  /** The project's settings, for the commands after a green main each machine of the pool runs. */
-  projectSettings?: (project: string) => Pick<ProjectSettings, 'beforeStart' | 'check' | 'afterGreen'> | undefined
-  /** The stdio servers of the project's packages here, which a machine elsewhere may run with a command of its own. */
-  servers?: (project: string) => PoolServer[]
-  /** A machine elsewhere connected and was given its brief: what it missed off the link may run there now. */
-  briefed?: (machine: string) => void
-  peers?: NetworkPeers
-  /** The own machine takes the project's folder over from `owner`'s mark. */
-  takeOverOwn?: (project: string, owner: string) => Promise<void>
-  /** The claude.ai account of a hub's Claude folder with a full sign-in; `undefined` — none known (BTN-1002). */
-  hubAccount?: (key: string) => TokenAccountOf | undefined
-  log: (line: string) => void
-}
-
 const LOOPBACK = /^(127\.|::1$|localhost$)/
 const WILDCARD = new Set(['0.0.0.0', '::', ''])
-
-/** The folder a project gets inside a machine's folder of projects: the hub's folder name, in the machine's way of writing paths. */
-export function folderUnder(root: string, repo: string): string {
-  const name = basename(repo.replace(/[\\/]+$/, '').replaceAll('\\', '/'))
-  return (windowsRoot(root) ? win32 : posix).join(root, name)
-}
-
-const windowsRoot = (root: string): boolean => root.includes('\\') || /^[A-Za-z]:/.test(root)
-
-/** Whether `folder` is inside the machine's folder of projects, compared the way the machine writes paths. */
-export function insideRoot(folder: string, root: string): boolean {
-  return isInside(folder, root, windowsRoot(root) ? 'win32' : 'linux')
-}
-
-/** A machine of a project's pool as the connect job finds it: joined, with a folder of projects. */
-export interface PoolTarget {
-  id: string
-  name: string
-  root: string
-}
 
 /**
  * The hub's door for machines elsewhere (BTN-1242): a `HubEnd` of its own over the hub's store, serving every machine
