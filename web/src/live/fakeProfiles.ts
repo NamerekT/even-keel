@@ -32,7 +32,7 @@ const KINDS: ProfileKindView[] = [
   },
   { kind: 'github', title: 'GitHub', tracker: true, fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new', mcpShared: true },
   { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security', mcpShared: true, moves: true },
-  { kind: 'gitlab', title: 'GitLab', tracker: true, fields: [{ name: 'GITLAB_URL', secret: false }, { name: 'GITLAB_TOKEN', secret: true }], hostVariables: ['GITLAB_URL'], alternatives: [], help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/', mcpShared: true },
+  { kind: 'gitlab', title: 'GitLab', tracker: true, fields: [{ name: 'GITLAB_URL', secret: false, optional: true }, { name: 'GITLAB_TOKEN', secret: true }], hostVariables: ['GITLAB_URL'], alternatives: [], help: 'https://docs.gitlab.com/user/profile/personal_access_tokens/', mcpShared: true },
   {
     kind: 'jira',
     title: 'Jira',

@@ -55,7 +55,7 @@ export interface ProfileSet {
 export type Adapters = Readonly<Record<string, TrackerAdapter>>
 
 /** What the profiles need of a kind: a tracker adapter's, or a CI's that is no tracker (Forgejo, BTN-201). */
-export interface ProfileKind extends Pick<TrackerAdapter, 'title' | 'variables' | 'hostVariables' | 'alternatives' | 'help' | 'profileName' | 'account' | 'mcpKeys' | 'moves'> {
+export interface ProfileKind extends Pick<TrackerAdapter, 'title' | 'variables' | 'hostVariables' | 'optionalVariables' | 'alternatives' | 'help' | 'profileName' | 'account' | 'mcpKeys' | 'moves'> {
   /** Whether the values make a profile: `false` — none of them is set; throws when they are set only in part. */
   complete(values: Record<string, string | undefined>): boolean
   /**
@@ -75,6 +75,7 @@ export function profileKinds(trackers: Adapters, cis: ProfileKinds = {}): Profil
       title: adapter.title,
       variables: adapter.variables,
       hostVariables: adapter.hostVariables,
+      ...(adapter.optionalVariables === undefined ? {} : { optionalVariables: adapter.optionalVariables }),
       ...(adapter.alternatives === undefined ? {} : { alternatives: adapter.alternatives }),
       help: adapter.help,
       ...(adapter.mcpKeys === undefined ? {} : { mcpKeys: adapter.mcpKeys }),

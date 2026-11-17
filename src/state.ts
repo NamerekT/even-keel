@@ -651,7 +651,8 @@ export interface ProfileKindView {
   title: string
   /** A tracker's kind; else a CI's (Forgejo): no project runs on its profiles, a remote's CI takes one by its host. */
   tracker: boolean
-  fields: { name: string; secret: boolean }[]
+  /** `optional` — a profile may leave it blank (GitLab's address: GitLab.com). */
+  fields: { name: string; secret: boolean; optional?: true }[]
   /** Fixed while projects use a profile. */
   hostVariables: string[]
   /** Sets of fields of which a profile fills one (Huly: a token, or an e-mail and a password). */

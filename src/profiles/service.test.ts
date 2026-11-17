@@ -568,6 +568,12 @@ describe('Profiles', { timeout: 60_000 }, () => {
     expect(mcp).toMatchObject({ jira: 'oauth', linear: 'shared', github: 'shared', gitlab: 'shared', huly: 'none' })
   })
 
+  it("marks GitLab's address optional, GitLab.com when blank, and no other kind's (EKR-123)", () => {
+    const kinds = make(undefined, { kinds: profileKinds(ADAPTERS) }).view().kinds
+    const optional = kinds.flatMap((each) => each.fields.filter((field) => field.optional === true).map((field) => `${each.kind}.${field.name}`))
+    expect(optional).toEqual(['gitlab.GITLAB_URL'])
+  })
+
   it('lists the projects a profile sees', async () => {
     expect(await make({ profiles: [profile('p1', 'abc', true)], links: {} }).projects('p1', 'x')).toEqual([{ key: 'ABC', name: 'Project x' }])
   })

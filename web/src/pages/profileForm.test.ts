@@ -105,6 +105,40 @@ describe('unfilled', () => {
     expect(trackerFields(JIRA, 0).map((field) => field.name)).toEqual(['JIRA_URL', 'JIRA_EMAIL', 'JIRA_TOKEN'])
     expect(unfilled(JIRA, 0, { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john@example.com', JIRA_TOKEN: 'tok' }, undefined)).toEqual([])
   })
+
+  const GITLAB: ProfileKindView = {
+    kind: 'gitlab',
+    title: 'GitLab',
+    tracker: true,
+    fields: [
+      { name: 'GITLAB_URL', secret: false, optional: true },
+      { name: 'GITLAB_TOKEN', secret: true },
+    ],
+    hostVariables: ['GITLAB_URL'],
+    alternatives: [],
+    help: 'https://gitlab.example.com/help',
+  }
+  const FORGEJO: ProfileKindView = {
+    kind: 'forgejo',
+    title: 'Forgejo',
+    tracker: false,
+    fields: [
+      { name: 'FORGEJO_URL', secret: false },
+      { name: 'FORGEJO_TOKEN', secret: true },
+    ],
+    hostVariables: ['FORGEJO_URL'],
+    alternatives: [],
+    help: 'https://forgejo.example.com/help',
+  }
+
+  it('lets an optional field stay blank (GitLab.com without an address)', () => {
+    expect(unfilled(GITLAB, 0, { GITLAB_URL: '', GITLAB_TOKEN: 'tok' }, undefined)).toEqual([])
+    expect(unfilled(GITLAB, 0, {}, undefined)).toEqual(['GITLAB_TOKEN'])
+  })
+
+  it('still asks for the address of a kind whose address is not optional', () => {
+    expect(unfilled(FORGEJO, 0, { FORGEJO_TOKEN: 'tok' }, undefined)).toEqual(['FORGEJO_URL'])
+  })
 })
 
 describe('hostValues', () => {

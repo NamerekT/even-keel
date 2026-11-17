@@ -313,6 +313,8 @@ export interface TrackerAdapter {
   variables: readonly string[]
   /** The variables that say where the tracker is (Huly: the address and the workspace): fixed while projects use the profile. */
   hostVariables: readonly string[]
+  /** Optional. The variables a profile may leave blank (GitLab's address: the adapter takes GitLab.com). */
+  optionalVariables?: readonly string[]
   /** Optional. Sets of variables of which a profile fills one (Huly: a token, or an e-mail and a password). */
   alternatives?: readonly (readonly string[])[]
   /** Where to get the credentials, with the rights a profile needs. */
