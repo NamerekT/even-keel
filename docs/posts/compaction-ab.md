@@ -187,3 +187,44 @@ first BTN chain session writing the five-minute cache is BTN-1051's, started 202
 
 The queries are [compaction-ab.sql](compaction-ab.sql). The rollout deviations (a task first started
 before its label's `assigned` line) come from the label logs and are counted outside Tally.
+
+## Phase 1 result
+
+Computed 2026-11-17 ~16:45 UTC, after the amendment was committed (`05ad9aad`).
+
+**Population.** 211 closed tasks (102 even, 109 odd), one even task still open. 18 ran another provider in
+some session and are out (8 and 10), leaving **94 compaction-arm and 99 handoff-arm Claude tasks**;
+78 and 84 of them Opus.
+
+**Primary, every closed Claude task by parity:**
+
+| Arm | Tasks | $/1k output | $/request | Avg context | Active min/1k output | Median task | Real stuck spans/task | Total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| compaction | 94 | 0.100 | 0.059 | 113k | 0.414 | $2.72, 14 min | 0.03 | $389 |
+| handoff | 99 | 0.099 | 0.056 | 102k | 0.409 | $2.52, 11 min | 0.06 | $427 |
+
+Inside CLI-version strata (2.1.322, .323, .325, .326 in both arms, 192 tasks; 2.1.319 has one handoff task),
+the unweighted mean difference compaction − handoff is +0.002 $/1k output (+2 %), +$0.006 a request,
++14k context, −0.01 stuck spans a task, +0.006 active min/1k output (+1.5 %). The strata disagree in sign
+on $/1k output: the two largest (2.1.323 and 2.1.325, 153 tasks) have compaction 0.003 cheaper, the two
+small ones (2.1.322 and 2.1.326, 39 tasks) 0.008–0.009 dearer, so the mean rests on the small strata.
+
+Breaks per task: compaction arm 0.23 auto-compactions and 0.06 handoffs; handoff arm 0.38 handoffs and
+0.09 auto-compactions. Auto-compaction fired at a median 217–218k in both arms; its unpriced summary call
+took a median 14 s in the compaction arm (22 calls, 9 min in all) and 63 s in the handoff arm (9 calls).
+
+**Secondary, biased against compaction (see the amendment):** long tasks 20 vs 28 — $/1k output 0.103 vs
+0.099, context 129k vs 111k, active min/1k output 0.360 vs 0.366, median $9.78 vs $7.51 at an average
+peak of 210k vs 182k; short tasks 68 vs 65 — 0.097 vs 0.098.
+
+**Deviations.** Compaction arm: 1 task with the handoff label, 4 tasks with context handoffs, 1 CLI version
+change within a task. Handoff arm: 3 tasks with the compaction label, 6 tasks never labelled (none in either
+log: they ran on the default, handoffs), 4 tasks with auto-compactions, 1 CLI version change. From the logs:
+28 tasks (15 even, 13 odd) were first started 0–21 minutes before their `assigned` line, between two sweeps
+of the 15-minute schedule; an even one among them may have started on the default handoffs. 8 tasks carry
+their label only as `existing`, with no `assigned` line in either log.
+
+**Reading.** Per unit of work the two arms are level: about 1–2 % apart on cost and on active time, with
+the version strata disagreeing in sign and the bigger ones on compaction's side. Compaction runs with a fatter context (+11–14k on average) and
+does not pay for it per output token at this sample; the summary call is still unpriced. Stuck spans are
+too rare (3–6 tasks an arm) to say anything. Phase 2 goes on under the five-minute cache.

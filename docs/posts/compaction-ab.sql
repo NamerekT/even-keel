@@ -46,6 +46,8 @@ select arm,
 from t group by 1 order by 1;
 
 -- 2. Primary: every closed Claude task of phase 1 by arm.
+--    Result (compaction / handoff): 94 / 99 tasks; $/1k output 0.100 / 0.099; $/request 0.059 / 0.056;
+--    context 113k / 102k; active min/1k output 0.414 / 0.409; median $2.72, 14 min / $2.52, 11 min.
 with lim(lo, hi) as (values ('2026-11-12 13:14:16+00'::timestamptz, '2026-11-17 15:25:04.578+00'::timestamptz)),
 comp as (select st.task, count(*) as n from compactions c join session_tasks st using (session_id)
          where c.agent_id is null and c.trigger = 'auto' group by 1),
@@ -85,6 +87,7 @@ from t group by 1 order by 1;
 
 -- 3. Secondary, biased against compaction (a handoff fires at a lower peak, so the handoff arm's "long" takes in
 --    smaller tasks): long (a handoff or an auto-compaction) and short (no break, no relay) tasks by arm.
+--    Result: long 20 / 28, $/1k output 0.103 / 0.099, average peak 210k / 182k; short 68 / 65, 0.097 / 0.098.
 with lim(lo, hi) as (values ('2026-11-12 13:14:16+00'::timestamptz, '2026-11-17 15:25:04.578+00'::timestamptz)),
 comp as (select st.task, count(*) as n from compactions c join session_tasks st using (session_id)
          where c.agent_id is null and c.trigger = 'auto' group by 1),
@@ -121,6 +124,8 @@ from t where kind is not null group by 1, 2 order by 1, 2;
 
 -- 4. The primary comparison inside CLI-version strata: the version of the task's first main assistant line;
 --    then the unweighted mean of the per-version differences (compaction - handoff) over versions in both arms.
+--    Result: 4 matched versions, 192 tasks: +0.002 $/1k output, +$0.006 a request, +14k context,
+--    -0.01 stuck spans a task, +0.006 active min/1k output.
 with lim(lo, hi) as (values ('2026-11-12 13:14:16+00'::timestamptz, '2026-11-17 15:25:04.578+00'::timestamptz)),
 real as (select task, count(*) as n from stuck_spans
          where reason in ('broken_tooling', 'debug_loop', 'unclear_task', 'other') group by 1),
@@ -172,7 +177,8 @@ from d
 order by 1, 2;
 
 -- 5. The breaks themselves, by the session's own arm: auto-compactions (context before and after, time, the
---    unpriced summary call) and context handoffs (the peak of the task they happened in).
+--    unpriced summary call).
+--    Result: compaction arm 22, median 217k -> 22k, 14 s; handoff arm 9, 218k -> 11k, 63 s.
 with lim(lo, hi) as (values ('2026-11-12 13:14:16+00'::timestamptz, '2026-11-17 15:25:04.578+00'::timestamptz)),
 mc as (select st.task, bool_or(m.model not like 'claude%') as other_agent
        from message_costs m join session_tasks st using (session_id) group by 1),
