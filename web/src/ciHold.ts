@@ -2,10 +2,12 @@ import type { ActiveChain, MainCiView } from '../../src/chain/model.js'
 import type { CiView } from '../../src/ci/model.js'
 
 /** What the chain waits for on main, as the CI panel says it (BTN-829). */
-export type ChainHold = { kind: 'verdict' | 'after' | 'local'; commit: string; since: string } | { kind: 'late'; commit: string; until: string }
+export type ChainHold =
+  | { kind: 'verdict' | 'after' | 'local'; commit: string; since: string }
+  | { kind: 'late'; commit: string; until: string; unanswered?: true }
 
 /**
- * The chain's wait on main, else the late watch of a push no runner took. The fix of another project's red main is
+ * The chain's wait on main, else the late watch of a push no runner took or the CI did not answer about. The fix of another project's red main is
  * left to the chain's own line, which names that project.
  */
 export function chainHoldOf(wait: ActiveChain['ciWait'], main: MainCiView | undefined): ChainHold | null {

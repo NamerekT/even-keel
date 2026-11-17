@@ -42,6 +42,8 @@ export const ciRu = {
       `CI не может судить ${commit ?? 'этот пуш'}: с ${since} его проверяет проверка проекта, следующая задача ждёт её`,
     late: (commit: string | null, until: string) =>
       commit === null ? `Прогон, взятый до ${until}, ещё рассудит этот пуш` : `Раннер не взял ${commit} вовремя: прогон, взятый до ${until}, ещё его рассудит`,
+    unanswered: (commit: string | null, until: string) =>
+      `CI не ответил по ${commit ?? 'этому пушу'}: его ответ до ${until} ещё рассудит пуш`,
   },
   after: {
     label: 'После зелёного',

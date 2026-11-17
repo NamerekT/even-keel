@@ -133,15 +133,35 @@ describe('Dispatcher and the CI of main', () => {
     expect(ci.created).toEqual([])
   })
 
-  it('does not watch a push the CI could not judge for another reason', async () => {
-    const { dispatcher, ci } = await afterDone()
-    ci.verdict = { state: 'unavailable', reasons: [notice('ci.unreachable', { ci: 'Forgejo' })] }
+  it('keeps watching a push the CI did not answer about once, and files the fix of a red it says later (EKR-136)', async () => {
+    const { dispatcher, launched, log, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.unreachable', { ci: 'GitHub Actions' })] }
     dispatcher.check()
     await dispatcher.idle()
-    ci.verdict = { state: 'red', failed: [{ kind: 'forgejo', run: failedRun }] }
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(log).toContain('ci: ABC: bbbbbbb is still watched: the CI judges it once it answers')
+
+    ci.verdict = { state: 'pending' }
     dispatcher.check()
     await dispatcher.idle()
     expect(ci.created).toEqual([])
+
+    ci.verdict = { state: 'red', failed: [{ kind: 'forgejo', run: failedRun }] }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(ci.created).toEqual([{ title: 'CI on main failed: bbbbbbb', description: 'log', priority: 'high', milestoneOf: 'ABC-1' }])
+    expect(dispatcher.state.active[0]?.paused).toBe(false)
+  })
+
+  it('takes a green said after a missed answer for green (EKR-136)', async () => {
+    const { dispatcher, ci } = await afterDone()
+    ci.verdict = { state: 'unavailable', reasons: [notice('ci.unreachable', { ci: 'GitHub Actions' })] }
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.ABC).toEqual({ green: 'bbbbbbbbbb' })
   })
 
   it('files a fix task for a red push and launches it before the rest', async () => {

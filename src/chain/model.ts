@@ -545,8 +545,11 @@ export type PushBy = 'chain' | 'hand'
 export interface MainCiView {
   /** The chain is still judging this push, including the request and wait for a rerun; its raw CI red is not final. */
   judging?: string
-  /** A push no runner took in time that a run taken later still judges (BTN-719), and until when. */
-  late?: { commit: string; until: string }
+  /**
+   * A push no runner took in time that a run taken later still judges (BTN-719), and until when; `unanswered` — the CI
+   * did not answer instead, and what it says later judges the push (EKR-136).
+   */
+  late?: { commit: string; until: string; unanswered?: true }
   /** Only for a project with `commands.afterGreen`; `running` — the run is going on now. */
   afterGreen?: AfterGreenRecord & { running: boolean }
   /** The latest pushes of main the service saw, by commit. */

@@ -35,6 +35,11 @@ describe('chainHoldOf (BTN-829)', () => {
     expect(chainHoldOf({ commit: 'bbbb', since: SINCE }, main)?.kind).toBe('verdict')
   })
 
+  it('keeps the late watch of a CI that did not answer apart from one of a push no runner took (EKR-136)', () => {
+    const main = { late: { commit: 'aaaa', until: SINCE, unanswered: true as const }, pushes: {} }
+    expect(chainHoldOf(undefined, main)).toEqual({ kind: 'late', commit: 'aaaa', until: SINCE, unanswered: true })
+  })
+
   it('leaves the fix of another project to the chain’s own line', () => {
     expect(chainHoldOf({ commit: 'aaaa', since: SINCE, by: 'DEMO' }, undefined)).toBeNull()
     expect(chainHoldOf(undefined, { pushes: {} })).toBeNull()
