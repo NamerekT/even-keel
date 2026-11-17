@@ -1,5 +1,6 @@
 import type { EvenKeelState, SessionView } from '../state.js'
 import type { Task } from '../tracker/model.js'
+import { isCarryName, isOwnName, releaseOfCarry } from '../chain/fix.js'
 import { localStamp } from './dates.js'
 import { STATUS_FRESH_MS } from './status.js'
 import { BADGE_FIELDS, BADGE_VERSION, type BadgeAction, type BadgeChain, type BadgeField, type BadgeState, type BadgeStats, type BadgeTask } from './model.js'
@@ -35,7 +36,7 @@ export function badgeStateOf(state: EvenKeelState, project: string, inputs: Badg
   const key = state.projectKeys[project] ?? project
   const tasks = state.tasks.filter((task) => task.project === project)
   const chains = state.chain.active.filter((chain) => chain.project === project)
-  const active = chains.flatMap((chain) => (chain.current === null ? [] : [taskOf(state, chain.current, on, inputs)]))
+  const active = chains.flatMap((chain) => (chain.current === null ? [] : [taskOf(state, project, chain.current, on, inputs)]))
   const order = state.chain.projects[project]?.order ?? []
   const working = new Set(active.map((task) => task.key))
   const next = order.find((id) => !working.has(id)) ?? null
@@ -44,7 +45,8 @@ export function badgeStateOf(state: EvenKeelState, project: string, inputs: Badg
   const closed = inputs.closed ?? []
   if (on.has('chain')) chain.tasks = chipsOf(tasks, active, order, closed, tz)
   const result: BadgeState = { v: BADGE_VERSION, at: inputs.now.toISOString(), project: { key, name: state.config.projects[project]?.name ?? key }, active, chain }
-  const anchor = active[0]?.key ?? next ?? lastClosed(tasks, closed)
+  // A fix or a carry has no tracker task and so no milestone (EKR-138): the chain's next task stands in for it.
+  const anchor = active.find((task) => !isOwnName(task.key))?.key ?? next ?? lastClosed(tasks, closed)
   if (on.has('milestone')) result.milestone = milestoneOf(tasks, anchor, new Set([...order, ...working]))
   const stats = statsOf(inputs.stats, on)
   if (stats !== null) result.stats = stats
@@ -60,7 +62,7 @@ type Current = NonNullable<EvenKeelState['chain']['active'][number]['current']>
  * A task on a spent limit (BTN-969) says only that and when the limit resets: no action, since the session makes no
  * call, and nothing of the account. The chain going on earlier, on another account, is plain work again.
  */
-function taskOf(state: EvenKeelState, current: Current, on: Set<BadgeField>, inputs: BadgeInputs): BadgeTask {
+function taskOf(state: EvenKeelState, project: string, current: Current, on: Set<BadgeField>, inputs: BadgeInputs): BadgeTask {
   const { titleEn } = inputs
   const { task: id, since } = current
   // A handed-over task's new session has no transcript yet: the task's earlier session must not stand in for it (BTN-1114).
@@ -70,7 +72,7 @@ function taskOf(state: EvenKeelState, current: Current, on: Set<BadgeField>, inp
   const waiting = session !== undefined && (session.asking || session.lamp === 'waiting')
   const task: BadgeTask = { key: id, state: limited ? 'limit' : waiting ? 'waiting' : 'working' }
   if (hold !== undefined && hold.resetsAt !== null) task.until = hold.resetsAt
-  const title = on.has('title') ? titleEn?.(id) : undefined
+  const title = on.has('title') ? (isCarryName(id) ? carryTitle(state, project, id) : titleEn?.(id)) : undefined
   if (title !== undefined && title.trim() !== '') task.titleEn = title.trim()
   if (session === undefined) {
     if (on.has('time')) task.startedAt = since
@@ -85,6 +87,20 @@ function taskOf(state: EvenKeelState, current: Current, on: Set<BadgeField>, inp
     task.context = window > 0 ? Math.min(100, Math.round((session.contextTokens / window) * 100)) : 0
   }
   return task
+}
+
+/**
+ * A carry's own title (EKR-138), no translation: the release by the version in its project's branch (`release/v0.3`),
+ * or the branch itself, and the branch of `project` it goes into.
+ */
+function carryTitle(state: EvenKeelState, project: string, id: string): string | undefined {
+  const into = state.config.projects[project]?.branch
+  if (into === undefined) return undefined
+  const from = releaseOfCarry(state.projectKeys, id)
+  const branch = from === undefined ? undefined : state.config.projects[from]?.branch
+  if (branch === undefined) return `Carrying the release into ${into}`
+  const version = /^v?(\d+(?:\.\d+)*)$/.exec(branch.split('/').at(-1) ?? '')?.[1]
+  return `Carrying ${version === undefined ? branch : `release v${version}`} into ${into}`
 }
 
 /** The session's latest tool call as the badge may show it; a line of an agent without `badge` shows only its tool. */

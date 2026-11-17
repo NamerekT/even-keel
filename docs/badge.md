@@ -22,7 +22,8 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
   `tasks` (chips: the last done ones, the working, the waiting, the ones on a limit and the queue; a done chip may
   carry `doneAt`).
 - `milestone` — `{ name, done, left, queued? }` or `null`: `left` is every open task of the milestone, `queued` those
-  of them the chain takes.
+  of them the chain takes. A fix of main or a release carry in work (`ABC-FIX`, `EKR-CARRY` and their episodes) has no
+  tracker task, so its milestone is the next task's (EKR-138).
 - `stats` — `sessions`, `medianCost`, `medianMinutes`.
 
 The project picks its fields (`BADGE_FIELDS`); a field not picked leaves **no key**, never `null`
@@ -42,7 +43,9 @@ the picture prints the digits as written, so the night shows by the maintainer's
 - `queued` is the milestone's tasks in the chain's order (the result of its own filter) and the ones in work; the rest
   is with the maintainer — Backlog, skipped labels, waiting blockers.
 - The milestone is the one of the task in work or of the next one; with neither, the one of the task the chain closed
-  last, so an idle badge still shows what waits for the maintainer.
+  last, so an idle badge still shows what waits for the maintainer. A fix or a carry does not count as a task in work
+  here (EKR-138): while one runs the card stays, by the next task or the last closed one. The release project's own
+  tasks get no card: they are another project's, and the filter of private data hides them.
 - No release date (BTN-1197). BTN-970 also sent `eta`, `queued` over the chain's pace of the last 7 days, and
   `target`, the milestone's `targetDate`; the forecast missed the milestone's growth (v0.3 grew from ~50 tasks to 200+
   while it kept saying "soon") and the tracker's date read as a promise. The service sends neither; the Worker still
@@ -174,7 +177,7 @@ picks those fields itself.
 `renderBadge` returns an SVG document 840 px wide: no script, no outside resource. The layout follows the task's mockups
 (BTN-915's attachments): a header with the state, what the chain does ("<project> is being built right now", "· N tasks
 at once", "the agent asked the maintainer…") and the age of the push; one task in work gets a large title with
-"agent · model · started N min ago" under it, several share rows with that line on the right; the action bar is the
+"agent · model · started N min ago" under it (a release carry's title is its own, see "English titles"), several share rows with that line on the right; the action bar is the
 tool's icon, the action in the agent's colour (yellow for Claude, blue for the rest), a blinking cursor, the context
 fill with a glowing edge and `context N%`; a waiting task has a dashed "waiting for the maintainer's answer" bar
 instead, and one on a limit the same bar with a pause mark and "waiting for the usage limit · resets in 2 h" (the reset
@@ -252,7 +255,9 @@ characters and unchanged code and file names, and to replace names of people, co
 e-mails with general words — or to answer `NONE` where the title makes no sense without them (BTN-931). `NONE` is kept
 as an empty title: the badge shows the key alone and the title is not asked again, even after a change of the LLM
 settings. The answer then passes the filter above like any free text. The user message is **only the title**, never the
-task's description, comments or question. Timeout: three minutes, like the classifier. The answer loses Markdown, HTML tags, controls,
+task's description, comments or question. A release carry is not translated: it has no tracker task, and its title is
+its own (EKR-138), "Carrying release v0.3 into dev" — the version from the release project's `branch` (`release/v0.3`;
+a branch with no version is named whole) and the `branch` of the project it goes into, never a literal. Timeout: three minutes, like the classifier. The answer loses Markdown, HTML tags, controls,
 formatting characters, surrounding quotes and extra whitespace, then is cut to 90 Unicode characters.
 
 Database step 45 adds `badge_translations`: a tracker source (kind, profile and tracker project; built-in trackers use
