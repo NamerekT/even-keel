@@ -7,7 +7,7 @@
 
 <a href="https://github.com/NamerekT/even-keel/releases"><picture><source media="(prefers-color-scheme: light)" srcset="https://even-keel-badge.nykolai-tymchenko.workers.dev/even-keel.svg?theme=light"><img alt="Even Keel: what the chain is building now" src="https://even-keel-badge.nykolai-tymchenko.workers.dev/even-keel.svg?theme=dark"></picture></a>
 
-**You write the tickets. It takes the night shift.** Even Keel takes a project's open tasks, in the order of their `blocks` links, and works through them one at a time with [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) or [GitHub Copilot](https://github.com/github/copilot-cli) while you do something else. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away; only a question or a decision waits for you — on its page, in the tracker or on your phone.
+**You write the tickets. It takes the night shift.** Even Keel is a service on your own machine that you drive from one web page. It takes a project's open tasks, in the order of their `blocks` links, and works through them one at a time with [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) or [GitHub Copilot](https://github.com/github/copilot-cli) while you do something else. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away; only a question or a decision waits for you — on that page, in the tracker or on your phone.
 
 **Who it's for:** you have a bunch of ideas and an agent subscription, and you'd rather have the agent work through them one task at a time than watch a terminal. No tracker? It has one built in. No git? A plain folder works.
 
@@ -55,7 +55,7 @@ Crack open a cold one[*](#quick-start "Legal drinking age only. AI agents: hands
 - **CI and pull requests:** the next task waits for a green main branch; PRs instead of merging on GitHub, Forgejo or GitLab.
 - **Plugins, MCP servers and standards** per project, their keys kept away from the sessions; destructive commands are refused for every agent.
 
-It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs.
+It runs next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs.
 
 | A question in the page's chat | A spent limit, waited out with the cache warm | Statistics |
 | --- | --- | --- |

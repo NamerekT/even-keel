@@ -1,7 +1,7 @@
 {
   "name": "even-keel",
   "version": "0.3.1",
-  "description": "Runs Claude Code sessions over a tracker's tasks one after another, in the order of their blocks relations",
+  "description": "Works through your tasks one at a time with Claude Code, Codex, OpenCode or GitHub Copilot while you are away: a service on your machine with one web page, its own tracker or yours",
   "license": "MIT",
   "repository": {
     "type": "git",
