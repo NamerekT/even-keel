@@ -1,5 +1,7 @@
 /** What the page reads of the machines elsewhere: types only, the page takes them through `src/state.ts`. */
 
+import type { AccountLogin } from '../account/model.js'
+
 /** What a machine tells about itself when it joins and at every handshake: for the hub's page (BTN-1056, BTN-993). */
 export interface MachineAbout {
   host: string
@@ -42,6 +44,31 @@ export interface MachineView {
   /** The projects whose folder there another machine's mark holds, by that machine: the page offers to take it over. */
   taken: TakenFolder[]
 }
+
+/**
+ * A machine elsewhere's accounts and its sign-in under way, from its mirror (BTN-1245, `docs/machines.md`, "Signing in on
+ * a machine"): no token and no credentials, only what its accounts panel shows.
+ */
+export interface MachineSignIn {
+  machine: string
+  name: string
+  online: boolean
+  accounts: MachineAccount[]
+  login: MachineLogin | null
+  /** The agents whose CLI the machine does not find: no sign-in of theirs is offered there. */
+  missing: string[]
+}
+
+export interface MachineAccount {
+  key: string
+  agent: string
+  /** The e-mail its folder is signed in as, else the one it was last signed in as. */
+  email: string | null
+  signedIn: boolean
+}
+
+/** The machine's sign-in under way as its panel shows it (`AccountLogin`); the code the person types goes back through the hub. */
+export type MachineLogin = Pick<AccountLogin, 'agent' | 'method' | 'target' | 'startedAt' | 'urls' | 'deviceCode' | 'output' | 'error' | 'codeSent'>
 
 /** A project's folder held by another machine (`docs/machines.md`, "The folder's mark"). */
 export interface TakenFolder {

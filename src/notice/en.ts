@@ -141,6 +141,7 @@ export const en = {
   'machines.unknownProject': () => 'There is no such project here',
   'machines.folderTaken': (p: { name: string; owner: string }) => `The project's folder is already served by machine ${p.name}: if that machine is gone, take the folder over from it`,
   'machines.notTaken': () => 'No other machine holds this project\'s folder now: there is nothing to take over',
+  'machines.offline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: sign in there once it is back`,
   'git.identityBlank': () => 'git needs both a name and an e-mail to commit with',
   'git.identityFailed': () => 'git could not write the name and e-mail into its global config',
   'git.initFailed': (p: { path: string }) => `git could not make ${p.path} a repository`,

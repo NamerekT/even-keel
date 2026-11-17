@@ -21,6 +21,7 @@ import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
 import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, signInMixup, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
+import { MachineNotes } from './MachineSignIns.js'
 import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
 import './accountRows.css'
 import { copilotNote, hasCopilot } from '../../../src/opencode/support.js'
@@ -165,6 +166,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
       </div>
     </div>
     <OverageWarning entry={entry} view={view} />
+    <MachineNotes entry={entry} send={send} sending={sending} />
     {page && <OwnSettings entry={entry} send={send} sending={sending} />}
     {hasCopilot(entry) && !(unsupported && held.length === 0) && <p className="account-provider__note">{say(copilotNote())}</p>}
   </AccountRowMenu>

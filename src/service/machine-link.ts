@@ -266,7 +266,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     peers: {
       remote: (machine) => remoteOf(() => machine),
       brief: briefOf,
-      changed: () => steerLimits(),
+      changed: () => {
+        steerLimits()
+        // The page shows each machine's accounts and its sign-in under way (`MachineNetwork.signIns`).
+        ctx.hub.broadcastSoon('state', () => ctx.getState())
+      },
       connected: (machine) => polls.connected(machine),
       mcp: (machine, request) => hubMcp.relay(machine, request),
       write: (machine, write) => hubMcp.write(machine, write),

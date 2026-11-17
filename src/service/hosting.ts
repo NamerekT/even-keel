@@ -277,6 +277,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     cliChecks: ctx.cliChecks.view(),
     git: gitSetup.view(),
     gitFound: machine.gitFound(),
+    machineSignIns: ctx.machineLink.network.signIns(),
     jobs: stepJobs.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,

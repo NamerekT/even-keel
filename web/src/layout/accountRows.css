@@ -96,6 +96,11 @@
 .account-problems__text .accounts__note { margin: var(--space-2) 0 0; color: inherit; }
 .account-problems__actions { display: flex; gap: var(--space-4); flex: none; flex-wrap: wrap; }
 .account-own { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); padding: var(--space-6) var(--space-16); color: var(--fg-muted); font-size: var(--text-12); }
+/* The machines elsewhere where the account is not signed in (BTN-1245), each with its "Sign in". */
+/* Above the row's menu button, as the overage warning: its buttons do not open the menu. */
+.account-machines { position: relative; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-16); font-size: var(--text-12); }
+.account-machines__row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); }
+.account-machines__row > span { color: var(--warn-fg); }
 .account-own__key { display: inline-flex; align-items: center; gap: var(--space-2); padding-right: var(--space-2); }
 .account-own__drop {
   display: inline-grid; place-items: center; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-pill);

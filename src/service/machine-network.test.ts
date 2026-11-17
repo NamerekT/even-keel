@@ -213,4 +213,73 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await until(() => lines.some((line) => line.includes('chose cli system for claude')), 'the choice logged')
     expect(writes).toEqual([[joined.machine, write]])
   })
+
+  it("shows a machine's accounts and its sign-in, and starts the sign-in, its code and its cancel on that machine", async () => {
+    let republished = 0
+    const peers: NetworkPeers = {
+      remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
+      brief: () => ({ config: { projects: {} } }) as unknown as HubBrief,
+      changed: () => void (republished += 1),
+      connected: () => {},
+      mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      write: async () => {},
+    }
+    const { network, settings } = await started(peers)
+    settings.address = '127.0.0.1'
+    await network.apply()
+    const joined = await joinHub(parseToken((await network.invite('Example laptop')).line)!, ABOUT, 5_000)
+    if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+    await expect(network.login(joined.machine, 'claude')).rejects.toThrow(/not connected/)
+
+    const signedOut = { key: 'john.doe@example.com', agent: 'claude', status: { loggedIn: false, email: null }, lastEmail: 'john.doe@example.com', needsLogin: true }
+    const signedIn = { key: 'codex', agent: 'codex', status: { loggedIn: true, email: 'jane.doe@example.com' }, needsLogin: false }
+    const login = { agent: 'claude', target: null, startedAt: '2026-11-17T10:00:00.000Z', urls: ['https://claude.ai/oauth/authorize?code=true'], deviceCode: null, output: 'Paste code here', error: null, codeSent: false }
+    const snapshot: FactsSnapshot = {
+      boot: 'boot-1',
+      rev: 1,
+      facts: {
+        sessionsRead: true, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {}, limits: {},
+        panel: { active: 'codex', accounts: [signedOut, signedIn], login, loginBlock: null, apps: [], pool: [], missing: ['opencode'] },
+      } as unknown as FactsSnapshot['facts'],
+    }
+    const ran: NumberedCommand[] = []
+    const end: MachineEnd = new MachineEnd({
+      transport: httpsTransport(joined, { log: () => {}, timeoutMs: 5_000 }),
+      store: new MemoryMachineStore(),
+      snapshot: () => snapshot,
+      command: async (command) => {
+        ran.push(command)
+        await end.emit(DONE_EVENT, { seq: command.seq, value: null })
+      },
+      log: () => {},
+    })
+    closing.push(async () => end.stop())
+    await end.start()
+    await until(() => network.signIns().length > 0, 'the machine in the sign-ins')
+
+    expect(network.signIns()).toEqual([{
+      machine: joined.machine,
+      name: 'Example laptop',
+      online: true,
+      accounts: [
+        { key: 'john.doe@example.com', agent: 'claude', email: 'john.doe@example.com', signedIn: false },
+        { key: 'codex', agent: 'codex', email: 'jane.doe@example.com', signedIn: true },
+      ],
+      login,
+      missing: ['opencode'],
+    }])
+    expect(republished).toBeGreaterThan(0)
+
+    const sent = (type: string) => ran.filter((command) => command.type === type).map((command) => command.payload)
+    await network.login(joined.machine, 'claude', 'john.doe@example.com')
+    await network.login(joined.machine, 'claude', 'someone.else@example.com')
+    await network.login(joined.machine, 'codex', undefined, 'device')
+    await network.code(joined.machine, 'one-time-code')
+    await network.cancel(joined.machine)
+    expect(sent('account.renew')).toEqual([{ args: ['john.doe@example.com'] }])
+    expect(sent('account.add')).toEqual([{ args: ['claude'] }, { args: ['codex', 'device'] }])
+    expect(sent('account.code')).toEqual([{ args: ['one-time-code'] }])
+    expect(sent('account.cancel')).toEqual([{ args: [] }])
+    await expect(network.login(OWN, 'claude')).rejects.toThrow(/no such machine/)
+  })
 })

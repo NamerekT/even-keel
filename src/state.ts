@@ -125,7 +125,7 @@ export type { CloneProgress } from './git/clone-progress.js'
 export type { JobStep, StepJob } from './jobs/model.js'
 export type { BranchChoice, BranchDrift, BranchMove, RepoBranches } from './projects/branch.js'
 export type { RemoteBranchList } from './projects/remote-branches.js'
-export type { AddressChoice, MachineAbout, MachineView } from './link/view.js'
+export type { AddressChoice, MachineAbout, MachineAccount, MachineLogin, MachineSignIn, MachineView } from './link/view.js'
 import type { BranchDrift } from './projects/branch.js'
 
 /** How a release project's branch goes into the branch of the project it merges into (`mergeInto`, BTN-172). */
@@ -334,6 +334,8 @@ export interface EvenKeelState {
   git?: GitSetupView
   /** The projects without git whose folder has become a repository of its own (BTN-1025), by id; absent — an older service. */
   gitFound?: Record<string, FoundRepository>
+  /** The accounts of each machine elsewhere that posted its facts, and its sign-in under way (BTN-1245); absent — an older service. */
+  machineSignIns?: import('./link/view.js').MachineSignIn[]
   /** The work the service does in steps while a window shows it (BTN-1048): a project being created; absent — an older service. */
   jobs?: import('./jobs/model.js').StepJob[]
   /** The automatic CLI check of each agent (BTN-569): waiting, running or its last result; empty while the setting is off. */

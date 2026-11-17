@@ -9,11 +9,12 @@ import { createHubServer } from '../link/hub-server.js'
 import type { HubStore, MachineRecord } from '../link/hub-store.js'
 import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
 import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken, type McpAnswer, type McpRequest } from '../link/protocol.js'
-import type { AddressChoice, MachineView, TakenFolder } from '../link/view.js'
+import type { AddressChoice, MachineSignIn, MachineView, TakenFolder } from '../link/view.js'
 import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
 import type { HubBrief } from '../machine/brief.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { RemoteMachine, type RemoteDeps } from '../machine/remote.js'
+import type { MachineServices } from '../machine/services.js'
 import type { Queryable } from '../storage/database.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { BriefSender } from './hub-brief.js'
@@ -45,6 +46,8 @@ interface Peer {
   briefs: BriefSender
   /** The folders of the machine's pool, read before each brief. */
   folders: Record<string, string>
+  /** The hub's name of the machine, read at each snapshot: the page's state is built without a query. */
+  name: string
 }
 
 export interface MachineNetworkOptions {
@@ -118,6 +121,70 @@ export class MachineNetwork {
     return this.peers.get(machine)?.remote
   }
 
+  /**
+   * Each machine elsewhere's accounts and its sign-in under way, as its last post showed them (BTN-1245): what the hub's
+   * page offers to sign in to there. Only the panel's names and states: the credentials never leave the machine.
+   */
+  signIns(): MachineSignIn[] {
+    return [...this.peers].flatMap(([machine, peer]) => {
+      const panel = peer.remote.page.panel()
+      if (panel === undefined) return []
+      const { login } = panel
+      return [{
+        machine,
+        name: peer.name,
+        online: this.hub.connected(machine),
+        accounts: panel.accounts.map((entry) => ({
+          key: entry.key,
+          agent: entry.agent,
+          email: entry.status?.email ?? entry.lastEmail ?? null,
+          signedIn: entry.status?.loggedIn === true && !entry.needsLogin,
+        })),
+        login: login === null ? null : {
+          agent: login.agent,
+          ...(login.method !== undefined && { method: login.method }),
+          target: login.target,
+          startedAt: login.startedAt,
+          urls: login.urls,
+          deviceCode: login.deviceCode,
+          output: login.output,
+          error: login.error,
+          codeSent: login.codeSent,
+        },
+        missing: panel.missing,
+      }]
+    })
+  }
+
+  /**
+   * Starts a sign-in on the machine through its CLI (`docs/machines.md`, "Signing in on a machine"): again in its folder
+   * `account` when it has one, else in a new folder named after the account signed in. The link and the code go
+   * through the hub; the token the CLI gets stays in the machine's folder.
+   */
+  async login(machine: string, agent: string, account?: string, method?: string): Promise<void> {
+    const control = await this.accountsOf(machine)
+    const has = account !== undefined && this.peers.get(machine)?.remote.page.panel()?.accounts.some((entry) => entry.key === account) === true
+    this.options.log(`machines: a sign-in of ${agent} is started on machine ${machine}${has ? ` in its folder ${account}` : ''}`)
+    if (has) await control.renew(account)
+    else await control.add(agent, method)
+  }
+
+  /** The code the person got on the sign-in page, for the machine's CLI waiting for it; it is not logged. */
+  async code(machine: string, code: string): Promise<void> {
+    await (await this.accountsOf(machine)).code(code)
+  }
+
+  async cancel(machine: string): Promise<void> {
+    await (await this.accountsOf(machine)).cancel()
+  }
+
+  private async accountsOf(machine: string): Promise<MachineServices['account']> {
+    const record = await this.foreign(machine)
+    const peer = this.peers.get(record.id)
+    if (peer === undefined || !this.hub.connected(record.id)) throw fail('machines.offline', { name: record.name })
+    return peer.remote.services().account
+  }
+
   async tellLimits(machine: string, plan: LimitsPlan): Promise<void> {
     const peer = this.peers.get(machine)
     if (peer === undefined) throw new Error(`no mirror of machine ${machine}`)
@@ -144,6 +211,7 @@ export class MachineNetwork {
     return {
       snapshot: async (machine, snapshot) => {
         const peer = this.peer(machine, peers)
+        peer.name = (await this.options.store.machine(machine))?.name ?? machine
         peers.connected(machine)
         // A new connection may be a new process of the machine, which holds no brief yet.
         peer.briefs.forget()
@@ -178,7 +246,7 @@ export class MachineNetwork {
       machine: () => machine,
       changed: () => peers.changed(),
     })
-    const made: Peer = { remote, folders: {}, briefs: new BriefSender(() => peers.brief(made.folders), (brief) => remote.tellBrief(brief)) }
+    const made: Peer = { remote, folders: {}, name: machine, briefs: new BriefSender(() => peers.brief(made.folders), (brief) => remote.tellBrief(brief)) }
     peer = made
     this.peers.set(machine, peer)
     return peer

@@ -258,6 +258,10 @@ export interface ServerDeps {
     attach(machine: string, projects: string[]): Promise<void>
     /** "Take the folder over" (BTN-1244), confirmed on the page: `owner` is the machine its refusal named; no `machine` — the own one. */
     takeOver(machine: string | undefined, project: string, owner: string): Promise<void>
+    /** A sign-in on a machine elsewhere (BTN-1245): again in its folder `account` when it has one, else a new account. */
+    login(machine: string, agent: string, account?: string, method?: string): Promise<void>
+    code(machine: string, code: string): Promise<void>
+    cancel(machine: string): Promise<void>
   }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }
