@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { megabytes } from '../notice/en.js'
 import type { TaskAttachment } from '../tracker/card.js'
@@ -106,6 +106,27 @@ export function folderSink(folder: string): FileSink {
       return target
     },
   }
+}
+
+/**
+ * The copies a task's folders under `<folder>/.temp/task-files/` hold, its key matched in any case (BTN-1237): by the
+ * folder's name, then the file's name, its size. A `.part` file is no copy.
+ */
+export async function copiesOf(folder: string, key: string): Promise<Record<string, Record<string, number>>> {
+  const wanted = safeName(key.trim()).toLowerCase()
+  const root = join(folder, DOWNLOADS)
+  const dirs = (await readdir(root, { withFileTypes: true }).catch(() => [])).filter((each) => each.isDirectory() && each.name.toLowerCase() === wanted)
+  const copies: Record<string, Record<string, number>> = {}
+  for (const dir of dirs) {
+    const files: Record<string, number> = {}
+    for (const each of await readdir(join(root, dir.name), { withFileTypes: true }).catch(() => [])) {
+      if (!each.isFile() || each.name.endsWith('.part')) continue
+      const size = (await stat(join(root, dir.name, each.name)).catch(() => null))?.size
+      if (size !== undefined) files[each.name] = size
+    }
+    copies[dir.name] = files
+  }
+  return copies
 }
 
 /** A file name that stays one name on every system: no separators, no characters Windows refuses, never `.` or `..`. */

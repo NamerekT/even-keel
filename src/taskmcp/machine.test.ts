@@ -3,8 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { McpAnswer, McpRequest } from '../link/protocol.js'
+import type { TaskAttachment } from '../tracker/card.js'
 import type { TaskBrief } from '../tracker/source.js'
-import { FILES_META, sentFiles, sessionMetaOf, type CarriedFile } from './carried.js'
+import { FILES_META, sentFiles, sessionMetaOf, type CarriedFile, type SessionMeta } from './carried.js'
+import { attachmentLines, type FileSource } from './downloads.js'
 import { AWAY_TEXT, KEPT_TEXT, MachineTasks, tasksPathOf, type KeptWrite } from './machine.js'
 
 const SCOPE = { project: 'p1', task: 'ABC-1' }
@@ -86,6 +88,52 @@ describe('the tasks server through the machine (BTN-990)', () => {
     expect(textOf(reply)).toBe(`## Attachments\n\n- mockup.svg — ${path}`)
     expect(readFileSync(path, 'utf8')).toBe('<svg/>')
     expect(reply!.result).not.toHaveProperty('_meta')
+  })
+
+  it('names the copy the folder already has of the same size, so the hub does not download it again (BTN-1237)', async () => {
+    const dir = join(folder, '.temp', 'task-files', 'ABC-1')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'shot.png'), 'picture')
+    writeFileSync(join(dir, 'notes.txt'), 'old')
+    writeFileSync(join(dir, 'cut.txt.part'), 'half')
+    const served: string[] = []
+    const source: FileSource = {
+      async file(_id, file) {
+        served.push(file)
+        return { type: '', size: 5, body: (async function* () { yield Buffer.from('notes') })() }
+      },
+    }
+    const attachment = (file: string, name: string, size: number): TaskAttachment => ({ file, name, type: '', size, url: null })
+    let sent: SessionMeta | undefined
+    hub = async (message) => {
+      sent = sessionMetaOf(message.params as Message)
+      const carried: CarriedFile[] = []
+      const files = sentFiles(sent!, carried)
+      const lines = await attachmentLines('ABC-1', [attachment('f1', 'shot.png', 7), attachment('f2', 'notes.txt', 5)], source, files.downloads, 1024)
+      return { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: lines.join('\n') }], _meta: { [FILES_META]: carried } } }
+    }
+    const reply = await tasks().handle(call('task_read', { key: 'abc-1' }), SCOPE)
+    expect(sent!.copies).toEqual({ 'ABC-1': { 'shot.png': 7, 'notes.txt': 3 } })
+    expect(served).toEqual(['f2'])
+    expect(textOf(reply)).toBe(`- shot.png (7 B) — ${join(dir, 'shot.png')}\n- notes.txt (5 B) — ${join(dir, 'notes.txt')}`)
+    expect(readFileSync(join(dir, 'notes.txt'), 'utf8')).toBe('notes')
+  })
+
+  it('says a copy is unavailable when it is gone from the folder before the answer comes', async () => {
+    hub = async (message) => {
+      const carried: CarriedFile[] = []
+      const files = sentFiles({ ...sessionMetaOf(message.params as Message)!, copies: { 'ABC-1': { 'shot.png': 7 } } }, carried)
+      const there = await files.downloads!.existing('ABC-1', 'shot.png', 7)
+      expect(await files.downloads!.existing('ABC-1', 'shot.png', 8)).toBeNull()
+      expect(await files.downloads!.existing('ABC-2', 'shot.png', 7)).toBeNull()
+      return { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: `- shot.png — ${there}` }], _meta: { [FILES_META]: carried } } }
+    }
+    expect(textOf(await tasks().handle(call('task_read', { key: 'ABC-1' }), SCOPE))).toBe('- shot.png — file unavailable')
+  })
+
+  it('lists no copies for a call other than task_read', async () => {
+    await tasks().handle(call('task_comment', { key: 'ABC-1', text: 'see' }), SCOPE)
+    expect(sessionMetaOf(asked[0]!.message.params as Message)!.copies).toEqual({})
   })
 
   describe('while the hub is away', () => {

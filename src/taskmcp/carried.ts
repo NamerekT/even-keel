@@ -1,5 +1,5 @@
 import { EditRefused, type TaskUpload } from '../tracker/editor.js'
-import type { FileSink } from './downloads.js'
+import { safeName, type FileSink } from './downloads.js'
 import { UPLOADS_PER_CALL, type SessionFiles } from './files.js'
 
 /**
@@ -24,6 +24,11 @@ export interface SessionMeta {
   attach: Record<string, SentFile>
   /** The session has a folder: `task_read` downloads its task's files. */
   downloads: boolean
+  /**
+   * The copies `task_read`'s task already has in the machine's folder (BTN-1237): by the folder's name under
+   * `.temp/task-files/`, then by the file's name, its size. The hub names such a copy instead of downloading it again.
+   */
+  copies: Record<string, Record<string, number>>
   /** The session of the task that made the call, as the machine found it then (`handoff_write`, BTN-1046). */
   writer?: NoteWriter
 }
@@ -41,7 +46,9 @@ export interface CarriedFile {
   token: string
   key: string
   name: string
-  data: string
+  /** base64; `undefined` — a copy the machine already has, of `size` bytes (`SessionMeta.copies`). */
+  data?: string
+  size?: number
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -54,11 +61,17 @@ export function sessionMetaOf(params: Record<string, unknown>): SessionMeta | un
   for (const [path, file] of Object.entries(isObject(meta.attach) ? meta.attach : {})) {
     if (isObject(file) && typeof file.name === 'string' && typeof file.type === 'string' && typeof file.data === 'string') attach[path] = { name: file.name, type: file.type, data: file.data }
   }
+  const copies: Record<string, Record<string, number>> = {}
+  for (const [key, files] of Object.entries(isObject(meta.copies) ? meta.copies : {})) {
+    if (!isObject(files)) continue
+    copies[key] = Object.fromEntries(Object.entries(files).filter((each): each is [string, number] => typeof each[1] === 'number'))
+  }
   const writer = isObject(meta.writer) ? meta.writer : undefined
   const named = writer !== undefined && typeof writer.session === 'string' && typeof writer.at === 'string'
   return {
     attach,
     downloads: meta.downloads === true,
+    copies,
     ...(named ? { writer: { session: writer.session as string, branch: typeof writer.branch === 'string' ? writer.branch : null, at: writer.at as string } } : {}),
   }
 }
@@ -69,13 +82,14 @@ export function sentFile(upload: TaskUpload): SentFile {
 
 /** The session's files as the hub has them: the ones sent with the call, and the downloads kept for the answer in `carried`. */
 export function sentFiles(meta: SessionMeta, carried: CarriedFile[]): SessionFiles {
+  const carry = (file: Omit<CarriedFile, 'token'>): string => {
+    const token = `<<even-keel-file:${carried.length + 1}>>`
+    carried.push({ token, ...file })
+    return token
+  }
   const downloads: FileSink = {
-    existing: async () => null,
-    put: async (key, name, bytes) => {
-      const token = `<<even-keel-file:${carried.length + 1}>>`
-      carried.push({ token, key, name, data: Buffer.from(bytes).toString('base64') })
-      return token
-    },
+    existing: async (key, name, size) => (meta.copies[safeName(key)]?.[name] === size ? carry({ key, name, size }) : null),
+    put: async (key, name, bytes) => carry({ key, name, data: Buffer.from(bytes).toString('base64') }),
   }
   return {
     read: async (paths, limit) => {

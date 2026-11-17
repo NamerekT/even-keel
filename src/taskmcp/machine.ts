@@ -3,7 +3,7 @@ import type { TaskBrief } from '../tracker/source.js'
 import type { TaskUpload } from '../tracker/editor.js'
 import { refusalText, type TasksScope } from './calls.js'
 import { FILES_META, SESSION_META, sentFile, type CarriedFile, type NoteWriter, type SentFile } from './carried.js'
-import { folderSink } from './downloads.js'
+import { copiesOf, folderSink } from './downloads.js'
 import { readUploads } from './files.js'
 import { TASKS_PATH } from './server.js'
 import { HANDOFF_TOOL, toolSpecs } from './tools.js'
@@ -118,9 +118,10 @@ export class MachineTasks {
       const files: TaskUpload[] = await readUploads(paths, folder, this.deps.attachmentLimit())
       for (const [index, path] of paths.entries()) attach[path.trim()] = sentFile(files[index]!)
     }
+    const copies = tool.name === 'task_read' && typeof tool.args.key === 'string' ? await copiesOf(folder, tool.args.key) : {}
     const params = isObject(message.params) ? message.params : {}
     const meta = isObject(params._meta) ? params._meta : {}
-    return { ...message, params: { ...params, _meta: { ...meta, [SESSION_META]: { attach, downloads: true } } } }
+    return { ...message, params: { ...params, _meta: { ...meta, [SESSION_META]: { attach, downloads: true, copies } } } }
   }
 
   /** The note's writer in the call's `_meta`: the task's session on this machine now; without one the hub refuses the note. */
@@ -129,7 +130,7 @@ export class MachineTasks {
     if (writer === undefined) return message
     const params = isObject(message.params) ? message.params : {}
     const meta = isObject(params._meta) ? params._meta : {}
-    const session = isObject(meta[SESSION_META]) ? meta[SESSION_META] : { attach: {}, downloads: false }
+    const session = isObject(meta[SESSION_META]) ? meta[SESSION_META] : { attach: {}, downloads: false, copies: {} }
     const stamped: NoteWriter = { ...writer, at: this.now().toISOString() }
     return { ...message, params: { ...params, _meta: { ...meta, [SESSION_META]: { ...session, writer: stamped } } } }
   }
@@ -145,7 +146,9 @@ export class MachineTasks {
     if (carried.length > 0) {
       const paths = await Promise.all(carried.map(async (file) => {
         if (folder === null) return 'not downloaded'
-        return folderSink(folder).put(file.key, file.name, Buffer.from(file.data, 'base64')).catch(() => 'file unavailable')
+        const sink = folderSink(folder)
+        if (file.data === undefined) return (await sink.existing(file.key, file.name, file.size ?? -1)) ?? 'file unavailable'
+        return sink.put(file.key, file.name, Buffer.from(file.data, 'base64')).catch(() => 'file unavailable')
       }))
       const { [FILES_META]: _, ...rest } = meta!
       const swapped = (text: string) => carried.reduce((each, file, index) => each.split(file.token).join(paths[index]!), text)
