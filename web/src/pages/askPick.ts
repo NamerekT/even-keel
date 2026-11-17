@@ -20,6 +20,18 @@ export function askAnswers(ask: Ask, picks: Pick[]): AskAnswers {
   return Object.fromEntries(ask.questions.map((question, index) => [question.question, pickAnswer(question, picks[index] ?? NO_PICK)]))
 }
 
+/**
+ * What the preview column shows: `undefined` — no column, as no option has a preview; `null` — the column stays, empty,
+ * for an option without one, so pointing at it never reflows the options under the pointer (EKR-139). The pointed
+ * option wins, then the picked one, then the first with a preview.
+ */
+export function shownPreview(question: AskQuestion, pointed: string | null, picked: string[]): string | null | undefined {
+  const first = question.options.find((option) => option.preview !== undefined)
+  if (first === undefined) return undefined
+  const shown = question.options.find((option) => option.label === pointed) ?? question.options.find((option) => picked.includes(option.label))
+  return (shown ?? first).preview ?? null
+}
+
 export function chooseLabel(question: AskQuestion, pick: Pick, label: string, on: boolean): Pick {
   if (!question.multiSelect) return { ...pick, labels: [label], otherOn: false }
   return { ...pick, labels: on ? [...pick.labels, label] : pick.labels.filter((each) => each !== label) }

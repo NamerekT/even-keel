@@ -4,6 +4,42 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-11-17
+
+A patch of 0.3: the CI and limit fixes that cost a chain time, and a clearer carry panel.
+
+### Added
+
+- **What a waiting carry brings.** The panel of a carry waiting for its turn shows the number of commits, the conflicted files with the conflict lines of each, and **Skip**.
+- **Update all** in the package catalog, to the right of **Check all**.
+
+### Fixed
+
+- **One CI poll that gets no answer no longer leaves the pushed commit unchecked.** Before, a single timed-out poll during a run dropped the commit, so a red main was never fixed. The push is now watched for up to an hour, and the CI's later result decides it: red means a rerun and then a fix session, green means it passed. Meanwhile the CI panel says the CI did not answer.
+- A Claude chain on a subscription no longer treats a session's cache as warm for an hour when the session writes the five-minute cache.
+- When a limit resets early, a task no longer stays held by "paid usage possible, not confirmed" until the announced reset with usage at 0%.
+- More limits are read correctly:
+  - Claude's limit windows come from the CLI's usage report, so reading an Ultra account without a five-hour limit no longer depends on how the CLI words its lines.
+  - A ChatGPT seat in a workspace (Team, Business, Edu) gets its spending cap and monthly credits read.
+  - Copilot no longer shows "unlimited" for a Business seat whose allowance is used up.
+- Copilot: a turn that fails on "Failed to load models" shows the error instead of waiting for an answer.
+- OpenCode: a permission request refused by the task's rules, such as reading `.env`, no longer ends the turn silently and leaves the session waiting with no question.
+- The launch card shown when a session continues after a limit no longer says that the old session stops and a new one starts with a handoff, since the same session continues.
+- A private repository on a free GitHub plan no longer shows "Could not verify protection" after every launch, since its branch cannot be protected.
+- A pause on a refused pull request description no longer tells you to press Resume. The pull request opens by itself from the session's next mark.
+- The GitLab profile form no longer requires a server address for GitLab.com, where the hint says to leave it empty.
+- "What sessions get" reads `.claude/settings.json` from the project's branch, not from the main checkout's disk.
+- The changelog window:
+  - For a released milestone, it shows the released section of the file instead of an old draft under `[Unreleased]`.
+  - On an account whose limit is spent, it shows a clear notice instead of the CLI's raw JSON answer.
+- A carry waiting for its turn no longer shows the session of an earlier carry with the same name.
+- A row's **Install** or **Update** button in the package catalog no longer stays stuck after the action.
+- On a phone, a long question in the chat window no longer covers the answer options, and the question switcher no longer wraps around the text.
+- The demo:
+  - The session window opened from the task's sessions finds its transcript, and the card of a finished task shows what the session did.
+  - The answer to DEMO-3's question appears above the `TASK DONE` line and is still there when the chat is opened again.
+  - Without git, "The demo is over" no longer says the branches were merged into the main one.
+
 ## [0.3.0] - 2026-11-16
 
 0.3 needs neither a tracker account nor git to start: a built-in tracker, projects without git, a demo on the first start and a project wizard that clones or creates the repository. Sessions get Even Keel's own tasks server for every tracker, Forgejo issues join the trackers, Claude Code runs on Amazon Bedrock, Google Vertex AI and Microsoft Foundry, and OpenCode on an OpenRouter key. The page gains an event log, a chat window per task and a README badge of the chain.

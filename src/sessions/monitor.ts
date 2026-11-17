@@ -305,6 +305,7 @@ function toView(
     silentSince: present && agent.silentSince !== undefined ? new Date(agent.silentSince).toISOString() : null,
     asking: ask !== null,
     ask,
+    ...((summary.expiredApprovals?.length ?? 0) > 0 && { expiredApprovals: summary.expiredApprovals }),
     apiError: summary.apiError?.text ?? null,
     apiErrorKind: summary.apiError?.kind ?? null,
     ...(summary.apiError?.notice === undefined ? {} : { apiErrorNotice: summary.apiError.notice }),

@@ -61,6 +61,8 @@ export interface SessionView {
   asking: boolean
   /** That `AskUserQuestion`, for the answer panel of the chat window: from the transcript, or from the job file while the CLI has not written it there. */
   ask: Ask | null
+  /** The last calls whose approval the CLI stopped waiting for (EKR-140): a question of the tracker on one of them expired. */
+  expiredApprovals?: string[]
   apiError: string | null
   apiErrorKind: ApiErrorKind | null
   apiErrorNotice?: Notice

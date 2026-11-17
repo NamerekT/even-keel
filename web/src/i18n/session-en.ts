@@ -221,6 +221,7 @@ export const sessionEn = {
       failed: (count: number) => `(${count} failed)`,
       failure: 'failed',
       interrupted: 'cut off by the end of the turn',
+      expired: 'approval expired, not run',
       size: (added: number, removed: number) => `${added} ${forms('line', 'lines')(added)} added, ${removed} removed`,
     },
     head: {

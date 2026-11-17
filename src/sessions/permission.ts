@@ -58,7 +58,8 @@ export type PermissionMove = { kind: 'allow'; message: string | null } | { kind:
 
 /**
  * A tool call the CLI wants approved, put to the user as a question with two options (BTN-303): the first allows it,
- * the second refuses it. The call itself is the preview of the first: a command, or the input as JSON. The input's
+ * the second refuses it. The call itself is the preview of both — a command, or the input as JSON — so pointing at
+ * either keeps it in view (EKR-139). The input's
  * `description` is the agent's own word on its call, so it follows the call in the preview, marked as the agent's,
  * and never stands under the allowing option (BTN-1128).
  */
@@ -78,7 +79,7 @@ export function permissionAsk(id: string, tool: string, input: Record<string, un
         multiSelect: false,
         options: [
           { label: text.allow, description: text.allowHint, preview },
-          { label: text.deny, description: text.denyHint },
+          { label: text.deny, description: text.denyHint, preview },
         ],
       },
     ],

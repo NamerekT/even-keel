@@ -35,6 +35,17 @@ Rebuilds under an hour are most likely compactions, model switches and the like,
 
 The chain has almost no long pauses: it waits on the user only for a question. Sessions by hand do, but rarely enough that the cliff is a rounding error.
 
+## In API dollars
+
+At each model's list price (mostly Opus), with the same pauses:
+
+| Sessions | Spent | Cold resumes after 55+ min | With a 5-minute cache instead | The hour's own premium |
+| --- | ---: | ---: | ---: | ---: |
+| by hand | $5,662 | 17, $12.42 ($0.73 each) | +$1,245 (22 %) | $600 |
+| the chain | $5,721 | 5, $2.29 | +$189 (3 %) | $777 |
+
+"With a 5-minute cache instead" prices every pause of 5 minutes or more that the hour kept warm as a full rebuild, which is what an API key would have paid for the same breaks. "The hour's own premium" is what the one-hour writes cost over five-minute ones. For sessions by hand the hour paid for itself twice over; for the chain, which rarely pauses, it cost four times what it saved.
+
 ## Caveats
 
 - One user, one workflow; a person who leaves sessions open over lunch and comes back to them will see a bigger share.

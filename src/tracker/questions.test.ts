@@ -15,27 +15,27 @@ const comment = (id: string, body: string, files: TrackerComment['files'] = []):
 
 describe('questionPlan', () => {
   it('posts a new question once and reads the replies to it', () => {
-    expect(questionPlan([asking()], [])).toEqual({ post: [asking()], read: [], keep: [] })
-    expect(questionPlan([asking()], [posted()])).toEqual({ post: [], read: [posted()], keep: [posted()] })
+    expect(questionPlan([asking()], [])).toEqual({ post: [asking()], read: [], keep: [], left: [] })
+    expect(questionPlan([asking()], [posted()])).toEqual({ post: [], read: [posted()], keep: [posted()], left: [] })
   })
 
   it('forgets a question the session no longer waits on and posts its next one', () => {
     const next = asking({ ask: { ...ASK, id: 'toolu_2' } })
-    expect(questionPlan([next], [posted()])).toEqual({ post: [next], read: [], keep: [] })
-    expect(questionPlan([asking({ ask: null })], [posted()])).toEqual({ post: [], read: [], keep: [] })
+    expect(questionPlan([next], [posted()])).toEqual({ post: [next], read: [], keep: [], left: [posted()] })
+    expect(questionPlan([asking({ ask: null })], [posted()])).toEqual({ post: [], read: [], keep: [], left: [posted()] })
     expect(questionPlan([asking({ sessionId: 's2' })], [posted()]).keep).toEqual([])
   })
 
   it('does not read a question already answered', () => {
-    expect(questionPlan([asking()], [posted({ done: true })])).toEqual({ post: [], read: [], keep: [posted({ done: true })] })
+    expect(questionPlan([asking()], [posted({ done: true })])).toEqual({ post: [], read: [], keep: [posted({ done: true })], left: [] })
   })
 
   it('keeps the question of a session that waits while its task is not current, and reads it once the task is', () => {
     const aside = asking({ current: false })
-    expect(questionPlan([aside], [])).toEqual({ post: [], read: [], keep: [] })
-    expect(questionPlan([aside], [posted()])).toEqual({ post: [], read: [], keep: [posted()] })
-    expect(questionPlan([asking(), aside], [posted()])).toEqual({ post: [], read: [posted()], keep: [posted()] })
-    expect(questionPlan([aside, asking({ sessionId: 's2', ask: null })], [posted()])).toEqual({ post: [], read: [], keep: [posted()] })
+    expect(questionPlan([aside], [])).toEqual({ post: [], read: [], keep: [], left: [] })
+    expect(questionPlan([aside], [posted()])).toEqual({ post: [], read: [], keep: [posted()], left: [] })
+    expect(questionPlan([asking(), aside], [posted()])).toEqual({ post: [], read: [posted()], keep: [posted()], left: [] })
+    expect(questionPlan([aside, asking({ sessionId: 's2', ask: null })], [posted()])).toEqual({ post: [], read: [], keep: [posted()], left: [] })
   })
 })
 
@@ -58,7 +58,7 @@ describe('trackerReply', () => {
 })
 
 describe('TrackerQuestions', () => {
-  function fixture(sessions: AskingSession[], comments: TrackerComment[] = [], refuse?: string, journal = false) {
+  function fixture(sessions: AskingSession[], comments: TrackerComment[] = [], refuse?: string, journal = false, now?: () => number) {
     const store: PostedQuestion[][] = []
     const answers: { task: string; sessionId: string; ask: string; reply: TrackerReply }[] = []
     const bodies: string[] = []
@@ -84,6 +84,7 @@ describe('TrackerQuestions', () => {
         answers.push({ task, sessionId, ask, reply })
       },
       log: () => {},
+      ...(now !== undefined && { now }),
     })
     return { questions, store, answers, bodies }
   }
@@ -164,6 +165,52 @@ describe('TrackerQuestions', () => {
     await questions.tick()
     await questions.tick()
     expect(store.at(-1)).toEqual([posted()])
+  })
+
+  it('says in the tracker that the question expired once the transcript shows the CLI stopped waiting (EKR-140)', async () => {
+    const sessions = [asking()]
+    const { questions, bodies } = fixture(sessions)
+    await questions.tick()
+    sessions[0] = asking({ ask: null })
+    await questions.tick()
+    expect(bodies).toHaveLength(1)
+
+    sessions[0] = asking({ ask: null, expired: ['toolu_1'] })
+    await questions.tick()
+    await questions.tick()
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1]).toContain('The question expired')
+  })
+
+  it('records the expiry in a journal too, and says nothing of a question that left without one', async () => {
+    const sessions = [asking()]
+    const { questions, bodies } = fixture(sessions, [], undefined, true)
+    await questions.tick()
+    sessions[0] = asking({ ask: null, expired: ['toolu_1'] })
+    await questions.tick()
+    expect(bodies).toHaveLength(2)
+
+    const quiet = [asking()]
+    const other = fixture(quiet)
+    await other.questions.tick()
+    quiet[0] = asking({ ask: null, expired: ['toolu_9'] })
+    await other.questions.tick()
+    await other.questions.tick()
+    expect(other.bodies).toHaveLength(1)
+  })
+
+  it('stops watching a question that left without an expiry after a minute', async () => {
+    let now = 0
+    const sessions = [asking()]
+    const { questions, bodies } = fixture(sessions, [], undefined, false, () => now)
+    await questions.tick()
+    sessions[0] = asking({ ask: null })
+    await questions.tick()
+    now = 61_000
+    await questions.tick()
+    sessions[0] = asking({ ask: null, expired: ['toolu_1'] })
+    await questions.tick()
+    expect(bodies).toHaveLength(1)
   })
 
   it('passes on a reply written while the task was not current, without posting the question again', async () => {

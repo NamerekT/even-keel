@@ -1,7 +1,7 @@
 import { isCopy } from '../intake/model.js'
 import type { Language } from '../language.js'
 import { englishOf, noticeOf } from '../notice/notice.js'
-import { questionComment, trackerAnswers, type Ask, type AskAnswers } from '../sessions/ask.js'
+import { expiredComment, questionComment, trackerAnswers, type Ask, type AskAnswers } from '../sessions/ask.js'
 import type { InboxFile } from '../sessions/inbox.js'
 import type { Tracker, TrackerComment } from './source.js'
 
@@ -23,6 +23,8 @@ export interface AskingSession {
   ask: Ask | null
   /** The task is the current one of its chain: only then is its question posted and the replies read. */
   current: boolean
+  /** The calls whose approval the CLI stopped waiting for, by the transcript (`expiredApprovals`, EKR-140). */
+  expired?: string[]
 }
 
 export interface TrackerReply {
@@ -41,8 +43,11 @@ export interface QuestionsDeps {
   save: (posted: PostedQuestion[]) => void
   answer: (project: string, task: string, sessionId: string, ask: string, reply: TrackerReply) => Promise<void>
   log: (line: string) => void
+  now?: () => number
 }
 
+/** How long a question the session left is watched for the CLI's expiry: the transcript gets the call's result a moment later. */
+const LEFT_WATCH_MS = 60_000
 const RETRIED = new Set(['answer.busy', 'chain.launching', 'chain.limitSpent', 'chain.notCurrent'])
 
 const waitsOn = (session: AskingSession, question: PostedQuestion) =>
@@ -51,13 +56,17 @@ const waitsOn = (session: AskingSession, question: PostedQuestion) =>
 /**
  * What to do on a tick: post the new questions of current tasks, read the replies to the open ones, forget those the
  * session left. A question stays while its session waits on it, current or not, so a reply written meanwhile is read
- * once the chain takes the task again.
+ * once the chain takes the task again. `left` — the questions the session no longer waits on.
  */
-export function questionPlan(sessions: AskingSession[], posted: PostedQuestion[]): { post: AskingSession[]; read: PostedQuestion[]; keep: PostedQuestion[] } {
+export function questionPlan(
+  sessions: AskingSession[],
+  posted: PostedQuestion[],
+): { post: AskingSession[]; read: PostedQuestion[]; keep: PostedQuestion[]; left: PostedQuestion[] } {
   const keep = posted.filter((each) => sessions.some((session) => waitsOn(session, each)))
+  const left = posted.filter((each) => !keep.includes(each))
   const post = sessions.filter((session) => session.current && session.ask !== null && !keep.some((each) => each.task === session.task && each.ask === session.ask!.id))
   const read = keep.filter((each) => each.done !== true && sessions.some((session) => session.current && waitsOn(session, each)))
-  return { post, read, keep }
+  return { post, read, keep, left }
 }
 
 /**
@@ -87,6 +96,11 @@ export class TrackerQuestions {
    * files (BTN-1020).
    */
   private readonly seen = new Map<string, string>()
+  /**
+   * The questions the session left, by comment, since when: the CLI aborts an expired approval as it does one Remote
+   * Control answered, and only the call's result in the transcript, which comes a moment later, tells them apart (EKR-140).
+   */
+  private readonly leaving = new Map<string, { question: PostedQuestion; since: number }>()
 
   constructor(private readonly deps: QuestionsDeps) {
     this.posted = deps.load()
@@ -100,10 +114,32 @@ export class TrackerQuestions {
       const plan = questionPlan(sessions, this.posted)
       if (plan.keep.length !== this.posted.length) this.store(plan.keep)
       for (const comment of this.seen.keys()) if (!plan.read.some((each) => each.comment === comment)) this.seen.delete(comment)
+      await this.watchLeft(plan.left, sessions)
       for (const session of plan.post) await this.post(session)
       for (const question of plan.read) await this.read(question, sessions.find((session) => session.current && waitsOn(session, question))!)
     } finally {
       this.running = false
+    }
+  }
+
+  private async watchLeft(left: PostedQuestion[], sessions: AskingSession[]): Promise<void> {
+    const now = (this.deps.now ?? Date.now)()
+    for (const question of left) this.leaving.set(question.comment, { question, since: now })
+    for (const [comment, { question, since }] of this.leaving) {
+      const session = sessions.find((each) => each.task === question.task && each.sessionId === question.sessionId)
+      if (session?.expired?.includes(question.ask) === true) {
+        this.leaving.delete(comment)
+        await this.postExpired(session, question)
+      } else if (session === undefined || now - since > LEFT_WATCH_MS) this.leaving.delete(comment)
+    }
+  }
+
+  private async postExpired(session: AskingSession, question: PostedQuestion): Promise<void> {
+    try {
+      await this.deps.tracker(session.project, question.task, async (tracker) => tracker.comment?.(question.task, expiredComment(this.deps.language(session.project))))
+      this.deps.log(`tracker: ${question.task}: the CLI stopped waiting on the question ${question.comment}; the tracker is told it expired`)
+    } catch (error) {
+      this.deps.log(`tracker: ${question.task}: the expiry of the question was not posted: ${englishOf(noticeOf(error))}`)
     }
   }
 
