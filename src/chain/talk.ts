@@ -10,7 +10,8 @@ import { guardRestart } from './restartGuard.js'
 import type { Unchanged } from './unchanged.js'
 
 export interface TalkHost {
-  chainOf: (project: string) => ActiveChain | undefined
+  /** The project's head lane; with `task` — the lane holding it, else the head. */
+  chainOf: (project: string, task?: string) => ActiveChain | undefined
   requireProject: (project: string) => void
   /** The task is done by the tracker's last read. */
   done: (project: string, task: string) => boolean
@@ -32,7 +33,7 @@ export class Talks {
 
   restart(project: string, task: string, confirmed?: SilentRestart): void {
     this.host.requireProject(project)
-    const chain = this.host.chainOf(project)
+    const chain = this.host.chainOf(project, task)
     const current = chain?.current?.task === task ? chain.current : null
     if (chain === undefined || current === null) throw fail('chain.notCurrent', { task })
     if (current.sessionId === null) throw fail('chain.launching', { task })

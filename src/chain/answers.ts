@@ -2,6 +2,7 @@ import { fail, NoticeError } from '../notice/notice.js'
 import { isOwnName } from './fix.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
 import type { HandoffSession } from './relay.js'
+import { chainFor } from './lanes.js'
 import { requireLimit } from './limitNotice.js'
 
 export function answerable(
@@ -14,7 +15,7 @@ export function answerable(
   takes = false,
 ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession; midTurn: boolean } {
   if (!deps.projects().includes(project)) throw fail('chain.unknownProject', { project })
-  const chain = state.active.find((chain) => chain.project === project) ?? null
+  const chain = chainFor(state, project, task) ?? null
   const current = chain?.current?.task === task ? chain.current : null
   if (chain !== null && current === null) throw fail('chain.notCurrent', { task })
   if (current !== null && (current.sessionId === null || current.starting !== undefined)) throw fail('chain.launching', { task })
@@ -45,7 +46,7 @@ export function acceptable(
   sessionId: string,
 ): { chain: ActiveChain; current: CurrentTask; session: HandoffSession; message: string } {
   if (!deps.projects().includes(project)) throw fail('chain.unknownProject', { project })
-  const chain = state.active.find((chain) => chain.project === project)
+  const chain = chainFor(state, project, task)
   const current = chain?.current?.task === task ? chain.current : null
   if (chain === undefined || current === null || isOwnName(task)) throw fail('chain.notCurrent', { task })
   if (current.sessionId === null || current.starting !== undefined) throw fail('chain.launching', { task })

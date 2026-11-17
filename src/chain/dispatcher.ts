@@ -17,12 +17,14 @@ import {
   type ActiveChain,
   type CarrySession,
   type ChainState,
+  type ChainMachines,
   type CurrentTask,
   type DispatcherDeps,
   type LaunchEntry,
   type ProjectOrder,
   type ReleaseReason,
 } from './model.js'
+import { heldFrom, laneMachine, laneOf, lanesOf, widens } from './lanes.js'
 import { byNumber, chainOrder, nextTask, openBlockers } from './order.js'
 import { LaunchPauses } from './pauses.js'
 import type { HandoffSession } from './relay.js'
@@ -86,7 +88,7 @@ export class Dispatcher {
     })
     this.unchanged = new Unchanged(deps, this.handovers, (chain, error) => this.halt(chain, error, true))
     this.talks = new Talks(state, deps, this.handovers, this.unchanged, this.pauses, {
-      chainOf: (project) => this.chainOf(project),
+      chainOf: (project, task) => this.chainOf(project, task),
       requireProject: (project) => this.requireProject(project),
       done: (project, task) => this.lists.done.get(project)?.has(task) === true,
       work: () => this.work,
@@ -117,7 +119,7 @@ export class Dispatcher {
       giveBack: (chain) => this.fixes!.giveBack(chain),
     })
     this.arrange = new Arrangement(state, deps, this.lists, this.fixes, this.carries, {
-      chainOf: (project) => this.chainOf(project),
+      chainOf: (project, task) => this.chainOf(project, task),
       currentOf: (project) => this.currentOf(project),
       requireProject: (project) => this.requireProject(project),
       release: (chain, reason, blockers) => this.release(chain, reason, blockers),
@@ -152,8 +154,7 @@ export class Dispatcher {
   }
 
   held(project: string): string[] {
-    const current = this.chainOf(project)?.current
-    const holds = current?.sessionId && !isOwnName(current.task) ? [current.task] : []
+    const holds = lanesOf(this.state, project).flatMap(({ current }) => (current?.sessionId && !isOwnName(current.task) ? [current.task] : []))
     return [...holds, ...this.released(project).filter((id) => !holds.includes(id))]
   }
 
@@ -239,8 +240,10 @@ export class Dispatcher {
 
   private enqueue(project: string): void {
     const { active, queue } = this.state
-    if (active.length < this.deps.parallel()) {
-      const chain = newChain(project)
+    const machines = this.deps.machines
+    const machine = machines === undefined ? undefined : this.placeFor(project)
+    if (machines === undefined ? active.length < this.deps.parallel() : machine !== undefined) {
+      const chain: ActiveChain = machine === undefined ? newChain(project) : { ...newChain(project), machine }
       this.pauses.admit(chain)
       active.push(chain)
     } else queue.push(project)
@@ -248,39 +251,51 @@ export class Dispatcher {
   }
 
   resume(project: string): void {
-    const chain = this.chainOf(project)
-    if (chain === undefined) return
-    const retry = chain.paused && chain.error?.code === 'review.notOpened' ? chain.current?.task : undefined
-    this.pauses.admit(chain)
-    if (retry !== undefined) this.reviews.retry(retry)
+    const lanes = lanesOf(this.state, project)
+    if (lanes.length === 0) return
+    for (const chain of lanes) {
+      const retry = chain.paused && chain.error?.code === 'review.notOpened' ? chain.current?.task : undefined
+      this.pauses.admit(chain)
+      if (retry !== undefined) this.reviews.retry(retry)
+    }
     this.changed()
   }
 
+  /** Stops every lane of the project. */
   stop(project: string): void {
     this.reviews.stopped(project)
-    const chain = this.chainOf(project)
-    if (chain === undefined) return
-    this.letGo(chain)
-    if (chain.interrupted !== undefined) this.remember(project, chain.interrupted.task)
-    this.drop(chain)
+    const lanes = lanesOf(this.state, project)
+    if (lanes.length === 0) return
+    for (const chain of lanes) this.stopLane(chain)
     this.changed()
   }
 
+  private stopLane(chain: ActiveChain): void {
+    this.letGo(chain)
+    if (chain.interrupted !== undefined) this.remember(chain.project, chain.interrupted.task)
+    this.drop(chain)
+  }
+
+  /** Every lane of the project sees its task through and stops. */
   stopAfter(project: string, on: boolean): void {
-    const chain = this.chainOf(project)
-    if (chain === undefined || (chain.stopAfter === true) === on) return
-    const { current } = chain
-    // A mark the ended turn may carry is the step's to follow first.
-    const waits = current !== null && (inTurn(this.deps, current) || (current.sessionId !== null && this.unchanged.closesByMark(current.task)))
-    if (on && chain.closing === undefined && !waits) {
-      // Nothing to wait out: stop now instead of flashing "stops after the turn" until the next step.
-      this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
-      this.stop(project)
-      return
+    let touched = false
+    for (const chain of lanesOf(this.state, project)) {
+      if ((chain.stopAfter === true) === on) continue
+      touched = true
+      const { current } = chain
+      // A mark the ended turn may carry is the step's to follow first.
+      const waits = current !== null && (inTurn(this.deps, current) || (current.sessionId !== null && this.unchanged.closesByMark(current.task)))
+      if (on && chain.closing === undefined && !waits) {
+        // Nothing to wait out: stop now instead of flashing "stops after the turn" until the next step.
+        this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
+        this.reviews.stopped(project)
+        this.stopLane(chain)
+        continue
+      }
+      if (on) chain.stopAfter = true
+      else delete chain.stopAfter
     }
-    if (on) chain.stopAfter = true
-    else delete chain.stopAfter
-    this.changed()
+    if (touched) this.changed()
   }
 
   dequeue(project: string): void {
@@ -479,12 +494,21 @@ export class Dispatcher {
     return notice('chain.empty', { project }, { cause: this.lists.whyEmpty(project, tasks) })
   }
 
-  /** The task the chain takes next by its list, the fix of a red main first; `undefined` — none. Throws on a broken order. */
-  private nextOf(project: string, tasks: Task[]): string | undefined {
+  /**
+   * The task the chain takes next by its list, the fix of a red main first; `undefined` — none. Throws on a broken order.
+   * With `machine` — what a lane on it may take (BTN-993): no task another lane or machine holds, none it cannot run,
+   * and the fix of main only in the project's head lane.
+   */
+  private nextOf(project: string, tasks: Task[], machine?: string, lane?: ActiveChain): string | undefined {
     const order = chainOrder(tasks, this.state.orders[project])
     const skipped = this.state.skipped[project] ?? []
-    const open = tasks.map((task) => task.id).filter((id) => !skipped.includes(id))
-    return this.main?.fixOf(project, open) ?? this.reviews.next(project, open) ?? nextTask(tasks, order, [...skipped, ...this.lists.waitingIds(project)])
+    const machines = this.deps.machines
+    const listed = tasks.map((task) => task.id)
+    const held = machines === undefined || machine === undefined ? [] : heldFrom(this.state, machines, project, machine, listed, lane)
+    const open = listed.filter((id) => !skipped.includes(id) && !held.includes(id))
+    const lanes = lanesOf(this.state, project)
+    const head = machine === undefined || lanes.length === 0 || lanes[0] === lane
+    return (head ? this.main?.fixOf(project, open) : undefined) ?? this.reviews.next(project, open) ?? nextTask(tasks, order, [...skipped, ...this.lists.waitingIds(project), ...held])
   }
 
   /**
@@ -500,8 +524,43 @@ export class Dispatcher {
     }
   }
 
-  private chainOf(project: string): ActiveChain | undefined {
-    return this.state.active.find((chain) => chain.project === project)
+  /** The project's head lane; with `task` — the lane holding it, else the head. */
+  private chainOf(project: string, task?: string): ActiveChain | undefined {
+    return (task === undefined ? undefined : laneOf(this.state, project, task)) ?? this.state.active.find((chain) => chain.project === project)
+  }
+
+  /** The machine whose capacity the lane takes; `undefined` — no machines, only `parallel` counts. */
+  private machineOf(chain: ActiveChain): string | undefined {
+    return this.deps.machines === undefined ? undefined : laneMachine(chain, this.deps.machines)
+  }
+
+  /**
+   * The machine a new lane of the project goes to (BTN-993): the first listed one with a free place that serves the
+   * project and has a task of it to run — a project with lanes already only while they all go plainly and fewer than
+   * its width. A project whose tasks no machine can take now goes to none; `undefined` — no machine takes it now.
+   */
+  private placeFor(project: string, only?: string): string | undefined {
+    const machines = this.deps.machines!
+    const lanes = lanesOf(this.state, project)
+    if (lanes.length > 0 && (lanes.length >= machines.width(project) || !widens(lanes))) return undefined
+    for (const { id, capacity } of machines.list()) {
+      if (only !== undefined && id !== only) continue
+      if (this.state.active.filter((chain) => this.machineOf(chain) === id).length >= capacity || !machines.serves(project, id)) continue
+      if (this.readyOn(project, id, lanes.length === 0)) return id
+    }
+    return undefined
+  }
+
+  /** The project has a task a new lane on the machine may take; a first lane goes also when no machine has one, to end or halt as before. */
+  private readyOn(project: string, machine: string, first: boolean): boolean {
+    const tasks = this.lists.tasks.get(project)
+    if (tasks === undefined) return first
+    try {
+      if (this.nextOf(project, tasks, machine) !== undefined) return true
+      return first && this.nextOf(project, tasks) === undefined && this.main?.sessionFix(project) === undefined
+    } catch {
+      return first
+    }
   }
 
   /** The task the chain leads; while a fix session of main runs — the task it interrupted, if any. */
@@ -515,14 +574,39 @@ export class Dispatcher {
     this.state.active = this.state.active.filter((each) => each !== chain)
   }
 
-  /** Takes queued projects while fewer chains than `parallel` are active; a lowered `parallel` stops nothing that runs. */
+  /**
+   * Takes queued projects while fewer chains than `parallel` are active; a lowered `parallel` stops nothing that runs.
+   * With machines (BTN-993) each machine with a free place pulls: the first project by the chain's order — the active
+   * ones, then the queue — that `placeFor` gives it gets a lane there.
+   */
   private fill(): void {
+    if (this.deps.machines !== undefined) {
+      this.pull(this.deps.machines)
+      return
+    }
     let taken = false
     while (this.state.active.length < this.deps.parallel()) {
       const next = this.state.queue.shift()
       if (next === undefined) break
       this.state.active.push(newChain(next))
       taken = true
+    }
+    if (taken) this.deps.save(this.state)
+  }
+
+  private pull(machines: ChainMachines): void {
+    let taken = false
+    for (const { id } of machines.list()) {
+      for (;;) {
+        const projects = [...new Set([...this.state.active.map((chain) => chain.project), ...this.state.queue])]
+        const project = projects.find((each) => this.placeFor(each, id) === id)
+        if (project === undefined) break
+        const queued = this.state.queue.indexOf(project)
+        if (queued >= 0) this.state.queue.splice(queued, 1)
+        if (lanesOf(this.state, project).length > 0) this.deps.log(`chain: ${project} takes another lane, on machine ${id}`)
+        this.state.active.push({ ...newChain(project), machine: id })
+        taken = true
+      }
     }
     if (taken) this.deps.save(this.state)
   }
@@ -604,7 +688,10 @@ export class Dispatcher {
           }
         }
         this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
-        this.stop(chain.project)
+        if (lanesOf(this.state, chain.project).length > 1) {
+          this.stopLane(chain)
+          this.changed()
+        } else this.stop(chain.project)
         return
       }
 
@@ -669,9 +756,11 @@ export class Dispatcher {
         }
       }
 
-      const fix = this.main?.sessionFix(chain.project)
+      // Only the project's head lane fixes main and carries a release project in (BTN-993).
+      const head = lanesOf(this.state, chain.project)[0] === chain
+      const fix = head ? this.main?.sessionFix(chain.project) : undefined
       // A carry goes after the current task and the one a fix interrupted, before the next by the chain's order (BTN-369).
-      const carry = fix === undefined && chain.interrupted === undefined ? this.carries.due(chain.project) : undefined
+      const carry = head && fix === undefined && chain.interrupted === undefined ? this.carries.due(chain.project) : undefined
       const own = fix ?? carry
       if (own === undefined && chain.fixOnly) {
         this.drop(chain)
@@ -684,8 +773,9 @@ export class Dispatcher {
       }
 
       let next: string | undefined
+      const machine = this.machineOf(chain)
       try {
-        next = this.nextOf(chain.project, tasks)
+        next = this.nextOf(chain.project, tasks, machine, chain)
       } catch (error) {
         this.halt(chain, noticeOf(error))
         return
@@ -694,12 +784,11 @@ export class Dispatcher {
       const listed = tasks.map((open) => open.id)
       const task = own?.task ?? next
       if (task === undefined) {
-        this.deps.log(`chain: ${chain.project} ended, no task left to run`)
-        this.reviews.ended(chain.project)
-        this.drop(chain)
-        this.deps.save(this.state)
+        this.endLane(chain, tasks)
         return
       }
+      // `nextOf` gave no task another machine holds: from here on its facts and launch are the lane's machine's.
+      if (machine !== undefined && own === undefined) this.deps.machines!.bind(chain.project, task, machine)
 
       const since = this.deps.now().toISOString()
       const found = this.deps.machine.liveSession(task)
@@ -769,6 +858,25 @@ export class Dispatcher {
         () => this.reviews.delivered(chain.project, task), (failure) => this.halt(chain, failure))
       return
     }
+  }
+
+  /**
+   * The lane has no task to take. Another lane of the project goes on: only this one ends. The last one ends the chain,
+   * unless a task is left that no machine of the lanes may take now — then the project waits in the queue for one.
+   */
+  private endLane(chain: ActiveChain, tasks: Task[]): void {
+    const machine = this.machineOf(chain)
+    this.drop(chain)
+    if (lanesOf(this.state, chain.project).length > 0) {
+      this.deps.log(`chain: a lane of ${chain.project} on machine ${machine} ends, no task left for it`)
+    } else if (machine !== undefined && this.nextOf(chain.project, tasks) !== undefined) {
+      this.deps.log(`chain: ${chain.project} waits for a machine that may take its next task`)
+      this.state.queue.unshift(chain.project)
+    } else {
+      this.deps.log(`chain: ${chain.project} ended, no task left to run`)
+      this.reviews.ended(chain.project)
+    }
+    this.deps.save(this.state)
   }
 
   private finish(chain: ActiveChain, task: string): Promise<boolean> {

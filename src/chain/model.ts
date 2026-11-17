@@ -35,6 +35,11 @@ export type Move = 'answer' | RelayAction | 'restart' | 'message' | 'checkpoint'
 
 export interface ActiveChain {
   project: string
+  /**
+   * The machine this lane of the project runs its tasks on (BTN-993); absent — the own machine. A project runs as many
+   * lanes at once as its width allows, each an active chain of its own; the first of them is its head.
+   */
+  machine?: string
   current: CurrentTask | null
   paused: boolean
   error: Notice | null
@@ -337,8 +342,10 @@ export interface DispatcherDeps {
   archiveClosed?: (project: string, task: string) => void
   /** The projects of the config as it is now. */
   projects: () => string[]
-  /** How many chains run at once; the rest wait in the queue. */
+  /** How many chains run at once; the rest wait in the queue. With `machines` — the own machine's capacity. */
   parallel: () => number
+  /** The machines tasks go to (BTN-993); absent — the own machine alone, `parallel` its capacity, every project one lane. */
+  machines?: ChainMachines
   /** The project's chain rules; with a task, the rules of the feed it comes from (BTN-66), whose tracker has statuses of its own. */
   rules: (project: string, task?: string) => ChainRules
   /** The project's current `fillMilestone` setting; absent means off. */
@@ -388,6 +395,27 @@ export interface DispatcherDeps {
   reviews?: ReviewDeps
   /** Without it a `NO CHANGES:` mark closes nothing. */
   unchanged?: Pick<UnchangedDeps, 'complete' | 'accept'>
+}
+
+/**
+ * The machines of the chain's pull (BTN-993): a machine with a free place takes the first project, in the chain's
+ * order, whose pool it is in, whose lanes are fewer than its width and that has a task ready for it.
+ */
+export interface ChainMachines {
+  /** The installation's own machine, the one of a lane without `machine`. */
+  own: () => string
+  /** The machines that take tasks now, in the order they pull, the own one first; one off the link is not listed. */
+  list: () => Array<{ id: string; capacity: number }>
+  /** The project's pool has the machine, turned on. */
+  serves: (project: string, machine: string) => boolean
+  /** How many of the project's tasks run at once (`width`, 1 by default). */
+  width: (project: string) => number
+  /** The machine the task stays with, launched there and not cleaned up yet; a revoked machine holds nothing. */
+  holder: (project: string, task: string) => string | undefined
+  /** The machine has an account of the task's agent, or no machine of the project's pool has one. */
+  runs: (project: string, task: string, machine: string) => boolean
+  /** The task goes to the machine: its facts and its launch are asked there from now on. */
+  bind: (project: string, task: string, machine: string) => void
 }
 
 export interface MainCheckDeps {

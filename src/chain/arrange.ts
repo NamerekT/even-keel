@@ -7,7 +7,8 @@ import type { ActiveChain, ChainState, DispatcherDeps, ReleaseReason } from './m
 import { checkOrder, startsAhead } from './order.js'
 
 export interface ArrangeHost {
-  chainOf: (project: string) => ActiveChain | undefined
+  /** The project's head lane; with `task` — the lane holding it, else the head. */
+  chainOf: (project: string, task?: string) => ActiveChain | undefined
   currentOf: (project: string) => string | undefined
   requireProject: (project: string) => void
   release: (chain: ActiveChain, reason: ReleaseReason, blockers: string[]) => void
@@ -39,7 +40,7 @@ export class Arrangement {
       return
     }
     if (!(this.lists.tasks.get(project) ?? []).some((open) => open.id === task)) throw fail('chain.notOpen', { task, project })
-    const chain = this.host.chainOf(project)
+    const chain = this.host.chainOf(project, task)
     const holder = chain !== undefined && chain.current?.task === task ? chain : null
     if (holder?.current?.sessionId === null) throw fail('chain.launching', { task })
     if (this.deps.machine.busy(task)) throw fail('chain.midTurn', { task })

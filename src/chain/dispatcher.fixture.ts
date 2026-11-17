@@ -4,7 +4,7 @@ import { textNotice, type Notice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
-import type { DispatcherDeps, LimitsWait, MainCheckDeps, ModelWeekHold, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
+import type { ChainMachines, DispatcherDeps, LimitsWait, MainCheckDeps, ModelWeekHold, PullCleanup, ReviewDeps, UnchangedDeps } from './model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 import { DEFAULT_RULES, type ChainRules } from './rules.js'
 export const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
@@ -89,6 +89,26 @@ export interface SetupOptions {
   pullRequests?: boolean
   /** Every project is one without git (BTN-883). */
   plain?: boolean
+  /** The machines of the chain's pull (BTN-993); absent — the own machine alone. */
+  machines?: ChainMachines
+}
+
+/** The machines of the chain's pull for a test: `own` first, every one serving every project, each task free to bind. */
+export function fakeMachines(capacities: Record<string, number>, options: { width?: Record<string, number>; runs?: ChainMachines['runs']; held?: Record<string, string>; serves?: ChainMachines['serves'] } = {}) {
+  const bound: Record<string, string> = { ...options.held }
+  const listed = { ...capacities }
+  const machines: ChainMachines = {
+    own: () => Object.keys(capacities)[0]!,
+    list: () => Object.entries(listed).map(([id, capacity]) => ({ id, capacity })),
+    serves: options.serves ?? (() => true),
+    width: (project) => options.width?.[project] ?? 1,
+    holder: (_project, task) => bound[task],
+    runs: options.runs ?? (() => true),
+    bind: (_project, task, machine) => {
+      bound[task] = machine
+    },
+  }
+  return { machines, bound, listed }
 }
 
 export function setup(options: SetupOptions = {}) {
@@ -244,6 +264,7 @@ export function setup(options: SetupOptions = {}) {
     ...(options.unchanged === undefined ? {} : { unchanged: options.unchanged }),
     ...(options.pullRequests === true ? { pullRequests: () => true } : {}),
     ...(options.plain === true ? { plain: () => true } : {}),
+    ...(options.machines === undefined ? {} : { machines: options.machines }),
   })
   return {
     dispatcher,
