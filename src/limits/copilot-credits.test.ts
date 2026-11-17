@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { askCopilot, askCopilotToken, billingLimits, copilotLimits, COPILOT_USER_URL } from './copilot.js'
 
@@ -61,6 +62,33 @@ describe('Copilot AI credits', () => {
     expect(await askCopilotToken('fake', AT, 1000, fetchImpl)).toMatchObject({ kind: 'missing', reason: { code: 'usage.copilotNoQuota' } })
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
+})
+
+describe('Copilot unlimited flag contradicted by the quota (EKR-133)', () => {
+  const SPENT: { quota_snapshots: { premium_interactions: Record<string, unknown> } } =
+    JSON.parse(readFileSync('test/fixtures/limits/copilot-business-spent.json', 'utf8'))
+  const spent = SPENT.quota_snapshots.premium_interactions
+
+  it('reads a spent Business seat as a spent month, not unlimited', async () => {
+    expect(copilotLimits(SPENT, AT)).toMatchObject({
+      month: { usedPercentage: 100, left: 0, resetsAt: RESET }, overage: { enabled: false },
+    })
+    const fetchImpl = vi.fn(async () => Response.json(SPENT))
+    expect(await askCopilot('fake', AT, 1000, fetchImpl)).toMatchObject({ kind: 'limits', limits: { month: { left: 0 } } })
+  })
+
+  it.each([{ remaining: 5 }, { entitlement: 300 }])('is spent when only one of remaining and entitlement is zero: %o', (field) => {
+    expect(copilotLimits(quota({ ...spent, ...field }), AT)).toMatchObject({ month: { usedPercentage: 100, left: 0 } })
+  })
+
+  it('keeps the same shape with overage permitted unlimited', () => {
+    expect(copilotLimits(quota({ ...spent, overage_permitted: true }), AT)).toBe('unlimited')
+  })
+
+  it.each([{ credits_used: 0 }, { credits_used: undefined }, { overage_permitted: undefined }, { remaining: 5, entitlement: 300 }])(
+    'keeps a flag nothing contradicts unlimited: %o', (field) => {
+      expect(copilotLimits(quota({ ...spent, ...field }), AT)).toBe('unlimited')
+    })
 })
 
 describe('Copilot AI credit billing fallback', () => {
