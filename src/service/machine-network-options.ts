@@ -2,7 +2,7 @@ import { basename, posix, win32 } from 'node:path'
 import type { TokenAccountOf } from '../account/model.js'
 import type { HubCertificate } from '../link/cert.js'
 import type { HubStore } from '../link/hub-store.js'
-import type { HookAnswer, HookRequest, McpAnswer, McpRequest } from '../link/protocol.js'
+import type { HookAnswer, HookRequest, McpAnswer, McpRequest, TallyAnswer } from '../link/protocol.js'
 import type { MachineProjectSettings, PoolServer } from '../link/view.js'
 import type { HubBrief } from '../machine/brief.js'
 import type { RemoteDeps, RemoteMachine } from '../machine/remote.js'
@@ -29,6 +29,8 @@ export interface NetworkPeers {
   mcp: (machine: string, request: McpRequest) => Promise<McpAnswer>
   /** A hook of a session on the machine asking the hub's page (BTN-1260). */
   hook: (machine: string, request: HookRequest) => Promise<HookAnswer>
+  /** Rows of the machine's own Tally collector (BTN-1280); absent — none are taken. */
+  tally?: (machine: string, rows: unknown) => Promise<TallyAnswer>
   write: (machine: string, write: KeptWrite) => Promise<void>
 }
 

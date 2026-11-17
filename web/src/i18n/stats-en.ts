@@ -22,6 +22,7 @@ export const statsEN: Messages['stats'] = {
     scopes: { all: 'all', chain: 'chain' },
     sessions: 'Sessions',
     account: 'Account',
+    machine: 'Machine',
     all: 'all',
     read: (at: string) => `Tally · read ${at}`,
     others: 'others',

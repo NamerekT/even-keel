@@ -7,6 +7,8 @@ export interface StatsFilter {
   scope: StatsScope
   account: string | null
   tz: string
+  /** One machine's sessions (BTN-1280); absent — every machine's. */
+  machine?: string
 }
 
 export interface PeriodQuery extends StatsFilter {
@@ -186,7 +188,8 @@ export function parseStatsFilter(params: URLSearchParams): StatsFilter {
   const account = params.get('account') || null
   const tz = params.get('tz') || 'UTC'
   if (!ZONE.test(tz)) throw new Error('tz must be a time zone name')
-  return { scope, account, tz, ...(params.get('tests') === '1' ? { includeTests: true } : {}) }
+  const machine = params.get('machine') || undefined
+  return { scope, account, tz, ...(params.get('tests') === '1' ? { includeTests: true } : {}), ...(machine === undefined ? {} : { machine }) }
 }
 
 export function parsePeriodQuery(params: URLSearchParams): PeriodQuery {

@@ -12,6 +12,7 @@ import { machinesPortOf } from '../link/address.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { hubIdentity } from '../link/identity.js'
 import { MachineNetwork } from './machine-network.js'
+import { MachineTally } from '../stats/machine-tally.js'
 import { HubEnd } from '../link/hub.js'
 import { LOCAL_HEARTBEAT_MS, LocalTransport } from '../link/local.js'
 import { DatabaseMachineStore, MACHINE_DIR } from '../link/machine-store.js'
@@ -95,7 +96,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * the local port runs behind `MachineRunner`, and the two talk through `HubEnd` and `MachineEnd` over a carrier that
  * is a call. Nothing is connected until `start`.
  */
-export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb' | 'packageHub' | 'protectionAudit' | 'mailRelay'>, machine: MachineContext): Promise<LinkedMachine> {
+export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb' | 'packageHub' | 'protectionAudit' | 'mailRelay' | 'tally'>, machine: MachineContext): Promise<LinkedMachine> {
   const log = (line: string): void => console.log(line)
   const { machineDb } = ctx
   const hubStore = new DatabaseHubStore(ctx.db)
@@ -257,6 +258,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     }
   }
   const hubMcp = new HubMcp({ db: ctx.db, origin: () => ctx.packageHub.hubOrigin, projects: () => Object.keys(ctx.configStore.current.projects), log })
+  const machineTally = new MachineTally({ writer: () => ctx.tally.writer(), log })
   const hubHooks = new HubHooks({
     origin: () => localUrlOf(machine.listen),
     holder: (session): string | undefined => (remote.page.sessions().some((view) => view.sessionId === session) ? own : network.holderOf(session)),
@@ -320,6 +322,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       connected: (machine) => polls.connected(machine),
       mcp: (machine, request) => hubMcp.relay(machine, request),
       hook: (machine, request) => hubHooks.relay(machine, request),
+      tally: (machine, rows) => machineTally.take(machine, rows),
       write: (machine, write) => hubMcp.write(machine, write),
     },
     takeOverOwn: async (project, owner) => {

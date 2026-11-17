@@ -3,7 +3,7 @@ import type { HubStore, MachineRecord } from './hub-store.js'
 import {
   API_VERSION, HEARTBEAT_MS, INVITE_MS, MISSED_PULSES, credentialsOf, encodeToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type JoinAnswer, type JoinPost, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
-  type McpRequest, type Refusal, type SnapshotPost,
+  type McpRequest, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost,
 } from './protocol.js'
 
 /** A connection string just issued: the line is shown once, the hub keeps only the hash of its secret. */
@@ -31,6 +31,8 @@ export interface HubHandlers {
   mcp?(machine: string, request: McpRequest): Promise<McpAnswer>
   /** A session's hook asking the hub's page, carried from the machine's receiver (BTN-1260). */
   hook?(machine: string, request: HookRequest): Promise<HookAnswer>
+  /** Rows of the machine's own Tally collector (BTN-1280); without a handler none are taken. */
+  tally?(machine: string, rows: unknown): Promise<TallyAnswer>
 }
 
 export interface HubOptions {
@@ -217,6 +219,12 @@ export class HubEnd {
   async hook(authorization: string | undefined, post: HookPost): Promise<HookAnswer | Refusal> {
     const handler = this.options.handlers.hook
     return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.request) ?? { status: 404, body: '' })
+  }
+
+  /** Rows of the machine's Tally collector (BTN-1280): as `mcp`, not queued with its events and counted as its pulse. */
+  async tally(authorization: string | undefined, post: TallyPost): Promise<TallyAnswer | Refusal> {
+    const handler = this.options.handlers.tally
+    return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.rows) ?? { taken: false })
   }
 
   private otherVersion(): Refusal {

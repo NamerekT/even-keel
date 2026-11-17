@@ -3,8 +3,8 @@ import { connect, type TLSSocket } from 'node:tls'
 import { fingerprintOf } from './cert.js'
 import type { HubTransport, StreamSink } from './machine.js'
 import {
-  API_VERSION, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, bearerOf, isRefusal,
-  type ConnectionToken, type EventsAnswer, type Frame, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal,
+  API_VERSION, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, bearerOf, isRefusal,
+  type ConnectionToken, type EventsAnswer, type Frame, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type TallyAnswer,
 } from './protocol.js'
 
 export interface TransportOptions {
@@ -18,6 +18,8 @@ const TIMEOUT_MS = 15_000
 const MCP_TIMEOUT_MS = 10 * 60_000
 /** A hook gives up on Even Keel in 2 s (5 s for its mail and note): the connection and the answer each fit in it. */
 export const HOOK_TIMEOUT_MS = 1_800
+/** A post of Tally rows is up to 2 MB the hub writes into its database before it answers. */
+const TALLY_TIMEOUT_MS = 2 * 60_000
 
 /**
  * A TLS connection to the token's hub, checked before a byte is written to it, so the secret goes to no other server.
@@ -184,6 +186,7 @@ export function httpsTransport(token: ConnectionToken, options: TransportOptions
     events: (body) => post<EventsAnswer>(EVENTS_PATH, body, counted),
     snapshot: (body) => post<EventsAnswer>(SNAPSHOT_PATH, body, counted),
     mcp: (body) => post<McpAnswer>(MCP_PATH, body, answered, MCP_TIMEOUT_MS),
+    tally: (body) => post<TallyAnswer>(TALLY_PATH, body, (value) => typeof (value as TallyAnswer).taken === 'boolean', TALLY_TIMEOUT_MS),
     hook: (body) => {
       const limit = Math.min(timeoutMs, HOOK_TIMEOUT_MS)
       return postTo<HookAnswer>(token, HOOK_PATH, body, (value) => typeof (value as HookAnswer).status === 'number' && typeof (value as HookAnswer).body === 'string', limit, limit)

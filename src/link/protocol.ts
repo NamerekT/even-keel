@@ -5,7 +5,7 @@
 import type { MachineAbout } from './view.js'
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 10
+export const API_VERSION = 11
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -21,6 +21,7 @@ export const EVENTS_PATH = '/link/events'
 export const SNAPSHOT_PATH = '/link/snapshot'
 export const MCP_PATH = '/link/mcp'
 export const HOOK_PATH = '/link/hook'
+export const TALLY_PATH = '/link/tally'
 /** The one post of a connection string: it is exchanged for the machine's own secret (BTN-1242). */
 export const JOIN_PATH = '/link/join'
 
@@ -185,6 +186,21 @@ export interface HookAnswer {
 export interface HookPost {
   connection: string
   request: HookRequest
+}
+
+/**
+ * Rows of a machine's own Tally collector (BTN-1280, `docs/tally.md`, "Machines elsewhere"): not an event, so a hub
+ * whose stats are off or not open yet never holds the machine's events back. The number and the receipt are the
+ * machine's read mark, moved only on `taken`; the rows are written by their keys, so a post sent again changes nothing.
+ */
+export interface TallyPost {
+  connection: string
+  rows: unknown
+}
+
+/** `taken: false` — the hub keeps no stats now: the machine keeps its marks and sends the rows again later. */
+export interface TallyAnswer {
+  taken: boolean
 }
 
 /** The events a machine writes about the link itself. */

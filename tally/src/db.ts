@@ -1,6 +1,7 @@
 import pg from 'pg'
 import { stat } from 'node:fs/promises'
 import type { SessionKeySpend } from '../../src/account/spend.js'
+import { tallyVersion } from '../../src/stats/tally-schema.js'
 import type { TaskSource } from '../../src/chain/launches.js'
 import type { Entry } from '../../src/sessions/entry.js'
 import type { CatalogueModel } from './catalogue.js'
@@ -8,6 +9,7 @@ import type { ClosedState } from './closed-tasks.js'
 import type { ClassifySettings, DbSettings, Price } from './config.js'
 import type { Snapshot } from './limits.js'
 import type { FileState, Store } from './load.js'
+import { machineAccount, type MachineRows } from './machine-rows.js'
 import type { TaskRecord, TimeReport } from './huly.js'
 import type { Batch, Launch, MessageRow } from './parse.js'
 import type { RuleChange, VersionSource } from './rule-changes.js'
@@ -118,6 +120,11 @@ export class TallyDb implements Store {
     return migrate(pgDb(this.client))
   }
 
+  /** The schema version the database is at; 0 — none yet. */
+  version(): Promise<number> {
+    return tallyVersion(this.client)
+  }
+
   async files(): Promise<Map<string, FileState>> {
     const result = await this.client.query(
       `select path, account, read_to, size, mtime, ino, head, head_len from files`,
@@ -141,67 +148,7 @@ export class TallyDb implements Store {
 
   async write(batch: Batch, file: FileState): Promise<void> {
     await this.transaction(async () => {
-      await this.upsert(
-        `insert into lines (uuid, session_id, agent_id, type, at, raw)
-         select uuid, session_id, agent_id, type, at, raw
-         from jsonb_to_recordset($1::jsonb) as x(uuid text, session_id text, agent_id text, type text, at timestamptz, raw jsonb)
-         on conflict (uuid) do nothing`,
-        batch.lines,
-      )
-      await this.upsert(
-        `insert into messages
-         select * from jsonb_to_recordset($1::jsonb) as x(
-           message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
-           branch text, entrypoint text, model text, speed text, at timestamptz,
-           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text, provider text)
-         on conflict (message_id) do update set
-           provider = coalesce(excluded.provider, messages.provider),
-           at = least(messages.at, excluded.at),
-           input = greatest(messages.input, excluded.input),
-           cache_write_5m = greatest(messages.cache_write_5m, excluded.cache_write_5m),
-           cache_write_1h = greatest(messages.cache_write_1h, excluded.cache_write_1h),
-           cache_read = greatest(messages.cache_read, excluded.cache_read),
-           output = greatest(messages.output, excluded.output),
-           speed = coalesce(excluded.speed, messages.speed),
-           effort = coalesce(excluded.effort, messages.effort)`,
-        batch.messages,
-      )
-      await this.upsert(
-        `insert into tool_calls (tool_use_id, session_id, message_id, task, name, input_hash, brief, at)
-         select * from jsonb_to_recordset($1::jsonb) as x(
-           tool_use_id text, session_id text, message_id text, task text, name text, input_hash text, brief text, at timestamptz)
-         on conflict (tool_use_id) do update set
-           session_id = coalesce(tool_calls.session_id, excluded.session_id),
-           message_id = coalesce(tool_calls.message_id, excluded.message_id),
-           task = coalesce(tool_calls.task, excluded.task),
-           name = excluded.name, input_hash = excluded.input_hash, brief = excluded.brief,
-           at = least(tool_calls.at, excluded.at)`,
-        batch.calls,
-      )
-      await this.upsert(
-        `insert into tool_calls (tool_use_id, result_at, is_error, error_kind, error_text)
-         select * from jsonb_to_recordset($1::jsonb) as x(
-           tool_use_id text, result_at timestamptz, is_error boolean, error_kind text, error_text text)
-         on conflict (tool_use_id) do update set
-           result_at = excluded.result_at, is_error = excluded.is_error,
-           error_kind = excluded.error_kind, error_text = excluded.error_text`,
-        batch.results,
-      )
-      await this.upsert(
-        `insert into sessions
-         select * from jsonb_to_recordset($1::jsonb) as x(
-           session_id text, account text, project text, custom_title text, ai_title text,
-           launch_task text, launch_reason text, first_at timestamptz, last_at timestamptz)
-         on conflict (session_id) do update set
-           project = coalesce(sessions.project, excluded.project),
-           custom_title = coalesce(excluded.custom_title, sessions.custom_title),
-           ai_title = coalesce(excluded.ai_title, sessions.ai_title),
-           launch_task = coalesce(excluded.launch_task, sessions.launch_task),
-           launch_reason = coalesce(excluded.launch_reason, sessions.launch_reason),
-           first_at = least(sessions.first_at, excluded.first_at),
-           last_at = greatest(sessions.last_at, excluded.last_at)`,
-        batch.sessions,
-      )
+      await this.writeRows(batch)
       await this.writeRuleRows(batch)
       await this.client.query(
         `insert into files (path, account, read_to, size, mtime, ino, head, head_len, read_at)
@@ -212,6 +159,83 @@ export class TallyDb implements Store {
         [file.path, file.account, file.offset, file.size, file.mtime, file.ino, file.head, file.headLen],
       )
     })
+  }
+
+  /**
+   * The rows a machine elsewhere sent of one chunk (BTN-1280), marked with its id and its accounts made its own. Its
+   * read marks stay on the machine; a chunk sent again writes the same rows, by their keys.
+   */
+  async writeMachine(machine: string, rows: MachineRows): Promise<void> {
+    const marked = <T extends { account: string }>(row: T) => ({ ...row, account: machineAccount(row.account, machine), machine })
+    await this.transaction(() =>
+      this.writeRows({ ...rows, messages: rows.messages.map(marked), sessions: rows.sessions.map(marked) }),
+    )
+  }
+
+  /** `machine` is a column of the row: empty on the hub's own rows, which never carry it. */
+  private async writeRows(batch: Pick<Batch, 'lines' | 'messages' | 'calls' | 'results' | 'sessions'> | MachineRows): Promise<void> {
+    await this.upsert(
+      `insert into lines (uuid, session_id, agent_id, type, at, raw)
+       select uuid, session_id, agent_id, type, at, raw
+       from jsonb_to_recordset($1::jsonb) as x(uuid text, session_id text, agent_id text, type text, at timestamptz, raw jsonb)
+       on conflict (uuid) do nothing`,
+      batch.lines,
+    )
+    await this.upsert(
+      `insert into messages (message_id, session_id, agent_id, account, project, project_dir, task, branch, entrypoint, model, speed, at,
+         input, cache_write_5m, cache_write_1h, cache_read, output, effort, provider, machine)
+       select * from jsonb_to_recordset($1::jsonb) as x(
+         message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
+         branch text, entrypoint text, model text, speed text, at timestamptz,
+         input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text, provider text, machine text)
+       on conflict (message_id) do update set
+         provider = coalesce(excluded.provider, messages.provider),
+         at = least(messages.at, excluded.at),
+         input = greatest(messages.input, excluded.input),
+         cache_write_5m = greatest(messages.cache_write_5m, excluded.cache_write_5m),
+         cache_write_1h = greatest(messages.cache_write_1h, excluded.cache_write_1h),
+         cache_read = greatest(messages.cache_read, excluded.cache_read),
+         output = greatest(messages.output, excluded.output),
+         speed = coalesce(excluded.speed, messages.speed),
+         effort = coalesce(excluded.effort, messages.effort)`,
+      batch.messages,
+    )
+    await this.upsert(
+      `insert into tool_calls (tool_use_id, session_id, message_id, task, name, input_hash, brief, at)
+       select * from jsonb_to_recordset($1::jsonb) as x(
+         tool_use_id text, session_id text, message_id text, task text, name text, input_hash text, brief text, at timestamptz)
+       on conflict (tool_use_id) do update set
+         session_id = coalesce(tool_calls.session_id, excluded.session_id),
+         message_id = coalesce(tool_calls.message_id, excluded.message_id),
+         task = coalesce(tool_calls.task, excluded.task),
+         name = excluded.name, input_hash = excluded.input_hash, brief = excluded.brief,
+         at = least(tool_calls.at, excluded.at)`,
+      batch.calls,
+    )
+    await this.upsert(
+      `insert into tool_calls (tool_use_id, result_at, is_error, error_kind, error_text)
+       select * from jsonb_to_recordset($1::jsonb) as x(
+         tool_use_id text, result_at timestamptz, is_error boolean, error_kind text, error_text text)
+       on conflict (tool_use_id) do update set
+         result_at = excluded.result_at, is_error = excluded.is_error,
+         error_kind = excluded.error_kind, error_text = excluded.error_text`,
+      batch.results,
+    )
+    await this.upsert(
+      `insert into sessions (session_id, account, project, custom_title, ai_title, launch_task, launch_reason, first_at, last_at, machine)
+       select * from jsonb_to_recordset($1::jsonb) as x(
+         session_id text, account text, project text, custom_title text, ai_title text,
+         launch_task text, launch_reason text, first_at timestamptz, last_at timestamptz, machine text)
+       on conflict (session_id) do update set
+         project = coalesce(sessions.project, excluded.project),
+         custom_title = coalesce(excluded.custom_title, sessions.custom_title),
+         ai_title = coalesce(excluded.ai_title, sessions.ai_title),
+         launch_task = coalesce(excluded.launch_task, sessions.launch_task),
+         launch_reason = coalesce(excluded.launch_reason, sessions.launch_reason),
+         first_at = least(sessions.first_at, excluded.first_at),
+         last_at = greatest(sessions.last_at, excluded.last_at)`,
+      batch.sessions,
+    )
   }
 
   async writeRules(rows: RuleRows): Promise<void> {

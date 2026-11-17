@@ -9,6 +9,11 @@ describe('parseView', () => {
     expect(viewSearch({ ...DEFAULT_VIEW, includeTests: true })).toBe('tests=1')
     expect(parse('tests=0').includeTests).not.toBe(true)
   })
+  it('keeps the chosen machine in the address (BTN-1280)', () => {
+    expect(parse('machine=machine-far').machine).toBe('machine-far')
+    expect(viewSearch({ ...DEFAULT_VIEW, machine: 'machine-far' })).toBe('machine=machine-far')
+    expect(parse('machine=').machine).toBeUndefined()
+  })
   it('defaults to 30 sliding days over all projects and sessions', () => {
     expect(parse('')).toEqual(DEFAULT_VIEW)
     expect(DEFAULT_VIEW).toEqual({ period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null, places: null })

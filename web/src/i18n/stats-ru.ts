@@ -21,6 +21,7 @@ export const statsRU = {
     scopes: { all: 'все', chain: 'цепочка' },
     sessions: 'Сессии',
     account: 'Аккаунт',
+    machine: 'Машина',
     all: 'все',
     read: (at: string) => `Tally · прочитано ${at}`,
     others: 'прочие',

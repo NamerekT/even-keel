@@ -13,6 +13,7 @@ import { machineAbout } from './machine/about.js'
 import type { HubBrief } from './machine/brief.js'
 import { folderMarks } from './machine/marks.js'
 import { machineValue } from './machine/state.js'
+import { machineMarks, startMachineTally } from './machine/tally.js'
 import { KEEP_WARM_TICK_MS } from './sessions/keepwarm.js'
 import { Writes } from './storage/database.js'
 import { installed } from './updates/watcher.js'
@@ -25,8 +26,9 @@ import { CONTACT_EVERY_MS, contactKeeper, holdInstallation } from './service/mac
 import { wireMachineSide } from './service/machine-side.js'
 
 // A machine of a hub elsewhere (`docs/machines.md`, "Machines elsewhere", BTN-1247): the machine's assembly and its end
-// of the link over HTTPS, nothing of the hub — no state database, no page, no trackers, no Tally. `src/start.ts` loads
-// this module instead of the service once `join` made the installation a machine.
+// of the link over HTTPS, nothing of the hub — no state database, no page, no trackers, no Tally database: its Tally
+// collector sends its rows to the hub (BTN-1280). `src/start.ts` loads this module instead of the service once `join`
+// made the installation a machine.
 
 const log = (line: string): void => console.log(line)
 const stateDir = stateDirOf()
@@ -109,14 +111,17 @@ await side.moves.start()
 await side.end.start()
 log(`machine: connecting to the hub ${token.hub} as machine ${token.machine}`)
 // The hub's servers are reached over the link once the first connection may have brought the brief that names them.
+let tally: { stop(): void } | undefined
 void side.online.then(() => {
   log('machine: the hub took the first snapshot')
   side.throughHub()
   pollWorks()
+  tally = startMachineTally({ homes: () => host.homes.all(), marks: machineMarks(machineDb), send: (rows) => side.end.tally(rows), log })
 })
 
 stopOnSignals(async () => {
   clearInterval(contact)
+  tally?.stop()
   side.moves.stop()
   host.cliChecks.stop()
   await Promise.allSettled([host.packages.close(), machine.writes.settled(), writes.settled()])

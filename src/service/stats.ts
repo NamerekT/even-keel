@@ -24,6 +24,7 @@ type StatsContext = Pick<ServiceContext,
   | 'hub'
   | 'limits'
   | 'listen'
+  | 'machineLink'
   | 'newTally'
   | 'owners'
   | 'pinnedCheckpoint'
@@ -74,6 +75,9 @@ export function wireStats(ctx: StatsContext): StatsReader {
     () => ctx.configStore.current.stats,
     (key) => ctx.pinnedCheckpoint(firstByKey(ctx.configStore.current)[key]),
     () => [...new Set(Object.entries(ctx.configStore.current.settings).filter(([, settings]) => settings.testProject).map(([id]) => ctx.configStore.current.keys[id]!))],
+    undefined,
+    // Asked only by a filter by machine, from the page: the link is wired by then.
+    () => ctx.machineLink.machines.own(),
   )
 }
 

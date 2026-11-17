@@ -32,6 +32,13 @@ import './stats.css'
 
 const SCOPES: StatsScope[] = ['all', 'chain']
 
+/** An account of a machine elsewhere is `<key>@<machine id>` in Tally (BTN-1280): its key and the machine's name. */
+function accountLabel(state: EvenKeelState, machineNames: Record<string, string>, account: string): string {
+  const at = account.lastIndexOf('@')
+  const name = at < 0 ? undefined : machineNames[account.slice(at + 1)]
+  return name === undefined ? folderLabel(state.account, account) : `${account.slice(0, at)} · ${name}`
+}
+
 export function StatsPage({ state }: { state: EvenKeelState }) {
   const [params, setParams] = useSearchParams()
   const view = parseView(params)
@@ -44,7 +51,10 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   const slotsKey = JSON.stringify(slots)
 
   const tests = state.projects.filter(id => state.config.projects[id]?.testProject).map(id => state.projectKeys[id]!)
-  const filter: StatsFilter = { scope: view.scope, account: view.account, tz, ...(view.includeTests ? { includeTests: true } : {}) }
+  const machineNames = state.machineNames ?? {}
+  const filter: StatsFilter = {
+    scope: view.scope, account: view.account, tz, ...(view.includeTests ? { includeTests: true } : {}), ...(view.machine === undefined ? {} : { machine: view.machine }),
+  }
   const visibilityKey = JSON.stringify(tests)
   const historyKey = JSON.stringify(filter) + visibilityKey
   const historyLoaded = useStatsAnswer(historyKey, () => statsHistory(filter))
@@ -139,11 +149,21 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               value={view.account ?? ''}
               options={[
                 { value: '', label: t.stats.all },
-                ...[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => ({ value: account, label: folderLabel(state.account, account) })),
+                ...[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => ({ value: account, label: accountLabel(state, machineNames, account) })),
               ]}
               onChange={(account) => setView({ account: account || null })}
             />
           </label>
+          {Object.keys(machineNames).length > 1 && (
+            <label className="stats-page__filter">
+              {t.stats.machine}
+              <Select
+                value={view.machine ?? ''}
+                options={[{ value: '', label: t.stats.all }, ...Object.entries(machineNames).map(([id, name]) => ({ value: id, label: name }))]}
+                onChange={(machine) => setView({ machine: machine || undefined })}
+              />
+            </label>
+          )}
         </div>
       </PageHead>
 

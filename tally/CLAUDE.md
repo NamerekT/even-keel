@@ -6,6 +6,7 @@ The collector of session stats: it reads the transcripts of every account (Claud
 | --- | --- |
 | Running, What is read | the service's runs, a run by hand, the sources of every agent, incremental loading |
 | Schema version and migrations, Schema | `schema_version`, the steps so far, every table and view, a response's task |
+| Machines elsewhere | a machine's collector, `POST /link/tally`, the machine mark, `/stats` by machine |
 | Compressing raw rows, Cost, Limit share | what `lines.raw` keeps, prices and `longPrompt`, limit windows and shares |
 | Signs, Task time, Steps, Classifier | stuck spans, turns and waiting, long commands, the span reasons from LiteLLM |
 | Tasks from Huly | task fields, follow-ups, where a task lives, the time reports |

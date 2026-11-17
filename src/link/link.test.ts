@@ -78,6 +78,22 @@ describe('the hub ↔ machine link', () => {
     expect(hooked).toHaveLength(1)
   })
 
+  it('carries Tally rows to the hub; not taken while its stats are off or the hub is away (BTN-1280)', async () => {
+    const { end, wire, tallied, tallyOn, id } = await started()
+    const rows = { lines: [], messages: [], calls: [], results: [], sessions: [{ sessionId: 's-1' }] }
+    expect(await end.tally(rows)).toBe(true)
+    expect(tallied).toEqual([{ machine: id, rows }])
+    tallyOn.on = false
+    expect(await end.tally(rows)).toBe(false)
+    tallyOn.on = true
+    wire.down = true
+    expect(await end.tally(rows)).toBe(false)
+    wire.down = false
+    end.stop()
+    expect(await end.tally(rows)).toBe(false)
+    expect(tallied).toHaveLength(1)
+  })
+
   it('numbers the commands per machine and runs them in order', async () => {
     const { hub, id, ran, hubStore } = await started()
     expect(await hub.send(id, { type: 'example.first' })).toBe(1)

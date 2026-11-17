@@ -14,7 +14,7 @@ import type {
   StatsTaskDetail,
   StatsTotals,
 } from './model.js'
-import { BASE, excludingProjects, familyOf } from './base-sql.js'
+import { BASE, excludingProjects, familyOf, onMachine } from './base-sql.js'
 import { mapCalibration, type Calibration } from './calibration.js'
 import { checkpointThreshold, type CheckpointMeasure, type CheckpointThreshold } from './checkpoint.js'
 import { folderGroups, repoTail } from './model.js'
@@ -481,6 +481,8 @@ export class StatsReader {
     private readonly testProjects: () => string[] = () => [],
     /** The schema version of the build on disk: a database newer than this service but not than it asks for a restart. */
     private readonly built: () => number = builtTallyVersion,
+    /** The hub's own machine: its rows carry no machine (BTN-1280). Asked only for a filter by machine. */
+    private readonly ownMachine: () => string = () => '',
   ) {
     this.setReader(settings)
   }
@@ -657,7 +659,9 @@ export class StatsReader {
   private async query(pool: pg.Pool, sql: string, filter: StatsFilter, extra: unknown[] = []): Promise<Row[]> {
     const { dirs, labels } = await this.groups(pool)
     const params = [this.keys, this.dirs, filter.tz, filter.scope, filter.account, dirs, labels, ...extra]
-    const result = await pool.query<Row>(excludingProjects(sql, params.length + 1), [...params, filter.includeTests ? [] : this.testProjects()])
+    const machine = filter.machine === undefined ? null : filter.machine === this.ownMachine() ? '' : filter.machine
+    const bound = onMachine(excludingProjects(sql, params.length + 1), params.length + 2)
+    const result = await pool.query<Row>(bound, [...params, filter.includeTests ? [] : this.testProjects(), machine])
     return result.rows
   }
 

@@ -5,7 +5,7 @@ import type { Consent, MachineStore } from './machine-store.js'
 import {
   bearerOf, isRefusal, parseToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand, type Refusal,
-  type HookAnswer, type HookPost, type HookRequest, type SnapshotPost,
+  type HookAnswer, type HookPost, type HookRequest, type SnapshotPost, type TallyAnswer, type TallyPost,
 } from './protocol.js'
 
 export const HUB_ADDRESS = 'https://hub.example.com:4750'
@@ -246,6 +246,10 @@ export class Wire implements HubTransport {
     return this.carry(async () => carried(await this.hub.hook(this.authorization, carried(post))))
   }
 
+  async tally(post: TallyPost): Promise<TallyAnswer | Refusal> {
+    return this.carry(async () => carried(await this.hub.tally(this.authorization, carried(post))))
+  }
+
   private async carry<T>(call: () => Promise<T>): Promise<T> {
     if (this.down) throw new Error('the hub is unreachable')
     if (this.hang) return new Promise<T>(() => {})
@@ -267,6 +271,8 @@ export async function bench() {
   const refuseEvents = { on: false }
   const asked: { machine: string; request: McpRequest }[] = []
   const hooked: { machine: string; request: HookRequest }[] = []
+  const tallied: { machine: string; rows: unknown }[] = []
+  const tallyOn = { on: true }
   const hub = new HubEnd({
     store: hubStore,
     version: '0.4.0',
@@ -287,6 +293,11 @@ export async function bench() {
         hooked.push({ machine, request })
         return { status: 200, body: `{"echo":${JSON.stringify(request.path)}}` }
       },
+      tally: async (machine, rows) => {
+        if (!tallyOn.on) return { taken: false }
+        tallied.push({ machine, rows })
+        return { taken: true }
+      },
     },
   })
   const token = parseToken(await hub.issue('Example server', HUB_ADDRESS, FINGERPRINT))!
@@ -300,5 +311,5 @@ export async function bench() {
     log: (line) => log.push(line),
     ...options,
   })
-  return { hub, hubStore, machineStore, wire, token, machine, log, taken, snapshots, presence, ran, refuseEvents, asked, hooked }
+  return { hub, hubStore, machineStore, wire, token, machine, log, taken, snapshots, presence, ran, refuseEvents, asked, hooked, tallied, tallyOn }
 }

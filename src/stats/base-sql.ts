@@ -60,6 +60,15 @@ with places as materialized (
   select message_id, sum(share) as share from limit_shares where span = '7d' group by message_id
 )`
 
+/**
+ * Bind the machine (BTN-1280): `null` — every machine, `''` — the hub's own, whose sessions carry none, an id — the
+ * sessions a machine elsewhere sent.
+ */
+export function onMachine(sql: string, parameter: number): string {
+  const account = 'and ($5::text is null or c.account = $5::text)'
+  return sql.replace(account, `${account} and ($${parameter}::text is null or coalesce(s.machine, '') = $${parameter}::text)`)
+}
+
 /** Bind the excluded keys after a query's existing parameters, once project attribution is complete. */
 export function excludingProjects(sql: string, parameter: number): string {
   return sql.replace('select * from project_base', `select * from project_base where not (project = any($${parameter}::text[]))`)

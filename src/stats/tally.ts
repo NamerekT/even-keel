@@ -118,6 +118,18 @@ export class TallyService {
     return { state: this.last.code === 0 ? 'ok' : 'failed', lastRunAt }
   }
 
+  /**
+   * Where the rows of machines elsewhere are written (BTN-1280): the database this service collects into, as its
+   * writer. `null` — it collects nothing now: stats off, not chosen, short of the server's variables, or the local
+   * database did not open.
+   */
+  async writer(): Promise<ReaderSettings | null> {
+    if (!this.collecting || this.stopped) return null
+    if (this.local !== null) return this.local.catch(() => null)
+    const { env } = this.options
+    return { host: env.TALLY_DB_HOST!, port: Number(env.TALLY_DB_PORT || 5432), database: env.TALLY_DB_NAME!, user: env.TALLY_WRITER_USER || 'tally_writer', password: env.TALLY_WRITER_PASSWORD! }
+  }
+
   async stop(): Promise<void> {
     this.stopped = true
     if (this.timer !== null) clearTimeout(this.timer)

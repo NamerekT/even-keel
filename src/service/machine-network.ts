@@ -336,6 +336,7 @@ export class MachineNetwork {
       },
       mcp: (machine, request) => peers.mcp(machine, request),
       hook: (machine, request) => peers.hook(machine, request),
+      tally: (machine, rows) => peers.tally?.(machine, rows) ?? Promise.resolve({ taken: false }),
       online: (machine) => changed(machine, true),
       offline: (machine) => {
         changed(machine, false)

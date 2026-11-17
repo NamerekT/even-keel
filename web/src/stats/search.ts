@@ -10,6 +10,8 @@ export interface StatsView {
   projects: string[] | null
   scope: StatsScope
   account: string | null
+  /** One machine's sessions (BTN-1280), the `?machine=` of the header's choice; absent — every machine's. */
+  machine?: string
   step: Step | null
   kinds: RuleKind[] | null
   purposes: RulePurpose[] | null
@@ -53,6 +55,7 @@ export function parseView(params: URLSearchParams): StatsView {
     projects: listed === null ? null : listed.split(',').filter((each) => each !== ''),
     scope: params.get('scope') === 'chain' ? 'chain' : 'all',
     account: params.get('account') || null,
+    ...(params.get('machine') ? { machine: params.get('machine')! } : {}),
     step: STEPS[params.get('step') ?? ''] ?? null,
     kinds: knownList<RuleKind>(params.get('kinds'), KINDS),
     purposes: knownList<RulePurpose>(params.get('purposes'), PURPOSES),
@@ -74,6 +77,7 @@ export function viewSearch(view: StatsView): string {
   if (view.projects !== null) params.set('projects', view.projects.join(','))
   if (view.scope !== 'all') params.set('scope', view.scope)
   if (view.account !== null) params.set('account', view.account)
+  if (view.machine !== undefined) params.set('machine', view.machine)
   if (view.step !== null) params.set('step', STEP_CODES[view.step])
   if (view.kinds !== null) params.set('kinds', view.kinds.join(','))
   if (view.purposes !== null) params.set('purposes', view.purposes.join(','))

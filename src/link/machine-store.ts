@@ -95,6 +95,13 @@ export const MACHINE_STEPS: readonly string[] = [
     unique nulls not distinct (account, model, settings)
   );
   `,
+  // How far the machine's Tally collector has read each transcript (BTN-1280): a mark moves once the hub took the rows.
+  `
+  create table tally_files (
+    path text primary key, account text not null, read_to bigint not null, size bigint not null,
+    mtime text not null, ino text not null, head text not null, head_len integer not null
+  );
+  `,
 ]
 
 /** The keys of `identity`: the own machine's token, the token of a hub elsewhere and the folder of projects. */
