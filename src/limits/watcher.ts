@@ -67,6 +67,8 @@ export class LimitsWatcher {
   private readonly accounts = new Map<string, AccountLimits>()
   private shown = ''
   private timer: NodeJS.Timeout | undefined
+  /** Set at once by `start`: `timer` comes only after the first read of the limits file. */
+  private started = false
   private usageTimer: NodeJS.Timeout | undefined
   private usageRunning = false
   private usageAgain = false
@@ -149,7 +151,7 @@ export class LimitsWatcher {
     this.publish()
     if (this.awaitsPlan) {
       this.awaitsPlan = false
-      if (this.timer !== undefined) this.refresh()
+      if (this.started) this.refresh()
     }
   }
 
@@ -197,7 +199,8 @@ export class LimitsWatcher {
   }
 
   start(): void {
-    if (this.timer !== undefined) return
+    if (this.started) return
+    this.started = true
     const tick = () => {
       void this.tick().finally(() => {
         this.timer = setTimeout(tick, this.options.intervalMs)
