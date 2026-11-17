@@ -16,6 +16,8 @@ export interface AboutSources {
   /** Even Keel's version on this machine. */
   evenKeel: string
   root: string | null
+  /** The commit of the checkout Even Keel runs from; none for a package of npm. */
+  commit?: string | null
   git: Git
   home: string
   /** What `<binary> --version` prints; `null` — no such binary or it did not answer. */
@@ -58,5 +60,6 @@ export async function machineAbout(sources: AboutSources): Promise<MachineAbout>
     agents,
     gitUser: git.name !== null && git.email !== null,
     root: sources.root,
+    ...(typeof sources.commit === 'string' && { commit: sources.commit }),
   }
 }

@@ -69,6 +69,8 @@ export interface MachineNetworkOptions {
   serviceHost: string
   /** The hub's version of Even Keel: a machine installs the same one. */
   version: string
+  /** The commit of the checkout the hub runs from, as it started (BTN-1275): a machine from a checkout moves to it. */
+  commit?: string
   /** A machine joined, connected or went away: the page asks for the list again. */
   changed: () => void
   /** The project's settings, for the commands after a green main each machine of the pool runs. */

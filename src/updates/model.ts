@@ -17,8 +17,11 @@ export interface NpmPackage {
   prefix: string
 }
 
-/** `rebuild` — `service/rebuild.ps1` after a green push: the checkout is already where it should be. */
-export type UpdateMode = 'update' | 'revert' | 'rebuild'
+/**
+ * `rebuild` — `service/rebuild.ps1` after a green push: the checkout is already where it should be. `follow` — a
+ * machine of a hub moves itself to the hub's commit or version after the hub refused its API version (BTN-1275).
+ */
+export type UpdateMode = 'update' | 'revert' | 'rebuild' | 'follow'
 
 export const UPDATE_STEPS = ['settle', 'stop', 'fetch', 'checkout', 'restore', 'install', 'build', 'start', 'answer', 'launch'] as const
 /**
@@ -54,7 +57,7 @@ export interface StepFailure {
 export interface UpdateRecord {
   mode: UpdateMode
   from: { version: string; commit: string; branch: string | null; tag: string | null; storage: StorageVersions | null }
-  /** `null` for a rebuild. */
+  /** `null` for a rebuild; `tag` is the ref checked out, the hub's commit for a machine following it. */
   to: { version: string; tag: string } | null
   startedAt: string
   finishedAt: string
@@ -118,7 +121,7 @@ export function sameStorage(a: StorageVersions | null, b: StorageVersions): bool
 
 /** "Revert to <version>": only after an update that went through to the installed version from an older release tag. */
 export function previousOf(record: UpdateRecord | null, current: string, storage: StorageVersions, block: UpdateBlock | null): PreviousView | null {
-  if (record === null || record.mode === 'rebuild' || record.failed !== null || record.to === null || record.from.tag === null) return null
+  if (record === null || record.mode === 'rebuild' || record.mode === 'follow' || record.failed !== null || record.to === null || record.from.tag === null) return null
   if (compareVersions(record.to.version, current) !== 0) return null
   const order = compareVersions(record.from.version, current)
   if (order === null || order >= 0) return null
@@ -131,14 +134,14 @@ export function previousOf(record: UpdateRecord | null, current: string, storage
  * a `git pull` by hand moved the install since (BTN-315).
  */
 export function leftRunning(record: UpdateRecord, current: string): boolean {
-  if (record.mode === 'rebuild') return true
+  if (record.mode === 'rebuild' || record.mode === 'follow') return true
   const on = (version: string | undefined) => version !== undefined && compareVersions(version, current) === 0
   if (record.failed === null) return on(record.to?.version)
   return on(record.from.version) || (record.rollback?.failed != null && on(record.to?.version))
 }
 
 export function resultView(record: UpdateRecord | null): UpdateResultView | null {
-  if (record === null || record.seen || record.mode === 'rebuild') return null
+  if (record === null || record.seen || record.mode === 'rebuild' || record.mode === 'follow') return null
   const { failed, rollback } = record
   const output = [failed?.output, rollback?.failed?.output].filter((text) => text !== undefined && text !== '').join('\n\n')
   return {
@@ -172,7 +175,7 @@ function failureOf(raw: unknown): StepFailure | null {
 export function recordOf(raw: unknown): UpdateRecord | null {
   if (!isObject(raw) || !isObject(raw.from)) return null
   const mode = raw.mode
-  if (mode !== 'update' && mode !== 'revert' && mode !== 'rebuild') return null
+  if (mode !== 'update' && mode !== 'revert' && mode !== 'rebuild' && mode !== 'follow') return null
   const { from, to, rollback } = raw
   const version = text(from.version)
   const commit = text(from.commit)

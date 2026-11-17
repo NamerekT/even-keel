@@ -4,7 +4,7 @@ import { AccountIdentities } from '../limits/identity.js'
 import { accountTie, type AccountTie } from '../limits/polls.js'
 import { MachineEnd, type FolderMarks, type HubTransport } from '../link/machine.js'
 import type { MachineStore } from '../link/machine-store.js'
-import type { MachineAbout } from '../link/protocol.js'
+import type { MachineAbout, VersionRefusal } from '../link/protocol.js'
 import { sameJson } from '../machine/facts.js'
 import { MachineMoves, type HeldMove } from '../machine/moves.js'
 import { machineValue, setMachineValue } from '../machine/state.js'
@@ -27,6 +27,8 @@ export interface MachineSideOptions {
   about?: () => Promise<MachineAbout>
   /** The link's status changed. */
   changed?: (end: MachineEnd) => void
+  /** The hub refused this machine's API version (BTN-1275): the machine may move itself to the hub's. */
+  versionRefused?: (refusal: VersionRefusal) => void
   heartbeatMs?: number
   /**
    * A machine of its own (BTN-1226): while the link is down it follows and guards the tasks the hub gave it, and keeps
@@ -191,6 +193,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     ...(options.about !== undefined && { about: options.about }),
     ...(options.marks !== undefined && { marks: options.marks }),
     ...(options.heartbeatMs !== undefined && { heartbeatMs: options.heartbeatMs }),
+    ...(options.versionRefused !== undefined && { versionRefused: options.versionRefused }),
     changed: () => {
       if (end.status().state === 'online') wentOnline()
       options.changed?.(end)

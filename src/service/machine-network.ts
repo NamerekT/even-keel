@@ -63,6 +63,7 @@ export class MachineNetwork {
       admits: (machine) => machine !== options.own(),
       heartbeatMs: HEARTBEAT_MS,
       version: options.version,
+      ...(options.commit !== undefined && { commit: options.commit }),
       log: options.log,
       handlers: this.handlers(),
     })

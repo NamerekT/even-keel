@@ -116,12 +116,15 @@ export type Refusal = { refused: 'token' } | VersionRefusal | { refused: 'connec
 
 /**
  * Another API version: `api` is the hub's, `evenKeel` its version of Even Keel, the one to install on the machine
- * (BTN-994; a hub before it sent `api` alone, so a machine reads it as optional).
+ * (BTN-994; a hub before it sent `api` alone, so a machine reads it as optional), `commit` the commit of the checkout
+ * the hub runs from (BTN-1275; none for a package of npm), the one a machine from a checkout moves to. The body never
+ * changes in a later API version: a machine of any version must read it to catch up.
  */
 export interface VersionRefusal {
   refused: 'version'
   api: number
   evenKeel?: string
+  commit?: string
 }
 
 export interface EventsPost {

@@ -23,7 +23,7 @@ export function stepsOf(plan: StepPlan): UpdateStep[] {
   if (plan.mode === 'rebuild') {
     return plan.install === null ? ['build', 'settle', 'stop', 'start', 'answer'] : ['settle', 'stop', 'install', 'build', 'start', 'answer']
   }
-  return ['stop', ...(plan.mode === 'update' ? (['fetch'] as const) : []), 'checkout', 'install', 'build', 'start', 'answer']
+  return ['stop', ...(plan.mode === 'update' || plan.mode === 'follow' ? (['fetch'] as const) : []), 'checkout', 'install', 'build', 'start', 'answer']
 }
 
 /**

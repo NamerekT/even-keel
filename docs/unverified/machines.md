@@ -198,3 +198,11 @@ To check, on the benches: a project of width 1 with its pool on the hub and a ma
 Assumed: Huly's chain read gets the issue's `component` with the projection and finds its label among `tracker:class:Component`; Jira's search returns `components` with `TASK_FIELDS`; the switch shows on the "Machines" tab where the tracker names components. If not, every task reads as one without a component and the lanes take the same component's tasks at once, as with the switch off.
 
 To check, on the benches: a Huly project of width 2 with two machines (or `parallel` 2), two ready tasks of one component and one of another, the switch on; start the chain and see the second lane take the task of the other component, then turn the switch off and see both tasks of one component run at once.
+
+## A machine catching up with its hub's commit (BTN-1275)
+
+`docs/machines.md`, "Catching up with the hub"; `docs/service.md`, "Updating from the page". `src/updates/follow.test.ts` covers the choice (a target failed before, a dirty checkout, no service manager, a local package, a hub without a commit), `src/updates/steps.test.ts` the steps of mode `follow`, `src/link/link.test.ts` the refusal's body and `versionRefused` on a fake hub.
+
+Assumed: the detached update process outlives the machine service's stop under each service manager as the page's update does; `git fetch --all --tags` reaches the hub's commit through the machine's remotes (the chain pushed it before the hub rebuilt); `npm run build:machine` is enough for the machine service to start; the machine's first contact after the start writes `contactAt` within the answer's 2 min; the global npm install runs as the page's does. If not, the machine stays refused with `stuck: failed` on its page, or is left on the old commit after a rollback.
+
+To check, on the benches: a hub on a `dev` checkout and a machine elsewhere from a git checkout one API version behind; start the machine and see its log's `link:` line, `logs/update.log` and the machine come back online at the hub's commit ("Even Keel X · abc1234" on its page); then point the hub at a commit that does not build on the machine and see one failed attempt, the band "could not update to …" and no second attempt until the hub moves on; a checkout with a tracked change gets only the band.

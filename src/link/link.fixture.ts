@@ -276,6 +276,7 @@ export async function bench() {
   const hub = new HubEnd({
     store: hubStore,
     version: '0.4.0',
+    commit: 'c0ffee0000000000000000000000000000000000',
     log: (line) => log.push(line),
     handlers: {
       event: (_machine, event) => {

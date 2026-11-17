@@ -45,6 +45,8 @@ export interface HubOptions {
   admits?: (machine: string) => boolean
   /** The hub's version of Even Keel, told to a machine of another API version with its refusal. */
   version?: string
+  /** The commit of the checkout the hub runs from, told with `version` (BTN-1275); none for a package of npm. */
+  commit?: string
 }
 
 interface Live {
@@ -228,7 +230,8 @@ export class HubEnd {
   }
 
   private otherVersion(): Refusal {
-    return { refused: 'version', api: API_VERSION, ...(this.options.version === undefined ? {} : { evenKeel: this.options.version }) }
+    const { version, commit } = this.options
+    return { refused: 'version', api: API_VERSION, ...(version !== undefined && { evenKeel: version }), ...(commit !== undefined && { commit }) }
   }
 
   private async asked<T>(authorization: string | undefined, connection: string, answer: (machine: string) => Promise<T> | T): Promise<T | Refusal> {

@@ -7,6 +7,11 @@ describe('stepsOf', () => {
     expect(stepsOf({ mode: 'update', install: 'ci' })).toEqual(['stop', 'fetch', 'checkout', 'install', 'build', 'start', 'answer'])
   })
 
+  it('follows the hub with a fetch first, its commit may be new here', () => {
+    expect(stepsOf({ mode: 'follow', install: null })).toEqual(['stop', 'fetch', 'checkout', 'install', 'build', 'start', 'answer'])
+    expect(rollbackOf('follow', 'build')).toEqual(['stop', 'restore', 'install', 'build', 'start', 'answer'])
+  })
+
   it('reverts to a tag the checkout already has, without a fetch', () => {
     expect(stepsOf({ mode: 'revert', install: 'ci' })).toEqual(['stop', 'checkout', 'install', 'build', 'start', 'answer'])
   })

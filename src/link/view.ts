@@ -17,6 +17,21 @@ export interface MachineAbout {
   gitUser: boolean
   /** The folder of projects the machine agreed to (`docs/machines.md`, "What a command may touch"); `null` — none. */
   root: string | null
+  /** The commit of the checkout Even Keel runs from there (BTN-1275); none — a package of npm or an older machine. */
+  commit?: string
+  /** Why the machine did not move itself to the hub's version (BTN-1275); none — it had no need or is moving. */
+  follow?: MachineFollow
+}
+
+/**
+ * The hub refused the machine's API version and the machine stays on its own (BTN-1275): `failed` — its update to `to`
+ * failed and was rolled back, it tries again only at another commit or version of the hub; `dirty` — its checkout has
+ * changes in tracked files; `manual` — it cannot update itself (no service manager, no checkout nor a global package,
+ * or the hub named nothing to move to). `to` is the hub's commit for a checkout, its version for a package.
+ */
+export interface MachineFollow {
+  to: string
+  stuck: 'failed' | 'dirty' | 'manual'
 }
 
 /** A name the page offers for "Hub address for machines": one of the page's names, a network card's address, the service's own. */

@@ -28,8 +28,14 @@ export class FakeNetwork {
     const joined = (id: string, name: string, report: MachineAbout, online: boolean): MachineView => ({
       id, name, createdAt: Date.now() - 86_400_000, revokedAt: null, inviteExpires: null, joinedAt: Date.now() - 86_000_000, host: report.host, about: report, online, projects: [], taken: [],
     })
+    // `follow`: the hub refused the laptop's API version and its update to the hub's commit failed (BTN-1275).
+    const laptop: Partial<MachineAbout> =
+      mode === 'nocli' ? { agents: {} }
+      : mode === 'version' ? { evenKeel: '0.3.9' }
+      : mode === 'follow' ? { commit: '4b1d2c3e5f60718293a4b5c6d7e8f90123456789', follow: { to: '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432', stuck: 'failed' } }
+      : { gitUser: false }
     this.machines = [
-      joined('machine-1', 'Example laptop', about('example-laptop', mode === 'nocli' ? { agents: {} } : mode === 'version' ? { evenKeel: '0.3.9' } : { gitUser: false }), mode !== 'offline'),
+      joined('machine-1', 'Example laptop', about('example-laptop', laptop), mode !== 'offline' && mode !== 'follow'),
       joined('machine-2', 'Example desktop', about('example-desktop', { os: 'win32 10.0.26200', agents: { claude: '2.1.322', codex: '0.98.0' } }), true),
     ]
   }

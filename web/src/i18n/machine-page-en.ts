@@ -9,6 +9,12 @@ export const machinePageEn: Messages['machinePage'] = {
   offline: 'off the link',
   version: (version) => `Even Keel ${version}`,
   otherVersion: (machine, hub) => `The machine runs Even Keel ${machine}, the hub ${hub}: it finishes its tasks and takes no new ones. Install ${hub} on the machine:`,
+  versionAt: (version, commit) => `Even Keel ${version} · ${commit}`,
+  follow: {
+    failed: (to) => `The hub does not take the machine's version, and its update to ${to} failed and went back to the one before. It tries again once the hub is at another commit; what went wrong is in the machine's update log.`,
+    dirty: (to) => `The hub does not take the machine's version, and the machine cannot move to ${to} by itself: its checkout has changes. Commit or drop them, or update the machine by hand.`,
+    manual: (to) => `The hub does not take the machine's version, and the machine cannot move to ${to} by itself. Install that version on the machine by hand.`,
+  },
   joined: (time) => `joined ${time}`,
   more: 'More',
   settings: "The machine's settings",

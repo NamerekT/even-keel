@@ -22,5 +22,13 @@ describe("the machine's report about itself", () => {
   it('reports a machine without git and without an identity for commits', async () => {
     const about = await machineAbout({ evenKeel: '0.4.0', root: null, home: '/home/example', git: gitWith({}), version: async () => null })
     expect(about).toMatchObject({ git: null, gitUser: false, root: null })
+    expect(about.commit).toBeUndefined()
+  })
+
+  it('names the commit of a checkout it runs from: on dev the version alone says little', async () => {
+    const commit = 'c0ffee0000000000000000000000000000000000'
+    const about = await machineAbout({ evenKeel: '0.4.0', root: null, commit, home: '/home/example', git: gitWith({}), version: async () => null })
+    expect(about.commit).toBe(commit)
+    expect(isAbout(about)).toBe(true)
   })
 })

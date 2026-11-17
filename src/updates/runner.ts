@@ -31,6 +31,11 @@ export interface UpdatePlan extends StepPlan {
   result: string
   /** Also print the log: a rebuild runs in the foreground of the CI's SSH call. */
   echo?: boolean
+  /**
+   * A machine of a hub (BTN-1275): it builds without the page (`build:machine`) and has no `/api/state`, so the answer
+   * is a `contactAt` in its `machine-link.json` newer than this run, written once the hub took its handshake.
+   */
+  machine?: { contact: string }
 }
 
 export const ANSWER_MS = 120_000
@@ -46,6 +51,8 @@ export const RESULT_FILE = join('logs', 'update.json')
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 class Runner {
+  private readonly began = Date.now()
+
   constructor(private readonly plan: UpdatePlan) {}
 
   log(line: string): void {
@@ -65,17 +72,21 @@ class Runner {
       case 'start':
         return this.run(plan.service.start)
       case 'fetch':
-        return this.run(['git', 'fetch', '--tags'])
+        // The hub's commit may be on any remote of the machine's checkout.
+        return this.run(plan.mode === 'follow' ? ['git', 'fetch', '--all', '--tags'] : ['git', 'fetch', '--tags'])
       case 'checkout':
-        return this.run(this.checkout(plan.target!.tag))
+        // Following the hub leaves the branch where it was: its commits stay, and a rollback puts HEAD back on it.
+        return this.run(plan.mode === 'follow' ? ['git', 'checkout', '--detach', plan.target!.tag] : this.checkout(plan.target!.tag))
       case 'restore':
         return this.run(plan.package === undefined ? this.checkout(plan.from.commit) : this.installPackage(plan.from.version))
       case 'install':
         if (plan.package !== undefined) return this.run(this.installPackage(plan.target!.version))
+        if (plan.install === null && !dependenciesChanged(plan.root)) return this.log('package-lock.json did not change, nothing to install')
         return this.run(npm(plan.install === 'install' ? 'install' : 'ci', '--no-audit', '--no-fund'))
       case 'build':
-        return this.run(npm('run', 'build'))
+        return this.run(npm('run', plan.machine === undefined ? 'build' : 'build:machine'))
       case 'answer':
+        if (plan.machine !== undefined) return this.contact(plan.machine.contact, rollback)
         return this.answer(rollback ? plan.from.version : (plan.target?.version ?? null))
       case 'launch':
         return
@@ -138,6 +149,29 @@ class Runner {
       await sleep(SETTLE_POLL_MS)
     }
     this.log(`chains did not settle in ${this.plan.settleMs / 1000} s, going on`)
+  }
+
+  /**
+   * The hub took the machine's handshake after this run began: its version is the hub's. A rollback brings back the
+   * version the hub refused, so it waits for nothing.
+   */
+  private async contact(file: string, rollback: boolean): Promise<void> {
+    if (rollback) return this.log('the version the hub refuses runs again, no contact is waited for')
+    const deadline = Date.now() + this.plan.answerMs
+    let last = 'no contact'
+    while (Date.now() < deadline) {
+      try {
+        const { contactAt } = JSON.parse(readFileSync(file, 'utf8')) as { contactAt?: unknown }
+        if (typeof contactAt === 'number' && contactAt > this.began) {
+          this.log(`the hub took the machine at ${new Date(contactAt).toISOString()}`)
+          return
+        }
+      } catch (error) {
+        last = error instanceof Error ? error.message : String(error)
+      }
+      await sleep(POLL_MS)
+    }
+    throw new StepError(`the hub took no handshake of the machine in ${this.plan.answerMs / 1000} s (${file}): ${last}`)
   }
 
   /** A later start that answers with `version` (any, for a rebuild), and still the same start `steadyMs` on. */

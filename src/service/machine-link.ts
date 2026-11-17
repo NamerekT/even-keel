@@ -6,7 +6,8 @@ import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-not
 import { saveSnapshot } from '../chain/snapshots.js'
 import { AccountPolls } from '../limits/polls.js'
 import { listenOf, localUrlOf, runSettings } from '../config.js'
-import { root } from '../locations.js'
+import { root, source } from '../locations.js'
+import { headOf } from '../updates/checkout.js'
 import { installed } from '../updates/watcher.js'
 import { machinesPortOf } from '../link/address.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
@@ -295,7 +296,10 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   })
   const token = await ownMachine({ hub, hubStore, db: ctx.db, machineDb, name: hostname() })
   own = token.machine
+  // Read once: a push moves the checkout before the rebuild restarts this process on it.
+  const hubCommit = source === 'git' ? await headOf(root) : null
   const network = new MachineNetwork({
+    ...(hubCommit !== null && { commit: hubCommit }),
     db: ctx.db,
     store: hubStore,
     certificate: () => hubIdentity(ctx.db),

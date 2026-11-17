@@ -4,7 +4,7 @@ import type { Consent, MachineStore } from './machine-store.js'
 import {
   API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, TAKEN_EVENT, isRefusal,
   type AssignPayload, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
-  type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost,
+  type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type VersionRefusal,
 } from './protocol.js'
 
 /** What a stream tells the machine: it is connected, a frame came, it ended (with the hub's refusal, if it gave one). */
@@ -68,6 +68,8 @@ export interface MachineOptions {
   about?: () => Promise<MachineAbout>
   /** The status changed. */
   changed?: () => void
+  /** Every refusal of the API version, with what the hub said of its own (BTN-1275). */
+  versionRefused?: (refusal: VersionRefusal) => void
   heartbeatMs?: number
   api?: number
   now?: () => number
@@ -440,12 +442,14 @@ export class MachineEnd {
       wait = RECONNECT_MAX_MS
     } else if (refusal?.refused === 'version') {
       if (notice !== 'link.version') {
-        this.options.log(refusal.evenKeel === undefined
+        const hub = [refusal.evenKeel === undefined ? undefined : `Even Keel ${refusal.evenKeel}`, refusal.commit === undefined ? undefined : `commit ${refusal.commit}`].filter((part) => part !== undefined).join(', ')
+        this.options.log(hub === ''
           ? `link: the hub speaks API ${refusal.api}, this machine ${this.api}: both need the same version of Even Keel`
-          : `link: the hub speaks API ${refusal.api} (Even Keel ${refusal.evenKeel}), this machine ${this.api}: install the hub's version here, even-keel update ${refusal.evenKeel}`)
+          : `link: the hub speaks API ${refusal.api} (${hub}), this machine ${this.api}: this machine needs the hub's version`)
       }
       notice = 'link.version'
       wait = RECONNECT_MAX_MS
+      this.options.versionRefused?.(refusal)
     } else {
       this.pause = Math.min(this.pause * 2, RECONNECT_MAX_MS)
     }

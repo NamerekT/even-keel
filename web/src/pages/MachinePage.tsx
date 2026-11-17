@@ -29,6 +29,9 @@ const REREAD_MS = 15_000
 const CLOCK_MS = 30_000
 const PICK_REST_MS = 400
 
+/** A commit by its first seven characters, as git shows it; a version stays whole. */
+const shortRef = (ref: string): string => (/^[0-9a-f]{40}$/.test(ref) ? ref.slice(0, 7) : ref)
+
 /** The machine's page, read again at each `machines` event, every `REREAD_MS` and after `reload`; `null` while read, `false` — none. */
 function useMachinePage(machine: string): { page: MachinePageView | null | false; reload: () => void } {
   const { read, onMachines } = useLive()
@@ -82,7 +85,9 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
           <span className="machine-page__mark" style={{ background: page.color }} aria-hidden="true" />
           <span className={`machine-page__state${page.online ? ' machine-page__state--online' : ''}`}>{page.online ? text.online : text.offline}</span>
           {page.own && <span className="tag">{text.own}</span>}
-          {page.about !== null && <span className="machine-page__muted">{text.version(page.about.evenKeel)}</span>}
+          {page.about !== null && (
+            <span className="machine-page__muted">{page.about.commit === undefined ? text.version(page.about.evenKeel) : text.versionAt(page.about.evenKeel, shortRef(page.about.commit))}</span>
+          )}
           {page.joinedAt !== null && !page.own && <span className="machine-page__muted">{text.joined(formatAgo(new Date(page.joinedAt).toISOString(), now))}</span>}
         </span>
       </PageHead>
@@ -91,6 +96,9 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
           <span>{text.otherVersion(page.about.evenKeel, page.hubVersion)}</span>
           <CommandBlock command={`even-keel update ${page.hubVersion}`} />
         </Band>
+      )}
+      {!page.own && page.about?.follow !== undefined && (
+        <Band tone="warn">{text.follow[page.about.follow.stuck](shortRef(page.about.follow.to))}</Band>
       )}
       {page.taken.map((each) => (
         <Band key={each.project} tone="warn">

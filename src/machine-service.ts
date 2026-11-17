@@ -8,7 +8,7 @@ import type { MachineEnd } from './link/machine.js'
 import { httpsTransport } from './link/machine-transport.js'
 import { parseToken } from './link/protocol.js'
 import { HookReceiver } from './machine/hook-receiver.js'
-import { loadEnv, root, stateDirOf } from './locations.js'
+import { home, loadEnv, root, source, stateDirOf } from './locations.js'
 import { machineAbout } from './machine/about.js'
 import type { HubBrief } from './machine/brief.js'
 import { folderMarks } from './machine/marks.js'
@@ -16,6 +16,9 @@ import { machineValue } from './machine/state.js'
 import { machineMarks, startMachineTally } from './machine/tally.js'
 import { KEEP_WARM_TICK_MS } from './sessions/keepwarm.js'
 import { Writes } from './storage/database.js'
+import { headOf } from './updates/checkout.js'
+import { serviceControl } from './updates/control.js'
+import { HubFollower } from './updates/follow.js'
 import { installed } from './updates/watcher.js'
 import { CLI_CHECK_TICK_MS } from './service/cli-check.js'
 import { SHUTDOWN_MS, WORK_TICK_MS } from './service/defaults.js'
@@ -48,6 +51,9 @@ if (token === undefined) {
 }
 const projectsRoot = (await storedRoot(machineDb)) ?? null
 const version = installed(root).version
+const commit = source === 'git' ? await headOf(root) : null
+// At a refusal of its API version the machine moves itself to the hub's commit or version (BTN-1275).
+const follower = new HubFollower({ root, home, stateDir, source, current: version, control: () => serviceControl(root), log })
 
 const writes = new Writes((text) => console.warn(text))
 const tell = laterTell()
@@ -81,7 +87,12 @@ const side = wireMachineSide(machine, {
   store: new DatabaseMachineStore(machineDb),
   // The hub names the machine at its invitation; the machine knows itself by its host, so a mark names that.
   marks: folderMarks(() => ({ machine: token.machine, name: hostname() }), process.env),
-  about: () => machineAbout({ evenKeel: version, root: projectsRoot, git: runGit, home: homedir() }),
+  about: async () => {
+    const about = await machineAbout({ evenKeel: version, root: projectsRoot, commit, git: runGit, home: homedir() })
+    const follow = follower.view()
+    return follow === undefined ? about : { ...about, follow }
+  },
+  versionRefused: (refusal) => void follower.refused(refusal).catch((error: unknown) => log(`link: the move to the hub's version failed: ${String(error)}`)),
   changed: (end) => keepContact(end.status().state === 'online', end.contact()),
   alone: true,
   log,
