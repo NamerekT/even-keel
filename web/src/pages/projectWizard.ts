@@ -37,6 +37,8 @@ export interface WizardFields {
   milestones: string
   /** The agent the project runs on (BTN-310); blank — the shared provider. */
   provider: string
+  /** The machine elsewhere a git project runs on (BTN-1271): cloned there, its only machine; blank — the hub's own. */
+  machine: string
   /** The fields typed by hand: a suggestion no longer overwrites them. */
   typed: Record<Suggested, boolean>
 }
@@ -58,6 +60,7 @@ export const EMPTY_FIELDS: WizardFields = {
   slots: '2',
   milestones: '',
   provider: '',
+  machine: '',
   typed: { key: false, name: false, trackerProject: false },
 }
 
@@ -203,6 +206,7 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
     provider: fields.provider === '' ? null : fields.provider,
     ...(fields.git ? { target: fields.target } : { git: false }),
     ...(ownFolder && !typed ? { folder: fields.folder.trim() } : {}),
+    ...(fields.git && fields.machine !== '' ? { machine: fields.machine } : {}),
   }
 }
 

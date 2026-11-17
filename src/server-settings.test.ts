@@ -19,9 +19,9 @@ describe('Even Keel settings HTTP routes', () => {
   })
 
   // These read-only fields have dedicated routes and are not forwarded by project/settings.
-  const { protection, notices, milestoneOrder, badge, width, ...defaults } = projectFormDefaults()
+  const { protection, notices, milestoneOrder, badge, ...defaults } = projectFormDefaults()
   const chain = { ...defaults.chain, terminal: ['Done'], excludedLabels: ['Manual'] }
-  const form = { ...defaults, name: 'Web shop', branch: 'master', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' },remoteProfiles: { forgejo: 'own' } }
+  const form = { ...defaults, width: 2, name: 'Web shop', branch: 'master', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' },remoteProfiles: { forgejo: 'own' } }
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true, rerunFailed: false }
@@ -39,6 +39,17 @@ describe('Even Keel settings HTTP routes', () => {
     const unknown = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', ...settings, own: { parallel: 2 }, base: started }) })
     expect(unknown.status).toBe(400)
     expect((await unknown.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'own' } })
+
+    const narrow = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', ...settings, width: 0, base: started }) })
+    expect(narrow.status).toBe(400)
+    expect((await narrow.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'width' } })
+
+    // A page open since before the width field sends none: the project keeps one.
+    const { width, ...old } = settings
+    expect(width).toBe(2)
+    const before = { ...started, width: undefined }
+    expect((await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', ...old, base: before }) })).status).toBe(200)
+    expect(calls.at(-1)).toEqual(['settings', 'ABC', { ...old, width: 1 }, { ...started, width: 1 }])
 
     const missing = await fetch(base + '/api/project/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ project: 'ABC', ...settings }) })
     expect(missing.status).toBe(400)

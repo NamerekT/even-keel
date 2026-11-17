@@ -1,0 +1,78 @@
+/* The tab "Machines" of the project settings (BTN-1271): the pool as a nested group, a row per machine. */
+
+.pool {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.pool__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  min-height: 44px;
+}
+
+.pool__row + .pool__row {
+  border-top: 1px solid var(--border);
+}
+
+.pool__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--lamp-idle);
+}
+
+.pool__dot--online {
+  background: var(--lamp-done);
+}
+
+.pool__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pool__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.pool__offline {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-weight: 400;
+}
+
+.pool__folder {
+  display: block;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-family: var(--mono);
+  font-size: var(--text-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool__empty {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.pool__actions {
+  display: flex;
+}

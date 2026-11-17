@@ -10,6 +10,7 @@ import { ASSIGN_COMMAND, isRefusal, parseToken, type MachineAbout, type Numbered
 import { LIMITS_PLAN_COMMAND } from '../limits/polls.js'
 import { BRIEF_COMMAND, type HubBrief } from '../machine/brief.js'
 import { SELECTION_EVENT } from '../machine/config.js'
+import { CLONE_PROGRESS_EVENT } from '../machine/services.js'
 import { DONE_EVENT, type FactsSnapshot } from '../machine/runner.js'
 import { ABC, fixture } from '../storage/database.fixture.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
@@ -40,7 +41,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
 
   const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>) => {
     const db = await PGlite.create()
-    await db.exec(fixture(55))
+    await db.exec(fixture(58))
     const settings = { address: null as string | null }
     const changes: number[] = []
     const network = new MachineNetwork({
@@ -231,6 +232,85 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await end.flushed()
     await until(() => lines.some((line) => line.includes('chose cli system for claude')), 'the choice logged')
     expect(writes).toEqual([[joined.machine, write]])
+  })
+
+  it("puts a machine into a project's pool turned off in a folder of its own, checks it there and turns it on", async () => {
+    const briefed: Record<string, string>[] = []
+    const peers: NetworkPeers = {
+      remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
+      brief: (folders) => {
+        briefed.push({ ...folders })
+        return { config: { projects: folders } } as unknown as HubBrief
+      },
+      changed: () => {},
+      connected: () => {},
+      mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      hook: () => Promise.resolve({ status: 200, body: '' }),
+      write: async () => {},
+    }
+    const { db, network, settings } = await started(peers)
+    settings.address = '127.0.0.1'
+    await network.apply()
+    const joined = await joinHub(parseToken((await network.invite('Example laptop')).line)!, ABOUT, 5_000)
+    if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+    const laptop = joined.machine
+    const pending = parseToken((await network.invite('Pending')).line)!.machine
+
+    // The sample's machine that never joined is left out; the own one shows the project's repository.
+    expect(await network.pool(ABC)).toEqual({
+      machines: [{ id: OWN, name: 'Example server', own: true, online: true, folder: 'D:\\repos\\example', enabled: true }],
+      others: [{ id: laptop, name: 'Example laptop', own: false, online: false, folder: '/home/example/projects/example' }],
+    })
+    await expect(network.target(OWN)).rejects.toThrow(/hub's own machine/)
+    await expect(network.target(pending)).rejects.toThrow(/has not joined yet/)
+    const target = await network.target(laptop)
+    expect(target).toEqual({ id: laptop, name: 'Example laptop', root: '/home/example/projects' })
+    expect(() => network.folders(target)).toThrow(/not connected to the hub now/)
+
+    await expect(network.place(target, ABC, '/srv/elsewhere/abc')).rejects.toThrow(/outside the machine's folder of projects/)
+    expect(await network.place(target, ABC, '/home/example/projects/abc-work')).toBe(true)
+    expect(await network.place(target, ABC, '/home/example/projects/abc-work')).toBe(false)
+    const { rows } = await db.query<{ command: string }>('select command from machine_commands where machine_id = $1 order by seq', [laptop])
+    expect(JSON.parse(rows.at(-1)!.command)).toEqual({ type: ASSIGN_COMMAND, project: ABC, folder: '/home/example/projects/abc-work' })
+    expect((await network.pool(ABC)).machines.find((machine) => machine.id === laptop)).toMatchObject({ folder: '/home/example/projects/abc-work', enabled: false })
+    expect(network.poolOf(ABC)).toEqual([OWN])
+
+    const ran: NumberedCommand[] = []
+    const store = new MemoryMachineStore()
+    store.rootFolder = '/home/example/projects'
+    const end: MachineEnd = new MachineEnd({
+      transport: httpsTransport(joined, { log: () => {}, timeoutMs: 5_000 }),
+      store,
+      snapshot: () => ({ boot: 'boot-1', rev: 1, facts: { sessionsRead: true, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {}, limits: {} } as unknown as FactsSnapshot['facts'] }),
+      command: async (command) => {
+        ran.push(command)
+        if (command.type === 'folders.clone') await end.emit(CLONE_PROGRESS_EVENT, { project: ABC, folder: command.folder, progress: { stage: 'receiving', percent: 40 } })
+        if (command.type === 'folders.check') await end.emit(DONE_EVENT, { seq: command.seq, value: { code: 'pool.noPush', params: { remote: 'https://forge.example.com/abc' } } })
+        else if (command.type !== ASSIGN_COMMAND) await end.emit(DONE_EVENT, { seq: command.seq, value: null })
+      },
+      log: () => {},
+    })
+    closing.push(async () => end.stop())
+    await end.start()
+    // A machine turned off is still briefed on the project, in its own folder: its packages install before the checks.
+    await until(() => briefed.some((folders) => folders[ABC] === '/home/example/projects/abc-work'), 'the brief of the folder')
+
+    const shown: unknown[] = []
+    const stop = network.watchClone(laptop, ABC, (progress) => shown.push(progress))
+    const spec = { project: ABC, folder: '/home/example/projects/abc-work', remotes: [], branch: 'main', claude: false }
+    await network.folders(target).clone(spec, 'https://forge.example.com/abc.git')
+    await until(() => shown.length > 0, 'the progress of the clone')
+    stop()
+    expect(shown).toEqual([{ stage: 'receiving', percent: 40 }])
+    expect(await network.folders(target).check('push', spec)).toEqual({ code: 'pool.noPush', params: { remote: 'https://forge.example.com/abc' } })
+
+    await expect(network.setEnabled(ABC, pending, true)).rejects.toThrow(/not in this project's pool/)
+    await network.setEnabled(ABC, laptop, true)
+    await network.setEnabled(ABC, OWN, false)
+    expect(network.poolOf(ABC)).toEqual([laptop])
+    await network.unplace(laptop, ABC)
+    expect(network.poolOf(ABC)).toEqual([])
+    expect((await network.pool(ABC)).others.map((machine) => machine.id)).toEqual([laptop])
   })
 
   it("shows a machine's accounts and its sign-in, and starts the sign-in, its code and its cancel on that machine", async () => {

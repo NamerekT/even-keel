@@ -13,6 +13,7 @@ import { cloneTyped, folderView, pathTyped, type WizardFields } from './projectW
 import { RefusalWords } from './RefusalWords.js'
 import { isRemoteRefusal } from './remoteRefusal.js'
 import { FieldHead, Row } from './settingsParts.js'
+import { WizardMachine } from './WizardMachine.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
 import { trustTexts } from '../i18n/trust.js'
@@ -127,6 +128,7 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
           </span>
         )}
       </Row>
+      <WizardMachine fields={fields} set={set} />
       {fields.git && (
         <div className="settings__field">
           <FieldHead label={t.creation.target} hint={t.creation.targetHint} htmlFor="wizard-target" />

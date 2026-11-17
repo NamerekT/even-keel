@@ -28,6 +28,7 @@ import { ProjectRepoTab } from './ProjectRepoTab.js'
 import { ProjectTrackerTab } from './ProjectTrackerTab.js'
 import { ProjectSessionsTab } from './ProjectSessionsTab.js'
 import { ProjectCiTab } from './ProjectCiTab.js'
+import { poolShown, ProjectMachinesTab } from './ProjectMachinesTab.js'
 import './settings.css'
 
 export { useSettingsDirty } from './projectSettingsDraft.js'
@@ -57,7 +58,10 @@ export function SettingsPanel({
   const saved = valuesOf(form, profileRules)
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
   const draft = current!
-  const [open, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
+  const [picked, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
+  const shownGroups = GROUPS.filter(({ id }) => id !== 'machines' || poolShown(state))
+  // A tab hidden since it was opened (the hub's last machine elsewhere revoked) gives way to the first one.
+  const open = shownGroups.some(({ id }) => id === picked) ? picked : 'repo'
   const { vocabularies, reading } = useVocabularies(state?.projects.includes(project) === true ? [project] : [])
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
@@ -139,13 +143,14 @@ export function SettingsPanel({
     ),
     sessions: () => <ProjectSessionsTab fields={fields} project={project} form={form} state={state} shared={shared} offered={offered} rowAccount={rowAccount} models={models} />,
     ci: () => <ProjectCiTab fields={fields} project={project} state={state} shared={shared} plain={!form.git} />,
+    machines: () => <ProjectMachinesTab fields={fields} project={project} slot={form.slot} state={state} />,
     notices: () => <NoticeSettings project={project} />,
   }
 
   return (
     <aside className="panel settings" aria-label={t.settings.title}>
       <header className="panel__head settings__head">
-        <GroupTabs groups={GROUPS.map(({ id }) => ({ id, title: t.settings.groups[id] }))} open={open} dirty={dirty} onOpen={setOpen} />
+        <GroupTabs groups={shownGroups.map(({ id }) => ({ id, title: t.settings.groups[id] }))} open={open} dirty={dirty} onOpen={setOpen} />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           ×
         </button>

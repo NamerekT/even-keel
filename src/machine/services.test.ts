@@ -3,7 +3,7 @@ import { fail, noticeOf } from '../notice/notice.js'
 import type { AccountControl } from '../server-control.js'
 import { MachineRecords } from './records.js'
 import { bench, PROJECT, REPO, tick } from './remote.fixture.js'
-import { fromCarried, remoteServices, toCarried, type MachineServices, type RetainedRecords } from './services.js'
+import { CLONE_TELL_MS, cloneTold, fromCarried, remoteServices, toCarried, type MachineServices, type RetainedRecords } from './services.js'
 
 /** The machine's own services: each member records its call and answers from `answers`. */
 function machineServices() {
@@ -77,6 +77,32 @@ describe('the services of the machine over the link', () => {
     const outside = remote.chat.saveInbox(PROJECT, 'C:/elsewhere', [file]).catch((error: unknown) => error)
     await tick()
     expect(noticeOf(await outside).code).toBe('machine.commandRefused')
+  })
+
+  it("checks and clones a project's folder only where the machine agrees, and a check's refusal comes back whole", async () => {
+    const { remote, answers, calls, ran } = await started()
+    const spec = { project: PROJECT, folder: REPO, remotes: ['https://forge.example.com/team/abc.git'], branch: 'main', claude: true }
+    answers['folders.check'] = { code: 'pool.noBranch', params: { folder: REPO, branch: 'main' } }
+    expect(await remote.folders.check('branch', spec)).toEqual({ code: 'pool.noBranch', params: { folder: REPO, branch: 'main' } })
+    await remote.folders.clone(spec, 'https://forge.example.com/team/abc.git')
+    expect(calls).toEqual([['folders.check', ['branch', spec]], ['folders.clone', [spec, 'https://forge.example.com/team/abc.git']]])
+    expect(ran.map((command) => [command.type, command.project, command.folder])).toEqual([['folders.check', PROJECT, REPO], ['folders.clone', PROJECT, REPO]])
+    const outside = remote.folders.check('repo', { ...spec, folder: 'C:/elsewhere' }).catch((error: unknown) => error)
+    await tick()
+    expect(noticeOf(await outside).code).toBe('machine.commandRefused')
+  })
+
+  it('tells the progress of a clone at most once per stage and interval', () => {
+    const told: string[] = []
+    let now = 0
+    const tell = cloneTold((payload) => told.push(`${payload.progress.stage} ${payload.progress.percent}`), () => now)
+    tell(PROJECT, REPO, { stage: 'receiving', percent: 1 })
+    now = CLONE_TELL_MS - 1
+    tell(PROJECT, REPO, { stage: 'receiving', percent: 2 })
+    tell(PROJECT, REPO, { stage: 'resolving', percent: 3 })
+    now += CLONE_TELL_MS
+    tell(PROJECT, REPO, { stage: 'resolving', percent: 4 })
+    expect(told).toEqual(['receiving 1', 'resolving 3', 'resolving 4'])
   })
 
   it('hands the machine the records the hub keeps for it', async () => {

@@ -1,7 +1,10 @@
 import type { LaunchEntry } from '../chain/model.js'
 import type { HandoffSession } from '../chain/relay.js'
+import type { CloneProgress } from '../git/clone-progress.js'
 import type { AccountControl } from '../server-control.js'
+import type { Notice } from '../notice/notice.js'
 import type { Mail } from '../sessions/mail.js'
+import type { FolderSpec, FolderStep } from './folder-check.js'
 
 /** A file read on the machine or sent to it, carried through the link whole as base64. */
 export interface CarriedFile {
@@ -59,6 +62,40 @@ export interface RetainedRecords {
 }
 
 /**
+ * A project's folder on the machine before the machine joins the project's pool (BTN-1271): each named with the
+ * project and the folder, so the machine runs it only inside its folder of projects or a folder it agreed to.
+ */
+export interface MachineFolders {
+  /** One check of the folder; `null` — it passed. */
+  check(step: FolderStep, spec: FolderSpec): Promise<Notice | null>
+  /** Clones `remote` into the folder, absent or empty, and trusts it for Claude Code; the progress goes as `CLONE_PROGRESS_EVENT`. */
+  clone(spec: FolderSpec, remote: string): Promise<void>
+}
+
+/** The event of a clone's progress on the machine. */
+export const CLONE_PROGRESS_EVENT = 'folders.progress'
+
+export interface CloneTold {
+  project: string
+  folder: string
+  progress: CloneProgress
+}
+
+/** How often a clone's progress goes to the hub within one stage: each event is a row of the machine's outbox. */
+export const CLONE_TELL_MS = 500
+
+/** The progress told at most once per `CLONE_TELL_MS`, and at once when the stage changes. */
+export function cloneTold(tell: (payload: CloneTold) => void, now: () => number = Date.now): (project: string, folder: string, progress: CloneProgress) => void {
+  let last: { stage: string; at: number } | undefined
+  return (project, folder, progress) => {
+    const at = now()
+    if (last !== undefined && last.stage === progress.stage && at - last.at < CLONE_TELL_MS) return
+    last = { stage: progress.stage, at }
+    tell({ project, folder, progress })
+  }
+}
+
+/**
  * What the hub's page, hooks and chat ask of a machine besides the chain's port (`docs/machines.md`, "The seam"): each
  * member is the link's command `<group>.<member>` with `{args}`, its value in `command.done` as for `port.*`.
  */
@@ -67,6 +104,7 @@ export interface MachineServices {
   transcript: TranscriptReads
   chat: MachineChat
   records: { restore(records: RetainedRecords): Promise<void> }
+  folders: MachineFolders
 }
 
 export const SERVICE_COMMANDS = {
@@ -77,6 +115,7 @@ export const SERVICE_COMMANDS = {
   transcript: ['record', 'feed', 'image', 'inboxFile', 'sharedFile', 'note', 'context'],
   chat: ['post', 'dismiss', 'steer', 'saveInbox'],
   records: ['restore'],
+  folders: ['check', 'clone'],
 } as const satisfies { [G in keyof MachineServices]: ReadonlyArray<keyof MachineServices[G]> }
 
 type Group = keyof MachineServices

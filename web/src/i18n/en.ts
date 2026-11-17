@@ -13,6 +13,7 @@ import { demoEn } from './demo-en.js'
 import { creationEn } from './creation-en.js'
 import { transferEn } from './transfer-en.js'
 import { machinesEn } from './machines-en.js'
+import { poolEn } from './pool-en.js'
 import { noticesEn } from './notices-en.js'
 import { ADVICE } from '../../../src/notice/en-advice.js'
 import { eventsEn } from './events-en.js'
@@ -420,6 +421,7 @@ export const en: Messages = {
   creation: creationEn,
   transfer: transferEn,
   machines: machinesEn,
+  pool: poolEn,
   basement: {
     tapes: ['CAUTION', 'DO NOT ENTER', 'WORK IN PROGRESS', 'NO ENTRY'],
     stats: ['What are you doing down here?', "We're still working on this page, don't get in the way!"],

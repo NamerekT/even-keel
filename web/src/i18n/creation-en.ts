@@ -53,6 +53,16 @@ export const creationEn: Messages['creation'] = {
       project: 'Project entry',
       trust: 'Claude Code trust',
       packages: "Project's packages",
+      // Connecting a machine elsewhere (BTN-1271): its own window and the wizard's project made on such a machine.
+      'machine-clone': 'Clone on the machine',
+      'machine-place': "Folder in the project's pool",
+      'machine-repo': 'Repository',
+      'machine-remote': "Project's remote",
+      'machine-branch': 'Main branch',
+      'machine-trust': 'Claude Code trust',
+      'machine-packages': "Project's packages",
+      'machine-push': 'Right to push',
+      'machine-enable': 'Machine turned on',
     },
     states: { waiting: 'waiting', running: 'running', done: 'done', failed: 'failed' },
     stages: {

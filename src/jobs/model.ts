@@ -31,4 +31,6 @@ export interface StepJob {
   undoable: boolean
   /** What a finished job made: a project's id. */
   result?: string
+  /** The project an existing project's job works on (connecting a machine to it). */
+  project?: string
 }

@@ -26,6 +26,7 @@ export const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): 
   tracker: form.tracker,
   trackerProject: form.trackerProject ?? '',
   slot: String(form.slot),
+  width: String(form.width ?? 1),
   color: form.color === null ? '' : String(form.color),
   brief: form.brief === null ? '' : String(form.brief),
   ...rulesText(effectiveRules(form.chain, form.ownRules, profileRules)),
@@ -147,8 +148,9 @@ export function formOf(values: Values, name: string | null, shared: SharedForm, 
   if (text('protection') !== '' && protectionOf(text('protection')) === undefined) return undefined
   const on = (key: string) => values[key] as boolean
   const slot = wholeOf(text('slot'), 0)
+  const width = wholeOf(text('width'), 1)
   const own = ownOf(values)
-  if (own === undefined || slot === undefined) return undefined
+  if (own === undefined || slot === undefined || width === undefined) return undefined
   const trackerProject = text('trackerProject').trim()
   return {
     name,
@@ -158,6 +160,7 @@ export function formOf(values: Values, name: string | null, shared: SharedForm, 
     tracker: text('tracker'),
     trackerProject: trackerProject === '' ? null : trackerProject,
     slot,
+    width,
     color: text('color') === '' ? null : Number(text('color')),
     brief: text('brief') === '' ? null : text('brief') === 'true',
     chain: rulesOf(values as Record<(typeof RULE_KEYS)[number], Value>),

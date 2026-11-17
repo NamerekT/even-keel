@@ -43,7 +43,7 @@ import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
-import { FakeNetwork, fakeMachineCommand, fakeMachineSignIns } from './fakeMachines.js'
+import { FAKE_MACHINE_NAMES, FakeNetwork, fakeMachineCommand, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -365,7 +365,10 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('git') === 'anon' && current.state !== null) current.state.git = { version: '2.47.1', name: null, email: null }
   const fakeStepJob = fakeJob(params.get('job'))
   if (fakeStepJob !== null && current.state !== null) current.state.jobs = [fakeStepJob]
-  if (params.has('machines') && current.state !== null) current.state.machineSignIns = fakeMachineSignIns(current.state, params.get('machines'))
+  if (params.has('machines') && current.state !== null) {
+    current.state.machineSignIns = fakeMachineSignIns(current.state, params.get('machines'))
+    current.state.machineNames = FAKE_MACHINE_NAMES
+  }
   if (params.get('git') === 'plain' && current.state !== null) {
     const { projects } = current.state.config
     projects.OPS = { ...projects.OPS!, git: false, repo: 'C:/Users/EvenKeelSvc/AppData/Local/even-keel/projects/ops-3f9a1c2e', ci: { ...projects.OPS!.ci, guard: false }, pullRequests: false, slot: 0 }
@@ -763,7 +766,7 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (params.get('milestones') === 'saved' && current.state !== null) current.state = withSavedMilestoneOrder(current.state, { project: 'ABC', order: ['v0.3 — служба', 'v0.1 — каркас'] })
   if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(prepareHeaderLevels(current.state, params.get('header'))))
-  const network = new FakeNetwork(params.get('machines'))
+  const network = new FakeNetwork(params.get('machines'), (project) => current.state?.config.projects[project]?.repo ?? '')
   const notify = () => {
     if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(current.state))
     for (const listener of listeners) listener()

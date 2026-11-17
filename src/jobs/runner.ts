@@ -39,6 +39,8 @@ export interface JobPlan {
   keptAfter?: string
   /** What the finished job made. */
   result?(): string | undefined
+  /** The project the job works on, when it is one there already: the window shows in its settings. */
+  project?: string
 }
 
 interface Running {
@@ -79,6 +81,7 @@ export class StepJobs {
         done: job.done,
         undoable: !job.kept,
         ...(result === undefined ? {} : { result }),
+        ...(job.plan.project === undefined ? {} : { project: job.plan.project }),
       }
     })
   }

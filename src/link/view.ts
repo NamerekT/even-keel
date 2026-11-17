@@ -53,6 +53,26 @@ export interface MachineView {
   taken: TakenFolder[]
 }
 
+/** A machine of a project's pool, as the section "Machines" of its settings shows it (BTN-1271). */
+export interface PoolMachine {
+  id: string
+  name: string
+  /** The hub's own machine: its folder is the project's repository and it needs no connecting. */
+  own: boolean
+  online: boolean
+  /** The project's folder there. */
+  folder: string
+  /** The machine takes the project's tasks (`project_machines.enabled`). */
+  enabled: boolean
+}
+
+/** The section "Machines" of a project: its pool, and the machines elsewhere that may still be connected to it. */
+export interface ProjectPool {
+  machines: PoolMachine[]
+  /** Joined machines elsewhere not in the pool, with the folder a connection names by default. */
+  others: Array<{ id: string; name: string; own: boolean; online: boolean; folder: string | null }>
+}
+
 /**
  * A machine elsewhere's accounts and its sign-in under way, from its mirror (BTN-1245, `docs/machines.md`, "Signing in on
  * a machine"): no token and no credentials, only what its accounts panel shows.

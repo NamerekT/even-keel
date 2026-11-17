@@ -16,8 +16,10 @@ import type { HubBrief } from '../machine/brief.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { RemoteMachine, type RemoteDeps } from '../machine/remote.js'
 import type { MachinePort } from '../machine/port.js'
-import type { MachineServices } from '../machine/services.js'
-import { samePath } from '../paths.js'
+import { CLONE_PROGRESS_EVENT, type CloneTold, type MachineFolders, type MachineServices } from '../machine/services.js'
+import type { CloneProgress } from '../git/clone-progress.js'
+import type { ProjectPool } from '../link/view.js'
+import { isInside, samePath } from '../paths.js'
 import type { Queryable } from '../storage/database.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { BriefSender } from './hub-brief.js'
@@ -93,7 +95,21 @@ const WILDCARD = new Set(['0.0.0.0', '::', ''])
 /** The folder a project gets inside a machine's folder of projects: the hub's folder name, in the machine's way of writing paths. */
 export function folderUnder(root: string, repo: string): string {
   const name = basename(repo.replace(/[\\/]+$/, '').replaceAll('\\', '/'))
-  return (root.includes('\\') || /^[A-Za-z]:/.test(root) ? win32 : posix).join(root, name)
+  return (windowsRoot(root) ? win32 : posix).join(root, name)
+}
+
+const windowsRoot = (root: string): boolean => root.includes('\\') || /^[A-Za-z]:/.test(root)
+
+/** Whether `folder` is inside the machine's folder of projects, compared the way the machine writes paths. */
+export function insideRoot(folder: string, root: string): boolean {
+  return isInside(folder, root, windowsRoot(root) ? 'win32' : 'linux')
+}
+
+/** A machine of a project's pool as the connect job finds it: joined, with a folder of projects. */
+export interface PoolTarget {
+  id: string
+  name: string
+  root: string
 }
 
 /**
@@ -114,6 +130,8 @@ export class MachineNetwork {
   private revokedIds = new Set<string>()
   private pools = new Map<string, string[]>()
   private machineNames: Record<string, string> = {}
+  /** By machine and project, the connect job's step that shows a clone's progress there. */
+  private readonly clones = new Map<string, (progress: CloneProgress) => void>()
 
   constructor(private readonly options: MachineNetworkOptions) {
     this.hub = new HubEnd({
@@ -322,7 +340,10 @@ export class MachineNetwork {
         } else if (event.type === TAKEN_EVENT) await this.refused(machine, event.payload as FolderTaken)
         else if (event.type === KEPT_WRITE_EVENT) await peers.write(machine, event.payload as KeptWrite)
         else if (event.type === SESSIONS_READ_EVENT) void this.brief(machine)
-        else await this.peer(machine, peers).remote.handlers().event(machine, event)
+        else if (event.type === CLONE_PROGRESS_EVENT) {
+          const told = event.payload as CloneTold
+          this.clones.get(`${machine}\0${told.project}`)?.(told.progress)
+        } else await this.peer(machine, peers).remote.handlers().event(machine, event)
       },
       mcp: (machine, request) => peers.mcp(machine, request),
       hook: (machine, request) => peers.hook(machine, request),
@@ -394,25 +415,39 @@ export class MachineNetwork {
     this.options.log(`machines: machine ${machine} takes the folder of project ${project} over from machine ${owner}`)
     if (isOwn) await this.options.takeOverOwn?.(project, owner)
     else {
-      const root = record!.about?.root ?? null
-      const repo = this.options.repoOf(project)
-      if (root === null || repo === undefined) throw fail('machines.unknownProject', {})
-      await this.hub.send(machine, { type: ASSIGN_COMMAND, project, folder: folderUnder(root, repo), payload: { takeOver: owner } satisfies AssignPayload })
+      const folder = await this.folderOn(machine, project, record!.about?.root ?? null)
+      if (folder === undefined) throw fail('machines.unknownProject', {})
+      await this.hub.send(machine, { type: ASSIGN_COMMAND, project, folder, payload: { takeOver: owner } satisfies AssignPayload })
     }
     this.options.changed()
   }
 
-  /** The machine's brief, its pool's folders read anew: each inside its folder of projects, named as on the hub. */
+  /** The project's folder named by a pool row, else the hub's folder name inside the machine's folder of projects. */
+  private folderOf(project: string, folder: string | null, root: string | null): string | undefined {
+    if (folder !== null) return folder
+    const repo = this.options.repoOf(project)
+    return repo === undefined || root === null ? undefined : folderUnder(root, repo)
+  }
+
+  private async folderOn(machine: string, project: string, root: string | null): Promise<string | undefined> {
+    const { rows } = await this.options.db.query<{ folder: string | null }>('select folder from project_machines where project_id = $1 and machine_id = $2', [project, machine])
+    return this.folderOf(project, rows[0]?.folder ?? null, root)
+  }
+
+  /**
+   * The machine's brief, its pool's folders read anew. A machine turned off keeps its projects there: their packages
+   * install before its folder is checked, and a task it holds goes on; the chain pulls only from the ones turned on.
+   */
   private async brief(machine: string): Promise<void> {
     const peer = this.peers.get(machine)
     if (peer === undefined) return
     try {
       const root = (await this.options.store.machine(machine))?.about?.root ?? null
-      const { rows } = await this.options.db.query<{ project_id: string }>('select project_id from project_machines where enabled and machine_id = $1', [machine])
+      const { rows } = await this.options.db.query<{ project_id: string; folder: string | null }>('select project_id, folder from project_machines where machine_id = $1', [machine])
       const folders: Record<string, string> = {}
-      for (const { project_id: project } of rows) {
-        const repo = this.options.repoOf(project)
-        if (repo !== undefined && root !== null) folders[project] = folderUnder(root, repo)
+      for (const row of rows) {
+        const folder = this.folderOf(row.project_id, row.folder, root)
+        if (folder !== undefined) folders[row.project_id] = folder
       }
       peer.folders = folders
       await peer.briefs.send()
@@ -502,17 +537,118 @@ export class MachineNetwork {
     if (root === null) throw fail('machines.noRoot', {})
     const repos = projects.map((project) => [project, this.options.repoOf(project)] as const)
     if (repos.some(([, repo]) => repo === undefined)) throw fail('machines.unknownProject', {})
-    for (const [project, repo] of repos) {
+    for (const [project] of repos) {
       await this.options.db.query(
         'insert into project_machines (project_id, machine_id) values ($1, $2) on conflict (project_id, machine_id) do update set enabled = true',
         [project, record.id],
       )
       this.taken.get(record.id)?.delete(project)
-      await this.hub.send(record.id, { type: ASSIGN_COMMAND, project, folder: folderUnder(root, repo!) })
+      await this.hub.send(record.id, { type: ASSIGN_COMMAND, project, folder: (await this.folderOn(record.id, project, root))! })
     }
     await this.refresh()
     this.options.log(`machines: machine ${record.id} (${record.name}) was given ${projects.length} project(s)`)
     if (this.hub.connected(record.id)) void this.brief(record.id)
+    this.options.changed()
+  }
+
+  /** The project's pool for its section "Machines" (BTN-1271): the own machine's folder is the project's repository. */
+  async pool(project: string): Promise<ProjectPool> {
+    const repo = this.options.repoOf(project)
+    if (repo === undefined) throw fail('machines.unknownProject', {})
+    const own = this.options.own()
+    const records = (await this.options.store.listMachines()).filter((record) => record.revokedAt !== null ? false : record.id === own || record.joinedAt !== null)
+    const { rows } = await this.options.db.query<{ machine_id: string; folder: string | null; enabled: boolean }>(
+      'select machine_id, folder, enabled from project_machines where project_id = $1 order by machine_id',
+      [project],
+    )
+    const folderIn = (record: MachineRecord, folder: string | null) => (record.id === own ? repo : this.folderOf(project, folder, record.about?.root ?? null) ?? null)
+    const online = (record: MachineRecord) => record.id === own || this.hub.connected(record.id)
+    return {
+      machines: rows.flatMap((row) => {
+        const record = records.find((each) => each.id === row.machine_id)
+        if (record === undefined) return []
+        return [{ id: record.id, name: record.name, own: record.id === own, online: online(record), folder: folderIn(record, row.folder) ?? '', enabled: row.enabled }]
+      }),
+      others: records
+        .filter((record) => !rows.some((row) => row.machine_id === record.id))
+        .map((record) => ({ id: record.id, name: record.name, own: record.id === own, online: online(record), folder: folderIn(record, null) })),
+    }
+  }
+
+  /**
+   * Turns the machine's taking of the project's tasks on or off; a task it holds goes on either way. The own machine
+   * is put into the pool by this alone: its folder is the project's repository, checked when the project was added.
+   */
+  async setEnabled(project: string, machine: string, enabled: boolean): Promise<void> {
+    if (this.options.repoOf(project) === undefined) throw fail('machines.unknownProject', {})
+    if (machine === this.options.own()) {
+      await this.options.db.query(
+        'insert into project_machines (project_id, machine_id, enabled) values ($1, $2, $3) on conflict (project_id, machine_id) do update set enabled = $3',
+        [project, machine, enabled],
+      )
+    } else {
+      const record = await this.foreign(machine)
+      const { rows } = await this.options.db.query('update project_machines set enabled = $3 where project_id = $1 and machine_id = $2 returning machine_id', [project, record.id, enabled])
+      if (rows.length === 0) throw fail('pool.notInPool', {})
+    }
+    this.options.log(`machines: machine ${machine} ${enabled ? 'takes' : 'no longer takes'} the tasks of project ${project}`)
+    await this.poolChanged(machine)
+  }
+
+  /** A machine elsewhere the project may be connected to: joined, with a folder of projects; the own one is refused. */
+  async target(machine: string): Promise<PoolTarget> {
+    if (machine === this.options.own()) throw fail('pool.ownMachine', {})
+    const record = await this.foreign(machine)
+    if (record.joinedAt === null) throw fail('machines.notJoined', {})
+    const root = record.about?.root ?? null
+    if (root === null) throw fail('machines.noRoot', {})
+    return { id: record.id, name: record.name, root }
+  }
+
+  /** The folders group of a machine connected now. */
+  folders(target: PoolTarget): MachineFolders {
+    const peer = this.peers.get(target.id)
+    if (peer === undefined || !this.hub.connected(target.id)) throw fail('pool.offline', { name: target.name })
+    return peer.remote.services().folders
+  }
+
+  /** Shows a clone's progress on the machine until the returned function is called. */
+  watchClone(machine: string, project: string, show: (progress: CloneProgress) => void): () => void {
+    const key = `${machine}\0${project}`
+    this.clones.set(key, show)
+    return () => {
+      if (this.clones.get(key) === show) this.clones.delete(key)
+    }
+  }
+
+  /**
+   * Puts the project's folder on the machine into its pool turned off, tells the machine the folder and briefs it, so
+   * its packages install before the checks. Answers whether the row is new: Cancel takes back only such a row.
+   */
+  async place(target: PoolTarget, project: string, folder: string): Promise<boolean> {
+    if (!insideRoot(folder, target.root)) throw fail('pool.outside', { folder, root: target.root })
+    const { rows } = await this.options.db.query<{ enabled: boolean }>('select enabled from project_machines where project_id = $1 and machine_id = $2', [project, target.id])
+    await this.options.db.query(
+      `insert into project_machines (project_id, machine_id, enabled, folder) values ($1, $2, false, $3)
+       on conflict (project_id, machine_id) do update set folder = $3`,
+      [project, target.id, folder],
+    )
+    this.taken.get(target.id)?.delete(project)
+    await this.hub.send(target.id, { type: ASSIGN_COMMAND, project, folder })
+    this.options.log(`machines: machine ${target.id} (${target.name}) is given the folder ${folder} of project ${project}, to be checked`)
+    await this.poolChanged(target.id)
+    return rows.length === 0
+  }
+
+  /** Takes the machine out of the project's pool: Cancel of a connection that put it there. */
+  async unplace(machine: string, project: string): Promise<void> {
+    await this.options.db.query('delete from project_machines where project_id = $1 and machine_id = $2', [project, machine])
+    await this.poolChanged(machine)
+  }
+
+  private async poolChanged(machine: string): Promise<void> {
+    await this.refresh()
+    if (this.hub.connected(machine)) await this.brief(machine)
     this.options.changed()
   }
 

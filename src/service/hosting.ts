@@ -34,6 +34,7 @@ import { trustFolder } from '../claude/trust.js'
 import { gitSwitchBlock, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
 import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
+import { onMachine, poolControl } from './machine-pool.js'
 import { createEvenKeelServer } from '../server.js'
 import { answerComment, type AskAnswers } from '../sessions/ask.js'
 import { fromCarried, type CarriedFile } from '../machine/services.js'
@@ -374,6 +375,17 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       console.log(`tracker: ${task}: the answer was not written into the task's journal: ${englishOf(noticeOf(error))}`)
     })
   }
+  const pool = poolControl({
+    network: ctx.machineLink.network,
+    own: () => ctx.machineLink.machines.own(),
+    start: (plan) => void stepJobs.start(plan),
+    factsOf: async (project) => {
+      const repo = ctx.configStore.current.projects[project]
+      if (repo === undefined) throw fail('machines.unknownProject', {})
+      const claude = runSettings(ctx.configStore.current, project).provider === CLAUDE
+      return { repo, remotes: await remotesIn(runGit, repo), branch: ctx.branchOf(project), claude }
+    },
+  })
   return createEvenKeelServer({
     cli: ctx.cliCopies,
     hulyClient,
@@ -452,7 +464,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       branches: (project) => ctx.branches.branches(project),
       adoptBranch: (project) => ctx.branches.adopt(project),
       restoreBranch: (project) => ctx.branches.restore(project),
-      add: async (draft) => {
+      add: async ({ machine, ...draft }) => {
         const plan = await creationPlan(
           {
             git: runGit,
@@ -472,7 +484,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
           // The wizard's one field read into the source the steps take (BTN-1093).
           await sourcedDraft(runGit, draft, ctx.configStore.raw()),
         )
-        stepJobs.start(plan)
+        stepJobs.start(machine === undefined ? plan : await onMachine(pool.deps, plan, machine))
       },
       remove: (project) => {
         const repo = ctx.configStore.current.projects[project]
@@ -709,6 +721,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     builtinExports,
     backup: ctx.backups,
     machines: ctx.machineLink.network,
+    pool,
     models: async (key) => {
       const home = ctx.homes.find(key)
       return home === undefined ? null : ctx.models.of(home)

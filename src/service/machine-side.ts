@@ -16,6 +16,7 @@ import type { MachineContext } from './machine-context.js'
 import { steer, wireMachine } from './machine-chain.js'
 import { machineTasks } from './hub-mcp.js'
 import { wireMachineServices } from './machine-services.js'
+import { CLONE_PROGRESS_EVENT, cloneTold } from '../machine/services.js'
 
 export interface MachineSideOptions {
   transport: HubTransport
@@ -166,6 +167,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
         machine.mailbox.restore(mail)
         machine.monitor.restoreWindows(windows)
       },
+      cloneProgress: cloneTold((payload) => void end.emit(CLONE_PROGRESS_EVENT, payload).catch(() => {})),
     }),
     scope: (body) => machine.account.batch(() => machine.packages.pass(() => machine.choiceFor.pass(() => {
       pass = passOf()

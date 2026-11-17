@@ -33,6 +33,17 @@ it('keeps inherited, explicit account and numeric compaction windows distinct in
   }
 })
 
+it('sends the width of the project, one when the form had none, and nothing for a width under one', () => {
+  const config = fakeConfig()
+  const form: ProjectForm = { ...config.projects.ABC!, width: 3 }
+  const values = valuesOf(form, {})
+  expect(values.width).toBe('3')
+  expect(formOf(values, null, config.shared)?.width).toBe(3)
+  const { width: _, ...none } = form
+  expect(valuesOf(none, {}).width).toBe('1')
+  for (const invalid of ['0', '', '1.5']) expect(formOf({ ...values, width: invalid }, null, config.shared)).toBeUndefined()
+})
+
 describe("the project form's standards", () => {
   it('go to the draft and back as they were', () => {
     const config = fakeConfig()

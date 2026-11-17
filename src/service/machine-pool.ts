@@ -1,0 +1,151 @@
+import type { Remote } from '../ci/remote.js'
+import type { JobPlan, StepDef } from '../jobs/runner.js'
+import { FOLDER_STEPS, throwOf, type FolderSpec } from '../machine/folder-check.js'
+import { fail } from '../notice/notice.js'
+import { folderUnder, insideRoot, type MachineNetwork, type PoolTarget } from './machine-network.js'
+
+/** The job's kind: the page's window names its steps (`machine-<step>`). */
+export const CONNECT_KIND = 'machine'
+
+export type PoolNetwork = Pick<MachineNetwork, 'target' | 'folders' | 'watchClone' | 'place' | 'unplace' | 'setEnabled'>
+
+/** What the connection checks the machine's folder against: the project as the hub has it. */
+export interface ProjectFacts {
+  repo: string
+  remotes: Remote[]
+  /** The project's main branch (`branch`). */
+  branch: string
+  /** Claude Code runs the project's sessions. */
+  claude: boolean
+}
+
+export interface ConnectDeps {
+  network: PoolNetwork
+  /** Read when the first step runs: a project the wizard is creating has none before. */
+  factsOf: (project: string) => Promise<ProjectFacts>
+  /** The hub's own machine. */
+  own: () => string
+}
+
+export interface ConnectRequest {
+  machine: string
+  /** The folder on the machine; absent — the hub's folder name inside the machine's folder of projects. */
+  folder?: string
+  /** The folder is made by a clone of the project's remote first. */
+  clone: boolean
+  /** The machine becomes the project's only one: the wizard's choice of where a new project runs. */
+  only?: boolean
+}
+
+/** The remote a machine clones from: `origin`, else the first. */
+const cloneRemote = (remotes: Remote[]): Remote | undefined => remotes.find((remote) => remote.name === 'origin') ?? remotes[0]
+
+/**
+ * The steps that connect a machine elsewhere to a project (BTN-1271, `docs/machines.md`, "The pool on the page"): the
+ * clone, if asked, the folder put into the pool turned off, the checks of the folder on the machine, and the machine
+ * turned on. A failed check stops the job with what to do and Retry runs it again; Cancel takes the machine out of the
+ * pool if the job put it there. A clone made stays on the machine. `project` is read when the steps run.
+ */
+export function connectSteps(deps: ConnectDeps, project: () => string, target: PoolTarget, request: ConnectRequest): { steps: StepDef[]; undo: () => Promise<void> } {
+  let spec: FolderSpec | undefined
+  let facts: ProjectFacts | undefined
+  let inserted = false
+  const prepared = async (): Promise<FolderSpec> => {
+    if (spec !== undefined) return spec
+    facts = await deps.factsOf(project())
+    const folder = request.folder?.trim() || folderUnder(target.root, facts.repo)
+    if (!insideRoot(folder, target.root)) throw fail('pool.outside', { folder, root: target.root })
+    spec = { project: project(), folder, remotes: facts.remotes.map((remote) => remote.url), branch: facts.branch, claude: facts.claude }
+    return spec
+  }
+  const clone: StepDef = {
+    id: 'machine-clone',
+    run: async ({ progress }) => {
+      const each = await prepared()
+      const remote = cloneRemote(facts!.remotes)
+      if (remote === undefined) throw fail('pool.hubNoRemote', {})
+      const folders = deps.network.folders(target)
+      const stop = deps.network.watchClone(target.id, each.project, progress)
+      try {
+        await folders.clone(each, remote.url)
+      } finally {
+        stop()
+        progress(undefined)
+      }
+    },
+  }
+  const place: StepDef = {
+    id: 'machine-place',
+    run: async () => {
+      const each = await prepared()
+      if (await deps.network.place(target, each.project, each.folder)) inserted = true
+    },
+  }
+  const checks: StepDef[] = FOLDER_STEPS.map((step) => ({
+    id: `machine-${step}`,
+    run: async () => {
+      const each = await prepared()
+      throwOf(await deps.network.folders(target).check(step, each))
+    },
+  }))
+  const enable: StepDef = {
+    id: 'machine-enable',
+    run: async () => {
+      const each = await prepared()
+      await deps.network.setEnabled(each.project, target.id, true)
+      if (request.only === true) await deps.network.setEnabled(each.project, deps.own(), false)
+    },
+  }
+  return {
+    steps: [...(request.clone ? [clone] : []), place, ...checks, enable],
+    undo: async () => {
+      if (inserted && spec !== undefined) await deps.network.unplace(target.id, spec.project)
+    },
+  }
+}
+
+/** The job of "Connect" in a project's section "Machines": a machine that cannot be connected starts none. */
+export async function connectPlan(deps: ConnectDeps, project: string, request: ConnectRequest): Promise<JobPlan> {
+  const target = await deps.network.target(request.machine)
+  const { steps, undo } = connectSteps(deps, () => project, target, request)
+  return { kind: CONNECT_KIND, subject: target.name, steps, undo, project }
+}
+
+/**
+ * The wizard's project made to run on a machine elsewhere: after the project's own steps, a clone of it there that
+ * becomes the project's only machine. Cancel before the project is kept takes back both.
+ */
+export async function onMachine(deps: ConnectDeps, plan: JobPlan, machine: string): Promise<JobPlan> {
+  const target = await deps.network.target(machine)
+  const project = () => {
+    const made = plan.result?.()
+    if (made === undefined) throw new Error('the project is not made yet')
+    return made
+  }
+  const connect = connectSteps(deps, project, target, { machine, clone: true, only: true })
+  return {
+    ...plan,
+    steps: [...plan.steps, ...connect.steps],
+    undo: async () => {
+      await connect.undo()
+      await plan.undo()
+    },
+  }
+}
+
+export interface PoolControlDeps extends ConnectDeps {
+  network: PoolNetwork & Pick<MachineNetwork, 'pool'>
+  start: (plan: JobPlan) => void
+}
+
+/** What the page's section "Machines" asks of the hub (`ServerDeps.pool`). */
+export function poolControl(deps: PoolControlDeps) {
+  return {
+    deps: deps as ConnectDeps,
+    view: (project: string) => deps.network.pool(project),
+    connect: async (project: string, request: ConnectRequest) => {
+      deps.start(await connectPlan(deps, project, request))
+    },
+    enable: (project: string, machine: string, enabled: boolean) => deps.network.setEnabled(project, machine, enabled),
+  }
+}

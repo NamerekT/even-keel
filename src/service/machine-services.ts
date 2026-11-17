@@ -1,5 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import type { HandoffSession } from '../chain/relay.js'
+import { trustFolder } from '../claude/trust.js'
+import type { CloneProgress } from '../git/clone-progress.js'
+import { cloner, type Clone } from '../git/remote-run.js'
+import { runGit } from '../git/run.js'
+import type { Git } from '../git/types.js'
+import { checkFolderStep, cloneTarget } from '../machine/folder-check.js'
+import { readJson } from '../packages/plugins.js'
 import { fromCarried, toCarried, type CarriedFile, type MachineServices } from '../machine/services.js'
 import type { MachineContext } from './machine-context.js'
 import { inboxImage, saveInbox } from '../sessions/inbox.js'
@@ -10,12 +17,14 @@ import { sharedFile } from '../sessions/shareFile.js'
 export type MachineServicesContext = Pick<MachineContext,
   | 'account'
   | 'agentOf'
+  | 'claudeConfigs'
   | 'configStore'
   | 'emailAt'
   | 'homes'
   | 'inHomes'
   | 'mailbox'
   | 'monitor'
+  | 'packages'
   | 'promptLanguage'
   | 'sessionAccount'
   | 'taskNote'
@@ -25,6 +34,11 @@ export type MachineServicesContext = Pick<MachineContext,
 export interface MachineServicesDeps {
   steer: (task: string, session: HandoffSession, prompt: string) => Promise<boolean>
   restore: MachineServices['records']['restore']
+  /** A clone's progress, told to the hub (`CLONE_PROGRESS_EVENT`). */
+  cloneProgress: (project: string, folder: string, progress: CloneProgress) => void
+  /** git and the clone; the real ones by default (tests). */
+  git?: Git
+  clone?: Clone
 }
 
 /** A file of the machine's disk, whole; `undefined` — gone, or not a file. */
@@ -89,5 +103,21 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
       saveInbox: (_project, workdir, files) => saveInbox(workdir, files.map((file) => ({ name: file.name, data: fromCarried(file) }))),
     },
     records: { restore: deps.restore },
+    folders: {
+      check: (step, spec) =>
+        checkFolderStep({ git: deps.git ?? runGit, claudeConfigs: () => ctx.claudeConfigs().map(readJson), packages: ctx.packages }, step, spec),
+      clone: async (spec, remote) => {
+        cloneTarget(spec.folder)
+        await (deps.clone ?? cloner())({
+          remote,
+          path: spec.folder,
+          branch: null,
+          signal: new AbortController().signal,
+          onProgress: (progress) => deps.cloneProgress(spec.project, spec.folder, progress),
+        })
+        // A folder Even Keel made is trusted by it, as a project the wizard clones.
+        if (spec.claude) for (const file of ctx.claudeConfigs()) trustFolder(file, spec.folder)
+      },
+    },
   }
 }

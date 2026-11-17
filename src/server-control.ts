@@ -13,6 +13,8 @@ import type { EventHub } from './events.js'
 import type { GuardSettings } from './guard.js'
 import type { Invite } from './link/hub.js'
 import type { AddressChoice, MachineView } from './service/machine-network.js'
+import type { ProjectPool } from './link/view.js'
+import type { ConnectRequest } from './service/machine-pool.js'
 import type { HotkeyBindings } from './hotkeys.js'
 import type { Language } from './language.js'
 import type { NoticeKind } from './notice/kinds.js'
@@ -272,6 +274,12 @@ export interface ServerDeps {
     cancel(machine: string): Promise<void>
     /** A long token on a machine elsewhere (BTN-1002), tied to the claude.ai account of the hub's folder `account`. */
     token(machine: string, account: string, token: string, name?: string): Promise<void>
+  }
+  /** The section "Machines" of a project's settings (BTN-1271): its pool, "Connect" as a job of steps, a machine turned on or off. */
+  pool?: {
+    view(project: string): Promise<ProjectPool>
+    connect(project: string, request: ConnectRequest): Promise<void>
+    enable(project: string, machine: string, enabled: boolean): Promise<void>
   }
   /** The first run's Git step and the wizard's "Make it a repository" (BTN-731). */
   git?: { check(): Promise<void>; identity(name: string, email: string): Promise<void>; init(repo: string, branch: string): Promise<void> }

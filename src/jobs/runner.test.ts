@@ -37,6 +37,12 @@ describe('StepJobs', () => {
     expect(jobs.view()).toEqual([])
   })
 
+  it('names the project a job works on, from its start', () => {
+    const jobs = new StepJobs()
+    jobs.start(plan([{ id: 'a', run: () => new Promise(() => {}) }], { kind: 'machine', project: 'project-1' }))
+    expect(jobs.view()[0]).toMatchObject({ kind: 'machine', project: 'project-1', done: false })
+  })
+
   it('stops on a failed step with its notice, and Retry runs it again and goes on, the done ones not repeated', async () => {
     const jobs = new StepJobs()
     let tries = 0

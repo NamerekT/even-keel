@@ -16,6 +16,8 @@ interface JobWindowProps {
   stepLabel: (id: string) => string
   /** The button of a finished job, and what it does: open what the job made. */
   done: { label: string; onDone: () => void }
+  /** What Cancel takes back, when not a new project's folder. */
+  undoNote?: string
 }
 
 function StepMark({ state }: { state: JobStep['state'] }) {
@@ -54,7 +56,7 @@ function StepState({ step, now }: { step: JobStep; now: Date }) {
  * and speed, the failure with "Retry", and Cancel, which takes back what the job made while it still can. Not tied to
  * the wizard: the job's kind names its steps through `stepLabel`, and adding a machine to a project takes it too.
  */
-export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
+export function JobWindow({ job, title, stepLabel, done, undoNote }: JobWindowProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useId()
   const { send, sending, failure } = useCommand()
@@ -102,7 +104,7 @@ export function JobWindow({ job, title, stepLabel, done }: JobWindowProps) {
               </li>
             ))}
           </ol>
-          {!job.done && <p className="settings__hint job-window__note">{job.undoable ? t.creation.window.undoable : t.creation.window.kept}</p>}
+          {!job.done && <p className="settings__hint job-window__note">{job.undoable ? (undoNote ?? t.creation.window.undoable) : t.creation.window.kept}</p>}
         </div>
         {job.failure !== null && (
           // One line by the failure's code, the tool's words behind a tip: git's ten lines are not why to a person. A fix

@@ -100,6 +100,13 @@ const COMMANDS: Record<string, Command> = {
   'storage/backup': ({ backup }) => backup?.copyNow(),
   'machines/revoke': ({ machines }, body) => machines?.revoke(textOf(body.machine, 'machine')),
   'machines/projects': ({ machines }, body) => machines?.attach(textOf(body.machine, 'machine'), listOf({ order: body.projects }, 'request.projectList')),
+  'machines/connect': ({ pool }, body) =>
+    pool?.connect(projectOf(body), {
+      machine: textOf(body.machine, 'machine'),
+      clone: body.clone === true,
+      ...(typeof body.folder === 'string' && body.folder.trim() !== '' && { folder: body.folder.trim() }),
+    }),
+  'machines/enable': ({ pool }, body) => pool?.enable(projectOf(body), textOf(body.machine, 'machine'), switchOf(body.enabled, 'enabled')),
   'machines/takeOver': ({ machines }, body) => machines?.takeOver(typeof body.machine === 'string' ? body.machine : undefined, textOf(body.project, 'project'), textOf(body.owner, 'owner')),
   'machines/login': ({ machines }, body) => machines?.login(
     textOf(body.machine, 'machine'),
@@ -196,6 +203,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'project/trust': async ({ settings }, body) => settings.trust(projectOf(body), typeof body.account === 'string' && body.account !== '' ? body.account : null),
   'machines/addresses': async ({ machines }) => machines?.addresses() ?? [],
   'machines/list': async ({ machines }) => (await machines?.list()) ?? [],
+  'machines/pool': async ({ pool }, body) => (await pool?.view(projectOf(body))) ?? { machines: [], others: [] },
   'machines/invite': async ({ machines }, body) =>
     machines?.invite(typeof body.name === 'string' ? body.name : '', typeof body.address === 'string' ? body.address : undefined),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),

@@ -9,6 +9,7 @@ import { FAILED_EVENT, INTERRUPTED_EVENT, REFUSED_EVENT, type Command, type Mach
 import { asNotice, fail, NoticeError, type Notice } from '../notice/notice.js'
 import type { AssignedTask } from '../tracker/source.js'
 import type { HeldChanges } from './assignments.js'
+import type { FolderSpec } from './folder-check.js'
 import { applyPatch, mirrorReads, type MachineFacts } from './facts.js'
 import { MOVE_PREFIX, MOVE_STATE_EVENT, type MoveDone, type MoveSaved } from './move-call.js'
 import type { LaunchBrief, MachinePort } from './port.js'
@@ -164,6 +165,10 @@ export class RemoteMachine {
       let place: Place = {}
       if (group === 'chat' && name === 'steer') place = this.placed(this.deps.projectOf(args[0] as string), args[1] as HandoffSession)
       if (group === 'chat' && name === 'saveInbox') place = { project: args[0] as string, folder: args[1] as string }
+      if (group === 'folders') {
+        const spec = (name === 'check' ? args[1] : args[0]) as FolderSpec
+        place = { project: spec.project, folder: spec.folder }
+      }
       return this.ask(`${group}.${name}`, place, args)
     })
   }

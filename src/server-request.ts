@@ -96,7 +96,7 @@ export function draftOf(body: Record<string, unknown>): ProjectDraft {
   const { source } = body
   if (source !== undefined && source !== 'clone' && source !== 'new' && source !== 'existing') throw fail('request.required', { field: 'source' })
   // The one field of BTN-1093 is read by the service; a page from before it sends the source instead.
-  const optional = (field: 'remote' | 'folder' | 'target') => (body[field] === undefined ? {} : { [field]: textOf(body[field], field) })
+  const optional = (field: 'remote' | 'folder' | 'target' | 'machine') => (body[field] === undefined ? {} : { [field]: textOf(body[field], field) })
   return {
     ...fields,
     profile,
@@ -108,6 +108,7 @@ export function draftOf(body: Record<string, unknown>): ProjectDraft {
     ...optional('remote'),
     ...optional('folder'),
     ...optional('target'),
+    ...optional('machine'),
   }
 }
 
@@ -144,6 +145,9 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
   if (trackerProject !== null && typeof trackerProject !== 'string') throw fail('request.required', { field: 'trackerProject' })
   if (!Number.isInteger(slot) || (slot as number) < 0) throw fail('request.required', { field: 'slot' })
   if (color !== null && !Number.isInteger(color)) throw fail('request.required', { field: 'color' })
+  // A page open since before the width field (BTN-1271) sends none.
+  const width = body.width ?? 1
+  if (!Number.isInteger(width) || (width as number) < 1) throw fail('request.required', { field: 'width' })
   return {
     ...settings,
     name: name ?? null,
@@ -165,6 +169,7 @@ export function projectFormOf(body: Record<string, unknown>): ProjectForm {
     tracker: textOf(tracker, 'tracker'),
     trackerProject,
     slot: slot as number,
+    width: width as number,
     color: color as number | null,
     brief: briefOf(brief),
     chain: rulesOf(chain),

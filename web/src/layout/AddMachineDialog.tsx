@@ -35,7 +35,7 @@ export function AddMachineDialog({ state }: { state: EvenKeelState }) {
 }
 
 /** The machines elsewhere, read again whenever one joins, connects or goes away; `null` while read. */
-function useMachines(): MachineView[] | null {
+export function useMachines(): MachineView[] | null {
   const { read, onMachines } = useLive()
   const [machines, setMachines] = useState<MachineView[] | null>(null)
   useEffect(() => {

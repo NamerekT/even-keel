@@ -713,6 +713,7 @@ export function projectSettingValues(settings: ProjectSettings, written: Record<
     value('intakeLabel', 'intakeLabel', settings.intakeLabel?.trim() || undefined),
     value('mergeInto', 'mergeInto', settings.mergeInto?.trim() || undefined),
     value('carryAgent', 'carryAgent', settings.carryAgent, false),
+    value('width', 'width', settings.width, 1),
     value('changelog', 'changelog', settings.changelog, DEFAULT_CHANGELOG),
     value('standards', 'standards', settings.standards, []),
     value('provider', 'provider', settings.provider ?? undefined),

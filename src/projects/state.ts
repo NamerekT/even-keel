@@ -45,6 +45,11 @@ export interface ProjectDraft {
    * `repo` and `folder` (`readTarget`); set, `source` is not read. A clone's own folder still comes in `folder` or `repo`.
    */
   target?: string
+  /**
+   * A machine elsewhere the project runs on (BTN-1271): after the project is made here, it is cloned there and that
+   * machine becomes its only one. Absent — the hub's own machine.
+   */
+  machine?: string
 }
 
 export type RepoSource = 'clone' | 'new' | 'existing'
