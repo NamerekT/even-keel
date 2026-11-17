@@ -34,6 +34,7 @@ import { LimitNotice } from './LimitNotice.js'
 import { NoticeFixButton } from './FixButtons.js'
 import type { LimitRefusal } from './limitMessages.js'
 import { CacheFact, ContextFact, ModelFact, TipValue, TokensFact } from './SessionFacts.js'
+import { useTaskHistory } from './taskHistory.js'
 import './facts.css'
 
 import type { WindowTask } from './TranscriptWindow.js'
@@ -55,8 +56,9 @@ interface Props {
   onChatting?: (open: boolean) => void
 }
 
-export function SessionPanel({ block, scale, ci, onCard, onClose, onChatting }: Props) {
+export function SessionPanel({ block: given, scale, ci, onCard, onClose, onChatting }: Props) {
   const { state } = useLive()
+  const block = useTaskHistory(given)
   const closeRef = useRef<HTMLButtonElement>(null)
   const [opened, setOpened] = useState<TaskSession | null>(null)
   const [refusal, setRefusal] = useState<(LimitRefusal & { sessionId: string | undefined }) | null>(null)

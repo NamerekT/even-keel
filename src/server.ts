@@ -186,6 +186,8 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'machines/invite': async ({ machines }, body) => machines?.invite(typeof body.name === 'string' ? body.name : ''),
   'forward/carry': ({ carry }, body) => carry(projectOf(body)),
   'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),
+  'history/events': async ({ history }) => history?.events() ?? [],
+  'history/task': async ({ history }, body) => history?.task(textOf(body.task, 'task')) ?? { runs: [], sessions: [] },
 }
 
 const MAX_BODY_BYTES = 64 * 1024

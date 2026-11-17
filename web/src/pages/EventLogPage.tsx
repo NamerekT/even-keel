@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import type { EventEntry } from '../../../src/event-log/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
@@ -8,6 +8,7 @@ import { lastId, markRead, openPlace, placePath, readMark } from '../layout/even
 import { EVENT_CATEGORIES, EVENT_THRESHOLDS, filtered, filterOf, projectOf, searchOf, subjectOf, type EventFilter } from '../layout/eventLogFilter.js'
 import { EventSubject } from '../layout/EventSubject.js'
 import { useNow } from '../layout/useNow.js'
+import { useLive } from '../live/context.js'
 import { projectLabel } from '../state.js'
 import { Card, EmptyState, PageHead } from '../ui/blocks.js'
 import { GoToIcon } from '../ui/icons.js'
@@ -38,6 +39,28 @@ export function daysOf(entries: readonly EventEntry[]): Day[] {
   return days
 }
 
+/** The state's newest entries after the older ones of the whole log, which may be behind them or not come at all. */
+export function withOlder(whole: readonly EventEntry[], recent: readonly EventEntry[]): EventEntry[] {
+  const first = recent[0] === undefined ? Infinity : Number(recent[0].id)
+  return [...whole.filter((entry) => Number(entry.id) < first), ...recent]
+}
+
+/** The whole log (BTN-1256): the state carries only its newest entries, the page asks for the rest once. */
+function useWholeLog(recent: EventEntry[]): EventEntry[] {
+  const { query } = useLive()
+  const [whole, setWhole] = useState<EventEntry[]>([])
+  useEffect(() => {
+    let alive = true
+    query<EventEntry[]>('history/events', {})
+      .then((answer) => alive && setWhole(answer))
+      .catch((error: unknown) => console.warn(`history/events: ${error instanceof Error ? error.message : String(error)}`))
+    return () => {
+      alive = false
+    }
+  }, [])
+  return useMemo(() => withOlder(whole, recent), [whole, recent])
+}
+
 /**
  * `/log` (BTN-350): what the service's event log wrote, a card per day, newest first. Opening it marks the warnings
  * and errors read; the ones unread at the opening keep a "new" mark while the page stays.
@@ -50,17 +73,18 @@ export function EventLogPage({ state }: { state: EvenKeelState }) {
   const change = (next: EventFilter) => setSearch(searchOf(next), { replace: true })
   const reset = () => change({ level: null, category: null, project: null })
   const hasFilter = Object.values(filter).some((value) => value !== null)
-  const projects = new Set(state.eventLog.map(projectOf))
+  const log = useWholeLog(state.eventLog)
+  const projects = new Set(log.map(projectOf))
   const [read] = useState(() => readMark() ?? lastId(state.eventLog))
   const newest = lastId(state.eventLog)
   useEffect(() => markRead(newest), [newest])
-  const days = daysOf(filtered(state.eventLog, filter))
+  const days = daysOf(filtered(log, filter))
   const today = now.toDateString()
 
   return (
     <div className="page event-log">
       <PageHead title={t.events.title} help={<HelpTip text={t.events.help} />} />
-      {state.eventLog.length > 0 && (
+      {log.length > 0 && (
         <div className="event-log__filters">
           <Select className="button" label={t.events.filters.level} value={filter.level ?? ''}
             options={[{ value: '', label: t.events.filters.allLevels }, ...EVENT_THRESHOLDS.map((value) => ({ value, label: t.events.filters.thresholds[value] }))]}
@@ -74,7 +98,7 @@ export function EventLogPage({ state }: { state: EvenKeelState }) {
           <button type="button" className="button event-log__reset" disabled={!hasFilter} onClick={reset}>{t.events.filters.reset}</button>
         </div>
       )}
-      {state.eventLog.length === 0 ? (
+      {log.length === 0 ? (
         <Card>
           <EmptyState action={<Link to="/" className="button button--primary">{t.events.emptyAction}</Link>}>{t.events.empty}</EmptyState>
         </Card>

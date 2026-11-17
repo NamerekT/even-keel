@@ -1167,6 +1167,16 @@ describe('chainBlocks', () => {
     expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-4', 'ABC-3', 'ABC-1', 'ABC-2', 'ABC-5'])
   })
 
+  it('orders a closed task whose runs the state left out by its last launch all the same', () => {
+    const launch = (at: string) => ({ sessionId: `s-${at}`, at, how: 'launch' as const, resumed: 0, answers: 0 })
+    const state = stateOf({
+      tasks: [task('ABC-1', 'Won'), task('ABC-2', 'Won'), task('ABC-3', 'Won')],
+      taskSessions: { 'ABC-1': [launch('2026-01-02T12:00:00.000Z')] },
+      ranAt: { 'ABC-2': '2026-01-01T12:00:00.000Z' },
+    })
+    expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-3', 'ABC-2', 'ABC-1'])
+  })
+
   it('marks which tasks are open and carries their blockers', () => {
     const state = stateOf({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'ToDo', ['ABC-1']), task('ABC-3', 'ToDo', ['ABC-2', 'XYZ-4'])],

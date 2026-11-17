@@ -73,6 +73,12 @@ export interface SessionView {
   account: string | null
 }
 
+/** What `history/task` answers (BTN-1256): every run of a task, as `taskSessions` has them, and their sessions. */
+export interface TaskHistory {
+  runs: TaskSession[]
+  sessions: SessionView[]
+}
+
 export interface SessionRecord {
   sessionId: string
   startedAt: string | null
@@ -257,6 +263,7 @@ export interface EvenKeelState {
   runs: Record<string, Record<string, TaskRun>>
   /** The tasks with subtasks of each project, open and closed, for the "Parents" view (BTN-1041); a project without any has no key. */
   parents?: Record<string, ParentTask[]>
+  /** The live sessions, those of open tasks and those that moved lately (BTN-1256); a task's older ones come by `history/task`. */
   sessions: SessionView[]
   limits: RateLimits | null
   usage: UsageHealth
@@ -280,8 +287,13 @@ export interface EvenKeelState {
    */
   pullReadiness: Record<string, Notice | null>
   launches: LaunchDay[]
-  /** The sessions of each task by its id; a fix of a red main by the id of its episode (`fixes`). */
+  /**
+   * The sessions of each task by its id; a fix of a red main by the id of its episode (`fixes`). Only the open tasks and
+   * those that moved lately (BTN-1256): the rest come by `history/task`.
+   */
   taskSessions: Record<string, TaskSession[]>
+  /** The newest run of each task left out of `taskSessions`; absent — an older service. */
+  ranAt?: Record<string, string>
   /** The fixes of each project's red main, oldest first (BTN-153). */
   fixes: Record<string, FixEpisode[]>
   /** The work left in each project's task folders, by project and task; a task with nothing there has no key (BTN-298). */
@@ -334,7 +346,10 @@ export interface EvenKeelState {
   changelogs: Record<string, Record<string, string[]>>
   /** How each release project's branch goes into the project it merges into, by the release project (BTN-172). */
   forwards: Record<string, ForwardView>
-  /** The event log, oldest first (BTN-350): the service writes it also while no page is open; the page's toasts are its new entries. */
+  /**
+   * The event log's newest entries, oldest first (BTN-350): the service writes it also while no page is open; the page's
+   * toasts are its new entries. The log page asks for the whole log by `history/events` (BTN-1256).
+   */
   eventLog: import('./event-log/model.js').EventEntry[]
 }
 

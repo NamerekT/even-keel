@@ -453,8 +453,9 @@ const refreshProject = hubBootstrap.assembleRefreshProject(context)
 const vocabularies = hubBootstrap.assembleVocabularies(context)
 /** The statuses of each tracker profile (BTN-554), for its status moves. */
 const profileStatuses = hubBootstrap.assembleProfileStatuses(context)
-// The state goes to the page whole once, then by its changed parts, the sessions one by one (BTN-695).
-const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id' } })
+// The state goes to the page whole once, then by its changed parts, the sessions one by one (BTN-695); a tracker's
+// last read moves only its own entry (BTN-1256).
+const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id', trackers: 'name' } })
 // The event log looks at the state also while no page listens, at most every two seconds (BTN-350).
 hub.watch('state', (state) => eventLog.observe(state as EvenKeelState), 2_000)
 /**

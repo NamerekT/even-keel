@@ -573,7 +573,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const ownSession = (name: string) => taskSession(state.sessions, name) ?? null
   const fixSession = ownSession(fix)
   const reviews = new Map((order?.reviews ?? []).map((review) => [review.task, review]))
-  const shut = closedOrder(closed, state.taskSessions, [...ended.values()])
+  const shut = closedOrder(closed, state.taskSessions, state.ranAt ?? {}, [...ended.values()])
   // A task waiting on its pull request is out of the chain: its row stands between the closed tasks and the open ones.
   const pulls = [...reviews.keys()].filter((id) => !shut.includes(id) && !open.includes(id)).sort(byNumber)
   const refused = completionTasks(state)
@@ -783,8 +783,11 @@ export function taskSession(sessions: SessionView[], task: string): SessionView 
   return own.find((view) => view.lamp !== 'finished') ?? own.at(-1)
 }
 
-/** Closed tasks by their last launch, those never launched first; a fix that is over by the time it ended. */
-function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>, fixes: FixEpisode[]): string[] {
+/**
+ * Closed tasks by their last launch, those never launched first; a fix that is over by the time it ended. `ranAt` — the
+ * last launch of a task whose runs the state leaves out (BTN-1256).
+ */
+function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>, ranAt: Record<string, string>, fixes: FixEpisode[]): string[] {
   let order: string[]
   try {
     order = chainOrder(tasks)
@@ -792,7 +795,7 @@ function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>, fixes: 
     order = tasks.map((task) => task.id).sort(byNumber)
   }
   const ends = new Map(fixes.map((episode) => [episode.id, episode.end!.at]))
-  const lastRun = (id: string) => ends.get(id) ?? runs[id]?.reduce((last, run) => (run.at > last ? run.at : last), '') ?? ''
+  const lastRun = (id: string) => ends.get(id) ?? runs[id]?.reduce((last, run) => (run.at > last ? run.at : last), '') ?? ranAt[id] ?? ''
   const never = order.filter((id) => lastRun(id) === '')
   const ran = [...order.filter((id) => lastRun(id) !== ''), ...ends.keys()].sort((a, b) => lastRun(a).localeCompare(lastRun(b)))
   return [...never, ...ran]

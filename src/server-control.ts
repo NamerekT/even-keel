@@ -285,6 +285,8 @@ export interface ServerDeps {
   /** The copy of a built-in project's tasks into another tracker (BTN-1073) and the switch to it (BTN-1074); without it they are refused. */
   builtinExports?: Pick<BuiltinExports, 'plan' | 'start' | 'state' | 'switch'>
   launches: () => unknown
+  /** What the state leaves out (BTN-1256): the whole event log, and a task's every run and session. */
+  history?: { events(): unknown; task(task: string): unknown }
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */
   transcript: (sessionId: string, after: number) => Promise<unknown>

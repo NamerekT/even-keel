@@ -48,7 +48,9 @@ import { cleanRules, projectRules, rulesWith } from '../profiles/rules.js'
 import { checkMoves } from '../chain/moves.js'
 import { profilesControl } from '../profiles/control.js'
 import { disabledNotice } from '../profiles/service.js'
-import type { EvenKeelState } from '../state.js'
+import type { EvenKeelState, SessionView, TaskHistory } from '../state.js'
+import type { TaskSession } from '../chain/launches.js'
+import { recentHistory } from './page-history.js'
 import { withinWindow } from '../stats/checkpoint.js'
 import { taskCheckpoint } from '../stats/task-checkpoint.js'
 import { setStateValue } from '../storage/service-state.js'
@@ -203,11 +205,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       const parents = ctx.parentsByProject.get(project)
       return parents === undefined ? [] : [[project, parents]]
     })),
-    // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
-    // chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
-    sessions: machine.sessions().map((view) =>
-      view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view,
-    ),
+    sessions: pageSessions(ctx),
     limits: machine.limits(ctx.activeAccount()),
     usage: machine.usage(ctx.activeAccount()),
     account: {
@@ -256,7 +254,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
         }),
     ),
     launches: launchDays(ctx.launches, new Date(), ctx.LAUNCH_CHART_DAYS, (project) => ctx.configStore.current.keys[project] !== undefined),
-    taskSessions: taskSessions(ctx.launches, machine.sessions(), (sessionId, at) => machine.sessionAccount(sessionId, at), (sessionId) => machine.compactionsOf(sessionId)),
+    taskSessions: allTaskSessions(ctx),
     fixes: fixEpisodes(ctx.launches).episodes,
     works: machine.works(),
     context: ctx.configStore.current.context,
@@ -290,7 +288,32 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     forwards: ctx.forwards.view(),
     eventLog: [...ctx.eventLog.entries],
   })
-  return () => view(ctx.dispatcher.orders(), panel())
+  return () => {
+    const state = view(ctx.dispatcher.orders(), panel())
+    const current = ctx.dispatcher.state.active.flatMap((chain) => (typeof chain.current?.sessionId === 'string' ? [chain.current.sessionId] : []))
+    const recent = recentHistory({ ...state, current }, new Date())
+    return { ...state, ...recent }
+  }
+}
+
+// A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
+// chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
+function pageSessions(ctx: HostingContext): SessionView[] {
+  return ctx.machineLink.page.sessions().map((view) =>
+    view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view,
+  )
+}
+
+function allTaskSessions(ctx: HostingContext): Record<string, TaskSession[]> {
+  const machine = ctx.machineLink.page
+  return taskSessions(ctx.launches, machine.sessions(), (sessionId, at) => machine.sessionAccount(sessionId, at), (sessionId) => machine.compactionsOf(sessionId))
+}
+
+/** `history/task`: every run of the task and every session of it or of its runs (BTN-1256). */
+function taskHistory(ctx: HostingContext, task: string): TaskHistory {
+  const runs = allTaskSessions(ctx)[task] ?? []
+  const ids = new Set(runs.map((run) => run.sessionId))
+  return { runs, sessions: pageSessions(ctx).filter((view) => view.task === task || ids.has(view.sessionId)) }
 }
 
 /** A file the machine read, as the page's answer streams it. */
@@ -598,6 +621,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       if (ctx.lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(ctx.configStore.current, project) })
     }),
     launches: () => ctx.launches,
+    history: { events: () => ctx.eventLog.entries, task: (task) => taskHistory(ctx, task) },
     sessionRecord: (sessionId) => transcripts.record(sessionId),
     transcript: (sessionId, after) => transcripts.feed(sessionId, after),
     transcriptImage: async (sessionId, tool, index) => taskFileOf(await transcripts.image(sessionId, tool, index)),

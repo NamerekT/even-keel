@@ -49,6 +49,7 @@ import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSe
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
 import { fakeCheckpoint, fakeRecord, fakeTranscript } from './fakeTranscript.js'
 import { withTrustPause } from './fakeTrust.js'
+import { fakeTaskHistory, withHistoryLeft } from './fakeHistory.js'
 import { withFeeds, withLongNames, withMixedNames } from './fakeLong.js'
 
 const TICK_MS = 2_000
@@ -376,6 +377,7 @@ export function createFakeSource(search: string): LiveSource {
     if (abc !== undefined && ciWait !== undefined) abc.ciWait = ciWait
   }
   if (params.get('log') === 'empty' && current.state !== null) current.state.eventLog = []
+  if (params.get('history') === 'left' && current.state !== null) current.state = withHistoryLeft(current.state)
   if (params.get('trackers') === 'problems' && current.state !== null) current.state.trackers = fakeTrackerProblems(current.state.trackers)
   if (params.get('trackers') === 'public' && current.state !== null) current.state = withPublicSources(current.state)
   if (params.get('trackers') === 'templates' && current.state !== null) current.state = withTemplateLabels(current.state)
@@ -897,6 +899,8 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
       if (name === 'project/git/changes') return fakeGitChanges(params.get('gitChanges')) as T
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
+      if (name === 'history/events') return current.state.eventLog as T
+      if (name === 'history/task') return fakeTaskHistory(current.state, String(body.task)) as T
       if (name === 'machines/addresses') {
         return [
           { address: 'box.example.com', from: 'allowedHosts' },
