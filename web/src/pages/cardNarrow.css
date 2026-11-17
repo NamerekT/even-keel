@@ -22,6 +22,10 @@
   .task-card__side {
     position: static;
     order: -1;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
   }
 }
 

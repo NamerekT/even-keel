@@ -1,5 +1,5 @@
-/* The task card's side panel: three zones split by one line each — the action, the properties, the relations.
-   Inside a zone groups stand 16 px apart and the parts of a group 8 px. */
+/* The task card's side panel: the action bare at the top, then every group in a block of its own — the time,
+   priority and milestone, the run, the parent, the labels, the attachments, each kind of relation. */
 
 /* Side: action and properties */
 
@@ -7,8 +7,44 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
-  padding-bottom: var(--space-16);
-  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-4);
+}
+
+.task-card__block {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--space-12);
+  margin: 0;
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--side-block);
+}
+
+/* The parent and the relations: a 3 px stripe of their kind at the left edge. */
+.task-card__block--parent,
+.task-card__block--blockedBy,
+.task-card__block--blocks,
+.task-card__block--relates {
+  border-left-width: 3px;
+  padding-left: 10px;
+}
+
+.task-card__block--parent {
+  border-left-color: var(--lamp-fix);
+}
+
+.task-card__block--blockedBy {
+  border-left-color: var(--lamp-waiting);
+}
+
+.task-card__block--blocks {
+  border-left-color: var(--lamp-working);
+}
+
+.task-card__block--relates {
+  border-left-color: var(--lamp-idle);
 }
 
 .task-card__hint {
@@ -22,15 +58,12 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.task-card__facts .tipped {
-  cursor: help;
+.task-card__facts .ui-fact:not(.ui-fact--danger) {
+  background: var(--side-block);
 }
 
-.task-card__props {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-16);
-  margin: 0;
+.task-card__facts .tipped {
+  cursor: help;
 }
 
 .task-card__prop {
@@ -53,7 +86,7 @@
 }
 
 .task-card__side .task-card__heading {
-  margin-bottom: var(--space-8);
+  margin-bottom: 0;
 }
 
 .task-card__prop--wide {
@@ -192,12 +225,9 @@
 
 /* Side: relations */
 
+/* Each kind of relation is a block of the side itself; the wrapper only carries `--ref-key` down to them. */
 .task-card__relations {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-16);
-  padding-top: var(--space-16);
-  border-top: 1px solid var(--border);
+  display: contents;
 }
 
 .task-card__refs {

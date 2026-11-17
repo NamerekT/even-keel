@@ -215,17 +215,23 @@ html:has(.task-card[open]) {
   min-width: 0;
 }
 
+/* Stuck to the top of the body and no taller than the body's visible part — the frame's 100dvh - 66px less the
+   head's 57 px (12 + 32 + 12 and its line) and the body's 22 + 28 px of padding — so a long list of relations scrolls
+   inside it while the description scrolls on its own. Its 4 px of padding keep the focus rings whole and, like its
+   scrollbar's gutter, stand out in the margins, so the blocks keep the column's width. */
 .task-card__side {
+  --side-block: color-mix(in srgb, var(--surface-muted) 55%, var(--surface));
   min-width: 0;
   position: sticky;
-  top: 0;
+  top: calc(-1 * var(--space-4));
   display: flex;
   flex-direction: column;
-  gap: var(--space-16);
-  padding: var(--space-16);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
+  gap: var(--space-12);
+  max-height: calc(100dvh - 173px + 2 * var(--space-4));
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4) - var(--pane-scrollbar)) calc(-1 * var(--space-4)) calc(-1 * var(--space-4));
+  padding: var(--space-4);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .task-card__heading {

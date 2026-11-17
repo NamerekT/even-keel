@@ -59,7 +59,8 @@ const ATTACHMENTS: TaskCard['attachments'] = [
   { file: 'notes.txt', name: 'notes.txt', type: 'text/plain', size: 32, url: 'data:text/plain;charset=utf-8,' + encodeURIComponent('Notes from the call, nothing more.\n') },
 ]
 
-/** `mode`: `empty` — a task without description, labels, links, comments and attachments; `none` — the tracker gives no card. */
+/** `mode`: `empty` — a task without description, labels, links, comments and attachments; `links` — a parent and twelve
+    related tasks, to scroll the side panel; `none` — the tracker gives no card. */
 export function fakeCard(state: EvenKeelState, id: string, mode: string | null): TaskCard | null {
   if (mode === 'none') return null
   // A parent of the "Parents" view has its card too, with its subtasks of the fake's list.
@@ -72,6 +73,8 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
       return found === undefined ? [] : [{ id: found.id, title: found.title, status: found.status }]
     })
   const plain = mode === 'empty'
+  const links = mode === 'links'
+  const siblings = state.tasks.filter((each) => each.id !== id && each.id.startsWith(id.split('-')[0]!)).map((each) => each.id)
   const labels: CardLabel[] = plain
     ? []
     : [
@@ -87,10 +90,10 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     priority: plain ? 'none' : (['urgent', 'high', 'medium', 'low'] as const)[number % 4]!,
     labels,
     milestone: task.milestone,
-    parent: null,
+    parent: links ? (refs(siblings.slice(-1))[0] ?? null) : null,
     blockedBy: refs(task.blockedBy),
     blocks: refs(state.tasks.filter((each) => each.blockedBy.includes(id)).map((each) => each.id)),
-    related: plain ? [] : refs(state.tasks.filter((each) => each.id !== id && each.id.startsWith(id.split('-')[0]!)).slice(0, 1).map((each) => each.id)),
+    related: plain ? [] : refs(siblings.slice(0, links ? 12 : 1)),
     subtasks: state.tasks.filter((each) => each.parent === id).map((each) => ({ id: each.id, title: each.title, status: each.status, milestone: each.milestone?.label ?? null })),
     comments: plain
       ? []

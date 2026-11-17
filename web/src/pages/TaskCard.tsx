@@ -358,7 +358,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               </Fact>
             </FactList>
           )}
-          <dl className="task-card__props">
+          <dl className="task-card__block">
             <Prop name={t.card.priority}>
               {editable !== null ? (
                 <PriorityPick card={card} editor={editable.editor} />
@@ -383,34 +383,38 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
                 </span>
               )}
             </Prop>
+          </dl>
+          <dl className="task-card__block">
             <TaskRunPick task={card.id} live={live} onChanged={onChanged} />
-            {editable !== null ? (
-              <Prop name={t.card.parent} wide={editable.card.parent !== null}>
-                <ParentField card={editable.card} project={project} editor={editable.editor} onOpen={onOpen} />
+          </dl>
+          {(editable !== null || card.parent !== null) && (
+            <dl className="task-card__block task-card__block--parent">
+              <Prop name={t.card.parent} wide>
+                {editable !== null ? (
+                  <ParentField card={editable.card} project={project} editor={editable.editor} onOpen={onOpen} />
+                ) : (
+                  <RefLink item={card.parent!} onOpen={onOpen} />
+                )}
               </Prop>
-            ) : (
-              card.parent !== null && (
-                <Prop name={t.card.parent}>
-                  <RefLink item={card.parent} onOpen={onOpen} />
-                </Prop>
-              )
-            )}
-            {(card.labels.length > 0 || editable !== null) && (
+            </dl>
+          )}
+          {(card.labels.length > 0 || editable !== null) && (
+            <dl className="task-card__block">
               <Prop name={t.card.labels} wide>
                 {editable !== null ? (
                   <LabelsField card={editable.card} editor={editable.editor} roleText={roleText} />
                 ) : (
-                <ul className="task-card__chips">
-                  {card.labels.map((label) => (
-                    <li
-                      key={label.name}
-                      className={label.role === null ? 'tag' : `chip task-card__chip--${label.role}`}
-                      title={label.role === null ? undefined : roleText(label.role)}
-                    >
-                      {label.name}
-                    </li>
-                  ))}
-                </ul>
+                  <ul className="task-card__chips">
+                    {card.labels.map((label) => (
+                      <li
+                        key={label.name}
+                        className={label.role === null ? 'tag' : `chip task-card__chip--${label.role}`}
+                        title={label.role === null ? undefined : roleText(label.role)}
+                      >
+                        {label.name}
+                      </li>
+                    ))}
+                  </ul>
                 )}
                 {quiet.length > 0 && (
                   <ul className="task-card__roles">
@@ -422,8 +426,8 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
                   </ul>
                 )}
               </Prop>
-            )}
-          </dl>
+            </dl>
+          )}
           {card.attachments.length > 0 && <Attachments task={card.id} items={card.attachments} editor={editable?.editor ?? null} />}
           <Relations card={card} editor={editable?.editor ?? null} onOpen={onOpen} />
         </aside>

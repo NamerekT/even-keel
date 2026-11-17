@@ -1,10 +1,5 @@
 /* Side: attachment tiles */
 
-.task-card__attachments {
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
 .tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

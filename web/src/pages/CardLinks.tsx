@@ -139,12 +139,12 @@ export function Relations({ card, editor, onOpen }: RelationsProps) {
 
   return (
     <div className="task-card__relations" style={keys}>
-      <Refs title={t.card.blockedBy} items={card.blockedBy} onOpen={onOpen} onRemove={(other) => unlink('blockedBy', other)} />
-      <Refs title={t.card.blocks} items={card.blocks} onOpen={onOpen} onRemove={(other) => unlink('blocks', other)} />
-      <Refs title={t.card.related} items={card.related} onOpen={onOpen} onRemove={(other) => unlink('relates', other)} />
+      <Refs kind="blockedBy" title={t.card.blockedBy} items={card.blockedBy} onOpen={onOpen} onRemove={(other) => unlink('blockedBy', other)} />
+      <Refs kind="blocks" title={t.card.blocks} items={card.blocks} onOpen={onOpen} onRemove={(other) => unlink('blocks', other)} />
+      <Refs kind="relates" title={t.card.related} items={card.related} onOpen={onOpen} onRemove={(other) => unlink('relates', other)} />
       {editor !== null &&
         (adding ? (
-          <div ref={form} className="task-card__link-add">
+          <div ref={form} className="task-card__block task-card__link-add">
             <Select
               className="task-card__field"
               label={t.card.edit.linkKind}
@@ -168,6 +168,8 @@ export function Relations({ card, editor, onOpen }: RelationsProps) {
 }
 
 interface RefsProps {
+  /** Gives the group's block its stripe. */
+  kind: LinkKind
   title: string
   items: TaskRef[]
   onOpen: (task: string) => void
@@ -175,10 +177,10 @@ interface RefsProps {
   onRemove: (task: string) => (() => void) | undefined
 }
 
-function Refs({ title, items, onOpen, onRemove }: RefsProps) {
+function Refs({ kind, title, items, onOpen, onRemove }: RefsProps) {
   if (items.length === 0) return null
   return (
-    <section className="task-card__group">
+    <section className={`task-card__block task-card__block--${kind}`}>
       <h3 className="task-card__heading">
         {title} <span className="task-card__count">{items.length}</span>
       </h3>

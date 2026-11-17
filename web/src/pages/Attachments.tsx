@@ -38,7 +38,7 @@ export function Attachments({ task, items, editor }: Props) {
   })
 
   return (
-    <section className="task-card__group task-card__attachments">
+    <section className="task-card__block task-card__attachments">
       <h3 className="task-card__heading">
         {t.card.attachments} <span className="task-card__count">{items.length}</span>
       </h3>
