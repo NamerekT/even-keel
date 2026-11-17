@@ -259,5 +259,12 @@ describe('badgeStateOf', () => {
       expect(titleOf(own('XYZ-CARRY', ['ABC-6']))).toBe('Carrying the release into dev')
       expect(titleOf(own('REL-CARRY', ['ABC-6']), ['agent'])).toBeUndefined()
     })
+
+    it('titles the fix by the project\'s branch, never by a translation, only with the title picked (EKR-137)', () => {
+      const titleOf = (state: EvenKeelState, fields = ALL_BADGE_FIELDS) => badgeStateOf(state, ABC, { now, fields, stats: null, titleEn: () => 'Translated' }).active[0]?.titleEn
+      expect(titleOf(own('ABC-FIX', ['ABC-6']))).toBe('Fixing the red dev')
+      expect(titleOf(own('ABC-FIX.3', ['ABC-6']))).toBe('Fixing the red dev')
+      expect(titleOf(own('ABC-FIX', ['ABC-6']), ['agent'])).toBeUndefined()
+    })
   })
 })

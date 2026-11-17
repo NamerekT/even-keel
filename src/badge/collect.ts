@@ -1,6 +1,6 @@
 import type { EvenKeelState, SessionView } from '../state.js'
 import type { Task } from '../tracker/model.js'
-import { isCarryName, isOwnName, releaseOfCarry } from '../chain/fix.js'
+import { isCarryName, isFixName, isOwnName, projectOfFix, releaseOfCarry } from '../chain/fix.js'
 import { localStamp } from './dates.js'
 import { STATUS_FRESH_MS } from './status.js'
 import { BADGE_FIELDS, BADGE_VERSION, type BadgeAction, type BadgeChain, type BadgeField, type BadgeState, type BadgeStats, type BadgeTask } from './model.js'
@@ -72,7 +72,7 @@ function taskOf(state: EvenKeelState, project: string, current: Current, on: Set
   const waiting = session !== undefined && (session.asking || session.lamp === 'waiting')
   const task: BadgeTask = { key: id, state: limited ? 'limit' : waiting ? 'waiting' : 'working' }
   if (hold !== undefined && hold.resetsAt !== null) task.until = hold.resetsAt
-  const title = on.has('title') ? (isCarryName(id) ? carryTitle(state, project, id) : titleEn?.(id)) : undefined
+  const title = on.has('title') ? (isCarryName(id) ? carryTitle(state, project, id) : isFixName(id) ? fixTitle(state, project, id) : titleEn?.(id)) : undefined
   if (title !== undefined && title.trim() !== '') task.titleEn = title.trim()
   if (session === undefined) {
     if (on.has('time')) task.startedAt = since
@@ -101,6 +101,12 @@ function carryTitle(state: EvenKeelState, project: string, id: string): string |
   if (branch === undefined) return `Carrying the release into ${into}`
   const version = /^v?(\d+(?:\.\d+)*)$/.exec(branch.split('/').at(-1) ?? '')?.[1]
   return `Carrying ${version === undefined ? branch : `release v${version}`} into ${into}`
+}
+
+/** A fix's own title (EKR-137), no translation: the red branch is the main branch of the project the fix is of. */
+function fixTitle(state: EvenKeelState, project: string, id: string): string {
+  const branch = state.config.projects[projectOfFix(state.projectKeys, id) ?? project]?.branch
+  return branch === undefined ? 'Fixing the red main branch' : `Fixing the red ${branch}`
 }
 
 /** The session's latest tool call as the badge may show it; a line of an agent without `badge` shows only its tool. */

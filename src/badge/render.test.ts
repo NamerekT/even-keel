@@ -46,9 +46,17 @@ const limit: BadgeState = {
   chain: { ...live.chain, tasks: live.chain.tasks!.map((chip) => (chip.state === 'working' ? { ...chip, state: 'limit' as const } : chip)) },
 }
 
+const { titleEn: _untitled, ...untitled } = live.active[0]!
+const own = (key: string, titleEn: string): BadgeState => ({ ...live, active: [{ ...live.active[0]!, key, titleEn }], chain: { ...live.chain, tasks: live.chain.tasks!.filter((chip) => chip.state !== 'working') } })
+
 const STATES: Record<string, BadgeState | null> = {
   live,
   two,
+  fix: own('ABC-FIX.3', 'Fixing the red dev'),
+  carry: own('REL-CARRY', 'Carrying release v0.3 into dev'),
+  untitled: { ...live, active: [untitled] },
+  'untitled-two': { ...two, active: [untitled, two.active[1]!] },
+  'untitled-offline': { ...live, at: at(180), active: [untitled] },
   waiting,
   limit,
   stale: { ...live, at: at(20) },
@@ -72,6 +80,11 @@ describe('renderBadge', () => {
     expect(Object.fromEntries(Object.entries(STATES).map(([name, state]) => [name, badgeMode(state, now)]))).toEqual({
       live: 'live',
       two: 'live',
+      fix: 'live',
+      carry: 'live',
+      untitled: 'live',
+      'untitled-two': 'live',
+      'untitled-offline': 'offline',
       waiting: 'live',
       limit: 'live',
       stale: 'stale',
@@ -137,8 +150,24 @@ describe('renderBadge', () => {
 
   const texts = (state: BadgeState) => [...renderBadge(state, { theme: 'dark', now, fonts: false }).matchAll(/<text[^>]*>(.*?)<\/text>/g)].map((match) => match[1]!.replace(/<[^>]+>/g, ''))
 
+  it('puts a single untitled task\'s agent line on its key\'s line, right after the key, and keeps the bar in place (EKR-137)', () => {
+    const at = (svg: string, text: string) => {
+      const match = new RegExp(`<text x="([\\d.]+)" y="([\\d.]+)"[^>]*>${text}`).exec(svg)
+      return match === null ? null : { x: Number(match[1]), y: Number(match[2]) }
+    }
+    const bar = (svg: string) => /<rect x="[\d.]+" y="([\d.]+)"[^>]*rx="8"/.exec(svg)?.[1]
+    for (const mode of [live, { ...live, at: new Date(now.getTime() - 180 * 60_000).toISOString() }]) {
+      const titled = renderBadge(mode, { theme: 'dark', now, fonts: false })
+      const svg = renderBadge({ ...mode, active: [untitled] }, { theme: 'dark', now, fonts: false })
+      const key = at(svg, 'ABC-15')!
+      const meta = at(svg, 'Claude Code')!
+      expect(meta.y).toBe(key.y)
+      expect(meta.x).toBe(at(titled, 'Draw the badge')!.x)
+      expect(bar(svg)).toBe(bar(titled))
+    }
+  })
+
   it('draws a task without an English title by its key alone, with no word in the title\'s place', () => {
-    const { titleEn: _titleEn, ...untitled } = live.active[0]!
     for (const state of ['working', 'waiting'] as const) {
       const drawn = texts({ ...live, active: [{ ...untitled, state }] })
       expect(drawn).toContain(untitled.key)

@@ -23,7 +23,8 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
   carry `doneAt`).
 - `milestone` — `{ name, done, left, queued? }` or `null`: `left` is every open task of the milestone, `queued` those
   of them the chain takes. A fix of main or a release carry in work (`ABC-FIX`, `EKR-CARRY` and their episodes) has no
-  tracker task, so its milestone is the next task's (EKR-138).
+  tracker task, so its milestone is the next task's (EKR-138), and its `titleEn` is its own, not a translation
+  (EKR-137, "English titles").
 - `stats` — `sessions`, `medianCost`, `medianMinutes`.
 
 The project picks its fields (`BADGE_FIELDS`); a field not picked leaves **no key**, never `null`
@@ -177,7 +178,9 @@ picks those fields itself.
 `renderBadge` returns an SVG document 840 px wide: no script, no outside resource. The layout follows the task's mockups
 (BTN-915's attachments): a header with the state, what the chain does ("<project> is being built right now", "· N tasks
 at once", "the agent asked the maintainer…") and the age of the push; one task in work gets a large title with
-"agent · model · started N min ago" under it (a release carry's title is its own, see "English titles"), several share rows with that line on the right; the action bar is the
+"agent · model · started N min ago" under it (a fix's and a release carry's title is their own, see "English titles";
+a task with no title has that line on its key's line, right after the key, online and offline alike, and its bar stays
+where it is — EKR-137), several share rows with that line on the right; the action bar is the
 tool's icon, the action in the agent's colour (yellow for Claude, blue for the rest), a blinking cursor, the context
 fill with a glowing edge and `context N%`; a waiting task has a dashed "waiting for the maintainer's answer" bar
 instead, and one on a limit the same bar with a pause mark and "waiting for the usage limit · resets in 2 h" (the reset
@@ -257,7 +260,10 @@ as an empty title: the badge shows the key alone and the title is not asked agai
 settings. The answer then passes the filter above like any free text. The user message is **only the title**, never the
 task's description, comments or question. A release carry is not translated: it has no tracker task, and its title is
 its own (EKR-138), "Carrying release v0.3 into dev" — the version from the release project's `branch` (`release/v0.3`;
-a branch with no version is named whole) and the `branch` of the project it goes into, never a literal. Timeout: three minutes, like the classifier. The answer loses Markdown, HTML tags, controls,
+a branch with no version is named whole) and the `branch` of the project it goes into, never a literal. A fix of main is
+not translated either (EKR-137): "Fixing the red dev", the `branch` of the project the fix is of. BTN-974's ban on
+words in a task's place does not reach them: they have no tracker task and their meaning is known exactly. Both go
+only with the `title` field picked. Timeout: three minutes, like the classifier. The answer loses Markdown, HTML tags, controls,
 formatting characters, surrounding quotes and extra whitespace, then is cut to 90 Unicode characters.
 
 Database step 45 adds `badge_translations`: a tracker source (kind, profile and tracker project; built-in trackers use
