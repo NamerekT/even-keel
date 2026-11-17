@@ -84,6 +84,18 @@ The package `even-keel` (`docs/releases.md`, "Publishing to npm") is the built E
 
 The tray's ten-second poll uses `GET /api/tray` (BTN-826), returning only `{language, asking, paused}`. Counts come directly from the current sessions and active chains, without building the page's state. Questions still take priority over pauses, and an unspecified language keeps the tray's current language. The update runner continues to read `/api/state` for its version and start time.
 
+## A machine of a hub (BTN-1243)
+
+The same installers put a machine of a hub (`docs/machines.md`) on a computer: `even-keel install --machine <string> [--root <folder>] [--service]`, the command the hub's `machines/invite` answers with as `command` (`npx even-keel@<hub's version> install --machine <string>`, `installCommandOf`, `src/cli-install.ts`). No OS is chosen: on Windows the start at sign-in by default, `--service` the service `EvenKeel` (refused elsewhere); on Linux and macOS `install.sh`. From the npx cache the options pass to the global copy (`installArgsOf`, `src/cli-args.ts`).
+
+- **Refusals first**, before anything is installed (`prerequisiteRefusal`): Node older than 24 for any install, no git on `PATH` for a machine. `install.ps1` and `install.sh` check the same on their own, for a run from a checkout.
+- **Join before the service.** The join is `even-keel join <string> [--root <folder>]` in a child process (it reads the data folder's `.env`, which must not reach the host's or the unit's environment): in `src/cli.ts` for the start at sign-in, in `install.sh --machine/--root` and `install.ps1 -Machine/-Projects` otherwise (`-Root` would clash with the script's `$root`). A refused join stops the install and leaves an installed service as it was (`install.ps1` starts a stopped one again). A second run with the same string finds it joined and installs the service again.
+- **No page.** A checkout builds with `npm run build:machine` (the server's code and assets, no `web/`); a package carries `dist/web` anyway and the machine's process does not serve it.
+- **Readiness.** `install-check.js … --machine` waits not for `/` but for the process to keep running 10 s in a row within the 60 s (a process without a kept token exits at once and the manager restarts it). Then the CLI waits up to 30 s for a `contactAt` in `state/machine-link.json` newer than the install's start (`waitForContact`) and says whether the hub was reached and where the log is.
+- **The tray** of a machine reads `contactAt` from `machine-link.json` of the state folder (`EVEN_KEEL_STATE_DIR` over `.env`, else `state/` of the data folder) instead of `/api/tray`: green while the last contact is under 3 min old (the machine writes it at most once a minute), grey in the start's grace, red after; no "Open page" item.
+
+Never checked live on another computer: [unverified](unverified/machines.md#the-machine-installer-on-windows-linux-and-macos-btn-1243).
+
 ## Updating from the page (BTN-163, `src/updates/`)
 
 The update window on the page (`docs/web/interface.md`) sends `updates/install` or `updates/revert`; the service side is `Updater` (`updater.ts`), the process that does the work is `run.ts` over `runner.ts`.
