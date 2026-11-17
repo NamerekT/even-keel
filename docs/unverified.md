@@ -230,6 +230,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 193 | [Connecting a machine to a project over a live link](unverified/machines.md#connecting-a-machine-to-a-project-over-a-live-link-btn-1271) | a hub with a machine elsewhere connected to a project from its settings or made in the wizard on another machine | a machine able to push is refused, or one unable to push is turned on and its handoffs' pushes fail; a clone's progress never shows; the job's step names what failed | — |
 | 194 | [A ChatGPT workspace seat's monthly credit cap](unverified/accounts.md#a-chatgpt-workspace-seats-monthly-credit-cap-ekr-132) | Codex and OpenCode on a ChatGPT Team, Business, Edu or Enterprise seat | no month on the card, a wrong reset, or a launch into a spent cap; pick another account | — |
 | 195 | [The machine's page over a live link](unverified/machines.md#the-machines-page-over-a-live-link-btn-1272) | a hub with a machine elsewhere whose page is opened, or whose capacity or colour is set there | the accounts show no limits, the report never comes, or a capacity set there does not change how many tasks the machine takes | — |
+| 196 | [An approval the CLI stopped waiting for](unverified/sessions.md#an-approval-the-cli-stopped-waiting-for-ekr-140) | Claude on Execution = Agent SDK, a call the CLI's removal check holds | the question goes with no mark in the chat, and the tracker comment still says the session waits | — |
 
 ### Waiting for the event / not checked by choice
 

@@ -371,8 +371,10 @@ export class SdkSessions {
   }
 
   /**
-   * A question, or a tool call to approve, waits for the user's reply, or for an answer from Remote Control, which the
-   * CLI reports by aborting the call. An unattended chain has nobody to approve a call, so it is refused.
+   * A question, or a tool call to approve, waits for the user's reply. The CLI aborts the call when Remote Control
+   * answers it and when it stops waiting itself (its removal check gives a person two minutes, EKR-140): which one it was
+   * is the call's result in the transcript, where the chat and the tracker read it (`expiredApprovals`). An unattended
+   * chain has nobody to approve a call, so it is refused.
    */
   private permission(connection: Connection, tool: string, input: Record<string, unknown>, signal: AbortSignal, toolUseID: string | undefined): Promise<SdkPermission> {
     if (tool !== ASK_TOOL && this.options.unattended()) return Promise.resolve({ behavior: 'deny', message: NO_APPROVAL })
@@ -396,7 +398,15 @@ export class SdkSessions {
     }
     connection.asks.set(id, pending)
     connection.turn = { status: 'waiting', ask: pending.ask }
-    signal.addEventListener('abort', () => pending.settle({ behavior: 'deny', message: 'The question was answered elsewhere.' }), { once: true })
+    signal.addEventListener(
+      'abort',
+      () => {
+        if (connection.asks.get(id) !== pending) return
+        this.options.log(`sessions: the CLI stopped waiting on the ${tool} question ${id}: Remote Control answered it, or its prompt timed out`)
+        pending.settle({ behavior: 'deny', message: 'The CLI stopped waiting for this answer.' })
+      },
+      { once: true },
+    )
     return answer
   }
 

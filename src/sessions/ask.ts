@@ -51,6 +51,7 @@ interface AskTexts {
   /** A journal's question (BTN-774): no comment answers it. */
   chat: string
   answer: string
+  expired: string
 }
 
 const TEXTS: Record<Language, AskTexts> = {
@@ -64,6 +65,7 @@ const TEXTS: Record<Language, AskTexts> = {
         : 'Ответьте комментарием: номер варианта (`2`), несколько через запятую (`1, 3`) или свой текст.',
     chat: 'Ответ — в чате сессии на странице: заметка здесь сессии не дойдёт.',
     answer: '**Ответ сессии**',
+    expired: '**Вопрос истёк**: CLI перестал ждать ответа и сам отказал, вызов не выполнен. Сессия продолжает без него; ответ на вопрос выше ей уже не дойдёт.',
   },
   en: {
     lost: 'The question you asked through AskUserQuestion was lost when the session restarted:',
@@ -75,6 +77,7 @@ const TEXTS: Record<Language, AskTexts> = {
         : 'Reply with a comment: the option number (`2`), several separated by commas (`1, 3`), or your own text.',
     chat: 'Answer in the session’s chat on the page: a note here does not reach the session.',
     answer: '**Answer to the session**',
+    expired: '**The question expired**: the CLI stopped waiting for an answer and refused the call itself, it did not run. The session goes on without it; an answer to the question above no longer reaches it.',
   },
 }
 
@@ -278,6 +281,11 @@ export function questionComment(ask: Ask, language: Language, journal = false): 
   })
   blocks.push(journal ? text.chat : text.how(several))
   return blocks.join('\n\n')
+}
+
+/** The tracker comment after a question the CLI stopped waiting on (EKR-140): it is closed, no reply reaches the session. */
+export function expiredComment(language: Language): string {
+  return TEXTS[language].expired
 }
 
 /** `text` as a Markdown code block whose fence is longer than any backtick run inside it. */

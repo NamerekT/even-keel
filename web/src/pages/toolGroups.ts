@@ -29,6 +29,8 @@ export interface Call {
   failure: string | null
   /** The failure is a command the end of its turn killed. */
   interrupted?: true
+  /** The CLI stopped waiting for its approval and refused it itself (EKR-140). */
+  expired?: true
 }
 
 /** What the chat lays out: a line of its own, the calls between two texts, or a mark of the time after a pause. */
@@ -59,6 +61,7 @@ export function feedEntries(lines: FeedLine[]): FeedEntry[] {
     if (call === undefined) continue
     call.failure = line.text
     if (line.interrupted) call.interrupted = true
+    if (line.expired) call.expired = true
   }
 
   const entries: FeedEntry[] = []

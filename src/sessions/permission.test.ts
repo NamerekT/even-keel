@@ -8,7 +8,7 @@ const prompt = (answer: string | undefined, text = '', files: string[] = []) =>
   replyPrompt({ from: 'page', answers: answer === undefined ? {} : { [question]: answer }, text, files }, ask, 'en')
 
 describe('permissionAsk', () => {
-  it('asks whether to allow the tool, with the call in the preview of the allowing option', () => {
+  it('asks whether to allow the tool, with the call in the preview of both options (EKR-139)', () => {
     expect(ask).toEqual({
       id: 'toolu_07',
       questions: [
@@ -18,7 +18,7 @@ describe('permissionAsk', () => {
           multiSelect: false,
           options: [
             { label: 'Allow', description: 'The session runs the call shown', preview: 'npm publish\n\nThe agent says: Publish the package' },
-            { label: 'Deny', description: 'The session goes on without this call' },
+            { label: 'Deny', description: 'The session goes on without this call', preview: 'npm publish\n\nThe agent says: Publish the package' },
           ],
         },
       ],

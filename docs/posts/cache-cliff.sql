@@ -86,3 +86,40 @@ select kind,
   round(100.0 * sum(w1) / nullif(sum(w1 + w5), 0), 1) as writes_1h_pct,
   round(100.0 * sum(units - warm_units) filter (where gap_min >= 55) / sum(units), 2) as extra_after_55m_pct
 from u group by 1 order by 1;
+
+-- 4. The same in API dollars, at each model's list price (Tally's model_prices): the whole spend; what the rebuilds
+--    after a 55+ minute pause cost over a warm cache; what an API key's five-minute cache would have added on every
+--    pause of 5 minutes or more that the hour kept warm (the whole context written again instead of read); and what the
+--    hour itself cost: every one-hour write priced as a five-minute one.
+--    Post: hand $5,662 spent, 17 cold resumes $12.42 ($0.73 each), $1,245 (22 %) with a five-minute cache, the
+--    hour's own premium $600; chain $5,721, 5 cold resumes $2.29, $189 (3 %), $777.
+with m as (
+  select c.session_id, c.at, c.input, c.cache_write_5m as w5, c.cache_write_1h as w1, c.cache_read as r, c.cost,
+         p.cache_write_5m as p5, p.cache_write_1h as p1, p.cache_read as pr,
+         case when s.launch_task is not null then 'chain' else 'hand' end as kind,
+         lag(c.at) over (partition by c.session_id order by c.at) as prev_at
+  from message_costs c
+    join sessions s using (session_id)
+    join model_prices p on p.model = c.price_model and p.source = c.price_source
+  where c.model like 'claude%' and (c.agent_id is null or c.agent_id = '')
+    and c.entrypoint in ('cli', 'claude-vscode', 'sdk-ts', 'claude-desktop')
+    and c.at >= '2026-09-01' and c.at < '2026-11-17 13:00'
+),
+g as (
+  select *, extract(epoch from at - prev_at) / 60 as gap_min, input + w5 + w1 + r as ctx,
+    (w5 * (p5 - pr) + w1 * (p1 - pr)) / 1e6 as extra_usd,
+    (w5 + w1 + r) * (p5 - pr) / 1e6 as five_minute_rebuild_usd,
+    w1 * (p1 - p5) / 1e6 as hour_premium_usd
+  from m
+),
+b as (
+  select *, ctx > 20000 and (w5 + w1) > 0.5 * ctx as rebuild from g
+)
+select kind,
+  round(sum(cost)::numeric) as spent_usd,
+  count(*) filter (where gap_min >= 55 and rebuild) as cold_resumes,
+  round(sum(extra_usd) filter (where gap_min >= 55 and rebuild)::numeric, 2) as cold_resumes_usd,
+  round(avg(extra_usd) filter (where gap_min >= 55 and rebuild)::numeric, 2) as usd_per_cold_resume,
+  round(sum(five_minute_rebuild_usd) filter (where gap_min >= 5 and ctx > 20000 and not rebuild)::numeric) as five_minute_cache_usd,
+  round(sum(hour_premium_usd)::numeric) as hour_premium_usd
+from b group by 1 order by 1;

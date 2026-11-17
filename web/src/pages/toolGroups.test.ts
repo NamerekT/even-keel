@@ -30,6 +30,13 @@ describe('feedEntries', () => {
     expect(entries[1]).toMatchObject({ kind: 'line', line: { kind: 'failed', text: 'lost' } })
   })
 
+  it('marks a call whose approval expired and keeps the closing line after its group (EKR-140)', () => {
+    const closing: FeedLine = { at: minute(2), kind: 'error', text: '', notice: { code: 'session.approvalExpired', params: { tool: 'Bash' } } }
+    const entries = feedEntries([call(0, 'Bash', 'b'), { at: minute(2), kind: 'failed', text: 'timed out', tool: 'b', expired: true }, closing])
+    expect(entries[0]).toMatchObject({ kind: 'tools', calls: [{ failure: 'timed out', expired: true }] })
+    expect(entries.at(-1)).toEqual({ kind: 'line', line: closing })
+  })
+
   it('lets a question break the group', () => {
     const ask: FeedLine = { ...call(0, 'AskUserQuestion', 'q'), ask: { id: 'q', questions: [] } }
     const entries = feedEntries([call(0, 'Read', 'a'), ask, call(0, 'Read', 'b')])

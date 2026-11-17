@@ -196,7 +196,8 @@ function drawTask(draw: Drawing, task: BadgeTask, layout: TaskLayout, base: numb
   // No English title — the key alone: a word in its place would read as the task's title (BTN-974).
   if (task.titleEn !== undefined) draw.text(x, base, fit(task.titleEn, 'sans-bold', titleSize, WIDTH - PAD - x - metaWidth), 'sans-bold', titleSize, theme.fg)
   if (meta !== '') {
-    if (single) draw.text(x, base + 24, fit(meta, 'sans', 12.5, WIDTH - PAD - x), 'sans', 12.5, theme.fgMuted)
+    // Without a title a single task's agent line takes the title's place, not the line under an empty one (EKR-137).
+    if (single) draw.text(x, task.titleEn === undefined ? base : base + 24, fit(meta, 'sans', 12.5, WIDTH - PAD - x), 'sans', 12.5, theme.fgMuted)
     else draw.text(WIDTH - PAD, base, meta, 'sans', 12, theme.fgMuted, ' text-anchor="end"')
   }
   const bar: Bar = single ? { top: base + 46, height: 30, size: 13 } : { top: base + 22, height: 26, size: 12.5 }

@@ -9,6 +9,7 @@ import { feedRules, idPrefixOf, isPlain, ownerOf, projectLabel, readerIds, reade
 import { englishOf, noticeOf } from '../notice/notice.js'
 import { profileFor } from '../profiles/model.js'
 import { projectRules } from '../profiles/rules.js'
+import type { SessionView } from '../state.js'
 import { setStateValue } from '../storage/service-state.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import { parseTaskId } from '../tracker/model.js'
@@ -173,6 +174,8 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
   })
 }
 
+const expiredOf = (view: SessionView): Pick<AskingSession, 'expired'> => (view.expiredApprovals === undefined ? {} : { expired: view.expiredApprovals })
+
 export function wireQuestions(ctx: TrackersContext): TrackerQuestions {
   return new TrackerQuestions({
     sessions: () => {
@@ -180,12 +183,12 @@ export function wireQuestions(ctx: TrackersContext): TrackerQuestions {
         const sessionId = chain.current?.sessionId
         const view = sessionId == null ? undefined : ctx.liveView(chain.current!.task)
         if (view === undefined || view.sessionId !== sessionId || isOwnName(view.task)) return []
-        return [{ project: chain.project, task: view.task, sessionId, ask: view.ask, current: true }]
+        return [{ project: chain.project, task: view.task, sessionId, ask: view.ask, current: true, ...expiredOf(view) }]
       })
       const aside = ctx.sessions.flatMap((view): AskingSession[] => {
         const project = ctx.configuredProject(view.task)
         if (view.lamp === 'finished' || project === undefined || current.some((each) => each.sessionId === view.sessionId)) return []
-        return [{ project, task: view.task, sessionId: view.sessionId, ask: view.ask, current: false }]
+        return [{ project, task: view.task, sessionId: view.sessionId, ask: view.ask, current: false, ...expiredOf(view) }]
       })
       return [...current, ...aside]
     },
