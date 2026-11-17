@@ -123,6 +123,42 @@ export function machineBacklog<T extends { id: string }>(tasks: readonly T[], st
   return tasks.filter((task) => mayRun(card, providerOf(state, project, task.id), pool))
 }
 
+/** The projects a machine's view shows (BTN-1279): those whose pool has it, turned off too; on the own machine also those without a pool. */
+export function machineProjects(cards: readonly MachineCard[], projects: readonly string[], machine: string): string[] {
+  const card = cards.find((each) => each.id === machine)
+  if (card === undefined) return [...projects]
+  return projects.filter((project) => card.projects.some((row) => row.project === project) || poolOf(cards, project).some((each) => each.id === machine))
+}
+
+/**
+ * The state the header reads in a machine's view (BTN-1279): its lanes, the queue of its projects and the sessions of the
+ * tasks it runs or ran last; a lane or a session without a machine is the own machine's.
+ */
+export function machineHeader(state: EvenKeelState, cards: readonly MachineCard[], machine: string): EvenKeelState {
+  const card = cards.find((each) => each.id === machine)
+  if (card === undefined) return state
+  const own = cards.find((each) => each.own)?.id
+  const lanes = lanesOfMachine(state, card)
+  const machineOf = (task: string): string | undefined => {
+    const lane = state.chain.active.find((each) => each.current?.task === task)
+    if (lane !== undefined) return lane.machine || own
+    return state.taskSessions[task]?.at(-1)?.machine ?? own
+  }
+  const projects = new Set(machineProjects(cards, state.chain.queue, machine))
+  return {
+    ...state,
+    chain: { ...state.chain, active: lanes, queue: state.chain.queue.filter((project) => projects.has(project)) },
+    sessions: state.sessions.filter((session) => machineOf(session.task) === machine),
+  }
+}
+
+/** The whole queue after a machine's view reordered its projects: they take the places they held, in the new order. */
+export function mergeQueue(full: readonly string[], order: readonly string[]): string[] {
+  const named = new Set(order)
+  let next = 0
+  return full.map((project) => (named.has(project) ? order[next++]! : project))
+}
+
 function untagged(block: ChainBlock): ChainBlock {
   if (block.machines === undefined) return block
   const { machines: _machines, ...rest } = block

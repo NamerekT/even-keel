@@ -100,11 +100,15 @@ export class FakeNetwork {
     const ids = [own, ...Object.keys(names).filter((id) => id !== own)]
     return ids.map((id): MachineCard => {
       const online = id === own || (this.machines.find((machine) => machine.id === id)?.online ?? true)
-      const pooled = state.projects.map((project, index) => ({
-        project,
-        enabled: id === own || this.pools.get(project)?.some((row) => row.id === id && row.enabled) === true || index === 0 || id === 'srv',
-        packagesBlocked: false,
-      }))
+      // A card lists only the projects whose pool has the machine, as the server's does; the first project has every one.
+      const pooled = state.projects
+        .map((project, index) => {
+          const row = this.pools.get(project)?.find((each) => each.id === id)
+          const always = id === own || index === 0 || id === 'srv'
+          return { project, member: always || row !== undefined, enabled: always || row?.enabled === true, packagesBlocked: false }
+        })
+        .filter((each) => each.member)
+        .map(({ project, enabled, packagesBlocked }) => ({ project, enabled, packagesBlocked }))
       return {
         id, name: names[id] ?? id, color: colors[id]!, own: id === own, online,
         offlineSince: online ? null : Date.now() - 2 * 3_600_000,
@@ -112,8 +116,20 @@ export class FakeNetwork {
         agents: id === own || id === 'machine-2' ? ['claude', 'codex'] : ['claude'],
         limitedUntil: id === 'machine-2' && this.mode === 'limit' ? { claude: until.toISOString() } : {},
         projects: pooled,
+        ...this.cardAccounts(state, id, id === own, until),
       }
     })
+  }
+
+  /** The own machine's are the state's; the laptop is signed out of the second; the desktop's Claude is spent with `limit`. */
+  private cardAccounts(state: EvenKeelState, id: string, own: boolean, until: Date): Pick<MachineCard, 'accounts' | 'active'> {
+    const spent = { fiveHour: { usedPercentage: 100, resetsAt: until.toISOString() }, sevenDay: null, updatedAt: new Date().toISOString(), source: 'usage' } as unknown as NonNullable<EvenKeelState['limits']>
+    const accounts = state.account.accounts.map((entry, index) => {
+      const signedIn = own ? entry.status?.loggedIn === true : !(id === 'machine-1' && index > 0)
+      const limits = own ? entry.limits : !signedIn ? null : id === 'machine-2' && this.mode === 'limit' && entry.agent === 'claude' ? spent : state.limits
+      return { key: entry.key, agent: entry.agent, email: entry.status?.email ?? null, name: entry.name, signedIn, limits }
+    })
+    return { accounts, active: state.account.active }
   }
 
   /**

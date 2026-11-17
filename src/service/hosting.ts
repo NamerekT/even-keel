@@ -424,7 +424,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     colors: () => network.colors(),
     folders: (machine) => network.foldersOf(machine),
     mirror: (machine) => ctx.machineLink.mirror(machine),
-    ownAccounts: () => ctx.getState().account.accounts,
+    ownAccounts: () => ctx.getState().account,
     ownGitUser: () => {
       const git = ctx.getState().git
       return git === undefined ? null : git.name !== null && git.email !== null

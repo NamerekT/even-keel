@@ -7,6 +7,9 @@ import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { AccountBlock } from './AccountBlock.js'
 import { Limits } from './Limits.js'
 import { LogLink } from './LogLink.js'
+import { machineHeader } from '../machineView.js'
+import { MachineAccountsBlock } from './MachineAccounts.js'
+import { useMachineFilter } from './MachineFilter.js'
 import { MachineBlock } from './MachinePanel.js'
 import { MobileMenu } from './Menu.js'
 import { QueueMenu } from './Queue.js'
@@ -31,6 +34,11 @@ export function Header() {
   const levels = project === undefined ? undefined : live?.account.headerLevels?.[project]
   // A phone shows the limits of the account the header's chip would name, as thin bars along the header's bottom (BTN-600).
   const phoneLimits = live?.account.accounts.find((entry) => entry.key === (levels?.[0]?.account ?? live.account.active))?.limits
+  // A machine's view narrows the header to its lanes, queue and sessions; its accounts are its own but on the own machine (BTN-1279).
+  const machines = useMachineFilter()
+  const picked = machines.selected
+  const work = live === null || picked === null ? live : machineHeader(live, machines.cards, picked.id)
+  const ownAccounts = !machines.shown || picked?.own === true
 
   return (
     <header className="header">
@@ -63,21 +71,21 @@ export function Header() {
         {narrow ? (
           <div className="header__aside">
             {live !== null && <MachineBlock />}
-            {live !== null && <Waiting sessions={live.sessions} tasks={live.tasks} />}
+            {work !== null && <Waiting sessions={work.sessions} tasks={work.tasks} />}
             <MobileMenu now={now} />
           </div>
         ) : (
           <div className="header__aside">
             {live !== null && <MachineBlock />}
-            {live !== null && (
+            {live !== null && work !== null && (
               <div className="work-anchor">
                 <div className="hblock work-block">
-                  <QueueMenu state={live} />
-                  <Waiting sessions={live.sessions} tasks={live.tasks} />
+                  <QueueMenu state={work} queue={picked === null ? undefined : live.chain.queue} />
+                  <Waiting sessions={work.sessions} tasks={work.tasks} />
                 </div>
               </div>
             )}
-            {live !== null && <AccountBlock account={live.account} limits={live.limits} now={now} levels={levels} />}
+            {live !== null && (ownAccounts ? <AccountBlock account={live.account} limits={live.limits} now={now} levels={levels} /> : <MachineAccountsBlock now={now} />)}
             <GearMenu now={now} />
           </div>
         )}

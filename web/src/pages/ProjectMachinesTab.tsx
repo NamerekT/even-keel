@@ -17,7 +17,7 @@ import './projectMachines.css'
 export const poolShown = (state: EvenKeelState | null): boolean => Object.keys(state?.machineNames ?? {}).length > 1
 
 /** The project's pool, read again whenever a machine joins, connects or goes away, and after `reload`; `null` while read. */
-function usePool(project: string): { pool: ProjectPool | null; reload: () => void } {
+export function usePool(project: string): { pool: ProjectPool | null; reload: () => void } {
   const { read, onMachines } = useLive()
   const [pool, setPool] = useState<ProjectPool | null>(null)
   const [asked, setAsked] = useState(0)

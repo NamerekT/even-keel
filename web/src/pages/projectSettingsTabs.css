@@ -6,3 +6,51 @@
 .settings__head .settings-tab {
   flex-shrink: 0;
 }
+
+/* A machine's view (BTN-1279): its name over its own settings, a way back to them over the shared tabs. */
+.settings__machine,
+.settings__back {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+/* The way back takes a row of its own, so the tabs keep the panel's width. */
+.settings__head--back {
+  flex-wrap: wrap;
+}
+
+.settings__back-row {
+  display: flex;
+  flex-basis: 100%;
+}
+
+.settings__machine {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings__back {
+  padding: var(--space-4) var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--fg);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.settings__back:hover {
+  border-color: var(--machine);
+}
+
+.settings__machine-mark {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-small);
+  background: var(--machine);
+}

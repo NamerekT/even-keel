@@ -39,7 +39,7 @@ function deps(patch: Partial<MachineCardsDeps> = {}): MachineCardsDeps {
     colors: () => ({ pc: '#111111', laptop: '#222222' }),
     folders: async (machine) => (machine === 'laptop' ? [{ project: 'p1', folder: '/x', enabled: true }] : [{ project: 'p1', folder: '/y', enabled: false }]),
     mirror: () => undefined,
-    ownAccounts: () => [],
+    ownAccounts: () => ({ accounts: [], active: '' }),
     ownGitUser: () => true,
     now: () => NOW,
     ...patch,
@@ -72,8 +72,24 @@ describe('machineCards', () => {
   })
 
   it('reads the own machine from its own accounts, a window gone by not counting', async () => {
-    const ownAccounts = () => [entry('main', 'claude', spent('2026-11-17T15:30:00.000Z'))]
+    const ownAccounts = () => ({ accounts: [entry('main', 'claude', spent('2026-11-17T15:30:00.000Z'))], active: 'main' })
     const cards = await machineCards(deps({ ownAccounts }))
     expect(cards[0]).toMatchObject({ agents: ['claude'], limitedUntil: {} })
+  })
+
+  it('carries each machine its accounts with their limits and its launch choice', async () => {
+    const ownAccounts = () => ({ accounts: [{ ...entry('main', 'claude', half), name: 'Work' } as AccountEntry], active: 'main' })
+    const cards = await machineCards(deps({ ownAccounts, mirror: (machine) => (machine === 'laptop' ? mirror([entry('x', 'codex', half), entry('y', 'claude', null, false)]) : undefined) }))
+    expect(cards[0]).toMatchObject({ active: 'main', accounts: [{ key: 'main', agent: 'claude', name: 'Work', email: 'main@example.com', signedIn: true, limits: half }] })
+    expect(cards[1]!.accounts).toEqual([
+      { key: 'x', agent: 'codex', name: null, email: 'x@example.com', signedIn: true, limits: half },
+      { key: 'y', agent: 'claude', name: null, email: 'y@example.com', signedIn: false, limits: null },
+    ])
+    expect(cards[1]!.active).toBeNull()
+  })
+
+  it('has no accounts on a machine elsewhere before its first snapshot', async () => {
+    const cards = await machineCards(deps())
+    expect(cards[1]).toMatchObject({ accounts: [], active: null })
   })
 })

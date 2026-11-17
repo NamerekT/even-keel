@@ -86,3 +86,33 @@
 .pool__actions {
   display: flex;
 }
+
+/* The settings tab in a machine's view (BTN-1279). */
+.pool__actions--machine {
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.pool__outside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+}
+
+.pool__outside .pool__empty {
+  flex: 1;
+  min-width: 0;
+}
+
+.pool__packages {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-14);
+}
+
+.pool__packages-state--blocked {
+  color: var(--warn-fg);
+}

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { fakeTask } from '../../src/tracker/fixture.js'
 import type { EvenKeelState, MachineCard } from '../../src/state.js'
-import { machineBacklog, machineChain, machineState, poolOf } from './machineView.js'
+import { machineBacklog, machineChain, machineHeader, machineProjects, machineState, mergeQueue, poolOf } from './machineView.js'
 import type { ChainBlock } from './state.js'
 
 const card = (id: string, patch: Partial<MachineCard> = {}): MachineCard => ({
   id, name: id, color: '#7a8fa6', own: id === 'pc', online: true, offlineSince: null, gitUser: true, agents: ['claude'], limitedUntil: {},
-  projects: [{ project: 'ABC', enabled: true, packagesBlocked: false }], ...patch,
+  projects: [{ project: 'ABC', enabled: true, packagesBlocked: false }], accounts: [], active: null, ...patch,
 })
 
 const state = (patch: Partial<EvenKeelState['chain']> = {}) =>
@@ -96,5 +96,54 @@ describe('machineBacklog', () => {
   it('leaves the tasks of a provider the machine may not run', () => {
     const cards = [card('pc'), card('srv', { agents: ['codex'] })]
     expect(machineBacklog([{ id: 'ABC-2' }, { id: 'ABC-3' }], state(), cards, 'ABC', 'srv')).toEqual([{ id: 'ABC-3' }])
+  })
+})
+
+describe('machineProjects', () => {
+  const row = (project: string, enabled = true) => ({ project, enabled, packagesBlocked: false })
+
+  it('keeps the projects whose pool has the machine, turned off too, in their order', () => {
+    const cards = [card('pc', { projects: [row('ABC'), row('DEF')] }), card('srv', { projects: [row('DEF', false), row('ABC')] })]
+    expect(machineProjects(cards, ['ABC', 'DEF', 'GHI'], 'srv')).toEqual(['ABC', 'DEF'])
+  })
+
+  it('gives the own machine every project without a pool', () => {
+    const cards = [card('pc', { projects: [] }), card('srv', { projects: [row('DEF')] })]
+    expect(machineProjects(cards, ['ABC', 'DEF'], 'pc')).toEqual(['ABC'])
+  })
+})
+
+describe('mergeQueue', () => {
+  it('puts a machine’s reordered projects back into the places they held in the whole queue', () => {
+    expect(mergeQueue(['A', 'X', 'B', 'Y', 'C'], ['C', 'A', 'B'])).toEqual(['C', 'X', 'A', 'Y', 'B'])
+  })
+
+  it('changes nothing for the whole queue reordered', () => {
+    expect(mergeQueue(['A', 'B'], ['B', 'A'])).toEqual(['B', 'A'])
+  })
+})
+
+describe('machineHeader', () => {
+  const row = (project: string) => ({ project, enabled: true, packagesBlocked: false })
+  const cards = [card('pc', { projects: [row('ABC'), row('DEF')] }), card('srv', { projects: [row('ABC')] })]
+  const session = (task: string) => ({ task, sessionId: `s-${task}`, lamp: 'question' })
+  const full = {
+    ...state({ active: [lane('srv', 'ABC-1'), lane(undefined, 'ABC-2'), { ...lane(undefined, 'DEF-1'), project: 'DEF' }] as never, queue: ['DEF', 'ABC'] }),
+    sessions: [session('ABC-1'), session('ABC-2'), session('ABC-3'), session('DEF-1')],
+    taskSessions: { 'ABC-3': [{ machine: 'pc' }, { machine: 'srv' }] },
+  } as unknown as EvenKeelState
+
+  it('keeps a machine its lanes, the queue of its projects and the sessions of the tasks it runs or ran last', () => {
+    const view = machineHeader(full, cards, 'srv')
+    expect(view.chain.active.map((each) => each.current?.task)).toEqual(['ABC-1'])
+    expect(view.chain.queue).toEqual(['ABC'])
+    expect(view.sessions.map((each) => each.task)).toEqual(['ABC-1', 'ABC-3'])
+  })
+
+  it('gives the own machine the lanes and sessions without a machine', () => {
+    const view = machineHeader(full, cards, 'pc')
+    expect(view.chain.active.map((each) => each.current?.task)).toEqual(['ABC-2', 'DEF-1'])
+    expect(view.chain.queue).toEqual(['DEF', 'ABC'])
+    expect(view.sessions.map((each) => each.task)).toEqual(['ABC-2', 'DEF-1'])
   })
 })

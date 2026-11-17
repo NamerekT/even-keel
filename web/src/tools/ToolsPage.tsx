@@ -4,6 +4,8 @@ import type { EvenKeelState } from '../../../src/state.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
 import { Basement } from '../layout/Basement.js'
+import { useMachineFilter } from '../layout/MachineFilter.js'
+import { machineProjects } from '../machineView.js'
 import { HelpTip, Switch } from '../pages/settingsParts.js'
 import { projectLabel } from '../state.js'
 import { Band, PageHead } from '../ui/blocks.js'
@@ -22,8 +24,12 @@ const FIRST_PROJECTS = 2
 export function ToolsPage({ state }: { state: EvenKeelState }) {
   const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState('')
+  // A machine's view offers the projects of its pool (BTN-1279).
+  const machines = useMachineFilter()
+  const picked = machines.selected
+  const projects = picked === null ? state.projects : machineProjects(machines.cards, state.projects, picked.id)
   const listed = params.get('projects')
-  const selected = listed === null ? state.projects.slice(0, FIRST_PROJECTS) : listed.split(',').filter((each) => state.projects.includes(each))
+  const selected = listed === null ? projects.slice(0, FIRST_PROJECTS) : listed.split(',').filter((each) => projects.includes(each))
   const onlyDiff = params.get('diff') === '1'
   const loaded = useToolsViews(state.projects, state.trimTools)
 
@@ -38,7 +44,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
     else if (each.view !== null) views.push(each.view)
   }
 
-  const items = state.projects.map((project) => {
+  const items = projects.map((project) => {
     const each = loaded.get(project)
     const count = each?.state === 'ready' && each.view !== null ? problemCount(problemsOf(each.view)) : null
     return { project, name: projectLabel(state, project), amount: count ?? 0, label: t.tools.pickerCount(count) }
@@ -49,12 +55,13 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
     change(next)
     setParams(next, { replace })
   }
-  const choose = (projects: string[] | null) => update((next) => next.set('projects', (projects ?? state.projects).join(',')))
+  const choose = (chosen: string[] | null) => update((next) => next.set('projects', (chosen ?? projects).join(',')))
   const setOnlyDiff = (on: boolean) => update((next) => (on ? next.set('diff', '1') : next.delete('diff')))
 
   return (
     <div className="page tools-page">
       <PageHead title={t.tools.heading} help={<HelpTip text={t.tools.hint} />} />
+      {picked !== null && !picked.own && <Band tone="note">{t.machinePanel.view.toolsBand(picked.name)}</Band>}
       {views.length > 0 && <Band tone={views[0]!.trim ? 'note' : 'warn'}>{views[0]!.trim ? t.tools.trimOn(hiddenSkills(views)) : t.tools.trimOff}</Band>}
       <div className="tools-page__body">
         <ProjectList items={items} empty={t.tools.noProjects} selected={selected} onChange={choose} />

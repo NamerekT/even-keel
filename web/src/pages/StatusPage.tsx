@@ -1,11 +1,15 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { BUILTIN } from '../../../src/builtin/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerView } from '../../../src/tracker/health.js'
 import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
+import { useMachineFilter } from '../layout/MachineFilter.js'
+import { CardLine } from '../layout/MachinePanel.js'
 import { useChecks } from '../layout/Status.js'
+import { machinePath } from '../machineColor.js'
+import { machineState } from '../machineView.js'
 import type { Check } from '../layout/system.js'
 import { useNow } from '../layout/useNow.js'
 import { useCommand } from '../live/useCommand.js'
@@ -63,7 +67,46 @@ export function StatusPage({ state }: { state: EvenKeelState }) {
           <Connection key={check.key} state={state} tracker={check.tracker!} now={now} className={lit(check.key)} />
         ))}
       </section>
+      <StatusMachines state={state} now={now} />
     </div>
+  )
+}
+
+/** The hub's machines at the bottom (BTN-1279): each with its lamp and line as the machines panel judges them; none with one machine. */
+function StatusMachines({ state, now }: { state: EvenKeelState; now: Date }) {
+  const { cards } = useMachineFilter()
+  if (cards.length < 2) return null
+  return (
+    <section className="status-connections" aria-labelledby="status-machines">
+      <h2 id="status-machines" className="status-connections__title">
+        {t.machinePanel.view.statusTitle}
+      </h2>
+      <TileGrid className="status-checks">
+        {cards.map((card) => {
+          const view = machineState(state, cards, card)
+          const id = `${anchorOf(`machine-${card.id}`)}-title`
+          return (
+            <Card key={card.id} id={anchorOf(`machine-${card.id}`)} aria-labelledby={id} className="status-machine" style={{ '--machine': card.color } as CSSProperties}>
+              <CardHead title={<Link to={machinePath(card.id)} className="status-machine__name">{card.name}</Link>} id={id}>
+                {card.own && <span className="tag">{t.pool.own}</span>}
+              </CardHead>
+              <p className="status-check__state">
+                <span className={`machine-lamp machine-lamp--${view.lamp}`} role="img" aria-label={t.machinePanel.lamps[view.lamp]} />
+                <CardLine view={view} now={now} />
+              </p>
+              {/* A machine that cannot work: its fixes are on its page. */}
+              {(view.lamp === 'blocked' || view.lamp === 'offline') && (
+                <div className="status-machine__actions">
+                  <Link to={machinePath(card.id)} className="button button--small">
+                    {t.machinePanel.view.machinePage}
+                  </Link>
+                </div>
+              )}
+            </Card>
+          )
+        })}
+      </TileGrid>
+    </section>
   )
 }
 

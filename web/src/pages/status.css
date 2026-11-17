@@ -28,6 +28,34 @@
   font-size: var(--text-14);
 }
 
+/* A machine's card (BTN-1279): its colour as the owner's stripe, its lamp as on the machines panel. */
+.status-machine {
+  box-shadow: inset 3px 0 0 var(--machine);
+}
+
+.status-machine .status-check__state {
+  align-items: center;
+}
+
+.status-machine .machine-card__line {
+  white-space: normal;
+}
+
+.status-machine__actions {
+  display: flex;
+  margin-top: auto;
+  padding-top: var(--space-8);
+}
+
+.status-machine__name {
+  color: inherit;
+  text-decoration: none;
+}
+
+.status-machine__name:hover {
+  text-decoration: underline;
+}
+
 /* On the first line when the state wraps. */
 .status-check__state .system__dot {
   align-self: auto;
