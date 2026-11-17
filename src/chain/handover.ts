@@ -93,7 +93,7 @@ export class Handovers {
       }
     }
     const now = this.deps.now()
-    if (overage === undefined) this.reopenEarly(chain.project, current, session, now)
+    this.reopenEarly(chain.project, current, session, now)
     const hold = current.limit
     const spentUntil = overage === undefined ? null : this.deps.limitReset(chain.project, current.task)
     if (spentUntil !== null && Date.parse(spentUntil) > now.getTime()) return true
