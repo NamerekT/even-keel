@@ -32,6 +32,7 @@ const categories = {
   'eventLog.limit': 'limits',
   'eventLog.usageUnread': 'limits',
   'eventLog.usageOff': 'limits',
+  'eventLog.limitMoved': 'limits',
   'eventLog.packages': 'packages',
   'eventLog.settings': 'settings',
   'eventLog.projectSettings': 'settings',

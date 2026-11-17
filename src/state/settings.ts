@@ -228,6 +228,8 @@ export interface SharedForm {
   setupPassed: PassableStep[]
   /** The service checks a new CLI version and the checked one weekly (BTN-569). */
   cliCheck: boolean
+  /** A task not started yet goes to a machine with limit left (BTN-996); off by default, behind a warning. */
+  switchOnLimit: boolean
   /** What a project without its own `ci` keys or `fillMilestone` runs on. */
   ci: CiSettings
   fillMilestone: boolean

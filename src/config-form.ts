@@ -49,13 +49,13 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, machinesAddress, context, stats } = config
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, switchOnLimit, ci, fillMilestone, allowedHosts, machinesAddress, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const backup = { dir: config.backup.dir, keep: config.backup.keep }
   const shared = {
     protection: config.protection,
     ...{ parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt },
-    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, machinesAddress, context, stats, updates, backup },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, autoCompactWindow, codexAutoCompactWindow, openCodeAutoCompactWindow, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, switchOnLimit, ci, fillMilestone, allowedHosts, machinesAddress, context, stats, updates, backup },
     notices: config.notices,
   }
   return { projects, shared }
@@ -333,6 +333,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('defaultGit', 'defaultGit', form.defaultGit),
     value('setupPassed', 'setupPassed', form.setupPassed),
     value('cliCheck', 'cliCheck', form.cliCheck),
+    value('switchOnLimit', 'switchOnLimit', form.switchOnLimit),
     value('ci', 'ci.guard', form.ci.guard),
     value('ci', 'ci.kinds', CI_KINDS.filter((kind) => form.ci.kinds.includes(kind))),
     value('ci', 'ci.waitMinutes', form.ci.waitMinutes),

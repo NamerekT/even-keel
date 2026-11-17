@@ -83,6 +83,7 @@ export const FAKE_SHARED: SharedForm = {
   defaultGit: null,
   setupPassed: [],
   cliCheck: false,
+  switchOnLimit: false,
   allowedHosts: [],
   machinesAddress: null,
   context: { window: 600_000, warn: 50, danger: 80 },

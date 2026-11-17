@@ -45,6 +45,8 @@ export interface SetupOptions {
   reply?: MachinePort['reply']
   failStop?: boolean
   limitReset?: string | null
+  /** The limit's reset by task, ahead of `limitReset`: with machines, the one of the machine the task is bound to. */
+  limitResetOf?: (project: string, task: string) => string | null
   limitResetAfter?: (account: string, at: string, text?: string) => string | null
   limitReopenedAt?: (account: string, at: string, resetsAt: string, project: string, task: string) => string | null
   /** The model's own week used up on the account the task would start on (BTN-816). */
@@ -96,10 +98,21 @@ export interface SetupOptions {
 /** The machines of the chain's pull for a test: `own` first, every one serving every project, each task free to bind. */
 export function fakeMachines(
   capacities: Record<string, number>,
-  options: { width?: Record<string, number>; runs?: ChainMachines['runs']; held?: Record<string, string>; serves?: ChainMachines['serves']; gone?: Set<string> } = {},
+  options: {
+    width?: Record<string, number>
+    runs?: ChainMachines['runs']
+    held?: Record<string, string>
+    serves?: ChainMachines['serves']
+    gone?: Set<string>
+    /** The switch "Go on where a limit is left" (BTN-996). */
+    switchOnLimit?: boolean
+    hasLimit?: ChainMachines['hasLimit']
+  } = {},
 ) {
   const bound: Record<string, string> = { ...options.held }
   const listed = { ...capacities }
+  /** The tasks given past a limit, `<task>: <from> → <to>`. */
+  const limitMoves: string[] = []
   const machines: ChainMachines = {
     own: () => Object.keys(capacities)[0]!,
     list: () => Object.entries(listed).map(([id, capacity]) => ({ id, capacity })),
@@ -111,8 +124,11 @@ export function fakeMachines(
     bind: (_project, task, machine) => {
       bound[task] = machine
     },
+    switchOnLimit: () => options.switchOnLimit === true,
+    hasLimit: options.hasLimit ?? (() => true),
+    limitMoved: (_project, task, from, to) => limitMoves.push(`${task}: ${from} → ${to}`),
   }
-  return { machines, bound, listed }
+  return { machines, bound, listed, limitMoves }
 }
 
 export function setup(options: SetupOptions = {}) {
@@ -176,7 +192,7 @@ export function setup(options: SetupOptions = {}) {
       locate: async (session) => ({ ...session, ...options.located }),
       account: () => account,
       accountAt: options.accountAt ?? (() => account.id),
-      limitReset: () => options.limitReset ?? null,
+      limitReset: (project, id) => (id === undefined ? undefined : options.limitResetOf?.(project, id)) ?? options.limitReset ?? null,
       limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
       limitReopenedAt: options.limitReopenedAt ?? (() => null),
       modelWeek: () => options.modelWeek ?? null,

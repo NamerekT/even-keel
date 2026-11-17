@@ -18,7 +18,7 @@ import { LOCAL_HEARTBEAT_MS, LocalTransport } from '../link/local.js'
 import { DatabaseMachineStore, MACHINE_DIR } from '../link/machine-store.js'
 import { bearerOf, type MachineEvent } from '../link/protocol.js'
 import type { HandoffSnapshot } from '../chain/snapshots.js'
-import type { Notice } from '../notice/notice.js'
+import { notice, type Notice } from '../notice/notice.js'
 import { Assignments, fillPool } from '../machine/assignments.js'
 import { ownMachine } from '../machine/own.js'
 import { folderMarks } from '../machine/marks.js'
@@ -395,6 +395,16 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     agents: (machine) => pageOf(machine)?.panel()?.accounts.map((entry) => entry.agent),
     movedFrom: (project, task) => moves.from(project, task),
     bind: (project, task, machine) => assignments.assign(project, task, machine),
+    switchOnLimit: () => ctx.configStore.current.switchOnLimit,
+    hasLimit: (project, task, machine) => {
+      const at = machine === own ? ownPort : network.port(machine)
+      return at !== undefined && at.accountsRead() && at.limitsUnread(project, task) === undefined && at.limitReset(project, task) === null
+        && (at.modelWeek?.(project, task) ?? null) === null
+    },
+    limitMoved: (project, task, from, to) => {
+      const names = network.names()
+      ctx.eventLog.add({ level: 'info', notice: notice('eventLog.limitMoved', { task, from: names[from] ?? from, to: names[to] ?? to }), place: { view: 'task', project, task } })
+    },
   })
   const reassigner = new Reassigner({
     own: () => own,

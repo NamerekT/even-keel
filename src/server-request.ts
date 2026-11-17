@@ -197,7 +197,7 @@ export function ownOf(raw: unknown): OwnValues {
 }
 
 export function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, ci, fillMilestone, allowedHosts, machinesAddress, context, stats, updates } = body
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, switchOnLimit, ci, fillMilestone, allowedHosts, machinesAddress, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
@@ -233,6 +233,8 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     // A page from before the setting sends none: nothing gone past, as the default, so nothing is written.
     setupPassed: setupPassed === undefined ? [] : passedOf(setupPassed),
     cliCheck: cliCheck === undefined ? false : switchOf(cliCheck, 'cliCheck'),
+    // A page from before the switch sends none: off, as the default, so nothing is written.
+    switchOnLimit: switchOnLimit === undefined ? false : switchOf(switchOnLimit, 'switchOnLimit'),
     ci: ci === undefined ? DEFAULT_CI : ciOf(ci),
     fillMilestone: fillMilestone === undefined ? false : switchOf(fillMilestone, 'fillMilestone'),
     allowedHosts: linesOf(allowedHosts, 'allowedHosts'),

@@ -114,6 +114,11 @@ export interface EvenKeelConfig {
   setupPassed: PassableStep[]
   /** Run `cli-check` in the service on a new CLI version and weekly (BTN-569); off by default — it spends limits. */
   cliCheck: boolean
+  /**
+   * "Go on where a limit is left" (BTN-996): a task not started yet leaves a machine whose limit is spent for another
+   * of the user's machines with limit left. Off by default, turned on behind a warning on provider terms.
+   */
+  switchOnLimit: boolean
   /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
   unattended: boolean
   trimTools: boolean
@@ -356,6 +361,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     defaultGit: shared.defaultGit as boolean | null,
     setupPassed: shared.setupPassed as PassableStep[],
     cliCheck: shared.cliCheck as boolean,
+    switchOnLimit: shared.switchOnLimit as boolean,
     unattended: shared.unattended as boolean,
     trimTools: shared.trimTools as boolean,
     tally: shared.tally as TallyMode | null,

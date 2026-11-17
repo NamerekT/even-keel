@@ -25,6 +25,7 @@ import {
   type ReleaseReason,
 } from './model.js'
 import { goneLanes, heldFrom, laneMachine, laneOf, lanesOf, leaveLane, widens } from './lanes.js'
+import { moveOffLimit } from './limit-moves.js'
 import { byNumber, chainOrder, nextTask, openBlockers } from './order.js'
 import { LaunchPauses } from './pauses.js'
 import type { HandoffSession } from './relay.js'
@@ -840,6 +841,7 @@ export class Dispatcher {
         return
       }
 
+      if (own === undefined && returned === undefined && moveOffLimit(this.state, this.deps, chain, task)) continue
       if (this.pauses.waits(chain, task, fix !== undefined)) return
 
       if (returned !== undefined) {

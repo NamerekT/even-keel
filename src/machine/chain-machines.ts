@@ -19,6 +19,9 @@ export interface ChainMachineDeps {
   /** The machine the task was moved off by hand (BTN-1270); `undefined` — it was not moved. */
   movedFrom?: (project: string, task: string) => string | undefined
   bind: (project: string, task: string, machine: string) => void
+  switchOnLimit?: ChainMachines['switchOnLimit']
+  hasLimit?: ChainMachines['hasLimit']
+  limitMoved?: ChainMachines['limitMoved']
 }
 
 /**
@@ -49,5 +52,8 @@ export function chainMachines(deps: ChainMachineDeps): ChainMachines {
       return !list().some(({ id }) => id !== machine && serves(project, id) && deps.agents(id)?.includes(agent) === true)
     },
     bind: deps.bind,
+    ...(deps.switchOnLimit === undefined ? {} : { switchOnLimit: deps.switchOnLimit }),
+    ...(deps.hasLimit === undefined ? {} : { hasLimit: deps.hasLimit }),
+    ...(deps.limitMoved === undefined ? {} : { limitMoved: deps.limitMoved }),
   }
 }

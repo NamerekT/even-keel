@@ -50,6 +50,13 @@ export const sharedEn = {
   cliCheck: 'Check new CLI versions on this machine',
   cliCheckHint:
     "When an agent's CLI releases a new version, and weekly on the checked one, Even Keel runs a short live check of it in the folder of the account the projects run on, on a cheap model. The check waits until the folder has no live session, and the folder's chains wait while it runs. The result shows at the top of the page. Spends the account's limits.",
+  switchOnLimit: 'Go on where a limit is left',
+  switchOnLimitHint:
+    "Off: when the account of a machine has spent its limit, the project waits there for the reset. On: a task not started yet goes to another machine whose account has limit left; a task already started stays on its machine. Every turn of a task this way is a line in the event log.",
+  switchOnLimitTitle: 'Turn on at your own risk',
+  switchOnLimitWarning:
+    "The chains will go on on another of your own paid accounts while one has spent its limit. Anthropic's Consumer Terms say nothing of several accounts, but forbid circumventing systems or safeguards, and a usage limit can be read as one; in February 2026 people with several Max subscriptions were reported banned by abuse filters, some of the bans reversed later. A team where each person works on an account of their own does not need this switch. The risk is on whoever turns it on.",
+  switchOnLimitConfirm: 'Turn on',
   promptHint:
     "Added to the prompt of every new session of every project and agent, before the project's own prompt, which adds to it rather than replaces it. Passed as written; Markdown is fine — models read it as they read CLAUDE.md.",
   promptPlaceholder: 'Answer in English. Run the tests before every commit.',

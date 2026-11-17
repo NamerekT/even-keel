@@ -868,6 +868,9 @@ export const en = {
     `the copy to ${p.tracker} is finished: ${p.copied} ${p.copied === 1 ? 'task' : 'tasks'} copied`,
   'eventLog.trackerSwitched': (p: { project: string; tracker: string; from: string; to: string }) =>
     `the project moved to ${p.tracker}: its tasks are read there now, the key ${p.from} is now ${p.to}`,
+  // `from` and `to` are the machines' names (BTN-996).
+  'eventLog.limitMoved': (p: { task: string; from: string; to: string }) =>
+    `went to the machine ${p.to}: the limit on ${p.from} is spent, and “Go on where a limit is left” is on`,
   // `projects` — of a server that does not answer, every project that has it; ids, which the page shows by their labels.
   'eventLog.packages': (p: { project: string; package?: string; problem: LoggedPackageProblem; detail: string; projects?: string[] }) =>
     `${p.package === undefined ? 'the package set' : `the package ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}${(p.projects?.length ?? 0) > 1 ? ` in ${p.projects!.join(', ')}` : ''}`,

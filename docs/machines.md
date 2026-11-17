@@ -108,6 +108,16 @@ BTN-993: the hub's one chain runs the tasks of a project on the machines of its 
 - **The launch log remembers the machine.** `LaunchEntry.machine` is the task's `machine_tasks` row at the launch, else the own machine; the sessions of a task carry it (`TaskSession.machine`). The page's state names every machine the hub ever had (`machineNames`) and each lane's machine; where there is more than one, a chain row shows the machines its task ran on, oldest first, the lane's now last (`Workstation → Home server`, `web/src/ui/MachineTag.tsx`, each name in its machine's colour and a link to its page; `dev:fake` `?chain=lanes`).
 - **Still to come**: lanes by component.
 
+## Past a limit
+
+BTN-996: whether a task leaves a machine whose limit is spent is the shared switch `switchOnLimit`, "Go on where a limit is left" (`docs/settings.md`), off by default. Pulling alone settles nothing: a machine whose window is spent asks for no task, and another would take it anyway.
+
+- **Off** — a limit is no reason to move. The lane waits on its machine for the reset (`limitUntil`, as before); a project of width 1 waits with it, and no other machine gets its tasks, since the lane is still there (`placeFor`).
+- **On** — a lane whose next task would wait for its machine's limit (`limitReset` or the model's week of the task's run there) goes to the first listed machine that has a free place, serves the project, may run the task and has limit left for it (`ChainMachines.hasLimit`: the account's limits read, no window spent, no model week; `moveOffLimit`, `src/chain/limit-moves.ts`). The lane's `machine` and the task's `machine_tasks` row change, a line goes to the log and an entry `eventLog.limitMoved` (the machines by name) to the event log. No such machine — the lane waits as with the switch off.
+- **Only a task never launched moves**: one with an entry in the launch journal stays with its machine, its worktree and its sessions; a session stopped by a limit is continued there (`docs/sessions/limits.md`). Fix and carry sessions never move.
+- **Width over 1** — the lanes on other machines are the plain pull; the switch moves only the waiting lane, and only to a machine with a free place.
+- **Whose machines.** Machines of different people, each on an account of their own, would need no switch; until machines have owners (BTN-502) every machine counts as one person's, so the switch decides for all of them. Turning it on shows the warning on provider terms first (BTN-125's text); the switch of accounts on one machine (BTN-125) is not built yet, and the setting shows only while the hub has more than one machine.
+
 ## The pool on the page
 
 BTN-1271: the tab "Machines" of a project's settings (`web/src/pages/ProjectMachinesTab.tsx`), shown only where the hub has more than one machine (`machineNames`); a tab open when the last machine elsewhere goes gives way to "Repository".

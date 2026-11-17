@@ -259,6 +259,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   // Off for users: each run spends the account's limits (BTN-569).
   { key: 'cliCheck', kind: 'boolean', scopes: ['global'], lands: ['cliCheck'], default: false, check: boolean('cliCheck') },
+  { key: 'switchOnLimit', kind: 'boolean', scopes: ['global'], lands: ['switchOnLimit'], default: false, check: boolean('switchOnLimit') },
   { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },
   { key: 'trimTools', kind: 'boolean', scopes: ['global'], lands: ['trimTools'], default: true, check: boolean('trimTools') },
   // The page's warnings by kind (BTN-759): `false` — not shown; a project's entry over Even Keel's, only of a project's kind.

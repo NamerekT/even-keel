@@ -432,6 +432,16 @@ export interface ChainMachines {
   gone?: (machine: string) => boolean
   /** The task goes to the machine: its facts and its launch are asked there from now on. */
   bind: (project: string, task: string, machine: string) => void
+  /**
+   * The switch "Go on where a limit is left" (`switchOnLimit`, BTN-996), off by default: on, a task not started yet
+   * leaves a machine whose limit is spent for one with limit left. Until machines have owners (BTN-502) every machine
+   * counts as one person's, so the switch decides for each of them. Absent — off.
+   */
+  switchOnLimit?: () => boolean
+  /** A new session of the task on the machine would wait for no limit: its account's limits are read and none it needs is spent. */
+  hasLimit?: (project: string, task: string, machine: string) => boolean
+  /** The task went to another machine past a limit: a line of the event log tells the page. */
+  limitMoved?: (project: string, task: string, from: string, to: string) => void
 }
 
 export interface MainCheckDeps {

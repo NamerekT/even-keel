@@ -182,3 +182,11 @@ To check, on the benches (entries 181 and 183): a hub with Tally on and a machin
 Assumed: a machine elsewhere that drops off the link mid-cleanup is marked offline by its missed beats before the hub's tick needs it, and its `main` still holds the commits when it is back; the commit and tree its cleanup returns are what reached the remote; the project's check runs in the main checkout without a session's environment. If not, the hub's chain stands until the machine is back, the CI's verdict is awaited on a wrong commit, or a merge of two machines' work is pushed unchecked.
 
 To check, on the benches (entries 181 and 183): a project of width 2 with `commands.check`, one lane on the hub and one on a machine elsewhere; finish tasks on both close together and see the second sync's `sync:` lines run the check before its push; cut the machine's link mid-cleanup and see the hub go on and the sync retried there once it is back; make main red and see the fix go to an idle or free machine, the other lane keep working.
+
+## The next task past a spent limit on several machines (BTN-996)
+
+`docs/machines.md`, "Past a limit". `src/chain/limit-moves.test.ts` covers the switch off and on, a task launched before, no machine with limit left and no free place, on fake machines whose limits the test sets. The hub's `hasLimit` reads each machine's mirror (`limitsUnread`, `limitReset`, `modelWeek` of the task's run there), and the chain launches nowhere but the hub's own machine yet.
+
+Assumed: the mirror of a machine elsewhere holds the run facts of every project it serves, so `hasLimit` reads its limit for a task never bound to it; a machine whose account has not posted limits yet counts as one without limit left; the event log's entry names both machines. If not, the task waits for the reset though another machine could take it, or moves to a machine whose limit is spent too and waits there.
+
+To check, on the benches: a project of width 1 with its pool on the hub and a machine elsewhere signed in to another account; spend the hub account's 5-hour window (or set a short one on a cheap model), close the current task and see the next one start on the other machine, with the `chain:` line and the event log's entry; then turn the switch off and see the next task wait on the hub.

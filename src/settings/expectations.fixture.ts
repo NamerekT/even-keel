@@ -83,6 +83,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     defaultGit: null,
     setupPassed: [],
     cliCheck: false,
+    switchOnLimit: false,
     updates: { check: true, notify: true },
     backup: { dir: null, keep: 14 },
     unattended: false,

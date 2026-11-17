@@ -1,4 +1,5 @@
-import { Fragment, useEffect, type ReactNode } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
+import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { Link, useSearchParams } from 'react-router'
 import { machinePath } from '../machineColor.js'
@@ -78,7 +79,7 @@ import './settings.css'
 const SCOPE = SHARED_SCOPE
 
 const GROUPS = [
-  { id: 'chain', keys: ['parallel', 'brief', 'fillMilestone', 'defaultGit'] },
+  { id: 'chain', keys: ['parallel', 'switchOnLimit', 'brief', 'fillMilestone', 'defaultGit'] },
   // The connections before the rules over them (BTN-355); a profile is applied on its own and never kept in a draft.
   { id: 'trackers', keys: [] },
   // The shared rules, together with a switch to the rules of each tracker profile, which are saved apart (BTN-66).
@@ -103,6 +104,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const { config, configError } = state
   const { send, sending, failure } = useCommand()
   const modes = useCommand()
+  // "Go on where a limit is left" turns on only through the warning on provider terms (BTN-996).
+  const [warning, setWarning] = useState(false)
   const saved = valuesOf(config.shared)
   const [current, setDraft] = useDraft(SCOPE, saved, same)
   const draft = current!
@@ -281,6 +284,33 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             />
           ) : (
             numberRow('parallel', t.shared.parallel, wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null, t.shared.parallelHint)
+          )}
+          {/* Machines only for now (BTN-996): a switch of accounts on one machine is BTN-125's. */}
+          {Object.keys(state.machineNames ?? {}).length > 1 && (
+            <SwitchField
+              className={marks.box('switchOnLimit')}
+              label={t.shared.switchOnLimit}
+              hint={t.shared.switchOnLimitHint}
+              checked={draft.edit.switchOnLimit as boolean}
+              mark={marks.note('switchOnLimit')}
+              onChange={(on) => (on ? setWarning(true) : edit('switchOnLimit', false))}
+            >
+              <FieldNote error={errorOf('switchOnLimit')} />
+            </SwitchField>
+          )}
+          {warning && (
+            <ConfirmDialog
+              title={t.shared.switchOnLimitTitle}
+              question={t.shared.switchOnLimitWarning}
+              confirm={t.shared.switchOnLimitConfirm}
+              cancel={t.common.cancel}
+              busy={false}
+              onConfirm={() => {
+                edit('switchOnLimit', true)
+                setWarning(false)
+              }}
+              onClose={() => setWarning(false)}
+            />
           )}
         </Section>
         <Section title={t.shared.sections.tasks}>
