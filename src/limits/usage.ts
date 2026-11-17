@@ -3,7 +3,8 @@ import type { LimitWindow, ModelWeek, RateLimits } from './model.js'
 import { resetTimeOf } from './reset.js'
 
 export type UsageAnswer =
-  | { kind: 'limits'; limits: RateLimits }
+  /** `reason` — why limits that were read still hold the account (a ChatGPT seat's reached cap, EKR-132). */
+  | { kind: 'limits'; limits: RateLimits; reason?: Notice }
   | { kind: 'spent'; reason: Notice }
   | { kind: 'missing'; reason: Notice }
   | { kind: 'unknown'; reason: Notice }

@@ -207,6 +207,7 @@ No entry meets both conditions at the moment.
 | 170 | [Claude Code and OpenCode from npm without the postinstall](unverified/sessions.md#claude-code-and-opencode-from-npm-without-the-postinstall-btn-1196) | Linux and macOS installs through npm (Windows checked); OpenCode on an x64 without AVX2 | the agent shows as not installed after `npm install -g`, or a session starts a binary that exits at once; use the native installer or the `_BIN` variable | — |
 | 173 | [The page's address after install and update](unverified/updating.md#the-pages-address-after-install-and-update-ekr-111) | npm installs on macOS; a Linux desktop's browser | no address or a wrong one is printed, or the browser does not open or opens over SSH; open the address of `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` by hand | — |
 | 174 | [A long question in the chat on a phone](unverified/page.md#a-long-question-in-the-chat-on-a-phone-ekr-117) | anyone answering a question from a phone | the options or the "Other" field sit under the keyboard; scroll the question's card, or answer from a wider screen | — |
+| 175 | [A ChatGPT workspace seat's monthly credit cap](unverified/accounts.md#a-chatgpt-workspace-seats-monthly-credit-cap-ekr-132) | Codex and OpenCode on a ChatGPT Team, Business, Edu or Enterprise seat | no month on the card, a wrong reset, or a launch into a spent cap; pick another account | — |
 
 ### Waiting for the event / not checked by choice
 

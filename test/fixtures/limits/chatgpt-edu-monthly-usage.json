@@ -1,0 +1,9 @@
+{
+  "balance_unit": "credit",
+  "effective_monthly_limit": {
+    "limit": 5000,
+    "enforcement_mode": "HARD_CAP",
+    "limit_mode": "amount_credits"
+  },
+  "current_month_usage": 1250.0
+}

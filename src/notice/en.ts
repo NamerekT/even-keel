@@ -443,6 +443,8 @@ export const en = {
   'usage.chatGptExpired': () => "the ChatGPT sign-in's access token expired; start a session or renew the account's sign-in",
   'usage.chatGptRevoked': () => "the ChatGPT sign-in was revoked, for example after a plan change; renew the account's sign-in",
   'usage.chatGptUnread': () => "ChatGPT's usage answer has no readable limit windows",
+  'usage.chatGptSpendCap': () =>
+    "This seat's monthly credit limit in the workspace is spent; the account waits for the next month. Ask the workspace owner to raise it, or pick another account for the project.",
   'usage.openCodeNone': () => "no ChatGPT, Copilot or Go subscription: OpenCode's free models and other API keys have no limits to read",
   'usage.goKeyExpired': () => 'The OpenCode Go key expired or was revoked. Create a new key in OpenCode Console and use “Replace key”.',
   'account.goKeyRejected': () => 'OpenCode Console refused this key. Create a new key in OpenCode Console and try again.',
