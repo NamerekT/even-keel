@@ -47,6 +47,21 @@ describe('the hub brief', () => {
     expect(copy.configStore.current.projects['project-1']).toBe('/machine/one')
   })
 
+  it('reads a brief kept from before without counting it as the hub own, and gives way to the hub own (BTN-1226)', () => {
+    const state = emptyChainState()
+    state.active.push({ project: 'project-1', current: { task: 'ABC-9' }, paused: false } as unknown as ChainState['active'][number])
+    const copy = new BriefCopy()
+    expect(copy.held).toBe(false)
+    copy.keep(hubBrief(sources({ state: () => state })))
+    expect(copy).toMatchObject({ received: false, held: true })
+    expect(copy.currentOf('ABC-9')).toBe('project-1')
+    expect(copy.configStore.current.projects['project-1']).toBe('/machine/one')
+    copy.take(hubBrief(sources()))
+    copy.keep(hubBrief(sources({ state: () => state })))
+    expect(copy.received).toBe(true)
+    expect(copy.currentOf('ABC-9')).toBeUndefined()
+  })
+
   it('sends the brief only when it changed, and again after a failed send or a new connection', async () => {
     let unattended = false
     const tell = vi.fn(async () => {})

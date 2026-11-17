@@ -3,7 +3,7 @@ import type { HandoffReason, HandoffSession } from '../chain/relay.js'
 import { noticeOf, type Notice } from '../notice/notice.js'
 import { Handovers } from './handover.js'
 import type { MoveDeps } from './host.js'
-import { applyFields, fieldsOf, type MoveCall, type MoveName, type MoveSaved, type MovesPort } from './move-call.js'
+import { applyFields, fieldsOf, followDue, guardDue, type MoveCall, type MoveName, type MoveSaved, type MovesPort } from './move-call.js'
 import { OverageStops } from './overage.js'
 
 type Reason = 'restart' | 'message' | 'checkpoint' | 'review' | ReturnReason
@@ -73,9 +73,7 @@ class HubMoves implements TaskMoves {
 
   async guard(chain: ActiveChain): Promise<boolean> {
     const current = chain.current
-    if (current?.sessionId == null || current.starting !== undefined) return true
-    // No hold and no evidence of paid usage: the machine has nothing to stop.
-    if (current.limit?.overage === undefined && this.deps.machine.overage?.(current.task) === undefined) return true
+    if (current === null || !guardDue(this.deps.machine, current)) return true
     try {
       return (await this.run('guard', chain.project, chain, current, [])) as boolean
     } catch (error) {
@@ -85,7 +83,7 @@ class HubMoves implements TaskMoves {
   }
 
   async follow(chain: ActiveChain, current: CurrentTask): Promise<void> {
-    if (!this.due(current)) return
+    if (!followDue(this.deps.machine, current)) return
     await this.chained(chain, () => this.run('follow', chain.project, chain, current, []))
   }
 
@@ -119,17 +117,6 @@ class HubMoves implements TaskMoves {
 
   async handOver(project: string, task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
     return (await this.run('handOver', project, undefined, undefined, [task, session, reason, extra], task)) as string
-  }
-
-  /**
-   * Whether a step's follow has anything for the machine to do: a refusal of the model, a move under way, a limit held
-   * or hit, a checkpoint. Otherwise `Handovers.follow` changes nothing, and a command on every step is spared.
-   */
-  private due(current: CurrentTask): boolean {
-    const { machine } = this.deps
-    if (current.starting !== undefined || current.limit !== undefined) return true
-    if (current.sessionId !== null && machine.modelRefusal?.(current.task, current.sessionId) !== undefined) return true
-    return machine.limited(current.task) !== undefined || (machine.handoff(current.task)?.checkpoint ?? null) !== null
   }
 
   /** A move of the chain's task the link failed: the chain pauses, as on a failed move on the machine. */
@@ -174,14 +161,21 @@ class HubMoves implements TaskMoves {
     }
   }
 
-  /** The machine kept a move's state: into the task the move is under way for, else the chain's current one of the task. */
-  private saved({ project, task, fields }: MoveSaved): void {
-    const target = this.moving.get(keyOf(project, task)) ?? this.state.active.find((chain) => chain.project === project && chain.current?.task === task)?.current
+  /**
+   * The machine kept a move's state: into the task the move is under way for, else the chain's current one of the task.
+   * A move it made without the hub (`alone`) is taken as the hub's own: its pause pauses the chain, and the next step
+   * follows from the fields it left, so the move is not made again.
+   */
+  private saved({ project, task, fields, alone, halt }: MoveSaved): void {
+    const chain = this.state.active.find((each) => each.project === project && each.current?.task === task)
+    const target = this.moving.get(keyOf(project, task)) ?? chain?.current
     if (target == null) {
       this.deps.log(`chain: ${task}: the state a move kept is dropped, the task is no chain's current one`)
       return
     }
+    if (alone) this.deps.log(`chain: ${task}: the machine moved its session while the hub was away; the hub takes the task's state it left`)
     this.apply(target, fields)
+    if (halt !== undefined && chain !== undefined) this.halt(chain, halt.notice, halt.keep)
   }
 
   private apply(current: CurrentTask, fields: ReturnType<typeof fieldsOf>): void {

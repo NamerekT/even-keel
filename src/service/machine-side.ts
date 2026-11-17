@@ -6,7 +6,8 @@ import { MachineEnd, type FolderMarks, type HubTransport } from '../link/machine
 import type { MachineStore } from '../link/machine-store.js'
 import type { MachineAbout } from '../link/protocol.js'
 import { sameJson } from '../machine/facts.js'
-import { MachineMoves } from '../machine/moves.js'
+import { MachineMoves, type HeldMove } from '../machine/moves.js'
+import { machineValue, setMachineValue } from '../machine/state.js'
 import { MachineRecords } from '../machine/records.js'
 import { HANDOFF_EVENT, LEFTOVER_EVENT, MachineRunner, TRANSCRIPT_EVENT } from '../machine/runner.js'
 import type { SessionMail } from '../sessions/mail.js'
@@ -26,6 +27,11 @@ export interface MachineSideOptions {
   /** The link's status changed. */
   changed?: (end: MachineEnd) => void
   heartbeatMs?: number
+  /**
+   * A machine of its own (BTN-1226): while the link is down it follows and guards the tasks the hub gave it, and keeps
+   * the hub's last word on them and the hub's brief in its database. The hub's own machine never loses its link.
+   */
+  alone?: boolean
   log: (line: string) => void
 }
 
@@ -33,6 +39,8 @@ export interface MachineSide {
   end: MachineEnd
   runner: MachineRunner
   records: MachineRecords
+  /** `start` before the link's: the moves held from before are read back, and the clock of the moves alone starts. */
+  moves: MachineMoves
   /** Resolves once the link went online the first time. */
   online: Promise<void>
   /** From here the servers holding keys are reached over the link (BTN-990): once the first brief may have come. */
@@ -67,6 +75,20 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     journal: (entry) => machine.writes.add(`the launch of ${entry.task}`, records.launch(entry)),
     now: () => new Date(),
     log,
+    ...(options.alone === true && {
+      alone: {
+        online: () => end.status().state === 'online',
+        permits: (project, task) => {
+          const { brief } = machine
+          if (!brief.held) return true
+          return brief.currentOf(task) === project && brief.active().some((chain) => chain.project === project && !chain.paused)
+        },
+        keep: {
+          load: async () => ((await machineValue(machine.machineDb, 'moves.held')) as HeldMove[] | undefined) ?? [],
+          save: (held) => machine.writes.add('the moves held', setMachineValue(machine.machineDb, 'moves.held', held)),
+        },
+      },
+    }),
   })
   const identities = new AccountIdentities()
   const ownRun = (project: string, task: string): boolean => !sameJson(machine.choiceFor(project, task), machine.choiceFor(project))
@@ -128,7 +150,9 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     limitsPlan: (plan) => machine.limits.plan(plan),
     brief: (brief) => {
       const first = !machine.brief.received
+      const changed = !sameJson(brief, machine.brief.whole)
       machine.brief.take(brief)
+      if (options.alone === true && changed) machine.writes.add('the hub brief', setMachineValue(machine.machineDb, 'brief.kept', brief))
       // The projects without git are known from the first brief on: what their folders have become is read then.
       if (first) void machine.gitFound.checkAll().catch((error: unknown) => log(`git: the projects without git were not read: ${messageOf(error)}`))
     },
@@ -187,6 +211,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     end,
     runner,
     records,
+    moves,
     online,
     throughHub: () => machine.packages.throughHub({ servers: () => machine.brief.hubServers(), relay: (request) => end.mcp(request), tasks: machineTasks(machine, end) }),
   }

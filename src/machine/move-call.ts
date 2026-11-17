@@ -2,7 +2,7 @@ import type { NoteText } from '../chain/handoff-note.js'
 import type { CurrentTask } from '../chain/model.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
-import type { LaunchBrief } from './port.js'
+import type { LaunchBrief, MachinePort } from './port.js'
 
 /** The moves of a task's session the machine makes (`docs/machines.md`, "Moves"), as the link names them: `task.<move>`. */
 export const MOVES = ['follow', 'guard', 'deliver', 'deliverLoose', 'replace', 'renew', 'handOverCurrent', 'handOver'] as const
@@ -73,6 +73,10 @@ export interface MoveSaved {
   project: string
   task: string
   fields: MoveFields
+  /** The end of a move the machine made without the hub (BTN-1226): the fields after it. */
+  alone?: true
+  /** That move paused the chain. */
+  halt?: MoveDone['halt']
 }
 
 /** What the hub's port carries the moves through; a port without it has the hub make them in its own process. */
@@ -80,4 +84,22 @@ export interface MovesPort {
   run: (name: MoveName, call: MoveCall) => Promise<MoveDone>
   /** `take` gets the state of a move's task the machine kept mid-move, as the hub would get its own `save`. */
   onSaved: (take: (saved: MoveSaved) => void) => void
+}
+
+type DueReads = Pick<MachinePort, 'limited' | 'handoff' | 'modelRefusal' | 'overage'>
+
+/**
+ * Whether a follow has anything to do: a refusal of the model, a move under way, a limit held or hit, a checkpoint.
+ * Otherwise `Handovers.follow` changes nothing, so the hub spares a command and the machine alone a move.
+ */
+export function followDue(machine: DueReads, current: CurrentTask): boolean {
+  if (current.starting !== undefined || current.limit !== undefined) return true
+  if (current.sessionId !== null && machine.modelRefusal?.(current.task, current.sessionId) !== undefined) return true
+  return machine.limited(current.task) !== undefined || (machine.handoff(current.task)?.checkpoint ?? null) !== null
+}
+
+/** Whether the paid-usage stop has anything to stop: a hold or evidence of paid usage of the session. */
+export function guardDue(machine: DueReads, current: CurrentTask | null): boolean {
+  if (current?.sessionId == null || current.starting !== undefined) return false
+  return current.limit?.overage !== undefined || machine.overage?.(current.task) !== undefined
 }

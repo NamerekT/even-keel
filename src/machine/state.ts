@@ -4,9 +4,11 @@ import type { PGlite } from '@electric-sql/pglite'
 /**
  * The machine's own values, table `machine_state` of its database (`docs/storage.md`, "The machine's database"):
  * `cli.downloaded` — the providers whose checked CLI copy was once downloaded with consent (`string[]`, BTN-1175);
- * `stores.imported` — when the machine's stores were moved from the state database (BTN-1246).
+ * `stores.imported` — when the machine's stores were moved from the state database (BTN-1246); a machine of its own
+ * keeps `moves.held` — the hub's last move call of each task (`HeldMove[]`) — and `brief.kept`, the hub's last brief, so
+ * it moves its tasks without the hub after a restart too (BTN-1226).
  */
-export type MachineStateName = 'cli.downloaded' | 'stores.imported' | 'stores.hostImported' | 'cliCheck.history' | 'accounts.adoptLegacy' | 'cli'
+export type MachineStateName = 'cli.downloaded' | 'stores.imported' | 'stores.hostImported' | 'cliCheck.history' | 'accounts.adoptLegacy' | 'cli' | 'moves.held' | 'brief.kept'
 
 export async function machineValue(db: Queryable, name: MachineStateName): Promise<unknown> {
   const { rows } = await db.query<{ value: string }>('select value from machine_state where name = $1', [name])

@@ -47,14 +47,39 @@ export function emptyBrief(): HubBrief {
 export class BriefCopy {
   private brief: HubBrief = emptyBrief()
   private taken = false
+  private kept = false
 
   take(brief: HubBrief): void {
     this.brief = brief
     this.taken = true
   }
 
+  /**
+   * The brief a process before took, read back from the machine's database so a machine without its hub moves its tasks
+   * after a restart (BTN-1226). It is not `received`: the hub's own brief still comes before the chain steps.
+   */
+  keep(brief: HubBrief): void {
+    if (this.taken) return
+    this.brief = brief
+    this.kept = true
+  }
+
   get received(): boolean {
     return this.taken
+  }
+
+  get whole(): HubBrief {
+    return this.brief
+  }
+
+  /** The machine holds a brief of the hub, its own or one kept from before. */
+  get held(): boolean {
+    return this.taken || this.kept
+  }
+
+  /** The project whose running chain has the task as its current one. */
+  currentOf(task: string): string | undefined {
+    return this.brief.current[task]
   }
 
   /** The config as the machine runs on it: the hub's, with the machine's folders. Read live: a new brief replaces it. */

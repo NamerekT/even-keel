@@ -14,7 +14,7 @@ import type { HubBrief } from './brief.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { Writes, type Db } from '../storage/database.js'
 import { Assignments } from './assignments.js'
-import { MachineMoves } from './moves.js'
+import { MachineMoves, type HeldMove, type MovesAlone } from './moves.js'
 import type { MachinePort } from './port.js'
 import { RemoteMachine, type RemoteDeps } from './remote.js'
 import { MachineRunner } from './runner.js'
@@ -115,8 +115,27 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
   id = token.machine
   const wire = new Wire(hub, bearerOf(token))
   const ran: NumberedCommand[] = []
-  /** The machine's process: a new one on the same store is the machine after a restart. */
-  const boot = (name: string) => {
+  /** The held moves of a machine that moves without its hub, as its database keeps them across restarts. */
+  let kept: HeldMove[] = []
+  /**
+   * The machine's process: a new one on the same store is the machine after a restart. `alone` — it moves the tasks the
+   * hub gave it while the link is down (BTN-1226).
+   */
+  const boot = (name: string, alone?: { permits?: MovesAlone['permits'] }) => {
+    const moves: MachineMoves = new MachineMoves({
+      local,
+      emit: (type, payload) => end.emit(type, payload),
+      journal: (entry) => void journal.push(entry),
+      now: () => new Date(),
+      log: (line) => log.push(line),
+      ...(alone === undefined ? {} : {
+        alone: {
+          online: () => end.status().state === 'online',
+          permits: alone.permits ?? (() => true),
+          keep: { load: async () => structuredClone(kept), save: (held) => void (kept = structuredClone(held)) },
+        },
+      }),
+    })
     const runner: MachineRunner = new MachineRunner({
       local,
       emit: (type, payload) => end.emit(type, payload),
@@ -140,13 +159,7 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
       brief: (brief) => void state.briefs.push(brief),
       works: () => state.works,
       gitFound: () => state.gitFound,
-      moves: new MachineMoves({
-        local,
-        emit: (type, payload) => end.emit(type, payload),
-        journal: (entry) => void journal.push(entry),
-        now: () => new Date(),
-        log: (line) => log.push(line),
-      }),
+      moves,
       ...(services === undefined ? {} : { services }),
       log: (line) => log.push(line),
     })
@@ -162,7 +175,7 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
       },
       log: (line) => log.push(line),
     })
-    return { runner, end }
+    return { runner, end, moves }
   }
-  return { hub, hubStore, machineStore, wire, remote, port: remote.port(), state, local, log, snapshots, journal, ran, boot, id, assignments, queries }
+  return { hub, hubStore, machineStore, wire, remote, port: remote.port(), state, local, log, snapshots, journal, ran, boot, id, assignments, queries, held: () => kept }
 }

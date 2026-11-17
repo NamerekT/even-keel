@@ -10,7 +10,9 @@ import { parseToken } from './link/protocol.js'
 import { HookReceiver } from './machine/hook-receiver.js'
 import { loadEnv, root, stateDirOf } from './locations.js'
 import { machineAbout } from './machine/about.js'
+import type { HubBrief } from './machine/brief.js'
 import { folderMarks } from './machine/marks.js'
+import { machineValue } from './machine/state.js'
 import { KEEP_WARM_TICK_MS } from './sessions/keepwarm.js'
 import { Writes } from './storage/database.js'
 import { installed } from './updates/watcher.js'
@@ -67,6 +69,9 @@ const { host, machine } = await assembleMachineHost({
   tell,
   planFirst: true,
 })
+// The hub's last brief: a machine without its hub moves the tasks it was given on it (BTN-1226).
+const keptBrief = (await machineValue(machineDb, 'brief.kept')) as HubBrief | undefined
+if (keptBrief !== undefined) machine.brief.keep(keptBrief)
 
 const keepContact = contactKeeper(stateDir, log)
 const side = wireMachineSide(machine, {
@@ -76,6 +81,7 @@ const side = wireMachineSide(machine, {
   marks: folderMarks(() => ({ machine: token.machine, name: hostname() }), process.env),
   about: () => machineAbout({ evenKeel: version, root: projectsRoot, git: runGit, home: homedir() }),
   changed: (end) => keepContact(end.status().state === 'online', end.contact()),
+  alone: true,
   log,
 })
 linked = side
@@ -98,6 +104,8 @@ const pollWorks = assemblePollWorks(machine)
 setInterval(pollWorks, WORK_TICK_MS).unref()
 
 await side.end.settleMarks()
+// Before the link: a hub's move that comes at once must find the moves made without it read back.
+await side.moves.start()
 await side.end.start()
 log(`machine: connecting to the hub ${token.hub} as machine ${token.machine}`)
 // The hub's servers are reached over the link once the first connection may have brought the brief that names them.
@@ -109,6 +117,7 @@ void side.online.then(() => {
 
 stopOnSignals(async () => {
   clearInterval(contact)
+  side.moves.stop()
   host.cliChecks.stop()
   await Promise.allSettled([host.packages.close(), machine.writes.settled(), writes.settled()])
   await side.end.flushed().catch(() => {})
