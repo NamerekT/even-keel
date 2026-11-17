@@ -372,6 +372,45 @@ describe('TranscriptFold', () => {
     expect(fold(lines).summary().feed.map((line) => line.kind)).toEqual(['tool'])
   })
 
+  it('closes a call whose approval the CLI stopped waiting for with a line of its own, and names the call', () => {
+    const refusal =
+      'Permission for this command was denied by a built-in Claude Code safety check, not by the user. Only a person may approve such a removal, and no person did (the permission prompt timed out, or none was shown). The command was NOT run.'
+    const lines = [
+      assistant('m1', [tool('Bash', { command: 'rm -rf .temp/shot/*', description: 'Clear shots' })]),
+      JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_Bash', is_error: true, content: refusal }] },
+      }),
+    ]
+    const whole = new TranscriptFold(Infinity, true)
+    for (const line of lines) whole.push(line)
+
+    expect(whole.summary().feed.slice(-2)).toMatchObject([
+      { kind: 'failed', tool: 'toolu_Bash', expired: true },
+      { kind: 'error', notice: { code: 'session.approvalExpired', params: { tool: 'Bash' } } },
+    ])
+    expect(whole.summary().expiredApprovals).toEqual(['toolu_Bash'])
+    expect(fold(lines).summary().expiredApprovals).toEqual(['toolu_Bash'])
+    expect(fold(lines).summary().feed.map((line) => line.kind)).toEqual(['tool'])
+  })
+
+  it('takes a refusal of its own words for no expired approval', () => {
+    const lines = [
+      assistant('m1', [tool('Bash', { command: 'rm -rf build' })]),
+      JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_Bash', is_error: true, content: 'The user denied this call: do without it.' }] },
+      }),
+    ]
+    const whole = new TranscriptFold(Infinity, true)
+    for (const line of lines) whole.push(line)
+
+    expect(whole.summary().feed.at(-1)).not.toHaveProperty('expired')
+    expect(whole.summary().expiredApprovals ?? []).toEqual([])
+  })
+
   it('tracks the stage and does not step back to reading once editing started', () => {
     const stages = (calls: ReturnType<typeof tool>[]) =>
       fold(calls.map((call, index) => assistant(`m${index}`, [call]))).summary().stage

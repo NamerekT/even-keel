@@ -3,7 +3,7 @@ import { badgeActionOf } from '../badge/action.js'
 import type { BadgeAction } from '../badge/model.js'
 import { statusAsked, statusLineIn, statusTextOf, withoutStatusLine, type BadgeStatus } from '../badge/status.js'
 import { isSpendingLimit } from '../limits/spending.js'
-import type { Notice } from '../notice/notice.js'
+import { notice, type Notice } from '../notice/notice.js'
 import { isTransientError } from './transient.js'
 import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
 import { typedText } from './commandPrompt.js'
@@ -49,6 +49,8 @@ export interface FeedLine {
   detail?: string
   /** A failed line of a command that the end of its turn killed, not one that failed on its own. */
   interrupted?: true
+  /** A failed line of a call the CLI held for approval and refused itself once it stopped waiting (EKR-140). */
+  expired?: true
   /** The id of the call of a tool line, an image line or a failed line, only in a whole transcript. */
   tool?: string
   /** The tool a tool line calls, only in a whole transcript. */
@@ -146,6 +148,8 @@ export interface TranscriptSummary {
    * `null` — none; absent — the agent's transcript is not read for it (only Claude's `shell` status waits on one).
    */
   backgroundCommand?: string | null
+  /** The ids of the last calls whose approval the CLI stopped waiting for (EKR-140); absent — the agent's transcript is not read for them. */
+  expiredApprovals?: string[]
 }
 
 const FEED_SIZE = 30
@@ -163,6 +167,9 @@ const NO_CHANGES_LINE = /^([`*_]*)NO CHANGES:([`*_]*)(.*)$/
 const TASK_DONE_LINE = /^([`*_]*)TASK DONE(?::|(?=[`*_]*$))([`*_]*)(.*)$/
 const CONTEXT_BLOCK = /^<([a-z][\w-]*)\b[^>]*>[\s\S]*<\/\1>$/
 const ASK_TOOL = 'AskUserQuestion'
+/** CLI 2.1.3xx: "…and no person did (the permission prompt timed out, or none was shown)" — or "…this session cannot prompt". */
+const EXPIRED_APPROVAL = /\bthe permission prompt timed out\b/
+const EXPIRED_KEPT = 10
 const SHELLS =new Set(['Bash', 'PowerShell'])
 export const TTL_MS:Record<CacheTtl, number> ={ '5m': 5 * 60_000, '30m': 30 * 60_000, '1h': 60 * 60_000 }
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
@@ -206,6 +213,10 @@ export class TranscriptFold {
   private backgroundCommand: string | null = null
   /** The tool lines of the turn's calls that have no result yet, by call id. */
   private readonly runningTools = new Map<string, string>()
+  /** The tool of each call that has no result yet, by call id: an expired approval names it. */
+  private readonly callTools = new Map<string, string>()
+  /** The calls whose approval the CLI stopped waiting for, the latest last (EKR-140). */
+  private expiredApprovals: string[] = []
   /** The CLI's queue of messages for the session, in order; `line` — `null` for one that is not the user's. */
   private readonly queue: { content: string | undefined; line: FeedLine | null }[] = []
 
@@ -310,6 +321,7 @@ export class TranscriptFold {
       effort: this.effort,
       badgeStatus: this.badgeStatus,
       backgroundCommand: this.backgroundCommand,
+      expiredApprovals: [...this.expiredApprovals],
     }
   }
 
@@ -377,7 +389,10 @@ export class TranscriptFold {
         }
         const background = backgroundCommandOf(block.name, input)
         if (background !== null) this.backgroundCommand = background
-        if (typeof block.id === 'string') this.runningTools.set(block.id, line.text)
+        if (typeof block.id === 'string') {
+          this.runningTools.set(block.id, line.text)
+          this.callTools.set(block.id, block.name)
+        }
         this.addAction(line)
         this.advanceStage(stageOf(block.name, input))
       }
@@ -389,9 +404,15 @@ export class TranscriptFold {
     for (const block of blocksOf(entry.message?.content)) {
       if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
       this.runningTools.delete(block.tool_use_id)
+      const name = this.callTools.get(block.tool_use_id)
+      this.callTools.delete(block.tool_use_id)
+      const expired = block.is_error === true && isExpiredApproval(block.content)
+      if (expired) this.expiredApprovals = [...this.expiredApprovals, block.tool_use_id].slice(-EXPIRED_KEPT)
       // A question's error result is how a stop or a resume delivers its answer (BTN-220): the answer line tells the rest.
       if (this.whole && block.is_error === true && block.tool_use_id !== this.openAsk?.id) {
-        this.addFeed({ at: entry.timestamp ?? '', kind: 'failed', text: failureText(block.content), tool: block.tool_use_id })
+        const at = entry.timestamp ?? ''
+        this.addFeed({ at, kind: 'failed', text: failureText(block.content), tool: block.tool_use_id, ...(expired && { expired: true as const }) })
+        if (expired) this.addFeed({ at, kind: 'error', text: '', notice: notice('session.approvalExpired', { tool: name ?? '?' }) })
       }
     }
     const ask = this.openAsk
@@ -417,6 +438,7 @@ export class TranscriptFold {
       this.turnStartedAt = entry.timestamp ?? ''
       this.statusAsked = false
       this.runningTools.clear()
+      this.callTools.clear()
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
       const answered = this.openAsk ?? this.strayAsk
       this.openAsk = null
@@ -540,6 +562,14 @@ function backgroundCommandOf(name: string, input: Record<string, unknown>): stri
 export function callFacts(name: string, input: Record<string, unknown>, size: EditSize | undefined): Partial<FeedLine> {
   const subject = subjectOf(name, input)
   return { name, ...(subject === undefined ? {} : { subject }), ...size }
+}
+
+/**
+ * The CLI's own refusal of a call it held for a person's approval and gave up on (its removal check waits two minutes):
+ * the page's question closes with it, no answer from anywhere (EKR-140).
+ */
+export function isExpiredApproval(content: unknown): boolean {
+  return EXPIRED_APPROVAL.test(failureText(content, Infinity))
 }
 
 /** The start of a failed call's output; the rest stays in the transcript. */

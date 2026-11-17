@@ -47,13 +47,14 @@ export function ToolGroup({ calls, media, onOpen }: Props) {
 function CallRow({ call, media, onOpen }: { call: Call; media: TranscriptMedia; onOpen: (place: number) => void }) {
   const [open, setOpen] = useState(false)
   const id = useId()
-  const { line, failure, interrupted } = call
+  const { line, failure, interrupted, expired } = call
   const more = line.detail !== undefined || failure !== null
+  const mark = expired ? t.session.chat.tools.expired : interrupted ? t.session.chat.tools.interrupted : t.session.chat.tools.failure
   const head: ReactNode = (
     <>
       <CallText line={line} />
       {(line.added !== undefined || line.removed !== undefined) && <EditSize added={line.added ?? 0} removed={line.removed ?? 0} />}
-      {failure !== null && <span className="tools__failed">{interrupted ? t.session.chat.tools.interrupted : t.session.chat.tools.failure}</span>}
+      {failure !== null && <span className="tools__failed">{mark}</span>}
     </>
   )
   return (

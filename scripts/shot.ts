@@ -8,7 +8,7 @@
  * port, or to `--url`. Each selector is waited for and shot alone into `.temp/shot/<name>/`; with no selector,
  * the viewport. Options and steps are in `docs/web/screenshots.md` ("Screenshots").
  */
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Page } from 'playwright'
@@ -38,6 +38,7 @@ interface Options {
 }
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const STALE_MS = 60 * 60_000
 
 function parse(args: string[]): Options {
   const options: Options = {
@@ -121,11 +122,29 @@ function print(title: string, lines: string[]): void {
   for (const line of lines) console.log(`  ${title}: ${line}`)
 }
 
+/**
+ * The shots of other names older than an hour go, so a session never needs `rm -rf .temp/shot/*`, which the CLI's
+ * removal check holds for a person's approval (EKR-140); a batch of names and a before/after pair stay.
+ */
+function dropStale(root: string): void {
+  let names: string[]
+  try {
+    names = readdirSync(root)
+  } catch {
+    return
+  }
+  for (const each of names) {
+    const path = join(root, each)
+    if (Date.now() - statSync(path).mtimeMs > STALE_MS) rmSync(path, { recursive: true, force: true })
+  }
+}
+
 async function main(): Promise<number> {
   const options = parse(process.argv.slice(2))
   const name = options.name ?? (slug(options.route) || 'page')
   const dir = join(ROOT, '.temp/shot', name)
   rmSync(dir, { recursive: true, force: true })
+  dropStale(join(ROOT, '.temp/shot'))
   mkdirSync(dir, { recursive: true })
 
   const fake = options.url ? undefined : await fakeServer()

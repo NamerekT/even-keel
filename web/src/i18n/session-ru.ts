@@ -220,6 +220,7 @@ export const sessionRu = {
       failed: (count: number) => `(${count} с ошибкой)`,
       failure: 'ошибка',
       interrupted: 'прервана с концом хода',
+      expired: 'разрешение истекло, не выполнена',
       size: (added: number, removed: number) => `Добавлено строк: ${added}, удалено: ${removed}`,
     },
     head: {

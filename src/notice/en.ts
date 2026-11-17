@@ -63,6 +63,8 @@ export const en = {
   'chain.limitSpent': (p: { until: string; account?: string; provider?: string }) =>
     `chain: The usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. Wait for the reset, change the account in the project's pool under Project settings → Sessions, or the provider on the task's card.`,
   'session.transient': () => 'waiting to retry',
+  'session.approvalExpired': (p: { tool: string }) =>
+    `The question about the ${p.tool} call is closed: the CLI stopped waiting for an answer and refused the call itself, it did not run. The session goes on without it.`,
   'session.transientRetry': (p: { at: string }) => `The model is temporarily unavailable. The dispatcher will retry this same session at ${p.at}. You can continue it now from the chat or start a new session.`,
   'chain.noSession': (p: { task: string }) => `chain: no session of ${p.task} is known`,
   'chain.noAccountFor': (p: { task: string; label: string; provider: string }) =>
