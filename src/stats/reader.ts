@@ -258,7 +258,8 @@ const TASK_COMPONENT = `select component from tasks where task = $1::text`
 
 // $1 project keys. Requests are those of the main thread, numbered within the session; a successor is a
 // session started from a checkpoint note. The note is whatever a session spent from writing it to its end,
-// the recovery is what a successor spent before its first edit.
+// the recovery is what a successor spent before its first edit. A note is a write of the note file or a call of the
+// tasks server's handoff_write under any agent name of it (BTN-1240), as `isKept` in src/sessions/note.ts.
 const CHECKPOINT = `
 with own as (
   select s.session_id, coalesce(s.launch_reason = 'checkpoint', false) as handed, split_part(st.task, '-', 1) as key
@@ -274,11 +275,13 @@ with own as (
   where c.agent_id is null and c.entrypoint is distinct from 'tally-classify'
 ), marks as (
   select r.session_id,
-    min(r.n) filter (where t.brief not like '%.temp/handoff%.md') as edit_n,
-    min(r.n) filter (where t.brief like '%.temp/handoff%.md') as note_n
-  from tool_calls t
+    min(r.n) filter (where not t.kept and t.brief not like '%.temp/handoff%.md') as edit_n,
+    min(r.n) filter (where t.kept or t.brief like '%.temp/handoff%.md') as note_n
+  from (
+    select message_id, name, brief, name ~'(^|[_.])handoff_write$' as kept from tool_calls
+  ) t
   join reqs r on r.message_id = t.message_id
-  where t.name in ('Edit', 'Write', 'MultiEdit', 'NotebookEdit')
+  where t.kept or t.name in ('Edit', 'Write', 'MultiEdit', 'NotebookEdit')
   group by r.session_id
 ), per as (
   select o.session_id, o.key, o.handed,
