@@ -24,6 +24,7 @@ export class FakeNetwork {
 
   /** `repoOf` — a project's folder here, the own machine's row of its pool. */
   constructor(private readonly mode: string | null, private readonly repoOf: (project: string) => string = () => '') {
+    this.held = mode === 'taken'
     if (mode === null) return
     const joined = (id: string, name: string, report: MachineAbout, online: boolean): MachineView => ({
       id, name, createdAt: Date.now() - 86_400_000, revokedAt: null, inviteExpires: null, joinedAt: Date.now() - 86_000_000, host: report.host, about: report, online, projects: [], taken: [],
@@ -88,6 +89,8 @@ export class FakeNetwork {
   /** The colours picked on the machines' pages and their capacities (BTN-1272), by machine. */
   private readonly colors = new Map<string, string | null>()
   private readonly capacities = new Map<string, number>()
+  /** With `?machines=taken` (BTN-1262), the laptop's first project's folder is held by a gone machine's mark until taken over. */
+  private held: boolean
 
   /** Each machine of `names` with its colour, the picked one or the palette's by its place. */
   colorsOf(names: Record<string, string>): Record<string, string> {
@@ -183,7 +186,7 @@ export class FakeNetwork {
       }),
       missing: [],
       sessions: own ? state.sessions.filter((session) => session.lamp !== 'finished').map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })) : [],
-      taken: [],
+      taken: id === 'machine-1' && this.held && pooled[0] !== undefined ? [{ project: pooled[0], machine: 'machine-0', name: 'Example old laptop' }] : [],
     }
   }
 
@@ -194,6 +197,11 @@ export class FakeNetwork {
   command(name: string, body: Record<string, unknown>): boolean {
     if (name === 'machines/capacity') {
       this.capacities.set(String(body.machine), Number(body.capacity))
+      this.changed()
+      return true
+    }
+    if (name === 'machines/takeOver' && body.machine === 'machine-1' && this.held) {
+      this.held = false
       this.changed()
       return true
     }

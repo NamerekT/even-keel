@@ -21,6 +21,7 @@ import { MoreMenu } from '../ui/MoreMenu.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
+import { TakeOverButton } from './TakeOverButton.js'
 import './settings.css'
 import './machinePage.css'
 
@@ -101,8 +102,8 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
         <Band tone="warn">{text.follow[page.about.follow.stuck](shortRef(page.about.follow.to))}</Band>
       )}
       {page.taken.map((each) => (
-        <Band key={each.project} tone="warn">
-          <ProjectLabel project={each.project} /> — {text.taken(each.name)}
+        <Band key={each.project} tone="warn" action={<TakeOverButton project={each.project} owner={each.machine} name={each.name} machine={page.id} className="button button--small" />}>
+          <span><ProjectLabel project={each.project} /> — {text.taken(each.name)}</span>
         </Band>
       ))}
       <div className="machine-page__grid">
