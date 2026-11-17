@@ -106,6 +106,14 @@ describe('LimitsWatcher and the hub plan (BTN-991)', () => {
     expect(asked).toEqual(['own'])
   })
 
+  it('on a machine on the network, polls on a plan that comes while the first read of the limits file still runs', async () => {
+    const { watcher, asked } = watcherOf(true)
+    watcher.start()
+    watcher.plan({ skip: [] })
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
+    expect(asked).toEqual(['work', 'own'])
+  })
+
   it('on a machine on the network, a plan before the start polls only once started', async () => {
     const { watcher, asked } = watcherOf(true)
     const settle = async () => {
