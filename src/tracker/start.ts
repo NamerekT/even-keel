@@ -32,6 +32,11 @@ export interface TrackerStartDeps {
   repoOf: (project: string) => string
   /** A reader of a project without git (BTN-883): no branch of its folder is ever a task's, so no merge closes one. */
   plain?: (project: string) => boolean
+  /**
+   * A task run on a machine elsewhere (BTN-1313): the own commits of its branches that machine's main has, which the
+   * hub's checkout learns only after that machine's push at the cleanup; `undefined` — not on one, the checkout tells.
+   */
+  elsewhere?: (project: string, task: string) => Promise<string[]> | undefined
   rulesOf: (project: string) => ChainRules
   links: Map<string, TrackerLink>
   tasksByProject: { get(project: string): Task[] | undefined; has(project: string): boolean; set(project: string, tasks: Task[]): void }
@@ -117,7 +122,10 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
 
   const closer = new MergeCloser({
-    merged: async (project, task) => (deps.plain?.(project) === true ? [] : mergedCommits(runGit, repoOf(project), task, mainBranch(project))),
+    merged: async (project, task) => {
+      if (deps.plain?.(project) === true) return []
+      return deps.elsewhere?.(project, task) ?? mergedCommits(runGit, repoOf(project), task, mainBranch(project))
+    },
     complete: (task, status) => link.run((tracker) => tracker.complete!(task, status)),
     done: (project) => deps.doneOf?.(project),
     onError: report,

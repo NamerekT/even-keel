@@ -80,6 +80,12 @@ export interface LinkedMachine {
   mirror(machine: string): RemoteMachine | undefined
   /** The own machine's id; empty until `wireLinkedMachine` read its token. */
   own(): string
+  /**
+   * The merge closer's question about a task a machine elsewhere runs (BTN-1313): the own commits of its branches that
+   * machine's main has; none while it is off the link, so a tracker's read never waits for it. `undefined` — the task
+   * is the own machine's, or its machine has no port: the hub's checkout tells, as the pool falls back.
+   */
+  mergedElsewhere(project: string, task: string): Promise<string[]> | undefined
   /** What the page, the hooks and the chat ask of the machine besides the chain: commands over the link. */
   services: MachineServices
   /** The door for machines elsewhere (BTN-1242): open while "Hub address for machines" is set. */
@@ -446,6 +452,12 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     page: remote.page,
     mirror: (machine) => (machine === own ? remote : network.remote(machine)),
     own: () => own,
+    mergedElsewhere: (project, task) => {
+      const machine = assignments.machineOf(project, task)
+      const at = machine === undefined || machine === own ? undefined : network.port(machine)
+      if (at === undefined) return undefined
+      return network.connected(machine!) ? at.merged(project, task) : Promise.resolve([])
+    },
     services,
     network,
     polled: (account) => polls.poller(account) !== undefined,

@@ -234,7 +234,7 @@ describe('mainCheckDeps', () => {
     expect(await deps.head('NOTE')).toBeNull()
     expect(deps.reportedTree('NOTE', 'NOTE-1')).toBeNull()
     expect(await deps.tree('NOTE', 'c2')).toBeNull()
-    expect(await deps.merged('NOTE', 'NOTE-1')).toBe(false)
+    expect(await deps.merged('NOTE', 'NOTE-1')).toEqual([])
     expect(gitCalls).toEqual([])
   })
 

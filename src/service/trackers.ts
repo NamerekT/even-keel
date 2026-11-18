@@ -45,6 +45,7 @@ type TrackersContext = Pick<ServiceContext,
   | 'linkOf'
   | 'links'
   | 'liveView'
+  | 'machineLink'
   | 'mergeMarks'
   | 'ownerOfReader'
   | 'pendingCloses'
@@ -141,6 +142,7 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
       startTracker(view, setup, {
         repoOf: (reader) => ctx.configStore.current.projects[ctx.ownerOfReader(reader)]!,
         plain: (reader) => isPlain(ctx.configStore.current, ctx.ownerOfReader(reader)),
+        elsewhere: (reader, task) => ctx.machineLink.mergedElsewhere(ctx.ownerOfReader(reader), task),
         rulesOf: ctx.readerRules,
         links: ctx.links,
         tasksByProject: ctx.readerTasks,

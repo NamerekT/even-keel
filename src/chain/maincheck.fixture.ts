@@ -107,7 +107,7 @@ export function fakeMain(wait: number | null = null) {
     },
     fixTask: () => ci.fixTask,
     fixName,
-    merged: async (_project, id) => ci.merged.has(id),
+    merged: async (_project, id) => (ci.merged.has(id) ? [`${id}-commit`] : []),
     afterGreen: () => ci.afterGreen,
     green: (project, commit) => void ci.greens.push(`${project}@${commit}`),
     runAfterGreen: async (project, commit) => {

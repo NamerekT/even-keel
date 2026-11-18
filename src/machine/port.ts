@@ -72,8 +72,11 @@ export interface MachinePort {
   head: (project: string, machine?: string) => Promise<string | null>
   /** Query. The tree of a commit; `null` — unknown. `machine` — the pool's only: whose checkout. */
   tree: (project: string, commit: string, machine?: string) => Promise<string | null>
-  /** Query. Whether the branch of the task, or of the fix session, is in main with commits of its own. */
-  merged: (project: string, task: string) => Promise<boolean>
+  /**
+   * Query. The own commits of the task's branches, or the fix session's, that main has (`mergedCommits`); none — not
+   * merged. Commits, not a yes, for the merge closer's marks (BTN-1313).
+   */
+  merged: (project: string, task: string) => Promise<string[]>
   /** Query. Whether the project's main branch has the commit: the carry's release commit is in. */
   carried: (project: string, commit: string) => Promise<boolean>
   /** Query. What a session's working folder holds beyond main: commits ahead and uncommitted files. */

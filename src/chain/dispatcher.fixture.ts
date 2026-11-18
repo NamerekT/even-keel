@@ -250,7 +250,7 @@ export function setup(options: SetupOptions = {}) {
       reportedTree: () => null,
       tree: async () => null,
       checkMain: async () => ({ state: 'green' }),
-      merged: async () => false,
+      merged: async () => [],
       runAfterGreen: async () => ({ state: 'done' }),
       history: async () => ({ commits: [], greens: [] }),
       ...options.main,

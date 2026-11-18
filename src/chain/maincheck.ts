@@ -235,7 +235,7 @@ export class MainCheck {
   }
 
   merged(project: string, task: string): Promise<boolean> {
-    return this.machine.merged(project, task).catch(() => false)
+    return this.machine.merged(project, task).then((commits) => commits.length > 0, () => false)
   }
 
   /** The fix task goes before the chain's order while it is open in the chain. */

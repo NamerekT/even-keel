@@ -1,6 +1,6 @@
 import type { MainCiDeps } from '../chain/mainci.js'
 import { shortCommit } from '../ci/verdict.js'
-import { branchMerged } from '../git/merged.js'
+import { mergedCommits } from '../git/merged.js'
 import { notice } from '../notice/notice.js'
 import type { MachineMainPort } from './port.js'
 
@@ -37,7 +37,7 @@ export function mainMachineDeps(deps: Pick<MainCiDeps, 'repo' | 'plain' | 'main'
       const failure = await deps.runCheck(project, task, path)
       return failure === null ? { state: 'green' } : { state: 'red', failure }
     },
-    merged: async (project, task) => !plain(project) && branchMerged(deps.git, deps.repo(project), task, deps.main(project)),
+    merged: async (project, task) => (plain(project) ? [] : mergedCommits(deps.git, deps.repo(project), task, deps.main(project))),
     // The only place the dispatcher touches the project's own checkout, so only when it stands on main at the green commit.
     // A machine elsewhere's clone is the dispatcher's: its main is brought up to the commit first (BTN-994).
     async runAfterGreen(project, commit, forward = false) {

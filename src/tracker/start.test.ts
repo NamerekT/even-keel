@@ -217,6 +217,25 @@ describe('startTracker', () => {
     expect(closed).toBe(true)
   })
 
+  it('closes a task merged on a machine elsewhere by that machine\'s main, never the hub\'s checkout (BTN-1313)', async () => {
+    const own = vi.spyOn(merged, 'mergedCommits').mockResolvedValue([])
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    let closed = false
+    const current = (id: string) => ({ ...task(id), status: closed && id === 'APP-2' ? { name: 'Done', category: 'Won' as const } : task(id).status })
+    const complete = vi.fn(async () => (closed = true))
+    const elsewhere = vi.fn((_project: string, id: string) => (id === 'APP-2' ? Promise.resolve(['c2']) : undefined))
+    start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: [current('APP-1'), current('APP-2')], statuses: ['Todo', 'Done'] }),
+      tasks: async () => [], complete, close: async () => {},
+    }), {
+      elsewhere,
+      dispatcher: { setTasks: vi.fn(), setOutside: vi.fn(), released: () => [], setReleased: vi.fn(), held: () => ['APP-1', 'APP-2'], preview: (_project: string, tasks: TrackerTask[]) => ({ tasks, blockers: [], current: undefined }) } as unknown as TrackerStartDeps['dispatcher'],
+    })
+    await vi.waitFor(() => expect(complete).toHaveBeenCalledWith('APP-2'))
+    expect(complete).toHaveBeenCalledTimes(1)
+    expect(own.mock.calls.map((call) => call[2])).toEqual(['APP-1'])
+  })
+
   it('hands the page the parents, open, closed and those the chain ran, and keeps a ran parent out of the chain (BTN-1041)', async () => {
     const done = { name: 'Done', category: 'Won' as const }
     const setParents = vi.fn()
