@@ -15,6 +15,7 @@ import { steers } from '../sessions/view-index.js'
 import type { MachineContext } from './machine-context.js'
 import { steer, wireMachine } from './machine-chain.js'
 import { machineTasks } from './hub-mcp.js'
+import { wireMachineChats } from './machine-chats.js'
 import { wireMachineServices } from './machine-services.js'
 import { CLONE_PROGRESS_EVENT, cloneTold } from '../machine/services.js'
 
@@ -173,6 +174,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
         machine.monitor.restoreWindows(windows)
       },
       cloneProgress: cloneTold((payload) => void end.emit(CLONE_PROGRESS_EVENT, payload).catch(() => {})),
+      chats: wireMachineChats(machine),
     }),
     scope: (body) => machine.account.batch(() => machine.packages.pass(() => machine.choiceFor.pass(() => {
       pass = passOf()

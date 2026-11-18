@@ -2,6 +2,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { cloudConnectionOf } from './account/cloud.js'
 import type { BadgeSettings } from './badge/model.js'
 import { BUILTIN_BODY_LIMITS, BUILTIN_QUERIES, BUILTIN_UPLOAD, builtinUpload } from './builtin/routes.js'
+import { CHATS_BODY_LIMITS, CHATS_QUERIES } from './chats/routes.js'
 import { checkReportOf } from './chain/checkreports.js'
 import { statusMovesOf } from './chain/moves.js'
 import { CLAUDE } from './claude/name.js'
@@ -194,6 +195,7 @@ const COMMANDS: Record<string, Command> = {
 const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, request: IncomingMessage) => Promise<unknown>> = {
   ...PROFILE_QUERIES,
   ...BUILTIN_QUERIES,
+  ...CHATS_QUERIES,
   'changelog/open': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'open' }),
   'changelog/draft': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'draft' }),
   'changelog/again': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'again' }),
@@ -229,7 +231,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
 const MAX_BODY_BYTES = 64 * 1024
 /** An answer carries its files in base64. */
 const MAX_ANSWER_BYTES = 64 * 1024 * 1024
-const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES, ...BUILTIN_BODY_LIMITS }
+const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES, ...BUILTIN_BODY_LIMITS, ...CHATS_BODY_LIMITS }
 
 export function createEvenKeelServer(deps: ServerDeps): Server {
   return guardedServer(deps.guard, (request, response) => route(deps, request, response))

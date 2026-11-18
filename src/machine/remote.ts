@@ -168,6 +168,8 @@ export class RemoteMachine {
       let place: Place = {}
       if (group === 'chat' && name === 'steer') place = this.placed(this.deps.projectOf(args[0] as string), args[1] as HandoffSession)
       if (group === 'chat' && name === 'saveInbox') place = { project: args[0] as string, folder: args[1] as string }
+      if (group === 'chats' && name === 'launch') place = { project: args[0] as string, folder: args[1] as string }
+      if (group === 'chats' && name === 'send') place = { project: args[0] as string }
       if (group === 'folders') {
         const spec = (name === 'check' ? args[1] : args[0]) as FolderSpec
         place = { project: spec.project, folder: spec.folder }

@@ -33,6 +33,7 @@ import { PullRefusals } from './review/refusals.js'
 import { type ChainControl } from './server.js'
 import * as accountsService from './service/accounts.js'
 import * as chainService from './service/chain.js'
+import { CHATS_SWEEP_MS, wireProjectChats } from './service/chats.js'
 import { ACCOUNT_POLL_MS,AGENT_TIMEOUT_MS,CHANGELOG_TIMEOUT_MS,CI_TARGETS_MS,CI_TICK_MS,CI_TIMEOUT_MS,CLI_VERSION_POLL_MS,CONFIG_POLL_MS,FALLBACK_TOAST_MS,FORWARD_TICK_MS,INTAKE_TICK_MS,LAUNCH_CHART_DAYS,LIMIT_CHECK_MS,LIMITS_POLL_MS,NETWORK_PROBE_MS,OFFLINE_RETRY_MS,OWNERS_RESCAN_MS,PLUGIN_UPDATE_TIMEOUT_MS,SESSION_POLL_MS,SHUTDOWN_MS,TALLY_FIRST_DELAY_MS,TALLY_INTERVAL_MS,TRACKER_CHECK_MS,UPDATE_POLL_MS,USAGE_POLL_MS,WINDOW_RECHECK_MS,WORK_TICK_MS,WORK_TTL_MS } from './service/defaults.js'
 import * as demoService from './service/demo.js'
 import * as hostingService from './service/hosting.js'
@@ -231,6 +232,7 @@ const context = {
   get profileBlock() { return profileBlock },
   get profileKindsOf() { return profileKindsOf },
   get profiles() { return profiles },
+  get projectChats() { return projectChats },
   get projectOf() { return projectOf },
   get projectsChanged() { return projectsChanged },
   get promptLanguage() { return promptLanguage },
@@ -586,6 +588,9 @@ const machineLink = await wireLinkedMachine(context, machine)
 machineLinked = machineLink
 const dispatcher = await chainService.wireDispatcher(context, machineLink.port)
 await machineLink.start()
+// The project chats (BTN-1230): their sessions are found again by name after a restart, like the chain's.
+const projectChats = await wireProjectChats(context)
+setInterval(() => void projectChats.sweep().catch((error: unknown) => console.warn(`chats: the sweep failed: ${(error as Error).message}`)), CHATS_SWEEP_MS).unref()
 
 /** Whether the checkouts of two projects are of one repository (BTN-285); `undefined` until both are read. */
 function sameRepositoryOf(a: string, b: string): boolean | undefined { return chainService.sameRepositoryOf(context, a, b) }

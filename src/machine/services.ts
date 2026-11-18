@@ -54,6 +54,30 @@ export interface MachineChat {
   saveInbox(project: string, workdir: string, files: CarriedInbox[]): Promise<string[]>
 }
 
+/** What a project chat's session runs with (BTN-1230): chosen at the chat's creation, sent whole with every call. */
+export interface ChatStart {
+  account: string
+  /** As `SessionStart.model`. */
+  model: string | null
+  effort: string | null
+  prompt: string
+}
+
+/**
+ * A project chat's session on the machine where the project's folder is (`src/service/machine-chats.ts`): found by
+ * the chat's id, which is its name, through the session monitor.
+ */
+export interface MachineChats {
+  /** Starts the chat's first session in `folder`; its session id. */
+  launch(project: string, folder: string, chat: string, start: ChatStart): Promise<string>
+  /** The user's next message: into the live session, else a resume of it; a turn under way refuses it (`chats.busy`). */
+  send(project: string, chat: string, start: Omit<ChatStart, 'account'>): Promise<string>
+  /** Stops the chat's session, mid-turn too; one the monitor never saw is left alone. */
+  stop(chat: string): Promise<void>
+  /** The title the agent gave the session; `null` — none, or an agent that gives none. */
+  title(account: string, sessionId: string): Promise<string | null>
+}
+
 /** The records the hub keeps for the machine, handed to its new process before its monitor, hooks and chat start. */
 export interface RetainedRecords {
   launches: LaunchEntry[]
@@ -105,6 +129,7 @@ export interface MachineServices {
   chat: MachineChat
   records: { restore(records: RetainedRecords): Promise<void> }
   folders: MachineFolders
+  chats: MachineChats
 }
 
 export const SERVICE_COMMANDS = {
@@ -116,6 +141,7 @@ export const SERVICE_COMMANDS = {
   chat: ['post', 'dismiss', 'steer', 'saveInbox'],
   records: ['restore'],
   folders: ['check', 'clone'],
+  chats: ['launch', 'send', 'stop', 'title'],
 } as const satisfies { [G in keyof MachineServices]: ReadonlyArray<keyof MachineServices[G]> }
 
 type Group = keyof MachineServices

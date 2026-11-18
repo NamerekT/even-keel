@@ -757,4 +757,35 @@ export const STEPS: readonly string[] = [
   alter table mailbox alter column id drop identity;
   create unique index mailbox_key on mailbox ((coalesce(machine_id, '')), id);
   `,
+  // A project's chats (BTN-1230, `docs/sessions/project-chats.md`): sessions without a task started from the page, their
+  // account, model and effort fixed at creation; `machine_id` — where its session runs; `last` — JSON of `ChatMessage`;
+  // epoch ms. `chat_choices` — the last choice of a new chat in each project. Both go with the project.
+  `
+  create table chats (
+    id          text primary key,
+    project_id  text not null,
+    agent       text not null,
+    account     text not null,
+    model       text,
+    effort      text,
+    title       text,
+    first       text,
+    said        text not null default '',
+    last        text,
+    session_id  text,
+    machine_id  text,
+    created_at  bigint not null,
+    last_at     bigint not null,
+    read_at     bigint,
+    archived_at bigint,
+    successor   text
+  );
+  create index chats_project on chats (project_id, archived_at, last_at);
+  create table chat_choices (
+    project_id text primary key,
+    account    text not null,
+    model      text,
+    effort     text
+  );
+  `,
 ]

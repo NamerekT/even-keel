@@ -1,3 +1,4 @@
+import { isChatName } from '../chats/model.js'
 import { questionsOf, type Ask } from './ask.js'
 import type { ApiErrorKind } from './transcript.js'
 
@@ -251,9 +252,10 @@ export function sessionsByTask(
   const keys = new Set(projectKeys)
   const byTask = new Map<string, Candidate>()
   for (const agent of agents) {
-    const named = taskOfName(agent.name)
+    // A project chat's session (BTN-1230) is followed under its own name, which no project key or branch gives.
+    const named = taskOfName(agent.name) ?? (isChatName(agent.name) ? agent.name : undefined)
     const task = named ?? taskOfBranch(branchOf(agent))
-    if (task === undefined || !keys.has(task.replace(/-(\d+|FIX|CARRY)$/, ''))) continue
+    if (task === undefined || (!isChatName(task) && !keys.has(task.replace(/-(\d+|FIX|CARRY)$/, '')))) continue
     const candidate = { agent, named: named !== undefined }
     const known = byTask.get(task)
     if (known === undefined || outranks(candidate, known)) byTask.set(task, candidate)

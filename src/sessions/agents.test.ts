@@ -187,6 +187,19 @@ describe('sessionsByTask', () => {
     expect(byTask.get('ABC-1')?.sessionId).toBe('newer')
   })
 
+  it('keeps a project chat\'s session under its name, whatever the projects', () => {
+    const agents = [
+      { ...interactive, sessionId: 'chat-older', name: 'chat-0123456789ab', startedAt: 1 },
+      { ...interactive, sessionId: 'chat-newer', name: 'chat-0123456789ab', startedAt: 2 },
+      { ...interactive, sessionId: 'not-a-chat', name: 'chat-xyz' },
+    ]
+
+    const byTask = sessionsByTask(agents, [])
+
+    expect([...byTask.keys()]).toEqual(['chat-0123456789ab'])
+    expect(byTask.get('chat-0123456789ab')?.sessionId).toBe('chat-newer')
+  })
+
   it('falls back to the issue branch the session works on when its name is free', () => {
     const branches: Record<string, string> = {
       manual: 'abc-3/session-panel',

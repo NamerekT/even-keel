@@ -8,6 +8,7 @@ A session that needs you asks a question and waits. You answer from the page's c
 - [Commands](#commands)
 - [When something fails](#when-something-fails)
 - [Keys](#keys)
+- [Project chats](#project-chats)
 
 ## The chat window
 
@@ -122,3 +123,15 @@ In a question's "Other" field, Enter goes to the next question or submits the la
 Selecting an option never advances by itself. Enter that confirms IME input does not send.
 
 On a phone or tablet, Enter starts a new line: use the buttons to send or go to the next question.
+
+## Project chats
+
+Besides the sessions of tasks, a project has chats of its own: a session without a task, to talk about the project, ask a question about its code or plan the next tasks. A chat runs in the project's main folder on the machine that has it, with everything a session you start there by hand has: the folder's settings and MCP servers and the account's plugins. Nothing of the chain's set applies to it.
+
+- You choose the account, the model and the effort when you create a chat, and they stay until the chat ends. Even Keel offers your last choice in that project for the next chat.
+- A new chat starts no session until you send the first message.
+- A chat goes to the archive a day after its last message or its session's last action, whatever it is doing then, and its session is stopped. Hiding a chat archives it too; nothing is deleted, and the transcript stays on disk.
+- An archived chat is only for reading. To go on, start a new chat.
+- A restart of Even Keel keeps every chat and finds its session again.
+
+How chats are built is in [Project chats](../sessions/project-chats.md).

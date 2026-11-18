@@ -1,0 +1,186 @@
+import type { SessionView } from '../state.js'
+
+/**
+ * A project's chat (BTN-1229, `docs/sessions/project-chats.md`): a session without a task that Even Keel starts from the
+ * page in the project's checkout. Its account, model and effort are chosen at its creation and never change.
+ */
+export interface ChatRecord {
+  /** Also the name its sessions start under (`chat-<hex>`): the session monitor finds them by it. */
+  id: string
+  project: string
+  /** The agent of the chosen account (`src/agent/adapters.ts`). */
+  agent: string
+  /** The account folder the chat runs on. */
+  account: string
+  /** The model as the agent's CLI takes it; `null` — the agent's default. */
+  model: string | null
+  effort: string | null
+  /** The title the CLI gave the session (`custom-title`, `ai-title`); `null` — none yet. */
+  title: string | null
+  /** The user's first message: the title until the CLI gives one. */
+  first: string | null
+  /** What the user wrote through Even Keel, newest last, for the archive's search; cut from the head at `SAID_CHARS`. */
+  said: string
+  /** The last message of the chat as last seen, kept for the archive. */
+  last: ChatMessage | null
+  /** The chat's session; `null` — no message sent yet, no process held. */
+  sessionId: string | null
+  /** The machine its session runs on, which every later call goes to; `null` — no session yet. */
+  machine: string | null
+  createdAt: string
+  /** The last message or action of the chat: 24 hours later it goes to the archive. */
+  lastAt: string
+  /** When the user last opened the chat; `null` — never. */
+  readAt: string | null
+  archivedAt: string | null
+  /** The chat that continued this one in a new session (BTN-1232). */
+  successor: string | null
+}
+
+export type ChatSpeaker = 'user' | 'agent' | 'ask'
+
+export interface ChatMessage {
+  from: ChatSpeaker
+  text: string
+  at: string
+}
+
+/**
+ * What the chat is doing, for the colour of its card: `new` — no message sent yet; `starting` — its session is being
+ * launched; `working`; `waiting` — it waits for the user (a question, a permission); `answered` — its turn ended and its
+ * cache is warm; `cold` — the cache went cold; `error` — a limit or an error ended its turn; `archived`.
+ */
+export type ChatState = 'new' | 'starting' | 'working' | 'waiting' | 'answered' | 'cold' | 'error' | 'archived'
+
+/** A chat as the page lists it. */
+export interface ChatCard {
+  id: string
+  project: string
+  title: string | null
+  agent: string
+  account: string
+  model: string | null
+  effort: string | null
+  state: ChatState
+  /** The context fill in tokens and the model's window; `null` — unknown, no session yet. */
+  context: { tokens: number; window: number | null } | null
+  last: ChatMessage | null
+  lastAt: string
+  /** The last message is the agent's and the user has not opened the chat since. */
+  unread: boolean
+  sessionId: string | null
+  archivedAt: string | null
+  successor: string | null
+}
+
+/** The last choice of a new chat in a project, offered first in the window of a new session. */
+export interface ChatChoice {
+  account: string
+  model: string | null
+  effort: string | null
+}
+
+/** A page of the archive: `more` — an older page follows. No total count (BTN-1230). */
+export interface ChatPage {
+  chats: ChatCard[]
+  more: boolean
+}
+
+export const CHAT_PREFIX = 'chat-'
+/** A chat with no message nor action for this long goes to the archive, in any state (BTN-1230). */
+export const ARCHIVE_AFTER_MS = 24 * 60 * 60 * 1000
+export const ARCHIVE_PAGE = 20
+/** The longest `said` kept: the archive's search reads the newest words. */
+export const SAID_CHARS = 20_000
+/** The longest message text a card keeps. */
+export const LAST_CHARS = 1_000
+/** A turn ended with no cache window known is taken as cold after Claude's shortest cache. */
+const COLD_AFTER_MS = 5 * 60 * 1000
+
+export function isChatName(name: string | undefined): boolean {
+  return name !== undefined && /^chat-[0-9a-f]{12}$/.test(name)
+}
+
+/** The moment of the chat's last message or action: its record's, or later, its session's. */
+export function lastAtOf(chat: Pick<ChatRecord, 'lastAt'>, view: Pick<SessionView, 'lastActivityAt'> | undefined): string {
+  const seen = view?.lastActivityAt
+  return seen != null && Date.parse(seen) > Date.parse(chat.lastAt) ? seen : chat.lastAt
+}
+
+export function archiveDue(lastAt: string, now: Date): boolean {
+  return now.getTime() - Date.parse(lastAt) >= ARCHIVE_AFTER_MS
+}
+
+type StateView = Pick<SessionView, 'lamp' | 'asking' | 'ask' | 'waitingFor' | 'startupDialog' | 'apiErrorKind' | 'cache' | 'lastActivityAt'>
+
+export function stateOf(chat: Pick<ChatRecord, 'sessionId' | 'archivedAt'>, view: StateView | undefined, starting: boolean, now: Date): ChatState {
+  if (chat.archivedAt !== null) return 'archived'
+  if (starting) return 'starting'
+  if (chat.sessionId === null) return 'new'
+  if (view === undefined) return 'cold'
+  if (view.asking || view.ask !== null || view.waitingFor !== null || view.startupDialog !== null) return 'waiting'
+  if (view.lamp === 'working') return 'working'
+  if (view.lamp === 'limit' || view.lamp === 'error') return 'error'
+  if (view.apiErrorKind !== null && view.apiErrorKind !== 'transient') return 'error'
+  if (view.cache !== null) return Date.parse(view.cache.until) > now.getTime() ? 'answered' : 'cold'
+  const at = view.lastActivityAt
+  return at !== null && now.getTime() - Date.parse(at) < COLD_AFTER_MS ? 'answered' : 'cold'
+}
+
+/** The session's last message from its recent lines: the user's words, the agent's text, or the question it asks. */
+export function lastMessageOf(view: Pick<SessionView, 'feed' | 'ask' | 'lastActivityAt'> | undefined): ChatMessage | null {
+  if (view === undefined) return null
+  const question = view.ask?.questions[0]?.question
+  if (question !== undefined) return { from: 'ask', text: cut(question), at: view.lastActivityAt ?? new Date(0).toISOString() }
+  for (let index = view.feed.length - 1; index >= 0; index -= 1) {
+    const line = view.feed[index]!
+    if (line.text.trim() === '') continue
+    if (line.kind === 'text') return { from: 'agent', text: cut(line.text), at: line.at }
+    if (line.kind === 'prompt' || line.kind === 'answer') return { from: 'user', text: cut(line.text), at: line.at }
+  }
+  return null
+}
+
+export function cut(text: string, chars = LAST_CHARS): string {
+  const trimmed = text.trim()
+  return trimmed.length <= chars ? trimmed : `${trimmed.slice(0, chars - 1)}…`
+}
+
+/** `said` with the new words at the end, cut from the head. */
+export function withSaid(said: string, text: string): string {
+  const words = text.trim()
+  if (words === '') return said
+  const next = said === '' ? words : `${said}\n${words}`
+  return next.length <= SAID_CHARS ? next : next.slice(next.length - SAID_CHARS)
+}
+
+export function unreadOf(last: ChatMessage | null, readAt: string | null): boolean {
+  if (last === null || last.from === 'user') return false
+  return readAt === null || Date.parse(last.at) > Date.parse(readAt)
+}
+
+/** The page's order of the active chats: those that wait for the user first, then by their last event, newest first. */
+export function sortActive(cards: ChatCard[]): ChatCard[] {
+  return [...cards].sort((a, b) => Number(b.state === 'waiting') - Number(a.state === 'waiting') || Date.parse(b.lastAt) - Date.parse(a.lastAt))
+}
+
+export function cardOf(chat: ChatRecord, view: SessionView | undefined, starting: boolean, now: Date): ChatCard {
+  const last = (chat.archivedAt === null ? lastMessageOf(view) : null) ?? chat.last
+  return {
+    id: chat.id,
+    project: chat.project,
+    title: chat.title ?? chat.first,
+    agent: chat.agent,
+    account: chat.account,
+    model: chat.model,
+    effort: chat.effort,
+    state: stateOf(chat, view, starting, now),
+    context: view === undefined ? null : { tokens: view.contextTokens, window: view.contextWindow },
+    last,
+    lastAt: lastAtOf(chat, view),
+    unread: unreadOf(last, chat.readAt),
+    sessionId: chat.sessionId,
+    archivedAt: chat.archivedAt,
+    successor: chat.successor,
+  }
+}

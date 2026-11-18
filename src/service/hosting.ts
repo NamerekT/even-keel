@@ -132,6 +132,7 @@ type HostingContext = Pick<ServiceContext,
   | 'packages'
   | 'pinnedCheckpoint'
   | 'profiles'
+  | 'projectChats'
   | 'projectsChanged'
   | 'promptLanguage'
   | 'protectionAudit'
@@ -767,6 +768,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     builtin,
     builtinExports,
+    chats: ctx.projectChats,
     backup: ctx.backups,
     machines: ctx.machineLink.network,
     pool,

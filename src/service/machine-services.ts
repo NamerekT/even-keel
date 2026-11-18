@@ -6,6 +6,7 @@ import { cloner, type Clone } from '../git/remote-run.js'
 import { runGit } from '../git/run.js'
 import type { Git } from '../git/types.js'
 import { checkFolderStep, cloneTarget } from '../machine/folder-check.js'
+import { fail } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
 import { fromCarried, toCarried, type CarriedFile, type MachineServices } from '../machine/services.js'
 import type { MachineContext } from './machine-context.js'
@@ -36,6 +37,8 @@ export interface MachineServicesDeps {
   restore: MachineServices['records']['restore']
   /** A clone's progress, told to the hub (`CLONE_PROGRESS_EVENT`). */
   cloneProgress: (project: string, folder: string, progress: CloneProgress) => void
+  /** The project chats' sessions (`wireMachineChats`); absent — none run here (tests). */
+  chats?: MachineServices['chats']
   /** git and the clone; the real ones by default (tests). */
   git?: Git
   clone?: Clone
@@ -119,5 +122,13 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
         if (spec.claude) for (const file of ctx.claudeConfigs()) trustFolder(file, spec.folder)
       },
     },
+    chats: deps.chats ?? noChats,
   }
+}
+
+const noChats: MachineServices['chats'] = {
+  launch: async () => { throw fail('chats.noMachine', {}) },
+  send: async () => { throw fail('chats.noMachine', {}) },
+  stop: async () => {},
+  title: async () => null,
 }

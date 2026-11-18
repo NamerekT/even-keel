@@ -16,13 +16,20 @@ export async function tablesOf(db: Queryable): Promise<string[]> {
 
 const tableRows = (name: string) => `(select coalesce(json_agg(r), '[]'::json) from "${name}" r)`
 
+/** Tables per `json_build_object`: a function takes at most 100 arguments, two a table. */
+const TABLES_PER_OBJECT = 40
+
 /** Every row of every table but the version, in one statement: a consistent snapshot while the service writes. */
 export async function rowsOf(db: Queryable): Promise<Rows> {
   const tables = await tablesOf(db)
   if (tables.length === 0) return {}
-  const parts = tables.map((name) => `'${name}', ${tableRows(name)}`)
-  const { rows } = await db.query<{ rows: Rows }>(`select json_build_object(${parts.join(', ')}) as rows`)
-  return rows[0]!.rows
+  const objects: string[] = []
+  for (let start = 0; start < tables.length; start += TABLES_PER_OBJECT) {
+    const parts = tables.slice(start, start + TABLES_PER_OBJECT).map((name) => `'${name}', ${tableRows(name)}`)
+    objects.push(`json_build_object(${parts.join(', ')}) as rows${objects.length}`)
+  }
+  const { rows } = await db.query<Record<string, Rows>>(`select ${objects.join(', ')}`)
+  return Object.assign({}, ...Object.values(rows[0]!)) as Rows
 }
 
 /**
