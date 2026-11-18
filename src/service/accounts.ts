@@ -725,10 +725,9 @@ interface RunHere {
  * The project's run settings with each provider's folder this machine's own of the same account. A provider without one
  * keeps its choice, so a task's run does not fall back to another agent here: the choice says the folder is absent.
  */
-function runHere(ctx: ChoiceContext, project: string | undefined): RunHere {
+function runHere(ctx: ChoiceContext, project: string | undefined, folderOf = ctx.folderOf): RunHere {
   const settings = runOf(ctx, project)
   const absent = new Map<string, string>()
-  const folderOf = ctx.folderOf
   if (folderOf === undefined) return { settings, has: ctx.hasAccount, absent }
   const accounts = Object.fromEntries(Object.entries(settings.accounts).map(([provider, key]) => {
     const here = folderOf(key)
@@ -746,9 +745,12 @@ function withAbsent<T extends RunChoice>(choice: T, absent: Map<string, string>)
 export function wireChoiceFor(ctx: ChoiceContext): ChoiceFor {
   const memo = new PassMemo()
   const vendorOf = vendorOfHome(ctx, memo)
+  const { folderOf } = ctx
+  // A pass asks for every task of a project (BTN-1317): the project's settings and each folder here are read once in it.
+  const keptFolderOf = folderOf === undefined ? undefined : (key: string) => memo.of(`folder\n${key}`, () => folderOf(key))
   const choiceFor = (project: string | undefined, task?: string): RunChoice =>
     memo.of(JSON.stringify(['choice', project, task]), () => {
-      const here = runHere(ctx, project)
+      const here = memo.of(JSON.stringify(['here', project]), () => runHere(ctx, project, keptFolderOf))
       const run = task === undefined ? undefined : ctx.runOfTask(project ?? ctx.projectOf(task), task)
       return withAbsent(runChoice(run, here.settings, here.has, vendorOf), here.absent)
     })

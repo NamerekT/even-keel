@@ -81,7 +81,8 @@ describe('hub server routes', () => {
   it('publishes secret-free paths for every retained install and follows the hub pool live', async () => {
     const { packages, deps, plugin, file, reload } = fixture()
     const pool: NodeJS.ProcessEnv = { EXAMPLE_TOKEN: 'fake-hub-key' }
-    deps.poolOf = () => pool
+    const pools = vi.fn(() => pool)
+    deps.poolOf = pools
     plugin('1.0.0', 'workitems', { url: 'https://example.com/mcp', headers: { Authorization: 'Bearer ${EXAMPLE_TOKEN}' } })
     await packages.install('tools@example')
     const stored = loadPackages(file)!
@@ -90,8 +91,11 @@ describe('hub server routes', () => {
     const hub = reload()
     plugin('2.0.0', 'workitems', { url: 'https://example.com/mcp', headers: { Authorization: 'Bearer ${EXAMPLE_TOKEN}' } })
     await hub.update('tools@example')
+    pools.mockClear()
     const routes = hub.hubServers()
     expect(routes).toHaveLength(2)
+    // The pool copies the whole environment: one copy per project for all its servers (BTN-1317).
+    expect(pools).toHaveBeenCalledTimes(1)
     expect(routes.every((path) => path.startsWith('/mcp/project/'))).toBe(true)
     expect(JSON.stringify(routes)).not.toContain('fake-hub-key')
     delete pool.EXAMPLE_TOKEN

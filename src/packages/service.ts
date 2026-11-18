@@ -6,8 +6,7 @@ import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { ServerOverride } from '../link/view.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
-import { isTasksUrl, TASKS_SERVER } from '../taskmcp/server.js'
-import { isMemoryUrl } from '../memory/mcp.js'
+import { TASKS_SERVER } from '../taskmcp/server.js'
 import { PassMemo } from '../pass-memo.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
@@ -20,7 +19,7 @@ import { pageSettings } from './settings.js'
 import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn, TASKS_PLUGIN } from './plugins.js'
 import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 import { loadPackages, savePackages } from './store.js'
-import { packageTarget } from './hub.js'
+import { hubRoutes, packageTarget } from './hub.js'
 import { stdioOf, type StdioServer } from './stdio.js'
 import { isNewer } from './version.js'
 
@@ -158,19 +157,7 @@ export class Packages {
 
   /** The hub publishes only route names to machines, never the resolved targets containing its keys. */
   hubServers(): string[] {
-    const routes: string[] = []
-    for (const project of Object.keys(this.deps.repos)) {
-      for (const [name, record] of Object.entries(this.file.packages)) {
-        for (const install of record.installs) {
-          for (const server of Object.keys(install.servers)) {
-            const target = this.target({ project, name, install: install.id, server })
-            // The memory server is the hub's records, never a machine's (BTN-1029).
-            if (target !== null && (isMemoryUrl(target.entry.url) || (!isTasksUrl(target.entry.url) && hubOwned(target)))) routes.push(routeOf(project, name, install.id, server))
-          }
-        }
-      }
-    }
-    return routes
+    return hubRoutes(this.file, this.deps, Object.keys(this.deps.repos))
   }
 
   /** Where the link asks the hub's servers for a machine; `undefined` until the hub's gateway listens. */

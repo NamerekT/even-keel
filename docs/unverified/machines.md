@@ -246,3 +246,11 @@ To check, on the benches: a project on the built-in tracker with machine-1 in it
 Assumed: the machine answers the probe over the link within the wizard's typing pause, and the steps of two machines run one after the other in one job without one machine's clone holding the other's. If not, the folder's state under a row stays empty or says the folder is taken when it is free, and "Next" stays off; or the second machine's steps wait for the first's clone; the hub's `jobs:` log lines name the step.
 
 To check, on the benches: with two machines joined, add a project by its address in the wizard, tick both, name a free folder on one and the folder of an existing clone on the other: the states say "free" and "a clone of this repository is there"; create and see each machine's steps under its name, both machines in the pool on. Then name on one a folder of another repository and see the error under it; and add a project with a repository the second machine cannot push to: its row fails at the push check with the fix, the first machine stays connected, Retry runs only the failed one.
+
+## The own machine's facts without long blocks (BTN-1317)
+
+`docs/machines.md`, "The mirror" ("Per project, not per listed task"). `src/service/choice-here.test.ts` covers one folder lookup per pass for many tasks, `src/service/folders-here.test.ts` the folders' e-mails read without the accounts' view, `src/packages/service.test.ts` one key pool per project for the hub's routes; the live service was not profiled again after the change.
+
+Assumed: what kept the thread busy on 2026-11-18 (91% after the start, stretches up to 11 s) was the per-task choice of the facts and the accounts' view built for each folder lookup, which the profile named. If not, the page's commands, saves and queries still wait seconds and the log has `event loop: blocked` lines many times an hour.
+
+To check, on the host with the page open: start the service with `EVEN_KEEL_CPU_PROFILE=240`, use the page for the four minutes (save a project's settings, move a task into the chain) and open `logs/start-<time>.cpuprofile`: after the first 90 s no stretch is longer than ~200 ms and the thread is mostly idle; the log's `event loop: blocked` lines are rare again; a saved form shows its value within a second.

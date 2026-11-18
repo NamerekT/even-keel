@@ -109,9 +109,11 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       for (const view of machine.sessions) of(view.task).add(view.sessionId)
       return [...sessions].map(([task, ids]) => ({ task, sessions: [...ids] }))
     },
+    // Only a task with its own run can choose apart from its project (BTN-1317): a project lists thousands of tasks.
     runs: (project) => {
       const listed = machine.brief.tasksOf(project)
-      return [...new Set([...listed, ...(passOf().get(project) ?? [])])].filter((task) => ownRun(project, task))
+      return [...new Set([...listed, ...(passOf().get(project) ?? [])])]
+        .filter((task) => machine.runOfTask(project, task) !== undefined && ownRun(project, task))
     },
     reported: (project) => machine.brief.reported(project),
     model: (project, task) => machine.choiceFor(project, task).model,

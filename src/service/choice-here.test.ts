@@ -36,4 +36,16 @@ describe('the launch choice on a machine (BTN-1311)', () => {
     const plan = wirePlanFor({ ...ctx, unattended: () => false, promptLanguage: () => 'en' })('A-1', 'Go')
     expect(plan).toMatchObject({ provider: 'codex', absent: 'codex' })
   })
+
+  it('looks each hub folder up once in a pass, however many tasks it chooses for (BTN-1317)', () => {
+    const asked: string[] = []
+    const choiceFor = wireChoiceFor(machine((key) => (asked.push(key), key), { main: 'claude', codex: 'codex' }))
+    choiceFor.pass(() => {
+      for (let task = 0; task < 50; task += 1) choiceFor('P', `A-${task}`)
+      choiceFor('P')
+    })
+    expect(asked.sort()).toEqual(['codex', 'main'])
+    choiceFor('P', 'A-1')
+    expect(asked).toHaveLength(4)
+  })
 })

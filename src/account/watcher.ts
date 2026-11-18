@@ -98,6 +98,16 @@ export class AccountWatcher {
     return this.known.find((entry) => entry.home.key === key)?.longToken ?? undefined
   }
 
+  /**
+   * The folder's e-mail as `view` shows it, its status's or the one its sign-in last showed, read without building the
+   * view (BTN-1317): a view reads every folder's files.
+   */
+  shownEmailOf(key: string): string | null {
+    const known = this.known.find((entry) => entry.home.key === key)
+    if (known === undefined) return null
+    return known.status?.email ?? this.options.signedInAs?.(key)?.last ?? null
+  }
+
   /** A session's request was refused as not signed in: on a long token the account needs a new one, as after a sign-out. */
   tokenRefused(key: string, at: string): void {
     const home = this.options.homes.find(key)
