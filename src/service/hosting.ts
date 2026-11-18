@@ -311,14 +311,15 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
 
 // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
 // chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
+// Every machine's sessions: a task a machine elsewhere runs leaves its start and shows its lamp as the hub's (BTN-1314).
 function pageSessions(ctx: HostingContext): SessionView[] {
-  return ctx.machineLink.page.sessions().map((view) =>
+  return ctx.machineLink.sessions.sessions().map((view) =>
     view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view,
   )
 }
 
 function allTaskSessions(ctx: HostingContext): Record<string, TaskSession[]> {
-  const machine = ctx.machineLink.page
+  const machine = ctx.machineLink.sessions
   return taskSessions(ctx.launches, machine.sessions(), (sessionId, at) => machine.sessionAccount(sessionId, at), (sessionId) => machine.compactionsOf(sessionId))
 }
 
@@ -447,7 +448,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     getState: ctx.getState,
     getTray: () => ({
       language: ctx.configStore.current.language,
-      asking: ctx.machineLink.page.sessions().filter((session) => session.asking).length,
+      asking: ctx.machineLink.sessions.sessions().filter((session) => session.asking).length,
       paused: ctx.dispatcher.state.active.filter((chain) => chain.paused).length,
     }),
     control: ctx.chainControl,
@@ -695,7 +696,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     checkpoint: async (sessionId) => {
       const run = handoffsOf(ctx.launches, sessionId)
       if (run === undefined) return undefined
-      const view = ctx.machineLink.page.sessions().find((each) => each.sessionId === sessionId)
+      const view = ctx.machineLink.sessions.sessions().find((each) => each.sessionId === sessionId)
       const { context, compactAt } = await transcripts.context(sessionId)
       const window = view?.contextWindow ?? ctx.configStore.current.context.window
       const task = ctx.tasksByProject.get(run.project)?.find((each) => each.id === run.task)

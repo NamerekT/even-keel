@@ -219,6 +219,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       rev: 1,
       facts: {
         sessionsRead: false, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {},
+        sessions: { 's-1': { task: 'ABC-5', sessionId: 's-1', lamp: 'waiting' } },
         limits: { '/home/example/.claude': null },
         identities: { '/home/example/.claude': { account: 'account-1', email: 'john.doe@example.com', polls: true } },
       } as unknown as FactsSnapshot['facts'],
@@ -243,6 +244,8 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(network.remote(OWN)).toBeUndefined()
     expect(network.remote(joined.machine)?.facts()?.accountsRead).toBe(true)
     expect(network.accounts()).toEqual([{ machine: joined.machine, online: true, identities: snapshot.facts.identities, limits: snapshot.facts.limits }])
+    // The page's state reads the sessions of the machine elsewhere from its mirror (BTN-1314).
+    expect(network.pages().flatMap((page) => page.sessions()).map((view) => [view.task, view.lamp])).toEqual([['ABC-5', 'waiting']])
 
     await network.tellLimits(joined.machine, { skip: [] })
     expect(ran.find((command) => command.type === LIMITS_PLAN_COMMAND)?.payload).toEqual({ skip: [] })

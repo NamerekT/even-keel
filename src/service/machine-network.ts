@@ -83,6 +83,11 @@ export class MachineNetwork {
     return undefined
   }
 
+  /** What the page reads of each machine elsewhere that has posted a snapshot since the hub started. */
+  pages(): RemoteMachine['page'][] {
+    return [...this.peers.values()].map((peer) => peer.remote.page)
+  }
+
   /** The mirror of a machine elsewhere; `undefined` — it has not posted a snapshot since the hub started. */
   remote(machine: string): RemoteMachine | undefined {
     return this.peers.get(machine)?.remote

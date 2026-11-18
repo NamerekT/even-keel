@@ -28,7 +28,7 @@ import { ownMachine } from '../machine/own.js'
 import { folderMarks } from '../machine/marks.js'
 import type { FolderOwner, MachineEnd } from '../link/machine.js'
 import type { MachineProjectSettings } from '../link/view.js'
-import type { PageReads } from '../machine/page.js'
+import { allSessions, type PageReads, type SessionReads } from '../machine/page.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { machinePool } from '../machine/pool.js'
@@ -79,6 +79,8 @@ export interface LinkedMachine {
   records: MachineRecords
   /** What the page and the chat read of the machine's sessions and accounts: its mirror, never the machine's objects. */
   page: PageReads
+  /** The sessions of every machine's mirror, the own one's first: the page's state of the tasks' sessions (BTN-1314). */
+  sessions: SessionReads
   /** The hub's mirror of a machine, the own one too; `undefined` — one elsewhere that has not posted a snapshot since the hub started. */
   mirror(machine: string): RemoteMachine | undefined
   /** The own machine's id; empty until `wireLinkedMachine` read its token. */
@@ -456,6 +458,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     reassigner,
     records,
     page: remote.page,
+    sessions: allSessions(() => [remote.page, ...network.pages()]),
     mirror: (machine) => (machine === own ? remote : network.remote(machine)),
     own: () => own,
     mergedElsewhere: (project, task) => {

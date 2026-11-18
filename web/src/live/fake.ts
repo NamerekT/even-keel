@@ -530,6 +530,17 @@ export function createFakeSource(search: string): LiveSource {
     const run = (sessionId: string, at: number, machine: string) => ({ sessionId, at: ago(at), how: 'checkpoint' as const, resumed: 0, answers: 0, machine })
     state.taskSessions['ABC-4'] = [run('lanes-2', 120, 'srv'), run('lanes-1', 300, 'pc')]
   }
+  // A task on the home server whose new session has already ended its first turn (BTN-1314): the state carries the
+  // session from that machine's mirror, so the row shows its lamp and the panel the session, not the start.
+  if (params.get('chain') === 'elsewhere' && active) {
+    const state = current.state!
+    state.machineNames = { pc: 'Workstation', srv: 'Home server' }
+    Object.assign(state, fakeMachineColors(state.machineNames))
+    const view = { ...session('ABC-6', 41_000, 'waiting'), waitingFor: null, startedAt: ago(1.5), lastActivityAt: ago(0.2) }
+    state.sessions = [...state.sessions.filter((each) => each.task !== 'ABC-6'), view]
+    state.chain.active = [{ ...active, machine: 'pc' }, { project: active.project, machine: 'srv', current: { task: 'ABC-6', sessionId: view.sessionId, since: ago(1.5) }, paused: false, error: null }, ...state.chain.active.slice(1)]
+    state.taskSessions['ABC-6'] = [{ sessionId: view.sessionId, at: ago(1.5), how: 'launch', resumed: 0, answers: 0, machine: 'srv' }]
+  }
   // The home server is gone (BTN-1270): one task of its pushed its branch and can move, the other did not.
   if (params.get('chain') === 'stranded' && active) {
     const state = current.state!

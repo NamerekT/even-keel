@@ -63,3 +63,33 @@ export function pageReads(facts: () => MachineFacts | undefined): PageReads {
     gitFound: () => facts()?.gitFound ?? {},
   }
 }
+
+/** What the page's state reads of the sessions of every machine on the hub (BTN-1314). */
+export type SessionReads = Pick<PageReads, 'sessions' | 'sessionAccount' | 'compactionsOf'>
+
+/**
+ * The sessions of all the mirrors, the own machine's first: a task a machine elsewhere runs has its session, its
+ * start and its lamp on the page as one of the hub's. A session two mirrors show is the first one's.
+ */
+export function allSessions(pages: () => PageReads[]): SessionReads {
+  return {
+    sessions: () => {
+      const seen = new Set<string>()
+      return pages().flatMap((page) => page.sessions()).filter((view) => !seen.has(view.sessionId) && seen.add(view.sessionId))
+    },
+    sessionAccount: (sessionId, at) => {
+      for (const page of pages()) {
+        const account = page.sessionAccount(sessionId, at)
+        if (account !== null) return account
+      }
+      return null
+    },
+    compactionsOf: (sessionId) => {
+      for (const page of pages()) {
+        const compactions = page.compactionsOf(sessionId)
+        if (compactions > 0) return compactions
+      }
+      return 0
+    },
+  }
+}
