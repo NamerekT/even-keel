@@ -333,7 +333,7 @@ A reverse proxy, a corporate proxy or an antivirus that inspects HTTPS may hold 
 - The machine tells the case apart: the connection opened and **not one frame** came over it in two pulse intervals — `link.buffered` and one line in the log, not only a quiet reconnect. The notice stays through the reconnects and goes with the first `ping` that arrives: the handshake alone could be the proxy's first flush.
 - An idle timeout (about 100 s on a Cloudflare tunnel, `proxy_read_timeout` 60 s on nginx) is covered by the pulse in the stream itself, which is more frequent than either.
 
-For the guide's page about machines, when there is one (the feature cannot be used before the installer has the role): behind a reverse proxy turn buffering off and raise the read timeout for the machines' address — for nginx `proxy_buffering off; proxy_read_timeout 1h;`; a Cloudflare tunnel needs nothing. A proxy that ends TLS shows the machine its own certificate, so the token must not pin the hub's (below).
+The guide ("A machine of a hub", "Behind a proxy") tells the user the same: buffering off and a long read timeout, for nginx `proxy_buffering off; proxy_read_timeout 1h;`. A proxy that ends TLS shows the machine its own certificate, so only a token with an empty fingerprint passes it (below), and the page does not issue one yet: `MachineNetwork` always puts the hub's fingerprint into the string.
 
 ## The token and the certificate
 
