@@ -79,7 +79,8 @@ export function ResetsBadge({ sessions }: { sessions: TaskSession[] }) {
 
 const RING_RADIUS = 5
 
-export function CacheRing({ cache }: { cache: CacheWindow }) {
+/** `note` is a last line of the tip: the row's priority, whose own `title` the ring replaces so that two tips never open at once. */
+export function CacheRing({ cache, note }: { cache: CacheWindow; note?: string }) {
   const now = useNow(1_000)
   const { left, level } = cacheFreshness(cache, now)
   const at = formatMoment(cache.until, now)
@@ -88,6 +89,7 @@ export function CacheRing({ cache }: { cache: CacheWindow }) {
   const tip = [
     <span key="left">{label}</span>,
     <span key="at">{level === 'cold' ? t.cache.cold(at) : t.cache.warm(at, t.cache.ttl[cache.ttl])}</span>,
+    note !== undefined && <span key="note">{note}</span>,
   ]
   return (
     <Tipped tip={tip} align="start">

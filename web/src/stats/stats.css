@@ -442,6 +442,10 @@
   line-height: 1.25;
 }
 
+.timeline__name {
+  align-self: flex-start;
+}
+
 .timeline__meta {
   color: var(--fg-muted);
   font-size: var(--text-12);
