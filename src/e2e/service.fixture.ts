@@ -108,6 +108,8 @@ export class Harness {
    * fake clock of the scripted agent.
    */
   pace = 0
+  /** Checkouts besides the projects' own a session's folder may be in: a machine elsewhere's clone (`Elsewhere`). */
+  readonly checkouts: string[] = []
   private context: ServiceContext | undefined
   /** The shutdown listeners the running service added: a halt takes them off, so that boots do not pile them up. */
   private signals: { signal: NodeJS.Signals; listener: NodeJS.SignalsListener }[] = []
@@ -176,6 +178,14 @@ export class Harness {
     if (!answer.ok) throw new Error(`e2e: ${command}: ${answer.status} ${await answer.text()}`)
   }
 
+  /** A command of the page, through the service's own server: the answer's JSON; throws on an error answer. */
+  async answer<T>(command: string, body: Record<string, unknown>): Promise<T> {
+    const answer = await this.send(command, body)
+    if (!answer.ok) throw new Error(`e2e: ${command}: ${answer.status} ${await answer.text()}`)
+    const text = await answer.text()
+    return (text === '' ? undefined : JSON.parse(text)) as T
+  }
+
   /** A command of the page the service is to refuse: the notice it answers with; throws on a success. */
   async refused(command: string, body: Record<string, unknown>): Promise<Notice> {
     const answer = await this.send(command, body)
@@ -221,7 +231,7 @@ export class Harness {
 
   /** The project checkout a session's folder is in: its worktrees are inside it. */
   private checkoutOf(cwd: string): string {
-    return [this.repo2, this.releaseRepo, this.repo].find((repo) => cwd === repo || cwd.startsWith(repo + sep) || cwd.startsWith(`${repo}/`)) ?? this.repo
+    return [...this.checkouts, this.repo2, this.releaseRepo, this.repo].find((repo) => cwd === repo || cwd.startsWith(repo + sep) || cwd.startsWith(`${repo}/`)) ?? this.repo
   }
 
   private prepare(): void {
@@ -290,13 +300,15 @@ export class Harness {
   }
 
   private async environment(): Promise<void> {
-    const [port, mcpPort] = await Promise.all([freePort(), freePort()])
+    const [port, mcpPort, machinesPort] = await Promise.all([freePort(), freePort(), freePort()])
     for (const name of Object.keys(process.env)) if (name.startsWith('CLAUDE') || name.startsWith('EVEN_KEEL') || name.startsWith('TALLY')) delete process.env[name]
     Object.assign(process.env, {
       EVEN_KEEL_DATA: join(this.dir, 'data'),
       EVEN_KEEL_HOST: '127.0.0.1',
       EVEN_KEEL_PORT: String(port),
       EVEN_KEEL_MCP_PORT: String(mcpPort),
+      // The door for machines elsewhere listens only once a scenario sets the hub's address (`Elsewhere`).
+      EVEN_KEEL_MACHINES_PORT: String(machinesPort),
       EVEN_KEEL_ACCOUNTS_DIR: join(this.dir, 'accounts'),
       EVEN_KEEL_CODEX_ACCOUNTS_DIR: join(this.dir, 'codex-accounts'),
       EVEN_KEEL_OPENCODE_ACCOUNTS_DIR: join(this.dir, 'opencode-accounts'),
@@ -404,7 +416,7 @@ const PORT_SLICE = 512
 const PORT_BASE = 20_000 + ((Number(process.env.VITEST_POOL_ID ?? 1) - 1) % 24) * PORT_SLICE
 let portCursor = Math.floor(Math.random() * PORT_SLICE)
 
-async function freePort(): Promise<number> {
+export async function freePort(): Promise<number> {
   for (let tries = 0; tries < PORT_SLICE; tries++) {
     const port = PORT_BASE + (portCursor++ % PORT_SLICE)
     if (await listens(port)) return port
