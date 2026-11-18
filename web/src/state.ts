@@ -391,6 +391,15 @@ export function chainControls(status: ChainStatus, order: ProjectOrder | undefin
   return off === null ? { enabled: ['start'], primary: 'start', off: 'idle' } : { enabled: [], primary: null, off }
 }
 
+/**
+ * The word of the chain's first button follows the status (BTN-1312): Resume only on a paused chain, a running one keeps
+ * Start (greyed), so a press of Start never reads as a pause.
+ */
+export function firstControl(status: ChainStatus, chain: EvenKeelState['chain']): 'resume' | 'start' | 'enqueue' {
+  if (status.kind === 'paused') return 'resume'
+  return status.kind === 'running' || startsNow(chain) ? 'start' : 'enqueue'
+}
+
 export interface UsageNotice {
   tone: 'warn' | 'error'
   text: string

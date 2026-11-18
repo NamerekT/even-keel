@@ -227,7 +227,7 @@ export const projectEN: Messages['project'] = {
         ? 'The chain stops before it does anything further.'
         : `The chain stops once the session of ${task} ends its turn, and takes nothing further.`,
     off: {
-      running: 'The chain is running — nothing to resume.',
+      running: 'The chain is already running.',
       idle: 'The chain is not running — nothing to stop.',
       queued: 'The chain is in the queue and starts when its turn comes.',
       notLoaded: 'Tasks are not loaded yet — nothing to start.',

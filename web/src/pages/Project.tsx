@@ -31,7 +31,7 @@ import {
   questionPath,
   queuedAfter,
   readyButton,
-  startsNow,
+  firstControl,
   taskLinks,
   taskProject,
   type ChainControl,
@@ -521,7 +521,6 @@ function ChainControls({
     if (control !== null && !sending) void send(`chain/${control}`, { project })
   })
 
-  const active = status.kind === 'running' || status.kind === 'paused'
   // An icon before the word; on a phone the icon alone, the word its name for a screen reader.
   // The face slides to its new width and fades in when the word changes, so a press moves nothing in a jump; it keeps
   // one tree whether or not it has a tip, else a change would mount it anew.
@@ -549,11 +548,13 @@ function ChainControls({
   }
 
   // The buttons stay in place whatever the status, so a repeated click never lands on another one.
-  const first = active
-    ? button(<StartIcon />, t.project.resume, 'resume')
-    : startsNow(state.chain)
-      ? button(<StartIcon />, t.project.start, 'start')
-      : button(<EnqueueIcon />, t.project.enqueue, 'start')
+  const firstKind = firstControl(status, state.chain)
+  const first =
+    firstKind === 'resume'
+      ? button(<StartIcon />, t.project.resume, 'resume')
+      : firstKind === 'start'
+        ? button(<StartIcon />, t.project.start, 'start')
+        : button(<EnqueueIcon />, t.project.enqueue, 'start')
   const chain = activeChain(state.chain, project)
   const stopsAfter = chain?.stopAfter === true
   // A running chain stops once its session's turn ends, the session untouched; a paused one runs nothing, so it stops at once.

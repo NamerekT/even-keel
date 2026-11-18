@@ -399,8 +399,24 @@
   outline-offset: -2px;
 }
 
+/* A pressable button beside the primary one is the quiet button of the other screens, a ring of its colour drawn inside
+   the segment; a greyed one has no ring and is dimmed whole, its icon too, so the two differ at a glance (BTN-1312). */
+.project__buttons > .seg-button {
+  position: relative;
+}
+
+.project__buttons > .seg-button:not(.seg-button--primary, :disabled)::before {
+  content: '';
+  position: absolute;
+  inset: var(--space-4);
+  border: 1px solid color-mix(in srgb, currentColor 60%, transparent);
+  border-radius: var(--radius-small);
+  pointer-events: none;
+}
+
 .seg-button:disabled {
   color: var(--fg-muted);
+  opacity: 0.5;
   cursor: default;
 }
 

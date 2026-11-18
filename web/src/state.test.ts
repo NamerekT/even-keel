@@ -44,6 +44,7 @@ import {
   sessionElapsed,
   sessionStart,
   startsNow,
+  firstControl,
   cacheFreshness,
   cacheShare,
   cacheTone,
@@ -608,7 +609,7 @@ describe('chainStatus', () => {
 describe('chainControls', () => {
   const order = (patch: Partial<ProjectOrder> = {}): ProjectOrder => ({ order: ['ABC-1'], waiting: [], backlog: [], error: null, ...patch })
 
-  it('fills Stop while the chain runs and says why Resume is off', () => {
+  it('fills Stop while the chain runs and says why Start is off', () => {
     expect(chainControls({ kind: 'running', limitUntil: null }, order())).toEqual({ enabled: ['stop'], primary: 'stop', off: 'running' })
   })
 
@@ -626,6 +627,24 @@ describe('chainControls', () => {
     expect(chainControls({ kind: 'idle' }, undefined)).toEqual({ ...none, off: 'notLoaded' })
     expect(chainControls({ kind: 'idle' }, order({ error: textNotice('boom') }))).toEqual({ ...none, off: 'failed' })
     expect(chainControls({ kind: 'idle' }, order({ order: [] }))).toEqual({ ...none, off: 'empty' })
+  })
+})
+
+describe('firstControl', () => {
+  const running = (project: string) => ({ project, current: null, paused: false, error: null })
+
+  it('says Resume only on a paused chain', () => {
+    expect(firstControl({ kind: 'paused', error: null }, chain({ active: { ...running('ABC'), paused: true } }))).toBe('resume')
+  })
+
+  it('says Start on a running chain, not Resume or Enqueue, though no other chain could start now', () => {
+    expect(firstControl({ kind: 'running', limitUntil: null }, chain({ active: running('ABC') }))).toBe('start')
+  })
+
+  it('says Start or Enqueue on a chain not running by whether it would start at once', () => {
+    expect(firstControl({ kind: 'idle' }, chain({}))).toBe('start')
+    expect(firstControl({ kind: 'idle' }, chain({ active: running('XYZ') }))).toBe('enqueue')
+    expect(firstControl({ kind: 'queued', position: 1 }, chain({ active: running('XYZ') }))).toBe('enqueue')
   })
 })
 
