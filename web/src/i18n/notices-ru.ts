@@ -483,6 +483,8 @@ export const noticesRu: NoticeTexts = {
   'account.goKeyUnchecked': (p) => `Не удалось проверить ключ в OpenCode Console (${p.reason}); попробуйте позже`,
   'usage.copilotMachine': () => 'Even Keel не удалось прочитать вход Copilot на этой машине; чтобы читать запас, добавьте аккаунт Copilot с собственным токеном',
   'usage.copilotUnlimited': () => 'у плана Copilot нет месячного лимита',
+  'usage.sessionsOnly': () =>
+    'Лимиты аккаунта не опрашивает ни один полный вход — ни на хабе, ни на машинах: они известны только из сессий, без недельных лимитов моделей и раннего сброса. Войдите в него полностью на хабе.',
   'usage.copilotUnread': () => 'в ответе GitHub о Copilot нет читаемого запаса',
   'usage.copilotNoQuota': () => 'GitHub не сообщил запас Copilot для этого аккаунта; проверьте его тариф на GitHub',
   'usage.copilotBillingEmpty': () => 'GitHub не вернул данные о расходе Copilot; проверьте страницу биллинга GitHub',

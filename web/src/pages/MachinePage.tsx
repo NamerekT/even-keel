@@ -5,6 +5,7 @@ import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { checkText } from '../layout/MachineJoined.js'
 import { Limits } from '../layout/Limits.js'
+import { SessionsOnly } from '../layout/MachineSignIns.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -359,6 +360,7 @@ function AccountsCard({ page, now }: { page: MachinePageView; now: Date }) {
                   <span className={account.signedIn ? 'machine-page__muted' : 'machine-page__warn'}>{account.signedIn ? text.signedIn : text.signedOut}</span>
                   {account.longToken === true && <span className="tag">{text.longToken}</span>}
                 </span>
+                {account.signedIn && account.sessionsOnly === true && <span className="machine-page__note"><SessionsOnly email={account.email} send={send} sending={sending} /></span>}
               </span>
               {account.signedIn ? <Limits limits={account.limits} now={now} /> : signIn(account)}
             </li>

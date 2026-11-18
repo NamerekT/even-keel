@@ -115,6 +115,8 @@ export const accountEn = {
     machineTokenLacks: 'On a long token the machine has no Remote Control: answer its sessions from the chat here or in the tracker. Its limits are those of this account here.',
     machineTokenAdd: 'Add the token',
     machineOnToken: 'long token',
+    sessionsOnly: 'limits from sessions only',
+    signInFully: 'Sign in fully',
     machineOnTokenTip: (machine: string) => `${machine} runs this account on a long token: no Remote Control there, answer its sessions from the chat here or in the tracker.`,
     loggingIn: 'Signing in…',
     loginFailed: 'Sign-in failed',

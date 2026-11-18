@@ -82,6 +82,8 @@ export interface LinkedMachine {
   services: MachineServices
   /** The door for machines elsewhere (BTN-1242): open while "Hub address for machines" is set. */
   network: MachineNetwork
+  /** Whether a machine on the link polls `/usage` of the claude.ai account ("Account limits"). */
+  polled(account: string): boolean
   /**
    * Connects the machine to its hub and waits for its first snapshot. Called once the dispatcher exists: the machine's
    * facts read the chain's state. Until then the mirror is empty and the chains do not step.
@@ -334,6 +336,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       takeOvers.set(project, owner)
       await agree(true)
     },
+    polled: (account) => polls.poller(account) !== undefined,
     hubAccount: (key) => {
       const tie = remote.facts()?.identities?.[key]
       return tie === undefined ? undefined : { account: tie.account, email: tie.email }
@@ -435,6 +438,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     mirror: (machine) => (machine === own ? remote : network.remote(machine)),
     services,
     network,
+    polled: (account) => polls.poller(account) !== undefined,
     start: async () => {
       // Before the own machine's replayed records: the messages kept before rows knew their machine are its own.
       await adoptMail(ctx.db, own)

@@ -84,6 +84,8 @@ export interface MachineNetworkOptions {
   takeOverOwn?: (project: string, owner: string) => Promise<void>
   /** The claude.ai account of a hub's Claude folder with a full sign-in; `undefined` — none known (BTN-1002). */
   hubAccount?: (key: string) => TokenAccountOf | undefined
+  /** Whether a machine on the link polls the claude.ai account; absent — the sign-ins carry no `sessionsOnly` (BTN-1266). */
+  polled?: (account: string) => boolean
   log: (line: string) => void
 }
 

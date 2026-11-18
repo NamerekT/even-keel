@@ -179,6 +179,8 @@ export interface MachineAccount {
   signedIn: boolean
   /** Signed in with a long token (BTN-1002): no Remote Control there. */
   longToken?: true
+  /** A long token whose account no machine polls: its limits come only from its sessions (BTN-1266). */
+  sessionsOnly?: true
 }
 
 /** The machine's sign-in under way as its panel shows it (`AccountLogin`); the code the person types goes back through the hub. */

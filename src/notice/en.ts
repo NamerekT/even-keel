@@ -483,6 +483,8 @@ export const en = {
   'account.goKeyUnchecked': (p: { reason: string }) => `Could not check the key with OpenCode Console (${p.reason}); try again later`,
   'usage.copilotMachine': () => "Even Keel could not read this machine's Copilot sign-in; add a Copilot account with its own token to read its allowance",
   'usage.copilotUnlimited': () => 'the Copilot plan has no monthly limit',
+  'usage.sessionsOnly': () =>
+    'No full sign-in polls this account’s limits, on the hub or a machine: they come only from its sessions, without a model’s own week or an early reset. Sign in to it fully on the hub.',
   'usage.copilotUnread': () => "GitHub's Copilot answer has no readable allowance",
   'usage.copilotNoQuota': () => 'GitHub did not provide a Copilot allowance for this account; check its plan on GitHub',
   'usage.copilotBillingEmpty': () => 'GitHub returned no Copilot usage data; check its billing page',

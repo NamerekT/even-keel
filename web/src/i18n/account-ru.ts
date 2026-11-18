@@ -115,6 +115,8 @@ export const accountRu = {
     machineTokenLacks: 'На долгом токене у машины нет Remote Control: отвечайте её сессиям из чата здесь или в трекере. Лимиты — как у этого аккаунта здесь.',
     machineTokenAdd: 'Добавить токен',
     machineOnToken: 'долгий токен',
+    sessionsOnly: 'лимиты только из сессий',
+    signInFully: 'Войти полностью',
     machineOnTokenTip: (machine: string) => `${machine} работает с этим аккаунтом на долгом токене: Remote Control там нет, отвечайте её сессиям из чата здесь или в трекере.`,
     loggingIn: 'Вход…',
     loginFailed: 'Вход не удался',

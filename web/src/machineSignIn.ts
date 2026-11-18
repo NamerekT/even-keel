@@ -1,5 +1,7 @@
 import type { AccountEntry } from '../../src/account/model.js'
+import { CLAUDE } from '../../src/claude/name.js'
 import type { MachineSignIn } from '../../src/state.js'
+import { sameChoices } from './accountAdd.js'
 import { paysPerToken } from './accounts.js'
 import type { Send } from './layout/accountParts.js'
 
@@ -39,15 +41,35 @@ export function machineGaps(entry: AccountEntry, machines: MachineSignIn[] | und
 
 /**
  * The machines elsewhere that run the hub's account only on a long token (BTN-1002): no Remote Control there. A machine
- * with a full sign-in of the account as well is not named.
+ * with a full sign-in of the account as well is not named. `sessionsOnly` — no machine polls the account, the hub's
+ * folder being signed out too, so the limits there come only from its sessions (BTN-1266).
  */
-export function machineTokens(entry: AccountEntry, machines: MachineSignIn[] | undefined): Array<{ machine: string; name: string }> {
-  const email = entry.status?.loggedIn === true ? entry.status.email : null
-  if (email === null) return []
+export function machineTokens(entry: AccountEntry, machines: MachineSignIn[] | undefined): Array<{ machine: string; name: string; sessionsOnly: boolean }> {
+  const email = entry.status?.email ?? entry.lastEmail ?? null
+  if (email === null || entry.longToken !== undefined) return []
   return (machines ?? []).flatMap((machine) => {
     const own = machine.accounts.filter((each) => each.agent === entry.agent && each.signedIn && sameEmail(each.email, email))
-    return own.length > 0 && own.every((each) => each.longToken === true) ? [{ machine: machine.machine, name: machine.name }] : []
+    if (own.length === 0 || !own.every((each) => each.longToken === true)) return []
+    return [{ machine: machine.machine, name: machine.name, sessionsOnly: own.every((each) => each.sessionsOnly === true) }]
   })
+}
+
+/**
+ * A hub long-token folder while no Claude folder of the hub is on a full sign-in (BTN-1266): nobody polls `/usage` of
+ * it, so its limits come only from its sessions; the fix is a full sign-in on the hub.
+ */
+export function hubSessionsOnly(entry: AccountEntry, accounts: AccountEntry[]): boolean {
+  return entry.longToken !== undefined && sameChoices(accounts).length === 0
+}
+
+/**
+ * The command of "Sign in fully" (BTN-1266): the hub's Claude folder of the e-mail on a sign-in of its own signs in
+ * again, else a new Claude folder signs in.
+ */
+export function fullSignIn(email: string | null, accounts: AccountEntry[]): [string, Record<string, unknown>] {
+  const folder = accounts.find((each) => each.agent === CLAUDE && each.longToken === undefined && !paysPerToken(each) &&
+    sameEmail(each.status?.email ?? each.lastEmail ?? null, email))
+  return folder === undefined ? ['account/add', { agent: CLAUDE }] : ['account/renew', { account: folder.key }]
 }
 
 /** The machine's sign-in under way, the first if several; `undefined` — none. */

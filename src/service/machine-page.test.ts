@@ -67,6 +67,25 @@ describe('the page of a machine (BTN-1272)', () => {
     await expect(control.view('nope')).rejects.toMatchObject({ notice: { code: 'machines.unknown' } })
   })
 
+  it('marks a long-token folder whose account no machine polls: its limits come only from its sessions (BTN-1266)', async () => {
+    const token = (key: string, longToken: object) => ({ key, agent: 'claude', status: { loggedIn: true, email: null }, needsLogin: false, longToken })
+    const tokens = {
+      ...facts,
+      panel: { accounts: [token('polled', {}), token('alone', {}), token('unknown', {}), token('beside', { sameAs: 'main' }), ...panel.accounts], missing: [] },
+      identities: {
+        polled: { account: 'uuid-polled', email: null, polls: false },
+        alone: { account: 'uuid-alone', email: null, polls: false },
+        main: { account: 'uuid-main', email: 'john.doe@example.com', polls: true },
+      },
+    } as unknown as MachineFacts
+    const page = await machinePageControl(deps({
+      mirror: () => ({ facts: () => tokens, page: pageReads(() => tokens) }),
+      polled: (account) => account === 'uuid-polled' || account === 'uuid-main',
+    })).view('srv')
+    const only = Object.fromEntries(page.accounts.map((each) => [each.key, each.sessionsOnly === true]))
+    expect(only).toEqual({ polled: false, alone: true, unknown: true, beside: false, main: false })
+  })
+
   it("writes the own machine's capacity into `parallel` and a machine elsewhere's into its row", async () => {
     const all = deps()
     const control = machinePageControl(all)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineSignIn } from '../../src/state.js'
-import { machineGaps, machineLogin, machineSend, machineTokens } from './machineSignIn.js'
+import { fullSignIn, hubSessionsOnly, machineGaps, machineLogin, machineSend, machineTokens } from './machineSignIn.js'
 
 const hub = (patch: Partial<AccountEntry> = {}): AccountEntry => ({
   key: 'john.doe@example.com', name: null, global: false, agent: 'claude',
@@ -50,8 +50,31 @@ describe('a hub account on the machines elsewhere', () => {
       machine({ machine: 'machine-3', accounts: [{ ...onToken, email: 'jane.roe@example.com' }] }),
       machine({ machine: 'machine-4', accounts: [{ ...onToken, signedIn: false }] }),
     ]
-    expect(machineTokens(hub(), machines)).toEqual([{ machine: 'machine-1', name: 'Example laptop' }])
+    expect(machineTokens(hub(), machines)).toEqual([{ machine: 'machine-1', name: 'Example laptop', sessionsOnly: false }])
     expect(machineGaps(hub(), machines).map((gap) => gap.machine)).toEqual(['machine-3', 'machine-4'])
+  })
+
+  it("says which machines' tokens nobody polls for, under a hub folder signed out too (BTN-1266)", () => {
+    const alone = { key: 'token', agent: 'claude', email: 'john.doe@example.com', signedIn: true, longToken: true as const, sessionsOnly: true as const }
+    const signedOut = hub({ needsLogin: true, status: { loggedIn: false, authMethod: null, email: null, orgName: null, subscriptionType: null }, lastEmail: 'john.doe@example.com' })
+    expect(machineTokens(signedOut, [machine({ accounts: [alone] })])).toEqual([{ machine: 'machine-1', name: 'Example laptop', sessionsOnly: true }])
+  })
+
+  it('marks a hub long-token folder while no Claude folder of the hub is on a full sign-in (BTN-1266)', () => {
+    const token = hub({ key: 'token', status: { loggedIn: true, authMethod: 'oauth_token', email: null, orgName: null, subscriptionType: null }, longToken: { until: null } })
+    expect(hubSessionsOnly(token, [token])).toBe(true)
+    expect(hubSessionsOnly(token, [token, hub({ needsLogin: true })])).toBe(true)
+    expect(hubSessionsOnly(token, [token, hub({ agent: 'codex' })])).toBe(true)
+    expect(hubSessionsOnly(token, [token, hub()])).toBe(false)
+    expect(hubSessionsOnly(hub(), [hub()])).toBe(false)
+  })
+
+  it("signs in fully on the hub: again in the hub's folder of the e-mail, else in a new one (BTN-1266)", () => {
+    const signedOut = hub({ needsLogin: true, status: null, lastEmail: 'john.doe@example.com' })
+    const token = hub({ key: 'token', status: null, longToken: { until: null } })
+    expect(fullSignIn('JOHN.DOE@example.com', [token, signedOut])).toEqual(['account/renew', { account: 'john.doe@example.com' }])
+    expect(fullSignIn(null, [token, signedOut])).toEqual(['account/add', { agent: 'claude' }])
+    expect(fullSignIn('jane.roe@example.com', [signedOut])).toEqual(['account/add', { agent: 'claude' }])
   })
 
   it("finds the machine's sign-in under way and sends its steps to that machine", async () => {

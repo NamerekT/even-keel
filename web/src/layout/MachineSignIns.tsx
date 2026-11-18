@@ -6,7 +6,7 @@ import { OPENCODE } from '../../../src/opencode/name.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { machineGaps, machineLogin, machineSend, machineTokens } from '../machineSignIn.js'
+import { fullSignIn, hubSessionsOnly, machineGaps, machineLogin, machineSend, machineTokens } from '../machineSignIn.js'
 import { Tipped } from '../ui/Tipped.js'
 import { LOGIN_FOCUS, LoginSteps, type Send } from './accountParts.js'
 import { MachineTokenDialog, type MachineTokenTarget } from './MachineTokenDialog.js'
@@ -22,10 +22,13 @@ export function MachineNotes({ entry, send, sending }: { entry: AccountEntry; se
   const machines = state?.machineSignIns
   const gaps = machineGaps(entry, machines)
   const tokens = machineTokens(entry, machines)
-  if (gaps.length === 0 && tokens.length === 0) return null
+  // A machine's token nobody polls for is marked in its own line: the hub's folder of it signs in by its own "Sign in".
+  const alone = hubSessionsOnly(entry, state?.account?.accounts ?? [])
+  if (gaps.length === 0 && tokens.length === 0 && !alone) return null
   const busy = sending || machineLogin(machines) !== undefined
   const who = entry.status?.email ?? entry.key
   return <div className="account-machines">
+    {alone && <div className="account-machines__row"><SessionsOnly email={null} send={send} sending={busy} /></div>}
     {gaps.map((gap) => <div key={gap.machine} className="account-machines__row">
       <span>{gap.noCli ? t.account.machineNoCli(gap.name) : t.account.machineNotSigned(gap.name)}</span>
       {!gap.noCli && (gap.online ? (
@@ -50,12 +53,32 @@ export function MachineNotes({ entry, send, sending }: { entry: AccountEntry; se
       ))}
     </div>)}
     {tokens.map((each) => <div key={each.machine} className="account-machines__row">
-      <Tipped className="account-machines__token" tip={t.account.machineOnTokenTip(each.name)} align="start" focusable>
-        {each.name} · {t.account.machineOnToken}
+      <Tipped className="account-machines__token" align="start" focusable
+        tip={each.sessionsOnly ? <><span>{t.account.machineOnTokenTip(each.name)}</span><span>{say(SESSIONS_ONLY)}</span></> : t.account.machineOnTokenTip(each.name)}>
+        {each.name} · {t.account.machineOnToken}{each.sessionsOnly && ` · ${t.account.sessionsOnly}`}
       </Tipped>
     </div>)}
     {token !== null && <MachineTokenDialog target={token} onClose={() => setToken(null)} />}
   </div>
+}
+
+const SESSIONS_ONLY = { code: 'usage.sessionsOnly', params: {} } as const
+
+/**
+ * "Limits from sessions only" of an account no full sign-in polls (BTN-1266), why in its tip, and "Sign in fully" on
+ * the hub: again in the hub's folder of `email`, else in a new one; the hub's `LoginDialog` follows the sign-in.
+ */
+export function SessionsOnly({ email, send, sending }: { email: string | null; send: Send; sending: boolean }) {
+  const { state } = useLive()
+  const [command, body] = fullSignIn(email, state?.account?.accounts ?? [])
+  return <>
+    <Tipped className="account-machines__token" tip={say(SESSIONS_ONLY)} align="start" focusable>
+      {t.account.sessionsOnly}
+    </Tipped>
+    <button type="button" className="button button--small" disabled={sending || state?.account?.login != null} onClick={() => void send(command, body)}>
+      {t.account.signInFully}
+    </button>
+  </>
 }
 
 /**

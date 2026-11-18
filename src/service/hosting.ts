@@ -415,6 +415,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     setCapacity: (machine, capacity) => network.setCapacity(machine, capacity),
     setColor: (machine, color) => network.setColor(machine, color),
     version: installed(root).version,
+    polled: (account) => ctx.machineLink.polled(account),
     log: (line) => console.log(line),
   })
   const cards = () => machineCards({

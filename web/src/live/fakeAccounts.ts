@@ -423,6 +423,12 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     ]
     return { ...signedIn, accounts }
   }
+  // No Claude folder on a full sign-in: the token's and the machines' limits come only from sessions (BTN-1266).
+  if (mode === 'tokenOnly') {
+    const out = { ...work, needsLogin: true, loginExpiresAt: null, lastEmail: 'jane.roe@example.com', status: { ...FAKE_ACCOUNT, loggedIn: false, email: null, subscriptionType: null } }
+    const token = tokenEntry('token', { until: inDays(340) }, { name: 'Night runs', limits: { ...limits, source: 'statusline' as const } })
+    return { ...signedIn, active: 'token', accounts: [token, out] }
+  }
   if (mode === 'api-noAdc') return { ...fakeAccount('api', idle, limits), gcloud: { ...FAKE_GCLOUD, adcType: null } }
   if (mode === 'api-noAz') return { ...fakeAccount('api', idle, limits), azure: { ...FAKE_AZURE, signedIn: false } }
   if (mode === 'api' || mode === 'spend' || mode === 'spendUnknown') {

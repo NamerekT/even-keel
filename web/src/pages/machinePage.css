@@ -223,6 +223,15 @@ a.machine-page__name:hover {
   font-weight: 400;
 }
 
+.machine-page__note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
 .machine-page__off {
   color: var(--fg-muted);
 }

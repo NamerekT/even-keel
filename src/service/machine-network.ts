@@ -214,11 +214,13 @@ export class MachineNetwork {
       const panel = peer.remote.page.panel()
       if (panel === undefined) return []
       const { login } = panel
+      const { polled } = this.options
+      const polls = polled === undefined ? undefined : { panel: panel.accounts, identities: peer.remote.facts()?.identities, polled }
       return [{
         machine,
         name: peer.name,
         online: this.hub.connected(machine),
-        accounts: panel.accounts.map(machineAccountOf),
+        accounts: panel.accounts.map((entry) => machineAccountOf(entry, polls)),
         login: login === null ? null : {
           agent: login.agent,
           ...(login.method !== undefined && { method: login.method }),

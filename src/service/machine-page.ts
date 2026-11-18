@@ -1,18 +1,45 @@
 import type { AccountView } from '../account/model.js'
+import type { AccountTie } from '../limits/polls.js'
 import { MACHINE_PALETTE } from '../link/colors.js'
 import type { MachineRecord } from '../link/hub-store.js'
 import type { MachineAbout, MachineAccount, MachinePage, TakenFolder } from '../link/view.js'
 import type { RemoteMachine } from '../machine/remote.js'
 import { fail } from '../notice/notice.js'
 
+type PanelEntry = AccountView['accounts'][number]
+
+/** Whether a machine on the link polls `/usage` of the claude.ai account (`AccountPolls.poller`, BTN-991). */
+export type Polled = (account: string) => boolean
+
+/** What tells whether a machine's long-token folder gets its limits from anywhere but its sessions (BTN-1266). */
+export interface PollsOf {
+  /** The machine's whole panel: a `sameAs` folder is looked up in it. */
+  panel: PanelEntry[]
+  identities: Record<string, AccountTie> | undefined
+  polled: Polled
+}
+
+/**
+ * A long-token folder whose limits come only from its own sessions (BTN-1266): no machine on the link polls its account,
+ * or, with no account known, no folder of its panel on a full sign-in is its `sameAs`.
+ */
+export function sessionsOnly(entry: PanelEntry, polls: PollsOf): boolean {
+  if (entry.longToken === undefined) return false
+  const tie = polls.identities?.[entry.key]
+  if (tie !== undefined) return !polls.polled(tie.account)
+  const same = entry.longToken.sameAs
+  return !polls.panel.some((each) => each.key === same && each.longToken === undefined)
+}
+
 /** An account of a machine's panel as the hub's page names it: no token, no credentials. */
-export function machineAccountOf(entry: AccountView['accounts'][number]): MachineAccount {
+export function machineAccountOf(entry: PanelEntry, polls?: PollsOf): MachineAccount {
   return {
     key: entry.key,
     agent: entry.agent,
     email: entry.status?.email ?? entry.longToken?.account?.email ?? entry.lastEmail ?? null,
     signedIn: entry.status?.loggedIn === true && !entry.needsLogin,
     ...(entry.longToken !== undefined && { longToken: true as const }),
+    ...(polls !== undefined && sessionsOnly(entry, polls) && { sessionsOnly: true as const }),
   }
 }
 
@@ -34,6 +61,8 @@ export interface MachinePageDeps {
   setColor: (machine: string, color: string | null) => Promise<void>
   /** The hub's version of Even Keel: a machine of another one takes no new tasks (BTN-994). */
   version: string
+  /** Absent — the accounts carry no `sessionsOnly`. */
+  polled?: Polled
   log: (line: string) => void
 }
 
@@ -52,6 +81,8 @@ export function machinePageControl(deps: MachinePageDeps) {
       const facts = mirror?.facts()
       const panel = mirror?.page.panel()
       const color = deps.colors()[record.id] ?? MACHINE_PALETTE[0]!
+      const entries = panel?.accounts ?? []
+      const polls = deps.polled === undefined ? undefined : { panel: entries, identities: facts?.identities, polled: deps.polled }
       return {
         id: record.id,
         name: record.name,
@@ -69,7 +100,7 @@ export function machinePageControl(deps: MachinePageDeps) {
           packagesBlocked: facts?.projects[row.project]?.packagesBlocked === true,
           packagesPause: facts?.projects[row.project]?.packagesPause ?? null,
         })),
-        accounts: (panel?.accounts ?? []).map((entry) => ({ ...machineAccountOf(entry), limits: mirror?.page.limits(entry.key) ?? null })),
+        accounts: entries.map((entry) => ({ ...machineAccountOf(entry, polls), limits: mirror?.page.limits(entry.key) ?? null })),
         missing: panel?.missing ?? [],
         sessions: (mirror?.page.sessions() ?? [])
           .filter((view) => view.lamp !== 'finished')
