@@ -609,8 +609,11 @@ function Block(props: BlockProps) {
       {share !== null && <span className="block__estimate" aria-hidden="true" />}
       {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
       {ready === null || narrow ? (
-        <span className={ring === null ? `block__number block__number--${block.priority}` : 'block__number'} title={priorityTitle(block, number)}>
-          {ring !== null ? <CacheRing cache={ring} /> : fix ? null : block.current ? <PlayIcon /> : block.priority === 'urgent' ? '!' : number}
+        <span
+          className={ring === null ? `block__number block__number--${block.priority}` : 'block__number'}
+          title={ring === null ? priorityTitle(block, number) : undefined}
+        >
+          {ring !== null ? <CacheRing cache={ring} note={priorityTitle(block, number)} /> : fix ? null : block.current ? <PlayIcon /> : block.priority === 'urgent' ? '!' : number}
         </span>
       ) : (
         readyButton

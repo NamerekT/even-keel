@@ -29,6 +29,8 @@ export function Tipped({ tip, focusable = false, align = 'end', inline = false, 
       ref: anchor,
       className: className === undefined ? 'tipped' : `tipped ${className}`,
       tabIndex: focusable ? 0 : undefined,
+      // Read by the `double` hint of `npm run shot`: a shut tip cannot open under a `title`.
+      'data-off': off || undefined,
       'aria-describedby': id,
       onMouseEnter: point,
       onMouseLeave: hide,

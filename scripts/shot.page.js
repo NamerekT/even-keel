@@ -47,6 +47,12 @@ window.__shot = {
         }
       }
     }
+    // A native title inside our tip or around it opens over it: two tips at once (EKR-146). A shut Tipped opens nothing.
+    const TIP = '.tipped:not([data-off]), .panel__total, .help'
+    const double = all
+      .filter((el) => el.hasAttribute('title') && el.getAttribute('title') !== '')
+      .filter((el) => el.closest(TIP) !== null || el.querySelector(TIP) !== null)
+      .map((el) => label(el) + ' title "' + el.getAttribute('title') + '"')
     const box = root.getBoundingClientRect()
     const capped = (lines) => lines.length > limit ? [...lines.slice(0, limit), '+' + (lines.length - limit) + ' more'] : lines
     return {
@@ -54,6 +60,7 @@ window.__shot = {
       spill: capped(deepest.map((s) => s.line)),
       cut: capped(cut.map((c) => c.line)),
       overlap: capped(overlap),
+      double: capped(double),
     }
   },
 }

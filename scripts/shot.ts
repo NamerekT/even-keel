@@ -16,7 +16,7 @@ import { createServer, type ViteDevServer } from 'vite'
 
 interface Step { kind: 'click' | 'hover' | 'press' | 'fill' | 'wait'; arg: string }
 
-interface Audit { box: string; spill: string[]; cut: string[]; overlap: string[] }
+interface Audit { box: string; spill: string[]; cut: string[]; overlap: string[]; double: string[] }
 
 interface Options {
   route: string
@@ -197,6 +197,7 @@ async function main(): Promise<number> {
       print('spill', audit.spill)
       print('cut', audit.cut)
       print('overlap', audit.overlap)
+      print('double', audit.double)
     }
     for (const expression of options.evals) {
       const value: unknown = await page.evaluate(expression)
