@@ -278,8 +278,17 @@ export function wireKeepWarm(ctx: MachineContext): KeepWarm {
       ctx.brief.warm().flatMap((each) => {
         const view = ctx.warmable(each)
         if (view === undefined) return []
-        const busy = ctx.agentStatus(view.task) === 'busy' || ctx.monitor.holds.held(view.sessionId)
-        return [{ task: view.task, sessionId: view.sessionId, busy, limited: view.lamp === 'limit', cache: view.cache }]
+        const session = ctx.monitor.handoff(view.task)
+        const onTool = view.onTool === true && session !== undefined && ctx.agentOf(ctx.homeOf(session.account)).warmsOnTool === true
+        return [{
+          task: view.task,
+          sessionId: view.sessionId,
+          busy: ctx.agentStatus(view.task) === 'busy',
+          onTool,
+          held: ctx.monitor.holds.held(view.sessionId),
+          limited: view.lamp === 'limit',
+          cache: view.cache,
+        }]
       }),
     ping: async ({ task, sessionId }) => {
       const view = ctx.warmable({ task, sessionId })

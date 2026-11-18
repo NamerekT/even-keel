@@ -317,6 +317,7 @@ function toView(
     tokens: summary.tokens,
     stage: summary.stage,
     action: summary.action,
+    ...(present && summary.turn?.tool != null && { onTool: true }),
     feed: summary.feed,
     ...(summary.badgeStatus === undefined ? {} : { badgeStatus: summary.badgeStatus }),
     remoteUrl: remote.url,
