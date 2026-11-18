@@ -3,23 +3,35 @@ import { CLAUDE } from '../../../src/claude/name.js'
 import type { CacheWindow, TokenTotals } from '../../../src/sessions/transcript.js'
 import type { ContextScale, KeptWarm } from '../../../src/state.js'
 import { agentLabel } from '../accountName.js'
-import { formatLineTime, formatTokens } from '../format.js'
+import { formatLineTime, formatMoment, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
-import { contextFill, tokenTotal } from '../state.js'
+import { useNow } from '../layout/useNow.js'
+import { cacheFreshness, contextFill, tokenTotal } from '../state.js'
 import { Fact } from '../ui/blocks.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { modelName } from '../ui/runLabel.js'
 import { useTip } from '../ui/useTip.js'
 
-/** The cache clock; the tip has its lifetime and, when keep-warm pinged it this stretch of idleness, how often and when last (EKR-143). */
+/**
+ * The cache clock; the tip, the only one it has (EKR-145), says until when it is warm or since when cold, its lifetime and,
+ * when keep-warm pinged it this stretch of idleness, how often and when last (EKR-143).
+ */
 export function CacheFact({ cache, warm }: { cache: CacheWindow; warm: KeptWarm | null }) {
+  const now = useNow(1_000)
+  const cold = cacheFreshness(cache, now).level === 'cold'
   return (
     <TipValue value={<CacheClock cache={cache} bare />}>
+      <span className="panel__part">
+        <span className="panel__part-label">{cold ? t.session.coldAt : t.session.warmUntil}</span>
+        <b><time dateTime={cache.until}>{formatMoment(cache.until, now)}</time></b>
+      </span>
       <span className="panel__part">
         <span className="panel__part-label">{t.session.lifetime}</span>
         <b>{t.cache.ttl[cache.ttl]}</b>
       </span>
+      {cold && <span className="panel__tip-note">{t.session.coldNote}</span>}
+      {!cold && warm === null && <span className="panel__tip-note">{t.session.renewsNote}</span>}
       {warm !== null && <>
         <span className="panel__part">
           <span className="panel__part-label">{t.session.renewed}</span>
