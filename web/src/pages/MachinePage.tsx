@@ -5,7 +5,7 @@ import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { checkText } from '../layout/MachineJoined.js'
 import { Limits } from '../layout/Limits.js'
-import { MachineAddAccount } from '../layout/MachineAddAccount.js'
+import { useOpenAdd } from '../layout/AddAccountDialog.js'
 import { SessionsOnly } from '../layout/MachineSignIns.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
@@ -372,7 +372,7 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
   const text = t.machinePage
   const view = t.machinePanel.view
   const { send, sending, failure } = useCommand()
-  const [adding, setAdding] = useState(false)
+  const openAdd = useOpenAdd()
   const signIns = state.machineSignIns
   const machine = signIns?.find((each) => each.machine === page.id)
   const gaps = page.own || machine === undefined ? [] : hubGapsOn(state.account.accounts, machine)
@@ -397,7 +397,7 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
       {text.accountsOpen}
     </Link>
   ) : page.online ? (
-    <button type="button" className="button button--small" disabled={busy} onClick={() => setAdding(true)}>
+    <button type="button" className="button button--small" disabled={busy || state.account.login !== null} onClick={() => openAdd(null)}>
       + {t.account.add}
     </button>
   ) : (
@@ -446,7 +446,6 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
           {say(failure)}
         </p>
       )}
-      {adding && <MachineAddAccount card={page} signIn={machine} onClose={() => setAdding(false)} />}
     </Card>
   )
 }

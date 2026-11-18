@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
-import { addMachineOf, folderOnMachine, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, signInOf, takenColors, withAddMachine } from './machineAdd.js'
+import { HUB_PLACE } from './accountAdd.js'
+import { addMachineOf, defaultPlace, folderOnMachine, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
 
 describe('the folder a project gets on a machine', () => {
   it("is the hub's folder name inside the machine's root, written the machine's way", () => {
@@ -158,5 +159,31 @@ describe("a machine's accounts page (BTN-1302)", () => {
       { agent: 'codex', missing: true },
       { agent: 'opencode', method: 'chatgpt', missing: false },
     ])
+  })
+})
+
+describe('where "Add account" signs in (BTN-1308)', () => {
+  const machine = (patch: Partial<MachineSignIn> = {}): MachineSignIn => ({
+    machine: 'machine-1', name: 'Example laptop', online: true, login: null, missing: [], accounts: [], ...patch,
+  })
+
+  it("picks the machine of the page it opened over — its page or the header's choice — while it is on the link", () => {
+    const machines = [machine(), machine({ machine: 'machine-2', name: 'Example server', online: false })]
+    expect(defaultPlace('/machines/machine-1', '', machines)).toBe('machine-1')
+    expect(defaultPlace('/accounts', '?machine=machine-1', machines)).toBe('machine-1')
+    expect(defaultPlace('/', '?machine=machine-1&addAccount=', machines)).toBe('machine-1')
+    expect(defaultPlace('/machines/machine-2', '', machines)).toBe(HUB_PLACE)
+    expect(defaultPlace('/machines/machine-9', '', machines)).toBe(HUB_PLACE)
+    expect(defaultPlace('/accounts', '?machine=own-pc', machines)).toBe(HUB_PLACE)
+    expect(defaultPlace('/accounts', '', machines)).toBe(HUB_PLACE)
+    expect(defaultPlace('/machines/machine-1', '', undefined)).toBe(HUB_PLACE)
+  })
+
+  it("ties a long token to a hub Claude subscription the machine is not signed in to", () => {
+    const jane = entry({ key: 'jane', status: { loggedIn: true, authMethod: 'claude.ai', email: 'jane.roe@example.com', orgName: null, subscriptionType: 'pro' } })
+    const codex = entry({ key: 'codex-john', agent: 'codex' })
+    const signedIn = machine({ accounts: [{ key: 'jane', agent: 'claude', email: 'jane.roe@example.com', signedIn: true }] })
+    expect(tokenAccounts([entry(), jane, codex], signedIn)).toEqual([{ account: 'john.doe@example.com', who: 'john.doe@example.com' }])
+    expect(tokenAccounts([codex], machine())).toEqual([])
   })
 })

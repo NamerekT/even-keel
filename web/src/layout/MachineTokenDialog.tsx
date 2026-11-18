@@ -5,6 +5,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { secretInput } from '../ui/secret.js'
+import { Select } from '../ui/Select.js'
 import '../tools/addPackage.css'
 
 export interface MachineTokenTarget {
@@ -19,14 +20,22 @@ export interface MachineTokenTarget {
 
 /**
  * A long token of `claude setup-token` for a machine elsewhere (BTN-1002): the machine checks it with one short turn and
- * keeps it in a new account folder tied to the hub's account, or the refusal shows under the field.
+ * keeps it in a new account folder tied to the hub's account, or the refusal shows under the field. `choices` — the hub
+ * accounts the token may be of, picked here (BTN-1308: "Add account" on a machine); `onAdded` — after the machine took it.
  */
-export function MachineTokenDialog({ target, onClose }: { target: MachineTokenTarget; onClose: () => void }) {
+export function MachineTokenDialog({ target: given, choices, onClose, onAdded = onClose }: {
+  target: MachineTokenTarget
+  choices?: ReadonlyArray<Pick<MachineTokenTarget, 'account' | 'who'>>
+  onClose: () => void
+  onAdded?: () => void
+}) {
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
   const { send, sending, failure } = useCommand()
   const [token, setToken] = useState('')
+  const [account, setAccount] = useState(given.account)
+  const target = { ...given, ...choices?.find((each) => each.account === account) }
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -35,7 +44,7 @@ export function MachineTokenDialog({ target, onClose }: { target: MachineTokenTa
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (token.trim() === '' || sending) return
-    if (await send('machines/token', { machine: target.machine, account: target.account, token })) onClose()
+    if (await send('machines/token', { machine: target.machine, account: target.account, token })) onAdded()
   }
 
   return (
@@ -59,6 +68,18 @@ export function MachineTokenDialog({ target, onClose }: { target: MachineTokenTa
           </button>
         </header>
         <div className="add-package__body">
+          {choices !== undefined && choices.length > 1 && (
+            <div className="add-package__field">
+              <span className="add-package__label">{t.account.machineTokenOf}</span>
+              <Select
+                className="add-package__input"
+                label={t.account.machineTokenOf}
+                value={account}
+                options={choices.map((each) => ({ value: each.account, label: each.who }))}
+                onChange={setAccount}
+              />
+            </div>
+          )}
           <p className="add-package__note">{t.account.machineTokenLead(target.who)}</p>
           <CommandBlock command="claude setup-token" />
           <label className="add-package__field">

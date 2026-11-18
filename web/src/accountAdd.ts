@@ -50,6 +50,7 @@ export interface AddAt {
 /** Not `add`, the add dialog of /tools, nor `account`, the /stats filter: the dialog opens over any page (BTN-629). */
 const ADD = 'addAccount'
 const WAY = 'addWay'
+const ON = 'addOn'
 
 function providerOf(name: string | null): Provider | null {
   return PROVIDERS.find((each) => each === name) ?? null
@@ -89,8 +90,28 @@ export function withoutAdd(search: string): string {
   const params = new URLSearchParams(search)
   params.delete(ADD)
   params.delete(WAY)
+  params.delete(ON)
   const text = params.toString()
   return text === '' ? '' : `?${text}`
+}
+
+/** The hub as the place of a new account, next to the ids of machines elsewhere. */
+export const HUB_PLACE = 'hub'
+
+/**
+ * Where the new account signs in (BTN-1308), picked at the dialog's first step while the hub has machines elsewhere:
+ * `HUB_PLACE` or a machine's id; null — not picked yet.
+ */
+export function placeOf(search: URLSearchParams): string | null {
+  const value = search.get(ON)
+  return value === null || value === '' ? null : value
+}
+
+/** The page's search with the dialog at the first step after the place `place`. */
+export function withPlace(search: string, place: string): string {
+  const params = new URLSearchParams(search)
+  params.set(ON, place)
+  return `?${params.toString()}`
 }
 
 /** Where an address of the old add page goes: the accounts list with the dialog, its key connection as the provider's key way. */

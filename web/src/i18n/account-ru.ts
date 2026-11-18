@@ -110,6 +110,7 @@ export const accountRu = {
     machineToken: 'Долгий токен',
     machineTokenTip: 'Войти на машине токеном claude setup-token: браузер там не нужен, но и Remote Control не будет.',
     machineTokenTitle: (machine: string) => `Долгий токен на ${machine}`,
+    machineTokenOf: 'Аккаунт токена',
     machineTokenLead: (account: string) =>
       `Выполните команду в своём терминале, войдите там как ${account} и вставьте токен, который она выведет. Машина хранит его в папке аккаунта, хаб только передаёт.`,
     machineTokenLacks: 'На долгом токене у машины нет Remote Control: отвечайте её сессиям из чата здесь или в трекере. Лимиты — как у этого аккаунта здесь.',

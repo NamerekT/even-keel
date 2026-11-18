@@ -1,11 +1,10 @@
-import { useState } from 'react'
 import { Link } from 'react-router'
 import type { MachineCard } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { MachineAccountList, machineAccountsNone } from '../layout/MachineAccounts.js'
-import { MachineAddAccount } from '../layout/MachineAddAccount.js'
+import { useOpenAdd } from '../layout/AddAccountDialog.js'
 import { useNow } from '../layout/useNow.js'
 import { hubGapsOn } from '../machineAdd.js'
 import { machinePath } from '../machineColor.js'
@@ -26,7 +25,7 @@ export function MachineAccountsPage({ card }: { card: MachineCard }) {
   const now = useNow(60_000)
   const { state } = useLive()
   const { send, sending, failure } = useCommand()
-  const [adding, setAdding] = useState(false)
+  const openAdd = useOpenAdd()
   const view = t.machinePanel.view
   const signIns = state?.machineSignIns
   const signIn = signIns?.find((each) => each.machine === card.id)
@@ -39,7 +38,7 @@ export function MachineAccountsPage({ card }: { card: MachineCard }) {
   )
 
   const add = online ? (
-    <button type="button" className="button" disabled={busy} onClick={() => setAdding(true)}>
+    <button type="button" className="button" disabled={busy || state?.account.login != null} onClick={() => openAdd(null)}>
       + {t.account.add}
     </button>
   ) : (
@@ -82,7 +81,6 @@ export function MachineAccountsPage({ card }: { card: MachineCard }) {
           </MachineAccountList>
         </Card>
       )}
-      {adding && <MachineAddAccount card={card} signIn={signIn} onClose={() => setAdding(false)} />}
     </div>
   )
 }

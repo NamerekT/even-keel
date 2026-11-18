@@ -1,7 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { AccountEntry, AccountLogin, AccountView } from '../../../src/account/model.js'
-import { addDepth, addOf, dirty, freshKeys, onToken, sameChoices, signsOf, tokenBody, wayGiven, WAYS, withAdd, withoutAdd, type AddAt, type Draft, type Drafts, type Way } from '../accountAdd.js'
+import { addDepth, addOf, dirty, freshKeys, HUB_PLACE, onToken, placeOf, sameChoices, signsOf, tokenBody, wayGiven, WAYS, withAdd, withoutAdd, withPlace, type AddAt, type Draft, type Drafts, type Way } from '../accountAdd.js'
+import { defaultPlace, type MachineAddChoice } from '../machineAdd.js'
+import { machineLogin } from '../machineSignIn.js'
+import { MachineAgents, PlacePick, type Place } from './AddAccountPlace.js'
 import { cliMissing, deviceLogin, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -119,7 +122,13 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   const checking = provider !== null && !newAccount && checked !== provider
   const candidate = !newAccount && checked === provider && account.globalCheck?.agent === provider ? account.globalCheck.account : null
   const shown = login === null ? provider : (PROVIDERS.find((each) => each === login.agent) ?? provider)
-  const step = cloudAdded ? 'cloudAdded' : login !== null ? 'login' : checking ? 'checking' : candidate != null ? 'existing' : `${provider ?? 'pick'}:${newAccount}`
+  // Where it signs in, while the hub has machines elsewhere (BTN-1308); an opener that names the provider is the hub's.
+  const machines = live?.machineSignIns ?? []
+  const place = placeOf(new URLSearchParams(location.search))
+  const onMachine = place === null || place === HUB_PLACE ? undefined : machines.find((each) => each.machine === place)
+  const where = login === null && machines.length > 0 && at.provider === null && onMachine === undefined && place !== HUB_PLACE
+  const machineBusy = sending || machineLogin(machines) !== undefined
+  const step = cloudAdded ? 'cloudAdded' : login !== null ? 'login' : where ? 'where' : onMachine !== undefined ? `machine:${onMachine.machine}` : checking ? 'checking' : candidate != null ? 'existing' : `${provider ?? 'pick'}:${newAccount}`
 
   // Closing goes back over the entries the dialog pushed; one opened by its address has the dialog under them too, and
   // that entry is then replaced by the page alone.
@@ -187,7 +196,20 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
     void navigate({ pathname: location.pathname, search: withAdd(location.search, each, way.id) }, { replace: true, state: location.state })
   }
 
-  const title = shown === null ? t.addAccount.title : t.addAccount.titleOf(t.account.agents[shown])
+  const next = (each: string) => {
+    void navigate({ pathname: location.pathname, search: withPlace(location.search, each) }, { state: { adding: depth + 1, picked: true } })
+  }
+  const signOn = async (machine: string, { agent, method }: MachineAddChoice) => {
+    if (await send('machines/login', { machine, agent, ...(method !== undefined && { method }) })) close()
+  }
+  const places = (): Place[] => [
+    { id: HUB_PLACE, name: live?.machineNames?.[live.ownMachine ?? ''] ?? t.addAccount.place.hubName, color: live?.machineColors?.[live.ownMachine ?? ''], online: true },
+    ...machines.map((each) => ({ id: each.machine, name: each.name, color: live?.machineColors?.[each.machine], online: each.online })),
+  ]
+
+  const title = login === null && onMachine !== undefined
+    ? t.machinePanel.view.addTitle(onMachine.name)
+    : shown === null ? t.addAccount.title : t.addAccount.titleOf(t.account.agents[shown])
   return (
     <dialog
       ref={dialog}
@@ -227,8 +249,20 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
               </footer>
             )}
           </>
+        ) : where ? (
+          <PlacePick places={places()} initial={defaultPlace(location.pathname, location.search, machines)} onNext={next} />
+        ) : onMachine !== undefined ? (
+          <MachineAgents
+            machine={onMachine}
+            accounts={account.accounts}
+            busy={machineBusy}
+            failure={failure === null ? null : say(failure)}
+            back={picked ? () => void navigate(-1) : null}
+            onPick={(choice) => void signOn(onMachine.machine, choice)}
+            onAdded={close}
+          />
         ) : provider === null ? (
-          <ProviderPick account={account} onPick={pick} />
+          <ProviderPick account={account} onPick={pick} back={picked && machines.length > 0 ? () => void navigate(-1) : null} />
         ) : checking ? (
           <div className="add-package__body" role="status">{t.addAccount.checkingCli}</div>
         ) : candidate != null ? (
@@ -354,8 +388,9 @@ function draftOf(drafts: Drafts, provider: Provider): Draft {
 }
 
 /** Whose account it is, when the opener did not say: a provider whose CLI is not found is off, saying where to get it. */
-function ProviderPick({ account, onPick }: { account: AccountView; onPick: (provider: Provider) => void }) {
+function ProviderPick({ account, onPick, back }: { account: AccountView; onPick: (provider: Provider) => void; back: (() => void) | null }) {
   return (
+    <>
     <div className="add-package__body">
       <p className="add-package__note">{t.addAccount.providerLead}</p>
       <div className="add-package__kinds account-add__providers">
@@ -379,6 +414,15 @@ function ProviderPick({ account, onPick }: { account: AccountView; onPick: (prov
         })}
       </div>
     </div>
+    {back !== null && (
+      <footer className="add-package__foot">
+        <button type="button" className="button" onClick={back}>
+          ← {t.account.back}
+        </button>
+        <span className="add-package__spacer" />
+      </footer>
+    )}
+    </>
   )
 }
 

@@ -1,7 +1,11 @@
 import type { AccountEntry } from '../../src/account/model.js'
 import type { EvenKeelState, MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
 import type { JoinRequest } from '../../src/jobs/model.js'
+import { matchPath } from 'react-router'
+import { CLAUDE } from '../../src/claude/name.js'
+import { HUB_PLACE } from './accountAdd.js'
 import { paysPerToken } from './accounts.js'
+import { MACHINE_PARAM } from './machineView.js'
 import { machineGaps, machineTokens, type MachineGap } from './machineSignIn.js'
 
 const KEY = 'addMachine'
@@ -168,7 +172,25 @@ export interface MachineAddChoice {
 
 const BROWSER_SIGN_INS: ReadonlyArray<{ agent: string; method?: string }> = [{ agent: 'claude' }, { agent: 'codex' }, { agent: 'opencode', method: 'chatgpt' }]
 
-/** The agents "Add account" of a machine's accounts page offers (BTN-1302), each one whose CLI the machine lacks off. */
+/** The agents "Add account" offers on a machine elsewhere (BTN-1302), each one whose CLI the machine lacks off. */
 export function machineAddChoices(machine: MachineSignIn | undefined): MachineAddChoice[] {
   return BROWSER_SIGN_INS.map((choice) => ({ ...choice, missing: machine?.missing.includes(choice.agent) === true }))
+}
+
+/**
+ * The place "Add account" picks first (BTN-1308): the machine elsewhere of the page it opened over — its page
+ * `/machines/<id>` or the header's `?machine=<id>` — while it is on the link; else the hub.
+ */
+export function defaultPlace(pathname: string, search: string, machines: MachineSignIn[] | undefined): string {
+  const page = matchPath('/machines/:id', pathname)?.params.id ?? new URLSearchParams(search).get(MACHINE_PARAM)
+  return machines?.some((each) => each.machine === page && each.online) === true ? page! : HUB_PLACE
+}
+
+/**
+ * The hub's Claude subscriptions a long token on the machine can be of (BTN-1308): the machine ties its token folder
+ * to a hub folder's claude.ai account, so only those not signed in there yet.
+ */
+export function tokenAccounts(accounts: AccountEntry[], machine: MachineSignIn): Array<{ account: string; who: string }> {
+  return machineAccounts(accounts, machine).flatMap(({ entry, gap }) =>
+    entry.agent !== CLAUDE || gap === null ? [] : [{ account: entry.key, who: entry.status?.email ?? entry.key }])
 }

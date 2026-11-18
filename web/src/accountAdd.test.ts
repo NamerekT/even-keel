@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountLogin } from '../../src/account/model.js'
 import { NO_SIGN_IN, SIGN_INS } from '../../src/agent/providers.js'
 import { notice } from '../../src/notice/notice.js'
-import { addDepth, addOf, dirty, freshKeys, legacyAdd, loginRow, onToken, planRefused, retryBody, sameChoices, signsOf, tokenBody, wayGiven, WAYS, withAdd, withoutAdd } from './accountAdd.js'
+import { addDepth, addOf, dirty, freshKeys, HUB_PLACE, legacyAdd, loginRow, onToken, placeOf, planRefused, retryBody, sameChoices, signsOf, tokenBody, wayGiven, WAYS, withAdd, withoutAdd, withPlace } from './accountAdd.js'
 import { PROVIDERS } from './accounts.js'
 
 const search = (text: string) => new URLSearchParams(text)
@@ -81,6 +81,20 @@ describe('withAdd', () => {
   it("leaves the add dialog of /tools alone (BTN-629)", () => {
     expect(withAdd('?projects=A&add=huly%40even-keel', null)).toBe('?projects=A&add=huly%40even-keel&addAccount=')
     expect(withoutAdd('?projects=A&add=huly%40even-keel&addAccount=codex&addWay=apiKey')).toBe('?projects=A&add=huly%40even-keel')
+  })
+})
+
+describe('where the account is added (BTN-1308)', () => {
+  it('is not picked until the first step sets it, and the later steps keep it', () => {
+    expect(placeOf(search('addAccount='))).toBeNull()
+    expect(placeOf(search('addAccount=&addOn='))).toBeNull()
+    expect(withPlace('?machine=machine-1&addAccount=', 'machine-1')).toBe('?machine=machine-1&addAccount=&addOn=machine-1')
+    expect(placeOf(search(withPlace('?addAccount=', HUB_PLACE)))).toBe(HUB_PLACE)
+    expect(placeOf(search(withAdd(withPlace('?addAccount=', HUB_PLACE), 'codex')))).toBe(HUB_PLACE)
+  })
+
+  it('goes with the dialog', () => {
+    expect(withoutAdd('?machine=machine-1&addAccount=&addOn=machine-1')).toBe('?machine=machine-1')
   })
 })
 

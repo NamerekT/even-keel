@@ -251,4 +251,13 @@ export const addAccount = {
     confirm: 'Cancel sign-in',
     cancel: 'Go on signing in',
   },
+  place: {
+    legend: 'Where it signs in',
+    hubName: 'Hub',
+    hub: 'The hub: every way of signing in',
+    machine: 'Signs in there, through a browser',
+    offline: 'Off the link',
+    next: 'Next',
+    tokenNone: (name: string) => `A long token is tied to a hub Claude subscription not signed in on "${name}": there is none`,
+  },
 }

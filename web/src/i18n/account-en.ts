@@ -110,6 +110,7 @@ export const accountEn = {
     machineToken: 'Long token',
     machineTokenTip: 'Sign the machine in with a token of claude setup-token instead: no browser there, but no Remote Control either.',
     machineTokenTitle: (machine: string) => `A long token on ${machine}`,
+    machineTokenOf: 'Account of the token',
     machineTokenLead: (account: string) =>
       `Run the command in a terminal of your own, sign in there as ${account} and paste the token it prints. The machine keeps it in its account folder; the hub only passes it on.`,
     machineTokenLacks: 'On a long token the machine has no Remote Control: answer its sessions from the chat here or in the tracker. Its limits are those of this account here.',

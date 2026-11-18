@@ -32,6 +32,32 @@
   color: var(--fg-muted);
 }
 
+/* Where it signs in (BTN-1308): the place's icon in its machine's colour, a machine off the link off. */
+
+.account-add__place .account-add__way-icon {
+  color: var(--machine, var(--fg-muted));
+}
+
+.account-add__place[aria-disabled='true'] {
+  border-style: dashed;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}
+
+.account-add__place[aria-disabled='true']:hover {
+  border-color: var(--border);
+}
+
+/* Over the base rule of a disabled radio, which shows it half-faded. */
+.account-add__way.account-add__place input:disabled {
+  opacity: 0;
+}
+
+.account-add__place-tip {
+  display: grid;
+}
+
 .account-add__missing {
   grid-column: 1 / -1;
   justify-self: start;
