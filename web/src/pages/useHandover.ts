@@ -4,7 +4,7 @@ import { BOOT_WAIT_MS } from '../../../src/sessions/boot.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { ChatHandover } from '../sessionStart.js'
 import { useLoader, type LoaderPhase } from '../ui/loaderPhase.js'
-import { LOCAL_WAIT_MS, shownHandover, type LocalHandover } from './chatHandover.js'
+import { LOCAL_WAIT_MS, shownHandover, type HeldHandover, type LocalHandover } from './chatHandover.js'
 
 export interface HandoverView {
   /** The handover the window shows instead of its feed (`shownHandover`). */
@@ -24,7 +24,7 @@ export interface HandoverView {
 /** The chat window's handover (BTN-1281): the press, what the service reports, and the wait for the new session's feed. */
 export function useHandover(server: ChatHandover | null, sessionId: string, lines: FeedLine[] | null | undefined): HandoverView {
   const [local, setLocal] = useState<LocalHandover | null>(null)
-  const [held, setHeld] = useState<ChatHandover | null>(null)
+  const [held, setHeld] = useState<HeldHandover | null>(null)
   const [restore, setRestore] = useState<{ key: string; text: string } | null>(null)
   const failed = server?.error === undefined ? null : server
 
@@ -34,8 +34,11 @@ export function useHandover(server: ChatHandover | null, sessionId: string, line
     if (held !== null) setHeld(null)
   } else if (server !== null) {
     const next = { ...server, message: server.message ?? held?.message ?? local?.message ?? null }
-    if (held === null || held.phase !== next.phase || held.since !== next.since || held.sessionId !== next.sessionId || held.message !== next.message) setHeld(next)
+    const same = held !== null && held.released === undefined && held.phase === next.phase && held.since === next.since
+    if (!same || held.sessionId !== next.sessionId || held.message !== next.message) setHeld(next)
     if (local !== null) setLocal(null)
+  } else if (held !== null && held.released === undefined) {
+    setHeld({ ...held, released: Date.now() })
   }
 
   const shown = shownHandover({ server, local, held, sessionId, lines, now: Date.now() })
@@ -52,7 +55,8 @@ export function useHandover(server: ChatHandover | null, sessionId: string, line
   }, [local])
   useEffect(() => {
     if (held === null) return
-    const timer = setTimeout(() => setHeld(null), Math.max(0, Date.parse(held.since) + BOOT_WAIT_MS - Date.now()))
+    const end = Math.min(Date.parse(held.since) + BOOT_WAIT_MS, held.released === undefined ? Infinity : held.released + LOCAL_WAIT_MS)
+    const timer = setTimeout(() => setHeld(null), Math.max(0, end - Date.now()))
     return () => clearTimeout(timer)
   }, [held])
 

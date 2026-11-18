@@ -71,7 +71,7 @@ Codex and OpenCode sessions never stop on such a dialog.
 
 ### After a long wait
 
-If the session has waited for you past its prompt cache (the ring on its row is empty), **Send** first asks how to go on: a reply to that session rereads its whole context at full price, so the suggested choice is **New session with this message** — a new session in the same worktree gets the usual handoff and your words, answers and files.
+If the session has waited for you past its prompt cache (the ring on its row is empty), **Send** first asks how to go on: a reply to that session rereads its whole context at full price, so the suggested choice is **New session with this message** — a new session in the same worktree gets the usual handoff and your words, answers and files. Until the new session is up, the chat shows your message with a ship and the stage of the handover; the box opens again with the new session's feed, where your message stands on its own. If the handover fails, the error shows under the old feed and your text goes back into the box. The old session stays readable in the task's session list.
 
 **Reply to this session** sends it as before; **Cancel** keeps the text in the box.
 

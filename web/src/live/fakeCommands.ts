@@ -1,7 +1,8 @@
-import { fail } from '../../../src/notice/notice.js'
+import { fail, notice } from '../../../src/notice/notice.js'
 import { restartConfirmation, silentRestart } from '../../../src/sessions/silence.js'
 import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { isOwnName } from '../../../src/chain/fix.js'
+import { USER_MESSAGE_HEAD } from '../../../src/chain/user-message.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder, startsAhead } from '../../../src/chain/order.js'
 import type { EvenKeelState, ProjectTask, SessionView } from '../../../src/state.js'
@@ -35,6 +36,15 @@ function withChain(state: EvenKeelState, chain: ActiveChain, next: ActiveChain |
   return { ...state, chain: { ...state.chain, active } }
 }
 
+/** `?renew=fail`: the handover of "New session with this message" fails and pauses the chain, the move left as it was (BTN-1281). */
+export function failedRenew(stages: EvenKeelState[], project: string): EvenKeelState[] {
+  const moving = stages[0]
+  const chain = moving === undefined ? undefined : chainIn(moving, project)
+  if (moving === undefined || chain === undefined) return stages
+  const error = notice('git.noBranch', { project, branch: 'trunk', repo: 'D:/work/abc' })
+  return [moving, withChain(moving, chain, { ...chain, paused: true, error })]
+}
+
 /**
  * What the page sees after a start or a restart, as in the service: the dispatcher starting the session,
  * the session not seen yet, the session up and silent, then its first answer.
@@ -45,13 +55,17 @@ export function startStages(before: EvenKeelState, after: EvenKeelState, project
   if (chain === undefined || current == null || current.sessionId === null) return [after]
   const prior = chainIn(before, project)?.current
   const replaced = prior?.task === current.task ? prior.sessionId : null
+  if (replaced !== null && replaced === current.sessionId) return [after]
   const fresh = after.sessions.find((view) => view.sessionId === current.sessionId && view.task === current.task)
   if (fresh === undefined) return [after]
   const silent: SessionView = { ...fresh, startedAt: ago(0), contextTokens: 0, cache: null, action: null, feed: fresh.feed.slice(0, 1) }
   const withSession = (view: SessionView) => after.sessions.map((each) => (each === fresh ? view : each))
+  // A "New session with this message" moves with the reply, the new session keeps the message (BTN-1281).
+  const { message, ...moving } = current
+  const move = message === undefined ? {} : { move: 'message' as const, reply: `${USER_MESSAGE_HEAD.en}\n\n${message}` }
   return [
     {
-      ...withChain(after, chain, { ...chain, current: { ...current, sessionId: replaced, starting: ago(0) } }),
+      ...withChain(after, chain, { ...chain, current: { ...moving, ...move, sessionId: replaced, starting: ago(0) } }),
       sessions: before.sessions,
       taskSessions: before.taskSessions,
     },
@@ -235,10 +249,12 @@ function renew(state: EvenKeelState, body: Record<string, unknown>): EvenKeelSta
   const view = state.sessions.find((each) => each.task === task && each.sessionId === body.sessionId)
   if (view === undefined || (view.ask?.id ?? null) !== body.ask) throw fail('answer.moved', { task })
   if (view.lamp === 'working') return fakeAnswer(state, { ...body, renew: false })
-  return replaced(state, active, current.since, view, 'message')
+  return replaced(state, active, current.since, view, String(body.text))
 }
 
-function replaced(state: EvenKeelState, active: ActiveChain, since: string, view: SessionView, cause?: 'message'): EvenKeelState {
+/** `message` — the user's message of a "New session with this message". */
+function replaced(state: EvenKeelState, active: ActiveChain, since: string, view: SessionView, message?: string): EvenKeelState {
+  const cause = message === undefined ? undefined : 'message' as const
   const task = view.task
   const sessionId = crypto.randomUUID()
   const fresh: SessionView = { ...view, sessionId, lamp: 'working', startupDialog: null, apiError: null, silentSince: null, hungSince: null, lastActivityAt: ago(0), startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
@@ -246,8 +262,8 @@ function replaced(state: EvenKeelState, active: ActiveChain, since: string, view
   const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const, ...why } } : row))
   return {
     ...state,
-    chain: withChain(state, active, { ...active, current: { task, sessionId, since } }).chain,
-    sessions: state.sessions.map((each) => (each === view ? { ...fresh, ask: null, waitingFor: null } : each)),
+    chain: withChain(state, active, { ...active, current: { task, sessionId, since, ...(message === undefined ? {} : { message }) } }).chain,
+    sessions: state.sessions.map((each) => (each === view ? { ...fresh, asking: false, ask: null, waitingFor: null } : each)),
     taskSessions: { ...state.taskSessions, [task]: [{ sessionId, at: ago(0), how: 'restart', ...why, resumed: 0, answers: 0 }, ...rows] },
   }
 }

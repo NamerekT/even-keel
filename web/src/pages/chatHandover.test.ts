@@ -34,8 +34,15 @@ describe('shownHandover', () => {
   it('stays after the service is done until the window has the new session read, without a Reading loader', () => {
     expect(shownHandover(facts({ held: booting }))).toEqual(booting)
     expect(shownHandover(facts({ held: booting, sessionId: 'new', lines: undefined }))).toEqual(booting)
-    expect(shownHandover(facts({ held: booting, sessionId: 'new', lines: [] }))).toBeNull()
+    expect(shownHandover(facts({ held: booting, sessionId: 'new', lines: [line('ABC-1')] }))).toBeNull()
+    expect(shownHandover(facts({ held: booting, sessionId: 'new', lines: null }))).toBeNull()
     expect(shownHandover(facts({ held: booting, now: Date.parse('2026-01-01T10:06:00.000Z') }))).toBeNull()
+  })
+
+  it('waits out an empty read made before the service was done, but not for long', () => {
+    const released = { ...booting, released: now - 5_000 }
+    expect(shownHandover(facts({ held: released, sessionId: 'new', lines: [] }))).toEqual(booting)
+    expect(shownHandover(facts({ held: { ...booting, released: now - 25_000 }, sessionId: 'new', lines: [] }))).toBeNull()
   })
 
   it('shows the old feed again when the handover failed', () => {

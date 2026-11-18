@@ -4,6 +4,23 @@ import type { SessionCheckpoint } from '../../../src/stats/checkpoint.js'
 import { fakeCalls, fakeManyShots, fakeOpenAsk, fakePastAsk, fakeShare, fakeShots } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { ago, fakeFeed } from './fakeSessions.js'
+import { USER_MESSAGE_HEAD } from '../../../src/chain/user-message.js'
+
+/**
+ * The transcript of a session a "New session with this message" started (BTN-1281): empty until its first turn, then the
+ * handoff prompt ending with the user's message. `null` — the session was not started so.
+ */
+export function fakeHandedTranscript(state: EvenKeelState, view: SessionView): FeedLine[] | null {
+  const run = state.taskSessions[view.task]?.find((each) => each.sessionId === view.sessionId)
+  if (run?.cause !== 'message') return null
+  if (view.contextTokens === 0) return []
+  const message = state.chain.active.find((chain) => chain.current?.sessionId === view.sessionId)?.current?.message ?? 'Continue.'
+  const handoff = `${view.task}\n\nThe previous session of this task is replaced: the user wrote to it after its cache went cold.\n\nHandoff note of the previous session — start from it.`
+  return [
+    { at: ago(0), kind: 'prompt', text: `${handoff}\n${USER_MESSAGE_HEAD.en}\n\n${message}\n` },
+    { at: ago(0), kind: 'text', text: 'Читаю заметку передачи и сообщение пользователя.' },
+  ]
+}
 
 export function fakeTranscript(open: Ask | null, shots: string | null): FeedLine[] {
   const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()

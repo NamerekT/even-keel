@@ -3,7 +3,10 @@ import { BOOT_WAIT_MS } from '../../../src/sessions/boot.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { ChatHandover } from '../sessionStart.js'
 
-/** How long the window's own press stands for the handover before the service reports one. */
+/**
+ * How long the window's own press stands for the handover before the service reports one, and how long a handover the
+ * service let go waits for the new session's first lines.
+ */
 export const LOCAL_WAIT_MS = 20_000
 
 /** "New session with this message" pressed in this window: before the service's state says so. */
@@ -14,12 +17,15 @@ export interface LocalHandover {
   from: string
 }
 
+/** The last handover the service reported; `released` — when the service stopped reporting it, epoch ms. */
+export type HeldHandover = ChatHandover & { released?: number }
+
 export interface HandoverFacts {
   /** What the service's state says now (`ChainBlock.handover`). */
   server: ChatHandover | null
   local: LocalHandover | null
   /** The last handover the service reported to this window, while the new session's feed is not in yet. */
-  held: ChatHandover | null
+  held: HeldHandover | null
   /** The session the window shows and the lines read of it. */
   sessionId: string
   lines: FeedLine[] | null | undefined
@@ -39,8 +45,11 @@ export function shownHandover({ server, local, held, sessionId, lines, now }: Ha
     return ready ? null : { ...server, message }
   }
   if (held?.sessionId != null) {
-    const loaded = held.sessionId === sessionId && lines !== undefined
-    return loaded || now - Date.parse(held.since) > BOOT_WAIT_MS ? null : { ...held, message }
+    // An empty read may come before the service was done: the next read brings the first lines, a short wait at most.
+    const loaded = held.sessionId === sessionId && (lines === null || (lines !== undefined && lines.length > 0))
+    const late = now - Date.parse(held.since) > BOOT_WAIT_MS || (held.released !== undefined && now - held.released > LOCAL_WAIT_MS)
+    const { released: _, ...shown } = held
+    return loaded || late ? null : { ...shown, message }
   }
   if (held === null && local !== null && local.from === sessionId && now - Date.parse(local.since) < LOCAL_WAIT_MS) {
     return { phase: 'handover', since: local.since, message: local.message, sessionId: null }

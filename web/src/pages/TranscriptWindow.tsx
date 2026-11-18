@@ -38,6 +38,7 @@ import { editTotals, feedEntries } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
 import { turnPhase, type TurnFacts } from './turnPhase.js'
 import { useFileDrop } from './useFileDrop.js'
+import { NoticeFixButton } from './FixButtons.js'
 import './transcript.css'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
@@ -377,7 +378,11 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
             </div>
           ) : (
             <div className="transcript__foot">
-              {handing.error !== null && <p className="notice notice--error">{say(handing.error)}</p>}
+              {handing.error !== null && (
+                <p role="alert" className="notice notice--error">
+                  {say(handing.error)} <NoticeFixButton project={chat.project} notice={handing.error} />
+                </p>
+              )}
               {chat.session.lamp === 'working' && handing.shown === null && (
                 <TurnLine
                   facts={{

@@ -47,8 +47,8 @@ import { FAKE_MACHINE_NAMES, FakeNetwork, fakeMachineColors, fakeMachineCommand,
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
-import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
-import { fakeCheckpoint, fakeRecord, fakeTranscript } from './fakeTranscript.js'
+import { closeCurrent, failedRenew, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
+import { fakeCheckpoint, fakeHandedTranscript, fakeRecord, fakeTranscript } from './fakeTranscript.js'
 import { withTrustPause } from './fakeTrust.js'
 import { fakeTaskHistory, withHistoryLeft } from './fakeHistory.js'
 import { withFeeds, withLongNames, withMixedNames } from './fakeLong.js'
@@ -854,7 +854,9 @@ export function createFakeSource(search: string): LiveSource {
       }, 3000)
       const started = (name === 'account/renew' || name === 'account/add') && next.account.login !== state.account.login ? next.account.login : null
       const waiting = started === null ? next : withAccount(next, { ...next.account, login: { ...started, urls: [], deviceCode: null, output: '' } })
-      const stages = name === 'chain/start' || name === 'chain/restart' ? startStages(state, next, String(body.project)) : [waiting]
+      const starts = name === 'chain/start' || name === 'chain/restart' || (name === 'session/answer' && body.renew === true)
+      const staged = starts ? startStages(state, next, String(body.project)) : [waiting]
+      const stages = name === 'session/answer' && params.get('renew') === 'fail' ? failedRenew(staged, String(body.project)) : staged
       stages.forEach((stage, index) => {
         const show = () => {
           current = { ...current, state: stage }
@@ -898,7 +900,8 @@ export function createFakeSource(search: string): LiveSource {
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
       const turn = view?.lamp === 'working' ? { startedAt: turnStartedAt, tool: view.task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null } : null
       if (after === 0 && view?.task === 'ABC-5' && ['apiError', 'apiRetry', 'transient', 'streamError', 'modelError'].includes(params.get('chain') ?? '')) return { lines: view.feed, turn }
-      if (after === 0) return { lines: fakeTranscript(view?.ask ?? null, params.get('shots')), turn }
+      const handed = view === undefined || current.state === null ? null : fakeHandedTranscript(current.state, view)
+      if (after === 0) return { lines: handed ?? fakeTranscript(view?.ask ?? null, params.get('shots')), turn }
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },
     onTranscript: () => () => {},
