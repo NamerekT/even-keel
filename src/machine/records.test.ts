@@ -5,11 +5,13 @@ import { HubEnd } from '../link/hub.js'
 import { FINGERPRINT, HUB_ADDRESS, MemoryMachineStore, Wire } from '../link/link.fixture.js'
 import { MachineEnd } from '../link/machine.js'
 import { bearerOf, parseToken } from '../link/protocol.js'
+import type { Mail } from '../sessions/mail.js'
 import { loadMail, Mailbox } from '../sessions/mailbox.js'
+import { saveMailboxChange, type MailboxChange } from '../sessions/mailbox-store.js'
 import { Writes } from '../storage/database.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import { memoryDatabase } from '../storage/memory.js'
-import { MachineRecords, saveMachineRecord } from './records.js'
+import { MachineRecords, MAILBOX_EVENT, saveMachineRecord } from './records.js'
 import { RemoteMachine } from './remote.js'
 
 const entry = { at: '2026-11-16T10:00:00.000Z', project: 'example-project', task: 'ABC-1', sessionId: 'session-1' }
@@ -165,5 +167,62 @@ describe('machine records over the wire', { timeout: 30_000 }, () => {
     restarted.restore(await loadMail(db))
     expect(restarted.delivered('session-1')).toHaveLength(1)
     expect(restarted.post('ABC-2', 'session-2', 'Next message.', []).id).toBeGreaterThan(mail.id)
+  })
+})
+
+describe('mailbox records of several machines', { timeout: 30_000 }, () => {
+  const settled = (id: number, sessionId: string, settledAt: string): Mail => ({
+    id, task: 'ABC-1', sessionId, text: `Message ${id}.`, files: [], postedAt: settledAt, fate: 'delivered', event: 'Stop', reason: null, settledAt,
+  })
+
+  async function pool() {
+    const db = await memoryDatabase()
+    const hub = new HubEnd({ store: new DatabaseHubStore(db), handlers: {}, log: () => {} })
+    onTestFinished(() => hub.stop())
+    const a = parseToken(await hub.issue('Machine A', HUB_ADDRESS, FINGERPRINT))!.machine
+    const b = parseToken(await hub.issue('Machine B', HUB_ADDRESS, FINGERPRINT))!.machine
+    const seqs = new Map<string, number>()
+    const send = (machine: string, payload: MailboxChange) => {
+      const seq = (seqs.get(machine) ?? 0) + 1
+      seqs.set(machine, seq)
+      return saveMachineRecord(db, machine, { seq, type: MAILBOX_EVENT, at: 0, payload })
+    }
+    const ids = async () => (await loadMail(db)).map((mail) => mail.id)
+    return { db, a, b, send, ids }
+  }
+
+  it("cleans up only the old settled mail of the machine that sent the cutoff", async () => {
+    const { a, b, send, ids } = await pool()
+    await send(a, { mails: [settled(1, 'session-a', '2026-11-01T10:00:00.000Z')] })
+    await send(b, { mails: [settled(2, 'session-b', '2026-11-01T10:00:00.000Z')] })
+    await send(a, { mails: [{ ...settled(3, 'session-a', '2026-11-16T10:00:00.000Z'), fate: 'waiting', event: null, settledAt: null }], before: '2026-11-09T10:00:00.000Z' })
+    expect(await ids()).toEqual([2, 3])
+  })
+
+  it('cleans up the old mail kept before the mailbox knew its machines', async () => {
+    const { db, a, send, ids } = await pool()
+    await saveMailboxChange(db, { mails: [settled(1, 'session-a', '2026-11-01T10:00:00.000Z')] }, null)
+    await send(a, { mails: [], before: '2026-11-09T10:00:00.000Z' })
+    expect(await ids()).toEqual([])
+  })
+
+  it('keeps a settled message over a late change that still has it waiting', async () => {
+    const { db, a, b, send } = await pool()
+    const waiting: Mail = { ...settled(1, 'session-a', entry.at), fate: 'waiting', event: null, settledAt: null }
+    await send(a, { mails: [waiting] })
+    await send(a, { mails: [settled(1, 'session-a', entry.at)] })
+    await send(b, { mails: [waiting] })
+    await send(b, { mails: [{ ...settled(1, 'session-a', entry.at), fate: 'returned', event: null, reason: 'gone' }] })
+    expect(await loadMail(db)).toEqual([settled(1, 'session-a', entry.at)])
+  })
+
+  it('dismisses a returned message and never brings it back', async () => {
+    const { db, a, send } = await pool()
+    const returned: Mail = { ...settled(1, 'session-a', entry.at), fate: 'returned', event: null, reason: 'asked' }
+    await send(a, { mails: [{ ...returned, fate: 'waiting', reason: null, settledAt: null }] })
+    await send(a, { mails: [returned] })
+    await send(a, { mails: [{ ...returned, fate: 'dismissed' }] })
+    await send(a, { mails: [returned] })
+    expect((await loadMail(db)).map((mail) => mail.fate)).toEqual(['dismissed'])
   })
 })

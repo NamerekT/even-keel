@@ -55,7 +55,7 @@ export class Mailbox {
   }
 
   static async open(db: Db, writes: Writes, now: () => Date): Promise<Mailbox> {
-    return new Mailbox(writes, await loadMail(db), now, (change) => inTransaction(db, (tx) => saveMailboxChange(tx, change)))
+    return new Mailbox(writes, await loadMail(db), now, (change) => inTransaction(db, (tx) => saveMailboxChange(tx, change, null)))
   }
 
   /**

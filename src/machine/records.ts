@@ -62,7 +62,7 @@ export function saveMachineRecord(db: Db, machine: string, event: MachineEvent):
     else if (event.type === WINDOWS_EVENT) {
       const { windows, at } = event.payload as { windows: [string, number][]; at: number }
       await saveSessionWindows(tx, windows, at)
-    } else if (event.type === MAILBOX_EVENT) await saveMailboxChange(tx, event.payload as MailboxChange)
+    } else if (event.type === MAILBOX_EVENT) await saveMailboxChange(tx, event.payload as MailboxChange, machine)
     else if (event.type === SPEND_EVENT) await saveKeySpend(tx, event.payload as KeySpendGrowth)
     else throw new Error(`machine: unknown record ${event.type}`)
     await tx.query('update machines set last_event = $2 where id = $1', [machine, event.seq])

@@ -745,4 +745,9 @@ export const STEPS: readonly string[] = [
   alter table project_machines add column settings text;
   alter table project_machines add column after_green text;
   `,
+  // The machine whose session a message went to (BTN-1251, `docs/machines.md`, "The chain over the link"): a machine's cleanup of old
+  // settled messages takes only its own; `null` — a row kept before the step, when one machine wrote them all.
+  `
+  alter table mailbox add column machine_id text;
+  `,
 ]
