@@ -246,6 +246,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 208 | [Why a machine elsewhere's packages are not ready](unverified/machines.md#why-a-machine-elsewheres-packages-are-not-ready-btn-1300) | a hub with a machine elsewhere whose project packages are not ready there | the machine's settings tab says "not ready" with no reason or the wrong one; the machine's `packages:` log lines name the package | — |
 | 209 | [A new project on several machines from the wizard](unverified/machines.md#a-new-project-on-several-machines-from-the-wizard-btn-1297) | a hub with machines elsewhere adding a project in the wizard | a folder's state under a machine's row is empty or wrong and "Next" stays off, or one machine's steps wait for another's; the hub's `jobs:` log lines name the step | — |
 | 210 | [The own machine's facts without long blocks](unverified/machines.md#the-own-machines-facts-without-long-blocks-btn-1317) | a hub whose projects list thousands of tasks, with the page open | the page's commands and saves wait seconds again and the log fills with `event loop: blocked`; a profile with `EVEN_KEEL_CPU_PROFILE` names the function | — |
+| 211 | [A settings save held until its state comes](unverified/page.md#a-settings-save-held-until-its-state-comes-btn-1318) | everyone saving settings on a busy service | the save bar says the values have not come after a save that went through; reload the page | — |
 
 ### Waiting for the event / not checked by choice
 

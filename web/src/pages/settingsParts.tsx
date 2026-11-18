@@ -426,18 +426,24 @@ export function GroupTabs<T extends string>({
   )
 }
 
+/** How long a settings save waits for the state with the saved values before `SaveBar` says they are late. */
+export const SAVE_LANDING_MS = 15_000
+
 /**
  * Stuck to the bottom of the form while the open group has changes: put it back, or save it. Hidden, it still holds
- * its place, so its showing up neither moves the form nor covers its last field.
+ * its place, so its showing up neither moves the form nor covers its last field. A save stays `saving` from the press
+ * until the state brings the saved values (`useLanding`), and `late` says so when they do not come in time.
  */
-export function SaveBar({ shown, canSave, onRevert }: { shown: boolean; canSave: boolean; onRevert: () => void }) {
+export function SaveBar({ shown, canSave, saving = false, late = false, onRevert }: { shown: boolean; canSave: boolean; saving?: boolean; late?: boolean; onRevert: () => void }) {
   return (
     <div className={shown ? 'settings__bar' : 'settings__bar settings__bar--idle'} aria-hidden={!shown}>
-      <span className="settings__bar-text">{t.settings.unsavedGroup}</span>
-      <button type="button" className="settings__icon" title={t.settings.revert} aria-label={t.settings.revert} onClick={onRevert}>
+      <span className="settings__bar-text" role={late ? 'alert' : undefined}>
+        {saving ? t.settings.saving : late ? t.settings.savedLate : t.settings.unsavedGroup}
+      </span>
+      <button type="button" className="settings__icon" title={t.settings.revert} aria-label={t.settings.revert} disabled={saving} onClick={onRevert}>
         <UndoIcon />
       </button>
-      <button type="submit" className="settings__icon settings__icon--save" title={t.settings.save} aria-label={t.settings.save} disabled={!canSave}>
+      <button type="submit" className="settings__icon settings__icon--save" title={t.settings.save} aria-label={t.settings.save} disabled={saving || !canSave} aria-busy={saving || undefined}>
         <CheckIcon />
       </button>
     </div>

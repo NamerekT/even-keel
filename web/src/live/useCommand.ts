@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { useLive } from './context.js'
 
@@ -65,4 +65,41 @@ export function useHold(value: string, limitMs: number): { on: boolean; begin: (
   }, [held, limitMs])
 
   return { on: held === value, begin: () => setHeld(value) }
+}
+
+interface Landing {
+  value: string
+  answered: boolean
+  late: boolean
+}
+
+/**
+ * For a command whose result only the next state shows, such as a settings save: `on` from `land`'s start, through the
+ * answer, until `value` changes. Once `limitMs` passed after the answer with `value` the same, `late` instead, until it
+ * changes or `land` runs again. A failed command lets go at once; the time the command takes is not counted.
+ */
+export function useLanding(value: string, limitMs: number): { on: boolean; late: boolean; land: (run: () => Promise<boolean>) => Promise<boolean> } {
+  const [held, setHeld] = useState<Landing | null>(null)
+  const latest = useRef(value)
+  latest.current = value
+
+  useEffect(() => {
+    if (held !== null && held.value !== value) setHeld(null)
+  }, [held, value])
+
+  useEffect(() => {
+    if (held === null || !held.answered || held.late) return
+    const timer = setTimeout(() => setHeld({ ...held, late: true }), limitMs)
+    return () => clearTimeout(timer)
+  }, [held, limitMs])
+
+  const land = async (run: () => Promise<boolean>) => {
+    const from = value
+    setHeld({ value: from, answered: false, late: false })
+    const ok = await run()
+    setHeld(ok && latest.current === from ? { value: from, answered: true, late: false } : null)
+    return ok
+  }
+  const holds = held !== null && held.value === value
+  return { on: holds && !held.late, late: holds && held.late, land }
 }

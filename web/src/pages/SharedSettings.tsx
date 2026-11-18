@@ -14,7 +14,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { offeredProviders } from '../accounts.js'
 import { examplePaths } from '../examplePaths.js'
 import { say, t } from '../i18n/index.js'
-import { useCommand } from '../live/useCommand.js'
+import { useCommand, useLanding } from '../live/useCommand.js'
 import { useToolsViews } from '../tools/useToolsViews.js'
 import { Select } from '../ui/Select.js'
 import { changed, edited, reverted, sent, type Value } from './settingsDraft.js'
@@ -30,6 +30,7 @@ import {
   Row,
   RULE_KEYS,
   rulesOf,
+  SAVE_LANDING_MS,
   SaveBar,
   Section,
   SHARE_KEYS,
@@ -108,6 +109,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const [warning, setWarning] = useState(false)
   const saved = valuesOf(config.shared)
   const [current, setDraft] = useDraft(SCOPE, saved, same)
+  const landing = useLanding(JSON.stringify(saved), SAVE_LANDING_MS)
   const draft = current!
   const [tab, setOpen] = useTab<string>(SCOPE, 'chain')
   const openAddMachine = useOpenAddMachine()
@@ -162,10 +164,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     models,
     (providers) => editAll(providers.map((provider) => [slotKey(provider), ''])),
   )
-  const save = async () => {
-    if (next === undefined || base === undefined) return
-    await send('settings', { ...next, base } as unknown as Record<string, unknown>)
-  }
+  const save = () =>
+    landing.land(async () => next !== undefined && base !== undefined && (await send('settings', { ...next, base } as unknown as Record<string, unknown>)))
   const numberInput = (key: string, invalid: boolean, extra: { placeholder?: string; disabled?: boolean } = {}) => (
     <input
       id={fieldId(key)}
@@ -703,7 +703,13 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       {titled && groupTitle(open)}
       {groups[open]()}
       {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
-      <SaveBar shown={dirty(open)} canSave={!sending && (next !== undefined || keysOf(open).some((key) => draft.adding?.[key] !== undefined))} onRevert={() => revert(keysOf(open))} />
+      <SaveBar
+        shown={dirty(open)}
+        canSave={!sending && !landing.on && (next !== undefined || keysOf(open).some((key) => draft.adding?.[key] !== undefined))}
+        saving={sending || landing.on}
+        late={landing.late}
+        onRevert={() => revert(keysOf(open))}
+      />
     </form>
     </TableDraft>
   )
