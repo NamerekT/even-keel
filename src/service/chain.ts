@@ -173,7 +173,12 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
     blocked: (project, task) => {
       const reason = ctx.profileBlock(project) ?? ctx.pullBlock(project)
       if (reason !== undefined || task === undefined) return reason
-      return machine.launchBlock(project, task)
+      const block = machine.launchBlock(project, task)
+      if (block?.code !== 'machines.accountAbsent') return block
+      // Only the hub knows the name the person gave the machine; the button signs the account in there.
+      const link = ctx.machineLink
+      const id = link.assignments.machineOf(project, task) ?? link.own()
+      return notice('machines.accountAbsent', { ...block.params, machine: id, name: link.network.names()[id] ?? '' })
     },
     save: (state) => {
       ctx.writes.add('the chain state', saveChainState(ctx.db, state))

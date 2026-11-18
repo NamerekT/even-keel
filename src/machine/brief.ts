@@ -5,6 +5,7 @@ import type { ServerOverride } from '../link/view.js'
 import type { CatalogBrief } from '../packages/follow.js'
 import type { WarmTask } from '../sessions/keepwarm.js'
 import type { TaskRun } from '../sessions/runs.js'
+import type { BriefAccount } from './account-here.js'
 
 /** The hub's command that hands the machine what only the hub knows (`docs/machines.md`, "The brief"). */
 export const BRIEF_COMMAND = 'hub.brief'
@@ -16,6 +17,11 @@ export const BRIEF_COMMAND = 'hub.brief'
 export interface HubBrief {
   /** Running projects, including their pause state, for account sign-in protection. */
   active?: { project: string; paused: boolean }[]
+  /**
+   * By the hub's account folder, whose account it is (BTN-1311): the machine runs a project on its own folder of the
+   * account the config names (`folderHere`), not on a folder of the same name. A folder left out goes by its name.
+   */
+  accounts?: Record<string, BriefAccount>
   /** Routes whose servers belong to the hub; never their targets or credentials. */
   hubServers?: string[]
   trackers?: Record<string, { server: string; required: boolean; also?: string }>
@@ -108,6 +114,8 @@ export class BriefCopy {
   }
 
   active(): { project: string; paused: boolean }[] { return this.brief.active ?? [] }
+  /** Whose account the hub's folder is; `undefined` — the hub did not say. */
+  accountOf(key: string): BriefAccount | undefined { return this.brief.accounts?.[key] }
   hubServers(): string[] { return this.brief.hubServers ?? [] }
   tracker(project: string) { return this.brief.trackers?.[project] }
   /** The stdio command of a package's server on this machine in the project, where the hub names one. */

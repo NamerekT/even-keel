@@ -59,6 +59,17 @@ describe('chainMachines', () => {
     expect(machines.runs('p', 'C-1', 'pc')).toBe(true)
   })
 
+  it('gives no task to a machine without a folder of the project\'s account while another machine of the pool has one (BTN-1311)', () => {
+    const { machines } = machinesOf({ lacks: (_project, _task, machine) => machine === 'server' })
+    expect(machines.runs('p', 'A-5', 'server')).toBe(false)
+    expect(machines.runs('p', 'A-5', 'pc')).toBe(true)
+  })
+
+  it('lets the first machine take the task, to pause there, when no machine of the pool has the project\'s account', () => {
+    const { machines } = machinesOf({ lacks: () => true })
+    expect(machines.runs('p', 'A-5', 'server')).toBe(true)
+  })
+
   it('takes a width below one for one', () => {
     expect(machinesOf({ width: () => 0 }).machines.width('p')).toBe(1)
   })

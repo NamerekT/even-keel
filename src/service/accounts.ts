@@ -41,7 +41,7 @@ import { secretCatalog } from '../secrets/catalog.js'
 import { Secrets } from '../secrets/service.js'
 import { settleMail } from '../sessions/mailRelay.js'
 import { isLive, lampOf, turnStatus } from '../sessions/agents.js'
-import { launchPlan, runChoice, type LaunchPlan, type RunChoice, type VendorOf } from '../sessions/launch.js'
+import { launchPlan, runChoice, type LaunchPlan, type RunChoice, type RunSettings, type VendorOf } from '../sessions/launch.js'
 import { effortFor, type TaskRun } from '../sessions/runs.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { rareEvents } from '../sessions/rare.js'
@@ -707,14 +707,51 @@ export type ChoiceContext = Pick<AccountsContext, 'homes' | 'hasAccount' | 'proj
   configStore: ConfigView
   runOfTask: (project: string | undefined, task: string) => TaskRun | undefined
   demo: { owns(project: string | undefined): boolean }
+  /**
+   * On a machine, the own one too, its folder of the account the hub's folder `key` is of (`folderHere`, BTN-1311);
+   * `null` — none here. Absent for the hub's own reads of its config, which names its own folders.
+   */
+  folderOf?: (key: string) => string | null
+}
+
+interface RunHere {
+  settings: RunSettings
+  has: (provider: string, account: string) => boolean
+  /** By provider, the hub's folder this machine has no folder of the same account for. */
+  absent: Map<string, string>
+}
+
+/**
+ * The project's run settings with each provider's folder this machine's own of the same account. A provider without one
+ * keeps its choice, so a task's run does not fall back to another agent here: the choice says the folder is absent.
+ */
+function runHere(ctx: ChoiceContext, project: string | undefined): RunHere {
+  const settings = runOf(ctx, project)
+  const absent = new Map<string, string>()
+  const folderOf = ctx.folderOf
+  if (folderOf === undefined) return { settings, has: ctx.hasAccount, absent }
+  const accounts = Object.fromEntries(Object.entries(settings.accounts).map(([provider, key]) => {
+    const here = folderOf(key)
+    if (here === null) absent.set(provider, key)
+    return [provider, here ?? '']
+  }))
+  return { settings: { ...settings, accounts }, has: (provider, account) => absent.has(provider) || ctx.hasAccount(provider, account), absent }
+}
+
+function withAbsent<T extends RunChoice>(choice: T, absent: Map<string, string>): T {
+  const key = absent.get(choice.provider)
+  return key === undefined ? choice : { ...choice, absent: key }
 }
 
 export function wireChoiceFor(ctx: ChoiceContext): ChoiceFor {
   const memo = new PassMemo()
   const vendorOf = vendorOfHome(ctx, memo)
   const choiceFor = (project: string | undefined, task?: string): RunChoice =>
-    memo.of(JSON.stringify(['choice', project, task]), () =>
-      runChoice(task === undefined ? undefined : ctx.runOfTask(project ?? ctx.projectOf(task), task), runOf(ctx, project), ctx.hasAccount, vendorOf))
+    memo.of(JSON.stringify(['choice', project, task]), () => {
+      const here = runHere(ctx, project)
+      const run = task === undefined ? undefined : ctx.runOfTask(project ?? ctx.projectOf(task), task)
+      return withAbsent(runChoice(run, here.settings, here.has, vendorOf), here.absent)
+    })
   return Object.assign(choiceFor, { pass: <T>(body: () => T): T => memo.run(body) })
 }
 
@@ -722,7 +759,8 @@ export function wirePlanFor(ctx: ChoiceContext & { unattended: () => boolean; pr
   return (task: string, prompt: string, project = ctx.projectOf(task)): LaunchPlan => {
     const git = project === undefined || !isPlain(ctx.configStore.current, project)
     const full = withUnattended(prompt, ctx.unattended(), ctx.promptLanguage(project), git)
-    return launchPlan(ctx.runOfTask(project, task), full, runOf(ctx, project), ctx.configStore.current.modelPrompts, ctx.hasAccount, vendorOfHome(ctx))
+    const here = runHere(ctx, project)
+    return withAbsent(launchPlan(ctx.runOfTask(project, task), full, here.settings, ctx.configStore.current.modelPrompts, here.has, vendorOfHome(ctx)), here.absent)
   }
 }
 

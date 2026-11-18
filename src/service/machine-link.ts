@@ -5,6 +5,9 @@ import { launchLine } from '../chain/log.js'
 import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-notes.js'
 import { saveSnapshot } from '../chain/snapshots.js'
 import { AccountPolls } from '../limits/polls.js'
+import { AccountIdentities } from '../limits/identity.js'
+import { briefAccounts } from '../machine/account-here.js'
+import { foldersHere } from './folders-here.js'
 import { listenOf, localUrlOf, runSettings } from '../config.js'
 import { root, source } from '../locations.js'
 import { headOf } from '../updates/checkout.js'
@@ -181,6 +184,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
    * The hub's brief for a machine serving these projects, each in its folder there with its own values; a machine
    * elsewhere gets the hub's catalog of their packages too, the own one shares the hub's (BTN-1299).
    */
+  const hubIdentities = new AccountIdentities()
   const briefOf = (folders: Record<string, string>, settings: Record<string, MachineProjectSettings> = {}, elsewhere = false) => {
     const routes = ctx.packageHub.hubServers()
     return hubBrief({
@@ -199,6 +203,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         return server === undefined ? undefined : { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
       },
       ...(elsewhere ? { catalog: (projects: string[]) => ctx.packages.catalogFor(projects, routes) } : {}),
+      accounts: () => briefAccounts(foldersHere(ctx, hubIdentities)),
     })
   }
 
@@ -417,6 +422,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     revoked: (machine) => network.revoked(machine),
     agentOf: (project, task) => ctx.runsOfProject(project)[task]?.provider ?? runSettings(ctx.configStore.current, project).provider,
     agents: (machine) => pageOf(machine)?.panel()?.accounts.map((entry) => entry.agent),
+    lacks: (project, task, machine) => (machine === own ? ownPort : network.port(machine))?.launchBlock(project, task)?.code === 'machines.accountAbsent',
     movedFrom: (project, task) => moves.from(project, task),
     bind: (project, task, machine) => assignments.assign(project, task, machine),
     switchOnLimit: () => ctx.configStore.current.switchOnLimit,

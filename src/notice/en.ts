@@ -153,6 +153,8 @@ export const en = {
   'machines.folderTaken': (p: { name: string; owner: string }) => `The project's folder is already served by machine ${p.name}: if that machine is gone, take the folder over from it`,
   'machines.notTaken': () => 'No other machine holds this project\'s folder now: there is nothing to take over',
   'machines.offline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: sign in there once it is back`,
+  'machines.accountAbsent': (p: { account: string; machine: string; name: string }) =>
+    `The project's account ${p.account} is not signed in on ${p.name === '' ? 'this machine' : `machine ${p.name}`}: add it there`,
   'pool.noGit': () => 'git is not installed on the machine: install it there, then Retry',
   'pool.notRepository': (p: { folder: string }) => `There is no git repository in ${p.folder} on the machine: choose "Clone here" or name the project's folder there`,
   'pool.hubNoRemote': () => 'The project\'s repository here has no remote: a machine elsewhere gets its work only through one, so add a remote first',

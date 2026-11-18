@@ -4,6 +4,8 @@ import type { HandoffSession } from '../chain/relay.js'
 import { DEFAULT_BRANCH, idPrefixOf, isPlain, ownerOf, readersOf } from '../config.js'
 import { runGit } from '../git/run.js'
 import type { SlotUse } from '../git/slot.js'
+import { AccountIdentities } from '../limits/identity.js'
+import { folderHere } from '../machine/account-here.js'
 import { BriefCopy } from '../machine/brief.js'
 import { MachineConfig, SELECTION_EVENT, type CliChoices } from '../machine/config.js'
 import { setMachineValue } from '../machine/state.js'
@@ -19,6 +21,7 @@ import { parseTaskId } from '../tracker/model.js'
 import { wireAgentExtras, wireChoiceFor, wireNoAccountFor, wirePlanFor } from './accounts.js'
 import { launchBriefs, wireWithProject } from './chain-prompts.js'
 import { stopTaskSessions } from './cleanup.js'
+import { foldersHere } from './folders-here.js'
 import * as chain from './machine-chain.js'
 import type { MachineHost } from './machine-host.js'
 
@@ -142,6 +145,7 @@ export function machineContext(host: MachineHost, brief: BriefCopy, tell: LaterT
     approved: (task, session, prompt) => chain.approved(ctx, task, session, prompt),
     goOnWith: (home: AccountHome, task: string, session: HandoffSession, prompt: string) => chain.goOnWith(ctx, home, task, session, prompt),
   } as MachineOwn
+  const identities = new AccountIdentities()
   const choosing = {
     get homes() { return host.homes },
     get hasAccount() { return host.hasAccount },
@@ -149,6 +153,7 @@ export function machineContext(host: MachineHost, brief: BriefCopy, tell: LaterT
     configStore,
     runOfTask: own.runOfTask,
     demo: { owns: (project: string | undefined) => brief.demoOwns(project) },
+    folderOf: (key: string) => folderHere(brief.accountOf(key), key, foldersHere(host, identities)),
   }
   // Made at their first read: the host's homes and packages are opened after this context is.
   lazy(own, 'choiceFor', () => wireChoiceFor(choosing))

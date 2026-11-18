@@ -16,10 +16,12 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830);
  * `milestoneOrder` — the "Milestone order" block of the project's tracker window (BTN-792); `gitOn` — the "Turn on git"
  * dialog of the project it is shown at (BTN-1025); `takeOver` — the project's folder taken over, once confirmed, from
- * the machine `owner` (`name`) whose mark holds it, on `machine` (none — the hub's own) (BTN-1261).
+ * the machine `owner` (`name`) whose mark holds it, on `machine` (none — the hub's own) (BTN-1261); `addOn` — the add
+ * account dialog over the page with the sign-in on `machine` picked (BTN-1311).
  */
 export type NoticeFix =
   | { to: 'gitOn' }
+  | { to: 'addOn'; machine: string }
   | { to: 'takeOver'; owner: string; name: string; machine?: string }
   | { to: 'enableProfile'; profile: string }
   | { to: 'stopChains'; projects: string[] }
@@ -90,6 +92,7 @@ export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null
     return level === undefined ? { to: 'tracker', task } : { to: 'moves', level, task }
   }
   if (notice.code === 'machines.folderTaken') return { to: 'takeOver', owner: notice.params.owner, name: notice.params.name }
+  if (notice.code === 'machines.accountAbsent') return notice.params.machine === '' ? null : { to: 'addOn', machine: notice.params.machine }
   if (notice.code === 'profiles.disabled') return { to: 'enableProfile', profile: notice.params.id }
   if (notice.code === 'profiles.chainsRunning') return { to: 'stopChains', projects: notice.params.projects.split(',').filter((each) => each !== '') }
   if (notice.code === 'statusMove.refused' || notice.code === 'statusMove.outside' || notice.code === 'statusMove.notDone') {

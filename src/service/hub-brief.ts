@@ -2,6 +2,7 @@ import type { CheckReports } from '../chain/checkreports.js'
 import type { ChainState } from '../chain/model.js'
 import type { EvenKeelConfig } from '../config.js'
 import type { MachineProjectSettings } from '../link/view.js'
+import type { BriefAccount } from '../machine/account-here.js'
 import type { HubBrief } from '../machine/brief.js'
 import type { CatalogBrief } from '../packages/follow.js'
 import { sameJson } from '../machine/facts.js'
@@ -24,6 +25,8 @@ export interface BriefSources {
   tracker?: (project: string) => { server: string; required: boolean; also?: string } | undefined
   /** The hub's catalog of these projects' packages, for a machine elsewhere (BTN-1299); the own machine shares the hub's file. */
   catalog?: (projects: string[]) => CatalogBrief
+  /** Whose account each of the hub's account folders is (BTN-1311), for the machine to find its own folder of it. */
+  accounts?: () => Record<string, BriefAccount>
 }
 
 /** What the machine's assembly reads of the hub now (`docs/machines.md`, "The brief"). */
@@ -41,6 +44,7 @@ export function hubBrief(sources: BriefSources): HubBrief {
   for (const chain of state.active) if (chain.current !== null && projects.includes(chain.project)) current[chain.current.task] = chain.project
   return {
     active: state.active.filter((chain) => projects.includes(chain.project)).map(({ project, paused }) => ({ project, paused })),
+    ...(sources.accounts === undefined ? {} : { accounts: sources.accounts() }),
     hubServers: sources.hubServers?.() ?? [],
     trackers: Object.fromEntries(projects.flatMap((project) => { const tracker = sources.tracker?.(project); return tracker === undefined ? [] : [[project, tracker]] })),
     ...(sources.catalog === undefined ? {} : { packages: sources.catalog(projects) }),

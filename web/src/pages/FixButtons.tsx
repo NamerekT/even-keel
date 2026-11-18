@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
+import { withAdd, withPlace } from '../accountAdd.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -33,6 +34,7 @@ export function FixButton({ project, fix, className = 'button button--small noti
     return url === null ? null : <a className={className} href={url} target="_blank" rel="noreferrer">{t.card.openIn(null)}</a>
   }
   if (fix.to === 'resume') return project === null ? null : <ResumeButton project={project} className={className} />
+  if (fix.to === 'addOn') return <AddOnButton machine={fix.machine} className={className} />
   if (fix.to === 'gitOn') return project === null ? null : <GitOnButton state={state} project={project} className={className} />
   if (fix.to === 'takeOver') {
     return project === null ? null : <TakeOverButton project={project} owner={fix.owner} name={fix.name} machine={fix.machine} resume={fix.machine === undefined} className={className} />
@@ -55,6 +57,17 @@ export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 
   if (fix.to === 'moves') return t.fix.moves
   if (fix.to === 'packages') return t.fix.packages
   return fix.to === 'accounts' ? t.fix.accounts : fix.to === 'project' ? t.fix.project : fix.tab === 'trackers' ? t.fix.trackers : fix.tab === 'page' ? t.fix.page : t.fix.shared
+}
+
+/** Opens "Add account" over the page with the machine picked as the place it signs in (BTN-1308). */
+function AddOnButton({ machine, className }: { machine: string; className: string }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  return (
+    <button type="button" className={className} onClick={() => void navigate({ pathname: location.pathname, search: withPlace(withAdd(location.search, null), machine) }, { state: { adding: 1 } })}>
+      {t.fix.addOn}
+    </button>
+  )
 }
 
 /** Resumes a chain paused on what is fixed outside the page: its next launch is the check that it is fixed. */

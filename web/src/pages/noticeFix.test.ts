@@ -38,6 +38,12 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('machines.notTaken', {}))).toBeNull()
   })
 
+  it('signs the project’s account in on the machine that has none, not on the hub’s accounts page (BTN-1311)', () => {
+    const absent = notice('machines.accountAbsent', { account: 'john.doe@example.com', machine: 'machine-elsewhere', name: 'Example desktop' })
+    expect(noticeFixOf(absent)).toEqual({ to: 'addOn', machine: 'machine-elsewhere' })
+    expect(noticeFixOf(notice('machines.accountAbsent', { account: 'john.doe@example.com', machine: '', name: '' }))).toBeNull()
+  })
+
   it('sends a model the account does not have to the sessions tab of the project', () => {
     expect(noticeFixOf(notice('chain.modelUnavailable', { model: 'openai/denied' }))).toEqual({ to: 'project', tab: 'sessions' })
     expect(noticeFixOf(notice('chain.opencodeCopilot', {}))).toEqual({ to: 'project', tab: 'sessions' })

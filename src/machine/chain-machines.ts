@@ -17,6 +17,8 @@ export interface ChainMachineDeps {
   agentOf: (project: string, task: string) => string
   /** The agents the machine has an account folder of; `undefined` — not known yet. */
   agents: (machine: string) => readonly string[] | undefined
+  /** The machine said it has no folder of the account the task runs on (BTN-1311); absent — every machine has. */
+  lacks?: (project: string, task: string, machine: string) => boolean
   /** The machine the task was moved off by hand (BTN-1270); `undefined` — it was not moved. */
   movedFrom?: (project: string, task: string) => string | undefined
   bind: (project: string, task: string, machine: string) => void
@@ -28,9 +30,9 @@ export interface ChainMachineDeps {
 /**
  * The hub's machines as the chain's lanes see them (BTN-993, `docs/machines.md`, "The pool"): the own machine first,
  * with `parallel` places, then each machine elsewhere online with its capacity. A machine runs a task when it has an
- * account of the task's agent, or when no machine of the project's pool has one: with one machine the chain falls back
- * to another agent as before. A task stays with its machine while that one is away or revoked (BTN-1270), and a task
- * moved off a machine by hand never goes back to it.
+ * account of the task's agent and a folder of the account the task runs on (BTN-1311), or when no machine of the
+ * project's pool has: with one machine the chain falls back to another agent, or pauses, as before. A task stays with
+ * its machine while that one is away or revoked (BTN-1270), and a task moved off a machine by hand never goes back to it.
  */
 export function chainMachines(deps: ChainMachineDeps): ChainMachines {
   const serves = (project: string, machine: string): boolean => {
@@ -48,9 +50,10 @@ export function chainMachines(deps: ChainMachineDeps): ChainMachines {
     runs: (project, task, machine) => {
       if (deps.movedFrom?.(project, task) === machine) return false
       const agent = deps.agentOf(project, task)
+      const lacks = (id: string) => deps.lacks?.(project, task, id) === true
       const known = deps.agents(machine)
-      if (known === undefined || known.includes(agent)) return true
-      return !list().some(({ id }) => id !== machine && serves(project, id) && deps.agents(id)?.includes(agent) === true)
+      if ((known === undefined || known.includes(agent)) && !lacks(machine)) return true
+      return !list().some(({ id }) => id !== machine && serves(project, id) && deps.agents(id)?.includes(agent) === true && !lacks(id))
     },
     bind: deps.bind,
     ...(deps.componentLanes === undefined ? {} : { componentLanes: deps.componentLanes }),

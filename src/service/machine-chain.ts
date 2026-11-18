@@ -200,6 +200,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
     trackerMissing: (project) => ctx.packages.trackerMissing(project),
     launchBlock: (project, task) => {
       const choice = ctx.choiceFor(project, task)
+      // The hub's chain names the machine (`blocked` in `src/service/chain.ts`): only it knows the name the person gave it.
+      if (choice.absent !== undefined) return notice('machines.accountAbsent', { account: ctx.brief.accountOf(choice.absent)?.email ?? choice.absent, machine: '', name: '' })
       return ctx.cliCopies.blocked(choice.provider) ?? launchBlock(ctx.account.view, choice.account)
     },
     ...mainMachineDeps({

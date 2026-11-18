@@ -161,6 +161,7 @@ export const en: Messages = {
     trackers: 'Open Settings → Trackers and CI',
     page: 'Open Settings → Interface',
     accounts: 'Open Accounts',
+    addOn: 'Add account',
     moves: 'Open the statuses on actions',
     milestoneOrder: 'Open the milestone order',
     resume: 'Check again and resume',

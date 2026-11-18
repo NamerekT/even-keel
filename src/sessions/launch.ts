@@ -23,6 +23,11 @@ export interface RunChoice {
   effort: string | null
   /** The provider of the task's run the pool has no account for; the session runs on the project's instead. */
   fallback: string | null
+  /**
+   * On a machine, the hub's account folder of `provider` this machine has no folder of the same account for (BTN-1311):
+   * `account` is empty then, and no session starts here.
+   */
+  absent?: string
 }
 
 export interface LaunchPlan extends RunChoice {

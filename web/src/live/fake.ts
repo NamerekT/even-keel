@@ -506,6 +506,10 @@ export function createFakeSource(search: string): LiveSource {
     const error = notice('machines.folderTaken', { name: 'Example desktop', owner: 'machine-elsewhere' })
     current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
   }
+  if (params.get('chain') === 'accountAbsent' && active) {
+    const error = notice('machines.accountAbsent', { account: 'john.doe@example.com', machine: 'machine-1', name: 'Example laptop' })
+    current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
+  }
   withTrustPause(current.state, params, asService)
   if (params.get('chain') === 'slot' && active) {
     const dirty = notice('slot.dirty', { path: '.claude/worktrees/even-keel', full: 'D:/work/abc/.claude/worktrees/even-keel' },{ detail: 'M src/app.ts\n?? src/scratch.ts' })
