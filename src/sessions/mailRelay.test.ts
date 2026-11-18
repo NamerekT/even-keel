@@ -121,6 +121,63 @@ describe('settleMail', { timeout: 30_000 }, () => {
     expect(resumed).toEqual([])
     expect(mailbox.waiting()).toHaveLength(1)
   })
+
+  describe('a message the session got mid-turn and never answered (BTN-1323)', () => {
+    /** The hook took the message and the plugin posted it as the session's last line; the turn ended before an answer. */
+    async function posted(live: { sessionId: string; midTurn: boolean; asking: boolean }) {
+      const setup = await relay(live)
+      setup.mailbox.post('ABC-1', SESSION, 'Mind the docs.', [])
+      const hook = await mailFor(setup.deps, SESSION, 'PostToolUse')
+      hook!.finish(true)
+      const mail = { id: 'msg_03', text: hook!.message, at: setup.deps.now().toISOString() }
+      setup.deps.unanswered = () => [{ task: 'ABC-1', sessionId: SESSION, mail }]
+      return { ...setup, mail }
+    }
+
+    it('goes on with the session by a resume of the same text once its turn is over, and only once', async () => {
+      const live = { sessionId: SESSION, midTurn: true, asking: false }
+      const { deps, later, resumed, mail, log } = await posted(live)
+      later(30)
+      await settleMail(deps)
+      expect(resumed).toEqual([])
+      live.midTurn = false
+      await settleMail(deps)
+      expect(resumed).toEqual([{ task: 'ABC-1', sessionId: SESSION, prompt: mail.text }])
+      await settleMail(deps)
+      expect(resumed).toHaveLength(1)
+      expect(log.join('\n')).toContain('went on by a resume')
+    })
+
+    it('waits out the grace period after the line', async () => {
+      const { deps, later, resumed } = await posted({ sessionId: SESSION, midTurn: false, asking: false })
+      later(5)
+      await settleMail(deps)
+      expect(resumed).toEqual([])
+      later(6)
+      await settleMail(deps)
+      expect(resumed).toHaveLength(1)
+    })
+
+    it('leaves alone a session that asked, a task over for the chain and a message this mailbox never gave it', async () => {
+      const asking = await posted({ sessionId: SESSION, midTurn: false, asking: true })
+      asking.later(11)
+      await settleMail(asking.deps)
+      expect(asking.resumed).toEqual([])
+
+      const closed = await posted({ sessionId: SESSION, midTurn: false, asking: false })
+      closed.deps.closed = async () => true
+      closed.later(11)
+      await settleMail(closed.deps)
+      expect(closed.resumed).toEqual([])
+
+      const foreign = await relay({ sessionId: SESSION, midTurn: false, asking: false })
+      const text = '<even-keel-message id="41">\nNot ours.\n</even-keel-message>'
+      foreign.deps.unanswered = () => [{ task: 'ABC-1', sessionId: SESSION, mail: { id: 'msg_03', text, at: foreign.deps.now().toISOString() } }]
+      foreign.later(11)
+      await settleMail(foreign.deps)
+      expect(foreign.resumed).toEqual([])
+    })
+  })
 })
 
 describe('mailFor', { timeout: 30_000 }, () => {

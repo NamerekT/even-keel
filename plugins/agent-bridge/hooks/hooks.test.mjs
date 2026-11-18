@@ -410,13 +410,14 @@ describe("the OpenCode plugin", () => {
   let hooks;
   let saved;
   let repo;
+  const prompts = [];
   beforeAll(async () => {
     saved = process.env.EVEN_KEEL_URL;
     process.env.EVEN_KEEL_URL = url;
     repo = mkdtempSync(join(tmpdir(), "merge-check-"));
     execFileSync("git", ["init", "-q", "-b", "abc-12/task"], { cwd: repo });
     const { server } = await import("../opencode/agent-bridge.mjs");
-    hooks = await server({ directory: repo });
+    hooks = await server({ directory: repo, client: { session: { promptAsync: async (request) => void prompts.push(request) } } });
     before = hooks["tool.execute.before"];
     after = hooks["tool.execute.after"];
     complete = hooks["experimental.text.complete"];
@@ -445,14 +446,16 @@ describe("the OpenCode plugin", () => {
     expect((await call(session)).output).toBe("hello\n");
   });
 
-  it("delivers the chat's message after the output and keeps it in the call's metadata", async () => {
+  it("posts the chat's message as the user's own line, leaving the tool's output and metadata alone", async () => {
     const session = sessionOf();
     const mail = `/api/sessions/${session}/mail`;
     answers.set(mail, { message: "Use the other parser." });
+    prompts.length = 0;
     const delivered = await call(session);
-    expect(delivered.output).toBe("hello\n\n\n<system-reminder>\nUse the other parser.\n</system-reminder>");
-    expect(delivered.metadata).toEqual({ output: "hello\n", exit: 0, truncated: false, evenKeel: { mail: "Use the other parser." } });
+    expect(delivered).toEqual({ title: "echo hello", output: "hello\n", metadata: { output: "hello\n", exit: 0, truncated: false } });
     expect(posted.get(mail)).toEqual([{ event: "PostToolUse" }]);
+    const text = "Use the other parser.";
+    expect(prompts).toEqual([{ path: { id: session }, body: { parts: [{ type: "text", text, metadata: { evenKeel: { mail: text } } }] } }]);
   });
 
   it("leaves the call alone for a session Even Keel did not start, when nothing waits, and without Even Keel", async () => {

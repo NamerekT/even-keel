@@ -39,6 +39,13 @@ export interface KeptWarm {
   pings: number
 }
 
+/** A user line with the chat's message, the session's last row with no answer after it: `id` — the transcript's row. */
+export interface UnansweredMail {
+  id: string
+  text: string
+  at: string
+}
+
 export interface SessionView {
   task: string
   sessionId: string
@@ -69,6 +76,8 @@ export interface SessionView {
   ask: Ask | null
   /** The last calls whose approval the CLI stopped waiting for (EKR-140): a question of the tracker on one of them expired. */
   expiredApprovals?: string[]
+  /** The chat's message the session got mid-turn and never answered (`TranscriptSummary.unansweredMail`); absent — none. */
+  unansweredMail?: UnansweredMail
   apiError: string | null
   apiErrorKind: ApiErrorKind | null
   apiErrorNotice?: Notice

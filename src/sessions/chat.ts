@@ -17,6 +17,8 @@ interface ChatDeps {
   configuredProject: (task: string) => string | undefined
   /** The hub's reads of a reply's session, from its mirror of the machine. */
   liveView: (task: string) => Pick<SessionView, 'sessionId' | 'asking' | 'ask'> | undefined
+  /** The same mirror's sessions, for the chat's messages they got and never answered (`MailRelay.unanswered`). */
+  sessions?: () => Pick<SessionView, 'task' | 'sessionId' | 'lamp' | 'unansweredMail'>[]
   midTurn: (task: string) => boolean
   steering: (sessionId: string) => boolean
   /**
@@ -63,6 +65,10 @@ export function createChat(deps: ChatDeps) {
     live: deps.machineLive ?? ((task) => {
       const view = deps.liveView(task)
       return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: deps.midTurn(task), asking: view.asking }
+    }),
+    ...(deps.sessions === undefined ? {} : {
+      unanswered: () => deps.sessions!().flatMap(({ task, sessionId, lamp, unansweredMail }) =>
+        lamp === 'finished' || unansweredMail === undefined ? [] : [{ task, sessionId, mail: unansweredMail }]),
     }),
     resume: async (task, sessionId, prompt) => {
       const project = deps.configuredProject(task)

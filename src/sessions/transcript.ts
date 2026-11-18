@@ -4,6 +4,7 @@ import type { BadgeAction } from '../badge/model.js'
 import { statusAsked, statusLineIn, statusTextOf, withoutStatusLine, type BadgeStatus } from '../badge/status.js'
 import { isSpendingLimit } from '../limits/spending.js'
 import { notice, type Notice } from '../notice/notice.js'
+import type { UnansweredMail } from '../state.js'
 import { isTransientError } from './transient.js'
 import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
 import { typedText } from './commandPrompt.js'
@@ -152,6 +153,11 @@ export interface TranscriptSummary {
   backgroundCommand?: string | null
   /** The ids of the last calls whose approval the CLI stopped waiting for (EKR-140); absent — the agent's transcript is not read for them. */
   expiredApprovals?: string[]
+  /**
+   * The chat's message OpenCode's plugin posted as the user's line mid-turn (BTN-1323), when that line is the session's
+   * last row with no answer after it: the turn ended before the model took it. `null` — none; absent — the agent posts none.
+   */
+  unansweredMail?: UnansweredMail | null
 }
 
 const FEED_SIZE = 30

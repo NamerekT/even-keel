@@ -1,5 +1,6 @@
 import type { Language } from '../language.js'
-import { mailMessage, mailPrompt, type Mail, type MailEvent, type NoteOf } from './mail.js'
+import type { UnansweredMail } from '../state.js'
+import { mailIn, mailMessage, mailPrompt, type Mail, type MailEvent, type NoteOf } from './mail.js'
 import { mailOutcome, type Mailbox } from './mailbox.js'
 
 /** What the service gives the mailbox to settle messages and answer the hooks. */
@@ -9,6 +10,11 @@ export interface MailRelay {
   mailbox: Mailbox
   /** The task's live session: its id, whether it is in the middle of a turn, whether it waits on a question. */
   live: (task: string) => { sessionId: string; midTurn: boolean; asking: boolean } | undefined
+  /**
+   * The live sessions whose last row is a chat message they got mid-turn and never answered (`SessionView.unansweredMail`:
+   * an OpenCode turn that ended right after its plugin posted the message, BTN-1323); absent — none are read.
+   */
+  unanswered?: () => { task: string; sessionId: string; mail: UnansweredMail }[]
   /** Resolves to whether the queued reply reached the transport; may throw when the session cannot be answered. */
   resume: (task: string, sessionId: string, prompt: string) => Promise<boolean>
   /** The task is over for the chain: its branch is in main or it is done (BTN-558). Never rejects. */
@@ -41,7 +47,39 @@ export async function settleMail(relay: MailRelay): Promise<void> {
     relay.log(`chain: ${task}: ${mails.length} message(s) from the page went back to the chat: the session ${sessionId} ${own === undefined ? 'is gone' : 'asked a question'} before its hooks took them`)
     relay.changed()
   }
+  for (const each of relay.unanswered?.() ?? []) deliveries.push(answerPosted(relay, each.task, each.sessionId, each.mail))
   await Promise.all(deliveries)
+}
+
+/** The posted lines a resume already repeated, by relay: `<session> <row id>`. Each is tried once a service run. */
+const repeated = new WeakMap<MailRelay, Set<string>>()
+
+/**
+ * A message the hook took and the session got as its last line, unanswered when the turn ended: the session goes on by a
+ * resume with the same text, once its turn is over and 10 s after the line. The session's transcript then holds the
+ * line twice; the feed shows the message once. Only a message this mailbox gave the session counts.
+ */
+async function answerPosted(relay: MailRelay, task: string, sessionId: string, mail: UnansweredMail): Promise<void> {
+  const tried = repeated.get(relay) ?? new Set<string>()
+  repeated.set(relay, tried)
+  const key = `${sessionId} ${mail.id}`
+  if (tried.has(key)) return
+  const live = relay.live(task)
+  if (mailOutcome(mail.at, live?.sessionId === sessionId ? live : undefined, relay.now()) !== 'resume') return
+  const given = new Set(relay.mailbox.delivered(sessionId).map((each) => each.id))
+  if (!mailIn(mail.text).some(({ id }) => given.has(id))) return
+  tried.add(key)
+  if (await relay.closed(task)) return
+  let delivered = false
+  try {
+    delivered = await relay.resume(task, sessionId, mail.text)
+  } catch (error) {
+    relay.log(`chain: ${task}: the session ${sessionId} ended its turn before answering the page's message it got, and cannot be resumed: ${error instanceof Error ? error.message : String(error)}`)
+    return
+  }
+  relay.log(delivered
+    ? `chain: ${task}: the session ${sessionId} ended its turn before answering the page's message it got; it went on by a resume`
+    : `chain: ${task}: the session ${sessionId} ended its turn before answering the page's message it got, and the resume did not deliver it`)
 }
 
 async function resumed(relay: MailRelay, task: string, sessionId: string, waiting: Mail[]): Promise<void> {
