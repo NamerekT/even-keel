@@ -249,11 +249,11 @@ To check, on the benches: with two machines joined, add a project by its address
 
 ## The own machine's facts without long blocks (BTN-1317)
 
-`docs/machines.md`, "The mirror" ("Per project, not per listed task"). `src/service/choice-here.test.ts` covers one folder lookup per pass for many tasks, `src/service/folders-here.test.ts` the folders' e-mails read without the accounts' view, `src/packages/service.test.ts` one key pool per project for the hub's routes; the live service was not profiled again after the change.
+`docs/machines.md`, "The mirror" ("Per project, not per listed task"). `src/service/choice-here.test.ts` covers one folder lookup per pass for many tasks, `src/service/folders-here.test.ts` the folders' e-mails read without the accounts' view, `src/packages/service.test.ts` one key pool per project for the hub's routes.
 
-Assumed: what kept the thread busy on 2026-11-18 (91% after the start, stretches up to 11 s) was the per-task choice of the facts and the accounts' view built for each folder lookup, which the profile named. If not, the page's commands, saves and queries still wait seconds and the log has `event loop: blocked` lines many times an hour.
+Profiled live after the change (2026-11-18, [verified](../verified/machines.md)): the per-task choice and the accounts' view are gone from the profile; in 90…240 s of a start the thread was busy 46% instead of 91%, its longest stretch 0.55 s instead of 11 s, and the log's `event loop: blocked` lines fell from hundreds an hour to about 30; saves landed within a second.
 
-To check, on the host with the page open: start the service with `EVEN_KEEL_CPU_PROFILE=240`, use the page for the four minutes (save a project's settings, move a task into the chain) and open `logs/start-<time>.cpuprofile`: after the first 90 s no stretch is longer than ~200 ms and the thread is mostly idle; the log's `event loop: blocked` lines are rare again; a saved form shows its value within a second.
+Not settled: the thread is still busy half the time, with 93 stretches over 200 ms in those 150 s, spread over the memoised packages pass (the accounts' watcher and the machine runner's reads, 12%) and `machine-chain` (8%); and the ~30 `event loop: blocked` lines an hour, of 1–3 s, come outside the start's window, which `EVEN_KEEL_CPU_PROFILE` does not reach, so their cause is not profiled. If they grow, the page's commands and saves wait seconds again. Taking the own machine's work off the hub's thread is BTN-1319.
 
 ## One folder field in "Connect a machine" and "Add a machine" (BTN-1298)
 
