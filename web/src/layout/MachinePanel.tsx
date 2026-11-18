@@ -4,7 +4,7 @@ import type { EvenKeelState, MachineCard } from '../../../src/state.js'
 import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
 import { machinePath } from '../machineColor.js'
-import { machineState, type MachineLamp, type MachineState } from '../machineView.js'
+import { machineCount, machineState, type MachineLamp, type MachineState } from '../machineView.js'
 import { HelpChip } from '../pages/HelpPanel.js'
 import { projectOfPath } from '../state.js'
 import { ServerIcon, SlidersIcon } from '../ui/icons.js'
@@ -20,24 +20,28 @@ const BLOCK_ATTR = 'data-machine-block'
 
 const colorOf = (card: MachineCard | null): CSSProperties | undefined => (card === null ? undefined : ({ '--machine': card.color } as CSSProperties))
 
-/** The header's machines block (BTN-1051): the count of machines, or the dot of the one whose view the page shows. */
+/**
+ * The header's machines block (BTN-1051): the count of machines, or the dot of the one whose view the page shows.
+ * A machine off the link turns the count into "online/all" with a warning lamp, and the picked one's dot hollow (BTN-1310).
+ */
 export function MachineBlock() {
   const { cards, shown, selected, open, setOpen } = useMachineFilter()
   if (!shown) return null
+  const count = machineCount(cards)
+  const label =
+    selected !== null ? (selected.online ? t.machinePanel.blockOne(selected.name) : t.machinePanel.blockOneAway(selected.name))
+    : count.away.length === 0 ? t.machinePanel.block(cards.length)
+    : t.machinePanel.blockAway(count.away.join(', '))
+  const classes = ['hblock', 'machine-block', ...(selected === null ? [] : ['machine-block--selected']), ...(selected?.online === false ? ['machine-block--away'] : [])]
   return (
-    <button
-      type="button"
-      {...{ [BLOCK_ATTR]: '' }}
-      className={selected === null ? 'hblock machine-block' : 'hblock machine-block machine-block--selected'}
-      style={colorOf(selected)}
-      aria-expanded={open}
-      aria-label={selected === null ? t.machinePanel.block(cards.length) : t.machinePanel.blockOne(selected.name)}
-      title={selected === null ? t.machinePanel.block(cards.length) : t.machinePanel.blockOne(selected.name)}
-      onClick={() => setOpen(!open)}
-    >
+    <button type="button" {...{ [BLOCK_ATTR]: '' }} className={classes.join(' ')} style={colorOf(selected)} aria-expanded={open} aria-label={label} title={label} onClick={() => setOpen(!open)}>
       <span className="hblock__seg">
         <ServerIcon />
-        {selected === null ? <span className="machine-block__count">{cards.length}</span> : <span className="machine-block__dot" aria-hidden="true" />}
+        {selected !== null ? <span className="machine-block__dot" aria-hidden="true" />
+        : <>
+            <span className="machine-block__count">{count.text}</span>
+            {count.away.length > 0 && <span className="machine-block__warn" aria-hidden="true" />}
+          </>}
       </span>
     </button>
   )

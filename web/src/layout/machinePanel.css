@@ -31,6 +31,19 @@
   background: var(--machine);
 }
 
+/* A machine off the link (BTN-1310): the warning lamp after the count, the picked one's dot hollow as its panel lamp. */
+.machine-block__warn {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lamp-waiting);
+}
+
+.machine-block--away .machine-block__dot {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--fg-muted);
+}
+
 .machine-strip {
   position: absolute;
   top: 100%;

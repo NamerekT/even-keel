@@ -3,7 +3,9 @@ import type { Messages } from './ru.js'
 export const machinePanelEn: Messages['machinePanel'] = {
   title: 'Machines',
   block: (count) => `Machines: ${count}. The chain by machine`,
+  blockAway: (names) => `Off the link: ${names}. The chain by machine`,
   blockOne: (name) => `The view of "${name}"`,
+  blockOneAway: (name) => `The view of "${name}", off the link`,
   all: 'All machines',
   allLine: "the project's whole chain",
   next: 'next:',

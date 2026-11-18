@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fakeTask } from '../../src/tracker/fixture.js'
 import type { EvenKeelState, MachineCard } from '../../src/state.js'
-import { machineBacklog, machineChain, machineHeader, machineProjects, machineState, mergeQueue, poolOf } from './machineView.js'
+import { machineBacklog, machineChain, machineCount, machineHeader,machineProjects, machineState, mergeQueue, poolOf } from './machineView.js'
 import type { ChainBlock } from './state.js'
 
 const card = (id: string, patch: Partial<MachineCard> = {}): MachineCard => ({
@@ -146,5 +146,16 @@ describe('machineHeader', () => {
     expect(view.chain.active.map((each) => each.current?.task)).toEqual(['ABC-2', 'DEF-1'])
     expect(view.chain.queue).toEqual(['DEF', 'ABC'])
     expect(view.sessions.map((each) => each.task)).toEqual(['ABC-2', 'DEF-1'])
+  })
+})
+
+describe('machineCount', () => {
+  it('gives the bare count while every machine is on the link', () => {
+    expect(machineCount([card('pc'), card('srv')])).toEqual({ text: '2', away: [] })
+  })
+
+  it('gives online/all and the names of the machines off the link', () => {
+    const cards = [card('pc'), card('srv', { name: 'Server', online: false }), card('box', { name: 'Box', online: false })]
+    expect(machineCount(cards)).toEqual({ text: '1/3', away: ['Server', 'Box'] })
   })
 })

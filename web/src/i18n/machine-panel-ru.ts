@@ -2,7 +2,9 @@
 export const machinePanelRu = {
   title: 'Машины',
   block: (count: number) => `Машины: ${count}. Вид цепи по машине`,
+  blockAway: (names: string) => `Не на связи: ${names}. Вид цепи по машине`,
   blockOne: (name: string) => `Вид машины «${name}»`,
+  blockOneAway: (name: string) => `Вид машины «${name}», она не на связи`,
   all: 'Все машины',
   allLine: 'вся цепь проекта',
   next: 'дальше:',

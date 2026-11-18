@@ -155,6 +155,12 @@ export function machineHeader(state: EvenKeelState, cards: readonly MachineCard[
   }
 }
 
+/** The header block's count (BTN-1310): the number of machines, or "online/all" with the names of those off the link. */
+export function machineCount(cards: readonly MachineCard[]): { text: string; away: string[] } {
+  const away = cards.filter((card) => !card.online).map((card) => card.name)
+  return { text: away.length === 0 ? `${cards.length}` : `${cards.length - away.length}/${cards.length}`, away }
+}
+
 /** The whole queue after a machine's view reordered its projects: they take the places they held, in the new order. */
 export function mergeQueue(full: readonly string[], order: readonly string[]): string[] {
   const named = new Set(order)
