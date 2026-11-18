@@ -143,7 +143,7 @@ export interface MachineServices {
 export const SERVICE_COMMANDS = {
   account: [
     'discoverGlobal', 'useGlobal', 'add', 'addApiKey', 'addCloud', 'addLongToken', 'readAws', 'readGcloud', 'readAzure', 'replaceApiKey',
-    'setManagementKey', 'renew', 'switchTo', 'switchApp', 'remove', 'keep', 'rename', 'resolveSettingsEdit', 'dropOwnSetting', 'code', 'cancel',
+    'setManagementKey', 'renew', 'switchTo', 'switchApp', 'remove', 'keep', 'rename', 'resolveSettingsEdit', 'dropOwnSetting', 'enableRemote', 'code', 'cancel',
   ],
   transcript: ['record', 'feed', 'image', 'inboxFile', 'sharedFile', 'note', 'context'],
   chat: ['post', 'dismiss', 'steer', 'saveInbox'],

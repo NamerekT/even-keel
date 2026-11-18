@@ -30,6 +30,7 @@ import {
   withIdentity,
   type AccountEntry,
   type AccountLogin,
+  type AccountStatus,
   type AccountView,
   type ReadBalance,
   type TokenAccountOf,
