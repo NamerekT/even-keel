@@ -46,10 +46,18 @@ export interface ProjectDraft {
    */
   target?: string
   /**
-   * A machine elsewhere the project runs on (BTN-1271): after the project is made here, it is cloned there and that
-   * machine becomes its only one. Absent — the hub's own machine.
+   * The machines elsewhere the project runs on (BTN-1271, BTN-1297): after the project is made here, each is connected
+   * in turn — a clone into a free folder there, or the clone already in it. Absent or empty — the hub's own machine only.
    */
-  machine?: string
+  machines?: DraftMachine[]
+  /** `false` — the hub's own machine does not run the project: it is turned off in the pool once a machine elsewhere is on. */
+  here?: boolean
+}
+
+/** A machine elsewhere of the wizard's project, with its folder there; none — the hub's folder name in the machine's folder of projects. */
+export interface DraftMachine {
+  machine: string
+  folder?: string
 }
 
 export type RepoSource = 'clone' | 'new' | 'existing'

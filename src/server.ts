@@ -212,6 +212,10 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'machines/list': async ({ machines }) => (await machines?.list()) ?? [],
   'machines/pool': async ({ pool }, body) => (await pool?.view(projectOf(body))) ?? { machines: [], others: [], servers: [] },
   'machines/cards': async ({ machineCards }) => (await machineCards?.()) ?? [],
+  'machines/folder': async ({ pool }, body) => {
+    if (pool === undefined) throw fail('machines.unknown', {})
+    return pool.probe(textOf(body.machine, 'machine'), textOf(body.folder, 'folder'), textOf(body.remote, 'remote'))
+  },
   'machines/view': async ({ machinePage }, body) => {
     if (machinePage === undefined) throw fail('machines.unknown', {})
     return machinePage.view(textOf(body.machine, 'machine'))

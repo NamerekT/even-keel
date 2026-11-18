@@ -11,6 +11,8 @@ export interface JobStep {
   /** When the step last began and, once done or failed, ended (ISO): the window counts the step's time (BTN-1099). */
   startedAt?: string
   endedAt?: string
+  /** Why a step of a group failed while the job went on (BTN-1297): the window shows it under the step. */
+  failure?: Notice
 }
 
 /**

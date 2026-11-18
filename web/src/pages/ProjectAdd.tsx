@@ -45,6 +45,9 @@ import { Status } from './TrackerFields.js'
 import { checkMarks } from './wizard.js'
 import { StepDot, WizardFoot, WizardFrame } from './WizardFrame.js'
 import { RepoStep } from './WizardRepo.js'
+import { useFolderProbes, useWizardMachines } from './WizardMachines.js'
+import { blockShown, machinesDraft, machinesMissing, remoteOf } from './machinePicks.js'
+import { stepOf } from '../../../src/jobs/model.js'
 import { TrackerStep } from './WizardTracker.js'
 import './settings.css'
 import './projectAdd.css'
@@ -185,12 +188,19 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     if (trackerShared) setMilestonesOpen(true)
   }, [trackerShared])
 
+  // The machines the project runs on (BTN-1297): those elsewhere take it through its remote, into a folder of their own.
+  const machines = useWizardMachines(state)
+  const remote = remoteOf(fields, repoCheck?.repo.read ?? null)
+  const hubName = lastPart(repoCheck?.repo.root ?? '')
+  const probes = useFolderProbes(fields, machines, remote, hubName)
+  const block = blockShown(fields, machines) ? { machines, remote, hubName, probes } : null
+
   // "Add" starts the service's job (BTN-1048): its window shows the steps, and opens the project once it is made.
   const job = state.jobs?.find((each) => each.kind === 'project')
   const add = async () => {
     if (!tablesValid(document.querySelector<HTMLElement>('.project-add__steps')!)) return
-    if (draft === undefined || !readyToAdd(check)) return
-    await send('project/add', { ...draft })
+    if (draft === undefined || !ready) return
+    await send('project/add', { ...draft, ...machinesDraft(fields, machines, remote, hubName) })
   }
   const open = (made: string | undefined) => {
     if (dropDemo && state.demo !== null) void send('demo/remove')
@@ -201,8 +211,9 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     if (made !== undefined) void navigate(projectPath(made))
   }
 
-  const ready = readyToAdd(check)
-  const missing = ready ? null : missingOf(fields, shape, check)
+  const machineGap = machinesMissing(fields, machines, remote, probes)
+  const ready = readyToAdd(check) && machineGap === null
+  const missing = ready ? null : (missingOf(fields, shape, check) ?? machineGap)
   const branchShown = fields.git && (branchOpen || badBranch || moves || (root !== null && current === null))
   const checks = stepChecks(fields, shape, check, repoCheck, agentCheck(state, agent), tracker)
   const marks = checkMarks(WIZARD_STEPS.map((step) => checks[step]))
@@ -260,6 +271,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               badBranch={badBranch}
               onBranchOpen={() => setBranchOpen(true)}
               onRecheck={() => setRound((count) => count + 1)}
+              block={block}
             />
           </Section>
           <Section title={t.wizard.stepTracker} mark={dot('tracker')} className="project-add__step">
@@ -368,7 +380,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             )}
           </Section>
         </div>
-        <ProjectSummary state={state} fields={fields} shape={shape} draft={draft} root={root} current={current} />
+        <ProjectSummary state={state} fields={fields} shape={shape} draft={draft} root={root} current={current} block={block} />
         {checkFailure !== null && <p className="notice notice--error">{say(checkFailure)}</p>}
         {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
         <WizardFoot
@@ -404,13 +416,19 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
         <JobWindow
           job={job}
           title={t.creation.window.title}
-          stepLabel={(id) => t.creation.window.steps[id] ?? id}
+          stepLabel={(id) => t.creation.window.steps[stepOf(id).step] ?? id}
+          groupOf={(id) => {
+            const machine = stepOf(id).project
+            return machine === undefined ? undefined : (state.machineNames?.[machine] ?? machine)
+          }}
           done={{ label: t.creation.window.open, onDone: () => open(job.result) }}
         />
       )}
     </div>
   )
 }
+
+const lastPart = (path: string): string => path.split(/[\\/]/).filter((part) => part !== '').pop() ?? ''
 
 function missingText(missing: Exclude<Missing, 'checking'>, fields: WizardFields, state: EvenKeelState): string {
   if (fields.tracker === BUILTIN && missing === 'project') return t.wizard.missing.field(t.wizard.ownKey)

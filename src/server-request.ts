@@ -8,7 +8,7 @@ import { EDIT_CHOICES, type EditChoice } from './account/settingsLayer.js'
 import { OWN_KEYS } from './settings/registry.js'
 import type { AnswerRequest } from './server.js'
 import type { Language } from './language.js'
-import type { CacheTtl, CheckpointShares, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectDraft, ProjectForm, SharedForm, Standard, StatsConfig } from './state.js'
+import type { CacheTtl, CheckpointShares, CiSettings, ContextScale, DraftMachine, FeedDraft, OwnValues, ProjectDraft, ProjectForm, SharedForm, Standard, StatsConfig } from './state.js'
 import type { ChainRules } from './chain/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import { DEFAULT_SHARES } from './stats/checkpoint.js'
@@ -97,7 +97,8 @@ export function draftOf(body: Record<string, unknown>): ProjectDraft {
   const { source } = body
   if (source !== undefined && source !== 'clone' && source !== 'new' && source !== 'existing') throw fail('request.required', { field: 'source' })
   // The one field of BTN-1093 is read by the service; a page from before it sends the source instead.
-  const optional = (field: 'remote' | 'folder' | 'target' | 'machine') => (body[field] === undefined ? {} : { [field]: textOf(body[field], field) })
+  const optional = (field: 'remote' | 'folder' | 'target') => (body[field] === undefined ? {} : { [field]: textOf(body[field], field) })
+  if (body.here !== undefined && typeof body.here !== 'boolean') throw fail('request.required', { field: 'here' })
   return {
     ...fields,
     profile,
@@ -109,7 +110,20 @@ export function draftOf(body: Record<string, unknown>): ProjectDraft {
     ...optional('remote'),
     ...optional('folder'),
     ...optional('target'),
-    ...optional('machine'),
+    ...draftMachinesOf(body.machines),
+    ...(body.here === false ? { here: false } : {}),
+  }
+}
+
+/** The wizard's machines elsewhere (BTN-1297): each an id and, if named, its folder there. */
+function draftMachinesOf(value: unknown): { machines?: DraftMachine[] } {
+  if (value === undefined) return {}
+  if (!Array.isArray(value)) throw fail('request.required', { field: 'machines' })
+  return {
+    machines: value.map((each: unknown) => {
+      const item = (each ?? {}) as Record<string, unknown>
+      return { machine: textOf(item.machine, 'machine'), ...(item.folder === undefined ? {} : { folder: textOf(item.folder, 'folder') }) }
+    }),
   }
 }
 

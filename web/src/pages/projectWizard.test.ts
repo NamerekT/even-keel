@@ -60,12 +60,6 @@ describe('draftOfFields', () => {
     })
   })
 
-  it('sends a machine elsewhere only when one is chosen for a git project (BTN-1271)', () => {
-    expect(draftOfFields(fields({}))).not.toHaveProperty('machine')
-    expect(draftOfFields(fields({ machine: 'machine-1' }))).toMatchObject({ machine: 'machine-1' })
-    expect(draftOfFields(fields({ machine: 'machine-1', git: false }))).not.toHaveProperty('machine')
-  })
-
   it('sends the one field as typed, for the service to read: blanks are its "nothing like a folder" (BTN-1093)', () => {
     expect(draftOfFields(fields({ target: '   ' }))).toMatchObject({ target: '   ' })
     expect(draftOfFields(fields({ target: 'D:/Projects/shop' }))).not.toHaveProperty('source')

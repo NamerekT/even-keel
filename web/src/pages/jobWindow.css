@@ -112,6 +112,14 @@
   gap: var(--space-4);
 }
 
+.job-window__failure {
+  margin: 0;
+}
+
+.job-window__failure + .job-window__failure {
+  margin-top: var(--space-6);
+}
+
 .job-window__bar {
   height: 4px;
   overflow: hidden;

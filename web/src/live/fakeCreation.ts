@@ -162,7 +162,8 @@ const upTo = (ids: string[], running: number): JobStep[] => {
  * `?job=connecting|enumerating|clone|lfs|lfs-missing|failed|refused|identity|packages|done` — the wizard's creation
  * window in that state: a clone before the server answers, while the server lists the objects, receiving objects, the
  * LFS files after it, a clone come whole whose LFS file the server lacks, a clone whose network broke off at 10%, one git refused for a reason it does not name, a new repository's first
- * commit refused for git's missing name and e-mail, the packages failing after the entry is written, a project made.
+ * commit refused for git's missing name and e-mail, the packages failing after the entry is written, a project made;
+ * `machines` — a project made on two machines elsewhere, one failed.
  */
 export function fakeJob(mode: string | null): StepJob | null {
   if (mode === 'connecting' || mode === 'enumerating') {
@@ -204,7 +205,25 @@ export function fakeJob(mode: string | null): StepJob | null {
     return job(steps, { failure: notice('job.packagesUnready', { packages: ['tasks@even-keel'] }), undoable: false, result: 'OPS' })
   }
   if (mode === 'done') return job(upTo(CLONE_STEPS, CLONE_STEPS.length), { done: true, undoable: false, result: 'OPS' })
+  if (mode === 'machines') return machinesJob()
   return null
+}
+
+/**
+ * `?job=machines` (BTN-1297, with `machines=signIn`): a project made with the laptop and the desktop, the laptop's
+ * steps stopped at the push check, its fix named by the laptop over the buttons, the desktop's done after it.
+ */
+function machinesJob(): StepJob {
+  const machine = ['machine-clone', 'machine-place', 'machine-repo', 'machine-remote', 'machine-branch', 'machine-trust', 'machine-packages', 'machine-push', 'machine-enable']
+  const done = upTo(CLONE_STEPS, CLONE_STEPS.length)
+  const failure = notice('pool.noPush', { remote: 'https://git.example.com/acme/example-app.git' })
+  const laptop = machine.map((step, index): JobStep => {
+    const id = `${step}@machine-1`
+    if (step === 'machine-push') return { id, state: 'failed', failure }
+    return index < machine.indexOf('machine-push') ? { id, state: 'done' } : { id, state: 'waiting' }
+  })
+  const desktop = machine.map((step): JobStep => ({ id: `${step}@machine-2`, state: 'done' }))
+  return job([...done, ...laptop, ...desktop], { failure, result: 'OPS' })
 }
 
 /**

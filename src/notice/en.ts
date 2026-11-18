@@ -168,6 +168,7 @@ export const en = {
   'pool.serverMissing': (p: { names: string }) => `The machine has no command of these servers of the project's packages: ${p.names}. Install it there, or set the server's command for this machine in the project's tab "Machines", then Retry`,
   'pool.noPush': (p: { remote: string }) => `The machine may not push to ${p.remote}: give its git account the right to push to the repository, then Retry`,
   'pool.folderNotEmpty': (p: { folder: string }) => `${p.folder} on the machine is not empty: a clone goes only into an empty folder, so name another one`,
+  'pool.foreignRepo': (p: { folder: string; remote: string }) => `${p.folder} on the machine holds another repository: none of its remotes is ${p.remote}, so name another folder`,
   'pool.outside': (p: { folder: string; root: string }) => `${p.folder} is outside the machine's folder of projects ${p.root}: Even Keel touches nothing on the machine outside it, so name a folder inside it`,
   'pool.ownMachine': () => 'This is the hub\'s own machine: its folder of the project is the one on the Repository tab',
   'pool.notInPool': () => 'The machine is not in this project\'s pool: connect it first',

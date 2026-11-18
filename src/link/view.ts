@@ -1,6 +1,14 @@
 /** What the page reads of the machines elsewhere: types only, the page takes them through `src/state.ts`. */
 
 import type { AccountLogin } from '../account/model.js'
+import type { Notice } from '../notice/notice.js'
+
+/**
+ * What a folder on a machine is to a project before the machine is connected (BTN-1297): `free` — absent or empty, a
+ * clone goes there; `clone` — a repository with one of the project's remotes, taken as it is; `taken` — anything else,
+ * with what to do about it.
+ */
+export type FolderProbe = { state: 'free' } | { state: 'clone' } | { state: 'taken'; notice: Notice }
 
 /** What a machine tells about itself when it joins and at every handshake: for the hub's page (BTN-1056, BTN-993). */
 export interface MachineAbout {

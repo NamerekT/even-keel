@@ -26,6 +26,11 @@ export interface StepDef {
    * run passes it by until it failed (BTN-1106: the LFS files downloaded again into the clone that came).
    */
   hidden?: boolean
+  /**
+   * Steps of one group stand apart from the rest (BTN-1297, each machine the wizard connects): one of them failing skips
+   * the rest of its group, its failure on the step, and the job goes on; the job fails once its steps are through.
+   */
+  group?: string
   run?(tools: StepTools): Promise<void>
 }
 
@@ -118,6 +123,7 @@ export class StepJobs {
     for (const step of job.states.values()) {
       if (step.state !== 'failed') continue
       step.state = 'waiting'
+      delete step.failure
       job.retried.add(step.id)
     }
     job.abort = new AbortController()
@@ -169,9 +175,11 @@ export class StepJobs {
       if (state === 'done' && step === plan.keptAfter) job.kept = true
       this.changed?.()
     }
+    const failedGroups = new Map<string, Notice>()
     for (const step of plan.steps) {
       if (step.run === undefined || job.states.get(step.id)!.state === 'done') continue
       if (step.hidden === true && !job.retried.has(step.id)) continue
+      if (step.group !== undefined && failedGroups.has(step.group)) continue
       let current = step.id
       const show = (progress: CloneProgress | undefined) => {
         const entry = job.states.get(current)!
@@ -197,15 +205,21 @@ export class StepJobs {
       } catch (error) {
         if (job.cancelled) return
         // A sub-step fails on its own, its parent done: Retry runs the sub-step's own `run`, or the parent again without one.
+        const failure = noticeOf(error)
+        let failed = step.id
         if (current !== step.id && plan.steps.some((each) => each.id === current && each.run !== undefined)) {
           mark(step.id, 'done')
-          mark(current, 'failed')
-        } else {
-          if (current !== step.id) mark(current, 'waiting')
-          mark(step.id, 'failed')
+          failed = current
+        } else if (current !== step.id) mark(current, 'waiting')
+        if (step.group !== undefined) job.states.get(failed)!.failure = failure
+        mark(failed, 'failed')
+        console.warn(`jobs: ${plan.kind} ${plan.subject}: the step ${step.id} failed: ${englishOf(failure)}${failure.detail === undefined ? '' : ` (${failure.detail})`}`)
+        if (step.group !== undefined) {
+          failedGroups.set(step.group, failure)
+          this.changed?.()
+          continue
         }
-        job.failure = noticeOf(error)
-        console.warn(`jobs: ${plan.kind} ${plan.subject}: the step ${step.id} failed: ${englishOf(job.failure)}${job.failure.detail === undefined ? '' : ` (${job.failure.detail})`}`)
+        job.failure = failure
         this.changed?.()
         return
       } finally {
@@ -214,6 +228,12 @@ export class StepJobs {
       if (job.cancelled) return
       if (current !== step.id) mark(step.id, 'done')
       mark(current, 'done')
+    }
+    const failure = failedGroups.values().next().value
+    if (failure !== undefined) {
+      job.failure = failure
+      this.changed?.()
+      return
     }
     job.done = true
     this.changed?.()

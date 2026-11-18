@@ -1,28 +1,35 @@
 import { describe, expect, it } from 'vitest'
 import type { CloneProgress } from '../git/clone-progress.js'
 import { StepJobs, type JobPlan } from '../jobs/runner.js'
-import type { FolderSpec, FolderStep } from '../machine/folder-check.js'
-import { fail, type Notice } from '../notice/notice.js'
+import type { FolderProbe, FolderSpec, FolderStep } from '../machine/folder-check.js'
+import { fail, notice, type Notice } from '../notice/notice.js'
 import type { PoolTarget } from './machine-network.js'
 import { JOIN_KIND, stepOf } from '../jobs/model.js'
-import { connectPlan, joinPlan, onMachine, type ConnectDeps, type PoolNetwork } from './machine-pool.js'
+import { connectPlan, joinPlan, onMachines, probeOn, type ConnectDeps, type PoolNetwork } from './machine-pool.js'
 
 const PROJECT = '11111111-1111-4111-8111-111111111111'
 const LAPTOP = '99999999-9999-4999-8999-999999999999'
 const OWN = '88888888-8888-4888-8888-888888888888'
 const TARGET: PoolTarget = { id: LAPTOP, name: 'Example laptop', root: '/home/example/projects' }
+const MINI = '77777777-7777-4777-8777-777777777777'
+const MINI_TARGET: PoolTarget = { id: MINI, name: 'Example mini', root: '/Users/example/projects' }
 
 /** The hub's network as the job sees it: each call recorded, the checks answered from `refusals`. */
 function fakeNetwork() {
   const calls: string[] = []
   const refusals: Partial<Record<FolderStep, Notice>> = {}
+  const probes: Record<string, FolderProbe> = {}
   let shown: ((progress: CloneProgress) => void) | undefined
   const network: PoolNetwork = {
     target: async (machine) => {
       if (machine === OWN) throw fail('pool.ownMachine', {})
-      return TARGET
+      return machine === MINI ? MINI_TARGET : TARGET
     },
     folders: () => ({
+      probe: async (spec) => {
+        calls.push(`probe ${spec.project} ${spec.folder} ${spec.remotes.join(' ')}`)
+        return probes[spec.folder] ?? { state: 'free' }
+      },
       check: async (step: FolderStep, spec: FolderSpec) => {
         calls.push(`check ${step} ${spec.folder}`)
         return refusals[step] ?? null
@@ -43,7 +50,7 @@ function fakeNetwork() {
     unplace: async (machine, project) => void calls.push(`unplace ${machine} ${project}`),
     setEnabled: async (project, machine, enabled) => void calls.push(`enable ${project} ${machine} ${enabled}`),
   }
-  return { network, calls, refusals }
+  return { network, calls, refusals, probes }
 }
 
 const depsOf = (network: PoolNetwork): ConnectDeps => ({
@@ -122,10 +129,12 @@ describe('connecting a machine to a project', () => {
     await expect(connectPlan(depsOf(network), PROJECT, { machine: OWN, clone: false })).rejects.toThrow(/hub's own machine/)
   })
 
-  it("runs the wizard's project on the machine alone once the project is made", async () => {
-    const { network, calls } = fakeNetwork()
+})
+
+describe("the wizard's machines (BTN-1297)", () => {
+  const creationOf = (calls: string[]): JobPlan => {
     let made: string | undefined
-    const creation: JobPlan = {
+    return {
       kind: 'project',
       subject: 'D:\\repos\\abc',
       steps: [{ id: 'project', run: async () => void (made = PROJECT) }],
@@ -133,11 +142,48 @@ describe('connecting a machine to a project', () => {
       result: () => made,
       undo: async () => void calls.push('undo the project'),
     }
-    const { view } = await run(await onMachine(depsOf(network), creation, LAPTOP))
+  }
+
+  it('connects each machine once the project is made, a clone into a free folder, a clone already there taken as it is', async () => {
+    const { network, calls, probes } = fakeNetwork()
+    probes['/Users/example/projects/abc'] = { state: 'clone' }
+    const plan = await onMachines(depsOf(network), creationOf(calls), [{ machine: LAPTOP, folder: '/home/example/projects/apps/abc' }, { machine: MINI }], true)
+    const { view } = await run(plan)
     expect(view()).toMatchObject({ kind: 'project', done: true, result: PROJECT })
-    expect(view().steps[0]?.id).toBe('project')
-    expect(calls.slice(0, 2)).toEqual(['clone https://forge.example.com/team/abc.git /home/example/projects/abc', `place ${PROJECT} /home/example/projects/abc`])
+    expect(view().steps.map((step) => step.id).slice(0, 3)).toEqual(['project', `machine-clone@${LAPTOP}`, `machine-place@${LAPTOP}`])
+    expect(calls).toContain(`probe ${PROJECT} /home/example/projects/apps/abc https://forge.example.com/other/abc.git https://forge.example.com/team/abc.git`)
+    expect(calls).toContain('clone https://forge.example.com/team/abc.git /home/example/projects/apps/abc')
+    expect(calls.filter((call) => call.startsWith('clone'))).toHaveLength(1)
+    expect(calls).toContain(`place ${PROJECT} /Users/example/projects/abc`)
+    // The hub stays in the pool: only an unticked hub is turned off.
+    expect(calls.filter((call) => call.startsWith('enable'))).toEqual([`enable ${PROJECT} ${LAPTOP} true`, `enable ${PROJECT} ${MINI} true`])
+  })
+
+  it('turns the hub off once a machine is on when the hub is not ticked', async () => {
+    const { network, calls } = fakeNetwork()
+    await run(await onMachines(depsOf(network), creationOf(calls), [{ machine: LAPTOP }], false))
     expect(calls.slice(-2)).toEqual([`enable ${PROJECT} ${LAPTOP} true`, `enable ${PROJECT} ${OWN} false`])
+  })
+
+  it("a machine whose folder is taken fails alone: the next one is connected, the failure stays on that machine's step", async () => {
+    const { network, calls, probes } = fakeNetwork()
+    const taken = notice('pool.foreignRepo', { folder: '/home/example/projects/abc', remote: 'https://forge.example.com/other/abc.git' })
+    probes['/home/example/projects/abc'] = { state: 'taken', notice: taken }
+    const { view } = await run(await onMachines(depsOf(network), creationOf(calls), [{ machine: LAPTOP }, { machine: MINI }], true))
+    expect(view()).toMatchObject({ done: false, failure: taken, result: PROJECT })
+    expect(view().steps.find((step) => step.id === `machine-clone@${LAPTOP}`)).toMatchObject({ state: 'failed', failure: taken })
+    expect(view().steps.find((step) => step.id === `machine-enable@${MINI}`)).toMatchObject({ state: 'done' })
+    expect(calls).not.toContain(`place ${PROJECT} /home/example/projects/abc`)
+  })
+
+  it('probes a folder inside the machine folder of projects only, for a project not made yet', async () => {
+    const { network, calls } = fakeNetwork()
+    expect(await probeOn(network, LAPTOP, '/home/example/projects/abc', 'https://forge.example.com/team/abc.git')).toEqual({ state: 'free' })
+    expect(calls).toEqual(['probe draft /home/example/projects/abc https://forge.example.com/team/abc.git'])
+    expect(await probeOn(network, LAPTOP, '/srv/abc', 'https://forge.example.com/team/abc.git')).toEqual({
+      state: 'taken',
+      notice: { code: 'pool.outside', params: { folder: '/srv/abc', root: '/home/example/projects' } },
+    })
   })
 })
 

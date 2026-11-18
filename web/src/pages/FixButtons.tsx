@@ -60,12 +60,12 @@ export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 
 }
 
 /** Opens "Add account" over the page with the machine picked as the place it signs in (BTN-1308). */
-function AddOnButton({ machine, className }: { machine: string; className: string }) {
+export function AddOnButton({ machine, className, label = t.fix.addOn, disabled = false }: { machine: string; className: string; label?: string; disabled?: boolean }) {
   const location = useLocation()
   const navigate = useNavigate()
   return (
-    <button type="button" className={className} onClick={() => void navigate({ pathname: location.pathname, search: withPlace(withAdd(location.search, null), machine) }, { state: { adding: 1 } })}>
-      {t.fix.addOn}
+    <button type="button" className={className} disabled={disabled} onClick={() => void navigate({ pathname: location.pathname, search: withPlace(withAdd(location.search, null), machine) }, { state: { adding: 1 } })}>
+      {label}
     </button>
   )
 }

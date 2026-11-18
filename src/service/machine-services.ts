@@ -5,7 +5,7 @@ import type { CloneProgress } from '../git/clone-progress.js'
 import { cloner, type Clone } from '../git/remote-run.js'
 import { runGit } from '../git/run.js'
 import type { Git } from '../git/types.js'
-import { checkFolderStep, cloneTarget } from '../machine/folder-check.js'
+import { checkFolderStep, cloneTarget, probeFolder } from '../machine/folder-check.js'
 import { fail } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
 import { fromCarried, toCarried, type CarriedFile, type MachineServices } from '../machine/services.js'
@@ -121,6 +121,7 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
         // A folder Even Keel made is trusted by it, as a project the wizard clones.
         if (spec.claude) for (const file of ctx.claudeConfigs()) trustFolder(file, spec.folder)
       },
+      probe: (spec) => probeFolder(deps.git ?? runGit, spec.folder, spec.remotes),
     },
     chats: deps.chats ?? noChats,
   }

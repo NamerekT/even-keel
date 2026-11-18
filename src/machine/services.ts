@@ -4,7 +4,7 @@ import type { CloneProgress } from '../git/clone-progress.js'
 import type { AccountControl } from '../server-control.js'
 import type { Notice } from '../notice/notice.js'
 import type { Mail } from '../sessions/mail.js'
-import type { FolderSpec, FolderStep } from './folder-check.js'
+import type { FolderProbe, FolderSpec, FolderStep } from './folder-check.js'
 
 /** A file read on the machine or sent to it, carried through the link whole as base64. */
 export interface CarriedFile {
@@ -94,7 +94,15 @@ export interface MachineFolders {
   check(step: FolderStep, spec: FolderSpec): Promise<Notice | null>
   /** Clones `remote` into the folder, absent or empty, and trusts it for Claude Code; the progress goes as `CLONE_PROGRESS_EVENT`. */
   clone(spec: FolderSpec, remote: string): Promise<void>
+  /**
+   * What the folder is to a project with these remotes before the machine is connected to it (BTN-1297). A project the
+   * wizard has not made yet is named `DRAFT_PROJECT`: the machine runs it only inside its folder of projects.
+   */
+  probe(spec: Pick<FolderSpec, 'project' | 'folder' | 'remotes'>): Promise<FolderProbe>
 }
+
+/** The project a probe of the wizard names before the project is made: no machine agreed to it. */
+export const DRAFT_PROJECT = 'draft'
 
 /** The event of a clone's progress on the machine. */
 export const CLONE_PROGRESS_EVENT = 'folders.progress'
@@ -140,7 +148,7 @@ export const SERVICE_COMMANDS = {
   transcript: ['record', 'feed', 'image', 'inboxFile', 'sharedFile', 'note', 'context'],
   chat: ['post', 'dismiss', 'steer', 'saveInbox'],
   records: ['restore'],
-  folders: ['check', 'clone'],
+  folders: ['check', 'clone', 'probe'],
   chats: ['launch', 'send', 'stop', 'title'],
 } as const satisfies { [G in keyof MachineServices]: ReadonlyArray<keyof MachineServices[G]> }
 

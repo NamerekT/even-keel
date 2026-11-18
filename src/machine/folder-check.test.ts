@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Git, GitResult } from '../git/types.js'
 import { NoticeError } from '../notice/notice.js'
-import { checkFolderStep, cloneTarget, throwOf, type FolderCheckDeps, type FolderSpec } from './folder-check.js'
+import { checkFolderStep, cloneTarget, probeFolder, throwOf, type FolderCheckDeps, type FolderSpec } from './folder-check.js'
 
 const spec: FolderSpec = { project: 'p1', folder: '/work/abc', remotes: ['https://forge.example.com/team/abc.git'], branch: 'trunk', claude: true }
 
@@ -124,6 +124,31 @@ describe('cloneTarget', () => {
       expect(() => cloneTarget(join(root, 'empty'))).not.toThrow()
       writeFileSync(join(root, 'empty', 'file'), 'x')
       expect(() => cloneTarget(join(root, 'empty'))).toThrow(NoticeError)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('probeFolder', () => {
+  const remotes = ['https://forge.example.com/team/abc.git']
+
+  it('free: absent or empty; a clone of the remote; anything else refused with what to do (BTN-1297)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'probe-folder-'))
+    try {
+      expect(await probeFolder(gitOf({}), join(root, 'absent'), remotes)).toEqual({ state: 'free' })
+      mkdirSync(join(root, 'empty'))
+      expect(await probeFolder(gitOf({}), join(root, 'empty'), remotes)).toEqual({ state: 'free' })
+      const filled = join(root, 'filled')
+      mkdirSync(filled)
+      writeFileSync(join(filled, 'file'), 'x')
+      expect(await probeFolder(gitOf({}), filled, remotes)).toEqual({ state: 'taken', notice: { code: 'pool.folderNotEmpty', params: { folder: filled } } })
+      const repo = { 'rev-parse --is-inside-work-tree': ok('true\n') }
+      const same = gitOf({ ...repo, [REMOTES]: ok('remote.origin.url git@forge.example.com:team/abc\n') })
+      expect(await probeFolder(same, filled, remotes)).toEqual({ state: 'clone' })
+      const other = gitOf({ ...repo, [REMOTES]: ok('remote.origin.url https://forge.example.com/team/other.git\n') })
+      expect(await probeFolder(other, filled, remotes)).toEqual({ state: 'taken', notice: { code: 'pool.foreignRepo', params: { folder: filled, remote: remotes[0] } } })
+      expect(await probeFolder(async () => ({ code: 1, out: '', missing: true }), filled, remotes)).toMatchObject({ state: 'taken', notice: { code: 'pool.noGit' } })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

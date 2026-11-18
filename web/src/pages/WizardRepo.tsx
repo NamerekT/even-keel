@@ -13,7 +13,7 @@ import { cloneTyped, folderView, pathTyped, type WizardFields } from './projectW
 import { RefusalWords } from './RefusalWords.js'
 import { isRemoteRefusal } from './remoteRefusal.js'
 import { FieldHead, Row } from './settingsParts.js'
-import { WizardMachine } from './WizardMachine.js'
+import { MachinesBlock, type MachinesBlockProps } from './WizardMachines.js'
 import { stepPath } from './setupSteps.js'
 import { Status } from './TrackerFields.js'
 import { trustTexts } from '../i18n/trust.js'
@@ -60,6 +60,8 @@ interface RepoStepProps {
   badBranch: boolean
   onBranchOpen: () => void
   onRecheck: () => void
+  /** The block "Machines" in place of the folder line (BTN-1297); `null` — hidden: no git, or the hub has no machine elsewhere. */
+  block: Pick<MachinesBlockProps, 'machines' | 'remote' | 'hubName' | 'probes'> | null
 }
 
 /**
@@ -69,7 +71,7 @@ interface RepoStepProps {
  * line under it saying how it was read. A clone has its own folder line under the branch; a project without git only
  * the folder line. Git that does not start closes git, with the way to the setup's Git step.
  */
-export function RepoStep({ state, fields, set, repoCheck, repoPending, current, branches, branchShown, badBranch, onBranchOpen, onRecheck }: RepoStepProps) {
+export function RepoStep({ state, fields, set, repoCheck, repoPending, current, branches, branchShown, badBranch, onBranchOpen, onRecheck, block }: RepoStepProps) {
   const ready = gitReadiness(state)
   const repo = repoCheck?.repo ?? null
   const refusal = repo?.notice ?? null
@@ -128,7 +130,6 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
           </span>
         )}
       </Row>
-      <WizardMachine fields={fields} set={set} />
       {fields.git && (
         <div className="settings__field">
           <FieldHead label={t.creation.target} hint={t.creation.targetHint} htmlFor="wizard-target" />
@@ -149,7 +150,27 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
         </div>
       )}
       {branchRow}
-      {(!fields.git || clone) && <FolderLine state={state} fields={fields} set={set} repo={repo} pending={repoPending} hideRefusal={fields.git && !folderRefusal} />}
+      {block === null
+        ? (!fields.git || clone) && <FolderLine state={state} fields={fields} set={set} repo={repo} pending={repoPending} hideRefusal={fields.git && !folderRefusal} />
+        : (
+          <MachinesBlock
+            state={state}
+            fields={fields}
+            set={set}
+            {...block}
+            newFolder={read?.as !== 'existing'}
+            hubFolder={
+              clone ? (
+                <FolderLine state={state} fields={fields} set={set} repo={repo} pending={repoPending} hideRefusal={!folderRefusal} bare />
+              ) : (
+                <p className="wizard-machines__from">
+                  <bdi className="project-add__path">{repo?.root ?? fields.target.trim()}</bdi>
+                  <span className="settings__hint">{t.pool.wizard.fromField}</span>
+                </p>
+              )
+            }
+          />
+        )}
       {repoCheck?.trusted === false && <p className="settings__hint">{trustTexts().pending}</p>}
       {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
     </>
@@ -275,6 +296,7 @@ function FolderLine({
   repo,
   pending,
   hideRefusal,
+  bare = false,
 }: {
   state: EvenKeelState
   fields: WizardFields
@@ -282,6 +304,8 @@ function FolderLine({
   repo: ProjectCheck['repo'] | null
   pending: boolean
   hideRefusal: boolean
+  /** Inside the hub's row of the block "Machines" (BTN-1297): the row's head names it, so no head of its own. */
+  bare?: boolean
 }) {
   const place = repo?.place
   const refusal = hideRefusal ? null : (repo?.notice ?? null)
@@ -301,10 +325,11 @@ function FolderLine({
   const separator = dir !== null && !dir.includes('\\') ? '/' : state.platform === 'win32' ? '\\' : '/'
   return (
     <div className="settings__field">
-      <FieldHead label={t.creation.folder} hint={hint} htmlFor="wizard-folder" />
+      {!bare && <FieldHead label={t.creation.folder} hint={hint} htmlFor="wizard-folder" />}
       {typed ? (
         <input
           id="wizard-folder"
+          aria-label={bare ? t.creation.folder : undefined}
           className="settings__text settings__text--mono"
           autoComplete="off"
           spellCheck={false}
@@ -325,6 +350,7 @@ function FolderLine({
           )}
           <input
             id="wizard-folder"
+            aria-label={bare ? t.creation.folder : undefined}
             className="settings__text settings__text--mono project-add__name"
             autoComplete="off"
             spellCheck={false}

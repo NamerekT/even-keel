@@ -1,6 +1,7 @@
 import { notice } from '../../../src/notice/notice.js'
 import { MACHINE_PALETTE, machineColors } from '../../../src/link/colors.js'
 import { JOIN_KIND, type JoinRequest } from '../../../src/jobs/model.js'
+import type { FolderProbe } from '../../../src/link/view.js'
 import type { EvenKeelState, JobStep, MachineAbout, MachineCard, MachineInvite, MachinePage, MachineProject, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
 
 /** A string issued in `dev:fake` is joined with this much later (BTN-1056). */
@@ -38,8 +39,10 @@ export class FakeNetwork {
       : { gitUser: false, gitName: undefined }
     this.machines = [
       joined('machine-1', 'Example laptop', about('example-laptop', laptop), mode !== 'offline' && mode !== 'follow'),
-      joined('machine-2', 'Example desktop', about('example-desktop', { os: 'win32 10.0.26200', agents: { claude: '2.1.322', codex: '0.98.0' } }), true),
+      joined('machine-2', 'Example desktop', about('example-desktop', { os: 'win32 10.0.26200', agents: { claude: '2.1.322', codex: '0.98.0' }, root: 'D:/Projects' }), true),
     ]
+    // The wizard's block (BTN-1297) shows each state of a row: a third machine, off the link.
+    if (mode === 'signIn') this.machines.push(joined('machine-3', 'Example mini', about('example-mini', { os: 'darwin 24.1.0' }), false))
   }
 
   on(listener: () => void): () => void {
@@ -51,6 +54,7 @@ export class FakeNetwork {
   query(name: string, body: Record<string, unknown>): unknown {
     if (name === 'machines/list') return this.machines.map((machine) => ({ ...machine }))
     if (name === 'machines/pool') return this.poolOf(String(body.project))
+    if (name === 'machines/folder') return folderProbe(String(body.folder), String(body.remote ?? ''))
     if (name !== 'machines/invite') return undefined
     const id = `machine-${this.machines.length + 1}`
     const given = String(body.name ?? '').trim()
@@ -135,12 +139,19 @@ export class FakeNetwork {
         id, name: names[id] ?? id, color: colors[id]!, own: id === own, online,
         offlineSince: online ? null : Date.now() - 2 * 3_600_000,
         gitUser: id === 'machine-1' ? this.mode === 'nocli' : true,
-        agents: id === own || id === 'machine-2' ? ['claude', 'codex'] : ['claude'],
+        agents: this.agentsOf(state, id, id === own),
         limitedUntil: id === 'machine-2' && this.mode === 'limit' ? { claude: until.toISOString() } : {},
         projects: pooled,
         ...this.cardAccounts(state, id, id === own, until),
       }
     })
+  }
+
+  /** The agents a machine has a signed-in account of: with `?machines=signIn` a machine elsewhere's are those its sign-ins posted. */
+  private agentsOf(state: EvenKeelState, id: string, own: boolean): string[] {
+    const posted = own || this.mode !== 'signIn' ? undefined : state.machineSignIns?.find((each) => each.machine === id)
+    if (posted !== undefined) return [...new Set(posted.accounts.filter((each) => each.signedIn).map((each) => each.agent))]
+    return own || id === 'machine-2' ? ['claude', 'codex'] : ['claude']
   }
 
   /**
@@ -283,9 +294,18 @@ export const FAKE_MACHINE_NAMES: Record<string, string> = { [OWN]: OWN_NAME, 'ma
 /** `?machines=many` (BTN-1309): seven more machines elsewhere, ten with the hub's own. */
 const MANY_NODES = [3, 4, 5, 6, 7, 8, 9]
 
-/** The machine names of a `?machines=…` mode. */
+/** The machine names of a `?machines=…` mode: `signIn` has a third machine elsewhere, off the link, for the wizard (BTN-1297). */
 export const fakeMachineNames = (mode: string | null): Record<string, string> =>
-  mode === 'many' ? { ...FAKE_MACHINE_NAMES, ...Object.fromEntries(MANY_NODES.map((node) => [`machine-${node}`, `Example node ${node}`])) } : FAKE_MACHINE_NAMES
+  mode === 'many' ? { ...FAKE_MACHINE_NAMES, ...Object.fromEntries(MANY_NODES.map((node) => [`machine-${node}`, `Example node ${node}`])) }
+  : mode === 'signIn' ? { ...FAKE_MACHINE_NAMES, 'machine-3': 'Example mini' }
+  : FAKE_MACHINE_NAMES
+
+/**
+ * The wizard's probe of a folder on a machine (BTN-1297): a name with `clone` holds the project's clone, one with `taken`
+ * another repository, any other is free.
+ */
+const folderProbe = (folder: string, remote: string): FolderProbe =>
+  folder.includes('clone') ? { state: 'clone' } : folder.includes('taken') ? { state: 'taken', notice: notice('pool.foreignRepo', { folder, remote }) } : { state: 'free' }
 
 /** The state's machine colours and own machine where `dev:fake` has several machines (BTN-1272): the palette's, `pc` own. */
 export const fakeMachineColors = (names: Record<string, string>): Pick<EvenKeelState, 'machineColors' | 'ownMachine'> => ({

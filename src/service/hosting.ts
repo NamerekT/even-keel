@@ -34,7 +34,7 @@ import { trustFolder } from '../claude/trust.js'
 import { gitSwitchBlock, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
 import { removalBlock } from '../projects/removal.js'
 import { remotesIn, sameRepository } from '../projects/remotes.js'
-import { onMachine, poolControl } from './machine-pool.js'
+import { onMachines, poolControl } from './machine-pool.js'
 import { machinePageControl } from './machine-page.js'
 import { machineCards } from './machine-cards.js'
 import { machineAbout } from '../machine/about.js'
@@ -514,7 +514,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       branches: (project) => ctx.branches.branches(project),
       adoptBranch: (project) => ctx.branches.adopt(project),
       restoreBranch: (project) => ctx.branches.restore(project),
-      add: async ({ machine, ...draft }) => {
+      add: async ({ machines, here, ...draft }) => {
         const plan = await creationPlan(
           {
             git: runGit,
@@ -534,7 +534,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
           // The wizard's one field read into the source the steps take (BTN-1093).
           await sourcedDraft(runGit, draft, ctx.configStore.raw()),
         )
-        stepJobs.start(machine === undefined ? plan : await onMachine(pool.deps, plan, machine))
+        stepJobs.start(machines === undefined || machines.length === 0 ? plan : await onMachines(pool.deps, plan, machines, here !== false))
       },
       remove: (project) => {
         const repo = ctx.configStore.current.projects[project]

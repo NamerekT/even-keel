@@ -173,7 +173,7 @@ export function CardLine({ view, now }: { view: MachineState; now: Date }) {
 }
 
 /** A coarse span: minutes, hours or days. */
-function spanOf(ms: number): string {
+export function spanOf(ms: number): string {
   const minutes = Math.max(1, Math.floor(ms / 60_000))
   if (minutes < 60) return `${minutes} ${t.units.minute}`
   const hours = Math.floor(minutes / 60)

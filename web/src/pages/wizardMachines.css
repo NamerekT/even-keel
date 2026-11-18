@@ -1,0 +1,119 @@
+/* The wizard's block "Machines" (BTN-1297): a nested list of the hub's machines, the ticked ones open with their folder. */
+
+.wizard-machines {
+  gap: var(--space-8);
+}
+
+.wizard-machines__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.wizard-machines__list > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.wizard-machines__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6) var(--space-8);
+  min-height: 38px;
+  padding: var(--space-6) var(--space-12);
+  font-size: var(--text-14);
+  cursor: pointer;
+}
+
+.wizard-machines__head:hover {
+  background: color-mix(in srgb, var(--fg) 6%, var(--surface-muted));
+}
+
+.wizard-machines__machine--off .wizard-machines__head {
+  cursor: default;
+}
+
+.wizard-machines__machine--off .wizard-machines__head:hover {
+  background: none;
+}
+
+/* A machine that cannot take the project now is greyed whole, its reason at the right staying readable. */
+.wizard-machines__machine--off .wizard-machines__head > :not(.wizard-machines__why) {
+  opacity: 0.55;
+}
+
+.wizard-machines__dot {
+  --machine: var(--series-other);
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--machine);
+}
+
+.wizard-machines__name {
+  font-weight: 600;
+}
+
+/* Over the shared `.chip`'s muted fill, which loads later. */
+.chip.wizard-machines__online {
+  background: color-mix(in srgb, var(--lamp-done) 16%, transparent);
+  color: var(--fg);
+}
+
+.wizard-machines__muted {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.wizard-machines__why {
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+/* The open row: its folder under the head, in from the box's left edge past the box and the dot. */
+.wizard-machines__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 0 var(--space-12) var(--space-12) calc(var(--space-12) + var(--space-24));
+  animation: fade-in var(--motion-fold) ease-out;
+}
+
+.wizard-machines__body .settings__field {
+  margin: 0;
+}
+
+.wizard-machines__from {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-8);
+  margin: 0;
+}
+
+.wizard-machines__from .project-add__path {
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.wizard-machines__band {
+  margin-top: var(--space-4);
+}
+
+.wizard-machines__accounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard-machines__body {
+    animation: none;
+  }
+}

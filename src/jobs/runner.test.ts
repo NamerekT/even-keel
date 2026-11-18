@@ -227,6 +227,34 @@ describe('StepJobs', () => {
     expect(() => jobs.retry(id)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'job.notFailed' }) }))
     expect(() => jobs.retry('nope')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'job.unknown' }) }))
   })
+
+  it('goes on past a failed step of a group, its failure on the step; Retry runs that group on (BTN-1297)', async () => {
+    const jobs = new StepJobs()
+    let refuse = true
+    const ran: string[] = []
+    const step = (id: string, group?: string) => ({
+      id,
+      ...(group !== undefined && { group }),
+      run: async () => {
+        if (id === 'a1' && refuse) throw fail('pool.noGit', {})
+        ran.push(id)
+      },
+    })
+    const id = jobs.start(plan([step('project'), step('a1', 'a'), step('a2', 'a'), step('b1', 'b'), step('b2', 'b')]))
+    await jobs.settled(id)
+    expect(ran).toEqual(['project', 'b1', 'b2'])
+    expect(states(jobs)).toEqual(['project:done', 'a1:failed', 'a2:waiting', 'b1:done', 'b2:done'])
+    const job = jobs.view()[0]!
+    expect(job).toMatchObject({ done: false, failure: { code: 'pool.noGit' } })
+    expect(job.steps[1]?.failure).toMatchObject({ code: 'pool.noGit' })
+    expect(job.steps[0]?.failure).toBeUndefined()
+    refuse = false
+    jobs.retry(id)
+    await jobs.settled(id)
+    expect(ran).toEqual(['project', 'b1', 'b2', 'a1', 'a2'])
+    expect(jobs.view()[0]).toMatchObject({ done: true, failure: null })
+    expect(jobs.view()[0]!.steps.every((each) => each.failure === undefined)).toBe(true)
+  })
 })
 
 describe('StepJobs: the end of a stage (BTN-1102)', () => {

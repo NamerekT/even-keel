@@ -2,8 +2,10 @@ import type { Remote } from '../ci/remote.js'
 import { JOIN_KIND, type JoinRequest } from '../jobs/model.js'
 import type { JobPlan, StepDef } from '../jobs/runner.js'
 import type { MachineProjectSettings } from '../link/view.js'
-import { FOLDER_STEPS, throwOf, type FolderSpec } from '../machine/folder-check.js'
-import { fail } from '../notice/notice.js'
+import { FOLDER_STEPS, throwOf, type FolderProbe, type FolderSpec } from '../machine/folder-check.js'
+import { DRAFT_PROJECT } from '../machine/services.js'
+import type { DraftMachine } from '../projects/state.js'
+import { fail, notice, NoticeError } from '../notice/notice.js'
 import { folderUnder, insideRoot, type MachineNetwork, type PoolTarget } from './machine-network.js'
 
 /** The job's kind: the page's window names its steps (`machine-<step>`). */
@@ -33,8 +35,11 @@ export interface ConnectRequest {
   machine: string
   /** The folder on the machine; absent — the hub's folder name inside the machine's folder of projects. */
   folder?: string
-  /** The folder is made by a clone of the project's remote first. */
-  clone: boolean
+  /**
+   * The folder is made by a clone of the project's remote first; `auto` — the folder decides (BTN-1297): a clone into
+   * a free one, a clone of the project already there taken as it is, anything else refused.
+   */
+  clone: boolean | 'auto'
   /** The machine becomes the project's only one: the wizard's choice of where a new project runs. */
   only?: boolean
   /** A machine of the pool whose own values in the project the machine takes, before the checks (BTN-994). */
@@ -70,6 +75,11 @@ export function connectSteps(deps: ConnectDeps, project: () => string, target: P
       const remote = cloneRemote(facts!.remotes)
       if (remote === undefined) throw fail('pool.hubNoRemote', {})
       const folders = deps.network.folders(target)
+      if (request.clone === 'auto') {
+        const probe = await folders.probe({ project: each.project, folder: each.folder, remotes: each.remotes })
+        if (probe.state === 'clone') return
+        if (probe.state === 'taken') throw new NoticeError(probe.notice)
+      }
       const stop = deps.network.watchClone(target.id, each.project, progress)
       try {
         await folders.clone(each, remote.url)
@@ -103,7 +113,7 @@ export function connectSteps(deps: ConnectDeps, project: () => string, target: P
     },
   }
   return {
-    steps: [...(request.clone ? [clone] : []), place, ...checks, enable],
+    steps: [...(request.clone !== false ? [clone] : []), place, ...checks, enable],
     // A project already connected stays: in a job over several, Cancel takes back only the rest.
     undo: async () => {
       if (inserted && !enabled && spec !== undefined) await deps.network.unplace(target.id, spec.project)
@@ -141,25 +151,42 @@ export async function connectPlan(deps: ConnectDeps, project: string, request: C
 }
 
 /**
- * The wizard's project made to run on a machine elsewhere: after the project's own steps, a clone of it there that
- * becomes the project's only machine. Cancel before the project is kept takes back both.
+ * The wizard's project made to run on machines elsewhere (BTN-1297): after the project's own steps, each machine is
+ * connected in turn, the folder deciding between a clone and a clone already there. Each machine's steps are a group:
+ * one machine failing leaves the rest to go on, and Retry takes it up again. `here` false turns the hub's own machine
+ * off as soon as a machine elsewhere is on. Cancel before the project is kept takes back all.
  */
-export async function onMachine(deps: ConnectDeps, plan: JobPlan, machine: string): Promise<JobPlan> {
-  const target = await deps.network.target(machine)
+export async function onMachines(deps: ConnectDeps, plan: JobPlan, machines: DraftMachine[], here: boolean): Promise<JobPlan> {
   const project = () => {
     const made = plan.result?.()
     if (made === undefined) throw new Error('the project is not made yet')
     return made
   }
-  const connect = connectSteps(deps, project, target, { machine, clone: true, only: true })
+  const each = await Promise.all(
+    machines.map(async ({ machine, folder }) => {
+      const target = await deps.network.target(machine)
+      const made = connectSteps(deps, project, target, { machine, clone: 'auto', only: !here, ...(folder !== undefined && { folder }) })
+      return { steps: made.steps.map((step) => ({ ...step, id: `${step.id}@${machine}`, group: machine })), undo: made.undo }
+    }),
+  )
   return {
     ...plan,
-    steps: [...plan.steps, ...connect.steps],
+    steps: [...plan.steps, ...each.flatMap((part) => part.steps)],
     undo: async () => {
-      await connect.undo()
+      for (const part of each) await part.undo()
       await plan.undo()
     },
   }
+}
+
+/**
+ * What a folder on a machine elsewhere is to a project with the remote `remote` (BTN-1297), for the wizard before the
+ * project is made: outside the machine's folder of projects it is refused here, never asked there.
+ */
+export async function probeOn(network: Pick<PoolNetwork, 'target' | 'folders'>, machine: string, folder: string, remote: string): Promise<FolderProbe> {
+  const target = await network.target(machine)
+  if (!insideRoot(folder, target.root)) return { state: 'taken', notice: notice('pool.outside', { folder, root: target.root }) }
+  return network.folders(target).probe({ project: DRAFT_PROJECT, folder, remotes: [remote] })
 }
 
 export interface PoolControlDeps extends ConnectDeps {
@@ -180,5 +207,6 @@ export function poolControl(deps: PoolControlDeps) {
     join: async (machine: string, requests: JoinRequest[]) => {
       deps.start(await joinPlan(deps, machine, requests))
     },
+    probe: (machine: string, folder: string, remote: string) => probeOn(deps.network, machine, folder, remote),
   }
 }

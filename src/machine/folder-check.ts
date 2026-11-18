@@ -2,9 +2,12 @@ import { existsSync, readdirSync } from 'node:fs'
 import { remotesOf, type Remote } from '../ci/remote.js'
 import { sameRemote } from '../git/clone-progress.js'
 import type { Git } from '../git/types.js'
+import type { FolderProbe } from '../link/view.js'
 import { fail, NoticeError, notice, type Notice } from '../notice/notice.js'
 import { missingCommands, type StdioServer } from '../packages/stdio.js'
 import { isTrusted } from '../projects/check.js'
+
+export type { FolderProbe }
 
 /** The checks of a project's folder on a machine before the machine joins the project's pool (BTN-1271), in order. */
 export const FOLDER_STEPS = ['repo', 'remote', 'branch', 'trust', 'packages', 'push'] as const
@@ -38,7 +41,7 @@ const PACKAGES_POLL_MS = 1000
 const PACKAGES_WAIT_MS = 3 * 60_000
 
 /** The folder's remote that is the project's: one of the hub's addresses, the scheme and `.git` apart. */
-async function projectRemote(git: Git, spec: FolderSpec): Promise<Remote | undefined> {
+async function projectRemote(git: Git, spec: Pick<FolderSpec, 'folder' | 'remotes'>): Promise<Remote | undefined> {
   const urls = await git(spec.folder, ['config', '--get-regexp', '^remote\\..*\\.url$'])
   if (urls.code !== 0) return undefined
   return remotesOf(urls.out).find((remote) => spec.remotes.some((url) => sameRemote(url, remote.url)))
@@ -91,7 +94,25 @@ export async function checkFolderStep(deps: FolderCheckDeps, step: FolderStep, s
 
 /** The folder a clone goes into: absent, or empty. */
 export function cloneTarget(folder: string): void {
-  if (existsSync(folder) && readdirSync(folder).length > 0) throw fail('pool.folderNotEmpty', { folder })
+  if (!folderFree(folder)) throw fail('pool.folderNotEmpty', { folder })
+}
+
+function folderFree(folder: string): boolean {
+  try {
+    return !existsSync(folder) || readdirSync(folder).length === 0
+  } catch {
+    return false
+  }
+}
+
+/** What the folder is to a project with these remotes (`FolderProbe`, BTN-1297). */
+export async function probeFolder(git: Git, folder: string, remotes: string[]): Promise<FolderProbe> {
+  if (folderFree(folder)) return { state: 'free' }
+  const top = await git(folder, ['rev-parse', '--is-inside-work-tree'])
+  if (top.missing === true) return { state: 'taken', notice: notice('pool.noGit', {}) }
+  if (top.code !== 0 || top.out.trim() !== 'true') return { state: 'taken', notice: notice('pool.folderNotEmpty', { folder }) }
+  if ((await projectRemote(git, { folder, remotes })) !== undefined) return { state: 'clone' }
+  return { state: 'taken', notice: notice('pool.foreignRepo', { folder, remote: remotes[0] ?? '' }) }
 }
 
 /** A check's refusal as the error a job's step fails with. */

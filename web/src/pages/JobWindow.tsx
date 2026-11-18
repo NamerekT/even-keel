@@ -77,6 +77,7 @@ export function JobWindow({ job, title, stepLabel, done, undoNote, groupOf }: Jo
   }, [current])
 
   const failed = job.failure !== null
+  const groupFailures = job.steps.filter((step) => step.failure !== undefined)
   const retry = () => void send('job/retry', { id: job.id })
   // What a kept job made is opened in place of a bare "Close"; Cancel takes back only what can still be.
   const openable = !job.done && !job.undoable && job.result !== undefined
@@ -124,9 +125,18 @@ export function JobWindow({ job, title, stepLabel, done, undoNote, groupOf }: Jo
         </div>
         {job.failure !== null && (
           // One line by the failure's code, the tool's words behind a tip: git's ten lines are not why to a person. A fix
-          // made in a dialog over the window (git's name and e-mail) retries the failed step by itself.
+          // made in a dialog over the window (git's name and e-mail) retries the failed step by itself. Steps of groups that
+          // failed while the job went on (BTN-1297, a machine each) get a line each, named by their group.
           <div role="alert" className="notice notice--error add-package__failure">
-            <RefusalWords refusal={job.failure} onFixed={retry} />
+            {groupFailures.length === 0 ? (
+              <RefusalWords refusal={job.failure} onFixed={retry} />
+            ) : (
+              groupFailures.map((step) => (
+                <p key={step.id} className="job-window__failure">
+                  <strong>{groupOf?.(step.id) ?? stepLabel(step.id)}</strong> <RefusalWords refusal={step.failure!} onFixed={retry} />
+                </p>
+              ))
+            )}
           </div>
         )}
         {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}

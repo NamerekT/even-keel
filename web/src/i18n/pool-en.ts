@@ -43,8 +43,29 @@ export const poolEn: Messages['pool'] = {
   undoable: "Cancel takes the machine out of the project; a clone made on it stays.",
   done: 'Done',
   wizard: {
-    machine: 'Machine',
-    hint: "Where the project's tasks run. On another machine the project is cloned into its projects folder once it is made here, and its tasks run only there.",
-    here: 'This machine',
+    title: 'Machines',
+    hint: "The ticked machines take the project's tasks. Each one but the hub clones the project from its remote into its own folder.",
+    own: 'this machine',
+    online: 'online',
+    noAgent: 'no agent signed in',
+    noRemote: 'needs a remote',
+    noRoot: 'no folder of projects',
+    offlineNote: 'connect it in the "Machines" tab when it is back',
+    remoteNew:
+      "A new folder has no remote, and the other machines take a project only through it. Type a repository's address or a folder with a remote — or keep the project on the hub.",
+    remoteNone:
+      "The folder's repository has no remote, and the other machines take a project only through it. Add a remote to it or type a repository's address — or keep the project on the hub.",
+    fromField: 'the folder from the field above',
+    tick: (name: string) => `Run the project on ${name}`,
+    folderOf: (name: string) => `Folder on ${name}`,
+    pathOf: (name: string) => `Full path on ${name}`,
+    pathPlaceholder: 'full path on the machine',
+    states: {
+      free: 'free — the project will be cloned here',
+      clone: 'a clone of this repository is already there — it will be taken',
+    },
+    noAgentNote: (name: string) => `No agent is signed in on ${name}: the project will be connected, but tasks will not go there until you sign in`,
+    signIn: (name: string) => `Sign in on ${name}`,
+    pickAccount: 'Which account to sign in with',
   },
 }

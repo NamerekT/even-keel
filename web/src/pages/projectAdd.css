@@ -126,6 +126,26 @@
   color: var(--fg-muted);
 }
 
+/* "Machines and folders" (BTN-1297): a machine's label and its folder's path, a line each, the paths in one column. */
+.project-summary__machines {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-6) var(--space-12);
+}
+
+.project-summary__machine {
+  display: contents;
+}
+
+.project-summary__machines .machine-label {
+  justify-self: start;
+}
+
+.project-summary__machines .project-summary__mono {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 760px) {
   .project-summary__facts {
     grid-template-columns: minmax(0, 1fr);
@@ -133,6 +153,16 @@
 
   .project-summary__wide {
     grid-column: auto;
+  }
+
+  /* A machine's label over its path: a path beside it would break every few letters. */
+  .project-summary__machines {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-4);
+  }
+
+  .project-summary__machine:not(:first-child) .machine-label {
+    margin-top: var(--space-8);
   }
 
   /* One field a row on a phone: the tracker's take the card's width as the others do. */

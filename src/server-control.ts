@@ -287,6 +287,8 @@ export interface ServerDeps {
     settings(project: string, machine: string, values: import('./link/view.js').MachineProjectSettings): Promise<void>
     /** "Connect" of the window "Add a machine" (BTN-1263): the machine that joined into several projects, one job. */
     join(machine: string, requests: JoinRequest[]): Promise<void>
+    /** What a folder on a machine elsewhere is to a project with the remote, before it is made (BTN-1297). */
+    probe(machine: string, folder: string, remote: string): Promise<import('./machine/folder-check.js').FolderProbe>
   }
   /** The page of one machine (BTN-1272): its view, its capacity (the own one's is `parallel`) and its colour. */
   machinePage?: {

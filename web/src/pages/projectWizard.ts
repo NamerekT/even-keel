@@ -3,6 +3,7 @@ import { targetKind } from '../../../src/projects/target.js'
 import type { ProjectCheck, ProjectDraft, TrackerChoice } from '../../../src/state.js'
 import type { TrackerProject } from '../../../src/tracker/source.js'
 import type { StepCheck } from './wizard.js'
+import type { MachinePick, MachinesMissing } from './machinePicks.js'
 
 /** The fields a suggestion fills while the user has not typed them. */
 type Suggested = 'key' | 'name' | 'trackerProject'
@@ -37,8 +38,10 @@ export interface WizardFields {
   milestones: string
   /** The agent the project runs on (BTN-310); blank — the shared provider. */
   provider: string
-  /** The machine elsewhere a git project runs on (BTN-1271): cloned there, its only machine; blank — the hub's own. */
-  machine: string
+  /** The rows of the block "Machines" by machine (BTN-1297), kept as typed while unticked or without a remote. */
+  machines: Record<string, MachinePick>
+  /** The hub's own row unticked: the project runs only on the machines elsewhere. */
+  hubOff: boolean
   /** The fields typed by hand: a suggestion no longer overwrites them. */
   typed: Record<Suggested, boolean>
 }
@@ -60,7 +63,8 @@ export const EMPTY_FIELDS: WizardFields = {
   slots: '2',
   milestones: '',
   provider: '',
-  machine: '',
+  machines: {},
+  hubOff: false,
   typed: { key: false, name: false, trackerProject: false },
 }
 
@@ -206,7 +210,6 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
     provider: fields.provider === '' ? null : fields.provider,
     ...(fields.git ? { target: fields.target } : { git: false }),
     ...(ownFolder && !typed ? { folder: fields.folder.trim() } : {}),
-    ...(fields.git && fields.machine !== '' ? { machine: fields.machine } : {}),
   }
 }
 
@@ -274,7 +277,7 @@ export function readyToAdd(check: ProjectCheck | null): boolean {
 
 
 /** Why "Add" is closed, the first reason in the order of the steps; `null` — it is open. */
-export type Missing = 'target' | 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checking' | 'repoError' | 'entry' | 'tracker'
+export type Missing = 'target' | 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checking' | 'repoError' | 'entry' | 'tracker' | MachinesMissing
 
 export function missingOf(fields: WizardFields, shape: TrackerShape, check: ProjectCheck | null): Missing | null {
   if (repoBlank(fields)) return fields.git && fields.target === '' ? 'target' : 'repo'
