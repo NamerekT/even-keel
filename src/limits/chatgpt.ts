@@ -1,5 +1,5 @@
 import { notice } from '../notice/notice.js'
-import type { LimitWindow, RateLimits } from './model.js'
+import type { LimitResets, LimitWindow, RateLimits } from './model.js'
 import type { UsageAnswer } from './usage.js'
 import { chatGptCredits } from './overage.js'
 import { chatGptSeatUsageUrl, isChatGptSeat, seatMonth, spendCapReached, spentSeatMonth } from './chatgpt-seat.js'
@@ -53,7 +53,16 @@ export function chatGptLimits(body: unknown, at: string, monthly?: unknown): Rat
     ...(overage !== undefined && { overage }),
     ...(open !== undefined && { open }),
     ...((seat || reached === true) && { spendCap: { reached: reached === true, updatedAt: at } }),
+    ...resetsOf(isRecord(body) ? body.rate_limit_reset_credits : undefined, at),
   }
+}
+
+/** `rate_limit_reset_credits` (BTN-1269); a count that is not a whole number of at least zero reads as no resets known. */
+function resetsOf(raw: unknown, at: string): { resets?: LimitResets } {
+  const count = (value: unknown) => typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null
+  if (!isRecord(raw)) return {}
+  const available = count(raw.available_count)
+  return available === null ? {} : { resets: { available, applicable: count(raw.applicable_available_count), updatedAt: at } }
 }
 
 /** The plan's own 30 days first; else the seat's credits; a reached cap spends whichever there is, or a month of its own. */

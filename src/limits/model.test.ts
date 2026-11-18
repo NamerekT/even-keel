@@ -163,6 +163,22 @@ describe('newestLimits', () => {
 
     expect(newestLimits(old, fresh)).toEqual(fresh)
   })
+
+  it('keeps the limit resets of a poll under a newer snapshot that does not tell them, and takes the newer poll’s zero', () => {
+    const polled = { ...at('2026-01-01T12:00:00.000Z'), resets: { available: 2, applicable: 1, updatedAt: '2026-01-01T12:00:00.000Z' } }
+    const later = { ...at('2026-01-01T12:00:30.000Z'), source: 'sdk' as const }
+    const spent = { ...at('2026-01-01T12:05:00.000Z'), resets: { available: 0, applicable: 0, updatedAt: '2026-01-01T12:05:00.000Z' } }
+
+    expect(newestLimits(later, polled)).toEqual({ ...later, resets: polled.resets })
+    expect(newestLimits(polled, spent)).toEqual(spent)
+  })
+})
+
+describe('limit resets in currentLimits', () => {
+  it('drops resets read before the sign-in', () => {
+    const limits = { fiveHour: null, sevenDay: null, updatedAt: '2026-01-01T13:00:00.000Z', source: 'api' as const, resets: { available: 2, applicable: null, updatedAt: RECEIVED_AT } }
+    expect(currentLimits(limits, new Date('2026-01-01T14:00:00.000Z'), '2026-01-01T12:30:00.000Z')).not.toHaveProperty('resets')
+  })
 })
 
 describe('model weeks in currentLimits', () => {

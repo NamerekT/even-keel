@@ -74,6 +74,20 @@ describe('chatGptLimits', () => {
     })
     expect(limits).not.toHaveProperty('month')
   })
+
+  it('reads the banked limit resets, zero too, with the applicable count only when the answer has it', () => {
+    const pro: unknown = JSON.parse(readFileSync('test/fixtures/limits/chatgpt-pro-wham-usage.json', 'utf8'))
+    expect(chatGptLimits(pro, AT)?.resets).toEqual({ available: 0, applicable: 0, updatedAt: AT })
+    expect(chatGptLimits({ ...PLUS, rate_limit_reset_credits: { available_count: 2, applicable_available_count: 1 } }, AT)?.resets)
+      .toEqual({ available: 2, applicable: 1, updatedAt: AT })
+    expect(chatGptLimits({ ...PLUS, rate_limit_reset_credits: { available_count: 3 } }, AT)?.resets).toEqual({ available: 3, applicable: null, updatedAt: AT })
+  })
+
+  it('reads no resets from an answer without a count it can trust', () => {
+    for (const credits of [undefined, null, {}, { available_count: '2' }, { available_count: -1 }, { available_count: 1.5 }]) {
+      expect(chatGptLimits({ ...PLUS, rate_limit_reset_credits: credits }, AT)).not.toHaveProperty('resets')
+    }
+  })
 })
 
 describe('chatGptAccountOf', () => {

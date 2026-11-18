@@ -144,6 +144,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         {entry.status?.loggedIn === null && <span className="account-row__error account-row__unknown">{t.account.authUnknown}</span>}
         {mixup !== null && <span className="account-row__error">{mixup.short}</span>}
         {outdatedText(entry, now) !== null && <span className="account-row__outdated">{outdatedText(entry, now)}</span>}
+        <Resets entry={entry} now={now} />
       </div>
       {page && roles}
       <div className="account-windows">
@@ -225,7 +226,22 @@ export function MenuMeters({ entry, now }: { entry: AccountEntry; now: Date }) {
     {limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} plain />)}
     {entry.limits.models?.weeks.map((week) => <ModelMeter key={`model:${week.model}`} entry={entry} week={week} now={now} plain />)}
     <span className="account-row__meters-note">{[read, outdatedText(entry, now), staleText(entry)].filter(Boolean).join(' · ')}</span>
+    {resetsText(entry) !== null && <span className="account-row__meters-note">{resetsText(entry)}</span>}
   </div>
+}
+
+/** The limit resets the ChatGPT account has banked (BTN-1269), shown once there is one: the user spends it, never Even Keel. */
+function Resets({ entry, now }: { entry: AccountEntry; now: Date }) {
+  const resets = entry.limits?.resets
+  const text = resetsText(entry)
+  if (resets === undefined || text === null) return null
+  const tip = t.account.resetsTitle(resets.applicable === null ? null : String(resets.applicable), formatAgo(resets.updatedAt, now))
+  return <Tipped inline focusable className="account-row__resets" tip={tip} align="start">{text}</Tipped>
+}
+
+function resetsText(entry: AccountEntry): string | null {
+  const resets = entry.limits?.resets
+  return resets === undefined || resets.available === 0 ? null : t.account.resets(String(resets.available))
 }
 
 function metered(entry: AccountEntry): boolean {

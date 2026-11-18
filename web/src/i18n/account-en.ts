@@ -170,6 +170,8 @@ export const accountEn = {
     tokensReading: 'Tokens: …',
     tokensTitle: 'Tokens of its sessions, cache included, by Tally: its limit is not known, this is how much it carries',
     lastLimit: (ago: string) => `Last refused by its limit ${ago}`,
+    resets: (count: string) => `Resets: ${count}`,
+    resetsTitle: (applicable: string | null, ago: string) => `ChatGPT limit resets banked, read ${ago}${applicable === null ? '' : `, applicable now: ${applicable}`}. The answer gives no expiry. A reset is spent in Codex or on chatgpt.com; Even Keel never spends one`,
     sharedLimit: (names: string[]) => `One limit with ${names.join(', ')}: the same subscription`,
     sameAccount: (own: string, folder: string) => `The folder ${own} holds the same account as ${folder}. To put another one here, sign in again in a private browser window or after signing out of the site`,
     sameAccountShort: (own: string, folder: string) => `Folder ${own}: the same account as ${folder}`,

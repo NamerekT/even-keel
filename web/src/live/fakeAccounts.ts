@@ -262,7 +262,7 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const lost = apiEntry('old-key', { name: 'Test API', needsLogin: true, sessions: ['Key session'] })
     const accounts = [...base.accounts, ...copilot, lost].map((entry) => entry.key === 'global'
       ? { ...entry, limits: { ...limits, fiveHour: null, sevenDay: { ...limits.sevenDay!, usedPercentage: 99 } }, ...(mode === 'rows-long' ? { name: 'Example organization account with a very long display name that needs truncation' } : {}) }
-      : entry.key === 'codex' ? { ...entry, limits: { ...entry.limits!, sevenDay: { ...limits.sevenDay!, usedPercentage: 100 } } } : entry)
+      : entry.key === 'codex' ? { ...entry, limits: { ...entry.limits!, sevenDay: { ...limits.sevenDay!, usedPercentage: 100 }, resets: { available: 2, applicable: 1, updatedAt: ago(1) } } } : entry)
     return { ...base, accounts: mode === 'rows-noCodex' ? accounts.filter((entry) => entry.agent !== CODEX) : accounts }
   }
   if (mode === 'empty' || mode === 'cli' || mode === 'cli-long' || mode === 'cli-error') return {

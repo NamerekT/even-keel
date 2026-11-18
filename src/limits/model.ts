@@ -46,6 +46,19 @@ export interface RateLimits {
    * `month` until a poll says otherwise. It and that month outlive newer snapshots of other sources, which lack both.
    */
   spendCap?: { reached: boolean; updatedAt: string }
+  /** Limit resets the ChatGPT account has banked (BTN-1269); only a usage poll reads them, so they carry their own time. */
+  resets?: LimitResets
+}
+
+/**
+ * `wham/usage`'s `rate_limit_reset_credits`: `available` is the count Codex itself shows, `applicable` the answer's
+ * `applicable_available_count` (its meaning is not documented; `null` — absent). Expiry is not in this answer: it is
+ * only in the separate `wham/rate-limit-reset-credits`, which Even Keel does not ask. The user spends a reset, never us.
+ */
+export interface LimitResets {
+  available: number
+  applicable: number | null
+  updatedAt: string
 }
 
 /**
@@ -156,6 +169,7 @@ export function currentLimits(limits: RateLimits | undefined, now: Date, notBefo
   const live = (window: LimitWindow | null) => (window !== null && Date.parse(window.resetsAt) > now.getTime() ? window : null)
   const current = { ...limits, fiveHour: live(limits.fiveHour), sevenDay: live(limits.sevenDay) }
   if (notBefore !== null && current.overage !== undefined && Date.parse(current.overage.updatedAt) < Date.parse(notBefore)) delete current.overage
+  if (notBefore !== null && current.resets !== undefined && Date.parse(current.resets.updatedAt) < Date.parse(notBefore)) delete current.resets
   if (current.models !== undefined) {
     const weeks = current.models.weeks.filter((week) => week.resetsAt === null || Date.parse(week.resetsAt) > now.getTime())
     if (notBefore !== null && Date.parse(current.models.updatedAt) < Date.parse(notBefore)) delete current.models
@@ -170,11 +184,13 @@ export function newestLimits(a: RateLimits | undefined, b: RateLimits | undefine
   const older = latest === a ? b : a
   const extra = newer(a.overage, b.overage)
   const models = newer(a.models, b.models)
+  const resets = newer(a.resets, b.resets)
   const seat = latest.spendCap === undefined && older.spendCap !== undefined
   return {
     ...latest,
     ...(extra !== undefined && { overage: extra }),
     ...(models !== undefined && { models }),
+    ...(resets !== undefined && { resets }),
     ...(seat && { spendCap: older.spendCap, ...(latest.month === undefined && older.month !== undefined && { month: older.month }) }),
   }
 }

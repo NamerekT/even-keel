@@ -29,7 +29,7 @@ Samples of the subscription limit answers of plans the author does not have (EKR
 
 ## Who reads them
 
-- `src/limits/chatgpt.test.ts` — the Pro sample through `chatGptLimits`.
+- `src/limits/chatgpt.test.ts` — the Pro sample through `chatGptLimits`, its zero `rate_limit_reset_credits` too (BTN-1269).
 - `src/limits/chatgpt-seat.test.ts` — the two Edu samples through `chatGptLimits` and `askChatGpt`, and the Pro one as a personal plan.
 - `src/codex/rollout.test.ts` — the 429 body as the error of a failed turn.
 - `src/limits/copilot-credits.test.ts` — the spent Business sample through `copilotLimits` and `askCopilot` (EKR-133).

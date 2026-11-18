@@ -170,6 +170,8 @@ export const accountRu = {
     tokensReading: 'Токены: …',
     tokensTitle: 'Токены его сессий вместе с кэшем, по Tally: лимит неизвестен, так видно, сколько он везёт',
     lastLimit: (ago: string) => `Последний отказ по лимиту ${ago}`,
+    resets: (count: string) => `Сбросов: ${count}`,
+    resetsTitle: (applicable: string | null, ago: string) => `Накопленные сбросы лимита ChatGPT, прочитаны ${ago}${applicable === null ? '' : `, применимо сейчас: ${applicable}`}. Срок годности ответ не сообщает. Сброс тратится в Codex или на chatgpt.com, Even Keel сам его не тратит`,
     sharedLimit: (names: string[]) => `Лимит общий с ${names.join(', ')}: одна подписка`,
     sameAccount: (own: string, folder: string) => `В папке ${own} тот же аккаунт, что и в ${folder}. Чтобы здесь был другой, войдите заново в приватном окне браузера или выйдя из аккаунта на сайте`,
     sameAccountShort: (own: string, folder: string) => `Папка ${own}: тот же аккаунт, что и в ${folder}`,
