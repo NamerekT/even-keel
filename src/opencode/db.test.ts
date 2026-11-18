@@ -60,10 +60,12 @@ describe('sessionRows', () => {
 
   it("leaves a tool's output and metadata out, but the chat's message the plugin kept in it", async () => {
     const tool = (metadata: Record<string, unknown>) => ({ type: 'tool', tool: 'bash', state: { status: 'completed', input: { command: 'ls' }, output: 'a\nb', metadata } })
-    const dir = account([tool({ exit: 0 }), tool({ exit: 0, evenKeel: { mail: 'Mind the docs.' } }), { type: 'text', text: 'Done.' }])
+    const posted = { type: 'text', text: 'Mind the docs.', metadata: { evenKeel: { mail: 'Mind the docs.' } } }
+    const dir = account([tool({ exit: 0 }), tool({ exit: 0, evenKeel: { mail: 'Mind the docs.' } }), { type: 'text', text: 'Done.' }, posted])
     const parts = (await sessionRows(dir, 'ses_a'))!.parts.map((part) => JSON.parse(part.data))
     expect(parts[0].state).toEqual({ status: 'completed', input: { command: 'ls' } })
     expect(parts[1].state).toEqual({ status: 'completed', input: { command: 'ls' }, metadata: { evenKeel: { mail: 'Mind the docs.' } } })
     expect(parts[2]).toEqual({ type: 'text', text: 'Done.' })
+    expect(parts[3]).toEqual(posted)
   })
 })

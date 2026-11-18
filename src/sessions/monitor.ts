@@ -306,6 +306,7 @@ function toView(
     asking: ask !== null,
     ask,
     ...((summary.expiredApprovals?.length ?? 0) > 0 && { expiredApprovals: summary.expiredApprovals }),
+    ...(summary.unansweredMail != null && { unansweredMail: summary.unansweredMail }),
     apiError: summary.apiError?.text ?? null,
     apiErrorKind: summary.apiError?.kind ?? null,
     ...(summary.apiError?.notice === undefined ? {} : { apiErrorNotice: summary.apiError.notice }),

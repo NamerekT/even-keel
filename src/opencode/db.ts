@@ -7,8 +7,9 @@ import type { MessageRow, PartRow } from './transcript.js'
 /**
  * Reads of an account's `opencode.db` (SQLite in WAL mode, written by every OpenCode process of the account): each read
  * opens the file read-only and closes it at once, so Even Keel never holds it. A tool's output and metadata are left
- * in the file: the feed needs neither, and they make most of a part's size. Only the chat's message the `checkpoint`
- * package's plugin kept in the metadata, `evenKeel.mail`, and a count of image attachments are read. Images themselves
+ * in the file: the feed needs neither, and they make most of a part's size. Only the chat's message the `agent-bridge`
+ * package's plugin kept in the metadata before BTN-1323, `evenKeel.mail`, and a count of image attachments are read; a
+ * text part, the plugin's posted message with its `metadata` among them, is read whole. Images themselves
  * are read separately by session and call id, without depending on the original file.
  */
 export interface SessionRows {

@@ -622,6 +622,7 @@ const { mailRelay, answerSession } = createChat({
   mailbox,
   configuredProject,
   liveView: (task) => machineLink.page.liveView(task),
+  sessions: () => machineLink.page.sessions(),
   midTurn: (task) => machineLink.port.midTurn(task),
   steering: (sessionId) => machineLink.page.steers(sessionId),
   chat: machineLink.services.chat,

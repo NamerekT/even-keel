@@ -17,6 +17,7 @@ import {
   type TokenTotals,
   type TranscriptSummary,
 } from '../sessions/transcript.js'
+import type { UnansweredMail } from '../state.js'
 import type { TurnError } from './cli.js'
 
 /**
@@ -111,6 +112,7 @@ class SessionFold {
   private model: string | null = null
   private turnStartedAt: string | null = null
   private turnTool: string | null = null
+  private unansweredMail: UnansweredMail | null = null
   private readonly mailSeen = new Set<number>()
 
   constructor(
@@ -124,10 +126,11 @@ class SessionFold {
     const at = iso(row.at)
     this.touch(at)
     if (message.role === 'user') {
-      this.pushPrompt(at, parts)
+      this.pushPrompt(row.id, at, parts)
       return
     }
     if (message.role !== 'assistant') return
+    this.unansweredMail = null
     this.pushStep(message)
     this.turnTool = null
     for (const part of parts) this.pushPart(part, last)
@@ -161,22 +164,34 @@ class SessionFold {
       gitBranch: null,
       workdir: this.workdir,
       model: this.model,
+      unansweredMail: this.unansweredMail,
     }
   }
 
-  private pushPrompt(at: string, parts: PartRow[]): void {
-    const text = parts
+  /**
+   * A user line the agent-bridge plugin posted mid-turn carries the chat's message in its text part's
+   * `metadata.evenKeel.mail` (BTN-1323): it is the delivered message, not a new turn. Any other line starts a turn;
+   * a resume repeating a message shows it no second time.
+   */
+  private pushPrompt(id: string, at: string, parts: PartRow[]): void {
+    const texts = parts
       .map((part) => parse(part.data))
       .filter((part) => part?.type === 'text' && part.synthetic !== true && typeof part.text === 'string')
-      .map((part) => part!.text as string)
-      .join('\n\n')
-    if (this.pushMail(at, text)) return
+    const mail = texts.map((part) => record(record(part!.metadata)?.evenKeel)?.mail).find((each) => typeof each === 'string')
+    if (typeof mail === 'string') {
+      this.unansweredMail = { id, text: mail, at }
+      this.pushMail(at, mail)
+      return
+    }
+    this.unansweredMail = null
+    const text = texts.map((part) => part!.text as string).join('\n\n')
     this.turnStartedAt = at
     this.turnTool = null
     this.checkpoint = null
     this.pullRequest = null
     this.noChanges = null
     this.apiError = null
+    if (this.pushMail(at, text)) return
     const line = userLine(at, text, null, (each) => this.textOf(each))
     if (line !== null) this.addFeed(line)
   }

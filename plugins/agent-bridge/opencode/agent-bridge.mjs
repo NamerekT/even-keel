@@ -1,8 +1,8 @@
 // The agent-bridge package's hooks for OpenCode, whose hooks are JS plugins run inside its own process: Even Keel
 // loads every script of this folder into a chain session's config. After each tool call the plugin asks Even Keel
-// what the hook commands of Claude Code and Codex ask (../hooks/evenkeel.mjs) — the checkpoint nudge due and the
-// chat's waiting messages — and puts them after the tool's output, the only way into the context in the middle of
-// a turn. A delivered message is also kept in the call's metadata, where Even Keel's feed finds it. Before a shell
+// what the hook commands of Claude Code and Codex ask (../hooks/evenkeel.mjs): the checkpoint nudge due goes after the
+// tool's output. The chat's waiting messages go into the session as the user's own lines (../hooks/mailpost.mjs),
+// asked after each tool call and every two seconds while the session is busy. Before a shell
 // call that merges the task branch it runs the project's check, and an error thrown there keeps the call from running;
 // a passed check is reported to Even Keel with the tree it ran on, as the hook command does. A shell call of git in a
 // project whose git is off is refused the same way (../hooks/gitban.mjs), and so is a request to Even Keel's own
@@ -17,6 +17,7 @@ import { addressRefusal } from "../hooks/addressban.mjs";
 import { checkOf, checkpointNote, mailOf, noteAtEnd, reportCheck, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
 import { gitRefusal } from "../hooks/gitban.mjs";
 import { hasMark, isKeptCall, isNotePath, markOf } from "../hooks/handoff.mjs";
+import { mailPost } from "../hooks/mailpost.mjs";
 import { mergeRefusal } from "../hooks/merges.mjs";
 import { callOf, clearGiven, due, givenStore, standardsAt } from "../hooks/standards.mjs";
 
@@ -26,7 +27,8 @@ const NEAR_END = 3;
 
 const reminder = (text) => `\n\n<system-reminder>\n${text}\n</system-reminder>`;
 
-export const server = async ({ directory }) => {
+export const server = async ({ client, directory }) => {
+  const mail = mailPost({ client, mailOf });
   // Per session, the tool calls since this process saw it write the note: Even Keel is asked only then.
   const sinceNote = new Map();
   const counted = (input) => {
@@ -71,16 +73,13 @@ export const server = async ({ directory }) => {
       counted(input);
       if (typeof output?.output !== "string") return;
       // No Even Keel, or no answer in time, must never break the tool call.
-      const [note, mail, found] = await Promise.all([
+      const [note, found] = await Promise.all([
         checkpointNote(input.sessionID).catch(() => null),
-        mailOf(input.sessionID, "PostToolUse").catch(() => null),
         standard("after", input, input.args).catch(() => null),
+        mail.afterTool(input.sessionID),
       ]);
       if (found?.give !== undefined) output.output += reminder(found.give);
       if (note !== null) output.output += reminder(note);
-      if (mail === null) return;
-      output.output += reminder(mail);
-      output.metadata = { ...(output.metadata ?? {}), evenKeel: { mail } };
     },
     // Fires for every text part, also one followed by more tool calls: the line it adds there is not the turn's last.
     "experimental.text.complete": async (input, output) => {
@@ -91,7 +90,10 @@ export const server = async ({ directory }) => {
     },
     event: async ({ event }) => {
       const session = event?.properties?.sessionID;
-      if (event?.type === "session.compacted" && typeof session === "string") clearGiven(STATE_DIR, session);
+      if (typeof session !== "string") return;
+      if (event.type === "session.compacted") clearGiven(STATE_DIR, session);
+      else if (event.type === "session.status") mail.status(session, event.properties.status?.type);
+      else if (event.type === "session.idle") mail.status(session, "idle");
     },
   };
 };

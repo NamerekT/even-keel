@@ -250,6 +250,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 212 | [A slot's temporary files after Done](unverified/sessions.md#a-slots-temporary-files-after-done-btn-1315) | slot projects (`slot` on) | a slot's `.temp/` keeps growing or a cleanup warning repeats; empty it by hand between tasks or set `slotCleanup.clean` to `[]` | — |
 | 213 | [One folder field in "Connect a machine" and "Add a machine"](unverified/machines.md#one-folder-field-in-connect-a-machine-and-add-a-machine-btn-1298) | a hub connecting a machine elsewhere to a project already made | the folder's state stays "checking" or wrong and "Connect" stays off, or the job clones into a folder with the project's clone and fails; "another folder…" with the full path still connects | — |
 | 214 | [Remote Control of an account added from the page](unverified/accounts.md#remote-control-of-an-account-added-from-the-page-ekr-148) | everyone who adds a Claude account from the page or has one with Remote Control off | the next session still starts without Remote Control; turn on Remote Control at startup in `/config` of Claude Code under that account | — |
+| 215 | [Chat mail as the user's own line](unverified/opencode.md#chat-mail-as-the-users-own-line-btn-1323) | OpenCode chain sessions that get a chat message mid-turn, from `agent-bridge` 1.5.0 | the message reaches the session late or twice, or comes back to the chat; send it after the turn ends | BTN-1324 |
 
 ### Waiting for the event / not checked by choice
 

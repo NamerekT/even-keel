@@ -223,4 +223,51 @@ describe('foldSession', () => {
     expect(summary.feed[3]).toMatchObject({ kind: 'prompt', text: 'Also check the docs.' })
     expect(summary.turn?.startedAt).toBe('2026-10-22T10:00:00.000Z')
   })
+
+  describe("the chat's message the plugin posted as the user's line (BTN-1323)", () => {
+    const mark = '<even-keel-message id="7">\nAlso check the docs.\n</even-keel-message>'
+    const mail = `The user wrote to you from Even Keel's chat.\n\n${mark}`
+    const tool = part('prt_02', 'msg_02', 2, { type: 'tool', tool: 'bash', callID: 'c1', state: { status: 'completed', input: { command: 'ls' } } })
+    const posted = message('msg_03', 3, { role: 'user' })
+    const postedText = (metadata?: Record<string, unknown>) => part('prt_03', 'msg_03', 3, { type: 'text', text: mail, ...(metadata === undefined ? {} : { metadata }) })
+    const labelled = postedText({ evenKeel: { mail } })
+    const answer = message('msg_04', 4, step({ input: 10 }))
+    const answerText = part('prt_04', 'msg_04', 4, { type: 'text', text: 'Docs checked.' })
+
+    it('shows a labelled line as the delivered message, not as a new prompt of the turn', () => {
+      const summary = foldSession([prompt, message('msg_02', 2, step({ input: 10 })), posted, answer], [promptText, tool, labelled, answerText])
+      expect(summary.feed.map((line) => line.kind)).toEqual(['prompt', 'tool', 'prompt', 'text'])
+      expect(summary.feed[2]).toMatchObject({ text: 'Also check the docs.' })
+      expect(summary.turn?.startedAt).toBe('2026-10-22T10:00:00.000Z')
+      expect(summary.unansweredMail).toBeNull()
+    })
+
+    it('starts a new turn at a line without the label', () => {
+      const plain = part('prt_03', 'msg_03', 3, { type: 'text', text: 'Go on.' })
+      const summary = foldSession([prompt, message('msg_02', 2, step({ input: 10 })), posted, answer], [promptText, tool, plain, answerText])
+      expect(summary.feed[2]).toMatchObject({ kind: 'prompt', text: 'Go on.' })
+      expect(summary.turn?.startedAt).toBe('2026-10-22T10:00:03.000Z')
+      expect(summary.unansweredMail).toBeNull()
+    })
+
+    it('names a labelled line left last with no answer after it, and shows its message once when a resume repeats it', () => {
+      const rows = [prompt, message('msg_02', 2, step({ input: 10 })), posted]
+      const unanswered = foldSession(rows, [promptText, tool, labelled])
+      expect(unanswered.unansweredMail).toEqual({ id: 'msg_03', text: mail, at: '2026-10-22T10:00:03.000Z' })
+
+      const resume = message('msg_05', 20, { role: 'user' })
+      const resumeText = part('prt_05', 'msg_05', 20, { type: 'text', text: mail })
+      const reply = message('msg_06', 21, step({ input: 10 }))
+      const replyText = part('prt_06', 'msg_06', 21, { type: 'text', text: 'Docs checked.' })
+      const resumed = foldSession([...rows, resume, reply], [promptText, tool, labelled, resumeText, replyText])
+      expect(resumed.unansweredMail).toBeNull()
+      expect(resumed.feed.filter((line) => line.kind === 'prompt').map((line) => line.text)).toEqual(['DEMO-1', 'Also check the docs.'])
+      expect(resumed.turn?.startedAt).toBe('2026-10-22T10:00:20.000Z')
+    })
+
+    it('names no line whose label holds no text, nor a resume of its own', () => {
+      expect(foldSession([prompt, posted], [promptText, postedText({ evenKeel: { mail: 7 } })]).unansweredMail).toBeNull()
+      expect(foldSession([prompt, posted], [promptText, postedText()]).unansweredMail).toBeNull()
+    })
+  })
 })
