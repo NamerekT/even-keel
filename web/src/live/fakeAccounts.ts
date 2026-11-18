@@ -646,6 +646,13 @@ export function accountCommand(account: AccountView, name: string, body: Record<
       return { ...entry, settingsEdits: (entry.settingsEdits ?? []).filter((one) => one !== setting), ownSettings: body.choice === 'own' ? [...own, setting] : own }
     }) }
   }
+  if (name === 'account/remote') {
+    return { ...account, accounts: account.accounts.map((entry) => {
+      if (entry.key !== key) return entry
+      const { remoteOff: _, ...on } = entry
+      return { ...on, ownSettings: [...new Set([...(entry.ownSettings ?? []), 'remoteControlAtStartup'])].sort() }
+    }) }
+  }
   if (name === 'account/name') {
     const given = String(body.name ?? '').trim()
     return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, name: given === '' ? null : given } : entry)) }

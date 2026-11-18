@@ -45,10 +45,15 @@ export const sessionRu = {
   },
   remote: {
     starting: 'Remote Control поднимается — ссылка будет через пару секунд.',
-    disabled: 'Remote Control выключен: в /config папки аккаунта нет «remoteControlAtStartup».',
+    disabled: 'Remote Control у этого аккаунта выключен.',
     'no-bridge': 'Сессия не подняла Remote Control — отсюда её не открыть.',
     lost: 'Remote Control отвалился — с телефона не открыть. Не довела задачу — «Новая сессия».',
     'api-key': 'На API-ключе и в облаке Remote Control нет: он требует входа в claude.ai. Ответить сессии — из чата здесь или в трекере.',
+  },
+  remoteOn: {
+    action: 'Включить Remote Control',
+    tip: 'Включает Remote Control у аккаунта: он заработает со следующей сессии, эта останется без него.',
+    done: 'Remote Control у аккаунта включён — со следующей сессии; эта остаётся без него.',
   },
   panel: (task: string) => `Сессия задачи ${task}`,
   closePanel: 'Закрыть панель',

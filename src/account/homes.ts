@@ -9,6 +9,7 @@ import { fail } from '../notice/notice.js'
 import { consoleKey, readAuth, keyOf, keyVendor, replaceKey, writeKey } from '../opencode/home.js'
 import { OPENCODE } from '../opencode/name.js'
 import { samePath } from '../paths.js'
+import { REMOTE_AT_STARTUP } from '../sessions/remote.js'
 import { shortLivedProfile } from './aws.js'
 import { userCredentials } from './gcloud.js'
 import { cloudEnv, cloudOf, type CloudConnection, type CloudSummary } from './cloud.js'
@@ -309,6 +310,31 @@ export class AccountHomes {
   share(home: AccountHome): boolean {
     if (home.global || home.agent !== CLAUDE) return false
     return shareConfig({ dir: this.global.dir, config: this.configFile(this.global) }, home.dir, console.warn, this.settings?.planner(home.key))
+  }
+
+  /** Whether the Claude folder's `settings.json` starts Remote Control with its sessions. */
+  remoteOn(home: AccountHome): boolean {
+    return readObject(join(home.dir, 'settings.json'))[REMOTE_AT_STARTUP] === true
+  }
+
+  /**
+   * Remote Control from the folder's next session (EKR-148): an account folder gets it in its own layer, which the
+   * global settings never override, and at once by a transfer; the global folder, its own file, merged.
+   */
+  enableRemote(home: AccountHome): void {
+    if (home.agent !== CLAUDE) throw fail('account.unknown', { key: home.key })
+    if (!home.global && this.settings !== null) {
+      this.settings.setOwn(home, REMOTE_AT_STARTUP, true)
+      this.share(home)
+      return
+    }
+    const file = join(home.dir, 'settings.json')
+    const settings = readObject(file)
+    if (Object.keys(settings).length === 0 && existsSync(file) && !/^\s*(\{\s*\})?\s*$/.test(readFileSync(file, 'utf8'))) {
+      throw new Error(`claude: ${file} is no JSON object, Remote Control left off rather than overwrite it`)
+    }
+    mkdirSync(home.dir, { recursive: true })
+    writeFileSync(file, JSON.stringify({ ...settings, [REMOTE_AT_STARTUP]: true }, null, 2))
   }
 
   /** The `.claude.json` the CLI reads with this folder. */

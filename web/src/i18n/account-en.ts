@@ -180,4 +180,6 @@ export const accountEn = {
     ownSettings: 'Own settings:',
     ownSettingsTip: 'This account\'s own values, put over the shared settings at every transfer. × brings the shared value back.',
     dropOwnSetting: (key: string) => `Bring the shared "${key}" back`,
+    enableRemote: 'Turn on Remote Control',
+    enableRemoteNote: 'Off now; works from the next session, running ones stay as they are',
   }

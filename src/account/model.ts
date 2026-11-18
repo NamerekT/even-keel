@@ -76,6 +76,8 @@ export interface AccountEntry {
   apiKey: boolean
   /** An API account whose folder keeps the key itself, so the page can put a new one in its place (BTN-418). */
   keyReplaceable?: boolean
+  /** A claude.ai sign-in whose folder does not start Remote Control with its sessions (EKR-148). */
+  remoteOff?: true
   /** The cloud a Claude folder runs on (BTN-822), read from its `settings.json`; `apiKey` is false for it. */
   cloud?: CloudSummary
   /** The model that answered the check turn when the account was added, while the service runs. */

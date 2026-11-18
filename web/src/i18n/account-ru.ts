@@ -180,4 +180,6 @@ export const accountRu = {
     ownSettings: 'Своё у аккаунта:',
     ownSettingsTip: 'Свои значения этого аккаунта: ложатся поверх общих настроек при каждом переносе. × возвращает общее значение.',
     dropOwnSetting: (key: string) => `Вернуть общее «${key}»`,
+    enableRemote: 'Включить Remote Control',
+    enableRemoteNote: 'Сейчас выключен; заработает со следующей сессии, идущие не тронет',
   }

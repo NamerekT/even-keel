@@ -30,8 +30,11 @@ export function bridgeOfRecord(raw: string | undefined, sessionId: string): stri
   return typeof record.bridgeSessionId === 'string' && record.bridgeSessionId !== '' ? record.bridgeSessionId : null
 }
 
+/** The `settings.json` key that starts Remote Control with every session of the folder. */
+export const REMOTE_AT_STARTUP = 'remoteControlAtStartup'
+
 export function remoteAtStartup(rawSettings: string | undefined): boolean {
-  return parseObject(rawSettings)?.remoteControlAtStartup === true
+  return parseObject(rawSettings)?.[REMOTE_AT_STARTUP] === true
 }
 
 export function remoteLink(facts: RemoteFacts): RemoteLink {

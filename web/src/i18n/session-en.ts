@@ -44,10 +44,15 @@ export const sessionEn = {
   },
   remote: {
     starting: 'Remote Control is starting — the link comes in a couple of seconds.',
-    disabled: 'Remote Control is off: /config of the account folder has no “remoteControlAtStartup”.',
+    disabled: 'Remote Control is off for this account.',
     'no-bridge': "The session didn't start Remote Control — it can't be opened from here.",
     lost: "Remote Control dropped — can't be opened from the phone. If the task isn't done — “New session”.",
     'api-key': 'No Remote Control on an API key or a cloud: it needs a claude.ai sign-in. Answer the session from the chat here or in the tracker.',
+  },
+  remoteOn: {
+    action: 'Turn on Remote Control',
+    tip: 'Turns Remote Control on for the account: it works from its next session, this one stays without it.',
+    done: "Remote Control is on for the account — from its next session; this one stays without it.",
   },
   panel: (task: string) => `Session of task ${task}`,
   closePanel: 'Close the panel',

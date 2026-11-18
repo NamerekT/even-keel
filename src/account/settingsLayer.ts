@@ -165,6 +165,13 @@ export class AccountSettings {
     this.version++
   }
 
+  /** A key Even Keel itself gives the account (EKR-148); takes effect at the next transfer, which the caller starts. */
+  setOwn(home: AccountHome, key: string, value: unknown): void {
+    // A folder never transferred counts its file as written, so its keys are no edits.
+    const record = this.records.get(home.key) ?? { written: stripSettingsGuard(readJson(join(home.dir, 'settings.json')) ?? {}), own: {} }
+    this.keep(home.key, { ...record, own: { ...record.own, [key]: value } })
+  }
+
   /** Takes effect at the next transfer into the folder, which the caller starts. */
   dropOwn(home: AccountHome, key: string): void {
     const record = this.records.get(home.key)

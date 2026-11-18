@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { AccountHomes, assertApiKey, keyProvider } from './homes.js'
 import { KeychainCredentials, keychainService } from './keychain.js'
+import { AccountSettings } from './settingsLayer.js'
 
 const env = {
   PATH: '/bin',
@@ -478,5 +479,49 @@ describe('AccountHomes.place with the macOS Keychain', () => {
     withMove((_root, moves, homes) => {
       homes.place(homes.pending(new Date(0), 'codex'), 'john@example.com')
       expect(moves).toEqual([])
+    }))
+})
+
+describe('AccountHomes.enableRemote (EKR-148)', () => {
+  const read = (dir: string) => JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')) as Record<string, unknown>
+
+  function withHomes(run: (homes: AccountHomes, root: string, globalDir: string) => void): void {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    const globalDir = join(root, 'global')
+    mkdirSync(globalDir, { recursive: true })
+    writeFileSync(join(globalDir, 'settings.json'), JSON.stringify({ model: 'opus' }))
+    try {
+      run(new AccountHomes({ ...env, CLAUDE_CONFIG_DIR: globalDir }, join(root, 'accounts'), join(root, 'codex')), root, globalDir)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+
+  it('puts the flag into the account layer, so the folder keeps it over the global settings', () =>
+    withHomes((homes, _root, globalDir) => {
+      const settings = new AccountSettings(new Map(), globalDir, () => {})
+      homes.useSettings(settings)
+      const home = homes.place(homes.pending(new Date(0), 'claude'), 'john@example.com')
+      expect(homes.remoteOn(home)).toBe(false)
+      homes.enableRemote(home)
+      expect(read(home.dir)).toMatchObject({ model: 'opus', remoteControlAtStartup: true })
+      expect(homes.remoteOn(home)).toBe(true)
+      expect(settings.own(home.key)).toEqual(['remoteControlAtStartup'])
+      expect(read(globalDir)).toEqual({ model: 'opus' })
+    }))
+
+  it('merges the flag into the global folder of its own, keeping its other keys', () =>
+    withHomes((homes, _root, globalDir) => {
+      homes.enableRemote(homes.global)
+      expect(read(globalDir)).toEqual({ model: 'opus', remoteControlAtStartup: true })
+      expect(homes.remoteOn(homes.global)).toBe(true)
+    }))
+
+  it('merges the flag right into the folder when no account layer is kept', () =>
+    withHomes((homes) => {
+      const home = homes.place(homes.pending(new Date(0), 'claude'), 'john@example.com')
+      writeFileSync(join(home.dir, 'settings.json'), JSON.stringify({ theme: 'dark' }))
+      homes.enableRemote(home)
+      expect(read(home.dir)).toEqual({ theme: 'dark', remoteControlAtStartup: true })
     }))
 })

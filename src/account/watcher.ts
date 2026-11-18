@@ -153,6 +153,8 @@ interface Known {
   openRouter: boolean
   /** The cloud the folder's `settings.json` connects to (BTN-822). */
   cloud: CloudSummary | null
+  /** Whether a Claude folder's `settings.json` starts Remote Control; null for another agent's. */
+  remote: boolean | null
 }
 
 interface Running {
@@ -196,7 +198,7 @@ export class AccountWatcher {
 
   get view(): AccountView {
     const now = this.options.now()
-    const accounts = this.known.map(({ home, status, error, keyHeld, openRouter, cloud }): AccountEntry => {
+    const accounts = this.known.map(({ home, status, error, keyHeld, openRouter, cloud, remote }): AccountEntry => {
       const times = this.options.homes.times(home)
       const transport = this.options.transportOf(home, paysPerToken(status))
       const seen = this.options.signedInAs?.(home.key)
@@ -223,6 +225,7 @@ export class AccountWatcher {
         apiKey: isApiKey(status),
         keyReplaceable: keyHeld && (isApiKey(status) || status?.authMethod === 'subscription_key'),
         ...(cloud !== null && { cloud }),
+        ...(remote === false && fullSignIn(home, status) && { remoteOff: true }),
         ...(this.checkedModels.has(home.key) && { checkedModel: this.checkedModels.get(home.key) ?? null }),
         ...(transport !== null && { transport }),
         limits: this.options.limits(home.key),
@@ -565,6 +568,14 @@ export class AccountWatcher {
     this.options.onChange()
   }
 
+  /** Remote Control for the account's next sessions (EKR-148); the live ones stay as they are (invariant 1). */
+  async enableRemote(key: string): Promise<void> {
+    const known = this.known.find((each) => each.home.key === key)
+    if (known === undefined || !fullSignIn(known.home, known.status)) throw fail('account.remoteNoSignIn', { key })
+    this.options.homes.enableRemote(known.home)
+    await this.refresh()
+  }
+
   /** A key of the account's own layer goes, and the global value comes back at once. */
   async dropOwnSetting(key: string, setting: string): Promise<void> {
     const home = this.claudeHome(key)
@@ -666,13 +677,14 @@ export class AccountWatcher {
     const keyHeld = apiKey !== null
     const openRouter = apiKey !== null && keyProvider(home.agent, apiKey) === 'openrouter'
     const cloud = this.options.homes.cloudOf(home)
-    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null, keyHeld, openRouter, cloud }
+    const remote = home.agent === CLAUDE ? this.options.homes.remoteOn(home) : null
+    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null, keyHeld, openRouter, cloud, remote }
     try {
-      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null, keyHeld, openRouter, cloud }
+      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null, keyHeld, openRouter, cloud, remote }
     } catch (reason) {
       const error = noticeOf(reason)
       if (!sameNotice(error, before?.error ?? null)) this.options.onError(reason)
-      return { home, status: before?.status ?? null, error, keyHeld, openRouter, cloud }
+      return { home, status: before?.status ?? null, error, keyHeld, openRouter, cloud, remote }
     }
   }
 
@@ -740,7 +752,8 @@ export class AccountWatcher {
           return
         }
         const home = this.options.homes.place(running.home, status.email ?? running.home.agent)
-        this.options.homes.share(home)
+        if (fullSignIn(home, status)) this.options.homes.enableRemote(home)
+        else this.options.homes.share(home)
         this.claimShared(home)
       }
     } catch (error) {
@@ -774,4 +787,9 @@ export class AccountWatcher {
       this.options.onError(error)
     }
   }
+}
+
+/** A claude.ai sign-in, the only one Remote Control runs on: no key, no cloud, no long-lived token (EKR-148). */
+function fullSignIn(home: AccountHome, status: AccountStatus | null): boolean {
+  return home.agent === CLAUDE && status?.loggedIn === true && status.authMethod === 'claude.ai'
 }
