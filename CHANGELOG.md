@@ -15,7 +15,10 @@ A patch of 0.3: keep-warm through a long tool call, and a cache clock that knows
 ### Fixed
 
 - **The cache clock counts from the last keep-warm ping that read the cache.** The same goes for its colour, the ring on the chain row and the dialog before a reply to a cold session; before, they called a cache that keep-warm kept warm cold. The tip of the session's **Cache** shows how many times keep-warm renewed the cache since the session's last answer, and when it did so last.
-- The session's **Cache** has one tip: the browser's own tooltip no longer opens over it. The tip starts with when the cache stays warm until or when it went cold.
+- No tip opens with the browser's own tooltip over it:
+  - The session's **Cache** starts its tip with when the cache stays warm until or when it went cold.
+  - The cache ring on a chain row names the task's priority in its own tip, instead of "Priority: …" over it.
+  - On `/stats`, a session's name in the task's timeline is a tip of its own, apart from the price estimate.
 
 ## [0.3.2] - 2026-11-17
 
