@@ -5,6 +5,7 @@ import { MESSAGE_LIMIT } from '../sessions/transcript.js'
 import { HANDOFF_TOOL } from '../taskmcp/tools.js'
 import { closeFence } from './fence.js'
 import type { ReturnReason } from './model.js'
+import { USER_MESSAGE_HEAD } from './user-message.js'
 
 export type HandoffReason = 'limit' | 'restart' | 'message' | 'checkpoint' | 'mainFixed' | 'review' | ReturnReason
 
@@ -261,7 +262,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     },
     recentSteps: 'Последние шаги прошлой сессии:',
     lastMessage: 'Последнее сообщение прошлой сессии:',
-    userMessage: 'Сообщение пользователя:',
+    userMessage: USER_MESSAGE_HEAD.ru,
     unattended: [
       'Режим без присмотра: пользователь недоступен, на вопросы до утра никто не ответит. Это правило важнее правил навыков о вопросах и статусах и строки выше о вопросе пользователю.',
       '- Вопросов не задавай и ответа не жди: AskUserQuestion не вызывай, ход вопросом не заканчивай.',
@@ -423,7 +424,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     },
     recentSteps: 'Last steps of the previous session:',
     lastMessage: 'Last message of the previous session:',
-    userMessage: 'The user\'s message:',
+    userMessage: USER_MESSAGE_HEAD.en,
     unattended: [
       'Unattended mode: the user is away, and nobody will answer a question until morning. This rule outranks what the skills say about questions and statuses, and the line above about a question to the user.',
       '- Ask nothing and wait for no answer: do not call AskUserQuestion, do not end the turn with a question.',

@@ -28,6 +28,8 @@ export interface CurrentTask {
   /** The answer being delivered, and the question it answers. */
   reply?: string
   ask?: string
+  /** The user's message a `message` move started the current session with, for the chat while it boots (BTN-1281); the next move drops it. */
+  message?: string
 }
 
 export type ReturnReason = 'returned' | 'unblocked' | 'unskipped'

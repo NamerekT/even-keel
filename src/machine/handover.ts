@@ -2,6 +2,7 @@ import { isOwnName } from '../chain/fix.js'
 import { noteFrom } from '../chain/handoff-note.js'
 import type { ActiveChain, CurrentTask, Move, ReturnReason } from '../chain/model.js'
 import { PROMPTS } from '../chain/prompts.js'
+import { userMessageOf } from '../chain/user-message.js'
 import {
   answered,
   failedOf,
@@ -37,6 +38,7 @@ export interface MoveState {
 function begin(current: CurrentTask, at: string, move: Move): void {
   current.starting = at
   current.move = move
+  delete current.message
 }
 
 function settle(current: CurrentTask): void {
@@ -337,7 +339,9 @@ export class Handovers {
       this.transientRetries.reset(previous)
     }
     if (sessionId !== previous) this.transientRetries.reset(previous)
+    const message = move === 'message' ? userMessageOf(current.reply) : null
     settle(current)
+    if (message !== null) current.message = message
     this.deps.save()
   }
 
@@ -354,8 +358,9 @@ export class Handovers {
     const from = source === located ? located : { ...located, transcript, recent, lastMessage, checkpoint }
     const kept = noteFrom(this.deps.note?.(task), source.sessionId)
     const prompt = handoffPrompt(task, from, reason, this.deps.promptLanguage(task), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false, failed, this.deps.plain?.(task) !== true, kept)
-    const told = extra === undefined ? prompt : `${prompt}\n${extra}\n`
-    const sessionId = await this.deps.machine.relay(task, from, told + report, reason)
+    // The extra goes last: the page splits a user's message off the end of the prompt (BTN-1281).
+    const told = extra === undefined ? prompt + report : `${prompt + report}\n${extra}\n`
+    const sessionId = await this.deps.machine.relay(task, from, told, reason)
     this.sources.set(task, { sessionId, source, failed })
     return sessionId
   }

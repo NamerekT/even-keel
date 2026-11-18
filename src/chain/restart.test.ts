@@ -159,6 +159,8 @@ describe('Dispatcher on a new session with the user\'s message', () => {
     expect(relays[0]?.prompt).toMatch(/кэш[\s\S]*Left: run the tests\.\n\nСообщение пользователя:\n\nCheck the logs too\.\n$/)
     expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
     expect(dispatcher.state.active[0]?.current?.reply).toBeUndefined()
+    // The page shows the message as the user's while the new session boots (BTN-1281).
+    expect(dispatcher.state.active[0]?.current?.message).toBe('Check the logs too.')
     expect(journal.at(-1)).toEqual({
       at: '2026-09-26T13:00:00.000Z',
       project: 'ABC',
@@ -168,6 +170,19 @@ describe('Dispatcher on a new session with the user\'s message', () => {
       cause: 'message',
       previous: 'old-session',
     })
+  })
+
+  it('drops the message the new session started with on the next move', async () => {
+    const { dispatcher, relays } = await running()
+    dispatcher.renew('ABC', 'ABC-1', 'old-session', null, 'Check the logs too.\n')
+    await dispatcher.idle()
+    expect(relays).toHaveLength(1)
+
+    dispatcher.restart('ABC', 'ABC-1')
+    await dispatcher.idle()
+
+    expect(relays).toHaveLength(2)
+    expect(dispatcher.state.active[0]?.current?.message).toBeUndefined()
   })
 
   it('refuses a session the task moved past, a question answered already and a stopped chain', async () => {

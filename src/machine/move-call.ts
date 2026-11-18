@@ -14,7 +14,7 @@ export const MOVE_STATE_EVENT = 'task.state'
 export const isMove = (name: string): name is MoveName => (MOVES as readonly string[]).includes(name)
 
 /** The fields of the current task a move changes; the hub keeps the rest of it. */
-const MOVE_FIELDS = ['sessionId', 'resumedAt', 'limit', 'starting', 'move', 'answering', 'reply', 'ask'] as const
+const MOVE_FIELDS = ['sessionId', 'resumedAt', 'limit', 'starting', 'move', 'answering', 'reply', 'ask', 'message'] as const
 export type MoveFields = Pick<CurrentTask, (typeof MOVE_FIELDS)[number]>
 
 export function fieldsOf(current: CurrentTask): MoveFields {
