@@ -2,11 +2,11 @@ import { MOVE_SETTINGS } from '../../../src/chain/moves.js'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { EvenKeelState, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
-import { useCommand } from '../live/useCommand.js'
+import { useCommand, useLanding } from '../live/useCommand.js'
 import { knownStatuses, type RuleLevel } from './ruleRows.js'
 import { RuleForm, ruleText } from './RuleForm.js'
 import { changed, edited, reverted, type Values } from './settingsDraft.js'
-import { linesOf, marksOf, sameBy, SaveBar } from './settingsParts.js'
+import { linesOf, marksOf, sameBy, SAVE_LANDING_MS, SaveBar } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { useDraft } from './settingsStore.js'
 import { useVocabularies, VocabularyReading } from './useVocabularies.js'
@@ -48,6 +48,7 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
   const rules: ChainRules = { ...shared, ...own }
   const origins = Object.fromEntries(Object.keys(shared).map((key) => [key, key in own ? 'profile' : 'shared'])) as Record<keyof ChainRules, RuleLevel>
   const moves = useProfileMoves(state, profile, rules)
+  const landing = useLanding(JSON.stringify([saved, moves.saved]), SAVE_LANDING_MS)
 
   return (
     <form
@@ -56,7 +57,7 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
       onSubmit={(event) => {
         event.preventDefault()
         // The rules first: the moves are checked against the rules the profile ends up with.
-        void (async () => (!dirty || (await send('profiles/rules', { id: profile.id, rules: rulesOf(draft.edit) }))) && (await moves.save(send)))()
+        void landing.land(async () => (!dirty || (await send('profiles/rules', { id: profile.id, rules: rulesOf(draft.edit) }))) && (await moves.save(send)))
       }}
     >
       <p className="settings__hint">{profile.projectIds.length === 0 ? t.profiles.rulesNoProjects : t.profiles.rulesFor(profile.projects.join(', '))}</p>
@@ -84,7 +85,9 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <SaveBar
         shown={dirty || moves.dirty}
-        canSave={!sending}
+        canSave={!sending && !landing.on}
+        saving={sending || landing.on}
+        late={landing.late}
         onRevert={() => {
           revert(PROFILE_RULE_KEYS)
           moves.revert()
@@ -112,6 +115,7 @@ function useProfileMoves(state: EvenKeelState, profile: ProfileView, rules: Chai
   const dirty = shown && changed(draft, MOVE_SETTINGS, sameMoves).length > 0
   return {
     dirty,
+    saved,
     section: shown && (
       <MovesSection rules={rules} statuses={statuses} text={draft.edit as MovesText} idPrefix={profile.id} marks={marks} onEdit={(key, value) => setDraft(edited(draft, key, value))} />
     ),

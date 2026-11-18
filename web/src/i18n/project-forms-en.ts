@@ -450,6 +450,8 @@ export const settingsEN: Messages['settings'] = {
     groupsLabel: 'Settings groups',
     unsaved: 'has unsaved changes',
     unsavedGroup: 'The changes on this tab are not saved',
+    saving: 'Saving…',
+    savedLate: 'Saved, but the page has not got the new values yet: reload it if they do not show up',
     save: 'Save the changes on this tab',
     revert: 'Put this tab back as it was',
     revertField: 'Put this field back as it was',

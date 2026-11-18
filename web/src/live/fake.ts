@@ -56,6 +56,8 @@ import { withFeeds, withLongNames, withMixedNames } from './fakeLong.js'
 const TICK_MS = 2_000
 const ANSWER_MS = 300
 const SLOW_VOCABULARY_MS = 4000
+const SLOW_SAVE_MS = 3_000
+const SAVES = new Set(['settings', 'project/settings', 'profiles/rules', 'profiles/moves'])
 const CLOSE_TICKS = 5
 const HANDOVER_MS = 1_000
 const DEVICE_MS = 8_000
@@ -872,12 +874,15 @@ export function createFakeSource(search: string): LiveSource {
       const starts = name === 'chain/start' || name === 'chain/restart' || (name === 'session/answer' && body.renew === true)
       const staged = starts ? startStages(state, next, String(body.project)) : [waiting]
       const stages = name === 'session/answer' && params.get('renew') === 'fail' ? failedRenew(staged, String(body.project)) : staged
-      stages.forEach((stage, index) => {
+      // `?save=slow|lost`: a settings save is answered at once and its state comes late or never (BTN-1318).
+      const saving = SAVES.has(name) ? params.get('save') : null
+      if (saving !== 'lost') stages.forEach((stage, index) => {
         const show = () => {
           current = { ...current, state: stage }
           notify()
         }
-        if (index === 0) show()
+        if (index === 0 && saving === 'slow') setTimeout(show, SLOW_SAVE_MS)
+        else if (index === 0) show()
         else setTimeout(show, index * (delay ?? START_STAGE_MS))
       })
       if (name === 'session/answer') {

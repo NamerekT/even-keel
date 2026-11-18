@@ -12,10 +12,10 @@ import type { Task } from '../../../src/tracker/model.js'
 import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { useCommand } from '../live/useCommand.js'
+import { useCommand, useLanding } from '../live/useCommand.js'
 import { changed, sent, type Value } from './settingsDraft.js'
 import { modelKey, namedProviders } from './settingsRun.js'
-import { GroupTabs, type RuleKey, rulesOf, SaveBar, unplaced, useFieldErrors } from './settingsParts.js'
+import { GroupTabs, type RuleKey, rulesOf, SAVE_LANDING_MS, SaveBar, unplaced, useFieldErrors } from './settingsParts.js'
 import { newMilestones, ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { useSourceMoves } from './SourceMoves.js'
 import { useVocabularies, VocabularyReading } from './useVocabularies.js'
@@ -59,6 +59,7 @@ export function SettingsPanel({
   const profileRules: Partial<ChainRules> = profile?.rules ?? {}
   const saved = valuesOf(form, profileRules)
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
+  const landing = useLanding(JSON.stringify(saved), SAVE_LANDING_MS)
   const draft = current!
   const machine = useMachineFilter().selected
   /** The machine whose view asked for the shared tabs; another machine picked opens on its own settings again. */
@@ -110,13 +111,15 @@ export function SettingsPanel({
   const [sourceTab, openSourceTab] = useTab<string>(sourceScope(project), '')
   const moves = useSourceMoves({ state, project, feed: null, kind: text('tracker'), profile: ruleProfile, rules: chain, saved: form.moves })
   const onBuiltin = text('tracker') === BUILTIN
-  const save = async () => {
-    if (next === undefined || base === undefined) return false
-    // The built-in tracker gets the milestones the rules name first: "Add a milestone" creates one (BTN-769).
-    if (form.tracker === BUILTIN && onBuiltin)
-      for (const name of newMilestones(next.chain, ruleChoices.milestones)) if (!(await send('builtin/milestone', { project, name }))) return false
-    return send('project/settings', { project, ...next, base })
-  }
+  const save = () =>
+    landing.land(async () => {
+      if (next === undefined || base === undefined) return false
+      // The built-in tracker gets the milestones the rules name first: "Add a milestone" creates one (BTN-769).
+      if (form.tracker === BUILTIN && onBuiltin)
+        for (const name of newMilestones(next.chain, ruleChoices.milestones)) if (!(await send('builtin/milestone', { project, name }))) return false
+      return send('project/settings', { project, ...next, base })
+    })
+  const canSave = !sending && !landing.on && next !== undefined
   const leftover = unplaced(project, failure, config)
 
   const groups: Record<GroupId, () => ReactNode> = {
@@ -140,7 +143,7 @@ export function SettingsPanel({
         setConfiguring={setConfiguring}
         sourceTab={sourceTab}
         openSourceTab={openSourceTab}
-        canSave={!sending && next !== undefined}
+        canSave={canSave}
         leftover={leftover}
         save={save}
       />
@@ -205,7 +208,7 @@ export function SettingsPanel({
       >
         {groups[open]()}
         {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
-        <SaveBar shown={dirty(open)} canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />
+        <SaveBar shown={dirty(open)} canSave={canSave} saving={sending || landing.on} late={landing.late} onRevert={() => revert(keysOf(open))} />
       </form>
       </TableDraft>
     </aside>

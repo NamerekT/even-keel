@@ -5,7 +5,7 @@ import type { CardLabel, TaskCard as Card } from '../../../src/tracker/card.js'
 import type { MilestonePick as MilestonePickView } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { useCommand } from '../live/useCommand.js'
+import { useCommand, useLanding } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Fact, FactList } from '../ui/blocks.js'
 import { ButtonWithTip } from '../ui/ButtonWithTip.js'
@@ -40,6 +40,8 @@ import './cardEdit.css'
 
 /** Labels whose meaning stops a session or keeps the task out of the chain get a callout above the description. */
 const LOUD = new Set<CardLabel['role']>(['question', 'excluded'])
+/** How long a move's button waits for the card read anew before it is on again. */
+const MOVE_LANDING_MS = 15_000
 
 interface Props {
   task: string
@@ -249,6 +251,9 @@ interface BodyProps {
 
 function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, onChanged }: BodyProps) {
   const { send, sending, failure } = useCommand()
+  // A move between the backlog and the chain shows once the card is read anew: its button stays off until then.
+  const move = useLanding(`${card.ready}|${card.unready}`, MOVE_LANDING_MS)
+  const moving = sending || move.on
   const { state } = useLive()
   const roleText = (role: NonNullable<Card['labels'][number]['role']>) => t.card.roles[role]
   const markdown = useMarkdown(onOpen, card.attachments)
@@ -323,8 +328,8 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               <button
                 type="button"
                 className="button button--primary"
-                disabled={sending || refused !== null}
-                onClick={() => void send('task/ready', { task: card.id }).then((ok) => ok && onChanged())}
+                disabled={moving || refused !== null}
+                onClick={() => void move.land(() => send('task/ready', { task: card.id })).then((ok) => ok && onChanged())}
               >
                 {t.card.ready}
               </button>
@@ -335,8 +340,8 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               <button
                 type="button"
                 className="button"
-                disabled={sending}
-                onClick={() => void send('task/unready', { task: card.id }).then((ok) => ok && onChanged())}
+                disabled={moving}
+                onClick={() => void move.land(() => send('task/unready', { task: card.id })).then((ok) => ok && onChanged())}
               >
                 {t.card.unready}
               </button>
