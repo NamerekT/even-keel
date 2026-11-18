@@ -354,6 +354,14 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('long') === 'mixed' && current.state !== null) current.state = withMixedNames(current.state)
   if (params.has('feeds') && current.state !== null) current.state = withFeeds(current.state, params.get('feeds')!)
   if (params.get('families') === '3' && current.state !== null) current.state = withFamilies(current.state)
+  // `remote=off`: the Claude sessions' account starts no Remote Control (EKR-148).
+  if (params.get('remote') === 'off' && current.state !== null) {
+    const state = current.state
+    const off = new Set(state.sessions.filter((each) => each.agent === 'claude').map((each) => each.account))
+    state.sessions = state.sessions.map((each) => (off.has(each.account) ? { ...each, remoteUrl: null, remoteOff: 'disabled' } : each))
+    state.account.accounts = state.account.accounts.map((entry) =>
+      entry.agent === 'claude' && (off.has(entry.key) || off.has(entry.status?.email ?? null)) ? { ...entry, remoteOff: true } : entry)
+  }
   const keyAgent = KEY_LIMIT_AGENTS[params.get('limit') ?? '']
   const keyAccount = current.state?.account.accounts.find((entry) => entry.key === 'ci-key')
   if (keyAgent && keyAccount) keyAccount.agent = keyAgent

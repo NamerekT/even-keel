@@ -236,8 +236,10 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
       <ul className="timeline__rows">
         {detail.sessions.map((session, index) => (
           <li key={session.sessionId} className="timeline__row">
-            <span className="timeline__label" title={session.title ?? session.sessionId}>
-              {launchLabel(session.reason)}
+            <span className="timeline__label">
+              <Tipped className="timeline__name" tip={session.title ?? session.sessionId} align="start" inline>
+                {launchLabel(session.reason)}
+              </Tipped>
               <span className="timeline__meta">
                 {session.model !== null && modelLabel(session.model.replace(/^claude-([a-z]+).*$/, '$1'))} · {session.priceEstimate === null ? (
                   formatUsd(session.cost)

@@ -155,6 +155,20 @@ describe('AccountSettings', () => {
     expect(settings.edits(home)).toEqual([])
   })
 
+  it('sets an own key the global settings cannot override, even before the folder was ever transferred (EKR-148)', () => {
+    const fresh: AccountHome = { key: 'fresh', dir: join(root, 'fresh'), global: false, agent: 'claude' }
+    mkdirSync(fresh.dir)
+    write(fresh.dir, { theme: 'light' })
+    settings.setOwn(fresh, 'remoteControlAtStartup', true)
+    expect(settings.own('fresh')).toEqual(['remoteControlAtStartup'])
+    expect(settings.edits(fresh)).toEqual([])
+    settings.setOwn(home, 'remoteControlAtStartup', true)
+    write(globalDir, { model: 'opus', theme: 'dark', remoteControlAtStartup: false })
+    share()
+    expect(stripSettingsGuard(read(home.dir))).toEqual({ model: 'opus', theme: 'dark', remoteControlAtStartup: true })
+    expect(settings.edits(home)).toEqual([])
+  })
+
   it('refuses to resolve a key that was not edited, and to drop an own key that is not there', () => {
     expect(() => settings.resolve(home, 'model', 'share')).toThrow(/model/)
     expect(() => settings.dropOwn(home, 'model')).toThrow(/model/)

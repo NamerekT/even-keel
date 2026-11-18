@@ -378,6 +378,7 @@ export const en = {
     `In ${p.account}, "${p.key}" was changed directly; the change stays there until you choose what to do with it`,
   'account.settingsNoEdit': (p: { account: string; key: string }) => `claude: ${p.account} has no change of "${p.key}" to resolve any more; reload the page`,
   'account.settingsNoOwn': (p: { account: string; key: string }) => `claude: ${p.account} keeps no "${p.key}" of its own any more; reload the page`,
+  'account.remoteNoSignIn': (p: { key: string }) => `claude: ${p.key} is not signed in with claude.ai, and Remote Control runs only on such a sign-in`,
   'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.apiKeyRejected': () => "claude: Anthropic doesn't accept this key: it is wrong, revoked or its organization is disabled",
   'account.apiKeyUnchecked': (p: { reason: string }) => `claude: could not check the key with Anthropic (${p.reason}); try again later`,

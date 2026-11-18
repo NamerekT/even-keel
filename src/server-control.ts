@@ -110,6 +110,8 @@ export interface AccountControl {
   resolveSettingsEdit(account: string, key: string, choice: EditChoice): Promise<void>
   /** A key of the account's own settings layer goes; the global value comes back. */
   dropOwnSetting(account: string, key: string): Promise<void>
+  /** Remote Control from the account's next session, for a claude.ai sign-in (EKR-148). */
+  enableRemote(account: string): Promise<void>
   code(code: string): void
   cancel(): void
 }

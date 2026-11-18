@@ -1,6 +1,6 @@
 {
   "name": "even-keel",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Works through your tasks one at a time with Claude Code, Codex, OpenCode or GitHub Copilot while you are away: a service on your machine with one web page, its own tracker or yours",
   "license": "MIT",
   "repository": {

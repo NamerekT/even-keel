@@ -184,9 +184,8 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
               projectLocked={fixed !== null || busy}
               status={status}
               onChange={(change) => setTyped(change)}
-            />
-            {keyTyped(shape) && (
-              <div className="settings__row tracker-fields__row">
+            >
+              {keyTyped(shape) && (
                 <div className="settings__field">
                   <FieldHead label={t.transfer.key} hint={t.transfer.keyHint} htmlFor="transfer-key" />
                   <ErrorStrip error={keyRefused}>
@@ -203,8 +202,8 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
                     />
                   </ErrorStrip>
                 </div>
-              </div>
-            )}
+              )}
+            </TrackerFields>
             {phase === 'pick' && plan !== null && <Losses plan={plan} recheck={fixable ? () => setRecheck((count) => count + 1) : null} checking={checking} />}
             {phase !== 'pick' && phase !== 'read' && <Progress exported={exported!} />}
             {phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}

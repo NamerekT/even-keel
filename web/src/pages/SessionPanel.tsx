@@ -10,6 +10,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import { formatClock, formatFullTime, formatLineTime, formatMoment, formatQuiet, formatStamp, minuteMarks } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { completionTasks, needsReply } from '../completion.js'
+import { accountOf } from '../accountName.js'
 import { useNow } from '../layout/useNow.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import { useLive } from '../live/context.js'
@@ -225,7 +226,12 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
     formatMoment(new Date(quietAt + TURN_RESTART_MS).toISOString(), now),
     formatMoment(new Date(quietAt + TURN_HANG_MS).toISOString(), now),
   )
-  const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
+  // The button turns Remote Control on for the account's next sessions (EKR-148); this one stays without it.
+  const [remoteTurnedOn, setRemoteTurnedOn] = useState<string | null>(null)
+  const remoteAccount = session?.account == null ? undefined : accountOf(state?.account, session.account, session.agent)
+  const remoteOnNow = remoteAccount !== undefined && remoteTurnedOn === remoteAccount.key
+  const remoteOff = session === null || session.remoteUrl !== null ? null : remoteOnNow ? t.session.remoteOn.done : t.session.remote[session.remoteOff ?? 'no-bridge']
+  const offersRemote = !remoteOnNow && session?.remoteOff === 'disabled' && remoteAccount?.remoteOff === true
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
   const starting = replacing.on || (block.current && block.start !== null)
   const waiting = !aside && talking?.lamp === 'waiting' && (!completionTasks(state).has(talking.task) || needsReply(talking))
@@ -332,9 +338,15 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
         />
       )}
       {remoteOff !== null && !starting && (
-        <p className="panel__remote-off" title={session?.account == null ? undefined : t.session.account(session.account)}>
-          {remoteOff}
-        </p>
+        <div className="panel__remote-off">
+          <p title={session?.account == null ? undefined : t.session.account(session.account)}>{remoteOff}</p>
+          {offersRemote && remoteAccount !== undefined && (
+            <button type="button" className="button button--small" title={t.session.remoteOn.tip} disabled={sending}
+              onClick={() => void send('account/remote', { account: remoteAccount.key }).then((ok) => { if (ok) setRemoteTurnedOn(remoteAccount.key) })}>
+              {t.session.remoteOn.action}
+            </button>
+          )}
+        </div>
       )}
       {failure !== null && failure.code !== 'chain.limitSpent' && <p className="notice notice--error">{say(failure)}</p>}
       {chatting && chatSession !== null && (

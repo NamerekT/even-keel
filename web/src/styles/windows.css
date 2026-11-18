@@ -183,9 +183,16 @@
 }
 
 .panel__remote-off {
-  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
   color: var(--fg-muted);
   font-size: var(--text-13);
+}
+
+.panel__remote-off p {
+  margin: 0;
 }
 
 .panel__feed {

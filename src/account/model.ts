@@ -97,6 +97,8 @@ export interface AccountEntry {
   keyReplaceable?: boolean
   /** The long token of `claude setup-token` a subscription folder runs on instead of a full sign-in (BTN-1005). */
   longToken?: LongToken
+  /** A claude.ai sign-in whose folder does not start Remote Control with its sessions (EKR-148). */
+  remoteOff?: true
   /** The cloud a Claude folder runs on (BTN-822), read from its `settings.json`; `apiKey` is false for it. */
   cloud?: CloudSummary
   /** The model that answered the check turn when the account was added, while the service runs. */

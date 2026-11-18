@@ -115,6 +115,8 @@ export interface Known {
   cloud: CloudSummary | null
   /** The long token the folder runs on (BTN-1005). */
   longToken: LongToken | null
+  /** Whether a Claude folder's `settings.json` starts Remote Control; null for another agent's. */
+  remote: boolean | null
 }
 
 export interface Running {

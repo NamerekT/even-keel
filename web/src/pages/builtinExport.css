@@ -3,6 +3,12 @@
   width: min(640px, calc(100vw - 32px));
 }
 
+/* The tracker's fields and the key in one grid: Linear's team and project take a cell each, none left blank (EKR-147). */
+.transfer .tracker-fields__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+}
+
 /* What the target leaves behind: a nested group, a line per kind. */
 .transfer__losses {
   display: flex;

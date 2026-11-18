@@ -77,6 +77,10 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
           <li role="none"><button type="button" role="menuitem" className="roles__offer" onClick={() => pick(() => setRenaming(true))}>{t.account.renameAction}</button></li>
           {entry.keyReplaceable === true && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
             onClick={() => pick(() => setReplacing(true))}>{t.account.replaceKey[keyWord(entry)]}</button></li>}
+          {entry.remoteOff === true && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
+            aria-disabled={sending} onClick={() => { if (!sending) pick(() => void send('account/remote', { account: entry.key })) }}>
+            {t.account.enableRemote}<span className="roles__note">{t.account.enableRemoteNote}</span>
+          </button></li>}
           {entry.managementKey !== undefined && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
             onClick={() => pick(() => setManaging(true))}>{t.account.managementKeyAction}</button></li>}
           <li role="none"><button type="button" role="menuitem" className="roles__offer account-row__remove"

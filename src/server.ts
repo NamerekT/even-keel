@@ -162,6 +162,7 @@ const COMMANDS: Record<string, Command> = {
   'account/name': ({ account }, body) => account.rename(accountOf(body), typeof body.name === 'string' ? body.name : ''),
   'account/settings-edit': ({ account }, body) => account.resolveSettingsEdit(accountOf(body), textOf(body.key, 'key'), editChoiceOf(body.choice)),
   'account/own-setting': ({ account }, body) => account.dropOwnSetting(accountOf(body), textOf(body.key, 'key')),
+  'account/remote': ({ account }, body) => account.enableRemote(accountOf(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
   'packages/install': ({ packages }, body) => packages.install(nameOf(body)),
