@@ -12,6 +12,7 @@ import { JobWindow } from './JobWindow.js'
 import { MachineOwnValues } from './MachineOwnValues.js'
 import { usePool } from './ProjectMachinesTab.js'
 import { Row, Section, Switch } from './settingsParts.js'
+import { TrackerFix } from './TrackerFixButtons.js'
 import './projectMachines.css'
 
 const ROW = 'settings__field'
@@ -28,7 +29,8 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
   const [connecting, setConnecting] = useState(false)
   const row = pool?.machines.find((each) => each.id === card.id)
   const other = pool?.others.filter((each) => each.id === card.id) ?? []
-  const blocked = card.projects.some((each) => each.project === project && each.packagesBlocked)
+  const held = card.projects.find((each) => each.project === project && each.packagesBlocked)
+  const blocked = held !== undefined
   const job = state?.jobs?.find((each) => each.kind === 'machine' && each.project === project)
   const done = job?.done === true
   // A finished connection put the machine into the pool: read it again.
@@ -55,11 +57,11 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
           {row !== undefined && (
             <>
               <Row
-                className={ROW}
+                className={`${ROW} pool__wide`}
                 label={view.folder}
                 hint={view.folderHint}
                 control={
-                  <bdi className="pool__folder" dir="ltr">
+                  <bdi className="pool__folder pool__folder--whole" dir="ltr">
                     {row.folder}
                   </bdi>
                 }
@@ -77,7 +79,9 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
                     </Link>
                   </span>
                 }
-              />
+              >
+                {held !== undefined && <PackagesWhy project={project} held={held} />}
+              </Row>
             </>
           )}
         </Loading>
@@ -118,5 +122,24 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
         />
       )}
     </>
+  )
+}
+
+/**
+ * Why the project's packages hold the machine (BTN-1300): the packages to finish — the button "The project's packages"
+ * beside the state is their fix — and the tracker's server no package brings, with the buttons that turn one on or the
+ * task description; neither — what passes by itself.
+ */
+function PackagesWhy({ project, held }: { project: string; held: MachineCard['projects'][number] }) {
+  const view = t.machinePanel.view
+  const { state } = useLive()
+  const tracker = held.trackerMissing
+  return (
+    <div className="pool__packages-why">
+      {held.packagesUnready.length > 0 && <p>{view.packagesUnready(held.packagesUnready)}</p>}
+      {tracker !== null && <p>{view.trackerMissing(tracker)}</p>}
+      {tracker !== null && state !== null && <TrackerFix state={state} project={project} />}
+      {held.packagesUnready.length === 0 && tracker === null && <p>{view.packagesPassing}</p>}
+    </div>
   )
 }

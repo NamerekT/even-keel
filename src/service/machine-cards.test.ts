@@ -5,6 +5,7 @@ import type { MachineAbout } from '../link/view.js'
 import type { MachineFacts } from '../machine/facts.js'
 import { pageReads } from '../machine/page.js'
 import type { RateLimits } from '../limits/model.js'
+import { notice } from '../notice/notice.js'
 import { machineCards, type MachineCardsDeps } from './machine-cards.js'
 
 const NOW = Date.parse('2026-11-17T16:00:00.000Z')
@@ -76,6 +77,15 @@ describe('machineCards', () => {
     const accounts = [entry('a', 'claude', spent('2026-11-17T18:40:00.000Z')), entry('b', 'claude', spent('2026-11-17T17:10:00.000Z')), entry('c', 'codex', half), entry('d', 'codex', spent('2026-11-17T19:00:00.000Z')), entry('e', 'codex', null, false)]
     const cards = await machineCards(deps({ mirror: (machine) => (machine === 'laptop' ? mirror(accounts, { p1: true }) : undefined) }))
     expect(cards[1]).toMatchObject({ agents: ['claude', 'codex'], limitedUntil: { claude: '2026-11-17T17:10:00.000Z' }, projects: [{ project: 'p1', enabled: true, packagesBlocked: true }] })
+  })
+
+  it("says why a project's packages are not ready on a machine elsewhere: the packages to fix and the tracker's server none brings (BTN-1300)", async () => {
+    const base = mirror([], { p1: true })
+    const facts = base.facts()
+    facts.projects.p1 = { ...facts.projects.p1!, packagesPause: notice('chain.packagesNotReady', { project: 'P1', packages: ['forgejo', 'docs'] }), trackerMissing: 'huly' }
+    const cards = await machineCards(deps({ mirror: (machine) => (machine === 'laptop' ? base : undefined) }))
+    expect(cards[1]!.projects).toEqual([{ project: 'p1', enabled: true, packagesBlocked: true, packagesUnready: ['forgejo', 'docs'], trackerMissing: 'huly' }])
+    expect(cards[0]!.projects).toEqual([{ project: 'p1', enabled: false, packagesBlocked: false, packagesUnready: [], trackerMissing: null }])
   })
 
   it('reads the own machine from its own accounts, a window gone by not counting', async () => {

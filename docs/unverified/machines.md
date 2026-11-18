@@ -230,3 +230,11 @@ To check, on the benches: a project of width 2 with the hub and machine-1 in its
 Assumed: the machine posts its sessions' views in its facts with the first transcript line, and the page's state broadcast after the mirror changed carries them. If not, the task's row keeps "loading" with its clock up to five minutes after the session's start and its panel the waiting screen, while the machine's page already shows the session.
 
 To check, on the benches: a project with machine-1 in its pool; start a task there and watch its row on the hub's page: "loading" goes once the session writes its first line, the row's lamp follows the session (working, then waiting after its turn) and the panel shows the session's feed and context.
+
+## Why a machine elsewhere's packages are not ready (BTN-1300)
+
+`docs/machines.md`, "The page". `src/service/machine-cards.test.ts` covers the card's reasons read from a mirror's facts, and `dev:fake` `?machines=signIn&machine=machine-1#settings` (machine-1 connected to ABC) the lines and buttons; the reasons never came from a live machine.
+
+Assumed: the machine's facts carry `packagesPause` with the packages to finish and `trackerMissing` whenever they hold it, and the hub's state of the project's packages offers the same tracker package the machine lacks. If not, the settings tab says "not ready" with "it usually passes by itself" under it while only the user can fix it, or the tracker package's button turns on a package the machine already has; the machine's `packages:` log lines name the package.
+
+To check, on the benches: a project on the built-in tracker with machine-1 in its pool and "Task description in the prompt" off; turn off its `tasks@even-keel` package and open machine-1's settings tab: the line names the server `tasks` with its two buttons, and the package's button makes it ready there. Then give a package a key the machine lacks: the line names that package.

@@ -6,8 +6,12 @@ import type { ChainBlock } from './state.js'
 
 const card = (id: string, patch: Partial<MachineCard> = {}): MachineCard => ({
   id, name: id, color: '#7a8fa6', own: id === 'pc', online: true, offlineSince: null, gitUser: true, agents: ['claude'], limitedUntil: {},
-  projects: [{ project: 'ABC', enabled: true, packagesBlocked: false }], accounts: [], active: null, ...patch,
+  projects: [projectRow('ABC')], accounts: [], active: null, ...patch,
 })
+
+function projectRow(project: string, enabled = true, packagesBlocked = false): MachineCard['projects'][number] {
+  return { project, enabled, packagesBlocked, packagesUnready: [], trackerMissing: null }
+}
 
 const state = (patch: Partial<EvenKeelState['chain']> = {}) =>
   ({
@@ -31,7 +35,7 @@ describe('machineState', () => {
     expect(machineState(view, cards, cards[0]!, 'ABC')).toEqual({ lamp: 'working', task: { id: 'ABC-1', title: 'Title ABC-1' } })
     expect(machineState(view, cards, card('srv', { otherVersion: '0.3.9', gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'version', version: '0.3.9' })
     expect(machineState(view, cards, card('srv', { gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'git' })
-    expect(machineState(view, cards, card('srv', { projects: [{ project: 'ABC', enabled: true, packagesBlocked: true }] }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'packages' })
+    expect(machineState(view, cards, card('srv', { projects: [projectRow('ABC', true, true)] }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'packages' })
     expect(machineState(view, cards, card('srv', { limitedUntil: { claude: '2026-11-17T18:40:00Z' } }), 'ABC')).toEqual({ lamp: 'limit', until: '2026-11-17T18:40:00Z' })
     expect(machineState(view, cards, cards[1]!, 'ABC')).toEqual({ lamp: 'free', task: { id: 'ABC-2', title: 'Title ABC-2' } })
   })
@@ -101,7 +105,7 @@ describe('machineBacklog', () => {
 })
 
 describe('machineProjects', () => {
-  const row = (project: string, enabled = true) => ({ project, enabled, packagesBlocked: false })
+  const row = (project: string, enabled = true) => projectRow(project, enabled)
 
   it('keeps the projects whose pool has the machine, turned off too, in their order', () => {
     const cards = [card('pc', { projects: [row('ABC'), row('DEF')] }), card('srv', { projects: [row('DEF', false), row('ABC')] })]
@@ -125,7 +129,7 @@ describe('mergeQueue', () => {
 })
 
 describe('machineHeader', () => {
-  const row = (project: string) => ({ project, enabled: true, packagesBlocked: false })
+  const row = (project: string) => projectRow(project)
   const cards = [card('pc', { projects: [row('ABC'), row('DEF')] }), card('srv', { projects: [row('ABC')] })]
   const session = (task: string) => ({ task, sessionId: `s-${task}`, lamp: 'question' })
   const full = {

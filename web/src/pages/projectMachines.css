@@ -160,10 +160,46 @@
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-8);
   font-size: var(--text-14);
 }
 
 .pool__packages-state--blocked {
   color: var(--warn-fg);
+}
+
+/* Why the packages hold the machine (BTN-1300): a line per problem under the row, with its buttons. */
+.pool__packages-why {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.pool__packages-why p {
+  margin: 0;
+}
+
+/* The buttons stand under their line, at its start. */
+.pool__packages-why .tracker-fix {
+  justify-content: flex-start;
+}
+
+/* A value read whole, a folder's path (BTN-1300): under its name, across the row, wrapping where it must. */
+.pool__wide .settings__line-main {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pool__wide .settings__control {
+  justify-content: flex-start;
+}
+
+.pool__folder--whole {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }

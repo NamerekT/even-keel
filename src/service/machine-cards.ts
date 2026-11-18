@@ -58,11 +58,17 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       ...limitedOf(accounts.filter((account) => account.signedIn), now),
       accounts,
       active: panel?.active || null,
-      projects: (await deps.folders(record.id)).map((row) => ({
-        project: row.project,
-        enabled: row.enabled,
-        packagesBlocked: facts?.projects[row.project]?.packagesBlocked === true,
-      })),
+      projects: (await deps.folders(record.id)).map((row) => {
+        const project = facts?.projects[row.project]
+        const pause = project?.packagesPause
+        return {
+          project: row.project,
+          enabled: row.enabled,
+          packagesBlocked: project?.packagesBlocked === true,
+          packagesUnready: pause?.code === 'chain.packagesNotReady' ? pause.params.packages : [],
+          trackerMissing: project?.trackerMissing ?? null,
+        }
+      }),
     }
   }))
 }

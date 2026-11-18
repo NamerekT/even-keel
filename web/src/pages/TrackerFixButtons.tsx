@@ -16,9 +16,13 @@ export const briefBack = (shared: boolean | null): boolean | null => (shared ===
  * server beside it (BTN-874), or the add dialog over the project's packages when none is installed — and the description.
  */
 export function TrackerFixButtons({ state, project, error }: { state: EvenKeelState; project: string; error: Notice | null }) {
+  return error?.code === 'chain.noTrackerMcp' ? <TrackerFix state={state} project={project} /> : null
+}
+
+/** The same buttons wherever no package brings the tracker's server: a machine of the project's pool too (BTN-1300). */
+export function TrackerFix({ state, project }: { state: EvenKeelState; project: string }) {
   const navigate = useNavigate()
   const { send, sending } = useCommand()
-  if (error?.code !== 'chain.noTrackerMcp') return null
   const tracker = trackerPackage(state.packages, project)
   const choices: (TrackerChoice | null)[] = tracker?.state === 'missing' && tracker.choices.length > 0 ? tracker.choices : [null]
   const form = state.config.projects[project]

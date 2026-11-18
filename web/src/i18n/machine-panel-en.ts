@@ -60,7 +60,11 @@ export const machinePanelEn: Messages['machinePanel'] = {
     packages: 'Packages',
     packagesHint: "The project's plugins and MCP on this machine. Until they are ready, the machine takes none of the project's tasks.",
     packagesReady: 'ready',
-    packagesBlocked: "not ready: the machine takes none of the project's tasks",
+    packagesBlocked: 'not ready',
+    packagesUnready: (names: string[]) =>
+      `${names.length === 1 ? 'The package' : 'The packages'} ${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} not installed here, failed to install or lack${names.length === 1 ? 's' : ''} a key: finish ${names.length === 1 ? 'it' : 'them'} in the project's packages.`,
+    trackerMissing: (server: string) => `No package of the project brings the tracker's MCP server ${server}, and “Task description in the prompt” is off: turn on a package with it or the description.`,
+    packagesPassing: "The packages are installing or starting here, or the machine's MCP gateway does not answer; it usually passes by itself.",
     packagesOpen: "The project's packages",
     reading: "Reading the project's pool…",
     shared: "The project's shared settings",

@@ -118,10 +118,19 @@ export class FakeNetwork {
         .map((project, index) => {
           const row = this.pools.get(project)?.find((each) => each.id === id)
           const always = id === own || index === 0 || id === 'srv'
-          return { project, member: always || row !== undefined, enabled: always || row?.enabled === true, packagesBlocked: false }
+          // machine-1 lacks the first project's packages, as its page says: one to finish and the tracker's server (BTN-1300).
+          const held = id === 'machine-1' && index === 0
+          return {
+            project,
+            member: always || row !== undefined,
+            enabled: always || row?.enabled === true,
+            packagesBlocked: held,
+            packagesUnready: held ? ['forgejo'] : [],
+            trackerMissing: held ? 'huly' : null,
+          }
         })
         .filter((each) => each.member)
-        .map(({ project, enabled, packagesBlocked }) => ({ project, enabled, packagesBlocked }))
+        .map(({ member: _, ...each }) => each)
       return {
         id, name: names[id] ?? id, color: colors[id]!, own: id === own, online,
         offlineSince: online ? null : Date.now() - 2 * 3_600_000,

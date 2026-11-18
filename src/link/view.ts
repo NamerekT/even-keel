@@ -92,8 +92,12 @@ export interface MachineCard {
   agents: string[]
   /** By agent, when the first of its accounts frees, where every signed-in account of that agent there is at a limit. */
   limitedUntil: Record<string, string>
-  /** The projects of its pool: whether it takes their tasks and whether their packages hold them there. */
-  projects: Array<{ project: string; enabled: boolean; packagesBlocked: boolean }>
+  /**
+   * The projects of its pool: whether it takes their tasks and whether their packages hold them there, and why (BTN-1300):
+   * the enabled packages only the user makes ready there (`Packages.unready`) and the tracker's MCP server no package
+   * brings (`trackerMissing`). Both empty on a held project — what passes by itself: installing, starting, the gateway.
+   */
+  projects: Array<{ project: string; enabled: boolean; packagesBlocked: boolean; packagesUnready: string[]; trackerMissing: string | null }>
   /** Its accounts panel with the limits it read, for the header and the accounts page of its view (BTN-1279); empty before its first snapshot. */
   accounts: MachineCardAccount[]
   /** The account folder its panel names as the launch choice; `null` — none, or not told yet. */
