@@ -159,6 +159,14 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       const first = !machine.brief.received
       const changed = !sameJson(brief, machine.brief.whole)
       machine.brief.take(brief)
+      // A machine elsewhere follows the hub's catalog of its projects' packages (BTN-1299).
+      if (brief.packages !== undefined) {
+        try {
+          machine.packages.follow(brief.packages)
+        } catch (error) {
+          log(`packages: the hub's catalog was not followed: ${messageOf(error)}`)
+        }
+      }
       if (options.alone === true && changed) machine.writes.add('the hub brief', setMachineValue(machine.machineDb, 'brief.kept', brief))
       // The projects without git are known from the first brief on: what their folders have become is read then.
       if (first) void machine.gitFound.checkAll().catch((error: unknown) => log(`git: the projects without git were not read: ${messageOf(error)}`))

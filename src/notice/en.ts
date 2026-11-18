@@ -161,6 +161,8 @@ export const en = {
   'pool.untrusted': (p: { folder: string }) => `Claude Code on the machine does not trust ${p.folder}: start claude in that folder there once, accept the dialog, then Retry`,
   'pool.packagesInstalling': (p: { names: string }) => `The project's packages are still installing on the machine (${p.names}): Retry in a minute`,
   'pool.packagesUnready': (p: { names: string }) => `The project's packages are not ready on the machine (${p.names}): open the project packages and finish them, then Retry`,
+  'pool.packagesNoTracker': (p: { server: string }) =>
+    `No package of the project brings its tracker's MCP server ${p.server} on the machine: turn one on in the project's packages or turn on "Task description in the prompt", then Retry`,
   'pool.serverMissing': (p: { names: string }) => `The machine has no command of these servers of the project's packages: ${p.names}. Install it there, or set the server's command for this machine in the project's tab "Machines", then Retry`,
   'pool.noPush': (p: { remote: string }) => `The machine may not push to ${p.remote}: give its git account the right to push to the repository, then Retry`,
   'pool.folderNotEmpty': (p: { folder: string }) => `${p.folder} on the machine is not empty: a clone goes only into an empty folder, so name another one`,

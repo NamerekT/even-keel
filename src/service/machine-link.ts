@@ -171,23 +171,30 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     }
   }
 
-  /** The hub's brief for a machine serving these projects, each in its folder there with its own values. */
-  const briefOf = (folders: Record<string, string>, settings: Record<string, MachineProjectSettings> = {}) => hubBrief({
-    config: () => ctx.configStore.current,
-    folders: () => folders,
-    machineSettings: () => settings,
-    runsOf: ctx.runsOfProject,
-    tasksOf: (project) => (ctx.tasksByProject.get(project) ?? []).map((task) => task.id),
-    state: () => ctx.dispatcher.state,
-    demoOwns: (project) => ctx.demo.owns(project),
-    reports: ctx.checkReports,
-    hubServers: () => ctx.packageHub.hubServers(),
-    tracker: (project) => {
-      const adapter = ADAPTERS[ctx.configStore.current.trackers[project]!]!
-      const server = adapter?.mcpServer
-      return server === undefined ? undefined : { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
-    },
-  })
+  /**
+   * The hub's brief for a machine serving these projects, each in its folder there with its own values; a machine
+   * elsewhere gets the hub's catalog of their packages too, the own one shares the hub's (BTN-1299).
+   */
+  const briefOf = (folders: Record<string, string>, settings: Record<string, MachineProjectSettings> = {}, elsewhere = false) => {
+    const routes = ctx.packageHub.hubServers()
+    return hubBrief({
+      config: () => ctx.configStore.current,
+      folders: () => folders,
+      machineSettings: () => settings,
+      runsOf: ctx.runsOfProject,
+      tasksOf: (project) => (ctx.tasksByProject.get(project) ?? []).map((task) => task.id),
+      state: () => ctx.dispatcher.state,
+      demoOwns: (project) => ctx.demo.owns(project),
+      reports: ctx.checkReports,
+      hubServers: () => routes,
+      tracker: (project) => {
+        const adapter = ADAPTERS[ctx.configStore.current.trackers[project]!]!
+        const server = adapter?.mcpServer
+        return server === undefined ? undefined : { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
+      },
+      ...(elsewhere ? { catalog: (projects: string[]) => ctx.packages.catalogFor(projects, routes) } : {}),
+    })
+  }
 
   /** What the hub's port of any machine of its chain needs of the hub, the machine named. */
   const remoteOf = (machine: () => string) => ({
@@ -322,7 +329,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     briefed: (machine) => afterGreen.back(machine),
     peers: {
       remote: (machine) => remoteOf(() => machine),
-      brief: briefOf,
+      brief: (folders, settings) => briefOf(folders, settings, true),
       changed: () => {
         steerLimits()
         // The page shows each machine's accounts and its sign-in under way (`MachineNetwork.signIns`).

@@ -26,7 +26,7 @@ export interface FolderCheckDeps {
   git: Git
   /** The `.claude.json` of every Claude account folder of the machine, read; `undefined` — a file that is none. */
   claudeConfigs: () => unknown[]
-  packages: { installingOf(project: string): string[]; unready(project: string): string[]; localStdio(project: string): StdioServer[] }
+  packages: { installingOf(project: string): string[]; unready(project: string): string[]; trackerMissing(project: string): string | undefined; localStdio(project: string): StdioServer[] }
   /** Whether a server's command starts on the machine (`commandFound`). */
   found?: (command: string) => boolean
   wait?: (ms: number) => Promise<void>
@@ -75,6 +75,8 @@ export async function checkFolderStep(deps: FolderCheckDeps, step: FolderStep, s
     if (installing.length > 0) return notice('pool.packagesInstalling', { names: installing.join(', ') })
     const unready = deps.packages.unready(spec.project)
     if (unready.length > 0) return notice('pool.packagesUnready', { names: unready.join(', ') })
+    const tracker = deps.packages.trackerMissing(spec.project)
+    if (tracker !== undefined) return notice('pool.packagesNoTracker', { server: tracker })
     const missing = missingCommands(deps.packages.localStdio(spec.project), deps.found)
     return missing.length > 0 ? notice('pool.serverMissing', { names: missing.join(', ') }) : null
   }

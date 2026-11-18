@@ -13,7 +13,8 @@ import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
-import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
+import { catalogFor, followCatalog, type CatalogBrief } from './follow.js'
+import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackageRecord, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { copyPinned, dependencyChanges, installPinned, lockOf, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
 import { pageSettings } from './settings.js'
 import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn, TASKS_PLUGIN } from './plugins.js'
@@ -27,6 +28,8 @@ const run = promisify(execFile)
 const SERVER_NAME = /^[\w-]+$/
 /** How long the marketplaces' plugin lists and versions are kept before they are read again. */
 const AVAILABLE_MS = 60_000
+/** How long a hub's install that failed here waits before a brief tries it again. */
+const FOLLOW_RETRY_MS = 10 * 60_000
 
 type Offer = ReturnType<typeof pluginOffer>
 
@@ -99,6 +102,9 @@ export class Packages {
   private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace']; skills: PackagesView['skills']['list'] } | undefined
   private offers: { at: number; byName: Map<string, Offer> } | undefined
   private readonly checks = new PassMemo()
+  /** On a machine elsewhere: the hub's current install of each package it follows (BTN-1299), and the last failure of one. */
+  private followed = new Map<string, PackageInstall>()
+  private readonly followFailed = new Map<string, { id: string; at: number }>()
 
   /** The package every project has (BTN-986); `undefined` when the checkout's marketplace lacks the plugin. */
   private readonly builtIn: string | undefined
@@ -170,6 +176,27 @@ export class Packages {
   /** Where the link asks the hub's servers for a machine; `undefined` until the hub's gateway listens. */
   get hubOrigin(): string | undefined {
     return this.hubGateway.listening ? this.hubGateway.origin : undefined
+  }
+
+  /** The hub's catalog for a machine elsewhere serving `projects` (BTN-1299); `hubRoutes` — the hub's `hubServers()`. */
+  catalogFor(projects: string[], hubRoutes: readonly string[]): CatalogBrief {
+    return catalogFor(this.file, projects, hubRoutes)
+  }
+
+  /**
+   * A machine elsewhere follows the hub's catalog from its brief (BTN-1299): the hub's packages and its projects' sets
+   * replace its own, and the hub's installs it lacks are installed here under their ids.
+   */
+  follow(catalog: CatalogBrief): void {
+    const before = JSON.stringify(this.file)
+    const missing = followCatalog(this.file, catalog, this.builtIn)
+    this.followed = new Map(Object.entries(catalog.packages).flatMap(([name, record]) => {
+      const install = current(record)
+      return install === undefined ? [] : [[name, install] as const]
+    }))
+    this.prune()
+    if (JSON.stringify(this.file) !== before) this.save()
+    for (const { name } of missing) this.materialize(name)
   }
 
   /** The projects of the config changed: the repositories are read for servers anew. */
@@ -655,21 +682,8 @@ export class Packages {
     const seconds = () => Math.round((Date.now() - started) / 1000)
     this.deps.log(`packages: installing ${name}`)
     try {
-      let entries: Record<string, ServerEntry>
-      let version: string | null = null
-      let extras = false
-      if (record.plugin !== undefined) {
-        const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
-        const dir = pluginDir(this.deps.cache, name, id)
-        try {
-          cpSync(place.dir, dir, { recursive: true, filter: (source) => !/[\\/]\.git$/.test(source) })
-        } catch (error) {
-          throw fail('packages.copyFailed', { name }, { detail: (error as Error).message }, { cause: error })
-        }
-        entries = pluginServers(dir)
-        version = pluginVersion(dir)
-        extras = hasExtras(dir)
-      } else entries = { [name]: record.server ?? {} }
+      const { entries, extras, ...source } = this.sources(name, record, id)
+      let version = source.version
       const planned: Record<string, { entry: ServerEntry; spec: ReturnType<typeof parseNpx>; npm: string | null }> = {}
       for (const [server, entry] of Object.entries(entries)) {
         const spec = parseNpx(entry)
@@ -716,7 +730,80 @@ export class Packages {
     } finally {
       this.installing.delete(name)
       this.deps.onChange()
+      this.materialize(name)
     }
+  }
+
+  /** The servers an install of the package starts from: a plugin copied from its marketplace into the install's folder. */
+  private sources(name: string, record: PackageRecord, id: string): { entries: Record<string, ServerEntry>; version: string | null; extras: boolean } {
+    if (record.plugin === undefined) return { entries: { [name]: record.server ?? {} }, version: null, extras: false }
+    const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
+    const dir = pluginDir(this.deps.cache, name, id)
+    try {
+      cpSync(place.dir, dir, { recursive: true, filter: (source) => !/[\\/]\.git$/.test(source) })
+    } catch (error) {
+      throw fail('packages.copyFailed', { name }, { detail: (error as Error).message }, { cause: error })
+    }
+    return { entries: pluginServers(dir), version: pluginVersion(dir), extras: hasExtras(dir) }
+  }
+
+  /**
+   * The hub's current install of a followed package (BTN-1299), installed here under its id: a pinned server at the
+   * hub's npm version, none for a server the hub runs for every project here. A failure is tried again after a while.
+   */
+  private materialize(name: string): void {
+    const theirs = this.followed.get(name)
+    const failed = this.followFailed.get(name)
+    if (theirs === undefined || this.installing.has(name) || (failed?.id === theirs.id && Date.now() - failed.at < FOLLOW_RETRY_MS)) return
+    const record = this.file.packages[name]
+    if (record === undefined || record.removed === true || record.installs.some((each) => each.id === theirs.id)) return
+    const home = join(this.deps.cache, name, theirs.id)
+    this.installing.add(name)
+    this.errors.delete(name)
+    this.deps.onChange()
+    const started = Date.now()
+    const seconds = () => Math.round((Date.now() - started) / 1000)
+    this.deps.log(`packages: installing ${name} ${theirs.version ?? theirs.id} as the hub has it`)
+    void (async () => {
+      try {
+        const { entries, version, extras } = this.sources(name, record, theirs.id)
+        const hub = new Set(this.deps.hubServers?.() ?? [])
+        const projects = Object.keys(this.deps.repos)
+        const servers: Record<string, InstalledServer> = {}
+        for (const [server, their] of Object.entries(theirs.servers)) {
+          const entry = entries[server] ?? their.entry
+          const spec = parseNpx(entry)
+          const onHub = projects.length > 0 && projects.every((project) => hub.has(routeOf(project, name, theirs.id, server)))
+          if (onHub) servers[server] = their
+          else if (their.npm === null || spec === null) servers[server] = { entry, npm: null }
+          else servers[server] = await this.installServer(name, entry, spec, their.npm.version, join(home, 'servers', server), theirs.scripts === true, seconds)
+        }
+        const now = this.file.packages[name]
+        if (now === undefined || now.removed === true) {
+          rmSync(home, { recursive: true, force: true })
+          return
+        }
+        const install: PackageInstall = { id: theirs.id, version: version ?? theirs.version, at: new Date().toISOString(), servers, extras, ...(theirs.scripts === true ? { scripts: true as const } : {}) }
+        now.installs = [...now.installs.filter((each) => each.id !== theirs.id), install]
+        // The hub may have moved to an install this machine has while this one ran: that one stays current.
+        const latest = this.followed.get(name)
+        const at = latest === undefined ? -1 : now.installs.findIndex((each) => each.id === latest.id)
+        if (at >= 0) now.installs.push(...now.installs.splice(at, 1))
+        this.followFailed.delete(name)
+        this.prune()
+        this.save()
+        this.deps.log(`packages: ${name} ${install.version ?? install.id} installed in ${seconds()} s`)
+      } catch (error) {
+        rmSync(home, { recursive: true, force: true })
+        this.errors.set(name, noticeOf(error))
+        this.followFailed.set(name, { id: theirs.id, at: Date.now() })
+        this.deps.log(`packages: ${name} not installed as the hub has it: ${(error as Error).message}`)
+      } finally {
+        this.installing.delete(name)
+        this.deps.onChange()
+        this.materialize(name)
+      }
+    })()
   }
 
   /** npm install of a pinned server. */

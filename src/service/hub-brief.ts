@@ -3,6 +3,7 @@ import type { ChainState } from '../chain/model.js'
 import type { EvenKeelConfig } from '../config.js'
 import type { MachineProjectSettings } from '../link/view.js'
 import type { HubBrief } from '../machine/brief.js'
+import type { CatalogBrief } from '../packages/follow.js'
 import { sameJson } from '../machine/facts.js'
 import { warmTasks } from '../sessions/keepwarm.js'
 import type { TaskRun } from '../sessions/runs.js'
@@ -21,6 +22,8 @@ export interface BriefSources {
   reports: Pick<CheckReports, 'ofProject'>
   hubServers?: () => string[]
   tracker?: (project: string) => { server: string; required: boolean; also?: string } | undefined
+  /** The hub's catalog of these projects' packages, for a machine elsewhere (BTN-1299); the own machine shares the hub's file. */
+  catalog?: (projects: string[]) => CatalogBrief
 }
 
 /** What the machine's assembly reads of the hub now (`docs/machines.md`, "The brief"). */
@@ -40,6 +43,7 @@ export function hubBrief(sources: BriefSources): HubBrief {
     active: state.active.filter((chain) => projects.includes(chain.project)).map(({ project, paused }) => ({ project, paused })),
     hubServers: sources.hubServers?.() ?? [],
     trackers: Object.fromEntries(projects.flatMap((project) => { const tracker = sources.tracker?.(project); return tracker === undefined ? [] : [[project, tracker]] })),
+    ...(sources.catalog === undefined ? {} : { packages: sources.catalog(projects) }),
     config: { ...config, projects: Object.fromEntries(projects.map((project) => [project, folders[project]!])), settings },
     servers,
     runs: byProject(sources.runsOf),

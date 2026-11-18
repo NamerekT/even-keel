@@ -7,6 +7,7 @@ import { installPinned, type NpxSpec } from './npm.js'
 import { Packages, type PackagesDeps } from './service.js'
 import { loadPackages, savePackages } from './store.js'
 import { PackageHub } from './hub.js'
+import { routeOf } from './launch.js'
 
 vi.mock('./npm.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./npm.js')>()
@@ -591,5 +592,87 @@ describe('the built-in agent-bridge package (BTN-986)', () => {
     expect(() => packages.remove(BRIDGE)).toThrow(expect.objectContaining(builtIn))
     expect(packages.view().packages.find((each) => each.name === BRIDGE)?.builtIn).toBe(true)
     expect(packages.view().packages.find((each) => each.name === 'tools@example')?.builtIn).toBe(false)
+  })
+})
+
+describe("a machine elsewhere follows the hub's catalog (BTN-1299)", () => {
+  const npx = (version: string): ServerEntry => ({ command: 'npx', args: ['-y', `example-mcp@${version}`] })
+  const tick = () => new Promise((done) => setTimeout(done, 5))
+  const fileOf = (name: string) => join(dir!, name, 'packages.json')
+  const machineOf = (deps: PackagesDeps, name = 'machine') =>
+    new Packages({ ...deps, hub: false, hubServers: () => [], file: fileOf(name), cache: join(dir!, name, 'packages'), tracker: () => ({ server: 'tools', required: true }) })
+  const settled = async (machine: Packages) => {
+    for (let waited = 0; machine.installingOf('project').length > 0; waited += 10) {
+      if (waited > 10_000) throw new Error('still installing')
+      await new Promise((done) => setTimeout(done, 10))
+    }
+  }
+
+  it('installs what its project gets under the hub install ids, so the tracker server is no longer missing', async () => {
+    const { packages: hub, deps } = fixture()
+    hub.setDefault('tools@example', false)
+    hub.choose('project', 'tools@example', 'on')
+    await hub.install('tools@example')
+    const machine = machineOf(deps)
+    expect(machine.trackerMissing('project')).toBe('tools')
+    machine.follow(hub.catalogFor(['project'], []))
+    await settled(machine)
+    const theirs = loadPackages(deps.file)!.packages['tools@example']!.installs[0]!
+    const mine = loadPackages(fileOf('machine'))!
+    expect(mine.packages['tools@example']!.installs.map((each) => each.id)).toEqual([theirs.id])
+    expect(mine.projects).toEqual({ project: { on: ['tools@example'], off: [], settings: {} } })
+    expect(existsSync(join(dir!, 'machine', 'packages', 'tools@example', theirs.id))).toBe(true)
+    expect(machine.trackerMissing('project')).toBeUndefined()
+    expect(machine.unready('project')).toEqual([])
+    await Promise.all([machine.close(), hub.close()])
+  })
+
+  it('follows a change on the hub without a restart: a new install replaces the old one, a package the hub lacks goes', async () => {
+    const { packages: hub, deps, plugin } = fixture()
+    await hub.install('tools@example')
+    const machine = machineOf(deps)
+    machine.addServer('own', { command: 'own-server' })
+    await settled(machine)
+    machine.follow(hub.catalogFor(['project'], []))
+    await settled(machine)
+    plugin('2.0.0', 'all')
+    await tick()
+    await hub.update('tools@example')
+    machine.follow(hub.catalogFor(['project'], []))
+    await settled(machine)
+    const theirs = loadPackages(deps.file)!.packages['tools@example']!.installs.map((each) => each.id)
+    const mine = loadPackages(fileOf('machine'))!
+    expect(mine.packages['tools@example']!.installs.map((each) => each.id)).toEqual(theirs)
+    expect(mine.packages.own).toBeUndefined()
+    hub.choose('project', 'tools@example', 'off')
+    machine.follow(hub.catalogFor(['project'], []))
+    expect(machine.reach('project').servers).toEqual([])
+    expect(machine.trackerMissing('project')).toBe('tools')
+    await Promise.all([machine.close(), hub.close()])
+  })
+
+  it("pins a server at the hub's version, and neither installs nor carries the settings of one the hub runs", async () => {
+    const { packages: hub, deps, plugin } = fixture()
+    plugin('1.0.0', 'all', npx('1.0.0'))
+    await hub.install('tools@example')
+    hub.setSetting('tools@example', 'MODE', 'slow')
+    plugin('1.1.0', 'all', npx('1.1.0'))
+    const id = loadPackages(deps.file)!.packages['tools@example']!.installs[0]!.id
+    vi.mocked(installPinned).mockClear()
+    const machine = machineOf(deps)
+    machine.follow(hub.catalogFor(['project'], []))
+    await settled(machine)
+    expect(vi.mocked(installPinned)).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: 'example-mcp' }), '1.0.0', join(dir!, 'machine', 'packages', 'tools@example', id, 'servers', 'tools'), false)
+    expect(loadPackages(fileOf('machine'))!.packages['tools@example']!.settings).toEqual({ MODE: 'slow' })
+
+    vi.mocked(installPinned).mockClear()
+    const onHub = hub.catalogFor(['project'], [routeOf('project', 'tools@example', id, 'tools')])
+    expect(onHub.packages['tools@example']!.settings).toEqual({})
+    const other = new Packages({ ...deps, hub: false, hubServers: () => [routeOf('project', 'tools@example', id, 'tools')], file: fileOf('other'), cache: join(dir!, 'other', 'packages') })
+    other.follow(onHub)
+    await settled(other)
+    expect(vi.mocked(installPinned)).not.toHaveBeenCalled()
+    expect(loadPackages(fileOf('other'))!.packages['tools@example']!.installs.map((each) => each.id)).toEqual([id])
+    await Promise.all([machine.close(), other.close(), hub.close()])
   })
 })

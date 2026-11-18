@@ -2,6 +2,7 @@ import type { CheckReport } from '../chain/checkreports.js'
 import { isCarryName, isFixName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { parseConfig, type EvenKeelConfig } from '../config.js'
 import type { ServerOverride } from '../link/view.js'
+import type { CatalogBrief } from '../packages/follow.js'
 import type { WarmTask } from '../sessions/keepwarm.js'
 import type { TaskRun } from '../sessions/runs.js'
 
@@ -18,6 +19,8 @@ export interface HubBrief {
   /** Routes whose servers belong to the hub; never their targets or credentials. */
   hubServers?: string[]
   trackers?: Record<string, { server: string; required: boolean; also?: string }>
+  /** For a machine elsewhere, the hub's catalog of its projects' packages that it follows (BTN-1299); the own machine shares the hub's. */
+  packages?: CatalogBrief
   /**
    * The hub's config; `projects` holds only the machine's projects, each with its folder on the machine, and their
    * settings carry the machine's own command lists in place of the project's (BTN-994).
