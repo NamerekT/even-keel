@@ -39,7 +39,7 @@ describe.skipIf(process.platform === 'win32')('install.sh on Linux', () => {
   }
 
   function install() {
-    const env = { PATH: bin, HOME: join(dir, 'home'), XDG_DATA_HOME: join(dir, 'data') }
+    const env = { PATH: bin, HOME: join(dir, 'home'), XDG_DATA_HOME: join(dir, 'data'), TMPDIR: tmpdir() }
     return spawnSync('/bin/sh', [join(dir, 'package', 'service', 'install.sh')], { encoding: 'utf8', env })
   }
 

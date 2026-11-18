@@ -7,6 +7,9 @@ import type { McpRequest } from '../link/protocol.js'
 import { awayReplies, hubOwned, McpGateway, refusal, shellQuoted, stopProcess, type GatewayTarget } from './gateway.js'
 import { routeOf } from './launch.js'
 
+/** A server's process gets only the base environment: the run's temp folder keeps its files out of the OS one (docs/storage.md, "Tests"). */
+const TEMP = { TEMP: process.env.TEMP, TMP: process.env.TMP, TMPDIR: process.env.TMPDIR }
+
 const ECHO = `
 const lines = require('node:readline').createInterface({ input: process.stdin })
 lines.on('line', (line) => {
@@ -125,7 +128,7 @@ describe('McpGateway', () => {
   })
 
   const start = async (target: GatewayTarget | null) => {
-    gateway = new McpGateway({ resolve: () => target, baseEnv: () => ({ PATH: process.env.PATH }), log: () => {} })
+    gateway = new McpGateway({ resolve: () => target, baseEnv: () => ({ PATH: process.env.PATH, ...TEMP }), log: () => {} })
     await gateway.listen(0)
     return `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
   }
@@ -136,7 +139,7 @@ describe('McpGateway', () => {
   it('redacts stderr credentials, including split chunks, before logging a failed server', async () => {
     const lines: string[] = []
     const script = `process.stderr.write('discarded\\nfailed ' + process.env.KEY.slice(0, 4)); setTimeout(() => { process.stderr.write(process.env.KEY.slice(4) + ' ' + process.env.LITERAL + ' Bearer unknown-token\\n'); process.exitCode = 1 }, 20)`
-    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', script], env: { LITERAL: 'literal-secret' } }, npm: null, env: { KEY: 'pool-secret' } }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', script], env: { LITERAL: 'literal-secret' } }, npm: null, env: { KEY: 'pool-secret' } }), baseEnv: () => ({ ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
     expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
@@ -146,7 +149,7 @@ describe('McpGateway', () => {
   it.each(['header-secret', 'Bearer header-secret', 'Basic header-secret'])('redacts literal headers (%s) and generic credentials in request errors, preserving deduplication', async (header) => {
     const lines: string[] = []
     const token = async () => { throw new Error('failed header-secret Bearer unknown-token access_token=unknown-access') }
-    gateway = new McpGateway({ resolve: () => ({ entry: { url: 'https://example.com/mcp', headers: { 'X-Api-Key': header } }, npm: null, env: {}, oauth: { token, refused: vi.fn() } }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => ({ entry: { url: 'https://example.com/mcp', headers: { 'X-Api-Key': header } }, npm: null, env: {}, oauth: { token, refused: vi.fn() } }), baseEnv: () => ({ ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
     for (let attempt = 0; attempt < 2; attempt++) expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
@@ -162,7 +165,7 @@ describe('McpGateway', () => {
   ])('handles empty, oversized and unterminated stderr safely (%#)', async (stderr, suffix) => {
     const lines: string[] = []
     const target = { entry: { command: 'node', args: ['-e', `process.stderr.write(${JSON.stringify(stderr)}); process.exitCode = 1`] }, npm: null, env: { PRIVATE_KEY: 'line-secret\ncredential-tail' }, secrets: ['arg-secret', 'x'.repeat(2100) + 'secret-tail'] }
-    gateway = new McpGateway({ resolve: () => target, baseEnv: () => ({}), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => target, baseEnv: () => ({ ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -173,7 +176,7 @@ describe('McpGateway', () => {
 
   it('redacts the generated HTTP-mode token when a shared server fails', async () => {
     const lines: string[] = []
-    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', "process.stderr.write('failed ' + process.env.MCP_AUTH_TOKEN); process.exitCode = 1"] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', "process.stderr.write('failed ' + process.env.MCP_AUTH_TOKEN); process.exitCode = 1"] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({ ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
     expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
@@ -182,7 +185,7 @@ describe('McpGateway', () => {
 
   it('redacts credentials in process spawn errors', async () => {
     const lines: string[] = []
-    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'missing-fake-secret.exe' }, npm: null, env: {}, secrets: ['fake-secret'] }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'missing-fake-secret.exe' }, npm: null, env: {}, secrets: ['fake-secret'] }), baseEnv: () => ({ ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
     expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
@@ -192,7 +195,7 @@ describe('McpGateway', () => {
 
   it('logs a safe fallback when a request throws a non-error value', async () => {
     const lines: string[] = []
-    gateway = new McpGateway({ resolve: () => ({ entry: { url: 'https://example.com/mcp' }, npm: null, env: {}, oauth: { token: async () => { throw null }, refused: vi.fn() } }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => ({ entry: { url: 'https://example.com/mcp' }, npm: null, env: {}, oauth: { token: async () => { throw null }, refused: vi.fn() } }), baseEnv: () => ({ ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
     expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status).toBe(502)
@@ -207,7 +210,7 @@ describe('McpGateway', () => {
         return message.id === undefined ? null : { jsonrpc: '2.0', id: message.id, result: { method: message.method } }
       },
     }
-    gateway = new McpGateway({ resolve: () => ({ entry: { type: 'http', url: 'http://127.0.0.1:4748/tasks' }, npm: null, env: {} }), baseEnv: () => ({}), log: () => {}, tasks })
+    gateway = new McpGateway({ resolve: () => ({ entry: { type: 'http', url: 'http://127.0.0.1:4748/tasks' }, npm: null, env: {} }), baseEnv: () => ({ ...TEMP }), log: () => {}, tasks })
     await gateway.listen(0)
     const routed = `${gateway.origin}${routeOf('p-1', 'tasks', 'i1', 'tasks')}?task=ABC-1`
     expect(await (await post(routed, { jsonrpc: '2.0', id: 1, method: 'initialize' })).json()).toEqual({ jsonrpc: '2.0', id: 1, result: { method: 'initialize' } })
@@ -241,7 +244,7 @@ describe('McpGateway', () => {
 require('node:http').createServer((req, res) => res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: 0, result: { pid: process.pid } })))
   .listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1')
 `
-    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', shared] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({ PATH: process.env.PATH }), log: () => {} })
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', shared] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({ PATH: process.env.PATH, ...TEMP }), log: () => {} })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'huly', 'i1', 'huly')}`
     const reply = (await (await post(url, { jsonrpc: '2.0', id: 0, method: 'initialize' })).json()) as { result: { pid: number } }
@@ -280,7 +283,7 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
 }), 300))
 `
     const lines: string[] = []
-    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', late] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({ PATH: process.env.PATH }), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', late] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({ PATH: process.env.PATH, ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'huly', 'i1', 'huly')}`
     const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"jsonrpc":"2.0","id":0,"method":"initialize"}', signal: AbortSignal.timeout(3000) })
@@ -313,7 +316,7 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
       return 'access'
     })
     const lines: string[] = []
-    gateway = new McpGateway({ resolve: () => ({ entry: { url: `http://127.0.0.1:${port}` }, npm: null, env: {}, oauth: { token, refused: vi.fn() } }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => ({ entry: { url: `http://127.0.0.1:${port}` }, npm: null, env: {}, oauth: { token, refused: vi.fn() } }), baseEnv: () => ({ ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'jira', 'i1', 'jira')}`
     const ask = async () => (await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).status
@@ -349,7 +352,7 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
     await new Promise<void>((resolve) => upstream!.listen(0, '127.0.0.1', resolve))
     const address = upstream.address() as { port: number }
     const lines: string[] = []
-    gateway = new McpGateway({ resolve: () => ({ entry: { type: 'http', url: `http://127.0.0.1:${address.port}/mcp` }, npm: null, env: {} }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    gateway = new McpGateway({ resolve: () => ({ entry: { type: 'http', url: `http://127.0.0.1:${address.port}/mcp` }, npm: null, env: {} }), baseEnv: () => ({ ...TEMP }), log: (line) => lines.push(line) })
     await gateway.listen(0)
     const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
     const body = JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'initialize' })
@@ -401,7 +404,7 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
 
     it('routes a hub server before resolving a target on the machine', async () => {
       const resolve = vi.fn(() => null)
-      gateway = new McpGateway({ resolve, baseEnv: () => ({}), log: () => {} })
+      gateway = new McpGateway({ resolve, baseEnv: () => ({ ...TEMP }), log: () => {} })
       await gateway.listen(0)
       const path = routeOf('p-1', 'echo', 'i1', 'echo')
       gateway.throughHub({ servers: () => [path], relay: async () => ({ status: 200, headers: {}, body: '{"from":"hub"}' }), tasks: { handle: async () => null } })

@@ -7,11 +7,12 @@ export default defineConfig(({ mode }) => ({
   // The badge's Worker tests the drawing of this checkout, not the published package (docs/badge.md, "The Worker").
   resolve: { alias: [{ find: /^even-keel-badge$/, replacement: fileURLToPath(new URL('src/badge/drawing.ts', import.meta.url)) }] },
   test: {
-    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts', 'tally/src/**/*.test.ts', 'plugins/**/*.test.mjs', 'scripts/**/*.test.ts', 'deploy/*/src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'web/src/**/*.test.ts', 'tally/src/**/*.test.ts', 'plugins/**/*.test.mjs', 'scripts/**/*.test.ts', 'deploy/*/src/**/*.test.ts', 'test/**/*.test.ts'],
     exclude: [...configDefaults.exclude, ...excludedEndToEnd(process.argv.slice(2), mode)],
     // The failed tests' names as the last lines and `.temp/vitest-last.json`, beside vitest's own reporters (docs/chain/e2e.md).
     reporters: [...configDefaults.reporters, new LastRunReporter()],
-    globalSetup: ['test/pglite-template.ts'],
+    // The run's own temp folder first: every later setup, worker and child process writes into it (docs/storage.md, "Tests").
+    globalSetup: ['test/temp-setup.ts', 'test/pglite-template.ts'],
     setupFiles: ['test/pglite.ts'],
     // On a 12-core workstation half the cores run `npm test` in 105 s; all of them in 90 s, but then tests that wait on
     // a child process (the SDK executor's socket, the CLI samples, a plugin hook) time out (2026-11-02). A CI runner keeps the default.
