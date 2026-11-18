@@ -171,6 +171,7 @@ export const claude: AgentAdapter = {
         const { cwd, prompt, model, settings, mcp, plugins, effort } = start
         return cli.warm(home, sessionId, cwd, prompt, model, { settings, mcp, plugins, effort, instructions: agentsFallback(cwd) })
       },
+      warmsOnTool: true,
       // The lifetime the transcript last wrote (`cacheTtl`, a subscription's overage); before any write an hour on a subscription, five minutes on a key.
       warmMs: (cache, apiKey) => warmCacheMs(cache?.ttl ?? (apiKey ? null : '1h')),
       liveRecords,

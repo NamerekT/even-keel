@@ -12,6 +12,8 @@ const facts = (over: Partial<WarmFacts> = {}): WarmFacts => ({
   task: 'ABC-1',
   sessionId: 'session-1',
   busy: false,
+  onTool: false,
+  held: false,
   limited: false,
   cache: { ttl: '1h', until: '2026-10-26T13:00:00.000Z' },
   ...over,
@@ -85,9 +87,19 @@ describe('warmStep', () => {
     expect(warmStep(facts({ cache: null }), undefined, at('12:58'), 8 * HOUR)).toBe('wait')
   })
 
-  it('sends nothing mid-turn or on a limit', () => {
+  it('sends nothing mid-turn, held or on a limit', () => {
     expect(warmStep(facts({ busy: true }), undefined, at('12:58'), 8 * HOUR)).toBe('wait')
+    expect(warmStep(facts({ held: true }), undefined, at('12:58'), 8 * HOUR)).toBe('wait')
     expect(warmStep(facts({ limited: true }), undefined, at('12:58'), 8 * HOUR)).toBe('wait')
+  })
+
+  it('pings a turn that waits on a long tool call by the same thresholds, unless it is held (EKR-142)', () => {
+    const short = facts({ busy: true, onTool: true, cache: { ttl: '5m', until: '2026-10-26T12:05:00.000Z' } })
+    expect(warmStep(short, undefined, at('12:03'), 8 * HOUR)).toBe('wait')
+    expect(warmStep(short, undefined, at('12:04'), 8 * HOUR)).toBe('ping')
+    expect(warmStep({ ...short, held: true }, undefined, at('12:04'), 8 * HOUR)).toBe('wait')
+    expect(warmStep({ ...short, limited: true }, undefined, at('12:04'), 8 * HOUR)).toBe('wait')
+    expect(warmStep(short, undefined, at('12:05'), 8 * HOUR)).toBe('wait')
   })
 
   it('counts the cache warm from the last ping that read it', () => {

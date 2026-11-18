@@ -21,8 +21,15 @@ export const KEEP_WARM_PROMPT = 'Reply with the single word ok.'
 export interface WarmFacts {
   task: string
   sessionId: string
-  /** Mid-turn, being resumed or handed over. */
+  /** Mid-turn. */
   busy: boolean
+  /**
+   * The turn waits on the result of a tool call, no model request in flight, and its agent's fork reads such a session
+   * from the cache (EKR-142): a long build or test run would let the cache go cold under it.
+   */
+  onTool: boolean
+  /** Being resumed or handed over. */
+  held: boolean
   /** The session or its chain waits on a limit: the ping would hit it too. */
   limited: boolean
   /** The cache its transcript last wrote. */
@@ -42,7 +49,7 @@ export type WarmStep = 'ping' | 'wait'
 /** Whether to ping the session now: only a warm cache about to go cold, within the idle ceiling and the break-even. */
 export function warmStep(facts: WarmFacts, memory: WarmMemory | undefined, now: Date, maxIdleMs: number): WarmStep {
   const { cache } = facts
-  if (facts.busy || facts.limited || cache === null) return 'wait'
+  if ((facts.busy && !facts.onTool) || facts.held || facts.limited || cache === null) return 'wait'
   const ttlMs = TTL_MS[cache.ttl]
   const stretch = Date.parse(cache.until) - ttlMs
   const own = memory !== undefined && Date.parse(memory.stretch) === stretch ? memory : undefined

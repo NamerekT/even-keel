@@ -296,6 +296,11 @@ export interface Agent {
    */
   warm?(home: AccountHome, session: SessionHandle, start: SessionStart): Promise<TurnSpend>
   /**
+   * Optional. `warm` was probed on a session whose turn waits on a tool call's result (EKR-142): the fork resumes it
+   * and reads its cache, so keep-warm pings it mid-turn too. Without it such a session waits for its turn to end.
+   */
+  warmsOnTool?: boolean
+  /**
    * Optional. How long after a session's last reply the chain takes its prompt cache for warm and resumes it rather
    * than hands it over, by the cache its transcript last wrote and whether the account is signed in by a key
    * (`docs/sessions/cache.md`, "Every agent's cache"). Without it `WARM_CACHE_MS`, an hour's cache.
