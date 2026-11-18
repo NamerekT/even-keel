@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
-import { addMachineOf, folderOnMachine, joinedMachine, joinRequests, machineAccounts, machineChecks, osLabel, signInOf, takenColors, withAddMachine } from './machineAdd.js'
+import { addMachineOf, folderOnMachine, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineChecks, osLabel, signInOf, takenColors, withAddMachine } from './machineAdd.js'
 
 describe('the folder a project gets on a machine', () => {
   it("is the hub's folder name inside the machine's root, written the machine's way", () => {
@@ -120,5 +120,34 @@ describe('what the window that adds a machine shows', () => {
       accounts: [{ key: 'token', agent: 'claude', email: 'john.doe@example.com', signedIn: true, longToken: true }],
     }
     expect(machineAccounts([entry()], machine)).toEqual([{ entry: entry(), gap: null, token: true }])
+  })
+})
+
+describe("a machine's accounts page (BTN-1302)", () => {
+  const machine = (patch: Partial<MachineSignIn> = {}): MachineSignIn => ({
+    machine: 'machine-1', name: 'Example laptop', online: true, login: null, missing: [], accounts: [], ...patch,
+  })
+
+  it("offers each hub subscription the machine is not signed in to, except one its own signed-out folder signs in again", () => {
+    const jane = entry({ key: 'jane', status: { loggedIn: true, authMethod: 'claude.ai', email: 'jane.roe@example.com', orgName: null, subscriptionType: 'pro' } })
+    const signedIn = machine({ accounts: [{ key: 'jane', agent: 'claude', email: 'jane.roe@example.com', signedIn: true }] })
+    expect(hubGapsOn([entry(), jane], signedIn).map((row) => row.entry.key)).toEqual(['john.doe@example.com'])
+    const signedOut = machine({ accounts: [{ key: 'john', agent: 'claude', email: 'john.doe@example.com', signedIn: false }] })
+    expect(hubGapsOn([entry(), jane], signedOut).map((row) => row.entry.key)).toEqual(['jane'])
+    expect(hubGapsOn([entry({ agent: 'codex' })], machine({ missing: ['codex'] }))[0]?.gap.noCli).toBe(true)
+  })
+
+  it('says the machine sent no accounts yet only before its first snapshot', () => {
+    expect(machineAccountsEmpty('machine-1', [])).toBe('waiting')
+    expect(machineAccountsEmpty('machine-1', undefined)).toBe('waiting')
+    expect(machineAccountsEmpty('machine-1', [machine()])).toBe('none')
+  })
+
+  it('adds an account of each agent that signs in through a browser, one whose CLI is missing off', () => {
+    expect(machineAddChoices(machine({ missing: ['codex'] }))).toEqual([
+      { agent: 'claude', missing: false },
+      { agent: 'codex', missing: true },
+      { agent: 'opencode', method: 'chatgpt', missing: false },
+    ])
   })
 })

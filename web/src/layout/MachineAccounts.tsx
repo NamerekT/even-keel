@@ -1,11 +1,12 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router'
-import type { MachineCard, MachineCardAccount } from '../../../src/state.js'
+import type { MachineCard, MachineCardAccount, MachineSignIn } from '../../../src/state.js'
 import { limitSpans } from '../../../src/limits/model.js'
 import { accountOf } from '../accountName.js'
 import { entrySlot } from '../accounts.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { machineAccountsEmpty } from '../machineAdd.js'
 import { machinePath } from '../machineColor.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { ServerIcon } from '../ui/icons.js'
@@ -80,6 +81,7 @@ function MachineToggle({ card, now }: { card: MachineCard; now: Date }) {
 
 function MachineSection({ card, now, several, onPick }: { card: MachineCard; now: Date; several: boolean; onPick: () => void }) {
   const { select } = useMachineFilter()
+  const { state } = useLive()
   const view = t.machinePanel.view
   return (
     <section className="queue__section machine-accounts__section" style={{ '--machine': card.color } as CSSProperties}>
@@ -108,13 +110,29 @@ function MachineSection({ card, now, several, onPick }: { card: MachineCard; now
           </Link>
         )}
       </h2>
-      {card.accounts.length === 0 ? <p className="queue__empty">{view.accountsNone}</p> : <MachineAccountList card={card} now={now} />}
+      {card.accounts.length === 0 ? <p className="queue__empty">{machineAccountsNone(card, state?.machineSignIns)}</p> : <MachineAccountList card={card} now={now} />}
     </section>
   )
 }
 
+/** Why a machine lists no account: none yet before its first snapshot, else none at all. */
+export function machineAccountsNone(card: MachineCard, signIns: MachineSignIn[] | undefined): string {
+  const view = t.machinePanel.view
+  return !card.own && machineAccountsEmpty(card.id, signIns) === 'waiting' ? view.accountsNone : view.accountsEmpty(card.name)
+}
+
+interface MachineAccountListProps {
+  card: MachineCard
+  now: Date
+  wide?: boolean
+  /** What a signed-out row holds at its right: its sign-in there (the accounts page). */
+  signOutAction?: (account: MachineCardAccount) => ReactNode
+  /** Rows after the machine's own: the hub's accounts not signed in there. */
+  children?: ReactNode
+}
+
 /** A machine's accounts: the launch one marked, one signed out said so, the limits the machine read under each. */
-export function MachineAccountList({ card, now, wide = false }: { card: MachineCard; now: Date; wide?: boolean }) {
+export function MachineAccountList({ card, now, wide = false, signOutAction, children }: MachineAccountListProps) {
   const view = t.machinePanel.view
   return (
     <ul className={wide ? 'machine-accounts__list machine-accounts__list--wide' : 'machine-accounts__list'}>
@@ -129,9 +147,10 @@ export function MachineAccountList({ card, now, wide = false }: { card: MachineC
             )}
             {!account.signedIn && <span className="machine-accounts__warn">{view.signedOut}</span>}
           </span>
-          {account.signedIn && <Limits limits={account.limits} now={now} bare={!wide} />}
+          {account.signedIn ? <Limits limits={account.limits} now={now} bare={!wide} /> : signOutAction?.(account)}
         </li>
       ))}
+      {children}
     </ul>
   )
 }

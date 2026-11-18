@@ -133,8 +133,16 @@ export class FakeNetwork {
     })
   }
 
-  /** The own machine's are the state's; the laptop is signed out of the second; the desktop's Claude is spent with `limit`. */
+  /**
+   * The own machine's are the state's; the laptop is signed out of the second; the desktop's Claude is spent with `limit`.
+   * With `?machines=…` a machine's are those its sign-ins posted (BTN-1302: the laptop has none).
+   */
   private cardAccounts(state: EvenKeelState, id: string, own: boolean, until: Date): Pick<MachineCard, 'accounts' | 'active'> {
+    const posted = own ? undefined : state.machineSignIns?.find((each) => each.machine === id)
+    if (posted !== undefined) {
+      const accounts = posted.accounts.map((each) => ({ ...each, name: null, limits: each.signedIn ? state.limits : null }))
+      return { accounts, active: accounts.find((each) => each.signedIn)?.key ?? null }
+    }
     const spent = { fiveHour: { usedPercentage: 100, resetsAt: until.toISOString() }, sevenDay: null, updatedAt: new Date().toISOString(), source: 'usage' } as unknown as NonNullable<EvenKeelState['limits']>
     const accounts = state.account.accounts.map((entry, index) => {
       const signedIn = own ? entry.status?.loggedIn === true : !(id === 'machine-1' && index > 0)

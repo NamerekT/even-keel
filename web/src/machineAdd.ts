@@ -130,3 +130,33 @@ export function machineAccounts(accounts: AccountEntry[], machine: MachineSignIn
     return [{ entry, gap: machineGaps(entry, [machine])[0] ?? null, ...(machineTokens(entry, [machine]).length > 0 && { token: true as const }) }]
   })
 }
+
+/**
+ * The hub's subscriptions the machine is not signed in to, as rows of its accounts page (BTN-1302); one whose gap is the
+ * machine's own signed-out folder is left out — that folder's row there signs in again.
+ */
+export function hubGapsOn(accounts: AccountEntry[], machine: MachineSignIn): Array<MachineAccountRow & { gap: MachineGap }> {
+  const signedOut = new Set(machine.accounts.filter((each) => !each.signedIn).map((each) => each.key))
+  return machineAccounts(accounts, machine).flatMap((row) =>
+    row.gap === null || (row.gap.account !== undefined && signedOut.has(row.gap.account)) ? [] : [{ ...row, gap: row.gap }])
+}
+
+/** Why a machine elsewhere lists no account: it posted no snapshot of its panel yet, or it posted one with none. */
+export function machineAccountsEmpty(machine: string, signIns: MachineSignIn[] | undefined): 'waiting' | 'none' {
+  return signIns?.some((each) => each.machine === machine) === true ? 'none' : 'waiting'
+}
+
+/** An agent a new account on a machine is of: those that sign in through a browser, with the method that does. */
+export interface MachineAddChoice {
+  agent: string
+  method?: string
+  /** The machine has no CLI of it. */
+  missing: boolean
+}
+
+const BROWSER_SIGN_INS: ReadonlyArray<{ agent: string; method?: string }> = [{ agent: 'claude' }, { agent: 'codex' }, { agent: 'opencode', method: 'chatgpt' }]
+
+/** The agents "Add account" of a machine's accounts page offers (BTN-1302), each one whose CLI the machine lacks off. */
+export function machineAddChoices(machine: MachineSignIn | undefined): MachineAddChoice[] {
+  return BROWSER_SIGN_INS.map((choice) => ({ ...choice, missing: machine?.missing.includes(choice.agent) === true }))
+}

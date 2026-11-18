@@ -108,3 +108,34 @@
   color: var(--warn-fg);
   font-size: var(--text-12);
 }
+
+.machine-accounts__muted {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+/* A row's sign-in on the accounts page (BTN-1302): at the right edge of the limits' column. */
+.machine-accounts__end {
+  justify-self: end;
+}
+
+@media (max-width: 760px) {
+  .machine-accounts__end {
+    justify-self: start;
+  }
+}
+
+/* "Add account" of a machine: three agents in a row, one under another on a narrow screen. */
+.add-package__kinds.account-add__providers.machine-add__agents {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .add-package__kinds.account-add__providers.machine-add__agents {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.machine-add__agent {
+  display: grid;
+}
