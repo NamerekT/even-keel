@@ -50,6 +50,8 @@ export interface MoveContext {
 
 export interface MoveCall {
   project: string
+  /** The task the move is about, by name: what the hub prepares its brief for and routes it by. */
+  task: string
   /** The task the move is about as the hub holds it; absent for a move without one (`deliverLoose`, `handOver`). */
   current?: CurrentTask
   /** `current` is still the current task of the project's chain. */

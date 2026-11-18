@@ -119,6 +119,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
     resume: (task, session) => ctx.resumeWith(task, session, resumePrompt(ctx.promptLanguage(ctx.projectOf(task)))),
     reply: (task, session, prompt) => ctx.resumeWith(task, session, prompt),
     relay: async (task, session, handoff, reason, brief) => {
+      // Before the stop: without a brief the handoff pauses, and the session it was to replace is left as it is.
+      const told = ctx.briefed.apply(task, handoff, brief)
       const previous = ctx.homes.find(session.account)
       if (previous !== undefined && !session.stopped) await ctx.stopIn(previous, session)
       const project = ctx.projectOf(task)
@@ -126,7 +128,6 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       ctx.writes.add(`the push of ${task}`, pushOf(ctx, project, task, session.workdir))
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
-      const told = isOwnName(task) ? handoff : ctx.briefed.apply(task, handoff, brief)
       const { prompt, model } = ctx.planFor(task, ctx.withProject(told, project), project)
       const notePath = noteOf(session)
       const note = await readNote(notePath)

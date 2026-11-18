@@ -145,10 +145,10 @@ export class RemoteMachine {
       moves: {
         run: async (name, move) => {
           if (name !== 'guard') await deps.audit?.(move.project)
-          const task = move.current?.task ?? move.args[0]
+          const { task } = move
           const replyOnly = name === 'guard' || name === 'deliver' || name === 'deliverLoose'
-          const brief = replyOnly || typeof task !== 'string' || isOwnName(task) ? undefined : await deps.brief?.(move.project, task, name === 'follow')
-          const note = replyOnly || typeof task !== 'string' ? undefined : await deps.note?.(move.project, task)
+          const brief = replyOnly || isOwnName(task) ? undefined : await deps.brief?.(move.project, task, name === 'follow')
+          const note = replyOnly ? undefined : await deps.note?.(move.project, task)
           const context = { ...move.context, ...(brief === undefined ? {} : { brief }), ...(note === undefined ? {} : { note }) }
           return this.send(MOVE_PREFIX + name, { project: move.project }, { ...move, context }) as Promise<MoveDone>
         },

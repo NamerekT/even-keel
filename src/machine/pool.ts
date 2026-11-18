@@ -108,10 +108,7 @@ export function machinePool(deps: PoolDeps): MachinePort {
     ...(first.catchUp === undefined ? {} : { catchUp: () => own().catchUp!() }),
     ...(first.moves === undefined ? {} : {
       moves: {
-        run: (name, move) => {
-          const task = move.current?.task ?? move.args[0]
-          return (byTask(move.project, typeof task === 'string' ? task : undefined).moves ?? first.moves!).run(name, move)
-        },
+        run: (name, move) => (byTask(move.project, move.task).moves ?? first.moves!).run(name, move),
         onSaved: (taken) => {
           take = taken
           own()
