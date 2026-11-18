@@ -18,6 +18,8 @@ import type { PeriodQuery, StatsAnswer, StatsPeriod } from '../stats/model.js'
 
 /** The project's numbers are read from the stats no more often than this. */
 export const BADGE_STATS_MS = 15 * 60_000
+/** A read whose answer was not `ok` (the stats not ready after a start, off, failed) is tried again this soon. */
+export const BADGE_STATS_RETRY_MS = 60_000
 /**
  * How long after the start a badge waits for its inputs before it is pushed with what there is (BTN-973): the gap a
  * poor first push used to take to be replaced, and short enough for the Worker's picture not to go stale (5 min).
@@ -28,7 +30,7 @@ const STATS_FIELDS: ReadonlySet<BadgeField> = new Set(['sessions', 'medianCost',
 export interface BadgeWiringDeps {
   config: () => EvenKeelConfig
   state: () => EvenKeelState
-  /** The stats reader's period; its answer `off` or a failure leaves the badge without numbers. */
+  /** The stats reader's period; an answer not `ok` or a failure keeps the last good numbers, none before the first. */
   period: (query: PeriodQuery) => Promise<StatsAnswer<StatsPeriod>>
   /** Whether the project's trackers and the sessions were read once since the start; none — they always were. */
   read?: (project: string) => boolean
@@ -51,6 +53,16 @@ const LAYERS: Record<Exclude<PrivacyLayer, 'unready'>, string> = {
   identifier: 'it names this machine, an account, a profile or another project (layer 1)',
   pattern: 'it looks like a secret, a contact, an address or a path (layer 2)',
   error: 'the filter failed',
+}
+
+/** Why the stats were not read: `kind` tells a change of state from a repeat, `text` goes to the log. */
+interface StatsFailure { kind: string; text: string }
+type StatsRead = { stats: BadgeStats } | { failed: StatsFailure }
+
+function failureOf(answer: Exclude<StatsAnswer<StatsPeriod>, { state: 'ok' }>): StatsFailure {
+  if (answer.state === 'off') return { kind: 'off', text: `off: ${answer.reason}` }
+  if (answer.state === 'error') return { kind: 'error', text: `error: ${answer.error}` }
+  return { kind: 'newer', text: `newer: version ${answer.version}, known ${answer.known}` }
 }
 
 async function readIdentity(repo: string): Promise<GitIdentity> {
@@ -83,8 +95,10 @@ export interface BadgeWiring {
 export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
   const now = deps.now ?? Date.now
   const tz = deps.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  const numbers = new Map<string, { at: number; stats: BadgeStats | null }>()
+  /** `good` — a read was `ok` once since the start; `failed` — the last read was not. */
+  const numbers = new Map<string, { at: number; stats: BadgeStats | null; failed: StatsFailure | null; good: boolean }>()
   const reading = new Set<string>()
+  const log = deps.log ?? ((line: string) => console.log(line))
   let translations = deps.translations
 
   const titleOf = (state: EvenKeelState, project: string, id: string): string | undefined => {
@@ -101,24 +115,33 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     return translations.title({ tracker, id, title: task.title }, config.settings[project]?.badge?.on === true)
   }
 
+  /** A failed read keeps the last good numbers, is retried every minute and logged once per change of its kind. */
   const statsOf = (project: string): BadgeStats | null => {
     const key = deps.config().keys[project]
     if (key === undefined) return null
     const known = numbers.get(key)
-    if ((known === undefined || now() - known.at >= BADGE_STATS_MS) && !reading.has(key)) {
+    const due = known === undefined || now() - known.at >= (known.failed === null ? BADGE_STATS_MS : BADGE_STATS_RETRY_MS)
+    if (due && !reading.has(key)) {
       reading.add(key)
       const query: PeriodQuery = { scope: 'all', account: null, tz, includeTests: true, ...badgeStatsRange(new Date(now()), tz), projects: [key] }
       void deps
         .period(query)
-        .then((answer) => (answer.state === 'ok' ? badgeStatsOf(answer.data) : null))
-        .catch(() => null)
-        .then((stats) => numbers.set(key, { at: now(), stats }))
+        .then((answer): StatsRead => (answer.state === 'ok' ? { stats: badgeStatsOf(answer.data) } : { failed: failureOf(answer) }))
+        .catch((error: unknown): StatsRead => ({ failed: { kind: 'failed', text: `failed: ${error instanceof Error ? error.message : String(error)}` } }))
+        .then((read) => {
+          const before = numbers.get(key)
+          if ('stats' in read) {
+            if (before?.failed != null) log(`badge: the stats of ${key} are read again`)
+            numbers.set(key, { at: now(), stats: read.stats, failed: null, good: true })
+            return
+          }
+          if (before?.failed?.kind !== read.failed.kind) log(`badge: the stats of ${key} are not read (${read.failed.text}); retried every minute`)
+          numbers.set(key, { at: now(), stats: before?.stats ?? null, failed: read.failed, good: before?.good ?? false })
+        })
         .finally(() => reading.delete(key))
     }
     return known?.stats ?? null
   }
-
-  const log = deps.log ?? ((line: string) => console.log(line))
   const machine = deps.machine ?? machineFacts()
   const identities = new Map<string, { at: number; identity: GitIdentity | undefined }>()
   const identifying = new Set<string>()
@@ -182,7 +205,7 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     const repo = config.projects[project]
     const missing = [
       deps.read === undefined || deps.read(project) ? null : 'the tracker or the sessions',
-      key === undefined || numbers.has(key) || !fields.some((field) => STATS_FIELDS.has(field)) ? null : 'the stats',
+      key === undefined || numbers.get(key)?.good === true || !fields.some((field) => STATS_FIELDS.has(field)) ? null : 'the stats',
       repo === undefined || identities.has(repo) ? null : 'the git identity',
     ].filter((each) => each !== null)
     if (missing.length > 0) {

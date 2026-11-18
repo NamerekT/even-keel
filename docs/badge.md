@@ -225,7 +225,8 @@ session or the numbers: a push then would show a stump of the state for the 2 mi
 not pushed until everything its state is built from was read once (`warmedUp` in `src/service/badge.ts`):
 
 - every tracker the project reads (its own and its feeds) and the sessions (`agentsRead`) — the `read` of `wireBadges`;
-- the stats, when a stats field is picked and the project has a key (an answer `off` or a failure counts as read);
+- the stats, when a stats field is picked and the project has a key (only an `ok` answer counts as read; Tally not ready yet after
+  the start is retried every minute, BTN-1282);
 - the git identity of the filter of private data.
 
 The wait ends after 2 min from the start at the latest (`BADGE_WARMUP_MS`): a tracker that is down or off, or a read
@@ -241,8 +242,11 @@ count, the median cost of done tasks at API list prices (`priceEstimate`, else `
 They are read in the background at most every 15 min, cached by the project's current key rather than its GUID.
 The key comes from the live config; projects sharing it use the same numbers and the stats reader's `firstByKey`
 repository mapping, just like `/stats`. A changed key never shows the previous key's cached numbers. Without a configured
-key, with Tally off or after a failed read the badge has no numbers; a successfully read empty period shows `0 sessions`
-without medians. The cache is in memory and read anew after a restart.
+key the badge has no numbers; a successfully read empty period shows `0 sessions` without medians. An answer other than
+`ok` (`off`, `error`, `newer`) or a thrown read is not cached for 15 min: it is retried every minute
+(`BADGE_STATS_RETRY_MS`) and the last good numbers, if any, stay on the badge until the next `ok`; before the first one
+the badge has none. Such a failure is logged once per change of its kind (`badge: the stats of <key> are not read
+(…)`), and the recovery once (`… are read again`). The cache is in memory and read anew after a restart.
 
 ## English titles
 

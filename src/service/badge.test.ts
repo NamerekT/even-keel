@@ -4,7 +4,7 @@ import type { EvenKeelConfig } from '../config.js'
 import type { EvenKeelState } from '../state.js'
 import type { PeriodQuery, StatsAnswer, StatsPeriod } from '../stats/model.js'
 import { BADGE_PULSE_MS } from '../badge/push.js'
-import { BADGE_STATS_MS, BADGE_WARMUP_MS, wireBadges, type BadgeWiringDeps } from './badge.js'
+import { BADGE_STATS_MS, BADGE_STATS_RETRY_MS, BADGE_WARMUP_MS, wireBadges, type BadgeWiringDeps } from './badge.js'
 import { BadgeTranslations } from '../badge/translate.js'
 import { memoryDatabase } from '../storage/memory.js'
 
@@ -71,7 +71,7 @@ function rig(snapshot = state, translations?: BadgeTranslations, over: Partial<P
     lines,
     identities,
     config,
-    failPeriod: () => (periodDown = true),
+    failPeriod: (failing = true) => (periodDown = failing),
     hangPeriod: () => (periodHangs = true),
     down: () => (down = true),
     set: (next: BadgeSettings | null) => (badge = next),
@@ -234,8 +234,84 @@ describe('wireBadges', () => {
     await settle()
     r.wait(2 * 60_000)
     await r.wiring.tick()
-    expect(r.queries).toHaveLength(2)
-    expect(r.posts.at(-1)?.stats).toBeUndefined()
+    expect(r.queries.length).toBeGreaterThanOrEqual(2)
+    expect(r.posts.at(-1)?.stats).toEqual({ sessions: 4, medianCost: 2, medianMinutes: 10 })
+  })
+
+  describe('a failed stats read (BTN-1282)', () => {
+    it('is retried after a minute, not 15, and the badge gets the numbers then', async () => {
+      const r = rig()
+      r.answer({ state: 'off', reason: 'not ready' })
+      r.set(on)
+      await r.wiring.tick()
+      await settle()
+      expect(r.wiring.svg(ABC, 'dark')).not.toMatch(sessions(4))
+      r.answer({ state: 'ok', data: period })
+      r.wait(BADGE_STATS_RETRY_MS - 1)
+      r.wiring.svg(ABC, 'dark')
+      expect(r.queries).toHaveLength(1)
+      r.wait(1)
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      expect(r.queries).toHaveLength(2)
+      expect(r.wiring.svg(ABC, 'dark')).toMatch(sessions(4))
+      r.wait(BADGE_WARMUP_MS)
+      await r.wiring.tick()
+      expect(r.posts.at(-1)?.stats).toEqual({ sessions: 4, medianCost: 2 })
+    })
+
+    it('keeps the last good numbers until the next good answer', async () => {
+      const r = rig()
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      r.failPeriod()
+      r.wait(BADGE_STATS_MS)
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      expect(r.queries).toHaveLength(2)
+      expect(r.wiring.svg(ABC, 'dark')).toMatch(sessions(4))
+    })
+
+    it('logs one line per change of state, not one per retry', async () => {
+      const r = rig()
+      r.answer({ state: 'error', error: 'unavailable' })
+      for (let i = 0; i < 3; i++) {
+        r.wiring.svg(ABC, 'dark')
+        await settle()
+        r.wait(BADGE_STATS_RETRY_MS)
+      }
+      r.failPeriod()
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      r.wait(BADGE_STATS_RETRY_MS)
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      expect(r.queries).toHaveLength(5)
+      const stats = () => r.lines.filter((line) => line.includes('stats of ABC'))
+      expect(stats()).toEqual([
+        'badge: the stats of ABC are not read (error: unavailable); retried every minute',
+        'badge: the stats of ABC are not read (failed: stats unavailable); retried every minute',
+      ])
+      r.wait(BADGE_STATS_RETRY_MS)
+      r.failPeriod(false)
+      r.answer({ state: 'ok', data: period })
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      r.wait(BADGE_STATS_MS)
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      expect(stats().slice(2)).toEqual(['badge: the stats of ABC are read again'])
+    })
+
+    it('makes the warm-up wait for a good answer', async () => {
+      const r = rig()
+      r.answer({ state: 'off', reason: 'not ready' })
+      r.set(on)
+      await r.wiring.tick()
+      await settle()
+      await r.wiring.tick()
+      expect(r.posts).toHaveLength(0)
+    })
   })
 
   it('shares the stats key with /stats for projects with the same key, regardless of their folders', async () => {
