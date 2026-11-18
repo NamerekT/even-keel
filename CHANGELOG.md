@@ -4,6 +4,19 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-11-18
+
+A patch of 0.3: keep-warm through a long tool call, and a cache clock that knows about keep-warm.
+
+### Changed
+
+- **Keep-warm also keeps the cache of a session whose turn waits on a long tool call**, such as a build or a test run that lasts longer than the cache. Before, only a session waiting for you was pinged: on a five-minute cache a six-minute test run let the cache go cold, and the next request wrote the whole context again. Codex sessions still wait for the turn to end.
+
+### Fixed
+
+- **The cache clock counts from the last keep-warm ping that read the cache.** The same goes for its colour, the ring on the chain row and the dialog before a reply to a cold session; before, they called a cache that keep-warm kept warm cold. The tip of the session's **Cache** shows how many times keep-warm renewed the cache since the session's last answer, and when it did so last.
+- The session's **Cache** has one tip: the browser's own tooltip no longer opens over it. The tip starts with when the cache stays warm until or when it went cold.
+
 ## [0.3.2] - 2026-11-17
 
 A patch of 0.3: a permission question that no longer vanishes, and the README badge during a fix of the main branch or a release carry.
