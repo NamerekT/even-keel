@@ -65,6 +65,8 @@ interface TrackerFieldsProps {
   projectMark?: ReactNode
   projectNote?: ReactNode
   projectInvalid?: boolean
+  /** The caller's own fields, on the same row after the tracker's, so they share its columns (EKR-147). */
+  children?: ReactNode
 }
 
 /**
@@ -120,6 +122,7 @@ export function TrackerFields(props: TrackerFieldsProps) {
       <div className="settings__row tracker-fields__row">
         <ProfilePick {...props} line={noProjectField && projectSays?.tone === 'error' ? projectSays : profileSays} onAdd={() => setAdding(true)} />
         <ProjectFields {...props} shape={shape} title={title} choice={choice} disabled={profile === undefined && fields.tracker !== BUILTIN} list={lookup.list} line={projectSays} />
+        {props.children}
       </div>
       {adding &&
         createPortal(<ProfileDialog kinds={[...kinds]} profile={undefined} onClose={() => setAdding(false)} onSaved={(id) => setAdded(id)} />, document.body)}

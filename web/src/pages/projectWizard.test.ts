@@ -403,12 +403,25 @@ describe('switchProfile', () => {
     const before = fields({ tracker: 'github', profile: 'p-1', trackerProject: 'octo-org/shop' })
     expect(switchProfile(before, { id: 'p-3', kind: 'github' })).toMatchObject({ profile: 'p-3', trackerProject: 'octo-org/shop' })
   })
+
+  // A place names a project in its own tracker's terms: a GitHub repository typed by hand is no Linear project (EKR-147).
+  it("clears the last kind's place even typed by hand, and the place counts as untyped after", () => {
+    const before = typedIn(fields({ tracker: 'github', profile: 'p-1' }), 'trackerProject', 'octo-org/shop')
+    const after = switchProfile(before, { id: 'p-4', kind: 'linear' })
+    expect(after).toMatchObject({ tracker: 'linear', trackerProject: '', team: '' })
+    expect(after.typed.trackerProject).toBe(false)
+  })
 })
 
 describe('switchBuiltin', () => {
   it("drops the profile and clears the last kind's suggestions, not what was typed", () => {
     const before = typedIn(fields({ tracker: 'github', profile: 'p-1', trackerProject: 'octo-org/shop', name: 'shop' }), 'key', 'SHOP')
     expect(switchBuiltin(before)).toMatchObject({ profile: '', tracker: BUILTIN, key: 'SHOP', name: '', trackerProject: '', team: '' })
+  })
+
+  it("clears the last kind's place even typed by hand", () => {
+    const before = typedIn(fields({ tracker: 'github', profile: 'p-1' }), 'trackerProject', 'octo-org/shop')
+    expect(switchBuiltin(before)).toMatchObject({ trackerProject: '', typed: { trackerProject: false } })
   })
 })
 

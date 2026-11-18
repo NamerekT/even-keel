@@ -224,13 +224,22 @@ export const trackerChosen = (fields: Pick<WizardFields, 'profile' | 'tracker'>)
 /** Even Keel's own tracker: no profile, and the suggestions of the last kind cleared. */
 export function switchBuiltin(fields: WizardFields): WizardFields {
   if (fields.tracker === BUILTIN && fields.profile === '') return fields
-  return suggest({ ...fields, profile: '', tracker: BUILTIN, team: '' }, { key: '', name: '', trackerProject: '' })
+  return switchKind({ ...fields, profile: '' }, BUILTIN)
 }
 
 /** Another profile: its kind's tracker, and the suggestions of the last kind cleared. */
 export function switchProfile(fields: WizardFields, profile: { id: string; kind: string }): WizardFields {
   if (profile.kind === fields.tracker) return { ...fields, profile: profile.id }
-  return suggest({ ...fields, profile: profile.id, tracker: profile.kind, team: '' }, { key: '', name: '', trackerProject: '' })
+  return switchKind({ ...fields, profile: profile.id }, profile.kind)
+}
+
+/**
+ * Another kind of tracker: the key and the name keep what was typed, but the place goes even when typed, since it names
+ * a project in the last kind's terms (EKR-147).
+ */
+function switchKind(fields: WizardFields, tracker: string): WizardFields {
+  const placeless = { ...fields, tracker, team: '', trackerProject: '', typed: { ...fields.typed, trackerProject: false } }
+  return suggest(placeless, { key: '', name: '' })
 }
 
 /** A team typed or picked: the key follows it while it is not typed by hand. */
