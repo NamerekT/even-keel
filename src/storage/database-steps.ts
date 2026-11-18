@@ -750,4 +750,11 @@ export const STEPS: readonly string[] = [
   `
   alter table mailbox add column machine_id text;
   `,
+  // A message's number is its machine's (BTN-1284, `docs/machines.md`, "Journal, session records and chat"): each machine
+  // numbers its own, so the key is the machine and the number; a row without a machine is under ''.
+  `
+  alter table mailbox drop constraint mailbox_pkey;
+  alter table mailbox alter column id drop identity;
+  create unique index mailbox_key on mailbox ((coalesce(machine_id, '')), id);
+  `,
 ]

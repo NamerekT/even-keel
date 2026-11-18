@@ -7,7 +7,8 @@ import { MachineEnd } from '../link/machine.js'
 import { bearerOf, parseToken } from '../link/protocol.js'
 import type { Mail } from '../sessions/mail.js'
 import { loadMail, Mailbox } from '../sessions/mailbox.js'
-import { saveMailboxChange, type MailboxChange } from '../sessions/mailbox-store.js'
+import { adoptMail, saveMailboxChange, type MailboxChange } from '../sessions/mailbox-store.js'
+import { settleMail } from '../sessions/mailRelay.js'
 import { Writes } from '../storage/database.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import { memoryDatabase } from '../storage/memory.js'
@@ -207,13 +208,63 @@ describe('mailbox records of several machines', { timeout: 30_000 }, () => {
   })
 
   it('keeps a settled message over a late change that still has it waiting', async () => {
-    const { db, a, b, send } = await pool()
+    const { db, a, send } = await pool()
     const waiting: Mail = { ...settled(1, 'session-a', entry.at), fate: 'waiting', event: null, settledAt: null }
     await send(a, { mails: [waiting] })
     await send(a, { mails: [settled(1, 'session-a', entry.at)] })
-    await send(b, { mails: [waiting] })
-    await send(b, { mails: [{ ...settled(1, 'session-a', entry.at), fate: 'returned', event: null, reason: 'gone' }] })
+    await send(a, { mails: [waiting] })
+    await send(a, { mails: [{ ...settled(1, 'session-a', entry.at), fate: 'returned', event: null, reason: 'gone' }] })
     expect(await loadMail(db)).toEqual([settled(1, 'session-a', entry.at)])
+  })
+
+  it('keeps the same number posted on two machines as two messages, each settled by its own machine', async () => {
+    const { db, a, b, send } = await pool()
+    const waiting = (sessionId: string, text: string): Mail => ({ ...settled(1, sessionId, entry.at), text, fate: 'waiting', event: null, settledAt: null })
+    await send(a, { mails: [waiting('session-a', 'To the first machine.')] })
+    await send(b, { mails: [waiting('session-b', 'To the second machine.')] })
+    await send(b, { mails: [{ ...waiting('session-b', 'To the second machine.'), fate: 'returned', reason: 'gone', settledAt: entry.at }] })
+    expect(await loadMail(db, a)).toEqual([waiting('session-a', 'To the first machine.')])
+    expect((await loadMail(db, b)).map((mail) => [mail.sessionId, mail.text, mail.fate])).toEqual([['session-b', 'To the second machine.', 'returned']])
+  })
+
+  it("hands a machine only its own mail, so its settling leaves another machine's waiting message alone", async () => {
+    const { db, a, b, send } = await pool()
+    const later = new Date(Date.parse(entry.at) + 60_000)
+    const writes = new Writes(() => {})
+    const mailboxOf = async (machine: string) => {
+      const mailbox = Mailbox.detached(writes, () => later)
+      mailbox.restore(await loadMail(db, machine))
+      mailbox.persistWith(async (change) => { await send(machine, change) })
+      return mailbox
+    }
+    const first = await mailboxOf(a)
+    first.post('ABC-1', 'session-a', 'To the first machine.', [])
+    await writes.settled()
+    const second = await mailboxOf(b)
+    expect(second.waiting()).toEqual([])
+    expect(second.post('ABC-2', 'session-b', 'To the second machine.', []).id).toBe(1)
+    await settleMail({
+      mailbox: second,
+      live: () => undefined,
+      resume: async () => false,
+      closed: async () => false,
+      language: () => 'en',
+      changed: () => {},
+      log: () => {},
+      now: () => new Date(later.getTime() + 60_000),
+    })
+    await writes.settled()
+    expect((await loadMail(db, a)).map((mail) => mail.fate)).toEqual(['waiting'])
+    expect((await loadMail(db, b)).map((mail) => [mail.fate, mail.reason])).toEqual([['returned', 'gone']])
+  })
+
+  it('gives the messages kept before rows knew their machine to the own machine', async () => {
+    const { db, a, send } = await pool()
+    await saveMailboxChange(db, { mails: [{ ...settled(1, 'session-a', entry.at), fate: 'waiting', event: null, settledAt: null }] }, null)
+    await adoptMail(db, a)
+    await send(a, { mails: [settled(1, 'session-a', entry.at)] })
+    expect(await loadMail(db)).toEqual([settled(1, 'session-a', entry.at)])
+    expect(await loadMail(db, a)).toEqual([settled(1, 'session-a', entry.at)])
   })
 
   it('dismisses a returned message and never brings it back', async () => {

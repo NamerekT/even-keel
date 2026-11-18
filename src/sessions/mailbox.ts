@@ -149,9 +149,11 @@ export class Mailbox {
   }
 }
 
-/** The messages the `mailbox` table keeps, oldest first. */
-export async function loadMail(db: Db): Promise<Mail[]> {
-  const { rows } = await db.query<Row>('select * from mailbox order by id')
+/** The messages the `mailbox` table keeps, oldest first: those of `machine`, or all of them. */
+export async function loadMail(db: Db, machine?: string): Promise<Mail[]> {
+  const { rows } = machine === undefined
+    ? await db.query<Row>('select * from mailbox order by id')
+    : await db.query<Row>('select * from mailbox where machine_id = $1 order by id', [machine])
   return rows.map(mailOf)
 }
 

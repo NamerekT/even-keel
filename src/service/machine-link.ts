@@ -43,6 +43,7 @@ import { ADAPTERS } from '../tracker/adapters.js'
 import { servesTasks, TASKS_SERVER } from '../taskmcp/server.js'
 import { samePath } from '../paths.js'
 import { loadMail } from '../sessions/mailbox.js'
+import { adoptMail } from '../sessions/mailbox-store.js'
 import type { MachineServices } from '../machine/services.js'
 import { BriefSender, hubBrief } from './hub-brief.js'
 import type { MachineContext } from './machine-context.js'
@@ -435,6 +436,8 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     services,
     network,
     start: async () => {
+      // Before the own machine's replayed records: the messages kept before rows knew their machine are its own.
+      await adoptMail(ctx.db, own)
       await network.apply()
       await end.start()
       let waited: ReturnType<typeof setTimeout> | undefined
@@ -446,8 +449,8 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       throughHub()
       await end.flushed()
       // The machine's journal, mailbox and windows are the hub's records, replayed ones included: handed over the link,
-      // never read from the hub's database by the machine.
-      await services.records.restore({ launches: ctx.launches, windows: await loadSessionWindows(ctx.db), mail: await loadMail(ctx.db) })
+      // never read from the hub's database by the machine. Its mailbox gets only its own messages.
+      await services.records.restore({ launches: ctx.launches, windows: await loadSessionWindows(ctx.db), mail: await loadMail(ctx.db, own) })
       // The machines elsewhere are caught up beside the own one, never inside a step of the chain.
       publishing = setInterval(() => {
         void catchUp()
