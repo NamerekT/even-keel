@@ -136,6 +136,7 @@ class HubMoves implements TaskMoves {
   private async run(name: MoveName, project: string, chain: ActiveChain | undefined, current: CurrentTask | undefined, args: unknown[], task = current?.task ?? ''): Promise<unknown> {
     const call: MoveCall = {
       project,
+      task,
       ...(current === undefined ? {} : { current }),
       isCurrent: chain !== undefined && current !== undefined && chain.current === current,
       active: chain === undefined ? this.state.active.some((each) => each.project === project) : this.state.active.includes(chain),

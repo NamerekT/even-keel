@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { isOwnName } from '../chain/fix.js'
 import { withBrief, withMemory, withPrompts, withTracker, withUnbriefed, withVocabulary } from '../chain/relay.js'
 import { MEMORY_SERVER } from '../memory/mcp.js'
 import { ChangelogDrafts } from '../changelog/drafts.js'
@@ -80,7 +81,10 @@ export interface Briefed {
   prepare(task: string, project?: string, retained?: boolean): Promise<LaunchBrief>
 }
 
-/** The machine's half: the brief a launch's command brought, kept for the task's later sessions and its tasks server. */
+/**
+ * The machine's half: the brief a launch's command brought, kept for the task's later sessions and its tasks server.
+ * `apply` throws `chain.briefMissing` for a chain task with neither a brief received nor one kept, and the chain pauses.
+ */
 export interface LaunchBriefs {
   apply(task: string, given: string, received?: LaunchBrief): string
   kept(task: string): TaskBrief | undefined
@@ -122,12 +126,16 @@ export function launchBriefs(): LaunchBriefs {
   const kept = new Map<string, LaunchBrief>()
   return {
     apply: (task, given, received) => {
-      if (received !== undefined) {
+      if (isOwnName(task)) return given
+      if (received !== undefined && received.prompt !== '') {
         kept.delete(task)
         kept.set(task, received)
         if (kept.size > KEPT_BRIEFS) kept.delete(kept.keys().next().value!)
       }
-      return given + (kept.get(task)?.prompt ?? '')
+      const brief = kept.get(task)
+      // A prompt with neither the task's text nor how to read it would start a session on nothing.
+      if (brief === undefined) throw fail('chain.briefMissing', { task })
+      return given + brief.prompt
     },
     kept: (task) => kept.get(task)?.task,
   }
