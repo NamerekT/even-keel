@@ -19,6 +19,12 @@ describe('coldReply', () => {
     expect(coldReply(session('waiting', '2026-01-01T12:05:00.000Z'), now)).toBeNull()
   })
 
+  it('takes the cache keep-warm pinged for warm (EKR-143)', () => {
+    const pinged = { ...session('waiting', '2026-01-01T11:20:00.000Z'), warm: { at: '2026-01-01T11:15:00.000Z', pings: 1 } }
+    expect(coldReply(pinged, now)).toBeNull()
+    expect(coldReply(pinged, new Date('2026-01-01T12:30:00.000Z'))).toEqual({ since: '2026-01-01T12:15:00.000Z', tokens: 120_000 })
+  })
+
   it('lets the reply go as usual to a working session and when the cache is not known', () => {
     expect(coldReply(session('working', '2026-01-01T11:20:00.000Z'), now)).toBeNull()
     expect(coldReply(session('waiting', null), now)).toBeNull()

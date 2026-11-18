@@ -1,5 +1,5 @@
 import type { ChainState } from '../chain/model.js'
-import type { TurnSpend } from '../state.js'
+import type { KeptWarm, TurnSpend } from '../state.js'
 import { TTL_MS, type CacheTtl, type CacheWindow } from './transcript.js'
 import { isTransientError } from './transient.js'
 
@@ -88,6 +88,8 @@ export interface KeepWarmDeps {
   sessions: () => WarmFacts[]
   /** Sends the ping to a fork of the session and gives what its one call read and wrote. */
   ping: (facts: WarmFacts) => Promise<TurnSpend>
+  /** A ping kept a cache warm: the page's clock of it moves on (`kept`). */
+  onWarm?: () => void
   now: () => Date
   log: (line: string) => void
 }
@@ -124,6 +126,14 @@ export class KeepWarm {
     return this.memory.get(sessionId)?.warmedAt ?? null
   }
 
+  /** The pings of the stretch of idleness `cache` names, for the page; `null` — none, or only those of an earlier one. */
+  kept(sessionId: string, cache: CacheWindow | null): KeptWarm | null {
+    const memory = this.memory.get(sessionId)
+    if (memory?.warmedAt == null || cache === null) return null
+    if (Date.parse(memory.stretch) !== Date.parse(cache.until) - TTL_MS[cache.ttl]) return null
+    return { at: memory.warmedAt, pings: memory.pings }
+  }
+
   private async ping(facts: WarmFacts, now: Date): Promise<void> {
     const { task, sessionId, cache } = facts
     const stretch = new Date(Date.parse(cache!.until) - TTL_MS[cache!.ttl]).toISOString()
@@ -141,6 +151,7 @@ export class KeepWarm {
       const pings = before?.stretch === stretch ? before.pings + 1 : 1
       this.memory.set(sessionId, { stretch, pings, warmedAt: now.toISOString() })
       this.deps.log(`keepwarm: ${task}: the ping ${pings} kept the cache of ${sessionId} warm (${read})`)
+      this.deps.onWarm?.()
     } catch (error) {
       if (isTransientError((error as Error).message)) {
         this.deps.log(`keepwarm: the ping of ${task} (${sessionId}) skipped: ${(error as Error).message}`)

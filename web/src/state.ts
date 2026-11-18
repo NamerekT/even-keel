@@ -776,6 +776,17 @@ export function cacheFreshness(cache: CacheWindow, now: Date): { left: number; l
   return { left, level }
 }
 
+/**
+ * The cache window the page counts down: the transcript's, unless a keep-warm ping read the cache later — its fork
+ * writes no transcript, so the cache lives a lifetime after the last ping (EKR-143).
+ */
+export function sessionCache(session: Pick<SessionView, 'cache' | 'warm'>): CacheWindow | null {
+  const { cache, warm } = session
+  if (cache === null || warm == null) return cache
+  const until = Date.parse(warm.at) + CACHE_TTL_MS[cache.ttl]
+  return until > Date.parse(cache.until) ? { ...cache, until: new Date(until).toISOString() } : cache
+}
+
 /** The part of the cache lifetime left, 1 to 0: the ring of the chain's row. */
 export function cacheShare(cache: CacheWindow, now: Date): number {
   return Math.min(1, cacheFreshness(cache, now).left / CACHE_TTL_MS[cache.ttl])

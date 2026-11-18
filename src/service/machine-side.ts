@@ -117,7 +117,10 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     accounts: () => machine.homes.all().map((home) => home.key),
     limitsOf: (account) => machine.limits.limits(account),
     ledger: () => machine.ledger.accounts,
-    sessions: () => machine.sessions,
+    sessions: () => machine.sessions.map((view) => {
+      const warm = machine.keepWarm.kept(view.sessionId, view.cache)
+      return warm === null ? view : { ...view, warm }
+    }),
     mailbox: () => Object.fromEntries(machine.sessions.flatMap((view): [string, SessionMail][] => {
       const mail = machine.mailbox.of(view.sessionId)
       const steered = steers(machine.agents, view.sessionId)

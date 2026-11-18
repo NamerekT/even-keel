@@ -157,7 +157,7 @@ Off by default. A Claude Code session that waits for your reply keeps its prompt
 
 With **Settings → Sessions → Keep the cache of a waiting session warm, hours** above 0, Even Keel asks a copy of the session for one word shortly before its cache would expire, so the next real turn reads it from the cache.
 
-The copy writes nothing: the session, its transcript and its question stay as they were, and the page and the statistics do not see the pings — the service log has a line for each.
+The copy writes nothing: the session, its transcript and its question stay as they were, and the statistics do not see the pings — the service log has a line for each. The page counts the cache clock from the last ping that read the cache, and the tip of the session's **Cache** shows how many times it was renewed since the session's last answer and when last; a restart of the service forgets both.
 
 It covers the current session of each running chain that is not paused and not on a limit, including a session waiting to retry a temporary model error, and in pull-request mode the sessions waiting on their open pull requests; a session waiting on a question with answer buttons too; never a session mid-turn or one whose cache has already gone cold.
 

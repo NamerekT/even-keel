@@ -14,7 +14,7 @@ import { useNow } from '../layout/useNow.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
-import { cacheTone, sessionElapsed, taskProject, type ChainBlock } from '../state.js'
+import { cacheTone, sessionCache, sessionElapsed, taskProject, type ChainBlock } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { Band, Fact, FactList, SectionLabel } from '../ui/blocks.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
@@ -385,6 +385,7 @@ function SessionBody({ session, limit, refusal = null, scale, task, onChat }: Se
   // A plain AskUserQuestion is not an alarm: the chat window shows it and the lamp says the session waits for a reply.
   const waits = session.waitingFor !== null && !session.asking
   const limited = limit !== null || refusal !== null || ['limit', 'credit', 'spend'].includes(session.apiErrorKind ?? '')
+  const cache = sessionCache(session)
   const note =
     (session.apiErrorNotice === undefined ? session.apiError : say(session.apiErrorNotice)) ??
     (waits
@@ -421,8 +422,8 @@ function SessionBody({ session, limit, refusal = null, scale, task, onChat }: Se
             </span>
           </TipValue>
         </Fact>
-        <Fact label={t.session.cache} tone={cacheTone(session.cache, now, session.lamp)}>
-          {session.cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={session.cache} />}
+        <Fact label={t.session.cache} tone={cacheTone(cache, now, session.lamp)}>
+          {cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={cache} warm={session.warm ?? null} />}
         </Fact>
         <ContextFact label={t.session.context} tokens={session.contextTokens} window={session.contextWindow} scale={scale} wide />
         <ModelFact agent={session.agent} model={session.model} effort={session.effort} />
