@@ -129,3 +129,13 @@ export function packagesPath(project: string, plugin: string | null = null): str
   const path = `${projectPath(project)}?${PACKAGES_PARAM}=1`
   return plugin === null ? path : `${path}&${ADD_PARAM}=${encodeURIComponent(plugin)}`
 }
+
+/**
+ * The project's packages over the page as it is (BTN-1301): the address's parameters (the machine's view) and its hash
+ * (the open panel) stay, so the panel stays under the window and closing it comes back to the same place.
+ */
+export function packagesOver(project: string, here: { search: string; hash: string }): { pathname: string; search: string; hash: string } {
+  const search = new URLSearchParams(here.search)
+  search.set(PACKAGES_PARAM, '1')
+  return { pathname: projectPath(project), search: `?${search.toString()}`, hash: here.hash }
+}

@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router'
 import type { PackagesView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
-import { enabledPackages, packagesPath, projectIssues, shortName, type PackageIssue } from '../tools/packageGroups.js'
+import { enabledPackages, packagesOver, projectIssues, shortName, type PackageIssue } from '../tools/packageGroups.js'
 import { problemText } from '../tools/packageView.js'
 import { GoToIcon, PlugIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -37,7 +37,7 @@ export function PackagesButton({ project, packages }: { project: string; package
 
   return (
     <Tipped className="packages-button" tip={tip} inline>
-      <Link className={warn ? 'button packages-button__link packages-button__link--warn' : 'button packages-button__link'} to={`${packagesPath(project)}${location.hash}`}>
+      <Link className={warn ? 'button packages-button__link packages-button__link--warn' : 'button packages-button__link'} to={packagesOver(project, location)}>
         <PlugIcon />
         <span className="packages-button__label">{t.packages.open}</span>
         <span className="packages-button__line">{line}</span>

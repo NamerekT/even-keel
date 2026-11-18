@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import type { MachineCard } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { machinePath } from '../machineColor.js'
-import { packagesPath } from '../tools/packageGroups.js'
+import { packagesOver } from '../tools/packageGroups.js'
 import { Loading } from '../ui/Loader.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
 import { JobWindow } from './JobWindow.js'
@@ -25,6 +25,7 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
   const view = t.machinePanel.view
   const { pool, reload } = usePool(project)
   const { state } = useLive()
+  const location = useLocation()
   const { send, sending, failure } = useCommand()
   const [connecting, setConnecting] = useState(false)
   const row = pool?.machines.find((each) => each.id === card.id)
@@ -74,7 +75,7 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
                 control={
                   <span className="pool__packages">
                     <span className={blocked ? 'pool__packages-state pool__packages-state--blocked' : 'pool__packages-state'}>{blocked ? view.packagesBlocked : view.packagesReady}</span>
-                    <Link to={packagesPath(project)} className="button button--small">
+                    <Link to={packagesOver(project, location)} className="button button--small">
                       {view.packagesOpen}
                     </Link>
                   </span>

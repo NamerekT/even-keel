@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { PackageCell, PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
-import { catalogIssues, enabledPackages, isTrackerPlugin, looseKeys, marketplaceOf, packageGroups, packageKeys, packagesPath, projectGroups, projectIssues, shortName } from './packageGroups.js'
+import { catalogIssues, enabledPackages, isTrackerPlugin, looseKeys, marketplaceOf, packageGroups, packageKeys, packagesOver, packagesPath,projectGroups, projectIssues, shortName } from './packageGroups.js'
 
 const base: PackageView = {
   name: '',
@@ -191,5 +191,15 @@ describe('packagesPath', () => {
   it('opens the project’s packages, with the add dialog on the plugin when there is one', () => {
     expect(packagesPath('A B')).toBe('/p/A%20B?pkg=1')
     expect(packagesPath('ABC', 'huly@even-keel')).toBe('/p/ABC?pkg=1&add=huly%40even-keel')
+  })
+})
+
+describe('packagesOver', () => {
+  it('keeps the address’s parameters and the open panel under the packages', () => {
+    expect(packagesOver('ABC', { search: '?machine=m-1', hash: '#settings' })).toEqual({ pathname: '/p/ABC', search: '?machine=m-1&pkg=1', hash: '#settings' })
+  })
+
+  it('opens them on a bare address', () => {
+    expect(packagesOver('A B', { search: '', hash: '' })).toEqual({ pathname: '/p/A%20B', search: '?pkg=1', hash: '' })
   })
 })
