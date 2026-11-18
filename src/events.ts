@@ -220,6 +220,26 @@ export class EventHub {
   }
 }
 
+/**
+ * `broadcastSoon` of a producer declared after the code that reports its changes (BTN-1285). A change reported before
+ * `ready` only marks that one waits: its watchers' timers would reach the producer before its declaration while the
+ * service still starts. `ready` sends that change once, and every change after it goes as usual.
+ */
+export function readyBroadcast(hub: EventHub, event: string): { changed: () => void; ready: (produce: () => unknown) => void } {
+  let produce: (() => unknown) | undefined
+  let waiting = false
+  return {
+    changed: () => {
+      if (produce === undefined) waiting = true
+      else hub.broadcastSoon(event, produce)
+    },
+    ready: (given) => {
+      produce = given
+      if (waiting) hub.broadcastSoon(event, given)
+    },
+  }
+}
+
 /** The entries of a keyed part by their ids; `null` — not an array of entries with ids of their own. */
 function entriesOf(value: unknown, field: string): Entries | null {
   if (!Array.isArray(value)) return null

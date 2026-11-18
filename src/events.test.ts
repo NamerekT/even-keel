@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { EventHub, formatEvent } from './events.js'
+import { EventHub, formatEvent, readyBroadcast } from './events.js'
 
 describe('formatEvent', () => {
   it('writes an SSE frame with the event name and JSON data', () => {
@@ -202,6 +202,49 @@ describe('EventHub', () => {
       expect(calls).toBe(2)
       expect(error).toHaveBeenCalled()
       error.mockRestore()
+    })
+  })
+
+  describe('readyBroadcast', () => {
+    afterEach(() => { vi.useRealTimers() })
+
+    it('builds nothing for a change reported before the producer is ready, then sends it once (BTN-1285)', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const frames: string[] = []
+      hub.subscribe((frame) => frames.push(frame))
+      const seen: unknown[] = []
+      hub.watch('state', (data) => seen.push(data), 2000)
+      const state = readyBroadcast(hub, 'state')
+      state.changed()
+      state.changed()
+      vi.advanceTimersByTime(10_000)
+      expect(seen).toEqual([])
+      expect(frames).toEqual([])
+      const produce = vi.fn(() => 'a')
+      state.ready(produce)
+      vi.advanceTimersByTime(0)
+      expect(produce).toHaveBeenCalledTimes(1)
+      expect(frames).toEqual([formatEvent('state', 'a')])
+      expect(seen).toEqual(['a'])
+      expect(error).not.toHaveBeenCalled()
+      error.mockRestore()
+    })
+
+    it('sends nothing on ready without a change before it, and each change after it', () => {
+      vi.useFakeTimers()
+      const hub = new EventHub()
+      const frames: string[] = []
+      hub.subscribe((frame) => frames.push(frame))
+      const state = readyBroadcast(hub, 'state')
+      let n = 0
+      state.ready(() => ++n)
+      vi.advanceTimersByTime(1000)
+      expect(frames).toEqual([])
+      state.changed()
+      vi.advanceTimersByTime(1000)
+      expect(frames).toEqual([formatEvent('state', 1)])
     })
   })
 

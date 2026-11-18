@@ -14,7 +14,7 @@ import { gitlabUrls } from './ci/adapters.js'
 import { type Remote } from './ci/remote.js'
 import { CLAUDE } from './claude/name.js'
 import { DEFAULT_BRANCH,gitProjects,isPlain,listenOf,mcpPortOf,ownerOf,projectLabels,readersOf,type EvenKeelConfig } from './config.js'
-import { EventHub } from './events.js'
+import { EventHub, readyBroadcast } from './events.js'
 import { runGit } from './git/run.js'
 import { gitSetup } from './git/setup.js'
 import { type SlotUse } from './git/slot.js'
@@ -426,10 +426,11 @@ const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id', track
 // The event log looks at the state also while no page listens, at most every two seconds (BTN-350).
 hub.watch('state', (state) => eventLog.observe(state as EvenKeelState), 2_000)
 /**
- * Sends the page the new state soon. `getState` is read only when the state is built: handlers wired above its
- * declaration may fire while this module still starts — the Huly client's install does at once (EKR-52).
+ * Sends the page the new state soon. Handlers wired above `getState`'s declaration may fire while this module still
+ * starts — the Huly client's install does at once (EKR-52) — so a change before it waits for `ready` below (BTN-1285).
  */
-const stateChanged = (): void => hub.broadcastSoon('state', () => getState())
+const stateBroadcast = readyBroadcast(hub, 'state')
+const stateChanged = stateBroadcast.changed
 let machineLinked: LinkedMachine | undefined
 /**
  * Something of the own machine the page shows changed (accounts, limits, a CLI): the machine posts it to the hub's mirror,
@@ -644,6 +645,8 @@ const getState = hostingService.wireGetState(context)
 const badges = hubBootstrap.assembleBadges(context)
 hub.watch('state', () => void badges.tick(), 2_000)
 setInterval(() => void badges.tick(), 30_000).unref()
+// The state's watchers are all wired: a change reported during the start goes now (BTN-1285).
+stateBroadcast.ready(() => getState())
 
 // The chain's switches are Even Keel's setting rows: the page's switches write them, and `onChange` hands them to the dispatcher.
 const SWITCHES: Partial<Record<keyof ChainControl, (on: boolean) => void>> = hubBootstrap.assembleSWITCHES(context)
