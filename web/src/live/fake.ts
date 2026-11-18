@@ -725,6 +725,11 @@ export function createFakeSource(search: string): LiveSource {
     const until = ago(cache === 'warn' ? -8 : 20)
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? { ...each, cache: { ttl: '1h', until } } : each))
   }
+  // The transcript's cache ran out long ago; three keep-warm pings, each five minutes before it would, kept it warm (EKR-143).
+  if (cache === 'warmed' && current.state !== null) {
+    const kept = { cache: { ttl: '1h' as const, until: ago(125) }, warm: { at: ago(20), pings: 3 } }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? { ...each, ...kept } : each))
+  }
   // A Copilot session's half-hour cache, as its transcript writes it (BTN-563).
   if (cache === 'copilot' && current.state !== null) {
     const copilot = { ttl: '30m' as const, until: ago(-12) }

@@ -25,6 +25,12 @@ import type { TrackerView } from './tracker/health.js'
 import type { ParentTask, Task } from './tracker/model.js'
 import type { UpdatesView } from './updates/release.js'
 
+/** What keep-warm did for a waiting session (`src/sessions/keepwarm.ts`): its last ping that read the cache and their count. */
+export interface KeptWarm {
+  at: string
+  pings: number
+}
+
 export interface SessionView {
   task: string
   sessionId: string
@@ -64,6 +70,8 @@ export interface SessionView {
   /** The model's context window, from the transcript or the agent's own answer; `null` — unknown, the page uses `ContextScale.window`. */
   contextWindow: number | null
   cache: CacheWindow | null
+  /** The keep-warm pings of the current stretch of idleness (EKR-143); absent or `null` — none. Forgotten on a restart. */
+  warm?: KeptWarm | null
   tokens: TokenTotals
   stage: Stage | null
   action: FeedLine | null

@@ -137,6 +137,7 @@ describe('KeepWarm', () => {
     const sessions = [facts()]
     const pinged: string[] = []
     const lines: string[] = []
+    const woken = { count: 0 }
     const keep = new KeepWarm({
       hours: () => hours,
       sessions: () => sessions,
@@ -144,10 +145,11 @@ describe('KeepWarm', () => {
         pinged.push(each.sessionId)
         return answer()
       },
+      onWarm: () => woken.count++,
       now: () => clock.now,
       log: (line) => lines.push(line),
     })
-    return { keep, clock, pinged, lines }
+    return { keep, clock, pinged, lines, woken }
   }
 
   it('sends nothing while it is off', async () => {
@@ -205,6 +207,20 @@ describe('KeepWarm', () => {
     expect(pinged).toHaveLength(2)
     expect(keep.warmedAt('session-1')).toBe('2026-10-26T12:57:00.000Z')
     expect(lines[0]).toContain('skipped')
+  })
+
+  it('tells the page the pings of the current stretch of idleness and wakes it on each (EKR-143)', async () => {
+    const { keep, clock, woken } = setup(async () => spend(30_000))
+    const cache = facts().cache
+    expect(keep.kept('session-1', cache)).toBeNull()
+    await keep.check()
+    clock.now = at('13:51')
+    await keep.check()
+    expect(keep.kept('session-1', cache)).toEqual({ at: '2026-10-26T13:51:00.000Z', pings: 2 })
+    expect(woken.count).toBe(2)
+    expect(keep.kept('session-1', { ttl: '1h', until: '2026-10-26T14:30:00.000Z' })).toBeNull()
+    expect(keep.kept('session-1', null)).toBeNull()
+    expect(keep.kept('session-2', cache)).toBeNull()
   })
 
   it('sends one ping at a time', async () => {

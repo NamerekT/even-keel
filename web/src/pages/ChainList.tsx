@@ -4,7 +4,7 @@ import { isOwnName } from '../../../src/chain/fix.js'
 import type { ContextScale } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { blockMetered, taskTitle, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
+import { blockMetered, sessionCache, taskTitle, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
 import { ActionMeter, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
@@ -546,7 +546,7 @@ function Block(props: BlockProps) {
   const action = metered === null ? null : cardAction(metered)
   if (acting) classes.push('block--acting')
   // The ring takes the place of the current row's ▶, or the empty one of a row without a number.
-  const ring = metered?.cache != null && (block.current || number === undefined) ? metered.cache : null
+  const ring = metered !== null && (block.current || number === undefined) ? sessionCache(metered) : null
   const share = tier === 'past' ? null : estimateShare(block.estimate)
   const fix = isOwnName(block.id)
   const style = {

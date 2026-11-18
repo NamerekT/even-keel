@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { CacheWindow, TokenTotals } from '../../../src/sessions/transcript.js'
-import type { ContextScale } from '../../../src/state.js'
+import type { ContextScale, KeptWarm } from '../../../src/state.js'
 import { agentLabel } from '../accountName.js'
-import { formatTokens } from '../format.js'
+import { formatLineTime, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { contextFill, tokenTotal } from '../state.js'
 import { Fact } from '../ui/blocks.js'
@@ -12,13 +12,25 @@ import { ContextMeter } from '../ui/ContextMeter.js'
 import { modelName } from '../ui/runLabel.js'
 import { useTip } from '../ui/useTip.js'
 
-export function CacheFact({ cache }: { cache: CacheWindow }) {
+/** The cache clock; the tip has its lifetime and, when keep-warm pinged it this stretch of idleness, how often and when last (EKR-143). */
+export function CacheFact({ cache, warm }: { cache: CacheWindow; warm: KeptWarm | null }) {
   return (
     <TipValue value={<CacheClock cache={cache} bare />}>
       <span className="panel__part">
         <span className="panel__part-label">{t.session.lifetime}</span>
         <b>{t.cache.ttl[cache.ttl]}</b>
       </span>
+      {warm !== null && <>
+        <span className="panel__part">
+          <span className="panel__part-label">{t.session.renewed}</span>
+          <b>{t.session.renewals(warm.pings)}</b>
+        </span>
+        <span className="panel__part">
+          <span className="panel__part-label">{t.session.lastPing}</span>
+          <b><time dateTime={warm.at}>{formatLineTime(warm.at)}</time></b>
+        </span>
+        <span className="panel__tip-note">{t.session.keptWarm}</span>
+      </>}
     </TipValue>
   )
 }

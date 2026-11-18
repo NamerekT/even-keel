@@ -115,6 +115,7 @@ type HostingContext = Pick<ServiceContext,
   | 'hasAccount'
   | 'hub'
   | 'inHomes'
+  | 'keepWarm'
   | 'launches'
   | 'limits'
   | 'linkFor'
@@ -208,9 +209,11 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     })),
     // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
     // chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
-    sessions: ctx.sessions.map((view) =>
-      view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view,
-    ),
+    sessions: ctx.sessions.map((view) => {
+      const shown = view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view
+      const warm = ctx.keepWarm.kept(view.sessionId, view.cache)
+      return warm === null ? shown : { ...shown, warm }
+    }),
     limits: ctx.limits.limits(ctx.activeAccount()),
     usage: ctx.limits.usage(ctx.activeAccount()),
     account: {

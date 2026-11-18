@@ -243,6 +243,7 @@ export function wireKeepWarm(ctx: ChainContext): KeepWarm {
       const start: SessionStart = { name: task, cwd: session.cwd, prompt: KEEP_WARM_PROMPT, model: view.model, settings: await ctx.settingsFor(task), ...ctx.agentExtras(home, ctx.projectOf(task), task) }
       return ctx.agentOf(home).warm!(home, session, start)
     },
+    onWarm: () => ctx.hub.broadcastSoon('state', ctx.getState),
     now: () => new Date(),
     log: (line) => console.log(line),
   })

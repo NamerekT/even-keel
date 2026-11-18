@@ -47,6 +47,7 @@ import {
   cacheFreshness,
   cacheShare,
   cacheTone,
+  sessionCache,
   contextResets,
   taskLinks,
   taskPrefix,
@@ -1521,6 +1522,22 @@ describe('cacheFreshness', () => {
   it('is cold once the lifetime has run out', () => {
     expect(cacheFreshness({ ttl: '5m', until: '2026-01-01T10:30:00.000Z' }, now)).toEqual({ left: 0, level: 'cold' })
     expect(cacheFreshness({ ttl: '1h', until: '2026-01-01T09:00:00.000Z' }, now)).toEqual({ left: 0, level: 'cold' })
+  })
+})
+
+describe('sessionCache', () => {
+  const cache = { ttl: '1h', until: '2026-01-01T10:00:00.000Z' } as const
+
+  it('keeps the transcript window without pings', () => {
+    expect(sessionCache({ cache, warm: null })).toBe(cache)
+    expect(sessionCache({ cache })).toBe(cache)
+    expect(sessionCache({ cache: null, warm: { at: '2026-01-01T10:25:00.000Z', pings: 1 } })).toBeNull()
+  })
+
+  it('counts a cache keep-warm pinged warm until a lifetime after the last ping (EKR-143)', () => {
+    const warmed = sessionCache({ cache, warm: { at: '2026-01-01T10:55:00.000Z', pings: 2 } })
+    expect(warmed).toEqual({ ttl: '1h', until: '2026-01-01T11:55:00.000Z' })
+    expect(cacheTone(warmed, new Date('2026-01-01T11:10:00.000Z'), 'waiting')).toBe('ok')
   })
 })
 
