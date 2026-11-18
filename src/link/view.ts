@@ -11,10 +11,14 @@ export interface MachineAbout {
   node: string
   /** `null` — git does not start there. */
   git: string | null
-  /** The agent CLIs found on the machine, by the agent's name, with the version each printed (`null` — it did not say). */
+  /** The agent CLIs asked on the machine, by the agent's name, with the version each printed (`null` — not on its PATH or silent). */
   agents: Record<string, string | null>
   /** Whether git there has `user.name` and `user.email`: without them a session's commit fails. */
   gitUser: boolean
+  /** Git's `user.name` there (BTN-1307); none — not set, or a machine older than the field. */
+  gitName?: string
+  /** Git's `user.email` there (BTN-1307); none — not set, or a machine older than the field. */
+  gitEmail?: string
   /** The folder of projects the machine agreed to (`docs/machines.md`, "What a command may touch"); `null` — none. */
   root: string | null
   /** The commit of the checkout Even Keel runs from there (BTN-1275); none — a package of npm or an older machine. */

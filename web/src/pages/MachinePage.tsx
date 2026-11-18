@@ -1,16 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState, MachinePage as MachinePageView } from '../../../src/state.js'
 import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { checkText } from '../layout/MachineJoined.js'
 import { Limits } from '../layout/Limits.js'
+import { MachineAddAccount } from '../layout/MachineAddAccount.js'
 import { SessionsOnly } from '../layout/MachineSignIns.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountColors, nearAccountColor } from '../machineColor.js'
-import { machineChecks, osLabel, type MachineCheck } from '../machineAdd.js'
+import { hubGapsOn, machineAccountsEmpty, machineAgents, machineChecks, osLabel } from '../machineAdd.js'
+import { machineLogin } from '../machineSignIn.js'
+import { SignIn } from './MachineAccountsPage.js'
 import { projectPath } from '../state.js'
 import { packagesPath } from '../tools/packageGroups.js'
 import { AccountTag } from '../ui/AccountTag.js'
@@ -82,16 +85,13 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
   const more = page.own ? [] : [{ label: text.revoke, danger: true, pick: () => setRevoking(true) }]
   return (
     <div className="machine-page__body">
-      <PageHead title={page.name} actions={more.length > 0 ? <MoreMenu items={more} label={text.more} /> : undefined}>
-        <span className="machine-page__head">
-          <span className="machine-page__mark" style={{ background: page.color }} aria-hidden="true" />
-          <span className={`machine-page__state${page.online ? ' machine-page__state--online' : ''}`}>{page.online ? text.online : text.offline}</span>
-          {page.own && <span className="tag">{text.own}</span>}
-          {page.about !== null && (
-            <span className="machine-page__muted">{page.about.commit === undefined ? text.version(page.about.evenKeel) : text.versionAt(page.about.evenKeel, shortRef(page.about.commit))}</span>
-          )}
-          {page.joinedAt !== null && !page.own && <span className="machine-page__muted">{text.joined(formatAgo(new Date(page.joinedAt).toISOString(), now))}</span>}
-        </span>
+      <PageHead
+        className="machine-page__head"
+        title={<span className="machine-page__title" style={{ '--machine': page.color } as CSSProperties}>{page.name}</span>}
+        actions={more.length > 0 ? <MoreMenu items={more} label={text.more} /> : undefined}
+      >
+        <span className={`chip machine-page__state${page.online ? ' machine-page__state--online' : ''}`}>{page.online ? text.online : text.offline}</span>
+        {page.own && <span className="tag">{text.own}</span>}
       </PageHead>
       {!page.own && page.about !== null && page.about.evenKeel !== page.hubVersion && (
         <Band tone="warn" className="machine-page__version">
@@ -110,11 +110,11 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
       <div className="machine-page__grid">
         <div className="machine-page__column">
           <SettingsCard page={page} reload={reload} />
-          <ReportCard state={state} page={page} />
+          <ReportCard state={state} page={page} now={now} />
         </div>
         <div className="machine-page__column">
           <ProjectsCard page={page} />
-          <AccountsCard page={page} now={now} />
+          <AccountsCard state={state} page={page} now={now} />
           <SessionsCard page={page} />
         </div>
       </div>
@@ -181,7 +181,7 @@ function SettingsCard({ page, reload }: { page: MachinePageView; reload: () => v
               if (event.key === 'Enter' && changed) void save()
             }}
           />
-          <button type="button" className="button button--primary" disabled={!changed || sending} onClick={() => void save()}>
+          <button type="button" className="button button--small button--primary" disabled={!changed || sending} onClick={() => void save()}>
             {text.save}
           </button>
         </span>
@@ -235,8 +235,11 @@ function SettingsCard({ page, reload }: { page: MachinePageView; reload: () => v
   )
 }
 
-/** What the machine reported: its system, Node, git and the agents' CLIs, and its folder of projects. */
-function ReportCard({ state, page }: { state: EvenKeelState; page: MachinePageView }) {
+/**
+ * What the machine reported, a fact each: its system, Even Keel, when it joined, Node, git with its name and e-mail,
+ * the agents' CLIs as tags, and its folder of projects. What follows from a failed check is the tip of its value.
+ */
+function ReportCard({ state, page, now }: { state: EvenKeelState; page: MachinePageView; now: Date }) {
   const text = t.machinePage
   const about = page.about
   if (about === null) {
@@ -246,20 +249,53 @@ function ReportCard({ state, page }: { state: EvenKeelState; page: MachinePageVi
       </Card>
     )
   }
-  const hubAgents = [...new Set(state.account.accounts.map((entry) => entry.agent))]
-  const checks = machineChecks(about, hubAgents)
-  const agents = checks.filter((check) => check.id !== 'node' && check.id !== 'git')
+  const node = checkText(machineChecks(about, [])[0]!)
+  const { found, lacking } = machineAgents(about, page.missing, state.account.accounts.map((entry) => entry.agent))
+  // A machine older than the git name and e-mail of its report (BTN-1307) says only that both are set.
+  const userOnly = about.gitUser && about.gitName === undefined && about.gitEmail === undefined
+  const facts = [
+    <Fact key="system" label={text.system}>
+      <dd>{osLabel(about.os)}</dd>
+      <dd className="machine-page__muted">{about.host}</dd>
+    </Fact>,
+    <Fact key="even-keel" label={text.evenKeel}>
+      <dd>{about.commit === undefined ? about.evenKeel : `${about.evenKeel} · ${shortRef(about.commit)}`}</dd>
+    </Fact>,
+    page.joinedAt !== null && !page.own && (
+      <Fact key="joined" label={text.joined}>
+        <dd>{formatAgo(new Date(page.joinedAt).toISOString(), now)}</dd>
+      </Fact>
+    ),
+    <ValueFact key="node" label={text.node} value={about.node} effect={node.effect} />,
+    <ValueFact key="git" label={text.git} value={about.git ?? t.machines.gitMissing} effect={about.git === null ? t.machines.gitMissingEffect : undefined} />,
+    ...(about.git === null
+      ? []
+      : userOnly
+        ? [<ValueFact key="git-user" label={text.gitUser} value={t.machines.gitUser} />]
+        : [
+            <ValueFact key="git-name" label={text.gitName} value={about.gitName ?? text.gitUnset} effect={about.gitName === undefined ? text.gitUnsetTip : undefined} />,
+            <ValueFact key="git-email" label={text.gitEmail} value={about.gitEmail ?? text.gitUnset} effect={about.gitEmail === undefined ? text.gitUnsetTip : undefined} />,
+          ]),
+  ].filter((fact) => fact !== false)
+  // The agents fill the rest of their row, so the folder below starts a row of its own with no hole before it.
+  const rest = 3 - (facts.length % 3)
   return (
     <Card title={text.report} titleId="machine-report">
       <FactList>
-        <Fact label={text.system}>
-          <dd>{osLabel(about.os)}</dd>
-          <dd className="machine-page__muted">{about.host}</dd>
+        {facts}
+        <Fact label={text.agents} tone={lacking.length > 0 ? 'warn' : 'ok'} className={`machine-page__fill machine-page__fill--${rest}`}>
+          <dd className="machine-page__tags">
+            {found.length === 0 && lacking.length === 0 && <span className="machine-page__muted">{text.agentsNone}</span>}
+            {found.map(({ agent, version }) => (
+              <span key={agent} className="tag">{`${agentName(agent)} ${version}`}</span>
+            ))}
+            {lacking.map((agent) => (
+              <Tipped key={agent} tip={text.noCliTip(agentName(agent))} inline>
+                <span className="chip chip--paused">{text.noCli(agentName(agent))}</span>
+              </Tipped>
+            ))}
+          </dd>
         </Fact>
-        {checks.filter((check) => check.id === 'node' || check.id === 'git').map((check) => (
-          <CheckFact key={check.id} label={check.id === 'node' ? text.node : text.git} checks={[check]} />
-        ))}
-        <CheckFact label={text.agents} checks={agents} empty={text.agentsNone} />
         {/* The own machine's projects are where each project's settings put them: it has no folder of projects. */}
         {!(page.own && about.root === null) && (
           <Fact label={text.root} tone={about.root === null ? 'warn' : 'ok'} wide>
@@ -271,20 +307,19 @@ function ReportCard({ state, page }: { state: EvenKeelState; page: MachinePageVi
   )
 }
 
-/** A fact of checks, framed as a warning when one fails: each check's line, and what follows from a failed one. */
-function CheckFact({ label, checks, empty }: { label: string; checks: MachineCheck[]; empty?: string }) {
+const agentName = (agent: string): string => t.account.agents[agent as keyof typeof t.account.agents] ?? agent
+
+/** A fact of one value, framed as a warning when something follows from it: that is the value's tip. */
+function ValueFact({ label, value, effect }: { label: string; value: string; effect?: string | undefined }) {
   return (
-    <Fact label={label} tone={checks.every((check) => check.ok) ? 'ok' : 'warn'}>
-      {checks.length === 0 && <dd className="machine-page__muted">{empty}</dd>}
-      {checks.map((check) => {
-        const { text: line, effect } = checkText(check)
-        return (
-          <dd key={check.id}>
-            {line}
-            {effect !== undefined && <span className="machine-page__effect"> — {effect}</span>}
-          </dd>
-        )
-      })}
+    <Fact label={label} tone={effect === undefined ? 'ok' : 'warn'}>
+      <dd className="machine-page__value">
+        {effect === undefined ? value : (
+          <Tipped tip={effect} inline align="start">
+            <span>{value}</span>
+          </Tipped>
+        )}
+      </dd>
     </Fact>
   )
 }
@@ -295,7 +330,7 @@ function ProjectsCard({ page }: { page: MachinePageView }) {
   return (
     <Card title={text.projects} titleId="machine-projects">
       {page.projects.length === 0 ? (
-        <EmptyState action={<Link to="/" className="button">{text.projectsOpen}</Link>}>{text.projectsNone}</EmptyState>
+        <EmptyState action={<Link to="/" className="button button--small">{text.projectsOpen}</Link>}>{text.projectsNone}</EmptyState>
       ) : (
         <ul className="machine-page__list">
           {page.projects.map((each) => (
@@ -309,9 +344,13 @@ function ProjectsCard({ page }: { page: MachinePageView }) {
                     {each.folder}
                   </bdi>
                 </Tipped>
-                {each.packagesBlocked && <span className="machine-page__warn">{each.packagesPause === null ? text.packagesBlocked : say(each.packagesPause)}</span>}
               </span>
               {!each.enabled && <span className="tag machine-page__off">{text.disabled}</span>}
+              {each.packagesBlocked && (
+                <Tipped tip={each.packagesPause === null ? text.packagesBlocked : say(each.packagesPause)} inline align="end">
+                  <span className="chip chip--paused">{text.packagesNotReady}</span>
+                </Tipped>
+              )}
               {each.packagesBlocked && (
                 <Link to={packagesPath(each.project)} className="button button--small">
                   {text.packagesOpen}
@@ -325,30 +364,54 @@ function ProjectsCard({ page }: { page: MachinePageView }) {
   )
 }
 
-/** The hub's accounts as the machine has them: signed in there or not, with the limits the machine read. */
-function AccountsCard({ page, now }: { page: MachinePageView; now: Date }) {
+/**
+ * The machine's accounts, signed in there or not, with the limits it read; on a machine elsewhere then the hub's
+ * subscriptions it is not signed in to, each with "Sign in" there, as its accounts page has them (BTN-1302).
+ */
+function AccountsCard({ state, page, now }: { state: EvenKeelState; page: MachinePageView; now: Date }) {
   const text = t.machinePage
+  const view = t.machinePanel.view
   const { send, sending, failure } = useCommand()
+  const [adding, setAdding] = useState(false)
+  const signIns = state.machineSignIns
+  const machine = signIns?.find((each) => each.machine === page.id)
+  const gaps = page.own || machine === undefined ? [] : hubGapsOn(state.account.accounts, machine)
+  const busy = sending || machineLogin(signIns) !== undefined
   // A folder signed out is signed in again where it is: on a machine elsewhere through its sign-in window, here on `/accounts`.
-  const signIn = (account: MachinePageView['accounts'][number]) =>
+  const signIn = (agent: string, account?: string) =>
     page.own ? (
       <Link to="/accounts" className="button button--small">
         {text.signIn}
       </Link>
     ) : (
-      <button
-        type="button"
-        className="button button--small"
-        disabled={sending || !page.online || page.missing.includes(account.agent)}
-        onClick={() => void send('machines/login', { machine: page.id, agent: account.agent, account: account.key })}
-      >
-        {text.signIn}
-      </button>
+      <SignIn
+        name={page.name}
+        online={page.online}
+        busy={busy}
+        noCli={page.missing.includes(agent) ? agentName(agent) : null}
+        onClick={() => void send('machines/login', { machine: page.id, agent, ...(account !== undefined && { account }) })}
+      />
     )
+  const add = page.own ? (
+    <Link to="/accounts" className="button button--small">
+      {text.accountsOpen}
+    </Link>
+  ) : page.online ? (
+    <button type="button" className="button button--small" disabled={busy} onClick={() => setAdding(true)}>
+      + {t.account.add}
+    </button>
+  ) : (
+    <Tipped tip={view.addOffline(page.name)} align="start">
+      <button type="button" className="button button--small" aria-disabled="true">
+        + {t.account.add}
+      </button>
+    </Tipped>
+  )
+  const none = !page.own && machineAccountsEmpty(page.id, signIns) === 'waiting' ? view.accountsNone : view.accountsEmpty(page.name)
   return (
     <Card title={text.accounts} titleId="machine-accounts">
-      {page.accounts.length === 0 ? (
-        <EmptyState action={<Link to="/accounts" className="button">{text.accountsOpen}</Link>}>{text.accountsNone}</EmptyState>
+      {page.accounts.length === 0 && gaps.length === 0 ? (
+        <EmptyState action={add}>{none}</EmptyState>
       ) : (
         <ul className="machine-page__list">
           {page.accounts.map((account) => (
@@ -362,7 +425,18 @@ function AccountsCard({ page, now }: { page: MachinePageView; now: Date }) {
                 </span>
                 {account.signedIn && account.sessionsOnly === true && <span className="machine-page__note"><SessionsOnly email={account.email} send={send} sending={sending} /></span>}
               </span>
-              {account.signedIn ? <Limits limits={account.limits} now={now} /> : signIn(account)}
+              {account.signedIn ? <Limits limits={account.limits} now={now} /> : signIn(account.agent, account.key)}
+            </li>
+          ))}
+          {gaps.map(({ entry, gap }) => (
+            <li key={`hub:${entry.key}`} className="machine-page__row machine-page__row--account">
+              <span className="machine-page__main">
+                <span className="machine-page__name">
+                  <AccountTag account={entry.key} agent={entry.agent} />
+                  <span className="machine-page__muted">{view.hubOnly}</span>
+                </span>
+              </span>
+              {signIn(entry.agent, gap.account)}
             </li>
           ))}
         </ul>
@@ -372,6 +446,7 @@ function AccountsCard({ page, now }: { page: MachinePageView; now: Date }) {
           {say(failure)}
         </p>
       )}
+      {adding && <MachineAddAccount card={page} signIn={machine} onClose={() => setAdding(false)} />}
     </Card>
   )
 }
@@ -382,7 +457,7 @@ function SessionsCard({ page }: { page: MachinePageView }) {
   return (
     <Card title={text.sessions} titleId="machine-sessions">
       {page.sessions.length === 0 ? (
-        <EmptyState action={<Link to="/" className="button">{text.projectsOpen}</Link>}>{text.sessionsNone}</EmptyState>
+        <EmptyState action={<Link to="/" className="button button--small">{text.projectsOpen}</Link>}>{text.sessionsNone}</EmptyState>
       ) : (
         <ul className="machine-page__list">
           {page.sessions.map((session) => (

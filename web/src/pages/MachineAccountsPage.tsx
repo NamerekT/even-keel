@@ -88,7 +88,7 @@ export function MachineAccountsPage({ card }: { card: MachineCard }) {
 }
 
 /** "Sign in" on the machine: greyed with why while it is off the link; without the agent's CLI there, what to install instead. */
-function SignIn({ name, online, busy, noCli, onClick }: { name: string; online: boolean; busy: boolean; noCli: string | null; onClick: () => void }) {
+export function SignIn({ name, online, busy, noCli, onClick }: { name: string; online: boolean; busy: boolean; noCli: string | null; onClick: () => void }) {
   if (noCli !== null) return <span className="machine-accounts__end machine-accounts__muted">{t.machines.noCli(noCli)}</span>
   return (
     <span className="machine-accounts__end">

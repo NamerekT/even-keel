@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
-import { addMachineOf, folderOnMachine, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineChecks, osLabel, signInOf, takenColors, withAddMachine } from './machineAdd.js'
+import { addMachineOf, folderOnMachine, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, signInOf, takenColors, withAddMachine } from './machineAdd.js'
 
 describe('the folder a project gets on a machine', () => {
   it("is the hub's folder name inside the machine's root, written the machine's way", () => {
@@ -78,12 +78,21 @@ describe('what the window that adds a machine shows', () => {
       { id: 'agent:claude', ok: true, agent: 'claude', version: '2.1.322' },
       { id: 'agent:codex', ok: false, agent: 'codex', version: null },
     ])
-    expect(machineChecks({ ...ABOUT, node: '22.3.0', git: '2.47.0', gitUser: false, agents: { opencode: null } }, [])).toEqual([
+    // A report names every agent it asked: `null` is a CLI not there, listed only when the hub has its accounts.
+    expect(machineChecks({ ...ABOUT, node: '22.3.0', git: '2.47.0', gitUser: false, agents: { opencode: null, copilot: '1.0.0' } }, ['codex'])).toEqual([
       { id: 'node', ok: false, version: '22.3.0' },
       { id: 'git', ok: false, version: '2.47.0', user: false },
-      { id: 'agent:opencode', ok: true, agent: 'opencode', version: null },
+      { id: 'agent:codex', ok: false, agent: 'codex', version: null },
+      { id: 'agent:copilot', ok: true, agent: 'copilot', version: '1.0.0' },
     ])
     expect(machineChecks({ ...ABOUT, git: null }, [])[1]).toEqual({ id: 'git', ok: false, version: null, user: true })
+  })
+
+  it("tags only the CLIs the machine has, and warns of the hub's agents it lacks", () => {
+    const about = { ...ABOUT, agents: { claude: '2.1.327', codex: null, opencode: null, copilot: '1.0.0' } }
+    expect(machineAgents(about, ['codex', 'opencode', 'copilot'], ['claude', 'codex'])).toEqual({ found: [{ agent: 'claude', version: '2.1.327' }], lacking: ['codex'] })
+    expect(machineAgents(about, [], [])).toEqual({ found: [{ agent: 'claude', version: '2.1.327' }, { agent: 'copilot', version: '1.0.0' }], lacking: [] })
+    expect(machineAgents({ ...ABOUT, agents: {} }, [], ['claude', 'claude'])).toEqual({ found: [], lacking: ['claude'] })
   })
 
   it("takes the machine's accounts from the page's state, or none yet with the CLIs its report misses", () => {

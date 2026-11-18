@@ -22,15 +22,21 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-8) var(--space-12);
-  font-size: var(--text-13);
+  gap: var(--space-8);
 }
 
-/* Square as on the chain's machine tag: an account's mark is a dot. */
-.machine-page__mark {
-  flex: none;
-  width: 12px;
-  height: 12px;
+/* The name on the machine's colour, as an account's pill is on the account's (`.account-tag`). */
+.machine-page__title {
+  display: inline-block;
+  padding: 0 var(--space-12);
+  border: 1px solid color-mix(in srgb, var(--machine) 60%, transparent);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--machine) 22%, transparent);
+  color: var(--fg);
+}
+
+.machine-page__head .page__title {
+  margin-inline-end: var(--space-4);
 }
 
 .machine-page__state {
@@ -49,6 +55,7 @@
 }
 
 .machine-page__state--online {
+  background: color-mix(in srgb, var(--lamp-done) 16%, transparent);
   color: var(--fg);
 }
 
@@ -125,18 +132,42 @@
   flex-basis: 100%;
 }
 
-.machine-page__effect {
-  color: var(--fg-muted);
+/* The agents' fact takes the rest of its row (`--2` two cells, `--1` one), so the folder starts a row of its own. */
+.machine-page__fill--3 {
+  grid-column: 1 / -1;
 }
 
+.machine-page__fill--2 {
+  grid-column: span 2;
+}
+
+.machine-page__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+  padding-top: var(--space-2);
+}
+
+.machine-page__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The field and its button one small height, side by side. */
 .machine-page__capacity {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--space-8);
 }
 
-.machine-page__number {
+.machine-page__capacity .machine-page__number {
   width: 8ch;
+  min-width: 0;
+  margin: 0;
+  padding-block: 0;
+  font-size: var(--text-13);
 }
 
 .machine-page__colors {
@@ -244,5 +275,10 @@ a.machine-page__name:hover {
   /* Three boxes of a report line wrap each word on a phone. */
   .machine-page .ui-facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .machine-page__fill--1,
+  .machine-page__fill--2 {
+    grid-column: 1 / -1;
   }
 }

@@ -217,9 +217,10 @@ export function isAbout(value: unknown): value is MachineAbout {
   const about = value as Record<string, unknown>
   const text = (key: string) => typeof about[key] === 'string'
   const textOrNull = (key: string) => about[key] === null || typeof about[key] === 'string'
+  const textOrNone = (key: string) => about[key] === undefined || typeof about[key] === 'string'
   const { agents } = about
   const agentsWhole = typeof agents === 'object' && agents !== null && !Array.isArray(agents) && Object.values(agents).every((version) => version === null || typeof version === 'string')
-  return text('host') && text('os') && text('evenKeel') && text('node') && textOrNull('git') && textOrNull('root') && typeof about.gitUser === 'boolean' && agentsWhole
+  return text('host') && text('os') && text('evenKeel') && text('node') && textOrNull('git') && textOrNull('root') && typeof about.gitUser === 'boolean' && textOrNone('gitName') && textOrNone('gitEmail') && agentsWhole
 }
 
 export const isRefusal = (value: unknown): value is Refusal =>

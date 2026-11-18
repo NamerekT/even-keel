@@ -8,7 +8,8 @@ const JOIN_MS = 3_000
 const INVITE_MS = 30 * 60_000
 
 const about = (host: string, patch: Partial<MachineAbout> = {}): MachineAbout => ({
-  host, os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: { claude: '2.1.322' }, gitUser: true, root: '/home/example/projects', ...patch,
+  host, os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: { claude: '2.1.322', codex: null, opencode: null, copilot: null }, gitUser: true,
+  gitName: 'John Doe', gitEmail: 'john.doe@example.com', root: '/home/example/projects', ...patch,
 })
 
 /**
@@ -34,7 +35,7 @@ export class FakeNetwork {
       mode === 'nocli' ? { agents: {} }
       : mode === 'version' ? { evenKeel: '0.3.9' }
       : mode === 'follow' ? { commit: '4b1d2c3e5f60718293a4b5c6d7e8f90123456789', follow: { to: '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432', stuck: 'failed' } }
-      : { gitUser: false }
+      : { gitUser: false, gitName: undefined }
     this.machines = [
       joined('machine-1', 'Example laptop', about('example-laptop', laptop), mode !== 'offline' && mode !== 'follow'),
       joined('machine-2', 'Example desktop', about('example-desktop', { os: 'win32 10.0.26200', agents: { claude: '2.1.322', codex: '0.98.0' } }), true),
@@ -162,7 +163,9 @@ export class FakeNetwork {
     if (name === undefined) return undefined
     const own = id === OWN
     const view = this.machines.find((machine) => machine.id === id)
-    const report = own ? about('workstation', { os: 'win32 10.0.26200', root: null, agents: { claude: '2.1.322', codex: '0.98.0' } }) : (view?.about ?? about(name.toLowerCase().replace(/\W+/g, '-')))
+    const report = own ? about('workstation', { os: 'win32 10.0.26200', root: null, agents: { claude: '2.1.322', codex: '0.98.0', opencode: null, copilot: null } }) : (view?.about ?? about(name.toLowerCase().replace(/\W+/g, '-')))
+    // A machine elsewhere's accounts and missing CLIs are its panel's, as the hub's mirror has them.
+    const panel = own ? undefined : state.machineSignIns?.find((each) => each.machine === id)
     const pooled = state.projects.filter((project) => own || this.pools.get(project)?.some((row) => row.id === id) || view?.projects.includes(project) || project === state.projects[0])
     const projects: MachineProject[] = pooled.map((project, index) => {
       const row = (own ? this.rows(project) : this.pools.get(project))?.find((each) => each.id === id)
@@ -188,16 +191,13 @@ export class FakeNetwork {
       palette: [...MACHINE_PALETTE],
       capacity: this.capacities.get(id) ?? (own ? state.chain.parallel : 1),
       projects,
-      accounts: state.account.accounts.map((entry, index) => {
-        const signedIn = own ? entry.status?.loggedIn === true : !(id === 'machine-1' && index > 0)
-        // `?machines=tokenAlone`: the desktop's own long tokens, nobody polling them (BTN-1266).
-        const posted = own ? undefined : state.machineSignIns?.find((each) => each.machine === id)?.accounts.find((each) => each.key === entry.key && each.sessionsOnly === true)
-        return {
-          key: entry.key, agent: entry.agent, email: entry.status?.email ?? posted?.email ?? null, signedIn, limits: signedIn ? state.limits : null,
-          ...(posted !== undefined && { longToken: true as const, sessionsOnly: true as const }),
-        }
-      }),
-      missing: [],
+      accounts: own
+        ? state.account.accounts.map((entry) => {
+            const signedIn = entry.status?.loggedIn === true
+            return { key: entry.key, agent: entry.agent, email: entry.status?.email ?? null, signedIn, limits: signedIn ? state.limits : null }
+          })
+        : (panel?.accounts ?? []).map((account) => ({ ...account, limits: account.signedIn ? state.limits : null })),
+      missing: own ? [] : [...new Set([...(panel?.missing ?? []), ...Object.keys(report.agents).filter((agent) => report.agents[agent] === null)])],
       sessions: own ? state.sessions.filter((session) => session.lamp !== 'finished').map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })) : [],
       taken: id === 'machine-1' && this.held && pooled[0] !== undefined ? [{ project: pooled[0], machine: 'machine-0', name: 'Example old laptop' }] : [],
     }

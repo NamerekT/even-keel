@@ -84,19 +84,31 @@ const NODE_MAJOR = 24
 
 /**
  * What the machine reported, as checks: Node, git with its user, and the CLI of each agent the hub has accounts of or
- * the machine has; a missing one is not ok — the hub sends that agent's tasks elsewhere.
+ * the machine has; a missing one is not ok — the hub sends that agent's tasks elsewhere. A report names every agent it
+ * asked, `null` where the CLI is not there.
  */
 export function machineChecks(about: MachineAbout, hubAgents: string[]): MachineCheck[] {
   const major = Number(about.node.split('.')[0])
-  const agents = [...new Set([...hubAgents, ...Object.keys(about.agents)])]
+  const found = Object.keys(about.agents).filter((agent) => about.agents[agent] != null)
+  const agents = [...new Set([...hubAgents, ...found])]
   return [
     { id: 'node', ok: major >= NODE_MAJOR, version: about.node },
     { id: 'git', ok: about.git !== null && about.gitUser, version: about.git, user: about.gitUser },
     ...agents.map((agent): MachineCheck => {
-      const found = Object.hasOwn(about.agents, agent)
-      return { id: `agent:${agent}`, ok: found, agent, version: found ? about.agents[agent]! : null }
+      const version = about.agents[agent] ?? null
+      return { id: `agent:${agent}`, ok: version !== null, agent, version }
     }),
   ]
+}
+
+/**
+ * The agents' CLIs of a machine's page (BTN-1307): those its report gives a version of and its panel does not miss,
+ * and, of the agents the hub has accounts of, those it lacks. A report names every agent it asked, `null` where the
+ * CLI is not on the PATH, so a name alone is no CLI.
+ */
+export function machineAgents(about: MachineAbout, missing: string[], hubAgents: string[]): { found: Array<{ agent: string; version: string }>; lacking: string[] } {
+  const found = Object.entries(about.agents).flatMap(([agent, version]) => (version === null || missing.includes(agent) ? [] : [{ agent, version }]))
+  return { found, lacking: [...new Set(hubAgents)].filter((agent) => !found.some((each) => each.agent === agent)) }
 }
 
 /**
@@ -107,7 +119,7 @@ export function signInOf(machine: MachineView, signIns: MachineSignIn[] | undefi
   const known = signIns?.find((each) => each.machine === machine.id)
   if (known !== undefined) return known
   const found = machine.about?.agents ?? {}
-  return { machine: machine.id, name: machine.name, online: machine.online, accounts: [], login: null, missing: hubAgents.filter((agent) => !Object.hasOwn(found, agent)) }
+  return { machine: machine.id, name: machine.name, online: machine.online, accounts: [], login: null, missing: hubAgents.filter((agent) => found[agent] == null) }
 }
 
 export interface MachineAccountRow {

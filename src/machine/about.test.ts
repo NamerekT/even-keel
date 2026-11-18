@@ -15,7 +15,7 @@ describe("the machine's report about itself", () => {
       version: async (binary) => (binary === 'claude' ? '2.1.303 (Claude Code)\n' : null),
     })
     expect(isAbout(about)).toBe(true)
-    expect(about).toMatchObject({ evenKeel: '0.4.0', git: '2.47.0', gitUser: true, root: '/home/example/projects', node: process.versions.node })
+    expect(about).toMatchObject({ evenKeel: '0.4.0', git: '2.47.0', gitUser: true, gitName: 'John Doe', gitEmail: 'john@example.com', root: '/home/example/projects', node: process.versions.node })
     expect(about.agents).toMatchObject({ claude: '2.1.303', codex: null })
   })
 
@@ -23,6 +23,23 @@ describe("the machine's report about itself", () => {
     const about = await machineAbout({ evenKeel: '0.4.0', root: null, home: '/home/example', git: gitWith({}), version: async () => null })
     expect(about).toMatchObject({ git: null, gitUser: false, root: null })
     expect(about.commit).toBeUndefined()
+    expect(about).not.toHaveProperty('gitName')
+    expect(about).not.toHaveProperty('gitEmail')
+  })
+
+  it('names the e-mail alone when git has no user name, and a report without either is still whole', async () => {
+    const about = await machineAbout({
+      evenKeel: '0.4.0',
+      root: null,
+      home: '/home/example',
+      git: gitWith({ '--version': { code: 0, out: 'git version 2.47.0\n' }, 'config --get user.email': { code: 0, out: 'john@example.com\n' } }),
+      version: async () => null,
+    })
+    expect(about).toMatchObject({ gitUser: false, gitEmail: 'john@example.com' })
+    expect(about).not.toHaveProperty('gitName')
+    const { gitEmail: _, ...older } = about
+    expect(isAbout(older)).toBe(true)
+    expect(isAbout({ ...about, gitName: 7 })).toBe(false)
   })
 
   it('names the commit of a checkout it runs from: on dev the version alone says little', async () => {

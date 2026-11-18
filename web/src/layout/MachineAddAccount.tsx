@@ -16,7 +16,7 @@ const gets = ({ agent, method }: MachineAddChoice): string =>
  * "Add account" of a machine elsewhere (BTN-1302): the agent, as on the hub, an agent whose CLI the machine lacks off
  * with why; the pick sends `machines/login` without a folder, and `MachineLoginDialog` follows the sign-in there.
  */
-export function MachineAddAccount({ card, signIn, onClose }: { card: MachineCard; signIn: MachineSignIn | undefined; onClose: () => void }) {
+export function MachineAddAccount({ card, signIn, onClose }: { card: Pick<MachineCard, 'id' | 'name'>; signIn: MachineSignIn | undefined; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const title = useId()
   const { send, sending, failure } = useCommand()

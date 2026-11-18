@@ -3,11 +3,17 @@
   display: flex;
 }
 
-.more-menu__button {
+/* As high as a small button with a label: the icon, not a trimmed line of text, sets its height, so the padding is the
+   small button's line (1.5em) less the icon, plus its own 2px; the grid centres the dots. Two classes: `.button`'s
+   trimmed padding comes later in the cascade. */
+.button.more-menu__button {
   display: inline-grid;
   place-items: center;
   min-width: 30px;
+  padding-block: calc((1.5em - 14px) / 2 + 2px);
   padding-inline: var(--space-6);
+  line-height: 0;
+  text-box: normal;
 }
 
 .more-menu__button[aria-expanded='true'] {

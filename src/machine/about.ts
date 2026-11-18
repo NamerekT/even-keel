@@ -59,6 +59,8 @@ export async function machineAbout(sources: AboutSources): Promise<MachineAbout>
     git: git.version,
     agents,
     gitUser: git.name !== null && git.email !== null,
+    ...(git.name !== null && { gitName: git.name }),
+    ...(git.email !== null && { gitEmail: git.email }),
     root: sources.root,
     ...(typeof sources.commit === 'string' && { commit: sources.commit }),
   }
