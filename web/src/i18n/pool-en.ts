@@ -24,12 +24,8 @@ export const poolEn: Messages['pool'] = {
   dialog: {
     title: 'Connect a machine',
     machine: 'Machine',
-    mode: "Project's folder",
-    folder: 'Folder on the machine',
-    clone: 'Clone here',
-    path: 'Path on the machine',
-    pathHint: "Inside the machine's projects folder: Even Keel touches nothing on the machine outside it.",
-    cloneHint: "A clone of the project's repository into an empty folder on the machine.",
+    folder: "Project's folder",
+    pathHint: "Inside the machine's projects folder: Even Keel touches nothing on the machine outside it. An empty folder gets a clone of the project, one with its clone is taken as it is.",
     checks: "Before turning it on, Even Keel checks on the machine that this is the project's repository with its remote and main branch, Claude Code trusts the folder, the project's packages install and the machine may push.",
     copy: "The machine's settings in the project",
     copyNone: "The project's",
@@ -60,6 +56,7 @@ export const poolEn: Messages['pool'] = {
     folderOf: (name: string) => `Folder on ${name}`,
     pathOf: (name: string) => `Full path on ${name}`,
     pathPlaceholder: 'full path on the machine',
+    rootFolder: "into the machine's projects folder",
     states: {
       free: 'free — the project will be cloned here',
       clone: 'a clone of this repository is already there — it will be taken',

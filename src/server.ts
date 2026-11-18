@@ -14,7 +14,7 @@ import { englishOf, fail, type Notice } from './notice/notice.js'
 import { oauthCallback, PROFILE_QUERIES } from './profiles/routes.js'
 import { guardedServer } from './server-guard.js'
 import { cleanMachineSettings } from './service/machine-settings.js'
-import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
+import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, cloneOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
 import { eventWriter, readJsonBody, sendFailure, sendFile, sendJson, serveStatic } from './server-response.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
@@ -105,7 +105,7 @@ const COMMANDS: Record<string, Command> = {
   'machines/connect': ({ pool }, body) =>
     pool?.connect(projectOf(body), {
       machine: textOf(body.machine, 'machine'),
-      clone: body.clone === true,
+      clone: cloneOf(body.clone),
       ...(typeof body.folder === 'string' && body.folder.trim() !== '' && { folder: body.folder.trim() }),
       ...(typeof body.copyFrom === 'string' && body.copyFrom !== '' && { copyFrom: body.copyFrom }),
     }),
@@ -214,7 +214,8 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'machines/cards': async ({ machineCards }) => (await machineCards?.()) ?? [],
   'machines/folder': async ({ pool }, body) => {
     if (pool === undefined) throw fail('machines.unknown', {})
-    return pool.probe(textOf(body.machine, 'machine'), textOf(body.folder, 'folder'), textOf(body.remote, 'remote'))
+    const of = body.project === undefined ? { remote: textOf(body.remote, 'remote') } : { project: projectOf(body) }
+    return pool.probe(textOf(body.machine, 'machine'), textOf(body.folder, 'folder'), of)
   },
   'machines/view': async ({ machinePage }, body) => {
     if (machinePage === undefined) throw fail('machines.unknown', {})

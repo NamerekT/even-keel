@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { notice } from '../../../src/notice/notice.js'
 import type { MachineCard, MachineView } from '../../../src/state.js'
 import { EMPTY_FIELDS, type WizardFields } from './projectWizard.js'
 import {
   blockShown,
+  folderBlocked,
   hubOn,
   joinOnMachine,
+  lastFolder,
   machineFolder,
   machinesDraft,
   machinesMissing,
@@ -68,11 +71,31 @@ describe("the wizard's machines (BTN-1297)", () => {
   })
 
   it("names a machine's folder by the typed name, the hub's folder name, or another folder's full path", () => {
-    expect(machineFolder({ on: true, folder: '', other: false, path: '' }, mini, 'shop')).toBe('/home/dev/projects/shop')
-    expect(machineFolder({ on: true, folder: ' apps/shop ', other: false, path: '' }, mini, 'shop')).toBe('/home/dev/projects/apps/shop')
-    expect(machineFolder({ on: true, folder: 'x', other: true, path: ' /srv/shop ' }, mini, 'shop')).toBe('/srv/shop')
-    expect(machineFolder({ on: true, folder: '', other: true, path: '' }, mini, 'shop')).toBeNull()
-    expect(machineFolder({ on: true, folder: '', other: false, path: '' }, mini, '')).toBeNull()
+    expect(machineFolder({ folder: '', other: false, path: '' }, mini, 'shop')).toBe('/home/dev/projects/shop')
+    expect(machineFolder({ folder: ' apps/shop ', other: false, path: '' }, mini, 'shop')).toBe('/home/dev/projects/apps/shop')
+    expect(machineFolder({ folder: 'x', other: true, path: ' /srv/shop ' }, mini, 'shop')).toBe('/srv/shop')
+    expect(machineFolder({ folder: '', other: true, path: '' }, mini, 'shop')).toBeNull()
+    expect(machineFolder({ folder: '', other: false, path: '' }, mini, '')).toBeNull()
+  })
+
+  it("takes only a full path on a machine that did not report its folder of projects (BTN-1298)", () => {
+    expect(machineFolder({ folder: 'shop', other: false, path: ' /srv/shop ' }, { root: null }, 'shop')).toBe('/srv/shop')
+    expect(machineFolder({ folder: 'shop', other: false, path: '' }, { root: null }, 'shop')).toBeNull()
+  })
+
+  it('holds the button on a full path left blank or a folder taken, never on one being asked', () => {
+    const taken = { state: 'taken' as const, notice: notice('pool.foreignRepo', { folder: '/home/dev/projects/shop', remote: 'https://forge.example.com/shop.git' }) }
+    expect(folderBlocked({ folder: '', other: false, path: '' }, mini, undefined)).toBe(false)
+    expect(folderBlocked({ folder: '', other: false, path: '' }, mini, { state: 'free' })).toBe(false)
+    expect(folderBlocked({ folder: '', other: false, path: '' }, mini, taken)).toBe(true)
+    expect(folderBlocked({ folder: '', other: true, path: ' ' }, mini, undefined)).toBe(true)
+    expect(folderBlocked({ folder: 'shop', other: false, path: '' }, { root: null }, undefined)).toBe(true)
+  })
+
+  it("names a project's folder on a machine by its hub folder's last part", () => {
+    expect(lastFolder('D:\\repos\\shop\\')).toBe('shop')
+    expect(lastFolder('/srv/repos/shop')).toBe('shop')
+    expect(lastFolder('')).toBe('')
   })
 
   it('sends the ticked open machines with their folders, and the hub off only when unticked', () => {

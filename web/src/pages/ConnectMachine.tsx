@@ -3,17 +3,16 @@ import { createPortal } from 'react-dom'
 import type { PoolMachine, ProjectPool } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { Segmented } from '../stats/common.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Select } from '../ui/Select.js'
+import { folderBlocked, lastFolder, machineFolder, NEW_FOLDER, type FolderPick } from './machinePicks.js'
+import { MachineFolderField, useFolderAnswers } from './MachineFolderField.js'
 import '../tools/addPackage.css'
-
-type Mode = 'folder' | 'clone'
 
 /**
  * "Connect a machine" of a project's section "Machines" (BTN-1271): a machine of the hub not in the pool, and its folder
- * of the project — one already there, or a clone made now. The checks run as a job in its own window; the hub's own
- * machine needs none and is only turned on.
+ * of the project — free, and the project is cloned there, or holding its clone, taken as it is (BTN-1298). The checks
+ * run as a job in its own window; the hub's own machine needs none and is only turned on.
  */
 export function ConnectMachineDialog({
   project,
@@ -32,7 +31,6 @@ export function ConnectMachineDialog({
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useId()
   const machineId = useId()
-  const pathId = useId()
   const copyId = useId()
   const sources = pooled.filter((each) => !each.own && Object.keys(each.settings).length > 0)
   const [copyFrom, setCopyFrom] = useState('')
@@ -41,8 +39,12 @@ export function ConnectMachineDialog({
   const chosen = others.find((each) => each.id === machine)
   // The hub's own machine has no folder to name: its folder is the project's repository.
   const own = chosen?.own === true
-  const [mode, setMode] = useState<Mode>('folder')
-  const [path, setPath] = useState(chosen?.folder ?? '')
+  const [place, setPlace] = useState<FolderPick>(NEW_FOLDER)
+  const hubName = lastFolder(chosen?.folder ?? '')
+  const folder = chosen === undefined || own ? null : machineFolder(place, chosen, hubName)
+  const probe = useFolderAnswers(folder === null ? [] : [{ id: machine, machine, folder, project }])[machine]
+  // The folder decides between a clone and a clone already there (BTN-1298): one taken holds "Connect".
+  const blocked = chosen === undefined || (!own && folderBlocked(place, chosen, probe))
   const backdrop = useBackdropClose(dialog, onClose)
 
   useLayoutEffect(() => {
@@ -51,14 +53,14 @@ export function ConnectMachineDialog({
 
   const pick = (id: string) => {
     setMachine(id)
-    setPath(others.find((each) => each.id === id)?.folder ?? '')
+    setPlace(NEW_FOLDER)
   }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (chosen === undefined || sending) return
+    if (blocked || sending) return
     const started = own
       ? await send('machines/enable', { project, machine, enabled: true })
-      : await send('machines/connect', { project, machine, clone: mode === 'clone', folder: path.trim(), ...(copyFrom !== '' && { copyFrom }) })
+      : await send('machines/connect', { project, machine, ...(folder !== null && { folder }), ...(copyFrom !== '' && { copyFrom }) })
     if (started) onStarted()
   }
 
@@ -102,31 +104,20 @@ export function ConnectMachineDialog({
           ) : (
             <>
               <div className="add-package__field">
-                <span className="add-package__label">{t.pool.dialog.mode}</span>
-                <Segmented
-                  label={t.pool.dialog.mode}
-                  options={[
-                    ['folder', t.pool.dialog.folder],
-                    ['clone', t.pool.dialog.clone],
-                  ]}
-                  value={mode}
-                  onChange={setMode}
-                />
-              </div>
-              <div className="add-package__field">
-                <label className="add-package__label" htmlFor={pathId}>
-                  {t.pool.dialog.path}
-                </label>
-                <input
-                  id={pathId}
-                  className="add-package__input settings__text--mono"
-                  autoComplete="off"
-                  spellCheck={false}
-                  value={path}
-                  placeholder={chosen?.folder ?? ''}
-                  onChange={(event) => setPath(event.target.value)}
-                />
-                <p className="add-package__note">{mode === 'clone' ? t.pool.dialog.cloneHint : t.pool.dialog.pathHint}</p>
+                <span className="add-package__label">{t.pool.dialog.folder}</span>
+                {chosen !== undefined && (
+                  <div className="machine-folder">
+                    <MachineFolderField
+                      labels={{ folder: t.pool.wizard.folderOf(chosen.name), path: t.pool.wizard.pathOf(chosen.name) }}
+                      root={chosen.root}
+                      pick={place}
+                      hubName={hubName}
+                      probe={probe}
+                      onChange={(patch) => setPlace({ ...place, ...patch })}
+                    />
+                  </div>
+                )}
+                <p className="add-package__note">{t.pool.dialog.pathHint}</p>
               </div>
               {sources.length > 0 && (
                 <div className="add-package__field">
@@ -157,7 +148,7 @@ export function ConnectMachineDialog({
           <button type="button" className="button" onClick={onClose}>
             {t.pool.dialog.cancel}
           </button>
-          <button type="submit" className="button button--primary" disabled={chosen === undefined || sending} aria-busy={sending || undefined}>
+          <button type="submit" className="button button--primary" disabled={blocked || sending} aria-busy={sending || undefined}>
             {t.pool.dialog.submit}
           </button>
         </footer>

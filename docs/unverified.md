@@ -248,6 +248,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 210 | [The own machine's facts without long blocks](unverified/machines.md#the-own-machines-facts-without-long-blocks-btn-1317) | a hub whose projects list thousands of tasks, with the page open | the page's commands and saves wait seconds again and the log fills with `event loop: blocked`; a profile with `EVEN_KEEL_CPU_PROFILE` names the function | — |
 | 211 | [A settings save held until its state comes](unverified/page.md#a-settings-save-held-until-its-state-comes-btn-1318) | everyone saving settings on a busy service | the save bar says the values have not come after a save that went through; reload the page | — |
 | 212 | [A slot's temporary files after Done](unverified/sessions.md#a-slots-temporary-files-after-done-btn-1315) | slot projects (`slot` on) | a slot's `.temp/` keeps growing or a cleanup warning repeats; empty it by hand between tasks or set `slotCleanup.clean` to `[]` | — |
+| 213 | [One folder field in "Connect a machine" and "Add a machine"](unverified/machines.md#one-folder-field-in-connect-a-machine-and-add-a-machine-btn-1298) | a hub connecting a machine elsewhere to a project already made | the folder's state stays "checking" or wrong and "Connect" stays off, or the job clones into a folder with the project's clone and fails; "another folder…" with the full path still connects | — |
 
 ### Waiting for the event / not checked by choice
 

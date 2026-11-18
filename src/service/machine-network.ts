@@ -586,7 +586,14 @@ export class MachineNetwork {
       }),
       others: records
         .filter((record) => !rows.some((row) => row.machine_id === record.id))
-        .map((record) => ({ id: record.id, name: record.name, own: record.id === own, online: online(record), folder: folderIn(record, null) })),
+        .map((record) => ({
+          id: record.id,
+          name: record.name,
+          own: record.id === own,
+          online: online(record),
+          folder: folderIn(record, null),
+          root: record.id === own ? null : (record.about?.root ?? null),
+        })),
       servers: this.options.servers?.(project) ?? [],
       ...(settings !== undefined && { commands: { beforeStart: settings.beforeStart, check: settings.check, afterGreen: settings.afterGreen } }),
     }

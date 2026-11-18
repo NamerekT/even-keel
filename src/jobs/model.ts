@@ -40,10 +40,13 @@ export interface StepJob {
 /** The job of "Connect" in the window "Add a machine" (BTN-1263): one machine, several projects in turn. */
 export const JOIN_KIND = 'machine-join'
 
-/** A project of that job: a clone made on the machine or a folder already there; no folder — the hub's name in its root. */
+/**
+ * A project of that job: a clone made on the machine, a folder already there, or `auto` — the folder decides (BTN-1298);
+ * no folder — the hub's name in its root.
+ */
 export interface JoinRequest {
   project: string
-  clone: boolean
+  clone: boolean | 'auto'
   folder?: string
 }
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { noticeOf } from '../../../src/notice/notice.js'
 import type { EvenKeelState, FolderProbe, MachineCard } from '../../../src/state.js'
-import { say, t } from '../i18n/index.js'
+import { t } from '../i18n/index.js'
 import { useMachines } from '../layout/AddMachineDialog.js'
 import { spanOf } from '../layout/MachinePanel.js'
 import { useNow } from '../layout/useNow.js'
@@ -13,12 +12,11 @@ import { Band } from '../ui/blocks.js'
 import { AddOnButton } from './FixButtons.js'
 import type { WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
-import { Status } from './TrackerFields.js'
-import { hubOn, machineFolder, NEW_PICK, pickedMachines, rowState, separatorOf, wizardMachines, type MachinePick, type WizardMachine } from './machinePicks.js'
+import { hubOn, machineFolder, NEW_PICK, pickedMachines, rowState, wizardMachines, type MachinePick, type WizardMachine } from './machinePicks.js'
+import { MachineFolderField, useFolderAnswers, type FolderAsk } from './MachineFolderField.js'
 import './wizardMachines.css'
 
 const REREAD_MS = 15_000
-const PROBE_DELAY_MS = 500
 
 /** The hub's machines for the block "Machines" (BTN-1297): the header's cards with each machine's report, read again as machines come and go. */
 export function useWizardMachines(state: EvenKeelState): WizardMachine[] {
@@ -41,37 +39,13 @@ export function useWizardMachines(state: EvenKeelState): WizardMachine[] {
   return useMemo(() => wizardMachines(cards, views ?? [], state.platform), [cards, views, state.platform])
 }
 
-/**
- * What each ticked machine's folder is now (BTN-1297), asked of the machine a moment after its folder or the remote
- * stops changing; a machine absent from the answer is being asked.
- */
+/** What each ticked machine's folder is now (BTN-1297), by machine; a machine absent from the answer is being asked. */
 export function useFolderProbes(fields: WizardFields, machines: WizardMachine[], remote: string | null, hubName: string): Record<string, FolderProbe | undefined> {
-  const { read } = useLive()
-  const [answers, setAnswers] = useState<Record<string, FolderProbe>>({})
-  const asks = pickedMachines(fields, machines, remote).flatMap((machine) => {
+  const asks = pickedMachines(fields, machines, remote).flatMap((machine): FolderAsk[] => {
     const folder = machineFolder(fields.machines[machine.id]!, machine, hubName)
-    return folder === null || remote === null ? [] : [{ machine: machine.id, folder, remote, key: JSON.stringify([machine.id, folder, remote]) }]
+    return folder === null || remote === null ? [] : [{ id: machine.id, machine: machine.id, folder, remote }]
   })
-  const asked = JSON.stringify(asks.map((each) => each.key))
-  useEffect(() => {
-    const fresh = asks.filter((each) => answers[each.key] === undefined)
-    if (fresh.length === 0) return
-    let live = true
-    const timer = setTimeout(() => {
-      for (const each of fresh) {
-        read<FolderProbe>('machines/folder', { machine: each.machine, folder: each.folder, remote: each.remote }).then(
-          (probe) => live && setAnswers((before) => ({ ...before, [each.key]: probe })),
-          (error: unknown) => live && setAnswers((before) => ({ ...before, [each.key]: { state: 'taken', notice: noticeOf(error) } })),
-        )
-      }
-    }, PROBE_DELAY_MS)
-    return () => {
-      live = false
-      clearTimeout(timer)
-    }
-    // The asks' keys stand for the asks.
-  }, [asked])
-  return Object.fromEntries(asks.map((each) => [each.machine, answers[each.key]]))
+  return useFolderAnswers(asks)
 }
 
 export interface MachinesBlockProps {
@@ -143,7 +117,9 @@ export function MachinesBlock({ state, fields, set, machines, remote, hubName, p
               {on && machine.own && <div className="wizard-machines__body">{hubFolder}</div>}
               {on && !machine.own && (
                 <div className="wizard-machines__body">
-                  <MachineFolder machine={machine} pick={pick} hubName={hubName} probe={probes[machine.id]} onChange={(patch) => change(machine.id, patch)} />
+                  <MachineFolderField
+                    labels={{ folder: words.folderOf(machine.name), path: words.pathOf(machine.name) }}
+                    root={machine.root} pick={pick} hubName={hubName} probe={probes[machine.id]} onChange={(patch) => change(machine.id, patch)} />
                   {machine.agents.length === 0 && <SignInBand state={state} machine={machine} />}
                 </div>
               )}
@@ -153,58 +129,6 @@ export function MachinesBlock({ state, fields, set, machines, remote, hubName, p
       </ul>
     </div>
   )
-}
-
-/** A ticked machine's folder: its folder of projects and a name in it, or a full path behind "another folder…", and what is there. */
-function MachineFolder({ machine, pick, hubName, probe, onChange }: { machine: WizardMachine; pick: MachinePick; hubName: string; probe: FolderProbe | undefined; onChange: (patch: Partial<MachinePick>) => void }) {
-  const words = t.pool.wizard
-  const root = machine.root ?? ''
-  const separator = separatorOf(root)
-  const folder = machineFolder(pick, machine, hubName)
-  return (
-    <>
-      {pick.other ? (
-        <input
-          className="settings__text settings__text--mono"
-          aria-label={words.pathOf(machine.name)}
-          autoComplete="off"
-          spellCheck={false}
-          value={pick.path}
-          placeholder={words.pathPlaceholder}
-          aria-invalid={probe?.state === 'taken' || undefined}
-          onChange={(event) => onChange({ path: event.target.value })}
-        />
-      ) : (
-        <span className="project-add__folder">
-          <span className="project-add__dir" title={root}>
-            <bdi dir="ltr">
-              {root.replace(/[\\/]+$/, '')}
-              {separator}
-            </bdi>
-          </span>
-          <input
-            className="settings__text settings__text--mono project-add__name"
-            aria-label={words.folderOf(machine.name)}
-            autoComplete="off"
-            spellCheck={false}
-            value={pick.folder}
-            placeholder={hubName}
-            aria-invalid={probe?.state === 'taken' || undefined}
-            onChange={(event) => onChange({ folder: event.target.value })}
-          />
-        </span>
-      )}
-      <button type="button" className="link-button project-add__other" onClick={() => onChange({ other: !pick.other })}>
-        {pick.other ? t.creation.own : t.creation.other}
-      </button>
-      {folder !== null && (probe === undefined ? <span className="settings__hint">{t.wizard.checking}</span> : <ProbeLine probe={probe} />)}
-    </>
-  )
-}
-
-function ProbeLine({ probe }: { probe: FolderProbe }) {
-  if (probe.state === 'taken') return <Status>{say(probe.notice)}</Status>
-  return <Status ok>{t.pool.wizard.states[probe.state]}</Status>
 }
 
 /**

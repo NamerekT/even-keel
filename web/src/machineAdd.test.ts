@@ -2,15 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
 import { HUB_PLACE } from './accountAdd.js'
-import { addMachineOf, defaultPlace, folderOnMachine, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
-
-describe('the folder a project gets on a machine', () => {
-  it("is the hub's folder name inside the machine's root, written the machine's way", () => {
-    expect(folderOnMachine('/home/example/projects', 'D:\\repos\\abc\\')).toBe('/home/example/projects/abc')
-    expect(folderOnMachine('C:\\projects\\', '/srv/repos/abc')).toBe('C:\\projects\\abc')
-    expect(folderOnMachine('/home/example/projects/', '')).toBe('/home/example/projects')
-  })
-})
+import { addMachineOf, defaultPlace, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
 
 describe('the colours machines have', () => {
   it('are those of the own machine and every joined one not revoked', () => {
@@ -22,13 +14,9 @@ describe('the colours machines have', () => {
 })
 
 describe('the projects "Connect" sends', () => {
-  it('takes the fresh ones in the hub order, a clone unless a folder is picked, a folder only when named', () => {
-    const picks = { b: { clone: false, folder: ' /srv/b ' }, c: { clone: false, folder: '' } }
-    expect(joinRequests(['a', 'b', 'c', 'd'], new Set(['c', 'a', 'b']), picks)).toEqual([
-      { project: 'a', clone: true },
-      { project: 'b', clone: false, folder: '/srv/b' },
-      { project: 'c', clone: false },
-    ])
+  it('takes the fresh ones in the hub order, each folder when known and no clone flag: the folder decides', () => {
+    const folders = { b: '/srv/b', c: null, d: '/srv/d' }
+    expect(joinRequests(['a', 'b', 'c', 'd'], new Set(['c', 'a', 'b']), folders)).toEqual([{ project: 'a' }, { project: 'b', folder: '/srv/b' }, { project: 'c' }])
   })
 })
 

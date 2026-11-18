@@ -4,11 +4,12 @@ import { JOIN_KIND, stepOf } from '../../../src/jobs/model.js'
 import type { EvenKeelState, MachineView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { folderOnMachine, joinRequests, machineAccounts, machineChecks, osLabel, signInOf, type MachineCheck, type ProjectPick } from '../machineAdd.js'
+import { joinRequests, machineAccounts, machineChecks, osLabel, signInOf, type MachineCheck } from '../machineAdd.js'
 import { machineLogin } from '../machineSignIn.js'
 import { JobWindow } from '../pages/JobWindow.js'
+import { MachineFolderField, useFolderAnswers } from '../pages/MachineFolderField.js'
+import { folderBlocked, lastFolder, machineFolder, NEW_FOLDER, type FolderPick } from '../pages/machinePicks.js'
 import { projectLabel, projectName } from '../state.js'
-import { Segmented } from '../stats/common.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -39,23 +40,27 @@ interface MachineJoinedProps {
 }
 
 /**
- * The machine that joined: what it reported, the projects to connect it to (each cloned there or a folder already
- * there, connected by one job in `JobWindow`, BTN-1263) and
+ * The machine that joined: what it reported, the projects to connect it to (each with its folder there, free for a
+ * clone or holding the project's clone, BTN-1298; connected by one job in `JobWindow`, BTN-1263) and
  * the hub's accounts to sign in to there. The sign-in itself runs in `MachineLoginDialog`, over this window.
  */
 export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
   const { send, sending, failure } = useCommand()
   const [chosen, setChosen] = useState<Set<string>>(() => new Set())
-  const [picks, setPicks] = useState<Record<string, ProjectPick>>({})
+  const [picks, setPicks] = useState<Record<string, FolderPick>>({})
   const hubAgents = [...new Set(state.account.accounts.map((entry) => entry.agent))]
   const about = machine.about
+  const root = about?.root ?? null
   const signIn = signInOf(machine, state.machineSignIns, hubAgents)
   const accounts = machineAccounts(state.account.accounts, signIn)
-  const fresh = joinRequests(
-    state.projects.filter((project) => !machine.projects.includes(project)),
-    chosen,
-    picks,
-  )
+  const pickOf = (project: string): FolderPick => picks[project] ?? NEW_FOLDER
+  const hubNameOf = (project: string): string => lastFolder(state.config.projects[project]?.repo ?? '')
+  const unattached = state.projects.filter((project) => !machine.projects.includes(project))
+  const folders = Object.fromEntries(unattached.map((project) => [project, machineFolder(pickOf(project), { root }, hubNameOf(project))]))
+  const fresh = joinRequests(unattached, chosen, folders)
+  // The folder decides between a clone and a clone already there (BTN-1298): each picked one is asked what it is.
+  const probes = useFolderAnswers(fresh.flatMap((each) => (each.folder === undefined ? [] : [{ id: each.project, machine: machine.id, folder: each.folder, project: each.project }])))
+  const blocked = fresh.some((each) => folderBlocked(pickOf(each.project), { root }, probes[each.project]))
   const busy = sending || machineLogin(state.machineSignIns) !== undefined
   const [token, setToken] = useState<MachineTokenTarget | null>(null)
   const job = state.jobs?.find((each) => each.kind === JOIN_KIND)
@@ -67,8 +72,7 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
       else next.delete(project)
       return next
     })
-  const pick = (project: string, change: Partial<ProjectPick>) =>
-    setPicks((current) => ({ ...current, [project]: { clone: true, folder: '', ...current[project], ...change } }))
+  const pick = (project: string, change: Partial<FolderPick>) => setPicks((current) => ({ ...current, [project]: { ...NEW_FOLDER, ...current[project], ...change } }))
   const connect = () => void send('machines/join', { machine: machine.id, projects: fresh })
   const finish = async () => {
     if (job !== undefined && (await send('job/close', { id: job.id }))) onClose()
@@ -124,20 +128,29 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
                       {(attached || !on) && <span className="add-machine__effect">{attached ? t.machines.attached : t.machines.skip}</span>}
                     </label>
                     {on && !attached && (
-                      <ProjectPlace
-                        label={key}
-                        pick={picks[project] ?? { clone: true, folder: '' }}
-                        placeholder={folderOnMachine(about!.root!, state.config.projects[project]?.repo ?? '')}
-                        disabled={sending}
-                        onChange={(change) => pick(project, change)}
-                      />
+                      <div className="machine-folder add-machine__place">
+                        <MachineFolderField
+                          labels={{ folder: t.machines.folderOf(key), path: t.machines.pathOf(key) }}
+                          root={root}
+                          pick={pickOf(project)}
+                          hubName={hubNameOf(project)}
+                          probe={probes[project]}
+                          disabled={sending}
+                          onChange={(change) => pick(project, change)}
+                        />
+                      </div>
                     )}
                   </li>
                 )
               })}
             </ul>
           )}
-          {fresh.length > 0 && <p className="add-package__note">{t.machines.checks}</p>}
+          {fresh.length > 0 && (
+            <>
+              <p className="add-package__note">{t.machines.placeHint}</p>
+              <p className="add-package__note">{t.machines.checks}</p>
+            </>
+          )}
         </section>
 
         <section className="add-machine__section">
@@ -210,7 +223,7 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
         <button type="button" className="button" onClick={onClose}>
           {t.machines.later}
         </button>
-        <button type="button" className="button button--primary" disabled={fresh.length === 0 || sending || job !== undefined} onClick={connect}>
+        <button type="button" className="button button--primary" disabled={fresh.length === 0 || blocked || sending || job !== undefined} onClick={connect}>
           {t.machines.connect}
         </button>
       </footer>
@@ -234,43 +247,5 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
         />
       )}
     </>
-  )
-}
-
-interface ProjectPlaceProps {
-  /** The project's key, as its row shows it. */
-  label: string
-  pick: ProjectPick
-  /** The folder the hub names when none is given. */
-  placeholder: string
-  disabled: boolean
-  onChange: (change: Partial<ProjectPick>) => void
-}
-
-/** Under a project picked: "Clone here" or "Folder on the machine", and the folder on the machine, empty for the hub's name. */
-function ProjectPlace({ label, pick, placeholder, disabled, onChange }: ProjectPlaceProps) {
-  return (
-    <div className="add-machine__place">
-      <Segmented
-        label={t.machines.mode(label)}
-        options={[
-          ['clone', t.pool.dialog.clone],
-          ['folder', t.pool.dialog.folder],
-        ]}
-        value={pick.clone ? 'clone' : 'folder'}
-        onChange={(mode) => onChange({ clone: mode === 'clone' })}
-      />
-      <input
-        aria-label={t.machines.folderOf(label)}
-        className="add-package__input settings__text--mono add-machine__path"
-        autoComplete="off"
-        spellCheck={false}
-        value={pick.folder}
-        placeholder={placeholder}
-        disabled={disabled}
-        onChange={(event) => onChange({ folder: event.target.value })}
-      />
-      <p className="add-package__note">{pick.clone ? t.machines.cloneHint : t.machines.folderHint}</p>
-    </div>
   )
 }

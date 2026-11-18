@@ -54,7 +54,7 @@ export class FakeNetwork {
   query(name: string, body: Record<string, unknown>): unknown {
     if (name === 'machines/list') return this.machines.map((machine) => ({ ...machine }))
     if (name === 'machines/pool') return this.poolOf(String(body.project))
-    if (name === 'machines/folder') return folderProbe(String(body.folder), String(body.remote ?? ''))
+    if (name === 'machines/folder') return folderProbe(String(body.folder), String(body.remote ?? body.project ?? ''))
     if (name !== 'machines/invite') return undefined
     const id = `machine-${this.machines.length + 1}`
     const given = String(body.name ?? '').trim()
@@ -82,7 +82,10 @@ export class FakeNetwork {
     const machines = this.rows(project)
     const others = this.machines
       .filter((machine) => machine.joinedAt !== null && machine.revokedAt === null && !machines.some((row) => row.id === machine.id))
-      .map((machine) => ({ id: machine.id, name: machine.name, own: false, online: machine.online, folder: `${machine.about?.root ?? '/home/example/projects'}/${folderName(this.repoOf(project))}` }))
+      .map((machine) => {
+        const root = machine.about?.root ?? '/home/example/projects'
+        return { id: machine.id, name: machine.name, own: false, online: machine.online, folder: `${root}/${folderName(this.repoOf(project))}`, root }
+      })
     const rows = machines.map((row) => ({ ...row, afterGreen: row.settings.afterGreen ?? FAKE_COMMANDS.afterGreen }))
     return { machines: rows, others, servers: FAKE_SERVERS, commands: FAKE_COMMANDS }
   }

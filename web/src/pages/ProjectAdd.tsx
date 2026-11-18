@@ -51,6 +51,7 @@ import { stepOf } from '../../../src/jobs/model.js'
 import { TrackerStep } from './WizardTracker.js'
 import './settings.css'
 import './projectAdd.css'
+import './folderField.css'
 
 const CHECK_DELAY_MS = 600
 

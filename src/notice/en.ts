@@ -160,7 +160,7 @@ export const en = {
   'machines.accountAbsent': (p: { account: string; machine: string; name: string }) =>
     `The project's account ${p.account} is not signed in on ${p.name === '' ? 'this machine' : `machine ${p.name}`}: add it there`,
   'pool.noGit': () => 'git is not installed on the machine: install it there, then Retry',
-  'pool.notRepository': (p: { folder: string }) => `There is no git repository in ${p.folder} on the machine: choose "Clone here" or name the project's folder there`,
+  'pool.notRepository': (p: { folder: string }) => `There is no git repository in ${p.folder} on the machine: name an empty folder, and the project is cloned into it, or the folder its clone is in`,
   'pool.hubNoRemote': () => 'The project\'s repository here has no remote: a machine elsewhere gets its work only through one, so add a remote first',
   'pool.otherRemote': (p: { folder: string; remote: string }) => `The repository in ${p.folder} is not this project's: none of its remotes is ${p.remote}`,
   'pool.noBranch': (p: { folder: string; branch: string }) => `The repository in ${p.folder} has no branch ${p.branch}: fetch it there (git fetch), then Retry`,

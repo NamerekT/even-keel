@@ -5,7 +5,7 @@ import type { FolderProbe, FolderSpec, FolderStep } from '../machine/folder-chec
 import { fail, notice, type Notice } from '../notice/notice.js'
 import type { PoolTarget } from './machine-network.js'
 import { JOIN_KIND, stepOf } from '../jobs/model.js'
-import { connectPlan, joinPlan, onMachines, probeOn, type ConnectDeps, type PoolNetwork } from './machine-pool.js'
+import { connectPlan, joinPlan, onMachines, probeOn, probeProject, type ConnectDeps, type PoolNetwork } from './machine-pool.js'
 
 const PROJECT = '11111111-1111-4111-8111-111111111111'
 const LAPTOP = '99999999-9999-4999-8999-999999999999'
@@ -184,6 +184,12 @@ describe("the wizard's machines (BTN-1297)", () => {
       state: 'taken',
       notice: { code: 'pool.outside', params: { folder: '/srv/abc', root: '/home/example/projects' } },
     })
+  })
+
+  it('probes a folder for a project already made against its remotes', async () => {
+    const { network, calls } = fakeNetwork()
+    expect(await probeProject(depsOf(network), PROJECT, LAPTOP, '/home/example/projects/abc')).toEqual({ state: 'free' })
+    expect(calls).toEqual([`probe ${PROJECT} /home/example/projects/abc https://forge.example.com/other/abc.git https://forge.example.com/team/abc.git`])
   })
 })
 

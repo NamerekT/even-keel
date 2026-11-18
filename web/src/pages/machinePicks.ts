@@ -1,9 +1,8 @@
 import type { DraftMachine, FolderProbe, MachineCard, MachineView, ProjectDraft, SourceRead } from '../../../src/state.js'
 import { cloneTyped, type WizardFields } from './projectWizard.js'
 
-/** A machine's row of the wizard's block "Machines" (BTN-1297); kept as typed while it is unticked. */
-export interface MachinePick {
-  on: boolean
+/** A project's folder on a machine elsewhere as its field has it (BTN-1297, BTN-1298). */
+export interface FolderPick {
   /** The folder's name in the machine's folder of projects; blank — the hub's folder name. */
   folder: string
   /** "Another folder…": `path` is the folder's full path on the machine instead. */
@@ -11,7 +10,14 @@ export interface MachinePick {
   path: string
 }
 
-export const NEW_PICK: MachinePick = { on: false, folder: '', other: false, path: '' }
+export const NEW_FOLDER: FolderPick = { folder: '', other: false, path: '' }
+
+/** A machine's row of the wizard's block "Machines" (BTN-1297); kept as typed while it is unticked. */
+export interface MachinePick extends FolderPick {
+  on: boolean
+}
+
+export const NEW_PICK: MachinePick = { on: false, ...NEW_FOLDER }
 
 /** A machine of the hub as the block lists it: its card with the system and the folder of projects it reported. */
 export interface WizardMachine {
@@ -71,6 +77,9 @@ export function rowState(machine: WizardMachine, remote: string | null): RowStat
   return machine.root === null ? 'noRoot' : 'open'
 }
 
+/** A path's last folder: the name a project's folder takes on a machine elsewhere when none is typed. */
+export const lastFolder = (path: string): string => path.split(/[\\/]/).filter((part) => part !== '').pop() ?? ''
+
 /** A root written with backslashes, or a bare drive (`D:`), joins with backslashes; `D:/Projects` keeps its slashes. */
 export const separatorOf = (root: string): string => (root.includes('\\') || /^[A-Za-z]:$/.test(root) ? '\\' : '/')
 
@@ -82,11 +91,15 @@ export function joinOnMachine(root: string, name: string): string {
 }
 
 /** The folder's full path on the machine; `null` — not known yet (another folder blank, or no name to take). */
-export function machineFolder(pick: MachinePick, machine: Pick<WizardMachine, 'root'>, hubName: string): string | null {
-  if (pick.other) return pick.path.trim() || null
+export function machineFolder(pick: FolderPick, machine: Pick<WizardMachine, 'root'>, hubName: string): string | null {
+  if (pick.other || machine.root === null) return pick.path.trim() || null
   const name = pick.folder.trim() || hubName
   return name === '' || machine.root === null ? null : joinOnMachine(machine.root, name)
 }
+
+/** The folder holds "Add" or "Connect": a full path asked for and left blank, or something else there. */
+export const folderBlocked = (pick: FolderPick, machine: Pick<WizardMachine, 'root'>, probe: FolderProbe | undefined): boolean =>
+  ((pick.other || machine.root === null) && pick.path.trim() === '') || probe?.state === 'taken'
 
 /** Without a remote the project stays on the hub whatever its tick says: unticking it waits for a machine elsewhere. */
 export const hubOn = (fields: Pick<WizardFields, 'hubOff'>, remote: string | null): boolean => remote === null || !fields.hubOff
@@ -120,9 +133,6 @@ export function machinesMissing(
   if (!blockShown(fields, machines)) return null
   const picked = pickedMachines(fields, machines, remote)
   if (!hubOn(fields, remote) && picked.length === 0) return 'machines'
-  const bad = picked.some((machine) => {
-    const pick = fields.machines[machine.id]!
-    return (pick.other && pick.path.trim() === '') || probes[machine.id]?.state === 'taken'
-  })
+  const bad = picked.some((machine) => folderBlocked(fields.machines[machine.id]!, machine, probes[machine.id]))
   return bad ? 'machineFolder' : null
 }

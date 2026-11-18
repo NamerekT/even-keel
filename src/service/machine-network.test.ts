@@ -291,7 +291,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     // The sample's machine that never joined is left out; the own one shows the project's repository.
     expect(await network.pool(ABC)).toEqual({
       machines: [{ id: OWN, name: 'Example server', own: true, online: true, folder: 'D:\\repos\\example', enabled: true, settings: {}, afterGreen: ['npm run deploy'] }],
-      others: [{ id: laptop, name: 'Example laptop', own: false, online: false, folder: '/home/example/projects/example' }],
+      others: [{ id: laptop, name: 'Example laptop', own: false, online: false, folder: '/home/example/projects/example', root: '/home/example/projects' }],
       servers: [{ package: 'files', server: 'files', command: 'files-mcp', args: [] }],
       commands: { beforeStart: [], check: [], afterGreen: ['npm run deploy'] },
     })

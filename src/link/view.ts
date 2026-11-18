@@ -165,8 +165,11 @@ export interface PoolServer {
 /** The section "Machines" of a project: its pool, and the machines elsewhere that may still be connected to it. */
 export interface ProjectPool {
   machines: PoolMachine[]
-  /** Joined machines elsewhere not in the pool, with the folder a connection names by default. */
-  others: Array<{ id: string; name: string; own: boolean; online: boolean; folder: string | null }>
+  /**
+   * Joined machines elsewhere not in the pool, with the folder a connection names by default and the machine's folder
+   * of projects (`null` for the own machine and one that did not report it).
+   */
+  others: Array<{ id: string; name: string; own: boolean; online: boolean; folder: string | null; root: string | null }>
   /** The stdio servers of the project's packages a machine elsewhere may run with a command of its own. */
   servers: PoolServer[]
   /** The project's own command lists: what a machine with none of its own runs. */

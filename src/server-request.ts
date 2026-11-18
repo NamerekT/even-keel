@@ -451,6 +451,9 @@ export function listOf(body: Record<string, unknown>, code: Extract<NoticeCode, 
   return order
 }
 
+/** A clone asked or refused outright; anything else — the folder decides (BTN-1298): a clone into a free one, a clone there taken. */
+export const cloneOf = (value: unknown): boolean | 'auto' => (typeof value === 'boolean' ? value : 'auto')
+
 /** The projects of "Connect" in the window "Add a machine" (BTN-1263): each with clone or not and its folder, if named. */
 export function joinRequestsOf(body: Record<string, unknown>): JoinRequest[] {
   const { projects } = body
@@ -458,7 +461,7 @@ export function joinRequestsOf(body: Record<string, unknown>): JoinRequest[] {
   return projects.map((item: unknown) => {
     const entry = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
     const folder = typeof entry.folder === 'string' ? entry.folder.trim() : ''
-    return { project: projectOf(entry), clone: entry.clone === true, ...(folder !== '' && { folder }) }
+    return { project: projectOf(entry), clone: cloneOf(entry.clone), ...(folder !== '' && { folder }) }
   })
 }
 

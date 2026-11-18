@@ -32,18 +32,6 @@ export function joinedMachine(machines: MachineView[], machine: string): Machine
   return machines.find((each) => each.id === machine && each.joinedAt !== null && each.revokedAt === null)
 }
 
-/**
- * The folder a project gets inside a machine's folder of projects when none is named: the hub's folder name, in the
- * machine's way of writing paths (`folderUnder` of the service).
- */
-export function folderOnMachine(root: string, repo: string): string {
-  const windows = root.includes('\\') || /^[A-Za-z]:/.test(root)
-  const separator = windows ? '\\' : '/'
-  const name = repo.split(/[\\/]/).filter((part) => part !== '').pop()
-  const base = root.replace(/[\\/]+$/, '')
-  return name === undefined ? base : `${base}${separator}${name}`
-}
-
 /** The colours the hub's live machines have, the own one's too: a new machine is offered one none of them has. */
 export function takenColors(state: Pick<EvenKeelState, 'machineNames' | 'machineColors'>, machines: MachineView[]): string[] {
   const gone = new Set(machines.filter((machine) => machine.revokedAt !== null || machine.joinedAt === null).map((machine) => machine.id))
@@ -53,20 +41,17 @@ export function takenColors(state: Pick<EvenKeelState, 'machineNames' | 'machine
   })
 }
 
-/** How a project is connected to a machine that joined: a clone made there, or a folder already there; a folder named or not. */
-export interface ProjectPick {
-  clone: boolean
-  folder: string
-}
-
-/** What "Connect" sends (`machines/join`): the projects picked and not yet connected, in the hub's order, cloned by default. */
-export function joinRequests(projects: string[], chosen: Set<string>, picks: Record<string, ProjectPick>): JoinRequest[] {
+/**
+ * What "Connect" sends (`machines/join`): the projects picked and not yet connected, in the hub's order, each with its
+ * full folder on the machine when known. No clone flag: the folder decides (BTN-1298) — a clone into a free one, the
+ * project's clone there taken as it is.
+ */
+export function joinRequests(projects: string[], chosen: Set<string>, folders: Record<string, string | null>): Array<Omit<JoinRequest, 'clone'>> {
   return projects
     .filter((project) => chosen.has(project))
     .map((project) => {
-      const pick = picks[project]
-      const folder = pick?.folder.trim() ?? ''
-      return { project, clone: pick?.clone ?? true, ...(folder !== '' && { folder }) }
+      const folder = folders[project] ?? null
+      return { project, ...(folder !== null && { folder }) }
     })
 }
 

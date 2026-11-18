@@ -183,11 +183,20 @@ export async function onMachines(deps: ConnectDeps, plan: JobPlan, machines: Dra
  * What a folder on a machine elsewhere is to a project with the remote `remote` (BTN-1297), for the wizard before the
  * project is made: outside the machine's folder of projects it is refused here, never asked there.
  */
-export async function probeOn(network: Pick<PoolNetwork, 'target' | 'folders'>, machine: string, folder: string, remote: string): Promise<FolderProbe> {
+export async function probeOn(network: Pick<PoolNetwork, 'target' | 'folders'>, machine: string, folder: string, remote: string | string[], project = DRAFT_PROJECT): Promise<FolderProbe> {
   const target = await network.target(machine)
   if (!insideRoot(folder, target.root)) return { state: 'taken', notice: notice('pool.outside', { folder, root: target.root }) }
-  return network.folders(target).probe({ project: DRAFT_PROJECT, folder, remotes: [remote] })
+  return network.folders(target).probe({ project, folder, remotes: typeof remote === 'string' ? [remote] : remote })
 }
+
+/** What a folder on a machine elsewhere is to a project already made (BTN-1298), against the remotes of its hub folder. */
+export async function probeProject(deps: Pick<ConnectDeps, 'network' | 'factsOf'>, project: string, machine: string, folder: string): Promise<FolderProbe> {
+  const facts = await deps.factsOf(project)
+  return probeOn(deps.network, machine, folder, facts.remotes.map((remote) => remote.url), project)
+}
+
+/** What a probe of a folder is asked against: the remote of a project not made yet, or a project. */
+export type ProbeOf = { remote: string } | { project: string }
 
 export interface PoolControlDeps extends ConnectDeps {
   network: PoolNetwork & Pick<MachineNetwork, 'pool' | 'setSettings'>
@@ -207,6 +216,7 @@ export function poolControl(deps: PoolControlDeps) {
     join: async (machine: string, requests: JoinRequest[]) => {
       deps.start(await joinPlan(deps, machine, requests))
     },
-    probe: (machine: string, folder: string, remote: string) => probeOn(deps.network, machine, folder, remote),
+    probe: (machine: string, folder: string, of: ProbeOf) =>
+      'project' in of ? probeProject(deps, of.project, machine, folder) : probeOn(deps.network, machine, folder, of.remote),
   }
 }
