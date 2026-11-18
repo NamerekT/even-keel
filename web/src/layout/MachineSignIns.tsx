@@ -1,65 +1,54 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type { AccountEntry } from '../../../src/account/model.js'
-import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { fullSignIn, hubSessionsOnly, machineGaps, machineLogin, machineSend, machineTokens } from '../machineSignIn.js'
+import { fullSignIn, hubSessionsOnly, machineLogin, machineMarks, machineSend } from '../machineSignIn.js'
+import { MachineLabels } from '../ui/MachineLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { LOGIN_FOCUS, LoginSteps, type Send } from './accountParts.js'
-import { MachineTokenDialog, type MachineTokenTarget } from './MachineTokenDialog.js'
 import '../tools/addPackage.css'
 
 /**
- * Under a hub account, each machine elsewhere where it is not signed in, with "Sign in" there (BTN-1245): the sign-in
- * runs on that machine, and its link and code show in `MachineLoginDialog`.
+ * Under a hub long-token folder nobody polls for (BTN-1266), "limits from sessions only" with "Sign in fully". The
+ * machines elsewhere the account is on are its row's "Machines" column (`AccountMachines`).
  */
 export function MachineNotes({ entry, send, sending }: { entry: AccountEntry; send: Send; sending: boolean }) {
   const { state } = useLive()
-  const [token, setToken] = useState<MachineTokenTarget | null>(null)
-  const machines = state?.machineSignIns
-  const gaps = machineGaps(entry, machines)
-  const tokens = machineTokens(entry, machines)
-  // A machine's token nobody polls for is marked in its own line: the hub's folder of it signs in by its own "Sign in".
-  const alone = hubSessionsOnly(entry, state?.account?.accounts ?? [])
-  if (gaps.length === 0 && tokens.length === 0 && !alone) return null
-  const busy = sending || machineLogin(machines) !== undefined
-  const who = entry.status?.email ?? entry.key
+  if (!hubSessionsOnly(entry, state?.account?.accounts ?? [])) return null
+  const busy = sending || machineLogin(state?.machineSignIns) !== undefined
   return <div className="account-machines">
-    {alone && <div className="account-machines__row"><SessionsOnly email={null} send={send} sending={busy} /></div>}
-    {gaps.map((gap) => <div key={gap.machine} className="account-machines__row">
-      <span>{gap.noCli ? t.account.machineNoCli(gap.name) : t.account.machineNotSigned(gap.name)}</span>
-      {!gap.noCli && (gap.online ? (
-        <>
-          <button type="button" className="button button--small" disabled={busy}
-            onClick={() => void send('machines/login', { machine: gap.machine, agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }) })}>
-            {t.account.login}
-          </button>
-          {entry.agent === CLAUDE && (
-            <Tipped tip={t.account.machineTokenTip} align="start">
-              <button type="button" className="button button--small" disabled={busy}
-                onClick={() => setToken({ machine: gap.machine, name: gap.name, account: entry.key, who })}>
-                {t.account.machineToken}
-              </button>
-            </Tipped>
-          )}
-        </>
-      ) : (
-        <Tipped className="account__actions" tip={t.account.machineOffline(gap.name)} align="start">
-          <button type="button" className="button button--small" aria-disabled="true">{t.account.login}</button>
-        </Tipped>
-      ))}
-    </div>)}
-    {tokens.map((each) => <div key={each.machine} className="account-machines__row">
-      <Tipped className="account-machines__token" align="start" focusable
-        tip={each.sessionsOnly ? <><span>{t.account.machineOnTokenTip(each.name)}</span><span>{say(SESSIONS_ONLY)}</span></> : t.account.machineOnTokenTip(each.name)}>
-        {each.name} · {t.account.machineOnToken}{each.sessionsOnly && ` · ${t.account.sessionsOnly}`}
-      </Tipped>
-    </div>)}
-    {token !== null && <MachineTokenDialog target={token} onClose={() => setToken(null)} />}
+    <div className="account-machines__row"><SessionsOnly email={null} send={send} sending={busy} /></div>
   </div>
+}
+
+/**
+ * The accounts page's "Machines" column of a hub account (BTN-1309): a label for each machine elsewhere it is on —
+ * signed in, on a long token only (a key, why in the tip), or its folder signed out there, whose press signs it in
+ * again in that folder (`machines/login`; its link and code show in `MachineLoginDialog`). A machine it never signed in
+ * on is not named: "Add account" signs it in there.
+ */
+export function AccountMachines({ entry, send, sending }: { entry: AccountEntry; send: Send; sending: boolean }) {
+  const { state } = useLive()
+  const machines = state?.machineSignIns
+  const busy = sending || machineLogin(machines) !== undefined
+  const marks = machineMarks(entry, state?.account?.accounts ?? [], machines)
+  return <MachineLabels items={marks.map((mark) => ({
+    id: mark.machine,
+    name: mark.name,
+    ...(state?.machineColors?.[mark.machine] !== undefined && { color: state.machineColors[mark.machine] }),
+    kind: mark.kind,
+    ...(mark.kind === 'token' && {
+      tip: mark.sessionsOnly ? <><span>{t.account.machineOnTokenTip(mark.name)}</span><span>{say(SESSIONS_ONLY)}</span></> : t.account.machineOnTokenTip(mark.name),
+    }),
+    ...(mark.kind === 'out' && {
+      tip: mark.online ? t.account.machineSignedOut(mark.name) : t.account.machineOffline(mark.name),
+      disabled: !mark.online || busy,
+      onPress: () => void send('machines/login', { machine: mark.machine, agent: entry.agent, account: mark.account }),
+    }),
+  }))} />
 }
 
 const SESSIONS_ONLY = { code: 'usage.sessionsOnly', params: {} } as const

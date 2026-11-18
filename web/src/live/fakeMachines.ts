@@ -271,6 +271,13 @@ const OWN_NAME = 'Workstation'
 /** The machine names of `?machines=…`: the hub's own and the two machines elsewhere, so the project's "Machines" shows. */
 export const FAKE_MACHINE_NAMES: Record<string, string> = { [OWN]: OWN_NAME, 'machine-1': 'Example laptop', 'machine-2': 'Example desktop' }
 
+/** `?machines=many` (BTN-1309): seven more machines elsewhere, ten with the hub's own. */
+const MANY_NODES = [3, 4, 5, 6, 7, 8, 9]
+
+/** The machine names of a `?machines=…` mode. */
+export const fakeMachineNames = (mode: string | null): Record<string, string> =>
+  mode === 'many' ? { ...FAKE_MACHINE_NAMES, ...Object.fromEntries(MANY_NODES.map((node) => [`machine-${node}`, `Example node ${node}`])) } : FAKE_MACHINE_NAMES
+
 /** The state's machine colours and own machine where `dev:fake` has several machines (BTN-1272): the palette's, `pc` own. */
 export const fakeMachineColors = (names: Record<string, string>): Pick<EvenKeelState, 'machineColors' | 'ownMachine'> => ({
   machineColors: machineColors(Object.keys(names).map((id) => ({ id }))),
@@ -361,8 +368,26 @@ export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): M
   const laptop: MachineSignIn = {
     machine: 'machine-1', name: 'Example laptop', online: mode !== 'offline', login: null, missing: mode === 'nocli' ? ['claude'] : [], accounts: [],
   }
+  if (mode === 'many') return [...manyMachines(state, laptop), desktop]
   const machines = [laptop, desktop]
   return mode === 'login' ? machines.map((machine) => (machine === laptop ? { ...machine, login: loginOf('claude', null) } : machine)) : machines
+}
+
+/**
+ * `many`: the laptop keeps the active account's folder signed out, the nodes run it — 5 and 6 on long tokens, 9 off
+ * the link — so its row has nine machines, four labels and "+5".
+ */
+function manyMachines(state: EvenKeelState, laptop: MachineSignIn): MachineSignIn[] {
+  const active = state.account.accounts.find((entry) => entry.key === state.account.active)
+  const email = active?.status?.email ?? null
+  const account = { key: active?.key ?? 'work', agent: active?.agent ?? 'claude', email }
+  return [
+    { ...laptop, accounts: [{ ...account, signedIn: false }] },
+    ...MANY_NODES.map((node): MachineSignIn => ({
+      machine: `machine-${node}`, name: `Example node ${node}`, online: node !== 9, login: null, missing: [],
+      accounts: [{ ...account, signedIn: true, ...((node === 5 || node === 6) && { longToken: true as const }) }],
+    })),
+  ]
 }
 
 const loginOf = (agent: string, target: string | null): MachineSignIn['login'] => ({

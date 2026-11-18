@@ -16,7 +16,7 @@ export interface MachineGap {
   noCli: boolean
 }
 
-const sameEmail = (a: string | null, b: string | null): boolean => a !== null && b !== null && a.toLowerCase() === b.toLowerCase()
+export const sameEmail = (a: string | null, b: string | null): boolean => a !== null && b !== null && a.toLowerCase() === b.toLowerCase()
 
 /**
  * The machines elsewhere where the hub's account is not signed in. Only a subscription the person signs in to in a
@@ -51,6 +51,43 @@ export function machineTokens(entry: AccountEntry, machines: MachineSignIn[] | u
     const own = machine.accounts.filter((each) => each.agent === entry.agent && each.signedIn && sameEmail(each.email, email))
     if (own.length === 0 || !own.every((each) => each.longToken === true)) return []
     return [{ machine: machine.machine, name: machine.name, sessionsOnly: own.every((each) => each.sessionsOnly === true) }]
+  })
+}
+
+/** How a hub account stands on a machine elsewhere (BTN-1309): signed in, on a long token only, or its folder there signed out. */
+export type MachineMarkKind = 'in' | 'token' | 'out'
+
+/** A machine of the accounts page's "Machines" column. */
+export interface MachineMark {
+  machine: string
+  name: string
+  online: boolean
+  kind: MachineMarkKind
+  /** The machine's signed-out folder of the account: `machines/login` signs it in again there. */
+  account?: string
+  /** On a long token whose account no machine polls (BTN-1266). */
+  sessionsOnly: boolean
+}
+
+/**
+ * The machines elsewhere the hub's account is on, known by its e-mail: a machine where it never signed in is not named,
+ * a sign-in there goes through "Add account". A hub long token beside a full sign-in of the same e-mail names none, so
+ * the machines show once, under the full one; a key or a cloud is on no machine this way.
+ */
+export function machineMarks(entry: AccountEntry, accounts: AccountEntry[], machines: MachineSignIn[] | undefined): MachineMark[] {
+  const email = entry.status?.email ?? entry.lastEmail ?? null
+  if (email === null || paysPerToken(entry)) return []
+  if (entry.longToken !== undefined && accounts.some((each) => each !== entry && each.agent === entry.agent && each.longToken === undefined &&
+    sameEmail(each.status?.email ?? each.lastEmail ?? null, email))) return []
+  return (machines ?? []).flatMap((machine): MachineMark[] => {
+    const own = machine.accounts.filter((each) => each.agent === entry.agent &&
+      (sameEmail(each.email, email) || (each.email === null && !each.signedIn && each.key === entry.key)))
+    if (own.length === 0) return []
+    const base = { machine: machine.machine, name: machine.name, online: machine.online }
+    const signed = own.filter((each) => each.signedIn)
+    if (signed.length === 0) return [{ ...base, kind: 'out', account: own[0]!.key, sessionsOnly: false }]
+    const token = signed.every((each) => each.longToken === true)
+    return [{ ...base, kind: token ? 'token' : 'in', sessionsOnly: token && signed.every((each) => each.sessionsOnly === true) }]
   })
 }
 

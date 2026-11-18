@@ -36,7 +36,9 @@ export const machinePanelRu = {
   /** The pages and the header in a machine's view (BTN-1279). */
   view: {
     accounts: 'Аккаунты',
-    accountsAll: (count: number) => `Аккаунты и лимиты по машинам: ${count}`,
+    accountsAll: (count: number) => `Аккаунты, которые использует Even Keel: ${count}. Лимиты и машины, где они вошли`,
+    accountsUnused: 'Even Keel пока не использует ни одного аккаунта',
+    allAccounts: 'Все аккаунты',
     accountsOf: (name: string) => `Аккаунты машины «${name}»`,
     accountsNone: 'Машина ещё не прислала аккаунты',
     accountsEmpty: (name: string) => `На «${name}» нет ни одного аккаунта`,
@@ -48,8 +50,6 @@ export const machinePanelRu = {
     signedOut: 'не вошёл',
     launch: 'запуск',
     launchTip: 'На этом аккаунте машина запускает сессии',
-    show: 'Вид машины',
-    accountsPage: 'Аккаунты',
     settingsTitle: (name: string) => `«${name}» в проекте`,
     settingsHint: 'Настройки выбранной машины в этом проекте. Остальные настройки проекта общие для всех машин: они — по кнопке ниже.',
     folder: 'Папка',

@@ -5,6 +5,7 @@ const counted = (one: string, few: string, many: string) => (count: number) => `
 
 export const accountRu = {
     usedByLabel: 'Использует',
+    machinesLabel: 'Машины',
     manageProviders: 'Провайдеры и модели',
     transportShort: { sdk: 'Agent SDK', bg: 'CLI' },
     renameAction: 'Переименовать',
@@ -102,8 +103,7 @@ export const accountRu = {
     unknownDir: (dir: string) => `папка ${dir} — её нет среди аккаунтов`,
     loginNew: 'Вход в новый аккаунт',
     loginTo: (who: string) => `Вход: ${who}`,
-    machineNotSigned: (machine: string) => `На ${machine} не выполнен вход`,
-    machineNoCli: (machine: string) => `На ${machine} не выполнен вход: сначала установите там CLI агента`,
+    machineSignedOut: (machine: string) => `На ${machine} аккаунт вышел из своей папки: нажмите, чтобы войти там заново`,
     machineOffline: (machine: string) => `${machine} не подключена: войдите, когда она вернётся`,
     machineLogin: (machine: string) => `Вход на ${machine}`,
     machineLoginNote: 'Вход идёт на той машине: аккаунт хранит её CLI, хаб передаёт только ссылку и код.',

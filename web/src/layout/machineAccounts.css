@@ -9,12 +9,14 @@
   gap: var(--space-2);
 }
 
-.machine-accounts__mark {
+/* A lamp per account Even Keel uses (BTN-1309), in the account's colour: round, as an account's dot is. */
+.machine-accounts__lamp,
+.machine-accounts__dot {
   flex: none;
   width: 8px;
   height: 8px;
-  border-radius: var(--radius-small);
-  background: var(--machine);
+  border-radius: var(--radius-pill);
+  background: var(--series);
 }
 
 .machine-accounts__none {
@@ -26,41 +28,38 @@
   width: min(420px, calc(100vw - 2 * var(--gutter)));
 }
 
-.machine-accounts__section + .machine-accounts__section {
-  padding-top: var(--space-12);
-  border-top: 1px solid var(--border);
-}
-
 .machine-accounts__head {
   display: flex;
   align-items: center;
   gap: var(--space-8);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-.machine-accounts__name {
-  flex: 1;
+.machine-accounts__email {
   min-width: 0;
   overflow: hidden;
   color: var(--fg);
+  font-size: var(--text-13);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.machine-accounts__action {
-  display: inline-flex;
-  align-items: center;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  letter-spacing: 0;
-  text-transform: none;
-  text-decoration: none;
-  cursor: pointer;
+.machine-accounts__who .icon {
+  flex: none;
+  color: var(--fg-muted);
 }
 
-.machine-accounts__action:hover {
+.machine-accounts__all-link {
+  align-self: flex-start;
+  padding-top: var(--space-8);
+  color: var(--accent);
+  font-size: var(--text-13);
+  text-decoration: none;
+}
+
+.machine-accounts__all-link:hover {
   text-decoration: underline;
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineSignIn } from '../../src/state.js'
-import { fullSignIn, hubSessionsOnly, machineGaps, machineLogin, machineSend, machineTokens } from './machineSignIn.js'
+import { fullSignIn, hubSessionsOnly, machineGaps, machineLogin, machineMarks, machineSend, machineTokens } from './machineSignIn.js'
 
 const hub = (patch: Partial<AccountEntry> = {}): AccountEntry => ({
   key: 'john.doe@example.com', name: null, global: false, agent: 'claude',
@@ -68,7 +68,51 @@ describe('a hub account on the machines elsewhere', () => {
     expect(hubSessionsOnly(token, [token, hub()])).toBe(false)
     expect(hubSessionsOnly(hub(), [hub()])).toBe(false)
   })
+})
 
+describe("the machines column of a hub account (BTN-1309)", () => {
+  const signed = (patch: Partial<MachineSignIn['accounts'][number]> = {}) => ({ key: 'work', agent: 'claude', email: 'john.doe@example.com', signedIn: true, ...patch })
+
+  it('names each machine the account is on: signed in, on a long token only, or its folder signed out there', () => {
+    const machines = [
+      machine({ accounts: [signed()] }),
+      machine({ machine: 'machine-2', name: 'Example desktop', accounts: [signed({ longToken: true })] }),
+      machine({ machine: 'machine-3', name: 'Example node', online: false, accounts: [signed({ key: 'old', signedIn: false })] }),
+      machine({ machine: 'machine-4', accounts: [signed({ longToken: true }), signed({ key: 'full' })] }),
+      machine({ machine: 'machine-5', accounts: [signed({ email: 'jane.roe@example.com' }), signed({ agent: 'codex' })] }),
+      machine({ machine: 'machine-6' }),
+    ]
+    expect(machineMarks(hub(), [hub()], machines)).toEqual([
+      { machine: 'machine-1', name: 'Example laptop', online: true, kind: 'in', sessionsOnly: false },
+      { machine: 'machine-2', name: 'Example desktop', online: true, kind: 'token', sessionsOnly: false },
+      { machine: 'machine-3', name: 'Example node', online: false, kind: 'out', account: 'old', sessionsOnly: false },
+      { machine: 'machine-4', name: 'Example laptop', online: true, kind: 'in', sessionsOnly: false },
+    ])
+  })
+
+  it("takes a signed-out folder of the hub's key whose e-mail the machine does not know", () => {
+    const machines = [machine({ accounts: [{ key: 'john.doe@example.com', agent: 'claude', email: null, signedIn: false }] })]
+    expect(machineMarks(hub(), [hub()], machines).map((mark) => [mark.kind, mark.account])).toEqual([['out', 'john.doe@example.com']])
+  })
+
+  it('says a token nobody polls for, and knows a signed-out hub folder by its last e-mail (BTN-1266)', () => {
+    const signedOut = hub({ needsLogin: true, status: { loggedIn: false, authMethod: null, email: null, orgName: null, subscriptionType: null }, lastEmail: 'john.doe@example.com' })
+    const machines = [machine({ accounts: [signed({ longToken: true, sessionsOnly: true })] })]
+    expect(machineMarks(signedOut, [signedOut], machines).map((mark) => [mark.kind, mark.sessionsOnly])).toEqual([['token', true]])
+  })
+
+  it('marks nothing for a key, a cloud or an unknown e-mail, nor under a hub long token beside its full sign-in', () => {
+    const machines = [machine({ accounts: [signed()] })]
+    expect(machineMarks(hub({ apiKey: true }), [], machines)).toEqual([])
+    expect(machineMarks(hub({ status: null }), [], machines)).toEqual([])
+    const token = hub({ key: 'token', longToken: { until: null } })
+    expect(machineMarks(token, [token, hub()], machines)).toEqual([])
+    expect(machineMarks(token, [token], machines)).toHaveLength(1)
+    expect(machineMarks(hub(), [hub()], undefined)).toEqual([])
+  })
+})
+
+describe('signing in on the hub and on a machine', () => {
   it("signs in fully on the hub: again in the hub's folder of the e-mail, else in a new one (BTN-1266)", () => {
     const signedOut = hub({ needsLogin: true, status: null, lastEmail: 'john.doe@example.com' })
     const token = hub({ key: 'token', status: null, longToken: { until: null } })

@@ -43,7 +43,7 @@ import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
-import { FAKE_MACHINE_NAMES, FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineSignIns } from './fakeMachines.js'
+import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineNames, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -367,8 +367,8 @@ export function createFakeSource(search: string): LiveSource {
   if (fakeStepJob !== null && current.state !== null) current.state.jobs = [fakeStepJob]
   if (params.has('machines') && current.state !== null) {
     current.state.machineSignIns = fakeMachineSignIns(current.state, params.get('machines'))
-    current.state.machineNames = FAKE_MACHINE_NAMES
-    Object.assign(current.state, fakeMachineColors(FAKE_MACHINE_NAMES))
+    current.state.machineNames = fakeMachineNames(params.get('machines'))
+    Object.assign(current.state, fakeMachineColors(current.state.machineNames))
   }
   if (params.get('git') === 'plain' && current.state !== null) {
     const { projects } = current.state.config

@@ -21,7 +21,8 @@ import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
 import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, signInMixup, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
-import { MachineNotes } from './MachineSignIns.js'
+import { AccountMachines, MachineNotes } from './MachineSignIns.js'
+import { useLive } from '../live/context.js'
 import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
 import './accountRows.css'
 import { copilotNote, hasCopilot } from '../../../src/opencode/support.js'
@@ -36,6 +37,8 @@ export interface RowsProps {
   page?: boolean
   fresh?: string[]
   marketplace?: PackagesView['marketplace']
+  /** The page's "Machines" column (BTN-1309): the hub has machines elsewhere. */
+  machines?: boolean
 }
 
 /** One actionable band, outside the provider rows, for every exception that needs attention. */
@@ -77,8 +80,10 @@ function measureOf(rows: AccountEntry[]): Measure {
 export function AccountGroups({ entries, ...props }: RowsProps & { entries?: AccountEntry[] }) {
   const { view, now, page = false, marketplace } = props
   const openAdd = useOpenAdd()
+  const signIns = useLive().state?.machineSignIns
+  const machines = page && (signIns?.length ?? 0) > 0
   const groups = accountGroups({ ...view, accounts: entries ?? view.accounts }, now)
-  return <div className={page ? 'account-blocks account-blocks--page' : 'account-blocks'}>
+  return <div className={page ? `account-blocks account-blocks--page${machines ? ' account-blocks--machines' : ''}` : 'account-blocks'}>
     {groups.map(({ agent, entries: rows }) => <Card key={agent} className="account-provider" title={<>
       <span className="account-provider__icon"><AgentIcon agent={agent} /></span>
       {agentLabel(agent)}
@@ -88,7 +93,7 @@ export function AccountGroups({ entries, ...props }: RowsProps & { entries?: Acc
       {view.login === null && (PROVIDERS as readonly string[]).includes(agent) && <button type="button" className="button button--small"
         onClick={() => openAdd(agent as Provider)}>+ {t.account.addHere}</button>}
     </> : undefined}>
-      {accessGroups(rows).map(({ access, entries: members }) => <AccessBlock key={access} agent={agent} access={access} rows={members} {...props} />)}
+      {accessGroups(rows).map(({ access, entries: members }) => <AccessBlock key={access} agent={agent} access={access} rows={members} {...props} machines={machines} />)}
     </Card>)}
   </div>
 }
@@ -103,6 +108,7 @@ function AccessBlock({ agent, access, rows, ...props }: RowsProps & { agent: str
       <span className="account-access__title">{accessLabel(access, agent)} <span className="account-access__count">{rows.length}</span>
         {measure === 'tokens' && <span className="account-access__count"> · {t.account.tokensSource}</span>}</span>
       {page && <span aria-hidden="true">{t.account.usedByLabel}</span>}
+      {props.machines === true && <span aria-hidden="true">{t.account.machinesLabel}</span>}
       <div className={`account-window-heads account-window-heads--${columns.length}`} aria-hidden="true">{columns.map((label) => <span key={label}>{label}</span>)}</div>
       {page && <><span aria-hidden="true">{overageTexts().column}</span><span aria-hidden="true">{t.account.sessionsLabel}</span><span aria-hidden="true">{t.account.runsThrough}</span></>}
     </div>
@@ -147,6 +153,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         <Resets entry={entry} now={now} />
       </div>
       {page && roles}
+      {props.machines === true && <div className="account-detail account-machine-cell"><AccountMachines entry={entry} send={send} sending={sending} /></div>}
       <div className="account-windows">
         {spendsByKey(entry) || counted ? <>
           {(['day', 'month'] as const).map((period) => <Tipped key={period} className="account-sum" tip={tip} align="start" focusable>

@@ -1,0 +1,93 @@
+/*
+ * A machine as a label (BTN-1309): its name on its colour, as the machine's page heads it (`.machine-page__title`).
+ * Square-cornered beside an account's round pill (`.account-tag`), as a machine's mark is a square and an account's a dot.
+ */
+.machine-labels {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.machine-label {
+  --machine: var(--series-other);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 100%;
+  min-height: 20px;
+  padding: 0 var(--space-6);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--machine) 60%, transparent);
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--machine) 22%, transparent);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-12);
+  font-weight: 600;
+  line-height: 18px;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.machine-label:hover {
+  background: color-mix(in srgb, var(--machine) 34%, transparent);
+}
+
+.machine-label:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The trim goes on the name, not the label: a flex container drops `text-box`; trimmed, the centring puts the letters level. */
+.machine-label__name {
+  min-width: 0;
+  overflow: clip;
+  overflow-clip-margin: var(--space-6);
+  text-overflow: ellipsis;
+  text-box: trim-both cap alphabetic;
+}
+
+.machine-label .icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--fg-muted);
+}
+
+/* Signed out there: the machine's colour stays on a dashed edge, the label itself says "attention" and signs in again. */
+.machine-label--out {
+  border-style: dashed;
+  border-color: var(--machine);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.machine-label--out:hover {
+  background: color-mix(in srgb, var(--warn-fg) 14%, var(--warn-bg));
+}
+
+.machine-label[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.machine-label__tipped {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.machine-labels__more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+}

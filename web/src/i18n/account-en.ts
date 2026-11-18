@@ -5,6 +5,7 @@ const counted = (one: string, other: string) => (count: number) => `${count} ${f
 
 export const accountEn = {
     usedByLabel: 'Used by',
+    machinesLabel: 'Machines',
     manageProviders: 'Providers and models',
     renameAction: 'Rename',
     accountCount: (count: number) => count === 1 ? '1 account' : `${count} accounts`,
@@ -102,8 +103,7 @@ export const accountEn = {
     unknownDir: (dir: string) => `folder ${dir} — not among the accounts`,
     loginNew: 'Signing in to a new account',
     loginTo: (who: string) => `Signing in: ${who}`,
-    machineNotSigned: (machine: string) => `Not signed in on ${machine}`,
-    machineNoCli: (machine: string) => `Not signed in on ${machine}: install the agent's CLI there first`,
+    machineSignedOut: (machine: string) => `The account signed out of its folder on ${machine}: press to sign in there again`,
     machineOffline: (machine: string) => `${machine} is not connected: sign in there once it is back`,
     machineLogin: (machine: string) => `Signing in on ${machine}`,
     machineLoginNote: 'The sign-in runs on that machine: its CLI keeps the account, the hub only passes the link and the code.',
