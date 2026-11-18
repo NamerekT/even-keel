@@ -196,4 +196,4 @@ If that repository is on another branch than the project's main branch (`git ini
 
 ## Slots
 
-For repositories with heavy ignored caches (Unity's `Library`, big `node_modules`) a project can use a pool of permanent worktrees instead of a fresh one per task, so the next task rebuilds only the difference.
+For repositories with heavy ignored caches (Unity's `Library`, big `node_modules`) a project can use a pool of permanent worktrees instead of a fresh one per task, so the next task rebuilds only the difference. After each Done in a slot Even Keel deletes the slot's temporary files, `.temp/` by default, so they do not pile up; `projects[].slotCleanup` chooses what is deleted and what is kept ([reference](reference.md)).

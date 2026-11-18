@@ -23,11 +23,13 @@ export function resumePrompt(language: Language): string {
 /**
  * `pullRequests` — PR mode: the session does not merge, it marks its turn's end for Even Keel to open a pull request.
  * `git: false` — a project without git (BTN-883): the folder and the answer's mark, nothing of git.
+ * `slotClean` — the place is a slot: the patterns its cleanup after Done deletes (BTN-1315); `[]` — none.
  */
-export function startPrompt(task: string, place: TaskPlace, language: Language, main = 'main', pullRequests = false, git = true): string {
+export function startPrompt(task: string, place: TaskPlace, language: Language, main = 'main', pullRequests = false, git = true, slotClean: readonly string[] = []): string {
   const text = PROMPTS[language]
   if (!git) return [fill`${task}`, '', text.plain.folder(place.path), text.plain.answer].join('\n') + '\n'
   const lines = [fill`${task}`, '', text.worktree(place.path)]
+  if (slotClean.length > 0) lines.push(text.slotTemp(slotClean.map((pattern) => `\`${pattern}\``).join(', ')))
   if (place.branch !== null) lines.push(text.branch(place.branch))
   lines.push(pullRequests ? text.pullRequest(main) : text.cleanup(main))
   return lines.join('\n') + '\n'

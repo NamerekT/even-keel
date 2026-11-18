@@ -73,6 +73,8 @@ export interface PromptTexts {
   pullRequest: (main: string) => string
   review: ReviewTexts
   worktree: (path: string) => string
+  /** A slot's folder outlives the task (BTN-1315): what its cleanup after Done deletes, as the project's patterns. */
+  slotTemp: (patterns: string) => string
   branch: (branch: string) => string
   brief: (title: string) => string
   /** The brief's line over an outsider's text (BTN-1124): `''` — a deleted account. */
@@ -211,6 +213,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         fill`Его ветка удалена: задачу делаешь заново, на свежей ветке от ${main}. Учти замечания — в них может быть, почему pull request закрыли и что сделать иначе.`,
     },
     worktree: (path) => fill`- Worktree готов: ${path} — работай в нём, новый worktree не создавай.`,
+    slotTemp: (patterns) => fill`- Это постоянный слот: после Done Even Keel удаляет в нём временные файлы (${patterns}). Нужное оттуда забери до мержа.`,
     branch: (branch) => fill`- Ветка: ${branch} — не меняй её.`,
     brief: (title) => fill`Задача из трекера: ${title}`,
     outsider: (login) =>
@@ -373,6 +376,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         fill`Its branch is removed: you do the task over, on a fresh branch from ${main}. Take the remarks into account — they may say why the pull request was closed and what to do differently.`,
     },
     worktree: (path) => fill`- Worktree is ready: ${path} — work in it, do not create a new worktree.`,
+    slotTemp: (patterns) => fill`- This is a permanent slot: after Done Even Keel deletes its temporary files (${patterns}). Copy out what you need before the merge.`,
     branch: (branch) => fill`- Branch: ${branch} — do not change it.`,
     brief: (title) => fill`Task from the tracker: ${title}`,
     outsider: (login) =>

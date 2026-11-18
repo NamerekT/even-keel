@@ -363,6 +363,14 @@ describe('startPrompt', () => {
     expect(() => startPrompt('ABC-1', { path: '', branch: null }, 'en', 'main', false, false)).toThrow(/Project folder/)
   })
 
+  it('tells a slot’s session that its temporary files go after Done, and a task folder’s nothing (BTN-1315)', () => {
+    const place = { path: 'D:/work/repo/.claude/worktrees/even-keel', branch: 'abc-1/task' }
+    const en = startPrompt('ABC-1', place, 'en', 'main', false, true, ['.temp/**', 'Logs/'])
+    expect(en).toContain('permanent slot: after Done Even Keel deletes its temporary files (`.temp/**`, `Logs/`)')
+    expect(startPrompt('ABC-1', place, 'ru', 'main', false, true, ['.temp/**'])).toContain('постоянный слот: после Done Even Keel удаляет в нём временные файлы (`.temp/**`)')
+    expect(startPrompt('ABC-1', place, 'en')).not.toContain('permanent slot')
+  })
+
   it('in PR mode asks for a reviewer only where the project has one and keeps the description out of the commits', () => {
     const place = { path: 'D:/work/repo/.claude/worktrees/abc-1', branch: 'abc-1/task' }
     const ru = startPrompt('ABC-1', place, 'ru', 'main', true)

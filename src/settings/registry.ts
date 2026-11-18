@@ -25,7 +25,7 @@ import { isTallyMode } from '../stats/mode.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
 import { DEFAULT_UPDATES } from '../updates/release.js'
-import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_MODELS } from './defaults.js'
+import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_MODELS, DEFAULT_SLOT_CLEANUP } from './defaults.js'
 
 /** `global` — Even Keel's own value, the top level of the file; `project` — a project's, its entry in `projects`. */
 export type Scope = 'global' | 'project'
@@ -149,6 +149,22 @@ const command = (key: 'beforeStart' | 'check' | 'afterGreen'): SettingDefinition
   check: (value, place) => {
     if (!Array.isArray(value) || value.some((line) => typeof line !== 'string')) throw fail('config.commandList', { where: at(place, `commands.${key}`) })
     return value.map((line: string) => line.trim()).filter((line) => line !== '')
+  },
+})
+
+/** A slot's cleanup after Done (BTN-1315): `.gitignore` lines; `!` is refused, since `keep` is what keeps. */
+const slotCleanup = (key: 'clean' | 'keep'): SettingDefinition => ({
+  key: `slotCleanup.${key}`,
+  kind: 'list',
+  scopes: ['project'],
+  lands: ['settings'],
+  default: DEFAULT_SLOT_CLEANUP[key],
+  check: (value, place) => {
+    const problem = () => fail('config.slotCleanup', { where: at(place, `slotCleanup.${key}`) })
+    if (!Array.isArray(value) || value.some((line) => typeof line !== 'string')) throw problem()
+    const lines = value.map((line: string) => line.trim()).filter((line) => line !== '' && !line.startsWith('#'))
+    if (lines.some((line) => line.startsWith('!'))) throw problem()
+    return lines
   },
 })
 
@@ -378,6 +394,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (typeof value !== 'boolean' && !(Number.isInteger(value) && (value as number) > 0)) throw fail('config.slot', { key: project ?? '' })
     return value
   } },
+  slotCleanup('clean'),
+  slotCleanup('keep'),
   // No default: a project without its own color gets a free one (`colorsOf`).
   { key: 'color', kind: 'integer', scopes: ['project'], lands: ['colors'], default: undefined, check: (value, { project }) => {
     if (!isColor(value)) throw fail('config.color', { key: project ?? '' })

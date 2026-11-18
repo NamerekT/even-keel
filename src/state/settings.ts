@@ -65,6 +65,8 @@ export interface ProjectSettings {
   width?: number
   /** "Lanes by component" (BTN-1273): a lane takes no task of the tracker component a sibling lane runs; absent — off. */
   componentLanes?: boolean
+  /** What a slot loses after Done (BTN-1315); the form leaves it alone. Absent — `DEFAULT_SLOT_CLEANUP`. */
+  slotCleanup?: SlotCleanup
   /** The README badge (BTN-915): the project's form leaves it alone, the badge dialog writes it (`project/badge`); `null` — none. */
   badge?: import('../badge/model.js').BadgeSettings | null
   /** The changelog file, relative to the repository's root (BTN-209). */
@@ -123,6 +125,12 @@ export interface OwnValues {
   'stats.checkpointShares.first'?: number
   'stats.checkpointShares.late'?: number
   'stats.checkpointShares.hard'?: number
+}
+
+/** What a slot loses after Done (BTN-1315): `.gitignore` patterns from the slot's root; `keep` wins over `clean`, `clean: []` — no cleanup. */
+export interface SlotCleanup {
+  clean: string[]
+  keep: string[]
 }
 
 /** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */

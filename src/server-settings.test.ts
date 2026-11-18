@@ -18,8 +18,8 @@ describe('Even Keel settings HTTP routes', () => {
     rmSync(publicDir, { recursive: true, force: true })
   })
 
-  // These read-only fields have dedicated routes and are not forwarded by project/settings.
-  const { protection, notices, milestoneOrder, badge, ...defaults } = projectFormDefaults()
+  // These fields have dedicated routes or are set by hand only, and are not forwarded by project/settings.
+  const { protection, notices, milestoneOrder, badge, slotCleanup, ...defaults } = projectFormDefaults()
   const chain = { ...defaults.chain, terminal: ['Done'], excludedLabels: ['Manual'] }
   const form = { ...defaults, width: 2, name: 'Web shop', branch: 'master', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' },remoteProfiles: { forgejo: 'own' } }
 

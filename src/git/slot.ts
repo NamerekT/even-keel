@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import { shownUnder } from '../paths.js'
+import { cleanSlot, DEFAULT_SLOT_CLEANUP, type SlotCleanup } from './slot-clean.js'
 import type { FinishOutcome, Git, TaskPlace } from './types.js'
 import { dropBranch, finishWorktree, hasBranch, must, taskPlace, worktreesAt, type BranchDrop } from './worktree.js'
 
@@ -92,7 +93,19 @@ export async function prepareSlot(git: Git, repo: string, task: string, options:
   return { path: chosen.path, branch: place.branch }
 }
 
-export async function finishSlot(git: Git, repo: string, task: string, count = 1, main = 'main', drop: BranchDrop = {}): Promise<FinishOutcome> {
+/**
+ * A slot on the task's branch is detached at main, the branch goes, then its temporary files (`cleanSlot`, BTN-1315).
+ * A slot kept on the branch keeps them too: the task is not over in it.
+ */
+export async function finishSlot(
+  git: Git,
+  repo: string,
+  task: string,
+  count = 1,
+  main = 'main',
+  drop: BranchDrop = {},
+  cleanup: Readonly<SlotCleanup> = DEFAULT_SLOT_CLEANUP,
+): Promise<FinishOutcome> {
   const place = taskPlace(repo, task)
   const paths = slotPaths(repo, count)
   const [own, ...slots] = await worktreesAt(git, repo, [place.path, ...paths])
@@ -103,8 +116,11 @@ export async function finishSlot(git: Git, repo: string, task: string, count = 1
   const path = paths[holding]!
   const branch = slots[holding]!.branch!
   const kept = await leaveBranch(git, repo, path, branch, main)
-  if (kept === null) return dropBranch(git, repo, branch, [], main, drop)
-  return dropBranch(git, repo, null, [kept], main, drop)
+  if (kept !== null) return dropBranch(git, repo, null, [kept], main, drop)
+  const outcome = await dropBranch(git, repo, branch, [], main, drop)
+  const cleaned = await cleanSlot(git, repo, path, task, cleanup)
+  const freed = cleaned.files > 0 ? { freed: { slot: path, bytes: cleaned.bytes, files: cleaned.files } } : {}
+  return { ...outcome, warnings: [...outcome.warnings, ...cleaned.warnings], ...freed }
 }
 
 async function leaveBranch(git: Git, repo: string, path: string, branch: string, main: string): Promise<Notice | null> {

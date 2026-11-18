@@ -4,7 +4,7 @@ import { CI_KINDS, type CiKind } from '../ci/model.js'
 import { CLAUDE } from '../claude/name.js'
 import { CODEX } from '../codex/name.js'
 import type { Language } from '../language.js'
-import type { CiSettings, ContextScale } from '../state.js'
+import type { CiSettings, ContextScale, SlotCleanup } from '../state.js'
 import type { CompareSettings } from '../stats/rules.js'
 
 export const CONFIG_FILE = 'even-keel.config.json'
@@ -30,3 +30,5 @@ export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({
   fixTask: false,
   rerunFailed: true,
 })
+/** What a slot loses after Done (BTN-1315), `.gitignore` patterns from its root; `keep` wins over `clean`. */
+export const DEFAULT_SLOT_CLEANUP: Readonly<SlotCleanup> = Object.freeze({ clean: ['.temp/**'], keep: [] })

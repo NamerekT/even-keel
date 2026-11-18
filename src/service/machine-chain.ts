@@ -12,7 +12,9 @@ import { DEFAULT_CI, isPlain, projectLabel } from '../config.js'
 import { changesOf } from '../git/changes.js'
 import { pushTaskBranch, restoreBranch } from '../git/push.js'
 import { runGit } from '../git/run.js'
-import { finishSlot, heldSlot, prepareSlot, type SlotUse } from '../git/slot.js'
+import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
+import { DEFAULT_SLOT_CLEANUP } from '../settings/defaults.js'
+import { samePath } from '../paths.js'
 import { fastForwardMain, fastForwardTo, syncMain, type MergeCheck } from '../git/sync.js'
 import { TaskWorks, worksOf } from '../git/work.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut } from '../git/worktree.js'
@@ -20,6 +22,7 @@ import { exhaustedReset, limitReopenedAt, spentModelWeek } from '../limits/model
 import { overageSession } from '../limits/overage-session.js'
 import { mainMachineDeps } from '../machine/main.js'
 import type { MachinePort } from '../machine/port.js'
+import { megabytes } from '../notice/en-values.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { replyParts } from '../sessions/ask.js'
 import { typedText } from '../sessions/commandPrompt.js'
@@ -45,7 +48,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
         if (error !== null) throw fail('reassign.notRestored', { task, branch: brief.restore.branch, error })
       }
       const place = await ctx.places.ready(project, task)
-      const plain = startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), !isPlain(ctx.configStore.current, project))
+      const git = !isPlain(ctx.configStore.current, project)
+      const plain = startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), git, git ? slotCleanOf(ctx, project, place.path) : [])
       const started = ctx.withProject(ctx.briefed.apply(task, plain + (brief?.restore?.text ?? ''), brief), project)
       const { prompt, model, provider, fallback } = ctx.planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
       const extras = ctx.agentExtras(home, project, task)
@@ -181,7 +185,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
         const main = ctx.branchOf(project)
         const check = mergeCheck(ctx, project, repo)
         const drop = { ...(pull === undefined ? {} : { force: pull.force, remote: pull.remote }), ...(check === undefined ? {} : { check }) }
-        finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main, drop) : finishWorktree(runGit, repo, task, main, drop))
+        const cleanup = ctx.configStore.current.settings[project]?.slotCleanup
+        finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main, drop, cleanup) : finishWorktree(runGit, repo, task, main, drop))
       } catch (error) {
         console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
         throw error
@@ -189,6 +194,10 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       ctx.packages.release(project, task)
       const left = deferLeftFolder(ctx, project, repo, task, finished.warnings)
       const outcome = { ...finished, warnings: [...stopped.warnings, ...left] }
+      if (finished.freed !== undefined) {
+        const { slot, bytes, files } = finished.freed
+        console.log(`cleanup: ${task}: the slot ${slot} freed ${megabytes(bytes)} MB of temporary files (${files} ${files === 1 ? 'file' : 'files'})`)
+      }
       for (const warning of outcome.warnings) console.warn(`git: ${task}: ${englishOf(warning)}`)
       if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
       // The task's row shows what the cleanup left as soon as the cleanup is over, not the folder it has just removed.
@@ -413,6 +422,15 @@ async function pushOf(ctx: MachineContext, project: string | undefined, task: st
   } catch (error) {
     console.warn(`push: the branch of ${task} was not pushed: ${error instanceof Error ? error.message : String(error)}`)
   }
+}
+
+/** The patterns a slot's cleanup after Done deletes when the task's place is one of the project's slots (BTN-1315); `[]` — not a slot. */
+function slotCleanOf(ctx: MachineContext, project: string, path: string): readonly string[] {
+  const span = ctx.slotSpan(project)
+  if (span === 0) return []
+  const repo = ctx.configStore.current.projects[project]!
+  if (!slotPaths(repo, span).some((slot) => samePath(slot, path))) return []
+  return (ctx.configStore.current.settings[project]?.slotCleanup ?? DEFAULT_SLOT_CLEANUP).clean
 }
 
 export function slotSpan(ctx: MachineContext, project: string): number {

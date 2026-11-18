@@ -1,5 +1,5 @@
-import type { Standard, ProjectSettings, OwnKey, OwnValues, CiSettings, CacheTtl, ContextScale, StatsConfig, CheckpointShares, ProjectForm, SharedForm } from './state/settings.js'
-export type { Standard, ProjectSettings, OwnKey, OwnValues, CiSettings, CacheTtl, ContextScale, StatsConfig, CheckpointShares, ProjectForm, SharedForm } from './state/settings.js'
+import type { Standard, ProjectSettings, OwnKey, OwnValues, CiSettings, SlotCleanup, CacheTtl, ContextScale, StatsConfig, CheckpointShares, ProjectForm, SharedForm } from './state/settings.js'
+export type { Standard, ProjectSettings, OwnKey, OwnValues, CiSettings, SlotCleanup, CacheTtl, ContextScale, StatsConfig, CheckpointShares, ProjectForm, SharedForm } from './state/settings.js'
 import type { AccountView } from './account/model.js'
 import type { BadgeStatus } from './badge/status.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'

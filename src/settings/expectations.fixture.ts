@@ -35,6 +35,7 @@ const project: ProjectSettings = {
   milestoneOrder: [],
   width: 1,
   componentLanes: false,
+  slotCleanup: { clean: ['.temp/**'], keep: [] },
   badge: null,
   changelog: 'CHANGELOG.md',
   standards: [],

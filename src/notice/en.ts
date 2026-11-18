@@ -139,6 +139,10 @@ export const en = {
   'cleanup.originKept': (p: { branch: string; remote?: string }) => `the branch ${p.branch} was kept on ${p.remote ?? 'origin'}`,
   'cleanup.slotDirty': (p: ShownPath & { branch: string }) => `the slot ${p.path} was kept on ${p.branch}: it has uncommitted changes`,
   'cleanup.slotKept': (p: ShownPath & { branch: string }) => `the slot ${p.path} was kept on ${p.branch}`,
+  'cleanup.slotTracked': (p: ShownPath & { count: number; first: string }) =>
+    `${p.count === 1 ? '1 tracked file' : `${p.count} tracked files`} in the slot ${p.path} match the temporary files cleared after Done (${p.first}${p.count > 1 ? ' and more' : ''}): git keeps them, so they were left alone. Narrow the slot's cleanup patterns or stop tracking the files`,
+  'cleanup.slotTempLeft': (p: ShownPath & { count: number; first: string }) =>
+    `${p.count === 1 ? '1 file' : `${p.count} files`} of the slot ${p.path}'s temporary files could not be deleted (${p.first}${p.count > 1 ? ' and more' : ''}): a process still holds them. They go at the next Done in this slot`,
   'cleanup.sessionNotStopped': (p: { session: string }) => `its session ${p.session} was not stopped`,
 
   'git.missing': () => 'git does not start on the machine of Even Keel, and every task needs it: install git, then try again',
@@ -731,6 +735,7 @@ export const en = {
   'config.commandKey': (p: { where: string; key: string; known: string[] }) =>
     `config: ${p.where}.${p.key} is not a kind of commands, known: ${list(p.known)}`,
   'config.commandList': (p: { where: string }) => `config: ${p.where} must be a list of commands`,
+  'config.slotCleanup': (p: { where: string }) => `config: ${p.where} must be a list of .gitignore patterns without "!" — what to keep goes into slotCleanup.keep`,
   'config.ciKey': (p: { where: string; key: string; known: string[] }) => `config: ${p.where}.${p.key} is not a CI setting, known: ${list(p.known)}`,
   'config.ciKinds':(p: { where: string; known: string[] }) => `config: ${p.where} must be a list of CIs, known: ${list(p.known)}`,
   'config.ciWait': (p: { where: string }) => `config: ${p.where} must be a whole number of minutes, 0 or more, or null`,

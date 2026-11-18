@@ -102,6 +102,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `unattended` | G | — | page (a switch on `/settings`, sent at once, `chain/unattended`), hand | false |
 | `trimTools` | G | — | page (a switch on `/settings`, `chain/trim`), hand | true |
 | `slot` | P | — | page, hand | none (a worktree per task) |
+| `slotCleanup.clean`, `.keep` | P | — `.gitignore` patterns from a slot's root: after Done `clean` is deleted save what `keep` matches; `!` is refused (`config.slotCleanup`); used only in slots (BTN-1315, `docs/chain/worktrees.md`) | hand | `[".temp/**"]`, `[]` |
 | `git` | P | — `false` reads `slot`, `pullRequests`, `mergeInto` and `ci.guard` as off (BTN-883, `docs/chain/worktrees.md`, "A project without git") | the project wizard; later only "Turn on git" on the Repository tab, between tasks (`project/git`, BTN-884; never back to `false`, BTN-1063), hand (`config-import` takes `false` as it is) | true |
 | `testProject` | P | — | page (Repository → Test project), hand | `false`; hides the project's full history from the home launch chart and default aggregate stats; collection and chains continue |
 | `color` | P | — | page (with the repository), hand, the wizard (the first free one) | none: the first slot of 1–8 no project has as its own, in config order (`colorsOf`, `src/projects/colors.ts`); none left — `--series-other`. Database step 9 wrote the slots of the positions (BTN-207) |

@@ -488,6 +488,15 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', commands: { afterAll: [] } } } })).toThrow(/afterAll/)
   })
 
+  it('reads a slot’s cleanup patterns, .temp/** by default, and refuses a negation (BTN-1315)', () => {
+    expect(parse({ projects: { ABC: { repo: 'C:\\abc' } } }).settings.ABC?.slotCleanup).toEqual({ clean: ['.temp/**'], keep: [] })
+    const own = parse({ projects: { ABC: { repo: 'C:\\abc', slotCleanup: { clean: [' .temp/record/ ', '', '# a comment'], keep: ['.temp/**/*.md'] } } } })
+    expect(own.settings.ABC?.slotCleanup).toEqual({ clean: ['.temp/record/'], keep: ['.temp/**/*.md'] })
+    expect(parse({ projects: { ABC: { repo: 'C:\\abc', slotCleanup: { clean: [] } } } }).settings.ABC?.slotCleanup?.clean).toEqual([])
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', slotCleanup: { clean: ['!.temp/notes/'] } } } })).toThrow(/ABC.slotCleanup.clean/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', slotCleanup: { keep: '.temp/notes/' } } } })).toThrow(/ABC.slotCleanup.keep/)
+  })
+
   it('rejects a tracker it has no adapter for', () => {
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 'redmine' } } })).toThrow(/tracker "redmine".*huly/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', tracker: 7 } } })).toThrow(/ABC.tracker/)

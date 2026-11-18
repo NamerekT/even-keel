@@ -419,6 +419,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     milestoneOrder: values.milestoneOrder as string[],
     width: values.width as number,
     componentLanes: values.componentLanes as boolean,
+    slotCleanup: { clean: values['slotCleanup.clean'] as string[], keep: values['slotCleanup.keep'] as string[] },
     badge: values.badge as BadgeSettings | null,
     changelog: values.changelog as string,
     standards: values.standards as Standard[],

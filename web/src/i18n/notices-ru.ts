@@ -167,6 +167,10 @@ export const noticesRu: NoticeTexts = {
   'cleanup.originKept': (p) => `ветка ${p.branch} оставлена на ${p.remote ?? 'origin'}`,
   'cleanup.slotDirty': (p) => `слот ${p.path} оставлен на ${p.branch}: в нём незакоммиченные изменения`,
   'cleanup.slotKept': (p) => `слот ${p.path} оставлен на ${p.branch}`,
+  'cleanup.slotTracked': (p) =>
+    `В слоте ${p.path} под временные файлы, которые убираются после Done, попадают отслеживаемые git (${p.count}: ${p.first}${p.count > 1 ? ' и другие' : ''}) — их не тронули. Сузьте шаблоны уборки слота или уберите файлы из git`,
+  'cleanup.slotTempLeft': (p) =>
+    `Не удалось удалить временные файлы слота ${p.path} (${p.count}: ${p.first}${p.count > 1 ? ' и другие' : ''}) — их ещё держит процесс. Они уйдут на следующем Done в этом слоте`,
   'cleanup.sessionNotStopped': (p) => `её сессия ${p.session} не остановлена`,
 
   'git.missing': () => 'git не запускается на машине Even Keel, а без него не идёт ни одна задача: установите git и попробуйте снова',
@@ -725,6 +729,7 @@ export const noticesRu: NoticeTexts = {
   'config.feedLocked': (p) => `цепочка уже запускала задачи источника ${p.key} проекта ${p.project}, поэтому он не меняется: уберите его и добавьте другой`,
   'config.commandKey': (p) => `${p.where}.${p.key} — не вид команд, есть: ${list(p.known)}`,
   'config.commandList': (p) => `${p.where} должен быть списком команд`,
+  'config.slotCleanup': (p) => `${p.where} должен быть списком шаблонов .gitignore без «!» — что оставить, пишется в slotCleanup.keep`,
   'config.ciKey': (p) => `${p.where}.${p.key} — не настройка CI, есть: ${list(p.known)}`,
   'config.ciKinds':(p) => `${p.where} должен быть списком CI, есть: ${list(p.known)}`,
   'config.ciWait': (p) => `${p.where} должен быть целым числом минут от 0 или null`,
