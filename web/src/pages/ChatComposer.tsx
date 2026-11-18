@@ -46,6 +46,12 @@ interface Props {
   answered: ReadonlySet<string>
   /** `steered` — the message goes straight into the working session; called before the server answers, it gives what takes the line back. */
   onSent: (line: FeedLine, steered: boolean) => () => void
+  /** A new session is taking the message over (BTN-1281): the field is shut until it is up. */
+  handing: boolean
+  /** "New session with this message" is pressed; called before the server answers, it gives what takes the press back. */
+  onRenew: (message: string) => () => void
+  /** The message of a handover that failed, put back into an empty field once per `key`. */
+  restore: { key: string; text: string } | null
   handle?: Ref<ComposerHandle>
   /** The session's status line, under the field. */
   status?: ReactNode
@@ -57,7 +63,7 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, queued, answered, onSent, handle, status }: Props) {
+export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, queued, answered, onSent, handing, onRenew, restore, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
   const { send, sending, failure } = useCommand()
   // The question being answered leaves at once; a refusal brings it back with its picks, which follow the session's
@@ -81,7 +87,12 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   }
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
-  const draft = useChatDraft(owner, session.sessionId, { text, files }, (found) => {
+  const [restored, setRestored] = useState<string | null>(null)
+  if (restore !== null && restore.key !== restored) {
+    setRestored(restore.key)
+    if (text.trim() === '') setText(restore.text)
+  }
+  const draft =useChatDraft(owner, session.sessionId, { text, files }, (found) => {
     setText(found.text)
     setFiles(found.files)
   })
@@ -97,7 +108,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   const midTurn = !closed && session.lamp === 'working' && mail?.listens === true
   const steering = midTurn && mail.steers
   const mailing = midTurn && !steering
-  const locked = closed ? t.session.chat.closed : midTurn ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
+  const locked = handing ? t.session.chat.handingHint : closed ? t.session.chat.closed : midTurn ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
   const disabled = locked !== null || sending || sent.on
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   // A question may be skipped: any answer, words or file is a reply.
@@ -109,10 +120,10 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
     const answers = ask === null ? {} : askAnswers(ask, picks)
     const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)), renew }
     // The reply's card stands in the feed before the server answers, so the question's panel and card never come back
-    // in between; a new session replaces this one on `renew` and never gets the reply in its transcript.
+    // in between; on `renew` the window shows the handover with the message instead (BTN-1281).
     const show = () => {
       if (ask !== null) setPending(ask.id)
-      const retract = !mailing && !renew ? onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering) : () => {}
+      const retract = renew ? onRenew(text.trim()) : !mailing ? onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering) : () => {}
       return () => {
         setPending(null)
         retract()

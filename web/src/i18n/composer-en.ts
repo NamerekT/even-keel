@@ -5,6 +5,12 @@ export const composerEn = {
   noPreview: 'No preview for this option',
   unsaved: 'Claude Code saves the message with this question only once it is answered. A reply from here resumes the session without it, with the question and your answer; a reply through Remote Control keeps it.',
   sent: 'The reply is sent — the session goes on with it.',
+  handing: {
+    handover: 'Starting a new session with your message',
+    boot: 'The new session is booting',
+    answer: 'The new session is reading your message',
+  },
+  handingHint: 'You can write again once the new session is up.',
   working: 'You can send once the session stops.',
   mailbox: 'The session is working: the message reaches it mid-turn, at its next tool call or at the end of the turn.',
   steers: 'The session is working: the message goes straight in, and it reads it once its current tool call ends.',

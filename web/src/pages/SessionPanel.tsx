@@ -357,6 +357,7 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
               delivering: block.answering !== undefined,
               mail: state?.mailbox[chatSession.sessionId],
               review: block.review,
+              handover: block.handover ?? null,
             }}
             onCard={onCard}
             onClose={() => setChatting(false)}

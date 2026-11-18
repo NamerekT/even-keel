@@ -15,7 +15,10 @@ import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Loader } from '../ui/Loader.js'
-import { useLoader } from '../ui/loaderPhase.js'
+import { useLoader, type LoaderPhase } from '../ui/loaderPhase.js'
+import type { ChatHandover } from '../sessionStart.js'
+import { withUserMessage } from './chatHandover.js'
+import { useHandover } from './useHandover.js'
 import { PullButton } from '../ui/PullChip.js'
 import { SidebarIcon } from '../ui/icons.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
@@ -67,6 +70,8 @@ export interface ChatTarget {
   mail?: SessionMail
   /** The task's pull request in PR mode: the head links to it. */
   review?: ReviewView
+  /** "New session with this message" on its way (BTN-1281): the window shows it instead of the feed. */
+  handover: ChatHandover | null
 }
 
 export interface WindowTask {
@@ -116,12 +121,15 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
   /** How many lines of the session's transcript are read. */
   const count = useRef(0)
   const [lines, setLines] = useState<FeedLine[] | null | undefined>(undefined)
+  // The session `lines` were read of: right after a handoff they are still the old session's for a render.
+  const [readFor, setReadFor] = useState<string | null>(null)
   const [turn, setTurn] = useState<Turn | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>([])
   const [viewing, setViewing] = useState<number | null>(null)
+  const handing = useHandover(chat?.handover ?? null, sessionId, readFor === sessionId ? lines : undefined)
   const unread = lines == null ? [] : sent.filter((each) => !lines.slice(each.after).some(isReply))
-  const all = lines == null ? null : [...lines, ...unread.filter((each) => !each.steered).map((each) => each.line)]
+  const all = lines == null ? null : [...withUserMessage(lines), ...unread.filter((each) => !each.steered).map((each) => each.line)]
   // A message steered into a working session waits in the CLI's queue until its current tool call ends; the queue is
   // read from the transcript, so it outlives closing the window, and this window's own send shows until it is there.
   const inQueue = chat?.session.lamp === 'working' ? (turn?.queued ?? []) : []
@@ -144,9 +152,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
   const edits = editTotals(all ?? [])
   // Files dropped anywhere on the chat window join the composer's list, not only on its small field.
   const drop = useFileDrop(chat !== undefined, (files) => composerRef.current?.attach(files))
-  const loader = useLoader(error === null && lines === undefined)
-  // The list mounts once the loader has left, so the effects that pin it to its end wait for that too.
-  const listed = entries != null && loader === 'done'
+  const loader = useLoader(error === null && lines === undefined && handing.shown === null)
+  // The list mounts once the loaders have left, so the effects that pin it to its end wait for that too.
+  const listed = entries != null && loader === 'done' && handing.phase === 'done'
   const facts = useStatusFacts(sessionId, account, chat?.session ?? state?.sessions.find((session) => session.sessionId === sessionId) ?? null)
   const status = <ChatStatus facts={facts} scale={chat?.scale ?? state?.context ?? null} edits={edits} />
   // The task panel at the left of the feed; a fix of main has no card, and on a phone the button opens the full card
@@ -180,6 +188,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
     count.current = 0
     pinned.current = true
     setLines(undefined)
+    setReadFor(null)
     setTurn(null)
     setSent([])
     setViewing(null)
@@ -211,6 +220,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
           count.current = from + found.lines.length
           setLines((current) => (from === 0 || current == null ? found.lines : [...current, ...found.lines]))
         }
+        setReadFor(sessionId)
       } catch (reason) {
         if (alive) setError(reason instanceof Error ? reason.message : String(reason))
       }
@@ -309,7 +319,17 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
             </button>
           </header>
           {error !== null && <p className="notice notice--error">{error}</p>}
-          {loader !== 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
+          {handing.phase !== 'done' && handing.last !== null && (
+            <div className="transcript__handover">
+              {handing.last.message !== null && (
+                <div className="transcript__entry transcript__entry--prompt">
+                  <UserBubble text={handing.last.message} files={[]} media={media} onOpen={setViewing} />
+                </div>
+              )}
+              <HandoverLoader handover={handing.last} phase={handing.phase} />
+            </div>
+          )}
+          {loader !== 'done' && handing.phase === 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
           {loader === 'done' && lines === null && <p className="placeholder">{t.session.notFound}</p>}
           {entries != null && listed && (
             <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
@@ -357,7 +377,8 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
             </div>
           ) : (
             <div className="transcript__foot">
-              {chat.session.lamp === 'working' && (
+              {handing.error !== null && <p className="notice notice--error">{say(handing.error)}</p>}
+              {chat.session.lamp === 'working' && handing.shown === null && (
                 <TurnLine
                   facts={{
                     working: true,
@@ -383,6 +404,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
                 answered={answered}
                 handle={composerRef}
                 status={status}
+                handing={handing.shown !== null}
+                onRenew={handing.press}
+                restore={handing.restore}
                 onSent={(line, steered) => {
                   pinned.current = true
                   const entry = { line, after: lines?.length ?? 0, steered }
@@ -428,6 +452,13 @@ function TurnLine({ facts }: { facts: TurnFacts }) {
       </span>
     </span>
   )
+}
+
+/** The boat under the user's message while a new session takes it over, with the phase and the time since the press. */
+function HandoverLoader({ handover, phase }: { handover: ChatHandover; phase: Exclude<LoaderPhase, 'done'> }) {
+  const now = useNow(TICK_MS)
+  const elapsed = formatElapsed(Math.max(0, now.getTime() - Date.parse(handover.since)))
+  return <Loader phase={phase} label={`${t.session.chat.handing[handover.phase]} · ${elapsed}`} fit="fill" />
 }
 
 interface LineProps {

@@ -1,9 +1,9 @@
 import { idleBeforePrompt } from '../../src/sessions/boot.js'
 import { projectLabel, projectPath } from './projectLookup.js'
-import { sessionStart, type SessionStart } from './sessionStart.js'
+import { chatHandover, sessionStart, type ChatHandover, type SessionStart } from './sessionStart.js'
 export { idleBeforePrompt } from '../../src/sessions/boot.js'
 export { keySlots, ownProjects, projectLabel, projectName, projectOfPath, projectPages, projectPath, projectSlot, projectSlots, projectTracker, type TrackerPage } from './projectLookup.js'
-export { sessionStart, type SessionStart, type StartPhase } from './sessionStart.js'
+export { chatHandover, sessionStart, type ChatHandover, type SessionStart, type StartPhase } from './sessionStart.js'
 export { accountBadge, entryBadge, headerAccounts, loginLeft, limitedUntil, canWork, accountOrder, type AccountBadge } from './account-state.js'
 import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
 import { fixNameOf, fixTaskOf, isCarryName, isFixName, isOwnName, liveFixId, projectOfFix, releaseOfCarry } from '../../src/chain/fix.js'
@@ -80,6 +80,8 @@ export interface ChainBlock {
   sessions: TaskSession[]
   limit: LimitHold | null
   start: SessionStart | null
+  /** "New session with this message" on its way, for the chat (BTN-1281); absent — none. */
+  handover?: ChatHandover
   /** Since when the chain is delivering the user's answer to the task's session: stopping it and resuming it with the answer. */
   answering?: string
   /** The machines it ran on, oldest first, its lane's now last (`taskMachines`); absent — one machine. */
@@ -447,6 +449,13 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
   }
 }
 
+function startOf(lane: ActiveChain | undefined, current: CurrentTask | null, seen: SessionView | null, runs: TaskSession[], now: Date): Pick<ChainBlock, 'start' | 'handover'> {
+  if (current === null) return { start: null }
+  const start = sessionStart(current, seen, runs, now)
+  const handover = chatHandover(current, start, runs, lane?.paused === true ? lane.error : null)
+  return { start, ...(handover !== null && { handover }) }
+}
+
 function answeringSince(current: CurrentTask): Pick<ChainBlock, 'answering'> {
   return current.answering && current.starting !== undefined ? { answering: current.starting } : {}
 }
@@ -536,7 +545,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       session,
       sessions,
       limit: pendingOf(lane),
-      start: ownRun === null ? null : sessionStart(ownRun, seen, sessions, now),
+      ...startOf(lane, ownRun, seen, sessions, now),
       ...(ownRun !== null && answeringSince(ownRun)),
       ...(machines !== undefined && { machines }),
       ...(stranded !== undefined && { stranded: { machine: state.machineNames?.[stranded.machine] ?? stranded.machine, pushed: stranded.pushed } }),
@@ -571,7 +580,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       open: true,
       current: name === current,
       limit: name === current ? pending : null,
-      start: running?.task === name ? sessionStart(running, seen, sessions, now) : null,
+      ...startOf(active, running?.task === name ? running : null, seen, sessions, now),
       ...(running?.task === name && answeringSince(running)),
     }
   }

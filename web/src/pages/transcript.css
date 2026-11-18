@@ -69,6 +69,21 @@
   font: var(--text-15)/1.55 var(--font);
 }
 
+/* "New session with this message" on its way (BTN-1281): the user's message as in the feed, the boat under it. */
+.transcript__handover {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 800px;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 8px 0 32px;
+  color: var(--fg);
+  font: var(--text-15)/1.55 var(--font);
+}
+
 .transcript__entry {
   position: relative;
   min-width: 0;
