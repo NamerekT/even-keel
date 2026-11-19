@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Changes } from '../git/types.js'
 import type { SetupOptions } from './dispatcher.fixture.js'
 import { afterDone, failedRun } from './maincheck.fixture.js'
@@ -112,6 +112,42 @@ describe('Dispatcher and a fix session that finds nothing to fix (EKR-88)', () =
     expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-FIX', sessionId, prompt: PROMPTS.ru.unchanged.ahead('main') }])
     expect(dispatcher.state.ci.ABC?.fix?.task).toBe('ABC-FIX')
     expect(launched).not.toContain('ABC/ABC-2')
+  })
+
+  it('goes on with the chain when the fix session is skipped while its step waits for git (BTN-1330)', async () => {
+    const { dispatcher, ci, launched, journal } = await markedFix()
+    let open!: () => void
+    ci.mergedGate = new Promise((resolve) => {
+      open = resolve
+    })
+    const asks = ci.mergedAsks
+    dispatcher.check()
+    await vi.waitFor(() => expect(ci.mergedAsks).toBeGreaterThan(asks))
+    dispatcher.skip('ABC', 'ABC-FIX')
+    ci.mergedGate = null
+    open()
+    await dispatcher.idle()
+    expect(journal.filter((entry) => entry.task === 'ABC-FIX' && entry.reason !== undefined).map((entry) => entry.reason)).toEqual(['dropped'])
+    expect(dispatcher.state.active[0]?.paused).toBe(false)
+    expect(launched).toContain('ABC/ABC-2')
+  })
+
+  it('pauses the chain when its step fails, and the dispatcher goes on with its work (BTN-1330)', async () => {
+    const { dispatcher, handoffs, sessionId, log } = await markedFix()
+    let broken = true
+    Object.defineProperty(handoffs, 'ABC-FIX', {
+      get: () => {
+        if (broken) throw new Error('the handoff is unreadable')
+        return marked(sessionId)
+      },
+    })
+    await step(dispatcher)
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: { code: 'chain.stepFailed', detail: 'the handoff is unreadable' } })
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-FIX')
+    expect(log.some((line) => line.startsWith('chain: a step of ABC failed: Error: the handoff is unreadable'))).toBe(true)
+    broken = false
+    await step(dispatcher)
+    expect(dispatcher.state.active[0]?.paused).toBe(true)
   })
 
   it('reads the mark of a fix session in PR mode too: the fix merges by itself there', async () => {

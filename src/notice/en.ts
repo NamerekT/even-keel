@@ -94,6 +94,7 @@ export const en = {
   'chain.fixReportMissing': (p: { task: string }) => `chain: the report of ${p.task} is gone, so a new session cannot be told what to fix; check main and resume`,
   'chain.briefMissing': (p: { task: string }) => `chain: the machine got no brief of ${p.task} from the hub, so a new session would start without the task; resume the chain for the hub to send it again`,
   'chain.interrupted':(p: { task: string }) => `chain: launch of ${p.task} was interrupted by a restart; check its session, then resume`,
+  'chain.stepFailed': () => 'chain: the dispatcher failed on a step of this chain and paused it; resume the chain to try again',
   'chain.unchangedNotChecked': (p: { task: string }) =>
     `chain: the session of ${p.task} marked it as needing no change, but its folder could not be checked`,
   'chain.unchangedNotCompleted': (p: { task: string }) =>
