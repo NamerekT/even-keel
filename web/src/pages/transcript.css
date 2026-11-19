@@ -271,6 +271,13 @@ button.tools__toggle:hover {
   color: var(--lamp-error);
 }
 
+/* A new chat's line over its empty feed: in the feed's column, as the field under it. */
+.transcript__blank {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
 .transcript__foot {
   display: flex;
   flex: none;
