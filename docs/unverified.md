@@ -258,6 +258,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 221 | [A project chat's first message while its session starts](unverified/sessions.md#a-project-chats-first-message-while-its-session-starts-btn-1338) | anyone starting a project chat on Claude (Codex on a phone checked) | the message disappears for a moment, the window says the transcript was not found, or a fresh chat offers a new session as if it were cold; wait for the answer, it comes as usual | — |
 | 222 | [The change history of a live built-in project](unverified/trackers.md#the-change-history-of-a-live-built-in-project-btn-1112) | projects on the built-in tracker | the journal names the wrong author or lacks a change, or a copied task gets the history summary twice | — |
 | 223 | [Components of a live built-in project](unverified/trackers.md#components-of-a-live-built-in-project-btn-1288) | projects on the built-in tracker that use components | a session creates a component or cannot set one, a deletion moves a running session's tasks, or two lanes edit one area | — |
+| 224 | [Renaming and deleting a live built-in milestone](unverified/trackers.md#renaming-and-deleting-a-live-built-in-milestone-btn-1287) | projects on the built-in tracker whose chain rules name milestones | the chain stops taking a renamed milestone's tasks or takes every milestone, or a deletion moves a running session's task; fix the rule and the order by hand | — |
 
 ### Waiting for the event / not checked by choice
 

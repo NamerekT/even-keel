@@ -648,6 +648,15 @@ export const noticesRu: NoticeTexts = {
     p.why === 'current'
       ? `${p.task} из компонента ${p.component} — текущая задача цепи: пропустите её или остановите цепь, потом удаляйте компонент`
       : `у ${p.task} из компонента ${p.component} живая сессия: остановите её, потом удаляйте компонент`,
+  'builtin.milestoneTaken': (p) => `веха «${p.name}» в проекте уже есть — выберите другое имя`,
+  'builtin.milestoneBusy': (p) =>
+    p.why === 'current'
+      ? `${p.task} из вехи ${p.milestone} — текущая задача цепи: пропустите её или остановите цепь, потом удаляйте веху`
+      : `у ${p.task} из вехи ${p.milestone} живая сессия: остановите её, потом удаляйте веху`,
+  'builtin.milestoneClosedTasks': (p) =>
+    `в вехе ${p.milestone} есть закрытые задачи (${p.count}) — удалить её нельзя, поставьте «Отменена»`,
+  'builtin.milestoneRequired': (p) =>
+    `цепь берёт задачи только из вехи ${p.milestone}; без неё цепь взяла бы все вехи — сначала поменяйте «Только задачи из майлстоунов» в правилах цепи проекта`,
   'builtin.badStatus': (p) => `статуса «${p.status}» нет; статусы: ${list(p.statuses)}`,
   'builtin.badPriority': (p) => `приоритета «${p.priority}» нет`,
   'builtin.noProject': (p) => `проект ${p.project} не хранит задачи в Even Keel`,

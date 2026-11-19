@@ -7,6 +7,7 @@ import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 import type { AttachedFile } from './connection.js'
 import { FAKE_HULY_PROFILE } from './fakeProfiles.js'
 import { fakeCard } from './fakeCards.js'
+import { EMPTY_MILESTONE, fakeMilestoneQuery } from './fakeBuiltinMilestones.js'
 import { fakeCardComponent, fakeComponentEdit, fakeComponentQuery, fakeEstimate } from './fakeComponents.js'
 import { fakeHistory, fakeJournal, fakeJournalQuery } from './fakeJournal.js'
 
@@ -144,9 +145,6 @@ export function withBuiltinTracker(state: EvenKeelState): EvenKeelState {
   }
 }
 
-/** ABC's milestone made a moment ago with no task yet, so the chain shows it as an empty group with its ghost. */
-const EMPTY_MILESTONE = 'v0.4 — выпуск'
-
 /** A built-in project's vocabulary: its statuses and the milestones its tasks carry, ABC's with one more that none does. */
 export function builtinVocabulary(state: EvenKeelState, project: string, base: TrackerVocabulary): TrackerVocabulary {
   const carried = state.tasks.filter((each) => each.project === project).flatMap((each) => (each.milestone === null ? [] : [each.milestone.label]))
@@ -181,6 +179,8 @@ export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Recor
   if (fakeJournalQuery(name, body, journal)) return { state: { ...state }, result: {} }
   const components = fakeComponentQuery(state, name, body)
   if (components !== null) return { state: { ...state }, result: components.result }
+  const milestones = fakeMilestoneQuery(state, name, body)
+  if (milestones !== null) return { state: { ...milestones.state }, result: milestones.result }
   const task = String(body.task ?? '')
   const other = String(body.other ?? '')
   const change = (update: (each: ProjectTask) => ProjectTask, id = task): Answer => ({

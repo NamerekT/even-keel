@@ -11,6 +11,7 @@ import { BuiltinExportButton } from './BuiltinExport.js'
 import { ComponentList } from './ComponentList.js'
 import { FeedList } from './FeedList.js'
 import { MilestoneOrder } from './MilestoneOrder.js'
+import { MilestoneTable } from './MilestoneTable.js'
 import { ProjectTracker } from './ProjectTracker.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { SourceDialog, SourceLine } from './SourceDialog.js'
@@ -189,7 +190,11 @@ export function ProjectTrackerTab({
                     marks={marks}
                   />
                 </Section>
-                <MilestoneOrder project={project} milestones={state?.chain.projects[project]?.milestones ?? []} saved={form.milestoneOrder ?? []} />
+                {onBuiltin ? (
+                  <MilestoneTable project={project} saved={form.milestoneOrder ?? []} />
+                ) : (
+                  <MilestoneOrder project={project} milestones={state?.chain.projects[project]?.milestones ?? []} saved={form.milestoneOrder ?? []} />
+                )}
                 </>
               ),
             },

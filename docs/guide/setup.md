@@ -238,6 +238,8 @@ It is the first choice of the tracker in the setup and in **Add project**, and t
 
 In a built-in project's **Tracker** → **Configure** only **Project tasks** and **Components** are left: its statuses and labels are fixed, and the milestones you name there are created in it on save.
 
+Under **Project tasks** the **Milestone order** block lists every milestone of the project, closed ones folded at the bottom. **+ New milestone** and a row's pencil open its editor: name, status (Planned, Active, Completed, Canceled), target date, description. The status is for you: the chain still follows its milestone rules and the tasks' statuses, and closing a milestone with open tasks only warns. A rename follows into the project's chain rules and milestone order. A milestone with done tasks cannot be deleted — cancel it; otherwise deleting it moves its open tasks to another milestone or to none, and drops it from the rules and the order.
+
 **Components** sort a project's tasks by area, at most one a task: create, rename and delete them there, and pick a task's one in its card under **Milestone** (typing a new name there creates it). The chain ignores them, except for **Lanes by component**; sessions can set a task's component by name but never create one. Deleting a component moves its tasks, closed ones too, to another component or to none. The card's **Estimate** has a pencil: type minutes or hours ("20", "1h 20m", "1.5h"), Enter saves, an empty field clears it.
 
 A project with another tracker's tasks cannot move to the built-in one.

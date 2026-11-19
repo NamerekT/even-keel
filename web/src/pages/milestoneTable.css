@@ -1,0 +1,367 @@
+/* The built-in tracker's milestones (BTN-1287): the table of the tracker window's tab, its editor and its deletion. */
+
+.milestone-table .settings__heading-aside {
+  flex: 1;
+  margin-left: 0;
+}
+
+.milestone-table__aside {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.milestone-table__table {
+  --milestone-columns: 24px minmax(0, 1fr) 72px 64px 128px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.milestone-table__head,
+.milestone-table__row {
+  display: grid;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.milestone-table__head {
+  /* The first cell covers the handle, the gap to the row and the row's border and padding. */
+  grid-template-columns: 35px var(--milestone-columns);
+  padding-right: calc(var(--space-12) + 1px);
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.milestone-table__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.milestone-table__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-6);
+  transition: transform var(--motion-fast) ease;
+}
+
+.milestone-table__list--dragging .milestone-table__item {
+  user-select: none;
+}
+
+.milestone-table__list--landing .milestone-table__item {
+  transition: none;
+}
+
+.milestone-table__item--dragged {
+  z-index: 1;
+  transition: none;
+}
+
+.milestone-table__item--dragged .milestone-table__row {
+  box-shadow: var(--shadow-popover);
+}
+
+.milestone-table__item--dragged .milestone-table__handle {
+  cursor: grabbing;
+}
+
+.milestone-table__row {
+  grid-template-columns: var(--milestone-columns);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-4) var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-14);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+.milestone-table__row:hover,
+.milestone-table__row:focus-visible {
+  border-color: var(--accent);
+}
+
+.milestone-table__place {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.milestone-table__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.milestone-table__label {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.milestone-table__count,
+.milestone-table__date {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.milestone-table__status {
+  display: flex;
+  align-items: center;
+}
+
+.milestone-table__none {
+  color: var(--fg-muted);
+}
+
+.milestone-table__pencil {
+  display: inline-grid;
+  place-items: center;
+  color: var(--fg-muted);
+  opacity: 0.6;
+  transition: opacity var(--motion-fast), color var(--motion-fast);
+}
+
+.milestone-table__row:hover .milestone-table__pencil,
+.milestone-table__row:focus-visible .milestone-table__pencil {
+  color: var(--fg);
+  opacity: 1;
+}
+
+.milestone-table__narrow {
+  display: none;
+}
+
+/* The closed milestones: folded under the open ones, not dragged, their text quiet. */
+.milestone-table__closed {
+  margin-top: var(--space-12);
+}
+
+.milestone-table__fold {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.milestone-table__item--closed .milestone-table__row {
+  color: var(--fg-muted);
+}
+
+.milestone-table__item--closed .milestone-table__label {
+  font-weight: 400;
+}
+
+/* A status: a pill with its dot and word; on the phone the dot alone. */
+.milestone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-2) var(--space-8);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-12);
+  white-space: nowrap;
+}
+
+.milestone-pill--planned {
+  background: color-mix(in srgb, var(--fg-muted) 18%, var(--surface));
+}
+
+.milestone-pill--active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+.milestone-pill--completed {
+  background: color-mix(in srgb, var(--lamp-done) 18%, var(--surface));
+}
+
+.milestone-pill--canceled {
+  background: color-mix(in srgb, var(--fg-muted) 10%, var(--surface));
+}
+
+.milestone-dot {
+  flex: none;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.milestone-dot--planned {
+  background: var(--fg-muted);
+}
+
+.milestone-dot--active {
+  background: var(--accent);
+}
+
+.milestone-dot--completed {
+  background: var(--lamp-done);
+}
+
+.milestone-dot--canceled {
+  border: 1px solid var(--fg-muted);
+  background: transparent;
+}
+
+/* The editor holds four statuses in a row and two dates side by side: wider than a component's window. */
+@media (min-width: 761px) {
+  .add-package--narrow.milestone-dialog {
+    width: min(560px, calc(100vw - 32px));
+  }
+}
+
+/* The editor's status switch: four equal cells, the dot and word at the left, the same weight on and off. */
+.segmented.milestone-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(max-content, 1fr));
+  margin-top: var(--space-4);
+}
+
+.milestone-status .segmented__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-8);
+  white-space: nowrap;
+}
+
+.milestone-status .segmented__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.milestone-dialog__open .ui-band__text {
+  gap: var(--space-6);
+}
+
+.milestone-dialog__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.milestone-dialog__key {
+  font-family: var(--mono);
+}
+
+.milestone-dialog__dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.milestone-dialog__dates--one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.milestone-dialog__readonly {
+  margin-top: var(--space-4);
+  padding: var(--space-8) 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+  font-size: var(--text-14);
+  line-height: 1.45;
+}
+
+.milestone-dialog__lead {
+  margin: 0 0 var(--space-8);
+  font-size: var(--text-14);
+}
+
+/* The phone: one line a row, flush in one frame; no place and no pencil, a tap opens the editor. */
+@media (max-width: 760px) {
+  .milestone-table__table {
+    --milestone-columns: minmax(0, 1fr) 48px 52px 20px;
+  }
+
+  .milestone-table__head,
+  .milestone-table__row {
+    gap: var(--space-8);
+  }
+
+  .milestone-table__head {
+    grid-template-columns: 24px var(--milestone-columns);
+    padding-right: var(--space-12);
+  }
+
+  .milestone-table__place,
+  .milestone-table__pencil,
+  .milestone-pill__word,
+  .milestone-table__wide {
+    display: none;
+  }
+
+  .milestone-table__narrow {
+    display: inline;
+  }
+
+  .milestone-pill {
+    padding: 0;
+    background: transparent;
+  }
+
+  .milestone-table__list {
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface-muted);
+    overflow: hidden;
+  }
+
+  .milestone-table__item {
+    gap: 0;
+  }
+
+  .milestone-table__list > li + li {
+    border-top: 1px solid var(--border);
+  }
+
+  .milestone-table__row {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: var(--space-4) var(--space-12) var(--space-4) var(--space-4);
+  }
+
+  .milestone-table__row:hover,
+  .milestone-table__row:focus-visible {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+
+  .milestone-table__label {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .segmented.milestone-status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .milestone-dialog__dates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

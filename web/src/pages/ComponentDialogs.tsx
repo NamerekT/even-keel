@@ -22,7 +22,7 @@ export interface ComponentRow {
 }
 
 /** The modal frame both windows share: on the phone a sheet from the bottom (`componentList.css`). */
-function Modal({ title, onClose, onSubmit, children, foot, failure, busy }: { title: string; onClose: () => void; onSubmit: () => void; children: ReactNode; foot: ReactNode; failure: Notice | null; busy: boolean }) {
+export function Modal({ title, onClose, onSubmit, children, foot, failure, busy, className }: { title: string; onClose: () => void; onSubmit: () => void; children: ReactNode; foot: ReactNode; failure: Notice | null; busy: boolean; className?: string }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, () => {
     if (!busy) onClose()
@@ -40,7 +40,7 @@ function Modal({ title, onClose, onSubmit, children, foot, failure, busy }: { ti
   return createPortal(
     <dialog
       ref={dialog}
-      className="add-package add-package--narrow component-dialog"
+      className={`add-package add-package--narrow component-dialog${className === undefined ? '' : ` ${className}`}`}
       aria-labelledby={heading}
       onCancel={(event) => {
         event.preventDefault()
@@ -72,7 +72,7 @@ function Modal({ title, onClose, onSubmit, children, foot, failure, busy }: { ti
 }
 
 /** A write that closes the window, or keeps it open with the refusal. */
-function useWrite(onDone: () => void) {
+export function useWrite(onDone: () => void) {
   const { query } = useLive()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Notice | null>(null)
