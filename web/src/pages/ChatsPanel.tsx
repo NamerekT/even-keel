@@ -78,11 +78,11 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
         </button>
       </header>
       {section === 'active' ? (
-        <ActiveList chats={chats} onOpen={setOpened} onNew={() => setCreating(true)} />
+        <ActiveList chats={chats} onOpen={setOpened} />
       ) : (
         <ArchiveList project={project} active={active} onOpen={setOpened} />
       )}
-      {section === 'active' && active.length > 0 && (
+      {section === 'active' && (
         <button type="button" className="button button--primary chats__new" onClick={() => setCreating(true)}>
           <PlusIcon />
           {t.chats.newSession}
@@ -130,25 +130,11 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
   )
 }
 
-function ActiveList({ chats, onOpen, onNew }: { chats: ProjectChatsView; onOpen: (chat: ChatCard) => void; onNew: () => void }) {
+function ActiveList({ chats, onOpen }: { chats: ProjectChatsView; onOpen: (chat: ChatCard) => void }) {
   const now = useNow(30_000)
   const narrow = useNarrow()
   if (chats.chats === null) return chats.failed ? <p className="notice notice--error">{t.chats.failed}</p> : null
-  if (chats.chats.length === 0) {
-    return (
-      <EmptyState
-        className="chats__empty"
-        action={
-          <button type="button" className="button button--primary" onClick={onNew}>
-            <PlusIcon />
-            {t.chats.newSession}
-          </button>
-        }
-      >
-        {t.chats.empty}
-      </EmptyState>
-    )
-  }
+  if (chats.chats.length === 0) return <EmptyState className="chats__empty">{t.chats.empty}</EmptyState>
   return (
     <ul className="chats__list">
       {chats.chats.map((chat) => (
