@@ -1,4 +1,5 @@
 export const composerEn = {
+  sending: 'Sending your message…',
   removeFile: (name: string) => `Remove ${name}`,
   other: 'Other',
   otherPlaceholder: 'Your own answer…',

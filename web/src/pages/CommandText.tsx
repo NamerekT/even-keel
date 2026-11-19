@@ -156,7 +156,8 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
         onPaste={onPaste}
         onKeyDown={keyDown}
         onFocus={() => setFocused(true)}
-        onBlur={() => {
+        onBlur={(event) => {
+          if (window.matchMedia('(max-width: 760px)').matches) event.currentTarget.scrollTop = 0
           setFocused(false)
           setTokenSpot(null)
         }}

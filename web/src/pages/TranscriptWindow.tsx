@@ -25,6 +25,8 @@ import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
+import { ChatMail } from './ChatMail.js'
+import { useChatViewport } from './useChatViewport.js'
 import { ShutComposer } from './ComposerBox.js'
 import type { DraftOwner } from './useChatDraft.js'
 import { ChatStatus, useStatusFacts, type StatusFacts } from './ChatStatus.js'
@@ -198,6 +200,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   // The task panel at the left of the feed; a fix of main has no card, and on a phone the button opens the full card
   // over the chat, which shows again when it closes.
   const narrow = useNarrow()
+  useChatViewport(dialogRef, narrow)
   const taskPanel = useTaskPanelOpen()
   const cardTask = chat !== undefined && onCard !== undefined && task !== undefined && !isOwnName(task.key) ? task.key : null
   const panel = cardTask !== null && taskPanel.open && !narrow
@@ -377,10 +380,10 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
           )}
           {loader !== 'done' && handing.phase === 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
           {loader === 'done' && lines === null && <p className="placeholder">{t.session.notFound}</p>}
-          {entries != null && listed && (
+          {(listed || (chat?.mail?.mail.length && loader === 'done' && handing.phase === 'done')) ? (
             <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
               <ol className="transcript__lines">
-                {entries.map((entry, index) =>
+                {entries?.map((entry, index) =>
                   entry.kind === 'gap' ? (
                     <li key={index} className="transcript__gap">
                       <LineTime at={entry.at} />
@@ -397,9 +400,10 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                     </li>
                   ),
                 )}
+                {chat && <ChatMail sessionId={sessionId} mail={chat.mail?.mail ?? []} queued={queued} onReply={(text) => composerRef.current?.replyToMail?.(text)} />}
               </ol>
             </div>
-          )}
+          ) : null}
           {blank !== undefined && entries?.length === 0 && loader === 'done' && <p className="placeholder transcript__blank">{blank}</p>}
           {foot !== undefined ? (
             <div className="transcript__foot">
@@ -466,7 +470,6 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 renews={chat.renews}
                 accepts={chat.accepts === true}
                 mail={chat.mail}
-                queued={queued}
                 answered={answered}
                 handle={composerRef}
                 status={status}

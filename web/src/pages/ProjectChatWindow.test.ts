@@ -9,6 +9,10 @@ import type { Draft } from './chatDraft.js'
 import { ProjectChatWindow } from './ProjectChatWindow.js'
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+Object.defineProperties(HTMLElement.prototype, {
+  showPopover: { configurable: true, value() {} },
+  hidePopover: { configurable: true, value() {} },
+})
 const command = vi.fn()
 const transcript = vi.fn()
 const saved = new Map<string, Draft>()
@@ -83,7 +87,10 @@ it('reopens empty during upload and keeps the next draft after success', async (
   expect(box.value).toBe('')
   expect(host.querySelector('.chat__file')).toBeNull()
   await type(box, 'Next')
-  expect(host.querySelector<HTMLButtonElement>('.chat__send')!.disabled).toBe(true)
+  const send = host.querySelector<HTMLButtonElement>('.chat__send')!
+  expect(send.getAttribute('aria-disabled')).toBe('true')
+  await act(async () => send.click())
+  expect(command).toHaveBeenCalledTimes(1)
   await act(async () => delivery.resolve())
   await act(async () => root.render(null))
   await render(card)
@@ -108,9 +115,11 @@ it('opens empty, keeps one bubble through the launch and missing transcript, the
   const { host, box, delivery } = await start()
   expect(box.value).toBe('')
   expect(host.querySelector('.bubble')?.textContent).toBe(message)
-  expect(host.querySelector('.chat__hint')?.textContent).toBe(t.chats.window.starting)
+  expect(box.placeholder).toBe(t.chats.window.starting)
+  expect(host.querySelector('.chat__send')?.closest('.tipped')?.textContent).toContain(t.chats.window.starting)
+  expect(host.querySelector('.chat__hint')).toBeNull()
   await act(async () => delivery.resolve())
-  expect(host.querySelector('.chat__hint')?.textContent).toBe(t.chats.window.starting)
+  expect(box.placeholder).toBe(t.chats.window.starting)
   transcript.mockResolvedValue(null)
   await render({ ...card, sessionId: 'first-session', state: 'working' })
   expect(host.textContent).not.toContain(t.session.notFound)

@@ -1,4 +1,5 @@
 export const composerRu = {
+  sending: 'Сообщение отправляется…',
   removeFile: (name: string) => `Убрать ${name}`,
   other: 'Другое',
   otherPlaceholder: 'Свой ответ…',

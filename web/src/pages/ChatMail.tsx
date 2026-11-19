@@ -5,6 +5,7 @@ import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { letterPhase, nextLetterChange } from './letterPhase.js'
+import { fileName } from './feedLine.js'
 
 interface Props {
   sessionId: string
@@ -29,16 +30,18 @@ export function ChatMail({ sessionId, mail, queued, onReply }: Props) {
   const shown = mail.map((each) => ({ each, phase: letterPhase(each, now.getTime()) })).filter(({ phase }) => phase !== 'gone')
   if (shown.length === 0 && queued.length === 0) return null
   return (
-    <ul className="chat__mail">
+    <>
       {queued.map((line, index) => (
-        <li key={`queued-${index}`} className="chat__letter chat__letter--waiting">
-          <span className="chat__letter-text">{line.text !== '' ? line.text : (line.files ?? []).join(', ')}</span>
+        <li key={`queued-${index}`} className="bubble chat__letter">
+          <span className="chat__letter-text">{line.text}</span>
+          {line.files?.map((file, at) => <span key={at} className="chat__file">{fileName(file)}</span>)}
           <span className="chat__letter-fate">{t.session.chat.mail.queued}</span>
         </li>
       ))}
       {shown.map(({ each, phase }) => (
-        <li key={each.id} className={`chat__letter chat__letter--${each.fate}${phase === 'leaving' ? ' chat__letter--leaving' : ''}`}>
+        <li key={each.id} className={`bubble chat__letter chat__letter--${each.fate}${phase === 'leaving' ? ' chat__letter--leaving' : ''}`}>
           <span className="chat__letter-text">{each.text}</span>
+          {each.files.map((file, at) => <span key={at} className="chat__file">{fileName(file)}</span>)}
           {each.fate === 'returned' ? (
             <>
               <span className="chat__letter-fate">{t.session.chat.mail.returned[each.reason ?? 'asked']}</span>
@@ -62,6 +65,6 @@ export function ChatMail({ sessionId, mail, queued, onReply }: Props) {
           )}
         </li>
       ))}
-    </ul>
+    </>
   )
 }

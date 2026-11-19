@@ -124,6 +124,8 @@ Selecting an option never advances by itself. Enter that confirms IME input does
 
 On a phone or tablet, Enter starts a new line: use the buttons to send or go to the next question.
 
+When a reply cannot go yet, the empty box and the tip of the send button say why. The box grows to five lines and then scrolls. On a phone it stops at four, and while you type the line under the box steps aside to leave the feed more room; a draft you leave folds to its first line until you tap it.
+
 ## Project chats
 
 Besides the sessions of tasks, a project has chats of its own: a session without a task, to talk about the project, ask a question about its code or plan the next tasks. A chat runs in the project's main folder on the machine that has it, with everything a session you start there by hand has: the folder's settings and MCP servers and the account's plugins. Nothing of the chain's set applies to it.

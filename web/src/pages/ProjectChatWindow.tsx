@@ -5,7 +5,6 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { FoldPresence } from '../ui/Fold.js'
-import { SendIcon } from '../ui/icons.js'
 import { AskPanel } from './AskPanel.js'
 import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
 import { encoded, sentLine } from './ChatComposer.js'
@@ -203,14 +202,12 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         rows={ask === null ? 2 : 1}
         onText={setText}
         onFiles={setFiles}
-        send={
-          <button type="submit" className="chat__icon chat__send" disabled={off} aria-busy={sending ? true : undefined} aria-label={t.session.chat.send}>
-            <SendIcon />
-          </button>
-        }
+        sendOff={off}
+        busy={sending}
+        reason={locked ?? (sending ? t.session.chat.sending : null)}
       />
       {parts.status}
-      {failure ? <p role="alert" className="notice notice--error">{say(failure)}</p> : <p className="chat__hint">{locked}</p>}
+      {failure && <p role="alert" className="notice notice--error">{say(failure)}</p>}
       </form>
     </>
   )

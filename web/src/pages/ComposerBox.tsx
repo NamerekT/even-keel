@@ -16,22 +16,33 @@ interface BoxProps {
   rows: number
   onText: (text: string) => void
   onFiles: (change: (now: File[]) => File[]) => void
-  /** The send button, with its tip. */
-  send: ReactNode
+  sendOff: boolean
+  busy?: boolean
+  reason?: string | null
+  sendTip?: string
   /** `false` — no slash button and no commands menu (a project chat). */
   commands?: boolean
 }
 
 /** The field of a chat with its files, attach and command buttons and the send button: the same in an open and a shut chat. */
-export function ComposerBox({ command, text, files, sending, rows, onText, onFiles, send, commands = true }: BoxProps) {
+export function ComposerBox({ command, text, files, sending, rows, onText, onFiles, sendOff, busy, reason, sendTip, commands = true }: BoxProps) {
   const coarsePointer = useCoarsePointer()
+  const tip = reason ?? sendTip
   // A command goes only at the start of the message, so the button inserts one into an empty field only.
   const slashFree = text.trim() === '' && !sending
   const attach = (more: File[]) => {
     if (!sending) onFiles((now) => [...now, ...more])
   }
   return (
-    <div className="chat__box">
+    <div
+      className="chat__box"
+      onMouseDown={(event) => {
+        // Keep a tap on a composer control on target while a mobile draft would fold on blur.
+        if (event.target instanceof Element && event.target.closest('button, label') && event.currentTarget.querySelector('.chat__text:focus')) {
+          event.preventDefault()
+        }
+      }}
+    >
       {files.length > 0 && (
         <ul className="chat__files">
           {files.map((file, index) => (
@@ -88,7 +99,7 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
           rows={rows}
           value={text}
           disabled={sending}
-          placeholder={t.session.chat.placeholder}
+          placeholder={reason ?? t.session.chat.placeholder}
           onChange={onText}
           onPaste={(event) => {
             // Text goes into the field as usual; a picture or files copied in Explorer go into the list.
@@ -101,7 +112,18 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
             event.currentTarget.form?.requestSubmit()
           }}
         />
-        {send}
+        <Tipped inline tip={tip ?? ''} off={!tip}>
+          <button
+            type="submit"
+            className="chat__icon chat__send"
+            disabled={sendOff && !tip}
+            aria-disabled={sendOff && tip ? true : undefined}
+            aria-busy={busy || undefined}
+            aria-label={t.session.chat.send}
+          >
+            <SendIcon />
+          </button>
+        </Tipped>
       </div>
     </div>
   )
@@ -118,7 +140,7 @@ interface ShutProps {
 
 /**
  * The composer of a transcript window that answers nothing — a session that is not the task's current one, or the
- * task is closed: the field keeps the task's draft and takes more, the send button stays off with the reason under it.
+ * task is closed: the field keeps the task's draft and takes more, and shows why sending is unavailable.
  */
 export function ShutComposer({ owner, sessionId, reason, status }: ShutProps) {
   const command = useRef<CommandTextHandle>(null)
@@ -133,14 +155,10 @@ export function ShutComposer({ owner, sessionId, reason, status }: ShutProps) {
         rows={2}
         onText={setText}
         onFiles={setFiles}
-        send={
-          <button type="submit" className="chat__icon chat__send" disabled aria-label={t.session.chat.send}>
-            <SendIcon />
-          </button>
-        }
+        sendOff
+        reason={reason}
       />
       {status}
-      <p className="chat__hint">{reason}</p>
     </form>
   )
 }

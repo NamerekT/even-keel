@@ -259,6 +259,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 222 | [The change history of a live built-in project](unverified/trackers.md#the-change-history-of-a-live-built-in-project-btn-1112) | projects on the built-in tracker | the journal names the wrong author or lacks a change, or a copied task gets the history summary twice | — |
 | 223 | [Components of a live built-in project](unverified/trackers.md#components-of-a-live-built-in-project-btn-1288) | projects on the built-in tracker that use components | a session creates a component or cannot set one, a deletion moves a running session's tasks, or two lanes edit one area | — |
 | 224 | [Renaming and deleting a live built-in milestone](unverified/trackers.md#renaming-and-deleting-a-live-built-in-milestone-btn-1287) | projects on the built-in tracker whose chain rules name milestones | the chain stops taking a renamed milestone's tasks or takes every milestone, or a deletion moves a running session's task; fix the rule and the order by hand | — |
+| 225 | [The chat window over a phone's keyboard](unverified/page.md#the-chat-window-over-a-phones-keyboard-btn-1347) | anyone typing in a chat on a phone | the window's head goes off the top while the keyboard is open, or the status line stays hidden after it closes; tap outside the field | — |
 
 ### Waiting for the event / not checked by choice
 

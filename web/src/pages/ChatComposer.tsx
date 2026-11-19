@@ -5,7 +5,6 @@ import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand, useHold } from '../live/useCommand.js'
 import { useLive } from '../live/context.js'
-import { SendIcon } from '../ui/icons.js'
 import { FoldPresence } from '../ui/Fold.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AskPanel } from './AskPanel.js'
@@ -14,7 +13,6 @@ import { holdKey, sendAhead, shownAsk } from './composerHold.js'
 import { lockReason } from './composerLock.js'
 import { ComposerBox } from './ComposerBox.js'
 import { useChatDraft, type DraftOwner } from './useChatDraft.js'
-import { ChatMail } from './ChatMail.js'
 import { ColdReplyDialog } from './ColdReplyDialog.js'
 import { coldReply } from './coldReply.js'
 import type { CommandTextHandle } from './CommandText.js'
@@ -25,6 +23,8 @@ const SENT_HOLD_MS = 90_000
 /** What the chat window hands the composer: files dropped anywhere on it. */
 export interface ComposerHandle {
   attach: (files: File[]) => void
+  /** Put a returned letter back into the task session's draft. */
+  replyToMail?: (text: string) => void
 }
 
 interface Props {
@@ -42,8 +42,6 @@ interface Props {
   accepts: boolean
   /** The session's mailbox; `listens` — it takes a message mid-turn, `steers` — straight in, not by the mailbox. */
   mail: SessionMail | undefined
-  /** Messages the working session has queued and not taken yet. */
-  queued: FeedLine[]
   /** Questions the feed holds answers to: their panel is never offered again. */
   answered: ReadonlySet<string>
   /** `steered` — the message goes straight into the working session; called before the server answers, it gives what takes the line back. */
@@ -65,7 +63,7 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, queued, answered, onSent, handing, onRenew, restore, handle, status }: Props) {
+export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, answered, onSent, handing, onRenew, restore, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
   const accept = useCommand()
   const { command: post } = useLive()
@@ -102,7 +100,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   const attach = (more: File[]) => {
     if (!accept.sending) setFiles((now) => [...now, ...more])
   }
-  useImperativeHandle(handle, () => ({ attach }))
+  useImperativeHandle(handle, () => ({ attach, replyToMail: setText }))
   const sent = useHold(holdKey(session), SENT_HOLD_MS)
   // A message to a working session goes straight in when it steers, listed as queued and not held; otherwise it waits
   // in the mailbox, whose list below tells its fate, so nothing is held or echoed.
@@ -116,7 +114,8 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   // A question may be skipped: any answer, words or file is a reply.
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
   const sendOff = disabled || !ready
-  const hint = sent.on ? t.session.chat.sent : (locked ?? (session.lamp === 'error' ? t.session.chat.error : ''))
+  const reason = locked ?? (sending ? t.session.chat.sending : sent.on ? t.session.chat.sent : null)
+  const sendTip = mailing ? t.session.chat.mailbox : steering ? t.session.chat.steers : session.lamp === 'error' ? t.session.chat.error : undefined
 
   const submit = async (renew = false) => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
@@ -169,7 +168,6 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
         {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
       </FoldPresence>
       {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
-      <ChatMail sessionId={session.sessionId} mail={mail?.mail ?? []} queued={queued} onReply={setText} />
       <ComposerBox
         command={command}
         text={text}
@@ -178,28 +176,13 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
         rows={ask === null ? 2 : 1}
         onText={setText}
         onFiles={setFiles}
-        send={
-          <Tipped inline tip={mailing ? t.session.chat.mailbox : t.session.chat.steers} off={!midTurn}>
-            <button
-              type="submit"
-              className="chat__icon chat__send"
-              // Mid-turn the button keeps its pointer events for the tip; the form's submit checks readiness itself.
-              disabled={sendOff && !midTurn}
-              aria-disabled={sendOff && midTurn ? true : undefined}
-              aria-busy={sending ? true : undefined}
-              aria-label={t.session.chat.send}
-            >
-              <SendIcon />
-            </button>
-          </Tipped>
-        }
+        sendOff={sendOff}
+        busy={sending}
+        reason={reason}
+        sendTip={sendTip}
       />
       {status}
-      {failure !== null ? (
-        <p className="notice notice--error">{say(failure)}</p>
-      ) : (
-        hint !== '' && <p className="chat__hint">{hint}</p>
-      )}
+      {failure !== null && <p role="alert" className="notice notice--error">{say(failure)}</p>}
       {accepts && !sent.on && (
         <div className="chat__hint chat__hint--fix">
           <p>{t.session.acceptHint}</p>
