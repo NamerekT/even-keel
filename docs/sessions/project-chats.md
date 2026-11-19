@@ -27,6 +27,10 @@ The page's calls are `POST /api/chats/<name>` (`src/chats/routes.ts`): `list` (t
 - An archived chat is only read: a message to it is refused (`chats.archived`); going on is a new chat. The chat a new session replaces goes to the archive with its successor (BTN-1232, exception 12).
 - A restart loses nothing: the active chats are read back from the database, and their sessions are found again by name as the chain's are.
 
+## The page
+
+The Chats tab of the project page (BTN-1231) polls `list` every 4 s while the page is open, for its list and its badge; `archive` is asked per search and page, `create` from the "New session" window, `send` and `read` from the chat's window. A chat's window is the session's transcript window with the chat's field, without the commands menu; one without a session yet shows an empty feed. How it looks is in `docs/web/project-page.md` ("The Chats tab").
+
 ## Not covered
 
 Uncommitted changes a chat leaves in the main checkout hold up a chain task's merge the way a hand session's do from an editor: no guard of its own.

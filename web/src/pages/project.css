@@ -229,8 +229,15 @@
     margin-top: -8px;
   }
 
+  /* The panels' tabs span the phone's width, each segment an equal share. */
   .project__head .project__tools {
+    flex-basis: 100%;
     margin-left: 0;
+  }
+
+  .project__head .project__tools > * {
+    flex: 1;
+    justify-content: center;
   }
 
   /* Level by their tops: the chain's strip hangs below the line's other blocks. */
@@ -510,6 +517,11 @@
 .side-tab--wide {
   flex: 1;
   font-size: var(--text-15);
+}
+
+/* Settings over the side column: an icon, its name in the tip. */
+.side-tab--icon {
+  padding: 0 14px;
 }
 
 .side-tab .icon {

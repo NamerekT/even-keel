@@ -7,7 +7,7 @@ import { GearIcon, WaitingContents } from '../layout/Status.js'
 import { useLive } from '../live/context.js'
 import { isClosedLamp, type ChainBlock } from '../state.js'
 import { CacheRing } from '../ui/BlockMetrics.js'
-import { ChangelogIcon, HandoffIcon, KeyIcon, LockIcon, RefreshIcon, SlidersIcon, StackIcon } from '../ui/icons.js'
+import { ChangelogIcon, ChatIcon, HandoffIcon, KeyIcon, LockIcon, RefreshIcon, SlidersIcon, StackIcon } from '../ui/icons.js'
 import { estimateShare, isRework, railsOf } from '../ui/look.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
@@ -55,7 +55,8 @@ export function TabSigns({ ci, narrow }: { ci: boolean; narrow: boolean }) {
   return <>
     {ci && <Sign sample={<span className="ci--success"><span className="ci-dot" /></span>}>{t.help.signs.ci}</Sign>}
     <Sign sample={narrow ? <StackIcon /> : <span className="side-tabs"><span className="side-tab"><StackIcon />{t.project.backlog(3)}</span></span>} wide={!narrow}>{t.help.signs.backlog}</Sign>
-    <Sign sample={narrow ? <SlidersIcon /> : <span className="side-tabs"><span className="side-tab"><SlidersIcon />{t.header.settings}</span></span>} wide={!narrow}>{t.help.signs.settings}</Sign>
+    <Sign sample={narrow ? <ChatIcon /> : <span className="side-tabs"><span className="side-tab"><ChatIcon />{t.chats.tab}</span></span>} wide={!narrow}>{t.help.signs.chats}</Sign>
+    <Sign sample={narrow ? <SlidersIcon /> : <span className="side-tab side-tab--icon"><SlidersIcon /></span>}>{t.help.signs.settings}</Sign>
     <Sign sample={<span className="side-tab side-tab--help">?</span>}>{t.help.signs.help}</Sign>
   </>
 }

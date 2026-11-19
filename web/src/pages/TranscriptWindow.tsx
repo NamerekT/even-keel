@@ -1,5 +1,5 @@
 import { FoldBody, FoldToggle } from '../ui/Fold.js'
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { ReviewView } from '../../../src/chain/dispatcher.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
@@ -26,7 +26,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
 import { ShutComposer, type DraftOwner } from './ComposerBox.js'
-import { ChatStatus, useStatusFacts } from './ChatStatus.js'
+import { ChatStatus, useStatusFacts, type StatusFacts } from './ChatStatus.js'
 import { ChatTaskPanel, useTaskPanelOpen } from './ChatTaskPanel.js'
 import { answeredAsks } from './composerHold.js'
 import { fileName } from './feedLine.js'
@@ -84,8 +84,19 @@ export interface WindowTask {
   parent?: boolean
 }
 
+/** What a foot of the window's own gets (a project chat, BTN-1231). */
+export interface WindowFoot {
+  status: ReactNode
+  handle: Ref<ComposerHandle>
+  /** Questions the feed holds answers to: their panel is never offered again. */
+  answered: ReadonlySet<string>
+  /** Shows a sent message in the feed until the transcript has it; gives what takes it back. */
+  onSent: (line: FeedLine) => () => void
+}
+
 interface Props {
-  sessionId: string
+  /** `null` — a project chat before its first message: no session to read yet. */
+  sessionId: string | null
   account: string | null
   /** The session still runs: new lines are fetched every few seconds. */
   live: boolean
@@ -98,6 +109,12 @@ interface Props {
   /** Opens the full card of a task; with it a chat of a tracker task gets its task panel (BTN-891). */
   onCard?: (task: string) => void
   onClose: () => void
+  /** The bottom of the window instead of the task chat's composer or the shut one. */
+  foot?: (parts: WindowFoot) => ReactNode
+  /** The status line's facts until the session tells its own: a project chat's choice. */
+  known?: Pick<StatusFacts, 'agent' | 'model' | 'effort'>
+  /** Shown over a feed with nothing in it. */
+  blank?: string
 }
 
 /**
@@ -111,8 +128,10 @@ interface SentLine {
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId, account, live, chat, task, onCard, onClose }: Props) {
+export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
+  const sessionId = session ?? ''
+  const shownSession = useRef(sessionId)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
   const listRef = useRef<HTMLDivElement>(null)
@@ -152,11 +171,12 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
       : feedEntries(all.filter((line) => line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id))))
   const edits = editTotals(all ?? [])
   // Files dropped anywhere on the chat window join the composer's list, not only on its small field.
-  const drop = useFileDrop(chat !== undefined, (files) => composerRef.current?.attach(files))
+  const drop = useFileDrop(chat !== undefined || foot !== undefined, (files) => composerRef.current?.attach(files))
   const loader = useLoader(error === null && lines === undefined && handing.shown === null)
   // The list mounts once the loaders have left, so the effects that pin it to its end wait for that too.
   const listed = entries != null && loader === 'done' && handing.phase === 'done'
-  const facts = useStatusFacts(sessionId, account, chat?.session ?? state?.sessions.find((session) => session.sessionId === sessionId) ?? null)
+  const told = useStatusFacts(sessionId, account, chat?.session ?? state?.sessions.find((each) => each.sessionId === sessionId) ?? null)
+  const facts = known === undefined ? told : { ...told, agent: told.agent ?? known.agent, model: told.model ?? known.model, effort: told.effort ?? known.effort }
   const status = <ChatStatus facts={facts} scale={chat?.scale ?? state?.context ?? null} edits={edits} />
   // The task panel at the left of the feed; a fix of main has no card, and on a phone the button opens the full card
   // over the chat, which shows again when it closes.
@@ -184,20 +204,27 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
     dialogRef.current?.showModal()
   }, [])
 
-  // A handoff keeps the window open and swaps only its feed for the new session's.
+  // A handoff keeps the window open and swaps only its feed for the new session's. A project chat's first session keeps
+  // the message that started it on view until its transcript has it.
   useEffect(() => {
+    const first = shownSession.current === ''
+    shownSession.current = sessionId
     count.current = 0
     pinned.current = true
     setLines(undefined)
     setReadFor(null)
     setTurn(null)
-    setSent([])
+    if (!first) setSent([])
     setViewing(null)
   }, [sessionId])
 
   // Delivering an answer stops the session for a while: the lines read so far stay, reading goes on from them.
   // A live transcript is read when the service says its file changed; the poll only covers a missed word.
   useEffect(() => {
+    if (sessionId === '') {
+      setLines([])
+      return
+    }
     let alive = true
     let timer: ReturnType<typeof setTimeout> | undefined
     let reading = false
@@ -355,7 +382,22 @@ export function TranscriptWindow({ sessionId, account, live, chat, task, onCard,
               </ol>
             </div>
           )}
-          {chat === undefined ? (
+          {blank !== undefined && entries?.length === 0 && loader === 'done' && <p className="placeholder transcript__blank">{blank}</p>}
+          {foot !== undefined ? (
+            <div className="transcript__foot">
+              {foot({
+                status,
+                handle: composerRef,
+                answered,
+                onSent: (line) => {
+                  pinned.current = true
+                  const entry = { line, after: lines?.length ?? 0, steered: false }
+                  setSent((now) => [...now, entry])
+                  return () => setSent((now) => now.filter((each) => each !== entry))
+                },
+              })}
+            </div>
+          ) : chat === undefined ? (
             <div className="transcript__foot">
               {owner === null ? (
                 status
@@ -520,13 +562,15 @@ function TaskToggle({ open, narrow, onToggle }: { open: boolean; narrow: boolean
 /** The window's title cut to one line: the full one and the session's id in the tip, a press copies the id. */
 function WindowTitle({ sessionId, title }: { sessionId: string; title: string }) {
   const [copied, setCopied] = useState(false)
-  const tip = [title, t.session.chat.head.session(sessionId), copied ? t.session.chat.head.copied : t.session.chat.head.copy]
+  const tip = sessionId === '' ? [title] : [title, t.session.chat.head.session(sessionId), copied ? t.session.chat.head.copied : t.session.chat.head.copy]
   return (
     <Tipped inline align="start" className="transcript__title-tip" tip={tip.map((line) => <span key={line} className="transcript__tip-line">{line}</span>)}>
       <button
         type="button"
         className="panel__title transcript__title"
-        onClick={() => void navigator.clipboard?.writeText(sessionId).then(() => setCopied(true), () => {})}
+        onClick={() => {
+          if (sessionId !== '') void navigator.clipboard?.writeText(sessionId).then(() => setCopied(true), () => {})
+        }}
         onBlur={() => setCopied(false)}
       >
         {title}

@@ -7,6 +7,7 @@ import { sharedEn } from './shared-en.js'
 import { helpEn } from './help-en.js'
 import { sessionEn } from './session-en.js'
 import { ciEn, ciKindsEn } from './ci-en.js'
+import { chatsEn } from './chats-en.js'
 import { badgeEn } from './badge-en.js'
 import { profilesEn } from './profiles-en.js'
 import { demoEn } from './demo-en.js'
@@ -337,6 +338,7 @@ export const en: Messages = {
     count: counted('question', 'questions'),
   },
   ci: ciEn,
+  chats: chatsEn,
   badge: badgeEn,
   cache: {
     ttl: { '5m': '5 min', '30m': '30 min', '1h': '1 h' },

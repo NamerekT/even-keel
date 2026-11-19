@@ -40,6 +40,7 @@ import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
+import { fakeChats } from './fakeChats.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
@@ -800,6 +801,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('milestones') === 'saved' && current.state !== null) current.state = withSavedMilestoneOrder(current.state, { project: 'ABC', order: ['v0.3 — служба', 'v0.1 — каркас'] })
   if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(prepareHeaderLevels(current.state, params.get('header'))))
   const network = new FakeNetwork(params.get('machines'), (project) => current.state?.config.projects[project]?.repo ?? '')
+  const chats = fakeChats(params.get('chats'))
   const notify = () => {
     if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(current.state))
     for (const listener of listeners) listener()
@@ -864,6 +866,7 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       if (name === 'machines/takeOver' && params.get('chain') === 'folderTakenGone') throw fail('machines.notTaken', {})
+      if (chats.command(name, body)) return
       if (network.command(name, body)) {
         // A colour or the own machine's capacity is the state's too: the chain's tags and the shared settings (BTN-1272).
         if (name === 'machines/color' && state.machineNames !== undefined) current = { ...current, state: { ...state, machineColors: network.colorsOf(state.machineNames) } }
@@ -920,7 +923,8 @@ export function createFakeSource(search: string): LiveSource {
     },
     session: async (sessionId) => {
       await answer()
-      return current.state === null ? null : fakeRecord(current.state, sessionId)
+      // A project chat's session has no task record: its window names the chat's own account and model.
+      return current.state === null || sessionId.includes('-chat-') || sessionId.includes('-archived-') ? null : fakeRecord(current.state, sessionId)
     },
     transcript: async (sessionId, after) => {
       await answer()
@@ -987,6 +991,8 @@ export function createFakeSource(search: string): LiveSource {
         if (page === undefined) throw fail('machines.unknown', {})
         return page as T
       }
+      const chat = chats.query(current.state, name, body)
+      if (chat !== undefined) return chat as T
       const machines = network.query(name, body)
       if (machines !== undefined) return machines as T
       if (name === 'machines/addresses') {

@@ -28,10 +28,12 @@ interface BoxProps {
   onFiles: (change: (now: File[]) => File[]) => void
   /** The send button, with its tip. */
   send: ReactNode
+  /** `false` — no slash button and no commands menu (a project chat). */
+  commands?: boolean
 }
 
 /** The field of a chat with its files, attach and command buttons and the send button: the same in an open and a shut chat. */
-export function ComposerBox({ command, text, files, sending, rows, onText, onFiles, send }: BoxProps) {
+export function ComposerBox({ command, text, files, sending, rows, onText, onFiles, send, commands = true }: BoxProps) {
   const coarsePointer = useCoarsePointer()
   // A command goes only at the start of the message, so the button inserts one into an empty field only.
   const slashFree = text.trim() === '' && !sending
@@ -75,21 +77,24 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
           </label>
         </Tipped>
         {/* A field already starting with a command keeps the plain tip: the press that put it there leaves the tip open. */}
-        <Tipped inline align="start" tip={slashFree || text.startsWith('/') ? t.session.chat.slash : t.session.chat.slashTaken}>
-          <button
-            type="button"
-            className="chat__icon chat__slash"
-            aria-label={t.session.chat.slash}
-            aria-disabled={slashFree ? undefined : true}
-            onClick={() => {
-              if (slashFree) command.current?.startCommand()
-            }}
-          >
-            <SlashIcon />
-          </button>
-        </Tipped>
+        {commands && (
+          <Tipped inline align="start" tip={slashFree || text.startsWith('/') ? t.session.chat.slash : t.session.chat.slashTaken}>
+            <button
+              type="button"
+              className="chat__icon chat__slash"
+              aria-label={t.session.chat.slash}
+              aria-disabled={slashFree ? undefined : true}
+              onClick={() => {
+                if (slashFree) command.current?.startCommand()
+              }}
+            >
+              <SlashIcon />
+            </button>
+          </Tipped>
+        )}
         <CommandText
           handle={command}
+          commands={commands}
           rows={rows}
           value={text}
           disabled={sending}

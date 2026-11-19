@@ -128,6 +128,13 @@ On a phone or tablet, Enter starts a new line: use the buttons to send or go to 
 
 Besides the sessions of tasks, a project has chats of its own: a session without a task, to talk about the project, ask a question about its code or plan the next tasks. A chat runs in the project's main folder on the machine that has it, with everything a session you start there by hand has: the folder's settings and MCP servers and the account's plugins. Nothing of the chain's set applies to it.
 
+The chats are the **Chats** tab of the project page, between Backlog and Settings (Settings is the gear icon there). Its badge is amber with the number of chats waiting for you — a question or a permission — and blue with the number of answers you have not opened yet. On a phone the tabs take the first row under the project's name, and the tab opens over the whole screen.
+
+- **Active** lists the chats, those waiting for you first, then by their last event. A card shows the agent's icon in the chat's colour (blue — working, amber — waiting for you, green — answered, grey — the cache went cold, red — a limit or an error), the title, the account, the model and effort, how full the context is and the last message.
+- **Archive** lists the older chats, with a search over titles and messages, twenty to a page.
+- **New session** opens a window with the accounts by agent and their 5-hour and weekly limits; the account the project's chain runs on is tagged "chain", and one at its limit cannot be picked until its reset. Below are the model and the effort. **Start chat** opens an empty chat: the session starts with your first message.
+- A chat opens in the same window as a task's session, without the commands menu.
+
 - You choose the account, the model and the effort when you create a chat, and they stay until the chat ends. Even Keel offers your last choice in that project for the next chat.
 - A new chat starts no session until you send the first message.
 - A chat goes to the archive a day after its last message or its session's last action, whatever it is doing then, and its session is stopped. Hiding a chat archives it too; nothing is deleted, and the transcript stays on disk.

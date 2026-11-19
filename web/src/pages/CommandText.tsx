@@ -14,6 +14,8 @@ interface Props {
   /** Keys the commands menu did not take. */
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   handle?: Ref<CommandTextHandle>
+  /** `false` — a chat with no commands (a project chat): no menu, no command colouring. */
+  commands?: boolean
 }
 
 /** What the composer's slash button calls: an empty field gets a `/` and the commands menu opens. */
@@ -32,7 +34,7 @@ interface Spot {
  * the field, and a command there is drawn as one coloured piece with what may follow it muted. The colour comes from a
  * copy of the text behind the field, whose own text goes transparent while a command is in it.
  */
-export function CommandText({ value, onChange, rows, disabled, placeholder, onPaste, onKeyDown, handle }: Props) {
+export function CommandText({ value, onChange, rows, disabled, placeholder, onPaste, onKeyDown, handle, commands = true }: Props) {
   const field = useRef<HTMLDivElement>(null)
   const area = useRef<HTMLTextAreaElement>(null)
   const mirror = useRef<HTMLDivElement>(null)
@@ -45,12 +47,12 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
   const [pointed, setPointed] = useState<{ name: string; top: number } | null>(null)
   const [tokenSpot, setTokenSpot] = useState<Spot | null>(null)
 
-  const query = menuQuery(value)
+  const query = commands ? menuQuery(value) : null
   const options = query === null ? [] : matchingCommands(query)
   const open = focused && !disabled && options.length > 0 && dismissed !== value
   const chosen = Math.min(active, options.length - 1)
-  const typed = commandIn(value)
-  const ghost = ghostOf(value, language)
+  const typed = commands ? commandIn(value) : null
+  const ghost = commands ? ghostOf(value, language) : null
 
   useLayoutEffect(() => {
     if (caret.current === null || area.current === null) return

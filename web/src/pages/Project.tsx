@@ -49,6 +49,8 @@ import { chainWaits, type ChainWait } from '../waits.js'
 import type { ChainStatus } from '../state.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList, type Adding } from './ChainList.js'
+import { CHATS_HASH, ChatsChip, ChatsPanel } from './ChatsPanel.js'
+import { useProjectChats } from './useProjectChats.js'
 import { FeedSwitch } from './FeedSwitch.js'
 import { chainCalls, parentBlocks, parentsTo, parentView } from '../parents.js'
 import { BUILTIN } from '../../../src/builtin/model.js'
@@ -150,6 +152,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const builtin = state.trackers.some((view) => view.kind === BUILTIN && view.projects.includes(key))
   const ownTasks = projectTasks(state, key)
   const milestones = useProjectMilestones(key, builtin, ownTasks.map((task) => task.milestone?.label ?? '').join('\u0000'))
+  const chats = useProjectChats(key)
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
   const adding: Adding | null = !builtin
     ? null
@@ -174,7 +177,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const ciAt = ciFocus(focus)
   const ciOpen = ciAt.open && ci !== undefined
   const helpOpen = focus === HELP_HASH
-  const side = selected !== undefined || backlogOpen || settingsOpen || ciOpen || helpOpen
+  const chatsOpen = focus === CHATS_HASH
+  const side = selected !== undefined || backlogOpen || chatsOpen || settingsOpen || ciOpen || helpOpen
   const column = side || wide
   // Over the side column the CI badge, Backlog, Settings and the help are tabs on its card; with no column they end the
   // head row, and on a narrow screen they are one block of segments at the end of the title row.
@@ -192,6 +196,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         work={Object.keys(backlogWorks).length > 0}
         onToggle={toggle(BACKLOG_HASH, backlogOpen)}
       />
+      <ChatsChip chats={chats.chats} open={chatsOpen} look={look} onToggle={toggle(CHATS_HASH, chatsOpen)} />
       {settings !== undefined && <SettingsChip open={settingsOpen} look={look} dirty={settingsDirty} onToggle={toggle(SETTINGS_HASH, settingsOpen)} />}
       <HelpChip open={helpOpen} look={look} onToggle={toggle(HELP_HASH, helpOpen)} />
     </>
@@ -200,7 +205,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const toolsChip = <ToolsChip key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />
   // On a narrow screen the switch sits in the head, beside the tools.
   const feedSwitcher = narrow ? undefined : switcher
-  const feedFocus = focus === BACKLOG_HASH || focus === SETTINGS_HASH || helpOpen || ciAt.open ? '' : focus
+  const feedFocus = focus === BACKLOG_HASH || focus === SETTINGS_HASH || chatsOpen || helpOpen || ciAt.open ? '' : focus
   const question = questionPath(state, [key])
   const tracker = state.trackers.find((view) => view.projects.includes(key))
   const links = taskLinks(state.tasks, state.sessions)
@@ -237,9 +242,11 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
           {narrow && toolsChip}
-          {/* On a phone the panels' block, the view switch and the chain's buttons share the line under the title (BTN-1162). */}
+          {/* On a phone the panels' block takes a line of its own under the title, the view switch and the chain's buttons
+              the next one. */}
           {narrow && <span className="project__break" aria-hidden="true" />}
           {narrow && <div className="hblock project__tools">{tools}</div>}
+          {narrow && <span className="project__break" aria-hidden="true" />}
           {narrow && switcher}
           <ChainControls
             state={state}
@@ -334,6 +341,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               changed={state.chain.projects[key]?.changed}
             />
           )}
+          {chatsOpen && <ChatsPanel key={`chats-${key}`} project={key} chats={chats} onClose={close} />}
           {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={projectTasks(state, key)} onClose={close} />}
           {ciOpen && (
             <CiPanel

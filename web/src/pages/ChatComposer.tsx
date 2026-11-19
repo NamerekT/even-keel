@@ -218,7 +218,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   )
 }
 
-async function encoded(file: File): Promise<{ name: string; data: string }> {
+export async function encoded(file: File): Promise<{ name: string; data: string }> {
   const url = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
@@ -229,7 +229,7 @@ async function encoded(file: File): Promise<{ name: string; data: string }> {
 }
 
 /** The reply as the transcript will show it, put into the feed before the session reads it. */
-function sentLine(ask: string | null, answers: Record<string, string>, text: string, files: File[]): FeedLine {
+export function sentLine(ask: string | null, answers: Record<string, string>, text: string, files: File[]): FeedLine {
   const given = Object.fromEntries(Object.entries(answers).filter(([, answer]) => answer.trim() !== ''))
   return {
     at: new Date().toISOString(),

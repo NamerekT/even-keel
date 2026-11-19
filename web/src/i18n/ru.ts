@@ -7,6 +7,7 @@ import { sharedRu } from './shared-ru.js'
 import { helpRu } from './help-ru.js'
 import { sessionRu } from './session-ru.js'
 import { ciRu, ciKindsRu } from './ci-ru.js'
+import { chatsRu } from './chats-ru.js'
 import { badgeRu } from './badge-ru.js'
 import { profilesRu } from './profiles-ru.js'
 import { demoRu } from './demo-ru.js'
@@ -342,6 +343,7 @@ export const ru = {
     count: counted('вопрос', 'вопроса', 'вопросов'),
   },
   ci: ciRu,
+  chats: chatsRu,
   badge: badgeRu,
   cache: {
     ttl: { '5m': '5 мин', '30m': '30 мин', '1h': '1 ч' },

@@ -35,6 +35,7 @@ export const helpEn = {
     read: "Reads the project's tasks from the tracker now; it is read every 30 seconds anyway. Its tip says when it was last read; beside it, in amber, only when reading fails or is late.",
     ci: 'The CI on the main branch: green — passed, blue — running, red — failed, amber — stuck. Opens its runs.',
     backlog: 'The tasks the chain does not take yet and their count. Opens the backlog.',
+    chats: 'Talks with an agent about the project, outside the chain. The amber number is how many chats wait for you, the blue one how many answers are unread.',
     settings: "The project's settings. They apply at once, with no restart: the project's next session gets them.",
     help: 'Opens this legend. The question count in the project row is a separate control.',
   },

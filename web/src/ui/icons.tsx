@@ -163,6 +163,15 @@ export function StackIcon() {
   )
 }
 
+/** The project's chats: a speech bubble. */
+export function ChatIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3.5 3h9A1.5 1.5 0 0 1 14 4.5v5.5a1.5 1.5 0 0 1-1.5 1.5H7l-3 2.5v-2.5h-.5A1.5 1.5 0 0 1 2 10V4.5A1.5 1.5 0 0 1 3.5 3Z" />
+    </svg>
+  )
+}
+
 /** Settings: two sliders. */
 export function SlidersIcon() {
   return (

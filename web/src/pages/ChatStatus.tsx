@@ -36,7 +36,8 @@ export function useStatusFacts(sessionId: string, account: string | null, listed
   const [record, setRecord] = useState<SessionRecord | null>(null)
   const known = listed !== null
   useEffect(() => {
-    if (known) return
+    // A project chat before its first message has no session yet (BTN-1231).
+    if (known || sessionId === '') return
     let alive = true
     session(sessionId).then(
       (found) => alive && setRecord(found),
