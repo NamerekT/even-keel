@@ -1,11 +1,11 @@
 import type { ContextScale } from '../../../src/state.js'
 import type { SessionCheckpoint } from '../../../src/stats/checkpoint.js'
-import type { ContextLevel } from '../state.js'
+import { contextFill, type ContextLevel } from '../state.js'
 
 /** What the chat's context ring and its popover show. */
 export interface RingFacts {
   tokens: number
-  /** The session's window, or the setting's while it gave none; `null` — unknown. */
+  /** The window reported for the session. */
   window: number | null
   /** How full the window is; `null` while the window is unknown. */
   percent: number | null
@@ -14,12 +14,9 @@ export interface RingFacts {
   mark: number | null
 }
 
-export function ringFacts(tokens: number, own: number | null, scale: ContextScale | null, checkpoint: number | null): RingFacts {
-  const window = own ?? scale?.window ?? null
-  if (window === null || window <= 0) return { tokens, window: null, percent: null, level: 'ok', mark: null }
-  const percent = Math.min(100, (tokens / window) * 100)
-  const level = scale === null ? 'ok' : percent >= scale.danger ? 'danger' : percent >= scale.warn ? 'warn' : 'ok'
-  const mark = checkpoint !== null && checkpoint < window ? (checkpoint / window) * 100 : null
+export function ringFacts(tokens: number, window: number | null, scale: ContextScale | null, checkpoint: number | null): RingFacts {
+  const { percent, level } = contextFill(tokens, scale, window)
+  const mark = percent !== null && window !== null && checkpoint !== null && checkpoint < window ? (checkpoint / window) * 100 : null
   return { tokens, window, percent, level, mark }
 }
 

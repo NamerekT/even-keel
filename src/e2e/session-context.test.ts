@@ -24,7 +24,11 @@ describe('a finished session context window', { timeout: 60_000 }, () => {
     const sessions = run.agent.sessions.bind(run.agent)
     vi.spyOn(run.agent, 'sessions').mockImplementation(async (home) =>
       (await sessions(home)).map((entry) => ({ ...entry, model: 'opus' })))
-    const probe = vi.fn(async () => 250_000)
+    const windowReady = new Gate()
+    const probe = vi.fn(async () => {
+      await windowReady.passed
+      return 250_000
+    })
     Object.assign(run.agent, { contextWindow: probe })
     const summary = new TranscriptFold().summary()
     vi.spyOn(run.agent as Agent, 'record').mockImplementation(async (_home, sessionId) => ({
@@ -33,13 +37,21 @@ describe('a finished session context window', { timeout: 60_000 }, () => {
     }))
     await run.start()
     await run.startChain(PROJECT_ID)
-    await run.until(() => run.service.sessions.some((view) => view.contextWindow === 250_000), 'the session window observed')
+    await run.until(() => run.service.sessions.some((view) => view.task === 'ABC-1'), 'the session visible')
     const sessionId = run.agent.sessionsOf('ABC-1')[0]!.sessionId
+    const { host, port } = run.service.listen
+    const checkpoint = () => fetch(`http://${host}:${port}/api/sessions/${sessionId}/checkpoint`).then((response) => response.json())
+    try {
+      expect(await checkpoint()).toMatchObject({ first: 200_000, late: null, hard: null })
+    } finally {
+      windowReady.open()
+    }
+    await run.until(() => run.service.sessions.some((view) => view.contextWindow === 250_000), 'the session window observed')
+    expect(await checkpoint()).toMatchObject({ first: 180_000, late: 188_000, hard: 203_000 })
     gate.open()
     await run.until(() => run.board.status('ABC-1') === 'Done', 'the task done')
     await run.until(() => run.agent.isGone(sessionId), 'the session finished')
     const probes = probe.mock.calls.length
-    const { host, port } = run.service.listen
     const response = await fetch(`http://${host}:${port}/api/sessions/${sessionId}`)
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ contextTokens: 212_000, contextWindow: 250_000 })

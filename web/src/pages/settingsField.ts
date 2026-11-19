@@ -30,7 +30,6 @@ const SHARED: Partial<Record<Notice['code'], string>> = {
   'config.codexAutoCompactWindow': 'codexAutoCompactWindow',
   'config.openCodeAutoCompactWindow': 'openCodeAutoCompactWindow',
   'config.allowedHosts': 'allowedHosts',
-  'config.contextWindow': 'context',
   'config.contextPercents': 'context',
   'config.compareKey': 'stats',
   'config.compareValue': 'stats',

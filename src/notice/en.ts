@@ -805,7 +805,6 @@ export const en = {
   'config.tokenShape': () => 'config: EVEN_KEEL_TOKEN must be 16+ characters of A-Z a-z 0-9 . _ ~ + / = -',
   'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>
     `config: modelPrompts.${p.model} has the substitution ${p.placeholder}, but a model prompt is passed on as it is`,
-  'config.contextWindow': (p: { value: string }) => `config: context.window must be a positive integer of tokens, got ${p.value}`,
   'config.contextPercents': () => 'config: context.warn and context.danger must be percents with 0 < warn < danger <= 100',
   'config.compareKey': (p: { key: string }) => `config: stats.compare.${p.key} is not a comparison setting`,
   'config.compareValue': (p: { key: string; limit: number; value: string }) =>

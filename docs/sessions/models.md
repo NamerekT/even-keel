@@ -46,14 +46,14 @@ If OpenCode still reports `is not supported when using Codex with a ChatGPT acco
 
 ## Context window (BTN-187)
 
-A session's context bar and the cap of its checkpoint threshold measure against the window its agent gives (`SessionView.contextWindow`); the `context.window` setting only stands in while there is none. `warn` and `danger` stay settings.
+A session's context bar and the cap of its checkpoint threshold measure against the window its agent gives (`SessionView.contextWindow`). Until a window is known, the ring and bar show tokens alone, the badge omits the percentage, and the checkpoint uses its token threshold without window shares. `context.warn` and `context.danger` set the thresholds for the bar once the window is known.
 
 Finished session records keep their own window when present. Otherwise `sessionRecord` uses the last non-null
 window `SessionMonitor` observed for that session, without a new CLI probe. The monitor retains up to 2000 sessions
 (`SESSION_WINDOWS_KEPT`) in first-observed order and never drops one the page still shows; repeated observations
 update the value without renewing its place. The new and changed values of a poll are written behind in one batch
 into the state database's `session_windows` and read back at the start (BTN-946), so a restart keeps them; a
-session older than the newest 2000 falls back to `context.window`. An unchanged poll writes nothing: with a
+session whose window has been evicted uses the token count alone unless its record contains a window. An unchanged poll writes nothing: with a
 smaller memory than the sessions shown, every poll rewrote all of them (BTN-951).
 
 `autoCompactWindow` sets a separate window in tokens for Claude chain sessions, shared and per project (project wins).

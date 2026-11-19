@@ -44,7 +44,6 @@ export const valuesOf = (form: SharedForm): Values => ({
   backupKeep: String(form.backup.keep),
   allowedHosts: form.allowedHosts.join('\n'),
   machinesAddress: form.machinesAddress ?? '',
-  window: String(form.context.window),
   warn: String(form.context.warn),
   danger: String(form.context.danger),
   minTasks: String(form.stats.compare.minTasks),
@@ -78,9 +77,7 @@ export function formOf(values: Values): SharedForm | undefined {
   const text = (key: string) => values[key] as string
   const protection = protectionOf(text('protection'))
   if (protection === undefined) return undefined
-  const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days', 'keepWarm', 'attachmentLimit', 'backupKeep'].map((key) =>
-    key === 'window' ? (countFrom(text(key), 0) ?? undefined) : wholeOf(text(key), 0),
-  )
+  const numbers = ['parallel', 'minTasks', 'minSessions', 'days', 'keepWarm', 'attachmentLimit', 'backupKeep'].map((key) => wholeOf(text(key), 0))
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
   const checkpointTokens = countFrom(text('checkpointTokens'), 0)
   const autoCompactWindow = countFrom(text('autoCompactWindow'), 1)
@@ -88,7 +85,7 @@ export function formOf(values: Values): SharedForm | undefined {
   const openCodeAutoCompactWindow = countFrom(text('openCodeAutoCompactWindow'), 1)
   if (autoCompactWindow === undefined || codexAutoCompactWindow === undefined || openCodeAutoCompactWindow === undefined) return undefined
   const waitMinutes = minutesOf(text('wait'))
-  const [parallel, window, minTasks, minSessions, days, keepWarm, attachmentLimit, backupKeep] = numbers
+  const [parallel, minTasks, minSessions, days, keepWarm, attachmentLimit, backupKeep] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
   const checkpointShares = sharesOf(values)
   if (numbers.includes(undefined) || warn === undefined || danger === undefined || otherBelow === undefined || checkpointTokens === undefined || waitMinutes === undefined) return undefined
@@ -124,7 +121,7 @@ export function formOf(values: Values): SharedForm | undefined {
     switchOnLimit: values.switchOnLimit as boolean,
     allowedHosts: linesOf(text('allowedHosts')),
     machinesAddress: text('machinesAddress').trim() === '' ? null : text('machinesAddress').trim(),
-    context: { window: window!, warn, danger },
+    context: { warn, danger },
     stats: {
       compare: { minTasks: minTasks!, minSessions: minSessions!, days: days! },
       moves: Object.fromEntries(moves),

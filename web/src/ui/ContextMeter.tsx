@@ -12,11 +12,18 @@ interface ContextMeterProps {
   brief?: boolean
 }
 
-/** `window` is the session's own context window; `null` — the setting's stands in. */
 export function ContextMeter({ tokens, window, scale, full = false, brief = false }: ContextMeterProps) {
   const { percent, level } = contextFill(tokens, scale, window)
+  if (window === null || percent === null) {
+    return (
+      <div className="context-meter">
+        <span className="context-meter__track context-meter__track--unknown" aria-hidden="true" />
+        <span className="context-meter__value">{formatTokens(tokens)}</span>
+      </div>
+    )
+  }
   const value = full
-    ? t.context.of(formatTokens(tokens), formatTokens(window ?? scale.window), Math.round(percent))
+    ? t.context.of(formatTokens(tokens), formatTokens(window), Math.round(percent))
     : brief
       ? `${Math.round(percent)}%`
       : `${Math.round(percent)}% · ${formatTokens(tokens)}`

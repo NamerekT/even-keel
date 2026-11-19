@@ -213,10 +213,10 @@ function AccountNow({ account, entry }: { account: AccountView; entry: AccountEn
   return <AccountCard account={account} entry={entry} now={now} />
 }
 
-/** "147k of 285k · 52%", or the tokens and "window size unknown". */
+/** "147k of 285k · 52%", or the tokens alone. */
 function ringFigures(ring: RingFacts): string {
   if (ring.window === null || ring.percent === null) {
-    return ring.tokens > 0 ? `${formatTokens(ring.tokens)} · ${t.session.chat.head.unknownWindow}` : t.session.chat.head.unknownWindow
+    return formatTokens(ring.tokens)
   }
   return t.context.of(formatTokens(ring.tokens), formatTokens(ring.window), Math.round(ring.percent))
 }

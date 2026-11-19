@@ -195,19 +195,13 @@ const update = (key: 'check' | 'notify'): SettingDefinition => ({
   check: boolean(`updates.${key}`),
 })
 
-const context = (key: 'window' | 'warn' | 'danger'): SettingDefinition => ({
+const context = (key: 'warn' | 'danger'): SettingDefinition => ({
   key: `context.${key}`,
-  kind: key === 'window' ? 'integer' : 'number',
+  kind: 'number',
   scopes: ['global'],
   lands: ['context'],
   default: DEFAULT_CONTEXT[key],
-  check:
-    key === 'window'
-      ? (value) => {
-          if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) throw fail('config.contextWindow', { value: String(value) })
-          return value
-        }
-      : percent,
+  check: percent,
 })
 
 /** Every setting of Even Keel, in the order of the file. Project record fields (`id`, `key`, `name`, `repo`, `branch`, the tracker's project) are not here. */
@@ -357,7 +351,6 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (value !== null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)) throw fail('config.openCodeAutoCompactWindow', { value: json(value) })
     return value
   } },
-  context('window'),
   context('warn'),
   context('danger'),
   compare('minTasks'),

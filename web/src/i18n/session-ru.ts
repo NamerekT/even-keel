@@ -247,7 +247,6 @@ export const sessionRu = {
       effort: 'Его усилие',
       ring: 'Контекст и лимиты аккаунта',
       account: 'Аккаунт',
-      unknownWindow: 'размер окна неизвестен',
       checkpoint: (tokens: string) => `Передача с ${tokens}`,
     },
     task: {

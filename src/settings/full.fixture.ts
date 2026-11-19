@@ -30,7 +30,7 @@ export const FULL = {
   defaultGit: false,
   setupPassed: ['tracker', 'tracker', 'updates'],
   cliCheck: true,
-  context: { window: 1_000_000, danger: 90 },
+  context: { danger: 90 },
   stats: { compare: { days: 14 }, moves: { 'C:\\old': 'C:\\new' }, otherBelow: 2, checkpointTokens: 150_000, checkpointShares: { first: 70, hard: 90 } },
   updates: { notify: false },
   backup: { dir: ' D:\\backups ', keep: 30 },

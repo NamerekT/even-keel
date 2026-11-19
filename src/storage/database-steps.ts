@@ -843,4 +843,7 @@ export const STEPS: readonly string[] = [
   alter table builtin_milestones add column created_at text;
   update builtin_milestones m set created_at = (select min(h.at) from builtin_history h where h.milestone_id = m.id and h.field = 'created');
   `,
+  // Session context windows come from the agent (BTN-1354).
+  `delete from setting_values where key = 'context.window';
+   delete from setting_definitions where key = 'context.window';`,
 ]

@@ -590,21 +590,15 @@ describe('parseConfig', () => {
     expect(() => parse({})).toThrow(/projects/)
   })
   it('keeps an explicit context scale', () => {
-    const config = parse({ projects: {}, context: { window: 200_000, warn: 60, danger: 85 } })
-    expect(config.context).toEqual({ window: 200_000, warn: 60, danger: 85 })
+    const config = parse({ projects: {}, context: { warn: 60, danger: 85 } })
+    expect(config.context).toEqual({ warn: 60, danger: 85 })
   })
 
   it('fills the missing parts of a context scale', () => {
-    expect(parse({ projects: {}, context: { window: 1_000_000 } }).context).toEqual({
-      window: 1_000_000,
-      warn: 50,
+    expect(parse({ projects: {}, context: { warn: 65 } }).context).toEqual({
+      warn: 65,
       danger: 80,
     })
-  })
-
-  it('rejects a context window that is not a positive integer', () => {
-    expect(() => parse({ projects: {}, context: { window: 0 } })).toThrow(/context.window/)
-    expect(() => parse({ projects: {}, context: { window: 1.5 } })).toThrow(/context.window/)
   })
 
   it('rejects context thresholds outside 0..100 or out of order', () => {

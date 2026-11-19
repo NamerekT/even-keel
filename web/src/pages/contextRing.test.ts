@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { SessionCheckpoint } from '../../../src/stats/checkpoint.js'
 import { checkpointMark, ringFacts } from './contextRing.js'
 
-const scale = { window: 200_000, warn: 70, danger: 90 }
+const scale = { warn: 70, danger: 90 }
 
 describe('ringFacts', () => {
   it('fills by the session’s own window and takes the scale’s thresholds', () => {
@@ -11,8 +11,8 @@ describe('ringFacts', () => {
     expect(ringFacts(240_000, 250_000, scale, null).level).toBe('danger')
   })
 
-  it('falls back to the setting’s window while the session gave none', () => {
-    expect(ringFacts(100_000, null, scale, null)).toMatchObject({ window: 200_000, percent: 50 })
+  it('keeps only the tokens until the agent reports its window', () => {
+    expect(ringFacts(100_000, null, scale, 70_000)).toEqual({ tokens: 100_000, window: null, percent: null, level: 'ok', mark: null })
   })
 
   it('leaves the fill unknown without any window', () => {

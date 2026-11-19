@@ -82,9 +82,8 @@ function taskOf(state: EvenKeelState, project: string, current: Current, on: Set
   if (on.has('model') && session.model !== null) task.model = session.model
   if (on.has('time')) task.startedAt = since
   if (on.has('action') && !limited) task.action = withStatus(actionOf(session), session, inputs)
-  if (on.has('context')) {
-    const window = session.contextWindow ?? state.context.window
-    task.context = window > 0 ? Math.min(100, Math.round((session.contextTokens / window) * 100)) : 0
+  if (on.has('context') && session.contextWindow !== null && session.contextWindow > 0) {
+    task.context = Math.min(100, Math.round((session.contextTokens / session.contextWindow) * 100))
   }
   return task
 }

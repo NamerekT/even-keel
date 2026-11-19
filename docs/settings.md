@@ -91,7 +91,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `backup.keep` | G | — whole checked copies 1–365 the rotation keeps, the copy before schema steps among them | page, hand | 14 |
 | `defaultGit` | G | — the mode the project wizard starts a new project on, the answer to the setup's "Use git?" (BTN-886, `docs/web/setup.md`); `null` — not asked yet: with git where git starts. Never inherited: a project's own `git` is picked in the wizard | the setup's Git step, page, hand | `null` |
 | `setupPassed` | G | — the setup's steps gone past with no setting of their own to tell it (BTN-1023, `PASSABLE_STEPS` in `src/setup.ts`: `git`, `tracker`, `updates`, `stats`): a skip, or the update step left with `updates.check` as it was. Read only by the page, for the line's checks and the step the setup stopped at (`docs/web/setup.md`) | the setup, hand | `[]` |
-| `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions/models.md`) | page, hand | 600000, 50, 80 |
+| `context.warn`, `context.danger` | G | Warning and danger thresholds as percentages of the window reported by the session's agent | page, hand | 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
 | `contextHandoffs` | G, P | P over G; `false` — the `agent-bridge` hook asks for no handoff by context size at all and the agent's own compaction keeps the context, the threshold and the shares unused but kept (BTN-255, `docs/sessions/checkpoint.md`) | page, hand | `true` |
 | `stats.checkpointTokens` | G, P, T | T over P over G (pins the threshold, calibration off; a project's `null` calibrates it) | page, hand, task label | `null` (calibrated per project) |
@@ -175,8 +175,7 @@ entries stay as the reason for the levels.
   Now on both levels; the key stays under `stats`. Turning the handoffs by context off took a pin of 999999 under it
   until BTN-255 gave that its own switch, `contextHandoffs`.
 - `cacheTtl` lacked the project level, `fillMilestone` the shared one. Both now on both levels.
-- `context.window` is a property of the model, not of Even Keel. The window now comes from the agent (`/context` of
-  Claude, the rollout of Codex, `docs/sessions.md`), and the setting is only the fallback.
+- BTN-187 started reading the session's window from its agent. BTN-1354 removed the shared `context.window` fallback from existing settings and config imports. See `docs/sessions/models.md`.
 - `chain.excludedLabels` carried `Manual`/`Вручную` only as its default, and a list is replaced whole: a project, or a
   hand-written shared list, with its own excluded labels silently ran the manual tasks. BTN-187 made the manual labels
   built in (`MANUAL_LABELS`) with an empty default list; BTN-758 took that back: `Вручную` is no longer built in,
@@ -240,8 +239,7 @@ code (`mirrorDefinitions`).
   merge or default on their own — all of them do now: `chain.*`, `ci.*`, `commands.*`, `context.*`, `stats.compare.*`,
   `updates.*`. A list (`kinds`, `hiddenSkills`, the labels, a command list) is one value, replaced whole, as now.
 - **A map whose entries merge across levels gets a qualifier**: `models`, `accounts` and `execution` by provider,
-  a package's switch and variables by package. `context.window` got none: BTN-187 takes the window from the agent and
-  leaves the setting as the fallback. A map with free keys that lives at
+  a package's switch and variables by package. A map with free keys that lives at
   one level only (`modelPrompts`, `stats.moves`) is one `json` value.
 - **No row is inheritance; JSON `null` is a value.** `chain.active: null` (back to the categories over a shared list),
   `ci.waitMinutes: null`, `cacheTtl: null` are rows. Going back to the shared value on the page (the "own" chip) deletes the row; nothing stores "inherit".

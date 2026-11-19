@@ -20,7 +20,7 @@ export const DEFAULT_EXECUTION: Readonly<Record<string, string>> = Object.fromEn
 )
 export const DEFAULT_CLI: Readonly<Record<string, string>> = Object.fromEntries(PINNED_PROVIDERS.map((provider) => [provider, CLI_SOURCES[0]!]))
 export const DEFAULT_LANGUAGE: Language = 'en'
-export const DEFAULT_CONTEXT: Readonly<ContextScale> = { window: 600_000, warn: 50, danger: 80 }
+export const DEFAULT_CONTEXT: Readonly<ContextScale> = { warn: 50, danger: 80 }
 export const DEFAULT_COMPARE: Readonly<CompareSettings> = { minTasks: 5, minSessions: 10, days: 7 }
 export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({
   guard: true,

@@ -663,10 +663,10 @@ function carryTitle(state: Pick<EvenKeelState, 'projectKeys' | 'projectLabels'>,
   return episode.end?.how === 'carried' ? t.chain.carried(label, episode.end.commits ?? 0) : t.chain.carryDropped(label)
 }
 
-/** `window` is the session's own, as its agent gave it; `null` — the setting's `scale.window` stands in. */
-export function contextFill(tokens: number, scale: ContextScale, window: number | null = null): { percent: number; level: ContextLevel } {
-  const percent = Math.min(100, (tokens / (window ?? scale.window)) * 100)
-  const level = percent >= scale.danger ? 'danger' : percent >= scale.warn ? 'warn' : 'ok'
+export function contextFill(tokens: number, scale: ContextScale | null, window: number | null): { percent: number | null; level: ContextLevel } {
+  if (window === null || window <= 0) return { percent: null, level: 'ok' }
+  const percent = Math.min(100, (tokens / window) * 100)
+  const level = scale === null ? 'ok' : percent >= scale.danger ? 'danger' : percent >= scale.warn ? 'warn' : 'ok'
   return { percent, level }
 }
 

@@ -89,7 +89,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), ...Object.values(WINDOW_KEYS), 'cliCheck', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'window', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
+  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun'] },
   // The catalog of packages (BTN-802): each change is sent at once, no draft.
   { id: 'packages', keys: [] },
@@ -184,10 +184,10 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   )
   const tokensNote = (key: string, empty: string) => marks.note(key, (value) => ((value as string).trim() === '' ? empty : tokensShown(value as string)))
   // A number among others of one setting: its name above it.
-  const number = (key: string, label: string, invalid: boolean, disabled = false, tokens = false) => (
+  const number = (key: string, label: string, invalid: boolean, disabled = false) => (
     <div className={marks.box(key)}>
       <FieldHead label={label} htmlFor={fieldId(key)} mark={marks.note(key)} />
-      {tokens ? tokensInput(key, invalid, { disabled }) : numberInput(key, invalid, { disabled })}
+      {numberInput(key, invalid, { disabled })}
     </div>
   )
   const numberRow = (key: string, label: string, invalid: boolean, hint?: string) => (
@@ -489,7 +489,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           <div className="settings__field">
             <FieldHead label={t.shared.context} hint={t.shared.contextHint} />
             <div className="settings__row">
-              {number('window', t.shared.contextWindow, (countFrom(text('window'), 1) ?? undefined) === undefined, false, true)}
               {number('warn', t.shared.contextWarn, amountOf(text('warn')) === undefined)}
               {number('danger', t.shared.contextDanger, amountOf(text('danger')) === undefined)}
             </div>

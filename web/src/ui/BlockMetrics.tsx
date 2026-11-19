@@ -28,29 +28,29 @@ export function ActionMeter({ project, session, sessions, scale, children }: Act
   const { percent, level } = contextFill(session.contextTokens, scale, session.contextWindow)
 
   return (
-    <div className={`block__now block__now--${level}`} style={{ '--fill': `${percent}%` } as CSSProperties}>
+    <div className={`block__now block__now--${percent === null ? 'unknown' : level}`} style={percent === null ? undefined : { '--fill': `${percent}%` } as CSSProperties}>
       {children}
       <div className="block__now-side">
         <Extras project={project} session={session} sessions={sessions} />
-        <Tipped tip={contextTip(session, scale, percent)}>
-          <span
-            className="block__now-value"
-            role="meter"
-            aria-label={t.context.label}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(percent)}
-          >
-            {Math.round(percent)}%
-          </span>
-        </Tipped>
+        {percent === null || session.contextWindow === null ? (
+          <span className="block__now-value" aria-label={`${t.context.label}: ${formatTokens(session.contextTokens)}`}>{formatTokens(session.contextTokens)}</span>
+        ) : (
+          <Tipped tip={t.context.of(formatTokens(session.contextTokens), formatTokens(session.contextWindow), Math.round(percent))}>
+            <span
+              className="block__now-value"
+              role="meter"
+              aria-label={t.context.label}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(percent)}
+            >
+              {Math.round(percent)}%
+            </span>
+          </Tipped>
+        )}
       </div>
     </div>
   )
-}
-
-function contextTip(session: SessionView, scale: ContextScale, percent: number): string {
-  return t.context.of(formatTokens(session.contextTokens), formatTokens(session.contextWindow ?? scale.window), Math.round(percent))
 }
 
 function Extras({ project, session, sessions }: { project: string; session: SessionView; sessions: TaskSession[] }) {

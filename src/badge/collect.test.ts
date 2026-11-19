@@ -30,7 +30,6 @@ function stateWith(overrides: Overrides = {}): EvenKeelState {
     projects: [ABC],
     projectKeys: { [ABC]: 'ABC' },
     config: { projects: { [ABC]: { name: 'Example' } } },
-    context: { window: 200_000 },
     tasks: [
       task('ABC-1', 'Won'),
       task('ABC-2', 'Won'),
@@ -53,7 +52,7 @@ function stateWith(overrides: Overrides = {}): EvenKeelState {
         lamp: overrides.lamp ?? 'working',
         asking: overrides.asking ?? false,
         contextTokens: 50_000,
-        contextWindow: null,
+        contextWindow: 200_000,
         action: null,
         feed: overrides.feed ?? [tool('Edit C:/repo/src/a.ts', { tool: 'Edit', text: 'Edit src/a.ts' }), tool('mcp__x__y secret')],
       },
@@ -86,6 +85,12 @@ describe('badgeStateOf', () => {
       milestone: { name: 'v1', done: 2, left: 2, queued: 2 },
       stats: { sessions: 3, medianCost: 1.5, medianMinutes: 12 },
     })
+  })
+
+  it('omits the context percentage until the session has a window', () => {
+    const state = stateWith()
+    state.sessions[0]!.contextWindow = null
+    expect(badgeStateOf(state, ABC, { now, fields: ['context'], stats: null }).active[0]).not.toHaveProperty('context')
   })
 
   it('takes the latest tool line\'s own badge text', () => {

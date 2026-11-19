@@ -173,7 +173,12 @@ export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): un
   const kept = version < 28 ? manualKept(trusted) : trusted
   const defaulted = version < 36 ? manualDefaultKept(kept) : kept
   const unlabelled = version < 37 ? runLabelsDropped(defaulted) : defaulted
-  return version < 38 ? openCodeModelsSlotted(unlabelled) : unlabelled
+  const slotted = version < 38 ? openCodeModelsSlotted(unlabelled) : unlabelled
+  if (version < 41 && isRecord(slotted) && isRecord(slotted.context) && 'window' in slotted.context) {
+    const { window: _, ...context } = slotted.context
+    return { ...slotted, context }
+  }
+  return slotted
 }
 
 /**

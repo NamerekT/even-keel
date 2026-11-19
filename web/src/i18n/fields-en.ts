@@ -58,7 +58,6 @@ export const fieldsEn = {
   'config.backupDirFile': (p) => `${p.value} is a file: name a folder, or leave empty for the state folder`,
   'config.backupKeep': (p) => `Whole copies from 1 to ${p.max}, not ${p.value}`,
   'config.allowedHosts': () => 'A host name per line',
-  'config.contextWindow': (p) => `A whole number of tokens from 1, not ${p.value}`,
   'config.contextPercents': () => 'Percents with 0 < Warning < Danger ≤ 100',
   'config.compareValue': (p) => `A whole number from 1 to ${p.limit}, not ${p.value}`,
   'config.statsMove': () => 'A moved folder needs both its old and its new path',

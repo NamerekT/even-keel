@@ -38,7 +38,7 @@ Point at a part for its figures: the minutes left in the cache, the tokens, the 
 
 A finished session's context figure uses its recorded window, or the last window the service observed for it.
 
-The service remembers the last 2000 sessions, also across a restart; an older session whose record has no window uses the shared context window setting.
+The service remembers windows for up to 2000 sessions across restarts. If the agent has not reported a window, or an older session's window has expired from this history, the page shows the token count alone.
 
 ## Task cards
 

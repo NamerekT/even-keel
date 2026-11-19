@@ -343,7 +343,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('fillMilestone', 'fillMilestone', form.fillMilestone),
     value('allowedHosts', 'allowedHosts', names(form.allowedHosts).map((name) => name.toLowerCase())),
     value('machinesAddress', 'machinesAddress', form.machinesAddress?.trim().toLowerCase() || undefined),
-    ...(['window', 'warn', 'danger'] as const).map((key) => value('context', `context.${key}`, form.context[key])),
+    ...(['warn', 'danger'] as const).map((key) => value('context', `context.${key}`, form.context[key])),
     ...(['minTasks', 'minSessions', 'days'] as const).map((key) => value('stats', `stats.compare.${key}`, form.stats.compare[key])),
     value('stats', 'stats.moves', form.stats.moves),
     value('stats', 'stats.otherBelow', form.stats.otherBelow),

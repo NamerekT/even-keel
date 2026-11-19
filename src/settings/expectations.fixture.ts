@@ -69,7 +69,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     brief: null,
     briefs: each(() => null),
     settings: each(() => projectDefaults()),
-    context: { window: 600_000, warn: 50, danger: 80 },
+    context: { warn: 50, danger: 80 },
     provider: 'claude',
     models: { claude: 'opus' },
     accounts: { claude: 'global', codex: 'codex' },

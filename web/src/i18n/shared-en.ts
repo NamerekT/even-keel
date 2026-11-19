@@ -130,8 +130,7 @@ export const sharedEn = {
   updatesNotifyHint: 'A notification in the corner of the page. Off — only the mark next to the version in the gear menu.',
   context: 'Context scale',
   contextHint:
-    "The warning and danger thresholds in percent of a session's context window, which its agent gives. The window in tokens stands in until it has.",
-  contextWindow: 'Window',
+    "The warning and danger thresholds in percent of a session's context window, which its agent gives.",
   contextWarn: 'Warning, %',
   contextDanger: 'Danger, %',
   stats: 'Stats',

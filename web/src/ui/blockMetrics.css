@@ -24,6 +24,12 @@
     border-color 0.3s ease;
 }
 
+.block__now--unknown {
+  --now: var(--fg-muted);
+  border: 1px dashed var(--border);
+  background: transparent;
+}
+
 .block__now--warn {
   --now: var(--lamp-waiting);
 }

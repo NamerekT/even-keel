@@ -259,7 +259,7 @@ function fakeState(
             'ABC-19': { path: 'D:/work/abc/.claude/worktrees/abc-19', branch: 'abc-19/task', files: 49, ahead: 0 },
           },
         },
-    context: { window: 600_000, warn: 50, danger: 80 },
+    context: { warn: 50, danger: 80 },
     configError: null,
     packages: fakePackages(['ABC', 'DEMO', 'XYZ', 'OPS'], null),
     secrets: fakeSecrets(null),
@@ -340,6 +340,10 @@ export function createFakeSource(search: string): LiveSource {
   let current: LiveSnapshot = {
     state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit'), params.get('usage')),
     link,
+  }
+  if (params.get('window') === 'unknown') {
+    const session = current.state?.sessions.find((view) => view.task === 'ABC-5')
+    if (session !== undefined) session.contextWindow = null
   }
   const language = params.get('lang')
   if (params.get('limit')?.startsWith('codex') && !KEY_LIMIT_AGENTS[params.get('limit')!] && current.state !== null) {

@@ -152,7 +152,6 @@ export interface CiSettings {
 export type CacheTtl = '5m' | '1h'
 
 export interface ContextScale {
-  window: number
   warn: number
   danger: number
 }

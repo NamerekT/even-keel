@@ -13,7 +13,6 @@ const state = {
   projects: [ABC],
   projectKeys: { [ABC]: 'ABC' },
   config: { projects: { [ABC]: { name: 'Example' } } },
-  context: { window: 200_000 },
   tasks: [],
   chain: { active: [], projects: {} },
   sessions: [],

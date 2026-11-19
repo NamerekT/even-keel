@@ -299,7 +299,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
         return value === undefined ? [] : [[record.id, value]]
       }),
     )
-  const context = { window: shared['context.window'], warn: shared['context.warn'], danger: shared['context.danger'] } as ContextScale
+  const context = { warn: shared['context.warn'], danger: shared['context.danger'] } as ContextScale
   if (context.warn >= context.danger) throw fail('config.contextPercents', {})
   checkExecutionCli(shared.execution as Record<string, string>, shared.cli as Record<string, string>)
   const language = shared.language as Language | null

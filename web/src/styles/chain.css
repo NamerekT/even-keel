@@ -581,6 +581,12 @@ button.block__key {
   overflow: hidden;
 }
 
+.context-meter__track.context-meter__track--unknown {
+  height: 0;
+  border-top: 1px dashed var(--fg-muted);
+  background: transparent;
+}
+
 .context-meter__fill {
   position: absolute;
   inset: 0 auto 0 0;

@@ -84,7 +84,7 @@ export interface SessionView {
   startedAt: string
   lastActivityAt: string | null
   contextTokens: number
-  /** The model's context window, from the transcript or the agent's own answer; `null` — unknown, the page uses `ContextScale.window`. */
+  /** The model's context window, from the transcript or the agent's own answer; `null` while unknown. */
   contextWindow: number | null
   cache: CacheWindow | null
   /** The keep-warm pings of the current stretch of idleness (EKR-143); absent or `null` — none. Forgotten on a restart. */

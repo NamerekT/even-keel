@@ -65,7 +65,7 @@ function state(startedAt: string): EvenKeelState {
     taskSessions: {},
     fixes: {},
     works: {},
-    context: { window: 600_000, warn: 50, danger: 80 },
+    context: { warn: 50, danger: 80 },
     configError: null,
     packages: { gateway: null, packages: [], projects: {}, keys: [], available: [], marketplace: null, imports: {}, skills: { package: 'my-skills@even-keel-skills', list: [] } },
     secrets: { variables: [], sessionsPending: false },

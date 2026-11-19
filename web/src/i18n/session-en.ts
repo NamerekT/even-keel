@@ -247,7 +247,6 @@ export const sessionEn = {
       effort: 'Its effort',
       ring: 'Context and account limits',
       account: 'Account',
-      unknownWindow: 'window size unknown',
       checkpoint: (tokens: string) => `Handoff from ${tokens}`,
     },
     task: {

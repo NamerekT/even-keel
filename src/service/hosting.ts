@@ -706,7 +706,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       if (run === undefined) return undefined
       const view = ctx.machineLink.sessions.sessions().find((each) => each.sessionId === sessionId)
       const { context, compactAt } = await transcripts.context(sessionId)
-      const window = view?.contextWindow ?? ctx.configStore.current.context.window
+      const window = view?.contextWindow ?? null
       const task = ctx.tasksByProject.get(run.project)?.find((each) => each.id === run.task)
       const pinned = taskCheckpoint(ctx.pinnedCheckpoint(run.project), task?.labels)
       const { first, source } = await ctx.stats.checkpoint(ctx.configStore.current.keys[run.project] ?? run.project, pinned)

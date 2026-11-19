@@ -1,5 +1,5 @@
 {
-  "version": 40,
+  "version": 41,
   "autoCompactWindow": null,
   "codexAutoCompactWindow": null,
   "openCodeAutoCompactWindow": null,
@@ -46,7 +46,6 @@
     }
   ],
   "context": {
-    "window": 400000,
     "warn": 50,
     "danger": 80
   },

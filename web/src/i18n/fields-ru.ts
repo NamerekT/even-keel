@@ -54,7 +54,6 @@ export const fieldsRu: FieldTexts = {
   'config.backupDirFile': (p) => `${p.value} — файл: укажите папку или оставьте пусто — папка состояния`,
   'config.backupKeep': (p) => `Целое число копий от 1 до ${p.max}, а не ${p.value}`,
   'config.allowedHosts': () => 'По имени хоста на строку',
-  'config.contextWindow': (p) => `Целое число токенов от 1, а не ${p.value}`,
   'config.contextPercents': () => 'Проценты, 0 < Предупреждение < Опасно ≤ 100',
   'config.compareValue': (p) => `Целое число от 1 до ${p.limit}, а не ${p.value}`,
   'config.statsMove': () => 'Перенесённой папке нужны и старый, и новый путь',

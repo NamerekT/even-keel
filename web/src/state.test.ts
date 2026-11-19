@@ -127,7 +127,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     taskSessions: {},
     fixes: {},
     works: {},
-    context: { window: 600_000, warn: 50, danger: 80 },
+    context: { warn: 50, danger: 80 },
     configError: null,
     packages: { gateway: null, packages: [], projects: {}, keys: [], available: [], marketplace: null, imports: {}, skills: { package: 'my-skills@even-keel-skills', list: [] } },
     secrets: { variables: [], sessionsPending: false },
@@ -1423,22 +1423,22 @@ describe('chainBlocks', () => {
 })
 
 describe('contextFill', () => {
-  const scale = { window: 600_000, warn: 50, danger: 80 }
+  const scale = { warn: 50, danger: 80 }
 
   it('gives the share of the window in percent and the level by thresholds', () => {
-    expect(contextFill(60_000, scale)).toEqual({ percent: 10, level: 'ok' })
-    expect(contextFill(300_000, scale)).toEqual({ percent: 50, level: 'warn' })
-    expect(contextFill(479_999, scale).level).toBe('warn')
-    expect(contextFill(480_000, scale)).toEqual({ percent: 80, level: 'danger' })
+    expect(contextFill(60_000, scale, 600_000)).toEqual({ percent: 10, level: 'ok' })
+    expect(contextFill(300_000, scale, 600_000)).toEqual({ percent: 50, level: 'warn' })
+    expect(contextFill(479_999, scale, 600_000).level).toBe('warn')
+    expect(contextFill(480_000, scale, 600_000)).toEqual({ percent: 80, level: 'danger' })
   })
 
   it('caps the share at a full window', () => {
-    expect(contextFill(900_000, scale)).toEqual({ percent: 100, level: 'danger' })
+    expect(contextFill(900_000, scale, 600_000)).toEqual({ percent: 100, level: 'danger' })
   })
 
-  it("measures against the session's own window when the agent gave one, the setting's otherwise", () => {
+  it("measures against the session's own window once the agent gives one", () => {
     expect(contextFill(125_000, scale, 250_000)).toEqual({ percent: 50, level: 'warn' })
-    expect(contextFill(125_000, scale, null).percent).toBeCloseTo(20.83, 2)
+    expect(contextFill(125_000, scale, null)).toEqual({ percent: null, level: 'ok' })
   })
 })
 
