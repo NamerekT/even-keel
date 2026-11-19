@@ -58,5 +58,5 @@ function isChain(chain: unknown): boolean {
   if (!isObject(chain) || !CHAIN_STATES.includes(chain.state as string)) return false
   if (chain.next !== null && !isString(chain.next)) return false
   const chip = (item: unknown) => isObject(item) && isString(item.key) && CHIP_STATES.includes(item.state as string) && optional(item.doneAt, isTime)
-  return optional(chain.tasks, (tasks) => Array.isArray(tasks) && tasks.every(chip))
+  return optional(chain.tasks, (tasks) => Array.isArray(tasks) && tasks.every(chip)) && optional(chain.queued, isNumber)
 }

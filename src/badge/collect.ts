@@ -43,7 +43,10 @@ export function badgeStateOf(state: EvenKeelState, project: string, inputs: Badg
   const chain: BadgeChain = { state: chains.length === 0 ? 'stopped' : chains.every((each) => each.paused) ? 'paused' : active.length === 0 ? 'idle' : 'running', next }
   const tz = inputs.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   const closed = inputs.closed ?? []
-  if (on.has('chain')) chain.tasks = chipsOf(tasks, active, order, closed, tz)
+  if (on.has('chain')) {
+    chain.tasks = chipsOf(tasks, active, order, closed, tz)
+    chain.queued = order.filter((id) => !working.has(id)).length
+  }
   const result: BadgeState = { v: BADGE_VERSION, at: inputs.now.toISOString(), project: { key, name: state.config.projects[project]?.name ?? key }, active, chain }
   // A fix or a carry has no tracker task and so no milestone (EKR-138): the chain's next task stands in for it.
   const anchor = active.find((task) => !isOwnName(task.key))?.key ?? next ?? lastClosed(tasks, closed)

@@ -315,7 +315,9 @@ function drawChain(draw: Drawing, state: BadgeState, top: number): number {
   const base = y + 17
   const room = INNER
   const chips = chain.tasks.map((chip) => ({ ...chip, label: chipLabel(chip.key, state.project.key) }))
-  let more = 0
+  // The queue past the chips the service sent (EKR-149); an older service sends no length.
+  const sent = chips.filter((chip) => chip.state === 'queued').length
+  let more = chain.queued === undefined ? 0 : Math.max(0, chain.queued - sent)
   const total = () => chips.reduce((sum, chip) => sum + chipWidth(chip.label, chip.state) + CHIP_GAP, 0) + (more > 0 ? measure(`+${more}`, 'mono', 12) + 8 : 0)
   while (chips.length > 0 && total() > room) {
     const firstDone = chips.findIndex((chip) => chip.state === 'done')
