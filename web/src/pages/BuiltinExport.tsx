@@ -12,8 +12,9 @@ import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
 import { EXPORT_STEPS, meterOf } from './exportMeter.js'
 import { EMPTY_FIELDS, keyOfTyped, keyTyped, placeFields, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
-import { ErrorStrip, FieldHead } from './settingsParts.js'
+import { ErrorStrip, FieldHead, HelpTip } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
+import { TransferMoves, TransferStatuses } from './TransferPlan.js'
 import '../tools/addPackage.css'
 import './builtinExport.css'
 
@@ -163,8 +164,9 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
     >
       <div className="add-package__frame">
         <header className="add-package__head">
-          <h2 id={heading} className="add-package__title">
+          <h2 id={heading} className="add-package__title transfer__title">
             {t.transfer.title}
+            <HelpTip text={t.transfer.leadTip} align="start" />
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
             ×
@@ -204,7 +206,13 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
                 </div>
               )}
             </TrackerFields>
-            {phase === 'pick' && plan !== null && <Losses plan={plan} recheck={fixable ? () => setRecheck((count) => count + 1) : null} checking={checking} />}
+            {phase === 'pick' && plan !== null && (
+              <>
+                <TransferMoves counts={plan.counts} />
+                <TransferStatuses rows={plan.statuses} tracker={tracker} />
+                <Losses plan={plan} recheck={fixable ? () => setRecheck((count) => count + 1) : null} checking={checking} />
+              </>
+            )}
             {phase !== 'pick' && phase !== 'read' && <Progress exported={exported!} />}
             {phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
           </Loading>

@@ -14,7 +14,7 @@ const DONE = status('Done', 'Won')
 
 const task = (number: number, fields: Partial<ExportTask> = {}): ExportTask => ({
   ref: `r${number}`, number, id: `ABC-${number}`, title: `Task ${number}`, description: `About ${number}`, status: TODO,
-  priority: 'none', milestone: null, labels: [], estimate: null, parent: null, blocks: [], related: [], files: 0, ...fields,
+  priority: 'none', milestone: null, labels: [], estimate: null, parent: null, blocks: [], related: [], files: 0, comments: 0, ...fields,
 })
 
 class FakeSource implements ExportSource {
@@ -199,6 +199,40 @@ describe('exportPlan', () => {
     const source = new FakeSource([task(1, { labels: ['bug'], milestone: 'v1' })])
     const plan = await exportPlan(source, target(new FakeTracker(), null))
     expect(plan.losses.map((each) => [each.kind, each.names])).toEqual([['labels', ['bug']], ['milestones', ['v1']], ['status', ['Todo']]])
+    expect(plan.statuses).toEqual([{ name: 'Todo', category: 'ToDo', tasks: 1, target: null }])
+  })
+
+  it('counts what moves by kind: the journal, the files, the links between moving tasks, the names the target has', async () => {
+    const source = new FakeSource([
+      task(1, { comments: 3, files: 2, blocks: ['r2', 'r3', 'XYZ-1'], related: ['r2'], labels: ['bug', 'Later'], milestone: 'v1' }),
+      task(2, { comments: 1, parent: 'r1', related: ['r1'], labels: ['BUG'], milestone: 'V1' }),
+      task(3, { status: DONE, comments: 9, files: 4, parent: 'r1' }),
+      task(4, { parent: 'r2', labels: ['Question'] }),
+    ])
+    expect((await exportPlan(source, target(new FakeTracker()))).counts).toEqual({
+      tasks: 3, comments: 4, files: 2, blocks: 1, relates: 1, subtasks: 2, milestones: 1, labels: 2,
+    })
+  })
+
+  it('counts no files or links a target leaves behind', async () => {
+    const source = new FakeSource([task(1, { files: 2, blocks: ['r2'], related: ['r2'] }), task(2, { related: ['r1'] })])
+    const bare = new FakeTracker({ files: false, linkTypes: ['blocks', 'blockedBy'], blocking: false })
+    expect((await exportPlan(source, target(bare))).counts).toMatchObject({ files: 0, blocks: 0, relates: 0 })
+  })
+
+  it('lists the moving tasks by status, in the order of the categories, with the status each gets there', async () => {
+    const source = new FakeSource([
+      task(1, { status: REVIEW }),
+      task(2),
+      task(3, { status: status('Backlog', 'UnStarted') }),
+      task(4),
+      task(5, { status: DONE }),
+    ])
+    expect((await exportPlan(source, target(new FakeTracker()))).statuses).toEqual([
+      { name: 'Backlog', category: 'UnStarted', tasks: 1, target: { name: 'Backlog', category: 'UnStarted' } },
+      { name: 'Todo', category: 'ToDo', tasks: 2, target: { name: 'Todo', category: 'ToDo' } },
+      { name: 'In Review', category: 'Active', tasks: 1, target: { name: 'Doing', category: 'Active' } },
+    ])
   })
 })
 

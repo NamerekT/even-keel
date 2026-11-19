@@ -8,6 +8,7 @@ import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { linkBody, linkRefusal, type LinkKind } from './cardEdit.js'
 import { ErrorStrip } from './settingsParts.js'
+import { StatusDot } from './StatusDot.js'
 import type { CardEditor } from './useCardEdit.js'
 
 const SEARCH_DELAY_MS = 150
@@ -35,9 +36,7 @@ function RefButton({ item, onOpen }: { item: TaskRef; onOpen: (task: string) => 
       title={item.status.name}
       onClick={() => onOpen(item.id)}
     >
-      <span className={`task-card__status task-card__status--${item.status.category} task-card__status--bare`}>
-        <span className="task-card__dot" />
-      </span>
+      <StatusDot status={item.status} />
       <span className="task-card__ref-key">{item.id}</span>
       <span className="task-card__ref-title">{item.title}</span>
     </button>

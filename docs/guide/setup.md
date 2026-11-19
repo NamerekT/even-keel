@@ -266,7 +266,7 @@ The browser keeps what you typed until Even Keel takes it, so an edit cut off by
 
 To take a built-in project to a real tracker, open its **Settings** → **Tracker** and press **Move to another tracker**.
 
-Pick the tracker profile and the project in it (and a key where the tracker needs one); the window then says how many tasks move and what will not — labels and milestones the tracker lacks (create them there and press **Check again**), priority or estimates it cannot hold, links to closed tasks.
+Pick the tracker profile and the project in it (and a key where the tracker needs one); the window then counts what will move (tasks, comments, attachments, links, milestones, labels), shows which status each of your statuses becomes there, and lists what will not move — labels and milestones the tracker lacks (create them there and press **Check again**), priority or estimates it cannot hold, links to closed tasks.
 
 **Move** copies the open tasks with their statuses, parents, links, attachments and journal; closed ones stay in Even Keel.
 

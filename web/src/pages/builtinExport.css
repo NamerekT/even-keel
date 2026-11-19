@@ -9,6 +9,124 @@
   grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
 }
 
+/* Each field fills its cell: two halves on a computer, the whole column on a phone. */
+.transfer .tracker-fields__wide,
+.transfer .tracker-fields__row .field-strip {
+  width: 100%;
+}
+
+.transfer__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* A block of the plan: its title, then tiles or a table. */
+.transfer__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.transfer__block-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 24px;
+  margin: 0;
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+/* What moves: compact tiles inside a dialog, four in a row, two on a phone. */
+.transfer__tiles {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+.transfer__tiles .ui-tile {
+  gap: 0;
+  padding: var(--space-8) var(--space-12);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.transfer__tiles .ui-tile__label {
+  font-size: var(--text-11);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* The tip of a label is a sentence, not a caption. */
+.transfer__tiles .tip {
+  text-transform: none;
+}
+
+.transfer__tiles .ui-tile__value {
+  font-size: var(--text-16);
+}
+
+.transfer__dotted {
+  text-decoration: underline dotted var(--fg-muted);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+/* The statuses: heads over columns, rows in alternating tones on --bg as the tables of /stats. */
+.transfer__table {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  background: var(--bg);
+  font-size: var(--text-13);
+}
+
+.transfer__table th,
+.transfer__table td {
+  padding: var(--space-6) var(--space-12);
+  text-align: left;
+}
+
+.transfer__table th {
+  padding-block: var(--space-6);
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.transfer__table tbody td {
+  border-top: 1px solid var(--border);
+}
+
+.transfer__table tbody tr:nth-child(odd) {
+  background: color-mix(in srgb, var(--surface-muted) 45%, transparent);
+}
+
+.transfer__table th:nth-child(2) {
+  width: 72px;
+}
+
+.transfer__table .transfer__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.transfer__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.transfer__muted {
+  color: var(--fg-muted);
+}
+
 /* What the target leaves behind: a nested group, a line per kind. */
 .transfer__losses {
   display: flex;
@@ -156,6 +274,20 @@
 }
 
 @media (max-width: 760px) {
+  .transfer__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* The foot's buttons one under another across the width, the primary on top. */
+  .transfer .add-package__foot {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .transfer .add-package__foot .add-package__spacer {
+    display: none;
+  }
+
   .transfer__loss {
     grid-template-columns: minmax(0, 1fr) auto;
   }

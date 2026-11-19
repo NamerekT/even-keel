@@ -10,6 +10,7 @@ import { SuggestField } from '../ui/SuggestField.js'
 import { carriedSubtasks, foreignMilestone, labelOffers, statusRoute } from './cardEdit.js'
 import { dropDraft, leftoverOf, readDraft } from './cardDrafts.js'
 import { Remove } from './CardLinks.js'
+import { StatusDot } from './StatusDot.js'
 import type { CardEditor, EditOptions } from './useCardEdit.js'
 import { useHeld } from './useHeld.js'
 import { useLeaving } from './useLeaving.js'
@@ -89,14 +90,6 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
         onBlur={() => void save()}
       />
     </h2>
-  )
-}
-
-function StatusDot({ status }: { status: TaskStatus }) {
-  return (
-    <span className={`task-card__status task-card__status--${status.category} task-card__status--bare`}>
-      <span className="task-card__dot" />
-    </span>
   )
 }
 

@@ -1,7 +1,7 @@
 import { sameName } from '../chain/rules.js'
 import type { Notice } from '../notice/notice.js'
 import { restoreFields, type TaskDraft, type TaskEditor } from './editor.js'
-import { isOpen, type TaskPriority, type TaskStatus } from './model.js'
+import { isOpen, type StatusCategory, type TaskPriority, type TaskStatus } from './model.js'
 import type { TrackerVocabulary } from './source.js'
 
 /**
@@ -47,6 +47,8 @@ export interface ExportTask {
   related: string[]
   /** How many attachments it has. */
   files: number
+  /** How many entries its journal has. */
+  comments: number
 }
 
 export interface ExportSource {
@@ -99,16 +101,48 @@ export interface ExportLoss {
   names: string[]
 }
 
+/** What the copy takes over, by kind: only what the target keeps; links and subtasks only between the copied tasks. */
+export interface ExportCounts {
+  tasks: number
+  /** Entries of the copied tasks' journals. */
+  comments: number
+  files: number
+  blocks: number
+  /** Each pair once. */
+  relates: number
+  subtasks: number
+  /** The distinct milestones and labels of the copied tasks that the target has. */
+  milestones: number
+  labels: number
+}
+
+/** A status of the copied tasks, how many have it, and the one they get there; `target` `null` — the tracker's default. */
+export interface ExportStatusRow {
+  name: string
+  category: StatusCategory
+  tasks: number
+  target: TaskStatus | null
+}
+
 export interface ExportPlan {
   /** The tasks to copy, parents first; `status` — the one they get there, `null` — the tracker's default. */
   tasks: { id: string; title: string; status: string | null }[]
+  counts: ExportCounts
+  /** In the order of the categories, then of the first task of each. */
+  statuses: ExportStatusRow[]
   losses: ExportLoss[]
 }
 
+const CATEGORIES: readonly StatusCategory[] = ['UnStarted', 'ToDo', 'Active', 'Won', 'Lost']
+
 /** The target's status of the same category: of the same name ignoring case, else the first; `null` — none of it. */
 export function statusFor(status: TaskStatus, statuses: readonly TaskStatus[]): string | null {
+  return targetStatus(status, statuses)?.name ?? null
+}
+
+function targetStatus(status: TaskStatus, statuses: readonly TaskStatus[]): TaskStatus | null {
   const same = statuses.filter((each) => each.category === status.category)
-  return (same.find((each) => sameName(each.name, status.name)) ?? same[0])?.name ?? null
+  return same.find((each) => sameName(each.name, status.name)) ?? same[0] ?? null
 }
 
 /** What the target keeps of a task. */
@@ -122,7 +156,7 @@ interface Kept {
   /** The target's spelling of a label or a milestone; `undefined` — it has none such. */
   label(name: string): string | undefined
   milestone(name: string): string | undefined
-  status(status: TaskStatus): string | null
+  status(status: TaskStatus): TaskStatus | null
 }
 
 async function keptBy({ editor, vocabulary }: ExportTarget): Promise<Kept> {
@@ -138,7 +172,7 @@ async function keptBy({ editor, vocabulary }: ExportTarget): Promise<Kept> {
     markers: editor.markers !== undefined,
     label: spelled(vocabulary?.labels),
     milestone: spelled(vocabulary?.milestones),
-    status: (status) => (vocabulary === null ? null : statusFor(status, vocabulary.statuses)),
+    status: (status) => (vocabulary === null ? null : targetStatus(status, vocabulary.statuses)),
   }
 }
 
@@ -177,7 +211,39 @@ export async function exportPlan(source: ExportSource, target: ExportTarget): Pr
   add('parent', (task) => task.parent !== null && !refs.has(task.parent))
   add('links', (task) => [...task.blocks, ...task.related].some((ref) => !refs.has(ref)))
   if (!kept.markers) losses.push({ kind: 'markers', tasks: [], names: [] })
-  return { tasks: moving.map((task) => ({ id: task.id, title: task.title, status: kept.status(task.status) })), losses }
+  return {
+    tasks: moving.map((task) => ({ id: task.id, title: task.title, status: kept.status(task.status)?.name ?? null })),
+    counts: countsOf(moving, refs, kept),
+    statuses: statusesOf(moving, kept),
+    losses,
+  }
+}
+
+function countsOf(moving: readonly ExportTask[], refs: ReadonlySet<string>, kept: Kept): ExportCounts {
+  const sum = (count: (task: ExportTask) => number) => moving.reduce((total, task) => total + count(task), 0)
+  const distinct = (names: (task: ExportTask) => (string | undefined)[]) => new Set(moving.flatMap(names).filter((name) => name !== undefined)).size
+  return {
+    tasks: moving.length,
+    comments: sum((task) => task.comments),
+    files: kept.files ? sum((task) => task.files) : 0,
+    blocks: kept.blocks ? sum((task) => task.blocks.filter((ref) => refs.has(ref)).length) : 0,
+    // As `runExport` links them: each pair from its lesser ref.
+    relates: kept.relates ? sum((task) => task.related.filter((ref) => refs.has(ref) && task.ref < ref).length) : 0,
+    subtasks: moving.filter((task) => task.parent !== null && refs.has(task.parent)).length,
+    milestones: distinct((task) => (task.milestone === null ? [] : [kept.milestone(task.milestone)])),
+    labels: distinct((task) => task.labels.map((name) => kept.label(name))),
+  }
+}
+
+function statusesOf(moving: readonly ExportTask[], kept: Kept): ExportStatusRow[] {
+  const rows = new Map<string, ExportStatusRow>()
+  for (const task of moving) {
+    const key = `${task.status.category}\u0000${task.status.name}`
+    const row = rows.get(key)
+    if (row !== undefined) row.tasks += 1
+    else rows.set(key, { name: task.status.name, category: task.status.category, tasks: 1, target: kept.status(task.status) })
+  }
+  return [...rows.values()].sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category))
 }
 
 export interface ExportRun {
@@ -267,7 +333,7 @@ function draftOf(task: ExportTask, kept: Kept, parent: string | null): TaskDraft
   return {
     title: task.title,
     description: task.description,
-    status: kept.status(task.status),
+    status: kept.status(task.status)?.name ?? null,
     priority: kept.priority && task.priority !== 'none' ? task.priority : null,
     milestone: task.milestone === null ? null : (kept.milestone(task.milestone) ?? null),
     labels: task.labels.flatMap((name) => kept.label(name) ?? []),

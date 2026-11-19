@@ -1,6 +1,8 @@
 /* The task card's dialog, frame, head and body layout. Its columns are in cardMain.css and cardSide.css; the
    reduced-motion and narrow-screen rules are in cardNarrow.css, imported last. */
 
+@import './statusDot.css';
+
 html:has(.task-card[open]) {
   overflow: hidden;
 }
@@ -110,59 +112,6 @@ html:has(.task-card[open]) {
 .task-card__close:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-/* Status */
-
-.task-card__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 9px 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: var(--text-12);
-  line-height: 18px;
-  white-space: nowrap;
-  --dot: var(--lamp-idle);
-}
-
-.task-card__status--bare {
-  padding: 0;
-  border: 0;
-}
-
-.task-card__dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px var(--dot);
-}
-
-.task-card__status--ToDo {
-  --dot: var(--fg-muted);
-}
-
-.task-card__status--Active {
-  --dot: var(--lamp-working);
-}
-
-.task-card__status--Won {
-  --dot: var(--lamp-done);
-}
-
-.task-card__status--Lost {
-  --dot: var(--lamp-error);
-}
-
-.task-card__status--Active .task-card__dot,
-.task-card__status--Won .task-card__dot {
-  background: var(--dot);
-}
-
-.task-card__status--ToDo .task-card__dot {
-  background: conic-gradient(var(--dot) 0 25%, transparent 0);
 }
 
 /* Body */

@@ -43,6 +43,7 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
           blocks: task.blocks.map(refOf),
           related: task.related.map(refOf),
           files: (await store.files(task)).length,
+          comments: (await store.comments(task)).length,
         })),
       )
     },

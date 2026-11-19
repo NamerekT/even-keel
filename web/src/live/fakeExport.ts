@@ -129,5 +129,20 @@ function plan(tasks: EvenKeelState['tasks'], mode: string | null): ExportPlan {
           { kind: 'priority', tasks: ids.slice(1, 5), names: [] },
           { kind: 'links', tasks: ids.slice(0, 1), names: [] },
         ]
-  return { tasks: tasks.map((each) => ({ id: each.id, title: each.title, status: 'Open' })), losses }
+  const open = { name: 'Open', category: 'ToDo' } as const
+  const statuses: ExportPlan['statuses'] = []
+  for (const task of tasks) {
+    const row = statuses.find((each) => each.name === task.status.name)
+    if (row !== undefined) row.tasks += 1
+    else statuses.push({ name: task.status.name, category: task.status.category, tasks: 1, target: open })
+  }
+  const order = ['UnStarted', 'ToDo', 'Active', 'Won', 'Lost']
+  statuses.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category))
+  const count = tasks.length
+  return {
+    tasks: tasks.map((each) => ({ id: each.id, title: each.title, status: open.name })),
+    counts: { tasks: count, comments: count * 3 + 2, files: Math.ceil(count / 3), blocks: Math.max(0, count - 2), relates: Math.floor(count / 2), subtasks: 1, milestones: 2, labels: 5 },
+    statuses,
+    losses,
+  }
 }
