@@ -107,6 +107,7 @@ export class Packages {
 
   /** The package every project has (BTN-986); `undefined` when the checkout's marketplace lacks the plugin. */
   private readonly builtIn: string | undefined
+  private builtInTimer: NodeJS.Timeout | undefined
 
   constructor(private readonly deps: PackagesDeps) {
     this.builtIn = builtInPackage(deps.ownDir)
@@ -143,11 +144,33 @@ export class Packages {
       this.deps.log(`hub mcp gateway: ${(error as Error).message}`)
     }
     for (const [name, record] of Object.entries(this.file.packages)) if (record.removed !== true && record.installs.length === 0) void this.install(name).catch(() => {})
+    this.builtInCurrent()
+    this.builtInTimer ??= setInterval(() => this.builtInCurrent(), AVAILABLE_MS)
+    this.builtInTimer.unref()
     await this.readImports()
   }
 
   async close(): Promise<void> {
+    clearInterval(this.builtInTimer)
+    this.builtInTimer = undefined
     await Promise.all([this.gateway.close(), this.hubGateway.close()])
+  }
+
+  /**
+   * A newer built-in plugin in Even Keel's own marketplace becomes its current install by itself (BTN-1332): it is a
+   * part of Even Keel, so a new version of Even Keel brings it without Update. Pinned tasks keep theirs; a machine
+   * elsewhere follows the hub's install instead.
+   */
+  private builtInCurrent(): void {
+    const name = this.builtIn
+    if (name === undefined || this.deps.hub === false || this.installing.has(name)) return
+    const record = this.file.packages[name]
+    const install = record === undefined ? undefined : current(record)
+    if (record?.plugin === undefined || record.removed === true || install === undefined) return
+    const offer = pluginOffer(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
+    if (offer === undefined || !isNewer(offer.version, install.version)) return
+    this.deps.log(`packages: ${name} ${offer.version} in Even Keel's marketplace replaces ${install.version ?? install.id}`)
+    void this.installNew(name).catch(() => {})
   }
 
   /** The machine's gateway takes the servers holding keys and the tasks server from the hub from now on (BTN-990). */

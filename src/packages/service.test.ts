@@ -545,21 +545,60 @@ describe('the built-in agent-bridge package (BTN-986)', () => {
   const BRIDGE = 'agent-bridge@example'
 
   /** The fixture's marketplace with the agent-bridge plugin next to `tools`, and the catalog as `catalog` leaves it. */
-  function withBridge(catalog: (file: ReturnType<typeof loadPackages> & object) => void) {
+  function withBridge(catalog: (file: ReturnType<typeof loadPackages> & object) => void, options: { version?: string; hub?: boolean } = {}) {
     const { deps, file, lines } = fixture()
     const home = dirname(deps.ownDir)
     const put = (path: string, value: unknown) => {
       mkdirSync(dirname(join(home, path)), { recursive: true })
       writeFileSync(join(home, path), JSON.stringify(value))
     }
+    const offer = (version: string) => put('own/agent-bridge/.claude-plugin/plugin.json', { name: 'agent-bridge', version })
     put('own/.claude-plugin/marketplace.json', { name: 'example', plugins: [{ name: 'tools', source: './plugin' }, { name: 'agent-bridge', source: './agent-bridge' }] })
-    put('own/agent-bridge/.claude-plugin/plugin.json', { name: 'agent-bridge', version: '1.0.0' })
+    offer(options.version ?? '1.0.0')
     put('own/agent-bridge/hooks/hooks.json', { hooks: {} })
     const saved = loadPackages(file)!
     catalog(saved)
     savePackages(file, saved)
-    return { packages: new Packages(deps), file, lines }
+    return { packages: new Packages({ ...deps, ...(options.hub === undefined ? {} : { hub: options.hub }) }), file, lines, offer }
   }
+
+  describe('a newer version in Even Keel’s marketplace (BTN-1332)', () => {
+    const old = { id: 'a1', version: '1.4.0', at: '2026-11-17T00:00:00.000Z', servers: {}, extras: true }
+    const pinnedOld = (saved: ReturnType<typeof loadPackages> & object) => {
+      saved.packages[BRIDGE] = { kind: 'plugin', plugin: { name: 'agent-bridge', marketplace: 'example' }, default: true, settings: {}, installs: [old] }
+      saved.pins.project = { 'ABC-1': { [BRIDGE]: 'a1' } }
+    }
+    const versions = (file: string) => loadPackages(file)!.packages[BRIDGE]!.installs.map((each) => each.version)
+
+    it('becomes the current install on start, with a line in the log, and a running task keeps its pin', async () => {
+      const { packages, file, lines } = withBridge(pinnedOld, { version: '1.5.0' })
+      await packages.start()
+      await vi.waitFor(() => expect(versions(file)).toEqual(['1.4.0', '1.5.0']))
+      expect(loadPackages(file)!.pins.project).toEqual({ 'ABC-1': { [BRIDGE]: 'a1' } })
+      expect(lines.filter((line) => line.includes(`${BRIDGE} 1.5.0 in`) && line.includes('1.4.0'))).toHaveLength(1)
+      await packages.close()
+    })
+
+    it('is picked up by the check once a minute while the service runs', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      onTestFinished(() => void vi.useRealTimers())
+      const { packages, file, offer } = withBridge(pinnedOld, { version: '1.4.0' })
+      await packages.start()
+      expect(versions(file)).toEqual(['1.4.0'])
+      offer('1.5.0')
+      vi.advanceTimersByTime(60_000)
+      await vi.waitFor(() => expect(versions(file)).toEqual(['1.4.0', '1.5.0']))
+      await packages.close()
+    })
+
+    it('is left to the hub on a machine elsewhere, which follows the hub’s install', async () => {
+      const { packages, file } = withBridge(pinnedOld, { version: '1.5.0', hub: false })
+      await packages.start()
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(versions(file)).toEqual(['1.4.0'])
+      await packages.close()
+    })
+  })
 
   it('joins a catalog that lacks it, on in every project, with a line in the log', () => {
     const { packages, file, lines } = withBridge(() => {})

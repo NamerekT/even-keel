@@ -35,7 +35,7 @@ Handoffs, chat messages mid-turn, the check before a merge, standards and the ba
 
 It also brings the `memory` MCP server: chain sessions keep the project memory through it, on this computer and on every machine, instead of the agent's own memory files. Each session's prompt lists what the memory holds; a fact one session changed while another was working is not overwritten, the second session gets the new text and writes its change over it. Sessions you start yourself keep Claude Code's memory folder, and Even Keel keeps that folder and the chain's memory in step both ways.
 
-Update, Check and its version work as for any package.
+Update, Check and its version work as for any package, but it needs no Update after Even Keel itself is updated: once the new version starts, new sessions get its new plugin, while tasks already running keep the one they started with.
 
 ## Pinned versions
 
