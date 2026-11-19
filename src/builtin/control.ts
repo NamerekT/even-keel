@@ -115,9 +115,10 @@ export interface BuiltinControlDeps {
 export function builtinControl({
   db, places, refresh, busy = () => null, filesDir, limit = () => ATTACHMENT_LIMIT_MB * 1024 * 1024,
 }: BuiltinControlDeps): BuiltinControl {
+  // Every write here is the person's on the page: the history names them (BTN-1112).
   const open = () => {
     const names = new BuiltinNames(places())
-    return { names, store: new BuiltinStore(db, (key) => names.name(key)) }
+    return { names, store: new BuiltinStore(db, (key) => names.name(key)).as({ by: 'person', model: null }) }
   }
   const filesOf = (store: BuiltinStore) => {
     if (filesDir === undefined) throw fail('builtin.off', {})

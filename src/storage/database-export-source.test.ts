@@ -45,6 +45,8 @@ describe("step 50: the copied project's old key (BTN-1076)", { timeout: 120_000 
     const db = await PGlite.create()
     try {
       await db.exec(fixture(50))
+      // The records write the columns of today's schema: the later steps first.
+      for (const step of STEPS.slice(48)) await db.exec(step)
       await db.query('delete from tracker_exports')
       await new ExportRecords(db).begin(ABC, { profile: 'github-example', place: 'example/repo', key: 'GH' })
       expect(await sourceKey(db)).toBe('ABC')

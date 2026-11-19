@@ -1,3 +1,4 @@
+import type { TaskRun } from '../sessions/runs.js'
 import type { LabelChange } from './labels.js'
 import type { TaskPriority, TrackerTask } from './model.js'
 
@@ -128,6 +129,11 @@ export interface TaskEditor {
   relabel(id: string, change: LabelChange): Promise<string[]>
   /** Posts the agent's comment and returns its id; `model` — `<Provider> | <model>` of its session, if known. */
   comment(id: string, body: string, model: string | null, notes?: string[]): Promise<string>
+  /**
+   * Optional, where the tracker keeps its tasks' change history itself (the built-in one, BTN-1112): records a change of
+   * the task's run, which Even Keel keeps, not the tracker. Its author is the call's (`writingAs`).
+   */
+  noteRun?(id: string, from: TaskRun | null, to: TaskRun | null): Promise<void>
 }
 
 /**

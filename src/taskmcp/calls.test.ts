@@ -83,7 +83,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files, task_retries')
+  await db.exec('truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files, task_retries')
   const root = mkdtempSync(join(tmpdir(), 'ek-taskmcp-'))
   folder = join(root, 'work')
   filesDir = join(root, 'files')
@@ -486,6 +486,31 @@ describe('the run of a task (BTN-983)', () => {
     expect(await refusal(call('task_update', { key: 'ABC-9', run: { provider: 'codex' } }))).toMatch(/there is no task ABC-9/)
     expect(await store.get({ project: ABC, number: 2 })).toBeUndefined()
     expect(runs.ofProject(ABC)).toEqual({})
+  })
+})
+
+describe('the change history (BTN-1112)', () => {
+  it("records the agent's writes with its session's model, and task_read gives the history only on request", async () => {
+    await call('tasks_create', { tasks: [{ title: 'Fast', labels: ['bug'], run: { provider: 'Codex', model: 'gpt-example', effort: null } }] })
+    await call('task_update', { key: 'ABC-2', status: 'In Progress', priority: 'high', append: '## Notes\n\nmore' })
+    const history = await store.history({ project: ABC, number: 2 })
+    expect(history.map((each) => [each.by, each.model, each.field])).toEqual([
+      ['agent', 'Claude | opus', 'created'],
+      ['agent', 'Claude | opus', 'run'],
+      ['agent', 'Claude | opus', 'description'],
+      ['agent', 'Claude | opus', 'priority'],
+      ['agent', 'Claude | opus', 'status'],
+    ])
+    expect(await call('task_read', { key: 'ABC-2' })).not.toContain('## History')
+    const text = await call('task_read', { key: 'ABC-2', history: true })
+    expect(text).toMatch(/## History\n\n### Agent \(Claude \| opus\), \d{4}-\d\d-\d\d \d\d:\d\d\n- created\n- run none → Codex \| gpt-example\n- description changed: \+\d+ −0 lines\n- priority none → high\n- status Todo → In Progress$/)
+  })
+
+  it("a write of the chain itself is Even Keel's, and a page write is the person's", async () => {
+    await tracker.moveTo!('ABC-1', 'Backlog')
+    await tracker.asPerson!().moveTo!('ABC-1', 'In Progress')
+    const moves = (await store.history({ project: ABC, number: 1 })).filter((each) => each.field === 'status')
+    expect(moves.map((each) => [each.by, each.to])).toEqual([['service', 'Backlog'], ['person', 'In Progress']])
   })
 })
 

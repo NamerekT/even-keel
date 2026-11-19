@@ -38,7 +38,8 @@ export class TrackerLink {
    */
   async page<T>(call: (source: Tracker) => Promise<T>): Promise<T> {
     if (this.unanswered !== undefined) throw this.unanswered
-    return await this.run(call)
+    // A tracker that keeps its own history records the page's writes as the person's (BTN-1112).
+    return await this.run((source) => call(source.asPerson?.() ?? source))
   }
 
   async run<T>(call: (source: Tracker) => Promise<T>, operation?: string): Promise<T> {

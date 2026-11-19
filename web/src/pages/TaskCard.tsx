@@ -317,6 +317,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
             key={`journal:${card.id}`}
             task={card.id}
             comments={card.comments}
+            history={card.history}
             editor={editable?.editor ?? null}
             render={(text) => <Text components={markdown}>{text}</Text>}
           />

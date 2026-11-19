@@ -18,12 +18,12 @@ export class ExportRecords {
   ) {}
 
   async header(project: string): Promise<ExportHeader | null> {
-    const { rows } = await this.db.query<{ profile: string; place: string; key: string; started_at: string; finished_at: string | null }>(
-      'select profile, place, key, started_at, finished_at from tracker_exports where project_id = $1',
+    const { rows } = await this.db.query<{ profile: string; place: string; key: string; started_at: string; finished_at: string | null; history_summary: boolean | null }>(
+      'select profile, place, key, started_at, finished_at, history_summary from tracker_exports where project_id = $1',
       [project],
     )
     const row = rows[0]
-    return row === undefined ? null : { profile: row.profile, place: row.place, key: row.key, startedAt: row.started_at, finishedAt: row.finished_at }
+    return row === undefined ? null : { profile: row.profile, place: row.place, key: row.key, history: row.history_summary === true,startedAt: row.started_at, finishedAt: row.finished_at }
   }
 
   /**
@@ -34,11 +34,11 @@ export class ExportRecords {
     return inTransaction(this.db, async (tx) => {
       await tx.query('delete from tracker_export_tasks where project_id = $1', [project])
       await tx.query(
-        `insert into tracker_exports (project_id, profile, place, key, started_at, finished_at, source_key)
-           values ($1, $2, $3, $4, $5, null, (select key from projects where id = $1))
+        `insert into tracker_exports (project_id, profile, place, key, started_at, finished_at, source_key, history_summary)
+           values ($1, $2, $3, $4, $5, null, (select key from projects where id = $1), $6)
            on conflict (project_id) do update set profile = excluded.profile, place = excluded.place, key = excluded.key,
-             started_at = excluded.started_at, finished_at = null, source_key = excluded.source_key`,
-        [project, target.profile, target.place, target.key, this.now().toISOString()],
+             started_at = excluded.started_at, finished_at = null, source_key = excluded.source_key, history_summary = excluded.history_summary`,
+        [project, target.profile, target.place, target.key, this.now().toISOString(), target.history ?? false],
       )
     })
   }

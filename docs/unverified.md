@@ -255,6 +255,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 218 | [Codex limits from a live session's rollout](unverified/codex.md#codex-limits-from-a-live-sessions-rollout-btn-1320) | Codex and OpenCode accounts on a ChatGPT sign-in while a Codex session works | the page lags the site by up to five minutes as before, or shows the five hours empty on a plan that has them until the next poll; the next poll puts it right | — |
 | 219 | [A project chat going on in a new session](unverified/sessions.md#a-project-chat-going-on-in-a-new-session-btn-1232) | anyone who takes "New session with this message" in a project chat | the new session starts without the old chat's turns or answers them instead of the message; say what to do in the next message | — |
 | 220 | [Project chats in the stats](unverified/sessions.md#project-chats-in-the-stats-btn-1233) | anyone with project chats and Tally | the chat's spend is missing from the line under "Tasks" or counts in a task its title names; read it from the session's own figures | — |
+| 221 | [The change history of a live built-in project](unverified/trackers.md#the-change-history-of-a-live-built-in-project-btn-1112) | projects on the built-in tracker | the journal names the wrong author or lacks a change, or a copied task gets the history summary twice | — |
 
 ### Waiting for the event / not checked by choice
 

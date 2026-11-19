@@ -49,6 +49,8 @@ export interface ExportTask {
   files: number
   /** How many entries its journal has. */
   comments: number
+  /** Raw change events, never copied as native history. */
+  history?: number
 }
 
 export interface ExportSource {
@@ -92,7 +94,7 @@ export interface ExportLog {
   save(row: ExportRow): Promise<void>
 }
 
-export type ExportLossKind = 'priority' | 'estimate' | 'blocks' | 'relates' | 'files' | 'labels' | 'milestones' | 'status' | 'parent' | 'links' | 'markers'
+export type ExportLossKind = 'priority' | 'estimate' | 'blocks' | 'relates' | 'files' | 'labels' | 'milestones' | 'status' | 'parent' | 'links' | 'markers' | 'history'
 
 /** What the copy leaves behind: the tasks it concerns by id, the labels, milestones or statuses by name. */
 export interface ExportLoss {
@@ -210,6 +212,7 @@ export async function exportPlan(source: ExportSource, target: ExportTarget): Pr
   add('status', (task) => kept.status(task.status) === null, (task) => [task.status.name])
   add('parent', (task) => task.parent !== null && !refs.has(task.parent))
   add('links', (task) => [...task.blocks, ...task.related].some((ref) => !refs.has(ref)))
+  add('history', (task) => (task.history ?? 0) > 0)
   if (!kept.markers) losses.push({ kind: 'markers', tasks: [], names: [] })
   return {
     tasks: moving.map((task) => ({ id: task.id, title: task.title, status: kept.status(task.status)?.name ?? null })),
@@ -355,6 +358,8 @@ export function journalEntry(comment: ExportComment): string {
 /** How many tasks of the copy reached each stage. */
 /** Where a project's tasks are copied (BTN-1073): the fields of the wizard's tracker step. */
 export interface ExportTargetFields {
+  /** Include a single change-history summary comment per task; fixed for a started copy. */
+  history?: boolean
   /** The tracker profile's id. */
   profile: string
   /** The project in the tracker (`trackerProject`); empty where the tracker needs none. */

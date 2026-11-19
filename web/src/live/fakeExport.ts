@@ -128,6 +128,7 @@ function plan(tasks: EvenKeelState['tasks'], mode: string | null): ExportPlan {
           { kind: 'milestones', tasks: ids.slice(0, 2), names: ['v0.4 — выпуск'] },
           { kind: 'priority', tasks: ids.slice(1, 5), names: [] },
           { kind: 'links', tasks: ids.slice(0, 1), names: [] },
+          { kind: 'history', tasks: ids.slice(0, 6), names: [] },
         ]
   const open = { name: 'Open', category: 'ToDo' } as const
   const statuses: ExportPlan['statuses'] = []

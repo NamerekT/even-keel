@@ -20,7 +20,7 @@ beforeAll(async () => {
   db = await openDatabase(undefined)
 }, 120_000)
 afterAll(() => db.close())
-beforeEach(() => db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files'))
+beforeEach(() => db.exec('truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files'))
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))))
 })

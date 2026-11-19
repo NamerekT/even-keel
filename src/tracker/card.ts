@@ -1,5 +1,6 @@
 import { milestoneComparator } from '../chain/order.js'
 import { entryLabels, missingLabel, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
+import type { TaskChange } from './history.js'
 import { QUESTION_LABELS, type MilestonePick, type TaskMilestone, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
 /** A task in full for its card on the page (`TaskSource.card`). `description` and comment texts are Markdown. */
@@ -27,6 +28,8 @@ export interface TrackerCard {
   subtasks?: SubtaskRef[]
   /** Only the tracker kept in Even Keel itself (the built-in one) gives it: the card is where its tasks are edited. */
   edit?: CardEdit
+  /** The task's changes, oldest first (BTN-1112); only a tracker that keeps its own history gives them. */
+  history?: TaskChange[]
 }
 
 /** A subtask as its parent's card lists it. */

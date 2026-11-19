@@ -786,6 +786,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       live: (task) => ctx.machineLink.page.liveView(task) !== undefined,
       pollReviews: (project) => ctx.dispatcher.pollReviews(project),
       setRun: (project, task, run) => ctx.setTaskRun(project, task, run),
+      runOf: (project, task) => ctx.runOfTask(project, task),
       broadcast: () => ctx.hub.broadcastSoon('state', ctx.getState),
     }),
     changelog: async (project, milestone, op) => {

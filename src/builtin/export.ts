@@ -13,9 +13,10 @@ import { isOpen } from '../tracker/model.js'
 import { BuiltinFiles } from './files.js'
 import { BuiltinNames } from './source.js'
 import { BuiltinStore, type TaskKey } from './store.js'
+import { historySummary } from '../tracker/history-export.js'
 
 /** A built-in project's tasks as the copy reads them; a task is named by its row id. */
-export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, project: string, files?: BuiltinFiles): ExportSource {
+export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, project: string, files?: BuiltinFiles, history = false): ExportSource {
   let ids: Promise<Map<number, string>> | undefined
   const idsOf = () => (ids ??= store.rowIds(project))
   const keyOf = async (ref: string): Promise<TaskKey> => {
@@ -43,12 +44,17 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
           blocks: task.blocks.map(refOf),
           related: task.related.map(refOf),
           files: (await store.files(task)).length,
-          comments: (await store.comments(task)).length,
+          comments: (await store.comments(task)).length + (history && (await store.history(task)).length > 0 ? 1 : 0),
+          history: (await store.history(task)).length,
         })),
       )
     },
     async comments(ref) {
-      return (await store.comments(await keyOf(ref))).map((each) => ({ author: each.author, model: each.model, body: each.body, at: each.at }))
+      const task = await keyOf(ref)
+      const comments = (await store.comments(task)).map((each) => ({ author: each.author, model: each.model, body: each.body, at: each.at }))
+      const changes = history ? await store.history(task) : []
+      if (changes.length > 0) comments.push({ author: 'service', model: null, body: historySummary(changes), at: new Date(Math.max(...changes.map((each) => each.at))).toISOString() })
+      return comments
     },
     async files(ref) {
       if (files === undefined) return []
@@ -105,7 +111,7 @@ export class BuiltinExports {
   }
 
   async plan(project: string, fields: ExportTargetFields): Promise<ExportPlan> {
-    const source = this.sourceOf(project)
+    const source = this.sourceOf(project, fields.history)
     this.checkTarget(project, fields)
     const target = await this.deps.connect(project, fields)
     try {
@@ -120,7 +126,9 @@ export class BuiltinExports {
    * target copies only the open tasks filed since; another target is refused once a task was copied.
    */
   async start(project: string, fields: ExportTargetFields): Promise<ExportState> {
-    const source = this.sourceOf(project)
+    const header = await this.records.header(project)
+    const same = header !== null && header.profile === fields.profile && header.place === fields.place && header.key === fields.key
+    const source = this.sourceOf(project, same ? header.history : fields.history)
     if (this.runs.has(project)) return this.state(project)
     const prepared = this.prepare(project, source, fields)
     const run = prepared.then(
@@ -137,7 +145,7 @@ export class BuiltinExports {
     const header = await this.records.header(project)
     const rows = await this.records.rows(project)
     return {
-      target: header === null ? null : { profile: header.profile, place: header.place, key: header.key },
+      target: header === null ? null : { profile: header.profile, place: header.place, key: header.key, ...(header.history === true ? { history: true } : {}) },
       running: this.runs.has(project),
       startedAt: header?.startedAt ?? null,
       finishedAt: header?.finishedAt ?? null,
@@ -190,12 +198,12 @@ export class BuiltinExports {
     if (this.deps.switching !== undefined) checkMove(this.deps.switching, project, fields)
   }
 
-  private sourceOf(project: string): ExportSource {
+  private sourceOf(project: string, history = false): ExportSource {
     const names = new BuiltinNames(this.deps.places())
     if (!names.knows(project)) throw fail('builtin.noProject', { project })
     const store = new BuiltinStore(this.deps.db, (key) => names.name(key))
     const files = this.deps.filesDir === undefined ? undefined : new BuiltinFiles(store, this.deps.filesDir, this.say)
-    return builtinExportSource(store, names, project, files)
+    return builtinExportSource(store, names, project, files, history)
   }
 
   /** The target to copy into; `null` — the copy to it is finished and every open task is there. */

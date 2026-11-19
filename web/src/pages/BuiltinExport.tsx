@@ -12,7 +12,7 @@ import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
 import { EXPORT_STEPS, meterOf } from './exportMeter.js'
 import { EMPTY_FIELDS, keyOfTyped, keyTyped, placeFields, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
-import { ErrorStrip, FieldHead, HelpTip } from './settingsParts.js'
+import { ErrorStrip, FieldHead, HelpTip, SwitchField } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
 import { TransferMoves, TransferStatuses } from './TransferPlan.js'
 import '../tools/addPackage.css'
@@ -70,6 +70,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
   const [recheck, setRecheck] = useState(0)
   const [refusal, setRefusal] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
+  const [history, setHistory] = useState(false)
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -97,7 +98,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
   const fields = fixed ?? typed
   const shape = shapeOf(state.config.trackers.find((each) => each.name === fields.tracker))
   const tracker = state.config.trackers.find((each) => each.name === fields.tracker)?.title ?? fields.tracker
-  const target = targetOf(fields)
+  const target = { ...targetOf(fields), history }
   const basis = JSON.stringify(target)
   const ready = phase === 'pick' && target.profile !== '' && target.key !== ''
 
@@ -206,6 +207,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
                 </div>
               )}
             </TrackerFields>
+            <SwitchField className="settings__field"label={t.transfer.historySummary} hint={t.transfer.historySummaryHint} checked={fixed === null ? history : exported?.target?.history ?? false} disabled={fixed !== null || busy} onChange={setHistory} />
             {phase === 'pick' && plan !== null && (
               <>
                 <TransferMoves counts={plan.counts} />

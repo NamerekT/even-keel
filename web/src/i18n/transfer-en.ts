@@ -10,6 +10,8 @@ export const transferEn: Messages['transfer'] = {
   leadTip:
     'The tasks are copied; the old ones stay here marked "Moved". While the copy runs, the chain works with the built-in tracker. The project moves to the new tracker only when you press "Switch", once every task is copied.',
   profileHint: 'The profile names the tracker and the account the tasks are created as.',
+  historySummary: 'Change history as one comment',
+  historySummaryHint: 'Each task gets a table: when, who, field, before → after. The destination cannot accept native past events. This choice stays fixed for the whole copy.',
   key: 'Project key',
   keyHint: "The key the project will have in Even Keel after the switch. The new tracker's tasks must not be named as the current ones are.",
   checking: 'Checking the tracker…',
@@ -41,6 +43,7 @@ export const transferEn: Messages['transfer'] = {
   lossTasks: tasks,
   lossTip: (ids) => ids.join(', '),
   kinds: {
+    history: 'Change history',
     priority: 'Priority',
     estimate: 'Estimate',
     blocks: '"Blocks" links',
@@ -54,6 +57,7 @@ export const transferEn: Messages['transfer'] = {
     markers: 'Guard against double creation',
   },
   kindTips: {
+    history: 'Native history cannot be imported. Enable the single summary comment to keep its text in the destination task. The original events stay here.',
     priority: 'The tracker keeps no priority: the tasks arrive without it.',
     estimate: 'The tracker keeps no estimate: the tasks arrive without it.',
     blocks: 'The tracker has no "blocks": the chain order these links gave has to be set again.',

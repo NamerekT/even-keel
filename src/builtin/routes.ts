@@ -59,7 +59,8 @@ function exports({ builtinExports }: ServerDeps): NonNullable<ServerDeps['builti
 }
 
 function targetOf(body: Record<string, unknown>): ExportTargetFields {
-  return { profile: textOf(body.profile, 'profile'), place: textOf(body.place ?? '', 'place').trim(), key: textOf(body.key, 'key').trim() }
+  if (body.history !== undefined && typeof body.history !== 'boolean') throw fail('request.required', { field: 'history' })
+  return { profile: textOf(body.profile, 'profile'), place: textOf(body.place ?? '', 'place').trim(), key: textOf(body.key, 'key').trim(), ...(body.history === true ? { history: true } : {}) }
 }
 
 /** An attachment's upload (BTN-773): the bytes are the raw body, the task and the name are in the query. */

@@ -16,6 +16,8 @@ import { HANDOFF_TOOL, type ToolFields } from './tools.js'
 import type { HandoffNote, NoteRefusal } from '../chain/handoff-note.js'
 import type { NoteWriter } from './carried.js'
 import { handoffWrite } from './handoff.js'
+import { historyText } from './history.js'
+import { writingAs } from '../tracker/author.js'
 
 /** Where a call came from: the project of the server's address and, for a chain session, its task. */
 export interface TasksScope {
@@ -91,7 +93,11 @@ export class TasksTools {
 
   async call(name: string, raw: Record<string, unknown>, scope: TasksScope): Promise<string> {
     checkToolArgs(name, raw)
-    const args = new Args(raw)
+    // A tracker keeping its own history records the call's writes as the agent's of the session (BTN-1112).
+    return writingAs({ by: 'agent', model: this.modelOf(scope) }, () => this.dispatch(name, new Args(raw), scope))
+  }
+
+  private async dispatch(name: string, args: Args, scope: TasksScope): Promise<string> {
     switch (name) {
       case 'tasks_list':
         return this.list(args, scope)
@@ -185,7 +191,8 @@ export class TasksTools {
     })
     const run = this.deps.runOf(reader.project, key)
     const shutBy = why === null ? null : { why, labels: why === 'unlabelled' ? entryNames(rules) : requiredOn(rules, card).join(', ') }
-    return cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms), files, run === undefined ? null : taskRunText(run), shutBy)
+    const text = cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms), files, run === undefined ? null : taskRunText(run), shutBy)
+    return args.flag('history') ? `${text}\n\n${historyText(card)}` : text
   }
 
   private async create(args: Args, scope: TasksScope): Promise<string> {
@@ -238,6 +245,7 @@ export class TasksTools {
               }
               if (each.run !== null) {
                 this.deps.setRun(reader.project, retry.ids[index]!, each.run)
+                await editor.noteRun?.(retry.ids[index]!, null, each.run)
                 notes[index]!.push(`run ${taskRunText(each.run)}`)
               }
             } catch (error) {
@@ -374,6 +382,7 @@ export class TasksTools {
         if (!sameRun(current, next)) {
           if ((await tracker.tasks([key])).length === 0) throw new EditRefused(`there is no task ${key}`)
           this.deps.setRun(project, key, next)
+          await editor.noteRun?.(key, current ?? null, next)
           said.push(`run → ${next === null ? 'as the project says' : taskRunText(next)}`)
         }
       }
@@ -462,7 +471,7 @@ export class TasksTools {
     const key = args.required('key').trim().toUpperCase()
     const body = args.required('text')
     const reader = this.readerOfTask(key, scope)
-    const model = scope.task === null || scope.project === null ? null : this.deps.modelOf(scope.project, scope.task)
+    const model = this.modelOf(scope)
     const attach = args.texts('attach')
     const notes: string[] = []
     const attached = await this.deps.run(reader.id, async (tracker) => {
@@ -478,6 +487,11 @@ export class TasksTools {
     }, 'comment')
     await this.deps.refresh(reader.project)
     return [`${key}: comment added${attached.length === 0 ? '' : ` with ${attached.join(', ')}`}`, ...notes].join('; ')
+  }
+
+  /** `<Provider> | <model>` of the session that made the call; `null` — not known. */
+  private modelOf(scope: TasksScope): string | null {
+    return scope.task === null || scope.project === null ? null : this.deps.modelOf(scope.project, scope.task)
   }
 
   /** The files `paths` names, read from the session's working folder. */

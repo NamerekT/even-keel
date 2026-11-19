@@ -108,6 +108,7 @@ export function builtinEditor({ store, names, must: find, trackerTask, files }: 
     },
     relabel: async (id, change) => store.relabel(await must(id), change),
     comment: async (id, body, model) => store.comment(await must(id), 'agent', body, model),
+    noteRun: async (id, from, to) => store.noteRun(await find(id), from, to),
     ...(files === undefined ? {} : { files: builtinTaskFiles(files, store, names, must) }),
   }
 }

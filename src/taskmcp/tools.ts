@@ -62,8 +62,13 @@ export function toolSpecs(withProject: boolean, fields: ToolFields = { component
     },
     {
       name: 'task_read',
-      description: 'A task as Markdown: a short head with the description revision, then the description, the attachments as file paths to open with Read; comments on request.',
-      inputSchema: { type: 'object', properties: { key: text, comments: { type: 'boolean' } }, required: ['key'], additionalProperties: false },
+      description: 'A task as Markdown: a short head with the description revision, then the description, the attachments as file paths to open with Read; comments and the change history on request.',
+      inputSchema: {
+        type: 'object',
+        properties: { key: text, comments: { type: 'boolean' }, history: { type: 'boolean', description: "who changed which field and when; only Even Keel's own tracker keeps it" } },
+        required: ['key'],
+        additionalProperties: false,
+      },
     },
     {
       name: 'tasks_create',

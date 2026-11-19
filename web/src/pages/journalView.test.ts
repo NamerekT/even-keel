@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskComment } from '../../../src/tracker/card.js'
-import { journalAuthor, journalWindow, JOURNAL_SHOWN, repliesOf } from './journalView.js'
+import type { TaskChange } from '../../../src/tracker/history.js'
+import { changeRows, changeRun, journalAuthor, journalItems, journalModel, journalWindow, JOURNAL_SHOWN, repliesOf } from './journalView.js'
 
 const note = (at: number, journal?: TaskComment['journal']): TaskComment => ({ author: 'John Doe', at, text: `note ${at}`, journal })
 
@@ -35,9 +36,12 @@ describe('journalAuthor', () => {
     expect(journalAuthor(note(1, { id: 'c1', by: 'person', model: null }), texts)).toBe('You')
   })
 
-  it('gives an agent its model when the journal knows it', () => {
-    expect(journalAuthor(note(1, { id: 'c1', by: 'agent', model: 'Claude | opus' }), texts)).toBe('Agent · Claude | opus')
-    expect(journalAuthor(note(1, { id: 'c1', by: 'agent', model: null }), texts)).toBe('Agent')
+  it('names an agent alone: its model is a tag of its own', () => {
+    expect(journalAuthor(note(1, { id: 'c1', by: 'agent', model: 'Claude | opus' }), texts)).toBe('Agent')
+    expect(journalModel('Claude | opus')).toEqual({ provider: 'claude', model: 'opus', effort: null })
+    expect(journalModel('OpenCode | openrouter/vendor/model-x')).toEqual({ provider: 'opencode', model: 'openrouter/vendor/model-x', effort: null })
+    expect(journalModel(null)).toBeNull()
+    expect(journalModel('opus')).toBeNull()
   })
 
   it('names Even Keel for its own entries', () => {
@@ -47,6 +51,32 @@ describe('journalAuthor', () => {
   it('keeps the tracker author of a comment outside a journal', () => {
     expect(journalAuthor(note(1), texts)).toBe('John Doe')
     expect(journalAuthor({ author: null, at: 1, text: '' }, texts)).toBe('no author')
+  })
+})
+
+describe('journalItems (BTN-1112)', () => {
+  const change = (at: number, field: TaskChange['field'], from: string | null, to: string | null, by: TaskChange['by'] = 'person'): TaskChange => ({ at, by, model: null, field, from, to })
+  const history = [change(1_000, 'status', 'Todo', 'In Progress'), change(2_000, 'label', null, 'bug'), change(400_000, 'priority', 'none', 'high', 'agent')]
+
+  it('mixes the comments and the grouped changes by time', () => {
+    const items = journalItems([note(3_000), note(500_000)], history, 'all')
+    expect(items.map((each) => [each.kind, each.at])).toEqual([['changes', 1_000], ['comment', 3_000], ['changes', 400_000], ['comment', 500_000]])
+  })
+
+  it('keeps one kind under a filter, and the window counts only what it keeps', () => {
+    expect(journalItems([note(3_000)], history, 'comments').map((each) => each.kind)).toEqual(['comment'])
+    expect(journalItems([note(3_000)], history, 'changes').map((each) => each.kind)).toEqual(['changes', 'changes'])
+  })
+
+  it('gathers the labels of one entry in one row, each other field a row of its own', () => {
+    const [group] = journalItems([], [change(1, 'label', null, 'bug'), change(2, 'status', 'Todo', 'Done'), change(3, 'label', 'ui', null)], 'all')
+    expect(group?.kind === 'changes' && changeRows(group.group).map((row) => [row.field, row.changes.length])).toEqual([['label', 2], ['status', 1]])
+  })
+
+  it('reads a run change back, and none for no run', () => {
+    expect(changeRun('{"provider":"codex","model":"gpt-example","effort":"high"}')).toEqual({ provider: 'codex', model: 'gpt-example', effort: 'high' })
+    expect(changeRun(null)).toBeNull()
+    expect(changeRun('not json')).toBeNull()
   })
 })
 

@@ -7,7 +7,7 @@ import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 import type { AttachedFile } from './connection.js'
 import { FAKE_HULY_PROFILE } from './fakeProfiles.js'
 import { fakeCard } from './fakeCards.js'
-import { fakeJournal, fakeJournalQuery } from './fakeJournal.js'
+import { fakeHistory, fakeJournal, fakeJournalQuery } from './fakeJournal.js'
 
 /**
  * `?card=builtin`: every card is one Even Keel keeps itself and edits in place; `?card=conflict` — the first title edit
@@ -109,6 +109,7 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
     ],
     parent: ancestors.at(-1) ?? null,
     comments: fakeJournal(id, journal),
+    history: fakeHistory(journal),
     attachments: fakeAttachments(id, base.attachments, files),
     related: tasks.filter((each) => related.has(pair(id, each.id))).map(refOf),
     subtasks: tasks.filter((each) => each.parent === id).map((each) => ({ ...refOf(each), milestone: each.milestone?.label ?? null })),

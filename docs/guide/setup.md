@@ -262,6 +262,16 @@ An edit of a task's title or description in its card is saved when you leave the
 
 The browser keeps what you typed until Even Keel takes it, so an edit cut off by a closed tab is sent again the next time you open the card, and a note you have not sent waits in its field.
 
+#### Change history
+
+The task's journal also records every change of its fields — status, title, description, priority, milestone, estimate, run, labels, parent, links and subtasks — with who made it: you, an agent with its model, or Even Keel itself (a status the chain moved).
+
+One author's changes within five minutes make one entry, a table of each field's old and new value; a description change folds out its difference.
+
+The filter over the journal shows **All**, only **Comments** or only **Changes**. Tasks created before this version have no history of their earlier changes.
+
+A session reads the history only when it asks for it (`task_read` with `history: true`), so it costs no context otherwise.
+
 #### Moving to a real tracker
 
 To take a built-in project to a real tracker, open its **Settings** → **Tracker** and press **Move to another tracker**.
@@ -269,6 +279,10 @@ To take a built-in project to a real tracker, open its **Settings** → **Tracke
 Pick the tracker profile and the project in it (and a key where the tracker needs one); the window then counts what will move (tasks, comments, attachments, links, milestones, labels), shows which status each of your statuses becomes there, and lists what will not move — labels and milestones the tracker lacks (create them there and press **Check again**), priority or estimates it cannot hold, links to closed tasks.
 
 **Move** copies the open tasks with their statuses, parents, links, attachments and journal; closed ones stay in Even Keel.
+
+The change history does not become the tracker's own: no tracker accepts past changes through its API. Turn on **Change history as one comment** and each task gets one more comment, a table of when, who, which field and its old and new value; the choice holds for the whole copy.
+
+Every comment the copy writes, the summary too, comes from the profile's account and starts with who wrote it and when. A personal token always writes as its owner, so for the copy to write as a bot, add a profile on the bot's own token: a GitHub App, a Linear OAuth application, a GitLab project access token, a separate Huly or Forgejo account; in Jira a separate user takes a paid seat.
 
 The copy runs in the service: close the window or the tab and come back to it. If it stops (a refused write, a restart), **Continue** goes on from where it stopped.
 

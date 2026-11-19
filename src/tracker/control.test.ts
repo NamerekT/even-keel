@@ -52,15 +52,15 @@ describe('task label controls', () => {
     expect(broadcast).toHaveBeenCalledOnce()
   })
 
-  it('keeps the run of a task in Even Keel without a call to the tracker, and refuses a task of no project', () => {
+  it('keeps the run of a task in Even Keel without a call to the tracker, and refuses a task of no project', async () => {
     const relabel = vi.fn(async () => [])
     const { control, setRun } = fixture(relabel)
     const run = { provider: 'codex', model: 'gpt-example', effort: 'high' }
-    control.setRun('APP-1', run)
-    control.setRun('APP-1', null)
+    await control.setRun('APP-1', run)
+    await control.setRun('APP-1', null)
     expect(setRun.mock.calls).toEqual([['owner', 'APP-1', run], ['owner', 'APP-1', null]])
     expect(relabel).not.toHaveBeenCalled()
-    expect(() => control.setRun('ZZZ-1', run)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'task.noTracker' }) }))
+    await expect(control.setRun('ZZZ-1', run)).rejects.toMatchObject({ notice: { code: 'task.noTracker' } })
   })
 
   it('returns a notice code on refusal, keeps the current labels and logs the cause', async () => {

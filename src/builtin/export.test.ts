@@ -30,7 +30,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec(`truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments,
+  await db.exec(`truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments,
     builtin_files, tracker_exports, tracker_export_tasks`)
   store = new BuiltinStore(db, ({ number }) => `ABC-${number}`)
   dir = mkdtempSync(join(tmpdir(), 'export-'))
@@ -110,12 +110,32 @@ async function seed() {
 }
 
 describe('BuiltinExports', () => {
+  it('optionally copies history as one summary and keeps the choice when an interrupted copy resumes', async () => {
+    await store.create({ project: ABC, title: 'History' })
+    const tracker = fakeTarget({ failComment: true })
+    const exports = exportsWith(tracker)
+    const target = { ...TARGET, history: true }
+    expect((await exports.plan(ABC, target)).counts.comments).toBe(1)
+    expect((await exports.plan(ABC, TARGET)).counts.comments).toBe(0)
+    await exports.start(ABC, target)
+    await exports.settled(ABC)
+    const restarted = exportsWith(tracker)
+    expect((await restarted.state(ABC)).target).toEqual(target)
+    await restarted.start(ABC, TARGET)
+    await restarted.settled(ABC)
+    expect(tracker.comments).toHaveLength(1)
+    expect(tracker.comments[0]?.body).toContain('Change history')
+    expect(tracker.comments[0]?.body).toContain('| When (UTC) | Who | Field | Before → after |')
+    await restarted.start(ABC, target)
+    await restarted.settled(ABC)
+    expect(tracker.comments).toHaveLength(1)
+  })
   it('plans the open tasks with what the target lacks, writing nothing', async () => {
     await seed()
     const tracker = fakeTarget()
     const plan = await exportsWith(tracker).plan(ABC, TARGET)
     expect(plan.tasks).toEqual([{ id: 'ABC-1', title: 'Parent', status: 'Open' }, { id: 'ABC-2', title: 'Child', status: 'Open' }])
-    expect(plan.losses.map((each) => [each.kind, each.names])).toEqual([['estimate', []], ['labels', ['Later']], ['milestones', ['v1']]])
+    expect(plan.losses.map((each) => [each.kind, each.names])).toEqual([['estimate', []], ['labels', ['Later']], ['milestones', ['v1']], ['history', []]])
     expect(tracker.created).toEqual([])
     expect(await db.query('select 1 from tracker_exports')).toMatchObject({ rows: [] })
   })

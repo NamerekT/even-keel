@@ -118,6 +118,11 @@ export interface TaskSource {
    */
   journal?: true
   /**
+   * Optional, where the tracker keeps its tasks' change history itself (the built-in one, BTN-1112): the same source, its
+   * writes recorded as the person's. The page's calls go through it; the source itself writes as Even Keel.
+   */
+  asPerson?(): TaskSource
+  /**
    * Optional. Creates a task in the tracker's first `ToDo` status, so the chain takes it, and returns its id.
    * Even Keel creates the task to fix a red CI on `main` with it; without it the chain only stops.
    */
@@ -429,6 +434,7 @@ export interface Tracker {
   comment?(id: string, body: string): Promise<string>
   commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
   journal?: true
+  asPerson?(): Tracker
   create?(task: NewTask): Promise<string>
   setMilestone?(id: string, milestoneOf: string): Promise<boolean>
   milestones?(id: string): Promise<MilestonePick>
@@ -469,6 +475,7 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.comment !== undefined) tracker.comment = (id, body) => source.comment!(id, body)
   if (source.commentsAfter !== undefined) tracker.commentsAfter = (id, after) => source.commentsAfter!(id, after)
   if (source.journal === true) tracker.journal = true
+  if (source.asPerson !== undefined) tracker.asPerson = () => trackerOf(source.asPerson!())
   if (source.create !== undefined) tracker.create = (task) => source.create!(task)
   if (source.setMilestone !== undefined) tracker.setMilestone = (id, milestoneOf) => source.setMilestone!(id, milestoneOf)
   if (source.milestones !== undefined && source.moveMilestone !== undefined) {

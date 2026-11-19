@@ -7,7 +7,9 @@ import { BACKLOG, BUILTIN_LABELS, BUILTIN_STATUSES, builtinStatus, DONE, TODO, u
 import { builtinEditor } from './editor.js'
 import { movedName, movedTasks, withMoved } from './export-store.js'
 import { BuiltinFiles } from './files.js'
+import { SERVICE_AUTHOR } from './history-log.js'
 import { BuiltinStore, type BuiltinTask, type TaskKey } from './store.js'
+import type { ChangeAuthor } from '../tracker/history.js'
 
 /** How the built-in tracker names its tasks: `<KEY>-<N>` by the key of each of its projects. */
 export class BuiltinNames {
@@ -44,11 +46,12 @@ const AUTHORS: Record<CommentAuthor, string | null> = { person: null, agent: 'Ag
 /**
  * The built-in tracker as a `TaskSource` (BTN-767): its projects' tasks in the state database, through `BuiltinStore`.
  * A link or a blocker of a project it no longer serves is left out: nothing names that task any more. The attachments
- * are the files of `filesDir` (BTN-773); without it a task has none.
+ * are the files of `filesDir` (BTN-773); without it a task has none. Its writes are recorded in the history as made by
+ * `author`: Even Keel itself, the person through `asPerson` (BTN-1112).
  */
-export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPlace>>, filesDir?: string): TaskSource {
+export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPlace>>, filesDir?: string, author: ChangeAuthor = SERVICE_AUTHOR): TaskSource {
   const names = new BuiltinNames(places)
-  const store = new BuiltinStore(db, (key) => names.name(key))
+  const store = new BuiltinStore(db, (key) => names.name(key), undefined, author)
   const files = filesDir === undefined ? undefined : new BuiltinFiles(store, filesDir)
   const listed = async (task: BuiltinTask) => (files === undefined ? [] : files.list(task, names.name(task)))
 
@@ -175,6 +178,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
           text: each.body,
           journal: { id: each.id, by: each.author, model: each.model },
         })),
+        history: await store.history(task),
         attachments: (await listed(task)).map((file) => ({
           file: file.sha256, id: file.id, name: file.name, type: file.type, size: file.size, url: null, path: file.path,
           ...(file.missing ? { missing: true as const } : {}),
@@ -192,6 +196,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
       return store.comment(await must(id), 'service', body)
     },
     journal: true,
+    asPerson: () => builtinSource(db, places, filesDir, { by: 'person', model: null }),
     async create(task) {
       if (!names.knows(task.project)) throw fail('builtin.noProject', { project: task.project })
       const number = await store.create(

@@ -44,7 +44,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec('truncate builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files')
+  await db.exec('truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files')
   store = new BuiltinStore(db, ({ number }) => `ABC-${number}`)
   dir = join(mkdtempSync(join(tmpdir(), 'ek-files-')), 'files')
   logged = []

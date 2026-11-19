@@ -12,7 +12,7 @@ let notes: HandoffNote[]
 let refusal: NoteRefusal | null
 
 const server = (writeNote: TasksDeps['writeNote'] = async (note) => (refusal === null ? void notes.push(note) ?? null : refusal)) =>
-  new TasksMcp({ db: undefined as never, readers: () => [], run: async () => undefined as never, writeNote } as unknown as TasksDeps, '1')
+  new TasksMcp({ db: undefined as never, readers: () => [], run: async () => undefined as never, modelOf: () => null, writeNote } as unknown as TasksDeps, '1')
 
 const call = (args: Record<string, unknown>, writer?: typeof WRITER) => ({
   jsonrpc: '2.0',

@@ -127,7 +127,7 @@ export interface TaskControl {
   unready(task: string): Promise<void>
   relabel(task: string, change: LabelChange): Promise<void>
   /** What the task's sessions run on, kept by Even Keel (`TaskRuns`); `null` — as its project says. */
-  setRun(task: string, run: TaskRun | null): void
+  setRun(task: string, run: TaskRun | null): Promise<void>
   /** `milestone` is an id from the card's `milestones`; `null` — out of any. */
   moveMilestone(task: string, milestone: string | null): Promise<void>
   /** Reads the project's tasks from its tracker now, out of turn. */

@@ -1,4 +1,5 @@
 import type { TaskComment } from '../../../src/tracker/card.js'
+import type { TaskChange } from '../../../src/tracker/history.js'
 
 /**
  * The journal of a fake built-in task (BTN-774), kept per task while the page lives so a note sent or deleted stays.
@@ -50,6 +51,27 @@ function seeded(mode: string | null): TaskComment[] {
 export function fakeJournal(task: string, mode: string | null): TaskComment[] {
   if (!journals.has(task)) journals.set(task, seeded(mode))
   return journals.get(task)!
+}
+
+/** A mixed journal with every kind of change for the desktop and phone checks. */
+export function fakeHistory(mode: string | null): TaskChange[] {
+  if (mode !== 'history' && mode !== 'history-long') return []
+  const now = Date.now()
+  const change = (hours: number, field: TaskChange['field'], from: string | null, to: string | null, by: TaskChange['by'] = 'person', model: string | null = null): TaskChange => ({ at: now - hours * HOUR, by, model, field, from, to })
+  const changes: TaskChange[] = [
+    change(30, 'created', null, null),
+    change(27, 'status', 'Backlog', 'Todo'),
+    change(27, 'label', null, 'Bug'),
+    change(27, 'label', 'Server', null),
+    change(27, 'estimate', '20', '40'),
+    change(27, 'milestone', null, 'v0.4'),
+    change(25, 'status', 'Todo', 'In Progress', 'service'),
+    { ...change(24, 'description', null, null, 'agent', 'Claude | opus'), diff: [{ kind: 'skipped', lines: 12 }, { kind: 'same', text: 'Read the task.' }, { kind: 'removed', text: 'Only comments.' }, { kind: 'added', text: 'Comments and changes, oldest first.' }] },
+    change(24, 'run', null, '{"provider":"claude","model":"opus","effort":"high"}', 'agent', 'Claude | opus'),
+    change(24, 'blocks', null, 'ABC-2', 'agent', 'Claude | opus'),
+    change(21, 'status', 'In Progress', 'Done', 'service'),
+  ]
+  return mode === 'history-long' ? [...Array.from({ length: 25 }, (_, index) => change(70 - index, 'title', `Old title ${index}`, `New title ${index}`, 'agent', 'OpenCode | openrouter/example/a-very-long-model-name')), ...changes] : changes
 }
 
 /** `builtin/comment` and `builtin/uncomment`: `false` — not one of them. */

@@ -9,6 +9,12 @@ import {
   type BuiltinMilestone, type CommentAuthor, type RelationKind,
 } from './model.js'
 import { closesLoop, laterBlocker } from './links.js'
+import type { TaskRun } from '../sessions/runs.js'
+import type { ChangeAuthor, ChangeField, TaskChange } from '../tracker/history.js'
+import { lineDiff } from './diff.js'
+import {
+  logMilestone, logTask, milestoneHistory, SERVICE_AUTHOR, taskHistory, writerOf, type HistoryRow, type MilestoneChange,
+} from './history-log.js'
 
 /** A task of the built-in tracker: its project's id and its number there. */
 export interface TaskKey {
@@ -117,13 +123,20 @@ const fileOf = (row: FileRow): BuiltinFile => ({ id: row.id, name: row.name, typ
 /**
  * The built-in tracker's tasks in the state database (BTN-767, step 30). A task is named by its project's id and number;
  * `nameOf` gives the `<KEY>-<N>` the messages show. Every write runs in one transaction; nothing is deleted but by `remove`.
+ * Every change of a field is recorded in the task's history (BTN-1112) in the same transaction, as made by `author`.
  */
 export class BuiltinStore {
   constructor(
     private readonly db: Db,
     private readonly nameOf: (key: TaskKey) => string = ({ project, number }) => `${project}-${number}`,
     private readonly now: () => Date = () => new Date(),
+    private readonly author: ChangeAuthor = SERVICE_AUTHOR,
   ) {}
+
+  /** The same store, its writes recorded as made by `author`. */
+  as(author: ChangeAuthor): BuiltinStore {
+    return new BuiltinStore(this.db, this.nameOf, this.now, author)
+  }
 
   /**
    * Creates the task and returns its number: one past the project's last, and past the last of `sharing` — the projects of
@@ -150,8 +163,10 @@ export class BuiltinStore {
         `insert into builtin_tasks (${TASK_COLUMNS}, estimate) values ($1, $2, $3, $4, $5, 0, $6, $7, $8, null, 1, $9, $9, $10)`,
         [id, task.project, number, title, task.description ?? '', status.name, priority, milestone, at, estimateOf(task.estimate ?? null)],
       )
-      if (task.parent != null) await this.setParent(tx, { id, project_id: task.project, number }, task.parent)
-      for (const name of uniqueNames(task.labels ?? [])) await this.attach(tx, id, task.project, name)
+      const row = { id, project_id: task.project, number }
+      await this.log(tx, row, [{ field: 'created', before: null, after: null }])
+      if (task.parent != null) await this.setParent(tx, row, task.parent, false)
+      for (const name of uniqueNames(task.labels ?? [])) await this.attach(tx, id, task.project, name, false)
       return number
     })
   }
@@ -213,26 +228,32 @@ export class BuiltinStore {
       const current = normal(edit.field, held)
       if (current === normal(edit.field, edit.to)) return false
       if (current !== normal(edit.field, edit.from)) throw fail('builtin.conflict', { task: this.nameOf(key), field: edit.field, current: shown(held) })
+      const changed = (after: string | null) => this.log(tx, row, [{ field: edit.field, before: shown(held), after }])
       switch (edit.field) {
         case 'title':
           await tx.query('update builtin_tasks set title = $2 where id = $1', [row.id, titleOf(edit.to)])
+          await changed(titleOf(edit.to))
           break
         case 'status':
           await tx.query('update builtin_tasks set status = $2 where id = $1', [row.id, statusOf(edit.to).name])
+          await changed(statusOf(edit.to).name)
           break
         case 'priority':
           await tx.query('update builtin_tasks set priority = $2 where id = $1', [row.id, priorityOf(edit.to)])
+          await changed(priorityOf(edit.to))
           break
         case 'milestone': {
           const id = edit.to === null ? null : await this.milestoneId(tx, row.project_id, edit.to)
           await tx.query('update builtin_tasks set milestone_id = $2 where id = $1', [row.id, id])
+          const { rows } = await tx.query<{ name: string }>('select name from builtin_milestones where id = $1', [id])
+          await changed(rows[0]?.name ?? null)
           break
         }
         case 'parent':
-          await this.setParent(tx, row, edit.to)
+          await this.setParent(tx, row, edit.to, true)
           break
         case 'description':
-          await tx.query('update builtin_tasks set description = $2, description_rev = description_rev + 1 where id = $1', [row.id, edit.to])
+          await this.describeAs(tx, row, edit.to)
           break
       }
       return true
@@ -242,8 +263,13 @@ export class BuiltinStore {
   /** Sets the estimate in minutes of the agent's work; `null` removes it. */
   setEstimate(key: TaskKey, minutes: number | null): Promise<BuiltinTask> {
     return this.change(key, async (tx, row) => {
-      const { affectedRows } = await tx.query('update builtin_tasks set estimate = $2 where id = $1 and estimate is distinct from $2', [row.id, estimateOf(minutes)])
-      return (affectedRows ?? 0) > 0
+      const minutesNow = estimateOf(minutes)
+      const { rows } = await tx.query<{ estimate: number | null }>('select estimate from builtin_tasks where id = $1', [row.id])
+      const before = rows[0]?.estimate ?? null
+      if (before === minutesNow) return false
+      await tx.query('update builtin_tasks set estimate = $2 where id = $1', [row.id, minutesNow])
+      await this.log(tx, row, [{ field: 'estimate', before: shown(before), after: shown(minutesNow) }])
+      return true
     })
   }
 
@@ -252,7 +278,7 @@ export class BuiltinStore {
     return this.change(key, async (tx, row) => {
       if (row.description_rev !== from) throw fail('builtin.descriptionConflict', { task: this.nameOf(key), rev: row.description_rev })
       if (row.description === text) return false
-      await tx.query('update builtin_tasks set description = $2, description_rev = description_rev + 1 where id = $1', [row.id, text])
+      await this.describeAs(tx, row, text)
       return true
     })
   }
@@ -265,7 +291,7 @@ export class BuiltinStore {
       if (old === next) return false
       const at = row.description.indexOf(old)
       const text = row.description.slice(0, at) + next + row.description.slice(at + old.length)
-      await tx.query('update builtin_tasks set description = $2, description_rev = description_rev + 1 where id = $1', [row.id, text])
+      await this.describeAs(tx, row, text)
       return true
     })
   }
@@ -278,7 +304,7 @@ export class BuiltinStore {
     return this.change(key, async (tx, row) => {
       const text = change(row.description)
       if (text === null || text === row.description) return false
-      await tx.query('update builtin_tasks set description = $2, description_rev = description_rev + 1 where id = $1', [row.id, text])
+      await this.describeAs(tx, row, text)
       return true
     })
   }
@@ -288,12 +314,13 @@ export class BuiltinStore {
     const task = await this.change(key, async (tx, row) => {
       let changed = false
       for (const name of uniqueNames(change.remove)) {
-        const { affectedRows } = await tx.query(
+        const { rows } = await tx.query<{ name: string }>(
           `delete from builtin_task_labels tl using builtin_labels l
-            where tl.task_id = $1 and tl.label_id = l.id and lower(l.name) = lower($2)`,
+            where tl.task_id = $1 and tl.label_id = l.id and lower(l.name) = lower($2) returning l.name`,
           [row.id, name],
         )
-        changed ||= (affectedRows ?? 0) > 0
+        if (rows[0] !== undefined) await this.log(tx, row, [{ field: 'label', before: rows[0].name, after: null }])
+        changed ||= rows.length > 0
       }
       for (const name of uniqueNames(change.add)) changed = (await this.attach(tx, row.id, row.project_id, name)) || changed
       return changed
@@ -408,11 +435,25 @@ export class BuiltinStore {
     return new Set(rows.map((each) => each.sha256))
   }
 
-  /** Deletes the task with its labels, links, comments and attachment records; its subtasks lose the parent. `false` — no such task. */
+  /**
+   * Deletes the task with its labels, links, comments, history and attachment records; its subtasks lose the parent. The
+   * tasks it was linked with record the lost link. `false` — no such task.
+   */
   remove(key: TaskKey): Promise<boolean> {
     return inTransaction(this.db, async (tx) => {
       const row = await this.row(tx, key)
       if (row === undefined) return false
+      const name = this.nameOf(key)
+      const { rows: linked } = await tx.query<{ id: string; project_id: string; field: ChangeField }>(
+        `select t.id, t.project_id, case when r.kind = 'relates' then 'relates' when r.from_id = $1 then 'blockedBy' else 'blocks' end as field
+           from builtin_relations r join builtin_tasks t on t.id = case when r.from_id = $1 then r.to_id else r.from_id end
+          where r.from_id = $1 or r.to_id = $1
+         union all select id, project_id, 'parent' from builtin_tasks where parent_id = $1
+         union all select id, project_id, 'subtask' from builtin_tasks where id = $2`,
+        [row.id, row.parent_id],
+      )
+      for (const other of linked) await this.log(tx, other, [{ field: other.field, before: name, after: null }])
+      await tx.query('delete from builtin_history where task_id = $1', [row.id])
       const at = this.stamp()
       await tx.query(
         `update builtin_tasks set version = version + 1, updated_at = $2
@@ -434,6 +475,7 @@ export class BuiltinStore {
   forget(project: string): Promise<void> {
     return inTransaction(this.db, async (tx) => {
       const tasks = 'select id from builtin_tasks where project_id = $1'
+      await tx.query(`delete from builtin_history where project_id = $1 or task_id in (${tasks})`, [project])
       await tx.query(`delete from builtin_relations where from_id in (${tasks}) or to_id in (${tasks})`, [project])
       for (const table of ['builtin_task_labels', 'builtin_comments', 'builtin_files']) await tx.query(`delete from ${table} where task_id in (${tasks})`, [project])
       await tx.query('update builtin_tasks set parent_id = null where project_id = $1', [project])
@@ -454,8 +496,36 @@ export class BuiltinStore {
   saveMilestone(project: string, name: string, date: number | null): Promise<string> {
     return inTransaction(this.db, async (tx) => {
       const id = await this.milestoneId(tx, project, name)
+      const { rows } = await tx.query<{ date: number | null }>('select date::float8 as date from builtin_milestones where id = $1', [id])
+      const before = rows[0]?.date ?? null
+      if (before === date) return id
       await tx.query('update builtin_milestones set date = $2 where id = $1', [id, date])
+      await this.logMilestone(tx, project, id, 'date', shown(before), shown(date))
       return id
+    })
+  }
+
+  /** The milestone's changes, oldest first. */
+  milestoneHistory(milestone: string): Promise<MilestoneChange[]> {
+    return milestoneHistory(this.db, milestone)
+  }
+
+  /** The task's changes, oldest first (BTN-1112); `[]` — no such task. */
+  async history(key: TaskKey): Promise<TaskChange[]> {
+    const row = await this.row(this.db, key)
+    return row === undefined ? [] : taskHistory(this.db, row.id)
+  }
+
+  /**
+   * Records a change of the task's run (BTN-983): Even Keel keeps the run, not the tracker, so the store only writes the
+   * history. Neither the task's version nor its time move.
+   */
+  async noteRun(key: TaskKey, from: TaskRun | null, to: TaskRun | null): Promise<void> {
+    await inTransaction(this.db, async (tx) => {
+      const row = await this.row(tx, key)
+      if (row === undefined) return
+      const text = (run: TaskRun | null) => (run === null ? null : JSON.stringify({ provider: run.provider, model: run.model, effort: run.effort }))
+      await this.log(tx, row, [{ field: 'run', before: text(from), after: text(to) }])
     })
   }
 
@@ -470,6 +540,20 @@ export class BuiltinStore {
 
   private stamp(): string {
     return this.now().toISOString()
+  }
+
+  private log(tx: Transaction, row: Pick<TaskRow, 'id' | 'project_id'>, changes: HistoryRow[]): Promise<void> {
+    return logTask(tx, this.stamp(), writerOf(this.author), row, changes)
+  }
+
+  private logMilestone(tx: Transaction, project: string, milestone: string, field: MilestoneChange['field'], before: string | null, after: string | null): Promise<void> {
+    return logMilestone(tx, this.stamp(), writerOf(this.author), project, milestone, field, before, after)
+  }
+
+  /** Sets the description and records its difference, never the two texts. */
+  private async describeAs(tx: Transaction, row: TaskRow, text: string): Promise<void> {
+    await tx.query('update builtin_tasks set description = $2, description_rev = description_rev + 1 where id = $1', [row.id, text])
+    await this.log(tx, row, [{ field: 'description', before: null, after: JSON.stringify(lineDiff(row.description, text)) }])
   }
 
   /** Runs `body` on the task's row; when it says it changed something, the task's version and time move. */
@@ -521,11 +605,12 @@ export class BuiltinStore {
     if (rows[0] !== undefined) return rows[0].id
     const id = randomUUID()
     await tx.query('insert into builtin_milestones (id, project_id, name, date) values ($1, $2, $3, null)', [id, project, trimmed])
+    await this.logMilestone(tx, project, id, 'created', null, trimmed)
     return id
   }
 
-  /** `true` — the task had no such label. */
-  private async attach(tx: Transaction, task: string, project: string, name: string): Promise<boolean> {
+  /** `true` — the task had no such label; `logged` — the history records it. */
+  private async attach(tx: Transaction, task: string, project: string, name: string, logged = true): Promise<boolean> {
     const trimmed = name.trim()
     const found = await tx.query<{ id: string }>('select id from builtin_labels where project_id = $1 and lower(name) = lower($2)', [project, trimmed])
     let label = found.rows[0]?.id
@@ -534,15 +619,37 @@ export class BuiltinStore {
       await tx.query('insert into builtin_labels (id, project_id, name, color) values ($1, $2, $3, $4)', [label, project, trimmed, labelColor(trimmed)])
     }
     const { affectedRows } = await tx.query('insert into builtin_task_labels (task_id, label_id) values ($1, $2) on conflict do nothing', [task, label])
-    return (affectedRows ?? 0) > 0
+    const added = (affectedRows ?? 0) > 0
+    if (added && logged) {
+      const { rows } = await tx.query<{ name: string }>('select name from builtin_labels where id = $1', [label])
+      await this.log(tx, { id: task, project_id: project }, [{ field: 'label', before: null, after: rows[0]!.name }])
+    }
+    return added
   }
 
-  private async setParent(tx: Transaction, row: Pick<TaskRow, 'id' | 'project_id' | 'number'>, parent: number | null): Promise<void> {
+  /**
+   * Sets the parent; the old and the new parent record the subtask they lost or got, and the task records its new parent
+   * when `logged` (a new task records only its creation).
+   */
+  private async setParent(tx: Transaction, row: Pick<TaskRow, 'id' | 'project_id' | 'number'>, parent: number | null, logged: boolean): Promise<void> {
+    const task = this.nameOf({ project: row.project_id, number: row.number })
+    const { rows: was } = await tx.query<{ id: string; number: number }>(
+      'select p.id, p.number from builtin_tasks t join builtin_tasks p on p.id = t.parent_id where t.id = $1',
+      [row.id],
+    )
+    const old = was[0]
+    const history = async (target: { id: string; number: number } | undefined) => {
+      if (old?.id === target?.id) return
+      const name = (each: { number: number } | undefined) => (each === undefined ? null : this.nameOf({ project: row.project_id, number: each.number }))
+      if (logged) await this.log(tx, row, [{ field: 'parent', before: name(old), after: name(target) }])
+      if (old !== undefined) await this.log(tx, { id: old.id, project_id: row.project_id }, [{ field: 'subtask', before: task, after: null }])
+      if (target !== undefined) await this.log(tx, { id: target.id, project_id: row.project_id }, [{ field: 'subtask', before: null, after: task }])
+    }
     if (parent === null) {
       await tx.query('update builtin_tasks set parent_id = null where id = $1', [row.id])
+      await history(undefined)
       return
     }
-    const task = this.nameOf({ project: row.project_id, number: row.number })
     if (parent === row.number) throw fail('builtin.selfParent', { task })
     const target = await this.row(tx, { project: row.project_id, number: parent })
     if (target === undefined) throw fail('builtin.noTask', { task: this.nameOf({ project: row.project_id, number: parent }) })
@@ -555,6 +662,7 @@ export class BuiltinStore {
     )
     if (rows.length > 0) throw fail('builtin.parentCycle', { task, parent: this.nameOf({ project: row.project_id, number: parent }) })
     await tx.query('update builtin_tasks set parent_id = $2 where id = $1', [row.id, target.id])
+    await history(target)
   }
 
   /** Refuses `left` blocking `right` when the chain could not order it: a loop, or a blocker of a later milestone. */
@@ -587,7 +695,13 @@ export class BuiltinStore {
       const { affectedRows } = on
         ? await tx.query('insert into builtin_relations (from_id, to_id, kind) values ($1, $2, $3) on conflict do nothing', [a, b, kind])
         : await tx.query('delete from builtin_relations where from_id = $1 and to_id = $2 and kind = $3', [a, b, kind])
-      if ((affectedRows ?? 0) > 0) await this.touch(tx, [left.id, right.id])
+      if ((affectedRows ?? 0) === 0) return
+      await this.touch(tx, [left.id, right.id])
+      // Each side records the link under its own name for it: `from` blocks, `to` is blocked by.
+      const [leftName, rightName] = [this.nameOf(from), this.nameOf(to)]
+      const side = (field: ChangeField, other: string): HistoryRow[] => [{ field, before: on ? null : other, after: on ? other : null }]
+      await this.log(tx, left, side(kind === 'blocks' ? 'blocks' : 'relates', rightName))
+      await this.log(tx, right, side(kind === 'blocks' ? 'blockedBy' : 'relates', leftName))
     })
   }
 

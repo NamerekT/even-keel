@@ -24,6 +24,8 @@ export interface TaskControlDeps {
   pollReviews(project: string): Promise<unknown>
   /** Keeps the run of the project's task and tells the page (`TaskRuns`). */
   setRun(project: string, task: string, run: TaskRun | null): void
+  /** The run kept for the project's task; its change goes into the tracker's history. */
+  runOf?(project: string, task: string): TaskRun | undefined
   broadcast(): void
 }
 
@@ -140,10 +142,15 @@ export function taskControl(deps: TaskControlDeps): TaskControl {
       // Labels can admit a task to the chain: fill its milestone through the same read as `ready`.
       return settle(readerFor(project!, task), task, { labels })
     },
-    setRun: (task, run) => {
+    setRun: async (task, run) => {
       const project = configuredProject(task)
       if (project === undefined) throw fail('task.noTracker', { task })
+      const before = deps.runOf?.(project, task) ?? null
       deps.setRun(project, task, run)
+      // A tracker keeping its own history records the change as the person's (BTN-1112); the run is kept either way.
+      await linkOf(project, task)?.page(async (tracker) => tracker.editor?.noteRun?.(task, before, run)).catch((error: unknown) => {
+        console.warn(`task run history of ${task} not recorded: ${error instanceof Error ? error.message : String(error)}`)
+      })
     },
     // The milestone moves the task in the chain's order: the project is read anew rather than patched.
     moveMilestone: async (task, milestone) => {

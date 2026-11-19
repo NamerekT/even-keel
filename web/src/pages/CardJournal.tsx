@@ -1,19 +1,23 @@
 import { useState, type ReactNode } from 'react'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { TaskComment } from '../../../src/tracker/card.js'
+import type { TaskChange } from '../../../src/tracker/history.js'
 import { formatMoment } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { EvenKeelIcon, SendIcon, TrashIcon } from '../ui/icons.js'
+import { RunLabelTag } from '../ui/RunLabelTag.js'
+import { CardChanges } from './CardChanges.js'
 import { dropDraft, readDraft, writeDraft } from './cardDrafts.js'
 import { sendsReply } from './chatKeys.js'
-import { journalAuthor, journalWindow, repliesOf } from './journalView.js'
+import { journalAuthor, journalItems, journalModel, journalWindow, repliesOf, type JournalFilter } from './journalView.js'
 import type { CardEditor } from './useCardEdit.js'
 
 interface Props {
   task: string
   comments: TaskComment[]
+  history?: TaskChange[]
   /** Only a task Even Keel keeps itself: the person writes and deletes their notes. */
   editor: CardEditor | null
   render: (text: string) => ReactNode
@@ -23,30 +27,37 @@ interface Props {
  * The task's comments in the order they were written (BTN-774). For the built-in tracker it is the task journal: agent
  * reports, session questions with the answers given in the page's chat, and the person's notes with a field below.
  */
-export function CardJournal({ task, comments, editor, render }: Props) {
+export function CardJournal({ task, comments, history, editor, render }: Props) {
   const [all, setAll] = useState(false)
+  const [filter, setFilter] = useState<JournalFilter>('all')
   const [removing, setRemoving] = useState<string | null>(null)
-  const { shown, hidden } = journalWindow(comments, all)
-  const journal = editor !== null || comments.some((comment) => comment.journal !== undefined)
-  if (comments.length === 0 && editor === null) return null
+  const items = journalItems(comments, history ?? [], filter)
+  const { shown, hidden } = journalWindow(items, all)
+  const journal = history !== undefined || editor !== null || comments.some((comment) => comment.journal !== undefined)
+  if (comments.length === 0 && editor === null && history === undefined) return null
 
   return (
     <section className="task-card__section">
-      <h3 className="task-card__heading">{journal ? t.card.journal.heading(comments.length) : t.card.comments(comments.length)}</h3>
+      <div className="task-card__journal-head">
+        <h3 className="task-card__heading">{journal ? t.card.journal.heading(items.length) : t.card.comments(comments.length)}</h3>
+        {history !== undefined && <div className="segmented task-card__journal-filter" role="group" aria-label={t.card.journal.filter}>
+          {(['all', 'comments', 'changes'] as const).map((value) => <button key={value} type="button" className={`segmented__item${filter === value ? ' segmented__item--on' : ''}`} aria-pressed={filter === value} onClick={() => { setFilter(value); setAll(false) }}>{t.card.journal.filters[value]}</button>)}
+        </div>}
+      </div>
       {hidden > 0 && (
         <button type="button" className="task-card__ghost task-card__journal-more" onClick={() => setAll(true)}>
           {t.card.journal.more(hidden)}
         </button>
       )}
-      {comments.length === 0 && <p className="placeholder">{t.card.journal.empty}</p>}
+      {items.length === 0 && <p className="placeholder">{filter === 'all' ? t.card.journal.empty : t.card.journal.filteredEmpty}</p>}
       {shown.length > 0 && (
         <ol className="task-card__comments">
-          {shown.map((comment, index) => (
+          {shown.map((item, index) => item.kind === 'changes' ? <CardChanges key={`change:${index}`} group={item.group} /> : (
             <Entry
-              key={comment.journal?.id ?? index}
-              comment={comment}
+              key={item.comment.journal?.id ?? `comment:${index}`}
+              comment={item.comment}
               render={render}
-              onRemove={editor !== null && comment.journal?.by === 'person' ? () => setRemoving(comment.journal!.id) : null}
+              onRemove={editor !== null && item.comment.journal?.by === 'person' ? () => setRemoving(item.comment.journal!.id) : null}
               busy={editor?.busy ?? false}
             />
           ))}
@@ -60,6 +71,7 @@ export function CardJournal({ task, comments, editor, render }: Props) {
 
 function Entry({ comment, render, onRemove, busy }: { comment: TaskComment; render: (text: string) => ReactNode; onRemove: (() => void) | null; busy: boolean }) {
   const author = journalAuthor(comment, { ...t.card.journal, noAuthor: t.card.noAuthor })
+  const model = journalModel(comment.journal?.model)
   const at = new Date(comment.at).toISOString()
   const replies = repliesOf(comment)
   return (
@@ -70,6 +82,7 @@ function Entry({ comment, render, onRemove, busy }: { comment: TaskComment; rend
       <div className="task-card__bubble">
         <div className="task-card__comment-head">
           <strong>{author}</strong>
+          {model !== null && <RunLabelTag run={model} />}
           <time dateTime={at}>{formatMoment(at, new Date())}</time>
           {onRemove !== null && (
             <button type="button" className="task-card__remove task-card__comment-remove" aria-label={t.card.journal.remove} title={t.card.journal.remove} disabled={busy} onClick={onRemove}>
