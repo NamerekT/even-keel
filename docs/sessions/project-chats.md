@@ -45,6 +45,10 @@ A restart between 4 and 5 loses nothing: the sweep finds an active chat with `pe
 
 The Chats tab of the project page (BTN-1231) polls `list` every 4 s while the page is open, for its list and its badge; `archive` is asked per search and page, `create` from the "New session" window, `send` and `read` from the chat's window. A chat's window is the session's transcript window with the chat's field, without the commands menu; one without a session yet shows an empty feed. How it looks is in `docs/web/project-page.md` ("The Chats tab").
 
+## In the stats
+
+Tally reads each chat's session from the `chats` table and keeps it in `chat_sessions` (BTN-1233): such a session belongs to no task, even when its title names one, and `/stats` shows the chats' count and spend per project under the task table (`docs/tally.md` step 18, `docs/stats.md`).
+
 ## Not covered
 
 Uncommitted changes a chat leaves in the main checkout hold up a chain task's merge the way a hand session's do from an editor: no guard of its own.

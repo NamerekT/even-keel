@@ -10,6 +10,7 @@ import type {
   StatsLimitWindow,
   StatsPeriod,
   StatsStuck,
+  StatsChatRow,
   StatsTaskDetail,
   StatsTaskRow,
   StatsTotals,
@@ -274,6 +275,15 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
     }
   }
   tasks.sort((a, b) => b.cost - a.cost)
+  // Project chats (BTN-1233) draw from their own sequence, so the tasks and the spans after them stay as they were.
+  const talk = random(dayCount(range) * 71 + byProject.size)
+  const chats: StatsChatRow[] = [...byProject]
+    .filter(([project]) => TRACKED.includes(project))
+    .map(([project, cost]) => {
+      const count = 1 + Math.floor(talk() * 6)
+      return { project, chats: count, sessions: count + Math.floor(talk() * 2), cost: cost * (0.02 + talk() * 0.06), limit: cost * 0.005 }
+    })
+    .sort((a, b) => b.cost - a.cost)
 
   const activeDays = [...new Set(list.filter((row) => row.day >= range.from && row.day <= range.to).map((row) => row.day))]
   const weekly = new Map<string, number>()
@@ -306,6 +316,7 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
       ]),
       entrypoints: share(current.cost, query.scope === 'chain' ? [['chain', 1]] : [['chain', 0.48], ['vscode', 0.3], ['desktop', 0.12], ['cli', 0.08], ['tally-classify', 0.02]]),
       tasks,
+      chats,
       weeks,
       stuck,
     },

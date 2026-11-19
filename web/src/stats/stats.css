@@ -404,6 +404,43 @@
   margin-top: 8px;
 }
 
+/* Project chats under the tasks (BTN-1233): a quiet box, one entry per project. */
+.chat-spend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-6) var(--space-16);
+  margin-top: var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  font-size: var(--text-13);
+}
+
+.chat-spend__label {
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chat-spend__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  white-space: nowrap;
+}
+
+.chat-spend__project {
+  font-family: var(--mono);
+  color: var(--fg-muted);
+}
+
+.chat-spend__cost {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .timeline {
   display: flex;
   flex-direction: column;

@@ -254,6 +254,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 217 | [The inbox socket](unverified/sessions.md#the-inbox-socket-btn-1322) | Claude `--bg` chain sessions with `agent-bridge` 1.6.0 that get a chat message | the message waits for the hooks or a resume as before, or is marked delivered and lost; send it again after the turn ends | — |
 | 218 | [Codex limits from a live session's rollout](unverified/codex.md#codex-limits-from-a-live-sessions-rollout-btn-1320) | Codex and OpenCode accounts on a ChatGPT sign-in while a Codex session works | the page lags the site by up to five minutes as before, or shows the five hours empty on a plan that has them until the next poll; the next poll puts it right | — |
 | 219 | [A project chat going on in a new session](unverified/sessions.md#a-project-chat-going-on-in-a-new-session-btn-1232) | anyone who takes "New session with this message" in a project chat | the new session starts without the old chat's turns or answers them instead of the message; say what to do in the next message | — |
+| 220 | [Project chats in the stats](unverified/sessions.md#project-chats-in-the-stats-btn-1233) | anyone with project chats and Tally | the chat's spend is missing from the line under "Tasks" or counts in a task its title names; read it from the session's own figures | — |
 
 ### Waiting for the event / not checked by choice
 

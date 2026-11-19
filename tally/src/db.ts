@@ -25,6 +25,7 @@ import { migrate, pgDb, type Migration } from './migrations.js'
 import { firstPrompt } from './prompt.js'
 import { REPAIR_GLOBAL_RULE_SNAPSHOTS } from './rule-repair.js'
 import { TASK_MOVES, type TaskMove } from './task-moves.js'
+import { CHAT_SESSIONS, type ChatSession } from './chat-sessions.js'
 import { pendingSpans, writeLlmCosts, writeReason, type PendingSpan, type SpanReason } from './db-classify.js'
 export type { PendingSpan, SpanReason } from './db-classify.js'
 
@@ -442,6 +443,11 @@ export class TallyDb implements Store {
   /** The links of the old ids of built-in tasks to their copies (`TASK_MOVES`, BTN-1076). */
   async syncTaskMoves(moves: TaskMove[]): Promise<void> {
     if (moves.length > 0) await this.client.query(TASK_MOVES, [JSON.stringify(moves)])
+  }
+
+  /** The sessions of project chats, no task's (`CHAT_SESSIONS`, BTN-1233). */
+  async syncChatSessions(chats: ChatSession[]): Promise<void> {
+    if (chats.length > 0) await this.client.query(CHAT_SESSIONS, [JSON.stringify(chats)])
   }
 
   async fillEfforts(): Promise<number> {

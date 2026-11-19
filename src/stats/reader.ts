@@ -202,6 +202,20 @@ left join compacted cp on cp.task = c.task
 group by c.task, t.title, t.status, t.url, t.labels, t.estimate_h, t.done, t.component, tt.active_s, tt.wait_s, tt.total_s
 order by cost desc, c.task`
 
+// Project chats (BTN-1233): sessions without a task, counted per project of their folder next to the tasks.
+const CHATS = `${PERIOD}, paid as (
+  select p.message_id, p.paid from message_paid p where p.session_id in (select session_id from key_spends where not shared)
+)
+select c.project, count(distinct cs.chat) as chats, count(distinct c.session_id) as sessions,
+  coalesce(sum(coalesce(pd.paid, c.cost)), 0) as cost, sum(sv.share) as limit_share
+from ranged c
+join chat_sessions cs on cs.session_id = c.session_id
+left join seven sv on sv.message_id = c.message_id
+left join paid pd on pd.message_id = c.message_id
+where c.cur
+group by c.project
+order by cost desc, c.project`
+
 const PICKED = `${PERIOD}, sess as (
   select session_id, min(project) as project from ranged where cur group by session_id
 ), picked as (
@@ -388,6 +402,8 @@ export interface PeriodRows {
   models: Row[]
   entrypoints: Row[]
   tasks: Row[]
+  /** Absent — not asked, as in older tests: no chats. */
+  chats?: Row[]
   weeks: Row[]
   stuck: Row[]
 }
@@ -427,6 +443,13 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
       done: typeof row.done === 'boolean' ? row.done : null,
       component: text(row.component),
       model: text(row.model),
+    })),
+    chats: (rows.chats ?? []).map((row) => ({
+      project: String(row.project),
+      chats: number(row.chats),
+      sessions: number(row.sessions),
+      cost: number(row.cost),
+      limit: maybe(row.limit_share),
     })),
     weeks: rows.weeks.map((row) => ({ week: String(row.week), reason: text(row.reason), spans: number(row.spans) })),
     stuck: rows.stuck.map(stuck),
@@ -528,12 +551,12 @@ export class StatsReader {
     return this.cached(key, async (pool) => {
       const extra = [query.from, query.to, query.projects]
       const plain = (sql: string, params: unknown[]) => pool.query<Row>(sql, params).then((result) => result.rows)
-      const [[totals, models, entrypoints, tasks, weeks, stuck], coverage, windows] = await Promise.all([
-        Promise.all([TOTALS, MODELS, ENTRYPOINTS, TASKS, WEEKS, STUCK].map((sql) => this.query(pool, sql, query, extra))),
+      const [[totals, models, entrypoints, tasks, chats, weeks, stuck], coverage, windows] = await Promise.all([
+        Promise.all([TOTALS, MODELS, ENTRYPOINTS, TASKS, CHATS, WEEKS, STUCK].map((sql) => this.query(pool, sql, query, extra))),
         plain(COVERAGE, [query.tz, query.account]),
         plain(WINDOWS, [query.tz, query.account, query.from, query.to]),
       ])
-      const rows = { totals: totals!, coverage, windows, models: models!, entrypoints: entrypoints!, tasks: tasks!, weeks: weeks!, stuck: stuck! }
+      const rows = { totals: totals!, coverage, windows, models: models!, entrypoints: entrypoints!, tasks: tasks!, chats: chats!, weeks: weeks!, stuck: stuck! }
       return mapPeriod(query, rows, new Date())
     })
   }

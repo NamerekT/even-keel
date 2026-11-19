@@ -116,8 +116,21 @@ export interface StatsPeriod {
   models: StatsShare[]
   entrypoints: StatsShare[]
   tasks: StatsTaskRow[]
+  /** The project chats of the period, one row per project with any (BTN-1233). */
+  chats: StatsChatRow[]
   weeks: StatsWeekReason[]
   stuck: StatsStuck[]
+}
+
+/** A project's chats (BTN-1229) in a period: sessions without a task, apart from the tasks. */
+export interface StatsChatRow {
+  project: string
+  chats: number
+  sessions: number
+  /** As paid, like `StatsTaskRow.cost`. */
+  cost: number
+  /** The share of a weekly limit; `null` — no limit snapshots. */
+  limit: number | null
 }
 
 export interface StatsTaskSession {

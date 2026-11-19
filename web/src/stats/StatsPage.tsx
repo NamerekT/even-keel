@@ -222,7 +222,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
                 {checkpoints !== null && <Checkpoints fold={fold('checkpoints')} thresholds={checkpoints.filter(each => view.includeTests || !tests.includes(each.project))} projects={view.projects} />}
                 </div>
                 <div className="stats-page__group">
-                <TaskTable fold={fold('tasks')} tasks={period.tasks} trackerUrls={state.trackerUrls} />
+                <TaskTable fold={fold('tasks')} tasks={period.tasks} chats={period.chats ?? []} trackerUrls={state.trackerUrls} />
                 <StuckSection fold={fold('stuck')} weeks={period.weeks} stuck={period.stuck} trackerUrls={state.trackerUrls} />
                 <StepsSection fold={fold('steps')} loaded={stepsLoaded} />
                 </div>

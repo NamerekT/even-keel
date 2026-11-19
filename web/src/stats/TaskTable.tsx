@@ -1,13 +1,14 @@
 import { FoldBody } from '../ui/Fold.js'
 import type { TrackerUrls } from '../../../src/state.js'
 import { Fragment, useState, type CSSProperties, type ReactNode } from 'react'
-import type { StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
+import type { StatsChatRow, StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
 import { formatMoment, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
+import { ChatSpend } from './ChatSpend.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatSeconds, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
 import { tasksRemark, type TasksRemark } from './remarks.js'
@@ -22,7 +23,7 @@ function remarkText(remark: TasksRemark | null): string | null {
     : t.stats.remarks.stubborn(remark.task, remark.sessions)
 }
 
-export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[]; trackerUrls: TrackerUrls; fold: FoldControl }) {
+export function TaskTable({ tasks, chats, trackerUrls, fold }: { tasks: StatsTaskRow[]; chats: StatsChatRow[]; trackerUrls: TrackerUrls; fold: FoldControl }) {
   const [sort, setSort] = useState<{ column: Column; down: boolean }>({ column: 'cost', down: true })
   const [open, setOpen] = useState<string | null>(null)
   const [all, setAll] = useState(false)
@@ -193,6 +194,7 @@ export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[];
           )}
         </div>
       )}
+      <ChatSpend chats={chats} several={new Set([...tasks, ...chats].map((row) => row.project)).size > 1} />
     </Section>
   )
 }

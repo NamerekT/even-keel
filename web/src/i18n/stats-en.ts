@@ -201,6 +201,13 @@ export const statsEN: Messages['stats'] = {
       stepsNote: ' — share of the task time',
       launches,
     },
+    chats: {
+      title: 'Chats',
+      tip: 'Project chats: sessions without a task started from the project page. Their spend counts here, not in the tasks.',
+      count: counted('chat', 'chats'),
+      sessions: counted('session', 'sessions'),
+      limit: (share: string) => `${share} of the weekly limit`,
+    },
     stuck: {
       title: 'Stuck',
       none: "Sessions didn't get stuck in the period.",
