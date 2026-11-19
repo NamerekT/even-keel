@@ -1,5 +1,9 @@
 /* The transcript window and the chat: the feed in a column of its own, the calls muted, the composer one rounded box. */
 
+.session-window.transcript--new[open] {
+  animation: none;
+}
+
 .transcript .session-window__body {
   gap: 10px;
   overflow: hidden;

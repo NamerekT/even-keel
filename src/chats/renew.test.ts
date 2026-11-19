@@ -35,7 +35,7 @@ describe('a project chat going on in a new session (BTN-1232)', { timeout: 120_0
       expect(prompt).toContain('C:\\claude\\projects\\old.jsonl')
       expect(prompt).toContain(`${USER_MESSAGE_HEAD.en}\n\nFix the header\n\nFiles`)
       expect(prompt).toContain('C:\\repos\\example-project\\.temp\\inbox\\shot.png')
-      expect(next).toMatchObject({ agent: 'codex', account: 'codex-work', sessionId: `session-${next.id}`, title: 'Fix the header', state: 'cold' })
+      expect(next).toMatchObject({ agent: 'codex', account: 'codex-work', sessionId: `session-${next.id}`, title: 'Fix the header', state: 'starting' })
       expect(next.previous).toBe(old)
       expect(await fixture.chats.card(old)).toMatchObject({ state: 'archived', successor: next.id })
       expect(fixture.chats.choice(ABC)).toEqual({ account: 'codex-work', model: 'gpt-5.5', effort: 'medium' })

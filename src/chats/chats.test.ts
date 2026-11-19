@@ -28,6 +28,8 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
         prompt: expect.stringContaining('C:\\repos\\example-project\\.temp\\inbox\\log.txt'),
       }])
       expect(first).toMatchObject({ sessionId: `session-${id}`, title: 'Why is the build slow?', last: { from: 'user', text: 'Why is the build slow?' } })
+      expect(first.state).toBe('starting')
+      expect(chats.list(ABC)[0]?.state).toBe('starting')
       await chats.send(id, { text: 'And the tests?', files: [] })
       expect(calls[1]).toEqual(['send', ABC, id, { model: 'opus', effort: null, prompt: 'And the tests?\n' }])
     } finally {

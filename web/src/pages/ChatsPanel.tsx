@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react'
 import type { ChatCard, ChatPage } from '../../../src/chats/model.js'
 import { agentLabel } from '../accountName.js'
 import { formatStamp } from '../format.js'
@@ -88,21 +88,23 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
           {t.chats.newSession}
         </button>
       )}
-      {creating && (
-        <NewChatDialog
-          project={project}
-          choice={chats.choice}
-          onClose={() => setCreating(false)}
-          onStarted={(chat) => {
-            setCreating(false)
-            setSection('active')
-            setOpened(chat)
-            chats.refresh()
-          }}
-        />
-      )}
-      {shown !== null && (
-        <Suspense fallback={null}>
+      <Suspense fallback={null}>
+        {creating && (
+          <NewChatDialog
+            project={project}
+            choice={chats.choice}
+            onClose={() => setCreating(false)}
+            onStarted={(chat) => {
+              startTransition(() => {
+                setCreating(false)
+                setSection('active')
+                setOpened(chat)
+              })
+              chats.refresh()
+            }}
+          />
+        )}
+        {shown !== null && (
           <ProjectChatWindow
             key={shown.id}
             chat={shown}
@@ -122,8 +124,8 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
             }}
             onChanged={chats.refresh}
           />
-        </Suspense>
-      )}
+        )}
+      </Suspense>
     </aside>
   )
 }
