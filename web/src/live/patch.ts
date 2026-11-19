@@ -12,5 +12,10 @@ export function applyPatch<T extends object>(base: T, patch: Patch): T {
     for (const entry of changed) byId.set(idOf(entry), entry)
     next[name] = (order ?? old.map(idOf)).map((id) => byId.get(id))
   }
+  for (const [name, { order, changed }] of Object.entries(patch.byKey ?? {})) {
+    const was = next[name]
+    const old = typeof was === 'object' && was !== null && !Array.isArray(was) ? (was as Record<string, unknown>) : {}
+    next[name] = Object.fromEntries((order ?? Object.keys(old)).map((key) => [key, Object.hasOwn(changed, key) ? changed[key] : old[key]]))
+  }
   return next as T
 }

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EventHub, formatEvent, readyBroadcast } from './events.js'
+import { OWN_KEYS } from './patch.js'
 
 describe('formatEvent', () => {
   it('writes an SSE frame with the event name and JSON data', () => {
@@ -295,6 +296,36 @@ describe('EventHub', () => {
 
       expect(patchOf(frames[1])).toEqual({ parts: { sessions: twins } })
       expect(patchOf(frames[2])).toEqual({ keyed: { sessions: { by: 'sessionId', order: ['s-1'], changed: [session('s-1', 'working')] } } })
+    })
+
+    describe('a part keyed by its own keys (BTN-1326)', () => {
+      const ci = (checkedAt: string) => ({ remote: 'origin', checkedAt })
+      const byProject = () => {
+        const hub = new EventHub({ state: { ci: OWN_KEYS } })
+        const frames: string[] = []
+        hub.join('state', { ci: { p1: [ci('t1')], p2: [ci('t1')] } }, (frame) => frames.push(frame))
+        return { hub, frames }
+      }
+
+      it('sends only the keys that changed, with the order only when it changed', () => {
+        const { hub, frames } = byProject()
+        hub.broadcast('state', { ci: { p1: [ci('t1')], p2: [ci('t2')] } })
+        hub.broadcast('state', { ci: { p3: [], p2: [ci('t2')] } })
+
+        expect(patchOf(frames[1])).toEqual({ byKey: { ci: { changed: { p2: [ci('t2')] } } } })
+        expect(patchOf(frames[2])).toEqual({ byKey: { ci: { order: ['p3', 'p2'], changed: { p3: [] } } } })
+      })
+
+      it('sends nothing when no key changed, and the part whole when it is no dictionary', () => {
+        const { hub, frames } = byProject()
+        hub.broadcast('state', { ci: { p1: [ci('t1')], p2: [ci('t1')] } })
+        hub.broadcast('state', { ci: null })
+        hub.broadcast('state', { ci: { p1: [] } })
+
+        expect(frames).toHaveLength(3)
+        expect(patchOf(frames[1])).toEqual({ parts: { ci: null } })
+        expect(patchOf(frames[2])).toEqual({ byKey: { ci: { order: ['p1'], changed: { p1: [] } } } })
+      })
     })
 
     it('moves the pages already there to the data a new page joins with, so all share one base', () => {

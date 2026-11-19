@@ -15,6 +15,7 @@ import { type Remote } from './ci/remote.js'
 import { CLAUDE } from './claude/name.js'
 import { DEFAULT_BRANCH,gitProjects,isPlain,listenOf,mcpPortOf,ownerOf,projectLabels,readersOf,type EvenKeelConfig } from './config.js'
 import { EventHub, readyBroadcast } from './events.js'
+import { OWN_KEYS } from './patch.js'
 import { runGit } from './git/run.js'
 import { gitSetup } from './git/setup.js'
 import { type SlotUse } from './git/slot.js'
@@ -423,8 +424,8 @@ const vocabularies = hubBootstrap.assembleVocabularies(context)
 /** The statuses of each tracker profile (BTN-554), for its status moves. */
 const profileStatuses = hubBootstrap.assembleProfileStatuses(context)
 // The state goes to the page whole once, then by its changed parts, the sessions one by one (BTN-695); a tracker's
-// last read moves only its own entry (BTN-1256).
-const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id', trackers: 'name' } })
+// last read moves only its own entry (BTN-1256), a CI poll only its project's CI (BTN-1326).
+const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id', trackers: 'name', ci: OWN_KEYS } })
 // The event log looks at the state also while no page listens, at most every two seconds (BTN-350).
 hub.watch('state', (state) => eventLog.observe(state as EvenKeelState), 2_000)
 /**

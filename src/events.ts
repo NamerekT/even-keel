@@ -1,4 +1,4 @@
-import type { KeyedParts } from './patch.js'
+import { OWN_KEYS, type KeyedParts } from './patch.js'
 
 export type Subscriber = (frame: string) => void
 
@@ -11,6 +11,8 @@ export function formatEvent(event: string, data: unknown): string {
 const frameOf = (event: string, json: string) => `event: ${event}\ndata: ${json}\n\n`
 
 interface Entries {
+  /** A dictionary by its own keys, not an array of entries naming themselves. */
+  own: boolean
   order: string[]
   json: Map<string, string>
 }
@@ -106,18 +108,27 @@ export class EventHub {
     }
     const parts = [...now.parts].filter(([name, json]) => before.parts.get(name) !== json).map(([name, json]) => `${JSON.stringify(name)}:${json}`)
     const gone = [...before.parts.keys(), ...before.keyed.keys()].filter((name) => !now.parts.has(name) && !now.keyed.has(name))
-    const changes = [...now.keyed].flatMap(([name, entries]) => {
-      const was = before.keyed.get(name)
+    const changes = { keyed: [] as string[], byKey: [] as string[] }
+    for (const [name, entries] of now.keyed) {
+      const last = before.keyed.get(name)
+      const was = last?.own === entries.own ? last : undefined
       const sameOrder = was !== undefined && was.order.length === entries.order.length && was.order.every((id, index) => entries.order[index] === id)
-      const changed = entries.order.filter((id) => was?.json.get(id) !== entries.json.get(id)).map((id) => entries.json.get(id)!)
-      if (sameOrder && changed.length === 0) return []
+      const ids = entries.order.filter((id) => was?.json.get(id) !== entries.json.get(id))
+      if (sameOrder && ids.length === 0) continue
       const order = sameOrder ? '' : `"order":${JSON.stringify(entries.order)},`
-      return [`${JSON.stringify(name)}:{"by":${JSON.stringify(keyed[name])},${order}"changed":[${changed.join(',')}]}`]
-    })
+      if (entries.own) {
+        const changed = ids.map((id) => `${JSON.stringify(id)}:${entries.json.get(id)!}`)
+        changes.byKey.push(`${JSON.stringify(name)}:{${order}"changed":{${changed.join(',')}}}`)
+      } else {
+        const changed = ids.map((id) => entries.json.get(id)!)
+        changes.keyed.push(`${JSON.stringify(name)}:{"by":${JSON.stringify(keyed[name])},${order}"changed":[${changed.join(',')}]}`)
+      }
+    }
     const fields = [
       ...(parts.length > 0 ? [`"parts":{${parts.join(',')}}`] : []),
       ...(gone.length > 0 ? [`"gone":${JSON.stringify(gone)}`] : []),
-      ...(changes.length > 0 ? [`"keyed":{${changes.join(',')}}`] : []),
+      ...(changes.keyed.length > 0 ? [`"keyed":{${changes.keyed.join(',')}}`] : []),
+      ...(changes.byKey.length > 0 ? [`"byKey":{${changes.byKey.join(',')}}`] : []),
     ]
     if (fields.length > 0) this.send(frameOf(`${event}Patch`, `{${fields.join(',')}}`))
   }
@@ -240,8 +251,16 @@ export function readyBroadcast(hub: EventHub, event: string): { changed: () => v
   }
 }
 
-/** The entries of a keyed part by their ids; `null` — not an array of entries with ids of their own. */
+/**
+ * The entries of a keyed part by their ids, of an `OWN_KEYS` part by its keys; `null` — not an array of entries with
+ * ids of their own, or not a dictionary.
+ */
 function entriesOf(value: unknown, field: string): Entries | null {
+  if (field === OWN_KEYS) {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+    const json = new Map(Object.entries(value).flatMap(([key, entry]) => (entry === undefined ? [] : [[key, JSON.stringify(entry)] as const])))
+    return { own: true, order: [...json.keys()], json }
+  }
   if (!Array.isArray(value)) return null
   const json = new Map<string, string>()
   for (const entry of value as unknown[]) {
@@ -249,5 +268,5 @@ function entriesOf(value: unknown, field: string): Entries | null {
     if (typeof id !== 'string' || json.has(id)) return null
     json.set(id, JSON.stringify(entry))
   }
-  return { order: [...json.keys()], json }
+  return { own: false, order: [...json.keys()], json }
 }
