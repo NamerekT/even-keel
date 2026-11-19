@@ -44,6 +44,8 @@ export interface TaskSession {
   compactions?: number
   /** The e-mail of the account the session ran on; `null` when it is not known. */
   account?: string | null
+  /** The agent the session ran on, which names `account` where one e-mail is signed in to two agents; absent — not known. */
+  agent?: string
   /** The machine the session started on (`LaunchEntry.machine`); absent — not known, the own one before machines. */
   machine?: string
 }
@@ -114,6 +116,7 @@ export function taskSessions(
   live: Pick<SessionView, 'task' | 'sessionId' | 'startedAt'>[],
   accountOf?: (sessionId: string, at: string) => string | null,
   compactionsOf?: (sessionId: string) => number,
+  agentOf?: (sessionId: string) => string | null,
 ): Record<string, TaskSession[]> {
   const byTask = new Map<string, Map<string, TaskSession>>()
   const rowsOf = (task: string) => {
@@ -174,6 +177,12 @@ export function taskSessions(
       for (const row of rows.values()) {
         const compactions = compactionsOf(row.sessionId)
         if (compactions > 0) row.compactions = compactions
+      }
+    }
+    if (agentOf !== undefined) {
+      for (const row of rows.values()) {
+        const agent = agentOf(row.sessionId)
+        if (agent !== null) row.agent = agent
       }
     }
     result[task] = [...rows.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))

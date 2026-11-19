@@ -321,7 +321,13 @@ function pageSessions(ctx: HostingContext): SessionView[] {
 
 function allTaskSessions(ctx: HostingContext): Record<string, TaskSession[]> {
   const machine = ctx.machineLink.sessions
-  return taskSessions(ctx.launches, machine.sessions(), (sessionId, at) => machine.sessionAccount(sessionId, at), (sessionId) => machine.compactionsOf(sessionId))
+  return taskSessions(
+    ctx.launches,
+    machine.sessions(),
+    (sessionId, at) => machine.sessionAccount(sessionId, at),
+    (sessionId) => machine.compactionsOf(sessionId),
+    (sessionId) => machine.sessionAgent(sessionId),
+  )
 }
 
 /** `history/task`: every run of the task and every session of it or of its runs (BTN-1256). */

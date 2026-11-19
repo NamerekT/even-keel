@@ -522,7 +522,7 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                   <time dateTime={row.at}>{formatStamp(row.at, now)}</time>
                 </Tipped>
                 <span className="sessions__seg sessions__account">
-                  <AccountTag account={row.account} agent={state?.sessions.find((session) => session.sessionId === row.sessionId)?.agent} />
+                  <AccountTag account={row.account} agent={row.agent ?? state?.sessions.find((session) => session.sessionId === row.sessionId)?.agent} />
                 </span>
                 <span className="sessions__seg sessions__id">{row.sessionId.slice(0, 8)}</span>
                 {row.sessionId === current && <span className="sessions__now">{t.session.current}</span>}
@@ -597,7 +597,7 @@ function SessionWindow({ row, live, scale, task, onClose }: { row: TaskSession; 
           <h2 className="panel__task">
             <span className="panel__key">{row.sessionId.slice(0, 8)}</span>
             <span className="panel__title">{launchText(row)}</span>
-            <AccountTag account={account} agent={record?.agent ?? state?.sessions.find((session) => session.sessionId === row.sessionId)?.agent} />
+            <AccountTag account={account} agent={record?.agent ?? row.agent ?? state?.sessions.find((session) => session.sessionId === row.sessionId)?.agent} />
           </h2>
           <button type="button" className="panel__close" aria-label={t.session.closeDialog} onClick={() => dialogRef.current?.close()}>
             ×

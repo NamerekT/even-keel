@@ -186,6 +186,20 @@ describe('taskSessions', () => {
     ])
   })
 
+  it('names the agent of each session, an ended one too, when it is known (BTN-1341)', () => {
+    const list = taskSessions(
+      [entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'), entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2')],
+      [],
+      undefined,
+      undefined,
+      (sessionId) => (sessionId === 's1' ? 'codex' : null),
+    )
+    expect(list['ABC-1']?.map((row) => [row.sessionId, row.agent])).toEqual([
+      ['s2', undefined],
+      ['s1', 'codex'],
+    ])
+  })
+
   it('keeps the machine each session started on (BTN-993)', () => {
     const list = taskSessions(
       [

@@ -47,11 +47,13 @@ export function fakeTranscript(open: Ask | null, shots: string | null): FeedLine
 export function fakeRecord(state: EvenKeelState, sessionId: string): SessionRecord | null {
   if (sessionId.endsWith('999')) return null
   const live = state.sessions.find((view) => view.sessionId === sessionId)
+  const ended = Object.values(state.taskSessions).flat().find((row) => row.sessionId === sessionId)
+  const agent = live?.agent ?? ended?.agent ?? 'claude'
   return {
     sessionId,
     startedAt: live?.startedAt ?? ago(400),
-    agent: live?.agent ?? 'claude',
-    model: live?.model ?? 'claude-opus-5-5',
+    agent,
+    model: live?.model ?? (agent === 'codex' ? 'gpt-6.1-sol' : 'claude-opus-5-5'),
     effort: live === undefined ? 'high' : live.effort,
     lastActivityAt: live?.lastActivityAt ?? ago(250),
     contextTokens: live?.contextTokens ?? 271_000,
@@ -62,7 +64,7 @@ export function fakeRecord(state: EvenKeelState, sessionId: string): SessionReco
     workdir: 'C:\\repos\\example-project\\.claude\\worktrees\\abc-5',
     branch: 'abc-5/chain-order',
     apiError: live?.apiError ?? "You've hit your session limit · resets 7:20pm (Europe/Berlin)",
-    account: live?.account ?? state.taskSessions['ABC-5']?.find((row) => row.sessionId === sessionId)?.account ?? 'jane.roe@example.com',
+    account: live?.account ?? ended?.account ?? 'jane.roe@example.com',
   }
 }
 

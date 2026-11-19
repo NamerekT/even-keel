@@ -235,7 +235,8 @@ function fakeState(
           ],
           'ABC-4': [
             { sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'checkpoint', resumed: 0, answers: 0, account: 'john.doe@example.com' },
-            { sessionId: '00000000-0000-4000-8000-000000000104', at: ago(960), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' },
+            // An ended Codex session on the e-mail the Claude account has too: the list names it OpenAI (BTN-1341).
+            { sessionId: '00000000-0000-4000-8000-000000000104', at: ago(960), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com', agent: 'codex' },
           ],
           'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, answers: 0, account: 'jane.roe@example.com' }],
           'ABC-16': [{ sessionId: session('ABC-16', 0).sessionId, at: ago(1_200), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],

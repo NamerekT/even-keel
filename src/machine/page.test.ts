@@ -31,4 +31,16 @@ describe('allSessions', () => {
     expect(reads.sessionAccount('none', null)).toBeNull()
     expect(reads.compactionsOf('none')).toBe(0)
   })
+
+  it("names an ended session's agent by the account folder its transcript is in (BTN-1341)", () => {
+    const entry = (key: string, agent: string) => ({ key, agent, status: { email: 'john.doe@example.com' } })
+    const panel = { accounts: [entry('claude-john', 'claude'), entry('codex-john', 'codex')] } as unknown as MachineFacts['panel']
+    const own = mirror({ sessions: {}, owners: { gone: 'codex-john', lost: 'removed' }, panel })
+    const elsewhere = mirror({ sessions: { live: session('live', 'ABC-2', { agent: 'opencode' }) } })
+    const reads = allSessions(() => [own, elsewhere])
+    expect(reads.sessionAgent('gone')).toBe('codex')
+    expect(reads.sessionAgent('live')).toBe('opencode')
+    expect(reads.sessionAgent('lost')).toBeNull()
+    expect(reads.sessionAgent('none')).toBeNull()
+  })
 })

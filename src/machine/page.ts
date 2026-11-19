@@ -29,6 +29,11 @@ export interface PageReads {
   ownerOf(sessionId: string): string | undefined
   /** The e-mail the session ran as: a live one's own, else its folder's at `at` (the folder's account may change). */
   sessionAccount(sessionId: string | null, at: string | null): string | null
+  /**
+   * The agent the session ran on: a live one's own, else its folder's; null once the folder is gone. An e-mail alone does
+   * not tell it: one address may be signed in to two agents (BTN-1341).
+   */
+  sessionAgent(sessionId: string): string | null
   compactionsOf(sessionId: string): number
   /** By project and task, what the task's working folder holds. */
   works(): Record<string, Record<string, TaskWork>>
@@ -58,6 +63,12 @@ export function pageReads(facts: () => MachineFacts | undefined): PageReads {
       const key = facts()?.owners?.[sessionId]
       return key === undefined ? null : emailAt(key, at)
     },
+    sessionAgent: (sessionId) => {
+      const live = facts()?.sessions?.[sessionId]
+      if (live !== undefined) return live.agent
+      const key = facts()?.owners?.[sessionId]
+      return (key === undefined ? undefined : entryOf(key)?.agent) ?? null
+    },
     compactionsOf: (sessionId) => facts()?.compactions?.[sessionId] ?? 0,
     works: () => facts()?.works ?? {},
     gitFound: () => facts()?.gitFound ?? {},
@@ -65,7 +76,7 @@ export function pageReads(facts: () => MachineFacts | undefined): PageReads {
 }
 
 /** What the page's state reads of the sessions of every machine on the hub (BTN-1314). */
-export type SessionReads = Pick<PageReads, 'sessions' | 'sessionAccount' | 'compactionsOf'>
+export type SessionReads = Pick<PageReads, 'sessions' | 'sessionAccount' | 'sessionAgent' | 'compactionsOf'>
 
 /**
  * The sessions of all the mirrors, the own machine's first: a task a machine elsewhere runs has its session, its
@@ -81,6 +92,13 @@ export function allSessions(pages: () => PageReads[]): SessionReads {
       for (const page of pages()) {
         const account = page.sessionAccount(sessionId, at)
         if (account !== null) return account
+      }
+      return null
+    },
+    sessionAgent: (sessionId) => {
+      for (const page of pages()) {
+        const agent = page.sessionAgent(sessionId)
+        if (agent !== null) return agent
       }
       return null
     },
