@@ -219,6 +219,31 @@ describe('LimitsWatcher.report', () => {
     expect(watcher.usage('global').state).toBe('ok')
   })
 
+  it('passes over a report older than what is known, so a session read late does not roll back a poll or a newer report', async () => {
+    const { watcher, poll } = watcherOf([() => polled])
+    await poll()
+    watcher.report('global', { fiveHour: window(10) }, '2026-01-01T11:59:00.000Z')
+    expect(watcher.limits('global')).toMatchObject({ fiveHour: window(16), source: 'usage' })
+    watcher.report('global', { fiveHour: window(30) }, '2026-01-01T12:05:00.000Z')
+    watcher.report('global', { fiveHour: window(20) }, '2026-01-01T12:04:00.000Z')
+    expect(watcher.limits('global')).toMatchObject({ fiveHour: window(30), updatedAt: '2026-01-01T12:05:00.000Z' })
+  })
+
+  it("shares a Codex session's report with a folder of the same ChatGPT account", () => {
+    const homes: AccountHome[] = [
+      { key: 'codex', dir: '/home/john/.codex', global: false, agent: 'codex' },
+      { key: 'opencode', dir: '/home/john/.opencode', global: false, agent: 'opencode' },
+    ]
+    const watcher = new LimitsWatcher({
+      file: '/nonexistent/limits.json', intervalMs: 60_000, homes: () => homes, ownerOf: () => undefined, usage: () => undefined,
+      usageIntervalMs: 300_000, online: async () => true, offlineRetryMs: 30_000, notBefore: () => null, accessExpired: () => false,
+      ready: () => true, apiKey: () => false, needsLogin: () => false, onChange: () => {}, onError: () => {},
+    })
+    watcher.report('opencode', { fiveHour: window(40), pool: 'chatgpt:acct-1' }, '2026-01-01T12:00:00.000Z')
+    watcher.report('codex', { fiveHour: window(97), pool: 'chatgpt:acct-1' }, '2026-01-01T12:01:00.000Z')
+    expect(watcher.limits('opencode')).toMatchObject({ fiveHour: window(97), pool: 'chatgpt:acct-1' })
+  })
+
   it('shows nothing for an API account', () => {
     const { watcher } = watcherOf([], () => true, { ready: () => true, apiKey: () => true })
     watcher.report('global', { fiveHour: window(18) }, '2026-01-01T12:01:00.000Z')

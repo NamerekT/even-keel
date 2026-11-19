@@ -1,21 +1,28 @@
 import { stat } from 'node:fs/promises'
 import type { SessionTail } from '../agent/contract.js'
 import type { AgentEntry } from '../sessions/agents.js'
+import type { RateLimits } from '../limits/model.js'
 import { lineSlices } from '../sessions/lines.js'
 import type { TranscriptSummary } from '../sessions/transcript.js'
 import { RolloutFold, rolloutFile } from './rollout.js'
 
-/** A Codex session's rollout read as it grows; a resume appends to the same file. */
+/**
+ * A Codex session's rollout read as it grows; a resume appends to the same file. Each read that brings newer limits
+ * hands them to `onLimits` (BTN-1320).
+ */
 export class RolloutTail implements SessionTail {
   private fold = new RolloutFold()
   private file: string | undefined
   private offset = 0
   /** The summary from before a read in progress, as in `TranscriptTail`. */
   private held: TranscriptSummary | undefined
+  /** The time of the limits last handed to `onLimits`. */
+  private told: string | undefined
 
   constructor(
     private readonly home: string,
     private agent: AgentEntry,
+    private readonly onLimits?: (limits: RateLimits) => void,
   ) {}
 
   get path(): string | undefined {
@@ -55,5 +62,9 @@ export class RolloutTail implements SessionTail {
     } finally {
       this.held = undefined
     }
+    const limits = this.fold.limits()
+    if (limits === undefined || limits.updatedAt === this.told) return
+    this.told = limits.updatedAt
+    this.onLimits?.(limits)
   }
 }

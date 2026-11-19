@@ -117,10 +117,15 @@ export class LimitsWatcher {
     return currentLimits(shared, now, this.options.notBefore(account))
   }
 
-  /** The windows a session of the account reported between the polls, over the newest of what was known. */
+  /**
+   * The windows a session of the account reported between the polls, over the newest of what was known. One older than
+   * that is passed over: a rollout read at the start tells windows a poll or another session has already outdated.
+   */
   report(account: string, reported: SessionLimits, at = new Date().toISOString()): void {
     const known = this.of(this.sameAs(account) ?? account)
-    known.streamed = withSessionLimits(newestOf(known), reported, at)
+    const newest = newestOf(known)
+    if (newest !== undefined && Date.parse(at) < Date.parse(newest.updatedAt)) return
+    known.streamed = withSessionLimits(newest, reported, at)
     this.publish()
   }
 

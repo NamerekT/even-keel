@@ -442,6 +442,29 @@ describe('withSessionLimits', () => {
 
     expect(withSessionLimits({ ...polled, models }, { fiveHour }, '2026-01-01T12:03:00.000Z').models).toEqual(models)
   })
+
+  describe('of a Codex session (BTN-1320)', () => {
+    const at = '2026-01-01T12:03:00.000Z'
+    const api = { ...polled, source: 'api' as const, pool: 'chatgpt:acct-1' }
+
+    it('keeps the pool and a known month, and takes a reported month', () => {
+      const month = { usedPercentage: 12, resetsAt: '2026-01-30T00:00:00.000Z' }
+      expect(withSessionLimits({ ...api, month }, { fiveHour: polled.fiveHour }, at)).toMatchObject({ pool: 'chatgpt:acct-1', month })
+      const spent = { ...month, usedPercentage: 100 }
+      expect(withSessionLimits(api, { month: spent, pool: 'chatgpt:acct-2' }, at)).toMatchObject({ pool: 'chatgpt:acct-2', month: spent })
+      expect(withSessionLimits(api, { fiveHour: polled.fiveHour }, at)).not.toHaveProperty('month')
+    })
+
+    it('keeps a closed account closed and never carries an open one into its snapshot', () => {
+      expect(withSessionLimits({ ...api, open: false }, { fiveHour: polled.fiveHour }, at).open).toBe(false)
+      expect(withSessionLimits({ ...api, open: true }, { fiveHour: polled.fiveHour }, at)).not.toHaveProperty('open')
+    })
+
+    it('marks the windows its rollout leaves out absent, rather than keeping the polled ones', () => {
+      const sevenDay = { usedPercentage: 41, resetsAt: '2026-01-05T09:30:00.000Z' }
+      expect(withSessionLimits(api, { fiveHour: null, sevenDay, absent: ['fiveHour'] }, at)).toMatchObject({ fiveHour: null, sevenDay, absent: ['fiveHour'] })
+    })
+  })
 })
 
 describe('modelWeekMatches', () => {

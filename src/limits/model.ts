@@ -79,8 +79,11 @@ export interface ModelWeeks {
   updatedAt: string
 }
 
-/** The windows a session reported: one it did not name stays as it was known. */
-export type SessionLimits = Partial<Pick<RateLimits, SessionSpan>> & { overage?: Omit<Overage, 'updatedAt'> }
+/**
+ * The windows a session reported: one it did not name stays as it was known. A Codex session (BTN-1320) also names its
+ * month, its ChatGPT `pool` and, with `absent`, the windows its rollout has none of: those are `null`, not the polled ones.
+ */
+export type SessionLimits = Partial<Pick<RateLimits, SessionSpan | 'month' | 'pool' | 'absent'>> & { overage?: Omit<Overage, 'updatedAt'> }
 
 export type SessionSpan = 'fiveHour' | 'sevenDay'
 
@@ -112,15 +115,25 @@ export function limitsOfRateLimitInfo(raw: unknown): SessionLimits | undefined {
   return Object.keys(limits).length === 0 ? undefined : limits
 }
 
+/**
+ * The reported windows over what was known. A session cannot tell an early reset (`open: true` stays the poll's), so
+ * an account a poll found closed stays closed until the next poll.
+ */
 export function withSessionLimits(known: RateLimits | undefined, reported: SessionLimits, at: string): RateLimits {
-  const absent = known?.absent?.filter((span) => reported[span] == null) ?? []
+  const absent = reported.absent ?? known?.absent?.filter((span) => reported[span] == null) ?? []
+  const windowOf = (span: SessionSpan) => (reported.absent?.includes(span) ? null : (reported[span] ?? known?.[span] ?? null))
+  const month = reported.month !== undefined ? reported.month : known?.month
+  const pool = reported.pool ?? known?.pool
   return {
-    fiveHour: reported.fiveHour ?? known?.fiveHour ?? null,
-    sevenDay: reported.sevenDay ?? known?.sevenDay ?? null,
+    fiveHour: windowOf('fiveHour'),
+    sevenDay: windowOf('sevenDay'),
+    ...(month !== undefined && { month }),
     ...(absent.length > 0 && { absent }),
     ...(known?.models !== undefined && { models: known.models }),
     updatedAt: at,
     source: 'sdk',
+    ...(pool !== undefined && { pool }),
+    ...(known?.open === false && { open: false }),
     ...(reported.overage !== undefined ? { overage: { ...reported.overage, updatedAt: at } } : known?.overage !== undefined ? { overage: known.overage } : {}),
   }
 }

@@ -186,7 +186,7 @@ export function wireRuntimes(ctx: MachineContext): Map<string, Agent> {
         transport: (home): string | null => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], ctx.account.apiKey(home.key)),
         unattended: () => ctx.configStore.current.unattended,
         language: () => ctx.configStore.current.language ?? ctx.promptLanguage(),
-        onLimits: (key, reported) => ctx.limits.report(key, reported),
+        onLimits: (key, reported, at) => ctx.limits.report(key, reported, at),
       }),
     ]),
   )

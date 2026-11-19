@@ -63,9 +63,10 @@ export interface AgentOptions {
   language?: () => Language
   /**
    * Optional. A session of the account reported its limits windows between the `/usage` polls (Claude through the
-   * SDK, BTN-290).
+   * SDK, BTN-290; Codex from its rollout, BTN-1320). `at` — when the session learnt them, now by default: a rollout
+   * read late tells windows older than the read.
    */
-  onLimits?: (account: string, limits: SessionLimits) => void
+  onLimits?: (account: string, limits: SessionLimits, at?: string) => void
 }
 
 /** What a session is started or resumed with. */

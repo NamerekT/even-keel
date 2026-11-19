@@ -1,7 +1,8 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
-import type { AgentAdapter } from '../agent/contract.js'
+import type { AgentAdapter, AgentOptions } from '../agent/contract.js'
+import type { RateLimits } from '../limits/model.js'
 import { cliCopy } from '../agent/copy.js'
 import { npmLatest } from '../agent/npm.js'
 import { runWithInput } from '../agent/oneturn.js'
@@ -13,10 +14,10 @@ import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_M
 import { CODEX } from './name.js'
 import { CodexPlugins } from './plugins.js'
 import { codexBinaryIn, codexTarget, fetchCodex, CODEX_PACKAGE } from './release.js'
-import { CODEX_TTL, foldRollout, readRolloutImage, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
+import { CODEX_TTL, foldRollout, readRolloutImage, RolloutFold, rolloutFile, rolloutFiles, sessionLimitsOf } from './rollout.js'
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
-import { CodexUsage } from './usage.js'
+import { chatGptAccountOf, CodexUsage } from './usage.js'
 import { CODEX_CHECKED as CHECKED } from './version.js'
 
 const HISTORY_FEED = 5_000
@@ -29,7 +30,7 @@ export const codex: AgentAdapter = {
   title: 'Codex',
   checked: CHECKED,
   latest: () => npmLatest(CODEX_PACKAGE),
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress, onLimits }) {
     const target = codexTarget(process.platform, process.arch)
     const copy =
       target === null
@@ -65,7 +66,8 @@ export const codex: AgentAdapter = {
       resume: (home, { sessionId }, start) => usage.session(home, () => cli.resume(home, sessionId, start)),
       stop: (_home, { sessionId }) => cli.stop(sessionId),
       sessions: (home) => cli.sessions(home),
-      tail: (home, agent) => new RolloutTail(home.dir, agent),
+      tail: (home, agent) =>
+        new RolloutTail(home.dir, agent, onLimits && ((limits) => void tellLimits(home, limits, onLimits).catch((error: unknown) => log(`codex: the limits of a session of ${home.key} were not told: ${String(error)}`)))),
       record: async (home, sessionId) => {
         const summary = await foldRollout(home.dir, sessionId, new RolloutFold(HISTORY_FEED))
         if (summary === undefined) return undefined
@@ -111,6 +113,12 @@ export const codex: AgentAdapter = {
       },
     }
   },
+}
+
+/** A live session's rollout limits, under the folder's ChatGPT pool, as of the rollout line that told them (BTN-1320). */
+async function tellLimits(home: AccountHome, limits: RateLimits, onLimits: NonNullable<AgentOptions['onLimits']>): Promise<void> {
+  const reported = sessionLimitsOf(limits, await chatGptAccountOf(home))
+  if (reported !== undefined) onLimits(home.key, reported, limits.updatedAt)
 }
 
 /** The folder of a Codex account other than the default `~/.codex` is reached through `CODEX_HOME`. */

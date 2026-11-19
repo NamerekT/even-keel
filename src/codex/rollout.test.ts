@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { limitsOfRollout, RolloutFold, rolloutSessionId } from './rollout.js'
+import { limitsOfRollout, RolloutFold, rolloutSessionId, sessionLimitsOf } from './rollout.js'
 
 const CWD = 'C:\\repos\\example'
 const THREAD = '01a14a11-16af-7a80-acdb-6fb33607c527'
@@ -417,5 +417,40 @@ describe('limitsOfRollout', () => {
     const text = [tokens(1, 0, [1, 0, 1], { used: 100, minutes: 43200, resets }), premium].join('\n')
     expect(limitsOfRollout(text)).toMatchObject({ month: { usedPercentage: 100, resetsAt: '2026-01-01T14:00:00.000Z' } })
     expect(limitsOfRollout(premium)).toBeUndefined()
+  })
+})
+
+describe('RolloutFold.limits (BTN-1320)', () => {
+  const resets = Date.parse('2026-01-01T14:00:00Z') / 1000
+  const premium = event({ type: 'token_count', info: null, rate_limits: { limit_id: 'premium', primary: null, secondary: null } })
+
+  it('follows the newest token count with windows, as limitsOfRollout reads the whole file', () => {
+    const lines = [
+      meta(),
+      tokens(1, 0, [1, 0, 1], { used: 95, minutes: 300, resets }, { used: 46, minutes: 10080, resets }),
+      tokens(1, 0, [1, 0, 1], { used: 100, minutes: 300, resets }, { used: 47, minutes: 10080, resets }),
+      premium,
+    ]
+    const folded = fold(lines)
+    expect(folded.limits()).toEqual(limitsOfRollout(lines.join('\n')))
+    expect(folded.limits()?.fiveHour?.usedPercentage).toBe(100)
+    expect(fold([meta(), premium]).limits()).toBeUndefined()
+  })
+})
+
+describe('sessionLimitsOf', () => {
+  const resets = Date.parse('2026-01-01T14:00:00Z') / 1000
+
+  it('reports the windows a rollout gave and marks the ones it left out absent', () => {
+    const plus = limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 12, minutes: 300, resets }, { used: 40, minutes: 10080, resets }))!
+    expect(sessionLimitsOf(plus, 'acct-1')).toEqual({ fiveHour: plus.fiveHour, sevenDay: plus.sevenDay, pool: 'chatgpt:acct-1' })
+    const weekOnly = limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 40, minutes: 10080, resets }))!
+    expect(sessionLimitsOf(weekOnly, null)).toEqual({ fiveHour: null, sevenDay: weekOnly.sevenDay, absent: ['fiveHour'] })
+    const free = limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 12, minutes: 43200, resets }))!
+    expect(sessionLimitsOf(free, null)).toEqual({ fiveHour: null, sevenDay: null, month: free.month, absent: ['fiveHour', 'sevenDay'] })
+  })
+
+  it('reports nothing of a rollout whose windows are all of other lengths', () => {
+    expect(sessionLimitsOf(limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 6, minutes: 1440, resets }))!, null)).toBeUndefined()
   })
 })

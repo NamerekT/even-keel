@@ -205,3 +205,41 @@ describe('Codex usage', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('Codex session limits (BTN-1320)', () => {
+  const ID = '00000000-0000-0000-0000-000000000001'
+  const file = () => join(dir, 'sessions', '2026', '10', '25', `rollout-example-${ID}.jsonl`)
+  const count = (timestamp: string, used: number | null) => JSON.stringify({
+    timestamp, type: 'event_msg', payload: {
+      type: 'token_count',
+      rate_limits: used === null
+        ? { limit_id: 'premium', primary: null, secondary: null }
+        : { primary: { used_percent: used, window_minutes: 300, resets_at: RESET }, secondary: { used_percent: 47, window_minutes: 10080, resets_at: RESET + 3600 } },
+    },
+  }) + '\n'
+
+  it("reports the live session's windows as its rollout grows, with the account's pool and the line's time", async () => {
+    const told: unknown[] = []
+    const { codex } = await import('./adapter.js')
+    const live = codex.setup({
+      env: () => ({}), timeoutMs: 1000, workDir: dir, checkedCli: () => false, log: () => {}, onCliChange: () => {},
+      onLimits: (account, limits, at) => told.push({ account, limits, at }),
+    })
+    const tail = live.tail(home, { cwd: dir, kind: 'codex', startedAt: 0, sessionId: ID })
+    await tail.read()
+    await vi.waitFor(() => expect(told).toHaveLength(1))
+    expect(told[0]).toEqual({ account: 'example', at: '2026-10-24T10:00:00.000Z', limits: {
+      fiveHour: { usedPercentage: 90, resetsAt: new Date(RESET * 1000).toISOString() }, sevenDay: null, absent: ['sevenDay'], pool: 'chatgpt:example-account',
+    } })
+
+    await writeFile(file(), count('2026-10-25T10:00:10.000Z', 97) + count('2026-10-25T10:00:20.000Z', null), { flag: 'a' })
+    await tail.read()
+    await vi.waitFor(() => expect(told).toHaveLength(2))
+    expect(told[1]).toMatchObject({ at: '2026-10-25T10:00:10.000Z', limits: { fiveHour: { usedPercentage: 97 }, sevenDay: { usedPercentage: 47 } } })
+
+    await writeFile(file(), JSON.stringify({ timestamp: '2026-10-25T10:00:30.000Z', type: 'event_msg', payload: { type: 'task_started' } }) + '\n', { flag: 'a' })
+    await tail.read()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(told).toHaveLength(2)
+  })
+})

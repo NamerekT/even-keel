@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { LimitWindow, RateLimits } from '../limits/model.js'
+import { chatGptPool } from '../limits/chatgpt.js'
+import type { LimitWindow, RateLimits, SessionLimits } from '../limits/model.js'
 import { chatGptCredits } from '../limits/overage.js'
 import { describeTool, flatten, lineCount, type EditSize, type TranscriptImage } from '../sessions/entry.js'
 import { mailIn } from '../sessions/mail.js'
@@ -71,6 +72,7 @@ export class RolloutFold {
   private turnStartedAt: string | null = null
   private lastCallAt: string | null = null
   private endedTurn: string | null = null
+  private rateLimits: RateLimits | undefined
   private readonly mailSeen = new Set<number>()
   private readonly imagePaths = new Map<string, string>()
 
@@ -112,12 +114,19 @@ export class RolloutFold {
     if (payload.type === 'task_started') {
       this.turnStartedAt = at
       this.pushWindow(payload.model_context_window)
-    } else if (payload.type === 'token_count') this.pushTokens(at, record(payload.info))
-    else if (payload.type === 'error') this.pushError(at, errorText(payload.message), payload.codex_error_info)
+    } else if (payload.type === 'token_count') {
+      this.pushTokens(at, record(payload.info))
+      this.rateLimits = limitsOfLine(line) ?? this.rateLimits
+    } else if (payload.type === 'error') this.pushError(at, errorText(payload.message), payload.codex_error_info)
     else if (payload.type === 'task_complete') {
       if (typeof payload.turn_id === 'string') this.endedTurn = payload.turn_id
       if (record(payload.error) !== undefined) this.pushError(at, errorText(record(payload.error)?.message), record(payload.error)?.codex_error_info)
     } else if (payload.type === 'item_completed') this.pushItem(at, record(payload.item), this.endedTurn !== null && payload.turn_id === this.endedTurn)
+  }
+
+  /** The account's limits as of the newest `token_count` with a window so far, as `limitsOfRollout` reads them. */
+  limits(): RateLimits | undefined {
+    return this.rateLimits
   }
 
   summary(): TranscriptSummary {
@@ -336,24 +345,48 @@ export function rolloutSessionId(text: string): string | undefined {
 export function limitsOfRollout(text: string): RateLimits | undefined {
   const lines = text.split('\n')
   for (let index = lines.length - 1; index >= 0; index--) {
-    const line = parseLine(lines[index]!)
-    const limits = record(line?.payload?.rate_limits)
-    if (line?.type !== 'event_msg' || line.payload?.type !== 'token_count' || limits === undefined) continue
-    const windows = [record(limits.primary), record(limits.secondary)]
-    if (windows.every((window) => window === undefined)) continue
-    const monthly = windows.some((window) => window?.window_minutes === MONTH)
-    const at = new Date(Date.parse(line.timestamp ?? '') || 0).toISOString()
-    const overage = chatGptCredits(limits.credits, at)
-    return {
-      fiveHour: windowOf(windows, FIVE_HOURS),
-      sevenDay: windowOf(windows, WEEK),
-      ...(monthly ? { month: windowOf(windows, MONTH) } : {}),
-      updatedAt: at,
-      source: 'usage',
-      ...(overage !== undefined && { overage }),
-    }
+    const limits = limitsOfLine(parseLine(lines[index]!))
+    if (limits !== undefined) return limits
   }
   return undefined
+}
+
+/**
+ * What a live Codex session reports of its rollout's limits (BTN-1320), as a Claude SDK session reports its
+ * `rate_limit_event`: the rollout names every window the plan has, so one it left out is absent rather than unknown.
+ * `undefined` — none of its windows is of a length shown.
+ */
+export function sessionLimitsOf(limits: RateLimits, account: string | null): SessionLimits | undefined {
+  const given = [limits.fiveHour, limits.sevenDay, limits.month].some((window) => window != null)
+  if (!given) return undefined
+  const absent = (['fiveHour', 'sevenDay'] as const).filter((span) => limits[span] === null)
+  const overage = limits.overage === undefined ? undefined : (({ updatedAt: _, ...rest }) => rest)(limits.overage)
+  return {
+    fiveHour: limits.fiveHour,
+    sevenDay: limits.sevenDay,
+    ...(limits.month !== undefined && { month: limits.month }),
+    ...(absent.length > 0 && { absent }),
+    ...(overage !== undefined && { overage }),
+    ...(account !== null && { pool: chatGptPool(account) }),
+  }
+}
+
+function limitsOfLine(line: Line | undefined): RateLimits | undefined {
+  const limits = record(line?.payload?.rate_limits)
+  if (line?.type !== 'event_msg' || line.payload?.type !== 'token_count' || limits === undefined) return undefined
+  const windows = [record(limits.primary), record(limits.secondary)]
+  if (windows.every((window) => window === undefined)) return undefined
+  const monthly = windows.some((window) => window?.window_minutes === MONTH)
+  const at = new Date(Date.parse(line.timestamp ?? '') || 0).toISOString()
+  const overage = chatGptCredits(limits.credits, at)
+  return {
+    fiveHour: windowOf(windows, FIVE_HOURS),
+    sevenDay: windowOf(windows, WEEK),
+    ...(monthly ? { month: windowOf(windows, MONTH) } : {}),
+    updatedAt: at,
+    source: 'usage',
+    ...(overage !== undefined && { overage }),
+  }
 }
 
 /** The rollout files of a Codex folder, newest first. */

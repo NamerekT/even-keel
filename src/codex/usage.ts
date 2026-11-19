@@ -86,6 +86,11 @@ export class CodexUsage {
   }
 }
 
+/** The ChatGPT account the folder is signed in to; `null` — none (an API key, no sign-in). */
+export async function chatGptAccountOf(home: AccountHome): Promise<string | null> {
+  return chatGptAccountIn(await readAuth(home))
+}
+
 function readAuth(home: AccountHome): Promise<string | undefined> {
   return readFile(join(home.dir, 'auth.json'), 'utf8').catch(() => undefined)
 }

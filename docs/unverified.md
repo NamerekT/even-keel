@@ -252,6 +252,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 215 | [Chat mail as the user's own line](unverified/opencode.md#chat-mail-as-the-users-own-line-btn-1323) | OpenCode chain sessions that get a chat message in the last second of a turn, from `agent-bridge` 1.5.0 (mid-turn and during the final text checked) | the message reaches the session late or twice, or comes back to the chat; send it after the turn ends | — |
 | 216 | [An answer sent the moment its task closes](unverified/sessions.md#an-answer-sent-the-moment-its-task-closes-btn-1331) | anyone answering a session from the page in the seconds its task goes to Done | the answer is taken and lost, nothing in the chat; send what it asks as a new task | — |
 | 217 | [The inbox socket](unverified/sessions.md#the-inbox-socket-btn-1322) | Claude `--bg` chain sessions with `agent-bridge` 1.6.0 that get a chat message | the message waits for the hooks or a resume as before, or is marked delivered and lost; send it again after the turn ends | — |
+| 218 | [Codex limits from a live session's rollout](unverified/codex.md#codex-limits-from-a-live-sessions-rollout-btn-1320) | Codex and OpenCode accounts on a ChatGPT sign-in while a Codex session works | the page lags the site by up to five minutes as before, or shows the five hours empty on a plan that has them until the next poll; the next poll puts it right | — |
 
 ### Waiting for the event / not checked by choice
 
