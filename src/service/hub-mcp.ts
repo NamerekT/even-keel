@@ -33,26 +33,41 @@ const answerOf = (status: number): McpAnswer => ({ status, headers: {}, body: ''
  * projects in its pool, and `/tasks` with no project only when its pool holds every project.
  */
 export class HubMcp {
+  /**
+   * Machine and project of each refusal already logged: the own machine is briefed every project and its probes go on
+   * asking the servers of one left out of its pool (BTN-1325). Forgotten once the machine is admitted there again.
+   */
+  private readonly refused = new Set<string>()
+
   constructor(private readonly deps: HubMcpDeps) {}
 
   /** May the machine ask this path of the hub's gateway? */
   async admits(machine: string, path: string): Promise<boolean> {
+    return (await this.scopeOf(machine, path)).admitted
+  }
+
+  /** The project the path names (`*` for every one, the path itself for none) and whether the machine may ask it. */
+  private async scopeOf(machine: string, path: string): Promise<{ scope: string; admitted: boolean }> {
     const pathname = new URL(path, 'http://hub').pathname
     const tasks = tasksProjectOf(pathname)
     const project = tasks !== undefined ? tasks : parseRoute(pathname)?.project
-    if (project === undefined) return false
+    if (project === undefined) return { scope: pathname, admitted: false }
     for (const each of project === null ? this.deps.projects() : [project]) {
-      if (!(await poolOf(this.deps.db, each)).includes(machine)) return false
+      if (!(await poolOf(this.deps.db, each)).includes(machine)) return { scope: project ?? '*', admitted: false }
     }
-    return true
+    return { scope: project ?? '*', admitted: true }
   }
 
   /** The hub's gateway's answer to the machine's request, read whole. */
   async relay(machine: string, request: McpRequest): Promise<McpAnswer> {
-    if (!(await this.admits(machine, request.path))) {
-      this.deps.log(`link: machine ${machine} asked ${request.path}, a server of a project outside its pool: refused`)
+    const { scope, admitted } = await this.scopeOf(machine, request.path)
+    const key = `${machine}\u0000${scope}`
+    if (!admitted) {
+      if (!this.refused.has(key)) this.deps.log(`link: machine ${machine} asked ${request.path}, a server of a project outside its pool: refused`)
+      this.refused.add(key)
       return answerOf(403)
     }
+    this.refused.delete(key)
     const origin = this.deps.origin()
     if (origin === undefined) return answerOf(503)
     try {

@@ -64,6 +64,24 @@ describe('the hub’s side of a machine’s MCP servers (BTN-990)', () => {
     expect((await relay.relay('m-a', { path: '/tasks/p-1', method: 'POST', headers: {}, body: '{}' })).status).toBe(503)
   })
 
+  it('logs a refusal once for a machine and a project until it is admitted there again (BTN-1325)', async () => {
+    const relay = hub()
+    const ask = (path: string) => relay.relay('m-a', { path, method: 'POST', headers: {}, body: '{}' })
+    const refusals = () => lines.filter((line) => line.includes('outside its pool'))
+    expect((await ask('/tasks/p-1')).status).toBe(403)
+    expect((await ask(routeOf('p-1', 'agent-bridge', 'i1', 'memory'))).status).toBe(403)
+    expect((await ask('/tasks/p-1')).status).toBe(403)
+    expect(refusals()).toEqual(['link: machine m-a asked /tasks/p-1, a server of a project outside its pool: refused'])
+    expect((await ask('/tasks/p-2')).status).toBe(403)
+    expect(refusals()).toHaveLength(2)
+
+    await pool('p-1', 'm-a')
+    expect((await ask('/tasks/p-1')).status).toBe(200)
+    await db.query('update project_machines set enabled = false where project_id = $1 and machine_id = $2', ['p-1', 'm-a'])
+    expect((await ask('/tasks/p-1')).status).toBe(403)
+    expect(refusals()).toHaveLength(3)
+  })
+
   it('makes a kept write once it is back; throws while its gateway cannot, drops one the tasks server refused', async () => {
     await pool('p-1', 'm-a')
     const relay = hub()
