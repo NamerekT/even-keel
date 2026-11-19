@@ -85,7 +85,7 @@ it('reopens empty during upload and keeps the next draft after success', async (
   await render(card)
   const box = host.querySelector('textarea')!
   expect(box.value).toBe('')
-  expect(host.querySelector('.chat__file')).toBeNull()
+  expect(host.querySelector('.chat__tile')).toBeNull()
   await type(box, 'Next')
   const send = host.querySelector<HTMLButtonElement>('.chat__send')!
   expect(send.getAttribute('aria-disabled')).toBe('true')
@@ -107,7 +107,8 @@ it.each(['open', 'closed', 'reopened'])('prepends failed text and files when the
   await act(async () => delivery.reject(new Error('upload refused')))
   if (window === 'closed') await render(card)
   expect(host.querySelector('textarea')!.value).toBe(message + '\n\nNext')
-  expect([...host.querySelectorAll('.chat__file')].map(file => file.firstChild?.textContent)).toEqual(['one.png', 'two.png'])
+  expect([...host.querySelectorAll('.chat__tile .chat__unfile')].map(cross => cross.getAttribute('aria-label')))
+    .toEqual([t.session.chat.removeFile('one.png'), t.session.chat.removeFile('two.png')])
   expect(host.querySelector('[role=alert]')?.textContent).toContain('upload refused')
 })
 

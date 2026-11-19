@@ -1,0 +1,226 @@
+/* The files of the chat field: one strip of 64 px tiles that scrolls sideways, as many files as there are. */
+.chat__tray {
+  display: flex;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 4px 4px 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  list-style: none;
+}
+
+.chat__tray::-webkit-scrollbar {
+  display: none;
+}
+
+.chat__tile {
+  position: relative;
+  display: grid;
+  flex: none;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.chat__tile--file {
+  width: 96px;
+}
+
+.chat__thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chat__play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--viewer-fg);
+  pointer-events: none;
+}
+
+.chat__play .icon {
+  width: 20px;
+  height: 20px;
+  padding: 4px;
+  border-radius: 50%;
+  background: var(--viewer-glass);
+  fill: currentColor;
+  box-sizing: content-box;
+}
+
+.chat__doc {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.chat__ext {
+  color: var(--fg);
+  font-size: var(--text-12);
+  font-weight: 600;
+}
+
+.chat__stem {
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* A small round cross in the tile's corner; its target reaches 24 px. */
+.chat__unfile {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.chat__unfile .icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.75;
+}
+
+.chat__unfile::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+
+.chat__unfile:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.chat__unfile:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+/* The touch screen's "+": a sheet from the bottom with Camera, Photos and Files. */
+.attach-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: none;
+  margin: 0 auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-dialog);
+}
+
+.attach-sheet[open] {
+  animation: attach-sheet-in var(--motion-appear) ease-out;
+}
+
+.attach-sheet::backdrop {
+  background: var(--scrim);
+  backdrop-filter: var(--scrim-blur);
+}
+
+.attach-sheet__frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+}
+
+.attach-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.attach-sheet__title {
+  margin: 0;
+  font-size: var(--text-16);
+  font-weight: 600;
+}
+
+.attach-sheet__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+}
+
+.attach-sheet__tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 14px 8px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  font-size: var(--text-14);
+  cursor: pointer;
+}
+
+.attach-sheet__tile:active {
+  background: color-mix(in srgb, var(--surface-muted) 92%, var(--fg));
+}
+
+.attach-sheet__tile:focus-within {
+  outline: 2px solid var(--accent);
+}
+
+.attach-sheet__tile input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.attach-sheet__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.attach-sheet__icon .icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5;
+}
+
+@keyframes attach-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attach-sheet[open] {
+    animation: none;
+  }
+}

@@ -1,8 +1,9 @@
 import { useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
-import { PlusIcon, SendIcon, SlashIcon } from '../ui/icons.js'
+import { SendIcon, SlashIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
+import { AttachButton, FileStrip } from './ComposerFiles.js'
 import { useChatDraft, type DraftOwner } from './useChatDraft.js'
 import { takenFiles } from './chatFiles.js'
 import { sendsReply } from './chatKeys.js'
@@ -44,39 +45,10 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
       }}
     >
       {files.length > 0 && (
-        <ul className="chat__files">
-          {files.map((file, index) => (
-            <li key={`${file.name}-${index}`} className="chat__file">
-              {file.name}
-              <button
-                type="button"
-                className="chat__unfile"
-                aria-label={t.session.chat.removeFile(file.name)}
-                disabled={sending}
-                onClick={() => onFiles((now) => now.filter((_, at) => at !== index))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
+        <FileStrip files={files} sending={sending} onRemove={(index) => onFiles((now) => now.filter((_, at) => at !== index))} />
       )}
       <div className="chat__row">
-        <Tipped inline align="start" tip={t.session.chat.attach}>
-          <label className={`chat__icon chat__attach${sending ? ' chat__attach--off' : ''}`}>
-            <PlusIcon />
-            <input
-              type="file"
-              multiple
-              disabled={sending}
-              aria-label={t.session.chat.attach}
-              onChange={(event) => {
-                attach([...(event.target.files ?? [])])
-                event.target.value = ''
-              }}
-            />
-          </label>
-        </Tipped>
+        <AttachButton sending={sending} onAttach={attach} />
         {/* A field already starting with a command keeps the plain tip: the press that put it there leaves the tip open. */}
         {commands && (
           <Tipped inline align="start" tip={slashFree || text.startsWith('/') ? t.session.chat.slash : t.session.chat.slashTaken}>

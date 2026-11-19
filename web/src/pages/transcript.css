@@ -481,15 +481,6 @@ button.tools__toggle:hover {
   pointer-events: none;
 }
 
-.chat__files {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-  padding: 2px 4px 0;
-  list-style: none;
-}
-
 .chat__file {
   display: flex;
   align-items: center;
@@ -498,15 +489,6 @@ button.tools__toggle:hover {
   border-radius: var(--radius-control);
   background: var(--surface-muted);
   font-size: var(--text-13);
-}
-
-.chat__unfile {
-  padding: 0 4px;
-  border: 0;
-  background: none;
-  color: var(--fg-muted);
-  font-size: var(--text-16);
-  cursor: pointer;
 }
 
 .chat__letter {

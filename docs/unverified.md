@@ -260,6 +260,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 223 | [Components of a live built-in project](unverified/trackers.md#components-of-a-live-built-in-project-btn-1288) | projects on the built-in tracker that use components | a session creates a component or cannot set one, a deletion moves a running session's tasks, or two lanes edit one area | — |
 | 224 | [Renaming and deleting a live built-in milestone](unverified/trackers.md#renaming-and-deleting-a-live-built-in-milestone-btn-1287) | projects on the built-in tracker whose chain rules name milestones | the chain stops taking a renamed milestone's tasks or takes every milestone, or a deletion moves a running session's task; fix the rule and the order by hand | — |
 | 225 | [The chat window over a phone's keyboard](unverified/page.md#the-chat-window-over-a-phones-keyboard-btn-1347) | anyone typing in a chat on a phone | the window's head goes off the top while the keyboard is open, or the status line stays hidden after it closes; tap outside the field | — |
+| 226 | [The chat's Camera, Photos and Files on a phone](unverified/page.md#the-chats-camera-photos-and-files-on-a-phone-btn-1342) | anyone attaching a picture in a chat on a phone | Photos opens the file manager rather than the gallery, or Camera asks what to open; pick through Files | — |
 
 ### Waiting for the event / not checked by choice
 

@@ -287,6 +287,36 @@ export function PlusIcon() {
   )
 }
 
+/** Attach from the camera: a camera body with its lens. */
+export function CameraIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2 5.25h2.75l1.25-1.75h4l1.25 1.75H14v7.25H2z" />
+      <circle cx="8" cy="8.75" r="2.25" />
+    </svg>
+  )
+}
+
+/** Attach from the gallery: a framed picture with a hill and the sun. */
+export function PhotoIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2" />
+      <circle cx="10.25" cy="5.75" r="1.25" />
+      <path d="m2.5 12 4-4.25 4.75 6" />
+    </svg>
+  )
+}
+
+/** Attach any file: a sheet with its corner folded and an arrow up. */
+export function FileUpIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M7.5 14H3.5V2h5.5l3.5 3.5V8M9 2v3.5h3.5M11.5 14.5v-5M9.5 11.5l2-2 2 2" />
+    </svg>
+  )
+}
+
 /** Remove a row: a bin. */
 export function TrashIcon() {
   return (

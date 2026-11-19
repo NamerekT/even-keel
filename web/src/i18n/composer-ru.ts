@@ -1,6 +1,12 @@
 export const composerRu = {
   sending: 'Сообщение отправляется…',
   removeFile: (name: string) => `Убрать ${name}`,
+  attachMenu: {
+    title: 'Приложить к сообщению',
+    camera: 'Камера',
+    photos: 'Фото',
+    files: 'Файлы',
+  },
   other: 'Другое',
   otherPlaceholder: 'Свой ответ…',
   noPreview: 'У этой опции нет превью',

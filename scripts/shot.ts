@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Page } from 'playwright'
 import { createServer, type ViteDevServer } from 'vite'
 
-interface Step { kind: 'click' | 'hover' | 'press' | 'fill' | 'wait' | 'wheel'; arg: string }
+interface Step { kind: 'click' | 'hover' | 'press' | 'fill' | 'upload' | 'wait' | 'wheel'; arg: string }
 
 interface Audit { box: string; spill: string[]; cut: string[]; overlap: string[]; double: string[] }
 
@@ -31,6 +31,8 @@ interface Options {
   /** The page's own theme choice, kept in the browser before the page loads (BTN-1089); the OS theme stays `light`'s. */
   theme?: string
   reducedMotion: boolean
+  /** A touch screen: `(pointer: coarse)` matches, as on a phone. */
+  touch: boolean
   full: boolean
   image: boolean
   settle: number
@@ -43,7 +45,7 @@ const STALE_MS = 60 * 60_000
 function parse(args: string[]): Options {
   const options: Options = {
     route: '/', selectors: [], steps: [], evals: [], width: 1280, height: 800,
-    light: false, reducedMotion: false, full: false, image: true, settle: 500, limit: 8,
+    light: false, reducedMotion: false, touch: false, full: false, image: true, settle: 500, limit: 8,
   }
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!
@@ -65,12 +67,13 @@ function parse(args: string[]): Options {
       if (!['system', 'light', 'dark'].includes(options.theme)) throw new Error('--theme is system, light or dark')
     }
     else if (arg === '--reduced-motion') options.reducedMotion = true
+    else if (arg === '--touch') options.touch = true
     else if (arg === '--full') options.full = true
     else if (arg === '--no-image') options.image = false
     else if (arg === '--settle') options.settle = Number(value())
     else if (arg === '--limit') options.limit = Number(value())
     else if (arg === '--eval') options.evals.push(value())
-    else if (['--click', '--hover', '--press', '--fill', '--wait', '--wheel'].includes(arg)) {
+    else if (['--click', '--hover', '--press', '--fill', '--upload', '--wait', '--wheel'].includes(arg)) {
       options.steps.push({ kind: arg.slice(2) as Step['kind'], arg: value() })
     } else if (arg.startsWith('--')) throw new Error(`unknown option ${arg}`)
     else if (/^[?/#]/.test(arg) && options.selectors.length === 0 && options.route === '/') options.route = arg
@@ -115,6 +118,11 @@ async function run(page: Page, step: Step): Promise<void> {
     const at = step.arg.indexOf('=')
     if (at < 0) throw new Error('--fill is SELECTOR=TEXT')
     await page.locator(step.arg.slice(0, at)).first().fill(step.arg.slice(at + 1))
+  } else if (step.kind === 'upload') {
+    const at = step.arg.indexOf('=')
+    if (at < 0) throw new Error('--upload is SELECTOR=PATH[,PATH…]')
+    const files = step.arg.slice(at + 1).split(',').map((path) => join(ROOT, path))
+    await page.locator(step.arg.slice(0, at)).first().setInputFiles(files)
   } else if (/^\d+$/.test(step.arg)) await page.waitForTimeout(Number(step.arg))
   else await page.locator(step.arg).first().waitFor()
 }
@@ -156,6 +164,7 @@ async function main(): Promise<number> {
       viewport: { width: options.width, height: options.height },
       colorScheme: options.light ? 'light' : 'dark',
       reducedMotion: options.reducedMotion ? 'reduce' : 'no-preference',
+      hasTouch: options.touch,
     })
     context.setDefaultTimeout(5000)
     await context.addInitScript({ path: join(ROOT, 'scripts/shot.page.js') })
