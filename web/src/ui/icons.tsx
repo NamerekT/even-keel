@@ -114,6 +114,26 @@ export function EnqueueIcon() {
   )
 }
 
+/** A place in the queue, waiting for its turn: a clock. */
+export function ClockIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M8 4.75V8l2.25 1.5" />
+    </svg>
+  )
+}
+
+/** A test project: a lab flask. */
+export function FlaskIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M6.25 2.25h3.5M6.75 2.25v4L3 12.5a.9.9 0 0 0 .8 1.25h8.4a.9.9 0 0 0 .8-1.25L9.25 6.25v-4" />
+      <path d="M4.75 10h6.5" />
+    </svg>
+  )
+}
+
 /** Go to where an entry happened: an arrow to the right. */
 export function GoToIcon() {
   return (

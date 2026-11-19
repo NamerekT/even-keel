@@ -131,6 +131,7 @@ export const projectEN: Messages['project'] = {
     readAt: (ago: string) => `updated ${ago}`,
     notRead: 'not read yet',
     tracker: (label: string) => `Tracker: ${label}`,
+    inQueue: 'In queue',
     done: 'Tasks done',
     notLoaded: 'Tasks are not loaded yet',
     noTasks: 'No open tasks',
@@ -508,7 +509,6 @@ export const settingsEN: Messages['settings'] = {
     mergeIntoNone: 'Nothing — a main project',
     carryAgent: 'Resolve a conflict with the agent by itself',
     testProject: 'Test project',
-    testProjectTag: 'test',
     testProjectHint: 'Hidden from the home launch chart and Stats by default. Launches and session statistics are still collected, including the full history.',
     carryAgentHint:
       'A carry that conflicts goes to the agent’s session at once, without "Resolve with the agent". Unattended mode does this with the switch off too. A session that did not land the carry gets no successor until this project’s branch moves.',

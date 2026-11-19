@@ -3,12 +3,21 @@
   padding: 5px 8px;
 }
 
-.card__head--test {
-  flex-wrap: wrap;
+.card__tracker.card__test {
+  color: var(--warn-fg);
 }
 
-.card__head--test .card__key {
-  flex-basis: 40%;
+/* The queue's place where Start stands: a quiet outline the size of a button, no press. */
+.card__queued {
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 6px 12px;
+  color: var(--fg-muted);
+  font-size: var(--text-14);
 }
 
 .home__groups {

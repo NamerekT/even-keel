@@ -11,15 +11,17 @@ import {
   chainProgress,
   chainStatus,
   openQuestions,
+  projectLabel,
   projectPages,
   projectPath,
   projectSlot,
   projectTasks,
   projectTracker,
   questionPath,
+  queuedAfter,
   startsNow,
 } from '../state.js'
-import { StackIcon, TrackerIcon } from '../ui/icons.js'
+import { ClockIcon, FlaskIcon, StackIcon, TrackerIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { type EmptyCard, emptyCard, punchline } from '../ui/memes.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
@@ -56,6 +58,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const call = off === null ? emptyCall(state, project) : null
   const pages = call === null ? [] : projectPages(state, project)
   const fix = off === null && task === null && order === undefined ? (down?.fix ?? null) : null
+  const after = queuedAfter(state.chain, project)
   const [asking, setAsking] = useState(false)
   // A turned-off profile is a choice, not a fault: its project shows no red errors (BTN-830).
   const error = off !== null ? (asking ? null : failure) : (order?.error ?? (status.kind === 'paused' ? status.error : null) ?? completionNotices(state, project)[0] ?? failure)
@@ -63,14 +66,18 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
 
   return (
     <article className={`card card--${status.kind}${off === null ? '' : ' card--off'}`} style={seriesStyle(slot)}>
-      <header className={`card__head${state.config.projects[project]?.testProject ? ' card__head--test' : ''}`}>
+      <header className="card__head">
         <span className="card__swatch" aria-hidden="true" />
         <Link to={projectPath(project)} className="card__key">
           <ProjectLabel project={project} nameClass="card__name" />
         </Link>
-        {state.config.projects[project]?.testProject && <span className="tag">{t.settings.testProjectTag}</span>}
-        {(status.kind === 'paused' || status.kind === 'queued' || waits.length > 0) && <StatusChip status={status} wait={waits[0]} reason={false} />}
+        {(status.kind === 'paused' || waits.length > 0) && <StatusChip status={status} wait={waits[0]} reason={false} />}
         <QuestionsChip count={openQuestions(projectTasks(state, project))} to={questionPath(state, [project])} />
+        {state.config.projects[project]?.testProject && (
+          <Tipped className="card__tracker card__test" tip={t.settings.testProject} inline focusable>
+            <FlaskIcon />
+          </Tipped>
+        )}
         {tracker !== null && (
           <Tipped className="card__tracker" tip={t.project.tracker(tracker.label)} inline focusable>
             <TrackerIcon kind={tracker.kind} />
@@ -140,7 +147,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         {status.kind === 'paused' && <TrackerFixButtons state={state} project={project} error={status.error} />}
       </div>
 
-      {(off !== null || fix !== null || (off === null && canStart) || pages.length > 0) && (
+      {(off !== null || fix !== null || (off === null && (canStart || status.kind === 'queued')) || pages.length > 0) && (
         <footer className="card__foot">
           {off !== null && (
             /* A list read before the profile went off may still offer Start: it only asks to turn the profile on. */
@@ -162,6 +169,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
                 {startsNow(state.chain) ? t.project.start : t.project.enqueue}
               </button>
             ))}
+          {off === null && status.kind === 'queued' && <QueuedPlace position={status.position} after={after === null ? null : projectLabel(state, after)} />}
           <TrackerPages pages={pages} />
         </footer>
       )}
@@ -182,6 +190,16 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
           document.body,
         )}
     </article>
+  )
+}
+
+/** A queued chain's place where Start stands: an outline, not a dimmed primary button, which would read as a broken Start. */
+function QueuedPlace({ position, after }: { position: number; after: string | null }) {
+  return (
+    <Tipped className="card__queued" tip={after === null ? undefined : t.project.after(after)} off={after === null} focusable={after !== null} inline>
+      <ClockIcon />
+      {`${t.project.inQueue} · ${t.chainStatus.position(position)}`}
+    </Tipped>
   )
 }
 
