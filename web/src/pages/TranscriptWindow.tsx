@@ -35,7 +35,7 @@ import { answeredAsks } from './composerHold.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { ShareCard } from './ShareCard.js'
-import { Thumb, Thumbs } from './Thumbs.js'
+import { InboxThumb, Thumbs } from './Thumbs.js'
 import { ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
@@ -631,10 +631,11 @@ function UserBubble({ text, files, media, onOpen }: BubbleProps) {
         <ul className="bubble__files">
           {files.map((file, index) => {
             const place = media.byFile.get(file)
-            const chip = <span className="chat__file">📎 {fileName(file)}</span>
             return (
               <li key={`${file}-${index}`}>
-                {place === undefined ? chip : <Thumb item={media.items[place]!} onOpen={() => onOpen(place)} fallback={chip} />}
+                {place === undefined ? <span className="chat__file">📎 {fileName(file)}</span> : (
+                  <InboxThumb key={media.items[place]!.url} item={media.items[place]!} onOpen={() => onOpen(place)} />
+                )}
               </li>
             )
           })}

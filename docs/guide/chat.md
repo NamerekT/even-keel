@@ -16,6 +16,8 @@ The **Chat** button of the current session opens its whole transcript with a rep
 
 Pictures the session read and the ones you sent show as thumbnails that open full-window, with a pager through all of them; a folded run of calls shows its pictures as one stack that opens on the first.
 
+While a picture you sent is loading, you can click its filename to open the viewer. If the session is still starting, the chat and the open viewer retry the picture automatically.
+
 Files the session sends you (Claude Code's `SendUserFile`) stand in the chat as a block of their own: a markdown file rendered in place, a picture as a thumbnail, anything else to download — as long as the file is still in the session's folder or its project's folder.
 
 The button turns amber while the session waits for you. Even Keel stops the session and resumes it with your answer.

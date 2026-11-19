@@ -220,6 +220,20 @@
   height: 64px;
 }
 
+.bubble__files button.chat__file {
+  position: relative;
+  min-height: var(--space-24);
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.bubble__files .chat__file img {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
 /* A folded group's pictures as one stack: the first on top, the edges of the next ones stepping out under it */
 
 .thumb-stack {

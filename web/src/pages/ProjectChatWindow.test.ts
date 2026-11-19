@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import type { Window as HappyWindow } from 'happy-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { ChatCard } from '../../../src/chats/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
@@ -141,4 +142,32 @@ it('puts the message back in the field when the launch fails', async () => {
   expect(box.value).toBe(message)
   expect(host.querySelector('.bubble')).toBeNull()
   expect(host.querySelector('.chat__send')?.hasAttribute('disabled')).toBe(false)
+})
+
+it('opens a sent picture from its chip and retries both images after a temporary 404', async () => {
+  const { host, delivery } = await start('one.png')
+  await act(async () => delivery.resolve())
+  const settings = (window as unknown as HappyWindow).happyDOM.settings
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
+  let available = false
+  settings.fetch.interceptor = { beforeAsyncRequest: async ({ window }) => available ? new window.Response(png) : new window.Response(null, { status: 404 }) }
+  settings.enableImageFileLoading = true
+  vi.useFakeTimers()
+  try {
+    transcript.mockResolvedValue({ lines: [{ at: card.lastAt, kind: 'prompt', text: message, files: ['.temp/inbox/one.png'] }], turn: null })
+    await render({ ...card, sessionId: 'first-session', state: 'working' })
+    const chip = host.querySelector<HTMLButtonElement>('button.chat__file')!
+    expect(chip?.textContent).toContain('one.png')
+    await act(async () => chip.click())
+    expect(host.querySelector('.viewer__name')?.textContent).toBe('one.png')
+    expect(host.querySelector<HTMLImageElement>('.viewer img')?.naturalWidth).toBe(0)
+    available = true
+    await act(async () => vi.advanceTimersByTimeAsync(2000))
+    expect(host.querySelector<HTMLImageElement>('.bubble .thumb img')?.naturalWidth).toBe(1)
+    expect(host.querySelector<HTMLImageElement>('.viewer img')?.naturalWidth).toBe(1)
+  } finally {
+    settings.enableImageFileLoading = false
+    settings.fetch.interceptor = null
+    vi.useRealTimers()
+  }
 })

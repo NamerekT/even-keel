@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { t } from '../i18n/index.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { InboxImage } from './InboxImage.js'
 
 export interface Media {
   kind: 'image' | 'video'
   name: string
   url: string
+  inbox?: boolean
 }
 
 interface Props {
@@ -25,6 +27,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
   const backdrop = useBackdropClose(dialog, onClose, (target) => target.classList.contains('viewer__stage'))
   const [zoomed, setZoomed] = useState(false)
   const item = items[index]!
+  const Picture = item.inbox ? InboxImage : 'img'
   const prev = index > 0 ? index - 1 : null
   const next = index < items.length - 1 ? index + 1 : null
 
@@ -76,7 +79,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
       )}
       <figure className="viewer__stage">
         {item.kind === 'image' ? (
-          <img
+          <Picture
             key={item.url}
             src={item.url}
             alt={item.name}

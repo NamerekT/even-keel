@@ -44,7 +44,7 @@ export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: st
     }
     for (const file of line.files ?? []) {
       if (!SENT_IMAGE.test(file) || byFile.has(file)) continue
-      byFile.set(file, items.push({ kind: 'image', name: fileName(file), url: urls.file(fileName(file)) }) - 1)
+      byFile.set(file, items.push({ kind: 'image', name: fileName(file), url: urls.file(fileName(file)), inbox: true }) - 1)
     }
     if (line.share !== undefined && line.tool !== undefined) {
       line.share.files.forEach((file, index) => {

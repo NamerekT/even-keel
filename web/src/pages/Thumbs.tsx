@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { t } from '../i18n/index.js'
+import { InboxImage } from './InboxImage.js'
 import type { Media } from './MediaViewer.js'
 import './media.css'
 
@@ -54,7 +55,16 @@ export function ThumbStack({ places, items, onOpen }: Props) {
   )
 }
 
-/** `fallback` stands in for a picture that will not load: a sent file a cleaned-up worktree took with it. */
+export function InboxThumb({ item, onOpen }: { item: Media; onOpen: () => void }) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <button type="button" className={loaded ? 'thumb' : 'chat__file'} title={item.name} aria-label={t.session.chat.openPicture(item.name)} onClick={onOpen}>
+      {!loaded && `📎 ${item.name}`}
+      <InboxImage src={item.url} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(true)} />
+    </button>
+  )
+}
+
 export function Thumb({ item, onOpen, fallback = null }: { item: Media; onOpen: () => void; fallback?: ReactNode }) {
   const [broken, setBroken] = useState(false)
   if (broken) return fallback

@@ -26,7 +26,7 @@ describe('transcriptMedia', () => {
       { kind: 'image', name: 'a.png', url: 'img:toolu_a/0' },
       { kind: 'image', name: 'mcp playwright screenshot', url: 'img:toolu_b/0' },
       { kind: 'image', name: 'mcp playwright screenshot', url: 'img:toolu_b/1' },
-      { kind: 'image', name: 'order.png', url: 'file:order.png' },
+      { kind: 'image', name: 'order.png', url: 'file:order.png', inbox: true },
       { kind: 'image', name: 'Picture', url: 'img:toolu_lost/0' },
     ])
     expect(media.byTool.get('toolu_b')).toEqual([1, 2])
