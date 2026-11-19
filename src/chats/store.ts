@@ -24,9 +24,11 @@ interface ChatRow {
   read_at: string | null
   archived_at: string | null
   successor: string | null
+  previous: string | null
+  pending: string | null
 }
 
-const COLUMNS = 'id, project_id, agent, account, model, effort, title, first, said, last, session_id, machine_id, created_at, last_at, read_at, archived_at, successor'
+const COLUMNS = 'id, project_id, agent, account, model, effort, title, first, said, last, session_id, machine_id, created_at, last_at, read_at, archived_at, successor, previous, pending'
 
 const iso = (ms: string | null): string | null => (ms === null ? null : new Date(Number(ms)).toISOString())
 const ms = (at: string | null): number | null => (at === null ? null : Date.parse(at))
@@ -50,6 +52,8 @@ function recordOf(row: ChatRow): ChatRecord {
     readAt: iso(row.read_at),
     archivedAt: iso(row.archived_at),
     successor: row.successor,
+    previous: row.previous,
+    pending: row.pending,
   }
 }
 
@@ -100,14 +104,14 @@ export class ChatStore {
     if (chat.archivedAt === null) this.chats.set(chat.id, chat)
     else this.chats.delete(chat.id)
     this.deps.writes.add(`the chat ${chat.id}`, this.deps.db.query(
-      `insert into chats (${COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      `insert into chats (${COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
        on conflict (id) do update set title = excluded.title, first = excluded.first, said = excluded.said, last = excluded.last,
          session_id = excluded.session_id, machine_id = excluded.machine_id, last_at = excluded.last_at, read_at = excluded.read_at, archived_at = excluded.archived_at,
-         successor = excluded.successor`,
+         successor = excluded.successor, previous = excluded.previous, pending = excluded.pending`,
       [
         chat.id, chat.project, chat.agent, chat.account, chat.model, chat.effort, chat.title, chat.first, chat.said,
         chat.last === null ? null : JSON.stringify(chat.last), chat.sessionId, chat.machine, ms(chat.createdAt), ms(chat.lastAt), ms(chat.readAt),
-        ms(chat.archivedAt), chat.successor,
+        ms(chat.archivedAt), chat.successor, chat.previous, chat.pending,
       ],
     ))
   }

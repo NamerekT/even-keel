@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
-import type { ChatCard } from '../../../src/chats/model.js'
+import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -9,6 +9,8 @@ import { SendIcon } from '../ui/icons.js'
 import { AskPanel } from './AskPanel.js'
 import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
 import { encoded, sentLine } from './ChatComposer.js'
+import { chatRenewal, renewalChoice, type ChatRenewal } from './chatRenewal.js'
+import { ChatRenewDialog } from './ChatRenewDialog.js'
 import { sendAhead, shownAsk } from './composerHold.js'
 import { ComposerBox, useChatDraft } from './ComposerBox.js'
 import type { CommandTextHandle } from './CommandText.js'
@@ -16,19 +18,24 @@ import { TranscriptWindow, type WindowFoot } from './TranscriptWindow.js'
 
 interface Props {
   chat: ChatCard
+  /** The project's last choice of a new chat, offered first when the chat goes on in a new session. */
+  choice: ChatChoice | null
   onClose: () => void
   /** "Continue in a new session" of an archived chat: the window of a new session. */
   onContinue: () => void
   /** A message went out: the list reads the chats again. */
   onChanged: () => void
+  /** Opens another chat in place of this one: the one it goes on from, or the one it went on in (BTN-1232). */
+  onOpen: (chat: ChatCard) => void
 }
 
 /**
  * A project chat's window (BTN-1231): the transcript window with a field of its own that sends to the chat, no commands
  * menu. A chat with no message yet has no session: the window shows an empty feed until the first one goes out. An
- * archived chat is only read.
+ * archived chat is only read. A message to a chat whose cache went cold or whose account is at a limit asks first whether
+ * to go on in a new session (BTN-1232).
  */
-export function ProjectChatWindow({ chat, onClose, onContinue, onChanged }: Props) {
+export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged, onOpen }: Props) {
   const { state } = useLive()
   const { send } = useCommand()
   const archived = chat.archivedAt !== null
@@ -45,6 +52,7 @@ export function ProjectChatWindow({ chat, onClose, onContinue, onChanged }: Prop
       task={{ key: t.chats.window.key, title: chat.title ?? t.chats.untitled }}
       known={{ agent: chat.agent, model: chat.model, effort: chat.effort }}
       blank={chat.sessionId === null ? t.chats.window.blank : undefined}
+      lead={chat.previous === null ? undefined : <Continued previous={chat.previous} onOpen={onOpen} />}
       onClose={onClose}
       foot={(parts) =>
         archived ? (
@@ -56,24 +64,52 @@ export function ProjectChatWindow({ chat, onClose, onContinue, onChanged }: Prop
             </button>
           </div>
         ) : (
-          <ChatField chat={chat} session={session} parts={parts} onChanged={onChanged} />
+          <ChatField chat={chat} choice={choice} session={session} parts={parts} onChanged={onChanged} onRenewed={onOpen} />
         )
       }
     />
   )
 }
 
+/** "Continued from …" over the feed: the chat this one goes on from, its title read once, opened on a press. */
+function Continued({ previous, onOpen }: { previous: string; onOpen: (chat: ChatCard) => void }) {
+  const { query } = useLive()
+  const [found, setFound] = useState<ChatCard | null>(null)
+  useEffect(() => {
+    let alive = true
+    query<ChatCard>('chats/chat', { id: previous }).then(
+      (card) => alive && setFound(card),
+      () => {},
+    )
+    return () => {
+      alive = false
+    }
+  }, [previous])
+  return (
+    <p className="chat-continued">
+      {t.chats.renew.continued}{' '}
+      <button type="button" className="link-button chat-continued__link" disabled={found === null} onClick={() => found !== null && onOpen(found)}>
+        {found?.title ?? t.chats.renew.previous}
+      </button>
+    </p>
+  )
+}
+
 interface FieldProps {
   chat: ChatCard
+  choice: ChatChoice | null
   session: SessionView | undefined
   parts: WindowFoot
   onChanged: () => void
+  onRenewed: (chat: ChatCard) => void
 }
 
 /** The field of a project chat: the open question's options or a free message, with files; shut while the chat works. */
-function ChatField({ chat, session, parts, onChanged }: FieldProps) {
+function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: FieldProps) {
   const command = useRef<CommandTextHandle>(null)
+  const { state, query } = useLive()
   const { send, sending, failure } = useCommand()
+  const [renewal, setRenewal] = useState<ChatRenewal | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const ask = shownAsk(session?.ask ?? null, pending === null ? parts.answered : new Set([...parts.answered, pending]))
   const [asked, setAsked] = useState(session?.ask?.id ?? null)
@@ -113,14 +149,46 @@ function ChatField({ chat, session, parts, onChanged }: FieldProps) {
     onChanged()
   }
 
+  // Rejects with why the new chat did not start: the window keeps the text and the files and shows it.
+  const renew = async (picked: ChatChoice) => {
+    const answers = ask === null ? {} : askAnswers(ask, picks)
+    const next = await query<ChatCard>('chats/renew', { id: chat.id, text, answers, files: await Promise.all(files.map(encoded)), ...picked })
+    setRenewal(null)
+    void draft.clear()
+    setText('')
+    setFiles([])
+    onChanged()
+    onRenewed(next)
+  }
+
+  const accounts = state?.account.accounts ?? []
+  // The window stands beside the field's form, not in it: a form holds no other form.
   return (
-    <form
-      className="chat"
-      onSubmit={(event) => {
-        event.preventDefault()
-        if (!off) void submit()
-      }}
-    >
+    <>
+      {renewal !== null && (
+        <ChatRenewDialog
+          chat={chat}
+          renewal={renewal}
+          message={text.trim() !== '' ? text.trim() : files.map((file) => file.name).join(', ')}
+          choice={renewalChoice(chat, renewal, choice, accounts)}
+          onClose={() => setRenewal(null)}
+          onReply={() => {
+            setRenewal(null)
+            void submit()
+          }}
+          onRenew={renew}
+        />
+      )}
+      <form
+        className="chat"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (off) return
+          const found = chatRenewal(chat, session, accounts.find((each) => each.key === chat.account), new Date())
+          if (found === null) void submit()
+          else setRenewal(found)
+        }}
+      >
       <FoldPresence className="chat__ask">
         {ask !== null && (
           <AskPanel
@@ -149,6 +217,7 @@ function ChatField({ chat, session, parts, onChanged }: FieldProps) {
       />
       {parts.status}
       {failure !== null ? <p className="notice notice--error">{say(failure)}</p> : locked !== null && <p className="chat__hint">{locked}</p>}
-    </form>
+      </form>
+    </>
   )
 }

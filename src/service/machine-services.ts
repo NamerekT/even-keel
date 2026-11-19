@@ -147,4 +147,5 @@ const noChats: MachineServices['chats'] = {
   send: async () => { throw fail('chats.noMachine', {}) },
   stop: async () => {},
   title: async () => null,
+  past: async () => null,
 }

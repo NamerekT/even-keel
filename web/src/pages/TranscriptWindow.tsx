@@ -115,6 +115,8 @@ interface Props {
   known?: Pick<StatusFacts, 'agent' | 'model' | 'effort'>
   /** Shown over a feed with nothing in it. */
   blank?: string
+  /** A line under the head, over the feed: a project chat's link to the chat it goes on from. */
+  lead?: ReactNode
 }
 
 /**
@@ -128,7 +130,7 @@ interface SentLine {
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank }: Props) {
+export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
   const sessionId = session ?? ''
   const shownSession = useRef(sessionId)
@@ -346,6 +348,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
               ×
             </button>
           </header>
+          {lead}
           {error !== null && <p className="notice notice--error">{error}</p>}
           {handing.phase !== 'done' && handing.last !== null && (
             <div className="transcript__handover">

@@ -1,5 +1,6 @@
 import type { LaunchEntry } from '../chain/model.js'
 import type { HandoffSession } from '../chain/relay.js'
+import type { ChatPast } from '../chats/prompt.js'
 import type { CloneProgress } from '../git/clone-progress.js'
 import type { AccountControl } from '../server-control.js'
 import type { Notice } from '../notice/notice.js'
@@ -83,6 +84,8 @@ export interface MachineChats {
   stop(chat: string): Promise<void>
   /** The title the agent gave the session; `null` — none, or an agent that gives none. */
   title(account: string, sessionId: string): Promise<string | null>
+  /** The chat's session as the monitor knows it: its id, transcript and recent lines; `null` — none (BTN-1232). */
+  past(chat: string): Promise<ChatPast | null>
 }
 
 /** The records the hub keeps for the machine, handed to its new process before its monitor, hooks and chat start. */
@@ -156,7 +159,7 @@ export const SERVICE_COMMANDS = {
   chat: ['post', 'giveBack', 'dismiss', 'steer', 'tell', 'saveInbox'],
   records: ['restore'],
   folders: ['check', 'clone', 'probe'],
-  chats: ['launch', 'send', 'stop', 'title'],
+  chats: ['launch', 'send', 'stop', 'title', 'past'],
 } as const satisfies { [G in keyof MachineServices]: ReadonlyArray<keyof MachineServices[G]> }
 
 type Group = keyof MachineServices

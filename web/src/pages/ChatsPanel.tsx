@@ -106,6 +106,12 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
           <ProjectChatWindow
             key={shown.id}
             chat={shown}
+            choice={chats.choice}
+            onOpen={(chat) => {
+              setSection(chat.archivedAt === null ? 'active' : 'archive')
+              setOpened(chat)
+              chats.refresh()
+            }}
             onClose={() => {
               setOpened(null)
               chats.refresh()

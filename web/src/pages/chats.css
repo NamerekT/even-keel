@@ -337,6 +337,102 @@
   align-self: flex-end;
 }
 
+/* "Continued from …" over a chat's feed (BTN-1232). */
+.chat-continued {
+  margin: 0;
+  padding: 0 0 var(--space-8);
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.chat-continued__link {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* The window before a message to a cold or limited chat: why, the message, the new session's choice (BTN-1232). */
+.add-package.renew-chat {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.renew-chat__body {
+  gap: var(--space-12);
+}
+
+.renew-chat__why {
+  font-size: var(--text-13);
+}
+
+.renew-chat__why--limit {
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.renew-chat__quote {
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  max-height: 7.5em;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--fg) 25%, transparent);
+  font-size: var(--text-14);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+.renew-chat__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* The "?" of the main button is part of it: the same fill, a thin line between. */
+.renew-chat .renew-chat__go .button-with-tip__trigger {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--surface) 35%, transparent);
+  color: var(--surface);
+}
+
+.renew-chat .renew-chat__go .button-with-tip__trigger:hover {
+  background: color-mix(in srgb, var(--accent) 85%, var(--fg));
+}
+
+@media (max-width: 760px) {
+  /* A field a line: the effort's five words do not fit beside a list. */
+  .renew-chat__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .renew-chat__fields .segmented > * {
+    flex: 1 1 auto;
+    padding-inline: var(--space-4);
+    white-space: nowrap;
+  }
+
+  .renew-chat .add-package__foot > * {
+    flex: 1 1 100%;
+  }
+
+  /* The buttons one under another, the primary on top and Cancel last. */
+  .renew-chat .add-package__foot > .renew-chat__go {
+    order: -1;
+  }
+
+  .renew-chat .add-package__foot > :first-child {
+    order: 1;
+  }
+}
+
 /* The window of a new session. */
 .new-chat__body {
   display: flex;

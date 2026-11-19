@@ -31,7 +31,7 @@ interface Props {
 }
 
 /** An account on a limit or waiting for a sign-in cannot start a chat: why, and until when for a limit. */
-function blockOf(entry: AccountEntry, now: Date): string | null {
+export function blockOf(entry: AccountEntry, now: Date): string | null {
   if (entry.needsLogin) return t.chats.dialog.login
   const tightest = tightestWindow(entry.limits)
   return tightest !== null && tightest.free === 0 ? t.chats.dialog.limit(formatStamp(tightest.window.resetsAt, now)) : null

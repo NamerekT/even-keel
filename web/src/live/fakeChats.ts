@@ -31,6 +31,7 @@ function card(state: EvenKeelState, project: string, patch: Partial<ChatCard> & 
     sessionId: null,
     archivedAt: null,
     successor: null,
+    previous: null,
     ...patch,
   }
 }
@@ -63,6 +64,8 @@ function active(state: EvenKeelState, project: string): ChatCard[] {
       lastAt: ago(9),
       unread: true,
       sessionId: `${project}-chat-session-2`,
+      // It goes on from the first archived chat, whose successor it is (BTN-1232).
+      previous: `${project}-archived-1`,
     }),
     card(state, project, {
       id: `${project}-chat-3`,
@@ -194,7 +197,37 @@ export function fakeChats(mode: string | null) {
         list.choice = choice
         return created
       }
-      if (name === 'chats/chat') return find(String(body.id))?.found ?? null
+      if (name === 'chats/chat') {
+        const id = String(body.id)
+        return find(id)?.found ?? [...lists.values()].flatMap((list) => list.archived).find((each) => each.id === id) ?? null
+      }
+      if (name === 'chats/renew') {
+        // The old chat goes to the archive with a link to the new one, which starts with the message (BTN-1232).
+        const hit = find(String(body.id))
+        if (hit === undefined) return null
+        const choice: ChatChoice = { account: String(body.account), model: (body.model as string | null) ?? null, effort: (body.effort as string | null) ?? null }
+        const agent = state.account.accounts.find((entry) => entry.key === choice.account)?.agent ?? 'claude'
+        const text = String(body.text ?? '')
+        const at = new Date().toISOString()
+        made += 1
+        const next = card(state, hit.found.project, {
+          id: `${hit.found.project}-new-${made}`,
+          agent,
+          ...choice,
+          title: hit.found.title,
+          state: 'starting',
+          context: null,
+          last: { from: 'user', text, at },
+          lastAt: at,
+          previous: hit.found.id,
+        })
+        hit.list.active = [next, ...hit.list.active.filter((each) => each.id !== hit.found.id)]
+        hit.list.archived = [{ ...hit.found, state: 'archived', archivedAt: at, successor: next.id, unread: false }, ...hit.list.archived]
+        hit.list.choice = choice
+        setTimeout(() => replace(next.id, { state: 'working', sessionId: `${next.id}-session` }), ANSWER_MS / 2)
+        setTimeout(() => replace(next.id, { state: 'answered', unread: true, last: { from: 'agent', text: 'Picked up where the last chat stopped: the step waits on a port another run holds.', at: new Date().toISOString() } }), ANSWER_MS * 2)
+        return next
+      }
       return undefined
     },
 

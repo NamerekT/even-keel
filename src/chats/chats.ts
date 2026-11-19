@@ -19,6 +19,7 @@ import {
   type ChatPage,
   type ChatRecord,
 } from './model.js'
+import { renewPrompt, type ChatPast } from './prompt.js'
 import type { ChatStore } from './store.js'
 
 /** Where a project's folder is: its machine and the folder there. */
@@ -59,6 +60,8 @@ const newChatId = (): string => CHAT_PREFIX + randomBytes(6).toString('hex')
 export class ProjectChats {
   /** The chats whose first session is being launched. */
   private readonly starting = new Set<string>()
+  /** The chats going on in a new session now (`renew`). */
+  private readonly moving = new Set<string>()
 
   constructor(private readonly deps: ProjectChatsDeps) {}
 
@@ -67,26 +70,7 @@ export class ProjectChats {
     const { machine } = await this.deps.placeOf(project)
     const account = this.deps.accounts(machine)?.find((each) => each.key === choice.account)
     if (account === undefined) throw fail('chats.noAccount', { account: choice.account })
-    const at = this.deps.now().toISOString()
-    const chat: ChatRecord = {
-      id: (this.deps.newId ?? newChatId)(),
-      project,
-      agent: account.agent,
-      account: choice.account,
-      model: choice.model,
-      effort: choice.effort,
-      title: null,
-      first: null,
-      said: '',
-      last: null,
-      sessionId: null,
-      machine,
-      createdAt: at,
-      lastAt: at,
-      readAt: at,
-      archivedAt: null,
-      successor: null,
-    }
+    const chat = this.newRecord(project, account.agent, choice, machine, this.deps.now().toISOString())
     this.deps.store.setChoice(project, choice)
     this.deps.store.put(chat)
     this.deps.log(`chats: ${chat.id} of ${project} created on ${choice.account}`)
@@ -125,15 +109,7 @@ export class ProjectChats {
     if (services === undefined) throw fail('chats.noMachine', {})
     const view = this.viewOf(chat)
     const folder = view?.cwd ?? (await this.deps.placeOf(chat.project)).folder
-    let files: string[] = []
-    if (message.files.length > 0) {
-      const carried = message.files.map((file) => ({ name: file.name, data: Buffer.from(file.data).toString('base64') }))
-      try {
-        files = await services.chat.saveInbox(chat.project, folder, carried)
-      } catch (error) {
-        throw fail('answer.file', { name: message.files.map((file) => file.name).join(', ') }, { detail: (error as Error).message }, { cause: error })
-      }
-    }
+    const files = await this.saveFiles(services, chat.project, folder, message.files)
     const prompt = replyPrompt({ from: 'page', answers: message.answers ?? {}, text: message.text, files }, view?.ask ?? null, this.deps.language(chat.project))
     let sessionId: string
     if (chat.sessionId === null) {
@@ -181,31 +157,69 @@ export class ProjectChats {
    */
   async archive(id: string, options: { successor?: string; anyway?: boolean } = {}): Promise<void> {
     const chat = await this.active(id)
-    if (chat.sessionId !== null && chat.machine !== null) {
-      try {
-        const services = this.deps.services(chat.machine)
-        if (services === undefined) throw fail('chats.noMachine', {})
-        await services.chats.stop(id)
-      } catch (error) {
-        if (options.anyway !== true) throw error
-        this.deps.log(`chats: ${id}: the session ${chat.sessionId} was not stopped on its way to the archive: ${messageOf(error)}`)
-      }
+    try {
+      await this.stop(chat)
+    } catch (error) {
+      if (options.anyway !== true) throw error
+      this.deps.log(`chats: ${id}: the session ${chat.sessionId} was not stopped on its way to the archive: ${messageOf(error)}`)
     }
-    const view = this.viewOf(chat)
-    const now = this.deps.now().toISOString()
-    this.deps.store.put({ ...chat, last: lastMessageOf(view) ?? chat.last, lastAt: lastAtOf(chat, view), archivedAt: now, successor: options.successor ?? null })
-    this.deps.log(`chats: ${id} of ${chat.project} went to the archive${options.successor === undefined ? '' : `, continued by ${options.successor}`}`)
+    this.putArchived(chat, options.successor ?? null)
     this.deps.changed()
   }
 
   /**
-   * Once a minute: keeps what the sessions said (the last message, its time, the title the agent gave) and moves to the
-   * archive the chats whose last event is a day old.
+   * "New session with this message" (BTN-1232): the chat goes on in a new chat with the choice, whose first prompt is the
+   * old chat's last turns, its transcript and the message. The old session is stopped first: a stop that fails refuses
+   * it and nothing changes. Then the new chat, its prompt pending, and the old one archived with it as the successor are
+   * kept at once, and the new session launched; a restart in between launches it at the next sweep.
+   */
+  async renew(id: string, message: ChatMessageIn, choice: ChatChoice): Promise<ChatCard> {
+    const old = await this.active(id)
+    if (this.starting.has(id) || this.moving.has(id)) throw fail('chats.starting', {})
+    this.moving.add(id)
+    try {
+      const place = await this.deps.placeOf(old.project)
+      const account = this.deps.accounts(place.machine)?.find((each) => each.key === choice.account)
+      if (account === undefined) throw fail('chats.noAccount', { account: choice.account })
+      const services = this.deps.services(place.machine)
+      if (services === undefined) throw fail('chats.noMachine', {})
+      const past = await this.pastOf(old)
+      const files = await this.saveFiles(services, old.project, place.folder, message.files)
+      const language = this.deps.language(old.project)
+      const said = replyPrompt({ from: 'page', answers: message.answers ?? {}, text: message.text, files }, this.viewOf(old)?.ask ?? null, language)
+      await this.stop(old)
+      const at = this.deps.now().toISOString()
+      const text = message.text.trim() === '' ? files.join('\n') : message.text
+      const next: ChatRecord = {
+        ...this.newRecord(old.project, account.agent, choice, place.machine, at),
+        first: cut(text),
+        said: withSaid('', text),
+        last: { from: 'user', text: cut(text), at },
+        previous: old.id,
+        pending: renewPrompt(said, past, language),
+      }
+      this.deps.store.setChoice(old.project, choice)
+      this.deps.store.put(next)
+      this.putArchived(this.deps.store.get(id) ?? old, next.id)
+      this.deps.log(`chats: ${id} goes on in ${next.id} on ${choice.account}`)
+      return await this.launchPending(next, services, place.folder)
+    } finally {
+      this.moving.delete(id)
+    }
+  }
+
+  /**
+   * Once a minute: keeps what the sessions said (the last message, its time, the title the agent gave), launches what a
+   * restart left pending and moves to the archive the chats whose last event is a day old.
    */
   async sweep(): Promise<void> {
     const now = this.deps.now()
     for (const chat of this.deps.store.active()) {
       if (this.starting.has(chat.id)) continue
+      if (chat.pending !== null && chat.sessionId === null) {
+        await this.relaunch(chat).catch((error: unknown) => this.deps.log(`chats: ${chat.id}: the pending session did not start: ${messageOf(error)}`))
+        continue
+      }
       const view = this.viewOf(chat)
       const lastAt = lastAtOf(chat, view)
       if (archiveDue(lastAt, now)) {
@@ -218,6 +232,108 @@ export class ProjectChats {
       this.deps.store.put({ ...(this.deps.store.get(chat.id) ?? chat), title, last, lastAt })
       this.deps.changed()
     }
+  }
+
+  private newRecord(project: string, agent: string, choice: ChatChoice, machine: string, at: string): ChatRecord {
+    return {
+      id: (this.deps.newId ?? newChatId)(),
+      project,
+      agent,
+      account: choice.account,
+      model: choice.model,
+      effort: choice.effort,
+      title: null,
+      first: null,
+      said: '',
+      last: null,
+      sessionId: null,
+      machine,
+      createdAt: at,
+      lastAt: at,
+      readAt: at,
+      archivedAt: null,
+      successor: null,
+      previous: null,
+      pending: null,
+    }
+  }
+
+  private async saveFiles(services: Pick<MachineServices, 'chat'>, project: string, folder: string, files: InboxFile[]): Promise<string[]> {
+    if (files.length === 0) return []
+    const carried = files.map((file) => ({ name: file.name, data: Buffer.from(file.data).toString('base64') }))
+    try {
+      return await services.chat.saveInbox(project, folder, carried)
+    } catch (error) {
+      throw fail('answer.file', { name: files.map((file) => file.name).join(', ') }, { detail: (error as Error).message }, { cause: error })
+    }
+  }
+
+  /** Stops the chat's session through its machine, mid-turn too (`docs/chain/exceptions.md`); throws why it did not. */
+  private async stop(chat: ChatRecord): Promise<void> {
+    if (chat.sessionId === null || chat.machine === null) return
+    const services = this.deps.services(chat.machine)
+    if (services === undefined) throw fail('chats.noMachine', {})
+    await services.chats.stop(chat.id)
+  }
+
+  private putArchived(chat: ChatRecord, successor: string | null): void {
+    const view = this.viewOf(chat)
+    const now = this.deps.now().toISOString()
+    this.deps.store.put({ ...chat, last: lastMessageOf(view) ?? chat.last, lastAt: lastAtOf(chat, view), archivedAt: now, successor, pending: null })
+    this.deps.log(`chats: ${chat.id} of ${chat.project} went to the archive${successor === null ? '' : `, continued by ${successor}`}`)
+  }
+
+  /** What the machine knows of the chat's session; `null` — none, or the machine did not answer. */
+  private async pastOf(chat: ChatRecord): Promise<ChatPast | null> {
+    if (chat.sessionId === null || chat.machine === null) return null
+    try {
+      return (await this.deps.services(chat.machine)?.chats.past(chat.id)) ?? null
+    } catch (error) {
+      this.deps.log(`chats: ${chat.id}: its last turns were not read: ${messageOf(error)}`)
+      return null
+    }
+  }
+
+  /** Launches the chat's pending prompt; a failed launch drops it, so the user writes again in the chat. */
+  private async launchPending(chat: ChatRecord, services: Pick<MachineServices, 'chats'>, folder: string): Promise<ChatCard> {
+    const prompt = chat.pending
+    if (prompt === null) return this.cardOf(chat)
+    this.starting.add(chat.id)
+    this.deps.changed()
+    let sessionId: string
+    try {
+      sessionId = await services.chats.launch(chat.project, folder, chat.id, { account: chat.account, model: chat.model, effort: chat.effort, prompt })
+    } catch (error) {
+      this.deps.store.put({ ...(this.deps.store.get(chat.id) ?? chat), pending: null })
+      throw error
+    } finally {
+      this.starting.delete(chat.id)
+      this.deps.changed()
+    }
+    const next: ChatRecord = { ...(this.deps.store.get(chat.id) ?? chat), sessionId, machine: chat.machine, pending: null }
+    this.deps.store.put(next)
+    this.deps.log(`chats: ${chat.id} of ${chat.project} started the session ${sessionId}`)
+    return this.cardOf(next)
+  }
+
+  /**
+   * A pending prompt a restart left: the session the machine already knows under the chat's name is taken, else it is
+   * launched; a machine off the link keeps it for the next sweep.
+   */
+  private async relaunch(chat: ChatRecord): Promise<void> {
+    if (chat.machine === null) return
+    const services = this.deps.services(chat.machine)
+    if (services === undefined) return
+    const known = await services.chats.past(chat.id)
+    if (known !== null) {
+      this.deps.store.put({ ...chat, sessionId: known.sessionId, pending: null })
+      this.deps.log(`chats: ${chat.id}: its pending session ${known.sessionId} had started before the restart`)
+      this.deps.changed()
+      return
+    }
+    const place = await this.deps.placeOf(chat.project)
+    if (place.machine !== chat.machine) return
+    await this.launchPending(chat, services, place.folder)
   }
 
   private async titleOf(chat: ChatRecord): Promise<string | null> {

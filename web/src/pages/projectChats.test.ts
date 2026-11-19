@@ -19,6 +19,7 @@ function card(state: ChatState, unread = false): ChatCard {
     sessionId: null,
     archivedAt: null,
     successor: null,
+    previous: null,
   }
 }
 

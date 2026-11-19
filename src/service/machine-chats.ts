@@ -75,5 +75,9 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       const home = ctx.homeOf(account)
       return home.agent === CLAUDE ? ctx.chatTitles.of(join(home.dir, 'projects'), sessionId) : null
     },
+    past: async (chat) => {
+      const session = ctx.monitor.handoff(chat)
+      return session === undefined ? null : { sessionId: session.sessionId, transcript: session.transcript, recent: session.recent }
+    },
   }
 }

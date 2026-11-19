@@ -17,7 +17,21 @@ A project chat (BTN-1229, the server side BTN-1230) is a session without a task 
 
 The state (`stateOf`): `new` (no message yet), `starting`, `working`, `waiting` (a question, a permission dialog, a startup dialog), `answered` (the turn ended and the cache is warm), `cold` (the cache window passed; without one, five minutes after the last event), `error` (a limit or an error that is not a temporary refusal), `archived`. The active list puts the waiting chats first, then by the last event, newest first. A chat is unread while its last message is the agent's and came after the user last opened it (`chats/read`).
 
-The page's calls are `POST /api/chats/<name>` (`src/chats/routes.ts`): `list` (the project's active chats and its last choice), `archive` (a page of 20, newest first, `words` searched in the title, the first and last message and what the user wrote; `more` says an older page follows, no total), `chat`, `create`, `send` (text, answers and files in base64, up to 64 MB), `read`, `hide`.
+The page's calls are `POST /api/chats/<name>` (`src/chats/routes.ts`): `list` (the project's active chats and its last choice), `archive` (a page of 20, newest first, `words` searched in the title, the first and last message and what the user wrote; `more` says an older page follows, no total), `chat` (an archived one too), `create`, `send` (text, answers and files in base64, up to 64 MB), `renew` (the same with the new chat's account, model and effort), `read`, `hide`.
+
+## Going on in a new session
+
+A message to a chat whose cache went cold or whose account is at its limit may go to a new chat instead (BTN-1232). The page asks (`chatRenewal` in `web/src/pages/chatRenewal.ts`): cold is the session's `coldReply` (without the session's view, the chat's state `cold`); a limit is the account's tightest window spent or the session's lamp `limit`, and it comes first. Not for a chat that works or starts, nor for one without a session. The window offers the project's last choice; at a limit, when that is the same spent account, the next open account of the chat's agent, else of any agent (`renewalChoice`).
+
+`ProjectChats.renew` (`chats/renew`):
+
+1. The files go into the folder's inbox and the text becomes `replyPrompt`, an open question's answers included, as for `send`.
+2. The machine gives the old session's past (`MachineChats.past`: the monitor's `handoff` of the chat — its transcript path and recent feed lines); a failure leaves it out.
+3. The old session is stopped (exception 12). A failed stop refuses the step and nothing changes.
+4. The new chat is kept with `previous` (the old one) and `pending`, its whole first prompt (`renewPrompt`, `src/chats/prompt.ts`): a lead, the last 10 turns of the old chat taken from its feed without a model (the user's words and the agent's texts, each cut to 600 characters), the old transcript's path with "grep it, do not read it whole", then the message under `USER_MESSAGE_HEAD`, so the page shows it as the user's (BTN-1281). The old chat goes to the archive with the new one as its successor, and the new one becomes the project's last choice.
+5. The new chat's session is launched with `pending`; once it is, `pending` is cleared. A failed launch clears it too and returns the error: the new chat stays, without a session, and the user's next message there starts it as any first message.
+
+A restart between 4 and 5 loses nothing: the sweep finds an active chat with `pending` and no session and launches it with the same prompt, unless the machine already knows a session of the chat (`past`), which it then takes. An offline machine keeps it pending until the machine is back. A chat with `pending` and no session is `starting` for the page.
 
 ## The archive
 

@@ -788,4 +788,10 @@ export const STEPS: readonly string[] = [
     effort     text
   );
   `,
+  // A chat that goes on from another in a new session (BTN-1232): `previous` — the chat it goes on from; `pending` — its
+  // first prompt until the session is launched.
+  `
+  alter table chats add column previous text;
+  alter table chats add column pending text;
+  `,
 ]

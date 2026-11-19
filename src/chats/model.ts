@@ -35,6 +35,13 @@ export interface ChatRecord {
   archivedAt: string | null
   /** The chat that continued this one in a new session (BTN-1232). */
   successor: string | null
+  /** The chat this one goes on from (BTN-1232). */
+  previous: string | null
+  /**
+   * The first prompt of a chat that goes on from another (BTN-1232), kept until its session is launched: a restart of
+   * the service in between launches it again with the same message. `null` — nothing waits.
+   */
+  pending: string | null
 }
 
 export type ChatSpeaker = 'user' | 'agent' | 'ask'
@@ -71,6 +78,8 @@ export interface ChatCard {
   sessionId: string | null
   archivedAt: string | null
   successor: string | null
+  /** The chat this one goes on from: its window links it as "Continued from …" (BTN-1232). */
+  previous: string | null
 }
 
 /** The last choice of a new chat in a project, offered first in the window of a new session. */
@@ -174,7 +183,7 @@ export function cardOf(chat: ChatRecord, view: SessionView | undefined, starting
     account: chat.account,
     model: chat.model,
     effort: chat.effort,
-    state: stateOf(chat, view, starting, now),
+    state: stateOf(chat, view, starting || (chat.pending !== null && chat.sessionId === null), now),
     context: view === undefined ? null : { tokens: view.contextTokens, window: view.contextWindow },
     last,
     lastAt: lastAtOf(chat, view),
@@ -182,5 +191,6 @@ export function cardOf(chat: ChatRecord, view: SessionView | undefined, starting
     sessionId: chat.sessionId,
     archivedAt: chat.archivedAt,
     successor: chat.successor,
+    previous: chat.previous,
   }
 }

@@ -9,7 +9,7 @@ type Query = (deps: ServerDeps, body: Record<string, unknown>, request: Incoming
 
 /** A message carries its files whole, as an answer from the page does. */
 const MESSAGE_BYTES = 64 * 1024 * 1024
-export const CHATS_BODY_LIMITS: Record<string, number> = { '/api/chats/send': MESSAGE_BYTES }
+export const CHATS_BODY_LIMITS: Record<string, number> = { '/api/chats/send': MESSAGE_BYTES, '/api/chats/renew': MESSAGE_BYTES }
 
 /** The page's calls on the project chats (BTN-1230, `docs/sessions/project-chats.md`); each answers with its result. */
 export const CHATS_QUERIES: Record<string, Query> = {
@@ -18,6 +18,7 @@ export const CHATS_QUERIES: Record<string, Query> = {
   'chats/chat': (deps, body) => chats(deps).card(idOf(body)),
   'chats/create': (deps, body) => chats(deps).create(projectOf(body), choiceOf(body)),
   'chats/send': (deps, body) => chats(deps).send(idOf(body), messageOf(body)),
+  'chats/renew': (deps, body) => chats(deps).renew(idOf(body), messageOf(body), choiceOf(body)),
   'chats/read': async (deps, body) => {
     chats(deps).read(idOf(body))
     return {}

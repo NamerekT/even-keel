@@ -26,6 +26,8 @@ const chat = (id: string, fields: Partial<ChatRecord> = {}): ChatRecord => ({
   readAt: null,
   archivedAt: null,
   successor: null,
+  previous: null,
+  pending: null,
   ...fields,
 })
 
@@ -37,7 +39,12 @@ describe('step 63: the project chats (BTN-1230)', { timeout: 120_000 }, () => {
       await frozen.exec(fixture(63))
       expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
       await readsWhole(frozen, 63, 63)
+      await insertRows(made, await rowsOf(frozen))
+      expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
+      // The store reads the schema of today: the sample brought to step 64 has nothing pending.
+      await frozen.exec(STEPS[61]!)
       const store = await ChatStore.open({ db: frozen, writes: writes() })
+      expect(store.active().every((each) => each.pending === null)).toBe(true)
       expect(store.active(ABC).map((each) => [each.id, each.sessionId, each.machine])).toEqual([
         ['chat-aaaaaaaaaaaa', 'aaaaaaaa-1111-4222-8333-444444444444', '88888888-8888-4888-8888-888888888888'],
         ['chat-bbbbbbbbbbbb', null, null],
@@ -52,6 +59,24 @@ describe('step 63: the project chats (BTN-1230)', { timeout: 120_000 }, () => {
       expect(store.choice(ABC)).toEqual({ account: 'global', model: 'opus', effort: 'high' })
       const archive = await store.archived(ABC, '', 0)
       expect(archive).toEqual({ chats: [expect.objectContaining({ id: 'chat-cccccccccccc', successor: 'chat-aaaaaaaaaaaa' })], more: false })
+    } finally {
+      await Promise.all([frozen.close(), made.close()])
+    }
+  })
+})
+
+describe('step 64: the pending prompt of a chat going on in a new session (BTN-1232)', { timeout: 120_000 }, () => {
+  it('adds the column of the frozen sample and reads its rows', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 62))
+    try {
+      await frozen.exec(fixture(64))
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+      await readsWhole(frozen, 64, 64)
+      const store = await ChatStore.open({ db: frozen, writes: writes() })
+      expect(store.get('chat-dddddddddddd')).toMatchObject({ sessionId: null, previous: 'chat-eeeeeeeeeeee', pending: expect.stringContaining('Fix the header') })
+      expect(store.get('chat-aaaaaaaaaaaa')?.pending).toBeNull()
+      expect((await store.find('chat-eeeeeeeeeeee'))?.successor).toBe('chat-dddddddddddd')
       await insertRows(made, await rowsOf(frozen))
       expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
     } finally {
@@ -66,7 +91,7 @@ describe('the chat store', { timeout: 120_000 }, () => {
     try {
       const kept = writes()
       const store = await ChatStore.open({ db, writes: kept })
-      store.put(chat('chat-000000000001', { first: 'Hello', said: 'Hello', sessionId: 'session-1', machine: 'machine-1', last: { from: 'user', text: 'Hello', at: '2026-11-18T10:00:00.000Z' } }))
+      store.put(chat('chat-000000000001', { first: 'Hello', said: 'Hello', sessionId: 'session-1', machine: 'machine-1', last: { from: 'user', text: 'Hello', at: '2026-11-18T10:00:00.000Z' }, pending: 'Hello\n' }))
       store.put(chat('chat-000000000002', { archivedAt: '2026-11-18T11:00:00.000Z', successor: 'chat-000000000001' }))
       store.setChoice(ABC, { account: 'work', model: 'sonnet', effort: null })
       await kept.settled()
