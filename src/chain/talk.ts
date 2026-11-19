@@ -83,9 +83,9 @@ export class Talks {
         this.deps.log(`chain: ${task}: the answer did not reach the session ${sessionId}: the task is over for the chain`)
         return false
       }
-      if (chain === null || current === null) return this.handovers.deliverLoose(project, task, session, prompt)
+      if (chain === null || current === null) return this.handovers.deliverLoose(project, task, session, prompt, true)
       this.unhold(chain)
-      return this.handovers.deliver(chain, current, session, prompt, ask)
+      return this.handovers.deliver(chain, current, session, prompt, ask, 'answer', true)
     })
     this.host.setWork(delivery.then(() => {}))
     return delivery

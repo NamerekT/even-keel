@@ -41,8 +41,12 @@ export interface MachinePort {
   launchCarry: (project: string, name: string, report: string) => Promise<string>
   /** Command. Resumes the session a limit stopped; returns the session id it came up under. */
   resume: (task: string, session: LimitedSession) => Promise<string>
-  /** Command. Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
-  reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>
+  /**
+   * Command. Stops the waiting session and resumes it with the user's reply; returns the session id it came up under.
+   * `user` — the prompt is the user's own answer or chat message: a live session not waiting on a question takes it
+   * through its inbox socket instead, with no stop (BTN-1322).
+   */
+  reply: (task: string, session: HandoffSession, prompt: string, user?: boolean) => Promise<string>
   /** Command. Stops the session and starts a new one of the task in the same folder with the handoff prompt; returns its id. */
   relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason, brief?: LaunchBrief) => Promise<string>
   /** Command. Stops a session, mid-turn too: a red main or detected subscription overage (invariant 1). */

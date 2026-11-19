@@ -365,6 +365,11 @@ export interface ServerDeps {
    */
   mailContext?: (sessionId: string, event: MailEvent) => string | null
   /**
+   * For the inbox hook at a session's start (BTN-1322): remembers the session's inbox socket and its token in memory;
+   * `false` — no socket's address or no token. Any session is taken: its start may come before the launch log has it.
+   */
+  inbox?: (sessionId: string, socket: string, token: string) => boolean
+  /**
    * For the permission hook started at `since` (ms): the user's decision on the tool call the session waits to have
    * approved; `null` — not yet; `undefined` for a session the chain did not start, or a call whose dialog is gone (BTN-269).
    */

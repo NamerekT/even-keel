@@ -12,8 +12,15 @@ export interface HookReceiverOptions {
   forward(request: HookRequest): Promise<HookAnswer | undefined>
   /** The machine's accounts panel: the settings guard of its account folders asks `/api/state` for it. */
   account(): unknown
+  /**
+   * The inbox socket a session's hook reports at its start (BTN-1322), kept on this machine, where the socket is: the
+   * token never goes over the link. `false` — refused, or the machine is not up yet.
+   */
+  inbox?(sessionId: string, socket: string, token: string): boolean
   log(line: string): void
 }
+
+const INBOX_ROUTE = /^\/api\/sessions\/([^/]+)\/inbox$/
 
 /**
  * Where the hooks of a machine's sessions ask Even Keel on a machine with no page (BTN-1260, `docs/machines.md`,
@@ -75,6 +82,8 @@ export class HookReceiver {
     // A hook is no browser: a page of another site that reaches loopback is turned away.
     if (request.headers.origin !== undefined || !isLoopbackHost(request.headers.host)) return void response.writeHead(403).end()
     if (method === 'GET' && path.split('?')[0] === '/api/state') return json(response, 200, JSON.stringify({ account: this.options.account() }))
+    const inbox = method === 'POST' ? INBOX_ROUTE.exec(path.split('?')[0]!) : null
+    if (inbox !== null) return this.inbox(request, response, inbox[1]!)
     const route = hookRouteOf(method, path)
     if (route === undefined) return void response.writeHead(404).end()
     const body = await bodyOf(request)
@@ -83,6 +92,22 @@ export class HookReceiver {
     if (answer === undefined) return json(response, 503, JSON.stringify({ error: 'the hub is not reachable' }))
     if (answer.body === '') return void response.writeHead(answer.status).end()
     json(response, answer.status, answer.body)
+  }
+
+  private async inbox(request: IncomingMessage, response: ServerResponse, encoded: string): Promise<void> {
+    if (this.options.inbox === undefined) return void response.writeHead(404).end()
+    const body = await bodyOf(request)
+    let fields: { socket?: unknown; token?: unknown }
+    let sessionId: string
+    try {
+      fields = JSON.parse(body ?? '') as { socket?: unknown; token?: unknown }
+      sessionId = decodeURIComponent(encoded)
+    } catch {
+      return void response.writeHead(400).end()
+    }
+    const { socket, token } = fields ?? {}
+    const known = typeof socket === 'string' && typeof token === 'string' && this.options.inbox(sessionId, socket, token)
+    response.writeHead(known ? 204 : 400).end()
   }
 }
 

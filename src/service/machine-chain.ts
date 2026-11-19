@@ -29,7 +29,9 @@ import { typedText } from '../sessions/commandPrompt.js'
 import { KEEP_WARM_PROMPT, KeepWarm, type WarmFacts } from '../sessions/keepwarm.js'
 import { slotOccupants } from '../sessions/occupants.js'
 import { locateWorktree } from '../sessions/place.js'
-import { agentOfSession, liveViewOf, viewOf } from '../sessions/view-index.js'
+import { tellMail } from '../sessions/inboxes.js'
+import { agentOfSession, liveViewOf, steers, viewOf } from '../sessions/view-index.js'
+import { inboxMailOf } from './machine-services.js'
 import { accountEnv, runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from '../sessions/setup.js'
 import type { MachineContext } from './machine-context.js'
 import { deferLeftFolder, type stopTaskSessions } from './cleanup.js'
@@ -121,7 +123,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
     accountsRead: () => ctx.account.ready && ctx.brief.received,
     sessionsRead: () => ctx.agentsRead,
     resume: (task, session) => ctx.resumeWith(task, session, resumePrompt(ctx.promptLanguage(ctx.projectOf(task)))),
-    reply: (task, session, prompt) => ctx.resumeWith(task, session, prompt),
+    reply: async (task, session, prompt, user) =>
+      user === true && (await toldInbox(ctx, task, session, prompt)) ? session.sessionId : ctx.resumeWith(task, session, prompt),
     relay: async (task, session, handoff, reason, brief) => {
       // Before the stop: without a brief the handoff pauses, and the session it was to replace is left as it is.
       const told = ctx.briefed.apply(task, handoff, brief)
@@ -349,6 +352,20 @@ export function resumeWith(ctx: MachineContext, task: string, session: HandoffSe
     console.log(`sessions: ${task} resumed in ${Date.now() - started} ms (stop ${stopped - started} ms)`)
     return sessionId
   }, ctx.liveView(task)?.ask?.id ?? null)
+}
+
+/**
+ * The user's reply to a live Claude session that ended its turn, written into its inbox socket (BTN-1322): the session
+ * starts its next turn by itself, with no stop and no resume. Not for a session that waits on a question or a
+ * permission dialog (the stop and the resume answer it), one stopped or hung, or one that steers (`resumeWith` puts the
+ * reply straight in). The reply becomes a mailbox row, for its mark in the transcript and its delivery in the chat.
+ */
+export async function toldInbox(ctx: MachineContext, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
+  if (session.stopped || !ctx.inboxes.knows(session.sessionId) || steers(ctx.agents, session.sessionId)) return false
+  const view = ctx.liveView(task)
+  if (view?.ask != null || view?.hungSince != null || ctx.approvals.ask(session.sessionId) !== null) return false
+  const { text, files } = replyParts(prompt, null)
+  return tellMail(inboxMailOf(ctx), task, session.sessionId, typedText(text), files)
 }
 
 export function approved(ctx: MachineContext, task: string, session: HandoffSession, prompt: string): boolean {

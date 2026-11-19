@@ -138,6 +138,19 @@ export async function hookMailOf(sessionId, event) {
   return { message: text(body?.message), context: text(body?.context) };
 }
 
+/**
+ * Tells Even Keel the session's inbox socket and its token, so the chat's messages go straight into the session
+ * instead of waiting for a tool call or a stop and a resume. Even Keel keeps them in memory only.
+ */
+export async function reportInbox(sessionId, socket, token) {
+  await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/inbox`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ socket, token }),
+    signal: AbortSignal.timeout(2000),
+  });
+}
+
 /** The text of what waited for the session, now delivered on `event`, or null: nothing waits, or Even Keel did not start it. */
 export async function mailOf(sessionId, event) {
   return (await hookMailOf(sessionId, event)).message;

@@ -210,6 +210,7 @@ const context = {
   get logStartupDialogs() { return logStartupDialogs },
   get mailRelay() { return mailRelay },
   get mailbox() { return mailbox },
+  get inboxes() { return inboxes },
   get managementKeys() { return managementKeys },
   get mcpPort() { return mcpPort },
   get memory() { return memory },
@@ -462,7 +463,7 @@ const { host: machineHost, machine } = await assembleMachineHost({
   homesOpened: (homes) => void (demo = demoService.wireDemo(context, homes)),
 })
 const {
-  keyOrganizations, managementKeys, savedLimits, mailbox, limitsFile, accountFile, transcriptWatch, homes, accountSettings, claudeConfigs,
+  keyOrganizations, managementKeys, savedLimits, mailbox, inboxes, limitsFile, accountFile, transcriptWatch, homes, accountSettings, claudeConfigs,
   packages, approvals, runtimes, agentOf, envOf, models, requireModel, secretsSaid, sayBlankedSecrets, cliLease, launchIn, resumeIn, stopIn,
   lingering, journal, gitFound, saveAccounts, homeOf, reach, keySpend, online, spendsByKey, limitRetries, retryAfterLimit, limits,
   cliVersions, cliChecks, daemons, cliCopies, chatTitles, vscode, account, owners, emailAt, sessionAccount, accountNow, contextWindows,

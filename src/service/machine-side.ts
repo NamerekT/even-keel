@@ -127,7 +127,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     mailbox: () => Object.fromEntries(machine.sessions.flatMap((view): [string, SessionMail][] => {
       const mail = machine.mailbox.of(view.sessionId)
       const steered = steers(machine.agents, view.sessionId)
-      const listens = steered || machine.mailbox.listens(view.sessionId)
+      const listens = steered || machine.mailbox.listens(view.sessionId) || machine.inboxes.knows(view.sessionId)
       return listens || mail.length > 0 ? [[view.sessionId, { listens, steers: steered, mail }]] : []
     })),
     // Read with the CLI copies the page shows, so it never sees a CLI as found there and missing here (BTN-639).

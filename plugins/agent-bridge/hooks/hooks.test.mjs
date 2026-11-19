@@ -584,3 +584,23 @@ describe("the OpenCode plugin", () => {
     }
   });
 });
+
+describe("the inbox hook", () => {
+  const inbox = { CLAUDE_CODE_MESSAGING_SOCKET: "\\\\.\\pipe\\LOCAL\\cc-msg-0a1b2c", CLAUDE_CODE_MESSAGING_TOKEN: "token-123" };
+  const start = (session, extra) => agents.claude(session, "SessionStart", { source: "resume", ...extra });
+
+  it("tells Even Keel the session's inbox socket and token at its start, silently", async () => {
+    const session = sessionOf();
+    expect(await run("inbox.mjs", start(session), url, inbox)).toEqual({ code: 0, stdout: "" });
+    expect(posted.get(`/api/sessions/${session}/inbox`)).toEqual([{ socket: inbox.CLAUDE_CODE_MESSAGING_SOCKET, token: "token-123" }]);
+  });
+
+  it("tells nothing without the socket or the token, in a subagent, and stays silent without Even Keel", async () => {
+    const session = sessionOf();
+    expect(await run("inbox.mjs", start(session), url, { ...inbox, CLAUDE_CODE_MESSAGING_SOCKET: undefined })).toEqual({ code: 0, stdout: "" });
+    expect(await run("inbox.mjs", start(session), url, { ...inbox, CLAUDE_CODE_MESSAGING_TOKEN: undefined })).toEqual({ code: 0, stdout: "" });
+    expect(await run("inbox.mjs", start(session, { agent_id: "agent-1" }), url, inbox)).toEqual({ code: 0, stdout: "" });
+    expect(posted.get(`/api/sessions/${session}/inbox`)).toBeUndefined();
+    expect(await run("inbox.mjs", start(session), "http://127.0.0.1:9", inbox)).toEqual({ code: 0, stdout: "" });
+  });
+});

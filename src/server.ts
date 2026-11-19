@@ -235,6 +235,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
 }
 
 const MAX_BODY_BYTES = 64 * 1024
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 /** An answer carries its files in base64. */
 const MAX_ANSWER_BYTES = 64 * 1024 * 1024
 const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES, ...BUILTIN_BODY_LIMITS, ...CHATS_BODY_LIMITS }
@@ -521,6 +522,23 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
           throw error
         }
       }
+    }
+    return
+  }
+
+  // The session's own key comes only from a hook on this machine, never over the network (BTN-1322).
+  const inbox = /^\/api\/sessions\/([^/]+)\/inbox$/.exec(path)
+  if (request.method === 'POST' && inbox !== null) {
+    if (deps.inbox === undefined || !LOOPBACK.has(request.socket.remoteAddress ?? '')) {
+      response.writeHead(404).end()
+      return
+    }
+    try {
+      const body = await readJsonBody(request, MAX_BODY_BYTES)
+      const known = deps.inbox(decodeURIComponent(inbox[1]!), textOf(body.socket, 'socket'), textOf(body.token, 'token'))
+      response.writeHead(known ? 204 : 400).end()
+    } catch (error) {
+      sendFailure(response, error)
     }
     return
   }

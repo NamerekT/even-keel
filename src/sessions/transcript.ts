@@ -444,20 +444,17 @@ export class TranscriptFold {
       if (answers !== null) this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text: '', answers: { ask: ask.id, answers } })
       else if (!declined) this.strayAsk = ask
     }
-    if (isPrompt(entry.message?.content) && this.pushMail(entry.timestamp ?? '', promptOf(entry.message?.content))) return
+    if (isPrompt(entry.message?.content) && this.pushMail(entry.timestamp ?? '', promptOf(entry.message?.content))) {
+      // The inbox socket's message between turns starts the turn that works on it (BTN-1322).
+      if (entry.origin?.kind === 'peer') this.startTurn(entry.timestamp ?? '')
+      return
+    }
     if (entry.usageLimitNote === 'wrap_up') {
       const at = entry.timestamp ?? ''
       this.wrapUp = { kind: 'limit', text: WRAP_UP_TEXT, at }
       this.addAction({ at, kind: 'error', text: WRAP_UP_TEXT })
     } else if (entry.isMeta !== true && isPrompt(entry.message?.content)) {
-      this.wrapUp = null
-      this.checkpoint = null
-      this.pullRequest = null
-      this.noChanges = null
-      this.turnStartedAt = entry.timestamp ?? ''
-      this.statusAsked = false
-      this.runningTools.clear()
-      this.callTools.clear()
+      this.startTurn(entry.timestamp ?? '')
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
       const answered = this.openAsk ?? this.strayAsk
       this.openAsk = null
@@ -465,6 +462,17 @@ export class TranscriptFold {
       const line = userLine(entry.timestamp ?? '', promptOf(entry.message?.content), answered, (text) => this.textOf(text))
       if (line !== null) this.addFeed(line)
     }
+  }
+
+  private startTurn(at: string): void {
+    this.wrapUp = null
+    this.checkpoint = null
+    this.pullRequest = null
+    this.noChanges = null
+    this.turnStartedAt = at
+    this.statusAsked = false
+    this.runningTools.clear()
+    this.callTools.clear()
   }
 
   // A line of its own after the tool line, not a mark on it: the page reads lines only once, and the result comes later.
@@ -494,12 +502,15 @@ export class TranscriptFold {
     return found.length > 0
   }
 
-  /** A message from Remote Control or the terminal that came mid-turn: no `user` line, only this attachment. */
+  /**
+   * A message from Remote Control or the terminal that came mid-turn: no `user` line, only this attachment. One Even
+   * Keel wrote into the inbox socket comes from a peer, and only its mark tells it (BTN-1322).
+   */
   private pushQueued(at: string, attachment: NonNullable<Entry['attachment']>): void {
-    const kind = attachment.origin?.kind
-    if (kind !== undefined && kind !== 'human') return
     const prompt = promptOf(attachment.prompt)
     if (this.pushMail(at, prompt)) return
+    const kind = attachment.origin?.kind
+    if (kind !== undefined && kind !== 'human') return
     const line = userLine(at, prompt, null, (text) => this.textOf(text))
     if (line !== null) this.addFeed(line)
   }
@@ -511,7 +522,8 @@ export class TranscriptFold {
   private pushQueueOperation(entry: Entry): void {
     const content = typeof entry.content === 'string' ? entry.content : undefined
     if (entry.operation === 'enqueue') {
-      const user = content !== undefined && !isContextBlock(content)
+      // A message through the inbox is the chat's, already shown there as delivered.
+      const user = content !== undefined && !isContextBlock(content) && mailIn(content).length === 0
       this.queue.push({ content, line: user ? userLine(entry.timestamp ?? '', content, null, (text) => this.textOf(text)) : null })
       return
     }

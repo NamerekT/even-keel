@@ -85,6 +85,14 @@ describe('Dispatcher on an answer', () => {
     expect(during).toMatchObject({ sessionId: 'old-session', answering: true })
   })
 
+  it("hands the user's answer over as their own words, so a live session may take it through its inbox (BTN-1322)", async () => {
+    const users: (boolean | undefined)[] = []
+    const { dispatcher } = await running({ waiting: new Set(), busy: new Set(), asked: {}, reply: async (_task, session, _prompt, user) => (users.push(user), session.sessionId) })
+    dispatcher.answer('ABC', 'ABC-1', 'old-session', null, 'Go with B')
+    await dispatcher.idle()
+    expect(users).toEqual([true])
+  })
+
   it('takes a plain reply to a session that ended its turn', async () => {
     const { dispatcher, relays } = await running({ waiting: new Set(), busy: new Set(), asked: {} })
     dispatcher.answer('ABC', 'ABC-1', 'old-session', null, 'Go with B')

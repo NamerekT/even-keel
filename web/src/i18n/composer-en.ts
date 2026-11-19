@@ -24,6 +24,7 @@ export const composerEn = {
       Stop: 'at the end of the turn',
       AskUserQuestion: 'in place of a question',
       resume: 'by resuming the session',
+      inbox: 'straight into the session',
     },
     returned: {
       asked: 'Came back: the session asked a question while the message was on its way. Send it as the answer or dismiss it.',

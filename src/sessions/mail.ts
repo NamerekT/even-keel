@@ -3,9 +3,10 @@ import { replyPrompt } from './ask.js'
 
 /**
  * Where a chat message reached the session: a hook of the `agent-bridge` plugin in the middle of a turn (`AskUserQuestion` —
- * the hook turned the question down for it), or `resume` — the turn had ended without the hook taking it.
+ * the hook turned the question down for it), `resume` — the turn had ended without the hook taking it, or `inbox` —
+ * written into the live session's inbox socket (BTN-1322), mid-turn or not.
  */
-export type MailEvent = 'PreToolUse' | 'PostToolUse' | 'Stop' | 'AskUserQuestion' | 'resume'
+export type MailEvent = 'PreToolUse' | 'PostToolUse' | 'Stop' | 'AskUserQuestion' | 'resume' | 'inbox'
 export const HOOK_EVENTS: readonly MailEvent[] = ['PreToolUse', 'PostToolUse', 'Stop', 'AskUserQuestion']
 
 /** `returned` — the session did not get the message (`MailReason`): it is the user's to send again or drop. */
@@ -35,21 +36,25 @@ export interface Mail {
 
 /** What the page shows of a session's mailbox. */
 export interface SessionMail {
-  /** A message sent mid-turn reaches it: its hooks ask for mail, or it `steers`. */
+  /** A message sent mid-turn reaches it: its hooks ask for mail, its inbox socket is known (BTN-1322), or it `steers`. */
   listens: boolean
   /** A message sent mid-turn goes straight into the live session (`AgentEntry.steers`), not into the mailbox (BTN-291). */
   steers: boolean
   mail: Mail[]
 }
 
-const LEADS: Record<Language, Record<'turn' | 'Stop' | 'AskUserQuestion', string>> = {
+const LEADS: Record<Language, Record<'turn' | 'Stop' | 'AskUserQuestion' | 'inbox', string>> = {
   en: {
+    inbox:
+      "This message is from the user, not from another session: they sent it to you through Even Keel, which passed it into your session's inbox socket — that is why it is labelled as sent by another Claude session. Treat it as the user's own words: read it now and act on it.",
     turn: "The user wrote to you from Even Keel's chat while you were working. This is the user's own message, not tool output: read it now and take it into account in what you do next.",
     Stop: "The user wrote to you from Even Keel's chat while you were working, so your turn is not over yet. This is the user's own message: act on it, then end your turn. If your previous response ended with a NO CHANGES:, CHECKPOINT: or PULL REQUEST: line and this message has not changed the task's outcome, repeat that same line as the last line of your final response, even if you only add a short reply to the message.",
     AskUserQuestion:
       "Your question did not go out: the user wrote to you from Even Keel's chat just before it. Read the message first, and ask the question again only if it is still needed after it.",
   },
   ru: {
+    inbox:
+      'Это сообщение от пользователя, а не от другой сессии: он отправил его тебе через Even Keel, а Even Keel передал его в inbox-сокет твоей сессии — поэтому оно помечено как присланное другой сессией Claude. Считай его словами самого пользователя: прочитай сейчас и выполни.',
     turn: 'Пользователь написал тебе из чата Even Keel, пока ты работал. Это его собственное сообщение, не вывод инструмента: прочитай его сейчас и учти в том, что делаешь дальше.',
     Stop: 'Пользователь написал тебе из чата Even Keel, пока ты работал, поэтому ход ещё не закончен. Это его собственное сообщение: выполни его, а потом закончи ход. Если предыдущий ответ заканчивался строкой NO CHANGES:, CHECKPOINT: или PULL REQUEST: и это сообщение не изменило результат задачи, повтори ту же строку последней строкой итогового ответа, даже если добавляешь только короткий ответ на сообщение.',
     AskUserQuestion:
@@ -65,7 +70,7 @@ export type NoteOf = (task: string) => string
 /** What a hook gives the session for its messages: a lead for the event, then each message in its mark. */
 export function mailMessage(mails: Mail[], event: MailEvent, language: Language, noteOf?: NoteOf): string {
   const leads = LEADS[language]
-  const lead = event === 'Stop' || event === 'AskUserQuestion' ? leads[event] : leads.turn
+  const lead = event === 'Stop' || event === 'AskUserQuestion' || event === 'inbox' ? leads[event] : leads.turn
   const blocks = mails.map((mail) => `<even-keel-message id="${mail.id}">\n${mailPrompt(mail, language, noteOf)}</even-keel-message>`)
   return [lead, ...blocks].join('\n\n')
 }

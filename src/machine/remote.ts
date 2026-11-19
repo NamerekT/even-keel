@@ -114,7 +114,7 @@ export class RemoteMachine {
       launchFix: (project, name, report, reran) => call('launchFix', { project }, [project, name, report, reran]),
       launchCarry: (project, name, report) => call('launchCarry', { project }, [project, name, report]),
       resume: (task, session) => call('resume', ofTask(task, session), [task, session]),
-      reply: (task, session, prompt) => call('reply', ofTask(task, session), [task, session, prompt]),
+      reply: (task, session, prompt, user) => call('reply', ofTask(task, session), user === true ? [task, session, prompt, true] : [task, session, prompt]),
       relay: async (task, session, prompt, reason, brief) => {
         const project = deps.projectOf(task)
         const prepared = brief ?? (project === undefined || isOwnName(task) ? undefined : await deps.brief?.(project, task))

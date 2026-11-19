@@ -203,7 +203,10 @@ export class Handovers {
     await this.handOverCurrent(chain, current, session, 'message', `${head}\n\n${prompt.trimEnd()}`)
   }
 
-  /** The user's answer, or with `review` the feedback on the task's pull request, resumes the waiting session. */
+  /**
+   * The user's answer, or with `review` the feedback on the task's pull request, resumes the waiting session. `user` —
+   * the prompt is the user's own words (`MachinePort.reply`): a live session may take it through its inbox (BTN-1322).
+   */
   async deliver(
     chain: ActiveChain,
     current: CurrentTask,
@@ -211,9 +214,10 @@ export class Handovers {
     prompt: string,
     ask: string | null,
     move: 'answer' | 'review' = 'answer',
+    user = false,
   ): Promise<boolean> {
     if (!this.state.active.includes(chain)) {
-      return move === 'answer' ? this.deliverLoose(chain.project, current.task, session, prompt) : false
+      return move === 'answer' ? this.deliverLoose(chain.project, current.task, session, prompt, user) : false
     }
     if (chain.current !== current || current.sessionId !== session.sessionId || this.deps.machine.handoff(current.task)?.sessionId !== session.sessionId) {
       return this.undelivered(current.task, session, 'the current session changed before delivery')
@@ -224,7 +228,7 @@ export class Handovers {
     if (ask !== null) current.ask = ask
     this.deps.save()
     try {
-      const sessionId = await this.deps.machine.reply(current.task, session, prompt)
+      const sessionId = await this.deps.machine.reply(current.task, session, prompt, user)
       this.moved(chain, current, move, sessionId, session.sessionId)
       return true
     } catch (error) {
@@ -237,12 +241,12 @@ export class Handovers {
   }
 
   /** The answer to a session that lives on after its chain stopped: no chain to follow it or to pause on a failure. */
-  async deliverLoose(project: string, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
+  async deliverLoose(project: string, task: string, session: HandoffSession, prompt: string, user = false): Promise<boolean> {
     if (this.deps.machine.handoff(task)?.sessionId !== session.sessionId) return this.undelivered(task, session, 'the session changed before delivery')
     if (this.state.active.some((chain) => chain.project === project)) return this.undelivered(task, session, 'a chain started before delivery')
     const at = this.deps.now().toISOString()
     try {
-      const sessionId = await this.deps.machine.reply(task, session, prompt)
+      const sessionId = await this.deps.machine.reply(task, session, prompt, user)
       this.deps.journal({ at, project, task, sessionId, reason: 'answer', previous: session.sessionId })
       return true
     } catch (error) {

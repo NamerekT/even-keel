@@ -49,7 +49,7 @@ export function machinePool(deps: PoolDeps): MachinePort {
     launchFix: (project, name, report, reran) => byTask(project, name).launchFix(project, name, report, reran),
     launchCarry: (project, name, report) => own().launchCarry(project, name, report),
     resume: (task, session) => ofTask(task).resume(task, session),
-    reply: (task, session, prompt) => ofTask(task).reply(task, session, prompt),
+    reply: (task, session, prompt, user) => ofTask(task).reply(task, session, prompt, user),
     relay: (task, session, prompt, reason, brief) => ofTask(task).relay(task, session, prompt, reason, brief),
     stop: (session) => ofSession(session).stop(session),
     locate: (session) => ofSession(session).locate(session),

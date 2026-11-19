@@ -195,13 +195,13 @@ export class MachineMoves {
         value = await new OverageStops(deps, (_, notice) => (halt = { notice, keep: false })).guard(chain)
         break
       case 'deliver': {
-        const [session, prompt, ask, move] = args as [HandoffSession, string, string | undefined, 'answer' | 'review' | undefined]
-        value = await handovers.deliver(chain, task(), session, prompt, ask ?? null, move)
+        const [session, prompt, ask, move, user] = args as [HandoffSession, string, string | undefined, 'answer' | 'review' | undefined, boolean | undefined]
+        value = await handovers.deliver(chain, task(), session, prompt, ask ?? null, move, user === true)
         break
       }
       case 'deliverLoose': {
-        const [loose, session, prompt] = args as [string, HandoffSession, string]
-        value = await handovers.deliverLoose(project, loose, session, prompt)
+        const [loose, session, prompt, user] = args as [string, HandoffSession, string, boolean | undefined]
+        value = await handovers.deliverLoose(project, loose, session, prompt, user === true)
         break
       }
       case 'replace': {

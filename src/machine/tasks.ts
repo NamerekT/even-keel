@@ -16,8 +16,9 @@ export interface TaskMoves {
   /** Stops the current session on paid usage; `false` — the chain paused on a failure and is not stepped now. */
   guard(chain: ActiveChain): Promise<boolean>
   follow(chain: ActiveChain, current: CurrentTask): Promise<void>
-  deliver(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string, ask: string | null, move?: 'answer' | 'review'): Promise<boolean>
-  deliverLoose(project: string, task: string, session: HandoffSession, prompt: string): Promise<boolean>
+  /** `user` — the prompt is the user's own words: a live session may take it through its inbox (BTN-1322). */
+  deliver(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string, ask: string | null, move?: 'answer' | 'review', user?: boolean): Promise<boolean>
+  deliverLoose(project: string, task: string, session: HandoffSession, prompt: string, user?: boolean): Promise<boolean>
   replace(chain: ActiveChain, current: CurrentTask, replaced: string, session: HandoffSession): Promise<void>
   renew(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string): Promise<void>
   handOverCurrent(chain: ActiveChain, current: CurrentTask, session: HandoffSession, reason: Reason, extra?: string): Promise<void>
@@ -42,8 +43,8 @@ function localMoves(state: ChainState, deps: DispatcherDeps, halt: Halt, report:
   return {
     guard: (chain) => overage.guard(chain),
     follow: (chain, current) => handovers.follow(chain, current),
-    deliver: (chain, current, session, prompt, ask, move) => handovers.deliver(chain, current, session, prompt, ask, move),
-    deliverLoose: (project, task, session, prompt) => handovers.deliverLoose(project, task, session, prompt),
+    deliver: (chain, current, session, prompt, ask, move, user) => handovers.deliver(chain, current, session, prompt, ask, move, user),
+    deliverLoose: (project, task, session, prompt, user) => handovers.deliverLoose(project, task, session, prompt, user),
     replace: (chain, current, replaced, session) => handovers.replace(chain, current, replaced, session),
     renew: (chain, current, session, prompt) => handovers.renew(chain, current, session, prompt),
     handOverCurrent: (chain, current, session, reason, extra) => handovers.handOverCurrent(chain, current, session, reason, extra),
@@ -87,17 +88,17 @@ class HubMoves implements TaskMoves {
     await this.chained(chain, () => this.run('follow', chain.project, chain, current, []))
   }
 
-  async deliver(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string, ask: string | null, move?: 'answer' | 'review'): Promise<boolean> {
+  async deliver(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string, ask: string | null, move?: 'answer' | 'review', user?: boolean): Promise<boolean> {
     try {
-      return (await this.run('deliver', chain.project, chain, current, [session, prompt, ask, move])) as boolean
+      return (await this.run('deliver', chain.project, chain, current, user === true ? [session, prompt, ask, move, true] : [session, prompt, ask, move])) as boolean
     } catch (error) {
       return this.undelivered(current.task, session, error)
     }
   }
 
-  async deliverLoose(project: string, task: string, session: HandoffSession, prompt: string): Promise<boolean> {
+  async deliverLoose(project: string, task: string, session: HandoffSession, prompt: string, user?: boolean): Promise<boolean> {
     try {
-      return (await this.run('deliverLoose', project, undefined, undefined, [task, session, prompt], task)) as boolean
+      return (await this.run('deliverLoose', project, undefined, undefined, user === true ? [task, session, prompt, true] : [task, session, prompt], task)) as boolean
     } catch (error) {
       return this.undelivered(task, session, error)
     }

@@ -11,6 +11,7 @@ import { readJson } from '../packages/plugins.js'
 import { fromCarried, toCarried, type CarriedFile, type MachineServices } from '../machine/services.js'
 import type { MachineContext } from './machine-context.js'
 import { inboxImage, saveInbox } from '../sessions/inbox.js'
+import { tellMail, type InboxMail } from '../sessions/inboxes.js'
 import { deliveredMail } from '../sessions/mail.js'
 import { noteWritten } from '../sessions/note.js'
 import { sharedFile } from '../sessions/shareFile.js'
@@ -23,6 +24,7 @@ export type MachineServicesContext = Pick<MachineContext,
   | 'emailAt'
   | 'homes'
   | 'inHomes'
+  | 'inboxes'
   | 'mailbox'
   | 'monitor'
   | 'packages'
@@ -42,6 +44,17 @@ export interface MachineServicesDeps {
   /** git and the clone; the real ones by default (tests). */
   git?: Git
   clone?: Clone
+}
+
+/** What a chat message into a session's inbox needs on the machine (`tellMail`, BTN-1322). */
+export function inboxMailOf(ctx: Pick<MachineContext, 'mailbox' | 'inboxes' | 'configStore' | 'promptLanguage' | 'taskNote'>): InboxMail {
+  return {
+    mailbox: ctx.mailbox,
+    inboxes: ctx.inboxes,
+    language: () => ctx.configStore.current.language ?? ctx.promptLanguage(),
+    note: ctx.taskNote,
+    log: (line) => console.log(line),
+  }
 }
 
 /** A file of the machine's disk, whole; `undefined` — gone, or not a file. */
@@ -104,6 +117,7 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
       giveBack: async (task, sessionId, text, files, reason) => void ctx.mailbox.giveBack(task, sessionId, text, files, reason),
       dismiss: async (sessionId) => ctx.mailbox.dismiss(sessionId),
       steer: deps.steer,
+      tell: (task, sessionId, text, files) => tellMail(inboxMailOf(ctx), task, sessionId, text, files),
       saveInbox: (_project, workdir, files) => saveInbox(workdir, files.map((file) => ({ name: file.name, data: fromCarried(file) }))),
     },
     records: { restore: deps.restore },

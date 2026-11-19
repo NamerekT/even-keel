@@ -27,6 +27,7 @@ import { laterTell } from './service/machine-context.js'
 import { assembleMachineHost } from './service/machine-host.js'
 import { CONTACT_EVERY_MS, contactKeeper, holdInstallation } from './service/machine-process.js'
 import { wireMachineSide } from './service/machine-side.js'
+import type { Inboxes } from './sessions/inboxes.js'
 
 // A machine of a hub elsewhere (`docs/machines.md`, "Machines elsewhere", BTN-1247): the machine's assembly and its end
 // of the link over HTTPS, nothing of the hub — no state database, no page, no trackers, no Tally database: its Tally
@@ -60,9 +61,11 @@ const tell = laterTell()
 // There is no page here: the sessions' hooks ask this receiver at the page's port, and it carries them to the hub's page.
 let linked: { end: MachineEnd } | undefined
 let accounts: (() => unknown) | undefined
+let inboxes: Inboxes | undefined
 const receiver = new HookReceiver({
   forward: async (request) => linked?.end.hook(request),
   account: () => accounts?.() ?? null,
+  inbox: (sessionId, socket, token) => inboxes?.remember(sessionId, socket, token) ?? false,
   log,
 })
 await receiver.start(listenOf(process.env).port)
@@ -77,6 +80,7 @@ const { host, machine } = await assembleMachineHost({
   tell,
   planFirst: true,
 })
+inboxes = machine.inboxes
 // The hub's last brief: a machine without its hub moves the tasks it was given on it (BTN-1226).
 const keptBrief = (await machineValue(machineDb, 'brief.kept')) as HubBrief | undefined
 if (keptBrief !== undefined) machine.brief.keep(keptBrief)

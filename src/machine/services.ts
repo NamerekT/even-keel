@@ -52,6 +52,11 @@ export interface MachineChat {
   dismiss(sessionId: string): Promise<void>
   /** Puts the message into the working session that steers; `false` — it is not live there after all. */
   steer(task: string, session: HandoffSession, prompt: string): Promise<boolean>
+  /**
+   * Writes the message into the session's inbox socket (BTN-1322), delivered at once; `false` — no inbox known on the
+   * machine, or it did not take the message: nothing is kept, and the reply goes the old way.
+   */
+  tell(task: string, sessionId: string, text: string, files: string[]): Promise<boolean>
   /** Saves the reply's files into the session's folder; their paths there. */
   saveInbox(project: string, workdir: string, files: CarriedInbox[]): Promise<string[]>
 }
@@ -148,7 +153,7 @@ export const SERVICE_COMMANDS = {
     'setManagementKey', 'renew', 'switchTo', 'switchApp', 'remove', 'keep', 'rename', 'resolveSettingsEdit', 'dropOwnSetting', 'enableRemote', 'code', 'cancel',
   ],
   transcript: ['record', 'feed', 'image', 'inboxFile', 'sharedFile', 'note', 'context'],
-  chat: ['post', 'giveBack', 'dismiss', 'steer', 'saveInbox'],
+  chat: ['post', 'giveBack', 'dismiss', 'steer', 'tell', 'saveInbox'],
   records: ['restore'],
   folders: ['check', 'clone', 'probe'],
   chats: ['launch', 'send', 'stop', 'title'],

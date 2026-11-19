@@ -42,8 +42,8 @@ interface ChatDeps {
   now: () => Date
 }
 
-/** The chat's commands made on the mailbox and the folders of this process. */
-export function localChat(mailbox: Mailbox, steer: MachineChat['steer']): MachineChat {
+/** The chat's commands made on the mailbox and the folders of this process; without `tell`, no session has an inbox. */
+export function localChat(mailbox: Mailbox, steer: MachineChat['steer'], tell?: MachineChat['tell']): MachineChat {
   return {
     post: async (task, sessionId, text, files) => {
       if (!mailbox.listens(sessionId)) throw fail('answer.busy', { task })
@@ -52,6 +52,7 @@ export function localChat(mailbox: Mailbox, steer: MachineChat['steer']): Machin
     giveBack: async (task, sessionId, text, files, reason) => void mailbox.giveBack(task, sessionId, text, files, reason),
     dismiss: async (sessionId) => mailbox.dismiss(sessionId),
     steer,
+    tell: tell ?? (async () => false),
     saveInbox: (_project, workdir, files) => saveInbox(workdir, files.map((file) => ({ name: file.name, data: fromCarried(file) }))),
   }
 }
@@ -117,6 +118,11 @@ export function createChat(deps: ChatDeps) {
     if (midTurn) {
       if (deps.steering(sessionId) && (await chat.steer(task, session, prompt))) {
         deps.log(`chain: ${task}: the user's message from the page went into the working session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
+        return
+      }
+      // Its inbox takes it at once, a turn waiting on a background command too (BTN-1322); the hooks are the fallback.
+      if (await chat.tell(task, sessionId, reply.text, files)) {
+        deps.changed()
         return
       }
       await chat.post(task, sessionId, reply.text, files)

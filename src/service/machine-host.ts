@@ -19,6 +19,7 @@ import type { Packages } from '../packages/service.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import type { KeepWarm } from '../sessions/keepwarm.js'
 import { Lingering } from '../sessions/lingering.js'
+import { Inboxes } from '../sessions/inboxes.js'
 import { Mailbox } from '../sessions/mailbox.js'
 import { ChatTitles } from '../sessions/title.js'
 import type { SessionView } from '../state.js'
@@ -66,6 +67,8 @@ export interface MachineHost {
   managementKeys: Awaited<ReturnType<typeof loadManagementKeys>>
   savedLimits: Awaited<ReturnType<typeof loadSavedLimits>>
   mailbox: Mailbox
+  /** The inbox sockets of this machine's Claude sessions, as their hooks report them (BTN-1322); in memory only. */
+  inboxes: Inboxes
   limitsFile: string
   accountFile: string
   transcriptWatch: ReturnType<typeof bootstrap.assembleTranscriptWatch>
@@ -186,6 +189,7 @@ export async function assembleMachineHost(inputs: MachineHostInputs): Promise<As
     get managementKeys() { return managementKeys },
     get savedLimits() { return savedLimits },
     get mailbox() { return mailbox },
+    get inboxes() { return inboxes },
     get limitsFile() { return limitsFile },
     get accountFile() { return accountFile },
     get transcriptWatch() { return transcriptWatch },
@@ -261,6 +265,7 @@ export async function assembleMachineHost(inputs: MachineHostInputs): Promise<As
   const savedWindows = await loadContextWindows(machineDb)
   // The machine's mailbox: its messages come from the hub at the link's start (`records.restore`).
   const mailbox = Mailbox.detached(writes, () => new Date())
+  const inboxes = new Inboxes()
   const limitsFile = join(stateDir, 'rate-limits.json')
   const accountFile = join(stateDir, 'account.json')
 

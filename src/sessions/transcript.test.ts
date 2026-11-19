@@ -1026,6 +1026,38 @@ describe('TranscriptFold', () => {
       expect(fold([notice]).summary().feed).toEqual([])
     })
 
+    describe('through the inbox socket (BTN-1322)', () => {
+      const mail = (id: number, text: string) => ({ id, task: 'ABC-1', session: 's1', text, files: [], sentAt: at(), fate: 'delivered' as const, event: null, settledAt: null })
+      // The CLI wraps what another process writes into the inbox; Even Keel reads only its own mark inside.
+      const wrapped = (id: number, text: string) => `<peer-message from="inbox">\n${mailMessage([mail(id, text)], 'inbox', 'en')}\n</peer-message>`
+      const queue = (operation: string, content: string) => JSON.stringify({ type: 'queue-operation', operation, timestamp: at(), content })
+      const prompt = (line: { kind: string }) => line.kind === 'prompt'
+
+      it('shows a message taken mid-turn as the user prompt by its mark, and the queue never holds it', () => {
+        const session = fold([JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'ABC-1' } })])
+        const turn = session.summary().turn
+        session.push(queue('enqueue', wrapped(21, 'Use the other parser.')))
+        expect(session.summary().turn?.queued).toBeUndefined()
+        session.push(queued(wrapped(21, 'Use the other parser.'), { kind: 'peer' }))
+        session.push(queue('remove', wrapped(21, 'Use the other parser.')))
+        const summary = session.summary()
+        expect(summary.feed.filter(prompt).map((line) => line.text)).toEqual(['ABC-1', 'Use the other parser.'])
+        expect(summary.turn).toEqual(turn)
+      })
+
+      it('shows a message taken between turns once, and the session works on it', () => {
+        const record = JSON.stringify({ type: 'user', timestamp: at(), isMeta: true, origin: { kind: 'peer' }, message: { role: 'user', content: wrapped(22, 'Now the docs.') } })
+        const summary = fold([record, record]).summary()
+        expect(summary.feed).toEqual([{ at: expect.any(String), kind: 'prompt', text: 'Now the docs.' }])
+        expect(summary.turn?.startedAt).toEqual(expect.any(String))
+      })
+
+      it('leaves out a message of another session that has no mark', () => {
+        const record = JSON.stringify({ type: 'user', timestamp: at(), isMeta: true, origin: { kind: 'peer' }, message: { role: 'user', content: '<peer-message>Hi.</peer-message>' } })
+        expect(fold([queued('<peer-message>Hi.</peer-message>', { kind: 'peer' }), record]).summary().feed).toEqual([])
+      })
+    })
+
     describe('until the session takes it', () => {
       const queue = (operation: string, content?: string, extra: Record<string, unknown> = {}) =>
         JSON.stringify({ type: 'queue-operation', operation, timestamp: at(), ...(content === undefined ? {} : { content }), ...extra })
