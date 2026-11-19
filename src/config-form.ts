@@ -7,7 +7,7 @@ import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, parseConfig, readKeyOf
 import type { NoticeKind } from './notice/kinds.js'
 import { fail } from './notice/notice.js'
 import { cleanRules } from './profiles/rules.js'
-import { changesOf, type FormValue } from './settings/changes.js'
+import { changesOf, type FormValue, type RowChange } from './settings/changes.js'
 import { sharedRows, withRows, writeRows } from './settings/file.js'
 import { defaultOf } from './settings/registry.js'
 import { checkRows, resolve, type Values } from './settings/resolve.js'
@@ -394,6 +394,32 @@ export function withSavedMilestoneOrder(raw: unknown, project: string, labels: r
   const trimmed = labels.map((label) => label.trim()).filter((label) => label !== '')
   const clean = trimmed.filter((label, index) => trimmed.indexOf(label) === index)
   return withRows(raw, [clean.length === 0 ? { op: 'unset', key: 'milestoneOrder', project, qualifier: '' } : { op: 'set', key: 'milestoneOrder', project, qualifier: '', value: clean }])
+}
+
+/**
+ * The raw config with a built-in milestone renamed or, `to` null, deleted in the project's own entry (BTN-1287): the
+ * chain's milestone rules and the saved milestone order, each name once. Shared rules stay — they name no project's
+ * milestone. Deleting the only milestone the chain is limited to is refused: the chain would take every milestone.
+ */
+export function withRenamedMilestone(raw: unknown, project: string, from: string, to: string | null): Record<string, unknown> {
+  return withEntry(raw, project, (entry) => {
+    const changes: RowChange[] = []
+    for (const key of ['chain.requiredMilestones', 'chain.excludedMilestones', 'milestoneOrder']) {
+      const list = rowValue(entry, key)
+      if (!Array.isArray(list) || !list.some((name) => typeof name === 'string' && sameName(name, from))) continue
+      const renamed = list.flatMap((name) => (typeof name === 'string' && sameName(name, from) ? (to === null ? [] : [to]) : [name]))
+      const clean = renamed.filter((name, index) => renamed.findIndex((each) => typeof each === 'string' && typeof name === 'string' && sameName(each, name)) === index)
+      if (key === 'chain.requiredMilestones' && clean.length === 0) throw fail('builtin.milestoneRequired', { milestone: from })
+      changes.push(clean.length === 0 ? { op: 'unset', key, project, qualifier: '' } : { op: 'set', key, project, qualifier: '', value: clean })
+    }
+    return writeRows(entry, changes)
+  })
+}
+
+function rowValue(entry: Record<string, unknown>, key: string): unknown {
+  let value: unknown = entry
+  for (const part of key.split('.')) value = isPlainObject(value) ? value[part] : undefined
+  return value
 }
 
 /**

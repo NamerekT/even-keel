@@ -353,6 +353,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
         ? 'current'
         : ctx.machineLink.page.liveView(task) !== undefined ? 'live' : null,
+    renamed: (project, from, to) => ctx.configStore.renameMilestone(project, from, to),
   })
   const builtinExports = new BuiltinExports({
     db: ctx.db,

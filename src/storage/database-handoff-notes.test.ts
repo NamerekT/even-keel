@@ -54,6 +54,8 @@ describe('handoff notes', { timeout: 120_000 }, () => {
     const db = await openDatabase(undefined)
     try {
       await frozen.exec(fixture(53))
+      // Brought up to the current steps first: the copy writes a column a v53 row lacks as null, and a later not-null one refuses it.
+      for (const step of STEPS.slice(51)) await frozen.exec(step)
       await insertRows(db, await rowsOf(frozen))
       expect(await writeHandoffNote(db, note(OLDER, 'late note of the session before'))).toBe('stale')
       expect(await writeHandoffNote(db, note(CURRENT, 'ABC-3 is the next step', 'ABC-3'))).toBe('notLaunched')

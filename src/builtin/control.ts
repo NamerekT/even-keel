@@ -11,6 +11,7 @@ import { BuiltinFiles, fileUrl, readLimited } from './files.js'
 import { ATTACHMENT_LIMIT_MB, BUILTIN, type RelationKind } from './model.js'
 import { BuiltinNames } from './source.js'
 import type { BuiltinComponent, ComponentFields } from './components.js'
+import type { BuiltinMilestoneRow, MilestoneFields } from './milestones.js'
 import { BuiltinStore, type BuiltinTask, type FieldEdit, type TaskKey } from './store.js'
 
 const SEARCH_LIMIT = 20
@@ -87,6 +88,20 @@ export interface BuiltinControl {
    * is the chain's current task or a session of it is live.
    */
   removeComponent(project: string, id: string, to: string | null): Promise<void>
+  /** The project's milestones with every field, their open tasks by id (BTN-1287). */
+  milestones(project: string): Promise<BuiltinMilestone[]>
+  /** Creates the milestone (`id` `null`) or changes it; a new name is renamed in the project's chain rules and milestone order too. */
+  saveMilestone(project: string, id: string | null, fields: MilestoneFields): Promise<{ id: string }>
+  /**
+   * Deletes the milestone, its tasks going to the milestone `to` or to none, and drops it from the project's chain rules
+   * and milestone order; refused while it has a closed task, or an open one is the chain's current task or has a live session.
+   */
+  removeMilestone(project: string, id: string, to: string | null): Promise<void>
+}
+
+/** A milestone as the page gets it: its open tasks named by their `<KEY>-<N>`. */
+export interface BuiltinMilestone extends Omit<BuiltinMilestoneRow, 'openTasks'> {
+  openTasks: string[]
 }
 
 export interface BuiltinUpload {
@@ -122,10 +137,12 @@ export interface BuiltinControlDeps {
   filesDir?: string
   /** The attachment size limit in bytes, read per upload: the setting is live. */
   limit?: () => number
+  /** Renames a milestone, or drops it (`to` null), where the project's settings name it; a throw undoes the write. */
+  renamed?: (project: string, from: string, to: string | null) => void
 }
 
 export function builtinControl({
-  db, places, refresh, busy = () => null, filesDir, limit = () => ATTACHMENT_LIMIT_MB * 1024 * 1024,
+  db, places, refresh, busy = () => null, filesDir, limit = () => ATTACHMENT_LIMIT_MB * 1024 * 1024, renamed = () => {},
 }: BuiltinControlDeps): BuiltinControl {
   // Every write here is the person's on the page: the history names them (BTN-1112).
   const open = () => {
@@ -307,6 +324,34 @@ export function builtinControl({
         if (why !== null) throw fail('builtin.componentBusy', { component: component.name, task: names.name(task), why })
       }
       await store.removeComponent(project, id, to)
+      await refresh(project)
+    },
+    async milestones(project) {
+      const { names, store } = open()
+      if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      const rows = await store.milestoneList(project)
+      return rows.map((row) => ({ ...row, openTasks: row.openTasks.map((number) => names.name({ project, number })) }))
+    },
+    async saveMilestone(project, id, fields) {
+      const { names, store } = open()
+      if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      refuseWhileExporting(project)
+      const saved = await store.editMilestone(project, id, fields, (from, to) => renamed(project, from, to))
+      await refresh(project)
+      return { id: saved }
+    },
+    async removeMilestone(project, id, to) {
+      const { names, store } = open()
+      if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      refuseWhileExporting(project)
+      const milestone = (await store.milestoneList(project)).find((each) => each.id === id)
+      if (milestone === undefined) throw fail('builtin.noMilestone', {})
+      for (const number of milestone.openTasks) {
+        const task = names.name({ project, number })
+        const why = busy(task)
+        if (why !== null) throw fail('builtin.milestoneBusy', { milestone: milestone.name, task, why })
+      }
+      await store.removeMilestone(project, id, to, (from, next) => renamed(project, from, next))
       await refresh(project)
     },
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withNotice, withSavedMilestoneOrder, withBadge, withTally, yieldedMilestones } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withNotice, withSavedMilestoneOrder, withRenamedMilestone, withBadge, withTally, yieldedMilestones } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -314,6 +314,31 @@ describe('withSavedMilestoneOrder', () => {
   it('refuses an order that is no list of names', () => {
     expect(() => parseConfig({ projects: [abc({ milestoneOrder: 'v1' })] })).toThrow('ABC.milestoneOrder must be a list of milestone names')
     expect(() => parseConfig({ projects: [abc({ milestoneOrder: ['v1', 2] })] })).toThrow('ABC.milestoneOrder must be a list of milestone names')
+  })
+})
+
+describe('withRenamedMilestone', () => {
+  const ruled = () => abc({ milestoneOrder: ['v2', 'V1', 'v3'], chain: { requiredMilestones: ['v1', 'v2'], excludedMilestones: ['v1'], requiredLabels: ['Auto'] } })
+
+  it('renames the milestone in the project\'s chain rules and saved order, whatever the case, each name once (BTN-1287)', () => {
+    const renamed = withRenamedMilestone({ chain: { excludedMilestones: ['v1'] }, projects: [ruled(), xyz({ milestoneOrder: ['v1'] })] }, 'id-abc', 'v1', 'v2')
+    expect(renamed.chain).toEqual({ excludedMilestones: ['v1'] })
+    expect(renamed.projects).toEqual([
+      abc({ milestoneOrder: ['v2', 'v3'], chain: { requiredMilestones: ['v2'], excludedMilestones: ['v2'], requiredLabels: ['Auto'] } }),
+      xyz({ milestoneOrder: ['v1'] }),
+    ])
+  })
+
+  it('drops a deleted milestone and a list it leaves empty', () => {
+    const raw = { projects: [abc({ milestoneOrder: ['v1'], chain: { requiredMilestones: ['v1', 'v2'], excludedMilestones: ['v1'] } })] }
+    expect(withRenamedMilestone(raw, 'id-abc', 'v1', null).projects).toEqual([abc({ chain: { requiredMilestones: ['v2'] } })])
+    expect(withRenamedMilestone({ projects: [abc()] }, 'id-abc', 'v1', null).projects).toEqual([abc()])
+  })
+
+  it('refuses to delete the only milestone the chain is limited to', () => {
+    const raw = { projects: [abc({ chain: { requiredMilestones: ['V1'] } })] }
+    expect(() => withRenamedMilestone(raw, 'id-abc', 'v1', null)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'builtin.milestoneRequired' }) }))
+    expect(withRenamedMilestone(raw, 'id-abc', 'v1', 'v9').projects).toEqual([abc({ chain: { requiredMilestones: ['v9'] } })])
   })
 })
 

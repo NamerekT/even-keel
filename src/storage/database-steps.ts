@@ -833,4 +833,14 @@ export const STEPS: readonly string[] = [
   alter table builtin_history add column component_id text;
   create index builtin_history_component on builtin_history (component_id, id);
   `,
+  // The built-in tracker's milestones edited on the page (BTN-1287, `docs/storage.md`): a Markdown description, a status
+  // the chain never reads, the time it was closed (set on "completed" or "canceled", cleared on reopening) and the time
+  // it was made — that of its "created" history row for a milestone made before, `null` for one made before the history.
+  `
+  alter table builtin_milestones add column description text not null default '';
+  alter table builtin_milestones add column status text not null default 'planned' check (status in ('planned', 'active', 'completed', 'canceled'));
+  alter table builtin_milestones add column closed_at text;
+  alter table builtin_milestones add column created_at text;
+  update builtin_milestones m set created_at = (select min(h.at) from builtin_history h where h.milestone_id = m.id and h.field = 'created');
+  `,
 ]

@@ -5,6 +5,7 @@ import { labelList, numberOf, projectOf, taskOf, textOf } from '../server-reques
 import { PRIORITIES, type TaskPriority } from '../tracker/model.js'
 import type { BuiltinAttached, BuiltinControl, BuiltinDraft, BuiltinEdit } from './control.js'
 import type { ExportTargetFields } from './export-store.js'
+import { MILESTONE_STATUSES, type MilestoneStatus } from './milestones.js'
 import type { RelationKind } from './model.js'
 
 type Query = (deps: ServerDeps, body: Record<string, unknown>, request: IncomingMessage) => Promise<unknown>
@@ -13,7 +14,7 @@ type Query = (deps: ServerDeps, body: Record<string, unknown>, request: Incoming
 const TEXT_BODY_BYTES = 4 * 1024 * 1024
 /** Body limits of the commands that carry a task's text, over the server's general one. */
 export const BUILTIN_BODY_LIMITS: Record<string, number> = Object.fromEntries(
-  ['create', 'edit', 'description', 'patch', 'comment', 'component'].map((command) => [`/api/builtin/${command}`, TEXT_BODY_BYTES]),
+  ['create', 'edit', 'description', 'patch', 'comment', 'component', 'milestone/save'].map((command) => [`/api/builtin/${command}`, TEXT_BODY_BYTES]),
 )
 
 /** The page's commands on the built-in tracker (BTN-767); each answers with what it changed. */
@@ -52,6 +53,19 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
     }),
   'builtin/component/delete': async (deps, body) => {
     await control(deps).removeComponent(projectOf(body), textOf(body.id, 'id'), nullableText(body.to ?? null, 'to'))
+    return {}
+  },
+  // The project's milestones (BTN-1287): the tracker window's table, its editor and its deletion.
+  'builtin/milestones': (deps, body) => control(deps).milestones(projectOf(body)),
+  'builtin/milestone/save': (deps, body) =>
+    control(deps).saveMilestone(projectOf(body), nullableText(body.id ?? null, 'id'), {
+      name: textOf(body.name, 'name'),
+      description: textOf(body.description ?? '', 'description'),
+      status: milestoneStatusOf(body.status ?? 'planned'),
+      date: dateOf(body.date),
+    }),
+  'builtin/milestone/delete': async (deps, body) => {
+    await control(deps).removeMilestone(projectOf(body), textOf(body.id, 'id'), nullableText(body.to ?? null, 'to'))
     return {}
   },
   // The copy into another tracker (BTN-1073): the target as the wizard's tracker step names it.
@@ -137,6 +151,11 @@ function nullableText(raw: unknown, field: string): string | null {
 
 function dateOf(raw: unknown): number | null {
   return raw === null || raw === undefined ? null : numberOf(raw, 'date')
+}
+
+function milestoneStatusOf(raw: unknown): MilestoneStatus {
+  if (typeof raw !== 'string' || !(MILESTONE_STATUSES as readonly string[]).includes(raw)) throw fail('request.required', { field: 'status' })
+  return raw as MilestoneStatus
 }
 
 function kindOf(raw: unknown): RelationKind {

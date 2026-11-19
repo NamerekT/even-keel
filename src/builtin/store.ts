@@ -15,6 +15,9 @@ import {
 import {
   componentIdOf, componentName, listComponents, removeComponent, saveComponent, type BuiltinComponent, type ComponentFields, type Stamp,
 } from './components.js'
+import {
+  listMilestones, milestoneIdOf, removeMilestone, saveMilestone as saveMilestoneFields, type BuiltinMilestoneRow, type MilestoneFields, type MilestoneRenamed,
+} from './milestones.js'
 
 import {
   estimateOf, FILE_COLUMNS, fileOf, normal, priorityOf, readTasks, shown, statusOf, TASK_COLUMNS, titleOf,
@@ -439,6 +442,21 @@ export class BuiltinStore {
     })
   }
 
+  /** The project's milestones with every field and their task counts, as the tracker window lists them (BTN-1287). */
+  milestoneList(project: string): Promise<BuiltinMilestoneRow[]> {
+    return listMilestones(this.db, project)
+  }
+
+  /** Creates the milestone (`id` `null`) or changes it; a rename goes to `renamed` inside the write. Returns its id. */
+  editMilestone(project: string, id: string | null, fields: MilestoneFields, renamed?: MilestoneRenamed): Promise<string> {
+    return inTransaction(this.db, (tx) => saveMilestoneFields(tx, this.stamped(), project, id, fields, renamed))
+  }
+
+  /** Deletes the milestone, its tasks going to the milestone `to` or to none; refused while it has a closed task. */
+  async removeMilestone(project: string, id: string, to: string | null, renamed?: MilestoneRenamed): Promise<void> {
+    await inTransaction(this.db, (tx) => removeMilestone(tx, this.stamped(), project, id, to, renamed))
+  }
+
   /** The milestone's changes, oldest first. */
   milestoneHistory(milestone: string): Promise<MilestoneChange[]> {
     return milestoneHistory(this.db, milestone)
@@ -540,15 +558,8 @@ export class BuiltinStore {
     }
   }
 
-  private async milestoneId(tx: Transaction, project: string, name: string): Promise<string> {
-    const trimmed = name.trim()
-    if (trimmed === '') throw fail('builtin.emptyName', {})
-    const { rows } = await tx.query<{ id: string }>('select id from builtin_milestones where project_id = $1 and lower(name) = lower($2)', [project, trimmed])
-    if (rows[0] !== undefined) return rows[0].id
-    const id = randomUUID()
-    await tx.query('insert into builtin_milestones (id, project_id, name, date) values ($1, $2, $3, null)', [id, project, trimmed])
-    await this.logMilestone(tx, project, id, 'created', null, trimmed)
-    return id
+  private milestoneId(tx: Transaction, project: string, name: string): Promise<string> {
+    return milestoneIdOf(tx, this.stamped(), project, name)
   }
 
   /** `true` — the task had no such label; `logged` — the history records it. */

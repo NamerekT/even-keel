@@ -13,12 +13,15 @@ export interface HistoryRow {
   after: string | null
 }
 
-/** A change of a milestone of the built-in tracker (BTN-1112): its creation, its date (`String` of ms). */
+/**
+ * A change of a milestone of the built-in tracker (BTN-1112): its creation and deletion (`from` its name), its date
+ * (`String` of ms); since BTN-1287 its name, status and description (`to` JSON of its difference).
+ */
 export interface MilestoneChange {
   at: string
   by: ChangeAuthor['by']
   model: string | null
-  field: 'created' | 'date'
+  field: 'created' | 'date' | 'name' | 'description' | 'status' | 'removed'
   from: string | null
   to: string | null
 }

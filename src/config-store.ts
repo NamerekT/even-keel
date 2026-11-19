@@ -3,7 +3,7 @@ import { needsCheckedCli } from './agent/providers.js'
 import type { BadgeSettings } from './badge/model.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withBadge, withSharedAccount, withSharedForm, withNotice, withTally, withTrackerMove, withUpdates, type TrackerMove } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withRenamedMilestone, withBadge, withSharedAccount, withSharedForm, withNotice, withTally, withTrackerMove, withUpdates, type TrackerMove } from './config-form.js'
 import type { NoticeKind } from './notice/kinds.js'
 import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
@@ -127,6 +127,11 @@ export class ConfigStore {
   /** Writes the project's own milestone order (BTN-792); an empty one goes back to the automatic order. */
   saveMilestoneOrder(project: string, labels: readonly string[]): void {
     this.write(withSavedMilestoneOrder(this.raw(), this.idOf(project), labels))
+  }
+
+  /** Renames a built-in milestone, or drops it (`to` null), in the project's chain rules and milestone order (BTN-1287). */
+  renameMilestone(project: string, from: string, to: string | null): void {
+    this.write(withRenamedMilestone(this.raw(), this.idOf(project), from, to))
   }
 
   /** The project's README badge (BTN-917), as the badge dialog writes it; `null` — none. */

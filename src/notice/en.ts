@@ -632,6 +632,15 @@ export const en = {
     p.why === 'current'
       ? `${p.task} of the component ${p.component} is the chain's current task; skip it or stop the chain before deleting the component`
       : `${p.task} of the component ${p.component} has a live session; stop it before deleting the component`,
+  'builtin.milestoneTaken': (p: { name: string }) => `the project has a milestone "${p.name}" already; pick another name`,
+  'builtin.milestoneBusy': (p: { milestone: string; task: string; why: 'current' | 'live' }) =>
+    p.why === 'current'
+      ? `${p.task} of the milestone ${p.milestone} is the chain's current task; skip it or stop the chain before deleting the milestone`
+      : `${p.task} of the milestone ${p.milestone} has a live session; stop it before deleting the milestone`,
+  'builtin.milestoneClosedTasks': (p: { milestone: string; count: number }) =>
+    `the milestone ${p.milestone} has ${p.count} closed ${p.count === 1 ? 'task' : 'tasks'} and cannot be deleted; set it to “Canceled” instead`,
+  'builtin.milestoneRequired': (p: { milestone: string }) =>
+    `the chain takes only tasks of the milestone ${p.milestone}; without it the chain would take every milestone: change “Only tasks in milestones” in the project's chain rules first`,
   'builtin.badStatus': (p: { status: string; statuses: string[] }) => `there is no status "${p.status}"; the statuses are ${p.statuses.join(', ')}`,
   'builtin.badPriority': (p: { priority: string }) => `there is no priority "${p.priority}"`,
   'builtin.noProject': (p: { project: string }) => `the project ${p.project} does not keep its tasks in Even Keel`,
