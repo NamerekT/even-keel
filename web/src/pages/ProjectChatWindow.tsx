@@ -1,6 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
-import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -13,8 +12,8 @@ import { encoded, sentLine } from './ChatComposer.js'
 import { chatRenewal, renewalChoice, type ChatRenewal } from './chatRenewal.js'
 import { ChatRenewDialog } from './ChatRenewDialog.js'
 import { shownAsk } from './composerHold.js'
-import type { Draft } from './chatDraft.js'
-import { ComposerBox, useChatDraft } from './ComposerBox.js'
+import { useChatDraft } from './useChatDraft.js'
+import { ComposerBox } from './ComposerBox.js'
 import type { CommandTextHandle } from './CommandText.js'
 import { TranscriptWindow, type WindowFoot } from './TranscriptWindow.js'
 
@@ -114,9 +113,7 @@ interface FieldProps {
 function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: FieldProps) {
   const command = useRef<CommandTextHandle>(null)
   const { state, query, command: post } = useLive()
-  const [outgoing, setOutgoing] = useState<Draft | null>(null)
-  const sending = outgoing !== null
-  const [failure, setFailure] = useState<Notice | null>(null)
+  const { text, files, setText, setFiles, sending, failure, send } = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id)
   const [renewal, setRenewal] = useState<ChatRenewal | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const ask = shownAsk(session?.ask ?? null, pending === null ? parts.answered : new Set([...parts.answered, pending]))
@@ -126,13 +123,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     setAsked(session?.ask?.id ?? null)
     setPicks(session?.ask?.questions.map(() => NO_PICK) ?? [])
   }
-  const [text, setText] = useState('')
-  const [files, setFiles] = useState<File[]>([])
-  const draft = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id, outgoing ?? { text, files }, (found) => {
-    setText(found.text)
-    setFiles(found.files)
-  })
-  useImperativeHandle(parts.handle, () => ({ attach: (more: File[]) => !sending && setFiles((now) => [...now, ...more]) }))
+  useImperativeHandle(parts.handle, () => ({ attach: (more: File[]) => setFiles((now) => [...now, ...more]) }))
   // The server takes no message while the chat's session starts or works (BTN-1230).
   const starting = chat.state === 'starting' || (parts.awaitingFirstPrompt && chat.state !== 'error' && chat.state !== 'cold')
   const locked = chat.state === 'working' ? t.session.chat.working : starting ? t.chats.window.starting : null
@@ -144,35 +135,22 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     const answers = ask === null ? {} : askAnswers(ask, picks)
     const retract = parts.onSent(sentLine(ask?.id ?? null, answers, text, files))
     if (ask !== null) setPending(ask.id)
-    setFailure(null)
-    setOutgoing({ text, files })
-    setText('')
-    setFiles([])
-    try {
-      await post('chats/send', { id: chat.id, text, answers, files: await Promise.all(files.map(encoded)) })
-      void draft.clear()
-      onChanged()
-    } catch (reason) {
+    const ok = await send(async (message) => post('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }))
+    if (ok) onChanged()
+    else {
       retract()
       setPending(null)
-      setText(text)
-      setFiles(files)
-      setFailure(noticeOf(reason))
-    } finally {
-      setOutgoing(null)
     }
   }
 
-  // Rejects with why the new chat did not start: the window keeps the text and the files and shows it.
   const renew = async (picked: ChatChoice) => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
-    const next = await query<ChatCard>('chats/renew', { id: chat.id, text, answers, files: await Promise.all(files.map(encoded)), ...picked })
-    setRenewal(null)
-    void draft.clear()
-    setText('')
-    setFiles([])
-    onChanged()
-    onRenewed(next)
+    const ok = await send(async (message) => {
+      const next = await query<ChatCard>('chats/renew', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)), ...picked })
+      onChanged()
+      onRenewed(next)
+    })
+    if (ok) setRenewal(null)
   }
 
   const accounts = state?.account.accounts ?? []
@@ -183,6 +161,8 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         <ChatRenewDialog
           chat={chat}
           renewal={renewal}
+          busy={sending}
+          failure={failure}
           message={text.trim() !== '' ? text.trim() : files.map((file) => file.name).join(', ')}
           choice={renewalChoice(chat, renewal, choice, accounts)}
           onClose={() => setRenewal(null)}
@@ -219,7 +199,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         commands={false}
         text={text}
         files={files}
-        sending={sending}
+        sending={false}
         rows={ask === null ? 2 : 1}
         onText={setText}
         onFiles={setFiles}
@@ -230,7 +210,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         }
       />
       {parts.status}
-      {failure !== null ? <p role="alert" className="notice notice--error">{say(failure)}</p> : <p className="chat__hint">{locked}</p>}
+      {failure ? <p role="alert" className="notice notice--error">{say(failure)}</p> : <p className="chat__hint">{locked}</p>}
       </form>
     </>
   )

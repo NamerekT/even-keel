@@ -1,22 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { PlusIcon, SendIcon, SlashIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
-import { draftKey, isBlank, readDraft, writeDraft, type Draft } from './chatDraft.js'
+import { useChatDraft, type DraftOwner } from './useChatDraft.js'
 import { takenFiles } from './chatFiles.js'
 import { sendsReply } from './chatKeys.js'
 import { CommandText, type CommandTextHandle } from './CommandText.js'
-
-/** How long after the last change the draft is written: a file kept on every keystroke would be copied each time. */
-const DRAFT_SAVE_MS = 400
-
-/** Whose draft a composer keeps: one per task, shared by all its sessions and all its transcript windows. */
-export interface DraftOwner {
-  project: string
-  /** The chain row's id: a task, or an episode of the fix of main. */
-  task: string
-}
 
 interface BoxProps {
   command: RefObject<CommandTextHandle | null>
@@ -117,40 +107,6 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
   )
 }
 
-/**
- * Keeps the unsent text and files of a task's chat across closing the window, a handoff to a new session, the task's
- * close and reloading the page: read once the composer opens for the task, written a moment after each change and when
- * it closes. `sessionId` only finds a draft kept by session before drafts went by task.
- */
-export function useChatDraft(owner: DraftOwner, sessionId: string, draft: Draft, restore: (draft: Draft) => void) {
-  const key = draftKey(owner.project, owner.task)
-  const read = useRef(false)
-  const latest = useRef(draft)
-  latest.current = draft
-  const session = useRef(sessionId)
-  session.current = sessionId
-  useEffect(() => {
-    let alive = true
-    read.current = false
-    void readDraft(key, owner.task, session.current).then((found) => {
-      if (!alive) return
-      // What was typed before the read finished wins over the stored draft.
-      if (found !== null && isBlank(latest.current)) restore(found)
-      read.current = true
-    })
-    return () => {
-      alive = false
-      if (read.current) void writeDraft(key, owner.task, latest.current)
-    }
-  }, [key])
-  useEffect(() => {
-    if (!read.current) return
-    const timer = setTimeout(() => void writeDraft(key, owner.task, latest.current), DRAFT_SAVE_MS)
-    return () => clearTimeout(timer)
-  }, [key, draft.text, draft.files])
-  return { clear: () => writeDraft(key, owner.task, { text: '', files: [] }) }
-}
-
 interface ShutProps {
   owner: DraftOwner
   sessionId: string
@@ -166,12 +122,7 @@ interface ShutProps {
  */
 export function ShutComposer({ owner, sessionId, reason, status }: ShutProps) {
   const command = useRef<CommandTextHandle>(null)
-  const [text, setText] = useState('')
-  const [files, setFiles] = useState<File[]>([])
-  useChatDraft(owner, sessionId, { text, files }, (draft) => {
-    setText(draft.text)
-    setFiles(draft.files)
-  })
+  const { text, files, setText, setFiles } = useChatDraft(owner, sessionId)
   return (
     <form className="chat" onSubmit={(event) => event.preventDefault()}>
       <ComposerBox

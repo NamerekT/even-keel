@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { EFFORTS } from '../../../src/agent/providers.js'
 import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
-import { noticeOf, type Notice } from '../../../src/notice/notice.js'
+import type { Notice } from '../../../src/notice/notice.js'
 import { accountName } from '../accountName.js'
 import { AgentIcon } from '../layout/accountParts.js'
 import { formatAgo, formatStamp, formatTokens } from '../format.js'
@@ -26,9 +26,11 @@ interface Props {
   message: string
   /** The choice offered first (`renewalChoice`). */
   choice: ChatChoice
+  busy: boolean
+  failure?: Notice
   /** "Reply here": the message goes to this chat as usual; only for a cold cache. */
   onReply: () => void
-  /** "New session with this message"; rejects with why it did not go. */
+  /** "New session with this message". */
   onRenew: (choice: ChatChoice) => Promise<void>
   /** Cancel: the text and the files stay in the field. */
   onClose: () => void
@@ -38,7 +40,7 @@ interface Props {
  * A message to a project chat whose cache went cold or whose account is at a limit (BTN-1232): one line of why, the
  * message quoted, the account, model and effort of the new session in one row; the rest in the main button's "?".
  */
-export function ChatRenewDialog({ chat, renewal, message, choice, onReply, onRenew, onClose }: Props) {
+export function ChatRenewDialog({ chat, renewal, message, choice, busy, failure, onReply, onRenew, onClose }: Props) {
   const { state } = useLive()
   const dialog = useRef<HTMLDialogElement>(null)
   const primary = useRef<HTMLButtonElement>(null)
@@ -49,8 +51,7 @@ export function ChatRenewDialog({ chat, renewal, message, choice, onReply, onRen
   const [account, setAccount] = useState(choice.account)
   const [model, setModel] = useState(choice.model ?? '')
   const [effort, setEffort] = useState(choice.effort ?? 'medium')
-  const [busy, setBusy] = useState(false)
-  const [failure, setFailure] = useState<Notice | null>(null)
+  const [quote] = useState(message)
   const entry = accounts.find((each) => each.key === account)
   const efforts = entry === undefined ? [] : (EFFORTS[entry.agent] ?? [])
   const shownEffort = efforts.includes(effort) ? effort : (efforts.find((each) => each === 'medium') ?? efforts[0] ?? '')
@@ -72,14 +73,7 @@ export function ChatRenewDialog({ chat, renewal, message, choice, onReply, onRen
 
   const renew = async () => {
     if (entry === undefined || busy) return
-    setBusy(true)
-    setFailure(null)
-    try {
-      await onRenew({ account, model: model === '' ? null : model, effort: shownEffort === '' ? null : shownEffort })
-    } catch (reason) {
-      setFailure(noticeOf(reason))
-      setBusy(false)
-    }
+    await onRenew({ account, model: model === '' ? null : model, effort: shownEffort === '' ? null : shownEffort })
   }
 
   const offers = offersOf(catalog, account)
@@ -131,7 +125,7 @@ export function ChatRenewDialog({ chat, renewal, message, choice, onReply, onRen
           {/* The state of the chat, not a refusal: the limit's red is its own class, so a refusal stays the only red band. */}
           <p className={`notice renew-chat__why ${renewal.kind === 'cold' ? 'notice--warn' : 'renew-chat__why--limit'}`}>{why}</p>
           <blockquote className="renew-chat__quote" aria-label={text.message}>
-            {message}
+            {quote}
           </blockquote>
           <div className="renew-chat__fields">
             <Select className="add-package__input renew-chat__account" value={account} options={options} onChange={pick} label={t.chats.dialog.accounts} />
@@ -141,7 +135,7 @@ export function ChatRenewDialog({ chat, renewal, message, choice, onReply, onRen
             )}
           </div>
         </div>
-        {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
+        {failure && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         <footer className="add-package__foot add-package__foot--wrap">
           <button type="button" className="button" onClick={onClose}>
             {t.common.cancel}

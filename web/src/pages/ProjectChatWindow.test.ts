@@ -5,15 +5,22 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { ChatCard } from '../../../src/chats/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import { t } from '../i18n/index.js'
+import type { Draft } from './chatDraft.js'
 import { ProjectChatWindow } from './ProjectChatWindow.js'
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 const command = vi.fn()
 const transcript = vi.fn()
+const saved = new Map<string, Draft>()
+vi.mock('./chatDraft.js', async (original) => ({
+  ...await original<typeof import('./chatDraft.js')>(),
+  readDraft: async (key: string) => saved.get(key) ?? null,
+  writeDraft: async (key: string, _task: string, value: Draft) => { saved.set(key, value) },
+}))
 let changed: () => void
 vi.mock('../live/context.js', () => ({
   useLive: () => ({
-    state: null, command, transcript, session: async () => null,
+    state: null, command, transcript, session: async () => null, sentFileUrl: () => '/file.png',
     onTranscript: (_id: string, listener: () => void) => { changed = listener; return () => {} },
   }),
 }))
@@ -31,28 +38,70 @@ async function render(chat: ChatCard) {
   await act(async () => root.render(createElement(ProjectChatWindow, { chat, choice: null, onClose: noop, onContinue: noop, onChanged: noop, onOpen: noop })))
 }
 
-async function start() {
+async function type(box: HTMLTextAreaElement, value: string) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(box, value)
+    box.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+}
+
+async function attach(host: HTMLElement, name: string) {
+  const input = host.querySelector<HTMLInputElement>('input[type=file]')!
+  Object.defineProperty(input, 'files', { configurable: true, value: [new File(['sample'], name)] })
+  await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })))
+}
+
+async function start(file?: string) {
   const host = document.body.appendChild(document.createElement('div'))
   root = createRoot(host)
   await render(card)
   expect(host.querySelector('.transcript__blank')?.textContent).toBe(t.chats.window.blank)
   expect(host.textContent).not.toContain(t.common.reading)
   const box = host.querySelector('textarea')!
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(box, message)
-    box.dispatchEvent(new Event('input', { bubbles: true }))
-  })
+  await type(box, message)
+  if (file) await attach(host, file)
   let resolve!: () => void
   let reject!: (error: Error) => void
   command.mockReturnValueOnce(new Promise<void>((yes, no) => { resolve = yes; reject = no }))
   await act(async () => host.querySelector<HTMLButtonElement>('.chat__send')!.click())
+  await vi.waitFor(() => expect(command).toHaveBeenCalled())
   return { host, box, delivery: { resolve, reject } }
 }
 
 afterEach(async () => {
   await act(async () => root.unmount())
   document.body.replaceChildren()
+  saved.clear()
   vi.clearAllMocks()
+})
+
+it('reopens empty during upload and keeps the next draft after success', async () => {
+  const { host, delivery } = await start('one.png')
+  await act(async () => root.render(null))
+  await render(card)
+  const box = host.querySelector('textarea')!
+  expect(box.value).toBe('')
+  expect(host.querySelector('.chat__file')).toBeNull()
+  await type(box, 'Next')
+  expect(host.querySelector<HTMLButtonElement>('.chat__send')!.disabled).toBe(true)
+  await act(async () => delivery.resolve())
+  await act(async () => root.render(null))
+  await render(card)
+  expect(host.querySelector('textarea')!.value).toBe('Next')
+})
+
+it.each(['open', 'closed', 'reopened'])('prepends failed text and files when the chat is %s', async (window) => {
+  const { host, box, delivery } = await start('one.png')
+  expect(box.disabled).toBe(false)
+  await type(box, 'Next')
+  await attach(host, 'two.png')
+  if (window !== 'open') await act(async () => root.render(null))
+  if (window === 'reopened') await render(card)
+  await act(async () => delivery.reject(new Error('upload refused')))
+  if (window === 'closed') await render(card)
+  expect(host.querySelector('textarea')!.value).toBe(message + '\n\nNext')
+  expect([...host.querySelectorAll('.chat__file')].map(file => file.firstChild?.textContent)).toEqual(['one.png', 'two.png'])
+  expect(host.querySelector('[role=alert]')?.textContent).toContain('upload refused')
 })
 
 it('opens empty, keeps one bubble through the launch and missing transcript, then displays the recorded prompt', async () => {

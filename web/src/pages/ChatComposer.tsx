@@ -1,9 +1,10 @@
-import { useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand, useHold } from '../live/useCommand.js'
+import { useLive } from '../live/context.js'
 import { SendIcon } from '../ui/icons.js'
 import { FoldPresence } from '../ui/Fold.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -11,7 +12,8 @@ import { AskPanel } from './AskPanel.js'
 import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
 import { holdKey, sendAhead, shownAsk } from './composerHold.js'
 import { lockReason } from './composerLock.js'
-import { ComposerBox, useChatDraft, type DraftOwner } from './ComposerBox.js'
+import { ComposerBox } from './ComposerBox.js'
+import { useChatDraft, type DraftOwner } from './useChatDraft.js'
 import { ChatMail } from './ChatMail.js'
 import { ColdReplyDialog } from './ColdReplyDialog.js'
 import { coldReply } from './coldReply.js'
@@ -65,7 +67,12 @@ interface Props {
  */
 export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, queued, answered, onSent, handing, onRenew, restore, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
-  const { send, sending, failure } = useCommand()
+  const accept = useCommand()
+  const { command: post } = useLive()
+  const draft = useChatDraft(owner, session.sessionId)
+  const { text, files, setText, setFiles } = draft
+  const sending = draft.sending || accept.sending
+  const failure = draft.failure ?? accept.failure
   // The question being answered leaves at once; a refusal brings it back with its picks, which follow the session's
   // question rather than the shown one.
   const [pending, setPending] = useState<string | null>(null)
@@ -85,20 +92,15 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
     setAsked(session.ask?.id ?? null)
     setPicks(session.ask?.questions.map(() => NO_PICK) ?? [])
   }
-  const [text, setText] = useState('')
-  const [files, setFiles] = useState<File[]>([])
-  const [restored, setRestored] = useState<string | null>(null)
-  if (restore !== null && restore.key !== restored) {
-    setRestored(restore.key)
-    if (text.trim() === '') setText(restore.text)
-  }
-  const draft =useChatDraft(owner, session.sessionId, { text, files }, (found) => {
-    setText(found.text)
-    setFiles(found.files)
-  })
-  // Files come in the same states as through the "+" button: any time but while a reply is being sent.
+  const restored = useRef<string | null>(null)
+  useEffect(() => {
+    if (restore !== null && restore.key !== restored.current) {
+      restored.current = restore.key
+      if (text.trim() === '') setText(restore.text)
+    }
+  }, [restore, text, setText])
   const attach = (more: File[]) => {
-    if (!sending) setFiles((now) => [...now, ...more])
+    if (!accept.sending) setFiles((now) => [...now, ...more])
   }
   useImperativeHandle(handle, () => ({ attach }))
   const sent = useHold(holdKey(session), SENT_HOLD_MS)
@@ -118,7 +120,6 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
 
   const submit = async (renew = false) => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
-    const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)), renew }
     // The reply's card stands in the feed before the server answers, so the question's panel and card never come back
     // in between; on `renew` the window shows the handover with the message instead (BTN-1281).
     const show = () => {
@@ -129,12 +130,12 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
         retract()
       }
     }
-    if (!(await sendAhead(show, () => send('session/answer', body)))) return
-    // Also when the window was closed while the reply went out: its last save kept the reply as a draft.
-    void draft.clear()
+    const ok = await sendAhead(show, () => draft.send(async (message) => post('session/answer', {
+      project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, renew,
+      text: message.text, files: await Promise.all(message.files.map(encoded)),
+    })))
+    if (!ok) return
     if (!mailing && !renew && !steering) sent.begin()
-    setText('')
-    setFiles([])
   }
 
   return (
@@ -173,7 +174,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
         command={command}
         text={text}
         files={files}
-        sending={sending}
+        sending={accept.sending}
         rows={ask === null ? 2 : 1}
         onText={setText}
         onFiles={setFiles}
@@ -207,7 +208,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
               type="button"
               className="button button--small"
               disabled={sending}
-              onClick={() => void send('chain/accept', { project, task, sessionId: session.sessionId })}
+              onClick={() => void accept.send('chain/accept', { project, task, sessionId: session.sessionId })}
             >
               {t.session.accept}
             </button>
