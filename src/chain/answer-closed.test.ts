@@ -84,6 +84,41 @@ describe('a message to the session of a task that is over for the chain (BTN-558
     expect(mailbox.of(session.sessionId).map((mail) => [mail.fate, mail.reason])).toEqual([['returned', 'closed']])
   })
 
+  it('returns to the chat, as closed, an answer taken while the task was open and closed before its turn came (BTN-1331)', async () => {
+    const context = await running(false, { busy: new Set() })
+    const { dispatcher, mailbox, ci, relays } = context
+    // The step that moves the task to Done runs while the answer waits in turn behind it.
+    const { answerSession } = createChat({
+      dispatcher: {
+        answerable: (...args) => dispatcher.answerable(...args),
+        answer: (...args) => {
+          ci.merged.add('ABC-1')
+          return dispatcher.answer(...args)
+        },
+        renew: (...args) => dispatcher.renew(...args),
+        closed: (...args) => dispatcher.closed(...args),
+      },
+      mailbox, configuredProject: () => 'ABC',
+      liveView: () => ({ sessionId: session.sessionId, asking: false, ask: null }),
+      midTurn: () => false, steering: () => false, steer: async () => true,
+      language: () => 'en', changed: () => {}, log: (line) => context.log.push(line), now: () => context.clock.now,
+    })
+    await answerSession('ABC', 'ABC-1', session.sessionId, null, reply('One more thing'))
+    await vi.waitFor(() => expect(mailbox.of(session.sessionId).map((mail) => [mail.text, mail.fate, mail.reason])).toEqual([['One more thing', 'returned', 'closed']]))
+    expect(relays).toEqual([])
+  })
+
+  it('returns to the chat an answer whose resume failed, as gone while the task is open', async () => {
+    const { answerSession, mailbox } = await running(false, {
+      busy: new Set(),
+      reply: async () => {
+        throw new Error('could not resume ABC-1 in D:/work/abc/.claude/worktrees/abc-1')
+      },
+    })
+    await answerSession('ABC', 'ABC-1', session.sessionId, null, reply('One more thing'))
+    await vi.waitFor(() => expect(mailbox.of(session.sessionId).map((mail) => [mail.text, mail.fate, mail.reason])).toEqual([['One more thing', 'returned', 'gone']]))
+  })
+
   it('does not resume a session that ended its turn after the merge with a message waiting', async () => {
     const { mailRelay, mailbox, ci, clock, busy, relays } = await running(false)
     mailbox.post('ABC-1', session.sessionId, 'Smaller font, please', [])

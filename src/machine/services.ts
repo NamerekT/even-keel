@@ -3,7 +3,7 @@ import type { HandoffSession } from '../chain/relay.js'
 import type { CloneProgress } from '../git/clone-progress.js'
 import type { AccountControl } from '../server-control.js'
 import type { Notice } from '../notice/notice.js'
-import type { Mail } from '../sessions/mail.js'
+import type { Mail, MailReason } from '../sessions/mail.js'
 import type { FolderProbe, FolderSpec, FolderStep } from './folder-check.js'
 
 /** A file read on the machine or sent to it, carried through the link whole as base64. */
@@ -46,6 +46,8 @@ export interface TranscriptReads {
 /** What a reply from the page does to a session's mailbox and folder on the machine (`createChat`). */
 export interface MachineChat {
   post(task: string, sessionId: string, text: string, files: string[]): Promise<void>
+  /** An answer that never reached its waiting session shows in the chat window as returned (BTN-1331). */
+  giveBack(task: string, sessionId: string, text: string, files: string[], reason: MailReason): Promise<void>
   /** The returned messages of the session leave the chat window. */
   dismiss(sessionId: string): Promise<void>
   /** Puts the message into the working session that steers; `false` — it is not live there after all. */
@@ -146,7 +148,7 @@ export const SERVICE_COMMANDS = {
     'setManagementKey', 'renew', 'switchTo', 'switchApp', 'remove', 'keep', 'rename', 'resolveSettingsEdit', 'dropOwnSetting', 'enableRemote', 'code', 'cancel',
   ],
   transcript: ['record', 'feed', 'image', 'inboxFile', 'sharedFile', 'note', 'context'],
-  chat: ['post', 'dismiss', 'steer', 'saveInbox'],
+  chat: ['post', 'giveBack', 'dismiss', 'steer', 'saveInbox'],
   records: ['restore'],
   folders: ['check', 'clone', 'probe'],
   chats: ['launch', 'send', 'stop', 'title'],

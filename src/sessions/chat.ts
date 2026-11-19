@@ -49,6 +49,7 @@ export function localChat(mailbox: Mailbox, steer: MachineChat['steer']): Machin
       if (!mailbox.listens(sessionId)) throw fail('answer.busy', { task })
       mailbox.post(task, sessionId, text, files)
     },
+    giveBack: async (task, sessionId, text, files, reason) => void mailbox.giveBack(task, sessionId, text, files, reason),
     dismiss: async (sessionId) => mailbox.dismiss(sessionId),
     steer,
     saveInbox: (_project, workdir, files) => saveInbox(workdir, files.map((file) => ({ name: file.name, data: fromCarried(file) }))),
@@ -132,9 +133,22 @@ export function createChat(deps: ChatDeps) {
       deps.log(`chain: ${task}: the user's answer from the ${reply.from}${withFiles} goes to a new session instead of ${sessionId}, whose cache went cold`)
       return
     }
-    dispatcher.answer(project, task, sessionId, ask, prompt)
+    const delivery = dispatcher.answer(project, task, sessionId, ask, prompt)
     dismiss()
     deps.log(`chain: ${task}: the user's answer from the ${reply.from} goes to the session ${sessionId}${withFiles}`)
+    void delivery.catch(() => false).then((delivered) => (delivered ? undefined : giveBack(project, task, sessionId, reply.text, files)))
+  }
+
+  /** The answer waited in turn and never reached its session (BTN-1331): it comes back to the chat, not into the log alone. */
+  async function giveBack(project: string, task: string, sessionId: string, text: string, files: string[]): Promise<void> {
+    try {
+      const reason = (await dispatcher.closed(project, task)) ? 'closed' : 'gone'
+      await chat.giveBack(task, sessionId, text, files, reason)
+      deps.log(`chain: ${task}: the user's answer went back to the chat: ${reason === 'closed' ? 'the task is over for the chain' : 'it did not reach the session'} ${sessionId}`)
+      deps.changed()
+    } catch (error) {
+      deps.log(`chain: ${task}: the user's answer that did not reach the session ${sessionId} is not in the chat either: ${(error as Error).message}`)
+    }
   }
 
   return { mailRelay, answerSession }

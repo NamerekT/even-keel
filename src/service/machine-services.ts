@@ -101,6 +101,7 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
     },
     chat: {
       post: async (task, sessionId, text, files) => void ctx.mailbox.post(task, sessionId, text, files),
+      giveBack: async (task, sessionId, text, files, reason) => void ctx.mailbox.giveBack(task, sessionId, text, files, reason),
       dismiss: async (sessionId) => ctx.mailbox.dismiss(sessionId),
       steer: deps.steer,
       saveInbox: (_project, workdir, files) => saveInbox(workdir, files.map((file) => ({ name: file.name, data: fromCarried(file) }))),

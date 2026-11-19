@@ -92,6 +92,7 @@ export class Dispatcher {
       chainOf: (project, task) => this.chainOf(project, task),
       requireProject: (project) => this.requireProject(project),
       done: (project, task) => this.lists.done.get(project)?.has(task) === true,
+      closed: (project, task) => this.closed(project, task),
       work: () => this.work,
       setWork: (next) => {
         this.work = next

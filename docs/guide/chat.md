@@ -82,7 +82,7 @@ A session whose chain has stopped offers only the reply.
 
 You can also write to a session while it works ("not there", "mind X too"): a hook of the [agent-bridge](../../plugins/agent-bridge) plugin hands the message over at its next tool call or at the end of the turn, without stopping it, and the chat shows whether it waits, was delivered, or came back because the session asked a question meanwhile.
 
-Once the task's branch is merged or the task is done, the session gets no more messages: the chat refuses them, and one already on its way comes back, since the work it asks for belongs in a new task.
+Once the task's branch is merged or the task is done, the session gets no more messages: the chat refuses them, and one already on its way comes back, since the work it asks for belongs in a new task. The same goes for an answer sent in the moment the task closes: it shows in the chat as come back, not sent.
 
 If the hook times out before the service sends its response, the message stays queued for the next hook or resume.
 

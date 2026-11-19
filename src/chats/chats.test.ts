@@ -54,6 +54,7 @@ async function setup(options: { offline?: boolean; stopFails?: boolean } = {}) {
   const services: Pick<MachineServices, 'chat' | 'chats'> = {
     chat: {
       post: async () => {},
+      giveBack: async () => {},
       dismiss: async () => {},
       steer: async () => false,
       saveInbox: async (_project, folder, files) => files.map((file) => `${folder}\\.temp\\inbox\\${file.name}`),

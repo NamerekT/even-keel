@@ -94,7 +94,7 @@ async function resumed(relay: MailRelay, task: string, sessionId: string, waitin
     relay.log(`chain: ${task}: the session ${sessionId} ended its turn before its hooks took the page's message and cannot be resumed: ${error instanceof Error ? error.message : String(error)}`)
   }
   if (delivered) relay.mailbox.settle(mails, 'delivered', 'resume')
-  else relay.mailbox.settle(mails, 'returned', null, 'gone')
+  else relay.mailbox.settle(mails, 'returned', null, (await relay.closed(task)) ? 'closed' : 'gone')
   relay.log(delivered
     ? `chain: ${task}: the session ${sessionId} ended its turn before its hooks took ${mails.length} message(s) from the page; they went by a resume`
     : `chain: ${task}: ${mails.length} message(s) from the page went back to the chat: the resume of the session ${sessionId} did not deliver them`)

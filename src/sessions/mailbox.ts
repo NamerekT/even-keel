@@ -77,11 +77,26 @@ export class Mailbox {
   }
 
   post(task: string, sessionId: string, text: string, files: string[]): Mail {
+    return this.add(task, sessionId, text, files, null)
+  }
+
+  /**
+   * An answer the chat sent to a waiting session that never reached it (BTN-1331): it shows in the chat as returned,
+   * the user's to send again or drop, like a message the mailbox gave back.
+   */
+  giveBack(task: string, sessionId: string, text: string, files: string[], reason: MailReason): Mail {
+    return this.add(task, sessionId, text, files, reason)
+  }
+
+  private add(task: string, sessionId: string, text: string, files: string[], returned: MailReason | null): Mail {
     const at = this.now()
     const before = new Date(at.getTime() - KEEP_MS).toISOString()
     this.mails = this.mails.filter((mail) => mail.fate === 'waiting' || mail.settledAt === null || mail.settledAt >= before)
     const id = Math.max(0, ...this.mails.map((each) => each.id)) + 1
-    const mail: Mail = { id, task, sessionId, text, files, postedAt: at.toISOString(), fate: 'waiting', event: null, reason: null, settledAt: null }
+    const postedAt = at.toISOString()
+    const mail: Mail = returned === null
+      ? { id, task, sessionId, text, files, postedAt, fate: 'waiting', event: null, reason: null, settledAt: null }
+      : { id, task, sessionId, text, files, postedAt, fate: 'returned', event: null, reason: returned, settledAt: postedAt }
     this.mails.push(mail)
     this.write({ mails: [mail], before })
     return { ...mail }

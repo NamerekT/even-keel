@@ -15,6 +15,8 @@ export interface TalkHost {
   requireProject: (project: string) => void
   /** The task is done by the tracker's last read. */
   done: (project: string, task: string) => boolean
+  /** The task is over for the chain (`Dispatcher.closed`). Never rejects. */
+  closed: (project: string, task: string) => Promise<boolean>
   /** The dispatcher's work in turn: what the user asks for runs after the step under way. */
   work: () => Promise<void>
   setWork: (next: Promise<void>) => void
@@ -75,7 +77,12 @@ export class Talks {
   /** Invariant 1, exception 6: queues the user's answer and resolves to whether it reached the session. */
   answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): Promise<boolean> {
     const { chain, current, session } = this.answerable(project, task, sessionId, ask)
-    const delivery = this.host.work().then(() => {
+    const delivery = this.host.work().then(async () => {
+      // The step it waited behind may have closed the task, whose cleanup takes the folder the session resumes in (BTN-1331).
+      if (await this.host.closed(project, task)) {
+        this.deps.log(`chain: ${task}: the answer did not reach the session ${sessionId}: the task is over for the chain`)
+        return false
+      }
       if (chain === null || current === null) return this.handovers.deliverLoose(project, task, session, prompt)
       this.unhold(chain)
       return this.handovers.deliver(chain, current, session, prompt, ask)
