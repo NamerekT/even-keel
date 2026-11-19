@@ -94,6 +94,14 @@ describe('the state of a chat', () => {
     expect(stateOf(chat(), view({ asking: true }), false, NOW)).toBe('waiting')
   })
 
+  it('allows time for the first session report and still recognizes a missing cold session', () => {
+    const last = { from: 'user' as const, text: 'Hello', at: NOW.toISOString() }
+    expect(stateOf(chat({ last }), undefined, false, NOW)).toBe('starting')
+    expect(stateOf(chat({ last }), view({ lamp: 'working' }), false, NOW)).toBe('working')
+    expect(stateOf(chat({ last }), undefined, false, new Date(NOW.getTime() + 300_000))).toBe('cold')
+    expect(stateOf(chat({ last: { ...last, from: 'agent' } }), undefined, false, NOW)).toBe('cold')
+  })
+
   it('tells a warm cache from a cold one, and an error', () => {
     expect(stateOf(chat(), view({ cache: { ttl: '5m', until: '2026-11-18T12:03:00.000Z' } }), false, NOW)).toBe('answered')
     expect(stateOf(chat(), view({ cache: { ttl: '5m', until: '2026-11-18T11:59:00.000Z' } }), false, NOW)).toBe('cold')

@@ -8,7 +8,7 @@ const place = { cwd: 'C:\\work\\demo', dirs: ['C:\\work\\main'], disabled: [], r
 
 describe('turnArgs', () => {
   it('gives a new session its id and its task as the name, and resumes one by its id', () => {
-    const fresh = turnArgs({ name: 'DEMO-1', model: 'auto' }, 'DEMO-1', place, { id: 'abc', resume: false })
+    const fresh = turnArgs({ name: 'DEMO-1', model: 'auto' }, place, { id: 'abc', resume: false })
     expect(fresh).toEqual([
       '-C',
       'C:\\work\\demo',
@@ -25,28 +25,23 @@ describe('turnArgs', () => {
       'auto',
       '--add-dir',
       'C:\\work\\main',
-      '--prompt=DEMO-1',
     ])
-    const resumed = turnArgs({ name: 'DEMO-1', model: null }, 'go on', place, { id: 'abc', resume: true })
+    const resumed = turnArgs({ name: 'DEMO-1', model: null }, place, { id: 'abc', resume: true })
     expect(resumed).toContain('--resume=abc')
     expect(resumed).not.toContain('--session-id')
     expect(resumed).not.toContain('--model')
   })
 
-  it('keeps a prompt that starts with a dash, as a reply does, from being read as an option', () => {
-    expect(turnArgs({ name: 'DEMO-1', model: null }, '- "Q" → yes', place, { id: 'abc', resume: true }).at(-1)).toBe('--prompt=- "Q" → yes')
-  })
-
   it("passes the run's effort on a new session and a resume, and none without one", () => {
-    const fresh = turnArgs({ name: 'DEMO-1', model: 'auto', effort: 'xhigh' }, 'DEMO-1', place, { id: 'abc', resume: false })
+    const fresh = turnArgs({ name: 'DEMO-1', model: 'auto', effort: 'xhigh' }, place, { id: 'abc', resume: false })
     expect(fresh.slice(fresh.indexOf('--model'), fresh.indexOf('--model') + 4)).toEqual(['--model', 'auto', '--reasoning-effort', 'xhigh'])
-    expect(turnArgs({ name: 'DEMO-1', model: null, effort: 'none' }, 'go on', place, { id: 'abc', resume: true })).toContain('--reasoning-effort')
-    expect(turnArgs({ name: 'DEMO-1', model: null }, 'go on', place, { id: 'abc', resume: true })).not.toContain('--reasoning-effort')
+    expect(turnArgs({ name: 'DEMO-1', model: null, effort: 'none' }, place, { id: 'abc', resume: true })).toContain('--reasoning-effort')
+    expect(turnArgs({ name: 'DEMO-1', model: null }, place, { id: 'abc', resume: true })).not.toContain('--reasoning-effort')
   })
 
   it("turns the built-in and the project's servers off and puts the gateway's in their place", () => {
     const server = { name: 'huly', plugin: 'huly', url: 'http://127.0.0.1:4748/mcp/huly' }
-    const args = turnArgs({ name: 'DEMO-1', model: null, mcp: [server] }, 'DEMO-1', { ...place, disabled: ['local-db'] }, { id: 'abc', resume: false })
+    const args = turnArgs({ name: 'DEMO-1', model: null, mcp: [server] }, { ...place, disabled: ['local-db'] }, { id: 'abc', resume: false })
     expect(args).toContain('--disable-builtin-mcps')
     expect(args.slice(args.indexOf('--disable-mcp-server'), args.indexOf('--disable-mcp-server') + 2)).toEqual(['--disable-mcp-server', 'local-db'])
     const config = JSON.parse(args[args.indexOf('--additional-mcp-config') + 1]!)
@@ -55,7 +50,7 @@ describe('turnArgs', () => {
 
   it("leaves the agent's own servers alone when the project has no packages, and passes plugins as folders", () => {
     const plugin = { dir: 'C:\\cache\\agent-bridge', name: 'agent-bridge', marketplace: 'ek-1', marketplaceFile: 'x', servers: [] }
-    const args = turnArgs({ name: 'DEMO-1', model: null, plugins: [plugin] }, 'DEMO-1', place, { id: 'abc', resume: false })
+    const args = turnArgs({ name: 'DEMO-1', model: null, plugins: [plugin] }, place, { id: 'abc', resume: false })
     expect(args).not.toContain('--disable-builtin-mcps')
     expect(args.slice(args.indexOf('--plugin-dir'), args.indexOf('--plugin-dir') + 2)).toEqual(['--plugin-dir', plugin.dir])
   })

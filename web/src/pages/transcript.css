@@ -1,5 +1,9 @@
 /* The transcript window and the chat: the feed in a column of its own, the calls muted, the composer one rounded box. */
 
+.session-window.transcript--new[open] {
+  animation: none;
+}
+
 .transcript .session-window__body {
   gap: 10px;
   overflow: hidden;
@@ -265,6 +269,13 @@ button.tools__toggle:hover {
 
 .edit-size__removed {
   color: var(--lamp-error);
+}
+
+/* A new chat's line over its empty feed: in the feed's column, as the field under it. */
+.transcript__blank {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .transcript__foot {

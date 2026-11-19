@@ -27,20 +27,22 @@ export function useProjectChats(project: string): ProjectChatsView {
 
   useEffect(() => {
     let alive = true
+    let latest = 0
     let timer: ReturnType<typeof setTimeout> | undefined
     setChats(null)
     const load = async () => {
+      const request = ++latest
       clearTimeout(timer)
       try {
         const found = await live.current<{ chats: ChatCard[]; choice: ChatChoice | null }>('chats/list', { project })
-        if (!alive) return
+        if (!alive || request !== latest) return
         setChats(found.chats)
         setChoice(found.choice)
         setFailed(false)
       } catch {
-        if (alive) setFailed(true)
+        if (alive && request === latest) setFailed(true)
       }
-      if (alive) timer = setTimeout(() => void load(), POLL_MS)
+      if (alive && request === latest) timer = setTimeout(() => void load(), POLL_MS)
     }
     again.current = () => void load()
     void load()

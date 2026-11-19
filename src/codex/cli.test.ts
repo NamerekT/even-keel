@@ -144,46 +144,46 @@ describe('turnArgs', () => {
   const fallback = ['-c', 'project_doc_fallback_filenames=["CLAUDE.md"]']
 
   it("starts a session in the chain mode with the JSON stream, reading the project's CLAUDE.md without an AGENTS.md", () => {
-    expect(turnArgs({ model: null }, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, 'BTN-1'])
+    expect(turnArgs({ model: null })).toEqual(['exec', '--json', '--approve-for-me', ...fallback, '-'])
   })
 
   it("passes the effort of the task's run as a config value on a first turn, a resumed one and a keep-warm fork", () => {
     const effort = ['-c', 'model_reasoning_effort="high"']
     const within = (args: string[]) => args.some((arg, index) => arg === effort[0] && args[index + 1] === effort[1])
-    expect(within(turnArgs({ model: null, effort: 'high' }, 'BTN-1'))).toBe(true)
-    expect(within(turnArgs({ model: 'gpt-example', effort: 'high' }, 'go on', 'session-1'))).toBe(true)
+    expect(within(turnArgs({ model: null, effort: 'high' }))).toBe(true)
+    expect(within(turnArgs({ model: 'gpt-example', effort: 'high' }, 'session-1'))).toBe(true)
     expect(within(warmArgs({ model: null, effort: 'high' }, 'session-1'))).toBe(true)
-    expect(turnArgs({ model: null }, 'BTN-1').join(' ')).not.toContain('model_reasoning_effort')
+    expect(turnArgs({ model: null }).join(' ')).not.toContain('model_reasoning_effort')
   })
 
   it('runs in a folder that is no repository, on a resumed turn too', () => {
-    expect(turnArgs({ model: null, outsideRepo: true }, 'NOTE-1')).toEqual(['exec', '--json', '--skip-git-repo-check', '--approve-for-me', ...fallback, 'NOTE-1'])
-    expect(turnArgs({ model: null, outsideRepo: true }, 'NOTE-1', 'thread-1').slice(-3)).toEqual(['resume', 'thread-1', 'NOTE-1'])
+    expect(turnArgs({ model: null, outsideRepo: true })).toEqual(['exec', '--json', '--skip-git-repo-check', '--approve-for-me', ...fallback, '-'])
+    expect(turnArgs({ model: null, outsideRepo: true }, 'thread-1').slice(-3)).toEqual(['resume', 'thread-1', '-'])
   })
 
   it('runs without the sandbox and the reviewer when the execution mode bypasses them', () => {
-    expect(turnArgs({ model: null, bypassSandbox: true }, 'BTN-1')).toEqual(['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', ...fallback, 'BTN-1'])
-    expect(turnArgs({ model: null, bypassSandbox: false }, 'BTN-1', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, 'resume', 'thread-1', 'BTN-1'])
+    expect(turnArgs({ model: null, bypassSandbox: true })).toEqual(['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', ...fallback, '-'])
+    expect(turnArgs({ model: null, bypassSandbox: false }, 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, 'resume', 'thread-1', '-'])
   })
 
   it('keeps the memory out, neither read nor written, when the start asks so', () => {
     const off = ['-c', 'features.memories=false', '-c', 'memories.use_memories=false', '-c', 'memories.generate_memories=false']
-    expect(turnArgs({ model: null, noMemory: true }, 'go on', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...off, 'resume', 'thread-1', 'go on'])
+    expect(turnArgs({ model: null, noMemory: true }, 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...off, 'resume', 'thread-1', '-'])
   })
 
   it('sets the window and compacts where Claude would with the same window', () => {
     const window = ['-c', 'model_context_window=250000', '-c', 'model_auto_compact_token_limit=218000']
-    expect(turnArgs({ model: null, contextWindow: 250_000 }, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...window, 'BTN-1'])
-    expect(turnArgs({ model: null, contextWindow: 250_000 }, 'go on', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...window, 'resume', 'thread-1', 'go on'])
+    expect(turnArgs({ model: null, contextWindow: 250_000 })).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...window, '-'])
+    expect(turnArgs({ model: null, contextWindow: 250_000 }, 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...window, 'resume', 'thread-1', '-'])
   })
 
   it("leaves the model's own window without one", () => {
-    expect(turnArgs({ model: null }, 'BTN-1').join(' ')).not.toContain('model_context_window')
+    expect(turnArgs({ model: null }).join(' ')).not.toContain('model_context_window')
   })
 
   it('puts the model, the gateway servers and every other flag before resume', () => {
     const mcp = [{ name: 'huly', plugin: 'huly', url: 'http://127.0.0.1:4748/mcp/p/huly%40even-keel@a/huly' }]
-    expect(turnArgs({ model: 'gpt-5.6-luna', mcp }, 'go on', 'thread-1')).toEqual([
+    expect(turnArgs({ model: 'gpt-5.6-luna', mcp }, 'thread-1')).toEqual([
       'exec',
       '--json',
       '--approve-for-me',
@@ -194,12 +194,12 @@ describe('turnArgs', () => {
       'mcp_servers.plugin_huly_huly.url="http://127.0.0.1:4748/mcp/p/huly%40even-keel@a/huly"',
       'resume',
       'thread-1',
-      'go on',
+      '-',
     ])
   })
 
   it('puts the plugin flags after the servers and before resume', () => {
     const plugins = ['-c', 'plugins.huly@ek-b.enabled=true']
-    expect(turnArgs({ model: null }, 'go on', 'thread-1', plugins)).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...plugins, 'resume', 'thread-1', 'go on'])
+    expect(turnArgs({ model: null }, 'thread-1', plugins)).toEqual(['exec', '--json', '--approve-for-me', ...fallback, ...plugins, 'resume', 'thread-1', '-'])
   })
 })

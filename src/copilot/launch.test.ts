@@ -12,7 +12,8 @@ vi.mock('node:child_process', async (original) => ({
   ...await original<typeof import('node:child_process')>(),
   spawn: (_bin: string, _args: string[], options: { stdio: [string, number, number] }) => {
     writeSync(options.stdio[1], cliOutput.text)
-    const child = Object.assign(new EventEmitter(), { pid: 2147483647, unref: () => {} })
+    const stdin = Object.assign(new EventEmitter(), { end: () => {} })
+    const child = Object.assign(new EventEmitter(), { pid: 2147483647, stdin, unref: () => {} })
     queueMicrotask(() => child.emit('exit', 1))
     return child
   },

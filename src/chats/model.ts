@@ -1,3 +1,4 @@
+import { BOOT_WAIT_MS } from '../sessions/boot.js'
 import type { SessionView } from '../state.js'
 
 /**
@@ -122,11 +123,14 @@ export function archiveDue(lastAt: string, now: Date): boolean {
 
 type StateView = Pick<SessionView, 'lamp' | 'asking' | 'ask' | 'waitingFor' | 'startupDialog' | 'apiErrorKind' | 'cache' | 'lastActivityAt'>
 
-export function stateOf(chat: Pick<ChatRecord, 'sessionId' | 'archivedAt'>, view: StateView | undefined, starting: boolean, now: Date): ChatState {
+export function stateOf(chat: Pick<ChatRecord, 'sessionId' | 'archivedAt' | 'last'>, view: StateView | undefined, starting: boolean, now: Date): ChatState {
   if (chat.archivedAt !== null) return 'archived'
   if (starting) return 'starting'
   if (chat.sessionId === null) return 'new'
-  if (view === undefined) return 'cold'
+  if (view === undefined) {
+    // The launch can finish before the machine publishes its first session view.
+    return chat.last?.from === 'user' && now.getTime() - Date.parse(chat.last.at) < BOOT_WAIT_MS ? 'starting' : 'cold'
+  }
   if (view.asking || view.ask !== null || view.waitingFor !== null || view.startupDialog !== null) return 'waiting'
   if (view.lamp === 'working') return 'working'
   if (view.lamp === 'limit' || view.lamp === 'error') return 'error'

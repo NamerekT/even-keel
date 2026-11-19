@@ -90,9 +90,10 @@ export interface TurnPlace {
 
 /**
  * A new session gets its id from Even Keel (`--session-id`) and its task as its name; a resume names the session. The
- * prompt goes as `--prompt=`: a reply starts with `- "question" → answer`, which `-p` would take for an option.
+ * prompt goes on stdin, which the CLI runs non-interactively without `-p`: a Windows command line holds 32,767
+ * characters, and a reply starting with `- "question" → answer` is no option there (checked on 1.0.113).
  */
-export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'outsideRepo'>, prompt: string, place: TurnPlace, session: { id: string; resume: boolean }): string[] {
+export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort' | 'mcp' | 'plugins' | 'protection' | 'mainBranch' | 'outsideRepo'>, place: TurnPlace, session: { id: string; resume: boolean }): string[] {
   const { name, model, effort, mcp, plugins = [] } = start
   return [
     '-C',
@@ -109,7 +110,6 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort' |
     ...place.dirs.flatMap((dir) => ['--add-dir', dir]),
     ...(mcp === undefined ? [] : ['--disable-builtin-mcps', ...place.disabled.flatMap((server) => ['--disable-mcp-server', server]), ...gatewayArgs(mcp)]),
     ...plugins.flatMap((plugin) => ['--plugin-dir', plugin.dir]),
-    `--prompt=${prompt}`,
   ]
 }
 
@@ -270,12 +270,14 @@ export class CopilotCli {
     let spawnError: NodeJS.ErrnoException | undefined
     let child
     try {
-      child = spawn(bin, turnArgs(start, start.prompt, place, session), { cwd, env: this.envOf(home), detached: true, stdio: ['ignore', fd, fd], windowsHide: true })
+      child = spawn(bin, turnArgs(start, place, session), { cwd, env: this.envOf(home), detached: true, stdio: ['pipe', fd, fd], windowsHide: true })
       child.on('error', (error) => {
         spawnError = error
         exited = true
       })
       child.on('exit', () => (exited = true))
+      // An early CLI exit can close stdin during the write. Its diagnostic is in the turn file below.
+      child.stdin!.on('error', () => {}).end(start.prompt)
       child.unref()
     } catch (error) {
       throw new NoticeError({ ...failure, detail: (error as Error).message }, { cause: error })

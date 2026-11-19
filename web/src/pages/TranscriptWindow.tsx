@@ -87,6 +87,7 @@ export interface WindowTask {
 /** What a foot of the window's own gets (a project chat, BTN-1231). */
 export interface WindowFoot {
   status: ReactNode
+  awaitingFirstPrompt: boolean
   handle: Ref<ComposerHandle>
   /** Questions the feed holds answers to: their panel is never offered again. */
   answered: ReadonlySet<string>
@@ -112,9 +113,11 @@ interface Props {
   /** The bottom of the window instead of the task chat's composer or the shut one. */
   foot?: (parts: WindowFoot) => ReactNode
   /** The status line's facts until the session tells its own: a project chat's choice. */
-  known?: Pick<StatusFacts, 'agent' | 'model' | 'effort'>
+  known?: Pick<StatusFacts, 'agent' | 'model' | 'effort' | 'branch'>
   /** Shown over a feed with nothing in it. */
   blank?: string
+  /** The first message already accepted by a starting chat when its window is reopened. */
+  initialPrompt?: FeedLine
   /** A line under the head, over the feed: a project chat's link to the chat it goes on from. */
   lead?: ReactNode
 }
@@ -127,12 +130,15 @@ interface SentLine {
   line: FeedLine
   after: number
   steered: boolean
+  first?: boolean
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead }: Props) {
+export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
   const sessionId = session ?? ''
+  const [openedEmpty] = useState(session === null)
+  const [openingTitle] = useState(task?.title)
   const shownSession = useRef(sessionId)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
@@ -142,13 +148,16 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const pinned = useRef(true)
   /** How many lines of the session's transcript are read. */
   const count = useRef(0)
-  const [lines, setLines] = useState<FeedLine[] | null | undefined>(undefined)
+  const [recorded, setLines] = useState<FeedLine[] | null | undefined>(undefined)
   // The session `lines` were read of: right after a handoff they are still the old session's for a render.
   const [readFor, setReadFor] = useState<string | null>(null)
   const [turn, setTurn] = useState<Turn | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [sent, setSent] = useState<SentLine[]>([])
+  const [sent, setSent] = useState<SentLine[]>(() => initialPrompt === undefined ? [] : [{ line: initialPrompt, after: 0, steered: false, first: true }])
   const [viewing, setViewing] = useState<number | null>(null)
+  const awaitingFirstPrompt = sent[0]?.first === true && !recorded?.some(isReply)
+  const starting = session === null || awaitingFirstPrompt
+  const lines = starting ? (recorded ?? []) : recorded
   const handing = useHandover(chat?.handover ?? null, sessionId, readFor === sessionId ? lines : undefined)
   const unread = lines == null ? [] : sent.filter((each) => !lines.slice(each.after).some(isReply))
   const all = lines == null ? null : [...withUserMessage(lines), ...unread.filter((each) => !each.steered).map((each) => each.line)]
@@ -178,7 +187,12 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   // The list mounts once the loaders have left, so the effects that pin it to its end wait for that too.
   const listed = entries != null && loader === 'done' && handing.phase === 'done'
   const told = useStatusFacts(sessionId, account, chat?.session ?? state?.sessions.find((each) => each.sessionId === sessionId) ?? null)
-  const facts = known === undefined ? told : { ...told, agent: told.agent ?? known.agent, model: told.model ?? known.model, effort: told.effort ?? known.effort }
+  let facts = told
+  if (known !== undefined) {
+    facts = starting
+      ? { ...told, ...known, context: null }
+      : { ...told, agent: told.agent ?? known.agent, model: told.model ?? known.model, effort: told.effort ?? known.effort }
+  }
   const status = <ChatStatus facts={facts} scale={chat?.scale ?? state?.context ?? null} edits={edits} />
   // The task panel at the left of the feed; a fix of main has no card, and on a phone the button opens the full card
   // over the chat, which shows again when it closes.
@@ -199,7 +213,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const onHotkey = useDialogHotkey('chatTask', toggleTask)
   const owner: DraftOwner | null = task?.project === undefined ? null : { project: task.project, task: task.key }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Otherwise the dialog focuses its first focusable element, the head's title, and its tip opens at once.
     // React's `autoFocus` sets no attribute, and the dialog looks only at the attribute.
     closeRef.current?.setAttribute('autofocus', '')
@@ -209,14 +223,14 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   // A handoff keeps the window open and swaps only its feed for the new session's. A project chat's first session keeps
   // the message that started it on view until its transcript has it.
   useEffect(() => {
-    const first = shownSession.current === ''
+    const changedSession = shownSession.current !== '' && shownSession.current !== sessionId
     shownSession.current = sessionId
     count.current = 0
     pinned.current = true
     setLines(undefined)
     setReadFor(null)
     setTurn(null)
-    if (!first) setSent([])
+    if (changedSession) setSent([])
     setViewing(null)
   }, [sessionId])
 
@@ -296,7 +310,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   return (
     <dialog
       ref={dialogRef}
-      className={`session-window transcript${chat === undefined ? '' : ' transcript--chat'}${panel ? ' transcript--task' : ''}`}
+      className={`session-window transcript${openedEmpty ? ' transcript--new' : ''}${chat === undefined ? '' : ' transcript--chat'}${panel ? ' transcript--task' : ''}`}
       aria-label={t.session.transcriptDialog(sessionId.slice(0, 8))}
       onClose={(event) => {
         event.stopPropagation()
@@ -329,7 +343,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
               ) : (
                 <span className="panel__key">{task?.key ?? chat?.task ?? sessionId.slice(0, 8)}</span>
               )}
-              <WindowTitle sessionId={sessionId} title={task?.title ?? (chat === undefined ? t.session.transcriptTitle : t.session.chat.title)} />
+              <WindowTitle sessionId={sessionId} title={(awaitingFirstPrompt ? openingTitle : task?.title) ?? (chat === undefined ? t.session.transcriptTitle : t.session.chat.title)} />
             </h2>
             {chat?.review !== undefined && <PullButton review={chat.review} compact />}
             {remoteUrl != null && (
@@ -390,11 +404,12 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
             <div className="transcript__foot">
               {foot({
                 status,
+                awaitingFirstPrompt,
                 handle: composerRef,
                 answered,
                 onSent: (line) => {
                   pinned.current = true
-                  const entry = { line, after: lines?.length ?? 0, steered: false }
+                  const entry = { line, after: lines?.length ?? 0, steered: false, first: session === null }
                   setSent((now) => [...now, entry])
                   return () => setSent((now) => now.filter((each) => each !== entry))
                 },

@@ -24,7 +24,7 @@ describe('session protection', () => {
       expect(settings.permissions.deny).toContain('Write(.env)')
       expect(settings.permissions.deny).toContain('Bash(git push --force*)')
     }
-    const args = copilotArgs({ name: 'ABC-1', model: null, protection }, 'task', { cwd: 'example', dirs: [], disabled: [], remotes: ['origin'] }, { id: 'session', resume: false })
+    const args = copilotArgs({ name: 'ABC-1', model: null, protection }, { cwd: 'example', dirs: [], disabled: [], remotes: ['origin'] }, { id: 'session', resume: false })
     expect(args).toContain('--allow-all-tools')
     expect(args).toContain('shell(git push origin --force:*)')
     expect(args.slice(args.indexOf('write(.env)') - 1, args.indexOf('write(.env)') + 1)).toEqual(['--deny-tool', 'write(.env)'])
@@ -131,7 +131,7 @@ describe('session protection', () => {
 
   it('passes main-branch protection on both a fresh Copilot turn and a resume', () => {
     for (const resume of [false, true]) {
-      const args = copilotArgs({ name: 'ABC-1', model: null, mainBranch: 'release/v1', protection: DEFAULT_PROTECTION }, 'task', { cwd: 'example', dirs: [], disabled: [], remotes: ['origin'] }, { id: 'session', resume })
+      const args = copilotArgs({ name: 'ABC-1', model: null, mainBranch: 'release/v1', protection: DEFAULT_PROTECTION }, { cwd: 'example', dirs: [], disabled: [], remotes: ['origin'] }, { id: 'session', resume })
       const rule = 'shell(git push origin +HEAD:refs/heads/release/v1:*)'
       expect(args.slice(args.indexOf(rule) - 1, args.indexOf(rule) + 1)).toEqual(['--deny-tool', rule])
     }
@@ -194,7 +194,7 @@ describe('session protection', () => {
       const claude = (noGit: boolean) => JSON.parse(chainSettings('example', {}, false, [], 'home', null, [], allOff, null, noGit)).permissions.deny as string[]
       expect(claude(true)).toEqual(expect.arrayContaining(['Bash(git *)', 'PowerShell(git *)']))
       expect(claude(false)).toEqual([])
-      const copilot = (outsideRepo: boolean) => copilotArgs({ name: 'ABC-1', model: null, protection: allOff, outsideRepo }, 'task', { cwd: 'example', dirs: [], disabled: [], remotes: [] }, { id: 'session', resume: false })
+      const copilot = (outsideRepo: boolean) => copilotArgs({ name: 'ABC-1', model: null, protection: allOff, outsideRepo }, { cwd: 'example', dirs: [], disabled: [], remotes: [] }, { id: 'session', resume: false })
       expect(copilot(true)).toContain('shell(git:*)')
       expect(copilot(false)).not.toContain('--deny-tool')
       const opencode = (outsideRepo: boolean) => JSON.parse(openCodeConfig({ protection: allOff, outsideRepo }, [], [])).permission.bash as Record<string, string> | undefined

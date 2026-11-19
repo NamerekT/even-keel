@@ -19,6 +19,8 @@ The state (`stateOf`): `new` (no message yet), `starting`, `working`, `waiting` 
 
 The page's calls are `POST /api/chats/<name>` (`src/chats/routes.ts`): `list` (the project's active chats and its last choice), `archive` (a page of 20, newest first, `words` searched in the title, the first and last message and what the user wrote; `more` says an older page follows, no total), `chat` (an archived one too), `create`, `send` (text, answers and files in base64, up to 64 MB), `renew` (the same with the new chat's account, model and effort), `read`, `hide`.
 
+Before the machine reports a session, a card with a recent user message shows `starting` for the usual session boot grace. In the window, sending moves the draft into the feed immediately. The chat keeps that bubble through the session ID arriving, a missing transcript and an empty first read. The recorded prompt replaces it on the first successful read that contains it. A failed send restores the draft, including its files.
+
 ## Going on in a new session
 
 A message to a chat whose cache went cold or whose account is at its limit may go to a new chat instead (BTN-1232). The page asks (`chatRenewal` in `web/src/pages/chatRenewal.ts`): cold is the session's `coldReply` (without the session's view, the chat's state `cold`); a limit is the account's tightest window spent or the session's lamp `limit`, and it comes first. Not for a chat that works or starts, nor for one without a session. The window offers the project's last choice; at a limit, when that is the same spent account, the next open account of the chat's agent, else of any agent (`renewalChoice`).

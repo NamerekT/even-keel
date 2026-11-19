@@ -136,7 +136,7 @@ The chats are the **Chats** tab of the project page, between Backlog and Setting
 - A chat opens in the same window as a task's session, without the commands menu.
 
 - You choose the account, the model and the effort when you create a chat, and they stay until the chat ends. Even Keel offers your last choice in that project for the next chat.
-- A new chat starts no session until you send the first message.
+- Your first message appears in the chat as soon as you send it and stays visible while the session starts. If sending fails, the text and attachments return to the field for another try.
 - A chat goes to the archive a day after its last message or its session's last action, whatever it is doing then, and its session is stopped. Hiding a chat archives it too; nothing is deleted, and the transcript stays on disk.
 - An archived chat is only for reading. To go on, start a new chat.
 - A message to a chat whose cache went cold asks first: reply there anyway, which rereads the whole context, or **New session with this message**. When the chat's account is at its limit, only the new session is offered. The window says why, shows your message and lets you pick the account, the model and the effort; at a limit the next account with room is picked already. The new session gets your message, the last turns of the old chat and a link to its transcript; the old chat goes to the archive, its session stops, and the new chat opens with a "Continued from" link to it. Cancel keeps your text and files in the field.

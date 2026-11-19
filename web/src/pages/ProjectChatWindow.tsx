@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
+import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -11,7 +12,8 @@ import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
 import { encoded, sentLine } from './ChatComposer.js'
 import { chatRenewal, renewalChoice, type ChatRenewal } from './chatRenewal.js'
 import { ChatRenewDialog } from './ChatRenewDialog.js'
-import { sendAhead, shownAsk } from './composerHold.js'
+import { shownAsk } from './composerHold.js'
+import type { Draft } from './chatDraft.js'
 import { ComposerBox, useChatDraft } from './ComposerBox.js'
 import type { CommandTextHandle } from './CommandText.js'
 import { TranscriptWindow, type WindowFoot } from './TranscriptWindow.js'
@@ -39,6 +41,8 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
   const { state } = useLive()
   const { send } = useCommand()
   const archived = chat.archivedAt !== null
+  const project = state?.config.projects[chat.project]
+  const branch = state?.branchDrift[chat.project]
   const session = chat.sessionId === null ? undefined : state?.sessions.find((each) => each.sessionId === chat.sessionId)
   // Opening the chat reads its answer; one that comes while it is open is read too.
   useEffect(() => {
@@ -50,8 +54,10 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
       account={chat.account}
       live={!archived && chat.sessionId !== null}
       task={{ key: t.chats.window.key, title: chat.title ?? t.chats.untitled }}
-      known={{ agent: chat.agent, model: chat.model, effort: chat.effort }}
+      known={{ agent: chat.agent, model: chat.model, effort: chat.effort, branch: project?.git ? (branch === undefined ? project.branch : branch.current) : null }}
       blank={chat.sessionId === null ? t.chats.window.blank : undefined}
+      initialPrompt={(chat.state === 'starting' || chat.state === 'working') && chat.last?.from === 'user' ?
+        { kind: 'prompt', at: chat.last.at, text: chat.last.text } : undefined}
       lead={chat.previous === null ? undefined : <Continued previous={chat.previous} onOpen={onOpen} />}
       onClose={onClose}
       foot={(parts) =>
@@ -107,8 +113,10 @@ interface FieldProps {
 /** The field of a project chat: the open question's options or a free message, with files; shut while the chat works. */
 function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: FieldProps) {
   const command = useRef<CommandTextHandle>(null)
-  const { state, query } = useLive()
-  const { send, sending, failure } = useCommand()
+  const { state, query, command: post } = useLive()
+  const [outgoing, setOutgoing] = useState<Draft | null>(null)
+  const sending = outgoing !== null
+  const [failure, setFailure] = useState<Notice | null>(null)
   const [renewal, setRenewal] = useState<ChatRenewal | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const ask = shownAsk(session?.ask ?? null, pending === null ? parts.answered : new Set([...parts.answered, pending]))
@@ -120,33 +128,39 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
   }
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
-  const draft = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id, { text, files }, (found) => {
+  const draft = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id, outgoing ?? { text, files }, (found) => {
     setText(found.text)
     setFiles(found.files)
   })
   useImperativeHandle(parts.handle, () => ({ attach: (more: File[]) => !sending && setFiles((now) => [...now, ...more]) }))
   // The server takes no message while the chat's session starts or works (BTN-1230).
-  const locked = chat.state === 'starting' ? t.chats.window.starting : chat.state === 'working' ? t.session.chat.working : null
+  const starting = chat.state === 'starting' || (parts.awaitingFirstPrompt && chat.state !== 'error' && chat.state !== 'cold')
+  const locked = chat.state === 'working' ? t.session.chat.working : starting ? t.chats.window.starting : null
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
   const off = locked !== null || sending || !ready
 
   const submit = async () => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
-    const body = { id: chat.id, text, answers, files: await Promise.all(files.map(encoded)) }
-    const show = () => {
-      if (ask !== null) setPending(ask.id)
-      const retract = parts.onSent(sentLine(ask === null ? null : ask.id, answers, text, files))
-      return () => {
-        setPending(null)
-        retract()
-      }
-    }
-    if (!(await sendAhead(show, () => send('chats/send', body)))) return
-    void draft.clear()
+    const retract = parts.onSent(sentLine(ask?.id ?? null, answers, text, files))
+    if (ask !== null) setPending(ask.id)
+    setFailure(null)
+    setOutgoing({ text, files })
     setText('')
     setFiles([])
-    onChanged()
+    try {
+      await post('chats/send', { id: chat.id, text, answers, files: await Promise.all(files.map(encoded)) })
+      void draft.clear()
+      onChanged()
+    } catch (reason) {
+      retract()
+      setPending(null)
+      setText(text)
+      setFiles(files)
+      setFailure(noticeOf(reason))
+    } finally {
+      setOutgoing(null)
+    }
   }
 
   // Rejects with why the new chat did not start: the window keeps the text and the files and shows it.
@@ -216,7 +230,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         }
       />
       {parts.status}
-      {failure !== null ? <p className="notice notice--error">{say(failure)}</p> : locked !== null && <p className="chat__hint">{locked}</p>}
+      {failure !== null ? <p role="alert" className="notice notice--error">{say(failure)}</p> : <p className="chat__hint">{locked}</p>}
       </form>
     </>
   )
