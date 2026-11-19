@@ -178,6 +178,7 @@ const TASKS = `${PERIOD}, cur as (
 ), paid as (
   -- The real spend on the key where Even Keel read one (BTN-860): only those sessions, so the view prices no other.
   select p.message_id, p.paid from message_paid p where p.session_id in (select session_id from key_spends where not shared)
+  order by p.message_id
 )
 select c.task, min(c.project) as project, t.title, t.status, t.url, coalesce(sum(coalesce(pd.paid, c.cost)), 0) as cost,
   case when count(pd.message_id) > 0 then coalesce(sum(c.cost), 0) end as price_estimate, sum(sv.share) as limit_share,
@@ -192,7 +193,9 @@ select c.task, min(c.project) as project, t.title, t.status, t.url, coalesce(sum
   coalesce(t.labels && array['Переделка', 'Rework'], false) as rework,
   t.estimate_h, tt.active_s, tt.wait_s, tt.total_s, t.done, t.component,
   mode() within group (order by ${familyOf('c.model')}) as model
-from cur c
+-- Supply ordered inputs for both message_id joins. For a single project Postgres can estimate only a few
+-- messages and weekly shares, then rescan the shares for every message in the project.
+from (select * from cur order by message_id) c
 left join seven sv on sv.message_id = c.message_id
 left join paid pd on pd.message_id = c.message_id
 left join tasks t on t.task = c.task
