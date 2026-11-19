@@ -50,6 +50,7 @@ export function builtinEditor({ store, names, must: find, trackerTask, files }: 
           ...(draft.status === null ? {} : { status: draft.status }),
           ...(draft.priority === null ? {} : { priority: draft.priority }),
           milestone: draft.milestone,
+          component: draft.component ?? null,
           parent,
           labels: draft.labels,
           estimate: draft.estimate ?? null,
@@ -82,11 +83,12 @@ export function builtinEditor({ store, names, must: find, trackerTask, files }: 
           const to = field.to === null ? null : await parentOf(task.project, field.to)
           return changed(task, await store.edit(task, { field: 'parent', from: task.parent, to }))
         }
-        // The built-in tracker keeps no components (BTN-895): a label names the area.
+        // A session only picks one of the project's components (BTN-1288); the person makes them on the page.
         case 'component':
-          throw new EditRefused('the built-in tracker has no components; name the area with a label')
+          return changed(task, await store.edit(task, { field: 'component', from: task.component, to: field.to }))
       }
     },
+    components: true,
     async estimate(id, minutes) {
       const task = await must(id)
       return changed(task, await store.setEstimate(task, minutes))

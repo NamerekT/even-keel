@@ -13,6 +13,7 @@ import { profilesEn } from './profiles-en.js'
 import { demoEn } from './demo-en.js'
 import { creationEn } from './creation-en.js'
 import { transferEn } from './transfer-en.js'
+import { componentsEn } from './components-en.js'
 import { machinesEn } from './machines-en.js'
 import { poolEn } from './pool-en.js'
 import { machinePageEn } from './machine-page-en.js'
@@ -426,6 +427,7 @@ export const en: Messages = {
   demo: demoEn,
   creation: creationEn,
   transfer: transferEn,
+  components: componentsEn,
   machines: machinesEn,
   pool: poolEn,
   machinePage: machinePageEn,

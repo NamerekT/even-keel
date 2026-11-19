@@ -37,6 +37,8 @@ export interface ExportTask {
   status: TaskStatus
   priority: TaskPriority
   milestone: string | null
+  /** The component's name (BTN-1288); absent or `null` — none. */
+  component?: string | null
   labels: string[]
   /** Minutes of the agent's work. */
   estimate: number | null
@@ -94,7 +96,7 @@ export interface ExportLog {
   save(row: ExportRow): Promise<void>
 }
 
-export type ExportLossKind = 'priority' | 'estimate' | 'blocks' | 'relates' | 'files' | 'labels' | 'milestones' | 'status' | 'parent' | 'links' | 'markers' | 'history'
+export type ExportLossKind = 'priority' | 'estimate' | 'blocks' | 'relates' | 'files' | 'labels' | 'milestones' | 'components' | 'status' | 'parent' | 'links' | 'markers' | 'history'
 
 /** What the copy leaves behind: the tasks it concerns by id, the labels, milestones or statuses by name. */
 export interface ExportLoss {
@@ -158,6 +160,8 @@ interface Kept {
   /** The target's spelling of a label or a milestone; `undefined` — it has none such. */
   label(name: string): string | undefined
   milestone(name: string): string | undefined
+  /** As `label`; `undefined` too where the target keeps no components. */
+  component(name: string): string | undefined
   status(status: TaskStatus): TaskStatus | null
 }
 
@@ -174,6 +178,7 @@ async function keptBy({ editor, vocabulary }: ExportTarget): Promise<Kept> {
     markers: editor.markers !== undefined,
     label: spelled(vocabulary?.labels),
     milestone: spelled(vocabulary?.milestones),
+    component: editor.components === true ? spelled(vocabulary?.components) : () => undefined,
     status: (status) => (vocabulary === null ? null : targetStatus(status, vocabulary.statuses)),
   }
 }
@@ -209,6 +214,8 @@ export async function exportPlan(source: ExportSource, target: ExportTarget): Pr
   add('labels', (task) => lostLabels(task).length > 0, lostLabels)
   const lostMilestone = (task: ExportTask) => (task.milestone !== null && kept.milestone(task.milestone) === undefined ? [task.milestone] : [])
   add('milestones', (task) => lostMilestone(task).length > 0, lostMilestone)
+  const lostComponent = (task: ExportTask) => (task.component != null && kept.component(task.component) === undefined ? [task.component] : [])
+  add('components', (task) => lostComponent(task).length > 0, lostComponent)
   add('status', (task) => kept.status(task.status) === null, (task) => [task.status.name])
   add('parent', (task) => task.parent !== null && !refs.has(task.parent))
   add('links', (task) => [...task.blocks, ...task.related].some((ref) => !refs.has(ref)))
@@ -339,6 +346,7 @@ function draftOf(task: ExportTask, kept: Kept, parent: string | null): TaskDraft
     status: kept.status(task.status)?.name ?? null,
     priority: kept.priority && task.priority !== 'none' ? task.priority : null,
     milestone: task.milestone === null ? null : (kept.milestone(task.milestone) ?? null),
+    ...(task.component == null || kept.component(task.component) === undefined ? {} : { component: kept.component(task.component)! }),
     labels: task.labels.flatMap((name) => kept.label(name) ?? []),
     parent,
     ...(kept.estimate && task.estimate !== null ? { estimate: task.estimate } : {}),

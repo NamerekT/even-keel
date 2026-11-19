@@ -21,6 +21,8 @@ export interface EditOptions extends QueryOptions {
   kept?: boolean
   /** The task the field belongs to, when it may be sent after the card turned to another one. */
   task?: string
+  /** A component of a name the project has none of is made by the same edit (BTN-1288). */
+  create?: boolean
 }
 
 /** The writes of a card the built-in tracker keeps (BTN-771); after each that lands the card is read anew. */
@@ -74,7 +76,8 @@ export function useCardEdit(project: string, task: string, onChanged: () => void
     const of = options.task ?? task
     const draft = options.kept === true ? (field as DraftField) : null
     if (draft !== null) writeDraft(project, of, draft, { from: from ?? '', to: to ?? '' })
-    const refused = await run('query', 'builtin/edit', { task: of, field, from, to }, { keepalive: options.keepalive })
+    const create = options.create === true ? { create: true } : {}
+    const refused = await run('query', 'builtin/edit', { task: of, field, from, to, ...create }, { keepalive: options.keepalive })
     if (refused === null) {
       if (draft !== null) dropDraft(project, of, draft)
       return 'landed'
@@ -91,7 +94,7 @@ export function useCardEdit(project: string, task: string, onChanged: () => void
       kept: draft !== null,
       keep: () => {
         setConflict(null)
-        void edit(field, found.theirs, to, { kept: draft !== null, task: of })
+        void edit(field, found.theirs, to, { kept: draft !== null, task: of, ...create })
       },
     })
     return 'conflict'

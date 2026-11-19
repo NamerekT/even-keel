@@ -40,7 +40,7 @@ export interface TrackerTask {
   priority: TaskPriority
   labels: string[]
   estimate: number | null
-  /** The name of the task's component in a tracker that keeps them (Huly, Jira; BTN-1273); absent — none. */
+  /** The name of the task's component in a tracker that keeps them (Huly, Jira, the built-in one; BTN-1273); absent — none. */
   component?: string
   /**
    * Opened by someone who is not one of the repository's own people, by the comments' trust rule (BTN-1123: GitHub,

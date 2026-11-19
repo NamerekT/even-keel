@@ -6,7 +6,7 @@ const AUTHORS = { person: 'Person', agent: 'Agent', service: 'Even Keel' } as co
 
 const WORDS: Record<ChangeField, string> = {
   created: 'created', moved: 'moved here from', title: 'title', status: 'status', priority: 'priority', milestone: 'milestone',
-  parent: 'parent', description: 'description', estimate: 'estimate', run: 'run', label: 'label', blocks: 'blocks',
+  component: 'component', parent: 'parent', description: 'description', estimate: 'estimate', run: 'run', label: 'label', blocks: 'blocks',
   blockedBy: 'blocked by', relates: 'relates', subtask: 'subtask',
 }
 

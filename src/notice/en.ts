@@ -626,6 +626,12 @@ export const en = {
   'builtin.noFile': (p: { task: string }) => `${p.task} has no such attachment; the page may be out of date`,
   'builtin.emptyName': () => 'the name is empty',
   'builtin.noMilestone': () => 'there is no such milestone; the page may be out of date',
+  'builtin.noComponent': () => 'there is no such component; the page may be out of date',
+  'builtin.componentTaken': (p: { name: string }) => `the project has a component "${p.name}" already; pick another name`,
+  'builtin.componentBusy': (p: { component: string; task: string; why: 'current' | 'live' }) =>
+    p.why === 'current'
+      ? `${p.task} of the component ${p.component} is the chain's current task; skip it or stop the chain before deleting the component`
+      : `${p.task} of the component ${p.component} has a live session; stop it before deleting the component`,
   'builtin.badStatus': (p: { status: string; statuses: string[] }) => `there is no status "${p.status}"; the statuses are ${p.statuses.join(', ')}`,
   'builtin.badPriority': (p: { priority: string }) => `there is no priority "${p.priority}"`,
   'builtin.noProject': (p: { project: string }) => `the project ${p.project} does not keep its tasks in Even Keel`,

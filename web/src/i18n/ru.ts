@@ -13,6 +13,7 @@ import { profilesRu } from './profiles-ru.js'
 import { demoRu } from './demo-ru.js'
 import { creationRu } from './creation-ru.js'
 import { transferRu } from './transfer-ru.js'
+import { componentsRu } from './components-ru.js'
 import { machinesRu } from './machines-ru.js'
 import { poolRu } from './pool-ru.js'
 import { machinePageRu } from './machine-page-ru.js'
@@ -437,6 +438,7 @@ export const ru = {
   demo: demoRu,
   creation: creationRu,
   transfer: transferRu,
+  components: componentsRu,
   machines: machinesRu,
   pool: poolRu,
   machinePage: machinePageRu,

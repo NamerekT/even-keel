@@ -83,7 +83,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec('truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files, task_retries')
+  await db.exec('truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_components, builtin_task_labels, builtin_relations, builtin_comments, builtin_files, task_retries')
   const root = mkdtempSync(join(tmpdir(), 'ek-taskmcp-'))
   folder = join(root, 'work')
   filesDir = join(root, 'files')
@@ -118,7 +118,7 @@ describe('tasks_create', () => {
     const core = await call('task_read', { key: 'abc-2' })
     expect(core.split('\n\n')[1]!.split('\n')).toEqual([
       'Todo · priority high · milestone v0.3 · labels Bug · estimate 20 min · parent ABC-1 · blocks ABC-3 · rev 0',
-      'chain: into it — Todo; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes',
+      'chain: into it — Todo; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes; components: none',
     ])
     expect(refreshed).toEqual([ABC])
   })
@@ -415,7 +415,7 @@ describe('task_update of fields', () => {
     const refused = await refusal(call('task_update', { key: 'ABC-1', status: 'Ready' }))
     expect(refused.split('\n')).toEqual([
       'there is no status "Ready"; the statuses are Backlog, Todo, In Progress, In Review, Done, Canceled, Duplicate',
-      'chain: into it — Backlog; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes',
+      'chain: into it — Backlog; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes; components: none',
     ])
   })
 
@@ -852,8 +852,8 @@ describe("the project's feeds (BTN-892)", () => {
   it("gives each tracker's roles line by its own rules", async () => {
     rules.set(GHI, { ...DEFAULT_RULES, active: ['In Progress'], excludedLabels: [] })
     const roles = async (key: string) => (await call('task_read', { key }, FEED)).split('\n\n')[1]!.split('\n')[1]
-    expect(await roles('ABC-1')).toBe('chain: into it — Todo; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes')
-    expect(await roles('GHI-1')).toBe('chain: into it — In Progress; skip — none; question — Question; no milestones; priority: yes; estimate: yes')
+    expect(await roles('ABC-1')).toBe('chain: into it — Todo; skip — none; question — Question; milestones v0.3; priority: yes; estimate: yes; components: none')
+    expect(await roles('GHI-1')).toBe('chain: into it — In Progress; skip — none; question — Question; no milestones; priority: yes; estimate: yes; components: none')
   })
 
   it('refuses a task of another project, and a hand session reaches a feed by its key', async () => {
@@ -923,8 +923,8 @@ describe('components and attachments (BTN-895)', () => {
       vocabulary: async (project) => ({ ...(await vocabulary(project)), ...(components === undefined ? {} : { components }) }),
     }
   }
-  const githubLike = () => like(({ files: _files, estimate: _estimate, ...editor }) => editor)
-  const linearLike = () => like((editor) => editor)
+  const githubLike = () => like(({ files: _files, estimate: _estimate, components: _components, ...editor }) => editor)
+  const linearLike = () => like(({ components: _components, ...editor }) => editor)
   const withComponents = (set: TaskField[]) =>
     like(
       (editor) => ({
@@ -975,7 +975,7 @@ describe('components and attachments (BTN-895)', () => {
       blockingLinks: async () => false,
       link: async (id, other, link, on) => void linked.push([id, other, link, on]),
     })))
-    expect((await call('task_read', { key: 'ABC-1' })).split('\n\n')[1]!.split('\n')[1]).toMatch(/; blocking links: no$/)
+    expect((await call('task_read', { key: 'ABC-1' })).split('\n\n')[1]!.split('\n')[1]).toMatch(/; blocking links: no; components: none$/)
     const refused = 'this tracker keeps no blocking links; name the order in the description, or link the tasks as "relates", which the chain does not read as an order'
     expect(await refusal(call('tasks_create', { tasks: [{ title: 'A' }, { title: 'B', blocks: ['#1'] }] }))).toBe(`task 2: ${refused}`)
     expect((await store.list([ABC])).length).toBe(1)
@@ -1013,6 +1013,18 @@ describe('components and attachments (BTN-895)', () => {
       { field: 'component', to: null },
     ])
     expect(await refusal(call('task_update', { key: 'ABC-1', component: 'Docs' }))).toMatch(/^there is no component "Docs"; the components are UI, Server\. Only the user makes a new one/)
+  })
+
+  it('the built-in tracker lists its components and sets one, never making a new one (BTN-1288)', async () => {
+    await store.saveComponent(ABC, null, { name: 'Parser', description: '' })
+    expect((await call('task_read', { key: 'ABC-1' })).split('\n\n')[1]!.split('\n')[1]).toMatch(/; components: Parser$/)
+    expect(await call('tasks_create', { tasks: [{ title: 'Read', component: 'parser' }] })).toMatch(/^ABC-2 Read/)
+    expect((await store.get({ project: ABC, number: 2 }))!.component).toBe('Parser')
+    expect(await call('task_update', { key: 'ABC-1', component: 'Parser' })).toBe('ABC-1: component → Parser')
+    expect(await refusal(call('task_update', { key: 'ABC-1', component: 'Docs' }))).toMatch(/^there is no component "Docs"; the components are Parser\./)
+    expect((await store.components(ABC)).map((each) => each.name)).toEqual(['Parser'])
+    const history = (await store.history((await store.get({ project: ABC, number: 1 }))!)).at(-1)
+    expect(history).toMatchObject({ field: 'component', from: null, to: 'Parser', by: 'agent' })
   })
 
   it('attaches files on create, update and comment, and task_read shows them', async () => {

@@ -20,6 +20,8 @@ export interface TrackerCard {
   attachments: TaskAttachment[]
   /** Minutes of the agent's active work, where the tracker keeps an estimate (BTN-893); absent or `null` — none. */
   estimate?: number | null
+  /** The task's component, where the tracker keeps them on the card (the built-in one, BTN-1288); `null` — none. */
+  component?: string | null
   /** Opened by an outsider, as `TrackerTask.outsider` (BTN-1123). */
   outsider?: true
   /** Who opened it, given with `outsider` (BTN-1124): `task_read` says whose the text is; `null` — a deleted account. */
@@ -46,6 +48,8 @@ export interface CardEdit {
   labels: { name: string; builtin: boolean }[]
   /** The root first, the direct parent last. */
   ancestors: TaskRef[]
+  /** The project's components by name (BTN-1288). */
+  components: string[]
 }
 
 /** A file attached to the task or to one of its comments. */

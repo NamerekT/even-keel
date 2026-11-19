@@ -7,6 +7,7 @@ import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 import type { AttachedFile } from './connection.js'
 import { FAKE_HULY_PROFILE } from './fakeProfiles.js'
 import { fakeCard } from './fakeCards.js'
+import { fakeCardComponent, fakeComponentEdit, fakeComponentQuery, fakeEstimate } from './fakeComponents.js'
 import { fakeHistory, fakeJournal, fakeJournalQuery } from './fakeJournal.js'
 
 /**
@@ -99,8 +100,12 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
     up = parent.parent
   }
   const own = new Set(tasks.flatMap((each) => each.labels))
+  const { component, components } = fakeCardComponent(state, id)
+  const estimate = fakeEstimate(id)
   return {
     ...base,
+    ...(estimate === undefined ? {} : { estimate }),
+    component,
     description: descriptions.get(id)!,
     priority: task.priority,
     labels: [
@@ -117,6 +122,7 @@ export function fakeBuiltinCard(state: EvenKeelState, id: string, journal: strin
       statuses: [...BUILTIN_STATUSES],
       labels: [...BUILTIN_LABELS.map((name) => ({ name, builtin: true })), ...[...OWN_LABELS, ...own].filter((name, at, all) => all.indexOf(name) === at).map((name) => ({ name, builtin: false }))],
       ancestors,
+      components,
       milestoneRules: { requiredMilestones: [], excludedMilestones: ['Когда-нибудь'] },
     },
   }
@@ -145,9 +151,9 @@ const EMPTY_MILESTONE = 'v0.4 — выпуск'
 export function builtinVocabulary(state: EvenKeelState, project: string, base: TrackerVocabulary): TrackerVocabulary {
   const carried = state.tasks.filter((each) => each.project === project).flatMap((each) => (each.milestone === null ? [] : [each.milestone.label]))
   const milestones = [...new Set(carried), ...(project === 'ABC' ? [EMPTY_MILESTONE] : [])]
-  // The built-in tracker keeps no components.
-  const { components: _, ...rest } = base
-  return { ...rest, statuses: [...BUILTIN_STATUSES], milestones }
+  const first = state.tasks.find((each) => each.project === project)
+  const components = first === undefined ? [] : fakeCardComponent(state, first.id).components
+  return { ...base, statuses: [...BUILTIN_STATUSES], milestones, components }
 }
 
 /**
@@ -173,6 +179,8 @@ type Answer = { state: EvenKeelState; result: unknown; refusal?: Error }
 export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Record<string, unknown>, mode: string | null, journal: string | null): Answer | null {
   if (!name.startsWith('builtin/')) return null
   if (fakeJournalQuery(name, body, journal)) return { state: { ...state }, result: {} }
+  const components = fakeComponentQuery(state, name, body)
+  if (components !== null) return { state: { ...state }, result: components.result }
   const task = String(body.task ?? '')
   const other = String(body.other ?? '')
   const change = (update: (each: ProjectTask) => ProjectTask, id = task): Answer => ({
@@ -287,6 +295,9 @@ function fakeEdit(
     }
     case 'parent':
       return change((each) => ({ ...each, parent: to }))
+    case 'component':
+      fakeComponentEdit(state, task, to)
+      return { state: { ...state }, result: null }
     default:
       return { state, result: null }
   }

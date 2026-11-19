@@ -1,0 +1,249 @@
+/* The built-in tracker's components (BTN-1288): the list of the tracker window's tab, its editor and its deletion. */
+
+.component-list__table {
+  --component-columns: minmax(140px, 1fr) minmax(0, 2fr) 72px 72px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.component-list__head,
+.component-list__row {
+  display: grid;
+  grid-template-columns: var(--component-columns);
+  align-items: center;
+  gap: var(--space-12);
+  padding: 0 var(--space-12);
+}
+
+.component-list__head {
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.component-list__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.component-list__row {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-14);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+.component-list__row:hover,
+.component-list__row:focus-visible {
+  border-color: var(--accent);
+}
+
+.component-list__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.component-list__label {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.component-list__description {
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.component-list__head .component-list__description {
+  font-size: var(--text-11);
+}
+
+.component-list__count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.component-list__none {
+  color: var(--fg-muted);
+}
+
+.component-list__pencil {
+  display: inline-grid;
+  place-items: center;
+  color: var(--fg-muted);
+  opacity: 0.6;
+  transition: opacity var(--motion-fast), color var(--motion-fast);
+}
+
+.component-list__row:hover .component-list__pencil,
+.component-list__row:focus-visible .component-list__pencil {
+  color: var(--fg);
+  opacity: 1;
+}
+
+/* The phone: the name and the counts, rows flush in one frame, a tap opens the editor. */
+@media (max-width: 760px) {
+  .component-list__table {
+    --component-columns: minmax(0, 1fr) 64px 56px;
+  }
+
+  .component-list__head,
+  .component-list__row {
+    padding: 0 14px 0 var(--space-12);
+  }
+
+  .component-list__description,
+  .component-list__pencil,
+  .component-list__head > :last-child {
+    display: none;
+  }
+
+  .component-list__rows {
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    overflow: hidden;
+  }
+
+  .component-list__row {
+    border: 0;
+    border-radius: 0;
+  }
+
+  .component-list__rows > li + li .component-list__row {
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* The windows. */
+
+.component-dialog__facts {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+}
+
+/* Rare and destructive: quiet beside the window's one primary button, red only in its word. */
+.button.component-dialog__remove {
+  color: var(--lamp-error);
+}
+
+.component-dialog__description {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.component-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.component-choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  cursor: pointer;
+  transition: border-color var(--motion-fast);
+}
+
+.component-choice:hover:not(.component-choice--off) {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.component-choice--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.component-choice--off {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.component-choice__radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.component-choice:has(.component-choice__radio:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.component-choice__title {
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.component-choice--on .component-choice__title {
+  color: var(--accent);
+}
+
+.component-choice__note {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.component-choice__mark {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-fill);
+}
+
+.component-choice__mark svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* On the phone a window is a sheet from the bottom. */
+@media (max-width: 760px) {
+  .component-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    margin: auto 0 0;
+    border-width: 1px 0 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .component-dialog[open] {
+    animation: component-sheet-in var(--motion-appear) ease-out;
+  }
+
+  @keyframes component-sheet-in {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+  }
+}

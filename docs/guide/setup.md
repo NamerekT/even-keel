@@ -236,7 +236,9 @@ It is the first choice of the tracker in the setup and in **Add project**, and t
 
 **Status** and **Settings** → **Trackers and CI** always show it.
 
-In a built-in project's **Tracker** → **Configure** only **Project tasks** is left: its statuses and labels are fixed, and the milestones you name there are created in it on save.
+In a built-in project's **Tracker** → **Configure** only **Project tasks** and **Components** are left: its statuses and labels are fixed, and the milestones you name there are created in it on save.
+
+**Components** sort a project's tasks by area, at most one a task: create, rename and delete them there, and pick a task's one in its card under **Milestone** (typing a new name there creates it). The chain ignores them, except for **Lanes by component**; sessions can set a task's component by name but never create one. Deleting a component moves its tasks, closed ones too, to another component or to none. The card's **Estimate** has a pencil: type minutes or hours ("20", "1h 20m", "1.5h"), Enter saves, an empty field clears it.
 
 A project with another tracker's tasks cannot move to the built-in one.
 

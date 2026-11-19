@@ -20,11 +20,11 @@ export interface ChangeAuthor {
  */
 export type ChangeField =
   | 'created' | 'moved'
-  | 'title' | 'status' | 'priority' | 'milestone' | 'parent' | 'description' | 'estimate' | 'run'
+  | 'title' | 'status' | 'priority' | 'milestone' | 'component' | 'parent' | 'description' | 'estimate' | 'run'
   | 'label' | 'blocks' | 'blockedBy' | 'relates' | 'subtask'
 
 export const CHANGE_FIELDS: readonly ChangeField[] = [
-  'created', 'moved', 'title', 'status', 'priority', 'milestone', 'parent', 'description', 'estimate', 'run',
+  'created', 'moved', 'title', 'status', 'priority', 'milestone', 'component', 'parent', 'description', 'estimate', 'run',
   'label', 'blocks', 'blockedBy', 'relates', 'subtask',
 ]
 

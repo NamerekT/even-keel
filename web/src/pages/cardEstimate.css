@@ -1,0 +1,79 @@
+/* The card's estimate changed in place (BTN-1288): the tile is the button, its pencil at the right, the field under it. */
+
+.card-estimate {
+  position: relative;
+  transition: border-color var(--motion-fast);
+}
+
+.card-estimate:hover,
+.card-estimate--open {
+  border-color: var(--accent);
+}
+
+.card-estimate__edit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 10px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--fg-muted);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity var(--motion-fast), color var(--motion-fast);
+}
+
+.card-estimate:hover .card-estimate__edit,
+.card-estimate--open .card-estimate__edit,
+.card-estimate__edit:focus-visible {
+  color: var(--fg);
+  opacity: 1;
+}
+
+.card-estimate__pop {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  font-weight: 400;
+}
+
+.card-estimate__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.card-estimate__input {
+  width: 110px;
+}
+
+.card-estimate__unit {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.card-estimate__save {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+}
+
+.card-estimate__bad {
+  max-width: 240px;
+  color: var(--lamp-error);
+  font-size: var(--text-13);
+}

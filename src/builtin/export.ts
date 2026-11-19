@@ -38,6 +38,7 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
           status: task.status,
           priority: task.priority,
           milestone: task.milestone?.name ?? null,
+          component: task.component,
           labels: task.labels,
           estimate: task.estimate,
           parent: task.parent === null ? null : (map.get(task.parent) ?? null),

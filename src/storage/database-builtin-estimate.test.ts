@@ -16,12 +16,14 @@ it('step 42 adds the estimate of a built-in task in minutes, none for the tasks 
     expect(await databaseVersion(frozen)).toBe(42)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
     await readsWhole(frozen, 42, 42)
-    const store = new BuiltinStore(frozen)
-    expect((await store.list([PROJECT])).map((task) => task.estimate)).toEqual([20, null])
     await insertRows(made, await rowsOf(frozen))
     expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
+    // The store reads the columns of today's schema: the later steps first.
+    for (const step of STEPS.slice(40)) await frozen.exec(step)
+    const store = new BuiltinStore(frozen)
+    expect((await store.list([PROJECT])).map((task) => task.estimate)).toEqual([20, null])
     await upgraded.exec(fixture(41))
-    await upgraded.exec(STEPS[39]!)
+    for (const step of STEPS.slice(39)) await upgraded.exec(step)
     expect((await new BuiltinStore(upgraded).list([PROJECT])).map((task) => task.estimate)).toEqual([null, null])
   } finally {
     await Promise.all([frozen.close(), made.close(), upgraded.close()])

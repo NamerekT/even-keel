@@ -207,6 +207,48 @@ export function MilestoneField({ card, editor }: { card: Editable; editor: CardE
   )
 }
 
+/**
+ * One of the project's components by its name (BTN-1288): typing narrows the list, a name the project has none of is
+ * offered as a new component, made by the same edit; the cross takes the component off.
+ */
+export function ComponentField({ card, editor }: { card: Editable; editor: CardEditor }) {
+  const current = card.component ?? null
+  const [text, setText] = useState(current ?? '')
+  useEffect(() => setText(current ?? ''), [current])
+  const choices = card.edit.components
+  const typed = text.trim()
+  const known = (name: string) => choices.find((choice) => same(choice, name))
+  const offers: { value: string; label?: string }[] = choices.map((choice) => ({ value: choice }))
+  if (typed !== '' && known(typed) === undefined) offers.push({ value: typed, label: t.card.edit.newComponent })
+
+  const commit = async (name: string) => {
+    const typedName = name.trim()
+    const to = typedName === '' ? null : (known(typedName) ?? typedName)
+    if (same(to, current)) return setText(current ?? '')
+    const create = to !== null && known(to) === undefined
+    if ((await editor.edit('component', current, to, create ? { create } : {})) !== 'landed') setText(current ?? '')
+  }
+
+  return (
+    <div className="task-card__field-row">
+      <SuggestField
+        className="task-card__field task-card__field--quiet"
+        label={t.card.component}
+        placeholder={t.card.noComponent}
+        value={text}
+        options={offers}
+        disabled={editor.busy}
+        onChange={setText}
+        onPick={(name) => void commit(name)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') void commit(text)
+        }}
+      />
+      {current !== null && <Remove label={t.card.edit.clearComponent} disabled={editor.busy} onPress={() => void commit('')} />}
+    </div>
+  )
+}
+
 interface LabelsProps {
   card: Editable
   editor: CardEditor

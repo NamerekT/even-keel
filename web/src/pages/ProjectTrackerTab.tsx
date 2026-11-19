@@ -8,6 +8,7 @@ import { t } from '../i18n/index.js'
 import { isOpenToAll } from '../openToAll.js'
 import { Band } from '../ui/blocks.js'
 import { BuiltinExportButton } from './BuiltinExport.js'
+import { ComponentList } from './ComponentList.js'
 import { FeedList } from './FeedList.js'
 import { MilestoneOrder } from './MilestoneOrder.js'
 import { ProjectTracker } from './ProjectTracker.js'
@@ -192,6 +193,7 @@ export function ProjectTrackerTab({
                 </>
               ),
             },
+            ...(onBuiltin ? [{ id: 'components', title: t.components.tab, dirty: false, render: () => <ComponentList project={project} /> }] : []),
             ...(moves.tab === null || onBuiltin ? [] : [moves.tab]),
           ]}
           canSave={canSave && !moves.sending}

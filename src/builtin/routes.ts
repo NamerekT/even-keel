@@ -13,7 +13,7 @@ type Query = (deps: ServerDeps, body: Record<string, unknown>, request: Incoming
 const TEXT_BODY_BYTES = 4 * 1024 * 1024
 /** Body limits of the commands that carry a task's text, over the server's general one. */
 export const BUILTIN_BODY_LIMITS: Record<string, number> = Object.fromEntries(
-  ['create', 'edit', 'description', 'patch', 'comment'].map((command) => [`/api/builtin/${command}`, TEXT_BODY_BYTES]),
+  ['create', 'edit', 'description', 'patch', 'comment', 'component'].map((command) => [`/api/builtin/${command}`, TEXT_BODY_BYTES]),
 )
 
 /** The page's commands on the built-in tracker (BTN-767); each answers with what it changed. */
@@ -40,6 +40,18 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
   },
   'builtin/detach': async (deps, body) => {
     await control(deps).detach(taskOf(body), textOf(body.file, 'file'))
+    return {}
+  },
+  'builtin/estimate': (deps, body) => control(deps).estimate(taskOf(body), body.minutes === null ? null : numberOf(body.minutes, 'minutes')),
+  // The project's components (BTN-1288): the tracker window's list, its editor and its deletion.
+  'builtin/components': (deps, body) => control(deps).components(projectOf(body)),
+  'builtin/component': (deps, body) =>
+    control(deps).saveComponent(projectOf(body), nullableText(body.id ?? null, 'id'), {
+      name: textOf(body.name, 'name'),
+      description: textOf(body.description ?? '', 'description'),
+    }),
+  'builtin/component/delete': async (deps, body) => {
+    await control(deps).removeComponent(projectOf(body), textOf(body.id, 'id'), nullableText(body.to ?? null, 'to'))
     return {}
   },
   // The copy into another tracker (BTN-1073): the target as the wizard's tracker step names it.
@@ -102,6 +114,8 @@ function editOf(body: Record<string, unknown>): BuiltinEdit {
       return { field, from: priorityOf(body.from, 'from'), to: priorityOf(body.to, 'to') }
     case 'milestone':
       return { field, from: nullableText(body.from, 'from'), to: nullableText(body.to, 'to') }
+    case 'component':
+      return { field, from: nullableText(body.from, 'from'), to: nullableText(body.to, 'to'), ...(body.create === true ? { create: true } : {}) }
     case 'parent':
       return { field, from: nullableText(body.from, 'from'), to: nullableText(body.to, 'to') }
     case 'description':

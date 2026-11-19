@@ -7,10 +7,8 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useLanding } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { Fact, FactList } from '../ui/blocks.js'
 import { ButtonWithTip } from '../ui/ButtonWithTip.js'
-import { Tipped } from '../ui/Tipped.js'
-import { cardTimeOf } from './cardTime.js'
+import { CardTimeFacts } from './CardEstimate.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Loader } from '../ui/Loader.js'
 import { useLoader } from '../ui/loaderPhase.js'
@@ -23,7 +21,7 @@ import { taskProject } from '../state.js'
 import { laneOfTask, lanesOf } from '../lanes.js'
 import { recallCard, rememberCard } from './cardMemory.js'
 import { removeRefusal } from './cardEdit.js'
-import { DAY, LabelsField, MilestoneField, PriorityPick, StatusPick, TitleEdit } from './CardFields.js'
+import { ComponentField, DAY, LabelsField, MilestoneField, PriorityPick, StatusPick, TitleEdit } from './CardFields.js'
 import { RefLink, Relations } from './CardLinks.js'
 import { AncestorPath, ParentField, Subtasks } from './CardTree.js'
 import { TaskRunPick } from './TaskRunPick.js'
@@ -260,7 +258,6 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
   const loud = card.labels.filter((label) => LOUD.has(label.role))
   const quiet = card.labels.filter((label) => label.role !== null && !LOUD.has(label.role))
   const editable = editor !== null && card.edit !== null ? { card: card as Card & { edit: NonNullable<Card['edit']> }, editor } : null
-  const time = cardTimeOf(card.estimate, card.activeS)
 
   return (
     <>
@@ -350,20 +347,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
           )}
           {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
           {editable?.editor.failure != null && <p className="notice notice--error">{say(editable.editor.failure)}</p>}
-          {time !== null && (
-            <FactList className="task-card__facts">
-              <Fact label={t.card.estimate}>
-                <dd>{time.estimate}</dd>
-              </Fact>
-              <Fact label={t.card.time} tone={time.over ? 'warn' : 'ok'}>
-                <dd>
-                  <Tipped tip={t.card.timeTip} inline focusable>
-                    {time.time}
-                  </Tipped>
-                </dd>
-              </Fact>
-            </FactList>
-          )}
+          <CardTimeFacts card={card} editor={editable?.editor ?? null} />
           <dl className="task-card__block">
             <Prop name={t.card.priority}>
               {editable !== null ? (
@@ -389,6 +373,11 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
                 </span>
               )}
             </Prop>
+            {editable !== null && (
+              <Prop name={t.card.component}>
+                <ComponentField card={editable.card} editor={editable.editor} />
+              </Prop>
+            )}
           </dl>
           <dl className="task-card__block">
             <TaskRunPick task={card.id} live={live} onChanged={onChanged} />

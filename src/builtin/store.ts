@@ -9,8 +9,12 @@ import type { TaskRun } from '../sessions/runs.js'
 import type { ChangeAuthor, ChangeField, TaskChange } from '../tracker/history.js'
 import { lineDiff } from './diff.js'
 import {
-  logMilestone, logTask, milestoneHistory, SERVICE_AUTHOR, taskHistory, writerOf, type HistoryRow, type MilestoneChange,
+  componentHistory, logMilestone, logTask, milestoneHistory, SERVICE_AUTHOR, taskHistory, writerOf, type ComponentChange, type HistoryRow,
+  type MilestoneChange,
 } from './history-log.js'
+import {
+  componentIdOf, componentName, listComponents, removeComponent, saveComponent, type BuiltinComponent, type ComponentFields, type Stamp,
+} from './components.js'
 
 import {
   estimateOf, FILE_COLUMNS, fileOf, normal, priorityOf, readTasks, shown, statusOf, TASK_COLUMNS, titleOf,
@@ -60,9 +64,10 @@ export class BuiltinStore {
       const at = this.stamp()
       const id = task.id ?? randomUUID()
       const milestone = task.milestone == null ? null : await this.milestoneId(tx, task.project, task.milestone)
+      const component = task.component == null ? null : await componentIdOf(tx, this.stamped(), task.project, task.component)
       await tx.query(
-        `insert into builtin_tasks (${TASK_COLUMNS}, estimate) values ($1, $2, $3, $4, $5, 0, $6, $7, $8, null, 1, $9, $9, $10)`,
-        [id, task.project, number, title, task.description ?? '', status.name, priority, milestone, at, estimateOf(task.estimate ?? null)],
+        `insert into builtin_tasks (${TASK_COLUMNS}, estimate, component_id) values ($1, $2, $3, $4, $5, 0, $6, $7, $8, null, 1, $9, $9, $10, $11)`,
+        [id, task.project, number, title, task.description ?? '', status.name, priority, milestone, at, estimateOf(task.estimate ?? null), component],
       )
       const row = { id, project_id: task.project, number }
       await this.log(tx, row, [{ field: 'created', before: null, after: null }])
@@ -148,6 +153,12 @@ export class BuiltinStore {
           await tx.query('update builtin_tasks set milestone_id = $2 where id = $1', [row.id, id])
           const { rows } = await tx.query<{ name: string }>('select name from builtin_milestones where id = $1', [id])
           await changed(rows[0]?.name ?? null)
+          break
+        }
+        case 'component': {
+          const id = edit.to === null ? null : await componentIdOf(tx, this.stamped(), row.project_id, edit.to, edit.create === true)
+          await tx.query('update builtin_tasks set component_id = $2 where id = $1', [row.id, id])
+          await changed(await componentName(tx, id))
           break
         }
         case 'parent':
@@ -380,8 +391,30 @@ export class BuiltinStore {
       await tx.query(`delete from builtin_relations where from_id in (${tasks}) or to_id in (${tasks})`, [project])
       for (const table of ['builtin_task_labels', 'builtin_comments', 'builtin_files']) await tx.query(`delete from ${table} where task_id in (${tasks})`, [project])
       await tx.query('update builtin_tasks set parent_id = null where project_id = $1', [project])
-      for (const table of ['builtin_tasks', 'builtin_counters', 'builtin_labels', 'builtin_milestones']) await tx.query(`delete from ${table} where project_id = $1`, [project])
+      for (const table of ['builtin_tasks', 'builtin_counters', 'builtin_labels', 'builtin_milestones', 'builtin_components']) {
+        await tx.query(`delete from ${table} where project_id = $1`, [project])
+      }
     })
+  }
+
+  /** The project's components by name, with how many tasks each has (BTN-1288). */
+  components(project: string): Promise<BuiltinComponent[]> {
+    return listComponents(this.db, project)
+  }
+
+  /** Creates the component (`id` `null`) or changes its name and description; returns its id. */
+  saveComponent(project: string, id: string | null, fields: ComponentFields): Promise<string> {
+    return inTransaction(this.db, (tx) => saveComponent(tx, this.stamped(), project, id, fields))
+  }
+
+  /** Deletes the component, its tasks going to the component `to` or to none. */
+  async removeComponent(project: string, id: string, to: string | null): Promise<void> {
+    await inTransaction(this.db, (tx) => removeComponent(tx, this.stamped(), project, id, to))
+  }
+
+  /** The component's changes, oldest first. */
+  componentHistory(component: string): Promise<ComponentChange[]> {
+    return componentHistory(this.db, component)
   }
 
   /** The project's milestones in their order. */
@@ -443,6 +476,10 @@ export class BuiltinStore {
     return this.now().toISOString()
   }
 
+  private stamped(): Stamp {
+    return { at: this.stamp(), writer: writerOf(this.author) }
+  }
+
   private log(tx: Transaction, row: Pick<TaskRow, 'id' | 'project_id'>, changes: HistoryRow[]): Promise<void> {
     return logTask(tx, this.stamp(), writerOf(this.author), row, changes)
   }
@@ -490,6 +527,10 @@ export class BuiltinStore {
         if (row.milestone_id === null) return null
         const { rows } = await tx.query<{ name: string }>('select name from builtin_milestones where id = $1', [row.milestone_id])
         return rows[0]?.name ?? null
+      }
+      case 'component': {
+        const { rows } = await tx.query<{ component_id: string | null }>('select component_id from builtin_tasks where id = $1', [row.id])
+        return componentName(tx, rows[0]?.component_id ?? null)
       }
       case 'parent': {
         if (row.parent_id === null) return null

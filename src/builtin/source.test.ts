@@ -34,7 +34,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec('truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files')
+  await db.exec('truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments, builtin_files, builtin_components')
   source = builtinSource(db, PLACES)
   store = new BuiltinStore(db)
 })
@@ -63,6 +63,18 @@ describe('the built-in tracker as a task source', () => {
     expect((await source.tasks(['ABC-1', 'ABC-2', 'ABC-9'])).map((task) => task.title)).toEqual(['One', 'Two'])
     expect(await notice(source.brief('ABC-9'))).toBe('builtin.noTask')
     expect(await notice(source.create!({ project: 'unknown', title: 'x', description: '', priority: 'none', milestoneOf: null }))).toBe('builtin.noProject')
+  })
+
+  it('gives the chain a task\'s component by name, none for a task without one (BTN-1288)', async () => {
+    await store.saveComponent(ABC, null, { name: 'Server', description: '' })
+    await store.create({ project: ABC, title: 'With', component: 'server' })
+    await store.create({ project: ABC, title: 'Without' })
+    const { tasks } = await source.chainTasks(ABC, open)
+    expect(tasks.map((task) => [task.id, task.component])).toEqual([
+      ['ABC-1', 'Server'],
+      ['ABC-2', undefined],
+    ])
+    expect('component' in tasks[1]!).toBe(false)
   })
 
   it('puts a new task into the milestone of another task', async () => {

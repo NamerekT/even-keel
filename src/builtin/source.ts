@@ -80,6 +80,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
     labels: task.labels,
     // TrackerTask counts hours, the store minutes.
     estimate: task.estimate === null ? null : task.estimate / 60,
+    ...(task.component === null ? {} : { component: task.component }),
   })
   const refs = async (keys: TaskKey[]): Promise<TaskRef[]> => {
     const found: TaskRef[] = []
@@ -105,6 +106,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
       statuses: [...BUILTIN_STATUSES],
       labels: labels.map((name) => ({ name, builtin: builtin.has(name.toLocaleLowerCase()) })),
       ancestors: await refs((await store.ancestors(task)).map((number) => ({ project: task.project, number }))),
+      components: (await store.components(task.project)).map((each) => each.name),
     }
   }
   const milestoneOf = async (task: string | null): Promise<string | null> => (task === null ? null : ((await find(task))?.milestone?.name ?? null))
@@ -168,6 +170,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         labels: task.labels,
         milestone: task.milestone === null ? null : { label: task.milestone.name, targetDate: task.milestone.date },
         ...(task.estimate === null ? {} : { estimate: task.estimate }),
+        component: task.component,
         parent,
         blockedBy: await refs(task.blockedBy),
         blocks: await refs(task.blocks),
@@ -236,6 +239,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         statuses: [...BUILTIN_STATUSES],
         labels: uniqueNames([...BUILTIN_LABELS, ...(await store.labels(project)).map((label) => label.name)]),
         milestones: (await store.milestones(project)).map((each) => each.name),
+        components: (await store.components(project)).map((each) => each.name),
       }
     },
     editor: builtinEditor({ store, names, must, trackerTask, ...(files === undefined ? {} : { files }) }),

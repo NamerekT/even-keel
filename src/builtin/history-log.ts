@@ -23,8 +23,21 @@ export interface MilestoneChange {
   to: string | null
 }
 
+/**
+ * A change of a component of the built-in tracker (BTN-1288): its creation and deletion (`from` its name), its name, its
+ * description (`to` JSON of its difference).
+ */
+export interface ComponentChange {
+  at: string
+  by: ChangeAuthor['by']
+  model: string | null
+  field: 'created' | 'name' | 'description' | 'removed'
+  from: string | null
+  to: string | null
+}
+
 /** The author of a write: the tasks server's call names its agent (`writingAs`); otherwise `fallback`. */
-type Writer = [ChangeAuthor['by'], string | null, string | null]
+export type Writer = [ChangeAuthor['by'], string | null, string | null]
 
 export function writerOf(fallback: ChangeAuthor): Writer {
   const author = writingAuthor() ?? fallback
@@ -45,6 +58,22 @@ export async function logMilestone(tx: Transaction, at: string, writer: Writer, 
     'insert into builtin_history (project_id, milestone_id, at, author, model, author_name, field, before, after) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
     [project, milestone, at, ...writer, field, before, after],
   )
+}
+
+export async function logComponent(tx: Transaction, at: string, writer: Writer, project: string, component: string, change: Omit<ComponentChange, 'at' | 'by' | 'model'>): Promise<void> {
+  await tx.query(
+    'insert into builtin_history (project_id, component_id, at, author, model, author_name, field, before, after) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+    [project, component, at, ...writer, change.field, change.from, change.to],
+  )
+}
+
+/** The component's changes, oldest first; they outlive the component. */
+export async function componentHistory(db: Db, component: string): Promise<ComponentChange[]> {
+  const { rows } = await db.query<{ at: string; author: ChangeAuthor['by']; model: string | null; field: ComponentChange['field']; before: string | null; after: string | null }>(
+    'select at, author, model, field, before, after from builtin_history where component_id = $1 order by id',
+    [component],
+  )
+  return rows.map((row) => ({ at: row.at, by: row.author, model: row.model, field: row.field, from: row.before, to: row.after }))
 }
 
 /** The task's changes by its row id, oldest first. */

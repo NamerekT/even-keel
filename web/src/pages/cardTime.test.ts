@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardTimeOf } from './cardTime.js'
+import { cardTimeOf, estimateMinutes } from './cardTime.js'
 
 describe('cardTimeOf', () => {
   it('shows the estimate in minutes and the time in seconds in the same units', () => {
@@ -18,5 +18,27 @@ describe('cardTimeOf', () => {
 
   it('gives no row when neither is known', () => {
     expect(cardTimeOf(undefined, null)).toBeNull()
+  })
+})
+
+describe('estimateMinutes', () => {
+  it('reads plain minutes, hours and minutes, and fractional hours in either language', () => {
+    expect(estimateMinutes('20')).toBe(20)
+    expect(estimateMinutes(' 1ч 20м ')).toBe(80)
+    expect(estimateMinutes('1,5ч')).toBe(90)
+    expect(estimateMinutes('1.5 h')).toBe(90)
+    expect(estimateMinutes('2h30m')).toBe(150)
+    expect(estimateMinutes('45 мин')).toBe(45)
+    expect(estimateMinutes('45min')).toBe(45)
+    expect(estimateMinutes('1 час')).toBe(60)
+  })
+
+  it('takes an empty field as no estimate', () => {
+    expect(estimateMinutes('')).toBeNull()
+    expect(estimateMinutes('   ')).toBeNull()
+  })
+
+  it('refuses what it cannot read, a negative or a zero', () => {
+    for (const text of ['soon', '1ч ч', '-5', '0', 'ч', '20 20', '1м 1ч']) expect(estimateMinutes(text)).toBeUndefined()
   })
 })

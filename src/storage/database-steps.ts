@@ -817,4 +817,20 @@ export const STEPS: readonly string[] = [
   create index builtin_history_milestone on builtin_history (milestone_id, id);
   alter table tracker_exports add column history_summary boolean;
   `,
+  // The built-in tracker's components (BTN-1288, `docs/storage.md`): a name unique in the project ignoring case, a
+  // Markdown description, the time it was made; a task has at most one, `null` when its component is deleted. The
+  // history names a component's own changes by `component_id`, kept after it is gone.
+  `
+  create table builtin_components (
+    id          text primary key,
+    project_id  text not null,
+    name        text not null,
+    description text not null default '',
+    created_at  text not null
+  );
+  create unique index builtin_components_name on builtin_components (project_id, lower(name));
+  alter table builtin_tasks add column component_id text references builtin_components (id) on delete set null deferrable initially deferred;
+  alter table builtin_history add column component_id text;
+  create index builtin_history_component on builtin_history (component_id, id);
+  `,
 ]

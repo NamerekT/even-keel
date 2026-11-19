@@ -30,7 +30,7 @@ beforeAll(async () => {
 }, 120_000)
 afterAll(() => db.close())
 beforeEach(async () => {
-  await db.exec(`truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_task_labels, builtin_relations, builtin_comments,
+  await db.exec(`truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_components, builtin_task_labels, builtin_relations, builtin_comments,
     builtin_files, tracker_exports, tracker_export_tasks`)
   store = new BuiltinStore(db, ({ number }) => `ABC-${number}`)
   dir = mkdtempSync(join(tmpdir(), 'export-'))
@@ -46,7 +46,7 @@ const refusal = async (work: Promise<unknown>) => {
 }
 
 /** A tracker that keeps what it is given; `hold` keeps the first create waiting until it is let go. */
-function fakeTarget(options: { failComment?: boolean } = {}) {
+function fakeTarget(options: { failComment?: boolean; components?: string[] } = {}) {
   const created: TaskDraft[] = []
   const comments: { id: string; body: string }[] = []
   const attached: string[] = []
@@ -79,10 +79,14 @@ function fakeTarget(options: { failComment?: boolean } = {}) {
         return String(comments.length)
       },
       files: { attach: async (_id, files) => void attached.push(...files.map((each) => each.name)), comment: async () => '' },
+      ...(options.components === undefined ? {} : { components: true as const }),
     }
     return {
       title: 'GitHub', project: ABC, editor, close: async () => {},
-      vocabulary: { statuses: [{ name: 'Open', category: 'ToDo' }, { name: 'Open', category: 'Active' }], labels: ['Bug'], milestones: [] },
+      vocabulary: {
+        statuses: [{ name: 'Open', category: 'ToDo' }, { name: 'Open', category: 'Active' }], labels: ['Bug'], milestones: [],
+        ...(options.components === undefined ? {} : { components: options.components }),
+      },
       url: (key) => `https://github.example.com/${key}`,
     }
   }
@@ -138,6 +142,21 @@ describe('BuiltinExports', () => {
     expect(plan.losses.map((each) => [each.kind, each.names])).toEqual([['estimate', []], ['labels', ['Later']], ['milestones', ['v1']], ['history', []]])
     expect(tracker.created).toEqual([])
     expect(await db.query('select 1 from tracker_exports')).toMatchObject({ rows: [] })
+  })
+
+  it('gives a task the target’s component of its name, and plans the rest as lost (BTN-1288)', async () => {
+    await store.saveComponent(ABC, null, { name: 'Parser', description: '' })
+    await store.saveComponent(ABC, null, { name: 'Docs', description: '' })
+    await store.create({ project: ABC, title: 'Read', component: 'Parser' })
+    await store.create({ project: ABC, title: 'Write', component: 'Docs' })
+    const lost = (plan: Awaited<ReturnType<BuiltinExports['plan']>>) => plan.losses.find((each) => each.kind === 'components')
+    expect(lost(await exportsWith(fakeTarget()).plan(ABC, TARGET))).toEqual({ kind: 'components', tasks: ['ABC-1', 'ABC-2'], names: ['Parser', 'Docs'] })
+    const tracker = fakeTarget({ components: ['parser'] })
+    const exports = exportsWith(tracker)
+    expect(lost(await exports.plan(ABC, TARGET))).toEqual({ kind: 'components', tasks: ['ABC-2'], names: ['Docs'] })
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    expect(tracker.created.map((draft) => [draft.title, draft.component ?? null])).toEqual([['Read', 'parser'], ['Write', null]])
   })
 
   it('copies the tasks, records each new key and marks the old tasks', async () => {

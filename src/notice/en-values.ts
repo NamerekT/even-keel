@@ -31,12 +31,13 @@ export const sizeShown = (bytes: number, units: { kb: string; mb: string }) =>
 export const MODELS_NAMED = 8
 
 /** The short fields of a built-in tracker's task an edit checks one by one (`FieldEdit` of `src/builtin/store.ts`). */
-export type BuiltinField = 'title' | 'status' | 'priority' | 'milestone' | 'parent' | 'description'
+export type BuiltinField = 'title' | 'status' | 'priority' | 'milestone' | 'component' | 'parent' | 'description'
 export const BUILTIN_FIELDS: Record<BuiltinField, string> = {
   title: 'title',
   status: 'status',
   priority: 'priority',
   milestone: 'milestone',
+  component: 'component',
   parent: 'parent task',
   description: 'description',
 }

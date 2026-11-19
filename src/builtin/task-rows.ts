@@ -18,6 +18,8 @@ export interface BuiltinTask extends TaskKey {
   status: TaskStatus
   priority: TaskPriority
   milestone: BuiltinMilestone | null
+  /** The component's name (BTN-1288); `null` — none. */
+  component: string | null
   /** The parent's number in the same project. */
   parent: number | null
   subtasks: number
@@ -62,6 +64,8 @@ export interface NewBuiltinTask {
   priority?: TaskPriority
   /** Created when the project has none of this name. */
   milestone?: string | null
+  /** One of the project's components by name; an unknown one is refused, never created. */
+  component?: string | null
   parent?: number | null
   labels?: string[]
   /** Minutes of the agent's work; none by default. */
@@ -80,6 +84,8 @@ export type FieldEdit =
   | { field: 'priority'; from: TaskPriority; to: TaskPriority }
   /** By name; a new name creates the milestone. */
   | { field: 'milestone'; from: string | null; to: string | null }
+  /** By name; an unknown name is refused, or made a new component with `create` (the card's "Create"). */
+  | { field: 'component'; from: string | null; to: string | null; create?: boolean }
   | { field: 'parent'; from: number | null; to: number | null }
   /** The whole text, as typed: the card's editor (BTN-772). An agent's edits go by revision or by patch. */
   | { field: 'description'; from: string; to: string }
@@ -108,12 +114,15 @@ export const fileOf = (row: BuiltinFile): BuiltinFile => ({ id: row.id, name: ro
 /** The tasks of the projects, or the one of `number`, by project and number. */
 export async function readTasks(db: Db, projects: readonly string[], number?: number): Promise<BuiltinTask[]> {
   if (projects.length === 0) return []
-  const { rows } = await db.query<TaskRow & { estimate: number | null; milestone: string | null; milestone_date: number | null; parent: number | null; subtasks: number }>(
+  const { rows } = await db.query<
+    TaskRow & { estimate: number | null; milestone: string | null; milestone_date: number | null; component: string | null; parent: number | null; subtasks: number }
+  >(
     `select t.id, t.project_id, t.number, t.title, t.description, t.description_rev, t.status, t.priority, t.version,
-            t.created_at, t.updated_at, t.estimate, m.name as milestone, m.date::float8 as milestone_date, p.number as parent,
-            (select count(*)::int from builtin_tasks c where c.parent_id = t.id) as subtasks
+            t.created_at, t.updated_at, t.estimate, m.name as milestone, m.date::float8 as milestone_date, k.name as component,
+            p.number as parent, (select count(*)::int from builtin_tasks c where c.parent_id = t.id) as subtasks
        from builtin_tasks t
        left join builtin_milestones m on m.id = t.milestone_id
+       left join builtin_components k on k.id = t.component_id
        left join builtin_tasks p on p.id = t.parent_id
       where t.project_id = any($1) and ($2::int is null or t.number = $2)
       order by t.project_id, t.number`,
@@ -146,6 +155,7 @@ export async function readTasks(db: Db, projects: readonly string[], number?: nu
       status: builtinStatus(row.status) ?? { name: row.status, category: 'UnStarted' },
       priority: priorityOf(row.priority),
       milestone: row.milestone === null ? null : { name: row.milestone, date: row.milestone_date },
+      component: row.component,
       parent: row.parent,
       subtasks: row.subtasks,
       labels: labels.rows.filter((label) => label.task_id === row.id).map((label) => label.name),
@@ -182,11 +192,14 @@ export function priorityOf(priority: string): TaskPriority {
   return priority as TaskPriority
 }
 
-/** A field's value as compared: a status and a milestone by name ignoring case, a title as trimmed, a description as is. */
+/**
+ * A field's value as compared: a status, a milestone and a component by name ignoring case, a title as trimmed, a
+ * description as is.
+ */
 export function normal(field: FieldEdit['field'], value: string | number | null): string | number | null {
   if (value === null || typeof value === 'number') return value
   if (field === 'status') return builtinStatus(value)?.name ?? value.trim()
-  if (field === 'milestone') return value.trim().toLocaleLowerCase()
+  if (field === 'milestone' || field === 'component') return value.trim().toLocaleLowerCase()
   return field === 'title' ? value.trim() : value
 }
 

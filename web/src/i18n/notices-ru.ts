@@ -10,6 +10,7 @@ const BUILTIN_FIELDS: Record<BuiltinField, string> = {
   status: 'статус',
   priority: 'приоритет',
   milestone: 'веху',
+  component: 'компонент',
   parent: 'родительскую задачу',
   description: 'описание',
 }
@@ -641,6 +642,12 @@ export const noticesRu: NoticeTexts = {
   'builtin.noNote': (p) => `у ${p.task} нет такой вашей заметки: удалить можно только свою, а страница, возможно, устарела`,
   'builtin.emptyName': () => 'имя пустое',
   'builtin.noMilestone': () => 'такой вехи нет — возможно, страница устарела',
+  'builtin.noComponent': () => 'такого компонента нет — возможно, страница устарела',
+  'builtin.componentTaken': (p) => `компонент «${p.name}» в проекте уже есть — выберите другое имя`,
+  'builtin.componentBusy': (p) =>
+    p.why === 'current'
+      ? `${p.task} из компонента ${p.component} — текущая задача цепи: пропустите её или остановите цепь, потом удаляйте компонент`
+      : `у ${p.task} из компонента ${p.component} живая сессия: остановите её, потом удаляйте компонент`,
   'builtin.badStatus': (p) => `статуса «${p.status}» нет; статусы: ${list(p.statuses)}`,
   'builtin.badPriority': (p) => `приоритета «${p.priority}» нет`,
   'builtin.noProject': (p) => `проект ${p.project} не хранит задачи в Even Keel`,

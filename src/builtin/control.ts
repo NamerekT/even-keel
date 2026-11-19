@@ -10,6 +10,7 @@ import { refuseWhileExporting } from './exporting.js'
 import { BuiltinFiles, fileUrl, readLimited } from './files.js'
 import { ATTACHMENT_LIMIT_MB, BUILTIN, type RelationKind } from './model.js'
 import { BuiltinNames } from './source.js'
+import type { BuiltinComponent, ComponentFields } from './components.js'
 import { BuiltinStore, type BuiltinTask, type FieldEdit, type TaskKey } from './store.js'
 
 const SEARCH_LIMIT = 20
@@ -75,6 +76,17 @@ export interface BuiltinControl {
   attach(task: string, upload: BuiltinUpload): Promise<BuiltinAttached>
   /** Deletes the attachment record `file`; its bytes stay for a day, so an undone edit still shows the picture. */
   detach(task: string, file: string): Promise<void>
+  /** Sets the task's estimate in minutes from the card (BTN-1288); `null` clears it. */
+  estimate(task: string, minutes: number | null): Promise<BuiltinView>
+  /** The project's components by name with their task counts (BTN-1288). */
+  components(project: string): Promise<BuiltinComponent[]>
+  /** Creates the component (`id` `null`) or changes its name and description. */
+  saveComponent(project: string, id: string | null, fields: ComponentFields): Promise<{ id: string }>
+  /**
+   * Deletes the component, its tasks, closed ones too, going to the component `to` or to none; refused while one of them
+   * is the chain's current task or a session of it is live.
+   */
+  removeComponent(project: string, id: string, to: string | null): Promise<void>
 }
 
 export interface BuiltinUpload {
@@ -268,6 +280,34 @@ export function builtinControl({
       const task = await writable(names, store, id)
       if (!(await filesOf(store).remove(task, file))) throw fail('builtin.noFile', { task: names.name(task) })
       await refresh(task.project)
+    },
+    estimate: (id, minutes) => write(id, (store, task) => store.setEstimate(task, minutes)),
+    async components(project) {
+      const { names, store } = open()
+      if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      return store.components(project)
+    },
+    async saveComponent(project, id, fields) {
+      const { names, store } = open()
+      if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      refuseWhileExporting(project)
+      const saved = await store.saveComponent(project, id, fields)
+      await refresh(project)
+      return { id: saved }
+    },
+    async removeComponent(project, id, to) {
+      const { names, store } = open()
+      if (!names.knows(project)) throw fail('builtin.noProject', { project })
+      refuseWhileExporting(project)
+      const component = (await store.components(project)).find((each) => each.id === id)
+      if (component === undefined) throw fail('builtin.noComponent', {})
+      for (const task of await store.list([project])) {
+        if (task.component !== component.name) continue
+        const why = busy(names.name(task))
+        if (why !== null) throw fail('builtin.componentBusy', { component: component.name, task: names.name(task), why })
+      }
+      await store.removeComponent(project, id, to)
+      await refresh(project)
     },
   }
 }

@@ -296,6 +296,15 @@ export function TrashIcon() {
   )
 }
 
+/** Change a value in place: a pencil. */
+export function PencilIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M10.75 2.25l3 3-8.5 8.5H2.25v-3zM9.25 3.75l3 3" />
+    </svg>
+  )
+}
+
 /** The groups of a page: three lines. */
 export function MenuIcon() {
   return (
