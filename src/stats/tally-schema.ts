@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 // The schema version of the Tally database (BTN-133). The collector migrates up to it
 // (tally/src/migrations.ts, one step per version); the page refuses a database newer than this.
-export const TALLY_SCHEMA_VERSION = 18
+export const TALLY_SCHEMA_VERSION = 19
 
 // The step files of the build on disk: the sources under tsx, the copies in `dist/tally/src/` from the build.
 const STEP_FILES = fileURLToPath(new URL('../../tally/src/migrations/', import.meta.url))

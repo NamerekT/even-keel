@@ -18,8 +18,14 @@ import type { PeriodQuery, StatsAnswer, StatsPeriod } from '../stats/model.js'
 
 /** The project's numbers are read from the stats no more often than this. */
 export const BADGE_STATS_MS = 15 * 60_000
-/** A read whose answer was not `ok` (the stats not ready after a start, off, failed) is tried again this soon. */
+/**
+ * A read whose answer was not `ok` is tried again this soon: every time when the stats are off or newer (not ready after
+ * a start), the first time after an error or a failure, whose pause then doubles up to `BADGE_STATS_MS` (BTN-1351): a
+ * read cancelled by the statement timeout must not load the database every minute.
+ */
 export const BADGE_STATS_RETRY_MS = 60_000
+/** The kinds of a failed read that back off: the database answered with an error or did not answer. */
+const BACKING_OFF: ReadonlySet<string> = new Set(['error', 'failed'])
 /**
  * How long after the start a badge waits for its inputs before it is pushed with what there is (BTN-973): the gap a
  * poor first push used to take to be replaced, and short enough for the Worker's picture not to go stale (5 min).
@@ -95,8 +101,8 @@ export interface BadgeWiring {
 export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
   const now = deps.now ?? Date.now
   const tz = deps.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  /** `good` — a read was `ok` once since the start; `failed` — the last read was not. */
-  const numbers = new Map<string, { at: number; stats: BadgeStats | null; failed: StatsFailure | null; good: boolean }>()
+  /** `good` — a read was `ok` once since the start; `failed` — the last read was not; `pause` — until the next read. */
+  const numbers = new Map<string, { at: number; stats: BadgeStats | null; failed: StatsFailure | null; good: boolean; pause: number }>()
   const reading = new Set<string>()
   const log = deps.log ?? ((line: string) => console.log(line))
   let translations = deps.translations
@@ -115,12 +121,12 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     return translations.title({ tracker, id, title: task.title }, config.settings[project]?.badge?.on === true)
   }
 
-  /** A failed read keeps the last good numbers, is retried every minute and logged once per change of its kind. */
+  /** A failed read keeps the last good numbers, is retried after `BADGE_STATS_RETRY_MS` and logged once per change of its kind. */
   const statsOf = (project: string): BadgeStats | null => {
     const key = deps.config().keys[project]
     if (key === undefined) return null
     const known = numbers.get(key)
-    const due = known === undefined || now() - known.at >= (known.failed === null ? BADGE_STATS_MS : BADGE_STATS_RETRY_MS)
+    const due = known === undefined || now() - known.at >= known.pause
     if (due && !reading.has(key)) {
       reading.add(key)
       const query: PeriodQuery = { scope: 'all', account: null, tz, includeTests: true, ...badgeStatsRange(new Date(now()), tz), projects: [key] }
@@ -132,11 +138,15 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
           const before = numbers.get(key)
           if ('stats' in read) {
             if (before?.failed != null) log(`badge: the stats of ${key} are read again`)
-            numbers.set(key, { at: now(), stats: read.stats, failed: null, good: true })
+            numbers.set(key, { at: now(), stats: read.stats, failed: null, good: true, pause: BADGE_STATS_MS })
             return
           }
-          if (before?.failed?.kind !== read.failed.kind) log(`badge: the stats of ${key} are not read (${read.failed.text}); retried every minute`)
-          numbers.set(key, { at: now(), stats: before?.stats ?? null, failed: read.failed, good: before?.good ?? false })
+          const backs = BACKING_OFF.has(read.failed.kind)
+          const backed = backs && before?.failed != null && BACKING_OFF.has(before.failed.kind)
+          const pause = backed ? Math.min(before!.pause * 2, BADGE_STATS_MS) : BADGE_STATS_RETRY_MS
+          const retried = backs ? `retried after a pause that doubles from 1 to ${BADGE_STATS_MS / 60_000} min` : 'retried every minute'
+          if (before?.failed?.kind !== read.failed.kind) log(`badge: the stats of ${key} are not read (${read.failed.text}); ${retried}`)
+          numbers.set(key, { at: now(), stats: before?.stats ?? null, failed: read.failed, good: before?.good ?? false, pause })
         })
         .finally(() => reading.delete(key))
     }

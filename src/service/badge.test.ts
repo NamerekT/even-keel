@@ -272,35 +272,77 @@ describe('wireBadges', () => {
       expect(r.wiring.svg(ABC, 'dark')).toMatch(sessions(4))
     })
 
+    /** Reads nothing new until `ms` pass since the last read, then reads once. */
+    const readsAfter = async (r: ReturnType<typeof rig>, ms: number) => {
+      const before = r.queries.length
+      r.wait(ms - 1)
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      expect(r.queries).toHaveLength(before)
+      r.wait(1)
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      expect(r.queries).toHaveLength(before + 1)
+    }
+
+    it('backs off after an error or a failure up to 15 minutes, and starts over after a good read (BTN-1351)', async () => {
+      const r = rig()
+      r.answer({ state: 'error', error: 'canceling statement due to statement timeout' })
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      for (const minutes of [1, 2, 4]) await readsAfter(r, minutes * 60_000)
+      r.failPeriod()
+      for (const minutes of [8, 15, 15]) await readsAfter(r, minutes * 60_000)
+      r.failPeriod(false)
+      r.answer({ state: 'ok', data: period })
+      await readsAfter(r, BADGE_STATS_MS)
+      r.answer({ state: 'error', error: 'unavailable' })
+      await readsAfter(r, BADGE_STATS_MS)
+      await readsAfter(r, 60_000)
+      await readsAfter(r, 2 * 60_000)
+    })
+
+    it('retries a stats read that is off or newer every minute (BTN-1351)', async () => {
+      const r = rig()
+      r.answer({ state: 'error', error: 'unavailable' })
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      await readsAfter(r, 60_000)
+      r.answer({ state: 'off', reason: 'not ready' })
+      await readsAfter(r, 2 * 60_000)
+      for (let i = 0; i < 3; i++) await readsAfter(r, BADGE_STATS_RETRY_MS)
+      r.answer({ state: 'newer', version: 99, known: 19, restart: true })
+      for (let i = 0; i < 3; i++) await readsAfter(r, BADGE_STATS_RETRY_MS)
+    })
+
     it('logs one line per change of state, not one per retry', async () => {
       const r = rig()
       r.answer({ state: 'error', error: 'unavailable' })
-      for (let i = 0; i < 3; i++) {
-        r.wiring.svg(ABC, 'dark')
-        await settle()
-        r.wait(BADGE_STATS_RETRY_MS)
-      }
+      r.wiring.svg(ABC, 'dark')
+      await settle()
+      for (const minutes of [1, 2]) await readsAfter(r, minutes * 60_000)
       r.failPeriod()
-      r.wiring.svg(ABC, 'dark')
-      await settle()
-      r.wait(BADGE_STATS_RETRY_MS)
-      r.wiring.svg(ABC, 'dark')
-      await settle()
-      expect(r.queries).toHaveLength(5)
+      await readsAfter(r, 4 * 60_000)
+      await readsAfter(r, 8 * 60_000)
+      r.answer({ state: 'off', reason: 'not ready' })
+      r.failPeriod(false)
+      await readsAfter(r, BADGE_STATS_MS)
+      await readsAfter(r, BADGE_STATS_RETRY_MS)
+      expect(r.queries).toHaveLength(7)
       const stats = () => r.lines.filter((line) => line.includes('stats of ABC'))
       expect(stats()).toEqual([
-        'badge: the stats of ABC are not read (error: unavailable); retried every minute',
-        'badge: the stats of ABC are not read (failed: stats unavailable); retried every minute',
+        'badge: the stats of ABC are not read (error: unavailable); retried after a pause that doubles from 1 to 15 min',
+        'badge: the stats of ABC are not read (failed: stats unavailable); retried after a pause that doubles from 1 to 15 min',
+        'badge: the stats of ABC are not read (off: not ready); retried every minute',
       ])
       r.wait(BADGE_STATS_RETRY_MS)
-      r.failPeriod(false)
       r.answer({ state: 'ok', data: period })
       r.wiring.svg(ABC, 'dark')
       await settle()
       r.wait(BADGE_STATS_MS)
       r.wiring.svg(ABC, 'dark')
       await settle()
-      expect(stats().slice(2)).toEqual(['badge: the stats of ABC are read again'])
+      expect(stats().slice(3)).toEqual(['badge: the stats of ABC are read again'])
     })
 
     it('makes the warm-up wait for a good answer', async () => {

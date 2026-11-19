@@ -243,8 +243,10 @@ They are read in the background at most every 15 min, cached by the project's cu
 The key comes from the live config; projects sharing it use the same numbers and the stats reader's `firstByKey`
 repository mapping, just like `/stats`. A changed key never shows the previous key's cached numbers. Without a configured
 key the badge has no numbers; a successfully read empty period shows `0 sessions` without medians. An answer other than
-`ok` (`off`, `error`, `newer`) or a thrown read is not cached for 15 min: it is retried every minute
-(`BADGE_STATS_RETRY_MS`) and the last good numbers, if any, stay on the badge until the next `ok`; before the first one
+`ok` is not cached for 15 min. `off` and `newer` (Tally not ready after a start) are retried every minute
+(`BADGE_STATS_RETRY_MS`); `error` and a thrown read (a statement timeout, a lost connection) after 1 min, then a pause
+that doubles to 2, 4, 8 and at most 15 min, back to 15 min after the next `ok` (BTN-1351): a read the database cancels
+must not load it every minute. The last good numbers, if any, stay on the badge until the next `ok`; before the first one
 the badge has none. Such a failure is logged once per change of its kind (`badge: the stats of <key> are not read
 (…)`), and the recovery once (`… are read again`). The cache is in memory and read anew after a restart.
 
