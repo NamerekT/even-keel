@@ -60,7 +60,7 @@ const effortArgs = (effort: string | undefined): string[] => (effort === undefin
  * Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. `plugins` — `CodexPlugins.args`.
  * A project with a `CLAUDE.md` and no `AGENTS.md` still gives the session its rules (BTN-340, checked on 0.164.0).
  */
-export function turnArgs(start: Pick<SessionStart, 'model' | 'effort' | 'bypassSandbox' | 'mcp' | 'noMemory' | 'contextWindow' | 'outsideRepo'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
+export function turnArgs(start: Pick<SessionStart, 'model' | 'effort' | 'bypassSandbox' | 'mcp' | 'noMemory' | 'contextWindow' | 'outsideRepo'>, resumeId?: string, plugins: string[] = []): string[] {
   const { model, bypassSandbox, mcp = [] } = start
   return [
     'exec',
@@ -77,7 +77,7 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'effort' | 'bypassS
     ...mcpArgs(mcp),
     ...plugins,
     ...(resumeId === undefined ? [] : ['resume', resumeId]),
-    prompt,
+    '-',
   ]
 }
 
@@ -210,7 +210,7 @@ export class CodexCli {
     const { name, cwd } = start
     await this.protect(home, start, cwd)
     const plugins = await this.pluginArgs(home, start, cwd)
-    const turn = await this.turn(home, start, turnArgs(start, start.prompt, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
+    const turn = await this.turn(home, start, turnArgs(start, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
     const window = start.contextWindow === undefined ? {} : { contextWindow: start.contextWindow }
     await this.saveTurn({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out, ...window })
     return turn.thread
@@ -223,7 +223,7 @@ export class CodexCli {
     await this.protect(home, start, cwd)
     const plugins = await this.pluginArgs(home, start, cwd)
     const own = { ...start, contextWindow: session.contextWindow }
-    const turn = await this.turn(home, start, turnArgs(own, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
+    const turn = await this.turn(home, start, turnArgs(own, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
     if (turn.thread !== sessionId) throw fail('codex.otherThread', { task: name, asked: sessionId, got: turn.thread })
     const { stopped: _, ...kept } = session
     await this.saveTurn({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
@@ -362,11 +362,13 @@ export class CodexCli {
         cwd,
         env: this.envOf(home),
         detached: true,
-        stdio: ['ignore', fd, fd],
+        stdio: ['pipe', fd, fd],
         windowsHide: true,
       })
       child.on('error', () => (exited = true))
       child.on('exit', () => (exited = true))
+      // An early CLI exit can close stdin during the write. Its diagnostic is in the turn file below.
+      child.stdin!.on('error', () => {}).end(start.prompt)
       child.unref()
     } catch (error) {
       throw new NoticeError({ ...failure, detail: (error as Error).message }, { cause: error })
