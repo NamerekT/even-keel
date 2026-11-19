@@ -56,15 +56,17 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       const session = sessionOf(chat)
       const home = ctx.homeOf(session.account)
       const next = startOf(project, chat, session.cwd, start, home.agent)
+      const went = ctx.liveView(chat)?.hungSince != null ? undefined : await ctx.agentOf(home).reply?.(home, session, next)
+      if (went != null) return went
+      if (ctx.agentStatus(chat) === 'busy') {
+        console.log(`chats: ${chat}: refused the message because session ${session.sessionId} is busy (chats.busy)`)
+        throw fail('chats.busy', {})
+      }
       return ctx.monitor.holds.during(session.sessionId, async () => {
-        const went = ctx.liveView(chat)?.hungSince != null ? undefined : await ctx.agentOf(home).reply?.(home, session, next)
-        if (went != null) return went
-        // A turn under way is never cut for a message: the user waits for its answer (invariant 1).
-        if (ctx.agentStatus(chat) === 'busy') throw fail('chats.busy', {})
         await ctx.stopIn(home, session)
         await ctx.daemons.prepare(home)
         return ctx.resumeIn(home, session, next)
-      }, null)
+      }, ctx.liveView(chat)?.ask?.id ?? null)
     },
     stop: async (chat) => {
       const session = ctx.monitor.handoff(chat)
