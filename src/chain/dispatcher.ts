@@ -646,7 +646,10 @@ export class Dispatcher {
   }
 
   private kick(): void {
-    this.work = this.work.then(() => this.advance())
+    // A failed pass is logged and the next kick runs: a rejected `work` would skip every later pass and stop the service.
+    this.work = this.work
+      .then(() => this.advance())
+      .catch((error: unknown) => this.deps.log(`chain: a pass of the dispatcher failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`))
   }
 
   /** The task was moved by hand off a machine gone (BTN-1270): its lane there ends, and the project goes on elsewhere. */
@@ -676,8 +679,14 @@ export class Dispatcher {
       const chain = this.state.active.find((each) => !seen.has(each))
       if (chain === undefined) return
       seen.add(chain)
-      if (!(await this.handovers.guard(chain))) continue
-      await this.step(chain)
+      try {
+        if (!(await this.handovers.guard(chain))) continue
+        await this.step(chain)
+      } catch (error) {
+        // A bug in a step pauses its chain only: thrown on, it would stop the service and every chain with it (BTN-1330).
+        this.deps.log(`chain: a step of ${chain.project} failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)
+        this.halt(chain, notice('chain.stepFailed', {}, { detail: error instanceof Error ? error.message : String(error) }), true)
+      }
     }
   }
 
@@ -711,20 +720,25 @@ export class Dispatcher {
         return
       }
 
-      if (chain.current !== null) {
-        const { task, sessionId } = chain.current
+      const current = chain.current
+      if (current !== null) {
+        const { task, sessionId } = current
+        // A skip or a release from the page may end the task while the step awaits (BTN-1330): the step starts over.
+        const moved = () => chain.current !== current
         if (sessionId === null) {
           this.halt(chain, notice('chain.interrupted', { task }))
           return
         }
         if (isFixName(task)) {
           if (this.fixes === null) chain.current = null
-          else if (!(await this.fixes.follow(chain, chain.current))) {
+          else if (!(await this.fixes.follow(chain, current)) && !moved()) {
             // A fix session that found nothing to fix (EKR-88) is over once the red commit turns green, as after a rerun.
-            const mark = await this.unchanged.check(chain, chain.current)
+            const mark = await this.unchanged.check(chain, current)
+            if (moved()) continue
             if (mark === 'acted') return
-            if (mark === null || !(await this.fixes.unneeded(chain, chain.current))) {
-              await this.handovers.follow(chain, chain.current)
+            if (mark === null || !(await this.fixes.unneeded(chain, current))) {
+              if (moved()) continue
+              await this.handovers.follow(chain, current)
               return
             }
           }
@@ -732,9 +746,9 @@ export class Dispatcher {
         }
         // A fix session is not let go by unattended mode: that would launch tasks on a red main (BTN-693).
         if (isCarryName(task)) {
-          if (await this.carries.follow(chain, chain.current)) continue
-          if (!unanswered(this.state, this.deps, chain.current)) {
-            await this.handovers.follow(chain, chain.current)
+          if ((await this.carries.follow(chain, current)) || moved()) continue
+          if (!unanswered(this.state, this.deps, current)) {
+            await this.handovers.follow(chain, current)
             return
           }
           this.carries.letGo(chain, 'is let go after ten quiet minutes in unattended mode')
@@ -748,23 +762,24 @@ export class Dispatcher {
             this.deps.save(this.state)
             continue
           }
-          shelve(this.state, this.deps, chain.project, chain.current)
+          shelve(this.state, this.deps, chain.project, current)
           this.letGo(chain)
           this.deps.save(this.state)
         } else {
           const blockers = openBlockers([...tasks, ...(this.lists.waiting.get(chain.project) ?? [])], task)
           if (blockers.length > 0 && !this.deps.machine.busy(task)) {
             this.release(chain, 'postpone', blockers)
-          } else if ((await this.reviews.follow(chain, chain.current)) || (await this.unchanged.follow(chain, chain.current))) {
+          } else if ((await this.reviews.follow(chain, current)) || moved() || (await this.unchanged.follow(chain, current)) || moved()) {
             // Feedback or a hint went to the session, which leads the chain on; a released or done task left the task list.
             if (chain.current !== null) return
             continue
-          } else if (unanswered(this.state, this.deps, chain.current)) {
+          } else if (unanswered(this.state, this.deps, current)) {
             const skipped = (this.state.skipped[chain.project] ??= [])
             if (!skipped.includes(task)) skipped.push(task)
             this.release(chain, 'skip', [])
-          } else if (this.fixes === null || !(await this.fixes.yields(chain, chain.current))) {
-            await this.handovers.follow(chain, chain.current)
+          } else if (this.fixes === null || !(await this.fixes.yields(chain, current))) {
+            if (moved()) continue
+            await this.handovers.follow(chain, current)
             return
           }
           this.deps.save(this.state)
@@ -867,11 +882,11 @@ export class Dispatcher {
 
       delete chain.limitUntil
       delete chain.modelWeek
-      const current: CurrentTask = { task, sessionId: null, since, starting: since }
-      this.take(chain, current)
+      const starting: CurrentTask = { task, sessionId: null, since, starting: since }
+      this.take(chain, starting)
       this.deps.save(this.state)
       const feedback = own === undefined ? (this.reviews.feedbackOf(chain.project, task) ?? this.reviews.closedNoteOf(chain.project, task)) : undefined
-      await startTask(this.state, this.deps, chain, current, fix, carry, feedback,
+      await startTask(this.state, this.deps, chain, starting, fix, carry, feedback,
         () => this.reviews.delivered(chain.project, task), (failure) => this.halt(chain, failure))
       return
     }

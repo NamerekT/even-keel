@@ -44,6 +44,9 @@ export function fakeMain(wait: number | null = null) {
     fixTask: true,
     /** Tasks and fix sessions whose branch is in main. */
     merged: new Set<string>(),
+    /** While set, every `merged` answer waits for it: a step is caught between its awaits (BTN-1330). */
+    mergedGate: null as Promise<void> | null,
+    mergedAsks: 0,
     /** Whether the project has `commands.afterGreen`. */
     afterGreen: false,
     /** How the run of `commands.afterGreen` on a commit ends; done when missing, a promise holds it. */
@@ -107,7 +110,11 @@ export function fakeMain(wait: number | null = null) {
     },
     fixTask: () => ci.fixTask,
     fixName,
-    merged: async (_project, id) => (ci.merged.has(id) ? [`${id}-commit`] : []),
+    merged: async (_project, id) => {
+      ci.mergedAsks++
+      if (ci.mergedGate !== null) await ci.mergedGate
+      return ci.merged.has(id) ? [`${id}-commit`] : []
+    },
     afterGreen: () => ci.afterGreen,
     green: (project, commit) => void ci.greens.push(`${project}@${commit}`),
     runAfterGreen: async (project, commit) => {
