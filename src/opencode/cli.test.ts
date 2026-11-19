@@ -24,29 +24,15 @@ import {
 
 describe('turnArgs', () => {
   it('titles a new session with its task and resumes one by its id', () => {
-    expect(turnArgs({ name: 'DEMO-1', model: 'opencode/big-pickle' }, 'DEMO-1')).toEqual([
-      'run',
-      '--format',
-      'json',
-      '-m',
-      'opencode/big-pickle',
-      '--title',
-      'DEMO-1',
-      '--',
-      'DEMO-1',
-    ])
-    expect(turnArgs({ name: 'DEMO-1', model: null }, 'go on', 'ses_abc')).toEqual(['run', '--format', 'json', '-s', 'ses_abc', '--', 'go on'])
-  })
-
-  it('keeps a prompt that starts with a dash, as a reply does, from being read as an option', () => {
-    expect(turnArgs({ name: 'DEMO-1', model: null }, '- "Q" → yes', 'ses_abc').slice(-2)).toEqual(['--', '- "Q" → yes'])
+    expect(turnArgs({ name: 'DEMO-1', model: 'opencode/big-pickle' })).toEqual(['run', '--format', 'json', '-m', 'opencode/big-pickle', '--title', 'DEMO-1'])
+    expect(turnArgs({ name: 'DEMO-1', model: null }, 'ses_abc')).toEqual(['run', '--format', 'json', '-s', 'ses_abc'])
   })
 
   it("passes the run's effort as the model's variant on a new session and a resume", () => {
-    expect(turnArgs({ name: 'DEMO-1', model: 'openai/gpt-example', effort: 'high' }, 'DEMO-1')).toEqual([
-      'run', '--format', 'json', '-m', 'openai/gpt-example', '--variant', 'high', '--title', 'DEMO-1', '--', 'DEMO-1',
+    expect(turnArgs({ name: 'DEMO-1', model: 'openai/gpt-example', effort: 'high' })).toEqual([
+      'run', '--format', 'json', '-m', 'openai/gpt-example', '--variant', 'high', '--title', 'DEMO-1',
     ])
-    expect(turnArgs({ name: 'DEMO-1', model: null, effort: 'max' }, 'go on', 'ses_abc')).toEqual(['run', '--format', 'json', '--variant', 'max', '-s', 'ses_abc', '--', 'go on'])
+    expect(turnArgs({ name: 'DEMO-1', model: null, effort: 'max' }, 'ses_abc')).toEqual(['run', '--format', 'json', '--variant', 'max', '-s', 'ses_abc'])
   })
 })
 

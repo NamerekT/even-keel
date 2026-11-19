@@ -85,10 +85,10 @@ export function resolveOpenCodeBinary(env: NodeJS.ProcessEnv, pinned?: string, m
 
 /**
  * A new session is titled with its task, so its own TUI shows it by name; a resume names the session instead. The
- * prompt goes after `--`: a reply starts with `- "question" → answer`, which `run` would read as an option. The run's
- * effort is the model's `--variant`.
+ * prompt goes on stdin, as `Agent.write`'s does: a Windows command line holds 32,767 characters, and a reply starting
+ * with `- "question" → answer` is no option there. The run's effort is the model's `--variant`.
  */
-export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort'>, prompt: string, resumeId?: string): string[] {
+export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort'>, resumeId?: string): string[] {
   const { name, model, effort } = start
   return [
     'run',
@@ -97,8 +97,6 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort'>,
     ...(model === null ? [] : ['-m', model]),
     ...(effort === undefined ? [] : ['--variant', effort]),
     ...(resumeId === undefined ? ['--title', name] : ['-s', resumeId]),
-    '--',
-    prompt,
   ]
 }
 
@@ -284,7 +282,7 @@ export class OpenCodeCli {
     this.requireSupported(home, start.model)
     const { name, cwd } = start
     const window = sessionWindow(await readCatalogue(home.dir), start.model, start.contextWindow)
-    const turn = await this.turn(home, start, turnArgs(start, start.prompt), cwd, notice('opencode.startFailed', { task: name, cwd }), window)
+    const turn = await this.turn(home, start, turnArgs(start), cwd, notice('opencode.startFailed', { task: name, cwd }), window)
     const kept = window === undefined ? {} : { contextWindow: window.window }
     this.registry.save({ sessionId: turn.session, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out, ...kept })
     return turn.session
@@ -308,7 +306,7 @@ export class OpenCodeCli {
     const window = sessionWindow(await readCatalogue(home.dir), model, session.contextWindow)
     // Only a hung turn is still live here: two processes must not write one session.
     await this.endTurn(session)
-    const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId), cwd, notice('opencode.resumeFailed', { task: name, cwd }), window)
+    const turn = await this.turn(home, start, turnArgs(start, sessionId), cwd, notice('opencode.resumeFailed', { task: name, cwd }), window)
     if (turn.session !== sessionId) throw fail('opencode.otherSession', { task: name, asked: sessionId, got: turn.session })
     const { stopped: _, ...kept } = session
     this.registry.save({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
@@ -425,11 +423,13 @@ export class OpenCodeCli {
         cwd,
         env: { ...this.envOf(home), PWD: cwd, OPENCODE_CONFIG_CONTENT: config },
         detached: true,
-        stdio: ['ignore', fd, fd],
+        stdio: ['pipe', fd, fd],
         windowsHide: true,
       })
       child.on('error', () => (exited = true))
       child.on('exit', () => (exited = true))
+      // An early CLI exit can close stdin during the write. Its diagnostic is in the turn file below.
+      child.stdin!.on('error', () => {}).end(start.prompt)
       child.unref()
     } catch (error) {
       throw new NoticeError({ ...failure, detail: (error as Error).message }, { cause: error })
@@ -437,7 +437,7 @@ export class OpenCodeCli {
       closeSync(fd)
     }
     const deadline = at + APPEAR_TIMEOUT_MS
-    const resuming = args.slice(0, args.indexOf('--')).includes('-s')
+    const resuming = args.includes('-s')
     for (;;) {
       const text = await readFile(out, 'utf8').catch(() => '')
       const session = sessionOf(text) ?? (resuming ? undefined : await this.titled(home, start.name, cwd, at))
