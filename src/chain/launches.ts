@@ -65,7 +65,10 @@ export interface FixEnd {
   at: string
   /** `lost` — another fix started without a word of how this one ended. */
   how: FixOutcome | 'lost'
-  /** The commit main went out at when the fix landed; for an `unneeded` fix, the red commit that turned green. */
+  /**
+   * The commit main went out at when the fix landed; for an `unneeded` fix, the commit main is green at: the red one
+   * after a rerun, or a later one main was fixed at outside the chain (BTN-1328).
+   */
   commit: string | null
   /** The release commits a carry brought (BTN-369). */
   commits?: number

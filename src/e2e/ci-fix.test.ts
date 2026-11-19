@@ -146,6 +146,28 @@ describe('the fix of a red main end to end', { timeout: 60_000 }, () => {
     expect(calls('launch', fix)).toHaveLength(1)
   })
 
+  it('closes a fix session that finds nothing to fix once main is fixed outside the chain and green, and the stopped task goes on (BTN-1328)', async () => {
+    fixer = ends({ noChanges: 'main is already fixed' })
+    await underTask('success', parked(new Gate(), ends({ say: 'never' })), goOn)
+    run.ci.finish('ABC-1', 'failure')
+    await run.until(() => run.log.some((line) => line.includes('is still red; it waits for the user')), 'the fix session waiting on the red commit')
+    expect(chain()?.interrupted?.task).toBe('ABC-2')
+
+    await writeFile(join(run.repo, 'hand.txt'), 'fixed by hand\n')
+    run.git('add', 'hand.txt')
+    run.git('commit', '-m', 'Fix by hand')
+    run.git('push', '--quiet', 'origin', 'main')
+    const green = run.git('rev-parse', 'HEAD').slice(0, 7)
+
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done after the fix by hand')
+    expect(run.log).toContain(`ci: ABC: ${green} is green, pushed outside the chain`)
+    expect(run.log.some((line) => line.startsWith(`ci: ABC: main is green at ${green} past `))).toBe(true)
+    expect(run.log.some((line) => line.includes(`chain: ABC-FIX found nothing to fix, main is green at ${green}`))).toBe(true)
+    expect(calls('launch', fix)).toHaveLength(1)
+    expect(calls('stop', fix)).toHaveLength(1)
+    expect(calls('launch', 'ABC-2')[1]?.prompt).toContain(green)
+  })
+
   it('goes on after the fix on an account with no e-mail, the stopped session resumed (BTN-537)', async () => {
     run.agent.statuses.set(ACCOUNT, { email: null })
     const gate = new Gate()

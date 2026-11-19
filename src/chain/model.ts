@@ -206,7 +206,8 @@ export type ReleaseReason = 'postpone' | 'skip'
 
 /**
  * How the fix of a red main ended (BTN-153): its branch landed in main, the user gave it up and main stayed as it
- * was, or its session found nothing to fix and the red commit turned green, as after a rerun (EKR-88); how a carry
+ * was, or its session found nothing to fix and the red commit turned green, as after a rerun (EKR-88), or main went
+ * green past it outside the chain (BTN-1328); how a carry
  * ended (BTN-369): the release commits are in the branch, or it was given up.
  */
 export type FixOutcome = 'landed' | 'dropped' | 'unneeded' | 'carried'

@@ -652,7 +652,10 @@ const SHORT_COMMIT = 7
 function fixTitle(episode: FixEpisode): string {
   const short = (commit: string | null) => commit?.slice(0, SHORT_COMMIT) ?? null
   if (episode.end?.how === 'landed') return t.chain.fixLanded(short(episode.red), short(episode.end.commit))
-  return episode.end?.how === 'unneeded' ? t.chain.fixUnneeded(short(episode.red)) : t.chain.fixDropped(short(episode.red))
+  if (episode.end?.how !== 'unneeded') return t.chain.fixDropped(short(episode.red))
+  // Unneeded at a commit past the red one: main was fixed outside the chain (BTN-1328).
+  const { commit } = episode.end
+  return commit === null || commit === episode.red ? t.chain.fixUnneeded(short(episode.red)) : t.chain.fixOutrun(short(episode.red), commit.slice(0, SHORT_COMMIT))
 }
 
 function carryTitle(state: Pick<EvenKeelState, 'projectKeys' | 'projectLabels'>, episode: FixEpisode): string {

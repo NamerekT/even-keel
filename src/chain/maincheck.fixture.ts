@@ -25,6 +25,10 @@ export function fakeMain(wait: number | null = null) {
   const heads = ['bbbbbbbbbb', 'cccccccccc', 'dddddddddd']
   const ci = {
     verdict: { state: 'pending' } as CiVerdict,
+    /** The verdict on a commit when it differs from `verdict`. */
+    verdicts: {} as Record<string, CiVerdict>,
+    /** The commits behind each commit of main, as `history` finds them; none when missing. */
+    behind: {} as Record<string, string[]>,
     wait,
     created: [] as Omit<NewTask, 'project'>[],
     comments: [] as { task: string; body: string }[],
@@ -69,10 +73,10 @@ export function fakeMain(wait: number | null = null) {
     events: [] as EventDraft[],
   }
   const deps: MainCheckDeps & MachineMainPort = {
-    history: async () => ({ commits: [], greens: [] }),
+    history: async (_project, commit, candidates) => ({ commits: [], greens: candidates.filter((each) => ci.behind[commit]?.includes(each) === true) }),
     peers: (project) => ci.peers[project] ?? [],
     head: async () => heads.shift() ?? null,
-    verdict: () => ci.verdict,
+    verdict: (_project, commit) => ci.verdicts[commit] ?? ci.verdict,
     lookAgain: (project) => {
       ci.looks.push(project)
     },

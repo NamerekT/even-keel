@@ -1105,6 +1105,12 @@ describe('chainBlocks', () => {
       expect(chainBlocks(state, 'ABC')[1]?.title).toBe('Починка main → 15945fe')
     })
 
+    it('tells a fix with nothing to fix on a rerun from one whose main was fixed outside the chain (BTN-1328)', () => {
+      const unneeded = (commit: string) => ({ ...landed, end: { ...landed.end, how: 'unneeded' as const, commit } })
+      expect(chainBlocks(stateOf({ ...base, fixes: { ABC: [unneeded(landed.red)] } }), 'ABC')[1]?.title).toBe('Починка main: c6b3956 — чинить нечего, перезапуск зелёный')
+      expect(chainBlocks(stateOf({ ...base, fixes: { ABC: [unneeded(landed.end.commit)] } }), 'ABC')[1]?.title).toBe('Починка main: c6b3956 → 15945fe — починили мимо цепочки')
+    })
+
     it('keeps the session that still lives after its fix was dropped on its row, and adds no live block for it', () => {
       const blocks = chainBlocks(stateOf({ ...base, sessions: [view('ABC-FIX', 'waiting', null)] }), 'ABC')
       expect(blocks.map((block) => block.id)).toEqual(['ABC-1', 'ABC-FIX.1', 'ABC-4', 'ABC-FIX.2', 'ABC-2', 'ABC-3'])

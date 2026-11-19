@@ -59,6 +59,8 @@ export class MainCheck {
   private readonly late = new Map<string, { push: MainPush; unanswered: boolean }>()
   /** Who pushed the latest commits of each project's main the service saw (BTN-829), oldest first. */
   private readonly pushers = new Map<string, Map<string, PushBy>>()
+  /** Whether the red commit of the project's fix is behind its green one, asked of git once per pair (`outrun`). */
+  private readonly pasts = new Map<string, { key: string; past: boolean }>()
 
   constructor(
     private readonly state: ChainState,
@@ -227,6 +229,32 @@ export class MainCheck {
     delete gate.fix
     this.passed(project, gate, { commit: fix.commit, at: fix.at, tasks: [] }, 'is green after all, the fix session found nothing to fix')
     return 'green'
+  }
+
+  /**
+   * Main is green past the red commit the fix session is for (BTN-1328): someone fixed it outside the chain, a push by
+   * hand or from another clone, so the fix is no longer wanted and is dropped. Returns that green commit, `null` — none.
+   */
+  async outrun(project: string): Promise<string | null> {
+    const gate = this.state.ci[project]
+    const fix = gate?.fix
+    const green = gate?.green
+    if (gate === undefined || fix?.report === undefined || green === undefined || green === fix.commit) return null
+    const key = `${fix.commit} ${green}`
+    let past = this.pasts.get(project)
+    if (past?.key !== key) {
+      // `history` names the candidates behind the commit: here, whether the red one is.
+      const found = await this.machine.history(project, green, [fix.commit]).catch(() => null)
+      if (found === null) return null
+      past = { key, past: found.greens.includes(fix.commit) }
+      this.pasts.set(project, past)
+    }
+    // A skip may have dropped the fix while git was asked.
+    if (!past.past || gate.fix !== fix) return null
+    delete gate.fix
+    this.pasts.delete(project)
+    this.log(`ci: ${project}: main is green at ${shortCommit(green)} past ${shortCommit(fix.commit)}; the fix session ${fix.task} is no longer needed`)
+    return green
   }
 
   /** The user gave the fix session up: main stays as it is. */

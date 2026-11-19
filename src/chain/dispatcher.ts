@@ -732,11 +732,13 @@ export class Dispatcher {
         if (isFixName(task)) {
           if (this.fixes === null) chain.current = null
           else if (!(await this.fixes.follow(chain, current)) && !moved()) {
-            // A fix session that found nothing to fix (EKR-88) is over once the red commit turns green, as after a rerun.
+            // A fix session that found nothing to fix (EKR-88) is over once the red commit turns green, as after a rerun,
+            // or main is green past it (BTN-1328); one that ended its turn otherwise is let go once main is green past it.
             const mark = await this.unchanged.check(chain, current)
             if (moved()) continue
             if (mark === 'acted') return
-            if (mark === null || !(await this.fixes.unneeded(chain, current))) {
+            const over = mark === null ? await this.fixes.outrun(chain, current) : await this.fixes.unneeded(chain, current)
+            if (!over) {
               if (moved()) continue
               await this.handovers.follow(chain, current)
               return

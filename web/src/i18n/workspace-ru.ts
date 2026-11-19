@@ -289,6 +289,7 @@ export const chainRU = {
     fixLanded: (red: string | null, commit: string | null) => (commit === null ? fixOf(red) : `${fixOf(red)} → ${commit}`),
     fixDropped: (red: string | null) => `${fixOf(red)} — брошена, main остался как был`,
     fixUnneeded: (red: string | null) => `${fixOf(red)} — чинить нечего, перезапуск зелёный`,
+    fixOutrun: (red: string | null, commit: string) => `${fixOf(red)} → ${commit} — починили мимо цепочки`,
     carry: (release: string) => `Перенос ${release}: агент разрешает конфликт`,
     carryAsked: (release: string) => `Перенос ${release}: агент разрешит конфликт`,
     carried: (release: string, commits: number) => `Перенос ${release}: ${counted('коммит', 'коммита', 'коммитов')(commits)}`,
