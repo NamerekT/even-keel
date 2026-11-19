@@ -32,6 +32,8 @@ const SESSIONS_READ_EVENT = 'sessions.read'
 
 const LOOPBACK = /^(127\.|::1$|localhost$)/
 const WILDCARD = new Set(['0.0.0.0', '::', ''])
+/** The port a proxy that ends TLS takes HTTPS at when the address names none. */
+const HTTPS_PORT = 443
 
 /**
  * The hub's door for machines elsewhere (BTN-1242): a `HubEnd` of its own over the hub's store, serving every machine
@@ -487,9 +489,11 @@ export class MachineNetwork {
   /**
    * A connection string for a machine to join with, and the one command that installs the machine with it; the strings
    * issued before and never joined with stop working. `given` — the address the window chose (BTN-1056): it becomes
-   * "Hub address for machines" first. No name — the machine is named by its host when it joins.
+   * "Hub address for machines" first. No name — the machine is named by its host when it joins. `proxied` — the
+   * address is a proxy that ends TLS with a public authority's certificate (BTN-1286): the string pins no fingerprint,
+   * and an address without a port means 443, not the machines' port.
    */
-  async invite(name: string, given?: string, color?: string): Promise<Invite & { command: string }> {
+  async invite(name: string, given?: string, color?: string, proxied = false): Promise<Invite & { command: string }> {
     const painted = color === undefined ? undefined : colorOf(color)
     if (color !== undefined && painted === undefined) throw fail('request.required', { field: 'color' })
     const chosen = given?.trim().toLowerCase()
@@ -498,9 +502,9 @@ export class MachineNetwork {
       await this.apply()
     }
     const address = this.options.address()
-    const url = address === null ? undefined : hubUrlOf(address, this.options.port)
+    const url = address === null ? undefined : hubUrlOf(address, proxied ? HTTPS_PORT : this.options.port)
     if (url === undefined) throw fail('machines.noAddress', {})
-    const { fingerprint } = await this.options.certificate()
+    const fingerprint = proxied ? '' : (await this.options.certificate()).fingerprint
     const invite = await this.hub.invite(name.trim(), url, fingerprint)
     if (painted !== undefined) {
       await this.options.store.setColor(invite.machine, painted)

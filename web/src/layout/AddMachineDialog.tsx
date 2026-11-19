@@ -9,6 +9,7 @@ import { MACHINE_PALETTE, nextColor } from '../../../src/link/colors.js'
 import { addMachineOf, joinedMachine, takenColors, withAddMachine } from '../machineAdd.js'
 import { machineArrival } from '../machineArrival.js'
 import { HubAddressField } from '../pages/HubAddressField.js'
+import { HelpTip, Switch } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { ServerIcon } from '../ui/icons.js'
@@ -17,7 +18,27 @@ import { useHeightGlide } from '../ui/useHeightGlide.js'
 import { MachineJoined } from './MachineJoined.js'
 import { useNow } from './useNow.js'
 import '../tools/addPackage.css'
+import '../pages/settings.css'
 import './addMachine.css'
+
+/** Whether this browser issued its last string for a hub behind a proxy that ends TLS (BTN-1286). */
+const PROXIED_KEY = 'even-keel.machines.proxied'
+
+function storedProxied(): boolean {
+  try {
+    return localStorage.getItem(PROXIED_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function keepProxied(proxied: boolean): void {
+  try {
+    localStorage.setItem(PROXIED_KEY, String(proxied))
+  } catch {
+    // A browser that keeps no storage asks again in the next window.
+  }
+}
 
 /** Opens the window that adds a machine over the current page: at the address step, or at a machine that joined. */
 export function useOpenAddMachine(): (at?: string) => void {
@@ -160,6 +181,7 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
   const nameId = useId()
   const colorId = useId()
   const [address, setAddress] = useState(state.config.shared.machinesAddress ?? '')
+  const [proxied, setProxied] = useState(storedProxied)
   const [name, setName] = useState('')
   // Until one is pressed, the palette's next free colour: the machines read later may change which it is.
   const [picked, setPicked] = useState<string | null>(null)
@@ -172,7 +194,8 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
     setSending(true)
     setFailure(null)
     try {
-      onInvite(await query<MachineInvite>('machines/invite', { name: name.trim(), address: address.trim(), color }))
+      onInvite(await query<MachineInvite>('machines/invite', { name: name.trim(), address: address.trim(), color, proxied }))
+      keepProxied(proxied)
     } catch (error) {
       setFailure(noticeOf(error))
     } finally {
@@ -193,6 +216,13 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
           </label>
           <HubAddressField id={addressId} value={address} invalid={failure?.code === 'config.machinesAddress'} placeholder={t.machines.addressNone} onChange={setAddress} />
           <p className="add-package__note">{t.machines.addressHint}</p>
+          <span className="add-machine__proxy">
+            <label className="add-machine__proxy-label">
+              <Switch checked={proxied} disabled={sending} label={t.machines.proxied} onChange={setProxied} />
+              {t.machines.proxied}
+            </label>
+            <HelpTip text={t.machines.proxiedHint} align="start" />
+          </span>
         </div>
         <div className="add-package__field">
           <label className="add-package__label" htmlFor={nameId}>

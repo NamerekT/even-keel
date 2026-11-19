@@ -266,9 +266,10 @@ export interface ServerDeps {
     addresses(): AddressChoice[]
     /**
      * `address` — "Hub address for machines" as the window chose it, written before the string is issued; `color` —
-     * the machine's colour picked with its name (BTN-1263).
+     * the machine's colour picked with its name (BTN-1263); `proxied` — a hub behind a proxy that ends TLS, a string
+     * without the fingerprint (BTN-1286).
      */
-    invite(name: string, address?: string, color?: string): Promise<Invite & { command: string }>
+    invite(name: string, address?: string, color?: string, proxied?: boolean): Promise<Invite & { command: string }>
     revoke(machine: string): Promise<void>
     list(): Promise<MachineView[]>
     /** "Take the folder over" (BTN-1244), confirmed on the page: `owner` is the machine its refusal named; no `machine` — the own one. */

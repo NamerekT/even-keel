@@ -7,6 +7,9 @@ export const machinesEn: Messages['machines'] = {
   address: 'Hub address for machines',
   addressHint: 'The machine calls the hub at this address. Kept for the next machines.',
   addressNone: 'A name or an IP the machine reaches the hub by',
+  proxied: 'Behind a proxy with a public certificate',
+  proxiedHint:
+    "Turn on when machines reach the hub through a proxy or a tunnel that serves HTTPS with its own certificate, such as nginx with Let's Encrypt or a Cloudflare tunnel. The machine then checks the certificate as for any site, not against the hub's own one, and an address without a port means 443. The proxy forwards to the hub's port for machines (4749 by default) over HTTPS.",
   name: 'Machine name',
   namePlaceholder: "the machine's host name",
   color: 'Colour',

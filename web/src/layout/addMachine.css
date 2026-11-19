@@ -159,6 +159,21 @@
   padding: 0 var(--space-12) var(--space-8) calc(var(--space-12) + 13px + var(--space-8));
 }
 
+/* Step 1's address behind a proxy that ends TLS (BTN-1286): a switch with its words, the help after them. */
+.add-machine__proxy {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.add-machine__proxy-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-13);
+  cursor: pointer;
+}
+
 /* Step 1's colour (BTN-1263): the palette, the next free one pressed. */
 .add-machine__colors {
   display: flex;

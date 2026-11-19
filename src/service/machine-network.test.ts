@@ -153,6 +153,18 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(network.colors()[invite.machine]).toBe('#a08060')
   })
 
+  it('issues a string without the fingerprint for a hub behind a proxy that ends TLS, at the port 443 unless the address names one (BTN-1286)', async () => {
+    const { db, network } = await started()
+    const pinned = parseToken((await network.invite('Example desktop', 'hub.example.com')).line)!
+    expect(pinned.fingerprint).toBe((await hubIdentity(db)).fingerprint)
+    expect(new URL(pinned.hub).port).not.toBe('')
+
+    const proxied = parseToken((await network.invite('Example desktop', 'hub.example.com', undefined, true)).line)!
+    expect(proxied).toMatchObject({ hub: 'https://hub.example.com', fingerprint: '' })
+    const ported = parseToken((await network.invite('Example desktop', 'hub.example.com:8443', undefined, true)).line)!
+    expect(ported).toMatchObject({ hub: 'https://hub.example.com:8443', fingerprint: '' })
+  })
+
   it('shows a folder another machine holds, frees the mark of a machine it revoked, and takes a folder over only from the machine shown', async () => {
     const owned: [string, string][] = []
     const { db, network, settings } = await started(undefined, () => {}, async (project, owner) => void owned.push([project, owner]))
