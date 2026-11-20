@@ -429,6 +429,28 @@ a.button.pull-button__link {
   gap: 6px 10px;
 }
 
+/*
+ * The lock and the key stand out of the flow at the row's right edge, centred on its height, so they never stretch
+ * the row (BTN-1365). A row with any of them makes room for the column; a row without has none.
+ */
+.block__side > .links--stack {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+}
+
+.block:has(> .block__side > .links--stack) {
+  padding-right: 44px;
+}
+
+/* A hover and focus area wider than the small mark, inside the room the row keeps for the column. */
+.block__side > .links--stack .links__count::before {
+  content: '';
+  position: absolute;
+  inset: -2px -6px;
+}
+
 .block__lock {
   flex: none;
   fill: none;
@@ -548,8 +570,10 @@ button.block__key {
   display: none;
 }
 
-.block__tail .links__count {
+/* In the flow, so the tail's fold measures it: the room for a finger is padding, not an area sticking out. */
+.block__tail .links--stack .links__count {
   min-width: 0;
+  padding-inline: var(--space-6);
 }
 
 .chain .block__tail .block__ready {

@@ -21,25 +21,41 @@
   cursor: default;
 }
 
-.links__count:not(.links__count--none):hover,
+.links__count:hover,
 .links__count:focus-visible {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   outline: none;
 }
 
-.links__count--none {
-  color: var(--fg-muted);
-  opacity: 0.5;
-}
-
-/* A zero is not shown but keeps its place, so the lock and the key stand in one column down the chain. */
-.links__count--none .links__number {
-  visibility: hidden;
-}
-
 .links__count .icon {
   width: 13px;
   height: 13px;
+}
+
+/*
+ * The lock above the key in one narrow column (BTN-1365): a zero is not drawn, the column keeps the alignment down
+ * the chain. Small marks, so two of them fit the lowest row; where the column stands its hover area grows (`chain.css`).
+ */
+.links--stack {
+  display: inline-grid;
+  justify-items: start;
+  gap: 0;
+}
+
+.links--stack .links__count {
+  position: relative;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 12px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-small);
+  font-size: var(--text-11);
+  line-height: 12px;
+}
+
+.links--stack .links__count .icon {
+  width: 10px;
+  height: 10px;
 }
 
 .links__tip {

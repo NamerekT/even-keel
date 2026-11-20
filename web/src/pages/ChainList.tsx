@@ -663,7 +663,8 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
-        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} />}        {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
+        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} />}
+        {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (
           <span className="chip" title={t.chain.interruptedTitle}>
@@ -697,7 +698,7 @@ function Block(props: BlockProps) {
           </button>
         )}
         {!narrow && unreadyButton}
-        {!narrow && <Links links={links} onCard={onCard} />}
+        {!narrow && <Links links={links} onCard={onCard} stack />}
       </div>
     </li>
   )

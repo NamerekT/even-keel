@@ -68,8 +68,8 @@ export function TaskSigns({ blocks }: { blocks: ChainBlock[] }) {
     <Sign sample={<span className="chain"><span className="block__number block__number--medium">2</span></span>}>{t.help.card.number}</Sign>
     <Sign sample={<span className="chain page-help__current"><PlayIcon /></span>}>{t.help.card.current}</Sign>
     <Sign sample={<CacheRing cache={{ ttl: '5m', until }} />}>{t.help.card.cache}</Sign>
-    <Sign sample={<span className="links__count"><LockIcon /><span className="links__number">2</span></span>}>{t.help.card.blockers}</Sign>
-    <Sign sample={<span className="links__count"><KeyIcon /><span className="links__number">3</span></span>}>{t.help.card.dependents}</Sign>
+    <Sign sample={<span className="links links--stack"><span className="links__count"><LockIcon /><span className="links__number">2</span></span></span>}>{t.help.card.blockers}</Sign>
+    <Sign sample={<span className="links links--stack"><span className="links__count"><KeyIcon /><span className="links__number">3</span></span></span>}>{t.help.card.dependents}</Sign>
     <Sign sample={<span className="chain"><BlockLockIcon /></span>}>{t.chain.lockedHint}</Sign>
     <Sign wide sample={<RunLabelTag run={run} />}>{t.help.card.model}</Sign>
     <Sign sample={<ChangelogIcon />}>{t.help.card.milestone}</Sign>

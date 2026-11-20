@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { taskRunText, type TaskRun } from '../../../src/sessions/runs.js'
 import type { TaskMachine } from '../lanes.js'
 import type { TaskLinks } from '../state.js'
-import { Links } from '../ui/Links.js'
+import { hasLinks, Links } from '../ui/Links.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { MachineTag } from '../ui/MachineTag.js'
 
@@ -17,8 +17,9 @@ interface BlockTailProps {
 }
 
 /**
- * A chain row's line on a phone (BTN-1162): after the key, the run (provider and model), the lock and the key without
- * their figures, and the row's button. When the run would be cut, the lock and the key fold away together first.
+ * A chain row's line on a phone (BTN-1162): after the key, the run (provider and model), the lock above the key without
+ * their figures and without a zero (BTN-1365), and the row's button. When the run would be cut, the lock and the key
+ * fold away together first.
  */
 export function BlockTail({ run, machines, links, onCard, children }: BlockTailProps) {
   const box = useRef<HTMLDivElement>(null)
@@ -26,10 +27,16 @@ export function BlockTail({ run, machines, links, onCard, children }: BlockTailP
   const linksWidth = useRef(0)
   const [folded, setFolded] = useState(false)
   const runText = run === null ? '' : taskRunText(run)
+  const linked = hasLinks(links)
 
   useLayoutEffect(() => {
     const tail = box.current
     if (tail === null) return
+    // Nothing to fold away: folding would free no room and only flip back and forth.
+    if (!linked) {
+      if (folded) setFolded(false)
+      return
+    }
     const measure = () => {
       const cut = isCut(tail)
       if (!folded) {
@@ -44,15 +51,17 @@ export function BlockTail({ run, machines, links, onCard, children }: BlockTailP
     const watch = new ResizeObserver(measure)
     watch.observe(tail)
     return () => watch.disconnect()
-  }, [folded, runText])
+  }, [folded, runText, linked])
 
   return (
     <div ref={box} className={folded ? 'block__tail block__tail--folded' : 'block__tail'}>
       {machines !== undefined && <MachineTag machines={machines} />}
       {run !== null && <RunLabelTag run={run} />}
-      <span ref={linksBox} className="block__tail-links">
-        <Links links={links} onCard={onCard} />
-      </span>
+      {linked && (
+        <span ref={linksBox} className="block__tail-links">
+          <Links links={links} onCard={onCard} stack />
+        </span>
+      )}
       {children}
     </div>
   )
