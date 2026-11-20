@@ -9,10 +9,12 @@ export interface Prerequisites {
   /** The output of `git --version`; `null` — no git on `PATH`. */
   git: string | null
   machine: boolean
+  container?: boolean
 }
 
 /** Why this install cannot go on; `null` — it can. A hub may run projects without git, a machine never does. */
-export function prerequisiteRefusal({ node, git, machine }: Prerequisites): string | null {
+export function prerequisiteRefusal({ node, git, machine, container }: Prerequisites): string | null {
+  if (container) return 'Docker manages the service. Run docker compose up -d on the host to start Even Keel.'
   const major = Number(node.split('.')[0])
   if (!(major >= NODE_MAJOR)) return `Even Keel needs Node.js ${NODE_MAJOR} or newer; this is ${node}. Install it from nodejs.org and run this again`
   if (machine && git === null) {

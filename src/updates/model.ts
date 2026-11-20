@@ -8,7 +8,7 @@ export type InstallSource = 'git' | 'npm'
  * checkout, it has uncommitted changes, HEAD is not the release tag of the installed version (a developer's copy, one
  * a CI builds after every push), the npm package is not a global install, or the checkout is not read yet.
  */
-export type UpdateBlock = 'service' | 'git' | 'dirty' | 'tag' | 'global' | 'checking'
+export type UpdateBlock = 'service' | 'git' | 'dirty' | 'tag' | 'global' | 'checking' | 'container'
 
 /** An installation from npm (BTN-265): the update installs the release's version of the package into the same prefix. */
 export interface NpmPackage {

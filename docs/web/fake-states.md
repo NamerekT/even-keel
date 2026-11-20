@@ -138,7 +138,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?backup=failed\|checkFailed\|none\|running` | the automatic copy of the state database (`web/src/live/fakeBackup.ts`, BTN-1083): the copy failed or did not open back whole (the red banner with "Open settings" to Backups, the last copy's fact framed red), no checked copy yet, a copy under way ("Copying…", the button off). Without it the last copy was checked 5 h ago; "Make a copy now" checks one at once. The tab is "Backups" of `/settings` |
 | `?update=0.2.0` | a newer release: the toast in the corner, the mark next to the version in the gear menu and its notes in the update window (`web/src/live/fakeUpdates.ts`); "Update" turns into the progress toast |
 | `&reverted` | with `update=`: the release is a revert release — its notes have a `### Reverted` section |
-| `?updateBlocked=service\|git\|dirty\|tag\|global\|checking` | with `update=`: no "Update" button, and why |
+| `?updateBlocked=service\|git\|dirty\|tag\|global\|checking\|container` | with `update=`: no "Update" button, and why |
 | `?updateSource=npm` | with `update=`: Even Keel installed with npm, so the window says the update installs the release with npm |
 | `?previous=0.0.9` | the installed version came by an update from 0.0.9: "Revert to 0.0.9" in the window, "back to 0.0.9" in the gear menu |
 | `&storage` | with `previous=`: the update changed the storage format, so no "Revert", and the way back from the `.bak` copies |

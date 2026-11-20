@@ -98,6 +98,14 @@ Never checked live on another computer: [unverified](unverified/machines.md#the-
 
 ## Updating from the page (BTN-163, `src/updates/`)
 
+### Containers
+
+The release Dockerfile builds the tag's npm package on the builder architecture, then installs its tarball on the target architecture. The runtime uses Debian, Node 26, Git with SSH, `tini` and the unprivileged `node` user. Compose persists the home directory and requires the page token. The image listens on `0.0.0.0` even when run without Compose, so the normal `guardToken` check applies. Volume paths and host commands are in the [Docker guide](guide/docker.md).
+
+On Linux, `inContainer` recognizes the image's `/etc/even-keel-container` or the runtime markers `/.dockerenv` and `/run/.containerenv`. The updater reports `container` before checking the install source or probing a service manager. Both the page and CLI direct updates to Docker Compose on the host. The CLI refuses service installation before the npx global install or machine join.
+
+### Host installations
+
 The update window on the page (`docs/web/interface.md`) sends `updates/install` or `updates/revert`; the service side is `Updater` (`updater.ts`), the process that does the work is `run.ts` over `runner.ts`.
 
 - **Who may.** `updateBlock` (`model.ts`) gives the reason there is no button, in this order: the checkout is still being read, it is not a git checkout (`readCheckout`, `checkout.ts`), Even Keel does not run under a service manager it can drive (`serviceControl`, `control.ts`: the parent process is the tray host of the start at sign-in or a Windows service in `tasklist /svc`, a systemd user unit, a launchd agent), the checkout has tracked changes (`git status --porcelain --untracked-files=no`), HEAD is not on the tag of the installed version. The last one keeps a developer's checkout (`dev`, a task branch) and the CI-built one out: they update by `rebuild.ps1`. The checkout is read at the start and every 10 min. A package has no checkout (`packageBlock`): it needs a global install whose `--prefix` is known (`globalPrefixOf`, `prefix.ts`; `global` otherwise — a local install, the npx cache) and a service manager.

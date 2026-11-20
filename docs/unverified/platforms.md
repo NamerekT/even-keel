@@ -2,6 +2,10 @@
 
 One area of [What has not been verified](../unverified.md), which says what an entry is, how to report a run into one and where a new one goes. What has been checked in this area is in [What has been verified: Platforms](../verified/platforms.md).
 
+## Installing and updating the Docker image (BTN-1176)
+
+BTN-1177 checks a clean Compose installation from GHCR, page authentication, Claude sign-in and a task through Done. Recreate the container and check the account, state and repository, then update between two release candidates and check the storage migration. Check the page's update command, the CLI's install refusal and startup on arm64. If the new container cannot start, keep the volume, inspect `docker compose logs` and check the image tag and mount permissions.
+
 ## macOS
 
 Run live on a rented Mac (BTN-312, Apple M2, macOS 27.2, 2026-11-03, [verified](../verified/platforms.md)): the launchd agent of `install.sh` and of the npm package, its start after a reboot, the CLI and its folders, whole chain tasks; and, since BTN-735, the stop with a message to sign in to the desktop when nobody is signed in there (SSH only), instead of a bare `Bootstrap failed: 125`. `.github/workflows/macos.yml` (BTN-730) runs the tests and a smoke of the agent on GitHub's `macos-latest` at every push of `dev`, `main` and `release/**` ([`ci.md`](../ci.md#macos)).

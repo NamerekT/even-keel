@@ -60,6 +60,14 @@ describe('stateUrlOf', () => {
 })
 
 describe('Updater', () => {
+  it.each(['npm', 'git'] as const)('requires an image update for a container running the %s source', async (source) => {
+    const { updater: subject, plans } = updater({ source, container: true })
+    expect(subject.view().blocked).toBe('container')
+    await subject.start()
+    await expect(subject.update(RELEASE)).rejects.toMatchObject({ notice: { code: 'updates.blocked', params: { reason: 'container' } } })
+    expect(plans).toEqual([])
+  })
+
   it('offers the update on a clean checkout on its release tag', async () => {
     const { updater: subject } = updater()
     expect(subject.view().blocked).toBe('checking')

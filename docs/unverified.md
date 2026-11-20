@@ -265,6 +265,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 228 | [Paste from the clipboard in the chat on a phone](unverified/page.md#paste-from-the-clipboard-in-the-chat-on-a-phone-btn-1350) | anyone pasting a screenshot into a chat on a phone | Paste says there is no picture or the browser refused; save the picture and attach it through Photos | — |
 | 229 | [A project chat's message mid-turn](unverified/sessions.md#a-project-chats-message-mid-turn-btn-1345) | anyone writing to a working Claude project chat | the send is refused as before, or a message the hooks missed at the turn's end is lost without a mark; send it again once the session answers | — |
 | 230 | [The effort's bar scale beside a model outside Chromium](unverified/page.md#the-efforts-bar-scale-beside-a-model-outside-chromium-btn-1369) | anyone on Firefox or Safari | the bars sit a pixel or two off the text's line; the effort's word is in the tip | — |
+| 231 | [Installing and updating the Docker image](unverified/platforms.md#installing-and-updating-the-docker-image-btn-1176) | Docker Compose installations on amd64 and arm64 | the image fails to start or a recreated container loses access to data or repositories | BTN-1177 |
 
 ### Waiting for the event / not checked by choice
 

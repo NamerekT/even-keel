@@ -3,7 +3,7 @@ import { UPDATE_STEPS, type UpdateBlock, type UpdateResultView, type UpdateStep 
 import type { ReleaseNote, UpdatesView } from '../../../src/updates/release.js'
 
 const INSTALLED = '0.1.0'
-const BLOCKS: readonly UpdateBlock[] = ['service', 'git', 'dirty', 'tag', 'global', 'checking']
+const BLOCKS: readonly UpdateBlock[] = ['service', 'git', 'dirty', 'tag', 'global', 'checking', 'container']
 
 const BODY = `## What's new
 
@@ -49,7 +49,7 @@ function result(kind: string | null, previous: string): UpdateResultView | null 
 /**
  * The update parameters of `dev:fake`; without them — no newer release.
  * `?update=<version>` a newer release with its notes and toast, `&reverted` with a `### Reverted` section;
- * `?updateBlocked=<service|git|dirty|tag|global|checking>` no "Update", and why;
+ * `?updateBlocked=<service|git|dirty|tag|global|checking|container>` no "Update", and why;
  * `?updateSource=npm` installed from npm, not a checkout;
  * `?previous=<version>` this version came by an update from that one, `&storage` across a storage change;
  * `?updateResult=<done|step|rollback>` how the last update ended (`rollback` — bringing the old one back failed too);

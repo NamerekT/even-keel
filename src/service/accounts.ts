@@ -48,7 +48,7 @@ import { rareEvents } from '../sessions/rare.js'
 import { agentOfSession, liveViewOf, steers } from '../sessions/view-index.js'
 import { isInside } from '../paths.js'
 import { TranscriptOwners } from '../sessions/owners.js'
-import { home as dataHome, root, source } from '../locations.js'
+import { home as dataHome, inContainer, root, source } from '../locations.js'
 import { checkProfileRules } from '../profiles/rules.js'
 import { disabledNotice, Profiles } from '../profiles/service.js'
 import type { SessionView } from '../state.js'
@@ -313,6 +313,7 @@ export function wireUpdates(ctx: AccountsContext): UpdateWatcher {
 
 export function wireUpdater(ctx: AccountsContext): Updater {
   return new Updater({
+    container: inContainer,
     root,
     home: dataHome,
     source,

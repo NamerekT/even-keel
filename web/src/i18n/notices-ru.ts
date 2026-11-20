@@ -36,6 +36,7 @@ const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
 }
 
 const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
+  container: 'Чтобы обновить контейнер, выполните docker compose pull && docker compose up -d на хосте в папке с compose.yaml.',
   service: 'Even Keel запущен не службой, перезапустить его некому',
   git: 'папка Even Keel — не git-чекаут',
   dirty: 'в чекауте есть незакоммиченные изменения',

@@ -18,6 +18,7 @@ import {
   type InstallSource,
   type NpmPackage,
   type StorageVersions,
+  type UpdateBlock,
   type UpdateProgress,
   type UpdateRecord,
 } from './model.js'
@@ -27,6 +28,7 @@ import { ANSWER_MS, LOG_FILE, RESULT_FILE, SETTLE_MS, STEADY_MS, writeRecord, ty
 import { busyChains } from './settle.js'
 
 export interface UpdaterOptions {
+  container?: boolean
   root: string
   /** The data folder: `logs/update.json` and `logs/update.log` are there. */
   home: string
@@ -101,6 +103,7 @@ export class Updater {
       // A missing file is reported too: a launch failure kept only in memory stays.
       if (now.mtimeMs > 0 && this.readRecord()) this.options.onChange()
     })
+    if (this.options.container) return
     this.control = await (this.options.control ?? (() => serviceControl(this.options.root)))()
     if (this.control === null) this.options.log('updates: no service manager runs Even Keel here, the page offers no update')
     await this.refresh()
@@ -133,17 +136,24 @@ export class Updater {
 
   /** Reads the checkout again: its changes and tags decide whether "Update" is offered. */
   async refresh(): Promise<void> {
+    if (this.options.container) return
     const checkout = this.options.source === 'npm' ? null : await (this.options.checkout ?? readCheckout)(this.options.root)
     if (JSON.stringify(checkout) === JSON.stringify(this.checkout)) return
     this.checkout = checkout
     this.options.onChange()
   }
 
+  private block(): UpdateBlock | null {
+    if (this.options.container) return 'container'
+    if (this.control === undefined) return 'checking'
+    const npm = this.npmPackage
+    const service = this.control !== null
+    return npm === undefined ? updateBlock(service, this.checkout, this.options.current) : packageBlock(service, npm?.prefix ?? null)
+  }
+
   view(): Pick<UpdatesView, 'source' | 'blocked' | 'previous' | 'progress' | 'result'> {
     const { current, storage, source } = this.options
-    const npm = this.npmPackage
-    const blocked =
-      this.control === undefined ? 'checking' : npm === undefined ? updateBlock(this.control !== null, this.checkout, current) : packageBlock(this.control !== null, npm?.prefix ?? null)
+    const blocked = this.block()
     return {
       source,
       blocked,

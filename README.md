@@ -89,6 +89,8 @@ Parallel agents decide on their own what an unfinished task will look like, hand
 
 ## As a service
 
+On a server or NAS, [install with Docker Compose](docs/guide/docker.md) and update by pulling the image.
+
 `npx even-keel` sets it up as your own user, no administrator needed: a start at sign-in with a tray icon on Windows, a systemd user unit on Linux, a launchd agent on macOS. It restarts Even Keel if it fails; stopping it leaves running sessions alone. `even-keel install` sets it up again (in PowerShell `even-keel.cmd`, [why](docs/guide/setup.md#windows-powershell)). Logs, the data folder, running it in a terminal or from a clone: [setup](docs/guide/setup.md#as-a-service).
 
 ## Updating
@@ -105,7 +107,7 @@ The settings live in Even Keel's database and are edited on the page, applied at
 
 ## What comes next
 
-Looked at, not promised: several machines taking the tasks of one project, running in Docker, a cap on how much of the usage limit one task may spend.
+Looked at, not promised: several machines taking the tasks of one project, a cap on how much of the usage limit one task may spend.
 
 ## Extending
 

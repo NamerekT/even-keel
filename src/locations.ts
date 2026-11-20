@@ -36,6 +36,9 @@ export function homeOf(root: string, source: InstallSource, env: NodeJS.ProcessE
 /** The folder of Even Keel's code: the checkout or the installed package. */
 export const root = packageRoot(import.meta.dirname)
 export const source = sourceOf(root)
+/** The official image also carries its own marker for runtimes that omit Docker's or Podman's. */
+export const inContainer = process.platform === 'linux' &&
+  ['/etc/even-keel-container', '/.dockerenv', '/run/.containerenv'].some((file) => existsSync(file))
 /** The folder of its data; a checkout's own unless `EVEN_KEEL_DATA` says otherwise. Read before `.env`, which is in it. */
 export const home = homeOf(root, source, process.env, process.platform, homedir())
 

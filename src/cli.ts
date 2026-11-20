@@ -8,7 +8,8 @@ import { hostArgsOf, hostDirOf, installAutostart, quitHost, registeredAutostart,
 import { commandOf, installArgsOf, noServiceManagerCode, serviceScriptOf, updateTargetOf, type InstallOptions, type MachineJoin } from './cli-args.js'
 import { contactMessageOf, prerequisiteRefusal, waitForContact } from './cli-install.js'
 import { browserCommandOf, opensBrowser, pageAddressOf, pageLogOf, pageMessageOf, waitForPage, type PageWait } from './cli-page.js'
-import { home, loadEnv, root, source, stateDirOf } from './locations.js'
+import { home, inContainer, loadEnv, root, source, stateDirOf } from './locations.js'
+import { UPDATE_BLOCKS } from './notice/en-values.js'
 import { accountsRoot } from './account/homes.js'
 import { removeAccountSettingsGuards } from './account/settingsGuard.js'
 import { globalBinOf, isAccessError, nearestExisting, npmPrefixAdvice, rootRefusal, writable } from './npm-access.js'
@@ -108,7 +109,7 @@ function openBrowser(url: string): void {
 /** Node 24 for any install, git for a machine: refused before anything is installed. */
 function checkPrerequisites(machine: boolean): void {
   const git = spawnSync('git', ['--version'], { encoding: 'utf8', windowsHide: true })
-  const refusal = prerequisiteRefusal({ node: process.versions.node, git: git.status === 0 ? git.stdout.trim() : null, machine })
+  const refusal = prerequisiteRefusal({ node: process.versions.node, git: git.status === 0 ? git.stdout.trim() : null, machine, container: inContainer })
   if (refusal !== null) fail(refusal)
 }
 
@@ -293,6 +294,7 @@ function distTags(): Record<string, unknown> {
 
 /** The page's button waits for the chains first; this does not, it is for a service that is down or a page out of reach. */
 async function update(version: string | null): Promise<void> {
+  if (inContainer) fail(UPDATE_BLOCKS.container)
   if (source === 'git') fail('this is a git checkout: update it with git pull, or with the button on the page')
   const prefix = globalPrefixOf(root, process.platform)
   if (prefix === null) fail(`${root} is not a global npm install: npm install --global ${name}@${version ?? 'latest'}`)
@@ -336,8 +338,8 @@ switch (command.command) {
     break
   case 'install': {
     const options: InstallOptions = { machine: command.machine, service: command.service }
-    if (options.service && process.platform !== 'win32') fail('--service is the Windows service EvenKeel; on Linux and macOS install is always a service of your user')
     checkPrerequisites(options.machine !== null)
+    if (options.service && process.platform !== 'win32') fail('--service is the Windows service EvenKeel; on Linux and macOS install is always a service of your user')
     if (fromNpxCache(root)) await installGlobally(options)
     else await install(options)
     break

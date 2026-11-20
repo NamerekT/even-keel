@@ -20,6 +20,7 @@ import { poolEn } from './pool-en.js'
 import { machinePageEn } from './machine-page-en.js'
 import { machinePanelEn } from './machine-panel-en.js'
 import { noticesEn } from './notices-en.js'
+import { UPDATE_BLOCKS } from '../../../src/notice/en-values.js'
 import { ADVICE } from '../../../src/notice/en-advice.js'
 import { eventsEn } from './events-en.js'
 import { hotkeysEn } from './hotkeys-en.js'
@@ -109,6 +110,7 @@ export const en: Messages = {
     updateHint: (source: 'git' | 'npm') =>
       `The service waits until no chain is in a launch, a handover or a closing, stops, ${source === 'npm' ? 'installs the release with npm' : 'checks out the release tag, installs and builds it'} and starts again; the page reloads by itself. If the new version does not come up, the one running now comes back.`,
     blocked: {
+      container: UPDATE_BLOCKS.container,
       global: 'No button: the npm package is not a global install, so its folder may go. Install it with npm install --global even-keel.',
       service: 'No button: Even Keel does not run as a service here (npm start), so nothing would start it again. Update by hand, as in the README.',
       git: 'No button: the folder of Even Keel is not a git checkout. Update by hand, as in the README.',

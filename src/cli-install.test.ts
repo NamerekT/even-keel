@@ -3,6 +3,10 @@ import { contactMessageOf, installCommandOf, prerequisiteRefusal, waitForContact
 import type { LinkFile } from './machine/join.js'
 
 describe('prerequisiteRefusal', () => {
+  it('directs a container install to Compose before installing anything', () => {
+    expect(prerequisiteRefusal({ node: '24.0.0', machine: true, git: null, container: true })).toMatch(/docker compose up -d/)
+  })
+
   it('lets Node 24 and newer install a hub, with or without git', () => {
     expect(prerequisiteRefusal({ node: '24.0.0', git: null, machine: false })).toBeNull()
     expect(prerequisiteRefusal({ node: '26.13.1', git: 'git version 2.51.0', machine: false })).toBeNull()

@@ -14,6 +14,8 @@ The [README](../../README.md) has the quick start. This page is the rest, in the
 
 ## Installing
 
+For a server or NAS with Docker, see [Installing with Docker](docker.md).
+
 The README's quick start installs Even Keel with `npx even-keel` (`npx.cmd even-keel` on Windows, [why](#windows-powershell)), which also sets it up as a service: the details are in [Installed with npm](#installed-with-npm). To run it in a terminal instead of as a service:
 
 ```sh
@@ -818,7 +820,7 @@ New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name L
 loginctl enable-linger $USER
 ```
 
-A Linux without systemd (a Docker container, WSL without `systemd=true`, OpenRC or runit) has no service to install: the script writes no unit, says so and exits with code 3; `npx even-keel` still leaves the package installed. Run `even-keel` (a clone: `npm start`) in a terminal or under your own process manager. On WSL, systemd is turned on by `[boot]` and `systemd=true` in `/etc/wsl.conf`, then `wsl --shutdown`. The same message comes when systemd runs but the shell has no user session of its own (after `su` or `sudo -u`): sign in as that user directly.
+A Linux without systemd (WSL without `systemd=true`, OpenRC or runit) has no service to install: the script writes no unit, says so and exits with code 3; `npx even-keel` still leaves the package installed. Run `even-keel` (a clone: `npm start`) in a terminal or under your own process manager. On WSL, systemd is turned on by `[boot]` and `systemd=true` in `/etc/wsl.conf`, then `wsl --shutdown`. The same message comes when systemd runs but the shell has no user session of its own (after `su` or `sudo -u`): sign in as that user directly.
 
 **macOS:** a launchd agent `local.even-keel`. It runs while you are signed in to the Mac's desktop, at the screen or through Screen Sharing; signing out stops it. An SSH login alone is not enough: the script then stops and asks you to sign in to the desktop first. A Mac without a screen keeps its desktop session through automatic login (System Settings → Users & Groups; needs FileVault off).
 
@@ -882,6 +884,8 @@ Once the hub has a machine, **Add account** anywhere starts with **Where it sign
 **Behind a proxy.** The link is one long HTTPS stream from the hub, and the connection string carries the fingerprint of the hub's own self-signed certificate: the machine talks only to a hub that shows exactly that certificate. A router's port forward or a proxy that passes the connection through as it is (a TCP forward, nginx `stream`) works as it is. A proxy that ends TLS itself — a reverse proxy, a Cloudflare tunnel — shows the machine its own certificate, and the machine refuses a hub pinned by its fingerprint. For such a hub turn on **Behind a proxy with a public certificate** under the address in the **+ Machine** window: the string then carries no fingerprint, the machine checks the proxy's certificate as any HTTPS site's (it must be of a public authority, such as Let's Encrypt or Cloudflare's own), and an address without a port means 443. The window remembers the choice in this browser. The hub still listens for machines over HTTPS with its self-signed certificate, so the proxy forwards to `https://<hub>:4749` without checking that certificate: nginx's `proxy_pass https://…` does so by default, a Cloudflare tunnel needs `noTLSVerify: true` for that service, Caddy `tls_insecure_skip_verify`. An antivirus or a corporate proxy that inspects HTTPS shows a certificate of its own authority, which a string with a fingerprint refuses as it should. A proxy on the way must also not hold the stream back and must keep it open: for nginx `proxy_buffering off; proxy_read_timeout 1h;`; an idle timeout such as a Cloudflare tunnel's 100 seconds needs nothing, the hub sends a pulse more often. When a proxy holds the stream, the connection opens and nothing comes over it, and the machine reconnects again and again: its log then says "a proxy on the way seems to hold the stream back". Turn that proxy's buffering off for the hub's address for machines, or take the proxy off the way.
 
 ## Updating
+
+Docker installations update by [pulling the image](docker.md#updating).
 
 The gear menu in the header ends with the installed version.
 

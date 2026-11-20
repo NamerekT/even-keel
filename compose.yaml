@@ -1,0 +1,15 @@
+services:
+  even-keel:
+    image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:-latest}
+    ports:
+      - "127.0.0.1:4747:4747"
+    environment:
+      EVEN_KEEL_TOKEN: ${EVEN_KEEL_TOKEN:?Set EVEN_KEEL_TOKEN in .env before starting Even Keel}
+    volumes:
+      - home:/home/node
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  home:

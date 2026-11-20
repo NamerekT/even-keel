@@ -64,6 +64,7 @@ export const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
 }
 
 export const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
+  container: 'To update the container, run docker compose pull && docker compose up -d on the host in the Compose folder.',
   service: 'Even Keel does not run as a service here, so nothing could restart it',
   git: 'the folder of Even Keel is not a git checkout',
   dirty: 'the checkout has uncommitted changes',
