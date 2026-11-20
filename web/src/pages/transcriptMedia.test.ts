@@ -52,6 +52,53 @@ describe('transcriptMedia', () => {
     expect(media.byFile.get('order.png')).toBe(2)
   })
 
+  it('makes a sent picture and the agent reading it one frame at the message, given from the transcript', () => {
+    const inbox = 'C:\\repos\\example\\.claude\\worktrees\\abc-5\\.temp\\inbox'
+    const lines: FeedLine[] = [
+      { at, kind: 'prompt', text: 'Look', files: [`${inbox}\\paste-1.png`, `${inbox}\\paste-2.png`] },
+      { at, kind: 'tool', text: 'Read paste-1.png', tool: 'toolu_a', name: 'Read', subject: `${inbox}\\paste-1.png` },
+      { at, kind: 'image', text: 'paste-1.png', tool: 'toolu_a', images: 1 },
+      { at, kind: 'tool', text: 'Read 3.png', tool: 'toolu_b', name: 'Read', subject: 'C:\\repos\\example\\.temp\\3.png' },
+      { at, kind: 'image', text: '3.png', tool: 'toolu_b', images: 1 },
+      { at, kind: 'tool', text: 'Read paste-1.png', tool: 'toolu_c', name: 'Read', subject: `${inbox}\\paste-1.png` },
+      { at, kind: 'image', text: 'paste-1.png', tool: 'toolu_c', images: 1 },
+    ]
+
+    const media = transcriptMedia(lines, { ...urls, local: (name) => `blob:${name}` }, 'Picture')
+
+    expect(media.items).toEqual([
+      { kind: 'image', name: 'paste-1.png', url: 'img:toolu_a/0' },
+      { kind: 'image', name: 'paste-2.png', url: 'file:paste-2.png', inbox: true, fallback: 'blob:paste-2.png' },
+      { kind: 'image', name: '3.png', url: 'img:toolu_b/0' },
+    ])
+    expect(media.byFile.get(`${inbox}\\paste-1.png`)).toBe(0)
+    expect(media.byTool.get('toolu_a')).toEqual([0])
+    expect(media.byTool.get('toolu_c')).toEqual([0])
+  })
+
+  it('matches by the full path where the read knows it, else by the name inside the inbox', () => {
+    const lines: FeedLine[] = [
+      { at, kind: 'prompt', text: 'Two', files: ['C:\\repos\\example\\.temp\\inbox\\shot.png', '/home/doe/example/.temp/inbox/plan.png'] },
+      { at, kind: 'image', text: 'D:/other/.temp/inbox/shot.png', tool: 'call-1', images: 1 },
+      { at, kind: 'image', text: 'plan.png', tool: 'toolu_p', images: 1 },
+      { at, kind: 'image', text: '/home/doe/example/.temp/plan.png', tool: 'call-2', images: 1 },
+      { at, kind: 'image', text: 'c:/repos/example/.temp/inbox/later.png', tool: 'call-3', images: 1 },
+      { at, kind: 'answer', text: 'Again', files: ['C:\\repos\\example\\.temp\\inbox\\later.png'] },
+    ]
+
+    const media = transcriptMedia(lines, urls, 'Picture')
+
+    expect(media.items).toEqual([
+      { kind: 'image', name: 'shot.png', url: 'file:shot.png', inbox: true },
+      { kind: 'image', name: 'plan.png', url: 'img:toolu_p/0' },
+      { kind: 'image', name: 'D:/other/.temp/inbox/shot.png', url: 'img:call-1/0' },
+      { kind: 'image', name: '/home/doe/example/.temp/plan.png', url: 'img:call-2/0' },
+      { kind: 'image', name: 'c:/repos/example/.temp/inbox/later.png', url: 'img:call-3/0' },
+    ])
+    expect(media.byTool.get('toolu_p')).toEqual([1])
+    expect(media.byFile.get('C:\\repos\\example\\.temp\\inbox\\later.png')).toBe(4)
+  })
+
   it('adds the pictures a session sent the user, by the call and the place of the file', () => {
     const share = { caption: 'Shots', files: ['C:\\repos\\example\\.temp\\audit.md', 'C:\\repos\\example\\.temp\\dark.PNG'], folder: 'C:\\repos\\example' }
     const lines: FeedLine[] = [{ at, kind: 'tool', text: 'SendUserFile Shots', tool: 'toolu_s', share }]

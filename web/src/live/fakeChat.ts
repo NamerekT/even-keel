@@ -103,9 +103,14 @@ export function fakePastAsk(at: (minutes: number) => string): FeedLine[] {
   ]
 }
 
-/** Two screenshots read in one turn and a browser shot: tool lines first, then the image lines of their results. */
+/**
+ * The picture of the past answer read again, two screenshots read in one turn and a browser shot: tool lines first,
+ * then the image lines of their results. The read of the sent picture is the answer's frame, not one of its own.
+ */
 export function fakeShots(at: (minutes: number) => string): FeedLine[] {
   return [
+    { at: at(25), kind: 'tool', text: 'Read .temp/inbox/order.png', tool: 'toolu_fake_order', name: 'Read', subject: `${ROOT}\\.temp\\inbox\\order.png` },
+    { at: at(25), kind: 'image', text: 'order.png', tool: 'toolu_fake_order', images: 1 },
     { at: at(25), kind: 'tool', text: 'Read .temp/shots/chain-dark.png', tool: 'toolu_fake_dark', name: 'Read', subject: `${ROOT}\\.temp\\shots\\chain-dark.png` },
     { at: at(25), kind: 'tool', text: 'Read .temp/shots/chain-light.png', tool: 'toolu_fake_light', name: 'Read', subject: `${ROOT}\\.temp\\shots\\chain-light.png` },
     { at: at(25), kind: 'image', text: 'chain-dark.png', tool: 'toolu_fake_dark', images: 1 },
@@ -172,6 +177,7 @@ const SHOTS: Record<string, string> = {
   toolu_fake_dark: picture(1280, 720, '#1c1c1a', '#2f5fd0', 'dark'),
   toolu_fake_light: picture(1280, 720, '#f4f3ef', '#1baf7a', 'light'),
   toolu_fake_browser: picture(390, 844, '#6b4fd0', '#eb6834', 'browser'),
+  toolu_fake_order: fakeSentFileUrl('order.png'),
 }
 
 export function fakeImageUrl(tool: string, index: number): string {

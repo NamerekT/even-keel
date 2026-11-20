@@ -34,28 +34,81 @@ export function sharedKind(path: string): 'markdown' | 'image' | 'file' {
   return SHARED_MARKDOWN.test(path) ? 'markdown' : SENT_IMAGE.test(path) ? 'image' : 'file'
 }
 
-/** `fallback` names a picture of a call that is not a `Read`, when the transcript has no tool line for it. */
+const INBOX = '/.temp/inbox/'
+
+const normalPath = (path: string): string => path.replaceAll('\\', '/').toLowerCase()
+const isFullPath = (path: string): boolean => /^(?:[a-z]:)?\//i.test(path.replaceAll('\\', '/'))
+
+/**
+ * Whether two names of a picture the user sent are one file: by the full path where both know it, else by the name.
+ * A read in another folder's inbox — a worktree of another task — is another file.
+ */
+function sameSent(a: string, b: string): boolean {
+  if (isFullPath(a) && isFullPath(b)) return normalPath(a) === normalPath(b)
+  return fileName(a).toLowerCase() === fileName(b).toLowerCase()
+}
+
+/**
+ * The file a single-picture result of a call shows, when it may be one the user sent: in `.temp/inbox/` or known only
+ * by its name. The image line of Claude has only the name, so its tool line's subject gives the full path.
+ */
+function readPicture(line: FeedLine, subjects: Map<string, string>): string | null {
+  if (line.images !== 1) return null
+  const path = [line.text, subjects.get(line.tool!) ?? ''].find(isFullPath) ?? line.text
+  if (!SENT_IMAGE.test(path)) return null
+  return !isFullPath(path) || normalPath(path).includes(INBOX) ? path : null
+}
+
+/**
+ * `fallback` names a picture of a call that is not a `Read`, when the transcript has no tool line for it.
+ *
+ * A picture the user sent and the agent's read of it are one frame (BTN-1361): it stands where it first shows, and once
+ * the agent read it, its address is the transcript's copy, which outlives the inbox file the worktree's cleanup takes.
+ */
 export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: string): TranscriptMedia {
   const items: Media[] = []
   const byTool = new Map<string, number[]>()
   const byFile = new Map<string, number>()
   const byShare = new Map<string, number>()
   const toolTexts = new Map(lines.flatMap((line) => (line.kind === 'tool' && line.tool !== undefined ? [[line.tool, line.text]] : [])))
+  const subjects = new Map(lines.flatMap((line) => (line.kind === 'tool' && line.tool !== undefined && line.subject !== undefined ? [[line.tool, line.subject]] : [])))
+  const reads = lines.flatMap((line) => {
+    const path = line.kind === 'image' && line.tool !== undefined ? readPicture(line, subjects) : null
+    return path === null ? [] : [{ tool: line.tool!, path }]
+  })
+  // Each frame of a sent picture, by the file it shows; a read joins a sent one, a sent one joins only a read.
+  const frames: { place: number; path: string; read: boolean }[] = []
   for (const line of lines) {
     if (line.kind === 'image' && line.tool !== undefined) {
-      const name = line.text || toolTexts.get(line.tool) || fallback
-      const places = Array.from({ length: line.images ?? 0 }, (_, index) => items.push({ kind: 'image', name, url: urls.image(line.tool!, index) }) - 1)
-      byTool.set(line.tool, places)
+      const path = readPicture(line, subjects)
+      const frame = path === null ? undefined : frames.find((each) => sameSent(each.path, path))
+      if (frame !== undefined) byTool.set(line.tool, [frame.place])
+      else {
+        const name = line.text || toolTexts.get(line.tool) || fallback
+        const places = Array.from({ length: line.images ?? 0 }, (_, index) => items.push({ kind: 'image', name, url: urls.image(line.tool!, index) }) - 1)
+        if (path !== null) frames.push({ place: places[0]!, path, read: true })
+        byTool.set(line.tool, places)
+      }
     }
     for (const file of line.files ?? []) {
       if (!SENT_IMAGE.test(file) || byFile.has(file)) continue
+      const frame = frames.find((each) => each.read && sameSent(each.path, file))
+      if (frame !== undefined) {
+        byFile.set(file, frame.place)
+        continue
+      }
       const name = fileName(file)
+      const read = reads.find((each) => sameSent(each.path, file))
       const local = urls.local?.(name)
       // A bare name is a reply sent from this page the transcript has not got yet: the service may not give it so far.
-      const item: Media = local !== undefined && file === name
-        ? { kind: 'image', name, url: local }
-        : { kind: 'image', name, url: urls.file(name), inbox: true, ...(local !== undefined && { fallback: local }) }
-      byFile.set(file, items.push(item) - 1)
+      const item: Media = read !== undefined
+        ? { kind: 'image', name, url: urls.image(read.tool, 0) }
+        : local !== undefined && file === name
+          ? { kind: 'image', name, url: local }
+          : { kind: 'image', name, url: urls.file(name), inbox: true, ...(local !== undefined && { fallback: local }) }
+      const place = items.push(item) - 1
+      frames.push({ place, path: file, read: false })
+      byFile.set(file, place)
     }
     if (line.share !== undefined && line.tool !== undefined) {
       line.share.files.forEach((file, index) => {

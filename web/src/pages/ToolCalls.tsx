@@ -28,7 +28,7 @@ export function ToolGroup({ calls, media, onOpen }: Props) {
           {summary.size !== null && <EditSize {...summary.size} />}
           {summary.failed > 0 && <span className="tools__failed">{t.session.chat.tools.failed(summary.failed)}</span>}
         </FoldToggle>
-        {!open && <ThumbStack places={calls.flatMap((call) => media.byTool.get(call.line.tool ?? '') ?? [])} items={media.items} onOpen={onOpen} />}
+        {!open && <ThumbStack places={[...new Set(calls.flatMap((call) => media.byTool.get(call.line.tool ?? '') ?? []))]} items={media.items} onOpen={onOpen} />}
       </div>
       <FoldBody id={id} open={open}>
         <ul className="tools__calls">
