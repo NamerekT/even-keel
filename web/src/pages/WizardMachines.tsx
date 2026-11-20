@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import type { EvenKeelState, FolderProbe, MachineCard } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
+import { AgentIcon } from '../layout/accountParts.js'
 import { useMachines } from '../layout/AddMachineDialog.js'
 import { spanOf } from '../layout/MachinePanel.js'
 import { useNow } from '../layout/useNow.js'
@@ -131,6 +132,18 @@ export function MachinesBlock({ state, fields, set, machines, remote, hubName, p
   )
 }
 
+/** An account in the pick of "Sign in on X": its agent's icon, named for a screen reader, before its e-mail (BTN-1380). */
+export function AccountPickLabel({ agent, name }: { agent: string; name: string }) {
+  return (
+    <>
+      <span className="wizard-machines__agent" role="img" aria-label={agentName(agent)}>
+        <AgentIcon agent={agent} />
+      </span>
+      {name}
+    </>
+  )
+}
+
 /**
  * A machine with no agent signed in (BTN-1297): the project connects, its tasks wait. "Sign in on X" signs a hub
  * account in there as its row on the accounts page does (`machines/login`, followed by `MachineLoginDialog`); several
@@ -160,8 +173,8 @@ function SignInBand({ state, machine }: { state: EvenKeelState; machine: WizardM
       {picking && rows.length > 1 && (
         <span className="wizard-machines__accounts" role="group" aria-label={words.pickAccount}>
           {rows.map((row) => (
-            <button key={`${row.entry.agent} ${row.entry.key}`} type="button" className="button button--small" disabled={busy} onClick={() => login(row)}>
-              {row.entry.status?.email ?? row.entry.key} · {agentName(row.entry.agent)}
+            <button key={`${row.entry.agent} ${row.entry.key}`} type="button" className="button button--small wizard-machines__account" disabled={busy} onClick={() => login(row)}>
+              <AccountPickLabel agent={row.entry.agent} name={row.entry.status?.email ?? row.entry.key} />
             </button>
           ))}
         </span>

@@ -43,7 +43,7 @@
   font-size: var(--text-13);
 }
 
-/* How the one field "Folder or repository address" was read: an icon and a line (BTN-1093). */
+/* How the one field "Folder or repository address" was read: an icon, the head and captioned rows (BTN-1093, BTN-1380). */
 .project-add__read {
   display: flex;
   align-items: flex-start;
@@ -58,6 +58,33 @@
   display: inline-flex;
   padding-top: 2px;
   color: var(--lamp-done);
+}
+
+/* The rows' captions in one column, their values lined up beside them. */
+.project-add__read-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2) var(--space-12);
+  min-width: 0;
+}
+
+.project-add__read-head {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.project-add__read-row {
+  display: contents;
+}
+
+.project-add__read-caption {
+  padding-top: 2px;
+  font-size: var(--text-11);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .project-add__path {

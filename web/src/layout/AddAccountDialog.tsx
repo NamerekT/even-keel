@@ -18,7 +18,7 @@ import { CheckIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, ServerIcon, Termi
 import { secretInput } from '../ui/secret.js'
 import type { AwsProfiles, AzureCredentials, GcloudCredentials } from '../../../src/account/cloud.js'
 import { cloudBody, cloudReady, EMPTY_CLOUD } from '../cloudDraft.js'
-import { AgentIcon, LOGIN_FOCUS, LoginSteps } from './accountParts.js'
+import { AgentIcon, LOGIN_FOCUS, LoginSteps, ProviderHint } from './accountParts.js'
 import { CloudFields } from './CloudFields.js'
 import { SignFields } from './SignFields.js'
 import '../tools/addPackage.css'
@@ -408,7 +408,7 @@ function ProviderPick({ account, onPick, back }: { account: AccountView; onPick:
               </span>
               <span className="add-package__kind-title">{t.account.agents[provider]}</span>
               {missing && <span className="tag account-add__missing">{t.account.cliNotFound}</span>}
-              <span className="add-package__kind-hint">{providerHint(provider)}</span>
+              <ProviderHint provider={provider} className="add-package__kind-hint" />
             </button>
           )
         })}
@@ -548,4 +548,3 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
     </form>
   )
 }
-import { providerHint } from '../accountAdd.js'

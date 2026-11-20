@@ -8,9 +8,9 @@ import { limitSpans } from '../../../src/limits/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import type { AccountSpend, AccountTokens } from '../../../src/stats/model.js'
-import { loginRow, planRefused, retryBody, type LoginRow } from '../accountAdd.js'
+import { loginRow, planRefused, providerHint, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel, globalFolder, sameAccountAs } from '../accountName.js'
-import { CLI_MISSING, connectionOf, paysPerToken } from '../accounts.js'
+import { CLI_MISSING, connectionOf, paysPerToken, type Provider } from '../accounts.js'
 import { formatAgo, formatMoment, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -186,6 +186,21 @@ export function AgentIcon({ agent }: { agent: string }) {
   if (agent === OPENCODE) return <OpenCodeIcon />
   if (agent === COPILOT) return <CopilotIcon />
   return agent === CODEX ? <CodexIcon /> : agent === CLAUDE ? <ClaudeIcon /> : <span className="accounts__dot" />
+}
+
+/** An agent card's hint (`providerHint`): its sentence, or its ways to sign in as a tag each. */
+export function ProviderHint({ provider, className }: { provider: Provider; className: string }) {
+  const hint = providerHint(provider)
+  if (typeof hint === 'string') return <span className={className}>{hint}</span>
+  return (
+    <span className={`${className} provider-ways`}>
+      {hint.map((way) => (
+        <span key={way} className="tag">
+          {way}
+        </span>
+      ))}
+    </span>
+  )
 }
 
 /** Why an account without limits has none, as one sentence; null when it has them or pays from a key. */

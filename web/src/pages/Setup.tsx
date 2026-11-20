@@ -18,8 +18,9 @@ import { ADD_PROJECT, FROM_SETUP, setupFacts } from './SetupAsk.js'
 import { accountShortName, gitStepReady, gitYesToKeep, OPTIONAL_STEPS, profileShortName, SETUP_STEPS, setupStep, stepAnswered, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
 import { trackerProfiles, TrackerStep } from './SetupTracker.js'
 import { StatsStep } from './StatsSetup.js'
-import { listSummary } from './wizard.js'
-import { WizardFoot, WizardFrame, type WizardStep } from './WizardFrame.js'
+import { WizardFoot, WizardFrame, type StepSummary, type WizardStep } from './WizardFrame.js'
+import { AgentIcon } from '../layout/accountParts.js'
+import { TrackerIcon } from '../ui/icons.js'
 import '../stats/stats.css'
 import './accounts.css'
 import './settings.css'
@@ -109,34 +110,45 @@ export function setupLine(state: EvenKeelState): WizardStep[] {
   ]
 }
 
-/** What a step holds, under its dot once it is done. */
-function summaryOf(step: SetupStep, state: EvenKeelState): string | null {
+/**
+ * What a step holds, under its dot once it is done (BTN-1380): the prompts' language on a line under the page's, git by
+ * its version with its name and e-mail in the tip, the agent and the tracker as their icons before the account's or the
+ * profile's name.
+ */
+export function summaryOf(step: SetupStep, state: EvenKeelState): StepSummary | null {
   const shared = state.config.shared
   if (step === 'language') {
     const page = shared.language ?? language
-    return page === shared.promptLanguage ? t.shared.languages[page] : `${t.shared.languages[page]} · ${t.shared.languages[shared.promptLanguage]}`
+    const text = t.shared.languages[page]
+    return page === shared.promptLanguage ? { text } : { text, note: t.setup.promptsIn(t.shared.languages[shared.promptLanguage]) }
   }
   if (step === 'git') {
     const git = state.git
-    if (shared.defaultGit === false) return t.shared.defaultGitOff
+    if (shared.defaultGit === false) return { text: t.shared.defaultGitOff }
     if (git === undefined || git.version === null) return null
-    return git.name === null ? `Git ${git.version}` : `Git ${git.version} · ${git.name}`
+    const who = [git.name, git.email].filter((each): each is string => each !== null)
+    return who.length === 0 ? { text: `Git ${git.version}` } : { text: `Git ${git.version}`, tip: who }
   }
   if (step === 'agent') {
     const ready = readinessOf(state.account, shared.provider, shared.accounts[shared.provider] ?? '')
     const agent = providerName(shared.provider)
-    if (ready.state !== 'signIn' && ready.state !== 'ready') return agent
-    // An account without a name of its own is called after its agent: once is enough.
-    const name = accountShortName(accountName(ready.entry, state.account.accounts))
-    return name === agent ? agent : `${agent} · ${name}`
+    const icon = { node: <AgentIcon agent={shared.provider} />, label: agent }
+    if (ready.state !== 'signIn' && ready.state !== 'ready') return { text: agent, icon }
+    return { text: accountShortName(accountName(ready.entry, state.account.accounts)), icon }
   }
   if (step === 'tracker') {
-    // A profile saved before BTN-1382 may still carry its tracker before a `·`: the summary drops it.
+    const profiles = trackerProfiles(state)
+    const first = profiles[0]
+    if (first === undefined) return null
+    // A profile saved before BTN-1382 may still carry its tracker in front of its name: the summary drops it.
     const title = (kind: string) => state.profiles.kinds.find((each) => each.kind === kind)?.title ?? kind
-    return listSummary(trackerProfiles(state).map((profile) => profileShortName(profile.name, title(profile.kind))))
+    const name = (profile: (typeof profiles)[number]) => profileShortName(profile.name, title(profile.kind))
+    const summary = { text: name(first), icon: { node: <TrackerIcon kind={first.kind} />, label: title(first.kind) } }
+    if (profiles.length === 1) return summary
+    return { ...summary, more: profiles.length - 1, tip: profiles.map((profile) => `${name(profile)} (${title(profile.kind)})`) }
   }
-  if (step === 'updates') return t.setup.updates[shared.updates.check ? 'on' : 'off']
-  return state.tally === null ? null : t.tally.modes[state.tally]
+  if (step === 'updates') return { text: t.setup.updates[shared.updates.check ? 'on' : 'off'] }
+  return state.tally === null ? null : { text: t.tally.modes[state.tally] }
 }
 
 interface BodyProps {

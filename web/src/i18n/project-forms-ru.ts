@@ -29,7 +29,7 @@ export const wizardRU = {
     folderChosen: (folder: string) => `Сессии будут работать в ${folder}; если папки нет, она будет создана`,
     placePlain: 'Одна папка на все задачи, после Done она остаётся: в ней работает одна сессия за раз.',
     placePlainNow: 'Одна папка на все задачи',
-    mainBranch: (branch: string) => `основная ветка: ${branch}`,
+    mainBranch: 'Основная ветка',
     changeBranch: 'изменить',
     stepAgent: 'Агент',
     agent: 'Агент',
@@ -642,6 +642,7 @@ export const setupRU = {
     title: 'Настройка Even Keel',
     lead: 'Несколько шагов до первой задачи. Всё это потом меняется в Настройках.',
     stepsLabel: 'Шаги настройки',
+    promptsIn: (language: string) => `промпты: ${language}`,
     steps: { language: 'Язык', git: 'Git', agent: 'Агент', tracker: 'Трекер', updates: 'Обновления', stats: 'Статистика', project: 'Первый проект' },
     titles: {
       language: 'Языки',

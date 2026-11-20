@@ -13,10 +13,12 @@ export const creationEn: Messages['creation'] = {
   target: 'Folder or repository address',
   targetHint:
     "The full path of a folder on this machine — with a repository, without one, or not made yet; a repository's address to clone (HTTPS or SSH); or just the name of a new folder in Even Keel's projects folder. A private repository needs git signed in to its server.",
-  targetPlaceholder: (platform) => `${platform === 'win32' ? 'C:\\Projects\\my-app' : '~/projects/my-app'} · https://github.com/me/app.git · git@github.com:me/app.git`,
+  targetPlaceholder: (platform) => `${platform === 'win32' ? 'C:\\Projects\\my-app' : '~/projects/my-app'} or https://github.com/me/app.git`,
   reads: {
     clone: (host) => `Clone from ${host}`,
-    cloneEmpty: 'the repository is empty',
+    cloneEmpty: 'empty repository',
+    remote: 'Remote',
+    folder: 'Folder',
     existing: 'Existing repository',
     noRemote: 'no remote',
     here: 'New repository in this folder',
@@ -75,7 +77,7 @@ export const creationEn: Messages['creation'] = {
       files: 'files',
       lfs: 'LFS files',
     },
-    received: (bytes, speed) => `${size(bytes)}${speed === undefined ? '' : ` · ${size(speed)}/s`}`,
+    received: (bytes, speed) => `${size(bytes)}${speed === undefined ? '' : ` (${size(speed)}/s)`}`,
     objects: (count) => count.toLocaleString('en'),
     retry: 'Retry',
     cancel: 'Cancel',

@@ -71,7 +71,7 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
       <div className="add-package__frame">
         <header className="add-package__head">
           <h2 id={title} className="add-package__title">
-            {activeProfile !== undefined ? t.profiles.editTitle(activeProfile.name) : view === undefined ? t.profiles.add : `${t.profiles.add} · ${view.title}`}
+            {activeProfile !== undefined ? t.profiles.editTitle(activeProfile.name) : view === undefined ? t.profiles.add : t.profiles.addKind(view.title)}
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={close}>
             ×
@@ -197,7 +197,7 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
   // A passed check is glued under the last sign-in field, the token as a rule (BTN-592 wanted it not missed under the fields).
   const mcpChecked = kind.mcpOAuth === true && (grant === undefined ? profile?.mcpOAuth !== undefined : grant !== null && grant.values === key)
   const signedIn: StripLine | null = fresh
-    ? { tone: 'ok', text: `${t.profiles.login(checked.result.login)}${mcpChecked ? ` · ${t.profiles.mcp.checked}` : ''}`, short: checked.result.login }
+    ? { tone: 'ok', text: (mcpChecked ? t.profiles.loginMcp : t.profiles.login)(checked.result.login), short: checked.result.login }
     : null
 
   // The "Signed in as" line lands under the fold of a short screen: bring it into view (BTN-592).

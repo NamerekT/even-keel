@@ -35,8 +35,8 @@ export const OPTIONAL_STEPS: readonly SetupStep[] = ['git', 'tracker', 'stats']
  * its own, and every default name since, stays whole.
  */
 export function profileShortName(name: string, tracker: string): string {
-  const prefix = `${tracker} · `
-  return name.startsWith(prefix) && name.length > prefix.length ? name.slice(prefix.length) : name
+  if (!name.startsWith(tracker)) return name
+  return /^ · (.+)$/.exec(name.slice(tracker.length))?.[1] ?? name
 }
 
 /** An account's name in the few words under a done step: an e-mail without its domain. */

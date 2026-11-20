@@ -6,7 +6,7 @@ describe('progressText', () => {
     [{ stage: 'connecting' as const }, 'connecting…'],
     [{ stage: 'enumerating' as const, objects: 1234567 }, 'the server lists objects: 1,234,567'],
     [{ stage: 'counting' as const, percent: 30 }, 'counting objects · 30%'],
-    [{ stage: 'receiving' as const, percent: 42, bytes: 2048, speed: 1024 }, 'receiving · 42% · 2 KB · 1 KB/s'],
+    [{ stage: 'receiving' as const, percent: 42, bytes: 2048, speed: 1024 }, 'receiving · 42% · 2 KB (1 KB/s)'],
     [{ stage: 'lfs' as const, percent: 63 }, '63%'],
   ])('says %j as %s', (progress, text) => {
     expect(progressText(progress)).toBe(text)

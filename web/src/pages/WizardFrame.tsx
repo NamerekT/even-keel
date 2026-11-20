@@ -1,14 +1,31 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
+import { Tipped } from '../ui/Tipped.js'
 import { filledShare, stepMarks, type DotMark } from './wizard.js'
 import './wizard.css'
+
+/**
+ * What a done step holds, under its label (BTN-1380): a fact a line, never glued — the agent's or tracker's icon before a
+ * name, the count of the rest in brackets, a second fact as a muted line under it, what does not fit in a tip.
+ */
+export interface StepSummary {
+  text: string
+  /** Drawn before the text; `label` names it for a screen reader. */
+  icon?: { node: ReactNode; label: string }
+  /** The items past the first, shown as "(+2)"; each of them is named in `tip`. */
+  more?: number
+  /** A second fact on a muted line of its own. */
+  note?: string
+  /** What the line leaves out, a line each. */
+  tip?: string[]
+}
 
 export interface WizardStep {
   id: string
   label: string
-  /** What the step holds once done ("English", "GitHub · octo-org"), under its label; `null` — nothing to say. */
-  summary: string | null
+  /** What the step holds once done; `null` — nothing to say. */
+  summary: StepSummary | null
   /** The step has its answer (`stepAnswered`): its dot is checked wherever the user is. */
   done: boolean
   to: string
@@ -59,7 +76,7 @@ function StepLine({ label, list, current }: { label: string; list: WizardStep[];
               <Link to={step.to} state={step.state} className="wizard__step-link" aria-current={mark === 'current' ? 'step' : undefined}>
                 <StepDot mark={mark} />
                 <span className="wizard__step-label">{step.label}</span>
-                {mark === 'done' && step.summary !== null && <span className="wizard__step-summary">{step.summary}</span>}
+                {mark === 'done' && step.summary !== null && <Summary summary={step.summary} />}
               </Link>
             </li>
           )
@@ -69,6 +86,31 @@ function StepLine({ label, list, current }: { label: string; list: WizardStep[];
         {list.find((step) => step.id === current)?.label}
       </p>
     </nav>
+  )
+}
+
+/** A done step's facts under its label (`StepSummary`); a tip, when there is one, opens on pointing. */
+export function Summary({ summary }: { summary: StepSummary }) {
+  const { text, icon, more, note, tip } = summary
+  const lines = (
+    <>
+      <span className="wizard__step-fact">
+        {icon !== undefined && (
+          <span className="wizard__step-icon" role="img" aria-label={icon.label}>
+            {icon.node}
+          </span>
+        )}
+        <span className="wizard__step-text">{text}</span>
+        {more !== undefined && more > 0 && <span className="wizard__step-more">(+{more})</span>}
+      </span>
+      {note !== undefined && <span className="wizard__step-note">{note}</span>}
+    </>
+  )
+  if (tip === undefined || tip.length === 0) return <span className="wizard__step-summary">{lines}</span>
+  return (
+    <Tipped inline className="wizard__step-summary" tip={tip.map((line, index) => <span key={index}>{line}</span>)}>
+      {lines}
+    </Tipped>
   )
 }
 

@@ -4,6 +4,13 @@
   overflow-wrap: anywhere;
 }
 
+/* An agent card's ways to sign in, a tag each (`ProviderHint`, BTN-1380). */
+.provider-ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
 .account-add__cli-foot {
   flex-wrap: wrap;
   justify-content: flex-end;

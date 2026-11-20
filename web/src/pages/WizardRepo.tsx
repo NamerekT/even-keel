@@ -81,13 +81,12 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
   // A clone's folder answers under its own line; everything else is the one field's answer.
   const folderRefusal = clone && read?.as === 'clone' && repo?.place !== undefined && !remoteRefused
   const branchLine = !branchShown && (
-    <>
-      {' · '}
-      {t.wizard.mainBranch(fields.branch || current || 'main')}{' '}
+    <ReadRow caption={t.wizard.mainBranch}>
+      <bdi className="project-add__path">{fields.branch || current || 'main'}</bdi>{' '}
       <button type="button" className="link-button" onClick={onBranchOpen}>
         [{t.wizard.changeBranch}]
       </button>
-    </>
+    </ReadRow>
   )
   // A clone's field offers its remote's branches and says which one the clone takes, never a move of a checkout (BTN-1096).
   const remote = clone && !remoteRefused ? repo?.remoteBranches : undefined
@@ -177,37 +176,51 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
   )
 }
 
-/** How the one field was read, in one line with an icon (BTN-1093); a folder that holds files warns of the first commit under it. */
-function ReadLine({ read, repo, current, branchLine }: { read: SourceRead; repo: ProjectCheck['repo']; current: string | null; branchLine: ReactNode }) {
+/** A captioned row of the read line: the caption as a fact's label, the value beside it. */
+function ReadRow({ caption, children }: { caption: string; children: ReactNode }) {
+  return (
+    <span className="project-add__read-row">
+      <span className="project-add__read-caption">{caption}</span>
+      <span>{children}</span>
+    </span>
+  )
+}
+
+/**
+ * How the one field was read (BTN-1093), with an icon: what Even Keel makes of it as the head, a state such as "empty" as
+ * a tag beside it, and the remote, the folder and the main branch as captioned rows under it (BTN-1380). A folder that
+ * holds files warns of the first commit under it.
+ */
+export function ReadLine({ read, repo, current, branchLine }: { read: SourceRead; repo: ProjectCheck['repo']; current: string | null; branchLine: ReactNode }) {
   const reads = t.creation.reads
-  const path = repo.root === null ? null : <bdi className="project-add__path">{repo.root}</bdi>
   const holds = read.as === 'here' && repo.place?.state === 'filled' ? repo.place.holds : undefined
-  const line = (icon: ReactNode, words: ReactNode, tail: ReactNode) => (
-    <p className="project-add__read">
+  const line = (icon: ReactNode, words: string, tag: string | null, rows: ReactNode) => (
+    <div className="project-add__read">
       <span className="project-add__read-icon">{icon}</span>
-      <span>
-        {words}
-        {tail}
+      <span className="project-add__read-body">
+        <span className="project-add__read-head">
+          {words}
+          {tag !== null && <span className="tag">{tag}</span>}
+        </span>
+        {rows}
       </span>
-    </p>
+    </div>
   )
   switch (read.as) {
     case 'clone':
       // The remote answers before the place does: until then the line waits.
       if (repo.place === undefined) return null
-      return line(<ClonesIcon />, reads.clone(read.host), current === null ? ` · ${reads.cloneEmpty}` : branchLine)
+      return current === null ? line(<ClonesIcon />, reads.clone(read.host), reads.cloneEmpty, null) : line(<ClonesIcon />, reads.clone(read.host), null, branchLine)
     case 'existing':
       return line(
         <BranchIcon />,
         reads.existing,
+        read.remote === null ? reads.noRemote : null,
         <>
-          {' · '}
-          {read.remote === null ? (
-            reads.noRemote
-          ) : (
-            <>
+          {read.remote !== null && (
+            <ReadRow caption={reads.remote}>
               {read.remote.name} <bdi className="project-add__path">{read.remote.url}</bdi>
-            </>
+            </ReadRow>
           )}
           {branchLine}
         </>,
@@ -215,7 +228,7 @@ function ReadLine({ read, repo, current, branchLine }: { read: SourceRead; repo:
     case 'here':
       return (
         <>
-          {line(<PlusIcon />, reads.here, holds === undefined ? <>{` · ${reads.empty}`}{branchLine}</> : branchLine)}
+          {line(<PlusIcon />, reads.here, holds === undefined ? reads.empty : null, branchLine)}
           {holds !== undefined && <p className="project-add__open">{t.creation.firstCommit(holds.files, holds.bytes, holds.capped)}</p>}
         </>
       )
@@ -224,8 +237,13 @@ function ReadLine({ read, repo, current, branchLine }: { read: SourceRead; repo:
       return line(
         <PlusIcon />,
         reads[read.as],
+        null,
         <>
-          {path !== null && <> · {path}</>}
+          {repo.root !== null && (
+            <ReadRow caption={reads.folder}>
+              <bdi className="project-add__path">{repo.root}</bdi>
+            </ReadRow>
+          )}
           {branchLine}
         </>,
       )

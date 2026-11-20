@@ -25,9 +25,3 @@ export function checkMarks(checks: readonly StepCheck[]): CheckMark[] {
   const at = checks.indexOf('empty')
   return checks.map((check, index) => (check !== 'empty' ? check : index === at ? 'current' : 'future'))
 }
-
-/** What a done step holds, in a few words: the first item and how many more. */
-export function listSummary(items: readonly string[]): string | null {
-  if (items.length === 0) return null
-  return items.length === 1 ? items[0]! : `${items[0]} +${items.length - 1}`
-}

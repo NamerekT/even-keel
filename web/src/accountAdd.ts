@@ -4,8 +4,9 @@ import { PROVIDERS, type Provider } from './accounts.js'
 import { cloudDirty, type CloudDraft } from './cloudDraft.js'
 import { t } from './i18n/index.js'
 
-export const providerHint = (provider: Provider): string => provider === 'opencode'
-  ? ['chatgpt', 'go', 'free', 'apiKey'].map(way => t.addAccount.way.opencode[way as 'chatgpt' | 'go' | 'free' | 'apiKey'].title).join(' · ')
+/** What an agent's card says under its name: a sentence, or for OpenCode its ways to sign in, drawn as tags (BTN-1380). */
+export const providerHint = (provider: Provider): string | readonly string[] => provider === 'opencode'
+  ? (['chatgpt', 'go', 'free', 'apiKey'] as const).map(way => t.addAccount.way.opencode[way].title)
   : t.account.providerHints[provider]
 
 /** How a way adds the account: a sign-in through the agent's CLI, a folder placed at once, a key checked first, or a cloud checked by one turn. */

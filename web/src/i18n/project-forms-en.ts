@@ -31,7 +31,7 @@ export const wizardEN: Messages['wizard'] = {
     folderChosen: (folder: string) => `Sessions will work in ${folder}; it is made if it does not exist`,
     placePlain: 'One folder for all tasks, kept after Done: one session works in it at a time.',
     placePlainNow: 'One folder for all tasks',
-    mainBranch: (branch: string) => `main branch: ${branch}`,
+    mainBranch: 'Main branch',
     changeBranch: 'change',
     stepAgent: 'Agent',
     agent: 'Agent',
@@ -644,6 +644,7 @@ export const setupEN: Messages['setup'] = {
     title: 'Set up Even Keel',
     lead: 'A few steps before the first task. Anything here can be changed later in Settings.',
     stepsLabel: 'Setup steps',
+    promptsIn: (language: string) => `prompts in ${language}`,
     steps: { language: 'Language', git: 'Git', agent: 'Agent', tracker: 'Tracker', updates: 'Updates', stats: 'Stats', project: 'First project' },
     titles: {
       language: 'Languages',

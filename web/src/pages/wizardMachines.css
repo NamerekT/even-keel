@@ -112,6 +112,17 @@
   margin-top: var(--space-6);
 }
 
+/* An account of the pick: its agent's icon before its e-mail (BTN-1380). */
+.wizard-machines__account {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.wizard-machines__agent {
+  display: inline-flex;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wizard-machines__body {
     animation: none;

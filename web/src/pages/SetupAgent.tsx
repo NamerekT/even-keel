@@ -3,7 +3,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { PROVIDERS, readinessOf, type Provider } from '../accounts.js'
 import { accountName } from '../accountName.js'
 import { say, t } from '../i18n/index.js'
-import { AgentIcon } from '../layout/accountParts.js'
+import { AgentIcon, ProviderHint } from '../layout/accountParts.js'
 import { useOpenAdd } from '../layout/AddAccountDialog.js'
 import { CliSourceChoice } from '../layout/CliSource.js'
 import { cliText } from '../layout/cliText.js'
@@ -16,7 +16,6 @@ import type { StepCheck } from './wizard.js'
 import { StepDot } from './WizardFrame.js'
 import { copilotNote } from '../../../src/opencode/support.js'
 import './providerChoices.css'
-import { providerHint } from '../accountAdd.js'
 
 /**
  * The setup's agent (BTN-346, BTN-603) in the project wizard's parts, each with its dot: a card per provider that says
@@ -67,7 +66,7 @@ function AgentCard({ state, provider, chosen, disabled, onPick }: CardProps) {
           <AgentIcon agent={provider} />
         </span>
         <span className="setup-agent__name">{t.account.agents[provider]}</span>
-        <span className="setup-agent__hint">{providerHint(provider)}</span>
+        <ProviderHint provider={provider} className="setup-agent__hint" />
       </button>
       {chosen && <ChosenMark />}
       <div className="setup-agent__cli">{installed ? text.installed(copy?.installed ?? null) : text.absent}</div>

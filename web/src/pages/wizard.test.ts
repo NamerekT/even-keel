@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkMarks, filledShare, listSummary, stepMarks } from './wizard.js'
+import { checkMarks, filledShare, stepMarks } from './wizard.js'
 
 const STEPS = ['language', 'agent', 'tracker', 'stats', 'project'] as const
 
@@ -28,17 +28,6 @@ describe('filledShare', () => {
 
   it('leaves a line of one step empty', () => {
     expect(filledShare(['only'], 'only')).toBe(0)
-  })
-})
-
-describe('listSummary', () => {
-  it('names the first item and counts the rest', () => {
-    expect(listSummary(['GitHub · octo-org'])).toBe('GitHub · octo-org')
-    expect(listSummary(['GitHub · octo-org', 'Huly · example', 'Linear · acme'])).toBe('GitHub · octo-org +2')
-  })
-
-  it('has no summary for no items', () => {
-    expect(listSummary([])).toBeNull()
   })
 })
 

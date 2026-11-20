@@ -15,10 +15,12 @@ export const creationRu = {
   targetHint:
     'Полный путь к папке на этой машине — с репозиторием, без него или ещё не созданной; адрес репозитория для клона (HTTPS или SSH); или просто имя новой папки в папке проектов Even Keel. Закрытому репозиторию нужен вход git на его сервер.',
   targetPlaceholder: (platform: string): string =>
-    `${platform === 'win32' ? 'C:\\Projects\\my-app' : '~/projects/my-app'} · https://github.com/me/app.git · git@github.com:me/app.git`,
+    `${platform === 'win32' ? 'C:\\Projects\\my-app' : '~/projects/my-app'} или https://github.com/me/app.git`,
   reads: {
     clone: (host: string): string => `Клон с ${host}`,
-    cloneEmpty: 'репозиторий пуст',
+    cloneEmpty: 'пустой репозиторий',
+    remote: 'Remote',
+    folder: 'Папка',
     existing: 'Существующий репозиторий',
     noRemote: 'без remote',
     here: 'Новый репозиторий в этой папке',
@@ -76,7 +78,7 @@ export const creationRu = {
       files: 'файлы',
       lfs: 'файлы LFS',
     },
-    received: (bytes: number, speed: number | undefined) => `${size(bytes)}${speed === undefined ? '' : ` · ${size(speed)}/с`}`,
+    received: (bytes: number, speed: number | undefined) => `${size(bytes)}${speed === undefined ? '' : ` (${size(speed)}/с)`}`,
     objects: (count: number) => count.toLocaleString('ru'),
     retry: 'Повторить',
     cancel: 'Отменить',
