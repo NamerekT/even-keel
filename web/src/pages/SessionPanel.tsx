@@ -439,7 +439,7 @@ function SessionBody({ session, limit, refusal = null, scale, task, onChat }: Se
           {cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={cache} warm={session.warm ?? null} />}
         </Fact>
         <ContextFact label={t.session.context} tokens={session.contextTokens} window={session.contextWindow} scale={scale} wide />
-        <ModelFact agent={session.agent} model={session.model} effort={session.effort} />
+        <ModelFact agent={session.agent} model={session.model} title={session.modelTitle} effort={session.effort} />
         <TokensFact tokens={session.tokens} />
       </FactList>
       {session.lamp === 'finished' ? (
@@ -621,7 +621,7 @@ function SessionWindow({ row, live, scale, task, onClose }: { row: TaskSession; 
                   <dd className="panel__value">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
                 </Fact>
                 <ContextFact label={t.session.endContext} tokens={record.contextTokens} window={record.contextWindow} scale={scale} wide />
-                <ModelFact agent={record.agent} model={record.model} effort={record.effort} />
+                <ModelFact agent={record.agent} model={record.model} title={record.modelTitle} effort={record.effort} />
                 <TokensFact tokens={record.tokens} />
                 {(record.branch !== null || record.workdir !== null) && (
                   <Fact label={t.session.place} wide>

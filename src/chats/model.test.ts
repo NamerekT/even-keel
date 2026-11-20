@@ -157,6 +157,14 @@ describe('the card', () => {
     expect(cardOf(chat({ title: 'chat-0123456789ab' }), undefined, false, NOW).title).toBe('Why is the build slow?')
   })
 
+  it("names the chat's model as its session's catalogue does, only while the session answers with it", () => {
+    const model = 'openrouter/nvidia/nemotron-ultra:free'
+    const title = 'NVIDIA: Nemotron Ultra (free)'
+    expect(cardOf(chat({ model }), view({ model, modelTitle: title }), false, NOW).modelTitle).toBe(title)
+    expect(cardOf(chat({ model }), view({ model: 'opencode/other', modelTitle: 'Other' }), false, NOW).modelTitle).toBeUndefined()
+    expect(cardOf(chat({ model }), undefined, false, NOW).modelTitle).toBeUndefined()
+  })
+
   it('of an archived chat keeps the last message it had', () => {
     const last = { from: 'agent' as const, text: 'Kept.', at: '2026-11-17T10:00:00.000Z' }
     const feed = [{ at: '2026-11-18T11:58:00.000Z', kind: 'text' as const, text: 'Later.' }]

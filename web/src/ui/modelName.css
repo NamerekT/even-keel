@@ -1,0 +1,5 @@
+/* The `free` badge after a model's name: it stays whole while the name before it is cut. */
+.model-free {
+  flex: none;
+  margin-inline-start: var(--space-4);
+}

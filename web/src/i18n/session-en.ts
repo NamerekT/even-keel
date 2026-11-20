@@ -150,6 +150,8 @@ export const sessionEn = {
   model: 'Model',
   provider: 'provider',
   modelOf: 'model',
+  modelFree: 'free',
+  modelFreeTip: "The provider's free tier of the model",
   effortOf: 'effort',
   modelFrom: "By the session's last answer in its transcript",
   modelYet: 'The session has not answered yet: the model shows from its first answer',

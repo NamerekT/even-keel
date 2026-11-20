@@ -12,7 +12,6 @@ import {
   launchLabel,
   limitAccounts,
   modelLabel,
-  modelVersionLabel,
   reasonLabel,
   weeklyLimit,
 } from './format.js'
@@ -107,13 +106,6 @@ describe('labels', () => {
 
   it.each(['Opus', 'Sonnet', 'Haiku', 'Fable', 'Sol', 'Luna', 'Astra', 'Terra', 'GPT'])('names the %s family', (label) => {
     expect(modelLabel(label.toLowerCase())).toBe(label)
-  })
-
-  it('names a model with its version', () => {
-    expect(modelVersionLabel('claude-opus-5-5')).toBe('Opus 5.5')
-    expect(modelVersionLabel('claude-opus-5')).toBe('Opus 5')
-    expect(modelVersionLabel('claude-haiku-4-5-20251001')).toBe('Haiku 4.5')
-    expect(modelVersionLabel('google-gemini-3.1-flash-lite')).toBe('google-gemini-3.1-flash-lite')
   })
 
   it('names launch reasons and sessions outside the chain', () => {

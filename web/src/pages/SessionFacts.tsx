@@ -10,7 +10,8 @@ import { cacheFreshness, contextFill, tokenTotal } from '../state.js'
 import { Fact } from '../ui/blocks.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
-import { modelName } from '../ui/runLabel.js'
+import { modelTip } from '../ui/modelLabel.js'
+import { ModelName } from '../ui/ModelName.js'
 import { EffortBars } from '../ui/RunLabelTag.js'
 import { useTip } from '../ui/useTip.js'
 
@@ -49,14 +50,14 @@ export function CacheFact({ cache, warm }: { cache: CacheWindow; warm: KeptWarm 
 }
 
 /**
- * The model the session answers with, without its route, as a task's run tag shows it, its effort as a bar scale after it; the provider before it when not Claude.
- * Only the model's tail is cut; the tip has the full name.
+ * The model the session answers with, by its short name (`shortModel`), its effort as a bar scale after it; the provider before it when not Claude.
+ * Only the model's tail is cut; the tip has the full name and the id.
  */
-export function ModelFact({ agent, model, effort }: { agent: string; model: string | null; effort: string | null }) {
+export function ModelFact({ agent, model, title, effort }: { agent: string; model: string | null; title?: string | undefined; effort: string | null }) {
   const provider = agentLabel(agent)
   const value = model === null ? '—' : <>
     {agent !== CLAUDE && <span className="panel__model-provider">{provider}{' · '}</span>}
-    <span className="panel__model-name">{modelName(model)}</span>
+    <ModelName model={model} title={title} className="panel__model-name" />
     <EffortBars effort={effort} spaced className="panel__model-effort" />
   </>
   return (
@@ -69,7 +70,7 @@ export function ModelFact({ agent, model, effort }: { agent: string; model: stri
         {model !== null && (
           <span className="panel__part">
             <span className="panel__part-label">{t.session.modelOf}</span>
-            <b>{model}</b>
+            <b>{modelTip(model, title)}</b>
           </span>
         )}
         {model !== null && effort !== null && (

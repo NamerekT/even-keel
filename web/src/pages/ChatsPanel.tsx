@@ -13,6 +13,7 @@ import { ChatIcon, PlusIcon, SearchIcon } from '../ui/icons.js'
 import { EffortBars } from '../ui/RunLabelTag.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { NewChatDialog } from './NewChatDialog.js'
+import { modelTip, shortModel } from '../ui/modelLabel.js'
 import { chatChip, chatsBadge, chatTone, contextPercent, modelText } from './projectChats.js'
 import { GroupTabs } from './settingsParts.js'
 import type { ProjectChatsView } from './useProjectChats.js'
@@ -147,6 +148,13 @@ function ActiveList({ chats, onOpen }: { chats: ProjectChatsView; onOpen: (chat:
   )
 }
 
+/** The model tag's tip: the model's full name and id, its effort; `null` — the default model with no effort. */
+function modelTagTip(chat: ChatCard): string | null {
+  const lines = [chat.model === null ? null : modelTip(chat.model, chat.modelTitle), chat.effort === null ? null : `${t.chats.dialog.effort}: ${chat.effort}`]
+  const told = lines.filter((line) => line !== null)
+  return told.length === 0 ? null : told.join('\n')
+}
+
 function ChatCardButton({ chat, now, narrow, onOpen }: { chat: ChatCard; now: Date; narrow: boolean; onOpen: () => void }) {
   const tone = chatTone(chat.state)
   const chip = chatChip(chat.state)
@@ -166,10 +174,11 @@ function ChatCardButton({ chat, now, narrow, onOpen }: { chat: ChatCard; now: Da
       </span>
       <span className="chat-card__meta">
         <AccountTag account={chat.account} agent={chat.agent} />
-        <span className="tag" title={chat.effort === null ? undefined : `${t.chats.dialog.effort}: ${chat.effort}`}>
-          {modelText(chat.model, t.chats.defaultModel)}
+        <span className="tag" title={modelTagTip(chat) ?? undefined}>
+          {modelText(chat.model, t.chats.defaultModel, chat.modelTitle)}
           <EffortBars effort={chat.effort} spaced className="chat-card__effort" />
         </span>
+        {chat.model !== null && shortModel(chat.model).free && <span className="tag" title={t.session.modelFreeTip}>{t.session.modelFree}</span>}
         {percent !== null && <span title={t.chats.contextTip}>{t.chats.context(percent)}</span>}
       </span>
       {chat.last !== null && (

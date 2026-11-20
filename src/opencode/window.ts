@@ -30,14 +30,34 @@ export function readCatalogue(dir: string): Promise<string> {
  * when it has no such model or no `context` and `output`, both of which a config's `limit` must give.
  */
 export function limitOf(catalogue: string, model: string): ModelLimit | null {
+  const { context, output } = (entryOf(catalogue, model)?.limit ?? {}) as Record<string, unknown>
+  return positive(context) && positive(output) ? { context, output } : null
+}
+
+/** The name the catalogue gives `<provider>/<model>`, as it writes it (`NVIDIA: … (free)`); `null` — none. */
+export function titleOf(catalogue: string, model: string): string | null {
+  const name = entryOf(catalogue, model)?.name
+  return typeof name === 'string' && name.trim() !== '' ? name.trim() : null
+}
+
+/** `titleOf` in the account folder's own catalogue. */
+export async function modelTitle(dir: string, model: string): Promise<string | null> {
+  return titleOf(await readCatalogue(dir), model)
+}
+
+/** The summary with the catalogue's name of its model, none when `title` is `null`. */
+export function withTitle<T extends { modelTitle?: string }>(summary: T, title: string | null): T {
+  return title === null ? summary : { ...summary, modelTitle: title }
+}
+
+function entryOf(catalogue: string, model: string): Record<string, unknown> | undefined {
   const slash = model.indexOf('/')
-  if (slash <= 0) return null
+  if (slash <= 0) return undefined
   try {
-    const limit: unknown = JSON.parse(catalogue)?.[model.slice(0, slash)]?.models?.[model.slice(slash + 1)]?.limit
-    const { context, output } = (limit ?? {}) as Record<string, unknown>
-    return positive(context) && positive(output) ? { context, output } : null
+    const entry: unknown = JSON.parse(catalogue)?.[model.slice(0, slash)]?.models?.[model.slice(slash + 1)]
+    return typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : undefined
   } catch {
-    return null
+    return undefined
   }
 }
 

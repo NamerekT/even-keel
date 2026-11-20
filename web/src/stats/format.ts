@@ -1,26 +1,7 @@
 import type { LimitCoverage, StatsLimitWindow } from '../../../src/stats/model.js'
 import { localized, t } from '../i18n/index.js'
+import { MODEL_FAMILIES as MODELS } from '../ui/modelLabel.js'
 import { dayCount, type DayRange } from './period.js'
-
-const MODELS: Record<string, string> = {
-  opus: 'Opus',
-  sonnet: 'Sonnet',
-  haiku: 'Haiku',
-  fable: 'Fable',
-  sol: 'Sol',
-  luna: 'Luna',
-  astra: 'Astra',
-  terra: 'Terra',
-  gpt: 'GPT',
-  deepseek: 'DeepSeek',
-  qwen: 'Qwen',
-  gemini: 'Gemini',
-  kimi: 'Kimi',
-  glm: 'GLM',
-  mistral: 'Mistral',
-  llama: 'Llama',
-  minimax: 'MiniMax',
-}
 
 const ENTRYPOINTS: Record<string, string> = {
   chain: 'Even Keel',
@@ -94,13 +75,6 @@ export function kindLabel(kind: string): string {
 export function launchLabel(reason: string | null): string {
   if (reason === null) return t.stats.labels.outsideChain
   return t.stats.labels.launches[reason] ?? reason
-}
-
-// 'claude-opus-5-5' → 'Opus 5.5', a trailing date dropped; anything not a Claude model stays as it is.
-export function modelVersionLabel(model: string): string {
-  const match = /^claude-([a-z]+)((?:-\d{1,2})+)(?:-\d{8})?$/.exec(model)
-  if (match === null) return model
-  return `${MODELS[match[1]!] ?? match[1]} ${match[2]!.slice(1).replaceAll('-', '.')}`
 }
 
 export function modelLabel(model: string): string {

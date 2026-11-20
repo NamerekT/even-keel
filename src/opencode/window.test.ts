@@ -3,12 +3,31 @@ import { entryOf } from '../codex/turns.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { OPENCODE } from './name.js'
 import { foldSession } from './transcript.js'
-import { limitOf, sessionWindow, windowConfig } from './window.js'
+import { limitOf, sessionWindow, titleOf, windowConfig } from './window.js'
 
 const catalogue = JSON.stringify({
   opencode: { models: { 'big-pickle': { limit: { context: 200_000, input: 160_000, output: 32_000 } } } },
   openrouter: { models: { 'minimax/minimax-m3.1-flash': { limit: { context: 1_000_000, output: 64_000 } } } },
   odd: { models: { 'no-output': { limit: { context: 128_000 } } } },
+})
+
+describe('titleOf', () => {
+  const named = JSON.stringify({
+    openrouter: { models: { 'nvidia/nemotron-ultra:free': { name: 'NVIDIA: Llama 3.1 Nemotron Ultra 253B v1 (free)' } } },
+    opencode: { models: { 'big-pickle': { name: '  ' } } },
+  })
+
+  it("reads a model's name from the catalogue", () => {
+    expect(titleOf(named, 'openrouter/nvidia/nemotron-ultra:free')).toBe('NVIDIA: Llama 3.1 Nemotron Ultra 253B v1 (free)')
+  })
+
+  it('gives nothing for a model without a name, unknown or without a provider', () => {
+    expect(titleOf(named, 'opencode/big-pickle')).toBeNull()
+    expect(titleOf(named, 'opencode/unknown')).toBeNull()
+    expect(titleOf(named, 'big-pickle')).toBeNull()
+    expect(titleOf('', 'opencode/big-pickle')).toBeNull()
+    expect(titleOf('{not json', 'opencode/big-pickle')).toBeNull()
+  })
 })
 
 describe('limitOf', () => {

@@ -14,7 +14,7 @@ import { fetchOpenCode, openCodeBinaryIn, openCodePackage } from './release.js'
 import { OpenCodeTail } from './tail.js'
 import { foldSession } from './transcript.js'
 import { openCodeLimitsHidden, openCodeUsage } from './usage.js'
-import { readCatalogue } from './window.js'
+import { modelTitle, readCatalogue } from './window.js'
 import { filterChatGptModels } from './models.js'
 
 const HISTORY_FEED = 5_000
@@ -64,11 +64,13 @@ export const opencode: AgentAdapter = {
         const rows = await sessionRows(home.dir, sessionId)
         if (rows === undefined) return undefined
         const summary = foldSession(rows.messages, rows.parts, HISTORY_FEED, false, await cli.turnErrors(sessionId))
+        const title = summary.model === null ? null : await modelTitle(home.dir, summary.model)
         return {
           sessionId,
           startedAt: summary.firstActivityAt,
           lastActivityAt: summary.lastActivityAt,
           model: summary.model,
+          ...(title === null ? {} : { modelTitle: title }),
           effort: summary.effort ?? null,
           contextTokens: summary.contextTokens,
           contextWindow: summary.contextWindow,

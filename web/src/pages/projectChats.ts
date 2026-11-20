@@ -1,4 +1,5 @@
 import type { ChatCard, ChatState } from '../../../src/chats/model.js'
+import { shortModel } from '../ui/modelLabel.js'
 
 /** The colour of a chat's agent icon (BTN-1231): blue at work, amber waiting for the user, green answered, grey cold, red stopped. */
 export type ChatTone = 'working' | 'waiting' | 'answered' | 'idle' | 'error'
@@ -35,9 +36,9 @@ export function chatChip(state: ChatState): ChatChip | null {
   return state === 'cold' ? 'cold' : null
 }
 
-/** "sonnet-5-5": the model without its provider, its effort a bar scale after it on the tag; `fallback` names the agent's default model. */
-export function modelText(model: string | null, fallback: string): string {
-  return model === null ? fallback : model.slice(model.lastIndexOf('/') + 1).replace(/^claude-/, '')
+/** "Sonnet 5.5": the model's short name (`shortModel`), its effort a bar scale after it on the tag; `fallback` names the agent's default model. */
+export function modelText(model: string | null, fallback: string, title?: string): string {
+  return model === null ? fallback : shortModel(model, title).name
 }
 
 /** How full the chat's context is, in whole percent; `null` — no session, no window or nothing read yet. */

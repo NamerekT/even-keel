@@ -4,6 +4,7 @@ import type { TranscriptSummary } from '../sessions/transcript.js'
 import type { TurnError } from './cli.js'
 import { sessionRows, sessionStamp } from './db.js'
 import { foldSession } from './transcript.js'
+import { modelTitle, withTitle } from './window.js'
 
 /**
  * An OpenCode session read as it grows. Its rows change in place (a tool part goes from `running` to `completed`), so
@@ -12,6 +13,7 @@ import { foldSession } from './transcript.js'
 export class OpenCodeTail implements SessionTail {
   private folded: TranscriptSummary = foldSession([], [])
   private stamp: string | undefined
+  private title: { model: string; title: string | null } | undefined
 
   /** `errors` — those the session's turns ended on: they are not rows of the database, so they change the stamp too. */
   constructor(
@@ -41,6 +43,9 @@ export class OpenCodeTail implements SessionTail {
     const rows = await sessionRows(this.home, this.agent.sessionId)
     if (rows === undefined) return
     this.stamp = `${rows.stamp}:${errorStamp}`
-    this.folded = foldSession(rows.messages, rows.parts, undefined, false, errors)
+    const folded = foldSession(rows.messages, rows.parts, undefined, false, errors)
+    // The catalogue is read again only for a model the session has not answered with before.
+    if (folded.model !== null && this.title?.model !== folded.model) this.title = { model: folded.model, title: await modelTitle(this.home, folded.model) }
+    this.folded = withTitle(folded, folded.model === null ? null : (this.title?.title ?? null))
   }
 }

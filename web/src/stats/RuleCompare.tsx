@@ -2,7 +2,8 @@ import type { CompareSide, StatsCompare } from '../../../src/stats/rules.js'
 import { formatMoment, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { FamilyCompare } from './FamilyCompare.js'
-import { costChange, formatUsd, modelVersionLabel } from './format.js'
+import { modelVersionLabel } from '../ui/modelLabel.js'
+import { costChange, formatUsd } from './format.js'
 
 type Sample = 'tasks' | 'sessions' | 'requests'
 

@@ -139,6 +139,8 @@ export interface TranscriptSummary {
   workdir: string | null
   /** The model of the last answer (Claude) or turn (Codex), as the agent names it; `null` — none yet. */
   model: string | null
+  /** The model's name in the agent's own catalogue (OpenCode's models.dev copy); absent — the agent keeps none, or it names no such model. */
+  modelTitle?: string
   /** The reasoning effort of the last answer (Claude) or turn (Codex); `null` — none written yet; absent — the agent writes none. */
   effort?: string | null
   /**

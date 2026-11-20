@@ -53,6 +53,8 @@ export interface SessionView {
   agent: string
   /** The model of its last answer, from the transcript; `null` — it has not answered yet. */
   model: string | null
+  /** The model's name in its agent's catalogue (`TranscriptSummary.modelTitle`); absent — none. */
+  modelTitle?: string
   /** The reasoning effort of its last answer, from the transcript; `null` — none written yet, or its agent writes none. */
   effort: string | null
   cwd: string
@@ -114,8 +116,9 @@ export interface SessionRecord {
   lastActivityAt: string | null
   /** The agent of the account folder it was found in (`src/agent/adapters.ts`); the agent's own record leaves it to the service. */
   agent: string
-  /** The model and the reasoning effort of its last answer, as `SessionView` has them. */
+  /** The model, its catalogue name and the reasoning effort of its last answer, as `SessionView` has them. */
   model: string | null
+  modelTitle?: string
   effort: string | null
   contextTokens: number
   /** The record's own window, falling back to the last window observed by the session monitor. */

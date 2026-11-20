@@ -30,7 +30,7 @@ The effort is Claude Code's `low`, `medium`, `high`, `xhigh` or `max` and Codex'
 
 For a task with a session at work the card says that the change takes effect from its next session. A session that files tasks through the tasks server can set the run too.
 
-A task's run on a chain row shows the provider, only the model name after the last `/` and then the effort as a small scale of five bars, from one for low to five for max: `opencode/deepseek-v4.1-flash-free` on OpenCode appears as `OpenCode | deepseek-v4.1-flash-free`, a Claude task on Sonnet with high effort as `Claude | sonnet` with three bars filled. Point at the label for the effort's word. The chats, the chat's status line and a session's Model fact show the effort the same way.
+A task's run on a chain row shows the provider, the model's short name and then the effort as a small scale of five bars, from one for low to five for max: `opencode/deepseek-v4.1-flash-free` on OpenCode appears as `OpenCode | deepseek-v4.1-flash-free`, `claude-opus-5-5` with high effort as `Claude | Opus 5.5` with three bars filled. Point at the label for the full id and the effort's word. The chats, the chat's status line and a session's Model fact show the model and the effort the same way; there an OpenCode model goes by the name in OpenCode's own model catalogue, a long one cut with an ellipsis, and a free OpenRouter model (`:free`) gets a `free` badge. The full name and the id are in the tip.
 
 Hover for the full text. If space is tight, only the model is shortened with an ellipsis.
 

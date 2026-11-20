@@ -119,7 +119,7 @@ interface Props {
   /** The bottom of the window instead of the task chat's composer or the shut one. */
   foot?: (parts: WindowFoot) => ReactNode
   /** The status line's facts until the session tells its own: a project chat's choice. */
-  known?: Pick<StatusFacts, 'agent' | 'model' | 'effort' | 'branch'>
+  known?: Pick<StatusFacts, 'agent' | 'model' | 'modelTitle' | 'effort' | 'branch'>
   /** Shown over a feed with nothing in it. */
   blank?: string
   /** The first message already accepted by a starting chat when its window is reopened. */
@@ -193,7 +193,13 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   if (known !== undefined) {
     facts = starting
       ? { ...told, ...known, context: null }
-      : { ...told, agent: told.agent ?? known.agent, model: told.model ?? known.model, effort: told.effort ?? known.effort }
+      : {
+          ...told,
+          agent: told.agent ?? known.agent,
+          model: told.model ?? known.model,
+          ...(told.model === null && known.modelTitle !== undefined ? { modelTitle: known.modelTitle } : {}),
+          effort: told.effort ?? known.effort,
+        }
   }
   const status = <ChatStatus facts={facts} scale={chat?.scale ?? state?.context ?? null} edits={edits} />
   // The task panel at the left of the feed; a fix of main has no card, and on a phone the button opens the full card

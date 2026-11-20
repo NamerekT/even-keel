@@ -1,9 +1,5 @@
 import { taskRunText, type TaskRun } from '../../../src/sessions/runs.js'
-
-/** The model without its route: `openrouter/minimax/minimax-m3.1-flash` → `minimax-m3.1-flash`. */
-export function modelName(model: string): string {
-  return model.slice(model.lastIndexOf('/') + 1)
-}
+import { shortModel } from './modelLabel.js'
 
 const EFFORT_BARS: ReadonlyMap<string, number> = new Map([['minimal', 1], ['low', 1], ['medium', 2], ['high', 3], ['xhigh', 4], ['max', 5]])
 
@@ -12,8 +8,8 @@ export function effortLevel(effort: string | null): number | null {
   return effort === null ? null : EFFORT_BARS.get(effort) ?? null
 }
 
-/** The parts of a run as its tag shows them: the provider capitalised as `taskRunText` writes it, the model short. */
+/** The parts of a run as its tag shows them: the provider capitalised as `taskRunText` writes it, the model's short name (`shortModel`). */
 export function runView(run: TaskRun): { provider: string | null; model: string | null; effort: string | null } {
   const provider = run.provider === null ? null : taskRunText({ provider: run.provider, model: null, effort: null })
-  return { provider, model: run.model === null ? null : modelName(run.model), effort: run.effort }
+  return { provider, model: run.model === null ? null : shortModel(run.model).name, effort: run.effort }
 }

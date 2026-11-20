@@ -151,6 +151,8 @@ export const sessionRu = {
   model: 'Модель',
   provider: 'провайдер',
   modelOf: 'модель',
+  modelFree: 'free',
+  modelFreeTip: 'Бесплатный вариант модели у провайдера',
   effortOf: 'усилие',
   modelFrom: 'По последнему ответу сессии в транскрипте',
   modelYet: 'Сессия ещё не ответила: модель видна с первого ответа',

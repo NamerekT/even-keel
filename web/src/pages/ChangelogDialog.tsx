@@ -11,7 +11,8 @@ import { say, t } from '../i18n/index.js'
 import { accountName } from '../accountName.js'
 import { useLive } from '../live/context.js'
 import { Segmented } from '../stats/common.js'
-import { formatUsd, modelVersionLabel } from '../stats/format.js'
+import { formatUsd } from '../stats/format.js'
+import { shortModel } from '../ui/modelLabel.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { DiffLines } from '../ui/DiffLines.js'
@@ -334,7 +335,7 @@ function Spend({ spend, spent, accounts }: { spend: ChangelogSpend | null; spent
       {spend !== null && (
         <>
           <span className="tip__head">
-            {[entry === undefined ? spend.account : accountName(entry, accounts), spend.model === null ? '' : modelVersionLabel(spend.model), formatElapsed(spend.durationMs)]
+            {[entry === undefined ? spend.account : accountName(entry, accounts), spend.model === null ? '' : shortModel(spend.model).name, formatElapsed(spend.durationMs)]
               .filter((part) => part !== '')
               .join(' · ')}
           </span>

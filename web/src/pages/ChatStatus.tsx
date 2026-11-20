@@ -11,7 +11,8 @@ import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { BranchIcon } from '../ui/icons.js'
-import { modelName } from '../ui/runLabel.js'
+import { modelTip } from '../ui/modelLabel.js'
+import { ModelName } from '../ui/ModelName.js'
 import { EffortBars } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
 import { checkpointMark, ringFacts, type RingFacts } from './contextRing.js'
@@ -26,6 +27,8 @@ export interface StatusFacts {
   account: string | null
   branch: string | null
   model: string | null
+  /** The catalogue's name of `model` (`SessionView.modelTitle`); absent — none. */
+  modelTitle?: string
   effort: string | null
   /** `null` — nothing is known of the context. */
   context: { tokens: number; window: number | null } | null
@@ -55,6 +58,7 @@ export function useStatusFacts(sessionId: string, account: string | null, listed
       account,
       branch: listed.branch,
       model: listed.model,
+      ...(listed.modelTitle === undefined ? {} : { modelTitle: listed.modelTitle }),
       effort: listed.effort,
       context: { tokens: listed.contextTokens, window: listed.contextWindow },
     }
@@ -65,6 +69,7 @@ export function useStatusFacts(sessionId: string, account: string | null, listed
     account: account ?? record?.account ?? null,
     branch: record?.branch ?? null,
     model: record?.model ?? null,
+    ...(record?.modelTitle === undefined ? {} : { modelTitle: record.modelTitle }),
     effort: record?.effort ?? null,
     context: record === null || record.contextTokens === 0 ? null : { tokens: record.contextTokens, window: record.contextWindow },
   }
@@ -104,11 +109,11 @@ export function ChatStatus({ facts, scale, edits }: Props) {
             inline
             className="chat-status__model"
             tip={[
-              <span key="model" className="chat-status__tip-line">{`${t.session.chat.head.model}: ${facts.model}`}</span>,
+              <span key="model" className="chat-status__tip-line">{`${t.session.chat.head.model}: ${modelTip(facts.model, facts.modelTitle)}`}</span>,
               facts.effort !== null && <span key="effort" className="chat-status__tip-line">{`${t.session.chat.head.effort}: ${facts.effort}`}</span>,
             ]}
           >
-            <span className="chat-status__model-name">{modelName(facts.model)}</span>
+            <ModelName model={facts.model} title={facts.modelTitle} className="chat-status__model-name" />
             <EffortBars effort={facts.effort} spaced className="chat-status__model-effort" />
           </Tipped>
         )}

@@ -123,10 +123,27 @@ function archived(state: EvenKeelState, project: string, successor: string): Cha
   )
 }
 
+/** `?chats=long`'s first chat: OpenCode on a free OpenRouter model whose catalogue name is long (BTN-1348). */
+function longModelChat(state: EvenKeelState, project: string): ChatCard {
+  return card(state, project, {
+    id: `${project}-chat-long`,
+    title: 'Compare the long model names',
+    agent: 'opencode',
+    account: accountOf(state, 'opencode', 'opencode'),
+    model: 'openrouter/nvidia/llama-3.1-nemotron-ultra-253b-v1:free',
+    modelTitle: 'NVIDIA: Llama 3.1 Nemotron Ultra 253B v1 (free)',
+    effort: 'high',
+    context: { tokens: 96_000, window: 131_072 },
+    last: { from: 'agent', text: 'The footer cuts the name and keeps the free badge.', at: ago(3) },
+    lastAt: ago(3),
+    sessionId: `${project}-chat-session-long`,
+  })
+}
+
 /**
- * The project chats of `dev:fake` (BTN-1231): `?chats=none` — none, `?chats=many` — a dozen active ones; by default
- * four active (waiting, answered unread, working, cold on Codex) and 25 archived. Kept per page load, so a new chat, a
- * message and a read stay until a reload.
+ * The project chats of `dev:fake` (BTN-1231): `?chats=none` — none, `?chats=many` — a dozen active ones, `?chats=long`
+ * an OpenCode one with a long model name first; by default four active (waiting, answered unread, working, cold on
+ * Codex) and 25 archived. Kept per page load, so a new chat, a message and a read stay until a reload.
  */
 export function fakeChats(mode: string | null) {
   const lists = new Map<string, { active: ChatCard[]; archived: ChatCard[]; choice: ChatChoice | null }>()
@@ -135,7 +152,7 @@ export function fakeChats(mode: string | null) {
   const listOf = (state: EvenKeelState, project: string) => {
     let list = lists.get(project)
     if (list === undefined) {
-      const cards = mode === 'none' ? [] : active(state, project)
+      const cards = mode === 'none' ? [] : mode === 'long' ? [longModelChat(state, project), ...active(state, project)] : active(state, project)
       const extra =
         mode === 'many'
           ? Array.from({ length: 8 }, (_, index) =>

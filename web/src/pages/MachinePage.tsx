@@ -23,6 +23,7 @@ import { Lamp } from '../ui/Lamp.js'
 import { Loading } from '../ui/Loader.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
+import { modelTip, shortModel } from '../ui/modelLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
 import { TakeOverButton } from './TakeOverButton.js'
@@ -468,7 +469,11 @@ function SessionsCard({ page }: { page: MachinePageView }) {
                   {session.cwd}
                 </bdi>
               </span>
-              <span className="machine-page__muted">{[t.account.agents[session.agent as keyof typeof t.account.agents] ?? session.agent, session.model].filter((each) => each != null && each !== '').join(' · ')}</span>
+              <span className="machine-page__muted" title={session.model == null || session.model === '' ? undefined : modelTip(session.model)}>
+                {[t.account.agents[session.agent as keyof typeof t.account.agents] ?? session.agent, session.model == null || session.model === '' ? null : shortModel(session.model).name]
+                  .filter((each) => each != null && each !== '')
+                  .join(' · ')}
+              </span>
             </li>
           ))}
         </ul>

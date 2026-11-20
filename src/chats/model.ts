@@ -68,6 +68,8 @@ export interface ChatCard {
   agent: string
   account: string
   model: string | null
+  /** The catalogue's name of `model`, when the session answers with it (`SessionView.modelTitle`). */
+  modelTitle?: string
   effort: string | null
   state: ChatState
   /** The context fill in tokens and the model's window; `null` — unknown, no session yet. */
@@ -191,6 +193,7 @@ export function cardOf(chat: ChatRecord, view: SessionView | undefined, starting
     agent: chat.agent,
     account: chat.account,
     model: chat.model,
+    ...(view?.modelTitle !== undefined && view.model === chat.model ? { modelTitle: view.modelTitle } : {}),
     effort: chat.effort,
     state: stateOf(chat, view, starting || (chat.pending !== null && chat.sessionId === null), now),
     context: view === undefined ? null : { tokens: view.contextTokens, window: view.contextWindow },

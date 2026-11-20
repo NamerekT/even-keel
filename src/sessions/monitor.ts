@@ -293,6 +293,7 @@ function toView(
     sessionId: agent.sessionId,
     agent: runsOn,
     model: summary.model,
+    ...(summary.modelTitle === undefined ? {} : { modelTitle: summary.modelTitle }),
     effort: summary.effort ?? null,
     cwd: agent.cwd,
     branch: summary.gitBranch,

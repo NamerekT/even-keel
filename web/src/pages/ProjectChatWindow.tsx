@@ -53,7 +53,7 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
       account={chat.account}
       live={!archived && chat.sessionId !== null}
       task={{ key: t.chats.window.key, title: chat.title ?? t.chats.untitled }}
-      known={{ agent: chat.agent, model: chat.model, effort: chat.effort, branch: project?.git ? (branch === undefined ? project.branch : branch.current) : null }}
+      known={{ agent: chat.agent, model: chat.model, ...(chat.modelTitle === undefined ? {} : { modelTitle: chat.modelTitle }), effort: chat.effort, branch: project?.git ? (branch === undefined ? project.branch : branch.current) : null }}
       blank={chat.sessionId === null ? t.chats.window.blank : undefined}
       initialPrompt={(chat.state === 'starting' || chat.state === 'working') && chat.last?.from === 'user' ?
         { kind: 'prompt', at: chat.last.at, text: chat.last.text } : undefined}
