@@ -22,7 +22,10 @@ A split is always proposed, never done silently: the split / as is / otherwise. 
 
 ## 3. Creating the children
 
-One `tasks_create` call: each child with `parent: "<parent key>"`, the "into it" status of the `chain:` line (`tasks:task`), the parent's milestone, its own priority and estimate where the tracker keeps one, order between them by `blocks: ["#2"]`, and a `retry`. Then `task_update(<parent>, append: "## Split\n…")` — what went into which child, what was left out. Children are self-contained; commits name only the child's id, never the parent's. Even Keel closes the parent once all its children are closed.
+One `tasks_create` call: each child with `parent: "<parent key>"`, the "into it" status of the `chain:` line (`tasks:task`), the parent's milestone, its own priority and estimate where the tracker keeps one, order between them by `blocks: ["#2"]`, and a `retry`. Then `task_update(<parent>, append: "## Split\n…")` — what went into which child, what was left out; by it a child's session sees that the other parts are not its own. Commits name only the child's id, never the parent's.
+
+- **The parent has no work of its own.** Everything is done in the children; what the parent itself was to do becomes one more child. Even Keel closes the parent once all its children are closed, so work left in the parent is closed undone.
+- **The frame stays in the parent.** A child does not retell or copy the parent's description. Its first line is its part ("Your part — …"); below go only amendments to the parent's frame: what it narrows, a section it replaces, what it adds.
 
 ## 4. Then the session ends
 

@@ -17,6 +17,7 @@ Even Keel runs the chain: it starts a session on the first open task, closes it 
 
 - Started by Even Keel with the task's title and description in the prompt: do not `task_read` your own task. With only its key in the prompt: `task_read(key, comments: true)` first. Other tasks — `task_read(key)`, `comments: true` only when the discussion matters.
 - Started by hand: `task_read(key)`. Calls without a project in the server's address name it: `project` is the key before the dash.
+- **A task with a parent** (`parent <KEY>` in the `task_read` head): its frame is in the parent, the task holds only its part and amendments to that frame — an amendment wins over the parent's text. The parent's `## Split` names the other children's parts: they are not yours. The parent is not in the prompt (a session by hand, the brief off) — `task_read(<parent>)` too, and up the chain while the head names one.
 - Before any code: a blocking question (§3) and the size check of `tasks:split`.
 - The task has no estimate and its tracker keeps one (`estimate: yes`) — set it now with `task_update(key, estimate: <minutes>)` (§5) before reading any code. Leave an existing estimate alone.
 
