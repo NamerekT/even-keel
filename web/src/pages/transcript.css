@@ -583,6 +583,41 @@ button.tools__toggle:hover {
   outline: 2px solid var(--accent);
 }
 
+.chat__dictate:hover:not(:disabled) {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.chat__dictate:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.chat__dictate:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.chat__dictate--problem {
+  color: var(--lamp-waiting);
+}
+
+/* Listening: the microphone lit in the accent and breathing until the recognition ends. */
+.chat__dictate[aria-pressed='true'],
+.chat__dictate[aria-pressed='true']:hover {
+  background: var(--surface-muted);
+  color: var(--accent);
+}
+
+.chat__dictate[aria-pressed='true'] .icon {
+  animation: blink var(--motion-blink) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat__dictate[aria-pressed='true'] .icon {
+    animation: none;
+  }
+}
+
 .chat__send {
   background: var(--accent);
   color: var(--surface);

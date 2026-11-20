@@ -14,6 +14,8 @@ A session that needs you asks a question and waits. You answer from the page's c
 
 The **Chat** button of the current session opens its whole transcript with a reply box: the session's questions one at a time as a card with radio buttons or checkboxes, free text and files — picked with `+` (on a phone it offers Camera, Photos and Files, and Paste for a picture in the clipboard, which a phone keyboard cannot paste into the field itself; the browser asks once to let the page read the clipboard), pasted with Ctrl+V (a screenshot straight from the clipboard) or dropped on the window — which land in the task's `.temp/inbox/`.
 
+The microphone beside the send button types what you say into the reply box, in the page's language, as you speak. Press it again to stop; on a phone it stops by itself at a pause. It is the browser's own speech recognition, so your voice goes to the browser maker's service (Google for Chrome, Microsoft for Edge, Apple for Safari). It shows in Chrome, Edge and Safari on a page opened over HTTPS or on `localhost`; Firefox has no such recognition, and a browser gives no microphone to a page over plain HTTP, so there the button is not shown — use the keyboard's own microphone (Win+H on Windows, dictation on macOS).
+
 Pictures the session read and the ones you sent show as thumbnails that open full-window, with a pager through all of them; a folded run of calls shows its pictures as one stack that opens on the first.
 
 A picture you send shows in your message at once, from the file you picked, even while the session is still starting. A picture sent earlier, from another window or device, shows its filename while it loads; you can click it to open the viewer, and the chat retries the picture automatically.

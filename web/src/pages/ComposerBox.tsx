@@ -8,6 +8,7 @@ import { useChatDraft, type DraftOwner } from './useChatDraft.js'
 import { takenFiles } from './chatFiles.js'
 import { sendsReply } from './chatKeys.js'
 import { CommandText, type CommandTextHandle } from './CommandText.js'
+import { DictateButton } from './DictateButton.js'
 
 interface BoxProps {
   command: RefObject<CommandTextHandle | null>
@@ -84,6 +85,7 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
             event.currentTarget.form?.requestSubmit()
           }}
         />
+        <DictateButton text={text} onText={onText} sending={sending} />
         <Tipped inline tip={tip ?? ''} off={!tip}>
           <button
             type="submit"

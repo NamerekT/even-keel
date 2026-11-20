@@ -210,6 +210,15 @@ export const sessionEn = {
     attach: 'Attach files',
     slash: 'Insert a command',
     slashTaken: 'A command goes at the start of an empty message',
+    dictate: {
+      start: 'Dictate',
+      stop: 'Stop dictating',
+      blocked: 'The browser gave no microphone: allow it for this page in the site settings and press again',
+      noMicrophone: 'No microphone found: plug one in and press again',
+      network: 'The browser’s recognition service is out of reach: press again once the network is back',
+      silence: 'Nothing was heard: press and speak',
+      failed: 'Recognition broke off: press again',
+    },
     drop: 'Drop the files to attach them',
     cold: {
       title: 'The session’s cache went cold',
