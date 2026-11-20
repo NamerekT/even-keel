@@ -111,6 +111,24 @@ describe('AccountSettings', () => {
     expect(settings.edits(home)).toEqual([])
   })
 
+  it('keeps settings added by Remote Control and other folder-only keys without asking for a choice', () => {
+    const additions = { agentPushNotifEnabled: true, inputNeededNotifEnabled: true, futureSetting: false }
+    write(home.dir, { ...read(home.dir), ...additions })
+    expect(settings.edits(home)).toEqual([])
+    share()
+    expect(read(home.dir)).toMatchObject(additions)
+    expect(settings.edits(home)).toEqual([])
+  })
+
+  it('refreshes the choice when only the shared settings change', () => {
+    write(home.dir, { ...read(home.dir), model: 'sonnet' })
+    expect(settings.edits(home)).toEqual(['model'])
+    write(globalDir, { ...read(globalDir), model: 'sonnet' })
+    expect(settings.edits(home)).toEqual([])
+    write(globalDir, { ...read(globalDir), model: 'opus' })
+    expect(settings.edits(home)).toEqual(['model'])
+  })
+
   it('"keep for this account" puts the value into its own layer, which outlives the next transfers', () => {
     write(home.dir, { model: 'sonnet', theme: 'dark' })
     settings.resolve(home, 'model', 'own')
@@ -150,6 +168,8 @@ describe('AccountSettings', () => {
   })
 
   it('keeps the guard over own hooks, never shares it, and survives rebuilding the planner', () => {
+    write(globalDir, { ...read(globalDir), hooks: {} })
+    share()
     const hook = { matcher: 'Write', hooks: [{ type: 'command', command: 'echo user' }] }
     write(home.dir, { ...read(home.dir), hooks: { PreToolUse: [hook] } })
     settings.resolve(home, 'hooks', 'own')

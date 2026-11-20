@@ -118,23 +118,21 @@ export class AccountSettings {
     }
   }
 
-  /** The keys changed in the folder since the last transfer; none before the first one. */
+  /** The folder edits that would still need a decision at the next transfer. */
   edits(home: AccountHome): string[] {
     const record = this.records.get(home.key)
     if (record === undefined) return []
     const file = join(home.dir, 'settings.json')
-    let stamp: string
-    try {
-      const stat = statSync(file)
-      stamp = `${this.version}:${stat.mtimeMs}:${stat.size}`
-    } catch {
-      return []
-    }
+    const folderStamp = fileStamp(file)
+    if (folderStamp === undefined) return []
+    const globalFile = join(this.globalDir, 'settings.json')
+    const stamp = `${this.version}:${folderStamp}:${fileStamp(globalFile)}`
     const cached = this.seen.get(home.key)
     if (cached?.stamp === stamp) return cached.edits
     const folder = readJson(file)
-    const discard = this.discards.get(home.key)
-    const edits = folder === undefined ? [] : editedKeys(folder, record.written).filter((key) => discard?.has(key) !== true)
+    const edits = folder === undefined ? [] : planSettings(
+      stripSettingsGuard(readJson(globalFile) ?? {}), stripSettingsGuard(folder), record, this.discards.get(home.key),
+    ).edits
     this.seen.set(home.key, { stamp, edits })
     return edits
   }
@@ -220,6 +218,15 @@ export async function saveAccountSettings(db: Queryable, account: string, record
 function setOrDelete(target: Json, key: string, value: unknown): void {
   if (value === undefined) delete target[key]
   else target[key] = value
+}
+
+function fileStamp(file: string): string | undefined {
+  try {
+    const stat = statSync(file)
+    return `${stat.mtimeMs}:${stat.size}`
+  } catch {
+    return undefined
+  }
 }
 
 function readJson(file: string): Json | undefined {
