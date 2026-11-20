@@ -3,7 +3,7 @@ import { uniqueStatuses, type StatusCategory, type TaskPriority, type TaskStatus
 import type { TrackerVocabulary } from '../tracker/source.js'
 import { tracker } from './ids.js'
 
-const HULY_PRIORITIES: readonly TaskPriority[] = ['none', 'urgent', 'high', 'medium', 'low']
+export const HULY_PRIORITIES: readonly TaskPriority[] = ['none', 'urgent', 'high', 'medium', 'low']
 
 export interface HulyStatusDoc {
   _id: string

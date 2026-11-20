@@ -272,6 +272,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 235 | [The check of a copy on a real tracker](unverified/trackers.md#the-check-of-a-copy-on-a-real-tracker-btn-1291) | projects moving from the built-in tracker | a clean copy does not match or a short one does, or "Repeat" writes twice; switch without them after a look at the target | — |
 | 236 | [Restoring a hub after a failed rebuild](unverified/updating.md#restoring-a-hub-after-a-failed-rebuild-btn-1276) | hubs rebuilt after a green push under systemd, launchd or on Windows | the hub stays down or a machine follows the wrong commit. Check the update log and restore the last working revision | BTN-1277 |
 | 237 | [Orphaned processes killed after Done](unverified/sessions.md#orphaned-processes-killed-after-done-btn-1268) | chain sessions on Linux and macOS: Claude (SDK), Codex, OpenCode and Copilot by the task's mark; macOS's listing | background commands of a finished task live on, holding memory and ports; kill them by hand | — |
+| 238 | [Reading a Huly project's whole history for the import](unverified/trackers.md#reading-a-huly-projects-whole-history-for-the-import-btn-1402) | projects importing from Huly | the plan shows no changes, a picture comes over dead or comments under the wrong author; read them in Huly before it stops | BTN-1407 |
 
 ### Waiting for the event / not checked by choice
 

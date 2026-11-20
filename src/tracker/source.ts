@@ -4,6 +4,7 @@ import type { RemoteRepo } from '../ci/remote.js'
 import { briefWithAncestors } from './brief.js'
 import type { TrackerCard } from './card.js'
 import type { TaskEditor } from './editor.js'
+import type { ImportSource } from './import.js'
 import type { LabelChange } from './labels.js'
 import { isLeaf, toTask, withAncestors, type MilestonePick, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
@@ -169,6 +170,11 @@ export interface TaskSource {
    * server serves the project's sessions; without it the tracker's own MCP server is theirs.
    */
   editor?: TaskEditor
+  /**
+   * Optional. The project's whole history for the import into the built-in tracker (BTN-1402, `import.ts`); reads only.
+   * Without it the tracker has no import, and the page's button says so.
+   */
+  importSource?(project: string): Promise<ImportSource>
   /** Drops the connection. */
   close(): Promise<void>
 }

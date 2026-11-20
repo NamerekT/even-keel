@@ -6,6 +6,7 @@ import { collabUpdater } from './collab.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { hulyEditor, parentsUnder, type HulyFullIssue, type HulyNewIssue } from './editor.js'
 import { tracker } from './ids.js'
+import { hulyImport } from './import.js'
 import { quietModelNoise } from './quiet.js'
 import { relabelHuly, type HulyLabelClient } from './labels.js'
 import {
@@ -61,8 +62,9 @@ interface PlatformClient extends HulyLabelClient {
     attributes: Record<string, unknown>,
     id?: string,
   ): Promise<string>
-  fetchMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<string>
+  fetchMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown' | 'markup'): Promise<string>
   uploadMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<string>
+  getAccount(): Promise<{ primarySocialId: string }>
   close(): Promise<void>
 }
 
@@ -240,10 +242,10 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   }
 
   const projectIds = new Map<string, string>()
-  async function spaceOf(project: string): Promise<{ _id: string; identifier: string }> {
+  async function spaceOf(project: string): Promise<{ _id: string; identifier: string; createdBy?: string }> {
     const place = projects[project]
     const identifier = place === undefined ? project : (place.value ?? place.key)
-    const space = await client.findOne<{ _id: string; identifier: string }>(tracker.class.Project, { identifier })
+    const space = await client.findOne<{ _id: string; identifier: string; createdBy?: string }>(tracker.class.Project, { identifier })
     if (space === undefined) throw new TrackerNotFound(`huly: project ${identifier} not found`)
     projectIds.set(identifier, space._id)
     return space
@@ -501,6 +503,10 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       comment: (identifier, body, files) => comment(identifier, body, files),
       attach: (issue, files) => attachFiles(issue.space, issue._id, tracker.class.Issue, files),
     }),
+    async importSource(project) {
+      const [space, account] = await Promise.all([spaceOf(project), client.getAccount()])
+      return hulyImport({ client, markup: { markupToJSON, markupToMarkdown }, space, ownSocialId: account.primarySocialId, readFile })
+    },
     close: () => client.close(),
   }
 }
