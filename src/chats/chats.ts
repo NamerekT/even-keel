@@ -10,6 +10,7 @@ import {
   CHAT_PREFIX,
   cardOf,
   cut,
+  keptTitleOf,
   lastAtOf,
   lastMessageOf,
   sortActive,
@@ -337,11 +338,12 @@ export class ProjectChats {
   }
 
   private async titleOf(chat: ChatRecord): Promise<string | null> {
-    if (chat.sessionId === null || chat.machine === null) return chat.title
+    const kept = keptTitleOf(chat)
+    if (chat.sessionId === null || chat.machine === null) return kept
     try {
-      return (await this.deps.services(chat.machine)?.chats.title(chat.account, chat.sessionId)) ?? chat.title
+      return (await this.deps.services(chat.machine)?.chats.title(chat.account, chat.sessionId, chat.id)) ?? kept
     } catch {
-      return chat.title
+      return kept
     }
   }
 

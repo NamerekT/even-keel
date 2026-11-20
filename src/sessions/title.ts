@@ -6,9 +6,11 @@ const TAIL_BYTES = 256 * 1024
 
 /**
  * The chat's name as Claude Code shows it in its tab: the one the user gave (`custom-title`), else the generated one
- * (`ai-title`). The CLI appends both again every few turns, so the latest one is in the last lines.
+ * (`ai-title`). The CLI appends both again every few turns, so the latest one is in the last lines. A session started
+ * with `--name` has that name as its `custom-title` and gets no `ai-title`: `launchName` is passed over, so a launch
+ * name is never the title while a rename by the user still is (BTN-1339).
  */
-export function titleOf(text: string): string | null {
+export function titleOf(text: string, launchName?: string): string | null {
   let custom: string | null = null
   let generated: string | null = null
   for (const raw of text.split('\n')) {
@@ -19,7 +21,10 @@ export function titleOf(text: string): string | null {
       continue
     }
     if (typeof entry !== 'object' || entry === null) continue
-    if (entry.type === 'custom-title' && typeof entry.customTitle === 'string' && entry.customTitle.trim() !== '') custom = entry.customTitle.trim()
+    if (entry.type === 'custom-title' && typeof entry.customTitle === 'string') {
+      const name = entry.customTitle.trim()
+      if (name !== '' && name !== launchName) custom = name
+    }
     if (entry.type === 'ai-title' && typeof entry.aiTitle === 'string' && entry.aiTitle.trim() !== '') generated = entry.aiTitle.trim()
   }
   return custom ?? generated
@@ -31,13 +36,13 @@ export class ChatTitles {
 
   constructor(private readonly tailBytes = TAIL_BYTES) {}
 
-  async of(projectsDir: string, sessionId: string): Promise<string | null> {
+  async of(projectsDir: string, sessionId: string, launchName?: string): Promise<string | null> {
     const file = await findTranscript(projectsDir, `${sessionId}.jsonl`)
     if (file === undefined) return null
     const size = (await stat(file)).size
     const cached = this.known.get(sessionId)
     if (cached !== undefined && cached.size === size) return cached.title
-    const title = titleOf(await readTail(file, size, this.tailBytes)) ?? cached?.title ?? null
+    const title = titleOf(await readTail(file, size, this.tailBytes), launchName) ?? cached?.title ?? null
     this.known.set(sessionId, { size, title })
     return title
   }

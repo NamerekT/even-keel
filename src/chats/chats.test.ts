@@ -52,6 +52,21 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
     }
   })
 
+  it('drops a kept title that is only the name its session was launched under (BTN-1339)', async () => {
+    const { chats, store, close, tick } = await setup()
+    try {
+      const { id } = await chats.create(ABC, { account: 'global', model: null, effort: null })
+      await chats.send(id, { text: 'Why is the build slow?', files: [] })
+      tick(60_000)
+      store.put({ ...store.get(id)!, title: id })
+      await chats.sweep()
+      expect(store.get(id)?.title).toBeNull()
+      expect(chats.list(ABC)[0]?.title).toBe('Why is the build slow?')
+    } finally {
+      await close()
+    }
+  })
+
   it('reads the session: its state, last message, title and unread answer', async () => {
     const { chats, sessions, titles, close, tick } = await setup()
     try {

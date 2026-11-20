@@ -29,6 +29,21 @@ describe('titleOf', () => {
     expect(titleOf(text)).toBe('Kept')
   })
 
+  it('is not the name the session was launched under, which the CLI writes as its custom title', () => {
+    const named = line({ type: 'custom-title', customTitle: 'chat-3736a7bc4660', sessionId: 's' })
+    expect(titleOf([named, named].join('\n'), 'chat-3736a7bc4660')).toBeNull()
+    expect(titleOf([named, line({ type: 'ai-title', aiTitle: 'Slow build' })].join('\n'), 'chat-3736a7bc4660')).toBe('Slow build')
+  })
+
+  it('keeps a rename by the user over the launch name', () => {
+    const text = [
+      line({ type: 'custom-title', customTitle: 'chat-3736a7bc4660' }),
+      line({ type: 'custom-title', customTitle: 'Release notes' }),
+      line({ type: 'custom-title', customTitle: 'chat-3736a7bc4660' }),
+    ].join('\n')
+    expect(titleOf(text, 'chat-3736a7bc4660')).toBe('Release notes')
+  })
+
   it('has no title before the CLI writes one', () => {
     expect(titleOf(line({ type: 'user', message: { content: 'hi' } }))).toBeNull()
   })
@@ -60,6 +75,12 @@ describe('ChatTitles', () => {
     expect(await titles.of(dir, '33333333-4444')).toBe('Long chat')
     appendFileSync(file, `${line({ type: 'user', message: { content: 'x'.repeat(200) } })}\n`)
     expect(await titles.of(dir, '33333333-4444')).toBe('Long chat')
+  })
+
+  it('passes over the launch name it is given', async () => {
+    const file = transcript('99999999-0000')
+    writeFileSync(file, `${line({ type: 'custom-title', customTitle: 'chat-be452f139759' })}\n`)
+    expect(await new ChatTitles().of(dir, '99999999-0000', 'chat-be452f139759')).toBeNull()
   })
 
   it('has no title without a transcript', async () => {

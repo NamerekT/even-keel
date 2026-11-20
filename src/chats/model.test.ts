@@ -154,6 +154,7 @@ describe('the card', () => {
     const card = cardOf(chat(), view({ feed }), false, NOW)
     expect(card).toMatchObject({ title: 'Why is the build slow?', state: 'answered', unread: true, context: { tokens: 42_000, window: 200_000 } })
     expect(cardOf(chat({ title: 'Slow build' }), undefined, false, NOW).title).toBe('Slow build')
+    expect(cardOf(chat({ title: 'chat-0123456789ab' }), undefined, false, NOW).title).toBe('Why is the build slow?')
   })
 
   it('of an archived chat keeps the last message it had', () => {

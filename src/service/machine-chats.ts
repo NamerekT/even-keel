@@ -86,9 +86,9 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       if (session === undefined) return
       await ctx.stopIn(ctx.homeOf(session.account), session)
     },
-    title: async (account, sessionId) => {
+    title: async (account, sessionId, chat) => {
       const home = ctx.homeOf(account)
-      return home.agent === CLAUDE ? ctx.chatTitles.of(join(home.dir, 'projects'), sessionId) : null
+      return home.agent === CLAUDE ? ctx.chatTitles.of(join(home.dir, 'projects'), sessionId, chat) : null
     },
     past: async (chat) => {
       const session = ctx.monitor.handoff(chat)

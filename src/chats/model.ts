@@ -177,12 +177,17 @@ export function sortActive(cards: ChatCard[]): ChatCard[] {
   return [...cards].sort((a, b) => Number(b.state === 'waiting') - Number(a.state === 'waiting') || Date.parse(b.lastAt) - Date.parse(a.lastAt))
 }
 
+/** The kept title, unless it is the chat id a session wrote as its name before BTN-1339 passed it over. */
+export function keptTitleOf(chat: ChatRecord): string | null {
+  return chat.title === chat.id ? null : chat.title
+}
+
 export function cardOf(chat: ChatRecord, view: SessionView | undefined, starting: boolean, now: Date): ChatCard {
   const last = (chat.archivedAt === null ? lastMessageOf(view) : null) ?? chat.last
   return {
     id: chat.id,
     project: chat.project,
-    title: chat.title ?? chat.first,
+    title: keptTitleOf(chat) ?? chat.first,
     agent: chat.agent,
     account: chat.account,
     model: chat.model,

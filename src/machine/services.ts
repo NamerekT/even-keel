@@ -82,8 +82,11 @@ export interface MachineChats {
   send(project: string, chat: string, start: Omit<ChatStart, 'account'>): Promise<string>
   /** Stops the chat's session, mid-turn too; one the monitor never saw is left alone. */
   stop(chat: string): Promise<void>
-  /** The title the agent gave the session; `null` — none, or an agent that gives none. */
-  title(account: string, sessionId: string): Promise<string | null>
+  /**
+   * The title the agent or the user gave the chat's session, never the chat id it was launched under; `null` — none, or
+   * an agent that gives none.
+   */
+  title(account: string, sessionId: string, chat: string): Promise<string | null>
   /** The chat's session as the monitor knows it: its id, transcript and recent lines; `null` — none (BTN-1232). */
   past(chat: string): Promise<ChatPast | null>
 }
