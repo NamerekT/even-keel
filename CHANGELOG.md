@@ -12,7 +12,7 @@ A patch of 0.3: Remote Control for a Claude account added from the page, and few
 
 - **A claude.ai account you add from the page has Remote Control on.** Its chain sessions show on claude.ai/code and in the Claude app from the first one. Before, the sign-in left Remote Control off, and the page sent you to `/config` without a way to turn it on.
 - **"Turn on Remote Control"** in the account row's menu and in the session panel, where an account has Remote Control off. It applies from the account's next session.
-- Chain sessions run on codex-cli 0.171.0 and Copilot CLI 1.0.114, the versions this release was checked against; Claude Code 2.1.326 and OpenCode 1.19.6 stay.
+- Chain sessions run on Claude Code 2.1.330, codex-cli 0.171.0 and Copilot CLI 1.0.114, the versions this release was checked against; OpenCode 1.19.6 stays.
 - A ChatGPT workspace seat with a monthly credit limit reads that limit and its reset straight from the usage answer when the answer carries them, with no second request; before, the reset was assumed to be the start of the next month.
 
 ### Fixed
