@@ -267,6 +267,7 @@ function fakeState(
     language: null,
     unattended: false,
     trimTools: true,
+    showTests: { home: false, stats: false },
     tally: 'local',
     tallyHealth: { state: 'ok', lastRunAt: ago(3) },
     updates: fakeUpdates(null),
@@ -360,6 +361,9 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('long') === 'mixed' && current.state !== null) current.state = withMixedNames(current.state)
   if (params.has('feeds') && current.state !== null) current.state = withFeeds(current.state, params.get('feeds')!)
   if (params.get('families') === '3' && current.state !== null) current.state = withFamilies(current.state)
+  // The "Test projects" switches as stored before a reload (BTN-1364): `showTests=home,stats`.
+  const shownTests = params.get('showTests')?.split(',') ?? []
+  if (current.state !== null) current.state.showTests = { home: shownTests.includes('home'), stats: shownTests.includes('stats') }
   // `remote=off`: the Claude sessions' account starts no Remote Control (EKR-148).
   if (params.get('remote') === 'off' && current.state !== null) {
     const state = current.state

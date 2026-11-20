@@ -274,6 +274,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     language: ctx.configStore.current.language,
     unattended: ctx.dispatcher.state.unattended,
     trimTools: ctx.dispatcher.state.trimTools,
+    showTests: { home: ctx.configStore.current.homeShowTests, stats: ctx.configStore.current.statsShowTests },
     tally: ctx.tallyMode(),
     tallyHealth: ctx.tally.health(),
     hulyClient: hulyClient.view(),
@@ -657,6 +658,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         ctx.configStore.saveNotice(project, kind, shown)
         console.log(`page: the notice ${kind} is ${shown === null ? 'back to the shared value' : shown ? 'shown' : 'turned off'} for ${project === null ? 'Even Keel' : projectLabel(ctx.configStore.current, project)}`)
       },
+      showTests: (page, on) => ctx.configStore.saveSwitches(page === 'home' ? { homeShowTests: on } : { statsShowTests: on }),
       muteUpdates: () => ctx.configStore.saveUpdates({ notify: false }),
       installUpdate: () => ctx.updater.update(ctx.releasesView().available),
       revertUpdate: () => ctx.updater.revert(),

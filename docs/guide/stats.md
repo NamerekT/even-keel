@@ -66,9 +66,11 @@ Without them the task gets no time, the service log names the project, and the t
 
 Mark a sandbox as **Test project** in its **Repository** settings.
 
-Its card gets a small test tag, and its entire history disappears from the home launch chart and the default statistics. Collection and task chains continue.
+Its card gets a small test tag and is hidden from the home page, and its entire history disappears from the home launch chart and the default statistics. Collection and task chains continue.
 
-Turn on **Show test projects** on the statistics page to see that history again; the choice stays in the page's link. Opening statistics from the project's own strip includes it automatically.
+The flask button next to the grouping icons on the home page shows the test projects' cards again, and says how many are hidden while they are.
+
+Turn on **Show test projects** on the statistics page to see that history again. Both switches are remembered by Even Keel, each on its own, across reloads and restarts. Opening statistics from the project's own strip includes the project's tests for that visit, without changing the switch.
 
 Removing the flag restores its history everywhere. If several projects share one key, marking any of them hides that key from aggregate statistics. Account usage and spending still show the real totals.
 

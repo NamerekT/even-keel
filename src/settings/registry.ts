@@ -272,6 +272,9 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   { key: 'switchOnLimit', kind: 'boolean', scopes: ['global'], lands: ['switchOnLimit'], default: false, check: boolean('switchOnLimit') },
   { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },
   { key: 'trimTools', kind: 'boolean', scopes: ['global'], lands: ['trimTools'], default: true, check: boolean('trimTools') },
+  // "Test projects" switches of the home page and /stats (BTN-1364): each on its own, hidden by default.
+  { key: 'homeShowTests', kind: 'boolean', scopes: ['global'], lands: ['homeShowTests'], default: false, check: boolean('homeShowTests') },
+  { key: 'statsShowTests', kind: 'boolean', scopes: ['global'], lands: ['statsShowTests'], default: false, check: boolean('statsShowTests') },
   // The page's warnings by kind (BTN-759): `false` — not shown; a project's entry over Even Keel's, only of a project's kind.
   { key: 'notices', kind: 'boolean', scopes: ['global', 'project'], qualifier: 'notice', lands: ['notices', 'settings'], default: {}, check: (value, place) => {
     const known = place.project === null ? Object.keys(NOTICE_KINDS) : PROJECT_KINDS

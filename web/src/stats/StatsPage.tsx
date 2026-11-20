@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import type { PeriodQuery, StatsFilter, StatsScope } from '../../../src/stats/model.js'
 import type { RulesQuery } from '../../../src/stats/rules.js'
@@ -9,6 +9,7 @@ import { formatUsd } from './format.js'
 import { t } from '../i18n/index.js'
 import { Basement } from '../layout/Basement.js'
 import { useLive } from '../live/context.js'
+import { useCommand } from '../live/useCommand.js'
 import { keySlots } from '../state.js'
 import { AnswerNotice, Segmented, isStale, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { useFolds, type Fold } from './folds.js'
@@ -22,7 +23,7 @@ import { Select } from '../ui/Select.js'
 import { Switch } from '../pages/settingsParts.js'
 import { RulesSection } from './RulesSection.js'
 import { EstimateSection } from './EstimateSection.js'
-import { parseView, viewSearch, type StatsView } from './search.js'
+import { parseView, testsShown, viewSearch, type StatsView } from './search.js'
 import { SpendChart } from './SpendChart.js'
 import { StepsSection } from './StepsSection.js'
 import { StuckSection } from './StuckSection.js'
@@ -51,9 +52,19 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   const slotsKey = JSON.stringify(slots)
 
   const tests = state.projects.filter(id => state.config.projects[id]?.testProject).map(id => state.projectKeys[id]!)
+  // The switch is kept in the database (BTN-1364); the press holds until the service sends the stored value back.
+  const testsCommand = useCommand()
+  const [pressed, setPressed] = useState<boolean | null>(null)
+  useEffect(() => setPressed(null), [state.showTests.stats])
+  const includeTests = testsShown(view, state.showTests.stats, pressed)
+  const switchTests = (on: boolean) => {
+    setPressed(on)
+    setView({ includeTests: undefined })
+    void testsCommand.send('view/tests', { page: 'stats', on }).then((sent) => sent || setPressed(null))
+  }
   const machineNames = state.machineNames ?? {}
   const filter: StatsFilter = {
-    scope: view.scope, account: view.account, tz, ...(view.includeTests ? { includeTests: true } : {}), ...(view.machine === undefined ? {} : { machine: view.machine }),
+    scope: view.scope, account: view.account, tz, ...(includeTests ? { includeTests: true } : {}), ...(view.machine === undefined ? {} : { machine: view.machine }),
   }
   const visibilityKey = JSON.stringify(tests)
   const historyKey = JSON.stringify(filter) + visibilityKey
@@ -132,7 +143,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
         <div className="stats-page__filters">
           <label className="stats-page__filter">
             {t.stats.includeTests}
-            <Switch checked={view.includeTests === true} onChange={includeTests => setView({ includeTests })} label={t.stats.includeTests} />
+            <Switch checked={includeTests} onChange={switchTests} label={t.stats.includeTests} />
           </label>
           <span className="stats-page__filter">
             {t.stats.sessions}
@@ -219,7 +230,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               <>
                 <div className="stats-page__group">
                 <EstimateSection fold={fold('estimate')} tasks={period.tasks} />
-                {checkpoints !== null && <Checkpoints fold={fold('checkpoints')} thresholds={checkpoints.filter(each => view.includeTests || !tests.includes(each.project))} projects={view.projects} />}
+                {checkpoints !== null && <Checkpoints fold={fold('checkpoints')} thresholds={checkpoints.filter(each => includeTests || !tests.includes(each.project))} projects={view.projects} />}
                 </div>
                 <div className="stats-page__group">
                 <TaskTable fold={fold('tasks')} tasks={period.tasks} chats={period.chats ?? []} trackerUrls={state.trackerUrls} />

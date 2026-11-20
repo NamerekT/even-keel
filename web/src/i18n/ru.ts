@@ -379,6 +379,13 @@ export const ru = {
     },
     other: 'Прочие',
     projects: (count: number) => `${count} ${forms('проект', 'проекта', 'проектов')(count)}`,
+    tests: {
+      label: 'Тестовые проекты',
+      show: (count: number) => `Скрыто: ${counted('тестовый проект', 'тестовых проекта', 'тестовых проектов')(count)}. Показать`,
+      hide: 'Тестовые проекты показаны. Скрыть',
+      allHidden: (count: number) => `Здесь только тестовые проекты (${count}), и они скрыты.`,
+      showAll: 'Показать тестовые',
+    },
     memes: {
       self: ['Even Keel: мемы про вайбкодеров...', ' Написано вайбкодером?!', ' Мда.'],
       peak: (day: string, count: number) => [`${day}: ${launches(count)}.`, ' Ты вообще спал?'],

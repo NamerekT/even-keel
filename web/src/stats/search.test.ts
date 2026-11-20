@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_VIEW, parseView, viewSearch } from './search.js'
+import { DEFAULT_VIEW, parseView, testsShown, viewSearch } from './search.js'
 
 const parse = (text: string) => parseView(new URLSearchParams(text))
 
 describe('parseView', () => {
-  it('keeps the test-project choice in shared and reloaded URLs', () => {
+  it('reads the one-time tests=1 of the project page link', () => {
     expect(parse('tests=1').includeTests).toBe(true)
     expect(viewSearch({ ...DEFAULT_VIEW, includeTests: true })).toBe('tests=1')
     expect(parse('tests=0').includeTests).not.toBe(true)
+    expect(viewSearch({ ...parse('tests=1&scope=chain'), includeTests: undefined })).toBe('scope=chain')
+  })
+  it('shows the test projects by the stored switch, tests=1 turning them on for the visit (BTN-1364)', () => {
+    expect(testsShown(parse(''), false, null)).toBe(false)
+    expect(testsShown(parse(''), true, null)).toBe(true)
+    expect(testsShown(parse('tests=1'), false, null)).toBe(true)
+    expect(testsShown(parse('tests=1'), true, false)).toBe(false)
+    expect(testsShown(parse(''), false, true)).toBe(true)
   })
   it('keeps the chosen machine in the address (BTN-1280)', () => {
     expect(parse('machine=machine-far').machine).toBe('machine-far')

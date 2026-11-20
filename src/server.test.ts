@@ -126,6 +126,19 @@ describe('Even Keel HTTP server', () => {
     expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'version' } })
   })
 
+  it('passes on the "Test projects" switches of the home page and /stats (BTN-1364)', async () => {
+    const post = (body: unknown) => fetch(base + '/api/view/tests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    expect((await post({ page: 'home', on: true })).status).toBe(200)
+    expect((await post({ page: 'stats', on: false })).status).toBe(200)
+    expect(calls).toContainEqual(['showTests', 'home', true])
+    expect(calls).toContainEqual(['showTests', 'stats', false])
+    for (const [body, field] of [[{ page: 'tasks', on: true }, 'page'], [{ page: 'home' }, 'on']] as const) {
+      const refused = await post(body)
+      expect(refused.status).toBe(400)
+      expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
+    }
+  })
+
   it('passes on the banner buttons: "Got it" marks and a kind turned off or back (BTN-759)', async () => {
     const post = (path: string, body: unknown) => fetch(base + `/api/notices/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     expect((await post('dismiss', { entries: { 'protection.remote@id-abc': '[]' } })).status).toBe(200)

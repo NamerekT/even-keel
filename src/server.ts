@@ -84,6 +84,10 @@ const COMMANDS: Record<string, Command> = {
   settings:({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
+  'view/tests': ({ settings }, body) => {
+    if (body.page !== 'home' && body.page !== 'stats') throw fail('request.required', { field: 'page' })
+    settings.showTests(body.page, switchOf(body.on, 'on'))
+  },
   'notices/dismiss': ({ settings }, body) => settings.dismissNotices(mapOf<string>(body.entries, 'entries', (stamp) => typeof stamp === 'string')),
   'hotkeys/save': ({ settings }, body) => settings.saveHotkeys(browserOf(body), hotkeysOf(body)),
   'notices/mute': ({ settings }, body) =>

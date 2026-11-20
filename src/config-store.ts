@@ -3,7 +3,7 @@ import { needsCheckedCli } from './agent/providers.js'
 import type { BadgeSettings } from './badge/model.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
-import { formsOf, trackerChoices, withChainSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withRenamedMilestone, withBadge, withSharedAccount, withSharedForm, withNotice, withTally, withTrackerMove, withUpdates, type TrackerMove } from './config-form.js'
+import { formsOf, trackerChoices, withSwitches, withExecution, withFeed, withFeedRules, withNewProject, withSourceMoves, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSavedMilestoneOrder, withRenamedMilestone, withBadge, withSharedAccount, withSharedForm, withNotice, withTally, withTrackerMove, withUpdates, type Switches, type TrackerMove } from './config-form.js'
 import type { NoticeKind } from './notice/kinds.js'
 import { idPrefixOf, parseConfig, readersOf, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
@@ -208,10 +208,10 @@ export class ConfigStore {
     this.write(withUpdates(this.raw(), patch))
   }
 
-  /** Writes the chain's switches that differ from the current ones, by the same rule as `saveProject`. */
-  saveChainSwitches(patch: Partial<Pick<EvenKeelConfig, 'unattended' | 'trimTools'>>): void {
+  /** Writes the switches that differ from the current ones, by the same rule as `saveProject`. */
+  saveSwitches(patch: Partial<Switches>): void {
     const changed = Object.entries(patch).filter(([key, on]) => this.current[key as keyof typeof patch] !== on)
-    if (changed.length > 0) this.write(withChainSwitches(this.raw(), Object.fromEntries(changed)))
+    if (changed.length > 0) this.write(withSwitches(this.raw(), Object.fromEntries(changed)))
   }
 
   /** Writes one `notices` entry (BTN-759), by the same rule as `saveProject`: `project` — its id, `null` — Even Keel's. */

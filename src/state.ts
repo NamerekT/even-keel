@@ -346,6 +346,8 @@ export interface EvenKeelState {
   language: Language | null
   unattended: boolean
   trimTools: boolean
+  /** The "Test projects" switches of the home page and /stats (BTN-1364): `false` — test projects hidden there. */
+  showTests: { home: boolean; stats: boolean }
   /** Where Tally writes (BTN-247); `null` — not chosen yet: the page offers the stats setup before anything else. */
   tally: TallyMode | null
   /** The collector's last run, for `/status` (BTN-66). */

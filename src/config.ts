@@ -122,6 +122,9 @@ export interface EvenKeelConfig {
   /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
   unattended: boolean
   trimTools: boolean
+  /** The "Test projects" switches of the home page and /stats (`view/tests`, BTN-1364): off — test projects hidden. */
+  homeShowTests: boolean
+  statsShowTests: boolean
   /** Where Tally writes, set by the page's stats setup and settings (`stats/tally`); `null` — not chosen yet. */
   tally: TallyMode | null
   /** The switches only: the version whose toast was closed is state (`service_state`). */
@@ -364,6 +367,8 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     switchOnLimit: shared.switchOnLimit as boolean,
     unattended: shared.unattended as boolean,
     trimTools: shared.trimTools as boolean,
+    homeShowTests: shared.homeShowTests as boolean,
+    statsShowTests: shared.statsShowTests as boolean,
     tally: shared.tally as TallyMode | null,
     updates: { check: shared['updates.check'] as boolean, notify: shared['updates.notify'] as boolean },
     backup: { dir: shared['backup.dir'] as string | null, keep: shared['backup.keep'] as number },

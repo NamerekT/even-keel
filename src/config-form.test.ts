@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withChainSwitches, withNotice, withSavedMilestoneOrder, withRenamedMilestone, withBadge, withTally, yieldedMilestones } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withFeedRules, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withExecution, withSharedForm, withUpdates, withSwitches, withNotice, withSavedMilestoneOrder, withRenamedMilestone, withBadge, withTally, yieldedMilestones } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -256,11 +256,17 @@ describe('withUpdates', () => {
   })
 })
 
-describe('withChainSwitches', () => {
+describe('withSwitches', () => {
   it('sets the chain switches and removes what goes back to the defaults', () => {
-    expect(withChainSwitches({ projects: [] }, { unattended: true })).toEqual({ projects: [], unattended: true })
-    expect(withChainSwitches({ projects: [], unattended: true }, { trimTools: false })).toEqual({ projects: [], unattended: true, trimTools: false })
-    expect(withChainSwitches({ projects: [], unattended: true, trimTools: false }, { unattended: false, trimTools: true })).toEqual({ projects: [] })
+    expect(withSwitches({ projects: [] }, { unattended: true })).toEqual({ projects: [], unattended: true })
+    expect(withSwitches({ projects: [], unattended: true }, { trimTools: false })).toEqual({ projects: [], unattended: true, trimTools: false })
+    expect(withSwitches({ projects: [], unattended: true, trimTools: false }, { unattended: false, trimTools: true })).toEqual({ projects: [] })
+  })
+
+  it('sets the switches of test projects on the home page and /stats, each on its own', () => {
+    expect(withSwitches({ projects: [] }, { homeShowTests: true })).toEqual({ projects: [], homeShowTests: true })
+    expect(withSwitches({ projects: [], homeShowTests: true }, { statsShowTests: true })).toEqual({ projects: [], homeShowTests: true, statsShowTests: true })
+    expect(withSwitches({ projects: [], homeShowTests: true, statsShowTests: true }, { homeShowTests: false })).toEqual({ projects: [], statsShowTests: true })
   })
 })
 

@@ -374,6 +374,13 @@ export const en: Messages = {
     },
     other: 'Other',
     projects: counted('project', 'projects'),
+    tests: {
+      label: 'Test projects',
+      show: (count: number) => `${counted('test project', 'test projects')(count)} hidden. Show them`,
+      hide: 'Test projects are shown. Hide them',
+      allHidden: (count: number) => `Every project here is a test one (${count}), and they are hidden.`,
+      showAll: 'Show test projects',
+    },
     memes: {
       self: ['Even Keel: memes about vibe coders...', ' Written by a vibe coder?!', ' Bruh.'],
       peak: (day: string, count: number) => [`${day}: ${launches(count)}.`, ' Did you even sleep?'],

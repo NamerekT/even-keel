@@ -1,12 +1,13 @@
 import { type ReactNode, useState } from 'react'
 import { Navigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
-import { localized, t } from '../i18n/index.js'
+import { localized, say, t } from '../i18n/index.js'
+import { useCommand } from '../live/useCommand.js'
 import { useMachineFilter } from '../layout/MachineFilter.js'
 import { machineProjects } from '../machineView.js'
 import { openQuestions, ownProjects, projectSlots, questionPath } from '../state.js'
 import { EmptyState, PageHead } from '../ui/blocks.js'
-import { ClonesIcon, ColumnsIcon, GridIcon, NestedIcon } from '../ui/icons.js'
+import { ClonesIcon, ColumnsIcon, FlaskIcon, GridIcon, NestedIcon } from '../ui/icons.js'
 import { emptyTurns, type HarborMeme, harborMemes } from '../ui/memes.js'
 import { Tipped } from '../ui/Tipped.js'
 import { Typed, Typists } from '../ui/Typed.js'
@@ -17,6 +18,7 @@ import { emptyKind, ProjectCard } from './ProjectCard.js'
 import { DemoWelcome } from './Demo.js'
 import { AddProjectLink } from './SetupAsk.js'
 import { stepPath } from './setupSteps.js'
+import { homeTests } from './homeTests.js'
 import { useGrouping } from './useGrouping.js'
 import './home.css'
 
@@ -38,7 +40,10 @@ export function Home({ state }: { state: EvenKeelState }) {
   const machines = useMachineFilter()
   const picked = machines.selected
   const projects = picked === null ? state.projects : machineProjects(machines.cards, state.projects, picked.id)
-  const blocks = homeBlocks(grouping, projects, state).map((block) => laidOut(block, (key) => zoneOf(state, key)))
+  const tests = homeTests(state, projects)
+  const showTests = useCommand()
+  const setShowTests = (on: boolean) => void showTests.send('view/tests', { page: 'home', on })
+  const blocks = homeBlocks(grouping, tests.visible, state).map((block) => laidOut(block, (key) => zoneOf(state, key)))
   // Panels only when there is a group to set apart; a lone untitled block is the plain grid.
   const framed = blocks.some((block) => block.title !== null)
   // The punchlines go by the cards' order on the page.
@@ -59,6 +64,7 @@ export function Home({ state }: { state: EvenKeelState }) {
         title={t.home.title}
         actions={
           <>
+            {tests.tests.length > 0 && <TestsSwitch hidden={tests.hidden} shown={state.showTests.home} onChange={setShowTests} />}
             {state.projects.length > 1 && <GroupingSwitch value={grouping} onChange={setGrouping} />}
             <AddProjectLink state={state} className="button button--small">
               + {t.home.add}
@@ -66,6 +72,7 @@ export function Home({ state }: { state: EvenKeelState }) {
           </>
         }
       />
+      {showTests.failure !== null && <p className="notice notice--error">{say(showTests.failure)}</p>}
       {/* The lines type the way the chains run: as many at once as `parallel` allows, in page order. */}
       <Typists count={state.chain.parallel}>
         <Typed
@@ -94,6 +101,16 @@ export function Home({ state }: { state: EvenKeelState }) {
             }
           >
             {t.machinePanel.view.homeEmpty(picked.name)}
+          </EmptyState>
+        ) : tests.visible.length === 0 ? (
+          <EmptyState
+            action={
+              <button type="button" className="button button--small" onClick={() => setShowTests(true)}>
+                {t.home.tests.showAll}
+              </button>
+            }
+          >
+            {t.home.tests.allHidden(tests.hidden)}
           </EmptyState>
         ) : (
           <div className="home__groups">
@@ -133,6 +150,27 @@ function BlockBody({ block, state, turnOf }: { block: BlockLayout; state: EvenKe
         </div>
       ))}
     </>
+  )
+}
+
+/** "Test projects" (BTN-1364): pressed while they are shown; while hidden, their number stands by the flask. */
+function TestsSwitch({ hidden, shown, onChange }: { hidden: number; shown: boolean; onChange: (on: boolean) => void }) {
+  const tip = shown ? t.home.tests.hide : t.home.tests.show(hidden)
+  return (
+    <div className="segmented home__grouping" role="group" aria-label={t.home.tests.label}>
+      <Tipped tip={tip} inline>
+        <button
+          type="button"
+          className={shown ? 'segmented__item segmented__item--on' : 'segmented__item'}
+          aria-label={tip}
+          aria-pressed={shown}
+          onClick={() => onChange(!shown)}
+        >
+          <FlaskIcon />
+          {!shown && <span className="home__tests-count">{hidden}</span>}
+        </button>
+      </Tipped>
+    </div>
   )
 }
 

@@ -73,6 +73,7 @@ function state(startedAt: string): EvenKeelState {
     language: null,
     unattended: false,
     trimTools: true,
+    showTests: { home: false, stats: false },
     tally: 'local',
     tallyHealth: { state: 'waiting', lastRunAt: null },
     updates: { current: '0.1.0', available: null, toast: false, notes: [], source: 'git', blocked: null, previous: null, progress: null, result: null },

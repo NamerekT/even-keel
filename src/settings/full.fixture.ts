@@ -6,6 +6,8 @@ export const FULL = {
   parallel: 2,
   unattended: true,
   trimTools: false,
+  homeShowTests: true,
+  statsShowTests: true,
   tally: 'server',
   brief: false,
   chain: { active: ['Todo', ' In Progress '], terminal: ['Done'], requiredLabels: ['Auto'], excludedLabels: [], excludedMilestones: [' v1.0.1 '] },

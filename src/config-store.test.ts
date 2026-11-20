@@ -197,7 +197,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     expect(JSON.stringify(config.raw())).toBe(JSON.stringify(fromDb))
     expect(settingsDrafts(fromDb, config.raw())).toEqual([])
 
-    config.saveChainSwitches({ unattended: true })
+    config.saveSwitches({ unattended: true })
     expect(settingsDrafts(fromDb, config.raw()).map((draft) => draft.notice.code)).toEqual(['eventLog.settings'])
     await writes.settled()
     expect(JSON.stringify((await open()).raw())).toBe(JSON.stringify(config.raw()))
@@ -246,12 +246,23 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
     expect([config.current.unattended, config.current.trimTools]).toEqual([false, true])
 
-    config.saveChainSwitches({ unattended: true, trimTools: true })
+    config.saveSwitches({ unattended: true, trimTools: true })
     expect(await read()).toEqual(fresh({ unattended: true, projects: [] }))
     expect(changes).toBe(1)
-    config.saveChainSwitches({ unattended: true })
+    config.saveSwitches({ unattended: true })
     expect(changes).toBe(1)
-    config.saveChainSwitches({ trimTools: false, unattended: false })
+    config.saveSwitches({ trimTools: false, unattended: false })
     expect(await read()).toEqual(fresh({ trimTools: false, projects: [] }))
+  })
+
+  it('keeps the switches of test projects on the home page and /stats, hidden by default', async () => {
+    const config = await open()
+    expect([config.current.homeShowTests, config.current.statsShowTests]).toEqual([false, false])
+
+    config.saveSwitches({ statsShowTests: true })
+    expect([config.current.homeShowTests, config.current.statsShowTests]).toEqual([false, true])
+    expect(await read()).toEqual(fresh({ statsShowTests: true, projects: [] }))
+    config.saveSwitches({ homeShowTests: true, statsShowTests: false })
+    expect(await read()).toEqual(fresh({ homeShowTests: true, projects: [] }))
   })
 })

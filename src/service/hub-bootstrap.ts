@@ -204,8 +204,8 @@ export function assembleBadges(ctx: Pick<ServiceContext, 'configStore' | 'getSta
 
 export function assembleSWITCHES(ctx: Pick<ServiceContext, 'configStore'>): Partial<Record<keyof ChainControl, (on: boolean) => void>> {
   return {
-    setUnattended: (on) => ctx.configStore.saveChainSwitches({ unattended: on }),
-    setTrimTools: (on) => ctx.configStore.saveChainSwitches({ trimTools: on }),
+    setUnattended: (on) => ctx.configStore.saveSwitches({ unattended: on }),
+    setTrimTools: (on) => ctx.configStore.saveSwitches({ trimTools: on }),
   }
 }
 

@@ -314,6 +314,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'chain/accept') return closeCurrent(state)
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
+  if (name === 'view/tests') return { ...state, showTests: { ...state.showTests, [body.page === 'stats' ? 'stats' : 'home']: body.on === true } }
   if (name === 'stats/tally') return fakeTally(state, body)
   if (name === 'session/answer') return body.renew === true ? renew(state, body) : fakeAnswer(state, body)
   if (name === 'session/mail/dismiss') return fakeDismissMail(state, String(body.sessionId))

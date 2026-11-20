@@ -90,6 +90,8 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     backup: { dir: null, keep: 14 },
     unattended: false,
     trimTools: true,
+    homeShowTests: false,
+    statsShowTests: false,
     tally: null,
   })
 }
@@ -100,6 +102,6 @@ export const projectFormDefaults = (overrides: Partial<ProjectForm> = {}): Proje
 })
 
 export function sharedFormDefaults(): SharedForm {
-  const { projects, keys, names, rules, ownRules, slots, colors, trackers, trackerProjects, feeds, moves, briefs, settings, unattended, trimTools, tally, ...shared } = configDefaults()
+  const { projects, keys, names, rules, ownRules, slots, colors, trackers, trackerProjects, feeds, moves, briefs, settings, unattended, trimTools, homeShowTests, statsShowTests, tally, ...shared } = configDefaults()
   return shared
 }

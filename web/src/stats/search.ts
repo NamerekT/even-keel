@@ -5,6 +5,7 @@ import { MARK_KINDS } from './marks.js'
 import { isPreset, type PeriodChoice, type Step } from './period.js'
 
 export interface StatsView {
+  /** `tests=1`, as the project page's "More" opens /stats (BTN-809): test projects shown for this visit only. */
   includeTests?: boolean
   period: PeriodChoice
   projects: string[] | null
@@ -63,6 +64,14 @@ export function parseView(params: URLSearchParams): StatsView {
     ...(params.has('beforeModels') ? { beforeModels: params.get('beforeModels')!.split(',').filter(Boolean) } : {}),
     ...(params.has('afterModels') ? { afterModels: params.get('afterModels')!.split(',').filter(Boolean) } : {}),
   }
+}
+
+/**
+ * Whether /stats shows the test projects (BTN-1364): the switch's last press on this page before the service has its
+ * value back, else the address's one-time `tests=1` or the stored switch.
+ */
+export function testsShown(view: Pick<StatsView, 'includeTests'>, stored: boolean, pressed: boolean | null): boolean {
+  return pressed ?? (view.includeTests === true || stored)
 }
 
 export function viewSearch(view: StatsView): string {

@@ -370,8 +370,11 @@ export function withUpdates(raw: unknown, patch: Partial<Pick<UpdateSettings, 'c
   return withRows(raw, changesOf(null, values, () => true))
 }
 
-/** The raw config with the chain's switches set, against the defaults: what the "Unattended" and "Trim the tools" switches write. */
-export function withChainSwitches(raw: unknown, patch: Partial<Pick<EvenKeelConfig, 'unattended' | 'trimTools'>>): Record<string, unknown> {
+/** Even Keel's switches the page writes at once, outside the forms: the chain's and the "Test projects" ones. */
+export type Switches = Pick<EvenKeelConfig, 'unattended' | 'trimTools' | 'homeShowTests' | 'statsShowTests'>
+
+/** The raw config with the switches set, against the defaults: "Unattended", "Trim the tools", "Test projects". */
+export function withSwitches(raw: unknown, patch: Partial<Switches>): Record<string, unknown> {
   const values = Object.entries(patch).map(([key, setting]) => value(key, key, setting))
   return withRows(raw, changesOf(null, values, () => true))
 }

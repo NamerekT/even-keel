@@ -213,6 +213,8 @@ export interface SettingsControl {
   saveHotkeys(browser: string, bindings: HotkeyBindings): void
   /** "Don't show again" and the "Notices" switches: one kind, `project` `null` for Even Keel's; `shown` `null` — back to Even Keel's. */
   muteNotice(project: string | null, kind: NoticeKind, shown: boolean | null): void
+  /** The "Test projects" switch of the home page or /stats (BTN-1364): kept in the database, each page's own. */
+  showTests(page: 'home' | 'stats', on: boolean): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
   muteUpdates(): void
   /** The update window's "Update" to the latest release (BTN-163): waits for the chains, then the update process takes over. */
