@@ -72,6 +72,7 @@ export function machineOf() {
     reportedTree: () => null,
     account: () => ({ id: 'main/john@example.com', ready: true }),
     launchBlock: () => undefined,
+    sessionBlock: () => undefined,
     limitReset: () => null,
     limitResetAfter: () => null,
     limitsUnread: () => undefined,

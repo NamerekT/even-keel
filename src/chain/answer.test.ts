@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { noticeOf } from '../notice/notice.js'
+import { notice, noticeOf } from '../notice/notice.js'
 import { setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState } from './dispatcher.js'
 import type { HandoffSession } from './relay.js'
@@ -147,8 +147,8 @@ describe('Dispatcher on an answer', () => {
     expect(refusal(() => dispatcher.answer('ABC', 'ABC-1', 'older-session', 'toolu_1', 'x'))).toBe('answer.moved')
   })
 
-  it('refuses while the limit is spent', async () => {
-    const { dispatcher } = await running({ limitReset: '2026-09-26T15:00:00.000Z' })
+  it("refuses while the limit of the session's account is spent", async () => {
+    const { dispatcher } = await running({ sessionBlock: () => notice('chain.limitSpent', { until: '2026-09-26T15:00:00.000Z' }) })
     expect(refusal(() => dispatcher.answer('ABC', 'ABC-1', 'old-session', 'toolu_1', 'x'))).toBe('chain.limitSpent')
   })
 

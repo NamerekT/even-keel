@@ -209,6 +209,7 @@ export class MachineRunner {
       const limited = local.limited(task)
       const overage = local.overage?.(task)
       const handoff = local.handoff(task)
+      const sessionBlock = local.sessionBlock(task)
       const refusals = Object.fromEntries(sessions.flatMap((sessionId) => {
         const refusal = local.modelRefusal?.(task, sessionId)
         return refusal === undefined ? [] : [[sessionId, refusal] as const]
@@ -226,6 +227,7 @@ export class MachineRunner {
         ...(limited !== undefined && { limited }),
         ...(overage !== undefined && { overage }),
         ...(handoff !== undefined && { handoff }),
+        ...(sessionBlock !== undefined && { sessionBlock }),
         ...(Object.keys(refusals).length > 0 && { refusals }),
       }
       if (Object.keys(facts).length > 0) tasks[task] = facts

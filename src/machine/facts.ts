@@ -22,6 +22,7 @@ export interface TaskFacts {
   limited?: LimitedSession
   overage?: OverageSession
   handoff?: HandoffSession
+  sessionBlock?: Notice
   /** By session id: the model refusal of its completed turn. */
   refusals?: Record<string, Notice>
 }
@@ -156,7 +157,7 @@ export function applyPatch(facts: MachineFacts, patch: FactsPatch): MachineFacts
 
 export type MirrorReads = Pick<MachinePort,
   | 'liveSession' | 'lastSession' | 'busy' | 'midTurn' | 'shell' | 'asked' | 'silentSince' | 'limited' | 'overage' | 'handoff' | 'modelRefusal'
-  | 'sessionsRead' | 'reportedTree' | 'account' | 'accountAt' | 'launchBlock' | 'limitReset' | 'modelWeek' | 'limitResetAfter' | 'limitReopenedAt'
+  | 'sessionsRead' | 'reportedTree' | 'account' | 'accountAt' | 'launchBlock' | 'sessionBlock' | 'limitReset' | 'modelWeek' | 'limitResetAfter' | 'limitReopenedAt'
   | 'limitsUnread' | 'accountsRead' | 'packagesBlocked' | 'packagesPause' | 'trackerMissing'
 >
 
@@ -187,6 +188,7 @@ export function mirrorReads(facts: () => MachineFacts | undefined, lastSession: 
     account: (project, name) => run(project, name)?.account ?? { id: null, ready: false },
     accountAt: (key, at) => accountId(key, accountAt({ accounts: facts()?.ledger ?? {}, removing: [] }, key, at)),
     launchBlock: (project, name) => run(project, name)?.launchBlock,
+    sessionBlock: (name) => task(name).sessionBlock,
     limitReset: (project, name) => run(project, name)?.limitReset ?? null,
     modelWeek: (project, name) => run(project, name)?.modelWeek ?? null,
     limitResetAfter: (account, at, text) => facts()?.resets[resetKey(account, at, text)] ?? null,

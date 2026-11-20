@@ -5,6 +5,7 @@ import { accountId, launchBlock } from '../account/model.js'
 import type { SessionStart } from '../agent/contract.js'
 import { sessionBase } from '../agent/env.js'
 import { isOwnName } from '../chain/fix.js'
+import { limitSpent } from '../chain/limitNotice.js'
 import { TaskPlaces } from '../chain/places.js'
 import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, type HandoffSession } from '../chain/relay.js'
 import { readNote, snapshotReason, type HandoffSnapshot } from '../chain/snapshots.js'
@@ -103,6 +104,12 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
     },
     accountAt: (key, at) => accountId(key, accountAt(ctx.ledger, key, at)),
     limitReset: (project, task) => exhaustedReset(ctx.limits.limits(ctx.choiceFor(project, task).account)),
+    sessionBlock: (task) => {
+      const key = ctx.monitor.handoff(task)?.account
+      if (key === undefined) return undefined
+      const until = exhaustedReset(ctx.limits.limits(key))
+      return until === null ? launchBlock(ctx.account.view, key) : limitSpent(until, ctx.accountNow(key))
+    },
     modelWeek: (project, task) => {
       const choice = ctx.choiceFor(project, task)
       const week = spentModelWeek(ctx.limits.limits(choice.account), choice.model)

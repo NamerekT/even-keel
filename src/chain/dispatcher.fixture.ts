@@ -44,6 +44,8 @@ export interface SetupOptions {
   failRelay?: boolean
   reply?: MachinePort['reply']
   failStop?: boolean
+  /** Why the account of the task's session refuses an answer; `limitReset` and `blocked` are the selected account's. */
+  sessionBlock?: MachinePort['sessionBlock']
   limitReset?: string | null
   /** The limit's reset by task, ahead of `limitReset`: with machines, the one of the machine the task is bound to. */
   limitResetOf?: (project: string, task: string) => string | null
@@ -243,6 +245,7 @@ export function setup(options: SetupOptions = {}) {
         return options.sync?.(project) ?? null
       },
       launchBlock: () => undefined,
+      sessionBlock: options.sessionBlock ?? (() => undefined),
       trackerMissing: () => undefined,
       changes: (project, workdir) => options.unchanged?.changes(project, workdir) ?? Promise.resolve({ ahead: 0, files: 0 }),
       head: async () => null,

@@ -351,7 +351,7 @@ export class Dispatcher {
    * the chain stopped, the one that lives on — waits rather than works, and still waits on the question `ask`
    * (`null` — on none, the turn ended in plain text). With `takes` — the session takes a message mid-turn, by its
    * mailbox (BTN-181) or straight in (BTN-291) — a plain message to a working session passes as `midTurn`: nothing is
-   * launched.
+   * launched. `fresh` — the answer goes to a new session, checked against the account selected for the task.
    */
   answerable(
     project: string,
@@ -359,8 +359,9 @@ export class Dispatcher {
     sessionId: string,
     ask: string | null,
     takes = false,
+    fresh = false,
   ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession; midTurn: boolean } {
-    return this.talks.answerable(project, task, sessionId, ask, takes)
+    return this.talks.answerable(project, task, sessionId, ask, takes, fresh)
   }
 
   /**

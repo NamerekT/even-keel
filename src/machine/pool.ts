@@ -95,6 +95,7 @@ export function machinePool(deps: PoolDeps): MachinePort {
     account: (project, task) => byTask(project, task).account(project, task),
     accountAt: (account, when) => own().accountAt(account, when),
     launchBlock: (project, task) => byTask(project, task).launchBlock(project, task),
+    sessionBlock: (task) => ofTask(task).sessionBlock(task),
     limitReset: (project, task) => byTask(project, task).limitReset(project, task),
     ...(first.modelWeek === undefined ? {} : { modelWeek: (project: string, task?: string) => byTask(project, task).modelWeek?.(project, task) ?? null }),
     limitResetAfter: (account, when, text) => own().limitResetAfter(account, when, text),

@@ -137,6 +137,11 @@ export interface MachinePort {
   accountAt: (account: string, at: string) => string | null
   /** Snapshot. Why the account or the CLI `task` would start on holds a launch. */
   launchBlock: (project: string, task: string) => Notice | undefined
+  /**
+   * Snapshot. Why the account the task's current session runs on cannot take an answer (BTN-1396): its limit is spent
+   * (`chain.limitSpent` naming it) or its folder holds a launch. `undefined` — it can, or the task has no session.
+   */
+  sessionBlock: (task: string) => Notice | undefined
   /** Snapshot. When the spent limit of the account the project's session (or `task`'s) would start on resets; `null` — not spent. */
   limitReset: (project: string, task?: string) => string | null
   /**

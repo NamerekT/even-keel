@@ -62,7 +62,8 @@ export class Talks {
    * the chain stopped, the one that lives on — waits rather than works, and still waits on the question `ask`
    * (`null` — on none, the turn ended in plain text). With `takes` — the session takes a message mid-turn, by its
    * mailbox (BTN-181) or straight in (BTN-291) — a plain message to a working session passes as `midTurn`: nothing is
-   * launched.
+   * launched. `fresh` — the answer goes to a new session: the account selected for the task must take it, not the
+   * session's own (BTN-1396).
    */
   answerable(
     project: string,
@@ -70,8 +71,9 @@ export class Talks {
     sessionId: string,
     ask: string | null,
     takes = false,
+    fresh = false,
   ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession; midTurn: boolean } {
-    return answerable(this.state, this.deps, project, task, sessionId, ask, takes)
+    return answerable(this.state, this.deps, project, task, sessionId, ask, takes, fresh)
   }
 
   /** Invariant 1, exception 6: queues the user's answer and resolves to whether it reached the session. */
@@ -96,7 +98,7 @@ export class Talks {
    * session with the handoff and the answer instead of resuming the old one. Only for the current task of a running chain.
    */
   renew(project: string, task: string, sessionId: string, ask: string | null, prompt: string): void {
-    const { chain, current, session } = this.answerable(project, task, sessionId, ask)
+    const { chain, current, session } = this.answerable(project, task, sessionId, ask, false, true)
     if (chain === null || current === null) throw fail('chain.notCurrent', { task })
     this.pauses.require(project, task)
     this.host.setWork(this.host.work().then(() => {

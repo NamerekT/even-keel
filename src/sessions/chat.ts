@@ -108,7 +108,7 @@ export function createChat(deps: ChatDeps) {
   ): Promise<void> {
     await deps.catchUp?.()
     const takes = reply.from === 'page' && listens(sessionId)
-    const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes)
+    const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes, renew)
     // What the message asks would land in the worktree of a closed task: it is a new task (BTN-558).
     if (await dispatcher.closed(project, task)) throw fail('answer.closed', { task })
     const question = ask === null ? null : (deps.liveView(task)?.ask ?? null)

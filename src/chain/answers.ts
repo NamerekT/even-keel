@@ -13,6 +13,7 @@ export function answerable(
   sessionId: string,
   ask: string | null,
   takes = false,
+  fresh = false,
 ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession; midTurn: boolean } {
   if (!deps.projects().includes(project)) throw fail('chain.unknownProject', { project })
   const chain = chainFor(state, project, task) ?? null
@@ -27,9 +28,10 @@ export function answerable(
     if (!takes || ask !== null) throw fail('answer.busy', { task })
     return { chain, current, session, midTurn: true }
   }
-  const reason = deps.blocked(project, task)
+  // An answer resumes the session on its own account; only a new session (`fresh`) starts on the one selected for the task (BTN-1396).
+  const reason = fresh ? deps.blocked(project, task) : (deps.blocked(project) ?? deps.machine.sessionBlock(task))
   if (reason !== undefined) throw new NoticeError(reason)
-  requireLimit(deps, project, task)
+  if (fresh) requireLimit(deps, project, task)
   return { chain, current, session, midTurn: false }
 }
 

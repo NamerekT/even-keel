@@ -1,12 +1,15 @@
-import { fail } from '../notice/notice.js'
+import { notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { ActiveChain, DispatcherDeps } from './model.js'
+import type { AccountNow } from './relay.js'
 
-/** Refuse against the task's selected account, including the provider of the task's run. */
+export const limitSpent = (until: string, account: AccountNow): Notice =>
+  notice('chain.limitSpent', { until, account: account.label ?? account.id ?? undefined, provider: account.provider })
+
+/** Refuse a new session against the task's selected account, including the provider of the task's run. */
 export function requireLimit(deps: Pick<DispatcherDeps, 'machine'>, project: string, task: string): void {
   const until = deps.machine.limitReset(project, task)
   if (until === null) return
-  const account = deps.machine.account(project, task)
-  throw fail('chain.limitSpent', { until, account: account.label ?? account.id ?? undefined, provider: account.provider })
+  throw new NoticeError(limitSpent(until, deps.machine.account(project, task)))
 }
 
 /**
