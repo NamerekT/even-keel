@@ -10,7 +10,7 @@ import { fail } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
 import { fromCarried, toCarried, type CarriedFile, type MachineServices } from '../machine/services.js'
 import type { MachineContext } from './machine-context.js'
-import { inboxImage, saveInbox } from '../sessions/inbox.js'
+import { inboxImage, inboxImageIn, saveInbox } from '../sessions/inbox.js'
 import { tellMail, type InboxMail } from '../sessions/inboxes.js'
 import { deliveredMail } from '../sessions/mail.js'
 import { noteWritten } from '../sessions/note.js'
@@ -97,8 +97,11 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
       },
       inboxFile: async (sessionId, name) => {
         const feed = await feedOf(sessionId, true)
-        const found = inboxImage(feed?.lines.flatMap((line) => line.files ?? []) ?? [], name)
-        return found === undefined ? undefined : fileOf(found.type, found.path)
+        const named = inboxImage(feed?.lines.flatMap((line) => line.files ?? []) ?? [], name)
+        if (named !== undefined) return fileOf(named.type, named.path)
+        const workdir = await ctx.inHomes(async (home) => (await ctx.agentOf(home).record(home, sessionId))?.workdir ?? undefined)
+        const saved = inboxImageIn(workdir ?? null, name)
+        return saved === undefined ? undefined : fileOf(saved.type, saved.path)
       },
       sharedFile: async (sessionId, tool, index) => {
         const feed = await feedOf(sessionId)

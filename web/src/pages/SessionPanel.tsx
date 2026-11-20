@@ -19,7 +19,7 @@ import { cacheTone, sessionCache, sessionElapsed, taskProject, type ChainBlock }
 import { AccountTag } from '../ui/AccountTag.js'
 import { Band, Fact, FactList, SectionLabel } from '../ui/blocks.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
-import { PipelineIcon } from '../ui/icons.js'
+import { OpenOutIcon, PipelineIcon } from '../ui/icons.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
@@ -128,7 +128,7 @@ export function SessionPanel({ block: given, scale, ci, onCard, onClose, onChatt
         </h2>
         {remoteUrl !== null && (
           <a className="panel__remote" href={remoteUrl} target="_blank" rel="noreferrer" title={`${t.session.openRemote}${account}`} aria-label={t.session.openRemote}>
-            ↗
+            <OpenOutIcon />
           </a>
         )}
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>

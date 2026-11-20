@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { t } from '../i18n/index.js'
 import type { Media } from './MediaViewer.js'
-import { ThumbStack } from './Thumbs.js'
+import { InboxThumb, ThumbStack } from './Thumbs.js'
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 
@@ -82,5 +82,31 @@ describe('the stack of a folded group', () => {
     expect(host.querySelectorAll('.thumb img')).toHaveLength(1)
     await fail(host, '/shots/1.png')
     expect(host.innerHTML).toBe('')
+  })
+})
+
+async function inbox(item: Media) {
+  const host = document.createElement('div')
+  document.body.append(host)
+  root = createRoot(host)
+  await act(async () => root.render(createElement(InboxThumb, { item, onOpen: () => {} })))
+  return host
+}
+
+describe('a picture the user sent', () => {
+  it('shows at once from the chosen file while the transcript has not got the reply', async () => {
+    const host = await inbox({ kind: 'image', name: 'order.png', url: 'blob:order' })
+    expect(host.querySelector('.thumb img')?.getAttribute('src')).toBe('blob:order')
+    expect(host.textContent).not.toContain('📎')
+  })
+
+  it('falls back to the chosen file when the service does not give it', async () => {
+    const host = await inbox({ kind: 'image', name: 'order.png', url: '/files/order.png', inbox: true, fallback: 'blob:order' })
+    expect(host.textContent).toContain('📎 order.png')
+    await fail(host, '/files/order.png')
+    expect(host.querySelector('img')?.getAttribute('src')).toBe('blob:order')
+    await act(async () => host.querySelector('img')!.dispatchEvent(new Event('load')))
+    expect(host.querySelector('.thumb img')?.getAttribute('src')).toBe('blob:order')
+    expect(host.textContent).not.toContain('📎')
   })
 })

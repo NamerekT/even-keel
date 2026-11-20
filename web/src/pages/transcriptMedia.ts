@@ -6,11 +6,16 @@ import type { Media } from './MediaViewer.js'
 const SENT_IMAGE = /\.(png|jpe?g|gif|webp)$/i
 const SHARED_MARKDOWN = /\.(md|markdown)$/i
 
+/** Whether a file the user sends is a picture the chat shows. */
+export const isSentPicture = (name: string): boolean => SENT_IMAGE.test(name)
+
 export interface MediaUrls {
   image(tool: string, index: number): string
   file(name: string): string
   /** File `index` a session sent the user by call `tool`. */
   shared(tool: string, index: number): string
+  /** The browser's own address of a picture the user just sent, by its name (an object URL of the chosen file). */
+  local?(name: string): string | undefined
 }
 
 export interface TranscriptMedia {
@@ -44,7 +49,13 @@ export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: st
     }
     for (const file of line.files ?? []) {
       if (!SENT_IMAGE.test(file) || byFile.has(file)) continue
-      byFile.set(file, items.push({ kind: 'image', name: fileName(file), url: urls.file(fileName(file)), inbox: true }) - 1)
+      const name = fileName(file)
+      const local = urls.local?.(name)
+      // A bare name is a reply sent from this page the transcript has not got yet: the service may not give it so far.
+      const item: Media = local !== undefined && file === name
+        ? { kind: 'image', name, url: local }
+        : { kind: 'image', name, url: urls.file(name), inbox: true, ...(local !== undefined && { fallback: local }) }
+      byFile.set(file, items.push(item) - 1)
     }
     if (line.share !== undefined && line.tool !== undefined) {
       line.share.files.forEach((file, index) => {

@@ -55,12 +55,17 @@ export function ThumbStack({ places, items, onOpen }: Props) {
   )
 }
 
+/**
+ * A picture the user sent: one the browser still holds shows at once, one of the service is a file chip until it loads
+ * (the service may not have it yet) and falls back to the browser's copy where there is one.
+ */
 export function InboxThumb({ item, onOpen }: { item: Media; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false)
+  if (item.inbox !== true) return <Thumb item={item} onOpen={onOpen} fallback={<span className="chat__file">📎 {item.name}</span>} />
   return (
     <button type="button" className={loaded ? 'thumb' : 'chat__file'} title={item.name} aria-label={t.session.chat.openPicture(item.name)} onClick={onOpen}>
       {!loaded && `📎 ${item.name}`}
-      <InboxImage src={item.url} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(true)} />
+      <InboxImage src={item.url} fallback={item.fallback} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(true)} />
     </button>
   )
 }

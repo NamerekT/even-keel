@@ -7,7 +7,10 @@ export interface Media {
   kind: 'image' | 'video'
   name: string
   url: string
+  /** A file the user sent, given by the service only once the transcript names it (`InboxImage` retries it). */
   inbox?: boolean
+  /** Of an inbox picture: the browser's own copy of the chosen file, shown when the service does not give it. */
+  fallback?: string
 }
 
 interface Props {
@@ -82,6 +85,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
           <Picture
             key={item.url}
             src={item.url}
+            {...(item.inbox && item.fallback !== undefined && { fallback: item.fallback })}
             alt={item.name}
             className={zoomed ? 'viewer__media viewer__media--zoomed' : 'viewer__media'}
             draggable={false}

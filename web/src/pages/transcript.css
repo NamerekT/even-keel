@@ -50,7 +50,8 @@
   color: var(--fg-muted);
 }
 
-.transcript .panel__close .icon {
+.transcript .panel__close .icon,
+.transcript .panel__remote .icon {
   width: 16px;
   height: 16px;
   stroke-width: 1.75;

@@ -143,6 +143,15 @@ export function GoToIcon() {
   )
 }
 
+/** Open elsewhere, in a new tab or app: an arrow up and to the right, centred in its box unlike the "↗" glyph. */
+export function OpenOutIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10" />
+    </svg>
+  )
+}
+
 /** Search: a magnifier. */
 export function SearchIcon() {
   return (

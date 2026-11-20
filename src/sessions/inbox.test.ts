@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { freeName, inboxImage, inboxName, saveInbox } from './inbox.js'
+import { freeName, inboxImage, inboxImageIn, inboxName, saveInbox } from './inbox.js'
 
 const dirs: string[] = []
 const workdir = () => {
@@ -80,5 +80,20 @@ describe('inboxImage', () => {
     expect(inboxImage(sent, 'notes.png')).toBeUndefined()
     expect(inboxImage(sent, 'other.png')).toBeUndefined()
     expect(inboxImage(sent, 'log.txt')).toBeUndefined()
+  })
+})
+
+describe('inboxImageIn', () => {
+  it('finds a picture in the inbox of the session folder before the transcript names it', () => {
+    const dir = workdir()
+    expect(inboxImageIn(dir, 'order.png')).toEqual({ path: join(dir, '.temp', 'inbox', 'order.png'), type: 'image/png' })
+  })
+
+  it('refuses a name with folders, a name inboxName would change, a file that is not a picture and no folder', () => {
+    const dir = workdir()
+    for (const name of ['../order.png', '..\\order.png', 'sub/order.png', 'C:\\order.png', '..', ' order.png', 'log.txt']) {
+      expect(inboxImageIn(dir, name), name).toBeUndefined()
+    }
+    expect(inboxImageIn(null, 'order.png')).toBeUndefined()
   })
 })

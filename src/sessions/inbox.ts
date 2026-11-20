@@ -73,6 +73,16 @@ export function inboxImage(sent: string[], name: string): { path: string; type: 
   return path === undefined ? undefined : { path, type }
 }
 
+/**
+ * The picture `name` in the inbox of a session's folder, before its transcript names it: a reply is saved there while
+ * the session is still starting up (BTN-1360). Only a bare name `saveInbox` could have given, so no other file is reached.
+ */
+export function inboxImageIn(workdir: string | null, name: string): { path: string; type: string } | undefined {
+  const type = IMAGE_TYPES[extname(name).toLowerCase()]
+  if (workdir === null || type === undefined || inboxName(name) !== name) return undefined
+  return { path: join(workdir, INBOX, name), type }
+}
+
 /** A file name safe on every system: no folders, no reserved characters, not empty. */
 export function inboxName(name: string): string {
   const base = name.split(/[\\/]/).pop() ?? ''

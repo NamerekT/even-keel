@@ -34,6 +34,24 @@ describe('transcriptMedia', () => {
     expect(media.byFile.has('C:\\repos\\example\\.temp\\inbox\\notes.txt')).toBe(false)
   })
 
+  it('shows a picture of a reply the transcript has not got yet from the chosen file, then the service with it behind', () => {
+    const local = new Map([['order.png', 'blob:order']])
+    const lines: FeedLine[] = [
+      { at, kind: 'prompt', text: 'Earlier', files: ['C:\\repos\\example\\.temp\\inbox\\order.png', 'C:\\repos\\example\\.temp\\inbox\\shot.png'] },
+      { at, kind: 'answer', text: 'Look', files: ['order.png', 'notes.txt', 'lost.png'] },
+    ]
+
+    const media = transcriptMedia(lines, { ...urls, local: (name) => local.get(name) }, 'Picture')
+
+    expect(media.items).toEqual([
+      { kind: 'image', name: 'order.png', url: 'file:order.png', inbox: true, fallback: 'blob:order' },
+      { kind: 'image', name: 'shot.png', url: 'file:shot.png', inbox: true },
+      { kind: 'image', name: 'order.png', url: 'blob:order' },
+      { kind: 'image', name: 'lost.png', url: 'file:lost.png', inbox: true },
+    ])
+    expect(media.byFile.get('order.png')).toBe(2)
+  })
+
   it('adds the pictures a session sent the user, by the call and the place of the file', () => {
     const share = { caption: 'Shots', files: ['C:\\repos\\example\\.temp\\audit.md', 'C:\\repos\\example\\.temp\\dark.PNG'], folder: 'C:\\repos\\example' }
     const lines: FeedLine[] = [{ at, kind: 'tool', text: 'SendUserFile Shots', tool: 'toolu_s', share }]

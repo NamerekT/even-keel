@@ -254,8 +254,12 @@
   margin-top: -4px;
   border-radius: var(--radius-control);
   color: var(--fg-muted);
-  font-size: var(--text-16);
   text-decoration: none;
+}
+
+.panel__remote .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .panel__remote:hover {

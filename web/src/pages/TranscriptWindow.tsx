@@ -20,7 +20,7 @@ import type { ChatHandover } from '../sessionStart.js'
 import { withUserMessage } from './chatHandover.js'
 import { useHandover } from './useHandover.js'
 import { PullButton } from '../ui/PullChip.js'
-import { CloseIcon, SidebarIcon } from '../ui/icons.js'
+import { CloseIcon, OpenOutIcon, SidebarIcon } from '../ui/icons.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
@@ -36,6 +36,7 @@ import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { ShareCard } from './ShareCard.js'
 import { InboxThumb, Thumbs } from './Thumbs.js'
+import { useLocalPictures } from './localPictures.js'
 import { ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
@@ -94,8 +95,8 @@ export interface WindowFoot {
   handle: Ref<ComposerHandle>
   /** Questions the feed holds answers to: their panel is never offered again. */
   answered: ReadonlySet<string>
-  /** Shows a sent message in the feed until the transcript has it; gives what takes it back. */
-  onSent: (line: FeedLine) => () => void
+  /** Shows a sent message and its chosen `files` in the feed until the transcript has it; gives what takes it back. */
+  onSent: (line: FeedLine, files: File[]) => () => void
 }
 
 interface Props {
@@ -158,6 +159,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>(() => initialPrompt === undefined ? [] : [{ line: initialPrompt, after: 0, steered: false, first: true }])
   const [viewing, setViewing] = useState<number | null>(null)
+  const localPictures = useLocalPictures(sessionId)
   const awaitingFirstPrompt = sent[0]?.first === true && !recorded?.some(isReply)
   const starting = session === null || awaitingFirstPrompt
   const lines = starting ? (recorded ?? []) : recorded
@@ -175,7 +177,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const shared = (tool: string, index: number) => sharedUrl(sessionId, tool, index)
   const media = transcriptMedia(
     all ?? [],
-    { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name), shared },
+    { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name), shared, local: localPictures.get },
     t.session.chat.picture,
   )
   // An answered question shows as the card of its answer, the one the session waits on — in the panel under the chat.
@@ -359,7 +361,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 title={`${t.session.openRemote}${account === null ? '' : t.session.onlyIn(account)}`}
                 aria-label={t.session.openRemote}
               >
-                ↗
+                <OpenOutIcon />
               </a>
             )}
             <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
@@ -412,11 +414,15 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 awaitingFirstPrompt,
                 handle: composerRef,
                 answered,
-                onSent: (line) => {
+                onSent: (line, files) => {
                   pinned.current = true
                   const entry = { line, after: lines?.length ?? 0, steered: false, first: session === null }
+                  const drop = localPictures.add(files)
                   setSent((now) => [...now, entry])
-                  return () => setSent((now) => now.filter((each) => each !== entry))
+                  return () => {
+                    drop()
+                    setSent((now) => now.filter((each) => each !== entry))
+                  }
                 },
               })}
             </div>
@@ -476,11 +482,15 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 handing={handing.shown !== null}
                 onRenew={handing.press}
                 restore={handing.restore}
-                onSent={(line, steered) => {
+                onSent={(line, steered, files) => {
                   pinned.current = true
                   const entry = { line, after: lines?.length ?? 0, steered }
+                  const drop = localPictures.add(files)
                   setSent((now) => [...now, entry])
-                  return () => setSent((now) => now.filter((each) => each !== entry))
+                  return () => {
+                    drop()
+                    setSent((now) => now.filter((each) => each !== entry))
+                  }
                 }}
               />
             </div>
