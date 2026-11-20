@@ -19,8 +19,8 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
   that has no transcript yet shows no `agent`, `model`, `action` or `context` until it has one, never its earlier
   session's. Only a task with no session id at all is matched to a session by its key.
 - `chain` — `state` (`running` | `paused` | `stopped` | `idle`), `next` (the task the chain takes next, `null` — none),
-  `tasks` (chips: the last done ones, the working, the waiting, the ones on a limit and the queue; a done chip may
-  carry `doneAt`).
+  `tasks` (chips: the last 5 done ones, the working, the waiting, the ones on a limit and the first 12 of the queue; a
+  done chip may carry `doneAt`), `queued` (the length of the whole queue, below).
 - `milestone` — `{ name, done, left, queued? }` or `null`: `left` is every open task of the milestone, `queued` those
   of them the chain takes. A fix of main or a release carry in work (`ABC-FIX`, `EKR-CARRY` and their episodes) has no
   tracker task, so its milestone is the next task's (EKR-138), and its `titleEn` is its own, not a translation
@@ -53,6 +53,14 @@ the picture prints the digits as written, so the night shows by the maintainer's
   accepts them, well-formed, from an older service, and the picture ignores them, so they vanish without a redeploy.
 
 The dates go with the `chain` field, the split with `milestone`; there are no new fields.
+
+### The queue's length (EKR-149)
+
+`chain.queued` is every task of the chain's order past those in work, of any milestone; `chain.tasks` carries only the
+first 12 of them (`QUEUED_CHIPS` in `collect.ts`). The picture draws the chips that fit its width and writes "+N" after
+them: the whole queue less the queued chips drawn, plus any other chip that did not fit. A state without the key (a
+service before EKR-149) counts only the sent chips that did not fit. The key only adds to v1 and goes with the `chain`
+field: an older Worker does not read it and keeps the old count until it is redeployed ("The Worker" below).
 
 ### A task on a spent limit (BTN-969)
 

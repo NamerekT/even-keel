@@ -81,6 +81,7 @@ describe('badgeStateOf', () => {
           { key: 'ABC-5', state: 'queued' },
           { key: 'ABC-6', state: 'queued' },
         ],
+        queued: 2,
       },
       milestone: { name: 'v1', done: 2, left: 2, queued: 2 },
       stats: { sessions: 3, medianCost: 1.5, medianMinutes: 12 },
@@ -192,6 +193,14 @@ describe('badgeStateOf', () => {
     expect(of(stateWith({ paused: true })).state).toBe('paused')
     expect(of(stateWith({ current: false }))).toEqual({ state: 'idle', next: 'ABC-4' })
     expect(of({ ...stateWith(), chain: { active: [], projects: {} } } as unknown as EvenKeelState)).toEqual({ state: 'stopped', next: null })
+  })
+
+  it('sends at most 12 queued chips and the length of the whole queue, the task in work left out (EKR-149)', () => {
+    const order = ['ABC-4', ...Array.from({ length: 20 }, (_, index) => `ABC-${100 + index}`)]
+    const long = { ...stateWith(), chain: { ...stateWith().chain, projects: { [ABC]: { order } } } } as unknown as EvenKeelState
+    const chain = badgeStateOf(long, ABC, { now, fields: ['chain'], stats: null }).chain
+    expect(chain.tasks!.filter((chip) => chip.state === 'queued')).toHaveLength(12)
+    expect(chain.queued).toBe(20)
   })
 
   describe('close times and the milestone\'s parts (BTN-970)', () => {

@@ -41,6 +41,11 @@ export interface BadgeChain {
   /** The task the chain takes next; `null` — none. */
   next: string | null
   tasks?: BadgeChip[]
+  /**
+   * How many tasks the chain's order holds past those in work (EKR-149): `tasks` carries only the first of them, and
+   * the picture's "+N" counts the rest. Absent — a service before EKR-149, "+N" counts only the chips that did not fit.
+   */
+  queued?: number
 }
 
 export interface BadgeChip {

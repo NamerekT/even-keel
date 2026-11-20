@@ -113,6 +113,14 @@ describe('POST /push/<slug>', () => {
     expect((await push(env, { ...dated, milestone: { ...dated.milestone, eta: 'soon' } })).status).toBe(400)
   })
 
+  it('accepts the length of the whole queue and counts it in "+N", and refuses it malformed (EKR-149)', async () => {
+    const env = envOf()
+    const queued = { ...state, chain: { ...state.chain, tasks: [{ key: 'ABC-16', state: 'queued' }], queued: 27 } }
+    expect((await push(env, queued)).status).toBe(204)
+    expect(await (await show(env)).text()).toContain('>+26<')
+    expect((await push(env, { ...queued, chain: { ...queued.chain, queued: '27' } })).status).toBe(400)
+  })
+
   it('does not know a bad slug', async () => {
     const env = envOf()
     expect((await push(env, state, SECRET, 'Bad_Slug')).status).toBe(404)

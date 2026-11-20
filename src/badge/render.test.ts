@@ -221,6 +221,31 @@ describe('renderBadge', () => {
     expect(texts(waiting)).toContain('context 48%')
   })
 
+  describe('the "+N" after the chips (EKR-149)', () => {
+    const queue = (sent: number, queued?: number): BadgeState => ({
+      ...live,
+      chain: {
+        ...live.chain,
+        tasks: [...live.chain.tasks!.filter((chip) => chip.state !== 'queued'), ...Array.from({ length: sent }, (_, index) => ({ key: `ABC-${16 + index}`, state: 'queued' as const }))],
+        ...(queued === undefined ? {} : { queued }),
+      },
+    })
+    const plus = (state: BadgeState) => texts(state).filter((text) => /^\+\d+$/.test(text))
+
+    it('counts the whole queue less the queued chips drawn', () => {
+      expect(plus(queue(1, 27))).toEqual(['+26'])
+      const drawn = texts(queue(12, 27)).filter((text) => /^\d+$/.test(text) && Number(text) >= 16).length
+      expect(drawn).toBeGreaterThan(0)
+      expect(drawn).toBeLessThan(12)
+      expect(plus(queue(12, 27))).toEqual([`+${27 - drawn}`])
+    })
+
+    it('counts only the chips that did not fit for an older service without the queue\'s length', () => {
+      expect(plus(queue(1))).toEqual([])
+      expect(plus(queue(12))).toEqual([`+${12 - texts(queue(12)).filter((text) => /^\d+$/.test(text) && Number(text) >= 16).length}`])
+    })
+  })
+
   it('names a chip of the project by its number and one of another project by its key', () => {
     const chips = texts({ ...live, chain: { ...live.chain, tasks: [...live.chain.tasks!, { key: 'XYZ-3', state: 'queued' }] } })
     expect(chips).toEqual(expect.arrayContaining(['14', '15', '16', 'XYZ-3']))
