@@ -116,6 +116,15 @@ export function KeepGoingIcon() {
   )
 }
 
+/** The context compacted: two arrows from the corners pointing inwards. */
+export function CompactIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.5 2.5l4 4M6.5 3.5v3h-3M13.5 13.5l-4-4M9.5 12.5v-3h3" />
+    </svg>
+  )
+}
+
 /** Take a place in the queue: lines with a plus. */
 export function EnqueueIcon() {
   return (

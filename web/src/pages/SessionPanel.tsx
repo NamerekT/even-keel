@@ -19,7 +19,7 @@ import { cacheTone, sessionCache, sessionElapsed, taskProject, type ChainBlock }
 import { AccountTag } from '../ui/AccountTag.js'
 import { Band, Fact, FactList, SectionLabel } from '../ui/blocks.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
-import { OpenOutIcon, PipelineIcon } from '../ui/icons.js'
+import { ChatIcon, CompactIcon, KeepGoingIcon, OpenOutIcon, PipelineIcon } from '../ui/icons.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
@@ -527,19 +527,59 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 <span className="sessions__seg sessions__id">{row.sessionId.slice(0, 8)}</span>
                 {row.sessionId === current && <span className="sessions__now">{t.session.current}</span>}
               </span>
-              <span className="sessions__how">
-                {launchText(row)}
-                {row.resumed > 0 && t.session.resumed(row.resumed)}
-                {row.answers > 0 && t.session.answered(row.answers)}
-                {row.compactions !== undefined && t.session.compacted(row.compactions)}
-                {row.left !== undefined && ` · ${leftText(row.left)}`}
-                {row.replaced !== undefined && ` · ${replacedText(row.replaced)}`}
-              </span>
+              <SessionHow row={row} />
             </button>
           </li>
         ))}
       </ul>
     </section>
+  )
+}
+
+/** A session's count in the list: an icon and the number, the words in the tip (docs/design.md, "Facts are never glued"). */
+function CountBadge({ count, tip, children }: { count: number; tip: string; children: ReactNode }) {
+  return (
+    <Tipped inline align="start" tip={tip}>
+      <span className="sessions__badge">
+        {children}
+        {count}
+      </span>
+    </Tipped>
+  )
+}
+
+/** How a session started with its resumes, answers and compactions as badges, then how it ended, a line each. */
+export function SessionHow({ row }: { row: TaskSession }) {
+  const compactions = row.compactions ?? 0
+  return (
+    <>
+      <span className="sessions__how">
+        <span>{launchText(row)}</span>
+        {row.resumed > 0 && <CountBadge count={row.resumed} tip={t.session.resumed(row.resumed)}><KeepGoingIcon /></CountBadge>}
+        {row.answers > 0 && <CountBadge count={row.answers} tip={t.session.answered(row.answers)}><ChatIcon /></CountBadge>}
+        {compactions > 0 && <CountBadge count={compactions} tip={t.session.compacted(compactions)}><CompactIcon /></CountBadge>}
+      </span>
+      {row.left !== undefined && <span className="sessions__end">{leftText(row.left)}</span>}
+      {row.replaced !== undefined && <span className="sessions__end">{replacedText(row.replaced)}</span>}
+    </>
+  )
+}
+
+/** Where the session worked: its branch and its folder, two facts. */
+export function PlaceFacts({ branch, workdir }: { branch: string | null; workdir: string | null }) {
+  return (
+    <>
+      {branch !== null && (
+        <Fact label={t.session.branch}>
+          <dd className="session-window__place">{branch}</dd>
+        </Fact>
+      )}
+      {workdir !== null && (
+        <Fact label={t.session.folder} wide>
+          <dd className="session-window__place">{workdir}</dd>
+        </Fact>
+      )}
+    </>
   )
 }
 
@@ -623,13 +663,7 @@ function SessionWindow({ row, live, scale, task, onClose }: { row: TaskSession; 
                 <ContextFact label={t.session.endContext} tokens={record.contextTokens} window={record.contextWindow} scale={scale} wide />
                 <ModelFact agent={record.agent} model={record.model} title={record.modelTitle} effort={record.effort} />
                 <TokensFact tokens={record.tokens} />
-                {(record.branch !== null || record.workdir !== null) && (
-                  <Fact label={t.session.place} wide>
-                    <dd className="session-window__place">
-                      {record.branch ?? '—'} · {record.workdir ?? '—'}
-                    </dd>
-                  </Fact>
-                )}
+                <PlaceFacts branch={record.branch} workdir={record.workdir} />
               </FactList>
               {record.apiError !== null && <p className="notice notice--error">{record.apiErrorNotice === undefined ? record.apiError : say(record.apiErrorNotice)}</p>}
               <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} task={task} onChat={undefined} />
