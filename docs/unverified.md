@@ -262,6 +262,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 225 | [The chat window over a phone's keyboard](unverified/page.md#the-chat-window-over-a-phones-keyboard-btn-1347) | anyone typing in a chat on a phone | the window's head goes off the top while the keyboard is open, or the status line stays hidden after it closes; tap outside the field | — |
 | 226 | [The chat's Camera, Photos and Files on a phone](unverified/page.md#the-chats-camera-photos-and-files-on-a-phone-btn-1342) | anyone attaching a picture in a chat on a phone | Photos opens the file manager rather than the gallery, or Camera asks what to open; pick through Files | — |
 | 227 | [The menu of the agent's last message on a phone](unverified/page.md#the-menu-of-the-agents-last-message-on-a-phone-btn-1363) | anyone accepting an answer or copying a message in a chat on a phone | the long press opens nothing or the system's selection covers the menu; accept from the banner over the field, copy through the selection | — |
+| 228 | [Paste from the clipboard in the chat on a phone](unverified/page.md#paste-from-the-clipboard-in-the-chat-on-a-phone-btn-1350) | anyone pasting a screenshot into a chat on a phone | Paste says there is no picture or the browser refused; save the picture and attach it through Photos | — |
 
 ### Waiting for the event / not checked by choice
 

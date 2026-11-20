@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { carriesFiles, pastedName, takenFiles, type TransferItem } from './chatFiles.js'
+import { carriesFiles, clipboardPictures, pastedName, takenFiles, type ClipboardEntry, type TransferItem } from './chatFiles.js'
 
 const NOW = new Date(2026, 9, 18, 9, 5, 7)
 
@@ -58,5 +58,40 @@ describe('carriesFiles', () => {
   it('sees files among the types of a drag', () => {
     expect(carriesFiles(['Files'])).toBe(true)
     expect(carriesFiles(['text/uri-list', 'text/html'])).toBe(false)
+  })
+})
+
+describe('clipboardPictures', () => {
+  function entry(types: Record<string, string>): ClipboardEntry {
+    return { types: Object.keys(types), getType: async (type) => new Blob([types[type]!], { type }) }
+  }
+
+  const reading = (items: ClipboardEntry[]) => ({ read: async () => items })
+
+  it('takes the picture of each clipboard item, named as a pasted picture', async () => {
+    const read = await clipboardPictures(reading([entry({ 'text/html': '<img>', 'image/png': 'png' }), entry({ 'image/jpeg': 'jpg' })]), NOW)
+    expect('files' in read).toBe(true)
+    if (!('files' in read)) return
+    expect(read.files.map((file) => [file.name, file.type])).toEqual([
+      ['paste-20261018-090507.png', 'image/png'],
+      ['paste-20261018-090507.jpg', 'image/jpeg'],
+    ])
+    expect(await read.files[0]!.text()).toBe('png')
+  })
+
+  it('answers empty when the clipboard holds no picture', async () => {
+    expect(await clipboardPictures(reading([entry({ 'text/plain': 'hello' })]), NOW)).toEqual({ problem: 'empty' })
+    expect(await clipboardPictures(reading([]), NOW)).toEqual({ problem: 'empty' })
+  })
+
+  it('answers denied when the browser refuses the read', async () => {
+    const refusing = { read: () => Promise.reject(new DOMException('Read permission denied.', 'NotAllowedError')) }
+    expect(await clipboardPictures(refusing, NOW)).toEqual({ problem: 'denied' })
+  })
+
+  it('asks the clipboard within the press itself, before anything awaits', () => {
+    let asked = false
+    void clipboardPictures({ read: async () => ((asked = true), []) }, NOW)
+    expect(asked).toBe(true)
   })
 })

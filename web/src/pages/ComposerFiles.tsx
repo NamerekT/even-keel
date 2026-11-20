@@ -2,8 +2,9 @@ import { useEffect, useId, useReducer, useRef, useState, type ReactNode } from '
 import { t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { CameraIcon, CloseIcon, FileUpIcon, PhotoIcon, PlusIcon, StartIcon } from '../ui/icons.js'
+import { CameraIcon, CloseIcon, FileUpIcon, PasteIcon, PhotoIcon, PlusIcon, StartIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
+import { clipboardPictures, clipboardReader } from './chatFiles.js'
 import { ATTACH_SOURCES, shortStem, syncUrls, tileOf, type AttachSource, type AttachSourceId } from './fileTiles.js'
 import './composerFiles.css'
 
@@ -32,7 +33,8 @@ function FileInput({ source, label, disabled, onFiles }: { source: AttachSource;
 
 /**
  * The "+" of the chat field. With a mouse it opens the file picker at once; on a touch screen it opens a sheet of
- * Camera, Photos and Files, since a plain file input there offers the camera and the file manager but no gallery.
+ * Camera, Photos and Files, since a plain file input there offers the camera and the file manager but no gallery,
+ * and Paste where the browser can read the clipboard: a phone keyboard's clipboard panel pastes no picture into a textarea.
  */
 export function AttachButton({ sending, onAttach }: { sending: boolean; onAttach: (files: File[]) => void }) {
   const coarse = useCoarsePointer()
@@ -77,6 +79,9 @@ function AttachSheet({ onPick, onClose }: { onPick: (files: File[]) => void; onC
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useId()
   const backdrop = useBackdropClose(dialog, onClose)
+  const [reader] = useState(clipboardReader)
+  const [reading, setReading] = useState(false)
+  const [note, setNote] = useState<'empty' | 'denied' | null>(null)
   useEffect(() => {
     dialog.current?.showModal()
   }, [])
@@ -109,7 +114,34 @@ function AttachSheet({ onPick, onClose }: { onPick: (files: File[]) => void; onC
               <FileInput source={source} label={text[source.id]} onFiles={onPick} />
             </label>
           ))}
+          {reader !== null && (
+            <button
+              type="button"
+              className="attach-sheet__tile"
+              aria-busy={reading || undefined}
+              onClick={() => {
+                if (reading) return
+                setReading(true)
+                setNote(null)
+                void clipboardPictures(reader, new Date()).then((read) => {
+                  setReading(false)
+                  if ('files' in read) onPick(read.files)
+                  else setNote(read.problem)
+                })
+              }}
+            >
+              <span className="attach-sheet__icon">
+                <PasteIcon />
+              </span>
+              {text.paste}
+            </button>
+          )}
         </div>
+        {note !== null && (
+          <p className={`notice attach-sheet__note${note === 'denied' ? ' notice--error' : ''}`} role="status">
+            {note === 'empty' ? text.pasteEmpty : text.pasteDenied}
+          </p>
+        )}
       </div>
     </dialog>
   )

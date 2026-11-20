@@ -3,6 +3,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { t } from '../i18n/index.js'
+import type { ClipboardEntry } from './chatFiles.js'
 import { AttachButton, FileStrip } from './ComposerFiles.js'
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
@@ -19,6 +20,7 @@ const revoke = vi.fn()
 
 beforeEach(() => {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: coarse && query.includes('coarse'), addEventListener() {}, removeEventListener() {} }))
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined })
   URL.createObjectURL = create
   URL.revokeObjectURL = revoke
   host = document.body.appendChild(document.createElement('div'))
@@ -65,6 +67,53 @@ it('opens Camera, Photos and Files from the "+" on a touch screen and closes onc
   await pick(photos, [shot])
   expect(onAttach).toHaveBeenCalledWith([shot])
   expect(host.querySelector('dialog')).toBeNull()
+})
+
+async function openSheet(onAttach = vi.fn()) {
+  coarse = true
+  await act(async () => root.render(createElement(AttachButton, { sending: false, onAttach })))
+  await act(async () => host.querySelector<HTMLButtonElement>('.chat__attach')!.click())
+  return host.querySelector('dialog.attach-sheet')!
+}
+
+function clipboardWith(read: () => Promise<ClipboardEntry[]>) {
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { read } })
+}
+
+const paste = (sheet: Element) => sheet.querySelector<HTMLButtonElement>('button.attach-sheet__tile')
+
+it('offers no Paste tile where the browser cannot read the clipboard', async () => {
+  const sheet = await openSheet()
+  expect(paste(sheet)).toBeNull()
+  expect(sheet.querySelectorAll('.attach-sheet__tile')).toHaveLength(3)
+})
+
+it('attaches the picture of the clipboard from the Paste tile and closes the sheet', async () => {
+  const png = new Blob(['png'], { type: 'image/png' })
+  clipboardWith(async () => [{ types: ['image/png'], getType: async () => png }])
+  const onAttach = vi.fn()
+  const sheet = await openSheet(onAttach)
+  expect(paste(sheet)!.textContent).toBe(t.session.chat.attachMenu.paste)
+  await act(async () => paste(sheet)!.click())
+  const [files] = onAttach.mock.calls[0]! as [File[]]
+  expect(files.map((file) => file.type)).toEqual(['image/png'])
+  expect(files[0]!.name).toMatch(/^paste-\d{8}-\d{6}\.png$/)
+  expect(host.querySelector('dialog')).toBeNull()
+})
+
+it('says so in the sheet when the clipboard holds no picture or the browser refuses, and keeps the sheet open', async () => {
+  const onAttach = vi.fn()
+  const read = vi.fn(async (): Promise<ClipboardEntry[]> => [{ types: ['text/plain'], getType: async () => new Blob(['x']) }])
+  clipboardWith(read)
+  const sheet = await openSheet(onAttach)
+  await act(async () => paste(sheet)!.click())
+  const note = () => sheet.querySelector('.attach-sheet__note')?.textContent
+  expect(note()).toBe(t.session.chat.attachMenu.pasteEmpty)
+  read.mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'))
+  await act(async () => paste(sheet)!.click())
+  expect(note()).toBe(t.session.chat.attachMenu.pasteDenied)
+  expect(onAttach).not.toHaveBeenCalled()
+  expect(host.querySelector('dialog')).not.toBeNull()
 })
 
 it('shows pictures as thumbnails, other files by extension, and frees the URL of a removed picture', async () => {

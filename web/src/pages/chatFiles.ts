@@ -30,7 +30,47 @@ export function takenFiles(items: Iterable<TransferItem>, pastedAt: Date | null)
 export function pastedName(file: File, now: Date): string {
   const type = /^image\/(.+)$/.exec(file.type)?.[1]
   if (type === undefined || !/^image\.\w+$/i.test(file.name)) return file.name
+  return pictureName(type, now)
+}
+
+function pictureName(subtype: string, now: Date): string {
   const two = (value: number) => String(value).padStart(2, '0')
   const stamp = `${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}${two(now.getSeconds())}`
-  return `paste-${stamp}.${EXTENSIONS[type] ?? type}`
+  return `paste-${stamp}.${EXTENSIONS[subtype] ?? subtype}`
+}
+
+/** The part of a `ClipboardItem` the chat reads. */
+export interface ClipboardEntry {
+  types: readonly string[]
+  getType(type: string): Promise<Blob>
+}
+
+export type ClipboardPictures = { files: File[] } | { problem: 'empty' | 'denied' }
+
+/**
+ * The pictures of the clipboard, read through the async clipboard API: the way in for a phone keyboard, whose clipboard
+ * panel cannot paste a picture into a `<textarea>`. `read` is called before anything awaits, so it stays within the
+ * press that asked for it, as Safari and Chrome require. A refusal — the permission, or no focus — is `denied`.
+ */
+export async function clipboardPictures(clipboard: { read(): Promise<ClipboardEntry[]> }, now: Date): Promise<ClipboardPictures> {
+  let files: File[]
+  try {
+    const items = await clipboard.read()
+    files = await Promise.all(
+      items.flatMap((item) => {
+        const type = item.types.find((one) => one.startsWith('image/'))
+        if (type === undefined) return []
+        return [item.getType(type).then((blob) => new File([blob], pictureName(type.slice('image/'.length), now), { type }))]
+      }),
+    )
+  } catch {
+    return { problem: 'denied' }
+  }
+  return files.length > 0 ? { files } : { problem: 'empty' }
+}
+
+/** The async clipboard read, where the browser has it: HTTPS or localhost, and not every browser. */
+export function clipboardReader(): { read(): Promise<ClipboardEntry[]> } | null {
+  const clipboard = typeof navigator === 'undefined' ? undefined : navigator.clipboard
+  return typeof clipboard?.read === 'function' ? clipboard : null
 }

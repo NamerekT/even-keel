@@ -355,6 +355,17 @@ export function FileUpIcon() {
   )
 }
 
+/** Attach from the clipboard: a clipboard board with its clip. */
+export function PasteIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M5.5 3H4a1.25 1.25 0 0 0-1.25 1.25v8.5A1.25 1.25 0 0 0 4 14h8a1.25 1.25 0 0 0 1.25-1.25v-8.5A1.25 1.25 0 0 0 12 3h-1.5" />
+      <rect x="5.5" y="1.75" width="5" height="2.5" rx="0.75" />
+      <path d="M5.5 8h5M5.5 10.75h3.5" />
+    </svg>
+  )
+}
+
 /** Remove a row: a bin. */
 export function TrashIcon() {
   return (
