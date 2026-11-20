@@ -20,7 +20,7 @@ import type { ChatHandover } from '../sessionStart.js'
 import { withUserMessage } from './chatHandover.js'
 import { useHandover } from './useHandover.js'
 import { PullButton } from '../ui/PullChip.js'
-import { SidebarIcon } from '../ui/icons.js'
+import { CloseIcon, SidebarIcon } from '../ui/icons.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
@@ -363,7 +363,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
               </a>
             )}
             <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
-              ×
+              <CloseIcon />
             </button>
           </header>
           {lead}

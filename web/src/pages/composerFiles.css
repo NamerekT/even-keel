@@ -1,9 +1,15 @@
-/* The files of the chat field: one strip of 64 px tiles that scrolls sideways, as many files as there are. */
+/* The files of the chat field: one strip of 64 px tiles that scrolls sideways, as many files as there are. It is a shelf
+   of its own at the field's top, flush with its edges, on the surface and with a line under it, so the text below reads
+   apart from the files (BTN-1356). */
 .chat__tray {
   display: flex;
+  flex: none;
   gap: var(--space-6);
-  margin: 0;
-  padding: 4px 4px 0;
+  margin: calc(-1 * var(--box-pad)) calc(-1 * var(--box-pad)) 0;
+  padding: var(--space-8) var(--space-8);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-inner) var(--radius-inner) 0 0;
+  background: var(--surface);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;

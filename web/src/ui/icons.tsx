@@ -287,6 +287,15 @@ export function PlusIcon() {
   )
 }
 
+/** Close or remove: a cross, drawn centred in its box rather than the "×" glyph that sits off its line box's middle. */
+export function CloseIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m4.5 4.5 7 7M11.5 4.5l-7 7" />
+    </svg>
+  )
+}
+
 /** Attach from the camera: a camera body with its lens. */
 export function CameraIcon() {
   return (

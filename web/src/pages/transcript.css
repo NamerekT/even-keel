@@ -4,9 +4,73 @@
   animation: none;
 }
 
+/* The body never scrolls (the feed does), so it keeps no scrollbar gutter: its sides are plain padding the head can
+   reach across. Its corners are the window's, cut by the frame. */
 .transcript .session-window__body {
+  --head-left: 16px;
+  --head-right: 16px;
   gap: 10px;
   overflow: hidden;
+  scrollbar-gutter: auto;
+  padding-top: 0;
+  padding-right: var(--head-right);
+}
+
+.transcript__frame {
+  overflow: hidden;
+  border-radius: var(--radius-inner);
+}
+
+/* The head is a band of its own over the feed (BTN-1356): flush with the window's top and sides, on the muted surface,
+   a line under it; its height is `--chat-head`, which the task panel lying over the feed starts under. */
+.transcript .panel__head {
+  box-sizing: border-box;
+  align-items: center;
+  min-height: var(--chat-head);
+  margin: 0 calc(-1 * var(--head-right)) 0 calc(-1 * var(--head-left));
+  padding: var(--space-8) var(--head-right) var(--space-8) var(--head-left);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+/* Its buttons are framed as the page's are, so they stand out on the band. */
+.transcript .panel__close,
+.transcript .panel__remote,
+.transcript .chat__task-toggle {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  /* The browser's own button padding would push a 16 px icon off the middle of 26 px. */
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--fg-muted);
+}
+
+.transcript .panel__close .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
+}
+
+.transcript .panel__close:hover,
+.transcript .panel__remote:hover,
+.transcript .chat__task-toggle:hover:not(.chat__task-toggle--on) {
+  background: color-mix(in srgb, var(--fg) 8%, var(--surface));
+  color: var(--fg);
+}
+
+.transcript .panel__remote:hover {
+  color: var(--accent);
+}
+
+.transcript .chat__task-toggle--on {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  color: var(--accent);
 }
 
 /* The head's key and title on one line, the title cut by an ellipsis; the full one is in its tip. */
@@ -346,10 +410,11 @@ button.tools__toggle:hover {
 }
 
 .chat__box {
+  --box-pad: 6px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 6px;
+  padding: var(--box-pad);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
@@ -575,8 +640,19 @@ button.tools__toggle:hover {
   }
 
   .transcript .session-window__body {
+    --head-left: max(var(--gutter), env(safe-area-inset-left));
+    --head-right: max(var(--gutter), env(safe-area-inset-right));
     gap: var(--space-4);
-    padding-block: max(var(--space-8), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-bottom));
+    padding-block: 0 max(var(--space-4), env(safe-area-inset-bottom));
+  }
+
+  .transcript__frame {
+    border-radius: 0;
+  }
+
+  .transcript .panel__head {
+    min-height: calc(var(--chat-head) - var(--space-8) + max(var(--space-8), env(safe-area-inset-top)));
+    padding-top: max(var(--space-8), env(safe-area-inset-top));
   }
 
   .transcript__foot {
@@ -584,7 +660,7 @@ button.tools__toggle:hover {
   }
 
   .chat__box {
-    padding: var(--space-2);
+    --box-pad: var(--space-2);
   }
 
   .chat__text, .chat__mirror {

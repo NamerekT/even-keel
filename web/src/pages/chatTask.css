@@ -2,6 +2,8 @@
 
 .session-window.transcript {
   --chat-task-width: 380px;
+  /* The head band's height: 28 px buttons, 8 px above and below, the 1 px line (transcript.css). */
+  --chat-head: 45px;
 }
 
 .session-window.transcript.transcript--chat {
@@ -104,17 +106,16 @@
 }
 
 /* A screen too narrow for the feed beside the panel: the panel lies over the feed instead of squeezing it,
-   below the head, so that its switch and the key stay in reach (the body's 16 px padding, the 28 px head, the 10 px gap). */
+   below the head band, so that its switch and the key stay in reach. */
 @media (max-width: 1180px) {
   .chat-task {
     position: absolute;
-    top: 54px;
+    top: var(--chat-head);
     bottom: 0;
     left: 0;
     z-index: 3;
     max-width: calc(100% - 48px);
-    border-top: 1px solid var(--border);
-    border-radius: 0 var(--radius-inner) 0 var(--radius-inner);
+    border-radius: 0 0 var(--radius-inner) 0;
     box-shadow: var(--shadow-popover);
   }
 }

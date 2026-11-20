@@ -2,7 +2,7 @@ import { useEffect, useId, useReducer, useRef, useState, type ReactNode } from '
 import { t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { CameraIcon, FileUpIcon, PhotoIcon, PlusIcon, StartIcon } from '../ui/icons.js'
+import { CameraIcon, CloseIcon, FileUpIcon, PhotoIcon, PlusIcon, StartIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { ATTACH_SOURCES, shortStem, syncUrls, tileOf, type AttachSource, type AttachSourceId } from './fileTiles.js'
 import './composerFiles.css'
@@ -184,9 +184,7 @@ export function FileStrip({ files, sending, onRemove }: { files: File[]; sending
               disabled={sending}
               onClick={() => onRemove(index)}
             >
-              <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="m4.5 4.5 7 7M11.5 4.5l-7 7" />
-              </svg>
+              <CloseIcon />
             </button>
           </li>
         )
