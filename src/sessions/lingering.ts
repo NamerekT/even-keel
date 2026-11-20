@@ -84,6 +84,11 @@ export class Lingering {
     return due
   }
 
+  /** Whether a session of the project's task is still kept, to be stopped later. */
+  holds(project: string, task: string): boolean {
+    return [...this.sessions.values()].some((kept) => kept.task === task && (kept.project ?? kept.retry?.project) === project)
+  }
+
   /** The left folders to try now, forgotten as they are given (a still held one is left again): no session of their task is kept any more, or their wait is over. */
   dueFolders(now: number): LeftFolder[] {
     const held = new Set([...this.sessions.values()].map((kept) => kept.task))

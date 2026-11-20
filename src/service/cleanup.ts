@@ -5,7 +5,7 @@ import { removeLeftFolder, taskPlace, type Git } from '../git/worktree.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isInside } from '../paths.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
-import { killOrphans } from '../sessions/orphans.js'
+import { killOrphans, taskMark } from '../sessions/orphans.js'
 import { rareEvents } from '../sessions/rare.js'
 import type { MachineContext, MachineTell } from './machine-context.js'
 
@@ -61,9 +61,12 @@ export async function stopTaskSessions(
       console.log(`cleanup: the stop of the session ${agent.sessionId} of ${task} timed out, it will be tried again: ${englishOf(noticeOf(error))}`)
     }
   }
-  // A session still live, kept for later or not stopped, keeps its processes: only those of the gone ones are killed.
+  // A session still live, kept for later or not stopped, keeps its processes: only those of the gone ones are killed,
+  // and the task's mark (BTN-1389) only once none of its sessions is left live.
   const live = new Set(ctx.agents.filter((agent) => isLive(agent) && !stopped.has(agent.sessionId)).map((agent) => agent.sessionId))
-  await sweep([...new Set([...own, ...stopped])].filter((id) => !live.has(id)), task)
+  const gone = [...new Set([...own, ...stopped])].filter((id) => !live.has(id))
+  const lasting = [...own, ...sessions.map((agent) => agent.sessionId)].some((id) => live.has(id))
+  await sweep(lasting ? gone : [...gone, taskMark(project, task)], task)
   return { warnings, retrying }
 }
 
@@ -92,11 +95,16 @@ export function deferLeftFolder(ctx: CleanupContext, project: string, repo: stri
  */
 export function stopLingering(ctx: CleanupContext, git: Git = runGit, sweep: Sweep = killOrphans): Promise<void> {
   return ctx.lingering.alone(async () => {
-    for (const { task, agent, retry, project } of ctx.lingering.due(ctx.agents, midTurn)) {
+    const due = ctx.lingering.due(ctx.agents, midTurn)
+    for (const [index, { task, agent, retry, project }] of due.entries()) {
       if (agent.id === undefined) continue
       try {
         await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id, sessionId: agent.sessionId })
-        await sweep([agent.sessionId], task)
+        // The task's mark goes with the last of its kept sessions: before, it would take a live one's turn too.
+        const owner = project ?? retry?.project
+        const last = owner !== undefined && !ctx.lingering.holds(owner, task)
+          && !due.slice(index + 1).some((next) => next.task === task && (next.project ?? next.retry?.project) === owner)
+        await sweep(last ? [agent.sessionId, taskMark(owner, task)] : [agent.sessionId], task)
         if (project !== undefined) rareEvents.once('17c', 'stop-result', { ...agent, task, project }, 'cleanup-stop result=stopped; the turn after Done ended')
         console.log(`cleanup: stopped the session ${agent.sessionId} of ${task}, ${retry === undefined ? 'its turn after Done ended' : 'its stop tried again'}`)
       } catch (error) {

@@ -17,6 +17,7 @@ import { eventsFile, loginCommand, parseAuth, tokenFile, tokenOf, trustFolder } 
 import { machineSignedIn } from './machine.js'
 import { COPILOT } from './name.js'
 import { pathFolders } from '../paths.js'
+import { markedEnv } from '../sessions/orphans.js'
 import { protectionRules } from '../sessions/protection.js'
 import { outputError, startFailure, type TurnError } from './errors.js'
 
@@ -273,7 +274,7 @@ export class CopilotCli {
     let spawnError: NodeJS.ErrnoException | undefined
     let child
     try {
-      child = spawn(bin, turnArgs(start, place, session), { cwd, env: this.envOf(home), detached: true, stdio: ['pipe', fd, fd], windowsHide: true })
+      child = spawn(bin, turnArgs(start, place, session), { cwd, env: markedEnv(this.envOf(home), start.mark), detached: true, stdio: ['pipe', fd, fd], windowsHide: true })
       child.on('error', (error) => {
         spawnError = error
         exited = true

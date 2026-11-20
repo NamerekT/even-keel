@@ -9,10 +9,28 @@ const run = promisify(execFile)
 const LIST_TIMEOUT_MS = 15_000
 
 /**
- * The variables an agent CLI puts into the environment of every command it runs, holding the session's id as the
- * launch log keeps it: Claude's session id (seen live, CLI 2.1.329) and Codex's thread id (found in its binary).
+ * Even Keel's own mark of a turn process of OpenCode and Copilot, whose CLIs put no session id into what they run
+ * (BTN-1389): `taskMark` of the task, since OpenCode's session id is not known when its first turn starts.
  */
-export const SESSION_MARKS = ['CLAUDE_CODE_SESSION_ID', 'CODEX_THREAD_ID']
+export const TASK_MARK = 'EVEN_KEEL_TASK'
+
+/**
+ * The variables an agent CLI puts into the environment of every command it runs, holding the session's id as the
+ * launch log keeps it: Claude's session id (seen live, CLI 2.1.329) and Codex's thread id (found in its binary); and
+ * Even Keel's `TASK_MARK`.
+ */
+export const SESSION_MARKS = ['CLAUDE_CODE_SESSION_ID', 'CODEX_THREAD_ID', TASK_MARK]
+
+/** A task's mark: a task key is not unique between projects, so the project's GUID goes with it. Session ids hold no `/`. */
+export function taskMark(project: string, task: string): string {
+  return `${project}/${task}`
+}
+
+/** A turn's environment with the start's task mark, or without any inherited one when the start has none. */
+export function markedEnv(env: NodeJS.ProcessEnv, mark: string | undefined): NodeJS.ProcessEnv {
+  const { [TASK_MARK]: _inherited, ...rest } = env
+  return mark === undefined ? rest : { ...rest, [TASK_MARK]: mark }
+}
 
 /** A process with its environment as `NAME=value` lines; `env` absent — it could not be read. */
 export interface ProcessEnv {
@@ -137,6 +155,6 @@ export async function killOrphans(ids: Iterable<string>, task: string, options: 
   orphans.forEach(({ pid, command, session }, index) => {
     const start = starts[index]
     const alive = start === undefined ? '' : `, alive ${Math.round((now() - start) / 60_000)} min`
-    log(`cleanup: ${task}: killed the orphaned process ${pid} (${command}) of the session ${session}${alive}`)
+    log(`cleanup: ${task}: killed the orphaned process ${pid} (${command}) of the ${session.includes('/') ? 'task mark' : 'session'} ${session}${alive}`)
   })
 }

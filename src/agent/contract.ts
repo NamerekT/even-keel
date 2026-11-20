@@ -75,6 +75,11 @@ export interface SessionStart {
   trustedRepo?: string
   /** The task id, or the name of a fix session; the session is found by it once started. */
   name: string
+  /**
+   * Optional. `taskMark` of the session's project and `name`, set by the service on every launch and resume: OpenCode
+   * and Copilot put it into their turn's environment as `TASK_MARK`, for the cleanup after Done (BTN-1389).
+   */
+  mark?: string
   cwd: string
   prompt: string
   /** The model as it goes to the agent's CLI (`runChoice`); `null` — the agent's configured default. */

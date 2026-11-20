@@ -45,6 +45,7 @@ import { launchPlan, runChoice, type LaunchPlan, type RunChoice, type RunSetting
 import { effortFor, type TaskRun } from '../sessions/runs.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { rareEvents } from '../sessions/rare.js'
+import { taskMark } from '../sessions/orphans.js'
 import { agentOfSession, liveViewOf, steers } from '../sessions/view-index.js'
 import { isInside } from '../paths.js'
 import { TranscriptOwners } from '../sessions/owners.js'
@@ -257,7 +258,7 @@ export function wireResumeIn(ctx: MachineContext): (home: AccountHome, session: 
 function withTrust(ctx: MachineContext, start: SessionStart, project: string | undefined): SessionStart {
   const config = ctx.configStore.current
   const folder = project === undefined ? undefined : config.projects[project]
-  return { ...start, trustedRepo: folder }
+  return { ...start, trustedRepo: folder, ...(project === undefined ? {} : { mark: taskMark(project, start.name) }) }
 }
 
 export function wireLimits(ctx: MachineContext): LimitsWatcher {

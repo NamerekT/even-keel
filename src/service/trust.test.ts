@@ -23,7 +23,7 @@ describe('project trust wiring', () => {
     expect(noticeOf(await call.catch(error => error))).toMatchObject({ code: 'claude.untrusted', params: { folder: 'D:/checkout', recovery } })
   })
 
-  it('trusts the current checkout inside the lease on every launch and resume, including a changed account', async () => {
+  it("trusts the current checkout and marks the task's turns with the project inside the lease on every launch and resume, including a changed account", async () => {
     const launch = vi.fn(async () => 'session')
     const resume = vi.fn(async () => 'session')
     const current = { projects: { p: 'D:/checkout' }, settings: { p: { trustClaude: false } } }
@@ -41,16 +41,16 @@ describe('project trust wiring', () => {
     const first: AccountHome = { key: 'one', dir: 'D:/one', global: false, agent: 'claude' }
     const second = { ...first, key: 'two', dir: 'D:/two' }
     await wireLaunchIn(ctx)(first, start, 'p')
-    expect(launch).toHaveBeenLastCalledWith(first, { ...start, trustedRepo: 'D:/checkout' })
+    expect(launch).toHaveBeenLastCalledWith(first, { ...start, trustedRepo: 'D:/checkout', mark: 'p/ABC-1' })
     current.settings.p.trustClaude = true
     await wireResumeIn(ctx)(second, { agentId: 'job', sessionId: 'session' }, start)
-    expect(resume).toHaveBeenLastCalledWith(second, { agentId: 'job', sessionId: 'session' }, { ...start, trustedRepo: 'D:/checkout' })
+    expect(resume).toHaveBeenLastCalledWith(second, { agentId: 'job', sessionId: 'session' }, { ...start, trustedRepo: 'D:/checkout', mark: 'p/ABC-1' })
     current.settings.p.trustClaude = false
     await wireLaunchIn(ctx)(second, start, 'p')
-    expect(launch).toHaveBeenLastCalledWith(second, { ...start, trustedRepo: 'D:/checkout' })
+    expect(launch).toHaveBeenLastCalledWith(second, { ...start, trustedRepo: 'D:/checkout', mark: 'p/ABC-1' })
     current.projects.p = 'D:/moved'
     await wireLaunchIn(ctx)(second, start, 'p')
-    expect(launch).toHaveBeenLastCalledWith(second, { ...start, trustedRepo: 'D:/moved' })
+    expect(launch).toHaveBeenLastCalledWith(second, { ...start, trustedRepo: 'D:/moved', mark: 'p/ABC-1' })
     await wireLaunchIn(ctx)(second, start, undefined)
     expect(launch).toHaveBeenLastCalledWith(second, { ...start, trustedRepo: undefined })
   })

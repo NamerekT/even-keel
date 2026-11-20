@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { killOrphans, markOf, orphansIn, parseDarwinTable, parseLinuxStat, type ProcessEnv } from './orphans.js'
+import { killOrphans, markedEnv, markOf, orphansIn, parseDarwinTable, parseLinuxStat, TASK_MARK, taskMark, type ProcessEnv } from './orphans.js'
 
 const row = (pid: number, ppid: number, command: string, env?: string[]): ProcessEnv => ({ pid, ppid, command, ...(env === undefined ? {} : { env }) })
 
@@ -14,6 +14,19 @@ describe('markOf', () => {
     const ids = new Set(['session-1'])
     expect(markOf(['CLAUDE_CODE_SESSION_ID=session-9'], ids)).toBeUndefined()
     expect(markOf(['SOME_ID=session-1'], ids)).toBeUndefined()
+  })
+
+  it("names the task Even Keel marked an OpenCode or Copilot turn with, by the task's project too (BTN-1389)", () => {
+    const ids = new Set([taskMark('project-1', 'ABC-1')])
+    expect(markOf([`${TASK_MARK}=project-1/ABC-1`], ids)).toBe('project-1/ABC-1')
+    expect(markOf([`${TASK_MARK}=project-2/ABC-1`], ids)).toBeUndefined()
+  })
+})
+
+describe('markedEnv', () => {
+  it("adds the task's mark to a turn's environment, and nothing without one", () => {
+    expect(markedEnv({ PATH: '/bin' }, 'project-1/ABC-1')).toEqual({ PATH: '/bin', [TASK_MARK]: 'project-1/ABC-1' })
+    expect(markedEnv({ PATH: '/bin', [TASK_MARK]: 'inherited' }, undefined)).toEqual({ PATH: '/bin' })
   })
 })
 
@@ -71,6 +84,13 @@ describe('killOrphans', () => {
       'cleanup: ABC-1: killed the orphaned process 10 (vite) of the session gone, alive 3 min',
       'cleanup: ABC-1: killed the orphaned process 11 (esbuild) of the session gone',
     ])
+  })
+
+  it("logs a process found by its task's mark as the task's", async () => {
+    const log = vi.fn()
+    const marked = [row(30, 1, 'opencode', [`${TASK_MARK}=project-1/ABC-1`])]
+    await killOrphans([taskMark('project-1', 'ABC-1')], 'ABC-1', { scan: async () => marked, kill: vi.fn(async () => {}), log, startedAt: async () => undefined })
+    expect(log).toHaveBeenCalledWith('cleanup: ABC-1: killed the orphaned process 30 (opencode) of the task mark project-1/ABC-1')
   })
 
   it('does nothing without sessions, without a listing on this system or with nothing found', async () => {

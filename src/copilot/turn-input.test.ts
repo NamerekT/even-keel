@@ -21,21 +21,21 @@ it('delivers prompts longer than a Windows command line on stdin at launch and r
       const fs = require('node:fs')
       const args = process.argv.slice(2)
       const prompt = fs.readFileSync(0, 'utf8')
-      fs.writeFileSync('received.json', JSON.stringify({ args, prompt }))
+      fs.writeFileSync('received.json', JSON.stringify({ args, prompt, mark: process.env.EVEN_KEEL_TASK ?? null }))
       const id = args.find((arg) => arg.startsWith('--resume='))?.slice(9) ?? args[args.indexOf('--session-id') + 1]
       console.log(JSON.stringify({ type: 'result', sessionId: id }))
     `)
     const cli = new CopilotCli(() => 'copilot', 1000, () => process.env, new TurnRegistry(cwd))
     const home = { key: 'example', dir: cwd, agent: 'copilot' as const, global: false }
-    const start = { name: 'ABC-1', cwd, model: null, prompt: '- "café"\n'.repeat(5000) }
+    const start = { name: 'ABC-1', cwd, model: null, prompt: '- "café"\n'.repeat(5000), mark: 'project-1/ABC-1' }
     const received = () => JSON.parse(readFileSync(join(cwd, 'received.json'), 'utf8'))
     const id = await cli.launch(home, start)
-    expect(received()).toMatchObject({ prompt: start.prompt })
+    expect(received()).toMatchObject({ prompt: start.prompt, mark: 'project-1/ABC-1' })
     expect(received().args).toEqual(expect.arrayContaining(['--session-id', id, '--name', 'ABC-1']))
 
     const reply = `- "Q" → yes\n${start.prompt}`
     expect(await cli.resume(home, id, { ...start, prompt: reply })).toBe(id)
-    expect(received()).toMatchObject({ prompt: reply })
+    expect(received()).toMatchObject({ prompt: reply, mark: 'project-1/ABC-1' })
     expect(received().args).toContain(`--resume=${id}`)
     expect(received().args.some((arg: string) => arg.startsWith('--prompt') || arg === '-p')).toBe(false)
   } finally {

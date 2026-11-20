@@ -21,6 +21,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { sessionList, sessionRows, sessionStamp } from './db.js'
 import { keepOwnInstructions, parseAuth, readAuth } from './home.js'
 import { OPENCODE } from './name.js'
+import { markedEnv } from '../sessions/orphans.js'
 import { protectionRules } from '../sessions/protection.js'
 import { OpenCodeLog } from './log.js'
 import { copilotModel, copilotOnly, copilotUnsupported } from './support.js'
@@ -421,7 +422,7 @@ export class OpenCodeCli {
     try {
       child = spawn(this.bin(), args, {
         cwd,
-        env: { ...this.envOf(home), PWD: cwd, OPENCODE_CONFIG_CONTENT: config },
+        env: { ...markedEnv(this.envOf(home), start.mark), PWD: cwd, OPENCODE_CONFIG_CONTENT: config },
         detached: true,
         stdio: ['pipe', fd, fd],
         windowsHide: true,
