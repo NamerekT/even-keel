@@ -69,7 +69,7 @@ A change applies to new sessions, running ones keep their way ([docs/sessions/sd
 
 Claude Code settings shared by all accounts live in `~/.claude/settings.json`: change them there. Before each launch in an account folder, Even Keel copies them into that folder's `settings.json`.
 
-A change made right in an account folder's file — by hand or by a CLI command such as `/model` — is kept, not overwritten: the account shows a band in **Accounts** with **Make shared**, **Keep for this account only** and **Discard**.
+If you or a CLI command such as `/model` change a setting in an account folder, Even Keel keeps that change. When a transfer would otherwise replace it, **Accounts** shows three choices to resolve it — **Make shared**, **Keep for this account only** and **Discard**. Settings that the transfer already preserves, such as notification flags added by Remote Control, stay in the folder without a prompt.
 
 An account's own settings are listed with it in **Accounts**, where × brings the shared value back, and survive later transfers. Choosing **Make shared** for an edited account setting also removes its account override. The folder then follows the shared value.
 
