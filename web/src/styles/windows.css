@@ -244,6 +244,20 @@
   white-space: nowrap;
 }
 
+/* An answer's answers, the words and the files a line each: never glued with a dot (BTN-1383). */
+.feed__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feed__files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .feed__line--tool .feed__text {
   font-family: var(--mono);
 }

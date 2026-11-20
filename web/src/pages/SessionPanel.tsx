@@ -29,7 +29,7 @@ import { Loading } from '../ui/Loader.js'
 import { offersAccept } from './acceptAnswer.js'
 import { chatSessionOf } from './chatSession.js'
 import { ciHash } from './CiChip.js'
-import { feedText } from './feedLine.js'
+import { feedParts } from './feedLine.js'
 import { backgroundTip, sessionStatus } from './sessionStatus.js'
 import { LimitNotice } from './LimitNotice.js'
 import { NoticeFixButton } from './FixButtons.js'
@@ -702,7 +702,7 @@ function Feed({ lines, sessionId, account, live, task, onChat }: FeedProps) {
           {lines.map((line, index) => (
             <li key={`${line.at}-${index}`} className={`feed__line feed__line--${line.kind}`}>
               <FeedTime at={line.at} shown={marks[index]!} />
-              <span className="feed__text">{feedText(line)}</span>
+              <FeedText line={line} />
             </li>
           ))}
         </ol>
@@ -712,6 +712,29 @@ function Feed({ lines, sessionId, account, live, task, onChat }: FeedProps) {
 }
 
 /** A line's time, only where the minute changed; every line keeps the full moment in a tip on its time cell. */
+/** A feed line's answers and words a line each, the files it sent as tags under them. */
+function FeedText({ line }: { line: FeedLine }) {
+  const { lines, files } = feedParts(line)
+  return (
+    <span className="feed__text">
+      {lines.map((part, index) => (
+        <span key={index} className="feed__part">
+          {part}
+        </span>
+      ))}
+      {files.length > 0 && (
+        <span className="feed__files">
+          {files.map((name, index) => (
+            <span key={index} className="tag">
+              📎 {name}
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
+  )
+}
+
 function FeedTime({ at, shown }: { at: string; shown: boolean }) {
   if (at === '') return <span className="feed__time" />
   return (

@@ -323,7 +323,7 @@ export const sameBy =
 export function shown(value: Value): string {
   if (typeof value === 'boolean') return value ? t.settings.on : t.settings.off
   const parts = typeof value === 'string' ? linesOf(value) : [...value]
-  return parts.length === 0 ? t.settings.empty : parts.join(' · ')
+  return parts.length === 0 ? t.settings.empty : parts.join(', ')
 }
 
 export interface Marks {

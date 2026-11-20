@@ -394,7 +394,7 @@ export const settingsRU = {
     promptLanguageHint: 'Язык промптов, которые Even Keel пишет сессиям проекта, и вопросов, которые он задаёт в его трекере.',
     model: 'Модель',
     account: 'Аккаунт',
-    modelOf: (provider: string) => `Модель на ${provider}`,
+    modelOf: (provider: string, vendor: string | null = null) => (vendor === null ? `Модель на ${provider}` : `Модель на ${provider} через ${vendor}`),
     modelFor: (vendor: string) => `для аккаунта на ${vendor}`,
     modelHint: 'Как уходит в CLI: opus, gpt-6.1-sol. Пусто — общая.',
     cliDefault: 'по умолчанию CLI',

@@ -3,6 +3,7 @@ import type { ReceivedView, SkillSource, ToolsView } from '../../../src/tools/mo
 import { formatAgo } from '../format.js'
 import { t } from '../i18n/index.js'
 import { AccountTag } from '../ui/AccountTag.js'
+import { BangIcon } from '../ui/icons.js'
 import { useLive } from '../live/context.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Chip } from './SettingsMatrix.js'
@@ -33,7 +34,13 @@ function Received({ received }: { received: ReceivedView }) {
     <>
       <p className="tools__muted tools__meta">
         <AccountTag account={received.account} agent={state?.sessions.find((session) => session.sessionId === received.sessionId)?.agent} />
-        {t.tools.meta(ago, received.version, received.mode)}
+        {ago !== '' && <span>{ago}</span>}
+        {received.version !== null && <span>{t.tools.cli(received.version)}</span>}
+        {received.mode !== null && (
+          <span className="tag" title={t.tools.modeTip}>
+            {received.mode}
+          </span>
+        )}
       </p>
       {received.cwd !== null && (
         <p className="tools__cwd" title={received.cwd}>
@@ -47,7 +54,10 @@ function Received({ received }: { received: ReceivedView }) {
           if (names.length === 0) return null
           return (
             <div key={source} className="tools__group">
-              <dt>{`${t.tools.source[source]} · ${names.length}`}</dt>
+              <dt className="tools__source">
+                {t.tools.source[source]}
+                <span className="count-badge">{names.length}</span>
+              </dt>
               <dd className="tools__chips">
                 {names.map((name) => (
                   <Chip key={name} tone={source === 'claudeai' ? 'lost' : 'plain'}>
@@ -65,7 +75,11 @@ function Received({ received }: { received: ReceivedView }) {
               ? t.tools.noMcp
               : received.mcp.map((server) => (
                   <Chip key={server.name} tone={server.failed ? 'lost' : 'plain'} title={server.failed ? t.tools.mcpFailed : t.tools.mcpTools(server.tools)}>
-                    {server.failed ? `${server.name} · ${t.tools.mcpFailed}` : `${server.name} · ${server.tools}`}
+                    <span className="tools__server">
+                      {server.failed && <BangIcon />}
+                      {server.name}
+                      {!server.failed && <span className="count-badge">{server.tools}</span>}
+                    </span>
                   </Chip>
                 ))}
           </dd>

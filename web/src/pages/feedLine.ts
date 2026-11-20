@@ -6,9 +6,9 @@ export function fileName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path
 }
 
-/** A line of the activity feed as one text: an answer's answers, the user's words and the files they sent. */
-export function feedText(line: FeedLine): string {
+/** A line of the activity feed in its parts: an answer's answers and the user's words a line each, then the names of the files they sent. */
+export function feedParts(line: FeedLine): { lines: string[]; files: string[] } {
   const answers = Object.entries(line.answers?.answers ?? {}).map(([question, answer]) => `${question} → ${answer}`)
-  const files = (line.files ?? []).map((file) => `📎 ${fileName(file)}`)
-  return [...answers, line.notice === undefined ? line.text : say(line.notice), ...files].filter((part) => part !== '').join(' · ')
+  const text = line.notice === undefined ? line.text : say(line.notice)
+  return { lines: [...answers, text].filter((part) => part !== ''), files: (line.files ?? []).map(fileName) }
 }

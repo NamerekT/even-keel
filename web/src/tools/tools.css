@@ -363,6 +363,32 @@
   font-size: var(--text-13);
 }
 
+/* A source's name and its count as a badge of its own (BTN-1383). */
+.tools__source {
+  display: flex;
+  align-items: center;
+  align-self: start;
+  gap: 6px;
+  min-height: 20px;
+}
+
+/* An MCP server: a failed one leads with a mark, a connected one ends with its tool count. */
+.tools__server {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: top;
+}
+
+.tools__chip:has(.tools__server .count-badge) {
+  padding-right: 1px;
+}
+
+.tools__server .count-badge {
+  background: var(--surface);
+  font-family: var(--font);
+}
+
 .tools__builtin .ui-fold__toggle {
   color: var(--fg-muted);
   font-size: var(--text-13);

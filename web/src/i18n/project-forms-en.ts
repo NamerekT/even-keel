@@ -395,7 +395,7 @@ export const settingsEN: Messages['settings'] = {
     promptLanguageHint: 'The language of the prompts Even Keel writes to the sessions of the project and of the questions it asks in its tracker.',
     model: 'Model',
     account: 'Account',
-    modelOf: (provider: string) => `Model on ${provider}`,
+    modelOf: (provider: string, vendor: string | null = null) => (vendor === null ? `Model on ${provider}` : `Model on ${provider} through ${vendor}`),
     modelFor: (vendor: string) => `for an account on ${vendor}`,
     modelHint: 'As it goes to the CLI: opus, gpt-6.1-sol. Empty — the shared one.',
     cliDefault: "the CLI's default",

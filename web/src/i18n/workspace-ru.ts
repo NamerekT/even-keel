@@ -68,8 +68,8 @@ export const toolsRU = {
     missing: 'не задано в этом проекте',
     received: 'Последняя сессия',
     noSession: 'Транскриптов сессий этого проекта пока нет.',
-    meta: (ago: string, version: string | null, mode: string | null) =>
-      [ago, version === null ? null : `CLI ${version}`, mode === null ? null : `режим ${mode}`].filter(Boolean).join(' · '),
+    cli: (version: string) => `CLI ${version}`,
+    modeTip: 'Режим разрешений',
     skills: (count: number, chars: string) => `${count} ${forms('навык', 'навыка', 'навыков')(count)}, список — ${chars} знаков`,
     source: { user: 'пользователь', project: 'проект', plugin: 'плагины', claudeai: 'claude.ai', bundled: 'встроенные' },
     mcpReceived: 'MCP-серверы',

@@ -17,6 +17,8 @@ export interface SelectOption {
   icon?: ReactNode
   /** After the label, in the list and in the field: a note or a mark of the option's state. */
   aside?: ReactNode
+  /** More text the search field finds the option by, such as what `aside` shows. */
+  keywords?: string
 }
 
 interface SelectProps {
@@ -58,7 +60,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
   const [host, setHost] = useState<HTMLElement | null>(null)
   const listId = useId()
   const shown = useMemo(
-    () => (search === undefined ? options : filterOf(options.map((option) => option.label), query).map((index) => options[index]!)),
+    () => (search === undefined ? options : filterOf(options.map((option) => (option.keywords === undefined ? option.label : `${option.label} ${option.keywords}`)), query).map((index) => options[index]!)),
     [options, query, search],
   )
   const chosen = shown.findIndex((option) => option.value === value)

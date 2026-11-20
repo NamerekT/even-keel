@@ -141,7 +141,7 @@ export function ProjectSessionsTab({
                   <SuggestField
                     id={fieldId(model)}
                     className="settings__text settings__text--mono"
-                    label={t.settings.modelOf(vendor === null ? providerName(provider) : `${providerName(provider)} · ${vendor}`)}
+                    label={t.settings.modelOf(providerName(provider), vendor)}
                     mono
                     value={text(model)}
                     options={offers}

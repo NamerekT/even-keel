@@ -83,7 +83,9 @@ describe('manual trust recovery', () => {
     expect(only({ ...place, service: true })).toBe('runas /user:svc "cmd /k cd /d D:/work/my repo && claude"')
     const { service: _, ...legacy } = place
     expect(commands(legacy)).toEqual(['pushd "D:/work/my repo" && claude', 'runas /user:svc "cmd /k cd /d D:/work/my repo && claude"'])
-    expect(render(notice('claude.untrusted', legacy))).toContain('<p>cmd · as svc</p>')
+    const html = render(notice('claude.untrusted', legacy))
+    expect(html).toContain('<p>cmd<span class="tag">as svc</span></p>')
+    expect(html).not.toContain('·')
   })
 
   it('finds refusals in stored nested causes and items', () => {

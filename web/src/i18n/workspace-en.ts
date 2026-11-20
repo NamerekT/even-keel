@@ -68,8 +68,8 @@ export const toolsEN: Messages['tools'] = {
     missing: 'not set in this project',
     received: 'Last session',
     noSession: 'No session transcripts of this project yet.',
-    meta: (ago: string, version: string | null, mode: string | null) =>
-      [ago, version === null ? null : `CLI ${version}`, mode === null ? null : `mode ${mode}`].filter(Boolean).join(' · '),
+    cli: (version: string) => `CLI ${version}`,
+    modeTip: 'Permission mode',
     skills: (count: number, chars: string) => `${count} ${forms('skill', 'skills')(count)}, listing of ${chars} characters`,
     source: { user: 'user', project: 'project', plugin: 'plugins', claudeai: 'claude.ai', bundled: 'bundled' },
     mcpReceived: 'MCP servers',

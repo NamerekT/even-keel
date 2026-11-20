@@ -395,7 +395,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               if (column === 'models') {
                 const key = slotKey(provider)
                 const vendor = accountVendorName(state.account, text(`accounts.${provider}`))
-                return model(key, t.settings.modelOf(vendor === null ? name : `${name} · ${vendor}`), text(`accounts.${provider}`), vendor)
+                return model(key, t.settings.modelOf(name, vendor), text(`accounts.${provider}`), vendor)
               }
               if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
               if (column === 'window') return windowCell(provider)

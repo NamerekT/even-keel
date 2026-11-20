@@ -71,7 +71,12 @@
   font-size: var(--text-14);
 }
 
+/* The shell, and the user as a tag beside it when two commands are shown. */
 .project-add__trust p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
   margin: 0;
 }
 
