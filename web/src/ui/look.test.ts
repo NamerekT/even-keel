@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BlockLamp } from '../state.js'
-import { estimateShare, isRework, railsOf, showsAction, tiersOf } from './look.js'
+import { isRework, railsOf, showsAction, tiersOf } from './look.js'
 
 const item = (id: string, lamp: BlockLamp = 'ahead', current = false, live = false) => ({ id, lamp, current, live })
 
@@ -39,17 +39,6 @@ describe('showsAction', () => {
     expect(showsAction('far', 'working')).toBe(true)
     expect(showsAction('near', 'waiting')).toBe(false)
     expect(showsAction('past', 'working')).toBe(false)
-  })
-})
-
-describe('estimateShare', () => {
-  it('grows on a log scale from the shortest step to four hours', () => {
-    expect(estimateShare(null)).toBeNull()
-    expect(estimateShare(0)).toBeNull()
-    expect(estimateShare(5 / 60)).toBeCloseTo(0.18, 2)
-    expect(estimateShare(40 / 60)).toBeCloseTo(0.56, 2)
-    expect(estimateShare(4)).toBe(1)
-    expect(estimateShare(10)).toBe(1)
   })
 })
 

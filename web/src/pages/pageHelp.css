@@ -89,17 +89,6 @@
   gap: var(--space-12);
 }
 
-.page-help__estimate {
-  position: relative;
-  --estimate: 0.65;
-  width: 96px;
-  height: 24px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-small);
-  background: var(--surface-muted);
-}
-
 .page-help__sample .side-tabs {
   width: auto;
 }
@@ -168,12 +157,6 @@
   height: 12px;
   border: 0;
   background: var(--series-2);
-}
-
-.page-help__shape--estimate {
-  height: 2px;
-  border: 0;
-  background: var(--fg-muted);
 }
 
 /* The "?" that opens it: a tag in the head row, a narrow tab over the side column. */

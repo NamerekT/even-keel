@@ -18,7 +18,7 @@ export const helpEn = {
     model: 'The agent, model and effort picked on the task card.',
     milestone: 'Beside a milestone name: opens its release notes draft.',
     forge: 'The smiths mark an agent fixing the project branch or merging a release carry. They move while it works; the lamp beside the row key shows its state. Crossed hammers mark a finished fix.',
-    action: 'Current session action. The filled part of this strip and its percentage show context used, not the task estimate.',
+    action: 'Current session action. The fill and percentage show how much of the context window is in use.',
     resets: 'Number of context resets, including compactions and checkpoint handoffs. Point at it for the breakdown.',
     context: 'Share of the context window used. Amber and red warn that the session is nearing its context limit.',
   },

@@ -8,7 +8,7 @@ import { useLive } from '../live/context.js'
 import { isClosedLamp, type ChainBlock } from '../state.js'
 import { CacheRing } from '../ui/BlockMetrics.js'
 import { ChangelogIcon, ChatIcon, HandoffIcon, KeyIcon, LockIcon, RefreshIcon, SlidersIcon, StackIcon } from '../ui/icons.js'
-import { estimateShare, isRework, railsOf } from '../ui/look.js'
+import { isRework, railsOf } from '../ui/look.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { seriesStyle } from '../ui/series.js'
@@ -84,7 +84,6 @@ export function PrioritySigns({ blocks }: { blocks: ChainBlock[] }) {
     {open.some((block) => isRework(block.labels)) && <Sign sample={<span className="page-help__shape page-help__shape--rework" />}>{t.chain.shapes.rework}</Sign>}
     {open.some((block) => block.question) && <Sign sample={<span className="page-help__shape page-help__shape--question" />}>{t.chain.shapes.question}</Sign>}
     {railsOf(blocks).size > 0 && <Sign sample={<span className="page-help__shape page-help__shape--family" />}>{t.chain.shapes.family}</Sign>}
-    {open.some((block) => estimateShare(block.estimate) !== null) && <Sign wide sample={<span className="chain"><span className="page-help__estimate"><span className="block__estimate" /></span></span>}>{t.chain.shapes.estimate}</Sign>}
   </>
 }
 

@@ -15,7 +15,7 @@ import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { MachineTag } from '../ui/MachineTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
-import { estimateShare, familyHue, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
+import { familyHue, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
 import { parentsTo } from '../parents.js'
 import { milestoneView, type EmptyMilestones, type Section } from '../ui/milestones.js'
 import { chainPlace, looseGhost, takesGhost, type MilestoneRules } from '../ui/addGhost.js'
@@ -551,11 +551,9 @@ function Block(props: BlockProps) {
   if (acting) classes.push('block--acting')
   // The ring takes the place of the current row's ▶, or the empty one of a row without a number.
   const ring = metered !== null && (block.current || number === undefined) ? sessionCache(metered) : null
-  const share = tier === 'past' ? null : estimateShare(block.estimate)
   const fix = isOwnName(block.id)
   const style = {
     ...Object.fromEntries([...marks].map(([mark, beat]) => [`--beat-${mark}`, `${beat}ms`])),
-    ...(share !== null && { '--estimate': share.toFixed(2) }),
     ...(offset !== undefined && { transform: `translate(${offset.x}px, ${offset.y}px)` }),
   } as CSSProperties
   // On a phone the run, the links and the row's button stand in the key's line (BTN-1162).
@@ -610,7 +608,6 @@ function Block(props: BlockProps) {
         <RailLink key={rail.family} project={project} rail={rail} />
       ))}
       {block.question && <span className="block__corner" role="img" aria-label={t.chain.questionTitle} title={t.chain.questionTitle} />}
-      {share !== null && <span className="block__estimate" aria-hidden="true" />}
       {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
       {ready === null || narrow ? (
         <span

@@ -16,8 +16,6 @@ export interface Rail {
 const NEAR = 3
 const LANES = 3
 export const HUES = 6
-const LONGEST_MIN = 240
-const SHORTEST_MIN = 5
 const REWORK_LABELS = ['переделка', 'rework']
 
 export function tiersOf(blocks: { id: string; lamp: BlockLamp; current: boolean; live: boolean }[]): Map<string, Tier> {
@@ -38,13 +36,6 @@ export function tiersOf(blocks: { id: string; lamp: BlockLamp; current: boolean;
 export function showsAction(tier: Tier, lamp: SessionLamp | null): boolean {
   if (lamp === null || tier === 'past') return false
   return lamp === 'working' || (tier === 'lead' && (lamp === 'error' || lamp === 'limit'))
-}
-
-/** The length of the estimate bar: estimates double from step to step, so the bar grows on a log scale. */
-export function estimateShare(hours: number | null): number | null {
-  if (hours === null || hours <= 0) return null
-  const share = Math.log2(1 + (hours * 60) / SHORTEST_MIN) / Math.log2(1 + LONGEST_MIN / SHORTEST_MIN)
-  return Math.min(1, share)
 }
 
 /** Rails that tie the subtasks of one parent across the chain, one lane per family that overlaps another. */

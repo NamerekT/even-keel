@@ -375,7 +375,6 @@ export const chainEN: Messages['chain'] = {
       rework: 'rework',
       question: 'amber corner — the task has the “Question” label: without an answer in the description the session will most likely get stuck',
       family: 'subtasks of one parent',
-      estimate: 'thin line at the card edge — estimated task work time; longer means a larger estimate',
     },
   }
 

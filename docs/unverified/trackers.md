@@ -116,7 +116,7 @@ The `chain:` line, the `estimate` field and the `tasks` plugin's calibration hoo
 - Huly's own page shows the 0.33 h of an estimate of 20 minutes as Huly's estimate and remaining time (seen only through its API).
 - On Jira Cloud the estimate shows as "20m" in the issue's own Original estimate; with time tracking off Jira's refusal reads as a plain edit error, not a silent drop.
 - On GitLab the issue's own page shows the estimate as its API's "20m" (the page not opened).
-- On the built-in tracker, the chain list shows a filed task's 20 minutes as the estimate bar of a third of an hour.
+- On the built-in tracker, the task card shows a filed task's estimate as 20 minutes.
 - The hook refuses a far-off step once so the repeat goes through (no refusal met in transcripts by 2026-11-09); OpenCode's plugin does the same as the Claude hook.
 
 If one is wrong, a filed task stays out of the chain or lands in it when it should not, an estimate is off by a factor of 60, or an estimate call is refused every time. **Workaround:** set the status, the labels and the estimate in the tracker itself; turn the `tasks` plugin's hook off by sending no estimate. To check: open a task filed at 20 minutes on Huly's own page; run a chain task told to file a blocker on a project whose rules take tasks from another status; send an estimate far off the medians once. For the estimate of the others: open the estimates filed on the Jira and GitLab benches in each tracker's own page, file one on a built-in project.
