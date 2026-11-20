@@ -1,7 +1,5 @@
-import { execFile } from 'node:child_process'
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { promisify } from 'node:util'
 import type { SessionPlugin, SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { ServerOverride } from '../link/view.js'
@@ -13,22 +11,20 @@ import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type Gatew
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { bridgePlugins, ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { catalogFor, followCatalog, type CatalogBrief } from './follow.js'
-import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackageRecord, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
-import { copyPinned, dependencyChanges, installPinned, lockOf, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
+import { Installs } from './installs.js'
+import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
+import { repoImports, seedCatalog, SERVER_NAME } from './repo-reads.js'
 import { pageSettings } from './settings.js'
-import { availablePlugins, builtInPackage, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn, TASKS_PLUGIN } from './plugins.js'
-import { chosenSkills, listSkills, readsOwnSkills, rewrapSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
+import { availablePlugins, builtInPackage, FETCHED, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, readJson, serversIn, TASKS_PLUGIN } from './plugins.js'
+import { readsOwnSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, type SkillRoot } from './skills.js'
+import { ownSkills, rewrap, wrapChosen, wrapsSkills } from './skills-package.js'
 import { loadPackages, savePackages } from './store.js'
 import { hubRoutes, packageTarget } from './hub.js'
 import { stdioOf, type StdioServer } from './stdio.js'
 import { isNewer } from './version.js'
 
-const run = promisify(execFile)
-const SERVER_NAME = /^[\w-]+$/
 /** How long the marketplaces' plugin lists and versions are kept before they are read again. */
 const AVAILABLE_MS = 60_000
-/** How long a hub's install that failed here waits before a brief tries it again. */
-const FOLLOW_RETRY_MS = 10 * 60_000
 
 type Offer = ReturnType<typeof pluginOffer>
 
@@ -85,12 +81,9 @@ export interface PackagesDeps {
 /** Packages of the projects (BTN-174): the catalog, each project's set, the pins of running tasks, the keys and the gateway. */
 export class Packages {
   private file: PackagesFile
-  private readonly installing = new Set<string>()
-  private readonly errors = new Map<string, Notice>()
+  private readonly installs: Installs
   /** The outcome of each package's last update. */
   private readonly notes = new Map<string, Notice>()
-  /** By package: how many dependencies its last install's npm installs changed against the install before. */
-  private readonly changedDependencies = new Map<string, number>()
   /** The machine's gateway: sessions and probes reach their servers here. */
   private readonly gateway: McpGateway
   /** The hub's (BTN-990): the servers holding keys and the tasks server, asked only by the link on behalf of a machine. */
@@ -101,9 +94,6 @@ export class Packages {
   private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace']; skills: PackagesView['skills']['list'] } | undefined
   private offers: { at: number; byName: Map<string, Offer> } | undefined
   private readonly checks = new PassMemo()
-  /** On a machine elsewhere: the hub's current install of each package it follows (BTN-1299), and the last failure of one. */
-  private followed = new Map<string, PackageInstall>()
-  private readonly followFailed = new Map<string, { id: string; at: number }>()
 
   /** The package every project has (BTN-986); `undefined` when the checkout's marketplace lacks the plugin. */
   private readonly builtIn: string | undefined
@@ -112,12 +102,21 @@ export class Packages {
   constructor(private readonly deps: PackagesDeps) {
     this.builtIn = builtInPackage(deps.ownDir)
     const loaded = loadPackages(deps.file)
-    this.file = loaded ?? this.seed()
+    this.file = loaded ?? seedCatalog(deps, this.builtIn)
     const retired = this.builtIn === undefined ? undefined : retireCheckpoint(this.file, this.builtIn)
     if (retired !== undefined) deps.log(`packages: ${retired} replaced by ${this.builtIn}`)
     const repaired = loaded === undefined || this.builtIn === undefined ? [] : keepBuiltIn(this.file, this.builtIn)
     if (repaired.length > 0) deps.log(`packages: ${this.builtIn} is built in and restored: ${repaired.join(', ')}`)
     if (loaded === undefined || retired !== undefined || repaired.length > 0) savePackages(deps.file, this.file)
+    this.installs = new Installs({
+      deps,
+      file: () => this.file,
+      local: () => this.local,
+      recordOf: (name) => this.recordOf(name),
+      forgetOffer: (name) => this.offers?.byName.delete(name),
+      prune: () => this.prune(),
+      save: () => this.save(),
+    })
     this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks, memory: deps.memory })
     this.hubGateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: (line) => deps.log(`hub ${line}`), tasks: deps.tasks, memory: deps.memory })
     this.probes = new Probes({
@@ -163,14 +162,14 @@ export class Packages {
    */
   private builtInCurrent(): void {
     const name = this.builtIn
-    if (name === undefined || this.deps.hub === false || this.installing.has(name)) return
+    if (name === undefined || this.deps.hub === false || this.installs.installing.has(name)) return
     const record = this.file.packages[name]
     const install = record === undefined ? undefined : current(record)
     if (record?.plugin === undefined || record.removed === true || install === undefined) return
     const offer = pluginOffer(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
     if (offer === undefined || !isNewer(offer.version, install.version)) return
     this.deps.log(`packages: ${name} ${offer.version} in Even Keel's marketplace replaces ${install.version ?? install.id}`)
-    void this.installNew(name).catch(() => {})
+    void this.installs.installNew(name).catch(() => {})
   }
 
   /** The machine's gateway takes the servers holding keys and the tasks server from the hub from now on (BTN-990). */
@@ -200,13 +199,13 @@ export class Packages {
   follow(catalog: CatalogBrief): void {
     const before = JSON.stringify(this.file)
     const missing = followCatalog(this.file, catalog, this.builtIn)
-    this.followed = new Map(Object.entries(catalog.packages).flatMap(([name, record]) => {
+    this.installs.follow(new Map(Object.entries(catalog.packages).flatMap(([name, record]) => {
       const install = current(record)
       return install === undefined ? [] : [[name, install] as const]
-    }))
+    })))
     this.prune()
     if (JSON.stringify(this.file) !== before) this.save()
-    for (const { name } of missing) this.materialize(name)
+    for (const { name } of missing) this.installs.materialize(name)
   }
 
   /** The projects of the config changed: the repositories are read for servers anew. */
@@ -225,8 +224,8 @@ export class Packages {
         version: install?.version ?? null,
         latest: install !== undefined && offer !== undefined && (name === SKILLS_PACKAGE ? skillsChanged : isNewer)(offer.version, install.version) ? offer.version : null,
         fetched: offer?.fetched ?? null,
-        installing: this.installing.has(name),
-        error: this.errors.get(name) ?? null,
+        installing: this.installs.installing.has(name),
+        error: this.installs.errors.get(name) ?? null,
         note: this.notes.get(name) ?? null,
         default: record.default,
         settings: pageSettings(packageSettings(record)),
@@ -262,34 +261,12 @@ export class Packages {
    */
   private marketplaces(): NonNullable<Packages['plugins']> {
     if (this.plugins === undefined || Date.now() - this.plugins.at > AVAILABLE_MS) {
-      if (this.wrapsSkills()) this.rewrap()
+      if (wrapsSkills(this.file)) rewrap(this.deps)
       const name = ownMarketplace(this.deps.ownDir)
       const marketplace = name === undefined ? null : { name, dir: this.deps.ownDir, known: knowsMarketplace(this.deps.globalDir, name) }
-      this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir, this.local), marketplace, skills: this.ownSkills() }
+      this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir, this.local), marketplace, skills: ownSkills(this.file, this.deps) }
     }
     return this.plugins
-  }
-
-  /** The catalog has the package of the user's skills. */
-  private wrapsSkills(): boolean {
-    const record = this.file.packages[SKILLS_PACKAGE]
-    return record !== undefined && record.removed !== true
-  }
-
-  private ownSkills(): PackagesView['skills']['list'] {
-    const wrapped = new Set(this.wrapsSkills() ? wrappedSkills(this.deps.skillsDir) : [])
-    const found = listSkills(this.deps.skillRoots())
-    const gone = [...wrapped].filter((name) => !found.some((skill) => skill.name === name)).map((name) => ({ name, from: null, wrapped: true }))
-    return [...found.map(({ name, from }) => ({ name, from, wrapped: wrapped.has(name) })), ...gone]
-  }
-
-  /** The wrapped skills from their folders again; a failure leaves the last copy and is logged. */
-  private rewrap(): void {
-    try {
-      rewrapSkills(this.deps.skillsDir, this.deps.skillRoots())
-    } catch (error) {
-      this.deps.log(`packages: the skills of ${SKILLS_PACKAGE} not copied again: ${(error as Error).message}`)
-    }
   }
 
   /**
@@ -298,20 +275,10 @@ export class Packages {
    */
   async wrapSkills(names: string[], project?: string): Promise<void> {
     this.projectKnown(project)
-    const unique = [...new Set(names)]
-    if (unique.length === 0) throw fail('packages.noSkills', {})
-    const chosen = chosenSkills(this.deps.skillsDir, this.deps.skillRoots(), unique)
-    const missing = unique.find((name) => !chosen.some((skill) => skill.name === name))
-    if (missing !== undefined) throw fail('packages.unknownSkill', { name: missing })
-    try {
-      wrapSkills(this.deps.skillsDir, chosen)
-    } catch (error) {
-      throw fail('packages.copyFailed', { name: SKILLS_PACKAGE }, { detail: (error as Error).message }, { cause: error })
-    }
-    this.deps.log(`packages: ${SKILLS_PACKAGE} wraps ${unique.join(', ')}`)
+    wrapChosen(this.deps, names)
     this.plugins = undefined
     this.offers = undefined
-    if (this.wrapsSkills()) await this.update(SKILLS_PACKAGE)
+    if (wrapsSkills(this.file)) await this.update(SKILLS_PACKAGE)
     else this.addPlugin(SKILLS_PLUGIN, SKILLS_MARKETPLACE, project)
   }
 
@@ -384,7 +351,7 @@ export class Packages {
 
   /** The enabled packages of the project being installed right now: a new project's window waits for them (BTN-1048). */
   installingOf(project: string): string[] {
-    return Object.entries(this.check(project).cells).filter(([name, cell]) => cell.enabled && this.installing.has(name)).map(([name]) => name)
+    return Object.entries(this.check(project).cells).filter(([name, cell]) => cell.enabled && this.installs.installing.has(name)).map(([name]) => name)
   }
 
   /**
@@ -472,13 +439,13 @@ export class Packages {
 
   async install(name: string): Promise<void> {
     this.recordOf(name)
-    await this.installNew(name)
+    await this.installs.installNew(name)
   }
 
   /** A new install next to the current one when the plugin's or a server's version changed; the page shows which. */
   async update(name: string): Promise<void> {
     const record = this.recordOf(name)
-    if (name === SKILLS_PACKAGE) this.rewrap()
+    if (name === SKILLS_PACKAGE) rewrap(this.deps)
     if (record.plugin !== undefined) {
       const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
       if (FETCHED.has(place.kind)) {
@@ -490,8 +457,8 @@ export class Packages {
         this.offers = undefined
       }
     }
-    const install = await this.installNew(name)
-    const changed = install === null ? 0 : (this.changedDependencies.get(name) ?? 0)
+    const install = await this.installs.installNew(name)
+    const changed = install === null ? 0 : (this.installs.changedDependencies.get(name) ?? 0)
     const version = install?.version ?? install?.id ?? ''
     this.notes.set(
       name,
@@ -523,7 +490,7 @@ export class Packages {
         first ??= fail('packages.marketplaceUpdate', { marketplace }, { detail: (error as Error).message }, { cause: error })
       }
     }
-    if (this.wrapsSkills()) this.rewrap()
+    if (wrapsSkills(this.file)) rewrap(this.deps)
     this.plugins = undefined
     this.offers = undefined
     this.deps.onChange()
@@ -660,8 +627,8 @@ export class Packages {
       file: this.file,
       project,
       agent: this.deps.agentOf(project),
-      installing: this.installing,
-      errors: this.errors,
+      installing: this.installs.installing,
+      errors: this.installs.errors,
       keys: (server, entry, name, install) => this.deps.hubServers?.().includes(routeOf(project, name, install, server))
         ? { values: {}, env: {}, missing: [], names: [] }
         : keysOf(server, this.deps.oauth?.(project, server, entry.url) ? withoutAuthorization(entry) : entry, this.deps.rules, (pool ??= this.deps.poolOf(project))),
@@ -689,179 +656,6 @@ export class Packages {
     return packageTarget(this.file, this.deps, route)
   }
 
-  /** `null` — the versions are those of the current install: nothing new is kept. */
-  private async installNew(name: string): Promise<PackageInstall | null> {
-    if (this.installing.has(name)) throw fail('packages.busy', { name })
-    const record = this.recordOf(name)
-    const id = Date.now().toString(36)
-    const home = join(this.deps.cache, name, id)
-    this.installing.add(name)
-    this.errors.delete(name)
-    this.deps.onChange()
-    const started = Date.now()
-    const seconds = () => Math.round((Date.now() - started) / 1000)
-    this.deps.log(`packages: installing ${name}`)
-    try {
-      const { entries, extras, ...source } = this.sources(name, record, id)
-      let version = source.version
-      const planned: Record<string, { entry: ServerEntry; spec: ReturnType<typeof parseNpx>; npm: string | null }> = {}
-      for (const [server, entry] of Object.entries(entries)) {
-        const spec = parseNpx(entry)
-        planned[server] = { entry, spec, npm: spec === null ? null : await resolveVersion(spec) }
-      }
-      version ??= Object.values(planned).find((each) => each.npm !== null)?.npm ?? null
-      const last = current(record)
-      const scripts = record.scripts === true
-      // The offer is read again from the folder just copied: one cached before it would show Update over the new install.
-      this.offers?.byName.delete(name)
-      if (last !== undefined && last.version === version && sameServers(last.servers, planned) && (last.scripts === true) === scripts) {
-        rmSync(home, { recursive: true, force: true })
-        return null
-      }
-      const servers: Record<string, InstalledServer> = {}
-      let changed = 0
-      for (const [server, { entry, spec, npm }] of Object.entries(planned)) {
-        if (spec === null || npm === null) servers[server] = { entry, npm: null }
-        else {
-          const at = seconds()
-          const prefix = join(home, 'servers', server)
-          const copied = (last?.scripts === true) === scripts ? await this.copyServer(name, last, server, entry, spec, npm, prefix) : null
-          if (copied !== null) {
-            servers[server] = copied
-            this.deps.log(`packages: ${name}: ${spec.name}@${npm} copied from ${last!.id} in ${seconds() - at} s`)
-            continue
-          }
-          servers[server] = await this.installServer(name, entry, spec, npm, prefix, scripts, () => seconds() - at)
-          changed += this.dependenciesChanged(name, server, spec, last, prefix)
-        }
-      }
-      const install: PackageInstall = { id, version, at: new Date().toISOString(), servers, extras, ...(scripts ? { scripts: true as const } : {}) }
-      this.changedDependencies.set(name, changed)
-      record.installs.push(install)
-      this.prune()
-      this.save()
-      this.deps.log(`packages: ${name} ${version ?? id} installed in ${seconds()} s`)
-      return install
-    } catch (error) {
-      rmSync(home, { recursive: true, force: true })
-      this.errors.set(name, noticeOf(error))
-      this.deps.log(`packages: ${name} not installed: ${(error as Error).message}`)
-      throw error
-    } finally {
-      this.installing.delete(name)
-      this.deps.onChange()
-      this.materialize(name)
-    }
-  }
-
-  /** The servers an install of the package starts from: a plugin copied from its marketplace into the install's folder. */
-  private sources(name: string, record: PackageRecord, id: string): { entries: Record<string, ServerEntry>; version: string | null; extras: boolean } {
-    if (record.plugin === undefined) return { entries: { [name]: record.server ?? {} }, version: null, extras: false }
-    const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
-    const dir = pluginDir(this.deps.cache, name, id)
-    try {
-      cpSync(place.dir, dir, { recursive: true, filter: (source) => !/[\\/]\.git$/.test(source) })
-    } catch (error) {
-      throw fail('packages.copyFailed', { name }, { detail: (error as Error).message }, { cause: error })
-    }
-    return { entries: pluginServers(dir), version: pluginVersion(dir), extras: hasExtras(dir) }
-  }
-
-  /**
-   * The hub's current install of a followed package (BTN-1299), installed here under its id: a pinned server at the
-   * hub's npm version, none for a server the hub runs for every project here. A failure is tried again after a while.
-   */
-  private materialize(name: string): void {
-    const theirs = this.followed.get(name)
-    const failed = this.followFailed.get(name)
-    if (theirs === undefined || this.installing.has(name) || (failed?.id === theirs.id && Date.now() - failed.at < FOLLOW_RETRY_MS)) return
-    const record = this.file.packages[name]
-    if (record === undefined || record.removed === true || record.installs.some((each) => each.id === theirs.id)) return
-    const home = join(this.deps.cache, name, theirs.id)
-    this.installing.add(name)
-    this.errors.delete(name)
-    this.deps.onChange()
-    const started = Date.now()
-    const seconds = () => Math.round((Date.now() - started) / 1000)
-    this.deps.log(`packages: installing ${name} ${theirs.version ?? theirs.id} as the hub has it`)
-    void (async () => {
-      try {
-        const { entries, version, extras } = this.sources(name, record, theirs.id)
-        const hub = new Set(this.deps.hubServers?.() ?? [])
-        const projects = Object.keys(this.deps.repos)
-        const servers: Record<string, InstalledServer> = {}
-        for (const [server, their] of Object.entries(theirs.servers)) {
-          const entry = entries[server] ?? their.entry
-          const spec = parseNpx(entry)
-          const onHub = projects.length > 0 && projects.every((project) => hub.has(routeOf(project, name, theirs.id, server)))
-          if (onHub) servers[server] = their
-          else if (their.npm === null || spec === null) servers[server] = { entry, npm: null }
-          else servers[server] = await this.installServer(name, entry, spec, their.npm.version, join(home, 'servers', server), theirs.scripts === true, seconds)
-        }
-        const now = this.file.packages[name]
-        if (now === undefined || now.removed === true) {
-          rmSync(home, { recursive: true, force: true })
-          return
-        }
-        const install: PackageInstall = { id: theirs.id, version: version ?? theirs.version, at: new Date().toISOString(), servers, extras, ...(theirs.scripts === true ? { scripts: true as const } : {}) }
-        now.installs = [...now.installs.filter((each) => each.id !== theirs.id), install]
-        // The hub may have moved to an install this machine has while this one ran: that one stays current.
-        const latest = this.followed.get(name)
-        const at = latest === undefined ? -1 : now.installs.findIndex((each) => each.id === latest.id)
-        if (at >= 0) now.installs.push(...now.installs.splice(at, 1))
-        this.followFailed.delete(name)
-        this.prune()
-        this.save()
-        this.deps.log(`packages: ${name} ${install.version ?? install.id} installed in ${seconds()} s`)
-      } catch (error) {
-        rmSync(home, { recursive: true, force: true })
-        this.errors.set(name, noticeOf(error))
-        this.followFailed.set(name, { id: theirs.id, at: Date.now() })
-        this.deps.log(`packages: ${name} not installed as the hub has it: ${(error as Error).message}`)
-      } finally {
-        this.installing.delete(name)
-        this.deps.onChange()
-        this.materialize(name)
-      }
-    })()
-  }
-
-  /** npm install of a pinned server. */
-  private async installServer(name: string, entry: ServerEntry, spec: NpxSpec, npm: string, prefix: string, scripts: boolean, took: () => number): Promise<InstalledServer> {
-    const server = await installPinned(entry, spec, npm, prefix, scripts)
-    this.deps.log(`packages: ${name}: npm install ${spec.name}@${npm}${scripts ? ' with install scripts' : ''} took ${took()} s`)
-    return server
-  }
-
-  /** The dependencies the new lock of a server changed against the previous install's, logged; their count. */
-  private dependenciesChanged(name: string, server: string, spec: NpxSpec, last: PackageInstall | undefined, prefix: string): number {
-    if (last?.servers[server]?.npm == null) return 0
-    const before = lockOf(join(this.deps.cache, name, last.id, 'servers', server))
-    const after = lockOf(prefix)
-    if (before === null || after === null) return 0
-    const changes = dependencyChanges(before, after, spec.name)
-    if (changes.length > 0) this.deps.log(`packages: ${name}/${server}: dependencies changed: ${changes.join(', ')}`)
-    return changes.length
-  }
-
-  /**
-   * The previous install's copy of the same npm version, so a plugin-only update skips npm install;
-   * `null` — nothing to copy or the copy failed. The previous install keeps its own folder: a running task may hold it.
-   */
-  private async copyServer(name: string, last: PackageInstall | undefined, server: string, entry: ServerEntry, spec: NpxSpec, npm: string, prefix: string): Promise<InstalledServer | null> {
-    const known = last?.servers[server]?.npm
-    if (last === undefined || known?.name !== spec.name || known.version !== npm) return null
-    const from = join(this.deps.cache, name, last.id, 'servers', server)
-    if (!existsSync(from)) return null
-    try {
-      return await copyPinned(entry, spec, npm, from, prefix)
-    } catch (error) {
-      rmSync(prefix, { recursive: true, force: true })
-      this.deps.log(`packages: ${name}: ${spec.name}@${npm} not copied from ${last.id}, installing: ${(error as Error).message}`)
-      return null
-    }
-  }
-
   /** Old installs nothing pins lose their files; a removed package goes once none of its installs is pinned. */
   private prune(): void {
     for (const { name, id } of unpinned(this.file)) {
@@ -874,35 +668,8 @@ export class Packages {
     }
   }
 
-  private seed(): PackagesFile {
-    const settingsOf = (repo: string) => [readJson(join(repo, '.claude', 'settings.json')), readJson(join(repo, '.claude', 'settings.local.json'))].filter((each) => each !== undefined)
-    const userServers = Object.assign({}, ...this.deps.claudeConfigs().map((file) => serversIn({ mcpServers: readJson(file)?.mcpServers })).reverse())
-    const seeded = seedPackages({
-      globalSettings: readJson(join(this.deps.globalDir, 'settings.json')),
-      projects: Object.entries(this.deps.repos).map(([key, repo]) => ({ key, settings: settingsOf(repo) })),
-      userServers,
-      builtIn: this.builtIn,
-    })
-    this.deps.log(`packages: no ${this.deps.file}; the catalog is seeded with ${Object.keys(seeded.packages).join(', ') || 'nothing'}`)
-    return seeded
-  }
-
   private async readImports(): Promise<void> {
-    const imports: Record<string, string[]> = {}
-    for (const [project, repo] of Object.entries(this.deps.repos)) {
-      try {
-        const { stdout } = await run('git', ['-C', repo, 'ls-files', '--', '.mcp.json'], { windowsHide: true })
-        if (stdout.trim() === '') continue
-      } catch {
-        continue
-      }
-      const names = Object.keys(serversIn(readJson(join(repo, '.mcp.json')))).filter((name) => {
-        const known = this.file.packages[name]
-        return SERVER_NAME.test(name) && (known === undefined || known.removed === true)
-      })
-      if (names.length > 0) imports[project] = names
-    }
-    this.imports = imports
+    this.imports = await repoImports(this.deps.repos, this.file)
     this.deps.onChange()
   }
 
@@ -925,15 +692,6 @@ export class Packages {
     savePackages(this.deps.file, this.file)
     this.deps.onChange()
   }
-}
-
-/** The same servers: a pinned one at the same npm version, any other with the same entry. */
-function sameServers(installed: Record<string, InstalledServer>, planned: Record<string, { entry: ServerEntry; npm: string | null }>): boolean {
-  if (JSON.stringify(Object.keys(installed).sort()) !== JSON.stringify(Object.keys(planned).sort())) return false
-  return Object.entries(planned).every(([name, { entry, npm }]) => {
-    const known = installed[name]!
-    return npm === null ? known.npm === null && JSON.stringify(known.entry) === JSON.stringify(entry) : known.npm?.version === npm
-  })
 }
 
 function sameInstalls(a: Record<string, string>, b: Record<string, string>): boolean {
