@@ -335,10 +335,6 @@ export const en: Messages = {
     canceled: 'canceled',
     fixed: 'fix of main, over',
   },
-  questions: {
-    title: 'Tasks labeled “Question” wait for an answer in the description — without it the session will most likely get stuck',
-    count: counted('question', 'questions'),
-  },
   ci: ciEn,
   chats: chatsEn,
   badge: badgeEn,

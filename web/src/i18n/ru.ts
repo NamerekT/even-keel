@@ -340,10 +340,6 @@ export const ru = {
     canceled: 'отменена',
     fixed: 'починка main завершена',
   },
-  questions: {
-    title: 'Задачи с ярлыком «Вопрос» ждут ответа в описании — без него сессия, скорее всего, встанет',
-    count: counted('вопрос', 'вопроса', 'вопросов'),
-  },
   ci: ciRu,
   chats: chatsRu,
   badge: badgeRu,

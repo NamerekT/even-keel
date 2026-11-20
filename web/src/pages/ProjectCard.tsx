@@ -10,14 +10,12 @@ import {
   cardTask,
   chainProgress,
   chainStatus,
-  openQuestions,
   projectLabel,
   projectPages,
   projectPath,
   projectSlot,
   projectTasks,
   projectTracker,
-  questionPath,
   queuedAfter,
   startsNow,
 } from '../state.js'
@@ -26,7 +24,6 @@ import { Lamp } from '../ui/Lamp.js'
 import { type EmptyCard, emptyCard, punchline } from '../ui/memes.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { Said } from '../ui/ProjectLinks.js'
-import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -72,7 +69,6 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
           <ProjectLabel project={project} nameClass="card__name" />
         </Link>
         {(status.kind === 'paused' || waits.length > 0) && <StatusChip status={status} wait={waits[0]} reason={false} />}
-        <QuestionsChip count={openQuestions(projectTasks(state, project))} to={questionPath(state, [project])} />
         {state.config.projects[project]?.testProject && (
           <Tipped className="card__tracker card__test" tip={t.settings.testProject} inline focusable>
             <FlaskIcon />

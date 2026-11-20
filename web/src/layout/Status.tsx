@@ -42,7 +42,6 @@ export function Waiting({ sessions, tasks, row = false }: { sessions: SessionVie
   )
 }
 
-/** Shared with the legend: the question sign of the project row's chip and the count. */
 export function WaitingContents({ count }: { count: number }) {
   return (
     <>

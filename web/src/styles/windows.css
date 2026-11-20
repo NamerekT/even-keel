@@ -4,12 +4,6 @@
   }
 }
 
-@keyframes nudge {
-  40% {
-    transform: scale(1.2);
-  }
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -492,7 +486,6 @@
 @media (prefers-reduced-motion: reduce) {
   .account-toggle--login .queue-toggle__dot,
   .chain__section--revealed > .chain__blocks,
-  .chip--grown,
   .lamp--working,
   .page,
   .panel,

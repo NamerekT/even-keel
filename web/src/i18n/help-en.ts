@@ -31,12 +31,11 @@ export const helpEn = {
     waiting: 'The number is how many sessions wait for a reply. Opens the first of them; point at it for the tasks.',
     menu: 'Stats, the queue, the accounts, settings, tools and the state of the service; its dot is amber or red when a check warns or fails or the account needs a sign-in.',
     bars: 'The two lines along the bottom of the header: the five-hour limit at the left, the weekly one at the right; amber from 80%, red at 100%.',
-    questions: 'Tasks labelled Question that wait for an answer; opens the session of the first one.',
     read: "Reads the project's tasks from the tracker now; it is read every 30 seconds anyway. Its tip says when it was last read; beside it, in amber, only when reading fails or is late.",
     ci: 'The CI on the main branch: green — passed, blue — running, red — failed, amber — stuck; a running one shows its time. Opens its runs.',
     backlog: 'The tasks the chain does not take yet and their count; a red count — one of them has work that is not committed. Opens the backlog.',
     chats: 'Talks with an agent about the project, outside the chain. The amber number is how many chats wait for you, the blue one how many answers are unread.',
     settings: "The project's settings. They apply at once, with no restart: the project's next session gets them.",
-    help: 'Opens this legend. The question count in the project row is a separate control.',
+    help: 'Opens this legend.',
   },
 }

@@ -23,12 +23,10 @@ import {
   chainControls,
   chainStatus,
   issueLink,
-  openQuestions,
   projectLabel,
   projectPages,
   projectSlot,
   projectTasks,
-  questionPath,
   queuedAfter,
   readyButton,
   firstControl,
@@ -41,7 +39,6 @@ import { EnqueueIcon, KeepGoingIcon, RefreshIcon, StartIcon, StopIcon } from '..
 import '../ui/fieldStrip.css'
 import { Loading } from '../ui/Loader.js'
 import { Said } from '../ui/ProjectLinks.js'
-import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { Morph } from '../ui/Morph.js'
 import { Tipped } from '../ui/Tipped.js'
 import { TrackerPages } from '../ui/TrackerPages.js'
@@ -206,7 +203,6 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   // On a narrow screen the switch sits in the head, beside the tools.
   const feedSwitcher = narrow ? undefined : switcher
   const feedFocus = focus === BACKLOG_HASH || focus === SETTINGS_HASH || chatsOpen || helpOpen || ciAt.open ? '' : focus
-  const question = questionPath(state, [key])
   const tracker = state.trackers.find((view) => view.projects.includes(key))
   const links = taskLinks(state.tasks, state.sessions)
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
@@ -239,7 +235,6 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             <h1 className="page__title project__title">{settings?.name == null ? projectLabel(state, key) : (state.projectKeys[key] ?? key)}</h1>
             {settings !== undefined && <ProjectName project={key} form={settings} />}
           </div>
-          <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
           {narrow && toolsChip}
           {/* On a phone the panels' block takes a line of its own under the title, the view switch and the chain's buttons

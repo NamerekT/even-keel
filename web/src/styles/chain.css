@@ -808,8 +808,7 @@ button.block__key {
 }
 
 .chip--paused,
-.chip--feedback,
-.chip--questions {
+.chip--feedback {
   background: var(--warn-bg);
   color: var(--warn-fg);
 }
@@ -865,24 +864,10 @@ button.block__key {
   color: var(--lamp-error);
 }
 
-.chip--questions {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding-left: 6px;
-  font-variant-numeric: tabular-nums;
-}
-
 .chip--link {
   text-decoration: none;
 }
 
 .chip--link:hover {
   box-shadow: 0 0 0 1px var(--warn-fg);
-}
-
-.chip--grown {
-  animation: nudge 0.8s ease-out 2;
 }

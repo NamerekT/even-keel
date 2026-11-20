@@ -9,7 +9,6 @@ import { isClosedLamp, type ChainBlock } from '../state.js'
 import { CacheRing } from '../ui/BlockMetrics.js'
 import { ChangelogIcon, ChatIcon, HandoffIcon, KeyIcon, LockIcon, RefreshIcon, SlidersIcon, StackIcon } from '../ui/icons.js'
 import { isRework, railsOf } from '../ui/look.js'
-import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { seriesStyle } from '../ui/series.js'
 import { Forge } from './Forge.js'
@@ -45,10 +44,7 @@ export function HeaderSigns({ narrow }: { narrow: boolean }) {
 }
 
 export function ProjectSigns() {
-  return <>
-    <Sign sample={<QuestionsChip count={2} />}>{t.help.signs.questions}</Sign>
-    <Sign wide sample={<span className="project__read"><span className="project__refresh"><RefreshIcon /></span><span className="project__read-at project__read-at--late">{t.help.samples.updated}</span></span>}>{t.help.signs.read}</Sign>
-  </>
+  return <Sign wide sample={<span className="project__read"><span className="project__refresh"><RefreshIcon /></span><span className="project__read-at project__read-at--late">{t.help.samples.updated}</span></span>}>{t.help.signs.read}</Sign>
 }
 
 export function TabSigns({ ci, narrow }: { ci: boolean; narrow: boolean }) {
