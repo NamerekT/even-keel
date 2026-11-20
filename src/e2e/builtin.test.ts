@@ -127,12 +127,14 @@ describe('the built-in tracker end to end', { timeout: 120_000 }, () => {
     expect((await run.refused('builtin/export/start', { project: PROJECT_ID, profile, place: '', key: 'ABC' })).code).toBe('switch.samePrefix')
     expect((await run.refused('builtin/export/switch', { project: PROJECT_ID })).code).toBe('switch.noCopy')
     await run.post('builtin/export/start', { project: PROJECT_ID, profile, place: '', key: 'BRD' })
-    let finished = false
+    let checked = false
     await run.until(() => {
-      void run.service.db.query<{ finished_at: string | null }>('select finished_at from tracker_exports').then(({ rows }) => (finished = rows[0]?.finished_at != null))
-      return finished
-    }, 'the copy finished')
+      void run.service.db.query<{ checked: string | null }>('select checked from tracker_exports').then(({ rows }) => (checked = rows[0]?.checked != null))
+      return checked
+    }, 'the copy finished and checked (BTN-1291)')
     await run.post('builtin/export/switch', { project: PROJECT_ID })
+    const { rows: reports } = await run.service.db.query<{ matched: boolean }>('select matched from tracker_transfers')
+    expect(reports).toEqual([{ matched: true }])
     expect(run.service.configStore.current).toMatchObject({ trackers: { [PROJECT_ID]: BOARD_TRACKER }, keys: { [PROJECT_ID]: 'BRD' } })
     expect(run.service.dispatcher.state.orders[PROJECT_ID]).toEqual(['BRD-2', 'BRD-1'])
 

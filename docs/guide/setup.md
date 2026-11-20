@@ -294,9 +294,13 @@ The copy runs in the service: close the window or the tab and come back to it. I
 
 While it runs, the project's tasks cannot be edited.
 
+When the copy ends, Even Keel counts both sides again — tasks, comments, attachments, links, milestones and labels, only what the tracker keeps — and shows them side by side; a row that did not match is red and names the tasks short of it. **Repeat** brings over what is missing (a task deleted there is created again); **Switch without them** switches as it is.
+
 Once every task is copied, **Switch to <tracker>** moves the project: the chain takes its tasks from there in the same order, and the old tasks stay in Even Keel marked "Moved to <key>".
 
 The switch waits until the chain no longer works on the project: stop or pause it, and let a task it holds finish.
+
+The switch keeps a report of the transfer: the plan with what did not move, the count of both sides and what was switched without. It stays as long as the project, under **Transfers** on the project's **Tracker** tab, and the event log's line of the switch opens it.
 
 ### Minimum: the adapter only
 

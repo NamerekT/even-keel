@@ -653,6 +653,10 @@ export const en = {
   'export.noTarget': () => 'Pick a profile of another tracker to copy the tasks into.',
   'export.noEditor': (p: { tracker: string }) => `Even Keel cannot create tasks in ${p.tracker}, so it cannot copy tasks there.`,
   'export.failed': (p: { tracker: string }) => `The copy to ${p.tracker} stopped: the tracker refused a write. The project stays on Even Keel's own tracker; start the copy again to go on from where it stopped. Tracker response`,
+  'export.checkFailed': (p: { tracker: string }) =>
+    `The tasks are copied to ${p.tracker}, but Even Keel could not read them back to check the copy. Press “Repeat” to check again. Tracker response`,
+  'switch.noCheck': () => 'The copy has not been checked yet, so the project cannot switch. Press “Repeat” to check it.',
+  'switch.mismatch': () => 'The check of the copy did not match. Press “Repeat” to bring over what is missing, or “Switch without them” to switch as it is.',
   'switch.noCopy': (p: { key: string }) => `${p.key} can move to another tracker only after its tasks are copied there. Copy them first, or let the copy finish.`,
   'switch.notCopied': (p: { tasks: string[] }) => `These open tasks were not copied and would be lost: ${list(p.tasks)}. Copy the tasks again to bring them over, then switch.`,
   'switch.held': (p: { key: string }) => `${p.key} stays on its tracker while the chain works on it`,
@@ -903,6 +907,11 @@ export const en = {
     `the copy to ${p.tracker} is finished: ${p.copied} ${p.copied === 1 ? 'task' : 'tasks'} copied`,
   'eventLog.trackerSwitched': (p: { project: string; tracker: string; from: string; to: string }) =>
     `the project moved to ${p.tracker}: its tasks are read there now, the key ${p.from} is now ${p.to}`,
+  // The switch with its report (BTN-1291); `trackerSwitched` stays for the entries written before it.
+  'eventLog.transferMatched': (p: { project: string; tracker: string; from: string; to: string }) =>
+    `the transfer to ${p.tracker} is finished and its check matched: the key ${p.from} is now ${p.to}`,
+  'eventLog.transferMismatched': (p: { project: string; tracker: string; from: string; to: string }) =>
+    `the transfer to ${p.tracker} is finished, but its check did not match: the project switched without what is missing; the key ${p.from} is now ${p.to}`,
   // `from` and `to` are the machines' names (BTN-996).
   'eventLog.limitMoved': (p: { task: string; from: string; to: string }) =>
     `went to the machine ${p.to}: the limit on ${p.from} is spent, and “Go on where a limit is left” is on`,

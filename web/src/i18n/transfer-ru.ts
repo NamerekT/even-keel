@@ -1,4 +1,5 @@
 import type { ExportLossKind } from '../../../src/tracker/export.js'
+import type { CheckKind, TransferDirection } from '../../../src/tracker/transfer-check.js'
 import type { ExportStep } from '../pages/exportMeter.js'
 import { plural } from './plural.js'
 
@@ -102,4 +103,37 @@ export const transferRu = {
   switchTo: (tracker: string) => `Переключить на ${tracker}`,
   stopChain: 'Остановить цепь',
   movedTo: 'Перенесена в',
+  check: 'Сверка',
+  checkTip:
+    'Even Keel заново считает обе стороны: что перенос должен был отдать и что есть у перенесённых задач. Считается только то, что трекер хранит, — потери плана уже согласованы. Лишнее у цели недостачу не прячет.',
+  checkKinds: {
+    tasks: 'Задачи',
+    comments: 'Комментарии',
+    history: 'Изменения',
+    files: 'Вложения',
+    links: 'Связи',
+    milestones: 'Вехи',
+    labels: 'Метки',
+    components: 'Компоненты',
+  } satisfies Record<CheckKind, string>,
+  checkOk: 'Сошлось',
+  checkShort: (ids: string[]) => `Не хватает у ${ids.length === 1 ? 'задачи' : 'задач'} ${ids.join(', ')}`,
+  checkNone: 'Перенос ещё не сверен. Нажмите «Повторить» — Even Keel докачает недостающее и сверит обе стороны.',
+  mismatch: (kinds: string[]) =>
+    `Сверка не сошлась: ${kinds.join(', ').toLowerCase()}. Повторите — Even Keel перенесёт недостающее. Если этого нет и здесь, переключайте без них.`,
+  retry: 'Повторить',
+  switchWithout: 'Переключить без них',
+  reports: 'Переносы',
+  reportsHint: 'Отчёт каждого переноса хранится, пока жив проект: план с потерями, статусы и сверка, как были при переключении.',
+  reportLine: (direction: TransferDirection, tracker: string) => (direction === 'export' ? `В ${tracker}` : `Из ${tracker}`),
+  reportTasks: tasks,
+  reportMatched: 'сверка сошлась',
+  reportMismatched: 'сверка не сошлась',
+  reportTitle: (direction: TransferDirection, tracker: string) => (direction === 'export' ? `Перенос в ${tracker}` : `Перенос из ${tracker}`),
+  reportWhen: (switched: string, key: string, sourceKey: string | null) => `Переключён ${switched}${sourceKey === null ? '' : `, ключ ${sourceKey} сменился на ${key}`}.`,
+  reportMoves: 'Что переносилось',
+  reportLosses: 'Что не перенеслось',
+  reportLossesNone: 'Перенеслось всё: статусы, связи, вложения, метки, вехи и журнал.',
+  reportMismatch: 'Сверка не сошлась, проект переключили без недостающего.',
+  reportGone: 'Отчёта больше нет.',
 }

@@ -44,6 +44,8 @@ const categories = {
   'eventLog.exportFailed': 'settings',
   'eventLog.exportFinished': 'settings',
   'eventLog.trackerSwitched': 'settings',
+  'eventLog.transferMatched': 'settings',
+  'eventLog.transferMismatched': 'settings',
 } satisfies Record<Extract<NoticeCode, `eventLog.${string}`>, EventCategory>
 
 export function categoryOf(notice: Notice): EventCategory {

@@ -329,7 +329,7 @@ export interface ServerDeps {
   /** The page's commands on the built-in tracker's tasks (BTN-767); without it they are refused. */
   builtin?: BuiltinControl
   /** The copy of a built-in project's tasks into another tracker (BTN-1073) and the switch to it (BTN-1074); without it they are refused. */
-  builtinExports?: Pick<BuiltinExports, 'plan' | 'start' | 'state' | 'switch'>
+  builtinExports?: Pick<BuiltinExports, 'plan' | 'start' | 'state' | 'switch' | 'retry' | 'transfers' | 'transfer'>
   /** The project chats (BTN-1230); without them their calls are refused. */
   chats?: import('./chats/chats.js').ProjectChats
   launches: () => unknown

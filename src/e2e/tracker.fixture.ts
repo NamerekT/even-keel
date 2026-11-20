@@ -1,4 +1,5 @@
-import type { NewTask, TaskSource, TrackerAdapter } from '../tracker/source.js'
+import { TrackerNotFound, type NewTask, type TaskSource, type TrackerAdapter } from '../tracker/source.js'
+import type { TaskRef, TrackerCard } from '../tracker/card.js'
 import type { TaskEditor } from '../tracker/editor.js'
 import { sameName } from '../chain/rules.js'
 import { changedLabels } from '../tracker/labels.js'
@@ -174,8 +175,31 @@ export class Board {
         if (!Number.isInteger(number) || number > this.commentsOf(id).length) return []
         return this.commentsOf(id).slice(number).map((body, index) => ({ id: `${id}-comment-${number + index + 1}`, body, files: [] }))
       },
+      card: async (id) => this.card(id),
       editor: this.editor(),
       close: async () => {},
+    }
+  }
+
+  /** The task as its card shows it: what the check after a copy reads back (BTN-1291). */
+  private card(id: string): TrackerCard {
+    const task = this.tasks.get(id)
+    if (task === undefined) throw new TrackerNotFound(`${id} is not on the board`)
+    const ref = (other: string): TaskRef => ({ id: other, title: this.tasks.get(other)?.title ?? other, status: this.tasks.get(other)?.status ?? TODO })
+    return {
+      id,
+      title: task.title,
+      description: '',
+      status: task.status,
+      priority: task.priority,
+      labels: [...task.labels],
+      milestone: task.milestone,
+      parent: task.parent === null ? null : ref(task.parent),
+      blockedBy: task.blockedBy.map(ref),
+      blocks: [...this.tasks.values()].filter((other) => other.blockedBy.includes(id)).map((other) => ref(other.id)),
+      related: [],
+      comments: this.commentsOf(id).map((text) => ({ author: null, at: 0, text })),
+      attachments: [],
     }
   }
 

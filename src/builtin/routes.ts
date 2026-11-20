@@ -72,11 +72,17 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
   'builtin/export/plan': (deps, body) => exports(deps).plan(projectOf(body), targetOf(body)),
   'builtin/export/start': (deps, body) => exports(deps).start(projectOf(body), targetOf(body)),
   'builtin/export/state': (deps, body) => exports(deps).state(projectOf(body)),
-  // The switch of the project to the finished copy's target (BTN-1074).
+  // "Repeat" after a check that did not match (BTN-1291).
+  'builtin/export/retry': (deps, body) => exports(deps).retry(projectOf(body)),
+  // The switch of the project to the finished copy's target (BTN-1074); `anyway` — past a check that did not match.
   'builtin/export/switch': async (deps, body) => {
-    const { move, names } = await exports(deps).switch(projectOf(body))
+    if (body.anyway !== undefined && typeof body.anyway !== 'boolean') throw fail('request.required', { field: 'anyway' })
+    const { move, names } = await exports(deps).switch(projectOf(body), body.anyway === true)
     return { tracker: move.tracker, key: move.key, renamed: names.size }
   },
+  // The reports of the project's finished transfers (BTN-1291).
+  'builtin/transfers': async (deps, body) => ({ transfers: await exports(deps).transfers(projectOf(body)) }),
+  'builtin/transfer': async (deps, body) => ({ report: await exports(deps).transfer(textOf(body.id, 'id')) }),
 }
 
 function exports({ builtinExports }: ServerDeps): NonNullable<ServerDeps['builtinExports']> {

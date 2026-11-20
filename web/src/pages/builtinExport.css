@@ -273,6 +273,86 @@
   padding-left: var(--space-16);
 }
 
+/* The check (BTN-1291): two number columns and a mark; a row short of something is red, its figure there too. */
+.transfer__table--check th:nth-child(2),
+.transfer__table--check th:nth-child(3) {
+  width: 96px;
+}
+
+.transfer__table--check th:nth-child(4) {
+  width: 40px;
+}
+
+.transfer__table--check .transfer__mark {
+  text-align: center;
+}
+
+.transfer__table--check tbody tr.transfer__short {
+  background: color-mix(in srgb, var(--error-bg) 55%, transparent);
+}
+
+.transfer__short .transfer__got {
+  color: var(--lamp-error);
+  font-weight: 600;
+}
+
+.transfer__ok {
+  color: var(--lamp-done);
+}
+
+.transfer__bad {
+  color: var(--lamp-error);
+  font-weight: 600;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+/* A row of the project's transfers: the line at the left, the check's word at the right, the whole row a button. */
+.transfer-reports {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.transfer-reports__row + .transfer-reports__row {
+  border-top: 1px solid var(--border);
+}
+
+.transfer-reports__open {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-13);
+  text-align: left;
+  cursor: pointer;
+}
+
+.transfer-reports__open:hover,
+.transfer-reports__open:focus-visible {
+  background: var(--surface-muted);
+}
+
+.transfer-reports__word {
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.transfer-reports__word--bad {
+  color: var(--lamp-error);
+}
+
 @media (max-width: 760px) {
   .transfer__tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));

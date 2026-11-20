@@ -1,6 +1,7 @@
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
 import type { TaskMoved, TaskRef } from '../tracker/card.js'
-import type { ExportLog, ExportRow, ExportStage, ExportTargetFields } from '../tracker/export.js'
+import type { ExportLog, ExportPlan, ExportRow, ExportStage, ExportTargetFields } from '../tracker/export.js'
+import type { TransferCheck } from '../tracker/transfer-check.js'
 
 export type { ExportTargetFields }
 
@@ -8,6 +9,12 @@ export interface ExportHeader extends ExportTargetFields {
   startedAt: string
   /** `null` — not finished. */
   finishedAt: string | null
+  /** The project's key when the copy began. */
+  sourceKey: string | null
+  /** The plan as the person saw it at the start (BTN-1291); `null` — a copy begun before it was kept. */
+  plan: ExportPlan | null
+  /** The check after the last run; `null` — none yet. */
+  checked: TransferCheck | null
 }
 
 /** The copy of each built-in project in the state database (step 49): its target and each task's progress. */
@@ -18,12 +25,39 @@ export class ExportRecords {
   ) {}
 
   async header(project: string): Promise<ExportHeader | null> {
-    const { rows } = await this.db.query<{ profile: string; place: string; key: string; started_at: string; finished_at: string | null; history_summary: boolean | null }>(
-      'select profile, place, key, started_at, finished_at, history_summary from tracker_exports where project_id = $1',
-      [project],
-    )
+    const { rows } = await this.db.query<{
+      profile: string
+      place: string
+      key: string
+      started_at: string
+      finished_at: string | null
+      history_summary: boolean | null
+      source_key: string | null
+      plan: string | null
+      checked: string | null
+    }>('select profile, place, key, started_at, finished_at, history_summary, source_key, plan, checked from tracker_exports where project_id = $1', [project])
     const row = rows[0]
-    return row === undefined ? null : { profile: row.profile, place: row.place, key: row.key, history: row.history_summary === true,startedAt: row.started_at, finishedAt: row.finished_at }
+    if (row === undefined) return null
+    return {
+      profile: row.profile,
+      place: row.place,
+      key: row.key,
+      history: row.history_summary === true,
+      startedAt: row.started_at,
+      finishedAt: row.finished_at,
+      sourceKey: row.source_key,
+      plan: row.plan === null ? null : (JSON.parse(row.plan) as ExportPlan),
+      checked: row.checked === null ? null : (JSON.parse(row.checked) as TransferCheck),
+    }
+  }
+
+  async savePlan(project: string, plan: ExportPlan): Promise<void> {
+    await this.db.query('update tracker_exports set plan = $2 where project_id = $1', [project, JSON.stringify(plan)])
+  }
+
+  /** `null` — the last count failed: no check to switch by. */
+  async saveCheck(project: string, check: TransferCheck | null): Promise<void> {
+    await this.db.query('update tracker_exports set checked = $2 where project_id = $1', [project, check === null ? null : JSON.stringify(check)])
   }
 
   /**
@@ -37,7 +71,8 @@ export class ExportRecords {
         `insert into tracker_exports (project_id, profile, place, key, started_at, finished_at, source_key, history_summary)
            values ($1, $2, $3, $4, $5, null, (select key from projects where id = $1), $6)
            on conflict (project_id) do update set profile = excluded.profile, place = excluded.place, key = excluded.key,
-             started_at = excluded.started_at, finished_at = null, source_key = excluded.source_key, history_summary = excluded.history_summary`,
+             started_at = excluded.started_at, finished_at = null, source_key = excluded.source_key, history_summary = excluded.history_summary,
+             plan = null, checked = null`,
         [project, target.profile, target.place, target.key, this.now().toISOString(), target.history ?? false],
       )
     })

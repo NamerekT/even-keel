@@ -14,7 +14,7 @@ import { EXPORT_STEPS, meterOf } from './exportMeter.js'
 import { EMPTY_FIELDS, keyOfTyped, keyTyped, placeFields, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { ErrorStrip, FieldHead, HelpTip, SwitchField } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
-import { TransferMoves, TransferStatuses } from './TransferPlan.js'
+import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferMoves, TransferStatuses } from './TransferPlan.js'
 import '../tools/addPackage.css'
 import './builtinExport.css'
 
@@ -144,13 +144,20 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
     const answer = await run('builtin/export/start', { project, ...(fixed === null ? target : exported!.target!) })
     if (answer !== undefined) setExported(answer as ExportState)
   }
-  const switchOver = async () => {
-    if ((await run('builtin/export/switch', { project })) !== undefined) onClose()
+  const switchOver = async (anyway: boolean) => {
+    if ((await run('builtin/export/switch', { project, ...(anyway ? { anyway } : {}) })) !== undefined) onClose()
+  }
+  const retry = async () => {
+    const answer = await run('builtin/export/retry', { project })
+    if (answer !== undefined) setExported(answer as ExportState)
   }
 
   const plan = shown?.plan ?? null
   const fixable = plan?.losses.some((loss) => FIXABLE.has(loss.kind) && loss.names.length > 0) ?? false
   const failed = phase === 'resume' ? exported!.failed : null
+  const check = phase === 'finished' ? exported!.check : null
+  const checkNotice = phase === 'finished' ? checkNoticeOf(exported!) : null
+  const matched = check !== null && checkMatched(check)
 
   return (
     <dialog
@@ -217,11 +224,17 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
             )}
             {phase !== 'pick' && phase !== 'read' && <Progress exported={exported!} />}
             {phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
+            {check !== null && <TransferCheckTable check={check} direction="export" tracker={tracker} />}
           </Loading>
         </div>
         {phase === 'resume' && refusal === null && (
           <p role="alert" className={`notice ${failed === null ? 'notice--warn' : 'notice--error'} add-package__failure`}>
             {failed === null ? t.transfer.stopped : say(failed)}
+          </p>
+        )}
+        {checkNotice !== null && refusal === null && (
+          <p role="alert" className={`notice notice--${checkNotice.tone} add-package__failure`}>
+            {checkNotice.text}
           </p>
         )}
         {refusal !== null && <Refusal project={project} refusal={refusal} />}
@@ -240,9 +253,14 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
               {t.transfer.resume}
             </button>
           )}
+          {checkNotice !== null && (
+            <button type="button" className="button" disabled={busy} onClick={() => void retry()}>
+              {t.transfer.retry}
+            </button>
+          )}
           {phase === 'finished' && (
-            <button type="button" className="button button--primary" disabled={busy} onClick={() => void switchOver()}>
-              {t.transfer.switchTo(tracker)}
+            <button type="button" className="button button--primary" disabled={busy || check === null} onClick={() => void switchOver(!matched)}>
+              {check === null || matched ? t.transfer.switchTo(tracker) : t.transfer.switchWithout}
             </button>
           )}
         </footer>
@@ -258,46 +276,18 @@ function fieldsOfTarget(state: EvenKeelState, target: NonNullable<ExportState['t
   return { ...EMPTY_FIELDS, profile: target.profile, tracker: kind, key: target.key, ...placeFields(shape, target.key, target.place) }
 }
 
-/** What the target leaves behind, a line per kind: its names where they are names, the tasks in a tip of their count. */
-function Losses({ plan, recheck, checking }: { plan: ExportPlan; recheck: (() => void) | null; checking: boolean }) {
-  return (
-    <section className="transfer__losses" aria-label={t.transfer.losses}>
-      <header className="transfer__losses-head">
-        <h3 className="transfer__losses-title">{t.transfer.losses}</h3>
-        {recheck !== null && (
-          <button type="button" className="button button--small" disabled={checking} onClick={recheck}>
-            {t.transfer.recheck}
-          </button>
-        )}
-      </header>
-      {plan.losses.length === 0 ? (
-        <p className="transfer__none">{t.transfer.lossesNone}</p>
-      ) : (
-        <ul className="transfer__loss-list">
-          {plan.losses.map((loss) => (
-            <li key={loss.kind} className="transfer__loss">
-              <Tipped tip={t.transfer.kindTips[loss.kind]} focusable inline align="start" className="transfer__kind">
-                {t.transfer.kinds[loss.kind]}
-              </Tipped>
-              {loss.names.length > 0 && <span className="transfer__names">{loss.names.join(', ')}</span>}
-              {loss.tasks.length > 0 && (
-                <Tipped tip={t.transfer.lossTip(loss.tasks)} focusable inline className="transfer__count">
-                  {t.transfer.lossTasks(loss.tasks.length)}
-                </Tipped>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
+/** The finished copy's word under the window: why its check is missing or did not match; `null` — it matched. */
+function checkNoticeOf(exported: ExportState): { tone: 'warn' | 'error'; text: string } | null {
+  if (exported.checkFailed !== null) return { tone: 'error', text: say(exported.checkFailed) }
+  if (exported.check === null) return { tone: 'warn', text: t.transfer.checkNone }
+  return checkMatched(exported.check) ? null : { tone: 'warn', text: t.transfer.mismatch(shortKinds(exported.check)) }
 }
 
 /**
  * "N of M" as the download meter shows its megabytes: the step the copy is at, a bar, the figures of that step (BTN-1194);
  * "Moved" once every task is through.
  */
-function Progress({ exported }: { exported: ExportState }) {
+export function Progress({ exported }: { exported: Pick<ExportState, 'progress' | 'total'> }) {
   const { stage, step, done } = meterOf(exported.progress, exported.total)
   const total = Math.max(exported.total, done)
   const name = stage === null ? t.transfer.progress : t.transfer.stages[stage]

@@ -34,7 +34,8 @@ export async function connectExportTarget(
     if (source.editor === undefined) throw fail('export.noEditor', { tracker: adapter.title })
     const vocabulary = source.vocabulary === undefined ? null : await source.vocabulary(project)
     const template = setup.issueUrl(project)
-    return { title: adapter.title, project, editor: source.editor, vocabulary, url: (key) => issueLink(template, key), close: () => source.close() }
+    const card = source.card?.bind(source)
+    return { title: adapter.title, project, editor: source.editor, vocabulary, url: (key) => issueLink(template, key), read: card, close: () => source.close() }
   } catch (error) {
     await source.close().catch(() => {})
     throw error

@@ -1,5 +1,7 @@
 import { sameName } from '../chain/rules.js'
 import type { Notice } from '../notice/notice.js'
+import type { TrackerCard } from './card.js'
+import type { TransferCheck } from './transfer-check.js'
 import { restoreFields, type TaskDraft, type TaskEditor } from './editor.js'
 import { isOpen, type StatusCategory, type TaskPriority, type TaskStatus } from './model.js'
 import type { TrackerVocabulary } from './source.js'
@@ -72,6 +74,8 @@ export interface ExportTarget {
   /** `null` — the tracker gives none: no label, milestone or status is sent. */
   vocabulary: TrackerVocabulary | null
   url(key: string): string | null
+  /** A created task as the target keeps it, for the check at the end (BTN-1291); absent — the target cannot be read back. */
+  read?(key: string): Promise<TrackerCard>
 }
 
 /** Each task's last finished stage; `pending` — its marker is saved and the create may have happened. */
@@ -150,7 +154,7 @@ function targetStatus(status: TaskStatus, statuses: readonly TaskStatus[]): Task
 }
 
 /** What the target keeps of a task. */
-interface Kept {
+export interface Kept {
   priority: boolean
   estimate: boolean
   blocks: boolean
@@ -165,7 +169,7 @@ interface Kept {
   status(status: TaskStatus): TaskStatus | null
 }
 
-async function keptBy({ editor, vocabulary }: ExportTarget): Promise<Kept> {
+export async function keptBy({ editor, vocabulary }: ExportTarget): Promise<Kept> {
   const types = editor.linkTypes ?? ['blocks', 'blockedBy', 'relates']
   const blocking = editor.blockingLinks === undefined ? true : await editor.blockingLinks()
   const spelled = (names: readonly string[] | undefined) => (name: string) => names?.find((each) => sameName(each, name))
@@ -184,7 +188,7 @@ async function keptBy({ editor, vocabulary }: ExportTarget): Promise<Kept> {
 }
 
 /** Parents before their children, else by number. */
-function parentsFirst(tasks: ExportTask[]): ExportTask[] {
+export function parentsFirst(tasks: ExportTask[]): ExportTask[] {
   const byRef = new Map(tasks.map((each) => [each.ref, each]))
   const depth = (task: ExportTask): number => {
     let count = 0
@@ -387,6 +391,10 @@ export interface ExportState {
   total: number
   /** Why the last run stopped; `null` — it did not, or none ran since the start of the service. */
   failed: Notice | null
+  /** The check after the last run or repeat (BTN-1291); `null` — none yet since the copy began. */
+  check: TransferCheck | null
+  /** Why the last check could not count; `null` — it did, or none ran since the start of the service. */
+  checkFailed: Notice | null
 }
 
 export function progressOf(rows: readonly ExportRow[]): { tasks: number } & Record<Exclude<ExportStage, 'pending'>, number> {

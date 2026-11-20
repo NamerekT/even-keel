@@ -4,6 +4,7 @@ import { idPrefixOf, parseConfig, projectLabel, readersOf, type EvenKeelConfig }
 import { fail, notice, type Notice } from '../notice/notice.js'
 import type { ProfileSet } from '../profiles/model.js'
 import type { ExportRow } from '../tracker/export.js'
+import { checkMatched } from '../tracker/transfer-check.js'
 import type { ExportHeader, ExportTargetFields } from './export-store.js'
 
 /**
@@ -37,6 +38,8 @@ export interface SwitchInput {
   header: ExportHeader | null
   rows: readonly ExportRow[]
   tasks: readonly SwitchTask[]
+  /** Past a check that did not match: "Switch without them". */
+  anyway?: boolean
 }
 
 /** What the switch did: the tracker it moved to and the old ids with their new ones. */
@@ -45,12 +48,15 @@ export interface Switched {
   names: Map<string, string>
 }
 
-export function switchTracker(deps: SwitchDeps, { project, header, rows, tasks }: SwitchInput): Switched {
+export function switchTracker(deps: SwitchDeps, { project, header, rows, tasks, anyway }: SwitchInput): Switched {
   const config = deps.config()
   if (header === null || header.finishedAt === null) throw fail('switch.noCopy', { key: projectLabel(config, project) })
   const copied = new Map(rows.flatMap((row) => (row.stage === 'marked' && row.key !== null ? [[row.ref, row.key] as const] : [])))
   const left = tasks.filter((task) => task.open && !copied.has(task.ref)).map((task) => task.id)
   if (left.length > 0) throw fail('switch.notCopied', { tasks: left })
+  // The check is frozen into the report at the switch, while the source still has what it is compared with (BTN-1291).
+  if (header.checked === null || header.plan === null) throw fail('switch.noCheck', {})
+  if (!checkMatched(header.checked) && anyway !== true) throw fail('switch.mismatch', {})
   const holds = switchHolds(deps.chain(), project)
   if (holds.length > 0) throw fail('switch.held', { key: projectLabel(config, project) }, { items: holds })
 

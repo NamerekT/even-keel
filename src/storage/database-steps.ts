@@ -846,4 +846,30 @@ export const STEPS: readonly string[] = [
   // Session context windows come from the agent (BTN-1354).
   `delete from setting_values where key = 'context.window';
    delete from setting_definitions where key = 'context.window';`,
+  // Transfers between trackers keep their check and a report (BTN-1291, `docs/storage.md`): the running transfer's
+  // direction, its plan as the person saw it and its last check, both JSON; a report a switch, frozen at that moment,
+  // kept as long as the project.
+  `
+  alter table tracker_exports add column direction text not null default 'export' check (direction in ('export', 'import'));
+  alter table tracker_exports add column plan text;
+  alter table tracker_exports add column checked text;
+  create table tracker_transfers (
+    id          text primary key,
+    project_id  text not null,
+    direction   text not null check (direction in ('export', 'import')),
+    tracker     text not null,
+    place       text not null,
+    key         text not null,
+    source_key  text,
+    closed      boolean not null default false,
+    history     boolean not null default false,
+    started_at  text not null,
+    finished_at text,
+    switched_at text not null,
+    plan        text not null,
+    checked     text not null,
+    matched     boolean not null
+  );
+  create index tracker_transfers_project on tracker_transfers (project_id, switched_at);
+  `,
 ]

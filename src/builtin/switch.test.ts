@@ -3,7 +3,8 @@ import { emptyChainState, type ChainState } from '../chain/model.js'
 import { parseConfig } from '../config.js'
 import { NoticeError, type Notice } from '../notice/notice.js'
 import type { ProfileSet, TrackerProfile } from '../profiles/model.js'
-import type { ExportRow } from '../tracker/export.js'
+import type { ExportPlan, ExportRow } from '../tracker/export.js'
+import type { TransferCheck } from '../tracker/transfer-check.js'
 import type { ExportHeader } from './export-store.js'
 import { switchHolds, switchTracker, type SwitchDeps, type SwitchInput } from './switch.js'
 
@@ -12,7 +13,12 @@ const XYZ = '22222222-2222-4222-8222-222222222222'
 const FEED = '33333333-3333-4333-8333-333333333333'
 const profile = (id: string, kind: string): TrackerProfile => ({ id, kind, name: kind, values: {}, isDefault: true, login: null, expiresAt: null })
 const PROFILES: ProfileSet = { profiles: [profile('gh', 'github'), profile('hl', 'huly')], links: {} }
-const HEADER: ExportHeader = { profile: 'gh', place: 'example/repo', key: 'GH', startedAt: '2026-11-13T10:00:00Z', finishedAt: '2026-11-13T10:05:00Z' }
+const MATCHED: TransferCheck = { at: '2026-11-13T10:05:00Z', rows: [{ kind: 'tasks', source: 2, target: 2, tasks: [] }] }
+const SHORT: TransferCheck = { at: '2026-11-13T10:05:00Z', rows: [{ kind: 'files', source: 3, target: 2, tasks: ['ABC-2'] }] }
+const PLAN: ExportPlan = { tasks: [], counts: { tasks: 2, comments: 0, files: 0, blocks: 0, relates: 0, subtasks: 0, milestones: 0, labels: 0 }, statuses: [], losses: [] }
+const HEADER: ExportHeader = {
+  profile: 'gh', place: 'example/repo', key: 'GH', startedAt: '2026-11-13T10:00:00Z', finishedAt: '2026-11-13T10:05:00Z', sourceKey: 'ABC', plan: PLAN, checked: MATCHED,
+}
 const row = (ref: string, number: number, key: string | null, stage: ExportRow['stage'] = 'marked'): ExportRow => ({ ref, number, key, url: null, stage, marker: null, done: 0 })
 
 function setup(options: { raw?: Record<string, unknown>; chain?: Partial<ChainState> } = {}) {
@@ -75,6 +81,18 @@ describe('switchTracker', () => {
     const unmarked = { ...INPUT, rows: [row('r1', 1, 'GH-7'), row('r2', 2, 'GH-8', 'journaled')] }
     expect(refusal(() => switchTracker(deps, unmarked))).toMatchObject({ code: 'switch.notCopied', params: { tasks: ['ABC-2'] } })
     expect(rename).not.toHaveBeenCalled()
+  })
+
+  it('refuses a copy not checked, and one whose check did not match unless switched anyway (BTN-1291)', () => {
+    const { deps, move } = setup()
+    expect(refusal(() => switchTracker(deps, { ...INPUT, header: { ...HEADER, checked: null } })).code).toBe('switch.noCheck')
+    expect(refusal(() => switchTracker(deps, { ...INPUT, header: { ...HEADER, plan: null } })).code).toBe('switch.noCheck')
+    expect(refusal(() => switchTracker(deps, { ...INPUT, header: { ...HEADER, checked: SHORT } })).code).toBe('switch.mismatch')
+    const late = { ...INPUT, header: { ...HEADER, checked: SHORT }, tasks: [...INPUT.tasks, { ref: 'r4', id: 'ABC-4', open: true }] }
+    expect(refusal(() => switchTracker(deps, late)).code).toBe('switch.notCopied')
+    expect(move).not.toHaveBeenCalled()
+    switchTracker(deps, { ...INPUT, header: { ...HEADER, checked: SHORT }, anyway: true })
+    expect(move).toHaveBeenCalled()
   })
 
   it('refuses with what holds the project while the chain works on it', () => {

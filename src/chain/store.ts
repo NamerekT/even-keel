@@ -125,7 +125,7 @@ export async function appendLaunch(db: Db, entry: LaunchEntry): Promise<void> {
 /** Deletes what the chain kept of a project gone without a trace (the demo's, BTN-776): launches, closed tasks, merge marks, task runs, exports, machines, handoff notes, memory, chats. */
 export function forgetProjectRows(db: Db, project: string): Promise<void> {
   return inTransaction(db, async (tx) => {
-    for (const table of ['launches', 'closed_tasks', 'merge_closes', 'task_runs', 'run_label_imports', 'tracker_exports', 'tracker_export_tasks', 'project_machines', 'machine_tasks', 'task_moves', 'handoff_notes', 'memory_records', 'chats', 'chat_choices']) {
+    for (const table of ['launches', 'closed_tasks', 'merge_closes', 'task_runs', 'run_label_imports', 'tracker_exports', 'tracker_export_tasks', 'tracker_transfers','project_machines', 'machine_tasks', 'task_moves', 'handoff_notes', 'memory_records', 'chats', 'chat_choices']) {
       await tx.query(`delete from ${table} where project_id = $1`, [project])
     }
   })

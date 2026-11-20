@@ -15,6 +15,7 @@ import { MilestoneTable } from './MilestoneTable.js'
 import { ProjectTracker } from './ProjectTracker.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { SourceDialog, SourceLine } from './SourceDialog.js'
+import { TransferReports } from './TransferReports.js'
 import type { useSourceMoves } from './SourceMoves.js'
 import { profileOf, switchOf } from './projectForm.js'
 import type { PanelFields } from './projectSettingsFields.js'
@@ -137,6 +138,7 @@ export function ProjectTrackerTab({
           }
         />
       )}
+      {state !== null && <TransferReports state={state} project={project} tracker={String(saved.tracker ?? '')} />}
       {(configuring || sourceTab !== '') && (
         <SourceDialog
           kind={text('tracker')}

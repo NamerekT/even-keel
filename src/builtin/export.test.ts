@@ -5,7 +5,9 @@ import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
 import { openDatabase } from '../storage/database.js'
+import type { TrackerCard } from '../tracker/card.js'
 import type { TaskDraft, TaskEditor } from '../tracker/editor.js'
+import { TrackerNotFound } from '../tracker/source.js'
 import type { OpenedExportTarget } from '../tracker/export-target.js'
 import { builtinControl } from './control.js'
 import { BuiltinExports } from './export.js'
@@ -31,7 +33,7 @@ beforeAll(async () => {
 afterAll(() => db.close())
 beforeEach(async () => {
   await db.exec(`truncate builtin_history, builtin_tasks, builtin_counters, builtin_labels, builtin_milestones, builtin_components, builtin_task_labels, builtin_relations, builtin_comments,
-    builtin_files, tracker_exports, tracker_export_tasks`)
+    builtin_files, tracker_exports, tracker_export_tasks, tracker_transfers`)
   store = new BuiltinStore(db, ({ number }) => `ABC-${number}`)
   dir = mkdtempSync(join(tmpdir(), 'export-'))
 })
@@ -50,6 +52,8 @@ function fakeTarget(options: { failComment?: boolean; components?: string[] } = 
   const created: TaskDraft[] = []
   const comments: { id: string; body: string }[] = []
   const attached: string[] = []
+  const attachedTo: string[] = []
+  const lost = new Set<number>()
   const links: string[] = []
   let release = () => {}
   let held = Promise.resolve()
@@ -78,7 +82,13 @@ function fakeTarget(options: { failComment?: boolean; components?: string[] } = 
         comments.push({ id, body })
         return String(comments.length)
       },
-      files: { attach: async (_id, files) => void attached.push(...files.map((each) => each.name)), comment: async () => '' },
+      files: {
+        attach: async (id, files) => {
+          attached.push(...files.map((each) => each.name))
+          attachedTo.push(...files.map(() => id))
+        },
+        comment: async () => '',
+      },
       ...(options.components === undefined ? {} : { components: true as const }),
     }
     return {
@@ -88,10 +98,32 @@ function fakeTarget(options: { failComment?: boolean; components?: string[] } = 
         ...(options.components === undefined ? {} : { components: options.components }),
       },
       url: (key) => `https://github.example.com/${key}`,
+      read: async (key) => card(key),
+    }
+  }
+  /** A created task read back as the check reads it; `lose` — the attachments dropped since. */
+  const card = (key: string): TrackerCard => {
+    const draft = created[Number(key.slice(3)) - 1]
+    if (draft === undefined) throw new TrackerNotFound(`${key} is gone`)
+    const status = { name: 'Open', category: 'ToDo' } as const
+    const ref = (id: string) => ({ id, title: id, status })
+    const linked = (kind: string) => links.map((each) => each.split(' ')).filter(([, link]) => link === kind)
+    return {
+      id: key, title: draft.title, description: '', status, priority: 'none', labels: draft.labels,
+      milestone: draft.milestone === null ? null : { label: draft.milestone, targetDate: null },
+      parent: draft.parent === null ? null : ref(draft.parent),
+      blocks: linked('blocks').filter(([from]) => from === key).map(([, , to]) => ref(to!)),
+      blockedBy: linked('blocks').filter(([, , to]) => to === key).map(([from]) => ref(from!)),
+      related: [],
+      comments: comments.filter((each) => each.id === key).map((each, index) => ({ id: String(index), body: each.body, author: 'bot', at: 0 }) as unknown as TrackerCard['comments'][number]),
+      attachments: attachedTo.flatMap((id, index) => (id === key && !lost.has(index) ? [{ file: attached[index]!, name: attached[index]!, type: '', size: 0, url: null }] : [])),
+      component: draft.component ?? null,
     }
   }
   return {
     created, comments, attached, links, target,
+    /** Drops every attachment from the copies, as a person deleting them there. */
+    lose: () => attachedTo.forEach((_, index) => lost.add(index)),
     hold() {
       held = new Promise((resolve) => (release = resolve))
     },
@@ -315,7 +347,7 @@ describe('the switch after the copy (BTN-1074)', () => {
     expect(moved).toEqual([{ tracker: 'github', trackerProject: 'example/repo', key: 'GH', profile: 'gh' }])
   })
 
-  it('writes the switch into the event log with the old key and the new one (BTN-1193)', async () => {
+  it('writes the switch into the event log with the old key, the new one and its report (BTN-1193, BTN-1291)', async () => {
     await seed()
     const events: EventDraft[] = []
     const exports = new BuiltinExports({
@@ -326,9 +358,82 @@ describe('the switch after the copy (BTN-1074)', () => {
     await exports.settled(ABC)
     events.length = 0
     await exports.switch(ABC)
+    const [report] = await exports.transfers(ABC)
     expect(events).toEqual([
-      { level: 'info', notice: { code: 'eventLog.trackerSwitched', params: { project: ABC, tracker: 'GitHub', from: 'ABC', to: 'GH' } }, place: { view: 'project', project: ABC } },
+      {
+        level: 'info',
+        notice: { code: 'eventLog.transferMatched', params: { project: ABC, tracker: 'GitHub', from: 'ABC', to: 'GH' } },
+        place: { view: 'tracker', project: ABC, transfer: report!.id },
+      },
     ])
+  })
+
+  it('checks the copy at its end, keeps the plan and freezes both into a report at the switch (BTN-1291)', async () => {
+    await seed()
+    const exports = exportsSwitching(fakeTarget(), switching().deps)
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    const state = await exports.state(ABC)
+    expect(state.checkFailed).toBeNull()
+    expect(state.check?.rows.map((row) => [row.kind, row.source, row.target, row.tasks])).toEqual([
+      ['tasks', 2, 2, []],
+      ['comments', 2, 2, []],
+      ['files', 1, 1, []],
+      ['links', 2, 2, []],
+      ['milestones', 0, 0, []],
+      ['labels', 1, 1, []],
+    ])
+    await exports.switch(ABC)
+    const list = await exports.transfers(ABC)
+    expect(list).toMatchObject([{ direction: 'export', tracker: 'github', matched: true, tasks: 2 }])
+    const report = await exports.transfer(list[0]!.id)
+    expect(report).toMatchObject({ project: ABC, place: 'example/repo', key: 'GH', sourceKey: 'ABC', closed: false, check: state.check })
+    expect(report?.plan.losses.map((loss) => loss.kind)).toContain('milestones')
+    expect(await exports.transfer('transfer-none')).toBeNull()
+  })
+
+  it('refuses to switch past a check that did not match until "Repeat" brings the missing over, or the switch goes anyway', async () => {
+    await seed()
+    const tracker = fakeTarget()
+    const { deps, moved } = switching()
+    const exports = exportsSwitching(tracker, deps)
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    tracker.lose()
+    await exports.retry(ABC)
+    await exports.settled(ABC)
+    expect(tracker.attached, 'the repeat attaches the lost file again').toEqual(['shot.png', 'shot.png'])
+    expect((await exports.state(ABC)).check?.rows.find((row) => row.kind === 'files')).toMatchObject({ source: 1, target: 1 })
+    tracker.lose()
+    tracker.attached.length = 0
+    // A target whose files are gone for good: the repeat attaches nothing new, the check stays short.
+    const stuck = new BuiltinExports({
+      db, places: () => PLACES, filesDir: join(dir, 'gone'), connect: async () => ({ ...tracker.target(), read: async (key) => ({ ...(await tracker.target().read!(key)), attachments: [] }) }),
+      refresh: async () => true, say: () => {}, switching: deps,
+    })
+    await stuck.retry(ABC)
+    await stuck.settled(ABC)
+    const check = (await stuck.state(ABC)).check
+    expect(check?.rows.find((row) => row.kind === 'files')).toEqual({ kind: 'files', source: 1, target: 0, tasks: ['ABC-1'] })
+    expect(await refusal(stuck.switch(ABC))).toBe('switch.mismatch')
+    expect(moved).toEqual([])
+    await stuck.switch(ABC, true)
+    expect(moved).toHaveLength(1)
+    expect(await stuck.transfers(ABC)).toMatchObject([{ matched: false }])
+  })
+
+  it('keeps the copy finished when its check cannot read the target, and switches only after a check', async () => {
+    await seed()
+    const tracker = fakeTarget()
+    const exports = new BuiltinExports({
+      db, places: () => PLACES, filesDir: dir, connect: async () => ({ ...tracker.target(), read: async () => Promise.reject(new Error('HTTP 503')) }),
+      refresh: async () => true, say: () => {}, switching: switching().deps,
+    })
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    const state = await exports.state(ABC)
+    expect(state).toMatchObject({ finishedAt: expect.any(String), failed: null, check: null, checkFailed: { code: 'export.checkFailed', detail: 'HTTP 503' } })
+    expect(await refusal(exports.switch(ABC))).toBe('switch.noCheck')
   })
 
   it('refuses while a task filed after the copy is not copied, or while the copy runs', async () => {

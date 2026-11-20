@@ -2,11 +2,13 @@ import { readFile } from 'node:fs/promises'
 import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
 import type { EventDraft, EventLevel, EventPlace } from '../event-log/model.js'
 import type { Db } from '../storage/database.js'
-import { exportPlan, progressOf, runExport, type ExportPlan, type ExportRow, type ExportSource, type ExportState } from '../tracker/export.js'
+import { exportPlan, progressOf, runExport, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportState } from '../tracker/export.js'
 import type { OpenedExportTarget } from '../tracker/export-target.js'
 import { errorText } from '../tracker/link.js'
 import type { TrackerPlace } from '../tracker/source.js'
-import { ExportRecords, type ExportTargetFields } from './export-store.js'
+import { checkExport, checkMatched, repairExport, type TransferReport, type TransferSummary } from '../tracker/transfer-check.js'
+import { ExportRecords, type ExportHeader, type ExportTargetFields } from './export-store.js'
+import { TransferReports } from './transfer-store.js'
 import { whileExporting } from './exporting.js'
 import { checkMove, switchTracker, type SwitchDeps, type Switched } from './switch.js'
 import { isOpen } from '../tracker/model.js'
@@ -23,6 +25,8 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
     for (const [number, id] of await idsOf()) if (id === ref) return { project, number }
     throw fail('builtin.noTask', { task: ref })
   }
+  /** The journal without the copy's own "Moved to" notes: they stay behind, neither copied nor counted by the check. */
+  const journalOf = async (task: TaskKey) => (await store.comments(task)).filter((each) => !(each.author === 'service' && each.body.startsWith('Moved to ')))
   return {
     async tasks() {
       const map = await idsOf()
@@ -45,14 +49,14 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
           blocks: task.blocks.map(refOf),
           related: task.related.map(refOf),
           files: (await store.files(task)).length,
-          comments: (await store.comments(task)).length + (history && (await store.history(task)).length > 0 ? 1 : 0),
+          comments: (await journalOf(task)).length + (history && (await store.history(task)).length > 0 ? 1 : 0),
           history: (await store.history(task)).length,
         })),
       )
     },
     async comments(ref) {
       const task = await keyOf(ref)
-      const comments = (await store.comments(task)).map((each) => ({ author: each.author, model: each.model, body: each.body, at: each.at }))
+      const comments = (await journalOf(task)).map((each) => ({ author: each.author, model: each.model, body: each.body, at: each.at }))
       const changes = history ? await store.history(task) : []
       if (changes.length > 0) comments.push({ author: 'service', model: null, body: historySummary(changes), at: new Date(Math.max(...changes.map((each) => each.at))).toISOString() })
       return comments
@@ -94,6 +98,7 @@ export interface BuiltinExportsDeps {
   event?: (draft: EventDraft) => void
   /** A tracker's name by its adapter's kind, for the switch's entry; without it the kind itself. */
   trackerTitle?: (kind: string) => string
+  now?: () => Date
 }
 
 /**
@@ -104,10 +109,15 @@ export class BuiltinExports {
   private readonly records: ExportRecords
   private readonly runs = new Map<string, Promise<void>>()
   private readonly failures = new Map<string, Notice>()
+  private readonly checkFailures = new Map<string, Notice>()
+  private readonly reports: TransferReports
   private readonly say: (line: string) => void
+  private readonly now: () => Date
 
   constructor(private readonly deps: BuiltinExportsDeps) {
-    this.records = new ExportRecords(deps.db)
+    this.now = deps.now ?? (() => new Date())
+    this.records = new ExportRecords(deps.db, this.now)
+    this.reports = new TransferReports(deps.db)
     this.say = deps.say ?? ((line) => console.log(line))
   }
 
@@ -131,9 +141,33 @@ export class BuiltinExports {
     const same = header !== null && header.profile === fields.profile && header.place === fields.place && header.key === fields.key
     const source = this.sourceOf(project, same ? header.history : fields.history)
     if (this.runs.has(project)) return this.state(project)
-    const prepared = this.prepare(project, source, fields)
+    return this.launch(project, source, this.prepare(project, source, fields), runExport)
+  }
+
+  /**
+   * "Repeat" after a check that did not match or could not count (BTN-1291): the copy goes on to its target, each task
+   * gets what its copy lacks (`repairExport`), and the check counts again.
+   */
+  async retry(project: string): Promise<ExportState> {
+    const header = await this.records.header(project)
+    if (header === null) throw fail('switch.noCopy', { key: this.deps.switching?.config().keys[project] ?? project })
+    const source = this.sourceOf(project, header.history)
+    if (this.runs.has(project)) return this.state(project)
+    const prepared = (async () => {
+      this.checkTarget(project, header)
+      const target = await this.deps.connect(project, header)
+      if (header.finishedAt !== null) await this.records.reopen(project)
+      this.failures.delete(project)
+      const total = await this.total(project, await this.records.rows(project))
+      this.event('info', notice('eventLog.exportContinued', { project, tracker: target.title, total }), { view: 'tracker', project })
+      return target
+    })()
+    return this.launch(project, source, prepared, repairExport)
+  }
+
+  private async launch(project: string, source: ExportSource, prepared: Promise<OpenedExportTarget | null>, work: (run: ExportRun) => Promise<void>): Promise<ExportState> {
     const run = prepared.then(
-      (target) => (target === null ? undefined : this.run(project, source, target)),
+      (target) => (target === null ? undefined : this.run(project, source, target, work)),
       () => undefined,
     )
     this.runs.set(project, run)
@@ -153,7 +187,19 @@ export class BuiltinExports {
       progress: progressOf(rows),
       total: await this.total(project, rows),
       failed: this.failures.get(project) ?? null,
+      check: header?.checked ?? null,
+      checkFailed: this.checkFailures.get(project) ?? null,
     }
+  }
+
+  /** The project's finished transfers, the latest first (BTN-1291). */
+  transfers(project: string): Promise<TransferSummary[]> {
+    return this.reports.list(project)
+  }
+
+  /** `null` — no such report. */
+  transfer(id: string): Promise<TransferReport | null> {
+    return this.reports.read(id)
   }
 
   private async total(project: string, rows: readonly ExportRow[]): Promise<number> {
@@ -173,7 +219,7 @@ export class BuiltinExports {
    * Moves the project to the tracker its finished copy went to (BTN-1074, `switch.ts`): the chain reads its tasks there
    * from now on, and the built-in ones stay in the database with their note.
    */
-  async switch(project: string): Promise<Switched> {
+  async switch(project: string, anyway = false): Promise<Switched> {
     const switching = this.deps.switching
     if (switching === undefined) throw fail('builtin.off', {})
     const names = new BuiltinNames(this.deps.places())
@@ -183,12 +229,42 @@ export class BuiltinExports {
     const [header, rows, ids, list] = await Promise.all([this.records.header(project), this.records.rows(project), store.rowIds(project), store.list([project])])
     const tasks = list.map((task) => ({ ref: ids.get(task.number)!, id: names.name(task), open: isOpen(task.status) }))
     const from = switching.config().keys[project] ?? project
-    const switched = switchTracker(switching, { project, header, rows, tasks })
+    const switched = switchTracker(switching, { project, header, rows, tasks, anyway })
     this.say(`export: ${project}: the project now reads its tasks from ${switched.move.tracker}, ${switched.names.size} of them under new ids`)
     const tracker = this.deps.trackerTitle?.(switched.move.tracker) ?? switched.move.tracker
-    this.event('info', notice('eventLog.trackerSwitched', { project, tracker, from, to: switched.move.key }), { view: 'project', project })
+    const said = { project, tracker, from, to: switched.move.key }
+    const report = await this.report(project, header!, switched.move.tracker, from)
+    const matched = report?.matched ?? true
+    const place: EventPlace = { view: 'tracker', project, ...(report === null ? {} : { transfer: report.id }) }
+    this.event(matched ? 'info' : 'warning', notice(matched ? 'eventLog.transferMatched' : 'eventLog.transferMismatched', said), place)
     await this.deps.refresh(project).catch(() => {})
     return switched
+  }
+
+  /** The switched transfer's report; `null` — it could not be written, and the switch stands. */
+  private async report(project: string, header: ExportHeader, tracker: string, from: string): Promise<TransferReport | null> {
+    try {
+      const check = header.checked!
+      return await this.reports.add({
+        project,
+        direction: 'export',
+        tracker,
+        place: header.place,
+        key: header.key,
+        sourceKey: header.sourceKey ?? from,
+        closed: false,
+        history: header.history === true,
+        startedAt: header.startedAt,
+        finishedAt: header.finishedAt,
+        switchedAt: this.now().toISOString(),
+        plan: header.plan!,
+        check,
+        matched: checkMatched(check),
+      })
+    } catch (error) {
+      this.say(`export: ${project}: the transfer's report is not saved: ${errorText(error)}`)
+      return null
+    }
   }
 
   private event(level: EventLevel, said: Notice, place: EventPlace): void {
@@ -221,7 +297,11 @@ export class BuiltinExports {
     if (header !== null && !same && (await this.records.rows(project)).length > 0) throw fail('export.otherTarget', {})
     this.checkTarget(project, fields)
     const target = await this.deps.connect(project, fields)
-    if (!same) await this.records.begin(project, fields)
+    if (!same) {
+      await this.records.begin(project, fields)
+      // The plan as the person saw it, kept for the report (BTN-1291).
+      await this.records.savePlan(project, await exportPlan(source, target))
+    }
     this.failures.delete(project)
     const total = await this.total(project, await this.records.rows(project))
     const said = same
@@ -231,14 +311,17 @@ export class BuiltinExports {
     return target
   }
 
-  private async run(project: string, source: ExportSource, target: OpenedExportTarget): Promise<void> {
+  private async run(project: string, source: ExportSource, target: OpenedExportTarget, work: (run: ExportRun) => Promise<void>): Promise<void> {
     const place: EventPlace = { view: 'tracker', project }
     try {
-      await whileExporting(project, () => runExport({ source, target, log: this.records.log(project), say: this.say }))
-      await this.records.finish(project)
-      this.say(`export: ${project}: the tasks are copied to ${target.title}`)
-      const copied = progressOf(await this.records.rows(project)).marked
-      this.event('info', notice('eventLog.exportFinished', { project, tracker: target.title, copied }), place)
+      await whileExporting(project, async () => {
+        await work({ source, target, log: this.records.log(project), say: this.say })
+        await this.records.finish(project)
+        this.say(`export: ${project}: the tasks are copied to ${target.title}`)
+        const copied = progressOf(await this.records.rows(project)).marked
+        this.event('info', notice('eventLog.exportFinished', { project, tracker: target.title, copied }), place)
+        await this.check(project, source, target)
+      })
     } catch (error) {
       const detail = errorText(error)
       const failed = notice('export.failed', { tracker: target.title }, { detail })
@@ -248,6 +331,22 @@ export class BuiltinExports {
     } finally {
       await target.close().catch(() => {})
       await this.deps.refresh(project).catch(() => {})
+    }
+  }
+
+  /** Counts both sides after a run (BTN-1291); a count that fails leaves the copy finished, with no check to switch by. */
+  private async check(project: string, source: ExportSource, target: OpenedExportTarget): Promise<void> {
+    this.checkFailures.delete(project)
+    try {
+      if ((await this.records.header(project))?.plan === null) await this.records.savePlan(project, await exportPlan(source, target))
+      const check = await checkExport(source, target, await this.records.rows(project), this.now)
+      await this.records.saveCheck(project, check)
+      this.say(`export: ${project}: the check of the copy ${checkMatched(check) ? 'matched' : 'did not match'}`)
+    } catch (error) {
+      await this.records.saveCheck(project, null).catch(() => {})
+      const failed = notice('export.checkFailed', { tracker: target.title }, { detail: errorText(error) })
+      this.checkFailures.set(project, failed)
+      this.say(`export: ${project}: ${englishOf(failed)}`)
     }
   }
 }

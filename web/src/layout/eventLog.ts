@@ -4,6 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { BACKLOG_HASH } from '../pages/BacklogPanel.js'
 import { CI_HASH } from '../pages/CiChip.js'
 import { openTab, projectScope, SETTINGS_HASH } from '../pages/settingsStore.js'
+import { openReport } from '../pages/transferStore.js'
 import { projectPath } from '../state.js'
 import { PACKAGES_PARAM } from '../tools/packageGroups.js'
 
@@ -34,7 +35,10 @@ export function placePath(place: EventPlace | null, state: Pick<EvenKeelState, '
 
 /** Before going to the place: the copy to another tracker opens its project's settings on the Tracker tab (BTN-1193). */
 export function openPlace(place: EventPlace | null): void {
-  if (place?.view === 'tracker') openTab(projectScope(place.project), 'tracker')
+  if (place?.view !== 'tracker') return
+  openTab(projectScope(place.project), 'tracker')
+  // A finished transfer's entry opens its report there (BTN-1291).
+  if (place.transfer !== undefined) openReport(place.project, place.transfer)
 }
 
 const idOf = (entry: EventEntry) => Number(entry.id)
