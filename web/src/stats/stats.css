@@ -106,10 +106,89 @@
   background: var(--series);
 }
 
+/* Name, sum and share in columns of their own (BTN-1384); fixed widths keep the folded tail's columns under the major keys'. */
+.sources__legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 360px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-13);
+}
+
 .sources__key {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10ch 5ch;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.sources__name {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-6);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sources__sum,
+.sources__share {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sources__share {
+  color: var(--fg-muted);
+}
+
+.sources__others {
+  display: inline-flex;
+  gap: var(--space-8);
+  font-size: var(--text-13);
+}
+
+.stats-tile__share {
+  margin-left: var(--space-8);
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+
+.stats-tile__line {
+  display: block;
+}
+
+/* A tile's secondary figures: a muted caption at the left, the figure at the right (BTN-1384). */
+.tile-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-13);
+}
+
+.tile-rows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.tile-rows dt {
+  color: var(--fg-muted);
+}
+
+.tile-rows dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-rows__tipped {
+  border-bottom: 1px dotted var(--fg-muted);
+  cursor: help;
 }
 
 .checkpoints {
@@ -235,7 +314,15 @@
 }
 
 .task-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
   margin: 8px 0 0;
+}
+
+.task-steps__step {
+  white-space: nowrap;
 }
 
 .task-steps__note {
@@ -484,8 +571,13 @@
 }
 
 .timeline__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin-top: var(--space-2);
   color: var(--fg-muted);
   font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
 }
 
 .timeline__label .account-tag {

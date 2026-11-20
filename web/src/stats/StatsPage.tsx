@@ -19,7 +19,7 @@ import { autoStep, localDay, resolvePeriod, type DayRange, type PeriodChoice } f
 import { PeriodPicker } from './PeriodPicker.js'
 import { PageHead } from '../ui/blocks.js'
 import { ProjectList } from '../ui/ProjectList.js'
-import { Select } from '../ui/Select.js'
+import { Select, type SelectOption } from '../ui/Select.js'
 import { Switch } from '../pages/settingsParts.js'
 import { RulesSection } from './RulesSection.js'
 import { EstimateSection } from './EstimateSection.js'
@@ -33,11 +33,12 @@ import './stats.css'
 
 const SCOPES: StatsScope[] = ['all', 'chain']
 
-/** An account of a machine elsewhere is `<key>@<machine id>` in Tally (BTN-1280): its key and the machine's name. */
-function accountLabel(state: EvenKeelState, machineNames: Record<string, string>, account: string): string {
+/** An account of a machine elsewhere is `<key>@<machine id>` in Tally (BTN-1280): its key, and the machine's name as a tag beside it. */
+function accountOption(state: EvenKeelState, machineNames: Record<string, string>, account: string): SelectOption {
   const at = account.lastIndexOf('@')
   const name = at < 0 ? undefined : machineNames[account.slice(at + 1)]
-  return name === undefined ? folderLabel(state.account, account) : `${account.slice(0, at)} · ${name}`
+  if (name === undefined) return { value: account, label: folderLabel(state.account, account) }
+  return { value: account, label: account.slice(0, at), aside: <span className="tag">{name}</span> }
 }
 
 export function StatsPage({ state }: { state: EvenKeelState }) {
@@ -160,7 +161,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               value={view.account ?? ''}
               options={[
                 { value: '', label: t.stats.all },
-                ...[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => ({ value: account, label: accountLabel(state, machineNames, account) })),
+                ...[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => accountOption(state, machineNames, account)),
               ]}
               onChange={(account) => setView({ account: account || null })}
             />

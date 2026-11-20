@@ -46,7 +46,7 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
             ) : (
               <span title={formatRange(previousRange(range))}>{t.stats.summary.change(change, days)}</span>
             )}
-            {current.unpriced > 0 && t.stats.summary.unpriced(current.unpriced)}
+            {current.unpriced > 0 && <span className="stats-tile__line">{t.stats.summary.unpriced(current.unpriced)}</span>}
           </>
         }
       />
@@ -60,7 +60,11 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
         value={`${current.tasks} / ${current.sessions}`}
         note={`${current.messages.toLocaleString(language)} ${t.stats.summary.answers(current.messages)}`}
       />
-      <Tile label={t.stats.summary.stuck} value={`${formatUsd(current.stuckCost)} · ${formatShare(stuckShare)}`} note={t.stats.summary.stuckNote} />
+      <Tile
+        label={t.stats.summary.stuck}
+        value={<>{formatUsd(current.stuckCost)}<span className="stats-tile__share">{formatShare(stuckShare)}</span></>}
+        note={t.stats.summary.stuckNote}
+      />
     </TileGrid>
   )
 }
@@ -176,6 +180,25 @@ function ShareBar({ title, shares, label }: { title: string; shares: StatsShare[
   const major = shown.filter(each => each.cost / total >= 0.01)
   const tail = shown.filter(each => each.cost / total < 0.01)
   const slot = (index: number) => (index < TONES ? index + 1 : null)
+  const key = (each: StatsShare) => (
+    <li key={each.key} className="sources__key" style={toneStyle(slot(shown.indexOf(each)))}>
+      <span className="sources__name">
+        <span className="chart__swatch" aria-hidden="true" />
+        {label(each.key)}
+      </span>
+      <span className="sources__sum">{formatUsd(each.cost)}</span>
+      <span className="sources__share">{formatShare(total > 0 ? (each.cost / total) * 100 : null)}</span>
+    </li>
+  )
+  // The tail is under 1% each: its tip names each one with its sum, the share would say "< 1%" every line.
+  const others = (
+    <Tipped inline tip={tail.map((each) => <span key={each.key}>{label(each.key)}: {formatUsd(each.cost)}<br /></span>)}>
+      <span className="sources__others">
+        {t.stats.others}
+        <span className="sources__share">{formatShare((tail.reduce((sum, each) => sum + each.cost, 0) / total) * 100)}</span>
+      </span>
+    </Tipped>
+  )
   return (
     <div className="sources__row">
       <h3 className="sources__title">{title}</h3>
@@ -184,22 +207,9 @@ function ShareBar({ title, shares, label }: { title: string; shares: StatsShare[
           <span key={each.key} style={{ ...toneStyle(slot(index)), flexGrow: each.cost }} />
         ))}
       </div>
-      <ul className="chart__legend">
-        {major.map((each) => (
-          <li key={each.key} className="sources__key" style={toneStyle(slot(shown.indexOf(each)))}>
-            <span className="chart__swatch" aria-hidden="true" />
-            {label(each.key)}
-            <span className="chart__key-count">
-              {formatUsd(each.cost)} · {formatShare(total > 0 ? (each.cost / total) * 100 : null)}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {tail.length > 0 && <Fold summary={<Tipped inline tip={tail.map(each => <span key={each.key}>{label(each.key)}: {formatUsd(each.cost)} · {formatShare(each.cost / total * 100)}<br /></span>)}><span>{t.stats.others} · {formatShare(tail.reduce((sum, each) => sum + each.cost, 0) / total * 100)}</span></Tipped>}>
-        <ul className="chart__legend">{tail.map(each => <li key={each.key} className="sources__key" style={toneStyle(slot(shown.indexOf(each)))}>
-          <span className="chart__swatch" aria-hidden="true" />{label(each.key)}
-          <span className="chart__key-count">{formatUsd(each.cost)} · {formatShare(each.cost / total * 100)}</span>
-        </li>)}</ul>
+      <ul className="sources__legend">{major.map(key)}</ul>
+      {tail.length > 0 && <Fold summary={others}>
+        <ul className="sources__legend">{tail.map(key)}</ul>
       </Fold>}
     </div>
   )

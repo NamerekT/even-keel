@@ -243,8 +243,9 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
                 {launchLabel(session.reason)}
               </Tipped>
               <span className="timeline__meta">
-                {session.model !== null && modelLabel(session.model.replace(/^claude-([a-z]+).*$/, '$1'))} · {session.priceEstimate === null ? (
-                  formatUsd(session.cost)
+                {session.model !== null && <span className="tag">{modelLabel(session.model.replace(/^claude-([a-z]+).*$/, '$1'))}</span>}
+                {session.priceEstimate === null ? (
+                  <span>{formatUsd(session.cost)}</span>
                 ) : (
                   <Tipped tip={t.stats.tasks.priceEstimate(formatUsd(session.priceEstimate))} align="start" inline>
                     {formatUsd(session.cost)}
@@ -303,9 +304,8 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
       {detail.steps.length > 0 && (
         <p className="task-steps">
           {t.stats.tasks.steps}{' '}
-          {detail.steps.map((step, index) => (
-            <span key={step.step} title={`${t.stats.tasks.launches(step.runs)}, ${formatSeconds(step.seconds)}`}>
-              {index > 0 && ' · '}
+          {detail.steps.map((step) => (
+            <span key={step.step} className="task-steps__step" title={`${t.stats.tasks.launches(step.runs)}, ${formatSeconds(step.seconds)}`}>
               <code>{step.step}</code> {step.share === null ? formatSeconds(step.seconds) : formatShare(step.share * 100)}
             </span>
           ))}

@@ -337,11 +337,30 @@
   font-size: var(--text-13);
 }
 
+/* Reasons, kinds, task tags and authors each stand apart by the gap, never by a glued dot (BTN-1384). */
 .rule-mark__what,
 .rule-mark__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-12);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.rule-mark__what .rule-kind,
+.rule-mark__who .rule-kind {
+  margin-right: 0;
+}
+
+.rule-mark__reason {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.rule-mark__task {
+  font-family: var(--mono);
 }
 
 .rule-hint {
@@ -498,7 +517,7 @@
 @media (max-width: 640px) {
   .rule-mark { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-6) var(--space-12); }
   .rule-mark__when { grid-column: 1 / -1; flex-direction: row; gap: var(--space-6); }
-  .rule-mark__what, .rule-mark__who { white-space: normal; overflow-wrap: anywhere; }
+  .rule-mark__what, .rule-mark__who { flex-wrap: wrap; white-space: normal; overflow-wrap: anywhere; }
   .rule-file { grid-template-columns: 16px minmax(0, 1fr) auto; }
   .rule-file > .ui-fold__caret { grid-row: 1 / span 2; align-self: center; }
   .rule-file__where, .rule-file__path { grid-column: 2; }
@@ -519,6 +538,18 @@
   flex-direction: column;
   gap: 6px;
   margin: 4px 0 8px;
+}
+
+.rule-diff__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
+}
+
+.rule-diff__head .rule-lines {
+  margin-left: 0;
+  padding-left: 0;
 }
 
 .rule-diff__hunk {

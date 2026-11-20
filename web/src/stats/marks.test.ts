@@ -127,13 +127,14 @@ describe('markSummary', () => {
     ])
   })
 
-  it('names tasks first, then sessions in quotes, then edits by hand, without repeats', () => {
+  it('names tasks apart from sessions in quotes and edits by hand, each without repeats', () => {
     const summary = markSummary({
       fromAt: base.at,
       toAt: base.at,
       sets: [base, { ...base, sessionId: 'x', title: 'Audit' }, { ...base, task: 'A-2', title: 'A-2' }, { ...base, task: 'A-1' }, { ...base, task: 'A-2' }],
     })
-    expect(summary.who).toEqual(['A-2', 'A-1', '«Audit»', 'вручную'])
+    expect(summary.tasks).toEqual(['A-2', 'A-1'])
+    expect(summary.who).toEqual(['«Audit»', 'вручную'])
   })
 
   it('keeps each journal reason once', () => {

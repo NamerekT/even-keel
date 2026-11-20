@@ -67,8 +67,11 @@ function FileDiff({ file }: { file: RuleSetFile }) {
     <div className="rule-diff">
       {files.map((each, index) => (
         <div key={`${each.key}:${index}`} className="rule-diff__file">
-          <span className="stats-section__note">
-            {formatMoment(each.fromAt, new Date())} → {formatMoment(each.toAt, new Date())} · <Lines added={each.added} removed={each.removed} />
+          <span className="rule-diff__head">
+            <span className="stats-section__note">
+              {formatMoment(each.fromAt, new Date())} → {formatMoment(each.toAt, new Date())}
+            </span>
+            <Lines added={each.added} removed={each.removed} />
           </span>
           {each.hunks.map((hunk) => (
             <pre key={`${hunk.oldStart}:${hunk.newStart}`} className="rule-diff__hunk">
@@ -145,7 +148,6 @@ function MarkRow({ mark, on, now, colors, onPick }: { mark: RuleMark; on: boolea
   const summary = markSummary(mark)
   const [day, time] = spanText(mark.fromAt, mark.toAt, now)
   const why = summary.reasons.length > 0
-  const who = summary.who.join(', ')
   return (
     <button type="button" className={on ? 'rule-mark rule-mark--on' : 'rule-mark'} aria-pressed={on} onClick={(event) => onPick(event.shiftKey || event.ctrlKey || event.metaKey)}>
       <span className="rule-mark__when">
@@ -153,11 +155,20 @@ function MarkRow({ mark, on, now, colors, onPick }: { mark: RuleMark; on: boolea
         <span className="rule-mark__muted">{time}</span>
       </span>
       <span className="rule-mark__body">
-        <span className="rule-mark__what">{why ? summary.reasons.join(' · ') : <KindList kinds={summary.kinds} colors={colors} />}</span>
+        <span className="rule-mark__what">
+          {why ? summary.reasons.map((reason) => <span key={reason} className="rule-mark__reason">{reason}</span>) : <KindList kinds={summary.kinds} colors={colors} />}
+        </span>
         <span className="rule-mark__muted rule-mark__who">
           {why && <KindList kinds={summary.kinds} colors={colors} />}
-          {why && who !== '' && ' · '}
-          {who}
+          {/* A key's link lives in the opened card: the row is a button and holds no link. */}
+          {summary.tasks.map((task) => (
+            <span key={task} className="tag rule-mark__task">
+              {task}
+            </span>
+          ))}
+          {summary.who.map((name) => (
+            <span key={name}>{name}</span>
+          ))}
         </span>
       </span>
       <span className="rule-mark__size">
@@ -227,8 +238,9 @@ function Picked({ marks, before, after, now, colors, trackerUrls }: { marks: Rul
     <Fold key={`${before}:${after}`} className="rule-card" summaryClassName="rule-card__head" summary={<>
         <span className="rule-card__title">{t.stats.rules.changed}</span>
         <span className="stats-section__note">
-          {day} {time} · {t.stats.rules.fileCount(summary.files)}
+          {day} {time}
         </span>
+        <span className="stats-section__note">{t.stats.rules.fileCount(summary.files)}</span>
         <Lines added={summary.added} removed={summary.removed} />
       </>}>
       {[...days].map(([label, each]) => (

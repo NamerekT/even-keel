@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react'
 import type { StatsTaskRow } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
+import { Tipped } from '../ui/Tipped.js'
 import { accuracy, type AccuracyGroup } from './accuracy.js'
 import { Section, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatShare, modelLabel } from './format.js'
@@ -21,7 +23,21 @@ export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: 
   const skipped = [
     result.unestimated > 0 && t.stats.estimate.unestimated(result.unestimated),
     result.open > 0 && t.stats.estimate.open(result.open),
-  ].filter(Boolean)
+  ].filter((each) => each !== false)
+  const within: TileRow[] = [
+    ...(result.within2 === null ? [] : [[t.stats.estimate.within2Label, formatShare(result.within2)] satisfies TileRow]),
+    [t.stats.estimate.comparedLabel, result.compared],
+    ...(skipped.length === 0
+      ? []
+      : [
+          [
+            t.stats.estimate.skipped,
+            <Tipped focusable inline tip={skipped.map((line) => <span key={line}>{line}<br /></span>)}>
+              <span className="tile-rows__tipped">{result.unestimated + result.open}</span>
+            </Tipped>,
+          ] satisfies TileRow,
+        ]),
+  ]
 
   return (
     <Section
@@ -37,27 +53,17 @@ export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: 
     >
       <TileGrid>
         <Tile label={t.stats.estimate.median} value={formatDuration(result.medianS)} note={t.stats.estimate.done(result.done)} />
-        <Tile
-          label={t.stats.estimate.within}
-          value={formatShare(result.within)}
-          note={
-            <>
-              {result.within2 !== null && `${t.stats.estimate.within2(formatShare(result.within2))} · `}
-              {t.stats.estimate.compared(result.compared)}
-              {skipped.length > 0 && ` · ${skipped.join(' · ')}`}
-            </>
-          }
-        />
+        <Tile label={t.stats.estimate.within} value={formatShare(result.within)}>
+          <TileRows rows={within} />
+        </Tile>
         {result.baseline && (
           <Tile
             label={t.stats.estimate.baseline}
             value={formatShare(result.baseline.within)}
-            note={
-              <span title={t.stats.estimate.baselineTitle}>
-                {t.stats.estimate.baselineNote} · {t.stats.estimate.within2(formatShare(result.baseline.within2))}
-              </span>
-            }
-          />
+            note={<span title={t.stats.estimate.baselineTitle}>{t.stats.estimate.baselineNote}</span>}
+          >
+            <TileRows rows={[[t.stats.estimate.within2Label, formatShare(result.baseline.within2)]]} />
+          </Tile>
         )}
         <Tile label={t.stats.estimate.ratio} value={formatRatio(result.ratio)} note={ratioNote(result.ratio)} />
       </TileGrid>
@@ -69,6 +75,22 @@ export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: 
         </div>
       )}
     </Section>
+  )
+}
+
+type TileRow = [label: string, value: ReactNode]
+
+/** A tile's secondary figures, a captioned row each under its big number. */
+function TileRows({ rows }: { rows: TileRow[] }) {
+  return (
+    <dl className="tile-rows">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 

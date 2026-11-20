@@ -106,6 +106,9 @@ export interface KindCount {
 export interface MarkSummary {
   reasons: string[]
   kinds: KindCount[]
+  /** The tasks behind the edits, drawn as their keys' tags. */
+  tasks: string[]
+  /** Who else edited: sessions in quotes, then edits by hand. */
   who: string[]
   files: number
   added: number
@@ -141,7 +144,8 @@ export function markSummary(mark: RuleMark): MarkSummary {
   return {
     reasons: [...new Set(mark.sets.map((set) => set.note?.reason ?? '').filter((reason) => reason !== ''))],
     kinds,
-    who: [...new Set([...tasks, ...sessions, ...others])],
+    tasks: [...new Set(tasks)],
+    who: [...new Set([...sessions, ...others])],
     files: files.size,
     added,
     removed,

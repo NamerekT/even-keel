@@ -59,7 +59,7 @@ export function StepsSection({ loaded, fold }: { loaded: Loaded<StatsSteps> | nu
                 <th scope="col" className="tasks__num" title={t.stats.steps.slow(formatSeconds(steps.settings.slowSeconds))}>
                   &gt; {formatSeconds(steps.settings.slowSeconds)}
                 </th>
-                <th scope="col" title={buckets().join(' · ')}>
+                <th scope="col" title={buckets().join('\n')}>
                   {t.stats.steps.spread}
                 </th>
                 <th scope="col" className="tasks__num" title={t.stats.steps.coldTitle}>
