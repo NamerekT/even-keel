@@ -18,6 +18,21 @@ export function withChangedText(state: EvenKeelState): EvenKeelState {
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, ABC: changed } } }
 }
 
+/**
+ * `?backlog=links` (BTN-1386): ABC-18 waits for ABC-19 (a lock alone), ABC-19 waits for ABC-11 of the chain and has a
+ * title of several lines (a lock and a key on a tall card), ABC-20 has no links.
+ */
+export function withBacklogLinks(state: EvenKeelState): EvenKeelState {
+  const linked: Record<string, { blockedBy: string[]; title?: string }> = {
+    'ABC-18': { blockedBy: ['ABC-19'] },
+    'ABC-19': {
+      blockedBy: ['ABC-11'],
+      title: 'Импорт задач из CSV: колонки по заголовкам, метки и вехи по именам, связи блокировки по ключам, отчёт о пропущенных строках',
+    },
+  }
+  return { ...state, tasks: state.tasks.map((each) => (linked[each.id] === undefined ? each : { ...each, ...linked[each.id] })) }
+}
+
 /** `?backlog=many` (BTN-982): 64 more backlog tasks in ABC, every fifth with a run, so the panel shows "More" and the search has something to find. */
 export function withLongBacklog(state: EvenKeelState): EvenKeelState {
   const made = Array.from({ length: 64 }, (_, index) => {

@@ -127,7 +127,7 @@
 
 /*
  * The run and the milestone start from their least and grow up to their text, the run far faster: a row wraps only when
- * their least does not fit, and then the work chip and the links go to a line of their own instead of cutting the run.
+ * their least does not fit, and then the work chip goes to a line of its own instead of cutting the run.
  */
 .backlog__meta > .run-label {
   flex: 20 1 0;
@@ -244,6 +244,29 @@
   flex: none;
   align-items: center;
   gap: 10px;
+}
+
+/*
+ * The lock above the key at the card's right edge, as on a chain row (BTN-1365, BTN-1386): out of the flow and centred
+ * on the meta and the title together, so a tall card keeps them one tight stack and a short one is never stretched. A
+ * card with any of them gives the column its room on both lines; a card without has none.
+ */
+.backlog__row > .links--stack {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
+
+.backlog__row:has(> .links--stack) {
+  padding-right: 42px;
+}
+
+/* A hover and focus area wider than the small mark, inside the room the card keeps for the column. */
+.backlog__row > .links--stack .links__count::before {
+  content: '';
+  position: absolute;
+  inset: -2px -6px;
 }
 
 .backlog__status {

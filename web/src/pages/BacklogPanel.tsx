@@ -213,11 +213,13 @@ export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCar
                   <FlagIcon />
                   <span className="backlog__milestone-name">{task.milestone?.label ?? t.chain.noMilestone}</span>
                 </span>
-                <span className="backlog__tail">
-                  {works[task.id] !== undefined && <WorkChip work={works[task.id]!} />}
-                  <Links links={links(task.id)} onCard={onCard} />
-                </span>
+                {works[task.id] !== undefined && (
+                  <span className="backlog__tail">
+                    <WorkChip work={works[task.id]!} />
+                  </span>
+                )}
               </div>
+              <Links links={links(task.id)} onCard={onCard} stack />
               <p className="backlog__name">
                 {/* Before the text it is about, and off the meta line, whose run and milestone already share it tightly. */}
                 {changed.includes(task.id) && (
