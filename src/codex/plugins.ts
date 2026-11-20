@@ -111,13 +111,16 @@ export class CodexPlugins {
     private readonly call: typeof appServer = appServer,
   ) {}
 
-  /** The `-c` flags of a turn; one folder is prepared by one call at a time, since installs write its `config.toml`. */
-  async args(home: AccountHome, cwd: string, plugins: readonly SessionPlugin[]): Promise<string[]> {
+  /**
+   * The `-c` flags of a turn; one folder is prepared by one call at a time, since installs write its `config.toml`.
+   * `ownPlugins` — the folder's other plugins stay on (`SessionStart.ownPlugins`).
+   */
+  async args(home: AccountHome, cwd: string, plugins: readonly SessionPlugin[], ownPlugins = false): Promise<string[]> {
     const before = this.queues.get(home.dir) ?? Promise.resolve()
     const run = before.catch(() => undefined).then(() => this.prepare(home, cwd, plugins))
     this.queues.set(home.dir, run)
     const hooks = await run
-    const configured = configPlugins(await readFile(join(home.dir, 'config.toml'), 'utf8').catch(() => ''))
+    const configured = ownPlugins ? [] : configPlugins(await readFile(join(home.dir, 'config.toml'), 'utf8').catch(() => ''))
     return pluginArgs(plugins, hooks, configured)
   }
 

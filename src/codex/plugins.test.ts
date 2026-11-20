@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
@@ -174,6 +174,15 @@ describe('CodexPlugins', () => {
     expect(methods).not.toContain('plugin/install')
     expect(lines).toHaveLength(1)
     expect(lines[0]).toMatch(/^codex plugins: huly@ek-b found in the cache of folder [0-9a-f]{8}$/)
+  })
+
+  it("leaves the folder's own plugins on for a session that keeps them, a project chat's (BTN-1346)", async () => {
+    await writeFile(join(dir, 'config.toml'), '[plugins."browser@openai-bundled"]\nenabled = true\n')
+    const codex = plugins()
+    expect(await codex.args(home, dir, [huly])).toContain('plugins.browser@openai-bundled.enabled=false')
+    const kept = await codex.args(home, dir, [huly], true)
+    expect(kept).toContain('plugins.huly@ek-b.enabled=true')
+    expect(kept).not.toContain('plugins.browser@openai-bundled.enabled=false')
   })
 
   it('names two folders apart', async () => {

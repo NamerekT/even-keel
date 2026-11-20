@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import type { SessionStart } from '../agent/contract.js'
+import type { SessionPlugin, SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { ServerOverride } from '../link/view.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
@@ -11,7 +11,7 @@ import { PassMemo } from '../pass-memo.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
-import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
+import { bridgePlugins, ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { catalogFor, followCatalog, type CatalogBrief } from './follow.js'
 import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type InstalledServer, type PackageInstall, type PackageRecord, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { copyPinned, dependencyChanges, installPinned, lockOf, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
@@ -429,6 +429,16 @@ export class Packages {
     }
     const skip = readsOwnSkills(agent) ? pluginDir(this.deps.cache, SKILLS_PACKAGE, found.installs[SKILLS_PACKAGE] ?? '') : undefined
     return { mcp: found.mcp, plugins: found.plugins.filter((each) => each.dir !== skip) }
+  }
+
+  /**
+   * A project chat's plugins (`bridgePlugins`, BTN-1346): the built-in one's current install, not pinned — a chat has no
+   * end the pin would wait for, and its next turn takes the install current then.
+   */
+  chatPlugins(): SessionPlugin[] {
+    const plugins = bridgePlugins(this.file, this.builtIn, this.deps.cache)
+    for (const plugin of plugins) ensureMarketplace(this.deps.cache, plugin.package, current(this.file.packages[plugin.package]!)!.id, plugin.name)
+    return plugins
   }
 
   /** `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring. */

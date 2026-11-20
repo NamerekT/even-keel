@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import type { Window as HappyWindow } from 'happy-dom'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { ChatCard } from '../../../src/chats/model.js'
+import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import { t } from '../i18n/index.js'
 import type { Draft } from './chatDraft.js'
@@ -82,18 +83,25 @@ afterEach(async () => {
   vi.clearAllMocks()
 })
 
-it.each([
-  ['an inbox or hooks', { listens: true, steers: false, mail: [] }, t.session.chat.mailbox],
-  ['steering', { listens: true, steers: true, mail: [] }, t.session.chat.steers],
-])('takes a message mid-turn from a session with %s and says where it goes', async (_, mail, tip) => {
+const letter = (fields: Partial<Mail> = {}): Mail => ({
+  id: 1, task: card.id, sessionId: 'first-session', text: message, files: [], postedAt: new Date().toISOString(),
+  fate: 'waiting', event: null, reason: null, settledAt: null, ...fields,
+})
+
+async function midTurn(mail: SessionMail) {
   live = { config: { projects: {} }, branchDrift: {}, sessions: [], account: { accounts: [] }, mailbox: { 'first-session': mail } }
   transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at: card.lastAt, text: 'Run the tests' }], turn: null })
   const host = document.body.appendChild(document.createElement('div'))
   root = createRoot(host)
-  await render({ ...card, sessionId: 'first-session', state: 'working' })
+  const working = { ...card, sessionId: 'first-session', state: 'working' as const }
+  await render(working)
   await vi.waitFor(() => expect(host.querySelector('.bubble')?.textContent).toBe('Run the tests'))
   const box = host.querySelector('textarea')!
   expect(box.placeholder).not.toBe(t.session.chat.working)
+  return { host, box, rerender: () => render(working) }
+}
+
+async function sendNow(host: HTMLElement, box: HTMLTextAreaElement, tip: string) {
   await type(box, message)
   const send = host.querySelector<HTMLButtonElement>('.chat__send')!
   expect(send.getAttribute('aria-disabled')).not.toBe('true')
@@ -101,7 +109,33 @@ it.each([
   command.mockResolvedValueOnce(undefined)
   await act(async () => send.click())
   expect(command).toHaveBeenCalledWith('chats/send', expect.objectContaining({ id: card.id, text: message }))
-  expect([...host.querySelectorAll('.bubble')].map((each) => each.textContent)).toEqual(['Run the tests', message])
+}
+
+const bubbles = (host: HTMLElement) => [...host.querySelectorAll('.bubble')].map((each) => each.textContent)
+
+it('takes a message mid-turn from a session that steers and shows it in the feed', async () => {
+  const { host, box } = await midTurn({ listens: true, steers: true, mail: [] })
+  await sendNow(host, box, t.session.chat.steers)
+  expect(bubbles(host)).toEqual(['Run the tests', message])
+})
+
+it("takes a message mid-turn for the session's inbox or hooks and shows it as the mailbox's letter (BTN-1346)", async () => {
+  const mail: SessionMail = { listens: true, steers: false, mail: [] }
+  const { host, box, rerender } = await midTurn(mail)
+  await sendNow(host, box, t.session.chat.mailbox)
+  expect(bubbles(host)).toEqual(['Run the tests'])
+  mail.mail = [letter()]
+  await rerender()
+  expect(host.querySelector('.chat__letter--waiting')?.textContent).toBe(message + t.session.chat.mail.waiting)
+})
+
+it('shows a letter the mailbox gave back, and Reply puts its words into the field (BTN-1346)', async () => {
+  const { host, box } = await midTurn({ listens: true, steers: false, mail: [letter({ fate: 'returned', reason: 'gone', settledAt: new Date().toISOString() })] })
+  const returned = host.querySelector('.chat__letter--returned')!
+  expect(returned.textContent).toContain(t.session.chat.mail.returned.gone)
+  const reply = [...returned.querySelectorAll('button')].find((each) => each.textContent === t.session.chat.mail.reply)!
+  await act(async () => reply.click())
+  expect(box.value).toBe(message)
 })
 
 it('shuts the field mid-turn for a session that takes no message then', async () => {

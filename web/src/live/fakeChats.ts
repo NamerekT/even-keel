@@ -1,5 +1,5 @@
 import type { ChatCard, ChatChoice, ChatPage } from '../../../src/chats/model.js'
-import type { SessionMail } from '../../../src/sessions/mail.js'
+import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
 import type { EvenKeelState } from '../../../src/state.js'
 
 /** The archive's page, as the server's (BTN-1231). */
@@ -140,6 +140,15 @@ function longModelChat(state: EvenKeelState, project: string): ChatCard {
   })
 }
 
+/** A letter of a fake chat's mailbox: the working chat's is waiting, the cold Codex one's came back (BTN-1346). */
+function fakeMail(card: ChatCard): Mail[] {
+  const letter = { id: 0, task: card.id, sessionId: card.sessionId ?? '', files: [], event: null, reason: null, settledAt: null }
+  if (card.id.endsWith('-chat-3')) return [{ ...letter, id: 1, text: 'Only the runs on the Windows runner, please.', postedAt: ago(0.5), fate: 'waiting' }]
+  if (card.id.endsWith('-chat-4'))
+    return [{ ...letter, id: 2, text: 'Add the attachments to the format too.', postedAt: ago(142), fate: 'returned', reason: 'gone', settledAt: ago(141) }]
+  return []
+}
+
 /**
  * The project chats of `dev:fake` (BTN-1231): `?chats=none` — none, `?chats=many` — a dozen active ones, `?chats=long`
  * an OpenCode one with a long model name first; by default four active (waiting, answered unread, working, cold on
@@ -189,10 +198,15 @@ export function fakeChats(mode: string | null) {
     [...cards].sort((a, b) => Number(b.state === 'waiting') - Number(a.state === 'waiting') || b.lastAt.localeCompare(a.lastAt))
 
   return {
-    /** The page's mailbox rows of the chats' Claude sessions: a live `--bg` session's inbox is known, so it takes a message mid-turn (BTN-1345). */
+    /**
+     * The page's mailbox rows of the chats' sessions: a Claude one's inbox is known (BTN-1345), the others ask for mail from
+     * their hooks (BTN-1346). The working chat holds a waiting letter, the cold Codex one a returned letter.
+     */
     mailbox(): Record<string, SessionMail> {
       const cards = [...lists.values()].flatMap((list) => list.active)
-      return Object.fromEntries(cards.flatMap((card) => (card.agent === 'claude' && card.sessionId !== null ? [[card.sessionId, { listens: true, steers: false, mail: [] }]] : [])))
+      return Object.fromEntries(
+        cards.flatMap((card) => (card.sessionId === null ? [] : [[card.sessionId, { listens: true, steers: false, mail: fakeMail(card) }]])),
+      )
     },
     /** The answer to a chats query; `undefined` — not one of them. */
     query(state: EvenKeelState, name: string, body: Record<string, unknown>): unknown {

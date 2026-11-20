@@ -126,11 +126,14 @@ interface Props {
   initialPrompt?: FeedLine
   /** A line under the head, over the feed: a project chat's link to the chat it goes on from. */
   lead?: ReactNode
+  /** A project chat's mailbox: its letters show under the feed, as a task chat's do (BTN-1346). */
+  mail?: SessionMail
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt }: Props) {
+export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt, mail: ownMail }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
+  const mail = chat?.mail ?? ownMail
   const sessionId = session ?? ''
   const [openedEmpty] = useState(session === null)
   const [openingTitle] = useState(task?.title)
@@ -400,7 +403,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
           )}
           {loader !== 'done' && handing.phase === 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
           {loader === 'done' && lines === null && <p className="placeholder">{t.session.notFound}</p>}
-          {(listed || (chat?.mail?.mail.length && loader === 'done' && handing.phase === 'done')) ? (
+          {(listed || (mail?.mail.length && loader === 'done' && handing.phase === 'done')) ? (
             <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
               <ol className="transcript__lines">
                 {entries?.map((entry, index) => {
@@ -442,7 +445,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                     </li>
                   )
                 })}
-                {chat && <ChatMail sessionId={sessionId} mail={chat.mail?.mail ?? []} queued={queued} onReply={(text) => composerRef.current?.replyToMail?.(text)} />}
+                {(chat || ownMail) && <ChatMail sessionId={sessionId} mail={mail?.mail ?? []} queued={queued} onReply={(text) => composerRef.current?.replyToMail?.(text)} />}
               </ol>
             </div>
           ) : null}

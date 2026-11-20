@@ -108,7 +108,10 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model' | 'effort' |
     ...(model === null ? [] : ['--model', model]),
     ...(effort === undefined ? [] : ['--reasoning-effort', effort]),
     ...place.dirs.flatMap((dir) => ['--add-dir', dir]),
-    ...(mcp === undefined ? [] : ['--disable-builtin-mcps', ...place.disabled.flatMap((server) => ['--disable-mcp-server', server]), ...gatewayArgs(mcp)]),
+    // Without the gateway the account's servers stay, and a plugin's own would start as its `.mcp.json` names them.
+    ...(mcp === undefined
+      ? plugins.flatMap((plugin) => plugin.servers).flatMap((server) => ['--disable-mcp-server', server])
+      : ['--disable-builtin-mcps', ...place.disabled.flatMap((server) => ['--disable-mcp-server', server]), ...gatewayArgs(mcp)]),
     ...plugins.flatMap((plugin) => ['--plugin-dir', plugin.dir]),
   ]
 }

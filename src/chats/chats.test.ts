@@ -37,6 +37,23 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
     }
   })
 
+  it("resumes a chat's session with the mail its hooks missed at the end of a turn, and not an archived one (BTN-1346)", async () => {
+    const { chats, calls, close } = await setup()
+    try {
+      const { id } = await chats.create(ABC, { account: 'global', model: 'opus', effort: null })
+      await chats.send(id, { text: 'Why is the build slow?', files: [] })
+      await expect(chats.resume(id, `session-${id}`, 'And the tests?')).resolves.toBe(true)
+      expect(calls[1]).toEqual(['send', ABC, id, { model: 'opus', effort: null, prompt: 'And the tests?' }])
+      await expect(chats.resume(id, 'session-other', 'Hello')).resolves.toBe(false)
+      await chats.archive(id)
+      await expect(chats.resume(id, `session-${id}`, 'Hello')).resolves.toBe(false)
+      await expect(chats.resume('chat-ffffffffffff', 'session-1', 'Hello')).resolves.toBe(false)
+      expect(calls.filter((call) => call[0] === 'send')).toHaveLength(1)
+    } finally {
+      await close()
+    }
+  })
+
   it('refuses a message to an archived or unknown chat and to a machine off the link', async () => {
     const { chats, close } = await setup()
     const offline = await setup({ offline: true })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionView } from '../state.js'
-import { archiveDue, cardOf, isChatName, lastAtOf, lastMessageOf, SAID_CHARS, sortActive, stateOf, unreadOf, withSaid, type ChatCard, type ChatRecord } from './model.js'
+import { archiveDue, cardOf, isChatName, isChatSession, lastAtOf, lastMessageOf, SAID_CHARS, sortActive, stateOf, unreadOf, withSaid, type ChatCard, type ChatRecord } from './model.js'
 
 const NOW = new Date('2026-11-18T12:00:00.000Z')
 
@@ -66,6 +66,13 @@ describe('chat names', () => {
     expect(isChatName('chat-')).toBe(false)
     expect(isChatName('chat-0123456789AB')).toBe(false)
     expect(isChatName(undefined)).toBe(false)
+  })
+
+  it("knows a chat's session by its id among the sessions, for its hooks' mail (BTN-1346)", () => {
+    const views = [view(), view({ task: 'ABC-12', sessionId: 'session-2' })]
+    expect(isChatSession(views, 'session-1')).toBe(true)
+    expect(isChatSession(views, 'session-2')).toBe(false)
+    expect(isChatSession(views, 'session-3')).toBe(false)
   })
 })
 

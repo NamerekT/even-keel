@@ -113,6 +113,11 @@ export function isChatName(name: string | undefined): boolean {
   return name !== undefined && /^chat-[0-9a-f]{12}$/.test(name)
 }
 
+/** The session is a project chat's, as the monitor found it by its name: its hooks get the chat's mail (BTN-1346). */
+export function isChatSession(views: readonly Pick<SessionView, 'task' | 'sessionId'>[], sessionId: string): boolean {
+  return views.some((view) => view.sessionId === sessionId && isChatName(view.task))
+}
+
 /** The moment of the chat's last message or action: its record's, or later, its session's. */
 export function lastAtOf(chat: Pick<ChatRecord, 'lastAt'>, view: Pick<SessionView, 'lastActivityAt'> | undefined): string {
   const seen = view?.lastActivityAt

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { gatewayName, type SessionMcp, type SessionPlugin } from '../agent/contract.js'
 import { isTasksUrl } from '../taskmcp/server.js'
 import { isMemoryUrl } from '../memory/mcp.js'
-import { current, enabledPackages, installsFor, pluginKey, type PackagesFile, type SessionReach } from './model.js'
+import { current, enabledPackages, installsFor, pluginKey, type PackageInstall, type PackagesFile, type SessionReach } from './model.js'
 
 const ROUTE = /^\/mcp\/([^/]+)\/([^/]+)@([^/@]+)\/([^/]+)$/
 
@@ -79,16 +79,7 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
     const install = record?.installs.find((each) => each.id === id)
     if (record === undefined || install === undefined) continue
     installs[name] = id
-    if (record.kind === 'plugin' && record.plugin !== undefined) {
-      plugins.push({
-        package: name,
-        dir: pluginDir(places.cache, name, id),
-        name: record.plugin.name,
-        marketplace: marketplaceName(id),
-        marketplaceFile: marketplaceFile(places.cache, name, id),
-        servers: Object.keys(install.servers),
-      })
-    }
+    if (record.kind === 'plugin' && record.plugin !== undefined) plugins.push(sessionPlugin(places.cache, name, record.plugin.name, install))
     for (const [server, entry] of Object.entries(install.servers)) {
       // The tasks server learns the session's task from its address: the session's own task is in its prompt (BTN-768);
       // the memory server stamps it on what the session writes (BTN-1029).
@@ -97,6 +88,28 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
     }
   }
   return { mcp, plugins, installs }
+}
+
+/**
+ * A project chat's plugins (BTN-1346): the built-in package's current install alone, for its hooks — the chat's mail
+ * mid-turn. Its servers are named so that the agent turns them off: the chat keeps the account's own configuration.
+ */
+export function bridgePlugins(file: PackagesFile, builtIn: string | undefined, cache: string): SessionPlugin[] {
+  const record = builtIn === undefined ? undefined : file.packages[builtIn]
+  const install = record === undefined ? undefined : current(record)
+  if (builtIn === undefined || record?.plugin === undefined || record.removed === true || install === undefined) return []
+  return [sessionPlugin(cache, builtIn, record.plugin.name, install)]
+}
+
+function sessionPlugin(cache: string, name: string, plugin: string, install: PackageInstall): SessionPlugin {
+  return {
+    package: name,
+    dir: pluginDir(cache, name, install.id),
+    name: plugin,
+    marketplace: marketplaceName(install.id),
+    marketplaceFile: marketplaceFile(cache, name, install.id),
+    servers: Object.keys(install.servers),
+  }
 }
 
 export function sessionReach(file: PackagesFile, project: string): SessionReach {

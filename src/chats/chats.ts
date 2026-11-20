@@ -143,6 +143,21 @@ export class ProjectChats {
     return this.cardOf(next)
   }
 
+  /**
+   * The mailbox's resume (`MailRelay.resume`, BTN-1346): the chat's messages the session's hooks missed at the end of its
+   * turn go into it as a later message does. The user's words are in the record already, from their `send`. `false` —
+   * the chat is gone, archived or on another session now, or its machine is off the link.
+   */
+  async resume(id: string, sessionId: string, prompt: string): Promise<boolean> {
+    const chat = this.deps.store.get(id)
+    if (chat === undefined || chat.sessionId !== sessionId || chat.machine === null) return false
+    const services = this.deps.services(chat.machine)
+    if (services === undefined) return false
+    await services.chats.send(chat.project, id, { model: chat.model, effort: chat.effort, prompt })
+    this.deps.log(`chats: ${id}: the session ${sessionId} went on with the message its hooks missed at the end of its turn`)
+    return true
+  }
+
   /** The user opened the chat: what it said so far is read. */
   read(id: string): void {
     const chat = this.deps.store.get(id)

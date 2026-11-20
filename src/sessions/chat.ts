@@ -1,5 +1,6 @@
 import type { Dispatcher } from '../chain/dispatcher.js'
 import type { HandoffSession } from '../chain/relay.js'
+import { isChatName } from '../chats/model.js'
 import type { Language } from '../language.js'
 import { fromCarried, type MachineChat } from '../machine/services.js'
 import { fail } from '../notice/notice.js'
@@ -27,6 +28,8 @@ interface ChatDeps {
    */
   machineLive?: MailRelay['live']
   steer: (task: string, session: HandoffSession, prompt: string) => Promise<boolean>
+  /** A project chat's session goes on with the mail its hooks missed (`ProjectChats.resume`, BTN-1346); absent — never. */
+  resumeChat?: (chat: string, sessionId: string, prompt: string) => Promise<boolean>
   /**
    * What a reply does on the machine — the mailbox, the steer, the files in the session's folder — as the link's commands
    * (`MachineServices.chat`). Absent — `mailbox` and `steer` in this process.
@@ -73,12 +76,14 @@ export function createChat(deps: ChatDeps) {
         lamp === 'finished' || unansweredMail === undefined ? [] : [{ task, sessionId, mail: unansweredMail }]),
     }),
     resume: async (task, sessionId, prompt) => {
+      if (isChatName(task)) return (await deps.resumeChat?.(task, sessionId, prompt)) ?? false
       const project = deps.configuredProject(task)
       if (project === undefined) throw fail('config.unknownProject', { key: task })
       await deps.catchUp?.()
       return dispatcher.answer(project, task, sessionId, null, prompt)
     },
     closed: async (task) => {
+      if (isChatName(task)) return false
       const project = deps.configuredProject(task)
       return project !== undefined && (await dispatcher.closed(project, task))
     },

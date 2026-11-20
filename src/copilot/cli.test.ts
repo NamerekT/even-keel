@@ -54,6 +54,14 @@ describe('turnArgs', () => {
     expect(args).not.toContain('--disable-builtin-mcps')
     expect(args.slice(args.indexOf('--plugin-dir'), args.indexOf('--plugin-dir') + 2)).toEqual(['--plugin-dir', plugin.dir])
   })
+
+  it("turns a plugin's own servers off without the gateway, as a project chat's built-in plugin goes (BTN-1346)", () => {
+    const plugin = { package: 'agent-bridge@even-keel', dir: 'C:\\cache\\agent-bridge', name: 'agent-bridge', marketplace: 'ek-1', marketplaceFile: 'x', servers: ['memory'] }
+    const args = turnArgs({ name: 'chat-123456abcdef', model: null, plugins: [plugin] }, { ...place, disabled: ['local-db', 'memory'] }, { id: 'abc', resume: false })
+    expect(args).not.toContain('--disable-builtin-mcps')
+    expect(args).not.toContain('local-db')
+    expect(args.slice(args.indexOf('--disable-mcp-server'), args.indexOf('--disable-mcp-server') + 2)).toEqual(['--disable-mcp-server', 'memory'])
+  })
 })
 
 describe('ownServers', () => {

@@ -73,6 +73,7 @@ import { BuiltinExports } from '../builtin/export.js'
 import { connectExportTarget } from '../tracker/export-target.js'
 import { attachmentsDirOf } from '../builtin/files.js'
 import { BUILTIN } from '../builtin/model.js'
+import { isChatSession } from '../chats/model.js'
 import { DEMO_ACCOUNT } from '../demo/model.js'
 import { runOf } from './demo.js'
 
@@ -720,7 +721,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       return { ...run, ...threshold, ...(off ? { source: 'off' as const } : {}), context, note }
     },
     handoffNote: async (sessionId) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : transcripts.note(sessionId)),
-    mail: (sessionId, event) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : mailFor(ctx.mailRelay, sessionId, event)),
+    mail: (sessionId, event) => (handoffsOf(ctx.launches, sessionId) === undefined && !isChatSession(ctx.machineLink.sessions.sessions(), sessionId) ? undefined : mailFor(ctx.mailRelay, sessionId, event)),
     mailContext: (sessionId, event) => (event === 'PreToolUse' || event === 'PostToolUse' ? ctx.badges.statusAsk(sessionId) : null),
     inbox: (sessionId, socket, token) => ctx.inboxes.remember(sessionId, socket, token),
     permission: (sessionId, tool, input, since) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : ctx.approvals.poll(sessionId, tool, input, since)),

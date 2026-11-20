@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { emptyPackages, type PackageInstall, type PackageRecord } from './model.js'
-import { installMarketplace, otherPlugins, parseRoute, routeOf, sessionPackages, sessionReach } from './launch.js'
+import { bridgePlugins, installMarketplace, otherPlugins, parseRoute, routeOf, sessionPackages, sessionReach } from './launch.js'
 
 const install = (id: string, servers: string[], extras = true): PackageInstall => ({
   id,
@@ -35,6 +35,30 @@ describe('routes', () => {
     expect(parseRoute('/mcp/x/strata/strata')).toBeNull()
     expect(parseRoute('/api/state')).toBeNull()
     expect(parseRoute('/mcp/x/strata@s1/strata/more')).toBeNull()
+  })
+})
+
+describe('bridgePlugins', () => {
+  it("gives a project chat only the built-in plugin's current install, its servers named to be turned off (BTN-1346)", () => {
+    const file = catalog()
+    expect(bridgePlugins(file, 'huly@even-keel', places.cache)).toEqual([
+      {
+        package: 'huly@even-keel',
+        dir: join(places.cache, 'huly@even-keel', 'b', 'plugin'),
+        name: 'huly',
+        marketplace: 'ek-b',
+        marketplaceFile: join(places.cache, 'huly@even-keel', 'b', '.claude-plugin', 'marketplace.json'),
+        servers: ['huly'],
+      },
+    ])
+  })
+
+  it('gives none without a built-in package, an install of it or with it removed', () => {
+    const file = catalog()
+    expect(bridgePlugins(file, undefined, places.cache)).toEqual([])
+    expect(bridgePlugins(file, 'pending@even-keel', places.cache)).toEqual([])
+    file.packages['huly@even-keel']!.removed = true
+    expect(bridgePlugins(file, 'huly@even-keel', places.cache)).toEqual([])
   })
 })
 

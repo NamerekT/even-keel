@@ -20,6 +20,7 @@ export type MachineChatsContext = Pick<MachineContext,
   | 'liveView'
   | 'mailbox'
   | 'monitor'
+  | 'packages'
   | 'resumeIn'
   | 'stopIn'
   | 'toldInbox'
@@ -42,6 +43,8 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       protection: config.settings[project]?.protection ?? config.protection,
       mainBranch: ctx.branchOf(project),
       ...(agent !== CLAUDE && config.execution[agent] === 'bypass' ? { bypassSandbox: true } : {}),
+      // The built-in plugin's hooks take the chat's mail mid-turn (BTN-1346); a Claude chat keeps its account's settings.
+      ...(agent === CLAUDE ? {} : { plugins: ctx.packages.chatPlugins(), ownPlugins: true }),
       ...(isPlain(config, project) ? { outsideRepo: true } : {}),
     }
   }

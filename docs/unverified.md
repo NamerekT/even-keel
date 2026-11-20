@@ -267,6 +267,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 230 | [The effort's bar scale beside a model outside Chromium](unverified/page.md#the-efforts-bar-scale-beside-a-model-outside-chromium-btn-1369) | anyone on Firefox or Safari | the bars sit a pixel or two off the text's line; the effort's word is in the tip | — |
 | 231 | [Installing and updating the Docker image](unverified/platforms.md#installing-and-updating-the-docker-image-btn-1176) | Docker Compose installations on amd64 and arm64 | the image fails to start or a recreated container loses access to data or repositories | BTN-1177 |
 | 232 | [A model's name from OpenCode's catalogue](unverified/opencode.md#a-models-name-from-opencodes-catalogue-btn-1348) | OpenCode sessions and chats | the page shows the model by its id, as before | — |
+| 233 | [A project chat's mail mid-turn on Codex, Copilot and OpenCode](unverified/sessions.md#a-project-chats-mail-mid-turn-on-codex-copilot-and-opencode-btn-1346) | anyone writing to a working Codex, Copilot or OpenCode project chat | the letter waits until the turn ends and comes back, or the chat fails to start with the built-in plugin; send it again once the session answers | — |
 
 ### Waiting for the event / not checked by choice
 

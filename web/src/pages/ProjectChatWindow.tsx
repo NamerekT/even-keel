@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
+import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -16,6 +17,8 @@ import { ComposerBanner } from './ComposerBanner.js'
 import { ComposerBox } from './ComposerBox.js'
 import type { CommandTextHandle } from './CommandText.js'
 import { TranscriptWindow, type WindowFoot } from './TranscriptWindow.js'
+
+const NO_MAIL: SessionMail = { listens: false, steers: false, mail: [] }
 
 interface Props {
   chat: ChatCard
@@ -58,6 +61,7 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
       initialPrompt={(chat.state === 'starting' || chat.state === 'working') && chat.last?.from === 'user' ?
         { kind: 'prompt', at: chat.last.at, text: chat.last.text } : undefined}
       lead={chat.previous === null ? undefined : <Continued previous={chat.previous} onOpen={onOpen} />}
+      mail={archived || chat.sessionId === null ? undefined : (state?.mailbox[chat.sessionId] ?? NO_MAIL)}
       onClose={onClose}
       foot={(parts) =>
         archived ? (
@@ -123,7 +127,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     setAsked(session?.ask?.id ?? null)
     setPicks(session?.ask?.questions.map(() => NO_PICK) ?? [])
   }
-  useImperativeHandle(parts.handle, () => ({ attach: (more: File[]) => setFiles((now) => [...now, ...more]) }))
+  useImperativeHandle(parts.handle, () => ({ attach: (more: File[]) => setFiles((now) => [...now, ...more]), replyToMail: setText }))
   // The server takes no message while the chat's session starts (BTN-1230). Mid-turn it takes one from a session that
   // steers or whose inbox or hooks listen, as the task chat does, and the turn goes on (BTN-1345).
   const starting = chat.state === 'starting' || (parts.awaitingFirstPrompt && chat.state !== 'error' && chat.state !== 'cold')
@@ -131,13 +135,15 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
   const midTurn = chat.state === 'working' && mail?.listens === true
   const locked = chat.state === 'working' && !midTurn ? t.session.chat.working : starting ? t.chats.window.starting : null
   const sendTip = midTurn ? (mail.steers ? t.session.chat.steers : t.session.chat.mailbox) : undefined
+  // A message for the inbox or the hooks becomes the mailbox's letter under the feed, as in a task chat (BTN-1346).
+  const mailing = midTurn && !mail.steers
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
   const off = locked !== null || sending || !ready
 
   const submit = async () => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
-    const retract = parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files)
+    const retract = mailing ? () => {} : parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files)
     if (ask !== null) setPending(ask.id)
     const ok = await send(async (message) => post('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }))
     if (ok) onChanged()

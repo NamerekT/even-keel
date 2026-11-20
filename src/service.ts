@@ -630,6 +630,7 @@ const { mailRelay, answerSession } = createChat({
   chat: machineLink.services.chat,
   listens: (sessionId) => machineLink.page.mailbox()[sessionId]?.listens === true,
   steer,
+  resumeChat: (chat, sessionId, prompt) => projectChats.resume(chat, sessionId, prompt),
   language: promptLanguage,
   note: taskNote,
   changed: stateChanged,
