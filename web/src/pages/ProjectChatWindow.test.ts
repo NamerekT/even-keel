@@ -135,13 +135,42 @@ it('opens empty, keeps one bubble through the launch and missing transcript, the
   expect([...host.querySelectorAll('.bubble')].map(each => each.textContent)).toEqual([message])
 })
 
-it('puts the message back in the field when the launch fails', async () => {
+it('keeps the same bubble from the send to the landed transcript line and turns only its mark', async () => {
+  const { host, delivery } = await start()
+  const entry = host.querySelector('.bubble')!.closest('li')!
+  const bubble = host.querySelector('.bubble')!
+  expect(entry.querySelector('.delivery')?.classList.contains('delivery--delivering')).toBe(true)
+  expect(entry.querySelector('.delivery [role=img]')?.getAttribute('aria-label')).toBe(t.session.chat.delivery.delivering)
+  await act(async () => delivery.resolve())
+  transcript.mockResolvedValue({ lines: [], turn: null })
+  await render({ ...card, sessionId: 'first-session', state: 'working' })
+  // The transcript lands with lines before the prompt: the entry moves, the bubble stays the same element.
+  const lines: FeedLine[] = [
+    { kind: 'text', at: card.lastAt, text: 'Session started' },
+    { kind: 'prompt', at: card.lastAt, text: message },
+  ]
+  transcript.mockResolvedValue({ lines, turn: null })
+  await act(async () => changed())
+  expect(host.querySelectorAll('.bubble')).toHaveLength(1)
+  expect(host.querySelector('.bubble')).toBe(bubble)
+  expect(bubble.closest('li')).toBe(entry)
+  expect(entry.querySelector('.delivery')?.classList.contains('delivery--delivered')).toBe(true)
+  expect(entry.querySelector('.delivery [role=img]')?.getAttribute('aria-label')).toContain(t.session.chat.delivery.delivered(null))
+  expect(entry.querySelector('[title]')).toBeNull()
+})
+
+it('marks the message as not delivered and puts it back in the field when the launch fails', async () => {
   const { host, box, delivery } = await start()
   expect(box.value).toBe('')
   await act(async () => delivery.reject(new Error('launch failed')))
   expect(box.value).toBe(message)
-  expect(host.querySelector('.bubble')).toBeNull()
+  expect(host.querySelector('.bubble')?.textContent).toBe(message)
+  expect(host.querySelector('.delivery')?.classList.contains('delivery--failed')).toBe(true)
   expect(host.querySelector('.chat__send')?.hasAttribute('disabled')).toBe(false)
+  command.mockResolvedValueOnce(undefined)
+  await act(async () => host.querySelector<HTMLButtonElement>('.chat__send')!.click())
+  expect([...host.querySelectorAll('.bubble')].map(each => each.textContent)).toEqual([message])
+  expect(host.querySelector('.delivery')?.classList.contains('delivery--delivering')).toBe(true)
 })
 
 it('opens a sent picture from its chip and retries both images after a temporary 404', async () => {

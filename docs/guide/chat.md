@@ -24,6 +24,8 @@ The button turns amber while the session waits for you. Even Keel stops the sess
 
 An unsent reply — its text and files — stays with each session's chat in your browser: close the window or reload the page and it is still there, until you send it.
 
+A sent message shows at once, with an icon left of its time: a clock while it is on its way to the session, two green checks once the session has it, a red sign if it could not be delivered. Point at the icon for its words and the time of delivery.
+
 The window's head names the task; point at its title for the session's id, press it to copy the id.
 
 The line under the reply box says what the session is at: its branch and edits on the left, its account, the model of its last answer and a ring of how full its context is on the right.
@@ -114,7 +116,7 @@ If OpenCode stays silent for 30 seconds, Even Keel also checks its account log f
 
 A usage limit then follows the usual limit wait; another stream error shows a translated message and lets you send a reply or choose **New session**. Without such an error, the existing hang check still applies.
 
-If your reply cannot be delivered, Even Keel reports the failure and leaves the chain running. The field clears as soon as you send. If the reply fails, its text and files return ahead of any new draft, even if you closed the chat. You can retry once the cause is resolved.
+If your reply cannot be delivered, Even Keel reports the failure and leaves the chain running; the message stays in the chat marked red until you send the next one. The field clears as soon as you send. If the reply fails, its text and files return ahead of any new draft, even if you closed the chat. You can retry once the cause is resolved.
 
 ## Keys
 

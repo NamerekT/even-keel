@@ -48,7 +48,11 @@ export const composerRu = {
   thinking: 'Думает',
   background: (command: string | null) => (command === null ? 'Ждёт фоновую команду' : `Ждёт фоновую команду: ${command}`),
   running: (tool: string) => `Выполняет: ${tool}`,
-  delivering: 'Передаю ответ, сессия поднимается',
+  delivery: {
+    delivering: 'Доставляется',
+    delivered: (time: string | null) => (time === null ? 'Доставлено' : `Доставлено в ${time}`),
+    failed: 'Не доставлено',
+  },
   finished: 'Сессия завершена — ответить ей нельзя.',
   closed: 'Задача закрыта — отсюда ничего не отправить. Что осталось сделать — новая задача.',
   parent: 'Сессию родительской задачи здесь только читают: её подзадачи идут в цепи.',

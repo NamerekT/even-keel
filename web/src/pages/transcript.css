@@ -172,6 +172,31 @@
   order: 1;
 }
 
+/* The delivery mark and the time under the user's message (BTN-1362). */
+.transcript__stamp {
+  order: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.delivery {
+  display: inline-flex;
+  color: var(--fg-muted);
+}
+
+.delivery--delivered {
+  color: var(--lamp-done);
+}
+
+.delivery--failed {
+  color: var(--lamp-error);
+}
+
+.delivery__icon {
+  display: inline-flex;
+}
+
 .transcript__entry--error,
 .transcript__entry--failed {
   color: var(--error-fg);

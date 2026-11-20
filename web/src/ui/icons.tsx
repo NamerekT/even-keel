@@ -210,6 +210,26 @@ export function CheckIcon() {
   )
 }
 
+/** A message in the session: two check marks, the second a step to the right. */
+export function DoubleCheckIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M1 8.75 4 11.75 10 4.75" />
+      <path d="M7.25 11 8 11.75 14 4.75" />
+    </svg>
+  )
+}
+
+/** A message that did not go out: an exclamation mark in a circle. */
+export function UnsentIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="M8 4.75v3.75M8 11v.01" />
+    </svg>
+  )
+}
+
 /** Copy: two sheets, one over the other. */
 export function CopyIcon() {
   return (

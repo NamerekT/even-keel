@@ -48,7 +48,11 @@ export const composerEn = {
   thinking: 'Thinking',
   background: (command: string | null) => (command === null ? 'Waiting for its background command' : `Waiting for its background command: ${command}`),
   running: (tool: string) => `Running: ${tool}`,
-  delivering: 'Delivering the answer, the session is starting up',
+  delivery: {
+    delivering: 'Delivering',
+    delivered: (time: string | null) => (time === null ? 'Delivered' : `Delivered at ${time}`),
+    failed: 'Not delivered',
+  },
   finished: 'The session has finished — it cannot be replied to.',
   closed: 'The task is closed — nothing can be sent from here. What is left to do is a new task.',
   parent: 'A parent task’s session is only read here: its subtasks run in the chain.',

@@ -20,7 +20,8 @@ export interface TurnFacts {
 
 /**
  * What the chat's turn line says: an answer on its way — the session is stopped and respawned with it, the
- * transcript still ends in the turn before; then the turn: thinking or running a tool. The clock runs from the send of
+ * transcript still ends in the turn before, so the line says nothing (the message's mark tells it, BTN-1362); then the
+ * turn: thinking or running a tool. The clock runs from the send of
  * the answer into the turn it began, so it does not jump back when the answer's prompt lands. A turn that has ended
  * while its background command runs waits for that command, not thinks (BTN-960).
  */

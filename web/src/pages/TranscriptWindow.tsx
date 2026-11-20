@@ -17,7 +17,6 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { Loader } from '../ui/Loader.js'
 import { useLoader, type LoaderPhase } from '../ui/loaderPhase.js'
 import type { ChatHandover } from '../sessionStart.js'
-import { withUserMessage } from './chatHandover.js'
 import { useHandover } from './useHandover.js'
 import { PullButton } from '../ui/PullChip.js'
 import { CloseIcon, OpenOutIcon, SidebarIcon } from '../ui/icons.js'
@@ -32,11 +31,13 @@ import type { DraftOwner } from './useChatDraft.js'
 import { ChatStatus, useStatusFacts, type StatusFacts } from './ChatStatus.js'
 import { ChatTaskPanel, useTaskPanelOpen } from './ChatTaskPanel.js'
 import { answeredAsks } from './composerHold.js'
+import { DeliveryMark } from './DeliveryMark.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { ShareCard } from './ShareCard.js'
 import { InboxThumb, Thumbs } from './Thumbs.js'
 import { useLocalPictures } from './localPictures.js'
+import { isReply, sentFeed, type FeedMark, type SentLine } from './sentLines.js'
 import { ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
@@ -126,17 +127,6 @@ interface Props {
   lead?: ReactNode
 }
 
-/**
- * A reply sent from this window, shown until the transcript has a prompt or an answer after the line it was sent at;
- * `steered` — it went straight into the working session, which is not respawned with it, and shows as queued, not in the feed.
- */
-interface SentLine {
-  line: FeedLine
-  after: number
-  steered: boolean
-  first?: boolean
-}
-
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
 export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
@@ -157,22 +147,26 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const [readFor, setReadFor] = useState<string | null>(null)
   const [turn, setTurn] = useState<Turn | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [sent, setSent] = useState<SentLine[]>(() => initialPrompt === undefined ? [] : [{ line: initialPrompt, after: 0, steered: false, first: true }])
+  const [sent, setSent] = useState<SentLine[]>(() => initialPrompt === undefined ? [] : [{ id: 0, line: initialPrompt, after: 0, steered: false, first: true }])
+  const sentCount = useRef(sent.length)
   const [viewing, setViewing] = useState<number | null>(null)
   const localPictures = useLocalPictures(sessionId)
-  const awaitingFirstPrompt = sent[0]?.first === true && !recorded?.some(isReply)
+  const awaitingFirstPrompt = sent[0]?.first === true && sent[0].failed !== true && !recorded?.some(isReply)
   const starting = session === null || awaitingFirstPrompt
   const lines = starting ? (recorded ?? []) : recorded
   const handing = useHandover(chat?.handover ?? null, sessionId, readFor === sessionId ? lines : undefined)
-  const unread = lines == null ? [] : sent.filter((each) => !lines.slice(each.after).some(isReply))
-  const all = lines == null ? null : [...withUserMessage(lines), ...unread.filter((each) => !each.steered).map((each) => each.line)]
+  const feed = lines == null ? null : sentFeed(lines, sent)
+  const unread = feed?.unread ?? []
+  const all = feed?.all ?? null
+  const marks = feed?.marks ?? new Map<FeedLine, FeedMark>()
+  const delivered = sent.filter((each) => each.failed !== true)
   // A message steered into a working session waits in the CLI's queue until its current tool call ends; the queue is
   // read from the transcript, so it outlives closing the window, and this window's own send shows until it is there.
   const inQueue = chat?.session.lamp === 'working' ? (turn?.queued ?? []) : []
   const queued = [...inQueue, ...unread.filter((each) => each.steered && !inQueue.some((line) => line.text === each.line.text)).map((each) => each.line)]
   const remoteUrl = chat?.session.remoteUrl
   // A reply sent from here counts after the transcript took over too: a late view of the session never brings its question back.
-  const answered = answeredAsks([...(all ?? []), ...sent.map((each) => each.line)])
+  const answered = answeredAsks([...(all ?? []), ...delivered.map((each) => each.line)])
   const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
   const shared = (tool: string, index: number) => sharedUrl(sessionId, tool, index)
   const media = transcriptMedia(
@@ -308,6 +302,21 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
     return () => observer.disconnect()
   }, [listed])
 
+  // A new send takes the refused lines out of the feed: their text is back in the field, sent again or dropped.
+  // A refusal marks a line in the feed as not delivered; a steered one was never in the feed and just goes.
+  const addSent = (line: FeedLine, steered: boolean, files: File[], first: boolean): (() => void) => {
+    pinned.current = true
+    for (const each of sent) if (each.failed === true) each.release?.()
+    const entry: SentLine = { id: sentCount.current++, line, after: lines?.length ?? 0, steered, first, release: localPictures.add(files) }
+    setSent((now) => [...now.filter((each) => each.failed !== true), entry])
+    return () => {
+      if (steered) {
+        entry.release?.()
+        setSent((now) => now.filter((each) => each !== entry))
+      } else setSent((now) => now.map((each) => (each === entry ? { ...each, failed: true } : each)))
+    }
+  }
+
   const onScroll = () => {
     const list = listRef.current
     if (list !== null) pinned.current = list.scrollHeight - list.scrollTop - list.clientHeight < PINNED_SLACK
@@ -385,23 +394,38 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
           {(listed || (chat?.mail?.mail.length && loader === 'done' && handing.phase === 'done')) ? (
             <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
               <ol className="transcript__lines">
-                {entries?.map((entry, index) =>
-                  entry.kind === 'gap' ? (
-                    <li key={index} className="transcript__gap">
-                      <LineTime at={entry.at} />
-                    </li>
-                  ) : entry.kind === 'tools' ? (
-                    <li key={index} className="transcript__entry transcript__entry--tools">
-                      <LineTime at={entry.calls[0]!.line.at} hover />
-                      <ToolGroup calls={entry.calls} media={media} onOpen={setViewing} />
-                    </li>
-                  ) : (
-                    <li key={index} className={`transcript__entry transcript__entry--${entry.line.kind}`}>
-                      <LineTime at={entry.line.at} hover={!isReply(entry.line)} />
+                {entries?.map((entry, index) => {
+                  if (entry.kind === 'gap') {
+                    return (
+                      <li key={index} className="transcript__gap">
+                        <LineTime at={entry.at} />
+                      </li>
+                    )
+                  }
+                  if (entry.kind === 'tools') {
+                    return (
+                      <li key={index} className="transcript__entry transcript__entry--tools">
+                        <LineTime at={entry.calls[0]!.line.at} hover />
+                        <ToolGroup calls={entry.calls} media={media} onOpen={setViewing} />
+                      </li>
+                    )
+                  }
+                  // A sent line and the transcript line that lands for it share a key: the bubble stays, only its mark changes.
+                  const mark = marks.get(entry.line)
+                  return (
+                    <li key={mark?.key ?? index} className={`transcript__entry transcript__entry--${entry.line.kind}`}>
+                      {mark === undefined ? (
+                        <LineTime at={entry.line.at} hover={!isReply(entry.line)} />
+                      ) : (
+                        <span className="transcript__stamp">
+                          <DeliveryMark delivery={mark.delivery} at={entry.line.at} />
+                          <LineTime at={entry.line.at} />
+                        </span>
+                      )}
                       <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} sharedUrl={shared} />
                     </li>
-                  ),
-                )}
+                  )
+                })}
                 {chat && <ChatMail sessionId={sessionId} mail={chat.mail?.mail ?? []} queued={queued} onReply={(text) => composerRef.current?.replyToMail?.(text)} />}
               </ol>
             </div>
@@ -414,16 +438,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 awaitingFirstPrompt,
                 handle: composerRef,
                 answered,
-                onSent: (line, files) => {
-                  pinned.current = true
-                  const entry = { line, after: lines?.length ?? 0, steered: false, first: session === null }
-                  const drop = localPictures.add(files)
-                  setSent((now) => [...now, entry])
-                  return () => {
-                    drop()
-                    setSent((now) => now.filter((each) => each !== entry))
-                  }
-                },
+                onSent: (line, files) => addSent(line, false, files, session === null),
               })}
             </div>
           ) : chat === undefined ? (
@@ -460,7 +475,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                     working: true,
                     turn,
                     lastReplyAt: lines?.findLast(isReply)?.at ?? null,
-                    answers: [chat.answeredAt, sent.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
+                    answers: [chat.answeredAt, delivered.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
                     delivering: chat.delivering,
                     background: chat.session.background == null ? null : { command: chat.session.background.command, since: chat.session.lastActivityAt },
                   }}
@@ -482,16 +497,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 handing={handing.shown !== null}
                 onRenew={handing.press}
                 restore={handing.restore}
-                onSent={(line, steered, files) => {
-                  pinned.current = true
-                  const entry = { line, after: lines?.length ?? 0, steered }
-                  const drop = localPictures.add(files)
-                  setSent((now) => [...now, entry])
-                  return () => {
-                    drop()
-                    setSent((now) => now.filter((each) => each !== entry))
-                  }
-                }}
+                onSent={(line, steered, files) => addSent(line, steered, files, false)}
               />
             </div>
           )}
@@ -505,22 +511,20 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
 }
 
 /**
- * The turn in progress, as the Claude app shows it: "23с · Думает" or "23с · Выполняет: Bash npm test", and while an
- * answer is on its way "3с · Передаю ответ…", the clock ticking every second.
+ * The turn in progress, as the Claude app shows it: "23с · Думает" or "23с · Выполняет: Bash npm test", the clock
+ * ticking every second. While an answer is on its way the line is empty: the mark under the message tells it (BTN-1362).
  */
 function TurnLine({ facts }: { facts: TurnFacts }) {
   const now = useNow(TICK_MS)
   const phase = turnPhase(facts, now.getTime())
-  if (phase === null) return null
+  if (phase === null || phase.kind === 'delivering') return null
   const elapsed = phase.since === null ? null : formatElapsed(now.getTime() - Date.parse(phase.since))
   const doing =
-    phase.kind === 'delivering'
-      ? t.session.chat.delivering
-      : phase.kind === 'background'
-        ? t.session.chat.background(phase.command)
-        : phase.kind === 'thinking'
-          ? t.session.chat.thinking
-          : t.session.chat.running(phase.tool)
+    phase.kind === 'background'
+      ? t.session.chat.background(phase.command)
+      : phase.kind === 'thinking'
+        ? t.session.chat.thinking
+        : t.session.chat.running(phase.tool)
   return (
     <span className="transcript__turn">
       <span className="lamp lamp--working" aria-hidden="true" />
@@ -658,8 +662,4 @@ function UserBubble({ text, files, media, onOpen }: BubbleProps) {
       )}
     </div>
   )
-}
-
-function isReply(line: FeedLine): boolean {
-  return line.kind === 'answer' || line.kind === 'prompt'
 }
