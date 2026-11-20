@@ -27,6 +27,7 @@ import { formatAgo, formatClock, formatMoment, formatSpan } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { issueLink } from '../state.js'
+import { ClockIcon, InfoIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { NoticeFixButton } from './FixButtons.js'
@@ -250,21 +251,24 @@ function Hold({ hold, commit, now }: { hold: ChainHold; commit: string | null; n
   )
 }
 
-/** The last run of the project's `commands.afterGreen` (BTN-829): a dot, the label and how it went. */
-function AfterGreen({ run, held, now }: { run: NonNullable<MainCiView['afterGreen']>; held: boolean; now: Date }) {
+/**
+ * The last run of the project's `commands.afterGreen` (BTN-829): a dot, the label, how it went and, once over, when at
+ * the right. That the next task waits for the running commands is the tip's, marked by an "i" after the text.
+ */
+export function AfterGreen({ run, held, now }: { run: NonNullable<MainCiView['afterGreen']>; held: boolean; now: Date }) {
   const commit = short(run.commit)
-  const end = run.end
+  const end = run.running ? undefined : run.end
   const look = run.running ? 'running' : end === undefined ? 'notTaken' : end.state === 'done' ? 'success' : end.state === 'failed' ? 'failure' : 'notTaken'
   const text = run.running
-    ? [t.ci.after.running(commit, formatMoment(run.since, now)), held ? t.ci.after.held : null].filter((part) => part !== null).join(' · ')
+    ? t.ci.after.running(commit, formatMoment(run.since, now))
     : end === undefined
       ? t.ci.after.unseen(commit, formatAgo(run.since, now))
       : end.state === 'done'
-        ? t.ci.after.done(commit, formatAgo(end.at, now))
+        ? t.ci.after.done(commit)
         : end.state === 'failed'
-          ? t.ci.after.failed(end.command, end.code, commit, formatAgo(end.at, now))
-          : t.ci.after.skipped(commit, say(end.reason), formatAgo(end.at, now))
-  const failed = end?.state === 'failed' && !run.running
+          ? t.ci.after.failed(end.command, end.code, commit)
+          : t.ci.after.skipped(commit, say(end.reason))
+  const waits = run.running && held
   return (
     <Tipped
       className="ci__after"
@@ -273,18 +277,50 @@ function AfterGreen({ run, held, now }: { run: NonNullable<MainCiView['afterGree
       tip={
         <>
           <span>{t.ci.after.title}</span>
-          {failed && <span>{t.ci.after.failedTip}</span>}
+          {waits && <span>{t.ci.after.held}</span>}
+          {end?.state === 'failed' && <span>{t.ci.after.failedTip}</span>}
         </>
       }
     >
       <span className={`ci-status-dot ci-status-dot--${look}`} aria-label={t.ci.status[look]} role="img" />
       <span className="ci__label">{t.ci.after.label}</span>
-      <span className="ci__after-text">{text}</span>
+      <span className="ci__after-text">
+        {text}
+        {waits && (
+          <span className="ci__after-mark">
+            <InfoIcon />
+          </span>
+        )}
+      </span>
+      {end !== undefined && <span className="ci__after-ago">{formatAgo(end.at, now)}</span>}
     </Tipped>
   )
 }
 
-/** A mirror is one line — the dot, the name and "same commit · 3:12" — and opens into the whole card. */
+/** A run's length after a clock, a cell of its own; `title` says it in words. */
+function Length({ length }: { length: number }) {
+  const clock = formatClock(length)
+  return (
+    <span className="ci__length" title={t.ci.took(clock)}>
+      <ClockIcon />
+      {clock}
+    </span>
+  )
+}
+
+/** A mirror's "same commit" and its length beside it, wrapping together. */
+export function MirrorTime({ length }: { length: number }) {
+  return (
+    <span className="ci__mirror-time">
+      <span className="ci__same" title={t.ci.sameTitle}>
+        {t.ci.same}
+      </span>
+      <Length length={length} />
+    </span>
+  )
+}
+
+/** A mirror is one line — the dot, the name, "same commit" and its length — and opens into the whole card. */
 function CiMirror({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
   const length = runDurationMs(leadRun(runsOf(view.current!), view.medians, now), now)
   return (
@@ -304,9 +340,7 @@ function CiMirror({ view, now, urls, fixes }: { view: CiView; now: Date; urls: T
             <span className="ci__name">{t.ci.kinds[view.kind]}</span>
             <span className="ci__remote">{view.remote}</span>
             <Uncounted view={view} />
-            <span className="ci__same" title={t.ci.sameTitle}>
-              {t.ci.same(formatClock(length ?? 0))}
-            </span>
+            <MirrorTime length={length ?? 0} />
           </span>
         }
       >
@@ -441,10 +475,16 @@ function Push({
  * The run's time, apart from its commit: a meter against the usual length while it runs (`meter`, or the bare
  * "elapsed / usual"), the usual length while queued, the length and when once over.
  */
-function Timing({ run, median, now, meter }: { run: CiRun; median: number | null; now: Date; meter: boolean }) {
+export function Timing({ run, median, now, meter }: { run: CiRun; median: number | null; now: Date; meter: boolean }) {
   const length = runDurationMs(run, now) ?? 0
   if (run.status === 'queued') return median === null ? null : <span className="ci__when">{t.ci.usual(formatClock(median))}</span>
-  if (run.status !== 'running') return <span className="ci__when">{`${t.ci.took(formatClock(length))} · ${formatAgo(run.stoppedAt ?? run.createdAt, now)}`}</span>
+  if (run.status !== 'running')
+    return (
+      <span className="ci__when ci__done">
+        <Length length={length} />
+        <span className="ci__ago">{formatAgo(run.stoppedAt ?? run.createdAt, now)}</span>
+      </span>
+    )
   if (median === null) return <span className="ci__when">{formatClock(length)}</span>
   const elapsed = `${formatClock(length)} / ${formatClock(median)}`
   if (!meter) return <span className={length > median ? 'ci__when ci__when--over' : 'ci__when'}>{elapsed}</span>
@@ -639,14 +679,24 @@ function History({
   )
 }
 
+/** A past push's tip: its state, event, who pushed it and its runs, "caption: value" a line. */
+export function pushTip(push: PushRuns, by: PushBy | undefined): string {
+  const event = eventsOf(push.runs)
+  const rows: [string, string | null][] = [
+    [t.ci.facts.status, t.ci.status[pushStatus(push.runs)]],
+    [t.ci.facts.event, event],
+    [t.ci.facts.by, by === undefined ? null : t.ci.pushedBy[by]],
+    [t.ci.facts.runs, push.runs.map((run) => `${run.workflow} #${run.number}`).join(', ')],
+  ]
+  return rows.flatMap(([caption, value]) => (value === null ? [] : [`${caption}: ${value}`])).join('\n')
+}
+
 /** The push's state, commit, title, a dot per workflow when there are several, its time and when; the event and run numbers are its tip. */
 function PushRow({ push, medians, now, marked, by }: { push: PushRuns; medians: Record<string, number>; now: Date; marked: boolean; by: PushBy | undefined }) {
   const look = pushStatus(push.runs)
   const lead = leadRun(push.runs, medians, now)
   const length = runDurationMs(lead, now)
-  const tip = [t.ci.status[look], eventsOf(push.runs), by === undefined ? null : t.ci.by[by], push.runs.map((run) => `${run.workflow} #${run.number}`).join(', ')]
-    .filter((part) => part !== null)
-    .join(' · ')
+  const tip = pushTip(push, by)
   return (
     <li>
       <a className={marked ? 'ci__past ci__past--fix' : 'ci__past'} href={lead.url} target="_blank" rel="noreferrer" title={tip}>

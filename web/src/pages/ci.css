@@ -164,6 +164,13 @@
   color: var(--fg);
 }
 
+.ci__mirror-time {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-16);
+  min-width: 0;
+}
+
 .ci__same {
   min-width: 0;
   overflow: hidden;
@@ -268,6 +275,45 @@
 .ci__after-text {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* The "i" after the text: the tip says the next task waits for the commands. */
+.ci__after-mark {
+  display: inline-flex;
+  margin-left: var(--space-4);
+  vertical-align: -2px;
+}
+
+.ci__after-mark .icon,
+.ci__length .icon {
+  width: 12px;
+  height: 12px;
+}
+
+/* When the run ended, apart at the right as a run's time. */
+.ci__after-ago {
+  flex: none;
+  margin-left: auto;
+  padding-left: var(--space-16);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A finished run's length after a clock and when it ended: two cells, not one line. */
+.ci__done {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.ci__length {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* Commit, run number and workflow split by short dividers; the time stands apart at the right (`docs/design.md`, "Dividers in a segmented box"). */

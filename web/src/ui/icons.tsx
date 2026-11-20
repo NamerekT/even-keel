@@ -20,6 +20,17 @@ export function QuestionIcon() {
   )
 }
 
+/** More is in the tip: an "i" in a circle. */
+export function InfoIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.25" />
+      <path d="M8 7.4v4" />
+      <path d="M8 4.8v.01" />
+    </svg>
+  )
+}
+
 export function LockIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
