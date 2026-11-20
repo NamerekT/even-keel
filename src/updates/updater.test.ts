@@ -1,7 +1,7 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActiveChain } from '../chain/model.js'
 import { windowsControl } from './control.js'
 import type { Checkout, UpdateRecord } from './model.js'
@@ -48,7 +48,8 @@ function updater(extra: Partial<UpdaterOptions> & { chains?: ActiveChain[][] } =
   return { updater: new Updater(options), plans }
 }
 
-const settled = () => new Promise((resolve) => setTimeout(resolve, 50))
+// The settle loop runs on timers: a fixed pause lost the race under a full run's load (BTN-1353).
+const launched = (plans: UpdatePlan[]) => vi.waitFor(() => expect(plans).not.toHaveLength(0))
 
 describe('stateUrlOf', () => {
   it('reaches a wildcard address on loopback and brackets IPv6', () => {
@@ -91,7 +92,7 @@ describe('Updater', () => {
     await subject.start()
     expect(subject.view()).toMatchObject({ source: 'npm', blocked: null })
     await subject.update(RELEASE)
-    await settled()
+    await launched(plans)
     expect(plans[0]).toMatchObject({
       package: { name: 'even-keel', prefix },
       home: data,
@@ -118,7 +119,7 @@ describe('Updater', () => {
     const { updater: subject, plans } = updater()
     await subject.start()
     await subject.update(RELEASE)
-    await settled()
+    await launched(plans)
     expect(plans).toHaveLength(1)
     expect(plans[0]).toMatchObject({
       mode: 'update',
@@ -153,7 +154,7 @@ describe('Updater', () => {
     await subject.start()
     await subject.update(RELEASE)
     expect(subject.view().progress).toMatchObject({ phase: 'settling', waiting: ['ABC'] })
-    await settled()
+    await launched(plans)
     expect(plans).toHaveLength(1)
   })
 
@@ -165,7 +166,7 @@ describe('Updater', () => {
     })
     await subject.start()
     await subject.update(RELEASE)
-    await settled()
+    await vi.waitFor(() => expect(subject.view().result).not.toBeNull())
     expect(subject.view()).toMatchObject({ progress: null, result: { mode: 'update', step: 'launch', output: 'dist/updates/run.js is missing', rollback: 'none' } })
   })
 
@@ -189,7 +190,7 @@ describe('Updater', () => {
     expect(subject.view().result).toBeNull()
     expect(JSON.parse(readFileSync(join(root, 'logs', 'update.json'), 'utf8')).seen).toBe(true)
     await subject.revert()
-    await settled()
+    await launched(plans)
     expect(plans[0]).toMatchObject({ mode: 'revert', target: { version: '0.0.9', tag: 'v0.0.9' }, from: { version: '0.1.0', tag: 'v0.1.0' } })
   })
 
