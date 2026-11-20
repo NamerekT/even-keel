@@ -1,16 +1,26 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import baselineText from './design-baseline.json?raw'
+import glueBaselineText from './glue-baseline.json?raw'
 import { compareBaseline, cssViolations, violationCounts } from './ui/cssRules.js'
+import { glueCounts, glueScanned, glueSpots } from './ui/glueRules.js'
 
-// Every stylesheet of the page, keyed as the baseline keys it: the path under `web/src`.
-const sheets = Object.fromEntries(
-  Object.entries(import.meta.glob<string>('./**/*.css', { query: '?raw', import: 'default', eager: true })).map(([path, css]) => [
-    path.replace(/^\.\//, ''),
-    css,
-  ]),
-)
+// Read from the disk, not through `import.meta.glob`: vitest's module cache keeps a glob's file list from the transform
+// that first ran, so a file added later would stay unseen until this test changes.
+const root = fileURLToPath(new URL('.', import.meta.url))
+const walk = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]))
+// Every file of `web/src`, keyed as the baselines key it: the path under `web/src`.
+const files = Object.fromEntries(walk(root).map((file) => [relative(root, file).replaceAll('\\', '/'), file]))
+const read = (filter: (path: string) => boolean) =>
+  Object.fromEntries(Object.keys(files).filter(filter).map((path) => [path, readFileSync(files[path]!, 'utf8')]))
 
-const sources = import.meta.glob<string>('./**/*.tsx', { query: '?raw', import: 'default', eager: true })
+const sheets = read((path) => path.endsWith('.css'))
+const sources = read((path) => path.endsWith('.tsx'))
+// The page code and stylesheets the glue guard reads (`glueScanned`).
+const pageFiles = read(glueScanned)
 
 /** The lines of every `add-package__body` div of a source, matched to its closing tag by counting divs. */
 function dialogBodies(source: string): { line: number; text: string }[] {
@@ -74,5 +84,15 @@ describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
     })
     expect(added, 'Use a token of web/src/styles.css :root instead of the literal value').toEqual([])
     expect(fewer, 'Fewer violations than the baseline: run `npm run design-baseline` and commit web/src/design-baseline.json').toEqual([])
+  })
+  it('no file glues more facts with "·" than the baseline, and the baseline is not above what is left', () => {
+    const baseline = JSON.parse(glueBaselineText) as Record<string, number>
+    const { more, fewer } = compareBaseline(glueCounts(pageFiles), baseline)
+    const added = more.map((file) => {
+      const lines = glueSpots(file, pageFiles[file] ?? '').map((spot) => `  ${file}:${spot.line} ${spot.text}`)
+      return `${file}: ${lines.length} "·", the baseline allows ${baseline[file] ?? 0}\n${lines.join('\n')}`
+    })
+    expect(added, 'A fact glued with "·": put each value in a cell, a fact or a plaque (docs/design.md, "Facts are never glued")').toEqual([])
+    expect(fewer, 'Fewer glued dots than the baseline: run `npm run design-baseline` and commit web/src/glue-baseline.json').toEqual([])
   })
 })
