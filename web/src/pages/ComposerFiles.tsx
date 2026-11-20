@@ -6,7 +6,9 @@ import { CameraIcon, CloseIcon, FileUpIcon, PasteIcon, PhotoIcon, PlusIcon, Star
 import { Tipped } from '../ui/Tipped.js'
 import { clipboardPictures, clipboardReader } from './chatFiles.js'
 import { ATTACH_SOURCES, shortStem, syncUrls, tileOf, type AttachSource, type AttachSourceId } from './fileTiles.js'
+import { MediaViewer, type Media } from './MediaViewer.js'
 import './composerFiles.css'
+import './media.css'
 
 const ICONS: Record<AttachSourceId, ReactNode> = { camera: <CameraIcon />, photos: <PhotoIcon />, files: <FileUpIcon /> }
 
@@ -164,10 +166,19 @@ function useFileUrls(files: readonly File[]): ReadonlyMap<File, string> {
   return urls.current
 }
 
-/** The files of the chat field in one strip that scrolls sideways: a picture or a video by its preview, any other file by its extension and name. */
+/**
+ * The files of the chat field in one strip that scrolls sideways: a picture or a video by its preview, which opens
+ * in the viewer from the same object URL, any other file by its extension and name.
+ */
 export function FileStrip({ files, sending, onRemove }: { files: File[]; sending: boolean; onRemove: (index: number) => void }) {
   const urls = useFileUrls(files)
   const strip = useRef<HTMLUListElement>(null)
+  const [open, setOpen] = useState<number | null>(null)
+  const media: Media[] = files.flatMap((file) => {
+    const url = urls.get(file)
+    const { kind } = tileOf(file)
+    return url === undefined || kind === 'file' ? [] : [{ kind, name: file.name, url }]
+  })
   useEffect(() => {
     // The strip has no scrollbar, so it does not grow when one would appear: a mouse wheel scrolls it sideways instead.
     const box = strip.current
@@ -181,46 +192,58 @@ export function FileStrip({ files, sending, onRemove }: { files: File[]; sending
     return () => box.removeEventListener('wheel', wheel)
   }, [])
   return (
-    <ul ref={strip} className="chat__tray">
-      {files.map((file, index) => {
-        const tile = tileOf(file)
-        const url = urls.get(file)
-        const kind = url === undefined ? 'file' : tile.kind
-        return (
-          <li key={`${file.name}-${index}`} className={`chat__tile chat__tile--${kind}`}>
-            {kind === 'image' && <img className="chat__thumb" src={url} alt={file.name} />}
-            {kind === 'video' && (
-              <>
-                <video className="chat__thumb" src={url} muted playsInline preload="metadata" aria-label={file.name} />
-                <span className="chat__play" aria-hidden="true">
-                  <StartIcon />
-                </span>
-              </>
-            )}
-            {kind === 'file' && (
-              <span className="chat__doc" aria-label={file.name}>
-                {tile.ext !== '' && (
-                  <span className="chat__ext" aria-hidden="true">
-                    {tile.ext}
+    <>
+      <ul ref={strip} className="chat__tray">
+        {files.map((file, index) => {
+          const tile = tileOf(file)
+          const url = urls.get(file)
+          const kind = url === undefined ? 'file' : tile.kind
+          return (
+            <li key={`${file.name}-${index}`} className={`chat__tile chat__tile--${kind}`}>
+              {kind !== 'file' && (
+                <button
+                  type="button"
+                  className="chat__view"
+                  aria-label={t.session.chat.viewFile(file.name)}
+                  onClick={() => setOpen(media.findIndex((each) => each.url === url))}
+                >
+                  {kind === 'image' && <img className="chat__thumb" src={url} alt="" />}
+                  {kind === 'video' && (
+                    <>
+                      <video className="chat__thumb" src={url} muted playsInline preload="metadata" aria-hidden="true" />
+                      <span className="chat__play" aria-hidden="true">
+                        <StartIcon />
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
+              {kind === 'file' && (
+                <span className="chat__doc" aria-label={file.name}>
+                  {tile.ext !== '' && (
+                    <span className="chat__ext" aria-hidden="true">
+                      {tile.ext}
+                    </span>
+                  )}
+                  <span className="chat__stem" aria-hidden="true">
+                    {shortStem(tile.stem, STEM)}
                   </span>
-                )}
-                <span className="chat__stem" aria-hidden="true">
-                  {shortStem(tile.stem, STEM)}
                 </span>
-              </span>
-            )}
-            <button
-              type="button"
-              className="chat__unfile"
-              aria-label={t.session.chat.removeFile(file.name)}
-              disabled={sending}
-              onClick={() => onRemove(index)}
-            >
-              <CloseIcon />
-            </button>
-          </li>
-        )
-      })}
-    </ul>
+              )}
+              <button
+                type="button"
+                className="chat__unfile"
+                aria-label={t.session.chat.removeFile(file.name)}
+                disabled={sending}
+                onClick={() => onRemove(index)}
+              >
+                <CloseIcon />
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      {open !== null && open < media.length && <MediaViewer items={media} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+    </>
   )
 }

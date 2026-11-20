@@ -128,3 +128,27 @@ it('shows pictures as thumbnails, other files by extension, and frees the URL of
   expect(revoke).toHaveBeenCalledWith('blob:shot.png')
   expect(host.querySelector('.chat__tile--image')).toBeNull()
 })
+
+it('opens a thumbnail in the viewer from its own object URL, pages through pictures and videos only, and the cross opens nothing', async () => {
+  const shot = new File(['x'], 'shot.png', { type: 'image/png' })
+  const doc = new File(['x'], 'report.pdf', { type: 'application/pdf' })
+  const clip = new File(['x'], 'clip.mp4', { type: 'video/mp4' })
+  const onRemove = vi.fn()
+  await act(async () => root.render(createElement(FileStrip, { files: [shot, doc, clip], sending: false, onRemove })))
+  expect(host.querySelector('.chat__tile--file button.chat__view')).toBeNull()
+  await act(async () => host.querySelector<HTMLButtonElement>('.chat__tile--image .chat__unfile')!.click())
+  expect(onRemove).toHaveBeenCalledWith(0)
+  expect(host.querySelector('dialog.viewer')).toBeNull()
+
+  const view = host.querySelector<HTMLButtonElement>('.chat__tile--video button.chat__view')!
+  expect(view.getAttribute('aria-label')).toBe(t.session.chat.viewFile('clip.mp4'))
+  await act(async () => view.click())
+  const viewer = host.querySelector('dialog.viewer')!
+  expect(viewer.querySelector('video')!.getAttribute('src')).toBe('blob:clip.mp4')
+  expect(viewer.querySelector('.viewer__counter')!.textContent).toBe('2 / 2')
+  await act(async () => viewer.querySelector<HTMLButtonElement>('.viewer__nav--prev')!.click())
+  expect(viewer.querySelector('img')!.getAttribute('src')).toBe('blob:shot.png')
+  await act(async () => viewer.querySelector<HTMLButtonElement>('.viewer__close')!.click())
+  expect(host.querySelector('dialog.viewer')).toBeNull()
+  expect(create).toHaveBeenCalledTimes(2)
+})

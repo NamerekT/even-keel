@@ -1,6 +1,7 @@
 export const composerEn = {
   sending: 'Sending your message…',
   removeFile: (name: string) => `Remove ${name}`,
+  viewFile: (name: string) => `Open ${name}`,
   attachMenu: {
     title: 'Attach to the message',
     camera: 'Camera',
