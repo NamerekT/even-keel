@@ -197,6 +197,25 @@
   display: inline-flex;
 }
 
+/* While the message is delivered its clock's hands turn, never the whole mark (BTN-1393). */
+.delivery--delivering .clock__minute,
+.delivery--delivering .clock__hour {
+  transform-box: view-box;
+  transform-origin: center;
+  animation: spin var(--motion-tick) linear infinite;
+}
+
+.delivery--delivering .clock__hour {
+  animation-duration: calc(var(--motion-tick) * 12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .delivery--delivering .clock__minute,
+  .delivery--delivering .clock__hour {
+    animation: none;
+  }
+}
+
 .transcript__entry--error,
 .transcript__entry--failed {
   color: var(--error-fg);

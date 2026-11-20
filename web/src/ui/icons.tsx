@@ -114,12 +114,13 @@ export function EnqueueIcon() {
   )
 }
 
-/** A place in the queue, waiting for its turn: a clock. */
+/** A place in the queue, waiting for its turn: a clock. Its hands are separate, so a delivering message turns them (BTN-1393). */
 export function ClockIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
       <circle cx="8" cy="8" r="5.75" />
-      <path d="M8 4.75V8l2.25 1.5" />
+      <path className="clock__minute" d="M8 8V4.75" />
+      <path className="clock__hour" d="M8 8l2.25 1.5" />
     </svg>
   )
 }

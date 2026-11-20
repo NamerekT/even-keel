@@ -27,7 +27,7 @@ let changed: () => void
 let live: unknown = null
 vi.mock('../live/context.js', () => ({
   useLive: () => ({
-    state: live, command, transcript, session: async () => null, sentFileUrl: () => '/file.png',
+    state: live, command, deliver: command, transcript, session: async () => null, sentFileUrl: () => '/file.png',
     onTranscript: (_id: string, listener: () => void) => { changed = listener; return () => {} },
   }),
 }))

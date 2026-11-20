@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useSyncExternalStore, type ReactNode } from 'react'
+import { liveActions, type LiveActions } from './actions.js'
 import { activity } from './activity.js'
 import type { LiveSnapshot, LiveSource } from './connection.js'
 
@@ -8,46 +9,11 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
   return <LiveContext.Provider value={source}>{children}</LiveContext.Provider>
 }
 
-/**
- * The source with the person's own waits on the top bar (BTN-1257): commands, the session, the card, the project check,
- * queries and files. `read` is a query off the bar, for the values a field offers: the field shows its own loader when
- * opened meanwhile. Stats, the tracker's vocabulary and the tools' views stay off it too: whatever shows them shows its
- * own reading (the Tools page's skeleton, "What sessions get"'s loader, a field's list).
- */
-export function useLive(): LiveSnapshot & { read: LiveSource['query'] } & Pick<LiveSource,'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'onMachines' | 'checkpoint' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'badgeUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
+/** The live snapshot and the source's actions, the person's own waits on the top bar (`liveActions`). */
+export function useLive(): LiveSnapshot & LiveActions {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
   const snapshot = useSyncExternalStore(subscribe, () => source.snapshot())
-  return {
-    ...snapshot,
-    retryNow: () => source.retryNow(),
-    command: (name, body) => activity.track(source.command(name, body)),
-    session: (sessionId) => activity.track(source.session(sessionId)),
-    transcript: (sessionId, after) => source.transcript(sessionId, after),
-    onTranscript: (sessionId, listener) => source.onTranscript(sessionId, listener),
-    onMachines: (listener) => source.onMachines(listener),
-    checkpoint: (sessionId) => source.checkpoint(sessionId),
-    imageUrl: (sessionId, tool, index) => source.imageUrl(sessionId, tool, index),
-    sentFileUrl: (sessionId, name) => source.sentFileUrl(sessionId, name),
-    sharedUrl: (sessionId, tool, index) => source.sharedUrl(sessionId, tool, index),
-    badgeUrl: (project, theme, still) => source.badgeUrl(project, theme, still),
-    tools: (project) => source.tools(project),
-    card: (task) => activity.track(source.card(task)),
-    vocabulary: (projectId) => source.vocabulary(projectId),
-    checkProject: (draft, askTracker) => activity.track(source.checkProject(draft, askTracker)),
-    query: (name, body, options) => activity.track(source.query(name, body, options)),
-    read: (name, body, options) => source.query(name, body, options),
-    attach: (task, file) => activity.track(source.attach(task, file)),
-    statsHistory: (filter) => source.statsHistory(filter),
-    statsPeriod: (query) => source.statsPeriod(query),
-    statsSteps: (query) => source.statsSteps(query),
-    statsCheckpoints: () => source.statsCheckpoints(),
-    statsSpend: (tz) => source.statsSpend(tz),
-    statsTokens: (tz) => source.statsTokens(tz),
-    statsTask: (task) => source.statsTask(task),
-    statsRules: (query) => source.statsRules(query),
-    statsRuleDiff: (changes) => source.statsRuleDiff(changes),
-    statsCompare: (query) => source.statsCompare(query),
-  }
+  return { ...snapshot, ...liveActions(source, activity) }
 }

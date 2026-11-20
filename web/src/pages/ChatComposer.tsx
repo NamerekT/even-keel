@@ -71,7 +71,7 @@ interface Props {
 export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, answered, onSent, handing, onRenew, restore, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
   const accept = useCommand()
-  const { command: post } = useLive()
+  const { deliver: post } = useLive()
   const draft = useChatDraft(owner, session.sessionId)
   const { text, files, setText, setFiles } = draft
   const sending = draft.sending || accept.sending

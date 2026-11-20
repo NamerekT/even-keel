@@ -26,7 +26,7 @@ The button turns amber while the session waits for you. Even Keel stops the sess
 
 An unsent reply — its text and files — stays with each session's chat in your browser: close the window or reload the page and it is still there, until you send it.
 
-A sent message shows at once, with an icon left of its time: a clock while it is on its way to the session, two green checks once the session has it, a red sign if it could not be delivered. Point at the icon for its words and the time of delivery.
+A sent message shows at once, with an icon left of its time: a clock with turning hands while it is on its way to the session (the loading bar at the top of the page stays still for it), two green checks once the session has it, a red sign if it could not be delivered. Point at the icon for its words and the time of delivery.
 
 The window's head names the task; point at its title for the session's id, press it to copy the id.
 

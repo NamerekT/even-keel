@@ -116,7 +116,7 @@ interface FieldProps {
 /** The field of a project chat: the open question's options or a free message, with files; shut while the chat starts, or works in a session that takes nothing mid-turn. */
 function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: FieldProps) {
   const command = useRef<CommandTextHandle>(null)
-  const { state, query, command: post } = useLive()
+  const { state, query, deliver } = useLive()
   const { text, files, setText, setFiles, sending, failure, dismissFailure, send } = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id)
   const [renewal, setRenewal] = useState<ChatRenewal | null>(null)
   const [pending, setPending] = useState<string | null>(null)
@@ -145,7 +145,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     const answers = ask === null ? {} : askAnswers(ask, picks)
     const retract = mailing ? () => {} : parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files)
     if (ask !== null) setPending(ask.id)
-    const ok = await send(async (message) => post('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }))
+    const ok = await send(async (message) => deliver('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }))
     if (ok) onChanged()
     else {
       retract()
