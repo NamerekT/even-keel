@@ -5,7 +5,7 @@ import type { ProjectForm, ProjectSettings, SharedForm } from '../state.js'
 const common = {
   prompt: null,
   promptLanguage: 'en' as const,
-  cacheTtl: null,
+  cacheTtl: '5m' as const,
   autoCompactWindow: null,
   codexAutoCompactWindow: null,
   openCodeAutoCompactWindow: null,
@@ -80,7 +80,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     language: null,
     hiddenSkills: ['update-config', 'keybindings-help', 'fewer-permission-prompts', 'loop', 'schedule', 'init', 'claude-api', 'claude-in-chrome', 'plugin-authoring', 'artifact-design', 'artifact-diagramming', 'artifact-capabilities', 'dataviz'],
     parallel: 1,
-    keepWarm: 0,
+    keepWarm: 2,
     attachmentLimit: 25,
     defaultGit: null,
     setupPassed: [],

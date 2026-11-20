@@ -153,7 +153,7 @@ When the blocker closes, or you undo Skip, a resting session is replaced with a 
 
 ## Keeping a waiting session warm
 
-Off by default. A Claude Code session that waits for your reply keeps its prompt cache for an hour on a subscription, five minutes on an API key, a Codex session for half an hour; an answer after that pays for reading the whole context again, and the chain hands a session over to a new one rather than resume it cold.
+On by default, for 2 hours. A Claude Code chain session writes its prompt cache for five minutes (**Settings → Sessions → Prompt cache lifetime**, see [Which cache lifetime](#which-cache-lifetime)), a Codex session keeps it for half an hour; an answer after that pays for reading the whole context again, and the chain hands a session over to a new one rather than resume it cold.
 
 With **Settings → Sessions → Keep the cache of a waiting session warm, hours** above 0, Even Keel asks a copy of the session for one word shortly before its cache would expire, so the next real turn reads it from the cache.
 
@@ -168,6 +168,21 @@ OpenCode and Copilot sessions are not kept warm. An overloaded ping is skipped a
 A ping that misses the cache or fails for another reason stops the pings for that session until the service restarts, and a restart forgets the pings, so a session waiting across one is let go cold.
 
 Each ping spends the account's limits.
+
+### Which cache lifetime
+
+**Prompt cache lifetime** (`cacheTtl`) is `5m` by default, and together with keep-warm it is cheaper than an hour at API prices. Most of the saving is the price of the cache write: on Opus a five-minute write costs $5 per million tokens, an hour-long one $8, and writes are about a third of what a chain session costs. Over 10,300 answers of chain sessions, five minutes with keep-warm cost $432 at API prices; the same answers on an hour-long cache would have cost about $490, some 12% more. The pings among them cost about $2, and the cold rebuilds after a pause the pings did not cover $6.
+
+What a late answer to a question costs, at about 108k tokens of context on Opus. Besides it, the hour-long cache costs about $0.58 more per task on average even when the chain asks nothing.
+
+| You answer after | 5 minutes with keep-warm | 1 hour |
+| --- | --- | --- |
+| up to 5 minutes | nothing | nothing |
+| 5–48 minutes | the pings, up to about $0.26 | nothing |
+| 48–60 minutes | about $0.80: the 12 pings ran out and the cache is written again | nothing |
+| over an hour | about $0.80 | about $0.86: it went cold too |
+
+So five minutes loses only on an answer 48–60 minutes after the question; an answer the next morning costs about the same either way. Set `1h` when keep-warm is off, or when you usually answer the chain's questions 48–60 minutes later. The setting is for chain sessions only: a project chat always writes its cache for an hour, since nothing keeps a chat warm while you are away. Whether a subscription counts a five-minute and an hour-long cache differently against its usage limits is not published, so the saving above is in API prices, not a promise that a subscription's limit lasts longer.
 
 ## Lean sessions
 

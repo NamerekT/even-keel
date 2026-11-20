@@ -3,7 +3,7 @@ import { fail, type NoticeCode } from './notice/notice.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { ATTACHMENT_LIMIT_MB } from './builtin/model.js'
 import { DEFAULT_BACKUP } from './storage/backup-model.js'
-import { DEFAULT_CI } from './settings/defaults.js'
+import { DEFAULT_CACHE_TTL, DEFAULT_CI, DEFAULT_KEEP_WARM } from './settings/defaults.js'
 import { EDIT_CHOICES, type EditChoice } from './account/settingsLayer.js'
 import { OWN_KEYS } from './settings/registry.js'
 import type { AnswerRequest } from './server.js'
@@ -235,15 +235,15 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     language: language as Language | null,
     promptLanguage: textOf(promptLanguage, 'promptLanguage') as Language,
     hiddenSkills: linesOf(hiddenSkills, 'hiddenSkills'),
-    // A page from before the switch sends none: form and base then agree and nothing is written.
-    cacheTtl: (cacheTtl ?? null) as CacheTtl | null,
+    // A page from before the switch sends none: form and base then agree and nothing is written. `null` — the CLI decides.
+    cacheTtl: (cacheTtl === undefined ? DEFAULT_CACHE_TTL : cacheTtl) as CacheTtl | null,
     autoCompactWindow: body.autoCompactWindow == null ? null : numberOf(body.autoCompactWindow, 'autoCompactWindow'),
     codexAutoCompactWindow: body.codexAutoCompactWindow == null ? null : numberOf(body.codexAutoCompactWindow, 'codexAutoCompactWindow'),
     openCodeAutoCompactWindow: body.openCodeAutoCompactWindow == null ? null : numberOf(body.openCodeAutoCompactWindow, 'openCodeAutoCompactWindow'),
     // A page from before the switch sends none: on, as the default, so nothing is written.
     contextHandoffs: contextHandoffs === undefined ? true : switchOf(contextHandoffs, 'contextHandoffs'),
-    // A page from before the setting sends none: off, as the default, so nothing is written.
-    keepWarm: keepWarm === undefined ? 0 : numberOf(keepWarm, 'keepWarm'),
+    // A page from before the setting sends none: the default, so nothing is written.
+    keepWarm: keepWarm === undefined ? DEFAULT_KEEP_WARM : numberOf(keepWarm, 'keepWarm'),
     attachmentLimit: attachmentLimit === undefined ? ATTACHMENT_LIMIT_MB : numberOf(attachmentLimit, 'attachmentLimit'),
     // A page from before the setting sends none: not asked, as the default, so nothing is written.
     defaultGit: defaultGit == null ? null : switchOf(defaultGit, 'defaultGit'),

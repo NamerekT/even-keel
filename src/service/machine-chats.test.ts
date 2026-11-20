@@ -13,7 +13,7 @@ const start = { prompt: 'Continue', model: null, effort: null }
 const bridge = { package: 'agent-bridge@even-keel', dir: '/cache/agent-bridge', name: 'agent-bridge', marketplace: 'ek-1', marketplaceFile: '/cache/m.json', servers: ['memory'] }
 const serverless = { ...bridge, dir: '/cache/agent-bridge-serverless', servers: [] }
 
-function setup(status: 'idle' | 'busy', question?: string, hung = false, agent = CLAUDE) {
+function setup(status: 'idle' | 'busy', question?: string, hung = false, agent = CLAUDE, config: Record<string, unknown> = {}) {
   const holds = new ResumeHolds()
   const monitor = { holds, handoff: () => session }
   const liveView = () => ({ sessionId: session.sessionId, ask: question ? { id: question } : null, hungSince: hung ? '2026-11-20T10:00:00Z' : null })
@@ -30,7 +30,7 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   const chats = wireMachineChats({
     monitor, liveView, agentStatus, stopIn, resumeIn, launchIn, toldInbox, mailbox,
     homeOf: () => ({ ...home, agent }), agentOf: () => ({ reply }), daemons: { prepare: vi.fn() },
-    configStore: { current: { settings: {}, execution: {}, projects: {} } }, branchOf: () => 'dev',
+    configStore: { current: { settings: {}, execution: {}, projects: {}, ...config } }, branchOf: () => 'dev',
     packages: { chatPlugins },
   } as unknown as MachineChatsContext)
   return {
@@ -129,8 +129,22 @@ describe('a message to an existing project chat', () => {
     expect(launchIn).toHaveBeenCalledWith(expect.anything(), plugin, 'project')
     expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, plugin)
     expect(chatPlugins).toHaveBeenCalledWith(true)
-    expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('settings')
     expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('mcp')
+  })
+
+  it('starts and resumes a Claude chat on the hour-long cache whatever the chain cache is (BTN-1401)', async () => {
+    const { launch, send, launchIn, resumeIn } = setup('idle', undefined, false, CLAUDE, { cacheTtl: '5m', settings: { project: { cacheTtl: '5m' } } })
+    await launch()
+    await send()
+    const hour = expect.objectContaining({ settings: JSON.stringify({ promptCacheTtl: '1h' }) })
+    expect(launchIn).toHaveBeenCalledWith(expect.anything(), hour, 'project')
+    expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, hour)
+  })
+
+  it.each(['codex', 'copilot', 'opencode'])('gives a %s chat no Claude settings', async (agent) => {
+    const { launch, launchIn } = setup('idle', undefined, false, agent)
+    await launch()
+    expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('settings')
   })
 
   it('tries neither the agent nor the inbox of a hung session', async () => {

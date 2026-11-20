@@ -120,7 +120,8 @@ describe('parseConfig', () => {
   })
 
   it('takes the hours of keeping a waiting cache warm as a whole number up to a day', () => {
-    expect(parse({ projects: {} }).keepWarm).toBe(0)
+    expect(parse({ projects: {} }).keepWarm).toBe(2)
+    expect(parse({ projects: {}, keepWarm: 0 }).keepWarm).toBe(0)
     expect(parse({ projects: {}, keepWarm: 24 }).keepWarm).toBe(24)
     expect(() => parse({ projects: {}, keepWarm: 25 })).toThrow(/keepWarm/)
     expect(() => parse({ projects: {}, keepWarm: -1 })).toThrow(/keepWarm/)
@@ -146,8 +147,9 @@ describe('parseConfig', () => {
     expect(parse({ projects: {}, promptLanguage: 'ru' })).toMatchObject({ language: null, promptLanguage: 'ru' })
   })
 
-  it('leaves the prompt cache TTL to the CLI unless it is 5m or 1h', () => {
-    expect(parse({ projects: {} }).cacheTtl).toBeNull()
+  it('writes the chain cache for 5 minutes unless 1h or the CLI is chosen', () => {
+    expect(parse({ projects: {} }).cacheTtl).toBe('5m')
+    expect(parse({ projects: {}, cacheTtl: null }).cacheTtl).toBeNull()
     expect(parse({ projects: {}, cacheTtl: '1h' }).cacheTtl).toBe('1h')
     expect(parse({ projects: {}, cacheTtl: '5m' }).cacheTtl).toBe('5m')
     expect(() => parse({ projects: {}, cacheTtl: '2h' })).toThrow(/cacheTtl.*"2h"/)

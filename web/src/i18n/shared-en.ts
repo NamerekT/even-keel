@@ -91,7 +91,7 @@ export const sharedEn = {
   cacheTtl5m: '5 minutes',
   cacheTtl1h: '1 hour',
   cacheTtlHint:
-    'For chain sessions, from the next launch. Claude Code writes the cache for 1 hour on a subscription within its limits and for 5 minutes on an API key. A 1-hour write costs more but survives a longer pause between turns.',
+    'For chain sessions, from the next launch; project chats always use 1 hour. A 1-hour write costs more but survives a longer pause between turns; with keep-warm on, 5 minutes is cheaper. Left to Claude Code, it is 1 hour on a subscription within its limits and 5 minutes on an API key.',
   keepWarm: 'Keep the cache of a waiting session warm, hours',
   keepWarmHint:
     'While the current session of a chain waits for your answer, Even Keel asks a copy of it for one word shortly before its cache expires, so your answer does not pay for reading the whole context anew. The session itself gets nothing. Counted from its last answer; 0 turns it off. Each ping spends the account’s limits, and a missed cache stops the pings for that session.',

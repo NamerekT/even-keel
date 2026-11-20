@@ -25,7 +25,7 @@ import { isTallyMode } from '../stats/mode.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
 import { DEFAULT_UPDATES } from '../updates/release.js'
-import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_MODELS, DEFAULT_SLOT_CLEANUP } from './defaults.js'
+import { DEFAULT_ACCOUNTS, DEFAULT_CACHE_TTL, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_KEEP_WARM, DEFAULT_MODELS, DEFAULT_SLOT_CLEANUP } from './defaults.js'
 
 /** `global` — Even Keel's own value, the top level of the file; `project` — a project's, its entry in `projects`. */
 export type Scope = 'global' | 'project'
@@ -234,8 +234,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.parallel', { value: json(value) })
     return value
   } },
-  // Off until its live check (BTN-437): each ping spends the account's limits.
-  { key: 'keepWarm', kind: 'integer', scopes: ['global'], lands: ['keepWarm'], default: 0, check: (value) => {
+  // On with the 5-minute cache (BTN-1401): cheaper together than the hour-long one; Claude's pings stop at `BREAK_EVEN`.
+  { key: 'keepWarm', kind: 'integer', scopes: ['global'], lands: ['keepWarm'], default: DEFAULT_KEEP_WARM, check: (value) => {
     if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > MAX_KEEP_WARM_HOURS) {
       throw fail('config.keepWarm', { value: json(value), max: String(MAX_KEEP_WARM_HOURS) })
     }
@@ -336,7 +336,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (!Array.isArray(value) || value.some((name) => typeof name !== 'string' || name.trim() === '')) throw fail('config.hiddenSkills', {})
     return value.map((name: string) => name.trim())
   } },
-  { key: 'cacheTtl', kind: 'enum', scopes: ['global', 'project'], lands: ['cacheTtl', 'settings'], default: null, check: (value) => {
+  // Chain sessions only (BTN-1401): `null` — the CLI decides; project chats are always on the hour (`machine-chats.ts`).
+  { key: 'cacheTtl', kind: 'enum', scopes: ['global', 'project'], lands: ['cacheTtl', 'settings'], default: DEFAULT_CACHE_TTL, check: (value) => {
     if (value !== null && value !== '5m' && value !== '1h') throw fail('config.cacheTtl', { value: json(value) })
     return value
   } },
