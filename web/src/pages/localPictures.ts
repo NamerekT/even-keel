@@ -11,17 +11,20 @@ export interface LocalPictures {
 
 /**
  * Object URLs of the pictures the user sends, so a bubble shows them before the service can give them back. They live
- * while the window shows the session and are revoked when it closes or turns to another session.
+ * while the window shows the session and are revoked when it closes or turns to another session. A new project chat's
+ * first session (`''` before it) is the same conversation: its start may take minutes after the message went out (BTN-1387).
  */
 export function useLocalPictures(sessionId: string): LocalPictures {
   const urls = useRef(new Map<string, string>())
+  const shown = useRef(sessionId)
+  useEffect(() => {
+    if (shown.current !== '' && shown.current !== sessionId) revokeAll(urls.current)
+    shown.current = sessionId
+  }, [sessionId])
   useEffect(() => {
     const held = urls.current
-    return () => {
-      for (const url of held.values()) URL.revokeObjectURL(url)
-      held.clear()
-    }
-  }, [sessionId])
+    return () => revokeAll(held)
+  }, [])
   return useMemo(
     () => ({
       get: (name) => urls.current.get(name),
@@ -43,4 +46,9 @@ export function useLocalPictures(sessionId: string): LocalPictures {
     }),
     [],
   )
+}
+
+function revokeAll(held: Map<string, string>): void {
+  for (const url of held.values()) URL.revokeObjectURL(url)
+  held.clear()
 }

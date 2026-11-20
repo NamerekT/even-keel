@@ -254,18 +254,49 @@ it('marks the message as not delivered and puts it back in the field when the la
   expect(host.querySelector('.delivery')?.classList.contains('delivery--delivering')).toBe(true)
 })
 
-it('opens a sent picture from its chip and retries both images after a temporary 404', async () => {
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
+
+it('keeps a sent picture from the chosen file while the first session starts for minutes, then shows the service’s', async () => {
   const { host, delivery } = await start('one.png')
   await act(async () => delivery.resolve())
+  const thumb = () => host.querySelector<HTMLImageElement>('.bubble .thumb img')
+  expect(thumb()?.getAttribute('src')).toMatch(/^blob:/)
   const settings = (window as unknown as HappyWindow).happyDOM.settings
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
+  vi.useFakeTimers()
+  try {
+    transcript.mockResolvedValue({ lines: [], turn: null })
+    await render({ ...card, sessionId: 'first-session', state: 'starting' })
+    await act(async () => vi.advanceTimersByTimeAsync(3 * 60_000))
+    expect(thumb()?.getAttribute('src')).toMatch(/^blob:/)
+    expect(host.querySelector('.bubble .chat__file')).toBeNull()
+    settings.fetch.interceptor = { beforeAsyncRequest: async ({ window }) => new window.Response(png) }
+    settings.enableImageFileLoading = true
+    transcript.mockResolvedValue({ lines: [{ at: card.lastAt, kind: 'prompt', text: message, files: ['.temp/inbox/one.png'] }], turn: null })
+    await act(async () => changed())
+    await act(async () => vi.advanceTimersByTimeAsync(100))
+    expect(thumb()?.getAttribute('src')).toBe('/file.png')
+    expect(thumb()?.naturalWidth).toBe(1)
+  } finally {
+    settings.enableImageFileLoading = false
+    settings.fetch.interceptor = null
+    vi.useRealTimers()
+  }
+})
+
+it('opens a sent picture from its chip and retries both images after a temporary 404', async () => {
+  // The window opened after the send: the browser holds no copy of the picture.
+  const settings = (window as unknown as HappyWindow).happyDOM.settings
   let available = false
   settings.fetch.interceptor = { beforeAsyncRequest: async ({ window }) => available ? new window.Response(png) : new window.Response(null, { status: 404 }) }
   settings.enableImageFileLoading = true
   vi.useFakeTimers()
   try {
     transcript.mockResolvedValue({ lines: [{ at: card.lastAt, kind: 'prompt', text: message, files: ['.temp/inbox/one.png'] }], turn: null })
+    const host = document.body.appendChild(document.createElement('div'))
+    root = createRoot(host)
     await render({ ...card, sessionId: 'first-session', state: 'working' })
+    // Past the loader, short of the first retry.
+    for (let step = 0; step < 4; step++) await act(async () => vi.advanceTimersByTimeAsync(150))
     const chip = host.querySelector<HTMLButtonElement>('button.chat__file')!
     expect(chip?.textContent).toContain('one.png')
     await act(async () => chip.click())
