@@ -1,6 +1,7 @@
 import type { StatusMoves } from '../chain/moves.js'
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import type { RemoteRepo } from '../ci/remote.js'
+import { briefWithAncestors } from './brief.js'
 import type { TrackerCard } from './card.js'
 import type { TaskEditor } from './editor.js'
 import type { LabelChange } from './labels.js'
@@ -229,6 +230,18 @@ export interface TaskBrief {
   files?: { name: string; path: string }[]
   /** The login of the outsider who opened it (BTN-1124: GitHub, GitLab, Forgejo), `''` for a deleted account: the prompt says the text is theirs. */
   outsider?: string
+  /**
+   * The task's parents, root first down to its own parent (BTN-1398): the frame a child's part belongs to.
+   * `trackerOf` reads them for every tracker; absent — the task has no parent.
+   */
+  ancestors?: BriefAncestor[]
+}
+
+/** A parent of the task as its brief gives it. */
+export interface BriefAncestor extends Omit<TaskBrief, 'ancestors'> {
+  id: string
+  /** The tracker keeps attachments the brief does not give as files (any tracker but the built-in one): the session reads the task. */
+  attached?: true
 }
 
 export interface TrackerSetup {
@@ -461,7 +474,7 @@ export function trackerOf(source: TaskSource): Tracker {
     tasks: async (ids) => (await source.tasks(ids)).map(toTask),
     close: () => source.close(),
   }
-  if (source.brief !== undefined) tracker.brief = (id) => source.brief!(id)
+  if (source.brief !== undefined) tracker.brief = (id) => briefWithAncestors(source, id)
   if (source.complete !== undefined) tracker.complete = (id, status) => (status === undefined ? source.complete!(id) : source.complete!(id, status))
   if (source.moveTo !== undefined) tracker.moveTo = (id, status) => source.moveTo!(id, status)
   if (source.statuses !== undefined) tracker.statuses = () => source.statuses!()

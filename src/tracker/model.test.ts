@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from '../chain/rules.js'
 import { fakeTask } from './fixture.js'
 import { diffStatuses, isOpen, issueLink, parseTaskId, runLabelOf, toTask,type TaskStatus, type TrackerTask } from './model.js'
+import type { TrackerCard } from './card.js'
 import { trackerOf, type TaskSource } from './source.js'
 
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -175,5 +176,41 @@ describe('trackerOf', () => {
     expect(await full.complete!('ABC-1')).toBe(true)
     expect(completed).toEqual(['ABC-1'])
     expect((await full.children!('ABC-1')).map((task) => [task.id, task.labels])).toEqual([['ABC-2', ['Codex']]])
+  })
+
+  describe('brief with the ancestors (BTN-1398)', () => {
+    const tree = (tasks: TrackerTask[], extra: Partial<TaskSource> = {}): TaskSource => ({
+      ...source([]),
+      tasks: async (ids) => tasks.filter((task) => ids.includes(task.id)),
+      brief: async (id) => ({ title: `Title of ${id}`, description: `Text of ${id}`, ...(id === 'ABC-1' ? { files: [{ name: 'mock.png', path: 'D:\\files\\1' }] } : {}) }),
+      ...extra,
+    })
+    const card = (attachments: number) => ({ attachments: Array.from({ length: attachments }, (_, n) => ({ file: `${n}`, name: `${n}.png`, type: '', size: 0, url: null })) }) as unknown as TrackerCard
+
+    it('gives the parents root first, with the files the brief gives and a mark where only the card has attachments', async () => {
+      const cards: string[] = []
+      const adapter = tree([raw('ABC-1', { subtasks: 1 }), raw('ABC-2', { subtasks: 1, parent: 'ABC-1' }), raw('ABC-3', { parent: 'ABC-2' })], {
+        card: async (id) => {
+          cards.push(id)
+          return card(id === 'ABC-2' ? 2 : 0)
+        },
+      })
+      expect(await trackerOf(adapter).brief!('ABC-3')).toEqual({
+        title: 'Title of ABC-3',
+        description: 'Text of ABC-3',
+        ancestors: [
+          { id: 'ABC-1', title: 'Title of ABC-1', description: 'Text of ABC-1', files: [{ name: 'mock.png', path: 'D:\\files\\1' }] },
+          { id: 'ABC-2', title: 'Title of ABC-2', description: 'Text of ABC-2', attached: true },
+        ],
+      })
+      expect(cards).toEqual(['ABC-2'])
+    })
+
+    it('gives no ancestors to a task without a parent, and stops on a loop or a parent the tracker does not have', async () => {
+      expect(await trackerOf(tree([raw('ABC-3')])).brief!('ABC-3')).toEqual({ title: 'Title of ABC-3', description: 'Text of ABC-3' })
+      expect((await trackerOf(tree([raw('ABC-3', { parent: 'ABC-9' })])).brief!('ABC-3')).ancestors).toBeUndefined()
+      const loop = tree([raw('ABC-2', { parent: 'ABC-3' }), raw('ABC-3', { parent: 'ABC-2' })])
+      expect((await trackerOf(loop).brief!('ABC-3')).ancestors?.map((each) => each.id)).toEqual(['ABC-2'])
+    })
   })
 })

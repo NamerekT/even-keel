@@ -66,14 +66,31 @@ export function mainFixedPrompt(red: string, fixed: string | null, language: Lan
   return PROMPTS[language].mainFixed(red.slice(0, 7), fixed === null ? null : fixed.slice(0, 7), main)
 }
 
-export function withBrief(prompt: string, brief: TaskBrief | undefined, language: Language): string {
+/**
+ * The task's title, description and attachments after the prompt, its parents before them as the frame (BTN-1398).
+ * `tasks` — the session has the tasks server: a parent's attachments not given as files are read with its `task_read`.
+ */
+export function withBrief(prompt: string, brief: TaskBrief | undefined, language: Language, tasks = true): string {
   if (brief === undefined) return prompt
-  const lines = ['', ...(brief.outsider === undefined ? [] : [PROMPTS[language].outsider(brief.outsider)]), PROMPTS[language].brief(brief.title.trim())]
+  const text = PROMPTS[language]
+  const ancestors = brief.ancestors ?? []
+  const lines = ancestors.length === 0 ? [''] : ['', text.frame]
+  for (const ancestor of ancestors) {
+    lines.push('', ...briefLines(ancestor, text.ancestor(ancestor.id, ancestor.title.trim()), text.ancestorFiles(ancestor.id), language))
+    if (ancestor.attached === true) lines.push('', text.ancestorAttached(ancestor.id, tasks))
+  }
+  if (ancestors.length > 0) lines.push('')
+  lines.push(...briefLines(brief, text.brief(brief.title.trim()), text.files, language))
+  return prompt + lines.join('\n') + '\n'
+}
+
+function briefLines(brief: Omit<TaskBrief, 'ancestors'>, head: string, filesHead: string, language: Language): string[] {
+  const lines = [...(brief.outsider === undefined ? [] : [PROMPTS[language].outsider(brief.outsider)]), head]
   const description = brief.description.trim()
   if (description !== '') lines.push('', description)
   const files = brief.files ?? []
-  if (files.length > 0) lines.push('', PROMPTS[language].files, ...files.map((file) => fill`- ${file.name} — ${file.path}`))
-  return prompt + lines.join('\n') + '\n'
+  if (files.length > 0) lines.push('', filesHead, ...files.map((file) => fill`- ${file.name} — ${file.path}`))
+  return lines
 }
 
 /** A prompt without a brief names how to read the task (BTN-1202): a weak agent may never open the skill that says it. */

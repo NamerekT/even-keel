@@ -422,6 +422,56 @@ describe('withBrief', () => {
   it('fails on a task without a title', () => {
     expect(() => brief(prompt, { title: ' ', description: 'Text' })).toThrow(/Задача из трекера/)
   })
+
+  describe('with the task\'s ancestors (BTN-1398)', () => {
+    const own = { title: 'Add a button', description: 'Only the button.' }
+
+    it('puts the parent before the task as its frame', () => {
+      const text = withBrief('ABC-2\n', { ...own, ancestors: [{ id: 'ABC-1', title: 'A form', description: 'The frame.\n\n## Split\n\n- ABC-2 the button\n- ABC-3 the list' }] }, 'en')
+      expect(text).toBe(
+        'ABC-2\n\n' +
+          `${PROMPTS.en.frame}\n\n` +
+          'Parent ABC-1: A form\n\nThe frame.\n\n## Split\n\n- ABC-2 the button\n- ABC-3 the list\n\n' +
+          'Task from the tracker: Add a button\n\nOnly the button.\n',
+      )
+    })
+
+    it('gives two levels root first, each with its attachments', () => {
+      const files = [{ name: 'mock.png', path: 'D:\\state\\files\\ab12' }]
+      const text = brief(prompt, {
+        ...own,
+        ancestors: [
+          { id: 'ABC-1', title: 'Root', description: 'Root text', files },
+          { id: 'ABC-5', title: 'Middle', description: 'Middle text', attached: true },
+        ],
+      }).slice(prompt.length)
+      expect(text).toBe(
+        `\n${PROMPTS.ru.frame}\n\n` +
+          'Родитель ABC-1: Root\n\nRoot text\n\nВложения ABC-1 — открой их через Read:\n- mock.png — D:\\state\\files\\ab12\n\n' +
+          'Родитель ABC-5: Middle\n\nMiddle text\n\nУ ABC-5 есть вложения — прочитай их через `task_read("ABC-5")`.\n\n' +
+          'Задача из трекера: Add a button\n\nOnly the button.\n',
+      )
+    })
+
+    it('leaves out an empty description of an ancestor and names the tracker\'s tools without the tasks server', () => {
+      const text = withBrief('ABC-2\n', { ...own, ancestors: [{ id: 'ABC-1', title: 'A form', description: ' \n', attached: true }] }, 'en', false)
+      expect(text).toBe(
+        'ABC-2\n\n' +
+          `${PROMPTS.en.frame}\n\n` +
+          'Parent ABC-1: A form\n\nABC-1 has attachments — read them through the tracker\'s tools.\n\n' +
+          'Task from the tracker: Add a button\n\nOnly the button.\n',
+      )
+      expect(withBrief('ABC-2\n', { ...own, ancestors: [{ id: 'ABC-1', title: 'A form', description: '' }] }, 'en')).toBe(
+        `ABC-2\n\n${PROMPTS.en.frame}\n\nParent ABC-1: A form\n\nTask from the tracker: Add a button\n\nOnly the button.\n`,
+      )
+    })
+
+    it('marks an outsider\'s ancestor and keeps the prompt as before with no ancestors', () => {
+      const text = withBrief('ABC-2\n', { ...own, ancestors: [{ id: 'ABC-1', title: 'A form', description: 'Text', outsider: 'jdoe' }] }, 'en')
+      expect(text).toContain(`${PROMPTS.en.outsider('jdoe')}\nParent ABC-1: A form\n`)
+      expect(withBrief('ABC-2\n', { ...own, ancestors: [] }, 'en')).toBe(withBrief('ABC-2\n', own, 'en'))
+    })
+  })
 })
 
 describe('withReport', () => {

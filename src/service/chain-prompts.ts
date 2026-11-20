@@ -107,9 +107,8 @@ export function wireBriefed(ctx: ChainContext): Briefed {
     const prompt = withVocabulary(withTracker('', ctx.trackerPlace(reader), language), vocabulary, language)
     const link = ctx.briefOn(project, reader) ? ctx.linkOf(reader) : undefined
     const brief = link === undefined ? undefined : await link.run(async (tracker) => tracker.brief?.(task))
-    const told = brief === undefined
-      ? { prompt: withUnbriefed(prompt, task, ctx.packages.bringsServer(project, TASKS_SERVER), language) }
-      : { prompt: withBrief(prompt, brief, language), task: brief }
+    const tasks = ctx.packages.bringsServer(project, TASKS_SERVER)
+    const told = brief === undefined ? { prompt: withUnbriefed(prompt, task, tasks, language) } : { prompt: withBrief(prompt, brief, language, tasks), task: brief }
     // The index stands in for the agent's own MEMORY.md, which a session with the memory server does not load (BTN-1029).
     const result = ctx.packages.bringsServer(project, MEMORY_SERVER)
       ? { ...told, prompt: withMemory(told.prompt, await ctx.memory.index(project), language) }
