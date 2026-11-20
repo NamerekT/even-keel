@@ -5,6 +5,7 @@ import { removeLeftFolder, taskPlace, type Git } from '../git/worktree.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { isInside } from '../paths.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
+import { killOrphans } from '../sessions/orphans.js'
 import { rareEvents } from '../sessions/rare.js'
 import type { MachineContext, MachineTell } from './machine-context.js'
 
@@ -19,7 +20,7 @@ export const STOP_RETRY_MS = 5 * 60_000
  * (BTN-616). A stop that timed out waiting for the account folder's queue is kept too, to be tried again (EKR-99):
  * `retrying` says so, and the cleanup then leaves the worktree folder the session holds to `deferLeftFolder`.
  * `shared` — a project without git (BTN-883): every task works in `repo` itself, so only the sessions the launch log
- * gives the task are its own.
+ * gives the task are its own. Then the processes left by the task's sessions that are gone are killed (`killOrphans`).
  */
 export async function stopTaskSessions(
   ctx: CleanupContext,
@@ -28,6 +29,7 @@ export async function stopTaskSessions(
   task: string,
   count: number,
   shared = false,
+  sweep: Sweep = killOrphans,
 ): Promise<{ warnings: Notice[]; retrying: boolean }> {
   const own = new Set(ctx.journal.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
   const slots = slotPaths(repo, count)
@@ -38,6 +40,7 @@ export async function stopTaskSessions(
   const sessions = ctx.agents.filter((agent) => agent.id !== undefined && isLive(agent) && inPlace(agent))
   const warnings: Notice[] = []
   let retrying = false
+  const stopped = new Set<string>()
   for (const agent of sessions) {
     if (midTurn(agent)) {
       ctx.lingering.keep(task, agent.sessionId, undefined, project)
@@ -47,6 +50,7 @@ export async function stopTaskSessions(
     }
     try {
       await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id!, sessionId: agent.sessionId })
+      stopped.add(agent.sessionId)
     } catch (error) {
       if (!isCallTimeout(error)) {
         warnings.push(notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
@@ -57,8 +61,14 @@ export async function stopTaskSessions(
       console.log(`cleanup: the stop of the session ${agent.sessionId} of ${task} timed out, it will be tried again: ${englishOf(noticeOf(error))}`)
     }
   }
+  // A session still live, kept for later or not stopped, keeps its processes: only those of the gone ones are killed.
+  const live = new Set(ctx.agents.filter((agent) => isLive(agent) && !stopped.has(agent.sessionId)).map((agent) => agent.sessionId))
+  await sweep([...new Set([...own, ...stopped])].filter((id) => !live.has(id)), task)
   return { warnings, retrying }
 }
+
+/** Kills the processes the given gone sessions of a task left behind; the cleanup's default is `killOrphans`. */
+export type Sweep = (sessions: string[], task: string) => Promise<void>
 
 /**
  * The cleanup's warnings without the worktree folder a process still holds: a session whose stop is tried again
@@ -80,12 +90,13 @@ export function deferLeftFolder(ctx: CleanupContext, project: string, repo: stri
  * out, and removes the folders they held (`stopTaskSessions`). What still fails once the wait is over is warned about
  * on the task, as the cleanup itself would have.
  */
-export function stopLingering(ctx: CleanupContext, git: Git = runGit): Promise<void> {
+export function stopLingering(ctx: CleanupContext, git: Git = runGit, sweep: Sweep = killOrphans): Promise<void> {
   return ctx.lingering.alone(async () => {
     for (const { task, agent, retry, project } of ctx.lingering.due(ctx.agents, midTurn)) {
       if (agent.id === undefined) continue
       try {
         await ctx.stopIn(ctx.homeOf(agent.account ?? 'global'), { agentId: agent.id, sessionId: agent.sessionId })
+        await sweep([agent.sessionId], task)
         if (project !== undefined) rareEvents.once('17c', 'stop-result', { ...agent, task, project }, 'cleanup-stop result=stopped; the turn after Done ended')
         console.log(`cleanup: stopped the session ${agent.sessionId} of ${task}, ${retry === undefined ? 'its turn after Done ended' : 'its stop tried again'}`)
       } catch (error) {
