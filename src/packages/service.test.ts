@@ -539,6 +539,38 @@ describe('a new project gets the tasks package on (BTN-1028)', () => {
     expect(loadPackages(file)!.projects.project).toBeUndefined()
     expect(lines.some((line) => line.includes('tasks'))).toBe(true)
   })
+
+  describe('follows a newer version in Even Keel’s marketplace by itself (BTN-1400)', () => {
+    const older = { ...tasksInstall, version: '0.9.0' }
+    const versions = (file: string) => loadPackages(file)!.packages[TASKS]!.installs.map((each) => each.version)
+
+    it('installs it on start, off in a project or not, with a line in the log, and a running task keeps its pin', async () => {
+      const { packages, file, lines } = withTasks(true, (saved) => {
+        saved.packages[TASKS] = { kind: 'plugin', plugin: { name: 'tasks', marketplace: 'example' }, default: true, settings: {}, installs: [older] }
+        saved.projects.project = { on: [], off: [TASKS], settings: {} }
+        saved.pins.project = { 'ABC-1': { [TASKS]: 't1' } }
+      })
+      await packages.start()
+      await vi.waitFor(() => expect(versions(file)).toEqual(['0.9.0', '1.0.0']))
+      expect(loadPackages(file)!.pins.project).toEqual({ 'ABC-1': { [TASKS]: 't1' } })
+      expect(loadPackages(file)!.projects.project?.off).toEqual([TASKS])
+      expect(lines.filter((line) => line.includes(`${TASKS} 1.0.0 in`) && line.includes('0.9.0'))).toHaveLength(1)
+      await packages.close()
+    })
+
+    it('leaves a removed package as it was', async () => {
+      const { packages, file } = withTasks(true, (saved) => {
+        saved.packages[TASKS] = { kind: 'plugin', plugin: { name: 'tasks', marketplace: 'example' }, default: true, settings: {}, installs: [older], removed: true }
+        // A running task holds the removed package's install, so its record stays.
+        saved.pins.project = { 'ABC-1': { [TASKS]: 't1' } }
+      })
+      await packages.start()
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(versions(file)).toEqual(['0.9.0'])
+      expect(loadPackages(file)!.packages[TASKS]!.removed).toBe(true)
+      await packages.close()
+    })
+  })
 })
 
 describe('the built-in agent-bridge package (BTN-986)', () => {

@@ -254,6 +254,8 @@ Each session keeps its own task in the prompt and gets five short tools for the 
 
 A session you start by hand reaches the same tools when the `tasks` plugin is installed in it (`claude plugin install tasks@even-keel --scope project`), as long as Even Keel is running, since the tools are the service's own: see [`plugins/tasks/README.md`](../../plugins/tasks/README.md).
 
+Chain sessions get the new version of `tasks@even-keel` and Even Keel's other plugins with each new Even Keel by themselves. Claude Code keeps its own copy of a plugin it installed, so after an Even Keel update run `claude plugin update tasks@even-keel --scope project` in each repository where you installed it, and the same for its other plugins there.
+
 The same package and plugin work for a project on Huly, GitHub, Linear, Jira, GitLab or Forgejo too, with a few limits of each tracker listed there, and for a project's task feeds: a session on a feed's task comments and files its blockers in the feed's tracker, and a task search covers every tracker of the project.
 
 #### Attachments and edits
@@ -995,9 +997,9 @@ The plugins come with the code; `agent-bridge` is built in and on in every proje
 
 Chain sessions run the version of a package installed in **Settings → Packages**: its row shows the newer version the marketplace has and an **Update** button, or **Check** in its details when it knows of none (for a git URL marketplace both run `claude plugin marketplace update` first). Above the catalog, **Check all** fetches the plugins' marketplaces again and only shows the newer versions; **Update all** then presses every row's **Install** and **Update** in turn, and a package that fails keeps its error in its row while the rest go on. A new npm version of an MCP server is found by its row's **Check**.
 
-Even Keel's own plugins are read from this folder, so after an update their rows offer the new version at once.
+Even Keel's own plugins are read from this folder and are a part of its version: after an update, every one of them in the catalog that is not removed gets its new version by itself within a minute, with no **Update** press, including one turned off in a project. A running task stays on the version it started with until it is done.
 
-For sessions you start by hand, a marketplace added from the local path of this folder is read from the folder, so they get the new plugins by themselves; one added from a git URL keeps its own copy: `claude plugin marketplace update even-keel`, then `claude plugin update huly@even-keel` (or `github@…`, `linear@…`, `tally@…`) in each project repository that installed it.
+For sessions you start by hand, a marketplace added from the local path of this folder offers the new plugins by itself, but Claude Code keeps its own copy of each plugin it installed: run `claude plugin update tasks@even-keel --scope project` (or `huly@…`, `github@…`, `linear@…`, `tally@…`) in each project repository that installed it. A marketplace added from a git URL needs `claude plugin marketplace update even-keel` first.
 
 If you installed the former `checkpoint@even-keel` plugin in Claude Code, run `claude plugin uninstall checkpoint@even-keel` in each configuration folder where it was installed. There is no need to install agent-bridge by hand: Even Keel supplies it to chain sessions, and its hooks stay silent in sessions started by hand.
 

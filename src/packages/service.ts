@@ -97,7 +97,8 @@ export class Packages {
 
   /** The package every project has (BTN-986); `undefined` when the checkout's marketplace lacks the plugin. */
   private readonly builtIn: string | undefined
-  private builtInTimer: NodeJS.Timeout | undefined
+  /** Checks Even Keel's own marketplace for newer plugins once a minute (`ownCurrent`). */
+  private ownTimer: NodeJS.Timeout | undefined
 
   constructor(private readonly deps: PackagesDeps) {
     this.builtIn = builtInPackage(deps.ownDir)
@@ -143,33 +144,36 @@ export class Packages {
       this.deps.log(`hub mcp gateway: ${(error as Error).message}`)
     }
     for (const [name, record] of Object.entries(this.file.packages)) if (record.removed !== true && record.installs.length === 0) void this.install(name).catch(() => {})
-    this.builtInCurrent()
-    this.builtInTimer ??= setInterval(() => this.builtInCurrent(), AVAILABLE_MS)
-    this.builtInTimer.unref()
+    this.ownCurrent()
+    this.ownTimer ??= setInterval(() => this.ownCurrent(), AVAILABLE_MS)
+    this.ownTimer.unref()
     await this.readImports()
   }
 
   async close(): Promise<void> {
-    clearInterval(this.builtInTimer)
-    this.builtInTimer = undefined
+    clearInterval(this.ownTimer)
+    this.ownTimer = undefined
     await Promise.all([this.gateway.close(), this.hubGateway.close()])
   }
 
   /**
-   * A newer built-in plugin in Even Keel's own marketplace becomes its current install by itself (BTN-1332): it is a
-   * part of Even Keel, so a new version of Even Keel brings it without Update. Pinned tasks keep theirs; a machine
-   * elsewhere follows the hub's install instead.
+   * A newer plugin in Even Keel's own marketplace becomes its package's current install by itself — the built-in one
+   * (BTN-1332) and every other installed and not removed (BTN-1400): they are a part of Even Keel, so a new version of
+   * Even Keel brings them without Update. One turned off in a project is updated all the same. Pinned tasks keep
+   * theirs; a machine elsewhere follows the hub's installs instead.
    */
-  private builtInCurrent(): void {
-    const name = this.builtIn
-    if (name === undefined || this.deps.hub === false || this.installs.installing.has(name)) return
-    const record = this.file.packages[name]
-    const install = record === undefined ? undefined : current(record)
-    if (record?.plugin === undefined || record.removed === true || install === undefined) return
-    const offer = pluginOffer(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
-    if (offer === undefined || !isNewer(offer.version, install.version)) return
-    this.deps.log(`packages: ${name} ${offer.version} in Even Keel's marketplace replaces ${install.version ?? install.id}`)
-    void this.installs.installNew(name).catch(() => {})
+  private ownCurrent(): void {
+    if (this.deps.hub === false) return
+    const own = ownMarketplace(this.deps.ownDir)
+    if (own === undefined) return
+    for (const [name, record] of Object.entries(this.file.packages)) {
+      const install = current(record)
+      if (record.plugin?.marketplace !== own || record.removed === true || install === undefined || this.installs.installing.has(name)) continue
+      const offer = pluginOffer(this.deps.globalDir, record.plugin.name, own, this.local)
+      if (offer === undefined || !isNewer(offer.version, install.version)) continue
+      this.deps.log(`packages: ${name} ${offer.version} in Even Keel's marketplace replaces ${install.version ?? install.id}`)
+      void this.installs.installNew(name).catch(() => {})
+    }
   }
 
   /** The machine's gateway takes the servers holding keys and the tasks server from the hub from now on (BTN-990). */
