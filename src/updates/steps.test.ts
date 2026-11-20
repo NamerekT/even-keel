@@ -46,11 +46,12 @@ describe('rollbackOf', () => {
     expect(rollbackOf('revert', 'answer', true)).toEqual(['stop', 'restore', 'start', 'answer'])
   })
 
-  it('leaves a rebuild with the service started, as the script did', () => {
+  it('restores the running revision if the rebuilt service cannot start or answer', () => {
     expect(rollbackOf('rebuild', 'build')).toEqual(['start'])
     expect(rollbackOf('rebuild', 'install')).toEqual(['start'])
-    expect(rollbackOf('rebuild', 'start')).toEqual([])
-    expect(rollbackOf('rebuild', 'answer')).toEqual([])
+    const back = ['stop', 'restore', 'install', 'build', 'start', 'answer']
+    expect(rollbackOf('rebuild', 'start')).toEqual(back)
+    expect(rollbackOf('rebuild', 'answer')).toEqual(back)
   })
 })
 
@@ -107,8 +108,10 @@ describe('runSteps', () => {
     expect((await runSteps(plan, act)).failed).toEqual({ step: 'fetch', output: 'spawn git ENOENT' })
   })
 
-  it('leaves a rebuild without a rollback record when nothing is to be undone', async () => {
-    const { act } = stub({ answer: 'no answer' })
-    expect(await runSteps({ mode: 'rebuild', install: null }, act)).toEqual({ failed: { step: 'answer', output: 'no answer' }, rollback: null })
+  it('records whether the restored hub answered', async () => {
+    const { act } = stub({ answer: 'no answer', 'back:answer': 'still down' })
+    expect(await runSteps({ mode: 'rebuild', install: null }, act)).toEqual({
+      failed: { step: 'answer', output: 'no answer' }, rollback: { failed: { step: 'answer', output: 'still down' } },
+    })
   })
 })

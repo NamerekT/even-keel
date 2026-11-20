@@ -891,6 +891,8 @@ Once the hub has a machine, **Add account** anywhere starts with **Where it sign
 
 Docker installations update by [pulling the image](docker.md#updating).
 
+A hub running from a checkout can rebuild after a green push. Use `service/rebuild.sh <green-sha>` for the systemd user service or macOS launch agent, or `service/rebuild.ps1 -Commit <green-sha>` on Windows. The checkout must already be at that commit. If the rebuilt service cannot start or answer, Even Keel rebuilds the previous running commit and shows both commits on the page. The next green push can try again. See [Rebuild mode](../service.md#updating-from-the-page) for setup and the update log.
+
 The gear menu in the header ends with the installed version.
 
 Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a mark next to the version and a notification in the corner of the page.

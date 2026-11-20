@@ -28,11 +28,11 @@ export function stepsOf(plan: StepPlan): UpdateStep[] {
 
 /**
  * What undoes a failure at `failed`: before the checkout only the service is started again; from it on the commit that
- * ran before comes back with its dependencies and build, for a package its version. A rebuild has no commit to go back
- * to: it only leaves the service started.
+ * ran before comes back with its dependencies and build, for a package its version. A rebuild restores that commit
+ * when the new service fails to start or answer.
  */
 export function rollbackOf(mode: UpdateMode, failed: UpdateStep, npm = false): UpdateStep[] {
-  if (mode === 'rebuild') return failed === 'start' || failed === 'answer' ? [] : ['start']
+  if (mode === 'rebuild' && failed !== 'start' && failed !== 'answer') return ['start']
   if (failed === 'stop' || failed === 'fetch' || failed === 'settle') return ['start', 'answer']
   return npm ? ['stop', 'restore', 'start', 'answer'] : ['stop', 'restore', 'install', 'build', 'start', 'answer']
 }

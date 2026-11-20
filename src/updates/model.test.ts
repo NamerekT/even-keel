@@ -140,6 +140,13 @@ describe('resultView', () => {
     const broken = { ...failed, rollback: { failed: { step: 'install' as const, output: 'EPERM' } } }
     expect(resultView(broken)).toMatchObject({ rollback: 'failed', rollbackStep: 'install', output: 'error TS2304\n\nEPERM' })
   })
+
+  it('shows both commits of a failed rebuild, including a failure to restore, and skips legacy records', () => {
+    const failed = { ...RECORD, mode: 'rebuild' as const, to: { version: RECORD.from.version, tag: 'abc1234' }, failed: { step: 'answer' as const, output: 'timeout' }, rollback: { failed: null } }
+    expect(resultView(failed)).toMatchObject({ mode: 'rebuild', from: 'f00ba47', to: 'abc1234', rollback: 'done' })
+    expect(resultView({ ...failed, rollback: { failed: { step: 'restore', output: 'git' } } })).toMatchObject({ rollback: 'failed' })
+    expect(resultView({ ...failed, to: null })).toBeNull()
+  })
 })
 
 describe('leftRunning', () => {

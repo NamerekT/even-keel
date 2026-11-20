@@ -270,6 +270,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 233 | [A project chat's mail mid-turn on Codex, Copilot and OpenCode](unverified/sessions.md#a-project-chats-mail-mid-turn-on-codex-copilot-and-opencode-btn-1346) | anyone writing to a working Codex, Copilot or OpenCode project chat | the letter waits until the turn ends and comes back, or the chat fails to start with the built-in plugin; send it again once the session answers | — |
 | 234 | [Dictation into the chat field](unverified/page.md#dictation-into-the-chat-field-btn-1343) | anyone pressing the microphone in a chat field in Chrome, Edge or Safari | nothing appears in the field or a phrase repeats; type, or dictate with the keyboard's microphone | — |
 | 235 | [The check of a copy on a real tracker](unverified/trackers.md#the-check-of-a-copy-on-a-real-tracker-btn-1291) | projects moving from the built-in tracker | a clean copy does not match or a short one does, or "Repeat" writes twice; switch without them after a look at the target | — |
+| 236 | [Restoring a hub after a failed rebuild](unverified/updating.md#restoring-a-hub-after-a-failed-rebuild-btn-1276) | hubs rebuilt after a green push under systemd, launchd or on Windows | the hub stays down or a machine follows the wrong commit. Check the update log and restore the last working revision | BTN-1277 |
 
 ### Waiting for the event / not checked by choice
 

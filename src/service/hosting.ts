@@ -185,6 +185,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     protection: ctx.protectionAudit.view,
     intakeTemplates: ctx.intakeTemplateHits,
     startedAt: ctx.startedAt,
+    ...(ctx.machineLink.hubCommit !== null && { hubCommit: ctx.machineLink.hubCommit }),
     platform: process.platform,
     projects: Object.keys(ctx.configStore.current.projects),
     projectKeys: ctx.configStore.current.keys,

@@ -141,6 +141,8 @@ export const ru = {
           ? `Шаг «${step}». Вернуть ${from} тоже не удалось, шаг «${rollbackStep}»: смотрите logs/update.log.`
           : `Шаг «${step}».`,
     resultDoneBody: (from: string) => `Прежняя версия — ${from}.`,
+    rebuildFailed: (commit: string) => `Пересборка на ${commit} не поднялась`,
+    rebuildRestored: (commit: string) => `Хаб вернулся на ${commit}.`,
     steps: {
       settle: 'ожидание цепочек',
       stop: 'остановка службы',

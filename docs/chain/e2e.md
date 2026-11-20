@@ -23,6 +23,7 @@ The scope sits in `vitest.config.ts`, not in the scripts (BTN-1108): `src/e2e/`,
   | --- | --- |
   | the order, handovers, cleanup after Done, restarts | `chain`, `restarts`, `returns`, `turns`, `cleanup`, `plain`, `continuation-prompt`, `push` |
   | the service's start, `src/service.ts` wiring | `huly-client`, `restarts` |
+  | rebuilding a hub and restoring its running commit | `rebuild` |
   | session records and context windows | `session-context` |
   | questions, chat mail, pauses | `questions`, `mail`, `pauses` |
   | labels, statuses, the tracker adapters | `labels`, `statuses`, `feeds`, `intake`, `builtin` |

@@ -67,6 +67,8 @@ const FIRST_SNAPSHOT_MS = 30_000
 const PUBLISH_EVERY_MS = 5_000
 
 export interface LinkedMachine {
+  /** The checkout at this hub's start, also sent in a machine's version refusal. */
+  hubCommit: string | null
   /** The hub's side of the port: what the chain is given, each call routed to the machine of its task (`machinePool`). */
   port: MachinePort
   /** The commands after a green main on the machines elsewhere of each pool (BTN-994). */
@@ -451,6 +453,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   })
 
   return {
+    hubCommit,
     port,
     afterGreen,
     machines: chain,

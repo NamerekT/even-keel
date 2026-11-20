@@ -1,4 +1,4 @@
-import { readFileSync, watchFile } from 'node:fs'
+import { watchFile } from 'node:fs'
 import { join } from 'node:path'
 import type { ActiveChain } from '../chain/model.js'
 import { localUrlOf } from '../config.js'
@@ -10,7 +10,6 @@ import {
   leftRunning,
   packageBlock,
   previousOf,
-  recordOf,
   resultView,
   tagOf,
   updateBlock,
@@ -24,7 +23,7 @@ import {
 } from './model.js'
 import { globalPrefixOf } from './prefix.js'
 import type { Release, UpdatesView } from './release.js'
-import { ANSWER_MS, LOG_FILE, RESULT_FILE, SETTLE_MS, STEADY_MS, writeRecord, type UpdatePlan } from './runner.js'
+import { ANSWER_MS, LOG_FILE, readRecord, RESULT_FILE, SETTLE_MS, STEADY_MS, writeRecord, type UpdatePlan } from './runner.js'
 import { busyChains } from './settle.js'
 
 export interface UpdaterOptions {
@@ -112,12 +111,7 @@ export class Updater {
 
   /** Reads `logs/update.json`; `true` — the record changed. Its own `seen` write comes back here unchanged. */
   private readRecord(): boolean {
-    let record: UpdateRecord | null
-    try {
-      record = recordOf(JSON.parse(readFileSync(this.resultFile, 'utf8')))
-    } catch {
-      record = null
-    }
+    let record = readRecord(this.resultFile)
     const { current } = this.options
     if (record !== null && !leftRunning(record, current)) {
       const { mode, from, to } = record

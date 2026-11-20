@@ -136,6 +136,8 @@ export const en: Messages = {
           ? `At “${step}”. Bringing ${from} back failed too, at “${rollbackStep}”: see logs/update.log.`
           : `At “${step}”.`,
     resultDoneBody: (from: string) => `The previous version is ${from}.`,
+    rebuildFailed: (commit: string) => `The rebuild at ${commit} did not come up`,
+    rebuildRestored: (commit: string) => `The hub is running on ${commit} again.`,
     steps: {
       settle: 'waiting for the chains',
       stop: 'stopping the service',

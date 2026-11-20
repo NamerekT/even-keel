@@ -40,6 +40,10 @@ An npm install carries no Huly client; the service installs it into `state/huly-
 
 If it is wrong: a Huly project's chain waits on a tracker that stays `down`, or the profile cannot be saved. Install the client by hand: run `npm install --omit=dev` in `<data folder>/state/huly-client`, whose `package.json` the service has written with the pinned versions and the Tiptap overrides; packages named on the command line would skip the overrides, and the service would not take that folder. Then restart the service, or run Even Keel from a clone.
 
+## Restoring a hub after a failed rebuild (BTN-1276)
+
+The automated scenario uses a temporary checkout, real git and npm, and a simulated service answer. On the BTN-1277 bench, let a systemd hub rebuild at a green commit that cannot answer. Check that it returns to its actual previous commit, the page names both SHAs, the machine gets the restored SHA on a version refusal and a later green commit succeeds. The systemd, launchd and Windows rebuild scripts still need a live rollback. If the hub stays down, inspect the failed step in `logs/update.log`, restore the last working commit, install its locked dependencies, build and start the service.
+
 ## Plugins from a git URL marketplace
 
 A marketplace added from a local path is read from its folder, so an update of the code reaches the plugins by itself; that was checked. One added from a git URL (`owner/repo`, `https://…`) keeps a copy by version, and README tells you to run `claude plugin marketplace update even-keel` and `claude plugin update <plugin>@even-keel` in each project. The commands were run, but a copy that is actually behind was never brought up to date with them. If sessions still run the old plugin, `claude plugin uninstall … --scope project` and `claude plugin install … --scope project` in the project install the current one.

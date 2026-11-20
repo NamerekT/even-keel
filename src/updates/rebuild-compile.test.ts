@@ -20,8 +20,8 @@ function valueImports(file: string): string[] {
 // BTN-1239: a dependency added by a merged task is not installed yet when the rebuild starts, so the one compile
 // before the update process installs it must not need any package.
 describe('the compile rebuild.ps1 runs before the update process', () => {
-  it('compiles only the update process, never the whole project', () => {
-    const script = readFileSync(join(root, 'service', 'rebuild.ps1'), 'utf8')
+  it.each(['rebuild.ps1', 'rebuild.sh'])('%s compiles only the update process, never the whole project', (name) => {
+    const script = readFileSync(join(root, 'service', name), 'utf8')
     const compiles = script.split('\n').filter((line) => /\btsc\b/.test(line) && !line.trim().startsWith('#'))
     expect(compiles.length).toBeGreaterThan(0)
     for (const line of compiles) expect(line).toMatch(/-p tsconfig\.updates\.json\b/)

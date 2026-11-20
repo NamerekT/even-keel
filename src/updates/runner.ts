@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { readCheckout } from './checkout.js'
 import type { ServiceControl } from './control.js'
-import type { UpdateRecord, UpdateStep } from './model.js'
+import { recordOf, type UpdateRecord, type UpdateStep } from './model.js'
 import { busyChains } from './settle.js'
 import { runSteps, StepError, type StepPlan } from './steps.js'
 
@@ -15,7 +16,7 @@ export interface UpdatePlan extends StepPlan {
   root: string
   /** The data folder (`logs/` is in it): the working folder for a package, whose own folder npm replaces. */
   home: string
-  /** The release checked out; `null` for a rebuild. */
+  /** The release or commit to run; older rebuilds had no target. */
   target: { version: string; tag: string } | null
   from: UpdateRecord['from']
   service: Pick<ServiceControl, 'stop' | 'start'>
@@ -23,6 +24,8 @@ export interface UpdatePlan extends StepPlan {
   state: string
   /** `startedAt` of the service before the update: the answer must come from a later start. */
   startedAt: string | null
+  /** The previous hub predates hubCommit in /api/state. */
+  legacyRollback?: boolean
   settleMs: number
   answerMs: number
   /** How long the answer must hold: a service crashing in a loop answers once and goes. */
@@ -68,6 +71,7 @@ class Runner {
       case 'settle':
         return this.settle()
       case 'stop':
+        if (plan.mode === 'rebuild') await this.checkRebuildCheckout()
         return this.run(plan.service.stop)
       case 'start':
         return this.run(plan.service.start)
@@ -78,18 +82,28 @@ class Runner {
         // Following the hub leaves the branch where it was: its commits stay, and a rollback puts HEAD back on it.
         return this.run(plan.mode === 'follow' ? ['git', 'checkout', '--detach', plan.target!.tag] : this.checkout(plan.target!.tag))
       case 'restore':
+        if (plan.mode === 'rebuild') await this.checkRebuildCheckout()
         return this.run(plan.package === undefined ? this.checkout(plan.from.commit) : this.installPackage(plan.from.version))
       case 'install':
         if (plan.package !== undefined) return this.run(this.installPackage(plan.target!.version))
+        if (rollback && plan.mode === 'rebuild') return this.run(npm('ci', '--no-audit', '--no-fund'))
         if (plan.install === null && !dependenciesChanged(plan.root)) return this.log('package-lock.json did not change, nothing to install')
         return this.run(npm(plan.install === 'install' ? 'install' : 'ci', '--no-audit', '--no-fund'))
       case 'build':
         return this.run(npm('run', plan.machine === undefined ? 'build' : 'build:machine'))
       case 'answer':
         if (plan.machine !== undefined) return this.contact(plan.machine.contact, rollback)
-        return this.answer(rollback ? plan.from.version : (plan.target?.version ?? null))
+        return this.answer(rollback)
       case 'launch':
         return
+    }
+  }
+
+  /** The wait for chains or for an answer can outlast the green commit this run was called for. */
+  private async checkRebuildCheckout(): Promise<void> {
+    const checkout = await readCheckout(this.plan.root)
+    if (checkout === null || checkout.dirty || checkout.commit !== this.plan.target?.tag || checkout.branch !== this.plan.from.branch) {
+      throw new StepError('The checkout changed during the rebuild')
     }
   }
 
@@ -174,9 +188,11 @@ class Runner {
     throw new StepError(`the hub took no handshake of the machine in ${this.plan.answerMs / 1000} s (${file}): ${last}`)
   }
 
-  /** A later start that answers with `version` (any, for a rebuild), and still the same start `steadyMs` on. */
-  private async answer(version: string | null): Promise<void> {
+  /** A later start of the expected version and, for a rebuild, commit, still answering after steadyMs. */
+  private async answer(rollback: boolean): Promise<void> {
     const { plan } = this
+    const version = rollback ? plan.from.version : (plan.target?.version ?? null)
+    const commit = plan.mode === 'rebuild' ? (rollback ? plan.from.commit : plan.target?.tag) : undefined
     const deadline = Date.now() + plan.answerMs
     let last = 'no answer'
     while (Date.now() < deadline) {
@@ -184,9 +200,11 @@ class Runner {
         const state = await this.state()
         const current = (state.updates as { current?: unknown } | undefined)?.current
         const startedAt = state.startedAt
-        if (startedAt === plan.startedAt) last = 'the service that ran before still answers'
+        if (typeof startedAt !== 'string' || startedAt === plan.startedAt) last = 'no new service start yet'
         else if (version !== null && current !== version) last = `it answers with version ${String(current)}`
-        else {
+        else if (commit !== undefined && state.hubCommit !== commit && !(rollback && plan.legacyRollback && state.hubCommit === undefined)) {
+          last = `it answers with commit ${String(state.hubCommit)}, expected ${commit}`
+        } else {
           await sleep(plan.steadyMs)
           if ((await this.state()).startedAt === startedAt) {
             this.log(`the service answers with ${String(current)}`)
@@ -213,6 +231,14 @@ export function npm(...args: string[]): string[] {
   const base = dirname(process.execPath)
   const cli = [join(base, 'node_modules', 'npm', 'bin', 'npm-cli.js'), join(base, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')].find((path) => existsSync(path))
   return cli === undefined ? ['npm', ...args] : [process.execPath, cli, ...args]
+}
+
+export function readRecord(file: string): UpdateRecord | null {
+  try {
+    return recordOf(JSON.parse(readFileSync(file, 'utf8')))
+  } catch {
+    return null
+  }
 }
 
 /** Writes the record whole: the service reads it at its start, maybe while this process still writes. */

@@ -57,7 +57,7 @@ export interface StepFailure {
 export interface UpdateRecord {
   mode: UpdateMode
   from: { version: string; commit: string; branch: string | null; tag: string | null; storage: StorageVersions | null }
-  /** `null` for a rebuild; `tag` is the ref checked out, the hub's commit for a machine following it. */
+  /** `tag` is the ref for this run, a commit for rebuild and follow; older rebuilds had no target. */
   to: { version: string; tag: string } | null
   startedAt: string
   finishedAt: string
@@ -84,7 +84,7 @@ export interface UpdateProgress {
 }
 
 export interface UpdateResultView {
-  mode: 'update' | 'revert'
+  mode: 'update' | 'revert' | 'rebuild'
   from: string
   to: string | null
   at: string
@@ -141,13 +141,15 @@ export function leftRunning(record: UpdateRecord, current: string): boolean {
 }
 
 export function resultView(record: UpdateRecord | null): UpdateResultView | null {
-  if (record === null || record.seen || record.mode === 'rebuild' || record.mode === 'follow') return null
+  if (record === null || record.seen || record.mode === 'follow') return null
   const { failed, rollback } = record
+  const rebuild = record.mode === 'rebuild'
+  if (rebuild && (record.to === null || (failed?.step !== 'start' && failed?.step !== 'answer'))) return null
   const output = [failed?.output, rollback?.failed?.output].filter((text) => text !== undefined && text !== '').join('\n\n')
   return {
     mode: record.mode,
-    from: record.from.version,
-    to: record.to?.version ?? null,
+    from: rebuild ? record.from.commit.slice(0, 8) : record.from.version,
+    to: (rebuild ? record.to?.tag.slice(0, 8) : record.to?.version) ?? null,
     at: record.finishedAt,
     step: failed?.step ?? null,
     output,

@@ -142,7 +142,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?updateSource=npm` | with `update=`: Even Keel installed with npm, so the window says the update installs the release with npm |
 | `?previous=0.0.9` | the installed version came by an update from 0.0.9: "Revert to 0.0.9" in the window, "back to 0.0.9" in the gear menu |
 | `&storage` | with `previous=`: the update changed the storage format, so no "Revert", and the way back from the `.bak` copies |
-| `?updateResult=done\|<step>\|rollback` | how the last update ended, as after the restart: `done`, failed at `<step>` (`build` by default) and rolled back, or `rollback` — bringing the old version back failed too |
+| `?updateResult=done\|<step>\|rollback\|rebuild` | how the last update ended, as after the restart: `done`, failed at `<step>` (`build` by default) and rolled back, `rollback` when bringing the old version back failed too, or `rebuild` for a hub restored to its previous commit |
 | `?updateProgress=settling\|running` | an update under way: waiting for the chains, or the update process running |
 | `?cli=unchecked` | Claude Code and Codex on versions Even Keel was not checked against, in `cliVersions`. Since BTN-780 no banner shows them, the header must stay clean; the fake log's CLI entry is its own (`fakeEvents.ts`) |
 | `?cli=daemon` | the Claude Code daemon of the global account on another version than the pinned one (BTN-250), in `cliVersions`: likewise no banner |

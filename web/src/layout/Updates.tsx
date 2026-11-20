@@ -162,10 +162,12 @@ function useUpdateResultToast(): ReactNode {
 
 function resultTitle(result: UpdateResultView): string {
   const version = result.to ?? result.from
+  if (result.mode === 'rebuild') return t.updates.rebuildFailed(version)
   return result.step === null ? t.updates.resultDone(result.mode, version) : t.updates.resultFailed(result.mode, version)
 }
 
 function resultBody(result: UpdateResultView): string {
+  if (result.mode === 'rebuild' && result.rollback === 'done') return t.updates.rebuildRestored(result.from)
   if (result.step === null) return t.updates.resultDoneBody(result.from)
   const rollbackStep = result.rollbackStep === null ? '' : t.updates.steps[result.rollbackStep]
   return t.updates.resultBody(t.updates.steps[result.step], result.rollback, result.from, rollbackStep)

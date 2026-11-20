@@ -270,6 +270,8 @@ export interface GitSetupView {
 export type WindowsStart = { by: 'tray' } | { by: 'service'; name: string } | { by: 'console' }
 
 export interface EvenKeelState {
+  /** The checkout commit captured at hub startup; absent for an npm install. */
+  hubCommit?: string
   protection?: Record<string, import('./ci/protection-model.js').RemoteProtection[]>
   /** By project, the issue templates of its repository that put its intake label on for any author (BTN-1130). */
   intakeTemplates?: Record<string, import('./tracker/templates.js').TemplateHit[]>

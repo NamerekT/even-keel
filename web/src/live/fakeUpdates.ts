@@ -32,6 +32,10 @@ function note(version: string, reverted: boolean): ReleaseNote {
 
 function result(kind: string | null, previous: string): UpdateResultView | null {
   if (kind === null) return null
+  if (kind === 'rebuild') return {
+    mode: 'rebuild', from: 'feedcafe', to: 'c0decafe', at: '2026-10-22T09:30:00.000Z',
+    step: 'answer', output: 'The service did not answer in 120 s', rollback: 'done', rollbackStep: null,
+  }
   const step: UpdateStep | null = kind === 'done' ? null : UPDATE_STEPS.includes(kind as UpdateStep) ? (kind as UpdateStep) : 'build'
   const rollback = kind === 'done' ? 'none' : kind === 'rollback' ? 'failed' : 'done'
   return {
@@ -52,7 +56,7 @@ function result(kind: string | null, previous: string): UpdateResultView | null 
  * `?updateBlocked=<service|git|dirty|tag|global|checking|container>` no "Update", and why;
  * `?updateSource=npm` installed from npm, not a checkout;
  * `?previous=<version>` this version came by an update from that one, `&storage` across a storage change;
- * `?updateResult=<done|step|rollback>` how the last update ended (`rollback` — bringing the old one back failed too);
+ * `?updateResult=<done|step|rollback|rebuild>` how the last run ended (`rebuild` — the old commit is back);
  * `?updateProgress=<settling|running>` an update under way.
  */
 export function fakeUpdates(params: URLSearchParams | null): UpdatesView {

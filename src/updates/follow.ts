@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { VersionRefusal } from '../link/protocol.js'
 import type { MachineFollow } from '../link/view.js'
@@ -6,9 +5,9 @@ import { LINK_FILE } from '../machine/join.js'
 import { readCheckout } from './checkout.js'
 import type { ServiceControl } from './control.js'
 import { launchRunner } from './launch.js'
-import { recordOf, type Checkout, type InstallSource, type UpdateRecord } from './model.js'
+import type { Checkout, InstallSource, UpdateRecord } from './model.js'
 import { globalPrefixOf } from './prefix.js'
-import { ANSWER_MS, LOG_FILE, RESULT_FILE, STEADY_MS, type UpdatePlan } from './runner.js'
+import { ANSWER_MS, LOG_FILE, readRecord, RESULT_FILE, STEADY_MS, type UpdatePlan } from './runner.js'
 
 export interface FollowOptions {
   root: string
@@ -71,7 +70,7 @@ export class HubFollower {
     const named = npm ? refusal.evenKeel : (refusal.commit ?? refusal.evenKeel)
     if (target === undefined) return named === undefined ? false : this.stay(named, 'manual', 'the hub names nothing this installation can move to by itself')
     const to = npm ? target.version : target.ref
-    const last = (options.record ?? (() => readRecord(options.home)))()
+    const last = options.record ? options.record() : readRecord(join(options.home, RESULT_FILE))
     if (last?.mode === 'follow' && last.failed !== null && last.to?.tag === target.ref) return this.stay(to, 'failed', `its update to ${to} failed at ${last.failed.step}`)
     const control = await options.control()
     if (control === null) return this.stay(to, 'manual', 'no service manager runs it here')
@@ -118,13 +117,5 @@ export class HubFollower {
     }
     this.stuck = { to, stuck }
     return false
-  }
-}
-
-function readRecord(home: string): UpdateRecord | null {
-  try {
-    return recordOf(JSON.parse(readFileSync(join(home, RESULT_FILE), 'utf8')))
-  } catch {
-    return null
   }
 }
