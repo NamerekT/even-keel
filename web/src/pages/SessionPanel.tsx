@@ -515,8 +515,8 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
       <SectionLabel>{t.session.list}</SectionLabel>
       <ul className="sessions">
         {rows.map((row) => (
-          <li key={row.sessionId}>
-            <button type="button" className="sessions__row" onClick={() => onOpen(row)}>
+          <li key={row.sessionId} className="sessions__row">
+            <button type="button" className="sessions__open" onClick={() => onOpen(row)}>
               <span className="sessions__meta">
                 <Tipped inline align="start" className="sessions__seg sessions__time" tip={formatFullTime(row.at)}>
                   <time dateTime={row.at}>{formatStamp(row.at, now)}</time>
@@ -527,8 +527,8 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 <span className="sessions__seg sessions__id">{row.sessionId.slice(0, 8)}</span>
                 {row.sessionId === current && <span className="sessions__now">{t.session.current}</span>}
               </span>
-              <SessionHow row={row} />
             </button>
+            <SessionHow row={row} />
           </li>
         ))}
       </ul>
@@ -540,10 +540,10 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
 function CountBadge({ count, tip, children }: { count: number; tip: string; children: ReactNode }) {
   return (
     <Tipped inline align="start" tip={tip}>
-      <span className="sessions__badge">
+      <button type="button" className="sessions__badge" aria-label={tip}>
         {children}
         {count}
-      </span>
+      </button>
     </Tipped>
   )
 }
@@ -570,12 +570,12 @@ export function PlaceFacts({ branch, workdir }: { branch: string | null; workdir
   return (
     <>
       {branch !== null && (
-        <Fact label={t.session.branch}>
+        <Fact label={t.session.branch} wide={workdir === null}>
           <dd className="session-window__place">{branch}</dd>
         </Fact>
       )}
       {workdir !== null && (
-        <Fact label={t.session.folder} wide>
+        <Fact label={t.session.folder} wide={branch === null} className="session-window__folder">
           <dd className="session-window__place">{workdir}</dd>
         </Fact>
       )}

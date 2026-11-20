@@ -56,7 +56,7 @@ export function CacheFact({ cache, warm }: { cache: CacheWindow; warm: KeptWarm 
 export function ModelFact({ agent, model, title, effort }: { agent: string; model: string | null; title?: string | undefined; effort: string | null }) {
   const provider = agentLabel(agent)
   const value = model === null ? '—' : <>
-    {agent !== CLAUDE && <span className="panel__model-provider">{provider}{' · '}</span>}
+    {agent !== CLAUDE && <span className="panel__model-provider">{provider}{' | '}</span>}
     <ModelName model={model} title={title} className="panel__model-name" />
     <EffortBars effort={effort} spaced className="panel__model-effort" />
   </>

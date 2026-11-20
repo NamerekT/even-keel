@@ -85,6 +85,11 @@
   animation-duration: var(--motion-sway);
 }
 
+.ui-loader__time {
+  margin-inline-start: var(--space-8);
+  font-variant-numeric: tabular-nums;
+}
+
 .ui-loader__label {
   margin: 0;
   color: var(--fg-muted);

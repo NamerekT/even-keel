@@ -530,8 +530,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
 }
 
 /**
- * The turn in progress, as the Claude app shows it: "23с · Думает" or "23с · Выполняет: Bash npm test", the clock
- * ticking every second. While an answer is on its way the line is empty: the mark under the message tells it (BTN-1362).
+ * The current action and its ticking clock. During delivery the mark under the message takes their place (BTN-1362).
  */
 function TurnLine({ facts }: { facts: TurnFacts }) {
   const now = useNow(TICK_MS)
@@ -544,14 +543,15 @@ function TurnLine({ facts }: { facts: TurnFacts }) {
       : phase.kind === 'thinking'
         ? t.session.chat.thinking
         : t.session.chat.running(phase.tool)
+  return <TurnRow doing={doing} elapsed={elapsed} />
+}
+
+export function TurnRow({ doing, elapsed }: { doing: string; elapsed: string | null }) {
   return (
     <span className="transcript__turn">
       <span className="lamp lamp--working" aria-hidden="true" />
-      <span className="transcript__turn-text">
-        {[elapsed, doing]
-          .filter((part) => part !== null)
-          .join(' · ')}
-      </span>
+      <span className="transcript__turn-text">{doing}</span>
+      {elapsed !== null && <span className="transcript__turn-time">{elapsed}</span>}
     </span>
   )
 }
@@ -560,7 +560,7 @@ function TurnLine({ facts }: { facts: TurnFacts }) {
 function HandoverLoader({ handover, phase }: { handover: ChatHandover; phase: Exclude<LoaderPhase, 'done'> }) {
   const now = useNow(TICK_MS)
   const elapsed = formatElapsed(Math.max(0, now.getTime() - Date.parse(handover.since)))
-  return <Loader phase={phase} label={`${t.session.chat.handing[handover.phase]} · ${elapsed}`} fit="fill" />
+  return <Loader phase={phase} label={t.session.chat.handing[handover.phase]} time={elapsed} fit="fill" />
 }
 
 interface LineProps {
@@ -595,12 +595,16 @@ function Line({ line, chat, asks, media, onOpen, sharedUrl }: LineProps) {
   return <span className="transcript__plain">{line.notice === undefined ? line.text : say(line.notice)}</span>
 }
 
+export function toggleTip(label: string, keys: string) {
+  return <><span>{label}</span><kbd className="tip__keys">{keys}</kbd></>
+}
+
 /** The head's switch of the task panel, at the side the panel opens on; on a phone it opens the full card. */
 function TaskToggle({ open, narrow, onToggle }: { open: boolean; narrow: boolean; onToggle: () => void }) {
   const { current, mac } = useHotkeyLayout()
   const label = narrow ? t.session.chat.task.card : open ? t.session.chat.task.hide : t.session.chat.task.show
   return (
-    <Tipped inline align="start" tip={narrow ? label : `${label} · ${formatCombo(current.chatTask, mac)}`}>
+    <Tipped inline align="start" tip={narrow ? label : toggleTip(label, formatCombo(current.chatTask, mac))}>
       <button
         type="button"
         className={`chat__task-toggle${open ? ' chat__task-toggle--on' : ''}`}

@@ -44,6 +44,11 @@
   font-weight: 600;
 }
 
+.tip__keys {
+  color: var(--fg-muted);
+  font: inherit;
+}
+
 .tip__muted {
   color: var(--fg-muted);
 }

@@ -402,10 +402,16 @@ button.tools__toggle:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  align-self: flex-start;
-  max-width: 100%;
+  align-self: stretch;
+  min-width: 0;
   color: var(--fg-muted);
   font-size: var(--text-14);
+}
+
+.transcript__turn-time {
+  flex: none;
+  margin-inline-start: auto;
+  font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
 }
 

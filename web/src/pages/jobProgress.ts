@@ -3,15 +3,17 @@ import { formatClock } from '../format.js'
 import { t } from '../i18n/index.js'
 
 /** A clone's figures: the stage, the objects the server listed, the percent, the size and speed; a bare stage ends in "…". */
-export function progressText(progress: CloneProgress): string {
+export function progressParts(progress: CloneProgress): string[] {
   const texts = t.creation.window
   // The LFS files are a step of their own: its name says the stage.
   const parts = progress.stage === 'lfs' ? [] : [texts.stages[progress.stage]]
-  if (progress.objects !== undefined) parts[0] = `${parts[0]}: ${texts.objects(progress.objects)}`
+  if (progress.objects !== undefined) parts.push(texts.objects(progress.objects))
   if (progress.percent !== undefined) parts.push(`${progress.percent}%`)
   if (progress.bytes !== undefined) parts.push(texts.received(progress.bytes, progress.speed))
-  if (progress.percent === undefined && progress.objects === undefined) return `${parts.join(' · ')}…`
-  return parts.join(' · ')
+  if (parts.length === 1 && progress.stage !== 'lfs' && progress.percent === undefined && progress.objects === undefined) {
+    return [`${parts[0]}…`]
+  }
+  return parts
 }
 
 /** How long a step has run, up to now while it runs (BTN-1099); `null` before it began or when it took under a second. */

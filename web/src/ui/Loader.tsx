@@ -16,7 +16,7 @@ const WATERLINE = 24
 const WAVE = (y: number) => `M-16 ${y}q4-2.4 8 0${'t8 0'.repeat(9)}`
 
 /** The page's loader: the logo's boat rocking on a running sea, with what is loading under it. */
-export function Loader({ phase, label, fit = 'block' }: { phase: Exclude<LoaderPhase, 'done'>; label: string; fit?: LoaderFit }) {
+export function Loader({ phase, label, time, fit = 'block' }: { phase: Exclude<LoaderPhase, 'done'>; label: string; time?: string; fit?: LoaderFit }) {
   const style = { '--loader-in': `${LOADER_MS.in}ms`, '--loader-out': `${LOADER_MS.out}ms` } as CSSProperties
   const motion = phase === 'in' ? ' ui-loader--in' : phase === 'out' ? ' ui-loader--out' : ''
   return (
@@ -36,7 +36,7 @@ export function Loader({ phase, label, fit = 'block' }: { phase: Exclude<LoaderP
           <path className="ui-loader__wave ui-loader__wave--deep" d={WAVE(WATERLINE + 3.4)} />
         </svg>
       </div>
-      <p className="ui-loader__label">{label}</p>
+      <p className="ui-loader__label">{label}{time !== undefined && <span className="ui-loader__time">{time}</span>}</p>
     </div>
   )
 }

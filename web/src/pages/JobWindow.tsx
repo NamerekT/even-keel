@@ -4,7 +4,7 @@ import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useCommand } from '../live/useCommand.js'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
-import { progressText, stepTime } from './jobProgress.js'
+import { progressParts, stepTime } from './jobProgress.js'
 import { RefusalWords } from './RefusalWords.js'
 import '../tools/addPackage.css'
 import './jobWindow.css'
@@ -38,17 +38,19 @@ function Progress({ step }: { step: JobStep }) {
       <span className={`job-window__bar${known ? '' : ' job-window__bar--unknown'}`} aria-hidden="true">
         <span className="job-window__fill" style={known ? { width: `${progress.percent}%` } : undefined} />
       </span>
-      <span className="job-window__figures">{progressText(progress)}</span>
+      <span className="job-window__figures">
+        {progressParts(progress).map((part) => <span key={part}>{part}</span>)}
+      </span>
     </span>
   )
 }
 
-function StepState({ step, now }: { step: JobStep; now: Date }) {
+export function StepState({ step, now }: { step: JobStep; now: Date }) {
   const time = stepTime(step, now)
   return (
     <span className="job-window__state">
       {t.creation.window.states[step.state]}
-      {time !== null && <span className="job-window__time"> · {time}</span>}
+      {time !== null && <span className="job-window__time">{time}</span>}
     </span>
   )
 }
