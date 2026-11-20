@@ -8,7 +8,7 @@ import { toTask, type MilestoneChoice, type TaskMilestone } from '../../../src/t
 
 const DESCRIPTION = `## Goal
 
-The page shows the task in full, so that nobody has to open the tracker on a phone.
+See ABC-2 for the related task. Keep \`ABC-2\` as code when quoting a command.
 
 - the description, rendered from Markdown;
 - labels, links to other tasks, the milestone and the priority;

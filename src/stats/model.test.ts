@@ -44,6 +44,7 @@ describe('parsePeriodQuery', () => {
 describe('isTaskId', () => {
   it('accepts a tracker key and rejects anything else', () => {
     expect(isTaskId('ABC-12')).toBe(true)
+    expect(isTaskId('DE_MO-2')).toBe(true)
     expect(isTaskId('abc-12')).toBe(false)
     expect(isTaskId("ABC-1'")).toBe(false)
   })

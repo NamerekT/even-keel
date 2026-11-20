@@ -193,7 +193,7 @@ export interface ReaderSettings {
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/
 const ZONE = /^[A-Za-z][A-Za-z0-9_+\-/]{0,63}$/
-const TASK = /^[A-Z][A-Z0-9]*-\d+$/
+const TASK = /^[A-Z][A-Z0-9_]*-\d+$/
 
 export function parseStatsFilter(params: URLSearchParams): StatsFilter {
   const scope = params.get('scope') ?? 'all'

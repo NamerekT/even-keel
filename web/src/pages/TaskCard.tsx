@@ -13,7 +13,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Loader } from '../ui/Loader.js'
 import { useLoader } from '../ui/loaderPhase.js'
 import { useHeightGlide } from '../ui/useHeightGlide.js'
-import { StatusPill, Text, useMarkdown } from './CardText.js'
+import { cardMarkdown, StatusPill } from './CardText.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
@@ -254,7 +254,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
   const moving = sending || move.on
   const { state } = useLive()
   const roleText = (role: NonNullable<Card['labels'][number]['role']>) => t.card.roles[role]
-  const markdown = useMarkdown(onOpen, card.attachments)
+  const markdown = cardMarkdown(state, onOpen, card.attachments)
   const loud = card.labels.filter((label) => LOUD.has(label.role))
   const quiet = card.labels.filter((label) => label.role !== null && !LOUD.has(label.role))
   const editable = editor !== null && card.edit !== null ? { card: card as Card & { edit: NonNullable<Card['edit']> }, editor } : null
@@ -297,7 +297,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               task={card.id}
               text={card.description}
               editor={editable.editor}
-              render={(text) => <Text components={markdown}>{text}</Text>}
+              render={markdown.render}
             />
           ) : (
             <section className="task-card__section">
@@ -305,7 +305,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
               {card.description.trim() === '' ? (
                 <p className="placeholder">{t.card.noDescription}</p>
               ) : (
-                <Text components={markdown}>{card.description}</Text>
+                markdown.render(card.description)
               )}
             </section>
           )}
@@ -316,7 +316,7 @@ function CardBody({ card, project, editor, inWork, refused, work, live, onOpen, 
             comments={card.comments}
             history={card.history}
             editor={editable?.editor ?? null}
-            render={(text) => <Text components={markdown}>{text}</Text>}
+            {...markdown}
           />
         </div>
         <aside className="task-card__side">

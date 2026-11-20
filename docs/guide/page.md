@@ -44,6 +44,8 @@ The service remembers windows for up to 2000 sessions across restarts. If the ag
 
 A click on a task's title opens its card: the description and comments rendered from Markdown (on Huly with the replies of a comment's thread under it), labels with what each means to the chain, milestone, priority, and the tasks it blocks, waits for or relates to.
 
+A task number such as `ABC-12` in a description, comment or journal entry opens that task's card. You can refer to tasks from any project or feed configured in Even Keel. Numbers in code, addresses and link labels keep their original formatting.
+
 The milestone on the card is a pick: choosing another one moves the task there in the tracker at once, and the chain reorders. Tracker changes reach the page on the next poll, every 30 seconds; the refresh button in the project head reads the tracker now.
 
 ### Into the chain and back to the backlog

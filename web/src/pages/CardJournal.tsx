@@ -21,13 +21,14 @@ interface Props {
   /** Only a task Even Keel keeps itself: the person writes and deletes their notes. */
   editor: CardEditor | null
   render: (text: string) => ReactNode
+  plain: (text: string) => ReactNode
 }
 
 /**
  * The task's comments in the order they were written (BTN-774). For the built-in tracker it is the task journal: agent
  * reports, session questions with the answers given in the page's chat, and the person's notes with a field below.
  */
-export function CardJournal({ task, comments, history, editor, render }: Props) {
+export function CardJournal({ task, comments, history, editor, render, plain }: Props) {
   const [all, setAll] = useState(false)
   const [filter, setFilter] = useState<JournalFilter>('all')
   const [removing, setRemoving] = useState<string | null>(null)
@@ -52,7 +53,7 @@ export function CardJournal({ task, comments, history, editor, render }: Props) 
       {items.length === 0 && <p className="placeholder">{filter === 'all' ? t.card.journal.empty : t.card.journal.filteredEmpty}</p>}
       {shown.length > 0 && (
         <ol className="task-card__comments">
-          {shown.map((item, index) => item.kind === 'changes' ? <CardChanges key={`change:${index}`} group={item.group} /> : (
+          {shown.map((item, index) => item.kind === 'changes' ? <CardChanges key={`change:${index}`} group={item.group} plain={plain} /> : (
             <Entry
               key={item.comment.journal?.id ?? `comment:${index}`}
               comment={item.comment}

@@ -2,21 +2,12 @@ import Markdown, { type Components } from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
+import type { ConfigView, EvenKeelState } from '../../../src/state.js'
 import { isTaskId } from '../../../src/stats/model.js'
 import type { TaskCard as Card } from '../../../src/tracker/card.js'
 import type { TaskStatus } from '../../../src/tracker/model.js'
+import { remarkTaskRefs, taskRefParts } from './cardTaskRefs.js'
 import '../ui/markdown.css'
-
-/** A task's text as the card draws it: its description, a comment. */
-export function Text({ children, components }: { children: string; components: Components }) {
-  return (
-    <div className="markdown task-card__markdown">
-      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeSanitize]} components={components}>
-        {children}
-      </Markdown>
-    </div>
-  )
-}
 
 export function StatusPill({ status }: { status: TaskStatus }) {
   return (
@@ -27,17 +18,19 @@ export function StatusPill({ status }: { status: TaskStatus }) {
   )
 }
 
-// A link to a task opens its card; a web link opens in a new tab; a link the tracker keeps to itself stays text.
-export function useMarkdown(onOpen: (task: string) => void, attachments: Card['attachments']): Components {
+type PrefixSource = Pick<EvenKeelState, 'taskPrefixes'> & { config: Pick<ConfigView, 'feeds'> }
+
+export function cardMarkdown(state: PrefixSource | null, onOpen: (task: string) => void, attachments: Card['attachments']) {
+  const prefixes = new Set(Object.values(state?.taskPrefixes ?? {}))
+  for (const feeds of Object.values(state?.config.feeds ?? {})) {
+    for (const feed of feeds) prefixes.add(feed.prefix ?? feed.key)
+  }
   const localFiles = new Set(attachments.map((file) => file.url).filter((url) => url.startsWith('/api/tasks/')))
-  return {
+  const reference = (id: string, key?: number) => <button key={key} type="button" className="task-card__inline-ref" onClick={() => onOpen(id)}>{id}</button>
+  const components: Components = {
     a: ({ href, children }) => {
       if (typeof children === 'string' && isTaskId(children) && !/^https?:/i.test(href ?? '')) {
-        return (
-          <button type="button" className="task-card__inline-ref" onClick={() => onOpen(children)}>
-            {children}
-          </button>
-        )
+        return reference(children)
       }
       if (href !== undefined && (/^(https?|mailto):/i.test(href) || localFiles.has(href))) {
         return (
@@ -51,5 +44,11 @@ export function useMarkdown(onOpen: (task: string) => void, attachments: Card['a
     img: ({ src, alt }) => typeof src === 'string' && localFiles.has(src)
       ? <img src={src} alt={alt ?? ''} loading="lazy" style={{ maxWidth: '100%', height: 'auto' }} />
       : (alt ? <span className="markdown__image">[{alt}]</span> : null),
+  }
+  return {
+    render: (text: string) => <div className="markdown task-card__markdown">
+      <Markdown remarkPlugins={[remarkGfm, [remarkTaskRefs, prefixes]]} rehypePlugins={[rehypeRaw, rehypeSanitize]} components={components}>{text}</Markdown>
+    </div>,
+    plain: (text: string) => taskRefParts(text, prefixes).map((part, i) => part.type === 'link' ? reference(part.url, i) : part.value),
   }
 }

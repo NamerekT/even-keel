@@ -10,7 +10,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { Attachments } from './Attachments.js'
 import { recallCard, rememberCard } from './cardMemory.js'
 import { CardJournal } from './CardJournal.js'
-import { StatusPill, Text, useMarkdown } from './CardText.js'
+import { cardMarkdown, StatusPill } from './CardText.js'
 import './card.css'
 import './cardMain.css'
 import './cardSide.css'
@@ -77,7 +77,7 @@ export function ChatTaskPanel({ project, task, beat, onCard, slide, leaving, onL
   // Read anew as the full card is: when the poll brings the task changed, and when the session's turn moves on.
   const row = JSON.stringify(state?.tasks.find((each) => each.project === project && each.id === task) ?? null)
   const phase = useLoader(card === undefined && error === null)
-  const markdown = useMarkdown(onCard, card?.attachments ?? [])
+  const markdown = cardMarkdown(state, onCard, card?.attachments ?? [])
 
   useEffect(() => {
     let live = true
@@ -119,10 +119,10 @@ export function ChatTaskPanel({ project, task, beat, onCard, slide, leaving, onL
                 </header>
                 <section className="task-card__section">
                   <h4 className="task-card__heading">{t.card.description}</h4>
-                  {card.description.trim() === '' ? <p className="placeholder">{t.card.noDescription}</p> : <Text components={markdown}>{card.description}</Text>}
+                  {card.description.trim() === '' ? <p className="placeholder">{t.card.noDescription}</p> : markdown.render(card.description)}
                 </section>
                 {card.attachments.length > 0 && <Attachments task={card.id} items={card.attachments} editor={null} />}
-                <CardJournal key={card.id} task={card.id} comments={card.comments} history={card.history} editor={null} render={(text) => <Text components={markdown}>{text}</Text>} />
+                <CardJournal key={card.id} task={card.id} comments={card.comments} history={card.history} editor={null} {...markdown} />
               </>
             )}
           </>
