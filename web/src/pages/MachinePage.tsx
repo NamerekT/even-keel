@@ -23,7 +23,7 @@ import { Lamp } from '../ui/Lamp.js'
 import { Loading } from '../ui/Loader.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
-import { modelTip, shortModel } from '../ui/modelLabel.js'
+import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
 import { TakeOverButton } from './TakeOverButton.js'
@@ -260,7 +260,8 @@ function ReportCard({ state, page, now }: { state: EvenKeelState; page: MachineP
       <dd className="machine-page__muted">{about.host}</dd>
     </Fact>,
     <Fact key="even-keel" label={text.evenKeel}>
-      <dd>{about.commit === undefined ? about.evenKeel : `${about.evenKeel} · ${shortRef(about.commit)}`}</dd>
+      <dd>{about.evenKeel}</dd>
+      {about.commit !== undefined && <dd className="machine-page__muted">{shortRef(about.commit)}</dd>}
     </Fact>,
     page.joinedAt !== null && !page.own && (
       <Fact key="joined" label={text.joined}>
@@ -451,8 +452,8 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
   )
 }
 
-/** The machine's sessions not finished: the lamp, the task, the agent and model. */
-function SessionsCard({ page }: { page: MachinePageView }) {
+/** The machine's sessions not finished: the lamp, the task, the agent and model as the model's tag. */
+export function SessionsCard({ page }: { page: Pick<MachinePageView, 'sessions'> }) {
   const text = t.machinePage
   return (
     <Card title={text.sessions} titleId="machine-sessions">
@@ -469,11 +470,7 @@ function SessionsCard({ page }: { page: MachinePageView }) {
                   {session.cwd}
                 </bdi>
               </span>
-              <span className="machine-page__muted" title={session.model == null || session.model === '' ? undefined : modelTip(session.model)}>
-                {[t.account.agents[session.agent as keyof typeof t.account.agents] ?? session.agent, session.model == null || session.model === '' ? null : shortModel(session.model).name]
-                  .filter((each) => each != null && each !== '')
-                  .join(' · ')}
-              </span>
+              <RunLabelTag run={{ provider: session.agent, model: session.model == null || session.model === '' ? null : session.model, effort: null }} />
             </li>
           ))}
         </ul>

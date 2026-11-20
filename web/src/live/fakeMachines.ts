@@ -285,7 +285,11 @@ export class FakeNetwork {
 
 /** The command lists and the stdio servers every project of `dev:fake` has, for a machine's own ones (BTN-994). */
 const FAKE_COMMANDS = { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], afterGreen: ['npm run build'] }
-const FAKE_SERVERS = [{ package: 'files', server: 'files', command: 'npx', args: ['-y', 'example-files-mcp', '/home/example/shared'] }]
+const FAKE_SERVERS = [
+  { package: 'files', server: 'files', command: 'npx', args: ['-y', 'example-files-mcp', '/home/example/shared'] },
+  // A package whose server is named apart from it: its name shows the server as a tag (BTN-1381).
+  { package: 'tracker', server: 'issues', command: 'npx', args: ['-y', 'example-issues-mcp'] },
+]
 
 /** The hub's own machine in `dev:fake`, as `?machines=…` names it in `machineNames`. */
 const OWN = 'pc'

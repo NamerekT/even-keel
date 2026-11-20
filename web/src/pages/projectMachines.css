@@ -35,6 +35,15 @@
   background: var(--lamp-done);
 }
 
+/* A machine off the link in the pick of "Connect a machine" (BTN-1381): a hollow lamp after its name. */
+.pool__lamp {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--lamp-idle);
+  border-radius: var(--radius-pill);
+}
+
 .pool__main {
   display: flex;
   flex: 1;
@@ -77,18 +86,20 @@
   white-space: nowrap;
 }
 
-/* What the machine runs after a green main (BTN-994): a muted line under its folder. */
+/* What the machine runs after a green main (BTN-994): a muted caption under its folder, a tag per command (BTN-1381). */
 .pool__after {
-  display: block;
-  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-6);
   color: var(--fg-muted);
   font-size: var(--text-12);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.pool__after bdi {
+.pool__after .tag {
+  max-width: 100%;
   font-family: var(--mono);
+  overflow-wrap: anywhere;
 }
 
 .pool__empty {
@@ -120,6 +131,9 @@
 }
 
 .machine-own__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
   font-size: var(--text-14);
   font-weight: 600;
 }

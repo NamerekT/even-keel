@@ -4,10 +4,22 @@ import type { PoolMachine, ProjectPool } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { Select } from '../ui/Select.js'
+import { Select, type SelectOption } from '../ui/Select.js'
 import { folderBlocked, lastFolder, machineFolder, NEW_FOLDER, type FolderPick } from './machinePicks.js'
 import { MachineFolderField, useFolderAnswers } from './MachineFolderField.js'
 import '../tools/addPackage.css'
+import './projectMachines.css'
+
+/** A machine as the pick lists it: its name, and one off the link marked by a hollow lamp whose tip says so (BTN-1381). */
+export function machineOption(machine: Pick<ProjectPool['others'][number], 'id' | 'name' | 'online'>): SelectOption {
+  if (machine.online) return { value: machine.id, label: machine.name }
+  return {
+    value: machine.id,
+    label: machine.name,
+    aside: <span className="pool__lamp" role="img" aria-label={t.pool.offline} title={t.pool.offline} />,
+    keywords: t.pool.offline,
+  }
+}
 
 /**
  * "Connect a machine" of a project's section "Machines" (BTN-1271): a machine of the hub not in the pool, and its folder
@@ -95,7 +107,7 @@ export function ConnectMachineDialog({
               id={machineId}
               className="add-package__input"
               value={machine}
-              options={others.map((each) => ({ value: each.id, label: each.online ? each.name : `${each.name} · ${t.pool.offline}` }))}
+              options={others.map(machineOption)}
               onChange={pick}
             />
           </div>

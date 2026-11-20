@@ -16,6 +16,16 @@ interface Draft {
 const lines = (text: string): string[] => text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
 const serverKey = (pkg: string, server: string) => `${pkg}\u0000${server}`
 
+/** A package's MCP server by the package's name, and the server's in a tag beside it where the two differ (BTN-1381). */
+export function ServerName({ pkg, server }: { pkg: string; server: string }) {
+  return (
+    <span className="machine-own__name">
+      {pkg}
+      {server !== pkg && <span className="tag">{server}</span>}
+    </span>
+  )
+}
+
 export function draftOf(settings: MachineProjectSettings, servers: ProjectPool['servers']): Draft {
   const lists = Object.fromEntries(COMMANDS.map((key) => [key, (settings[key] ?? []).join('\n')])) as Record<Command, string>
   const entries = servers.map((each) => {
@@ -88,10 +98,9 @@ export function MachineOwnValues({ project, row, pool, onSaved }: { project: str
             const key = serverKey(each.package, each.server)
             const value = draft.servers[key] ?? { command: '', args: '' }
             const put = (patch: Partial<typeof value>) => setDraft({ ...draft, servers: { ...draft.servers, [key]: { ...value, ...patch } } })
-            const name = each.package === each.server ? each.package : `${each.package} · ${each.server}`
             return (
               <div key={key} className="machine-own__server">
-                <span className="machine-own__name">{name}</span>
+                <ServerName pkg={each.package} server={each.server} />
                 <label className="machine-own__part">
                   <span className="settings__label">{own.command}</span>
                   <input className="settings__text settings__text--mono" autoComplete="off" spellCheck={false} value={value.command} placeholder={each.command} onChange={(event) => put({ command: event.target.value })} />

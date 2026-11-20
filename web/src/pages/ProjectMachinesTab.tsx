@@ -17,6 +17,22 @@ import './projectMachines.css'
 /** The section "Machines" is shown only where the hub has a machine elsewhere: with one, there is nothing to pick. */
 export const poolShown = (state: EvenKeelState | null): boolean => Object.keys(state?.machineNames ?? {}).length > 1
 
+/** A machine's commands after a green main as tags after their caption; whose they are — the machine's or the project's — is the tip. */
+export function AfterGreen({ commands, own }: { commands: string[]; own: boolean }) {
+  return (
+    <Tipped tip={own ? t.pool.afterGreenOwn : t.pool.afterGreenProject} inline align="start">
+      <span className="pool__after">
+        {t.pool.afterGreen}
+        {commands.map((command, index) => (
+          <bdi key={index} className="tag" dir="ltr">
+            {command}
+          </bdi>
+        ))}
+      </span>
+    </Tipped>
+  )
+}
+
 /** The project's pool, read again whenever a machine joins, connects or goes away, and after `reload`; `null` while read. */
 export function usePool(project: string): { pool: ProjectPool | null; reload: () => void } {
   const { read, onMachines } = useLive()
@@ -79,13 +95,7 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
                           {machine.folder}
                         </bdi>
                       </Tipped>
-                      {machine.afterGreen.length > 0 && (
-                        <Tipped tip={machine.settings.afterGreen !== undefined ? t.pool.afterGreenOwn : t.pool.afterGreenProject} inline align="start">
-                          <span className="pool__after">
-                            {t.pool.afterGreen} <bdi dir="ltr">{machine.afterGreen.join(' · ')}</bdi>
-                          </span>
-                        </Tipped>
-                      )}
+                      {machine.afterGreen.length > 0 && <AfterGreen commands={machine.afterGreen} own={machine.settings.afterGreen !== undefined} />}
                     </span>
                     {slot > 0 && (
                       <Tipped tip={t.pool.slotsTip} inline>

@@ -12,13 +12,17 @@ import { folderBlocked, lastFolder, machineFolder, NEW_FOLDER, type FolderPick }
 import { projectLabel, projectName } from '../state.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
+import { HelpTip } from '../pages/settingsParts.js'
 import { Tipped } from '../ui/Tipped.js'
 import { MachineTokenDialog, type MachineTokenTarget } from './MachineTokenDialog.js'
 
 const agentName = (agent: string): string => t.account.agents[agent as keyof typeof t.account.agents] ?? agent
 
-/** A check as its row reads: what was found, and what follows when it is missing; the machine's page reads it too. */
-export function checkText(check: MachineCheck): { text: string; effect?: string } {
+/**
+ * A check as its row reads: what was found, a detail of it for its tip (git's name and e-mail, BTN-1381), and what
+ * follows when it is missing; the machine's page reads it too.
+ */
+export function checkText(check: MachineCheck): { text: string; tip?: string; effect?: string } {
   const text = t.machines
   if (check.id === 'node') {
     const { version } = check as Extract<MachineCheck, { id: 'node' }>
@@ -27,10 +31,32 @@ export function checkText(check: MachineCheck): { text: string; effect?: string 
   if (check.id === 'git') {
     const { version, user } = check as Extract<MachineCheck, { id: 'git' }>
     if (version === null) return { text: text.gitMissing, effect: text.gitMissingEffect }
-    return user ? { text: `${text.git(version)} · ${text.gitUser}` } : { text: `${text.git(version)} · ${text.gitNoUser}`, effect: text.gitNoUserEffect }
+    return user ? { text: text.git(version), tip: text.gitUser } : { text: text.git(version), tip: text.gitNoUser, effect: text.gitNoUserEffect }
   }
   const { agent, version } = check as Extract<MachineCheck, { agent: string }>
   return check.ok ? { text: text.agent(agentName(agent), version) } : { text: text.agentMissing(agentName(agent)), effect: text.agentMissingEffect(agentName(agent)) }
+}
+
+/** What the joined machine runs, a captioned cell each: its system and Even Keel's version. */
+export function JoinedAbout({ os, version }: { os: string; version: string }) {
+  return (
+    <>
+      <span className="add-machine__cell">
+        <span className="add-machine__caption">{t.machines.aboutOs}</span>
+        {os}
+      </span>
+      <span className="add-machine__cell">
+        <span className="add-machine__caption">{t.machines.aboutEvenKeel}</span>
+        {version}
+      </span>
+    </>
+  )
+}
+
+/** A project's steps in the connecting window are headed by its name with its key in brackets, or the key alone. */
+export function projectGroup(state: EvenKeelState, project: string): string {
+  const name = projectName(state, project)
+  return name === null ? projectLabel(state, project) : `${name} (${projectLabel(state, project)})`
 }
 
 interface MachineJoinedProps {
@@ -84,7 +110,7 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
         <p className={`add-machine__joined${machine.online ? '' : ' add-machine__joined--off'}`}>
           <span className="add-machine__lamp" aria-hidden="true" />
           <strong>{t.machines.joined(machine.name)}</strong>
-          {about !== null && <span className="add-machine__about">{t.machines.joinedAbout(osLabel(about.os), about.evenKeel)}</span>}
+          {about !== null && <JoinedAbout os={osLabel(about.os)} version={about.evenKeel} />}
           {!machine.online && <span className="add-machine__about">{t.machines.offline}</span>}
         </p>
 
@@ -93,11 +119,14 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
             <SectionLabel>{t.machines.onMachine}</SectionLabel>
             <ul className="add-machine__list">
               {machineChecks(about, hubAgents).map((check) => {
-                const { text, effect } = checkText(check)
+                const { text, tip, effect } = checkText(check)
                 return (
                   <li key={check.id} className="add-machine__row">
                     <span className={`add-machine__mark add-machine__mark--${check.ok ? 'ok' : 'warn'}`}>{check.ok ? <CheckIcon /> : <BangIcon />}</span>
-                    <span className="add-machine__fact">{text}</span>
+                    <span className="add-machine__fact">
+                      {text}
+                      {tip !== undefined && <HelpTip text={tip} align="start" />}
+                    </span>
                     {effect !== undefined && <span className="add-machine__effect">— {effect}</span>}
                   </li>
                 )
@@ -168,9 +197,8 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
                     <span className="add-machine__done">
                       <CheckIcon /> {t.machines.signedIn}
                       {onToken === true && (
-                        <Tipped className="add-machine__muted" tip={t.account.machineOnTokenTip(machine.name)} align="end" inline focusable>
-                          {' · '}
-                          {t.account.machineOnToken}
+                        <Tipped tip={t.account.machineOnTokenTip(machine.name)} align="end" inline focusable>
+                          <span className="tag">{t.account.machineOnToken}</span>
                         </Tipped>
                       )}
                     </span>
@@ -238,9 +266,7 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
           }}
           groupOf={(id) => {
             const { project } = stepOf(id)
-            if (project === undefined) return undefined
-            const name = projectName(state, project)
-            return name === null ? projectLabel(state, project) : `${projectLabel(state, project)} · ${name}`
+            return project === undefined ? undefined : projectGroup(state, project)
           }}
           done={{ label: t.pool.done, onDone: () => void finish() }}
           undoNote={t.machines.undoable}
