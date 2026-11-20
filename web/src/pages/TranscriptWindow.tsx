@@ -34,6 +34,7 @@ import { answeredAsks } from './composerHold.js'
 import { DeliveryMark } from './DeliveryMark.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
+import { MessageMenu } from './MessageMenu.js'
 import { ShareCard } from './ShareCard.js'
 import { InboxThumb, Thumbs } from './Thumbs.js'
 import { useLocalPictures } from './localPictures.js'
@@ -179,6 +180,8 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
     all == null
       ? null
       : feedEntries(all.filter((line) => line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id))))
+  // The agent's last message carries the menu with "Accept as answer" and "Copy text" (BTN-1363).
+  const lastText = entries?.findLastIndex((entry) => entry.kind === 'line' && entry.line.kind === 'text' && entry.line.ask === undefined && entry.line.share === undefined) ?? -1
   const edits = editTotals(all ?? [])
   // Files dropped anywhere on the chat window join the composer's list, not only on its small field.
   const drop = useFileDrop(chat !== undefined || foot !== undefined, (files) => composerRef.current?.attach(files))
@@ -412,6 +415,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                   }
                   // A sent line and the transcript line that lands for it share a key: the bubble stays, only its mark changes.
                   const mark = marks.get(entry.line)
+                  const line = <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} sharedUrl={shared} />
                   return (
                     <li key={mark?.key ?? index} className={`transcript__entry transcript__entry--${entry.line.kind}`}>
                       {mark === undefined ? (
@@ -422,7 +426,13 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                           <LineTime at={entry.line.at} />
                         </span>
                       )}
-                      <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} sharedUrl={shared} />
+                      {index === lastText ? (
+                        <MessageMenu text={entry.line.text} onAccept={chat?.accepts === true ? () => composerRef.current?.accept?.() : undefined}>
+                          {line}
+                        </MessageMenu>
+                      ) : (
+                        line
+                      )}
                     </li>
                   )
                 })}

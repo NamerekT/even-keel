@@ -28,7 +28,9 @@ A sent message shows at once, with an icon left of its time: a clock while it is
 
 The window's head names the task; point at its title for the session's id, press it to copy the id.
 
-The line under the reply box says what the session is at: its branch and edits on the left, its account, the model of its last answer and a ring of how full its context is on the right.
+The line under the reply box says what the session is at: its branch and edits on the left, its account, the model of its last answer and a ring of how full its context is on the right. Anything else the chat has to tell you — a message it could not send, a question the session has not saved yet, an answer to accept — comes as a banner over the reply box, with its button and a ✕ that closes it.
+
+Right click the session's last message, or press and hold it on a phone, for its menu: "Copy text", and "Accept as answer" where the task can be closed with it.
 
 Press the ring for the figures, the mark where the session hands over to a fresh one, and the account's limits.
 

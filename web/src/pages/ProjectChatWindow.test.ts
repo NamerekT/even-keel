@@ -113,6 +113,21 @@ it.each(['open', 'closed', 'reopened'])('prepends failed text and files when the
   expect(host.querySelector('[role=alert]')?.textContent).toContain('upload refused')
 })
 
+it('shows a refused send as a banner over the field; its ✕ closes it for good and keeps the text', async () => {
+  const { host, delivery } = await start()
+  await act(async () => delivery.reject(new Error('upload refused')))
+  const banner = host.querySelector('.chat-banner')!
+  expect(banner.textContent).toContain('upload refused')
+  expect(banner.compareDocumentPosition(host.querySelector('textarea')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  await act(async () => banner.querySelector<HTMLButtonElement>('.chat-banner__close')!.click())
+  expect(host.querySelector('[role=alert]')).toBeNull()
+  expect(host.querySelector('textarea')!.value).toBe(message)
+  await act(async () => root.render(null))
+  await render(card)
+  await vi.waitFor(() => expect(host.querySelector('textarea')!.value).toBe(message))
+  expect(host.querySelector('[role=alert]')).toBeNull()
+})
+
 it('opens empty, keeps one bubble through the launch and missing transcript, then displays the recorded prompt', async () => {
   const { host, box, delivery } = await start()
   expect(box.value).toBe('')

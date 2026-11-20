@@ -12,6 +12,7 @@ import { chatRenewal, renewalChoice, type ChatRenewal } from './chatRenewal.js'
 import { ChatRenewDialog } from './ChatRenewDialog.js'
 import { shownAsk } from './composerHold.js'
 import { useChatDraft } from './useChatDraft.js'
+import { ComposerBanner } from './ComposerBanner.js'
 import { ComposerBox } from './ComposerBox.js'
 import type { CommandTextHandle } from './CommandText.js'
 import { TranscriptWindow, type WindowFoot } from './TranscriptWindow.js'
@@ -112,7 +113,7 @@ interface FieldProps {
 function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: FieldProps) {
   const command = useRef<CommandTextHandle>(null)
   const { state, query, command: post } = useLive()
-  const { text, files, setText, setFiles, sending, failure, send } = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id)
+  const { text, files, setText, setFiles, sending, failure, dismissFailure, send } = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id)
   const [renewal, setRenewal] = useState<ChatRenewal | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const ask = shownAsk(session?.ask ?? null, pending === null ? parts.answered : new Set([...parts.answered, pending]))
@@ -193,6 +194,13 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
           />
         )}
       </FoldPresence>
+      <FoldPresence className="chat__banner">
+        {failure && (
+          <ComposerBanner tone="error" onClose={dismissFailure}>
+            {say(failure)}
+          </ComposerBanner>
+        )}
+      </FoldPresence>
       <ComposerBox
         command={command}
         commands={false}
@@ -207,7 +215,6 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         reason={locked ?? (sending ? t.session.chat.sending : null)}
       />
       {parts.status}
-      {failure && <p role="alert" className="notice notice--error">{say(failure)}</p>}
       </form>
     </>
   )

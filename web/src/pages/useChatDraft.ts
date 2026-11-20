@@ -64,6 +64,11 @@ class ChatDraft {
 
   setText = (text: string) => this.edit({ ...this.state.draft, text })
   setFiles = (change: (now: File[]) => File[]) => this.edit({ ...this.state.draft, files: change(this.state.draft.files) })
+  /** The refusal of the last send is closed; the text it put back stays. */
+  dismissFailure = () => {
+    const { failure, ...rest } = this.state.draft
+    if (failure !== undefined) this.edit(rest)
+  }
 
   send = async (post: (message: Draft) => Promise<unknown>): Promise<boolean> => {
     if (this.state.sending) return false
@@ -96,5 +101,5 @@ export function useChatDraft({ project, task }: DraftOwner, session: string) {
   // The session only locates a legacy draft on first open. A handoff keeps the same owner.
   const entry = useMemo(() => open.get(key) ?? new ChatDraft(key, task, session), [key])
   const { draft, sending } = useSyncExternalStore(entry.subscribe, entry.snapshot, entry.snapshot)
-  return { ...draft, sending, setText: entry.setText, setFiles: entry.setFiles, send: entry.send }
+  return { ...draft, sending, setText: entry.setText, setFiles: entry.setFiles, dismissFailure: entry.dismissFailure, send: entry.send }
 }

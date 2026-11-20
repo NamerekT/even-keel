@@ -10,6 +10,15 @@ export const composerEn = {
   other: 'Other',
   otherPlaceholder: 'Your own answer…',
   noPreview: 'No preview for this option',
+  unsavedTitle: 'This question is not saved by the session yet',
+  banner: {
+    close: 'Close',
+    retry: 'Try again',
+  },
+  message: {
+    menu: 'Message actions',
+    copy: 'Copy text',
+  },
   unsaved: 'Claude Code saves the message with this question only once it is answered. A reply from here resumes the session without it, with the question and your answer; a reply through Remote Control keeps it.',
   sent: 'The reply is sent — the session goes on with it.',
   handing: {

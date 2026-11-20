@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
+import type { Notice } from '../../../src/notice/notice.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
@@ -11,6 +12,8 @@ import { AskPanel } from './AskPanel.js'
 import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
 import { holdKey, sendAhead, shownAsk } from './composerHold.js'
 import { lockReason } from './composerLock.js'
+import { useAcceptClosed } from './acceptClosed.js'
+import { ComposerBanner } from './ComposerBanner.js'
 import { ComposerBox } from './ComposerBox.js'
 import { useChatDraft, type DraftOwner } from './useChatDraft.js'
 import { ColdReplyDialog } from './ColdReplyDialog.js'
@@ -25,6 +28,8 @@ export interface ComposerHandle {
   attach: (files: File[]) => void
   /** Put a returned letter back into the task session's draft. */
   replyToMail?: (text: string) => void
+  /** "Accept as answer" from the menu of the last message: sent as from the banner, its refusal shown over the field. */
+  accept?: () => void
 }
 
 interface Props {
@@ -70,7 +75,15 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   const draft = useChatDraft(owner, session.sessionId)
   const { text, files, setText, setFiles } = draft
   const sending = draft.sending || accept.sending
-  const failure = draft.failure ?? accept.failure
+  // A refusal of "Accept as answer" lives in this composer only: its ✕ hides that one, a new press may bring another.
+  const [hiddenFailure, setHiddenFailure] = useState<Notice | null>(null)
+  const acceptFailure = accept.failure === hiddenFailure ? null : accept.failure
+  const failure = draft.failure ?? acceptFailure
+  const acceptNow = () => {
+    if (!sending) void accept.send('chain/accept', { project, task, sessionId: session.sessionId })
+  }
+  const [acceptClosed, closeAccept] = useAcceptClosed(session)
+  const [unsavedClosed, setUnsavedClosed] = useState<string | null>(null)
   // The question being answered leaves at once; a refusal brings it back with its picks, which follow the session's
   // question rather than the shown one.
   const [pending, setPending] = useState<string | null>(null)
@@ -100,7 +113,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   const attach = (more: File[]) => {
     if (!accept.sending) setFiles((now) => [...now, ...more])
   }
-  useImperativeHandle(handle, () => ({ attach, replyToMail: setText }))
+  useImperativeHandle(handle, () => ({ attach, replyToMail: setText, accept: acceptNow }))
   const sent = useHold(holdKey(session), SENT_HOLD_MS)
   // A message to a working session goes straight in when it steers, listed as queued and not held; otherwise it waits
   // in the mailbox, whose list below tells its fate, so nothing is held or echoed.
@@ -167,7 +180,47 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
       <FoldPresence className="chat__ask">
         {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
       </FoldPresence>
-      {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
+      <FoldPresence className="chat__banner">
+        {failure !== null && (
+          <ComposerBanner
+            tone="error"
+            actions={
+              draft.failure === undefined && (
+                <button type="button" className="button button--small" disabled={sending} onClick={acceptNow}>
+                  {t.session.chat.banner.retry}
+                </button>
+              )
+            }
+            onClose={() => (draft.failure !== undefined ? draft.dismissFailure() : setHiddenFailure(accept.failure))}
+          >
+            {say(failure)}
+          </ComposerBanner>
+        )}
+      </FoldPresence>
+      <FoldPresence className="chat__banner">
+        {ask?.unsaved && unsavedClosed !== ask.id && (
+          <ComposerBanner tone="warn" tip={t.session.chat.unsaved} onClose={() => setUnsavedClosed(ask.id)}>
+            {t.session.chat.unsavedTitle}
+          </ComposerBanner>
+        )}
+      </FoldPresence>
+      <FoldPresence className="chat__banner chat__banner--accept">
+        {accepts && !sent.on && !acceptClosed && (
+          <ComposerBanner
+            actions={
+              <Tipped inline tip={`${t.session.acceptWhy} ${t.session.acceptTitle}`}>
+                <button type="button" className="button button--small" disabled={sending} onClick={acceptNow}>
+                  {t.session.accept}
+                </button>
+              </Tipped>
+            }
+            closeTip={t.session.acceptClose}
+            onClose={closeAccept}
+          >
+            {t.session.acceptAsk}
+          </ComposerBanner>
+        )}
+      </FoldPresence>
       <ComposerBox
         command={command}
         text={text}
@@ -182,22 +235,6 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
         sendTip={sendTip}
       />
       {status}
-      {failure !== null && <p role="alert" className="notice notice--error">{say(failure)}</p>}
-      {accepts && !sent.on && (
-        <div className="chat__hint chat__hint--fix">
-          <p>{t.session.acceptHint}</p>
-          <Tipped inline tip={t.session.acceptTitle}>
-            <button
-              type="button"
-              className="button button--small"
-              disabled={sending}
-              onClick={() => void accept.send('chain/accept', { project, task, sessionId: session.sessionId })}
-            >
-              {t.session.accept}
-            </button>
-          </Tipped>
-        </div>
-      )}
     </form>
   )
 }

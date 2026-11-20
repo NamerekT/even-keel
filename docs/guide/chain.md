@@ -112,7 +112,7 @@ With commits or uncommitted changes the session is told to merge them or drop th
 
 A session may give its answer and forget the mark.
 
-While its turn has ended on a message, with no question open and no commits or uncommitted changes in its folder, the session panel and the chat show "Accept as answer": the press puts the session's last message on the task as a comment, moves the task to Done and lets the chain clean up and go on.
+While its turn has ended on a message, with no question open and no commits or uncommitted changes in its folder, the session panel and the chat show "Accept as answer": the press puts the session's last message on the task as a comment, moves the task to Done and lets the chain clean up and go on. In the chat it stands in a banner over the reply box; its ✕ hides the banner until the session's next turn, and the same "Accept as answer" stays in the menu of the session's last message (right click, or a long press on a phone).
 
 A branch with commits is refused — that work closes by a merge.
 

@@ -83,7 +83,9 @@ export const sessionEn = {
   skip: 'Skip',
   accept: 'Accept as answer',
   acceptTitle: "The session's last message goes on the task as a comment, the task moves to Done, and the chain cleans up and takes the next one. For a task with no change in the repository.",
-  acceptHint: "The session ended its turn without a mark. If its last message is the answer, close the task with it.",
+  acceptAsk: 'Close the task with this answer?',
+  acceptWhy: 'The session ended its turn without a mark.',
+  acceptClose: "Hide until the session's next turn. The answer can still be accepted from the menu of its last message: right click, or a long press on a phone.",
   silent: (quiet: string, restartAt: string, hungAt: string) =>
     `Silent for ${quiet}. New session — with confirmation from ${restartAt}, on its own at ${hungAt}.`,
   confirmSilent: (since: string) => `The session has written nothing since ${since}. Interrupt the turn and start a new session?`,

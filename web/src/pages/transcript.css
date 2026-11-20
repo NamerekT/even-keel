@@ -406,9 +406,9 @@ button.tools__toggle:hover {
 /*
  * The open question's panel (BTN-921) slides up out of the field through `appear` and leaves sliding down through
  * `fold`; its slot's height moves with it, so the feed above glides instead of jumping. A closed slot gives back the
- * form's gap.
+ * form's gap. A banner over the field (BTN-1363) comes and goes the same way.
  */
-.ui-fold__body.chat__ask {
+.ui-fold__body:is(.chat__ask, .chat__banner) {
   margin-bottom: -6px;
   transform: translateY(var(--space-12));
   transition:
@@ -418,7 +418,7 @@ button.tools__toggle:hover {
     margin-bottom var(--motion-fold) ease-out;
 }
 
-.ui-fold__body--open.chat__ask {
+.ui-fold__body--open:is(.chat__ask, .chat__banner) {
   margin-bottom: 0;
   transform: none;
   transition:
@@ -429,10 +429,62 @@ button.tools__toggle:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ui-fold__body.chat__ask,
-  .ui-fold__body--open.chat__ask {
+  .ui-fold__body:is(.chat__ask, .chat__banner),
+  .ui-fold__body--open:is(.chat__ask, .chat__banner) {
     transition: none;
   }
+}
+
+/* A banner over the field: a short line at the left, its buttons and ✕ at the right, one line while it fits. */
+.ui-band.chat-banner {
+  flex-wrap: nowrap;
+  gap: var(--space-12);
+  padding: var(--space-6) var(--space-6) var(--space-6) var(--space-12);
+  border-radius: var(--radius);
+  font-size: var(--text-13);
+}
+
+.ui-band--note.chat-banner {
+  background: var(--surface-muted);
+}
+
+.chat-banner .ui-band__text {
+  flex: 1 1 auto;
+}
+
+.chat-banner .ui-band__action {
+  flex-wrap: nowrap;
+  gap: var(--space-4);
+}
+
+/* The line wraps, a button never: on a phone the words take two lines beside it. */
+.chat-banner .button {
+  white-space: nowrap;
+}
+
+.chat-banner__close {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+.chat-banner__close:hover,
+.chat-banner__close:focus-visible {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 1;
+}
+
+/* The agent's last message opens its menu on a long press: the phone's own callout would cover it. */
+.message-menu {
+  -webkit-touch-callout: none;
 }
 
 .chat__box {
@@ -644,19 +696,6 @@ button.tools__toggle:hover {
   font-size: var(--text-12);
 }
 
-/* The hint with the button that fixes it, the button beside the text while it fits, under it on a narrow window. */
-.chat__hint--fix {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-4) var(--space-12);
-}
-
-.chat__hint--fix p {
-  flex: 1 1 260px;
-  margin: 0;
-}
-
 @media (max-width: 760px) {
   .session-window.transcript[open] {
     top: var(--chat-visible-top, 0px);
@@ -704,8 +743,8 @@ button.tools__toggle:hover {
     overflow: hidden;
   }
 
-  /* The footer and the accept bar are for looking at the session, not for typing: they wait out the keyboard. */
-  .transcript:not([data-keyboard-closed]) .chat:has(textarea:focus) :is(.chat-status, .chat__hint--fix) {
+  /* The footer and the accept banner are for looking at the session, not for typing: they wait out the keyboard. */
+  .transcript:not([data-keyboard-closed]) .chat:has(textarea:focus) :is(.chat-status, .chat__banner--accept) {
     display: none;
   }
 
