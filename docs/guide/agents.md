@@ -71,7 +71,7 @@ Claude Code settings shared by all accounts live in `~/.claude/settings.json`: c
 
 A change made right in an account folder's file — by hand or by a CLI command such as `/model` — is kept, not overwritten: the account shows a band in **Accounts** with **Make shared**, **Keep for this account only** and **Discard**.
 
-An account's own settings are listed with it in **Accounts**, where × brings the shared value back, and survive later transfers.
+An account's own settings are listed with it in **Accounts**, where × brings the shared value back, and survive later transfers. Choosing **Make shared** for an edited account setting also removes its account override. The folder then follows the shared value.
 
 An agent that tries to edit an account folder's `settings.json` is refused by a hook Even Keel adds there, and the refusal points it to the global file.
 

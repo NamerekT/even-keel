@@ -517,6 +517,21 @@ describe('AccountHomes.enableRemote (EKR-148)', () => {
       expect(homes.remoteOn(homes.global)).toBe(true)
     }))
 
+  it('resolves a direct removal of the flag while keeping unrelated folder edits', () =>
+    withHomes((homes, _root, globalDir) => {
+      const settings = new AccountSettings(new Map(), globalDir, () => {})
+      homes.useSettings(settings)
+      const home = homes.place(homes.pending(new Date(0), 'claude'), 'john@example.com')
+      homes.enableRemote(home)
+      writeFileSync(join(home.dir, 'settings.json'), JSON.stringify({ model: 'sonnet' }))
+      expect(settings.edits(home)).toEqual(['model', 'remoteControlAtStartup'])
+      homes.enableRemote(home)
+      expect(read(home.dir)).toMatchObject({ model: 'sonnet', remoteControlAtStartup: true })
+      expect(settings.edits(home)).toEqual(['model'])
+      expect(settings.own(home.key)).toEqual(['remoteControlAtStartup'])
+      expect(read(globalDir)).toEqual({ model: 'opus' })
+    }))
+
   it('merges the flag right into the folder when no account layer is kept', () =>
     withHomes((homes) => {
       const home = homes.place(homes.pending(new Date(0), 'claude'), 'john@example.com')
