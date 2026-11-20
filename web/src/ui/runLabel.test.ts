@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { modelName, runView } from './runLabel.js'
+import { effortLevel, modelName, runView } from './runLabel.js'
+
+describe('effortLevel', () => {
+  it.each([
+    ['minimal', 1],
+    ['low', 1],
+    ['medium', 2],
+    ['high', 3],
+    ['xhigh', 4],
+    ['max', 5],
+  ])('fills %s with %i bars', (effort, bars) => {
+    expect(effortLevel(effort)).toBe(bars)
+  })
+
+  it.each([null, 'none', 'turbo'])('draws no scale for %s', (effort) => {
+    expect(effortLevel(effort)).toBeNull()
+  })
+})
 
 describe('modelName', () => {
   it.each([

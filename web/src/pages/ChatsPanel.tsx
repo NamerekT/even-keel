@@ -10,6 +10,7 @@ import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { EmptyState } from '../ui/blocks.js'
 import { ChatIcon, PlusIcon, SearchIcon } from '../ui/icons.js'
+import { EffortBars } from '../ui/RunLabelTag.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { NewChatDialog } from './NewChatDialog.js'
 import { chatChip, chatsBadge, chatTone, contextPercent, modelText } from './projectChats.js'
@@ -165,7 +166,10 @@ function ChatCardButton({ chat, now, narrow, onOpen }: { chat: ChatCard; now: Da
       </span>
       <span className="chat-card__meta">
         <AccountTag account={chat.account} agent={chat.agent} />
-        <span className="tag">{modelText(chat.model, chat.effort, t.chats.defaultModel)}</span>
+        <span className="tag" title={chat.effort === null ? undefined : `${t.chats.dialog.effort}: ${chat.effort}`}>
+          {modelText(chat.model, t.chats.defaultModel)}
+          <EffortBars effort={chat.effort} spaced className="chat-card__effort" />
+        </span>
         {percent !== null && <span title={t.chats.contextTip}>{t.chats.context(percent)}</span>}
       </span>
       {chat.last !== null && (

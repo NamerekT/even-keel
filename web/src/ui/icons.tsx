@@ -715,6 +715,19 @@ export function SunIcon() {
   )
 }
 
+const EFFORT_BAR_HEIGHTS = [2, 3.5, 5, 6.5, 8]
+
+/** An effort as five bars of growing height, `level` of them filled; `label` is the effort's word for a screen reader. */
+export function EffortBarsIcon({ level, label }: { level: number; label: string }) {
+  return (
+    <svg className="effort-bars" viewBox="0 0 14 8" role="img" aria-label={label}>
+      {EFFORT_BAR_HEIGHTS.map((height, index) => (
+        <rect key={height} className={index < level ? undefined : 'effort-bars__off'} x={index * 3} y={8 - height} width="2" height={height} rx="0.5" />
+      ))}
+    </svg>
+  )
+}
+
 export function MoonIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">

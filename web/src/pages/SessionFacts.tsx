@@ -11,6 +11,7 @@ import { Fact } from '../ui/blocks.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { modelName } from '../ui/runLabel.js'
+import { EffortBars } from '../ui/RunLabelTag.js'
 import { useTip } from '../ui/useTip.js'
 
 /**
@@ -48,7 +49,7 @@ export function CacheFact({ cache, warm }: { cache: CacheWindow; warm: KeptWarm 
 }
 
 /**
- * The model the session answers with, without its route, as a task's run tag shows it, its effort after a `·`; the provider before it when not Claude.
+ * The model the session answers with, without its route, as a task's run tag shows it, its effort as a bar scale after it; the provider before it when not Claude.
  * Only the model's tail is cut; the tip has the full name.
  */
 export function ModelFact({ agent, model, effort }: { agent: string; model: string | null; effort: string | null }) {
@@ -56,7 +57,7 @@ export function ModelFact({ agent, model, effort }: { agent: string; model: stri
   const value = model === null ? '—' : <>
     {agent !== CLAUDE && <span className="panel__model-provider">{provider}{' · '}</span>}
     <span className="panel__model-name">{modelName(model)}</span>
-    {effort !== null && <span className="panel__model-effort">{' · '}{effort}</span>}
+    <EffortBars effort={effort} spaced className="panel__model-effort" />
   </>
   return (
     <Fact label={t.session.model} className="panel__inline panel__model">

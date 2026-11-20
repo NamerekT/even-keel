@@ -8,6 +8,8 @@
 .run-label__provider,
 .run-label__effort {
   flex: none;
+  /* A flex item may drop its edge spaces: the ones after the provider's `|` and before the effort's scale are kept. */
+  white-space: pre;
 }
 
 @supports (text-box: trim-both cap alphabetic) {

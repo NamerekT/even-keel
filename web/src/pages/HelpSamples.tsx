@@ -59,7 +59,7 @@ export function TabSigns({ ci, narrow }: { ci: boolean; narrow: boolean }) {
 
 export function TaskSigns({ blocks }: { blocks: ChainBlock[] }) {
   const [until] = useState(() => new Date(Date.now() + 240_000).toISOString())
-  const run = blocks.find((block) => block.run !== null)?.run ?? { provider: 'claude', model: 'opus', effort: null }
+  const run = (blocks.find((block) => block.run?.effort != null) ?? blocks.find((block) => block.run !== null))?.run ?? { provider: 'claude', model: 'opus', effort: 'high' }
   return <>
     <Sign sample={<span className="chain"><span className="block__number block__number--medium">2</span></span>}>{t.help.card.number}</Sign>
     <Sign sample={<span className="chain page-help__current"><PlayIcon /></span>}>{t.help.card.current}</Sign>

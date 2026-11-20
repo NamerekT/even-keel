@@ -57,14 +57,12 @@ describe('the chip of a chat', () => {
 
 describe('the model tag', () => {
   it('drops the provider from the model', () => {
-    expect(modelText('claude-sonnet-5-5', 'medium', 'default')).toBe('sonnet-5-5 · medium')
-    expect(modelText('openai/gpt-6.1-sol', 'high', 'default')).toBe('gpt-6.1-sol · high')
-    expect(modelText('gpt-6.1-sol', null, 'default')).toBe('gpt-6.1-sol')
+    expect(modelText('claude-sonnet-5-5', 'default')).toBe('sonnet-5-5')
+    expect(modelText('openai/gpt-6.1-sol', 'default')).toBe('gpt-6.1-sol')
   })
 
   it('names the default model when none was chosen', () => {
-    expect(modelText(null, 'low', 'default')).toBe('default · low')
-    expect(modelText(null, null, 'default')).toBe('default')
+    expect(modelText(null, 'default')).toBe('default')
   })
 })
 

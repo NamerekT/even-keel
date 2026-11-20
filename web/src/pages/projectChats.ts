@@ -35,10 +35,9 @@ export function chatChip(state: ChatState): ChatChip | null {
   return state === 'cold' ? 'cold' : null
 }
 
-/** "sonnet-5-5 · medium": the model without its provider, then the effort; `fallback` names the agent's default model. */
-export function modelText(model: string | null, effort: string | null, fallback: string): string {
-  const name = model === null ? fallback : model.slice(model.lastIndexOf('/') + 1).replace(/^claude-/, '')
-  return effort === null ? name : `${name} · ${effort}`
+/** "sonnet-5-5": the model without its provider, its effort a bar scale after it on the tag; `fallback` names the agent's default model. */
+export function modelText(model: string | null, fallback: string): string {
+  return model === null ? fallback : model.slice(model.lastIndexOf('/') + 1).replace(/^claude-/, '')
 }
 
 /** How full the chat's context is, in whole percent; `null` — no session, no window or nothing read yet. */

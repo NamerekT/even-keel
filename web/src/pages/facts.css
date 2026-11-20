@@ -171,7 +171,7 @@
 .panel__model-provider,
 .panel__model-effort {
   flex: none;
-  /* A flex item drops its edge spaces: the ones around the `·` are kept. */
+  /* A flex item drops its edge spaces: the ones after the provider and before the effort's scale are kept. */
   white-space: pre;
 }
 

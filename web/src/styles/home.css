@@ -9,6 +9,20 @@
   stroke-linejoin: round;
 }
 
+/* An effort's scale inside a line of text: its bottom on the baseline, its tallest bar a capital's height. */
+.effort-bars {
+  width: 1.225em;
+  height: 0.7em;
+  width: 1.75cap;
+  height: 1cap;
+  vertical-align: baseline;
+  fill: currentColor;
+}
+
+.effort-bars__off {
+  opacity: 0.3;
+}
+
 .card__progress {
   display: flex;
   align-items: center;

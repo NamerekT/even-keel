@@ -12,6 +12,7 @@ import { AccountTag } from '../ui/AccountTag.js'
 import { SectionLabel } from '../ui/blocks.js'
 import { BranchIcon } from '../ui/icons.js'
 import { modelName } from '../ui/runLabel.js'
+import { EffortBars } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
 import { checkpointMark, ringFacts, type RingFacts } from './contextRing.js'
 import { EditSize } from './ToolCalls.js'
@@ -108,7 +109,7 @@ export function ChatStatus({ facts, scale, edits }: Props) {
             ]}
           >
             <span className="chat-status__model-name">{modelName(facts.model)}</span>
-            {facts.effort !== null && <span className="chat-status__model-effort">{` · ${facts.effort}`}</span>}
+            <EffortBars effort={facts.effort} spaced className="chat-status__model-effort" />
           </Tipped>
         )}
         {facts.context !== null && <ContextRing facts={facts} context={facts.context} scale={scale} />}
