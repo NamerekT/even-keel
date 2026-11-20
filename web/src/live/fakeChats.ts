@@ -1,4 +1,5 @@
 import type { ChatCard, ChatChoice, ChatPage } from '../../../src/chats/model.js'
+import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { EvenKeelState } from '../../../src/state.js'
 
 /** The archive's page, as the server's (BTN-1231). */
@@ -171,6 +172,11 @@ export function fakeChats(mode: string | null) {
     [...cards].sort((a, b) => Number(b.state === 'waiting') - Number(a.state === 'waiting') || b.lastAt.localeCompare(a.lastAt))
 
   return {
+    /** The page's mailbox rows of the chats' Claude sessions: a live `--bg` session's inbox is known, so it takes a message mid-turn (BTN-1345). */
+    mailbox(): Record<string, SessionMail> {
+      const cards = [...lists.values()].flatMap((list) => list.active)
+      return Object.fromEntries(cards.flatMap((card) => (card.agent === 'claude' && card.sessionId !== null ? [[card.sessionId, { listens: true, steers: false, mail: [] }]] : [])))
+    },
     /** The answer to a chats query; `undefined` — not one of them. */
     query(state: EvenKeelState, name: string, body: Record<string, unknown>): unknown {
       if (!name.startsWith('chats/')) return undefined

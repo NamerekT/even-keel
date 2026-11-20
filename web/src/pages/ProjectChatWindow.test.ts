@@ -23,9 +23,10 @@ vi.mock('./chatDraft.js', async (original) => ({
   writeDraft: async (key: string, _task: string, value: Draft) => { saved.set(key, value) },
 }))
 let changed: () => void
+let live: unknown = null
 vi.mock('../live/context.js', () => ({
   useLive: () => ({
-    state: null, command, transcript, session: async () => null, sentFileUrl: () => '/file.png',
+    state: live, command, transcript, session: async () => null, sentFileUrl: () => '/file.png',
     onTranscript: (_id: string, listener: () => void) => { changed = listener; return () => {} },
   }),
 }))
@@ -77,7 +78,38 @@ afterEach(async () => {
   await act(async () => root.unmount())
   document.body.replaceChildren()
   saved.clear()
+  live = null
   vi.clearAllMocks()
+})
+
+it.each([
+  ['an inbox or hooks', { listens: true, steers: false, mail: [] }, t.session.chat.mailbox],
+  ['steering', { listens: true, steers: true, mail: [] }, t.session.chat.steers],
+])('takes a message mid-turn from a session with %s and says where it goes', async (_, mail, tip) => {
+  live = { config: { projects: {} }, branchDrift: {}, sessions: [], account: { accounts: [] }, mailbox: { 'first-session': mail } }
+  transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at: card.lastAt, text: 'Run the tests' }], turn: null })
+  const host = document.body.appendChild(document.createElement('div'))
+  root = createRoot(host)
+  await render({ ...card, sessionId: 'first-session', state: 'working' })
+  await vi.waitFor(() => expect(host.querySelector('.bubble')?.textContent).toBe('Run the tests'))
+  const box = host.querySelector('textarea')!
+  expect(box.placeholder).not.toBe(t.session.chat.working)
+  await type(box, message)
+  const send = host.querySelector<HTMLButtonElement>('.chat__send')!
+  expect(send.getAttribute('aria-disabled')).not.toBe('true')
+  expect(send.closest('.tipped')?.textContent).toContain(tip)
+  command.mockResolvedValueOnce(undefined)
+  await act(async () => send.click())
+  expect(command).toHaveBeenCalledWith('chats/send', expect.objectContaining({ id: card.id, text: message }))
+  expect([...host.querySelectorAll('.bubble')].map((each) => each.textContent)).toEqual(['Run the tests', message])
+})
+
+it('shuts the field mid-turn for a session that takes no message then', async () => {
+  live = { config: { projects: {} }, branchDrift: {}, sessions: [], account: { accounts: [] }, mailbox: {} }
+  const host = document.body.appendChild(document.createElement('div'))
+  root = createRoot(host)
+  await render({ ...card, sessionId: 'first-session', state: 'working' })
+  expect(host.querySelector('textarea')!.placeholder).toBe(t.session.chat.working)
 })
 
 it('reopens empty during upload and keeps the next draft after success', async () => {

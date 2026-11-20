@@ -815,6 +815,13 @@ export function createFakeSource(search: string): LiveSource {
     if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(current.state))
     for (const listener of listeners) listener()
   }
+  // The chats' sessions join the page's mailbox once their list is read or a chat changes (BTN-1345).
+  const chatMail = () => {
+    const rows = chats.mailbox()
+    if (current.state === null || Object.entries(rows).every(([id, row]) => JSON.stringify(current.state?.mailbox[id]) === JSON.stringify(row))) return
+    current.state = { ...current.state, mailbox: { ...current.state.mailbox, ...rows } }
+    notify()
+  }
 
   const handover = params.get('chain') === 'handover'
   const closing = params.get('chain') === 'close' || handover
@@ -875,7 +882,10 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       if (name === 'machines/takeOver' && params.get('chain') === 'folderTakenGone') throw fail('machines.notTaken', {})
-      if (chats.command(name, body)) return
+      if (chats.command(name, body)) {
+        chatMail()
+        return
+      }
       if (network.command(name, body)) {
         // A colour or the own machine's capacity is the state's too: the chain's tags and the shared settings (BTN-1272).
         if (name === 'machines/color' && state.machineNames !== undefined) current = { ...current, state: { ...state, machineColors: network.colorsOf(state.machineNames) } }
@@ -1001,7 +1011,10 @@ export function createFakeSource(search: string): LiveSource {
         return page as T
       }
       const chat = chats.query(current.state, name, body)
-      if (chat !== undefined) return chat as T
+      if (chat !== undefined) {
+        queueMicrotask(chatMail)
+        return chat as T
+      }
       const machines = network.query(name, body)
       if (machines !== undefined) return machines as T
       if (name === 'machines/addresses') {

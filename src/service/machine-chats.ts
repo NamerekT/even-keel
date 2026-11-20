@@ -4,6 +4,8 @@ import { CLAUDE } from '../claude/name.js'
 import { isPlain } from '../config.js'
 import type { ChatStart, MachineChats } from '../machine/services.js'
 import { fail } from '../notice/notice.js'
+import { replyParts } from '../sessions/ask.js'
+import { typedText } from '../sessions/commandPrompt.js'
 import type { MachineContext } from './machine-context.js'
 
 export type MachineChatsContext = Pick<MachineContext,
@@ -16,9 +18,11 @@ export type MachineChatsContext = Pick<MachineContext,
   | 'homeOf'
   | 'launchIn'
   | 'liveView'
+  | 'mailbox'
   | 'monitor'
   | 'resumeIn'
   | 'stopIn'
+  | 'toldInbox'
 >
 
 /**
@@ -56,9 +60,18 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       const session = sessionOf(chat)
       const home = ctx.homeOf(session.account)
       const next = startOf(project, chat, session.cwd, start, home.agent)
-      const went = ctx.liveView(chat)?.hungSince != null ? undefined : await ctx.agentOf(home).reply?.(home, session, next)
+      const hung = ctx.liveView(chat)?.hungSince != null
+      const went = hung ? undefined : await ctx.agentOf(home).reply?.(home, session, next)
       if (went != null) return went
+      // A live --bg session takes it through its inbox, mid-turn too (BTN-1345): the turn is never cut.
+      if (!hung && (await ctx.toldInbox(chat, session, start.prompt))) return session.sessionId
       if (ctx.agentStatus(chat) === 'busy') {
+        if (!hung && ctx.mailbox.listens(session.sessionId)) {
+          const { text, files } = replyParts(start.prompt, null)
+          ctx.mailbox.post(chat, session.sessionId, typedText(text), files)
+          console.log(`chats: ${chat}: the message waits in the mailbox of the working session ${session.sessionId}`)
+          return session.sessionId
+        }
         console.log(`chats: ${chat}: refused the message because session ${session.sessionId} is busy (chats.busy)`)
         throw fail('chats.busy', {})
       }

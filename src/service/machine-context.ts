@@ -74,6 +74,8 @@ export interface MachineOwn {
   syncProject: (project: string) => Promise<Notice | null>
   resumeWith: (task: string, session: HandoffSession, prompt: string) => Promise<string>
   approved: (task: string, session: HandoffSession, prompt: string) => boolean
+  /** The user's message into the session's inbox socket (`chain.toldInbox`, BTN-1322); `false` — it goes another way. */
+  toldInbox: (task: string, session: HandoffSession, prompt: string) => Promise<boolean>
   goOnWith: (home: AccountHome, task: string, session: HandoffSession, prompt: string) => Promise<SessionStart>
 }
 
@@ -143,6 +145,7 @@ export function machineContext(host: MachineHost, brief: BriefCopy, tell: LaterT
     syncProject: (project) => chain.syncProject(ctx, project),
     resumeWith: (task, session, prompt) => chain.resumeWith(ctx, task, session, prompt),
     approved: (task, session, prompt) => chain.approved(ctx, task, session, prompt),
+    toldInbox: (task, session, prompt) => chain.toldInbox(ctx, task, session, prompt),
     goOnWith: (home: AccountHome, task: string, session: HandoffSession, prompt: string) => chain.goOnWith(ctx, home, task, session, prompt),
   } as MachineOwn
   const identities = new AccountIdentities()

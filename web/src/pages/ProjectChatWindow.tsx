@@ -109,7 +109,7 @@ interface FieldProps {
   onRenewed: (chat: ChatCard) => void
 }
 
-/** The field of a project chat: the open question's options or a free message, with files; shut while the chat works. */
+/** The field of a project chat: the open question's options or a free message, with files; shut while the chat starts, or works in a session that takes nothing mid-turn. */
 function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: FieldProps) {
   const command = useRef<CommandTextHandle>(null)
   const { state, query, command: post } = useLive()
@@ -124,9 +124,13 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     setPicks(session?.ask?.questions.map(() => NO_PICK) ?? [])
   }
   useImperativeHandle(parts.handle, () => ({ attach: (more: File[]) => setFiles((now) => [...now, ...more]) }))
-  // The server takes no message while the chat's session starts or works (BTN-1230).
+  // The server takes no message while the chat's session starts (BTN-1230). Mid-turn it takes one from a session that
+  // steers or whose inbox or hooks listen, as the task chat does, and the turn goes on (BTN-1345).
   const starting = chat.state === 'starting' || (parts.awaitingFirstPrompt && chat.state !== 'error' && chat.state !== 'cold')
-  const locked = chat.state === 'working' ? t.session.chat.working : starting ? t.chats.window.starting : null
+  const mail = chat.sessionId === null ? undefined : state?.mailbox[chat.sessionId]
+  const midTurn = chat.state === 'working' && mail?.listens === true
+  const locked = chat.state === 'working' && !midTurn ? t.session.chat.working : starting ? t.chats.window.starting : null
+  const sendTip = midTurn ? (mail.steers ? t.session.chat.steers : t.session.chat.mailbox) : undefined
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
   const off = locked !== null || sending || !ready
@@ -213,6 +217,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         sendOff={off}
         busy={sending}
         reason={locked ?? (sending ? t.session.chat.sending : null)}
+        sendTip={sendTip}
       />
       {parts.status}
       </form>
