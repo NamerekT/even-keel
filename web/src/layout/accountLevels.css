@@ -157,6 +157,13 @@
   border-radius: var(--radius-pill);
 }
 
+/* Today's tokens over the 30 days', a line each. */
+.account-level__summary {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
 .account-level__label,
 .account-level__reset,
 .account-level__stale,

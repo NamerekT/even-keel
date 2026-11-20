@@ -20,7 +20,7 @@ describe('a long token on the page (BTN-1005)', () => {
   it('names its last day in the tag when it is known', () => {
     expect(tokenDay({ until: null })).toBeNull()
     expect(tokenTag({ until: null })).toBe('long token')
-    expect(tokenTag({ until: '2027-11-15T12:00:00.000Z' })).toBe('long token · until 15 Nov 2027')
+    expect(tokenTag({ until: '2027-11-15T12:00:00.000Z' })).toBe('long token until 15 Nov 2027')
   })
 
   it('says what is wrong only when something is', () => {

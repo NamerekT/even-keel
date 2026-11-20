@@ -1,6 +1,4 @@
 {
-  "i18n/account-en.ts": 2,
-  "i18n/account-ru.ts": 2,
   "i18n/chats-en.ts": 4,
   "i18n/chats-ru.ts": 4,
   "i18n/ci-en.ts": 4,
@@ -15,13 +13,6 @@
   "i18n/session-ru.ts": 3,
   "i18n/workspace-en.ts": 12,
   "i18n/workspace-ru.ts": 12,
-  "layout/AccountRoles.tsx": 1,
-  "layout/CliCopies.tsx": 1,
-  "layout/Limits.tsx": 1,
-  "layout/Overage.tsx": 2,
-  "layout/accountParts.tsx": 1,
-  "layout/accountRows.tsx": 5,
-  "layout/roles.css": 1,
   "pages/CardLinks.tsx": 1,
   "pages/ChainList.tsx": 1,
   "pages/ChangelogDialog.tsx": 2,
@@ -38,7 +29,6 @@
   "pages/StatsStrip.tsx": 1,
   "pages/TranscriptWindow.tsx": 3,
   "pages/jobProgress.ts": 2,
-  "ui/AccountTag.tsx": 1,
   "ui/ContextMeter.tsx": 1,
   "ui/StatusChip.tsx": 2
 }

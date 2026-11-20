@@ -8,6 +8,7 @@ export const overageEn = {
   unlimited: 'unlimited',
   credits: (value: string) => `${value} credits`,
   spent: (value: string) => `${value} spent`,
+  read: (ago: string) => `Read ${ago}`,
   count: (value: string) => `Extra allowance used: ${value}. The source does not give its dollar cost.`,
   unknown: 'The provider has not reported extra usage for this account.',
   autoReload: 'Automatic reload and its settings are not reported by this source.',

@@ -117,6 +117,7 @@ export const sessionRu = {
     steps: ['Подготовка', 'Загрузка', 'Первый ответ'],
   },
   account: (account: string) => `Аккаунт: ${account}`,
+  accountEmail: (email: string) => `Почта: ${email}`,
   waits: (what: string) => `Ждёт: ${what}`,
   startupDialog: (what: string) =>
     `Сессия висит на диалоге Claude Code до первого хода, и в фоне на него некому ответить: ${what}. Уберите причину и нажмите «Новая сессия».`,

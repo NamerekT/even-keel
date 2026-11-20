@@ -20,7 +20,9 @@ import { AccountMarketplace } from './AccountMarketplace.js'
 import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
 import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, signInMixup, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
-import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
+import { FULL_PERCENT, spanNames, WARM_PERCENT, windowFact, windowValue } from './Limits.js'
+import { HelpTip } from '../pages/settingsParts.js'
+import { TipFacts, type TipFact } from '../ui/TipFacts.js'
 import { AccountMachines, MachineNotes } from './MachineSignIns.js'
 import { useLive } from '../live/context.js'
 import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
@@ -105,8 +107,8 @@ function AccessBlock({ agent, access, rows, ...props }: RowsProps & { agent: str
   const columns = measure === 'limits' ? [t.account.limitsLabel] : [t.account.tokensToday, t.account.tokensMonth]
   return <section className={owner === null ? 'account-access' : `account-access account-access--${owner}`} aria-label={accessLabel(access, agent)}>
     <div className="account-grid account-grid--head">
-      <span className="account-access__title">{accessLabel(access, agent)} <span className="account-access__count">{rows.length}</span>
-        {measure === 'tokens' && <span className="account-access__count"> · {t.account.tokensSource}</span>}</span>
+      <span className="account-access__title">{accessLabel(access, agent)}<span className="count-badge">{rows.length}</span>
+        {measure === 'tokens' && <HelpTip text={t.account.tokensSource} align="start" />}</span>
       {page && <span aria-hidden="true">{t.account.usedByLabel}</span>}
       {props.machines === true && <span aria-hidden="true">{t.account.machinesLabel}</span>}
       <div className={`account-window-heads account-window-heads--${columns.length}`} aria-hidden="true">{columns.map((label) => <span key={label}>{label}</span>)}</div>
@@ -131,7 +133,9 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
     held.map((role) => <span key={role.label} className={`account-role account-role--${role.label === 'Even Keel' ? 'chain' : 'app'}`}>{role.label}</span>)}</div>
   const counted = limitsNote(entry) !== null
   const sums = spendsByKey(entry) ? spend?.[entry.key] ?? null : tokens?.[entry.key] ?? null
-  const tip = entry.cloud !== undefined ? t.account.cloudSpendTitle : spendsByKey(entry) ? t.account.spendTitle : <>{limitsNote(entry)} · {t.account.tokensTitle}
+  const tip = entry.cloud !== undefined ? t.account.cloudSpendTitle : spendsByKey(entry) ? t.account.spendTitle : <>
+    <span>{limitsNote(entry)}</span>
+    <span className="tip__muted">{t.account.tokensTitle}</span>
     {entry.lastLimitAt != null && <span>{t.account.lastLimit(formatAgo(entry.lastLimitAt, now))}</span>}</>
   const measured = spendsByKey(entry) ? spend : tokens
   const loaded = measured != null
@@ -232,7 +236,7 @@ export function MenuMeters({ entry, now }: { entry: AccountEntry; now: Date }) {
   return <div className="account-row__meters">
     {limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} plain />)}
     {entry.limits.models?.weeks.map((week) => <ModelMeter key={`model:${week.model}`} entry={entry} week={week} now={now} plain />)}
-    <span className="account-row__meters-note">{[read, outdatedText(entry, now), staleText(entry)].filter(Boolean).join(' · ')}</span>
+    {[read, outdatedText(entry, now), staleText(entry)].filter(Boolean).map((note) => <span key={note} className="account-row__meters-note">{note}</span>)}
     {resetsText(entry) !== null && <span className="account-row__meters-note">{resetsText(entry)}</span>}
   </div>
 }
@@ -280,10 +284,11 @@ function Meter({ entry, now, window, label, short, title, plain = false }: Meter
   const percent = window === null ? 0 : Math.round(Math.max(0, Math.min(100, window.usedPercentage)))
   const heat = entry.limitsOutdated ? ' account-value--outdated' : percent >= FULL_PERCENT ? ' account-value--full' : percent >= WARM_PERCENT ? ' account-value--warm' : ''
   const reset = window?.resetsAt == null ? '' : formatSpan(window.resetsAt, now)
-  const source = entry.limits === null ? '' : t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
-  const count = window === null || (window.left === undefined && window.used === undefined) ? null : windowValue(window, percent)
-  const when = window === null ? t.account.noLimits : window.resetsAt === null ? t.limits.noReset(title) : t.limits.reset(title, reset, '')
-  const tip = [when, count, source, outdatedText(entry, now), staleText(entry), limitsNote(entry)].filter(Boolean).join(' · ')
+  const tip = <TipFacts head={title} rows={[
+    window === null ? null : [t.limits.facts.resets, window.resetsAt === null ? t.limits.notGiven : reset],
+    window === null ? null : windowFact(window),
+    sourceFact(entry, now),
+  ]} notes={[window === null ? t.account.noLimits : null, outdatedText(entry, now), staleText(entry), limitsNote(entry)]} />
   const body = <>
     <span className="account-meter__top">
       <span className="account-meter__what"><span className="account-meter__name">
@@ -304,11 +309,18 @@ export function CompactLimit({ entry, now, bare = false }: { entry: AccountEntry
   if (tightest === null) return <span className="account-compact__none">—</span>
   const used = 100 - tightest.free
   const heat = entry?.limitsOutdated ? ' account-value--outdated' : used >= FULL_PERCENT ? ' account-value--full' : used >= WARM_PERCENT ? ' account-value--warm' : ''
-  const summary = t.account.freeTip(spanNames(tightest.span).title, tightest.free, formatSpan(tightest.window.resetsAt, now))
-  const source = entry?.limits == null ? '' : t.limits.updated(t.limits.sources[entry.limits.source], formatAgo(entry.limits.updatedAt, now))
   if (bare) return <span className={`account-compact__value${heat}`}>{used}%</span>
-  const notes = entry === undefined ? [] : [outdatedText(entry, now), staleText(entry)]
-  return <Tipped inline focusable className={`account-compact__value${heat}`} tip={[summary, source, ...notes].filter(Boolean).join(' · ')}>{used}%</Tipped>
+  const tip = <TipFacts head={t.account.tightest(spanNames(tightest.span).title)} rows={[
+    [t.limits.facts.free, `${tightest.free}%`],
+    [t.limits.facts.resets, formatSpan(tightest.window.resetsAt, now)],
+    entry === undefined ? null : sourceFact(entry, now),
+  ]} notes={entry === undefined ? [] : [outdatedText(entry, now), staleText(entry)]} />
+  return <Tipped inline focusable className={`account-compact__value${heat}`} tip={tip}>{used}%</Tipped>
+}
+
+/** Where the account's limits were read and how long ago, as a tip's "Source"; `null` — never read. */
+function sourceFact(entry: AccountEntry, now: Date): TipFact {
+  return entry.limits === null ? null : [t.limits.facts.source, t.limits.updated(t.limits.origins[entry.limits.source], formatAgo(entry.limits.updatedAt, now))]
 }
 
 /** Limits older than a poll's interval that no poll has confirmed since the restart (BTN-631). */

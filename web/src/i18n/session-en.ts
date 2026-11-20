@@ -116,6 +116,7 @@ export const sessionEn = {
     steps: ['Prepare', 'Boot', 'First answer'],
   },
   account: (account: string) => `Account: ${account}`,
+  accountEmail: (email: string) => `E-mail: ${email}`,
   waits: (what: string) => `Waiting for ${what}`,
   startupDialog: (what: string) =>
     `The session hangs on a Claude Code dialog before its first turn, and nobody answers it in the background: ${what}. Remove the cause and press "New session".`,

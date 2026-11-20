@@ -16,7 +16,7 @@ describe('AccountTag', () => {
     const render = (agent?: string) => renderToStaticMarkup(createElement(AccountTag, { account: 'john.doe@example.com', agent }))
 
     expect(render('codex')).toContain('>OpenAI account</span>')
-    expect(render('codex')).toContain('codex · john.doe@example.com')
+    expect(render('codex')).toContain('title="Account: codex\nE-mail: john.doe@example.com"')
     expect(render('claude')).toContain('>Claude account</span>')
     expect(render()).toContain('>Claude account</span>')
     expect(render('copilot')).toContain('--series:var(--series-other)')

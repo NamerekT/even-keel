@@ -152,6 +152,11 @@ function appRole(entry: AccountEntry, view: AccountView, app: AppAccount, send: 
   }
 }
 
+/** The lamp before a chat's state: working (a turn or a command), waiting for a reply, or open and idle. */
+function chatLevel(status: keyof typeof t.account.chats | null | undefined): 'busy' | 'waiting' | 'idle' {
+  return status === 'busy' || status === 'shell' ? 'busy' : status === 'waiting' ? 'waiting' : 'idle'
+}
+
 /**
  * What runs on the account now, in one line of a fixed height: sessions coming and going would otherwise resize the card and its whole row.
  * The list — app chats by the titles of their tabs, the rest (chain and terminal sessions) by name — is in its tip.
@@ -177,7 +182,8 @@ export function AccountWork({ entry, view }: { entry: AccountEntry; view: Accoun
           <li key={`chat-${chat.session}-${index}`} className="work__item work__item--chat">
             <span className="work__name">{chat.name}</span>
             <span className="work__where">
-              {chat.app} · {t.account.chats[chat.status ?? 'idle']}
+              {chat.app}
+              <span className={`work__state work__state--${chatLevel(chat.status)}`}>{t.account.chats[chat.status ?? 'idle']}</span>
             </span>
           </li>
         ))}

@@ -25,7 +25,7 @@ export function CliProgress({ provider, copy }: { provider: string; copy: CliCop
     <span>{text.progress}</span>
     <span className="cli-copy__meter">
       <span className="cli-copy__name">{titleOf(provider)}</span>
-      <progress aria-label={`${titleOf(provider)} · ${text.progress}`}max={copy.total || undefined} value={copy.total ? copy.received : undefined} />
+      <progress aria-label={`${text.progress}: ${titleOf(provider)}`} max={copy.total || undefined} value={copy.total ? copy.received : undefined} />
       <span className="cli-copy__bytes">{copy.total === 0 ? text.preparing : copy.received === copy.total ? text.installing : text.size((copy.received / 1_000_000).toFixed(1), (copy.total / 1_000_000).toFixed(1))}</span>
     </span>
   </div>

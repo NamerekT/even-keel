@@ -194,16 +194,37 @@
 }
 
 .work__busy,
-.work__waiting {
+.work__waiting,
+.work__state {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
+/* A lamp of the level before the count or the state, not a dot glued between two facts. */
 .work__busy::before,
-.work__waiting::before {
-  content: '·';
-  color: var(--fg-muted);
+.work__waiting::before,
+.work__state::before {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--fg-muted);
+  content: '';
+}
+
+.work__busy::before,
+.work__state--busy::before {
+  background: var(--lamp-working);
+}
+
+.work__waiting::before,
+.work__state--waiting::before {
+  background: var(--lamp-waiting);
+}
+
+.work__state {
+  margin-left: var(--space-8);
 }
 
 .work__busy {

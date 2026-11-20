@@ -11,14 +11,13 @@ import type { AccountSpend, AccountTokens } from '../../../src/stats/model.js'
 import { loginRow, planRefused, providerHint, retryBody, type LoginRow } from '../accountAdd.js'
 import { accountName, agentLabel, globalFolder, sameAccountAs } from '../accountName.js'
 import { CLI_MISSING, connectionOf, paysPerToken, type Provider } from '../accounts.js'
-import { formatAgo, formatMoment, formatTokens } from '../format.js'
+import { formatMoment } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { tokenProblem, tokenTag } from '../longToken.js'
 import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer, type Loaded } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
-import { HelpTip } from '../pages/settingsParts.js'
 import { ClaudeIcon, CodexIcon, CopilotIcon, OpenCodeIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { CommandBlock } from '../ui/blocks.js'
@@ -55,44 +54,6 @@ export function useTokens(account: AccountView): Tokens {
 
 function readingOr<T>(wanted: boolean, loaded: Loaded<T> | null): T | null | undefined {
   return wanted && loaded === null ? undefined : loadedData(loaded)
-}
-
-/**
- * What an account whose limit nothing tells shows instead of windows (BTN-342): why there are none, the tokens it carried
- * by Tally, and when it last hit its limit, so one that keeps hitting it shows even with no ceiling known. `why`: `line`
- * — the card's way, a short line with the reason behind its "?"; `tip` — the drawer's way, in the tip of the tokens;
- * `plain` — on a line, inside a card that is itself a tip, so no tip of its own.
- */
-export function UnknownLimit({ entry, tokens, now, className, why }: { entry: AccountEntry; tokens: Tokens; now: Date; className: string; why: 'line' | 'tip' | 'plain' }) {
-  const counted = tokens == null ? null : (tokens[entry.key] ?? { day: 0, month: 0 })
-  const text = tokens === undefined ? t.account.tokensReading : counted === null ? t.account.tokensNone : t.account.tokens(formatTokens(counted.day), formatTokens(counted.month))
-  const tip = why === 'tip' ? (
-    <>
-      <span>{limitsNote(entry)}</span>
-      <span className="tip__muted">{t.account.tokensTitle}</span>
-    </>
-  ) : (
-    t.account.tokensTitle
-  )
-  return (
-    <>
-      {why === 'plain' && <p className={className}>{limitsNote(entry)}</p>}
-      {why === 'line' && (
-        <p className={className}>
-          {t.account.noLimitsShort}
-          <HelpTip text={entry.usage.reason === null ? t.account.noLimitsWhy : say(entry.usage.reason)} align="start" />
-        </p>
-      )}
-      {why === 'plain' ? (
-        <p className={className}>{text}</p>
-      ) : (
-        <Tipped className={why === 'tip' ? `${className} accounts__none` : className} tip={tip} align="start" focusable>
-          {text}
-        </Tipped>
-      )}
-      {entry.lastLimitAt != null && <p className={className}>{t.account.lastLimit(formatAgo(entry.lastLimitAt, now))}</p>}
-    </>
-  )
 }
 
 /**
@@ -144,9 +105,8 @@ export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; 
   const same = accounts.find((each) => each.key === entry.longToken?.sameAs && each.longToken === undefined)
   const tip = (
     <>
-      <span className="tip__head">
-        {agentLabel(entry.agent)} · {t.account.connections[connection]}
-      </span>
+      <span className="tip__head">{agentLabel(entry.agent)}</span>
+      <span>{t.account.connection(t.account.connections[connection])}</span>
       {!paysPerToken(entry) && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <span>{t.account.expiry(left.text)}</span>}
       {entry.longToken !== undefined && <span>{tokenTag(entry.longToken)}</span>}
       {entry.longToken !== undefined && <span>{same === undefined ? t.account.longTokenTip : t.account.longTokenSameTip(accountName(same, accounts))}</span>}

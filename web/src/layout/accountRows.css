@@ -29,8 +29,9 @@
 .account-access--aws { --owner: var(--owner-aws); }
 .account-access--google { --owner: var(--owner-google); }
 .account-access--microsoft { --owner: var(--owner-microsoft); }
-.account-access__title { color: var(--fg); font-size: var(--text-14); font-weight: 600; text-transform: none; letter-spacing: normal; min-width: 0; }
-.account-access__count { color: var(--fg-muted); font-size: var(--text-13); font-weight: 400; }
+.account-access__title { display: flex; align-items: center; gap: var(--space-6); color: var(--fg); font-size: var(--text-14); font-weight: 600; text-transform: none; letter-spacing: normal; min-width: 0; }
+/* The help mark keeps the head's line height: its 24 px target overlaps the gaps around it. */
+.account-access__title .help { margin-block: calc(var(--space-4) * -1); }
 .account-rows { margin: 0; padding: 0; list-style: none; }
 .account-rows > li + li { border-top: 1px solid var(--border); }
 .account-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: var(--space-12); padding: var(--space-12) var(--space-16); min-width: 0; }

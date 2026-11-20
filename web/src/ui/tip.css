@@ -47,3 +47,16 @@
 .tip__muted {
   color: var(--fg-muted);
 }
+
+/* `TipFacts`: a caption and its value a line, the captions as one muted column. */
+.tip-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-12);
+  row-gap: var(--space-2);
+}
+
+.tip-facts__caption {
+  color: var(--fg-muted);
+  white-space: nowrap;
+}

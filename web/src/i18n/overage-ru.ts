@@ -10,6 +10,7 @@ export const overageRu: typeof overageEn = {
   unlimited: 'без лимита',
   credits: (value) => `${value} кред.`,
   spent: (value) => `потрачено ${value}`,
+  read: (ago) => `Прочитано ${ago}`,
   count: (value) => `Сверх запаса использовано: ${value}. Источник не сообщает стоимость в долларах.`,
   unknown: 'Провайдер не сообщил о расходах сверх лимита для этого аккаунта.',
   autoReload: 'Источник не сообщает об автопополнении и его настройках.',

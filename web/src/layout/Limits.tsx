@@ -28,6 +28,18 @@ export function windowValue(window: Pick<LimitWindow, 'left' | 'used' | 'limit'>
   return `${percent}%`
 }
 
+/** A window's count as a tip's caption and value ("Left 166", "Used 1250 of 5000"); `null` — a window of a share alone. */
+export function windowFact(window: Pick<LimitWindow, 'left' | 'used' | 'limit'>): readonly [string, string] | null {
+  if (window.left !== undefined) return [t.limits.facts.left, String(window.left)]
+  if (window.used !== undefined && window.limit !== undefined) return [t.limits.facts.used, t.limits.usedOf(Math.round(window.used), Math.round(window.limit))]
+  return window.used === undefined ? null : [t.limits.facts.used, String(window.used)]
+}
+
+/** A native `title` of facts: the first line as it is, every other a caption and its value a line. */
+export function titleLines(head: string, rows: readonly (readonly [string, string] | null)[]): string {
+  return [head, ...rows.filter((row) => row !== null).map(([caption, value]) => `${caption}: ${value}`)].join('\n')
+}
+
 interface LimitsProps {
   limits: RateLimits | null
   now: Date
@@ -38,7 +50,7 @@ interface LimitsProps {
 }
 
 export function Limits({ limits, now, bare = false, named = false }: LimitsProps) {
-  const source = limits === null ? '' : ` · ${t.limits.sources[limits.source]}`
+  const source = limits === null ? null : t.limits.origins[limits.source]
   return (
     <div className={bare ? 'limits limits--bare' : 'limits'}>
       {limitSpans(limits).map((span) => (
@@ -51,7 +63,8 @@ export function Limits({ limits, now, bare = false, named = false }: LimitsProps
 interface MeterProps {
   label: string
   title: string
-  source: string
+  /** Where the reading came from, as the value of the tip's "Source"; `null` — no reading. */
+  source: string | null
   window: LimitWindow | null
   now: Date
   bare: boolean
@@ -59,9 +72,10 @@ interface MeterProps {
 }
 
 function Meter({ label, title, source, window, now, bare, named }: MeterProps) {
+  const sourceRow = source === null ? null : ([t.limits.facts.source, source] as const)
   if (window === null) {
     return (
-      <div className="meter meter--empty" title={t.limits.empty(title, source)}>
+      <div className="meter meter--empty" title={titleLines(t.limits.empty(title), [sourceRow])}>
         <span className="meter__top">
           {named && <span className="meter__label">{label}</span>}
           <span className="meter__value">{bare ? t.limits.noData : '—'}</span>
@@ -75,7 +89,7 @@ function Meter({ label, title, source, window, now, bare, named }: MeterProps) {
   const resetIn = formatSpan(window.resetsAt, now)
   const heat = percent >= FULL_PERCENT ? ' meter--full' : percent >= WARM_PERCENT ? ' meter--warm' : ''
   return (
-    <div className={`meter${heat}`} title={t.limits.reset(title, resetIn, source)}>
+    <div className={`meter${heat}`} title={titleLines(title, [[t.limits.facts.resets, resetIn], sourceRow])}>
       <span className="meter__top">
         {named && <span className="meter__label">{label}</span>}
         <span className="meter__value">{windowValue(window, percent)}</span>
