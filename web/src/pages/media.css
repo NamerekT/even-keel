@@ -216,6 +216,7 @@
 }
 
 .bubble__files .thumb {
+  position: relative;
   width: 96px;
   height: 64px;
 }
@@ -227,7 +228,9 @@
   cursor: zoom-in;
 }
 
-.bubble__files .chat__file img {
+/* The next address of a sent picture loads unseen under the one on screen */
+.bubble__files .chat__file img,
+.bubble__files .thumb img.thumb__next {
   position: absolute;
   width: 1px;
   height: 1px;

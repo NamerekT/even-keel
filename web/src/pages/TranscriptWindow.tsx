@@ -665,9 +665,10 @@ function UserBubble({ text, files, media, onOpen }: BubbleProps) {
           {files.map((file, index) => {
             const place = media.byFile.get(file)
             return (
-              <li key={`${file}-${index}`}>
+              // By place alone: the sent line names a file by its name, the transcript's by its path (BTN-1390).
+              <li key={index}>
                 {place === undefined ? <span className="chat__file">📎 {fileName(file)}</span> : (
-                  <InboxThumb key={media.items[place]!.url} item={media.items[place]!} onOpen={() => onOpen(place)} />
+                  <InboxThumb item={media.items[place]!} onOpen={() => onOpen(place)} />
                 )}
               </li>
             )

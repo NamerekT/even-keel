@@ -100,13 +100,68 @@ describe('a picture the user sent', () => {
     expect(host.textContent).not.toContain('📎')
   })
 
-  it('falls back to the chosen file when the service does not give it', async () => {
-    const host = await inbox({ kind: 'image', name: 'order.png', url: '/files/order.png', inbox: true, fallback: 'blob:order' })
+  it('is a file chip while the service has not given a picture the browser does not hold', async () => {
+    const host = await inbox({ kind: 'image', name: 'order.png', url: '/files/order.png', inbox: true })
     expect(host.textContent).toContain('📎 order.png')
-    await fail(host, '/files/order.png')
-    expect(host.querySelector('img')?.getAttribute('src')).toBe('blob:order')
-    await act(async () => host.querySelector('img')!.dispatchEvent(new Event('load')))
-    expect(host.querySelector('.thumb img')?.getAttribute('src')).toBe('blob:order')
+    await load(host, '/files/order.png')
+    expect(shown(host)).toEqual(['/files/order.png'])
     expect(host.textContent).not.toContain('📎')
   })
+
+  it('shows the chosen file while the service’s copy loads, then the service’s', async () => {
+    const host = await inbox({ kind: 'image', name: 'order.png', url: '/files/order.png', inbox: true, fallback: 'blob:order' })
+    expect(shown(host)).toEqual(['blob:order'])
+    expect(host.textContent).not.toContain('📎')
+    await load(host, '/files/order.png')
+    expect(shown(host)).toEqual(['/files/order.png'])
+  })
+
+  it('falls back to the chosen file when the service does not give it', async () => {
+    const host = await inbox({ kind: 'image', name: 'order.png', url: '/files/order.png', inbox: true, fallback: 'blob:order' })
+    await fail(host, '/files/order.png')
+    expect(shown(host)).toEqual(['blob:order'])
+    await act(async () => host.querySelector('img.thumb__next')!.dispatchEvent(new Event('load')))
+    expect(shown(host)).toEqual(['blob:order'])
+    expect(host.textContent).not.toContain('📎')
+  })
+
+  it('keeps the picture on screen when its address turns, until the next one has loaded (BTN-1390)', async () => {
+    const chosen: Media = { kind: 'image', name: 'order.png', url: 'blob:order' }
+    const host = await inbox(chosen)
+    await load(host, 'blob:order')
+    const observer = new MutationObserver(() => {})
+    observer.observe(host, { subtree: true, childList: true, characterData: true, attributes: true, attributeOldValue: true })
+    await act(async () => root.render(createElement(InboxThumb, { item: { ...chosen, url: '/files/order.png', inbox: true }, onOpen: () => {} })))
+    expect(shown(host)).toEqual(['blob:order'])
+    expect(host.querySelectorAll('img')).toHaveLength(2)
+    await load(host, '/files/order.png')
+    expect(shown(host)).toEqual(['/files/order.png'])
+    const records = observer.takeRecords()
+    observer.disconnect()
+    expect(records.some((record) => record.oldValue?.includes('chat__file') || [...record.addedNodes].some((node) => node.textContent?.includes('📎')))).toBe(false)
+  })
+
+  it('keeps the loaded picture for good when its next address fails', async () => {
+    const service: Media = { kind: 'image', name: 'order.png', url: '/files/order.png', inbox: true }
+    const host = await inbox(service)
+    await load(host, '/files/order.png')
+    await act(async () => root.render(createElement(InboxThumb, { item: { kind: 'image', name: 'order.png', url: '/read/order.png' }, onOpen: () => {} })))
+    await fail(host, '/read/order.png')
+    expect(shown(host)).toEqual(['/files/order.png'])
+    expect(host.querySelectorAll('img')).toHaveLength(1)
+  })
+
+  it('is a file chip when a picture the browser held does not load and nothing was on screen', async () => {
+    const host = await inbox({ kind: 'image', name: 'order.png', url: 'blob:order' })
+    await fail(host, 'blob:order')
+    expect(host.querySelector('img')).toBeNull()
+    expect(host.textContent).toBe('📎 order.png')
+  })
 })
+
+/** The addresses of the pictures a sent one's button draws, leaving out the next one loading unseen. */
+const shown = (host: HTMLElement) => [...host.querySelectorAll('.thumb img:not(.thumb__next)')].map((img) => img.getAttribute('src'))
+
+async function load(host: HTMLElement, src: string) {
+  await act(async () => host.querySelector(`img[src="${src}"]`)!.dispatchEvent(new Event('load')))
+}

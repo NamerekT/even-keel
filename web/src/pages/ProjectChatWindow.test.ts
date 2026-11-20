@@ -283,6 +283,51 @@ it('keeps a sent picture from the chosen file while the first session starts for
   }
 })
 
+/** Whether a sent picture's bubble ever drew a file chip in the records: added, or a class it had for a moment. */
+const drewChip = (records: MutationRecord[]): boolean => records.some((record) => {
+  if (record.type === 'attributes') return [record.oldValue ?? '', (record.target as Element).className].some((name) => name.includes('chat__file'))
+  return [...record.addedNodes].some((node) => node.textContent?.includes('📎') || (node instanceof Element && node.matches('.chat__file, :has(.chat__file)')))
+})
+
+it('keeps a sent picture on screen in a running chat until the service’s copy has loaded (BTN-1390)', async () => {
+  live = { config: { projects: {} }, branchDrift: {}, sessions: [], account: { accounts: [] }, mailbox: {} }
+  transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at: card.lastAt, text: 'Run the tests' }], turn: null })
+  const host = document.body.appendChild(document.createElement('div'))
+  root = createRoot(host)
+  await render({ ...card, sessionId: 'first-session', state: 'waiting' })
+  await vi.waitFor(() => expect(host.querySelector('.bubble')?.textContent).toBe('Run the tests'))
+  const box = host.querySelector('textarea')!
+  await type(box, message)
+  await attach(host, 'one.png')
+  command.mockResolvedValueOnce(undefined)
+  await act(async () => host.querySelector<HTMLButtonElement>('.chat__send')!.click())
+  const shown = () => [...host.querySelectorAll<HTMLImageElement>('.bubble .thumb img')].filter((img) => !img.classList.contains('thumb__next'))
+  await vi.waitFor(() => expect(shown().map((img) => img.getAttribute('src'))).toEqual([expect.stringMatching(/^blob:/)]))
+  const settings = (window as unknown as HappyWindow).happyDOM.settings
+  let serve!: () => void
+  const served = new Promise<void>((resolve) => { serve = resolve })
+  settings.fetch.interceptor = { beforeAsyncRequest: async ({ window }) => { await served; return new window.Response(png) } }
+  settings.enableImageFileLoading = true
+  const observer = new MutationObserver(() => {})
+  observer.observe(host, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['class'] })
+  try {
+    transcript.mockResolvedValue({
+      lines: [{ kind: 'prompt', at: card.lastAt, text: 'Run the tests' }, { kind: 'prompt', at: card.lastAt, text: message, files: ['.temp/inbox/one.png'] }],
+      turn: null,
+    })
+    await act(async () => changed())
+    expect(shown().map((img) => img.getAttribute('src'))).toEqual([expect.stringMatching(/^blob:/)])
+    await act(async () => serve())
+    await vi.waitFor(() => expect(shown().map((img) => img.getAttribute('src'))).toEqual(['/file.png']))
+    expect(shown()[0]!.naturalWidth).toBe(1)
+    expect(drewChip(observer.takeRecords())).toBe(false)
+  } finally {
+    observer.disconnect()
+    settings.enableImageFileLoading = false
+    settings.fetch.interceptor = null
+  }
+})
+
 it('opens a sent picture from its chip and retries both images after a temporary 404', async () => {
   // The window opened after the send: the browser holds no copy of the picture.
   const settings = (window as unknown as HappyWindow).happyDOM.settings
