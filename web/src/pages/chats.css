@@ -359,6 +359,17 @@
   color: var(--error-fg);
 }
 
+.renew-chat__info {
+  display: inline-flex;
+  margin-left: var(--space-4);
+  vertical-align: -2px;
+}
+
+.renew-chat__info .icon {
+  width: 12px;
+  height: 12px;
+}
+
 .renew-chat__quote {
   margin: 0;
   padding: var(--space-8) var(--space-12);

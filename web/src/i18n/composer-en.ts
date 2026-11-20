@@ -36,15 +36,17 @@ export const composerEn = {
   steers: 'The session is working: the message goes straight in, and it reads it once its current tool call ends.',
   mail: {
     waiting: 'Waits for the hook',
-    queued: 'In the session · it reads it once the current tool call ends',
-    delivered: (at: string, event: string) => `Delivered ${at} · ${event}`,
+    queued: 'In the session',
+    queuedTip: 'It reads it once the current tool call ends',
+    delivered: (at: string) => `Delivered ${at}`,
+    /** How a delivered letter got in, the tip of "Delivered". */
     events: {
-      PreToolUse: 'before a tool call',
-      PostToolUse: 'after a tool call',
-      Stop: 'at the end of the turn',
-      AskUserQuestion: 'in place of a question',
-      resume: 'by resuming the session',
-      inbox: 'straight into the session',
+      PreToolUse: 'Before a tool call',
+      PostToolUse: 'After a tool call',
+      Stop: 'At the end of the turn',
+      AskUserQuestion: 'In place of a question',
+      resume: 'By resuming the session',
+      inbox: 'Straight into the session',
     },
     returned: {
       asked: 'Came back: the session asked a question while the message was on its way. Send it as the answer or dismiss it.',

@@ -1,10 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { EFFORTS } from '../../../src/agent/providers.js'
 import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { accountName } from '../accountName.js'
 import { AgentIcon } from '../layout/accountParts.js'
-import { formatAgo, formatStamp, formatTokens } from '../format.js'
+import { formatAgo, formatSpan, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { spanNames } from '../layout/Limits.js'
 import { useNow } from '../layout/useNow.js'
@@ -13,7 +13,10 @@ import { Segmented } from '../stats/common.js'
 import '../tools/addPackage.css'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ButtonWithTip } from '../ui/ButtonWithTip.js'
+import { InfoIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
+import { TipFacts } from '../ui/TipFacts.js'
+import { Tipped } from '../ui/Tipped.js'
 import type { ChatRenewal } from './chatRenewal.js'
 import { blockOf } from './NewChatDialog.js'
 import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
@@ -34,6 +37,35 @@ interface Props {
   onRenew: (choice: ChatChoice) => Promise<void>
   /** Cancel: the text and the files stay in the field. */
   onClose: () => void
+}
+
+/**
+ * Why the dialog asks, in a few words — when the cache went cold, which window is spent — with an "i" whose tip says
+ * how much a reply rereads or when the window resets.
+ */
+export function RenewWhy({ renewal, now }: { renewal: ChatRenewal; now: Date }) {
+  const text = t.chats.renew
+  const [head, tip]: [string, ReactNode] =
+    renewal.kind === 'cold'
+      ? [text.cold(formatAgo(renewal.since, now)), renewal.tokens > 0 ? text.rereads(formatTokens(renewal.tokens)) : text.rereadsAll]
+      : renewal.span !== null && renewal.resetsAt !== null
+        ? [text.limit(spanNames(renewal.span).title), <TipFacts rows={[[t.limits.facts.resets, formatSpan(renewal.resetsAt, now)]]} />]
+        : [text.limitBare, null]
+  // The state of the chat, not a refusal: the limit's red is its own class, so a refusal stays the only red band.
+  return (
+    <p className={`notice renew-chat__why ${renewal.kind === 'cold' ? 'notice--warn' : 'renew-chat__why--limit'}`}>
+      {tip === null ? (
+        head
+      ) : (
+        <Tipped inline focusable align="start" tip={tip}>
+          {head}
+          <span className="renew-chat__info">
+            <InfoIcon />
+          </span>
+        </Tipped>
+      )}
+    </p>
+  )
 }
 
 /**
@@ -84,14 +116,6 @@ export function ChatRenewDialog({ chat, renewal, message, choice, busy, failure,
     return { value: each.key, label: accountName(each, accounts), icon: <AgentIcon agent={each.agent} />, ...(blocked === null ? {} : { unavailable: blocked }) }
   })
   const text = t.chats.renew
-  const why =
-    renewal.kind === 'cold'
-      ? renewal.tokens > 0
-        ? text.cold(formatAgo(renewal.since, now), formatTokens(renewal.tokens))
-        : text.coldBare(formatAgo(renewal.since, now))
-      : renewal.span !== null && renewal.resetsAt !== null
-        ? text.limit(spanNames(renewal.span).title, formatStamp(renewal.resetsAt, now))
-        : text.limitBare
 
   return (
     <dialog
@@ -122,8 +146,7 @@ export function ChatRenewDialog({ chat, renewal, message, choice, busy, failure,
           </button>
         </header>
         <div className="add-package__body renew-chat__body">
-          {/* The state of the chat, not a refusal: the limit's red is its own class, so a refusal stays the only red band. */}
-          <p className={`notice renew-chat__why ${renewal.kind === 'cold' ? 'notice--warn' : 'renew-chat__why--limit'}`}>{why}</p>
+          <RenewWhy renewal={renewal} now={now} />
           <blockquote className="renew-chat__quote" aria-label={text.message}>
             {quote}
           </blockquote>

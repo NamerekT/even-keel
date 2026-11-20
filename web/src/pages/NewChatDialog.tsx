@@ -1,8 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { AccountEntry } from '../../../src/account/model.js'
 import { EFFORTS } from '../../../src/agent/providers.js'
 import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
-import { limitSpans } from '../../../src/limits/model.js'
+import { limitSpans, type LimitSpan } from '../../../src/limits/model.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { accountGroups, tightestWindow } from '../accounts.js'
@@ -16,6 +16,7 @@ import { Segmented } from '../stats/common.js'
 import '../tools/addPackage.css'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Select } from '../ui/Select.js'
+import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
 import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
@@ -175,6 +176,19 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
   )
 }
 
+/** A bar's tip: the window's name as the head, how much is used and when it resets as captioned rows. */
+export function barTip(span: LimitSpan, used: number, resetsAt: string, now: Date): ReactNode {
+  return (
+    <TipFacts
+      head={spanNames(span).title}
+      rows={[
+        [t.limits.facts.used, `${used}%`],
+        [t.limits.facts.resets, formatSpan(resetsAt, now)],
+      ]}
+    />
+  )
+}
+
 /** The account's five-hour and weekly windows as thin bars; the window's name and its reset in the tip. */
 function Bars({ entry, now }: { entry: AccountEntry; now: Date }) {
   // `limitSpans` lists a window not read yet too: only the read ones get a bar.
@@ -188,7 +202,7 @@ function Bars({ entry, now }: { entry: AccountEntry; now: Date }) {
       {windows.map(({ span, window }) => {
         const used = Math.round(Math.min(Math.max(window.usedPercentage, 0), 100))
         return (
-          <Tipped key={span} inline tip={`${spanNames(span).title}: ${used}% · ${formatSpan(window.resetsAt, now)}`}>
+          <Tipped key={span} inline tip={barTip(span, used, window.resetsAt, now)}>
             <span className="new-chat__bar">
               <span className="new-chat__meter" aria-hidden="true">
                 <span className={used >= 100 ? 'new-chat__fill new-chat__fill--full' : 'new-chat__fill'} style={{ width: `${used}%` }} />

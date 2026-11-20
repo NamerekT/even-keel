@@ -97,11 +97,15 @@ function Download({ name, url }: { name: string; url: string }) {
   )
 }
 
-/** A file the page cannot get: the worktree that held it is cleaned up, or it lies outside the session's folders. */
-function Gone({ name }: { name: string }) {
+/**
+ * A file the page cannot get: the worktree that held it is cleaned up, or it lies outside the session's folders.
+ * A crossed-out name after ⊘; that it is gone and why is the tip.
+ */
+export function Gone({ name }: { name: string }) {
   return (
     <Tipped inline focusable align="start" className="chat__file share__gone" tip={t.session.chat.share.goneTip}>
-      📎 {name} · {t.session.chat.share.gone}
+      <span aria-hidden="true">⊘</span>
+      <span className="share__gone-name">{name}</span>
     </Tipped>
   )
 }

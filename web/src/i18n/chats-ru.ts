@@ -46,7 +46,7 @@ export const chatsRu = {
     accounts: 'Аккаунт',
     chain: 'цепочка',
     chainTip: 'На этом аккаунте сейчас идут сессии цепочки проекта',
-    limit: (at: string) => `лимит · ${at}`,
+    limit: (at: string) => `лимит до ${at}`,
     login: 'нужен вход',
     model: 'Модель',
     effort: 'Эффорт',
@@ -58,10 +58,11 @@ export const chatsRu = {
   renew: {
     coldTitle: 'Кэш остыл',
     limitTitle: (account: string) => `${account}: лимит исчерпан`,
-    /** `ago` — когда кэш остыл, `tokens` — сколько перечитает ответ. */
-    cold: (ago: string, tokens: string) => `Остыл ${ago} · ответ перечитает ${tokens} токенов`,
-    coldBare: (ago: string) => `Остыл ${ago} · ответ перечитает весь контекст`,
-    limit: (window: string, at: string) => `${window} исчерпан · сброс ${at}`,
+    /** `ago` — когда кэш остыл. */
+    cold: (ago: string) => `Остыл ${ago}`,
+    rereads: (tokens: string) => `Ответ перечитает ${tokens} токенов`,
+    rereadsAll: 'Ответ перечитает весь контекст',
+    limit: (window: string) => `${window} исчерпан`,
     limitBare: 'Аккаунт упёрся в лимит',
     message: 'Ваше сообщение',
     reply: 'Ответить здесь',

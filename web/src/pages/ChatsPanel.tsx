@@ -43,6 +43,16 @@ export function ChatsChip({ chats, open, look = 'tag', onToggle }: { chats: Chat
 
 type Section = 'active' | 'archive'
 
+/** The Active tab's title: the word and the count as a badge. */
+export function ActiveTab({ count }: { count: number }) {
+  return (
+    <>
+      {t.chats.active}
+      <span className="count-badge">{count}</span>
+    </>
+  )
+}
+
 interface Props {
   project: string
   chats: ProjectChatsView
@@ -67,7 +77,7 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
   const shown = opened === null ? null : (chats.chats?.find((chat) => chat.id === opened.id) ?? opened)
   const active = chats.chats ?? []
   const groups = [
-    { id: 'active' as const, title: `${t.chats.active} · ${active.length}` },
+    { id: 'active' as const, title: <ActiveTab count={active.length} /> },
     { id: 'archive' as const, title: t.chats.archive },
   ]
 

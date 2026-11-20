@@ -4,8 +4,18 @@ import type { FeedLine } from '../../../src/sessions/transcript.js'
 import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { Tipped } from '../ui/Tipped.js'
 import { letterPhase, nextLetterChange } from './letterPhase.js'
 import { fileName } from './feedLine.js'
+
+/** A letter's fate in a few words; how it gets there or how it went is the tip. */
+export function LetterFate({ text, tip }: { text: string; tip: string }) {
+  return (
+    <Tipped inline focusable align="start" className="chat__letter-fate" tip={tip}>
+      {text}
+    </Tipped>
+  )
+}
 
 interface Props {
   sessionId: string
@@ -35,7 +45,7 @@ export function ChatMail({ sessionId, mail, queued, onReply }: Props) {
         <li key={`queued-${index}`} className="bubble chat__letter">
           <span className="chat__letter-text">{line.text}</span>
           {line.files?.map((file, at) => <span key={at} className="chat__file">{fileName(file)}</span>)}
-          <span className="chat__letter-fate">{t.session.chat.mail.queued}</span>
+          <LetterFate text={t.session.chat.mail.queued} tip={t.session.chat.mail.queuedTip} />
         </li>
       ))}
       {shown.map(({ each, phase }) => (
@@ -56,12 +66,10 @@ export function ChatMail({ sessionId, mail, queued, onReply }: Props) {
                 </button>
               </span>
             </>
+          ) : each.fate === 'waiting' ? (
+            <span className="chat__letter-fate">{t.session.chat.mail.waiting}</span>
           ) : (
-            <span className="chat__letter-fate">
-              {each.fate === 'waiting'
-                ? t.session.chat.mail.waiting
-                : t.session.chat.mail.delivered(formatMoment(each.settledAt ?? each.postedAt, now), t.session.chat.mail.events[each.event ?? 'resume'])}
-            </span>
+            <LetterFate text={t.session.chat.mail.delivered(formatMoment(each.settledAt ?? each.postedAt, now))} tip={t.session.chat.mail.events[each.event ?? 'resume']} />
           )}
         </li>
       ))}

@@ -45,6 +45,10 @@
   color: var(--fg-muted);
 }
 
+.share__gone-name {
+  text-decoration: line-through;
+}
+
 .share__body {
   width: 100%;
   min-width: 0;

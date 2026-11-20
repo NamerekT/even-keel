@@ -88,7 +88,7 @@ A session whose chain has stopped offers only the reply.
 
 ## Writing while the session works
 
-You can also write to a session while it works ("not there", "mind X too"): a hook of the [agent-bridge](../../plugins/agent-bridge) plugin hands the message over at its next tool call or at the end of the turn, without stopping it, and the chat shows whether it waits, was delivered, or came back because the session asked a question meanwhile. A Claude Code session with the plugin from 1.6.0 takes the message at once instead, through its own inbox: mid-turn, while it waits on a background command, and between turns without a stop and a resume ("Delivered · straight into the session").
+You can also write to a session while it works ("not there", "mind X too"): a hook of the [agent-bridge](../../plugins/agent-bridge) plugin hands the message over at its next tool call or at the end of the turn, without stopping it, and the chat shows whether it waits, was delivered, or came back because the session asked a question meanwhile. A Claude Code session with the plugin from 1.6.0 takes the message at once instead, through its own inbox: mid-turn, while it waits on a background command, and between turns without a stop and a resume ("Delivered 09:14", with "Straight into the session" in its tip).
 
 Once the task's branch is merged or the task is done, the session gets no more messages: the chat refuses them, and one already on its way comes back, since the work it asks for belongs in a new task. The same goes for an answer sent in the moment the task closes: it shows in the chat as come back, not sent.
 
