@@ -162,14 +162,17 @@ export class AccountSettings {
     const global = readJson(file) ?? {}
     setOrDelete(global, key, key === 'env' && value !== undefined ? { ...sharedEnv(value), ...ownVariables(global.env) } : value)
     writeFileSync(file, JSON.stringify(global, null, 2))
-    this.version++
+    if (Object.hasOwn(record.own, key)) this.dropOwn(home, key)
   }
 
   /** A key Even Keel itself gives the account (EKR-148); takes effect at the next transfer, which the caller starts. */
   setOwn(home: AccountHome, key: string, value: unknown): void {
-    // A folder never transferred counts its file as written, so its keys are no edits.
-    const record = this.records.get(home.key) ?? { written: stripSettingsGuard(readJson(join(home.dir, 'settings.json')) ?? {}), own: {} }
-    this.keep(home.key, { ...record, own: { ...record.own, [key]: value } })
+    const folder = stripSettingsGuard(readJson(join(home.dir, 'settings.json')) ?? {})
+    const record = this.records.get(home.key)
+    // A new folder starts at its current file. In a known folder only this key's edit is acknowledged.
+    const written = { ...(record?.written ?? folder) }
+    setOrDelete(written, key, folder[key])
+    this.keep(home.key, { written, own: { ...record?.own, [key]: value } })
   }
 
   /** Takes effect at the next transfer into the folder, which the caller starts. */

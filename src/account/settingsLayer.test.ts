@@ -126,6 +126,21 @@ describe('AccountSettings', () => {
     expect(settings.own('example')).toEqual([])
   })
 
+  it('"make shared" shares a deletion and lets future shared values reach the folder', () => {
+    settings.setOwn(home, 'model', 'haiku')
+    share()
+    write(home.dir, { theme: 'dark' })
+    settings.resolve(home, 'model', 'share')
+    share()
+    expect(read(globalDir)).not.toHaveProperty('model')
+    expect(read(home.dir)).not.toHaveProperty('model')
+    expect(settings.edits(home)).toEqual([])
+    expect(settings.own(home.key)).toEqual([])
+    write(globalDir, { model: 'sonnet', theme: 'dark' })
+    share()
+    expect(read(home.dir).model).toBe('sonnet')
+  })
+
   it('"discard" lets the next transfer write the global value', () => {
     write(home.dir, { model: 'sonnet', theme: 'dark' })
     settings.resolve(home, 'model', 'discard')
