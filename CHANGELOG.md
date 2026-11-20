@@ -4,6 +4,24 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-11-20
+
+A patch of 0.3: Remote Control for a Claude account added from the page, and fewer "changed directly" plates on the Accounts page.
+
+### Changed
+
+- **A claude.ai account you add from the page has Remote Control on.** Its chain sessions show on claude.ai/code and in the Claude app from the first one. Before, the sign-in left Remote Control off, and the page sent you to `/config` without a way to turn it on.
+- **"Turn on Remote Control"** in the account row's menu and in the session panel, where an account has Remote Control off. It applies from the account's next session.
+- Chain sessions run on codex-cli 0.171.0 and Copilot CLI 1.0.114, the versions this release was checked against; Claude Code 2.1.326 and OpenCode 1.19.6 stay.
+- A ChatGPT workspace seat with a monthly credit limit reads that limit and its reset straight from the usage answer when the answer carries them, with no second request; before, the reset was assumed to be the start of the next month.
+
+### Fixed
+
+- **The "changed directly" plates on the Accounts page show only edits that need your decision.** Keys the CLI writes into an account's `settings.json` itself, such as its notification settings, no longer get a plate.
+- **"Make shared" and "Turn on Remote Control" work on a key the account holds as its own**, also when a plate about a direct edit of that key is still open: the edit is settled. Before, both buttons did nothing until the plate was answered.
+- The README badge's "+N" counts the whole queue, not only the queued tasks the badge has room to draw.
+- In **Move to another tracker**, the project key of a Linear project sits in the same grid as the team and the project, without a blank gap above it; switching the profile to another tracker kind clears the project of the previous one.
+
 ## [0.3.3] - 2026-11-18
 
 A patch of 0.3: keep-warm through a long tool call, and a cache clock that knows about keep-warm.
