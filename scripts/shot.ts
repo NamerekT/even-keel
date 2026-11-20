@@ -33,6 +33,8 @@ interface Options {
   reducedMotion: boolean
   /** A touch screen: `(pointer: coarse)` matches, as on a phone. */
   touch: boolean
+  /** The device pixel ratio: 2 for a retina shot, 4–5 to judge how a plaque's text is centred. */
+  scale: number
   full: boolean
   image: boolean
   settle: number
@@ -45,7 +47,7 @@ const STALE_MS = 60 * 60_000
 function parse(args: string[]): Options {
   const options: Options = {
     route: '/', selectors: [], steps: [], evals: [], width: 1280, height: 800,
-    light: false, reducedMotion: false, touch: false, full: false, image: true, settle: 500, limit: 8,
+    light: false, reducedMotion: false, touch: false, scale: 1, full: false, image: true, settle: 500, limit: 8,
   }
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!
@@ -68,6 +70,10 @@ function parse(args: string[]): Options {
     }
     else if (arg === '--reduced-motion') options.reducedMotion = true
     else if (arg === '--touch') options.touch = true
+    else if (arg === '--scale') {
+      options.scale = Number(value())
+      if (!(options.scale > 0 && options.scale <= 8)) throw new Error('--scale is a number above 0, up to 8')
+    }
     else if (arg === '--full') options.full = true
     else if (arg === '--no-image') options.image = false
     else if (arg === '--settle') options.settle = Number(value())
@@ -166,6 +172,7 @@ async function main(): Promise<number> {
       colorScheme: options.light ? 'light' : 'dark',
       reducedMotion: options.reducedMotion ? 'reduce' : 'no-preference',
       hasTouch: options.touch,
+      deviceScaleFactor: options.scale,
     })
     context.setDefaultTimeout(5000)
     await context.addInitScript({ path: join(ROOT, 'scripts/shot.page.js') })

@@ -198,6 +198,7 @@ export const projectRU = {
     chainLoading: 'Читаю задачи…',
     chainEmpty: 'Задач в цепочке нет.',
     backlog: (count: number) => `Бэклог · ${count}`,
+    backlogTab: 'Бэклог',
     backlogHint: 'Открытые задачи, которые цепочка пока не берёт по статусу или ярлыкам.',
     backlogOrder: 'Порядок бэклога',
     backlogOrders: {

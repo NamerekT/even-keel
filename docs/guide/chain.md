@@ -144,7 +144,7 @@ Errors above the chain always stay visible. Several cleanup and carry warnings s
 
 ## Work left in a task's folder
 
-Work that sits in a task's folder but not in the main branch — files never committed, or commits never merged — is marked once the task is out of the chain: a red chip on its backlog row, or on its chain row when it was skipped or is closed, with the path, the branch and what to do on hover, a red dot on the **Backlog** tab, and a callout on its card.
+Work that sits in a task's folder but not in the main branch — files never committed, or commits never merged — is marked once the task is out of the chain: a red chip on its backlog row, or on its chain row when it was skipped or is closed, with the path, the branch and what to do on hover, a red count on the **Backlog** tab, and a callout on its card.
 
 While the chain still leads the task, or is closing it and cleaning up, its uncommitted files are its session's and get no chip.
 

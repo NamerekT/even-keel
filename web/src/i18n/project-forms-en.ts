@@ -198,6 +198,8 @@ export const projectEN: Messages['project'] = {
     chainLoading: 'Reading the tasks…',
     chainEmpty: 'No tasks in the chain.',
     backlog: (count: number) => `Backlog · ${count}`,
+    /** The tab's word; its count stands beside it in a plaque. */
+    backlogTab: 'Backlog',
     backlogHint: 'Open tasks the chain does not take yet because of their status or labels.',
     backlogOrder: 'Order the backlog',
     backlogOrders: {

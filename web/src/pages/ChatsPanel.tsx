@@ -34,7 +34,7 @@ export function ChatsChip({ chats, open, look = 'tag', onToggle }: { chats: Chat
     <button type="button" className={CHIP_CLASS[look]} aria-expanded={open} aria-label={seg ? t.chats.tab : undefined} title={tip} onClick={onToggle}>
       <ChatIcon />
       {!seg && t.chats.tab}
-      {badge !== null && <span className={`chats-badge chats-badge--${badge.tone}`}>{badge.count}</span>}
+      {badge !== null && <span className={`count-badge chats-badge--${badge.tone}`}>{badge.count}</span>}
     </button>
   )
 }

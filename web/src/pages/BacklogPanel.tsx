@@ -32,7 +32,7 @@ interface ChipProps {
   count: number
   open: boolean
   look?: ChipLook
-  /** One of the backlog's tasks has work in its folder that main does not (BTN-298): a red dot. */
+  /** One of the backlog's tasks has work in its folder that main does not (BTN-298): the count's plaque turns red. */
   work?: boolean
   /** Shown at a count of 0 too: the built-in tracker's backlog is where its tasks are made (BTN-770). */
   always?: boolean
@@ -52,8 +52,8 @@ export function BacklogChip({ count, open, look = 'tag', work = false, always = 
       onClick={onToggle}
     >
       <StackIcon />
-      {seg ? count : t.project.backlog(count)}
-      {work && <span className="work-dot" role="img" aria-label={t.chain.work.backlog} />}
+      {!seg && t.project.backlogTab}
+      <span className={work ? 'count-badge count-badge--work' : 'count-badge'}>{count}</span>
     </button>
   )
 }

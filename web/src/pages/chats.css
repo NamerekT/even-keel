@@ -25,26 +25,13 @@
   outline-offset: 2px;
 }
 
-.chats-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: var(--radius-pill);
-  font-size: var(--text-11);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-.chats-badge--waiting {
+/* Over the grey of `.count-badge` whatever order the sheets load in. */
+.count-badge.chats-badge--waiting {
   background: var(--lamp-waiting);
   color: var(--on-bright);
 }
 
-.chats-badge--unread {
+.count-badge.chats-badge--unread {
   background: var(--accent);
   color: var(--on-fill);
 }

@@ -53,9 +53,9 @@ export function ProjectSigns() {
 
 export function TabSigns({ ci, narrow }: { ci: boolean; narrow: boolean }) {
   return <>
-    {ci && <Sign sample={<span className="ci--success"><span className="ci-dot" /></span>}>{t.help.signs.ci}</Sign>}
-    <Sign sample={narrow ? <StackIcon /> : <span className="side-tabs"><span className="side-tab"><StackIcon />{t.project.backlog(3)}</span></span>} wide={!narrow}>{t.help.signs.backlog}</Sign>
-    <Sign sample={narrow ? <ChatIcon /> : <span className="side-tabs"><span className="side-tab"><ChatIcon />{t.chats.tab}</span></span>} wide={!narrow}>{t.help.signs.chats}</Sign>
+    {ci && <Sign sample={narrow ? <span className="ci--success"><span className="ci-dot" /></span> : <span className="side-tabs"><span className="side-tab chip--ci-running"><span className="ci-dot" />{t.ci.chip}<span className="count-badge">2:41</span></span></span>} wide={!narrow}>{t.help.signs.ci}</Sign>}
+    <Sign sample={narrow ? <StackIcon /> : <span className="side-tabs"><span className="side-tab"><StackIcon />{t.project.backlogTab}<span className="count-badge">3</span></span></span>} wide={!narrow}>{t.help.signs.backlog}</Sign>
+    <Sign sample={narrow ? <ChatIcon /> : <span className="side-tabs"><span className="side-tab"><ChatIcon />{t.chats.tab}<span className="count-badge chats-badge--waiting">1</span></span></span>} wide={!narrow}>{t.help.signs.chats}</Sign>
     <Sign sample={narrow ? <SlidersIcon /> : <span className="side-tab side-tab--icon"><SlidersIcon /></span>}>{t.help.signs.settings}</Sign>
     <Sign sample={<span className="side-tab side-tab--help">?</span>}>{t.help.signs.help}</Sign>
   </>

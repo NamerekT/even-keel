@@ -77,14 +77,8 @@ export function CiChip({ views, open, look = 'tag', onToggle }: { views: CiView[
     >
       <span className="ci-dot" aria-hidden="true" />
       {/* On a phone's tight head a running clock stands for the word (BTN-1162). */}
-      {look === 'seg' && clock !== null ? (
-        <span className="chip__extra">{formatClock(clock)}</span>
-      ) : (
-        <>
-          {t.ci.chip}
-          {clock !== null && <span className="chip__extra"> · {formatClock(clock)}</span>}
-        </>
-      )}
+      {(look !== 'seg' || clock === null) && t.ci.chip}
+      {clock !== null && <span className="count-badge">{formatClock(clock)}</span>}
     </button>
   )
 }

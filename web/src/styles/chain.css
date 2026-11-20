@@ -830,13 +830,39 @@ button.block__key {
   flex: none;
 }
 
-/* The backlog tab's mark that one of its tasks has such work. */
-.work-dot {
+/* A number on a tab (the backlog's count, the CI clock, the chats' badge): grey is just a number, a colour asks for a look. */
+.count-badge {
+  display: inline-flex;
   flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--lamp-error);
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--fg);
+  font-size: var(--text-11);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Segoe UI sets a figure a pixel below the line box's middle; figures stand as capitals, so the box is their cap height. */
+@supports (text-box: trim-both cap alphabetic) {
+  .count-badge {
+    display: inline-block;
+    height: auto;
+    padding-block: calc((18px - 1cap) / 2);
+    text-align: center;
+    text-box: trim-both cap alphabetic;
+  }
+}
+
+/* One of the backlog's tasks has work no commit of main holds. */
+.count-badge--work {
+  background: var(--error-bg);
+  color: var(--lamp-error);
 }
 
 .chip--questions {
