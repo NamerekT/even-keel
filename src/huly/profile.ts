@@ -75,7 +75,7 @@ export function hulyAccount(values: Readonly<Record<string, string>>, timeoutMs:
     const [person] =
       identity === undefined ? [] : await client.findAll<{ name: string }>(PERSON, { _id: identity.attachedTo }, { projection: { name: 1 } })
     const login = person?.name ? personName(person.name) : fallbackLogin(account)
-    return { login, name: `Huly · ${values.HULY_WORKSPACE}`, expiresAt: null }
+    return { login, name: values.HULY_WORKSPACE || 'Huly', expiresAt: null }
   })
 }
 

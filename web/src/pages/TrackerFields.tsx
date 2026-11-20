@@ -134,7 +134,13 @@ function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false
   const own = builtin === undefined ? [] : [{ value: BUILTIN_PICK, label: t.wizard.builtin, icon: <TrackerIcon kind={BUILTIN} />, unavailable: builtin.unavailable }]
   const options = [
     ...own,
-    ...profiles.map((each) => ({ value: each.id, label: each.isDefault ? t.profiles.byDefault(each.name) : each.name, icon: <TrackerIcon kind={each.kind} /> })),
+    // The default is a tag beside the name, not "(default)" glued to it (BTN-1382).
+    ...profiles.map((each) => ({
+      value: each.id,
+      label: each.name,
+      icon: <TrackerIcon kind={each.kind} />,
+      aside: each.isDefault ? <span className="tag">{t.profiles.isDefault}</span> : undefined,
+    })),
     { value: ADD, label: t.wizard.addProfile, icon: <PlusIcon /> },
   ]
   const pick = (value: string) => {

@@ -1,9 +1,8 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { BUILTIN } from '../../../src/builtin/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { TrackerView } from '../../../src/tracker/health.js'
-import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useMachineFilter } from '../layout/MachineFilter.js'
 import { CardLine } from '../layout/MachinePanel.js'
@@ -15,11 +14,11 @@ import { useNow } from '../layout/useNow.js'
 import { useCommand } from '../live/useCommand.js'
 import { Band, Card, CardHead, EmptyState, PageHead, TileGrid } from '../ui/blocks.js'
 import { TrackerIcon } from '../ui/icons.js'
-import { ProjectLabel, useProjectLabel } from '../ui/ProjectLabel.js'
-import { Tipped } from '../ui/Tipped.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { FixButton, useFix } from './FixButtons.js'
 import { HelpTip } from './settingsParts.js'
 import { openTasks, problemsOf, refreshedProjects, staleReaders } from './status.js'
+import { LinkState, Reader, readerName } from './statusLink.js'
 import { trackerDownText } from './trackerDown.js'
 import './settings.css'
 import './status.css'
@@ -135,7 +134,12 @@ function Summary({ checks, retry }: { checks: Check[]; retry: () => void }) {
   return (
     <Band tone={first.level === 'error' ? 'error' : 'warn'} action={action} className="status-summary">
       <span className="status-summary__line">
-        <strong>{t.statusPage.problems(problems.length)}:</strong> {first.name} — {first.text}
+        <strong>{t.statusPage.problems(problems.length)}:</strong>
+        {/* A profile's name says no tracker since BTN-1382: its icon does. */}
+        <span className="status-summary__name">
+          {first.tracker !== undefined && <TrackerIcon kind={first.tracker.kind} />}
+          {first.name} — {first.text}
+        </span>
       </span>
     </Band>
   )
@@ -211,10 +215,7 @@ function Connection({ state, tracker, now, className }: { state: EvenKeelState; 
   const stale = staleReaders(tracker, now)
   const refreshed = refreshedProjects(state, tracker)
   const label = useProjectLabel()
-  const readers = tracker.projects.flatMap((reader) => {
-    const name = readerName(state, reader, label)
-    return name === null ? [] : [{ reader, name }]
-  })
+  const readers = tracker.projects.flatMap((reader) => readerName(state, reader, label) ?? [])
   const level = health.state === 'live' ? 'ok' : health.state === 'down' ? 'error' : health.state === 'connecting' ? 'warn' : 'off'
   const id = `${anchorOf(tracker.name)}-title`
   const check = () => void Promise.all(refreshed.map((project) => send('chain/refresh', { project })))
@@ -245,8 +246,8 @@ function Connection({ state, tracker, now, className }: { state: EvenKeelState; 
       ) : (
         <div className="status-connection__foot">
           <ul className="status-readers" aria-label={t.statusPage.readers}>
-            {readers.map(({ reader, name }) => (
-              <Reader key={reader} name={name} stale={stale.has(reader)} read={stale.get(reader) ?? null} now={now} />
+            {readers.map(({ reader, name, about }) => (
+              <Reader key={reader} name={name} about={about} stale={stale.has(reader)} read={stale.get(reader) ?? null} now={now} />
             ))}
           </ul>
           {!own && <div className="status-connection__actions">
@@ -262,47 +263,4 @@ function Connection({ state, tracker, now, className }: { state: EvenKeelState; 
       )}
     </Card>
   )
-}
-
-/** The dot and word of a connection, and when it last answered; the built-in tracker's, its open tasks (`open`). */
-function LinkState({ tracker, now, open }: { tracker: TrackerView; now: Date; open: number | null }) {
-  const { health } = tracker
-  const ago = health.lastOkAt === null ? null : formatAgo(health.lastOkAt, now)
-  const [word, tail] =
-    health.state === 'live' && open !== null
-      ? [t.statusPage.builtinReady, tracker.projects.length === 0 ? null : t.statusPage.openTasks(open)]
-      : health.state === 'live'
-      ? [t.system.live, ago === null ? null : t.statusPage.polled(ago)]
-      : health.state === 'down'
-        ? [t.system.lost, ago === null ? t.statusPage.neverAnswered : t.statusPage.lastAnswer(ago)]
-        : [health.state === 'connecting' ? t.system.connecting : t.system.off, null]
-  return (
-    <span className="status-connection__state">
-      <span className="system__dot" aria-hidden="true" />
-      {word}
-      {tail !== null && <span className="status-connection__when"> · {tail}</span>}
-    </span>
-  )
-}
-
-/** A project or a task feed the connection reads; a stale one with when it was last read (`read`, `null` — never). */
-function Reader({ name, stale, read, now }: { name: ReactNode; stale: boolean; read: string | null; now: Date }) {
-  if (!stale) return <li className="tag status-reader">{name}</li>
-  return (
-    <li className="tag status-reader status-reader--stale">
-      <Tipped tip={t.statusPage.staleHint} inline focusable>
-        {name} · {read === null ? t.statusPage.notRead : t.statusPage.readAgo(formatAgo(read, now))}
-      </Tipped>
-    </li>
-  )
-}
-
-/** A project by its label, a task feed by its key and its project's label; `null` for a reader of no known project, which is not shown by its id. */
-function readerName(state: EvenKeelState, reader: string, label: (project: string) => string): ReactNode {
-  if (state.projects.includes(reader)) return <ProjectLabel project={reader} nameClass="status-reader__name" />
-  for (const [project, feeds] of Object.entries(state.config.feeds)) {
-    const feed = feeds.find((each) => each.id === reader)
-    if (feed !== undefined) return t.statusPage.feedOf(feed.key, label(project))
-  }
-  return null
 }

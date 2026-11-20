@@ -12,7 +12,7 @@ export async function gitlabAccount(values: Readonly<Record<string, string>>, ti
   } catch (error) {
     if (!(error instanceof TrackerNotFound)) throw error
   }
-  return { login: user.username, name: `GitLab · ${user.username}`, expiresAt }
+  return { login: user.username, name: user.username, expiresAt }
 }
 
 export async function gitlabProjects(values: Readonly<Record<string, string>>, query: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<TrackerProject[]> {

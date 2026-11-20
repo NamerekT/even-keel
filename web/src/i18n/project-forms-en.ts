@@ -131,6 +131,8 @@ export const projectEN: Messages['project'] = {
     readAt: (ago: string) => `updated ${ago}`,
     notRead: 'not read yet',
     tracker: (label: string) => `Tracker: ${label}`,
+    trackerProfile: (profile: string) => `Profile: ${profile}`,
+    trackerPlace: (place: string) => `In the tracker: ${place}`,
     inQueue: 'In queue',
     done: 'Tasks done',
     notLoaded: 'Tasks are not loaded yet',

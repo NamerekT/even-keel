@@ -303,7 +303,7 @@ export const ru = {
     check: 'Проверить',
     checkHint: 'Прочитать трекер сейчас',
     openProfile: 'Открыть профиль',
-    feedOf: (key: string, project: string) => `${key} — источник задач проекта ${project}`,
+    feedOf: (project: string) => `Источник задач проекта ${project}`,
     open: 'Открыть страницу состояния',
   },
   queue: {

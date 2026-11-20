@@ -6,7 +6,7 @@ import { ago } from './fakeSessions.js'
 
 export function fakeHuly(state: TrackerLinkState): TrackerView {
   const projects = ['ABC', 'DEMO', 'XYZ', 'OPS']
-  const view = { name: FAKE_HULY_PROFILE, kind: 'huly', title: 'Huly · example', projects, ready: true, unready: true, relabel: true }
+  const view = { name: FAKE_HULY_PROFILE, kind: 'huly', title: 'example', projects, ready: true, unready: true, relabel: true }
   const readAt = (minutes: number) => Object.fromEntries(projects.map((project) => [project, ago(minutes)]))
   if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null }, readAt: {} }
   if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }, readAt: readAt(4) }
@@ -45,8 +45,8 @@ export function withTemplateLabels(state: EvenKeelState): EvenKeelState {
 export function fakeFeedTrackers(): TrackerView[] {
   const view = { ready: true, relabel: true, health: { state: 'live' as const, lastOkAt: ago(0), error: null } }
   return [
-    { ...view, name: GITHUB_PROFILE, kind: 'github', title: 'GitHub · johndoe', projects: ['feed-abc-gh'], readAt: { 'feed-abc-gh': ago(1) } },
-    { ...view, name: LINEAR_PROFILE, kind: 'linear', title: 'Linear · work', projects: ['feed-abc-lin'], readAt: {} },
+    { ...view, name: GITHUB_PROFILE, kind: 'github', title: 'johndoe', projects: ['feed-abc-gh'], readAt: { 'feed-abc-gh': ago(1) } },
+    { ...view, name: LINEAR_PROFILE, kind: 'linear', title: 'work', projects: ['feed-abc-lin'], readAt: {} },
   ]
 }
 
@@ -60,7 +60,7 @@ export function fakeTrackerProblems(trackers: TrackerView[]): TrackerView[] {
     if (tracker.name !== LINEAR_PROFILE) return tracker
     return { ...tracker, health: { state: 'down', lastOkAt: ago(12), error: 'linear: 401 Unauthorized' }, readAt: { 'feed-abc-lin': ago(12) } }
   })
-  const spare: TrackerView = { name: 'github-spare', kind: 'github', title: 'GitHub · spare', projects: [], ready: false, health: { state: 'off', lastOkAt: null, error: null }, readAt: {} }
+  const spare: TrackerView = { name: 'github-spare', kind: 'github', title: 'spare', projects: [], ready: false, health: { state: 'off', lastOkAt: null, error: null }, readAt: {} }
   return [...changed, spare]
 }
 
@@ -74,7 +74,7 @@ export function withProfileOff(state: EvenKeelState): EvenKeelState {
   const gitlab: TrackerView = {
     name: FAKE_OFF_PROFILE,
     kind: 'gitlab',
-    title: 'GitLab · bench',
+    title: 'bench',
     projects: ['XYZ'],
     ready: false,
     health: { state: 'off', lastOkAt: null, error: null },
@@ -88,7 +88,7 @@ export function withProfileOff(state: EvenKeelState): EvenKeelState {
   )
   const { XYZ: _, ...projects } = state.chain.projects
   const huly = state.profiles.profiles.find((each) => each.id === FAKE_HULY_PROFILE)
-  const profile = huly === undefined ? [] : [{ ...huly, id: FAKE_OFF_PROFILE, kind: 'gitlab', name: 'GitLab · bench', isDefault: true, disabled: true, projects: ['XYZ'], projectIds: ['XYZ'], rules: {}, moves: {} }]
+  const profile = huly === undefined ? [] : [{ ...huly, id: FAKE_OFF_PROFILE, kind: 'gitlab', name: 'bench', isDefault: true, disabled: true, projects: ['XYZ'], projectIds: ['XYZ'], rules: {}, moves: {} }]
   return {
     ...state,
     trackers: [...trackers, gitlab],
@@ -106,7 +106,7 @@ export function withTrackerDown(state: EvenKeelState): EvenKeelState {
   const gitlab: TrackerView = {
     name: FAKE_OFF_PROFILE,
     kind: 'gitlab',
-    title: 'GitLab · bench',
+    title: 'bench',
     projects: ['XYZ'],
     ready: false,
     health: { state: 'down', lastOkAt: null, error: 'call timed out after 15000 ms' },
@@ -133,7 +133,7 @@ export function withScopeRefusal(state: EvenKeelState): EvenKeelState {
   const forgejo: TrackerView = {
     name: 'forgejo-ci',
     kind: 'forgejo',
-    title: 'Forgejo · ci',
+    title: 'ci',
     projects: ['XYZ'],
     ready: true,
     health: { state: 'down', lastOkAt: null, error: englishOf(scope), notice: scope },
@@ -154,7 +154,7 @@ export function withFeedScopeRefusal(state: EvenKeelState): EvenKeelState {
   const forgejo: TrackerView = {
     name: 'forgejo-ci',
     kind: 'forgejo',
-    title: 'Forgejo · ci',
+    title: 'ci',
     projects: [feed.id],
     ready: true,
     health: { state: 'down', lastOkAt: null, error: englishOf(scope), notice: scope },
@@ -173,7 +173,7 @@ export function withOrgScopeRefusal(state: EvenKeelState): EvenKeelState {
   const forgejo: TrackerView = {
     name: 'forgejo-bot',
     kind: 'forgejo',
-    title: 'Forgejo · bot',
+    title: 'bot',
     projects: [feed.id],
     ready: true,
     health: { state: 'live', lastOkAt: new Date().toISOString(), error: null },

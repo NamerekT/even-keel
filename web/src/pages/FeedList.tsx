@@ -97,7 +97,7 @@ function FeedRow({ state, project, feed, tasks }: { state: EvenKeelState; projec
           }}
         />
       )}
-      {confirming && <FeedRemove project={project} feed={feed} title={title} onClose={() => setConfirming(false)} />}
+      {confirming && <FeedRemove project={project} feed={feed} onClose={() => setConfirming(false)} />}
       <TrackerFields
         ids={(field) => fieldId(`feed.${feed.id}.${field}`)}
         state={state}
@@ -117,11 +117,11 @@ function FeedRow({ state, project, feed, tasks }: { state: EvenKeelState; projec
 }
 
 /** Its own command, so a refusal shows in the window and is gone in its next opening. */
-function FeedRemove({ project, feed, title, onClose }: { project: string; feed: FeedView; title: string; onClose: () => void }) {
+function FeedRemove({ project, feed, onClose }: { project: string; feed: FeedView; onClose: () => void }) {
   const { send, sending, failure } = useCommand()
   return (
     <ConfirmDialog
-      title={`${feed.key} · ${title}`}
+      title={t.settings.feedRemove}
       question={t.settings.feedRemoveQuestion(feed.key)}
       confirm={t.common.remove}
       cancel={t.common.cancel}

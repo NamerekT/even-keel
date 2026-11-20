@@ -796,16 +796,17 @@ describe('keySlots', () => {
 })
 
 describe('projectTracker', () => {
-  const github = { name: 'work', kind: 'github', title: 'GitHub · work', projects: ['XYZ'], ready: true, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} }
+  const github = { name: 'work', kind: 'github', title: 'work', projects: ['XYZ'], ready: true, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} }
 
-  it('names the tracker as its view does', () => {
-    expect(projectTracker(stateOf({}), 'ABC')).toEqual({ kind: 'huly', label: 'Huly' })
+  it('names the tracker as its view does when the config does not know its kind', () => {
+    expect(projectTracker(stateOf({}), 'ABC')).toEqual({ kind: 'huly', tracker: 'Huly', profile: null, place: null })
   })
 
-  it('adds the tracker project when there is one', () => {
+  it("gives the tracker's own name, its profile and the tracker project apart, never glued (BTN-1382)", () => {
     const projects = { XYZ: { trackerProject: 'example/repo' } as EvenKeelState['config']['projects'][string] }
-    const state = stateOf({ config: { shared: FAKE_SHARED, projects, trackers: [], feeds: {}, trackerLocked: [] }, trackers: [github] })
-    expect(projectTracker(state, 'XYZ')).toEqual({ kind: 'github', label: 'GitHub · work · example/repo' })
+    const trackers = [{ name: 'github', title: 'GitHub', projectKey: null }]
+    const state = stateOf({ config: { shared: FAKE_SHARED, projects, trackers, feeds: {}, trackerLocked: [] }, trackers: [github] })
+    expect(projectTracker(state, 'XYZ')).toEqual({ kind: 'github', tracker: 'GitHub', profile: 'work', place: 'example/repo' })
   })
 
   it('is null for a project no tracker reads', () => {
@@ -822,8 +823,8 @@ describe('projectPages', () => {
   const config = { shared: FAKE_SHARED, projects: {}, trackers, feeds: {}, trackerLocked: [] }
 
   it('gives the page with the name of the tracker it is in, not of the profile', () => {
-    const state = stateOf({ config, trackerUrls: urls, trackers: [{ ...stateOf({}).trackers[0]!, title: 'Huly · example' }] })
-    expect(projectPages(state, 'ABC')).toEqual([{ url: urls.pages.ABC, tracker: 'Huly', kind: 'huly' }])
+    const state = stateOf({ config, trackerUrls: urls, trackers: [{ ...stateOf({}).trackers[0]!, title: 'example' }] })
+    expect(projectPages(state, 'ABC')).toEqual([{ url: urls.pages.ABC, tracker: 'Huly', kind: 'huly', key: null }])
   })
 
   it('is empty without a page', () => {
@@ -833,7 +834,7 @@ describe('projectPages', () => {
   })
 
   it('names no tracker it does not know', () => {
-    expect(projectPages(stateOf({ trackerUrls: urls }), 'ABC')).toEqual([{ url: urls.pages.ABC, tracker: null, kind: 'huly' }])
+    expect(projectPages(stateOf({ trackerUrls: urls }), 'ABC')).toEqual([{ url: urls.pages.ABC, tracker: null, kind: 'huly', key: null }])
   })
 
   it("adds the page of each feed after the project's own, named by the feed's tracker", () => {
@@ -841,8 +842,8 @@ describe('projectPages', () => {
     const pages = { ...urls.pages, 'feed-gh': 'https://github.com/octo-org/ideas/issues', 'feed-none': null }
     const state = stateOf({ config: { ...config, feeds }, trackerUrls: { ...urls, pages } })
     expect(projectPages(state, 'ABC')).toEqual([
-      { url: urls.pages.ABC, tracker: 'Huly', kind: 'huly' },
-      { url: pages['feed-gh'], tracker: 'GitHub', kind: 'github' },
+      { url: urls.pages.ABC, tracker: 'Huly', kind: 'huly', key: null },
+      { url: pages['feed-gh'], tracker: 'GitHub', kind: 'github', key: null },
     ])
   })
 
@@ -850,7 +851,7 @@ describe('projectPages', () => {
     const feeds = { XYZ: [{ id: 'feed-gh', tracker: 'github', key: 'XYZGH' }] }
     const pages = { ...urls.pages, 'feed-gh': 'https://github.com/octo-org/xyz/issues' }
     const state = stateOf({ config: { ...config, feeds }, trackerUrls: { ...urls, pages } })
-    expect(projectPages(state, 'XYZ')).toEqual([{ url: pages['feed-gh'], tracker: 'GitHub', kind: 'github' }])
+    expect(projectPages(state, 'XYZ')).toEqual([{ url: pages['feed-gh'], tracker: 'GitHub', kind: 'github', key: null }])
   })
 
   it('tells pages of one tracker apart by their keys', () => {
@@ -858,8 +859,8 @@ describe('projectPages', () => {
     const pages = { ...urls.pages, 'feed-huly': 'https://huly.example.com/workbench/other/tracker/ops-id/issues' }
     const state = stateOf({ config: { ...config, feeds }, trackerUrls: { ...urls, pages } })
     expect(projectPages(state, 'ABC')).toEqual([
-      { url: urls.pages.ABC, tracker: 'Huly · ABC', kind: 'huly' },
-      { url: pages['feed-huly'], tracker: 'Huly · OPS', kind: 'huly' },
+      { url: urls.pages.ABC, tracker: 'Huly', kind: 'huly', key: 'ABC' },
+      { url: pages['feed-huly'], tracker: 'Huly', kind: 'huly', key: 'OPS' },
     ])
   })
 })

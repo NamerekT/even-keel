@@ -12,6 +12,17 @@
   gap: var(--space-4) var(--space-8);
 }
 
+.status-summary__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.status-summary__name .icon {
+  width: 14px;
+  height: 14px;
+}
+
 .status-summary strong {
   font-weight: 600;
 }
@@ -117,9 +128,10 @@
   font-size: var(--text-14);
 }
 
-.status-connection__when {
-  color: var(--fg-muted);
-  font-size: var(--text-13);
+/* The word has a tip: when the connection last answered (BTN-1382). */
+.status-connection__word {
+  text-decoration: underline dotted var(--fg-muted);
+  text-underline-offset: 3px;
 }
 
 .status-connection__error {
@@ -157,6 +169,16 @@
 .status-reader--stale {
   border-color: color-mix(in srgb, var(--lamp-waiting) 55%, var(--border));
   color: var(--fg);
+}
+
+.status-reader__mark {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--space-4);
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--lamp-waiting);
 }
 
 .status-connection__actions {

@@ -29,37 +29,48 @@ export function projectName(state: EvenKeelState, project: string): string | nul
   return state.config.projects[project]?.name ?? null
 }
 
-/** The tracker a project's card marks it with: its kind for the icon, the tracker with its profile and the tracker project for the tip. */
-export function projectTracker(state: EvenKeelState, project: string): { kind: string; label: string } | null {
-  const view = state.trackers.find((each) => each.projects.includes(project))
-  if (view === undefined) return null
-  const trackerProject = state.config.projects[project]?.trackerProject ?? null
-  return { kind: view.kind, label: trackerProject === null ? view.title : `${view.title} · ${trackerProject}` }
+/** A tracker's own name by its kind (`huly` — `Huly`), not its profile's; `null` — a kind the config does not list. */
+export function trackerTitle(state: Pick<EvenKeelState, 'config'>, kind: string | null): string | null {
+  return state.config.trackers.find((each) => each.name === kind)?.title ?? null
 }
 
-/** A page of a project's tracker: `tracker` is the name a person reads, `kind` the tracker's (`null` — unknown). */
+/**
+ * The tracker a project's card marks it with: its kind for the icon; for the tip, a line each (BTN-1382), the tracker's
+ * own name, its profile where that says more, and the tracker project.
+ */
+export function projectTracker(state: EvenKeelState, project: string): { kind: string; tracker: string; profile: string | null; place: string | null } | null {
+  const view = state.trackers.find((each) => each.projects.includes(project))
+  if (view === undefined) return null
+  const tracker = trackerTitle(state, view.kind) ?? view.title
+  return { kind: view.kind, tracker, profile: view.title === tracker ? null : view.title, place: state.config.projects[project]?.trackerProject ?? null }
+}
+
+/**
+ * A page of a project's tracker: `tracker` is the name a person reads, `kind` the tracker's (`null` — unknown), `key` the
+ * project's or feed's key where another page is of the same tracker, drawn as a tag beside the name (BTN-1382).
+ */
 export interface TrackerPage {
   url: string
   tracker: string | null
   kind: string | null
+  key: string | null
 }
 
 /**
  * The pages where the project's new tasks are filed: its own in its tracker, then each feed's (BTN-329), with the tracker's
- * own name (`Huly`) for the button and its kind (`huly`) for the icon; two pages of one tracker add their keys to it.
+ * own name (`Huly`) for the button and its kind (`huly`) for the icon; two pages of one tracker are told apart by their keys.
  */
 export function projectPages(state: EvenKeelState, project: string): TrackerPage[] {
-  const titleOf = (kind: string | null) => state.config.trackers.find((each) => each.name === kind)?.title ?? null
   const ownKind = state.trackers.find((each) => each.projects.includes(project))?.kind ?? null
-  const own = { id: project, key: state.projectKeys[project] ?? project, kind: ownKind, tracker: titleOf(ownKind) }
-  const feeds = (state.config.feeds[project] ?? []).map((feed) => ({ id: feed.id, key: feed.key, kind: feed.tracker, tracker: titleOf(feed.tracker) }))
+  const own = { id: project, key: state.projectKeys[project] ?? project, kind: ownKind, tracker: trackerTitle(state, ownKind) }
+  const feeds = (state.config.feeds[project] ?? []).map((feed) => ({ id: feed.id, key: feed.key, kind: feed.tracker, tracker: trackerTitle(state, feed.tracker) }))
   const pages = [own, ...feeds].flatMap(({ id, ...page }) => {
     const url = state.trackerUrls.pages[id] ?? null
     return url === null ? [] : [{ url, ...page }]
   })
   return pages.map(({ url, key, kind, tracker }) => {
     const shared = pages.filter((other) => other.tracker === tracker).length > 1
-    return { url, tracker: !shared ? tracker : tracker === null ? key : `${tracker} · ${key}`, kind }
+    return { url, tracker, kind, key: shared ? key : null }
   })
 }
 

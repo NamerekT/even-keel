@@ -1,5 +1,5 @@
 import type { ChainRules } from '../chain/rules.js'
-import { checkRules, feedRules, projectLabel, type EvenKeelConfig, type Feed } from '../config.js'
+import { checkRules, feedLabel, feedRules, projectLabel, type EvenKeelConfig, type Feed } from '../config.js'
 import { PROFILE_RULE_KEYS, profileFor, type ProfileRules, type ProfileSet } from './model.js'
 
 type RulesConfig = Pick<EvenKeelConfig, 'chain' | 'rules' | 'ownRules' | 'trackers' | 'keys' | 'names' | 'settings'> & Partial<Pick<EvenKeelConfig, 'feeds'>>
@@ -21,7 +21,7 @@ export function rulesWith(rules: ChainRules, own: Partial<ChainRules>, profile: 
  */
 export function projectRules(config: RulesConfig, set: ProfileSet, project: string, feed?: Feed): ChainRules {
   if (feed === undefined) return checkRules(rulesWith(config.rules[project]!, config.ownRules[project] ?? {}, profileFor(set, project, config.trackers[project] ?? '')?.rules), projectLabel(config, project))
-  return checkRules(rulesWith(feedRules(config, feed), feed.chain ?? {}, profileFor(set, feed.id, feed.tracker)?.rules), `${projectLabel(config, project)} · ${feed.key}`)
+  return checkRules(rulesWith(feedRules(config, feed), feed.chain ?? {}, profileFor(set, feed.id, feed.tracker)?.rules), feedLabel(projectLabel(config, project), feed.key))
 }
 
 /** Throws the first clash the profile's new rules would make with a project or a feed that runs on it. */

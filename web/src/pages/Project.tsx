@@ -32,6 +32,7 @@ import {
   firstControl,
   taskLinks,
   taskProject,
+  trackerTitle,
   type ChainControl,
 } from '../state.js'
 import { focusAfterClose, focusOnEntry, nextOpenAfter } from '../ui/focus.js'
@@ -235,7 +236,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             <h1 className="page__title project__title">{settings?.name == null ? projectLabel(state, key) : (state.projectKeys[key] ?? key)}</h1>
             {settings !== undefined && <ProjectName project={key} form={settings} />}
           </div>
-          {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
+          {tracker !== undefined && <TrackerRead project={key} tracker={tracker} title={trackerTitle(state, tracker.kind) ?? tracker.title} />}
           {narrow && toolsChip}
           {/* On a phone the panels' block takes a line of its own under the title, the view switch and the chain's buttons
               the next one. */}
@@ -406,9 +407,10 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
 
 /**
  * The tracker is read every 30 seconds; the button reads it now, for a change made there a moment ago. When it was last
- * read is the button's tip, and a line beside it only while the read fails or is late (BTN-1042).
+ * read is the button's tip, and a line beside it only while the read fails or is late (BTN-1042). The tracker is named by
+ * its own name (`title`: Huly), not its profile's (BTN-1382).
  */
-function TrackerRead({ project, tracker }: { project: string; tracker: TrackerView }) {
+function TrackerRead({ project, tracker, title }: { project: string; tracker: TrackerView; title: string }) {
   const { send, sending, failure } = useCommand()
   const now = useNow(5_000)
   const at = tracker.readAt[project]
@@ -420,7 +422,7 @@ function TrackerRead({ project, tracker }: { project: string; tracker: TrackerVi
         inline
         tip={
           <>
-            {t.project.refresh(tracker.title)}
+            {t.project.refresh(title)}
             <br />
             {when}
           </>
@@ -429,7 +431,7 @@ function TrackerRead({ project, tracker }: { project: string; tracker: TrackerVi
         <button
           type="button"
           className="project__refresh"
-          aria-label={t.project.refresh(tracker.title)}
+          aria-label={t.project.refresh(title)}
           disabled={sending}
           aria-busy={sending ? true : undefined}
           onClick={() => void send('chain/refresh', { project })}

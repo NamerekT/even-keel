@@ -306,11 +306,11 @@ describe('startTracker', () => {
       },
       tasks: async () => [],
       close: async () => {},
-    }), { labelOf: (reader) => (reader === 'f-1' ? 'ABC · FSC' : reader) })
-    await vi.waitFor(() => expect(errors).toHaveBeenCalledWith('Huly: ABC · FSC: no scope'))
+    }), { labelOf: (reader) => (reader === 'f-1' ? 'ABC/FSC' : reader) })
+    await vi.waitFor(() => expect(errors).toHaveBeenCalledWith('Huly: ABC/FSC: no scope'))
     failing = false
     await refreshers.get('f-1')!()
-    expect(logs).toHaveBeenCalledWith('Huly: ABC · FSC reads again')
+    expect(logs).toHaveBeenCalledWith('Huly: ABC/FSC reads again')
   })
 
   it.each([true, false])('publishes the milestone in the same read only after a successful assignment (%s)', async (assigned) => {

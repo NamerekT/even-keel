@@ -47,8 +47,8 @@ export async function forgejoAccount(values: Readonly<Record<string, string>>, t
   return { login: user.login, name: forgejoName(url), expiresAt: null }
 }
 
-/** A Forgejo profile is named by its host: the token's login says nothing of the server. */
-export const forgejoName = (url: string): string => `Forgejo · ${hostOf(url) ?? url}`
+/** A Forgejo profile is named by its host: the token's login says nothing of the server; the page draws the tracker by its icon. */
+export const forgejoName = (url: string): string => hostOf(url) ?? (url || 'Forgejo')
 
 /**
  * A remote on an unknown domain is taken for Forgejo (`remoteKind`), so the profile's check is where a GitLab or another

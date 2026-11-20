@@ -170,5 +170,4 @@ export const profilesRu = {
     editTitle: (name: string) => `Профиль ${name}`,
     field: 'Профиль',
     fieldHint: 'Учётка трекера, на которой идёт проект: его задачи, комментарии сессий и токен CI.',
-    byDefault: (name: string) => `${name} (по умолчанию)`,
 }

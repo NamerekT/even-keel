@@ -12,7 +12,8 @@ describe('Forgejo adapter registration', () => {
   it('is a tracker with projects, named by its host', () => {
     expect(ADAPTERS.forgejo).toBe(forgejo)
     expect(forgejo.projects).toBeTypeOf('function')
-    expect(forgejo.profileName(VALUES, null)).toBe('Forgejo · git.example.com')
+    expect(forgejo.profileName(VALUES, null)).toBe('git.example.com')
+    expect(forgejo.profileName({}, null)).toBe('Forgejo')
   })
 
   it('wants the address and the token together, and an address that is one', () => {

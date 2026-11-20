@@ -15,7 +15,7 @@ import { AgentStep } from './SetupAgent.js'
 import { Cards, type Save } from './SetupChoices.js'
 import { GitStep } from './SetupGit.js'
 import { ADD_PROJECT, FROM_SETUP, setupFacts } from './SetupAsk.js'
-import { accountShortName, gitStepReady, gitYesToKeep, OPTIONAL_STEPS, SETUP_STEPS, setupStep, stepAnswered, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
+import { accountShortName, gitStepReady, gitYesToKeep, OPTIONAL_STEPS, profileShortName, SETUP_STEPS, setupStep, stepAnswered, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
 import { trackerProfiles, TrackerStep } from './SetupTracker.js'
 import { StatsStep } from './StatsSetup.js'
 import { listSummary } from './wizard.js'
@@ -130,7 +130,11 @@ function summaryOf(step: SetupStep, state: EvenKeelState): string | null {
     const name = accountShortName(accountName(ready.entry, state.account.accounts))
     return name === agent ? agent : `${agent} · ${name}`
   }
-  if (step === 'tracker') return listSummary(trackerProfiles(state).map((profile) => profile.name))
+  if (step === 'tracker') {
+    // A profile saved before BTN-1382 may still carry its tracker before a `·`: the summary drops it.
+    const title = (kind: string) => state.profiles.kinds.find((each) => each.kind === kind)?.title ?? kind
+    return listSummary(trackerProfiles(state).map((profile) => profileShortName(profile.name, title(profile.kind))))
+  }
   if (step === 'updates') return t.setup.updates[shared.updates.check ? 'on' : 'off']
   return state.tally === null ? null : t.tally.modes[state.tally]
 }

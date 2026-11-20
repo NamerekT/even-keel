@@ -40,7 +40,7 @@ export async function linearAccount(values: Readonly<Record<string, string>>, ti
     timeoutMs,
     fetchImpl,
   )
-  return { login: viewer.email || viewer.name, name: `Linear · ${organization.name}`, expiresAt: null }
+  return { login: viewer.email || viewer.name, name: organization.name, expiresAt: null }
 }
 
 /** The teams and each team's projects: a team is an entry's key, a project narrows the team to it (`within`). */

@@ -8,7 +8,7 @@ const VALUES = { JIRA_URL: 'https://example.atlassian.net/', JIRA_EMAIL: 'john.d
 describe('Jira profile', () => {
   it('names the profile by the site, signs in as the e-mail and names the person for the MCP grant\'s comparison', async () => {
     const fake = fakeFetch([{ body: { accountId: 'a', displayName: 'John Doe', emailAddress: 'john.doe@example.com' } }])
-    expect(await jiraAccount(VALUES, 1000, fake.fetch)).toEqual({ login: 'john.doe@example.com', name: 'Jira · example', expiresAt: null, user: { id: 'a', name: 'John Doe' } })
+    expect(await jiraAccount(VALUES, 1000, fake.fetch)).toEqual({ login: 'john.doe@example.com', name: 'example', expiresAt: null, user: { id: 'a', name: 'John Doe' } })
     expect(fake.calls[0]!.url).toBe('https://example.atlassian.net/rest/api/3/myself')
   })
 
@@ -23,7 +23,7 @@ describe('Jira profile', () => {
       { status: 204 },
       { body: { jsonrpc: '2.0', id: 2, result: { content: [{ type: 'text', text: JSON.stringify([{ id: 'cloud-1', url: VALUES.JIRA_URL, scopes: ['read-write'] }]) }] } } },
     ])
-    await expect(jiraAccount({ ...VALUES, JIRA_MCP_TOKEN: 'mcp-token' }, 1000, fake.fetch)).resolves.toMatchObject({ name: 'Jira · example' })
+    await expect(jiraAccount({ ...VALUES, JIRA_MCP_TOKEN: 'mcp-token' }, 1000, fake.fetch)).resolves.toMatchObject({ name: 'example' })
     expect(fake.calls[0]!.headers.get('authorization')).toBe(`Basic ${Buffer.from('john.doe@example.com:example-token').toString('base64')}`)
     expect(fake.calls.slice(1).every((call) => call.headers.get('authorization') === `Basic ${Buffer.from('john.doe@example.com:mcp-token').toString('base64')}`)).toBe(true)
     expect(fake.calls[3]).toMatchObject({ url: 'https://mcp.atlassian.com/v2/mcp', body: { method: 'tools/call', params: { name: 'getAccessibleAtlassianResources', arguments: {} } } })

@@ -1,6 +1,6 @@
 import type { ChainState } from '../chain/model.js'
 import { formsOf, withTrackerMove, type TrackerMove } from '../config-form.js'
-import { idPrefixOf, parseConfig, projectLabel, readersOf, type EvenKeelConfig } from '../config.js'
+import { idPrefixOf, parseConfig, projectLabel, readerLabel, readersOf, type EvenKeelConfig } from '../config.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import type { ProfileSet } from '../profiles/model.js'
 import type { ExportRow } from '../tracker/export.js'
@@ -115,7 +115,5 @@ export function checkPrefix(config: EvenKeelConfig, project: string, move: Track
   if (same(idPrefixOf(config, project))) throw fail('switch.samePrefix', { prefix })
   const other = Object.keys(readers.projects).find((reader) => reader !== project && same(idPrefixOf(readers, reader)))
   if (other === undefined) return
-  const owner = readers.owners[other]
-  const label = owner === undefined ? projectLabel(config, other) : `${projectLabel(config, owner)} · ${readers.keys[other]}`
-  throw fail('switch.prefixTaken', { prefix, other: label })
+  throw fail('switch.prefixTaken', { prefix, other: readerLabel(config, other) })
 }

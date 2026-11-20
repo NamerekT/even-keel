@@ -18,8 +18,9 @@ import './profiles.css'
 
 const EXPIRY_WARN_DAYS = 14
 
-const remotesOf = (remotes: ProfileView['ci'], label: (project: string) => string): string =>
-  remotes.map((each) => `${label(each.project)} · ${each.remote}`).join(', ')
+/** Each remote with its project in brackets, `origin (ABC)`, never glued with a `·` (BTN-1382). */
+export const remotesOf = (remotes: ProfileView['ci'], label: (project: string) => string): string =>
+  remotes.map((each) => `${each.remote} (${label(each.project)})`).join(', ')
 
 /** Which dialog is up: a new profile, or the profile of that id. */
 type Editing = { id: string | null } | null

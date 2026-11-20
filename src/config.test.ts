@@ -230,7 +230,7 @@ describe('parseConfig', () => {
           XYZ: { repo: 'C:\\xyz', feeds: [{ id: 'g', tracker: 'github', key: 'XYZGH', github: 'octo-org/ideas' }] },
         },
       }),
-    ).toThrow(/ABC · ABCGH|XYZ · XYZGH/)
+    ).toThrow(/ABC\/ABCGH|XYZ\/XYZGH/)
   })
 
   it('puts the task text into prompts unless brief is off, shared or per project', () => {

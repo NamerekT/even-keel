@@ -299,7 +299,7 @@ export const en: Messages = {
     check: 'Check',
     checkHint: 'Read the tracker now',
     openProfile: 'Open profile',
-    feedOf: (key: string, project: string) => `${key} — a task feed of ${project}`,
+    feedOf: (project: string) => `A task feed of ${project}`,
     open: 'Open the status page',
   },
   queue: {

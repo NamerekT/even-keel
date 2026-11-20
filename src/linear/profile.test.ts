@@ -9,7 +9,7 @@ const VALUES = { LINEAR_TOKEN: 'lin_api_example' }
 describe('linearAccount', () => {
   it('names the profile by the workspace and signs in as the e-mail', async () => {
     const fetch = reply({ data: { viewer: { name: 'John Doe', email: 'john@example.com' }, organization: { name: 'Example' } } })
-    expect(await linearAccount(VALUES, 5_000, fetch)).toEqual({ login: 'john@example.com', name: 'Linear · Example', expiresAt: null })
+    expect(await linearAccount(VALUES, 5_000, fetch)).toEqual({ login: 'john@example.com', name: 'Example', expiresAt: null })
   })
 
   it('an authentication error is a refusal, another failure is not', async () => {

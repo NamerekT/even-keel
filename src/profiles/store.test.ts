@@ -55,14 +55,14 @@ describe('profile store', { timeout: 60_000 }, () => {
   it('makes each tracker of the environment the default profile of its kind, and links its projects, once', async () => {
     const imported = await importFrom({ ...HULY_ENV, GITHUB_TOKEN: 'github_pat_example', PATH: 'C:\\Windows' })
     expect(imported.profiles.map((each) => [each.kind, each.name, each.values, each.isDefault])).toEqual([
-      ['huly', 'Huly · example', HULY_ENV, true],
+      ['huly', 'example', HULY_ENV, true],
       ['github', 'GitHub', { GITHUB_TOKEN: 'github_pat_example' }, true],
     ])
     const [hulyProfile, githubProfile] = imported.profiles
     expect(imported.links).toEqual({ [ABC]: hulyProfile!.id, [XYZ]: githubProfile!.id, [LMN]: hulyProfile!.id })
     expect(await readProfiles(db)).toEqual(imported)
     expect(await stateValue(db, 'profiles.imported')).toBeDefined()
-    expect(logs).toEqual([expect.stringContaining('Huly · example (2 projects), GitHub (1 projects)')])
+    expect(logs).toEqual([expect.stringContaining('example (2 projects), GitHub (1 projects)')])
 
     expect(await importFrom({ LINEAR_TOKEN: 'lin_api_example' })).toEqual(imported)
     expect(logs).toHaveLength(1)
@@ -119,12 +119,12 @@ describe('profile store', { timeout: 60_000 }, () => {
       const env = { FORGEJO_TOKEN: 'forgejo-token' }
       const imported = await forgejoFrom(env, ['https://git.example.com', 'https://GIT.example.com/sub', 'https://forgejo.example.org'])
       expect(imported.profiles.map((each) => [each.kind, each.name, each.values, each.isDefault])).toEqual([
-        ['huly', 'Huly · example', HULY_ENV, true],
-        ['forgejo', 'Forgejo · git.example.com', { FORGEJO_URL: 'https://git.example.com', FORGEJO_TOKEN: 'forgejo-token' }, true],
-        ['forgejo', 'Forgejo · forgejo.example.org', { FORGEJO_URL: 'https://forgejo.example.org', FORGEJO_TOKEN: 'forgejo-token' }, false],
+        ['huly', 'example', HULY_ENV, true],
+        ['forgejo', 'git.example.com', { FORGEJO_URL: 'https://git.example.com', FORGEJO_TOKEN: 'forgejo-token' }, true],
+        ['forgejo', 'forgejo.example.org', { FORGEJO_URL: 'https://forgejo.example.org', FORGEJO_TOKEN: 'forgejo-token' }, false],
       ])
       expect(await readProfiles(db)).toEqual(imported)
-      expect(logs.at(-1)).toContain('FORGEJO_TOKEN of .env became the profiles Forgejo · git.example.com, Forgejo · forgejo.example.org')
+      expect(logs.at(-1)).toContain('FORGEJO_TOKEN of .env became the profiles git.example.com, forgejo.example.org')
 
       expect(await forgejoFrom({ FORGEJO_TOKEN: 'other' }, ['https://other.example.com'])).toEqual(imported)
     })

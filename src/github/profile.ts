@@ -47,7 +47,7 @@ export async function githubAccount(values: Readonly<Record<string, string>>, ti
   const owners = [...new Set((await repositories(token, timeoutMs, fetchImpl)).map((repo) => repo.owner.login))]
   return {
     login: user.login,
-    name: `GitHub · ${owners.length === 1 ? owners[0] : user.login}`,
+    name: owners.length === 1 ? owners[0]! : user.login,
     expiresAt: expirationOf(response.headers.get('github-authentication-token-expiration')),
   }
 }

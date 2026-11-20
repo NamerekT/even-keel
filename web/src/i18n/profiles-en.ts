@@ -163,5 +163,4 @@ export const profilesEn: Messages['profiles'] = {
     editTitle: (name) => `Profile ${name}`,
     field: 'Profile',
     fieldHint: "The tracker account the project runs on: its tasks, the sessions' comments and the CI token.",
-    byDefault: (name) => `${name} (default)`,
 }

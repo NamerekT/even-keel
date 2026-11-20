@@ -224,11 +224,14 @@ export function projectLabel(config: Pick<EvenKeelConfig, 'keys' | 'names' | 'se
   return `${key} (${apart((each) => config.names[each]) ?? apart((each) => config.settings[each]?.branch) ?? shortId(project)})`
 }
 
-/** What the log names a reader by (BTN-1210): a project by `projectLabel`, a feed as its project's label and its key. */
+/** A task feed named in a log line or a notice: its project's label and its key as one path, `ABC/WEB` (BTN-1382: no `·`). */
+export const feedLabel = (project: string, key: string): string => `${project}/${key}`
+
+/** What the log names a reader by (BTN-1210): a project by `projectLabel`, a feed by `feedLabel`. */
 export function readerLabel(config: EvenKeelConfig, reader: string): string {
   const readers = readersOf(config)
   const owner = readers.owners[reader]
-  return owner === undefined ? projectLabel(config, reader) : `${projectLabel(config, owner)} · ${readers.keys[reader]}`
+  return owner === undefined ? projectLabel(config, reader) : feedLabel(projectLabel(config, owner), readers.keys[reader]!)
 }
 
 /** The first project of each key, in the order of the file: Tally and the stats know a project by its key. */

@@ -119,7 +119,7 @@ describe('switchTracker', () => {
     }
     const { deps, rename } = setup({ raw })
     expect(refusal(() => switchTracker(deps, { ...INPUT, header: { ...HEADER, key: 'XYZ' } }))).toMatchObject({ code: 'switch.prefixTaken', params: { prefix: 'XYZ', other: 'XYZ' } })
-    expect(refusal(() => switchTracker(deps, { ...INPUT, header: { ...HEADER, key: 'FD' } }))).toMatchObject({ code: 'switch.prefixTaken', params: { other: 'XYZ · FD' } })
+    expect(refusal(() => switchTracker(deps, { ...INPUT, header: { ...HEADER, key: 'FD' } }))).toMatchObject({ code: 'switch.prefixTaken', params: { other: 'XYZ/FD' } })
     expect(rename).not.toHaveBeenCalled()
   })
 })

@@ -100,7 +100,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
   const huly: ProfileView = {
     id: FAKE_HULY_PROFILE,
     kind: 'huly',
-    name: 'Huly · example',
+    name: 'example',
     isDefault: true,
     disabled: false,
     fields: fields('huly', { HULY_URL: 'https://huly.example.com', HULY_WORKSPACE: 'example', HULY_TOKEN: '' }),
@@ -121,7 +121,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
   const github: ProfileView = {
     id: GITHUB_PROFILE,
     kind: 'github',
-    name: 'GitHub · octo-org',
+    name: 'octo-org',
     isDefault: true,
     disabled: false,
     fields: fields('github', { GITHUB_TOKEN: '' }),
@@ -139,7 +139,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
   const forgejo: ProfileView = {
     id: FORGEJO_PROFILE,
     kind: 'forgejo',
-    name: 'Forgejo · git.example.com',
+    name: 'git.example.com',
     isDefault: true,
     disabled: false,
     fields: fields('forgejo', { FORGEJO_URL: 'https://git.example.com', FORGEJO_TOKEN: '' }),
@@ -160,7 +160,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
   const linear: ProfileView = {
     id: LINEAR_PROFILE,
     kind: 'linear',
-    name: 'Linear · example',
+    name: 'example',
     isDefault: true,
     disabled: false,
     fields: fields('linear', { LINEAR_TOKEN: '' }),
@@ -178,16 +178,16 @@ export function fakeProfiles(mode: string | null): ProfilesView {
   if (mode === 'github') return { profiles: [github, forgejo], kinds: KINDS }
   const gitlab: ProfileView = {
     id: '3f0c2b9e-0000-4000-8000-000000000005', kind: 'gitlab',
-    name: mode === 'gitlab-long' ? 'GitLab · Example organization / Platform / Shared services / Development account' : 'GitLab · example',
+    name: mode === 'gitlab-long' ? 'Example organization / Platform / Shared services / Development account' : 'example',
     isDefault: true, disabled: false, fields: fields('gitlab', { GITLAB_URL: 'https://gitlab.example.com', GITLAB_TOKEN: '' }),
     login: 'johndoe', expiresAt: new Date(Date.now() + 60 * DAY_MS).toISOString(),
     check: mode === 'gitlab-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'GitLab' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
     projects: [], ci: [{ project: 'ABC', remote: 'origin' }], hiddenCi: [], deniedPulls: [], rules: {}, moves: {}, projectIds: [],
   }
-  if (mode === 'gitlab-ci') return { profiles: [gitlab, { ...gitlab, id: '3f0c2b9e-0000-4000-8000-000000000006', name: 'GitLab · deploy', isDefault: false, ci: [] }], kinds: KINDS }
+  if (mode === 'gitlab-ci') return { profiles: [gitlab, { ...gitlab, id: '3f0c2b9e-0000-4000-8000-000000000006', name: 'deploy', isDefault: false, ci: [] }], kinds: KINDS }
   if (mode?.startsWith('gitlab')) return { profiles: [gitlab], kinds: KINDS }
   const jira: ProfileView = {
-    id: '3f0c2b9e-0000-4000-8000-000000000007', kind: 'jira', name: 'Jira · example',
+    id: '3f0c2b9e-0000-4000-8000-000000000007', kind: 'jira', name: 'example',
     isDefault: true, disabled: false, fields: fields('jira', { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john.doe@example.com', JIRA_TOKEN: '' }),
     login: 'john.doe@example.com', expiresAt: null,
     check: mode === 'jira-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'Jira' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
@@ -200,11 +200,11 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     // Ten tracker profiles, as on a bench machine: the rules' scope switcher must still fit.
     const copy = (of: ProfileView, at: number, name: string): ProfileView => ({ ...of, id: `3f0c2b9e-0000-4000-8000-00000000010${at}`, name, isDefault: false, rules: {}, moves: {} })
     const extra = [
-      copy(huly, 1, 'Huly · staging'),
-      copy(huly, 2, 'Huly · staging guest'),
-      copy(github, 3, 'GitHub · read-only'),
-      copy(gitlab, 4, 'GitLab · self-hosted /gitlab'),
-      { ...copy(linear, 5, 'Linear · second team'), rules: { requiredLabels: ['Agent'] } },
+      copy(huly, 1, 'staging'),
+      copy(huly, 2, 'staging guest'),
+      copy(github, 3, 'read-only'),
+      copy(gitlab, 4, 'self-hosted /gitlab'),
+      { ...copy(linear, 5, 'second team'), rules: { requiredLabels: ['Agent'] } },
     ]
     return { profiles: [huly, github, linear, gitlab, jira, ...extra, forgejo], kinds: KINDS }
   }
@@ -278,7 +278,7 @@ export function fakeProfilesQuery(state: EvenKeelState, name: string, body: Reco
   }
   if (Object.values(values).some((value) => value?.startsWith('bad'))) throw fail('profiles.refused', { tracker: title })
   const login = kind === 'huly' ? (values.HULY_EMAIL || 'john.doe@example.com') : 'johndoe'
-  const named = kind === 'huly' ? `Huly · ${values.HULY_WORKSPACE || 'example'}` : `${title} · ${login}`
+  const named = kind === 'huly' ? values.HULY_WORKSPACE || 'example' : login
   if (name === 'profiles/check') {
     const duplicate = state.profiles.profiles.find((each) => each.kind === kind && each.login === login && each.id !== body.id)
     // A kept grant keeps its person; a new one is the tracker's.

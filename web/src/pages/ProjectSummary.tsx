@@ -2,6 +2,7 @@ import { BUILTIN } from '../../../src/builtin/model.js'
 import type { EvenKeelState, ProjectDraft } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { Card, Fact, FactList } from '../ui/blocks.js'
+import { TrackerIcon } from '../ui/icons.js'
 import { MachineLabel } from '../ui/MachineLabel.js'
 import { taskExample, trackerPlace, type TrackerShape, type WizardFields } from './projectWizard.js'
 import type { MachinesBlockProps } from './WizardMachines.js'
@@ -37,10 +38,10 @@ export function ProjectSummary({ state, fields, shape, draft, root, current, blo
     <Card title={t.wizard.summary.title} className="project-summary">
       <FactList className="project-summary__facts">
         <Fact label={t.wizard.summary.project}>
-          <Value text={name === '' ? '' : key === '' || name === key ? name : `${name} · ${key}`} />
+          <NameValue name={name} projectKey={key} />
         </Fact>
         <Fact label={t.wizard.summary.tracker}>
-          <Value text={fields.profile === '' && !own ? '' : place === '' ? tracker : `${tracker} · ${place}`} />
+          <TrackerValue kind={fields.profile === '' && !own ? null : fields.tracker} tracker={tracker} place={place} />
         </Fact>
         {fields.git && (
           <Fact label={t.wizard.summary.branch}>
@@ -84,6 +85,28 @@ function MachineFolders({ fields, block, root }: { fields: WizardFields; block: 
           <span className={path === '' ? 'project-summary__none' : 'project-summary__mono'}>{path || '—'}</span>
         </span>
       ))}
+    </dd>
+  )
+}
+
+/** The project's name with its key as a tag beside it (BTN-1382); the key alone when it is the name too. */
+export function NameValue({ name, projectKey }: { name: string; projectKey: string }) {
+  if (name === '') return <Value text="" />
+  return (
+    <dd className="project-summary__name">
+      {name}
+      {projectKey !== '' && projectKey !== name && <span className="tag">{projectKey}</span>}
+    </dd>
+  )
+}
+
+/** The tracker by its icon and the place in it (BTN-1382), its name where there is no place; `kind` `null` — none picked yet. */
+export function TrackerValue({ kind, tracker, place }: { kind: string | null; tracker: string; place: string }) {
+  if (kind === null || (place === '' && tracker === '')) return <Value text="" />
+  return (
+    <dd className="project-summary__name">
+      <TrackerIcon kind={kind} />
+      {place === '' ? tracker : place}
     </dd>
   )
 }

@@ -30,7 +30,10 @@ export const STATS_SERVER = `${stepPath('stats')}&db=server`
  */
 export const OPTIONAL_STEPS: readonly SetupStep[] = ['git', 'tracker', 'stats']
 
-/** A profile's name inside its tracker's card: "Huly · example" is "example" there; a name of its own stays whole. */
+/**
+ * A profile's name beside its tracker's icon: one saved before BTN-1382, "Huly · example", is "example" there; a name of
+ * its own, and every default name since, stays whole.
+ */
 export function profileShortName(name: string, tracker: string): string {
   const prefix = `${tracker} · `
   return name.startsWith(prefix) && name.length > prefix.length ? name.slice(prefix.length) : name

@@ -131,6 +131,23 @@
   color: var(--fg-muted);
 }
 
+/* A name with its key's tag, or the tracker's icon before its place (BTN-1382). */
+.project-summary__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.project-summary__name .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--fg-muted);
+}
+
 /* "Machines and folders" (BTN-1297): a machine's label and its folder's path, a line each, the paths in one column. */
 .project-summary__machines {
   display: grid;

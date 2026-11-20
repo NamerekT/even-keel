@@ -18,7 +18,7 @@ describe('forgejoAccount', () => {
       asked.push(`${url} ${(init.headers as Record<string, string>).authorization}`)
       return Response.json(url.endsWith('/version') ? { version: '13.0.2+gitea-1.22.0' } : { login: 'john-doe' })
     }) as unknown as typeof globalThis.fetch
-    expect(await forgejoAccount(VALUES, 5_000, fetch)).toEqual({ login: 'john-doe', name: 'Forgejo · git.example.com', expiresAt: null })
+    expect(await forgejoAccount(VALUES, 5_000, fetch)).toEqual({ login: 'john-doe', name: 'git.example.com', expiresAt: null })
     expect(asked).toEqual(['https://git.example.com/api/v1/version token example-token', 'https://git.example.com/api/v1/user token example-token'])
   })
 

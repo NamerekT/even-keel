@@ -6,7 +6,7 @@ import { gitlabAccount, gitlabProjects } from './profile.js'
 describe('GitLab profile', () => {
   it('checks the user and the token expiry on the selected host', async () => {
     const fake = fakeFetch([{ body: { id: 9, username: 'example-user' } }, { body: { expires_at: '2026-11-01', scopes: ['api'] } }])
-    expect(await gitlabAccount({ GITLAB_URL: 'https://gitlab.example.com/prefix/', GITLAB_TOKEN: 'example' }, 1000, fake.fetch)).toEqual({ login: 'example-user', name: 'GitLab · example-user', expiresAt: '2026-11-01T00:00:00.000Z' })
+    expect(await gitlabAccount({ GITLAB_URL: 'https://gitlab.example.com/prefix/', GITLAB_TOKEN: 'example' }, 1000, fake.fetch)).toEqual({ login: 'example-user', name: 'example-user', expiresAt: '2026-11-01T00:00:00.000Z' })
     expect(fake.calls.map((call) => call.url)).toEqual(['https://gitlab.example.com/prefix/api/v4/user', 'https://gitlab.example.com/prefix/api/v4/personal_access_tokens/self'])
     expect(fake.calls[0]!.headers.get('private-token')).toBe('example')
     expect(fake.calls[0]!.redirect).toBe('error')

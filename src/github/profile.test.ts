@@ -25,7 +25,7 @@ describe('githubAccount', () => {
       '/user': { body: { login: 'octocat' }, headers: { 'github-authentication-token-expiration': '2026-11-01 12:00:00 UTC' } },
       '/user/repos': { body: [repo('octo-org', 'web'), repo('octo-org', 'api')] },
     })
-    expect(await githubAccount(VALUES, 5_000, fetch)).toEqual({ login: 'octocat', name: 'GitHub · octo-org', expiresAt: '2026-11-01T12:00:00.000Z' })
+    expect(await githubAccount(VALUES, 5_000, fetch)).toEqual({ login: 'octocat', name: 'octo-org', expiresAt: '2026-11-01T12:00:00.000Z' })
   })
 
   it('names a token of several owners by its login; no header, no expiration', async () => {
@@ -33,7 +33,7 @@ describe('githubAccount', () => {
       '/user': { body: { login: 'octocat' } },
       '/user/repos': { body: [repo('octo-org', 'web'), repo('octocat', 'dotfiles')] },
     })
-    expect(await githubAccount(VALUES, 5_000, fetch)).toEqual({ login: 'octocat', name: 'GitHub · octocat', expiresAt: null })
+    expect(await githubAccount(VALUES, 5_000, fetch)).toEqual({ login: 'octocat', name: 'octocat', expiresAt: null })
   })
 
   it('a 401 is a refusal, another failure is not', async () => {

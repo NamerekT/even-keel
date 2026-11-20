@@ -276,7 +276,7 @@ export interface TrackerProjectKey {
 export interface ProfileAccount {
   /** The login or the person's name, for "signed in as …". */
   login: string
-  /** The profile's name to offer: `GitHub · octo-org`. */
+  /** The profile's name to offer: the place it reads, `octo-org`, without the tracker the page draws by its icon (BTN-1382). */
   name: string
   /** When the credentials expire, if the tracker says (GitHub's fine-grained tokens); ISO. */
   expiresAt: string | null

@@ -54,6 +54,7 @@ export function TrackerPages({ pages, small = false }: { pages: readonly Tracker
               <a role="menuitem" className="tracker-pages__item" href={page.url} target="_blank" rel="noreferrer" onClick={() => setOpen(false)}>
                 <TrackerIcon kind={page.kind ?? ''} />
                 <span className="tracker-pages__label">{page.tracker ?? t.project.trackerUnnamed}</span>
+                {page.key !== null && <span className="tag">{page.key}</span>}
               </a>
             </li>
           ))}

@@ -130,6 +130,8 @@ export const projectRU = {
     readAt: (ago: string) => `обновлено ${ago}`,
     notRead: 'ещё не читали',
     tracker: (label: string) => `Трекер: ${label}`,
+    trackerProfile: (profile: string) => `Профиль: ${profile}`,
+    trackerPlace: (place: string) => `В трекере: ${place}`,
     inQueue: 'В очереди',
     done: 'Готово задач',
     notLoaded: 'Задачи ещё не загружены',

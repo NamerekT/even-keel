@@ -75,7 +75,18 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
           </Tipped>
         )}
         {tracker !== null && (
-          <Tipped className="card__tracker" tip={t.project.tracker(tracker.label)} inline focusable>
+          <Tipped
+            className="card__tracker"
+            tip={
+              <>
+                <span>{t.project.tracker(tracker.tracker)}</span>
+                {tracker.profile !== null && <span>{t.project.trackerProfile(tracker.profile)}</span>}
+                {tracker.place !== null && <span>{t.project.trackerPlace(tracker.place)}</span>}
+              </>
+            }
+            inline
+            focusable
+          >
             <TrackerIcon kind={tracker.kind} />
           </Tipped>
         )}

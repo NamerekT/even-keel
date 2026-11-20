@@ -682,15 +682,15 @@ export const en = {
   'profiles.unreachable': (p: { tracker: string }) => `${p.tracker} did not answer`,
   'profiles.isGitlab': (p: { host: string }) => `${p.host} is GitLab: add a GitLab profile`,
   'profiles.hostLocked': (p: { profile: string; projects: string }) =>
-    `${p.profile} is used by ${p.projects}; its address and workspace stay, only the credentials change`,
-  'profiles.inUse': (p: { profile: string; projects: string }) => `${p.profile} is used by ${p.projects}; it cannot be removed`,
-  'profiles.otherTracker': (p: { profile: string; project: string }) => `${p.profile} is a profile of another tracker than ${p.project}'s`,
+    `The profile ${p.profile} is used by ${p.projects}; its address and workspace stay, only the credentials change`,
+  'profiles.inUse': (p: { profile: string; projects: string }) => `The profile ${p.profile} is used by ${p.projects}; it cannot be removed`,
+  'profiles.otherTracker': (p: { profile: string; project: string }) => `The profile ${p.profile} is of another tracker than ${p.project}'s`,
   'profiles.paused': (p: { profile: string; project: string }) =>
     `${p.project}: the chain waits: the tracker refused the credentials of the profile ${p.profile}; renew them in Settings → Trackers and CI`,
   'profiles.disabled': (p: { profile: string; id: string; project?: string }) =>
     `${p.project === undefined ? '' : `${p.project}: `}the tracker profile ${p.profile} is turned off; turn it on in Settings → Trackers and CI`,
   'profiles.chainsRunning': (p: { profile: string; chains: string; projects: string }) =>
-    `${p.profile} cannot be turned off while a chain runs on it (${p.chains}): stop the chain first`,
+    `The profile ${p.profile} cannot be turned off while a chain runs on it (${p.chains}): stop the chain first`,
   'chain.unread': (p: { project: string; tracker: string }) =>
     `chain: ${p.project} not started: its tasks have not been read from ${p.tracker} since it answered again; wait for the next read`,
   'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,

@@ -72,7 +72,7 @@ describe('rules of a tracker profile (BTN-66)', () => {
     }
     expect(projectRules(fed, set, 'abc').terminal).toEqual(['Shipped'])
     expect(projectRules(fed, set, 'abc', feed).active).toEqual(['ready'])
-    expect(() => checkProfileRules(fed, set, 'github-b', { terminal: ['Todo'] })).toThrow(/ABC · ABCGH/)
+    expect(() => checkProfileRules(fed, set, 'github-b', { terminal: ['Todo'] })).toThrow(/ABC\/ABCGH/)
     expect(() => checkProfileRules(fed, set, 'github-a', { terminal: ['Todo'] })).not.toThrow()
   })
 
@@ -111,14 +111,14 @@ describe('rules of a tracker profile (BTN-66)', () => {
       projects: [{ id: 'abc', key: 'ABC', repo: 'C:\\abc', tracker: 'huly', feeds: [{ id: 'feed', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas', chain }] }],
     })
     expect(() => parseConfig(raw({ active: ['open'], terminal: ['Open'] }))).toThrow(
-      expect.objectContaining({ notice: expect.objectContaining({ code: 'config.statusBoth', params: { project: 'ABC · ABCGH', status: 'open' } }) }),
+      expect.objectContaining({ notice: expect.objectContaining({ code: 'config.statusBoth', params: { project: 'ABC/ABCGH', status: 'open' } }) }),
     )
     expect(() => parseConfig(raw({ requiredLabels: 'Agent' }))).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.feedRules' }) }))
     expect(() => parseConfig(raw({ colour: ['red'] }))).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.feedRules' }) }))
     expect(() => parseConfig(raw({ terminal: null }))).not.toThrow()
     const fed = parseConfig(raw({ active: ['ready'] }))
     const set: ProfileSet = { profiles: [profile('github-a', 'github')], links: {} }
-    expect(() => checkProfileRules(fed, set, 'github-a', { terminal: ['Ready'] })).toThrow(/ABC · ABCGH/)
+    expect(() => checkProfileRules(fed, set, 'github-a', { terminal: ['Ready'] })).toThrow(/ABC\/ABCGH/)
   })
 
   it('keep only the keys set, trimmed, without blanks and repeats', () => {
