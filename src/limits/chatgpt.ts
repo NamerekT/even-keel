@@ -2,7 +2,7 @@ import { notice } from '../notice/notice.js'
 import type { LimitWindow, RateLimits } from './model.js'
 import type { UsageAnswer } from './usage.js'
 import { chatGptCredits } from './overage.js'
-import { chatGptSeatUsageUrl, isChatGptSeat, seatMonth, spendCapReached, spentSeatMonth } from './chatgpt-seat.js'
+import { chatGptSeatUsageUrl, isChatGptSeat, ownSeatMonth, seatMonth, spendCapReached, spentSeatMonth } from './chatgpt-seat.js'
 
 /** What Codex's `/status` asks: the windows of the ChatGPT subscription, shared by every client signed in to it. */
 export const CHATGPT_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
@@ -26,7 +26,8 @@ export interface ChatGptSignIn {
  * as Codex's rollouts (`limitsOfRollout`). `undefined` — the answer holds no window.
  *
  * A workspace seat's monthly credit cap (EKR-132): `spend_control.reached` closes the account (`open: false`, the month
- * spent), and `monthly`, the seat's `monthly-usage` answer, gives the month's count (`seatMonth`).
+ * spent); the month's count is `spend_control.individual_limit` when the answer has one (`ownSeatMonth`, EKR-152), else
+ * `monthly`, the seat's `monthly-usage` answer (`seatMonth`).
  */
 export function chatGptLimits(body: unknown, at: string, monthly?: unknown): RateLimits | undefined {
   const limit = isRecord(body) ? body.rate_limit : undefined
@@ -42,8 +43,9 @@ export function chatGptLimits(body: unknown, at: string, monthly?: unknown): Rat
   const flags = isRecord(limit) && (typeof limit.allowed === 'boolean' || typeof limit.limit_reached === 'boolean') ? limit : undefined
   const allowed = flags === undefined ? undefined : flags.allowed === true && flags.limit_reached === false
   const open = reached === true ? false : allowed
+  const own = seat ? ownSeatMonth(body, at, reached === true) : undefined
   const month = monthOf(windows.some((window) => window.limit_window_seconds === MONTH * 60) ? of(MONTH) : undefined,
-    seat && monthly !== undefined ? seatMonth(monthly, at, reached === true) : undefined, reached === true, at)
+    own ?? (seat && monthly !== undefined ? seatMonth(monthly, at, reached === true) : undefined), reached === true, at)
   return {
     fiveHour: of(FIVE_HOURS),
     sevenDay: of(WEEK),
@@ -143,7 +145,8 @@ export async function askChatGpt(signIn: ChatGptSignIn, at: string, timeoutMs: n
   if (response.status === 401 || response.status === 403) return { kind: 'missing', reason: notice('usage.chatGptRevoked', {}) }
   if (!response.ok) throw new Error(`ChatGPT usage answered ${response.status}`)
   const body: unknown = await response.json().catch(() => undefined)
-  const monthly = accountId !== null && isChatGptSeat(body) ? await askSeatMonth(accountId, headers, timeoutMs, fetchImpl) : undefined
+  const asks = accountId !== null && isChatGptSeat(body) && ownSeatMonth(body, at, false) === undefined
+  const monthly = asks ? await askSeatMonth(accountId, headers, timeoutMs, fetchImpl) : undefined
   const limits = chatGptLimits(body, at, monthly)
   if (limits === undefined) return { kind: 'unknown', reason: notice('usage.chatGptUnread', {}) }
   return {

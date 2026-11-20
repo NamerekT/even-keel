@@ -96,6 +96,62 @@ describe('a ChatGPT workspace seat', () => {
   })
 })
 
+describe('a ChatGPT workspace seat with its limit in wham/usage', () => {
+  const BUSINESS = read('chatgpt-business-wham-usage.json')
+  const withLimit = (patch: Record<string, unknown> | null, reached = false) => ({
+    ...BUSINESS,
+    spend_control: { reached, individual_limit: patch === null ? null : { ...(BUSINESS.spend_control as { individual_limit: object }).individual_limit, ...patch } },
+  })
+
+  it('takes the month from spend_control.individual_limit: credits of the cap, resetting at its reset_at', () => {
+    const limits = chatGptLimits(BUSINESS, AT)
+    expect(limits).toMatchObject({
+      fiveHour: null,
+      sevenDay: null,
+      month: { usedPercentage: 25, resetsAt: NEXT_MONTH, used: 750.4917263308145, limit: 3000 },
+      spendCap: { reached: false, updatedAt: AT },
+    })
+    expect(exhaustedReset(limits ?? null)).toBeNull()
+  })
+
+  it('prefers it to a monthly usage answer', () => {
+    expect(chatGptLimits(BUSINESS, AT, MONTHLY)?.month).toMatchObject({ used: 750.4917263308145, limit: 3000 })
+  })
+
+  it('names the reset the answer gives, by reset_after_seconds when reset_at is missing', () => {
+    expect(chatGptLimits(withLimit({ reset_at: 1895961600 }), AT)?.month?.resetsAt).toBe('2030-01-30T00:00:00.000Z')
+    expect(chatGptLimits(withLimit({ reset_at: undefined, reset_after_seconds: 3600 }), AT)?.month?.resetsAt).toBe('2030-01-14T11:00:00.000Z')
+    expect(chatGptLimits(withLimit({ reset_at: undefined, reset_after_seconds: undefined }), AT)?.month?.resetsAt).toBe(NEXT_MONTH)
+  })
+
+  it('spends the month on a reached cap, and the count alone stays under 100 %', () => {
+    const limits = chatGptLimits(withLimit({ used: '3000', remaining: '0', used_percent: 100 }, true), AT)
+    expect(limits).toMatchObject({ open: false, month: { usedPercentage: 100, used: 3000, limit: 3000 } })
+    expect(exhaustedReset(limits ?? null)).toBe(NEXT_MONTH)
+    expect(chatGptLimits(withLimit({ used: '3100' }), AT)?.month?.usedPercentage).toBeLessThan(100)
+  })
+
+  it('falls back to the monthly usage answer when the limit is absent or not in credits', () => {
+    for (const odd of [withLimit(null), withLimit({ unit: 'usd' }), withLimit({ used: 'n/a' }), withLimit({ limit: '0' })]) {
+      expect(chatGptLimits(odd, AT, MONTHLY)?.month).toMatchObject({ used: 1250, limit: 5000 })
+    }
+  })
+
+  it('is asked in one request, with no monthly usage call', async () => {
+    const fetchImpl = answers([200, BUSINESS])
+    const answer = await askChatGpt(SIGN_IN, AT, 1000, fetchImpl)
+    expect(answer).toMatchObject({ kind: 'limits', limits: { month: { limit: 3000 } } })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it('still asks the monthly usage when the limit in wham/usage is null', async () => {
+    const fetchImpl = answers([200, withLimit(null)], [200, MONTHLY])
+    const answer = await askChatGpt(SIGN_IN, AT, 1000, fetchImpl)
+    expect(answer).toMatchObject({ kind: 'limits', limits: { month: { used: 1250, limit: 5000 } } })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('askChatGpt on a workspace seat', () => {
   it('asks the monthly usage with the same token and account, in the same poll', async () => {
     const fetchImpl = answers([200, EDU], [200, MONTHLY])
