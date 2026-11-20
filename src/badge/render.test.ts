@@ -114,7 +114,7 @@ describe('renderBadge', () => {
 
   it('names the state and the tasks for screen readers and says "was working on" offline', () => {
     const svg = renderBadge(STATES.offline!, { theme: 'dark', now, fonts: false })
-    expect(svg).toMatch(/<title>ABC · Example\. OFFLINE · last seen 3 h ago/)
+    expect(svg).toMatch(/<title>Example \(ABC\)\. OFFLINE, last seen 3 h ago/)
     expect(svg).toContain('was working on')
     expect(renderBadge(waiting, { theme: 'dark', now, fonts: false })).toContain("waiting for the maintainer&apos;s answer")
   })
@@ -132,7 +132,7 @@ describe('renderBadge', () => {
       active: [{ ...live.active[0]!, titleEn: 'a < b & "c"', action: { tool: 'Bash', text: "Bash it's <b>\u0007" } }],
     }
     const svg = renderBadge(hostile, { theme: 'light', now, fonts: false })
-    expect(svg).toContain('A&amp;B · &lt;x&gt; &quot;y&quot;')
+    expect(svg).toContain('&lt;x&gt; &quot;y&quot; (A&amp;B)')
     expect(svg).toContain('a &lt; b &amp; &quot;c&quot;')
     expect(svg).toContain('Bash it&apos;s &lt;b&gt;')
     expect(svg).not.toContain('\u0007')
@@ -160,9 +160,9 @@ describe('renderBadge', () => {
       const titled = renderBadge(mode, { theme: 'dark', now, fonts: false })
       const svg = renderBadge({ ...mode, active: [untitled] }, { theme: 'dark', now, fonts: false })
       const key = at(svg, 'ABC-15')!
-      const meta = at(svg, 'Claude Code')!
-      expect(meta.y).toBe(key.y)
-      expect(meta.x).toBe(at(titled, 'Draw the badge')!.x)
+      const plaque = /<rect x="([\d.]+)" y="[\d.]+" width="[\d.]+" height="19" rx="9.5"/.exec(svg)!
+      expect(at(svg, 'opus')!.y).toBe(key.y)
+      expect(Number(plaque[1]) - 0.5).toBe(at(titled, 'Draw the badge')!.x)
       expect(bar(svg)).toBe(bar(titled))
     }
   })
@@ -178,22 +178,47 @@ describe('renderBadge', () => {
 
   it('says in its header what the chain does, as the mockups do', () => {
     expect(texts(live)).toContain('Example is being built right now')
-    expect(texts(two)).toContain('Example is being built right now · 2 tasks at once')
+    expect(texts(two)).toContain('Example is being built right now')
+    expect(texts(two)).toContain('2 tasks')
+    expect(texts(live)).not.toContain('1 tasks')
     expect(texts(waiting)).toContain('the agent asked the maintainer and waits for the answer')
   })
 
-  it('puts a single task\'s agent, model and start under its title, and a task of several on the right', () => {
-    expect(texts(live)).toContain('Claude Code · opus · started 42 min ago')
-    expect(texts(two)).toContain('Claude Code · opus · 42 min')
-    expect(texts(two)).toContain('Codex · gpt-5 · 8 min')
+  it('joins no facts with a dot anywhere it draws or speaks (BTN-1385)', () => {
+    for (const [name, state] of Object.entries(STATES)) {
+      const svg = renderBadge(state, { theme: 'dark', now, fonts: false })
+      expect(svg, name).not.toContain('·')
+    }
+    const idleNext: BadgeState = { ...live, active: [], chain: { ...live.chain, state: 'idle' } }
+    expect(renderBadge(idleNext, { theme: 'dark', now, fonts: false })).not.toContain('·')
+    expect(renderBadge({ ...live, active: [] }, { theme: 'dark', now, fonts: false })).not.toContain('·')
+  })
+
+  it('says what the idle chain takes next as its own cell, in the header and in the empty line', () => {
+    const idleNext: BadgeState = { ...live, active: [], chain: { ...live.chain, state: 'idle' } }
+    expect(texts(idleNext)).toEqual(expect.arrayContaining(['IDLE', 'Example', 'next up', 'ABC-16']))
+    expect(renderBadge(idleNext, { theme: 'dark', now, fonts: false })).toMatch(/<title>Example \(ABC\)\. IDLE, next up ABC-16</)
+    expect(texts({ ...live, active: [] })).toEqual(expect.arrayContaining(['no task in hand', 'next up', 'ABC-16']))
+  })
+
+  it('puts the time an offline badge was last seen at the right edge, apart from the label', () => {
+    expect(texts(STATES.offline!)).toEqual(expect.arrayContaining(['OFFLINE', 'last seen 3 h ago']))
+  })
+
+  it('draws a task\'s model as a plaque with the agent\'s icon and its time apart, under a single title and on the right of several', () => {
+    expect(texts(live)).toEqual(expect.arrayContaining(['opus', '42 min']))
+    expect(texts(two)).toEqual(expect.arrayContaining(['opus', '42 min', 'gpt-5', '8 min']))
+    expect(texts(two).join('\n')).not.toMatch(/Claude Code|Codex|started/)
+    const { model: _model, ...modelless } = live.active[0]!
+    expect(texts({ ...live, active: [modelless] })).toContain('Claude Code')
   })
 
   describe('a task on a spent limit (BTN-969)', () => {
     const textsAt = (state: BadgeState, when: Date) => [...renderBadge(state, { theme: 'dark', now: when, fonts: false }).matchAll(/<text[^>]*>(.*?)<\/text>/g)].map((match) => match[1]!.replace(/<[^>]+>/g, ''))
 
     it('has a waiting bar with the reset counted from the request\'s time, and no cursor', () => {
-      expect(texts(limit)).toContain('waiting for the usage limit · resets in 2 h')
-      expect(textsAt({ ...limit, at: '2026-11-09T13:34:30Z' }, new Date('2026-11-09T13:35:00Z'))).toContain('waiting for the usage limit · resets in 25 min')
+      expect(texts(limit)).toEqual(expect.arrayContaining(['waiting for the usage limit', 'resets in 2 h']))
+      expect(textsAt({ ...limit, at: '2026-11-09T13:34:30Z' }, new Date('2026-11-09T13:35:00Z'))).toContain('resets in 25 min')
       const svg = renderBadge(limit, { theme: 'dark', now, fonts: false })
       expect(svg).toContain('stroke-dasharray="5 4"')
       expect(svg).not.toContain('class="blink"')
@@ -203,7 +228,10 @@ describe('renderBadge', () => {
     it('names no reset that is unknown or has passed', () => {
       const { until: _until, ...unknown } = limit.active[0]!
       expect(texts({ ...limit, active: [unknown] })).toContain('waiting for the usage limit')
-      expect(textsAt({ ...limit, at: '2026-11-09T14:04:30Z' }, new Date('2026-11-09T14:05:00Z'))).toContain('waiting for the usage limit')
+      expect(texts({ ...limit, active: [unknown] }).join('\n')).not.toContain('resets')
+      const passed = textsAt({ ...limit, at: '2026-11-09T14:04:30Z' }, new Date('2026-11-09T14:05:00Z'))
+      expect(passed).toContain('waiting for the usage limit')
+      expect(passed.join('\n')).not.toContain('resets')
     })
 
     it('does not say the project is being built while no task works', () => {
@@ -212,7 +240,7 @@ describe('renderBadge', () => {
       expect(texts(limit)).toContain('Example waits for the usage limit to reset')
       const mixed: BadgeState = { ...limit, active: [limit.active[0]!, { key: 'ABC-17', state: 'waiting' }] }
       expect(texts(mixed)).toContain('the agents wait for the usage limit and for the maintainer')
-      expect(texts({ ...limit, active: [limit.active[0]!, two.active[1]!] })).toContain('Example is being built right now · 2 tasks at once')
+      expect(texts({ ...limit, active: [limit.active[0]!, two.active[1]!] })).toEqual(expect.arrayContaining(['Example is being built right now', '2 tasks']))
       expect(renderBadge(limit, { theme: 'dark', now, fonts: false })).toMatch(/<title>[^<]*ABC-15 [^<]* waits for the usage limit/)
     })
   })

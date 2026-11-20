@@ -426,7 +426,7 @@ describe('wireBadges', () => {
 
   it('previews a project\'s badge with its picked fields, every field without a setting, none for an unknown project', () => {
     const r = rig()
-    expect(r.wiring.svg(ABC, 'light')).toMatch(/^<svg[^>]*aria-label="ABC · Example\. CHAIN STOPPED"/)
+    expect(r.wiring.svg(ABC, 'light')).toMatch(/^<svg[^>]*aria-label="Example \(ABC\)\. CHAIN STOPPED"/)
     expect(r.wiring.svg('22222222-2222-4222-8222-222222222222', 'dark')).toBeUndefined()
   })
 

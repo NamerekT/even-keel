@@ -2,7 +2,7 @@ import { BADGE_FONTS } from './fonts.generated.js'
 import { printed } from './dates.js'
 import type { BadgeChain, BadgeChipState, BadgeMilestone, BadgeState, BadgeStats, BadgeTask } from './model.js'
 import { escapeXml, fit, measure, type BadgeFace } from './text.js'
-import { BADGE_THEMES, toolIcon, type BadgeTheme } from './theme.js'
+import { agentIcon, BADGE_THEMES, CLOCK_ICON, toolIcon, type BadgeTheme } from './theme.js'
 
 export interface RenderOptions {
   theme: 'dark' | 'light'
@@ -57,7 +57,7 @@ export function renderBadge(state: BadgeState | null, options: RenderOptions): s
   let y = drawHeader(draw, header)
   let height = y + 29
   if (state !== null) {
-    if (state.active.length === 0 && mode !== 'still') y = drawLine(draw, nextLine(state.chain), y)
+    if (state.active.length === 0 && mode !== 'still') y = drawIdleLine(draw, state.chain, y)
     const single = state.active.length === 1
     state.active.forEach((task, index) => {
       y = drawTask(draw, task, { mode, single, at: state.at, now: options.now }, y + (index > 0 ? 32 : single ? 43 : 41))
@@ -66,7 +66,7 @@ export function renderBadge(state: BadgeState | null, options: RenderOptions): s
     height = drawPanels(draw, state, y) + 18
   }
   height = Math.ceil(height)
-  const label = [state === null ? null : projectLabel(state), header.label, ...(state?.active ?? []).map(spoken)].filter((each) => each !== null).join('. ')
+  const label = [state === null ? null : projectLabel(state), header.spoken, ...(state?.active ?? []).map(spoken)].filter((each) => each !== null).join('. ')
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}" role="img" aria-label="${escapeXml(label)}">`,
     `<title>${escapeXml(label)}</title>`,
@@ -103,19 +103,28 @@ interface Header {
   /** `ring` — a pulse with a ring; `breathe` — a slow pulse of the dot itself. */
   motion: 'ring' | 'breathe' | null
   subtitle: string | null
+  /** The number of tasks in work, as a grey plaque after the subtitle. */
+  count: number | null
+  /** The task the idle chain takes next, as its own cell after the subtitle. */
+  next: string | null
+  /** The muted note at the right edge: when the state was pushed. */
   right: string | null
+  /** The header for screen readers. */
+  spoken: string
 }
 
 function headerOf(state: BadgeState | null, mode: BadgeMode, theme: BadgeTheme, now: Date): Header {
-  if (state === null) return { label: 'NOT PUBLISHED YET', color: theme.fgMuted, dot: theme.idle, motion: null, subtitle: null, right: null }
+  const still = { color: theme.fgMuted, dot: theme.idle, motion: null, count: null, next: null }
+  if (state === null) return { ...still, label: 'NOT PUBLISHED YET', subtitle: null, right: null, spoken: 'NOT PUBLISHED YET' }
   const name = state.project.name === '' ? state.project.key : state.project.name
   const age = ageMinutes(state.at, now)
-  if (mode === 'offline') return { label: `OFFLINE · last seen ${ago(age)}`, color: theme.fgMuted, dot: theme.idle, motion: null, subtitle: name, right: null }
+  if (mode === 'offline') return { ...still, label: 'OFFLINE', subtitle: name, right: `last seen ${ago(age)}`, spoken: `OFFLINE, last seen ${ago(age)}` }
   const right = age < 1 ? 'updated just now' : `updated ${ago(age)}`
   if (mode === 'still') {
     const { chain } = state
-    const label = chain.state === 'paused' ? 'CHAIN PAUSED' : chain.state === 'stopped' ? 'CHAIN STOPPED' : chain.next === null ? 'IDLE' : `IDLE · next up: ${chain.next}`
-    return { label, color: theme.fgMuted, dot: theme.idle, motion: null, subtitle: name, right }
+    const label = chain.state === 'paused' ? 'CHAIN PAUSED' : chain.state === 'stopped' ? 'CHAIN STOPPED' : 'IDLE'
+    const next = label === 'IDLE' ? chain.next : null
+    return { ...still, label, subtitle: name, next, right, spoken: next === null ? label : `${label}, next up ${next}` }
   }
   const count = state.active.length
   const waiting = count > 0 && state.active.every((task) => task.state !== 'working')
@@ -127,10 +136,41 @@ function headerOf(state: BadgeState | null, mode: BadgeMode, theme: BadgeTheme, 
       : limited > 0 ? 'the agents wait for the usage limit and for the maintainer'
       : count === 1 ? 'the agent asked the maintainer and waits for the answer'
       : 'the agents asked the maintainer and wait for the answers'
-    return { label: 'WAITING', color: theme.waiting, dot: stale ? theme.idle : theme.waiting, motion: stale ? null : 'breathe', subtitle, right }
+    return { label: 'WAITING', color: theme.waiting, dot: stale ? theme.idle : theme.waiting, motion: stale ? null : 'breathe', subtitle, count: null, next: null, right, spoken: 'WAITING' }
   }
-  const subtitle = count === 0 ? name : `${name} is being built right now${count > 1 ? ` · ${count} tasks at once` : ''}`
-  return { label: 'LIVE', color: theme.done, dot: stale ? theme.idle : theme.done, motion: stale ? null : 'ring', subtitle, right }
+  const subtitle = count === 0 ? name : `${name} is being built right now`
+  const shown = count > 1 ? count : null
+  return { label: 'LIVE', color: theme.done, dot: stale ? theme.idle : theme.done, motion: stale ? null : 'ring', subtitle, count: shown, next: null, right, spoken: shown === null ? 'LIVE' : `LIVE, ${shown} tasks at once` }
+}
+
+const PLAQUE_HEIGHT = 20
+/** The room between two facts of one line, which no separator joins (BTN-1385). */
+const CELL_GAP = 16
+
+function plaqueText(count: number): string {
+  return `${count} tasks`
+}
+
+function plaqueWidth(count: number): number {
+  return measure(plaqueText(count), 'sans', 12) + 16
+}
+
+/** A grey plaque of a number, its text on `base`. */
+function drawPlaque(draw: Drawing, x: number, base: number, count: number): void {
+  const { theme } = draw
+  const top = base - 4.5 - PLAQUE_HEIGHT / 2
+  draw.add(`<rect x="${n(x + 0.5)}" y="${n(top + 0.5)}" width="${n(plaqueWidth(count) - 1)}" height="${PLAQUE_HEIGHT - 1}" rx="${(PLAQUE_HEIGHT - 1) / 2}" fill="${theme.surfaceMuted}" stroke="${theme.border}"/>`)
+  draw.text(x + 8, base, plaqueText(count), 'sans', 12, theme.fgMuted)
+}
+
+function nextWidth(key: string, size: number): number {
+  return measure('next up', 'sans', size) + 6 + measure(key, 'mono', size)
+}
+
+/** "next up" and the task's key in its own colour, from `x`. */
+function drawNext(draw: Drawing, x: number, base: number, key: string, size: number): void {
+  draw.text(x, base, 'next up', 'sans', size, draw.theme.fgMuted)
+  draw.text(x + measure('next up', 'sans', size) + 6, base, key, 'mono', size, draw.theme.accent)
 }
 
 /** The header's line; returns its baseline. */
@@ -146,20 +186,28 @@ function drawHeader(draw: Drawing, header: Header): number {
   draw.text(labelX, base, label, 'sans-bold', 13, header.color, ` letter-spacing="${LABEL_SPACING}"`)
   if (header.subtitle !== null) {
     const x = labelX + measure(label, 'sans-bold', 13) + [...label].length * LABEL_SPACING + 10
-    const subtitle = fit(header.subtitle, 'sans', 13, WIDTH - PAD - right - x)
+    const cell = header.count !== null ? plaqueWidth(header.count) : header.next !== null ? nextWidth(header.next, 13) : null
+    const room = WIDTH - PAD - right - x
+    const fits = cell !== null && measure(header.subtitle, 'sans', 13) + CELL_GAP + cell <= room
+    const subtitle = fit(header.subtitle, 'sans', 13, room - (fits ? CELL_GAP + cell : 0))
     if (subtitle !== '') draw.text(x, base, subtitle, 'sans', 13, theme.fgMuted)
+    if (fits) {
+      const after = x + measure(subtitle, 'sans', 13) + CELL_GAP
+      if (header.count !== null) drawPlaque(draw, after, base, header.count)
+      else if (header.next !== null) drawNext(draw, after, base, header.next, 13)
+    }
   }
   if (header.right !== null) draw.text(WIDTH - PAD, base, header.right, 'sans', 12, theme.fgMuted, ' text-anchor="end"')
   return base
 }
 
-function drawLine(draw: Drawing, line: string, top: number): number {
-  draw.text(PAD, top + 34, fit(line, 'sans', 13, INNER), 'sans', 13, draw.theme.fgMuted)
-  return top + 34
-}
-
-function nextLine(chain: BadgeChain): string {
-  return chain.next === null ? 'no task in hand' : `no task in hand · next up: ${chain.next}`
+/** "no task in hand" and, as its own cell, the task the chain takes next; returns the baseline. */
+function drawIdleLine(draw: Drawing, chain: BadgeChain, top: number): number {
+  const base = top + 34
+  const line = 'no task in hand'
+  draw.text(PAD, base, line, 'sans', 13, draw.theme.fgMuted)
+  if (chain.next !== null) drawNext(draw, PAD + measure(line, 'sans', 13) + CELL_GAP, base, chain.next, 13)
+  return base
 }
 
 interface TaskLayout {
@@ -190,34 +238,36 @@ function drawTask(draw: Drawing, task: BadgeTask, layout: TaskLayout, base: numb
   const keySize = single ? 15 : 14
   draw.text(x, base, task.key, 'mono', keySize, theme.accent)
   x += measure(task.key, 'mono', keySize) + (single ? 16 : 14)
-  const meta = metaOf(task, offline ? new Date(layout.at) : layout.now, single)
-  const metaWidth = single || meta === '' ? 0 : measure(meta, 'sans', 12) + 16
+  const meta = metaOf(task, offline ? new Date(layout.at) : layout.now)
+  const metaSize = single ? 12.5 : 12
+  const metaRoom = metaWidth(meta, metaSize)
   const titleSize = single ? 18 : 16
   // No English title — the key alone: a word in its place would read as the task's title (BTN-974).
-  if (task.titleEn !== undefined) draw.text(x, base, fit(task.titleEn, 'sans-bold', titleSize, WIDTH - PAD - x - metaWidth), 'sans-bold', titleSize, theme.fg)
-  if (meta !== '') {
+  if (task.titleEn !== undefined) draw.text(x, base, fit(task.titleEn, 'sans-bold', titleSize, WIDTH - PAD - x - (single || metaRoom === 0 ? 0 : metaRoom + 16)), 'sans-bold', titleSize, theme.fg)
+  if (metaRoom > 0) {
     // Without a title a single task's agent line takes the title's place, not the line under an empty one (EKR-137).
-    if (single) draw.text(x, task.titleEn === undefined ? base : base + 24, fit(meta, 'sans', 12.5, WIDTH - PAD - x), 'sans', 12.5, theme.fgMuted)
-    else draw.text(WIDTH - PAD, base, meta, 'sans', 12, theme.fgMuted, ' text-anchor="end"')
+    if (single) drawMeta(draw, meta, x, task.titleEn === undefined ? base : base + 24, metaSize)
+    else drawMeta(draw, meta, WIDTH - PAD - metaRoom, base, metaSize)
   }
   const bar: Bar = single ? { top: base + 46, height: 30, size: 13 } : { top: base + 22, height: 26, size: 12.5 }
-  if (task.state === 'waiting') drawWaiting(draw, task, bar, "waiting for the maintainer's answer")
-  else if (task.state === 'limit') drawWaiting(draw, task, bar, limitLine(task, layout.now))
+  if (task.state === 'waiting') drawWaiting(draw, task, bar, "waiting for the maintainer's answer", null)
+  else if (task.state === 'limit') drawWaiting(draw, task, bar, 'waiting for the usage limit', resetNote(task, layout.now))
   else drawBar(draw, task, layout.mode, bar)
   return bar.top + bar.height
 }
 
 /** The reset is counted when the picture is shown; one that has passed or is not known is not named. */
-function limitLine(task: BadgeTask, now: Date): string {
+function resetNote(task: BadgeTask, now: Date): string | null {
   const minutes = task.until === undefined ? NaN : (Date.parse(task.until) - now.getTime()) / 60_000
-  return minutes > 0 ? `waiting for the usage limit · resets in ${duration(minutes)}` : 'waiting for the usage limit'
+  return minutes > 0 ? `resets in ${duration(minutes)}` : null
 }
 
 function textBase(bar: Bar): number {
   return bar.top + bar.height / 2 + bar.size * 0.36
 }
 
-function drawWaiting(draw: Drawing, task: BadgeTask, bar: Bar, line: string): void {
+/** A waiting task's bar: what it waits for and, as its own muted cell, when the wait ends. */
+function drawWaiting(draw: Drawing, task: BadgeTask, bar: Bar, line: string, note: string | null): void {
   const { theme } = draw
   draw.add(
     `<rect x="${PAD + 0.5}" y="${bar.top + 0.5}" width="${INNER - 1}" height="${bar.height - 1}" rx="${bar.height === 30 ? 8 : 7}" fill="${theme.waiting}" fill-opacity="0.08" stroke="${theme.waiting}" stroke-opacity="0.5" stroke-dasharray="5 4"/>`,
@@ -226,7 +276,12 @@ function drawWaiting(draw: Drawing, task: BadgeTask, bar: Bar, line: string): vo
   if (task.state === 'limit') draw.add(pauseIcon(PAD + 17.5, bar.top + bar.height / 2, theme.waiting))
   else draw.text(PAD + 14, y, '?', 'sans-bold', bar.size, theme.waiting)
   const label = contextLabel(task)
-  draw.text(PAD + 30, y, fit(line, 'mono', bar.size, INNER - 30 - (label === null ? 0 : measure(label, 'mono', 12) + 28) - 14), 'mono', bar.size, theme.warnFg)
+  const room = INNER - 30 - (label === null ? 0 : measure(label, 'mono', 12) + 28) - 14
+  const noteRoom = note === null ? 0 : CELL_GAP + measure(note, 'mono', bar.size)
+  const shown = noteRoom > 0 && measure(line, 'mono', bar.size) + noteRoom <= room ? note : null
+  const text = fit(line, 'mono', bar.size, room)
+  draw.text(PAD + 30, y, text, 'mono', bar.size, theme.warnFg)
+  if (shown !== null) draw.text(PAD + 30 + measure(text, 'mono', bar.size) + CELL_GAP, y, shown, 'mono', bar.size, theme.fgMuted)
   drawContext(draw, task, theme.warnFg, y)
 }
 
@@ -279,11 +334,59 @@ function drawContext(draw: Drawing, task: BadgeTask, ink: string, y: number): vo
   draw.add(`<text x="${WIDTH - PAD - 14}" y="${n(y)}" class="m" font-size="12" text-anchor="end"><tspan fill="${draw.theme.fgMuted}">context </tspan><tspan fill="${ink}">${context}%</tspan></text>`)
 }
 
-function metaOf(task: BadgeTask, now: Date, single: boolean): string {
-  const agent = task.agent === undefined ? null : agentTitle(task.agent)
+/** A task's agent line: the agent as the icon of the model's plaque, how long it has run as a cell with a clock. */
+interface Meta {
+  agent: string | null
+  /** The plaque's word: the model, else the agent's name. */
+  plaque: string | null
+  time: string | null
+}
+
+const ICON = 12
+const ICON_GAP = 5
+
+function metaOf(task: BadgeTask, now: Date): Meta {
+  const agent = task.agent === undefined || task.agent === '' ? null : task.agent
+  const model = task.model === undefined || task.model === '' ? null : task.model
   const minutes = task.startedAt === undefined ? Infinity : ageMinutes(task.startedAt, now)
-  const time = minutes === Infinity ? null : single ? `started ${ago(minutes)}` : duration(minutes)
-  return [agent, task.model ?? null, time].filter((each) => each !== null && each !== '').join(' · ')
+  return { agent, plaque: model ?? (agent === null ? null : agentTitle(agent)), time: minutes === Infinity ? null : duration(minutes) }
+}
+
+function plaqueOf(meta: Meta): number {
+  return meta.plaque === null ? 0 : 8 + (meta.agent === null ? 0 : ICON + ICON_GAP) + measure(meta.plaque, 'mono', 12) + 8
+}
+
+function timeOf(meta: Meta, size: number): number {
+  return meta.time === null ? 0 : ICON + ICON_GAP + measure(meta.time, 'sans', size)
+}
+
+function metaWidth(meta: Meta, size: number): number {
+  const plaque = plaqueOf(meta)
+  const time = timeOf(meta, size)
+  return plaque + time + (plaque > 0 && time > 0 ? CELL_GAP : 0)
+}
+
+function drawMeta(draw: Drawing, meta: Meta, x: number, base: number, size: number): void {
+  const { theme } = draw
+  const middle = base - 4.5
+  const icon = (at: number, path: string, color: string) =>
+    draw.add(`<g transform="translate(${n(at)} ${n(middle - ICON / 2)}) scale(${ICON / 16})" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${path}</g>`)
+  let at = x
+  const plaque = plaqueOf(meta)
+  if (meta.plaque !== null) {
+    draw.add(`<rect x="${n(at + 0.5)}" y="${n(middle - PLAQUE_HEIGHT / 2 + 0.5)}" width="${n(plaque - 1)}" height="${PLAQUE_HEIGHT - 1}" rx="${(PLAQUE_HEIGHT - 1) / 2}" fill="${theme.surfaceMuted}" stroke="${theme.border}"/>`)
+    let inner = at + 8
+    if (meta.agent !== null) {
+      icon(inner, agentIcon(meta.agent), meta.agent.toLowerCase() === 'claude' ? theme.claude : theme.working)
+      inner += ICON + ICON_GAP
+    }
+    draw.text(inner, base, meta.plaque, 'mono', 12, theme.fg)
+    at += plaque + CELL_GAP
+  }
+  if (meta.time !== null) {
+    icon(at, CLOCK_ICON, theme.fgMuted)
+    draw.text(at + ICON + ICON_GAP, base, meta.time, 'sans', size, theme.fgMuted)
+  }
 }
 
 function agentTitle(agent: string): string {
@@ -486,7 +589,7 @@ function styles(fonts: boolean): string {
 
 function projectLabel(state: BadgeState): string {
   const { key, name } = state.project
-  return name === '' || name === key ? key : `${key} · ${name}`
+  return name === '' || name === key ? key : `${name} (${key})`
 }
 
 function spoken(task: BadgeTask): string {

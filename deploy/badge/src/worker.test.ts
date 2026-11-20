@@ -157,7 +157,7 @@ describe('GET /<slug>.svg', () => {
     expect(badgeMode(stored, now)).toBe(mode)
     const svg = await (await show(env)).text()
     expect(svg).toBe(renderBadge(stored, { theme: 'dark', now }))
-    if (mode === 'offline') expect(svg).toContain('OFFLINE · last seen')
+    if (mode === 'offline') expect(svg).toContain('OFFLINE, last seen')
     if (mode === 'live') expect(svg).toContain('ek-ring')
   })
 

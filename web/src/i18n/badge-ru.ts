@@ -4,7 +4,7 @@ export const badgeRu = {
   lineOff: 'выключен',
   lineOn: (address: string) => `публикуется: ${address}`,
   lineNoPlace: 'включён, но не указано, куда публиковать',
-  title: (project: string) => `Бейдж для README · ${project}`,
+  title: (project: string) => `Бейдж для README проекта ${project}`,
   close: 'Закрыть',
   done: 'Готово',
   on: 'Публиковать бейдж',

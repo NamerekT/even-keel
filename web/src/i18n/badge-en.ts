@@ -6,7 +6,7 @@ export const badgeEn: typeof badgeRu = {
   lineOff: 'off',
   lineOn: (address: string) => `published: ${address}`,
   lineNoPlace: 'on, but where to publish is not set',
-  title: (project: string) => `README badge · ${project}`,
+  title: (project: string) => `README badge of ${project}`,
   close: 'Close',
   done: 'Done',
   on: 'Publish the badge',

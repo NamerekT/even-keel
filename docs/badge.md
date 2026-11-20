@@ -177,23 +177,27 @@ picks those fields itself.
 | --- | --- | --- |
 | `live` | the chain runs, the state ≤ 5 min old | animated |
 | `stale` | the chain runs, 5–60 min old | animated, the dot grey |
-| `offline` | older than 60 min | still, "OFFLINE · last seen …", the last tasks frozen |
+| `offline` | older than 60 min | still, "OFFLINE" with "last seen …" at the right edge, the last tasks frozen |
 | `still` | the chain is paused, stopped or idle | still |
 | `unpublished` | no state yet | a placeholder |
 
 ## Drawing
 
 `renderBadge` returns an SVG document 840 px wide: no script, no outside resource. The layout follows the task's mockups
-(BTN-915's attachments): a header with the state, what the chain does ("<project> is being built right now", "· N tasks
-at once", "the agent asked the maintainer…") and the age of the push; one task in work gets a large title with
-"agent · model · started N min ago" under it (a fix's and a release carry's title is their own, see "English titles";
+(BTN-915's attachments): a header with the state, what the chain does ("<project> is being built right now", "the agent
+asked the maintainer…"; an idle chain's next task as "next up `ABC-7`") and the age of the push. No fact is joined to
+another with a `·` (BTN-1385): each stands in its own cell 16 px apart or in a grey plaque — the number of tasks in work
+when there are several ("2 tasks"), the model with the agent's icon in front (the page's own icons: Claude's star,
+Codex's hexagon; with no model the plaque names the agent), and next to it a clock with how long the task has run. One task in work gets a large title with
+that agent line under it (a fix's and a release carry's title is their own, see "English titles";
 a task with no title has that line on its key's line, right after the key, online and offline alike, and its bar stays
 where it is — EKR-137), several share rows with that line on the right; the action bar is the
 tool's icon, the action in the agent's colour (yellow for Claude, blue for the rest), a blinking cursor, the context
 fill with a glowing edge and `context N%`; a waiting task has a dashed "waiting for the maintainer's answer" bar
-instead, and one on a limit the same bar with a pause mark and "waiting for the usage limit · resets in 2 h" (the reset
-is left out once it has passed); while no task works and one is on a limit the header says "WAITING · <project> waits
-for the usage limit to reset". The chain's chips name a task of the project by its number (`895`), one of another project by its key, a
+instead, and one on a limit the same bar with a pause mark, "waiting for the usage limit" and a muted "resets in 2 h"
+cell (left out once the reset has passed); while no task works and one is on a limit the header says "WAITING", then
+"<project> waits for the usage limit to reset". With no task in hand a running chain draws "no task in hand" and
+"next up `ABC-7`" under the header. The chain's chips name a task of the project by its number (`895`), one of another project by its key, a
 done one with `Nov 10 03:40` under it (the month by name: `11-10` reads two ways), which makes the badge 18 px taller only
 when a chip has a time. Under the chips sit two cards: the milestone's on the left — its name and "next release", a bar of done (green), queued for the agent (blue) and with the
 maintainer (hatched in the waiting colour) with 3 px gaps, and a legend that leaves a part of no task out — and the

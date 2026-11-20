@@ -65,6 +65,25 @@ const READS = new Set(['Read', 'Grep', 'Glob', 'LS', 'read', 'grep', 'glob', 'li
 const SHELLS = new Set(['Bash', 'PowerShell', 'shell', 'exec', 'exec_command', 'bash'])
 const WEB = new Set(['WebFetch', 'WebSearch', 'web_search', 'webfetch', 'websearch'])
 
+/** A 16×16 stroke icon of the agent, the page's own (`web/src/ui/icons.tsx`); an unknown agent gets a dot. */
+export function agentIcon(agent: string): string {
+  switch (agent.toLowerCase()) {
+    case 'claude':
+      return '<path d="M8 1.75v12.5M1.75 8h12.5M3.6 3.6l8.8 8.8M12.4 3.6l-8.8 8.8"/>'
+    case 'codex':
+      return '<path d="M8 1.5 13.75 4.75v6.5L8 14.5 2.25 11.25v-6.5Z"/><path d="M5.75 6.5 7.5 8l-1.75 1.5M8.75 10h1.75"/>'
+    case 'opencode':
+      return '<path d="M13.25 5.75v-3H2.75v10.5h10.5v-3"/><path d="M5.5 8h4.5"/>'
+    case 'copilot':
+      return '<circle cx="5" cy="8.5" r="2.75"/><circle cx="11" cy="8.5" r="2.75"/><path d="M7.75 8.5h0.5M1 7.5h1.25M13.75 7.5H15"/>'
+    default:
+      return '<circle cx="8" cy="8" r="2.5"/>'
+  }
+}
+
+/** A 16×16 stroke clock: how long a task has run. */
+export const CLOCK_ICON = '<circle cx="8" cy="8" r="6"/><path d="M8 4.75V8l2.25 1.5"/>'
+
 /** A 16×16 stroke icon of the tool's kind, drawn in `currentColor`. */
 export function toolIcon(tool: string): string {
   if (EDITS.has(tool)) return '<path d="M3 13l1-3.5L11 2.5l2.5 2.5L6.5 12z M9.5 4l2.5 2.5"/>'
