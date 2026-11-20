@@ -1,7 +1,20 @@
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { emptyPackages, type PackageInstall, type PackageRecord } from './model.js'
-import { bridgePlugins, installMarketplace, otherPlugins, parseRoute, routeOf, sessionPackages, sessionReach } from './launch.js'
+import {
+  bridgePlugins,
+  ensureServerless,
+  installMarketplace,
+  otherPlugins,
+  parseRoute,
+  pluginDir,
+  routeOf,
+  serverlessDir,
+  sessionPackages,
+  sessionReach,
+} from './launch.js'
 
 const install = (id: string, servers: string[], extras = true): PackageInstall => ({
   id,
@@ -59,6 +72,44 @@ describe('bridgePlugins', () => {
     expect(bridgePlugins(file, 'pending@even-keel', places.cache)).toEqual([])
     file.packages['huly@even-keel']!.removed = true
     expect(bridgePlugins(file, 'huly@even-keel', places.cache)).toEqual([])
+  })
+})
+
+describe('ensureServerless', () => {
+  let cache: string
+  beforeEach(() => {
+    cache = mkdtempSync(join(tmpdir(), 'even-keel-serverless-'))
+  })
+  afterEach(() => rmSync(cache, { recursive: true, force: true }))
+
+  const plugin = (manifest: Record<string, unknown>) => {
+    const dir = pluginDir(cache, 'agent-bridge@even-keel', 'b')
+    mkdirSync(join(dir, '.claude-plugin'), { recursive: true })
+    mkdirSync(join(dir, 'hooks'), { recursive: true })
+    writeFileSync(join(dir, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'agent-bridge', version: '1.6.0', ...manifest }))
+    writeFileSync(join(dir, '.mcp.json'), JSON.stringify({ mcpServers: { memory: { type: 'http', url: 'http://127.0.0.1:4748/memory' } } }))
+    writeFileSync(join(dir, 'hooks', 'hooks.json'), '{"hooks":{}}')
+    writeFileSync(join(dir, 'hooks', '.mcp.json'), '{}')
+  }
+
+  it("copies the install's plugin with its hooks but without its MCP servers (BTN-1371)", () => {
+    plugin({ mcpServers: { other: { command: 'node' } } })
+    const dir = ensureServerless(cache, 'agent-bridge@even-keel', 'b')
+    expect(dir).toBe(serverlessDir(cache, 'agent-bridge@even-keel', 'b'))
+    expect(existsSync(join(dir, '.mcp.json'))).toBe(false)
+    expect(readFileSync(join(dir, 'hooks', 'hooks.json'), 'utf8')).toBe('{"hooks":{}}')
+    expect(existsSync(join(dir, 'hooks', '.mcp.json'))).toBe(true)
+    expect(JSON.parse(readFileSync(join(dir, '.claude-plugin', 'plugin.json'), 'utf8'))).toEqual({ name: 'agent-bridge', version: '1.6.0' })
+    expect(existsSync(join(pluginDir(cache, 'agent-bridge@even-keel', 'b'), '.mcp.json'))).toBe(true)
+  })
+
+  it('keeps a copy already made: an install never changes', () => {
+    plugin({})
+    const dir = ensureServerless(cache, 'agent-bridge@even-keel', 'b')
+    writeFileSync(join(dir, 'kept'), '')
+    ensureServerless(cache, 'agent-bridge@even-keel', 'b')
+    expect(existsSync(join(dir, 'kept'))).toBe(true)
+    expect(readdirSync(join(cache, 'agent-bridge@even-keel', 'b')).sort()).toEqual(['plugin', 'serverless'])
   })
 })
 

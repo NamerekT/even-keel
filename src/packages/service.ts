@@ -9,7 +9,7 @@ import { PassMemo } from '../pass-memo.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
-import { bridgePlugins, ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
+import { bridgePlugins, ensureMarketplace, ensureServerless, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { catalogFor, followCatalog, type CatalogBrief } from './follow.js'
 import { Installs } from './installs.js'
 import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
@@ -400,12 +400,16 @@ export class Packages {
 
   /**
    * A project chat's plugins (`bridgePlugins`, BTN-1346): the built-in one's current install, not pinned — a chat has no
-   * end the pin would wait for, and its next turn takes the install current then.
+   * end the pin would wait for, and its next turn takes the install current then. `withoutServers` — a copy of it without
+   * its MCP servers (`ensureServerless`), for an agent that cannot turn them off by name.
    */
-  chatPlugins(): SessionPlugin[] {
-    const plugins = bridgePlugins(this.file, this.builtIn, this.deps.cache)
-    for (const plugin of plugins) ensureMarketplace(this.deps.cache, plugin.package, current(this.file.packages[plugin.package]!)!.id, plugin.name)
-    return plugins
+  chatPlugins(withoutServers = false): SessionPlugin[] {
+    return bridgePlugins(this.file, this.builtIn, this.deps.cache).map((plugin) => {
+      const install = current(this.file.packages[plugin.package]!)!.id
+      if (withoutServers) return { ...plugin, dir: ensureServerless(this.deps.cache, plugin.package, install), servers: [] }
+      ensureMarketplace(this.deps.cache, plugin.package, install, plugin.name)
+      return plugin
+    })
   }
 
   /** `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring. */

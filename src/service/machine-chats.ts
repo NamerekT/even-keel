@@ -43,8 +43,9 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       protection: config.settings[project]?.protection ?? config.protection,
       mainBranch: ctx.branchOf(project),
       ...(agent !== CLAUDE && config.execution[agent] === 'bypass' ? { bypassSandbox: true } : {}),
-      // The built-in plugin's hooks take the chat's mail mid-turn (BTN-1346); a Claude chat keeps its account's settings.
-      ...(agent === CLAUDE ? {} : { plugins: ctx.packages.chatPlugins(), ownPlugins: true }),
+      // The built-in plugin's hooks take the chat's mail mid-turn (BTN-1346) and report a Claude chat's inbox (BTN-1371).
+      plugins: ctx.packages.chatPlugins(agent === CLAUDE),
+      ownPlugins: true,
       ...(isPlain(config, project) ? { outsideRepo: true } : {}),
     }
   }

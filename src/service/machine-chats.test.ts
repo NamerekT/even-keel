@@ -11,6 +11,7 @@ const home = { key: session.account, agent: CLAUDE }
 const start = { prompt: 'Continue', model: null, effort: null }
 
 const bridge = { package: 'agent-bridge@even-keel', dir: '/cache/agent-bridge', name: 'agent-bridge', marketplace: 'ek-1', marketplaceFile: '/cache/m.json', servers: ['memory'] }
+const serverless = { ...bridge, dir: '/cache/agent-bridge-serverless', servers: [] }
 
 function setup(status: 'idle' | 'busy', question?: string, hung = false, agent = CLAUDE) {
   const holds = new ResumeHolds()
@@ -25,16 +26,17 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   const stopIn = vi.fn()
   const resumeIn = vi.fn().mockResolvedValue(session.sessionId)
   const launchIn = vi.fn().mockResolvedValue(session.sessionId)
+  const chatPlugins = vi.fn((withoutServers: boolean) => [withoutServers ? serverless : bridge])
   const chats = wireMachineChats({
     monitor, liveView, agentStatus, stopIn, resumeIn, launchIn, toldInbox, mailbox,
     homeOf: () => ({ ...home, agent }), agentOf: () => ({ reply }), daemons: { prepare: vi.fn() },
     configStore: { current: { settings: {}, execution: {}, projects: {} } }, branchOf: () => 'dev',
-    packages: { chatPlugins: () => [bridge] },
+    packages: { chatPlugins },
   } as unknown as MachineChatsContext)
   return {
     send: (prompt = start.prompt) => chats.send('project', chat, { ...start, prompt }),
     launch: () => chats.launch('project', '/project', chat, { ...start, account: session.account }),
-    holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn,
+    holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn, chatPlugins,
   }
 }
 
@@ -119,10 +121,16 @@ describe('a message to an existing project chat', () => {
     expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, plugin)
   })
 
-  it("starts a Claude session without the plugin: its account folder's own settings decide", async () => {
-    const { launch, launchIn } = setup('idle')
+  it('starts and resumes a Claude session with the built-in plugin copied without its servers (BTN-1371)', async () => {
+    const { launch, send, launchIn, resumeIn, chatPlugins } = setup('idle')
     await launch()
-    expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('plugins')
+    await send()
+    const plugin = expect.objectContaining({ plugins: [serverless], ownPlugins: true })
+    expect(launchIn).toHaveBeenCalledWith(expect.anything(), plugin, 'project')
+    expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, plugin)
+    expect(chatPlugins).toHaveBeenCalledWith(true)
+    expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('settings')
+    expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('mcp')
   })
 
   it('tries neither the agent nor the inbox of a hung session', async () => {
