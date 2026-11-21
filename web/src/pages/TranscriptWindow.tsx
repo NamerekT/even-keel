@@ -26,6 +26,7 @@ import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
 import { ChatMail } from './ChatMail.js'
 import { useChatViewport } from './useChatViewport.js'
+import { useFeedPin } from './feedPin.js'
 import { ShutComposer } from './ComposerBox.js'
 import type { DraftOwner } from './useChatDraft.js'
 import { ChatStatus, useStatusFacts, type StatusFacts } from './ChatStatus.js'
@@ -51,7 +52,6 @@ const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { ho
 const FULL_TIME = localized((language) => new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'medium' }))
 const POLL_MS = 5_000
 const TICK_MS = 1_000
-const PINNED_SLACK = 24
 /** A user's message longer than this is folded, like the task prompt a session starts with. */
 const FOLD_LINES = 8
 const FOLD_CHARS = 600
@@ -143,7 +143,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const listRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const composerRef = useRef<ComposerHandle>(null)
-  const pinned = useRef(true)
+  const { pinned, pin, handlers: pinHandlers } = useFeedPin(listRef)
   /** How many lines of the session's transcript are read. */
   const count = useRef(0)
   const [recorded, setLines] = useState<FeedLine[] | null | undefined>(undefined)
@@ -296,19 +296,14 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
     }
   }, [sessionId, live])
 
-  useLayoutEffect(() => {
-    const list = listRef.current
-    if (list !== null && pinned.current) list.scrollTop = list.scrollHeight
-  }, [lines, sent, listed])
+  useLayoutEffect(pin, [lines, sent, listed])
 
   // The feed also changes size without new lines — a message joins the mail list, the composer grows, images and late layout
   // stretch the content after the first scroll: keep a pinned feed at its end.
   useEffect(() => {
     const list = listRef.current
     if (list === null) return
-    const observer = new ResizeObserver(() => {
-      if (pinned.current) list.scrollTop = list.scrollHeight
-    })
+    const observer = new ResizeObserver(pin)
     observer.observe(list)
     if (list.firstElementChild !== null) observer.observe(list.firstElementChild)
     return () => observer.disconnect()
@@ -327,11 +322,6 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
         setSent((now) => now.filter((each) => each !== entry))
       } else setSent((now) => now.map((each) => (each === entry ? { ...each, failed: true } : each)))
     }
-  }
-
-  const onScroll = () => {
-    const list = listRef.current
-    if (list !== null) pinned.current = list.scrollHeight - list.scrollTop - list.clientHeight < PINNED_SLACK
   }
 
   return (
@@ -404,7 +394,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
           {loader !== 'done' && handing.phase === 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
           {loader === 'done' && lines === null && <p className="placeholder">{t.session.notFound}</p>}
           {(listed || (mail?.mail.length && loader === 'done' && handing.phase === 'done')) ? (
-            <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
+            <div ref={listRef} className="transcript__scroll" {...pinHandlers}>
               <ol className="transcript__lines">
                 {entries?.map((entry, index) => {
                   if (entry.kind === 'gap') {

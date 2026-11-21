@@ -37,6 +37,7 @@ import type { LimitRefusal } from './limitMessages.js'
 import { CacheFact, ContextFact, ModelFact, TipValue, TokensFact } from './SessionFacts.js'
 import { useTaskHistory } from './taskHistory.js'
 import { CarryWait } from './CarryWait.js'
+import { useFeedPin } from './feedPin.js'
 import './facts.css'
 
 import type { WindowTask } from './TranscriptWindow.js'
@@ -44,7 +45,6 @@ import type { WindowTask } from './TranscriptWindow.js'
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
 
 const STARTED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
-const PINNED_SLACK = 24
 const REPLACE_WAIT_MS = 90_000
 
 interface Props {
@@ -688,20 +688,12 @@ interface FeedProps {
 
 function Feed({ lines, sessionId, account, live, task, onChat }: FeedProps) {
   const listRef = useRef<HTMLOListElement>(null)
-  const pinned = useRef(true)
+  const { pin, handlers: pinHandlers } = useFeedPin(listRef)
   const [whole, setWhole] = useState(false)
   const open = onChat ?? (() => setWhole(true))
   const marks = minuteMarks(lines.map((line) => line.at))
 
-  useLayoutEffect(() => {
-    const list = listRef.current
-    if (list !== null && pinned.current) list.scrollTop = list.scrollHeight
-  }, [lines])
-
-  const onScroll = () => {
-    const list = listRef.current
-    if (list !== null) pinned.current = list.scrollHeight - list.scrollTop - list.clientHeight < PINNED_SLACK
-  }
+  useLayoutEffect(pin, [lines])
 
   // Selecting text in the feed is not a press on it.
   const onClick = () => {
@@ -725,7 +717,7 @@ function Feed({ lines, sessionId, account, live, task, onChat }: FeedProps) {
           className="feed feed--open"
           tabIndex={0}
           aria-label={onChat === undefined ? t.session.feedOpens.transcript : t.session.feedOpens.chat}
-          onScroll={onScroll}
+          {...pinHandlers}
           onClick={onClick}
           onKeyDown={(event) => {
             if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return

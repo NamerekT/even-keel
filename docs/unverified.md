@@ -280,6 +280,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 243 | [Reading a GitHub repository's whole history for the import](unverified/trackers.md#reading-a-github-repositorys-whole-history-for-the-import-btn-1403) | projects importing from GitHub | the read fails, pull requests come over as tasks, the change log is wrong or a picture is a dead link; the repository is untouched, stay on it | BTN-1408 |
 | 244 | [Reading a Linear project's whole history for the import](unverified/trackers.md#reading-a-linear-projects-whole-history-for-the-import-btn-1404) | projects importing from Linear | the read fails on a field Linear refuses, archived issues stay behind, the change log is wrong or a picture is a dead link; the team is untouched, stay on it | BTN-1408 |
 | 245 | [Closed tasks in a copy to a real tracker](unverified/trackers.md#closed-tasks-in-a-copy-to-a-real-tracker-btn-1289) | projects moving from the built-in tracker with their closed tasks | a closed task lands open and the chain there takes it, or GitHub's limits stop the copy; close them by hand before the switch, press "Continue" later | — |
+| 246 | [A chat opening at the end of its feed on a phone](unverified/page.md#a-chat-opening-at-the-end-of-its-feed-on-a-phone-btn-1372) | anyone opening a chat on a phone | the chat opens short of its end, or the feed jumps back to its end while you read up it; scroll a little up first | — |
 
 ### Waiting for the event / not checked by choice
 

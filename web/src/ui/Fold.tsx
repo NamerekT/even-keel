@@ -27,6 +27,8 @@ export function FoldBody({ open, id, className = '', preview = false, onClosed, 
   closed.current = onClosed
   const [mounted, setMounted] = useState(open || preview)
   const [expanded, setExpanded] = useState(false)
+  // A preview mounts closed: only a fold that was open brings its toggle back into view when it closes (BTN-1372).
+  const opened = useRef(false)
   if (open && !mounted) setMounted(true)
 
   useLayoutEffect(() => {
@@ -34,6 +36,7 @@ export function FoldBody({ open, id, className = '', preview = false, onClosed, 
     // Commit the zero-height grid before opening newly mounted content.
     void node.offsetHeight
     setExpanded(open)
+    if (open) opened.current = true
   }, [open])
 
   // Opened by its toggle: the scroll follows the body as it grows, so what opened under the fold's edge comes into view.
@@ -64,7 +67,7 @@ export function FoldBody({ open, id, className = '', preview = false, onClosed, 
     if (open || expanded || !mounted) return
     const node = ref.current!
     const trigger = id === undefined ? null : triggerOf(id)
-    const above = trigger !== null && trigger.getBoundingClientRect().top < viewOf(trigger).top
+    const above = opened.current && trigger !== null && trigger.getBoundingClientRect().top < viewOf(trigger).top
     if (node.contains(document.activeElement)) trigger?.focus({ preventScroll: true })
     let cancelled = false
     const finish = () => {
