@@ -42,6 +42,32 @@ docker compose exec even-keel git config --global credential.helper 'store --fil
 
 Keep these files on the host, outside the repository and image. The token in Compose's `.env` grants access to the Even Keel page. Tracker credentials are entered separately in **Settings → Trackers and CI**.
 
+## Stopping and backing up
+
+`docker compose stop`, `down` and the `up -d` of an update give Even Keel 30 seconds to close (`stop_grace_period` in the Compose files), while it needs up to 15. Without that setting, Docker kills the container after 10 seconds, so a Compose file of your own needs it too.
+
+The [automatic copies](setup.md#stored-state) of the database lie in the same volume as the database, so losing the volume loses them as well. To keep them elsewhere, mount a host folder that UID 1000 can write, for example `/srv/even-keel/backups:/backups`, and set **Settings** → **Backups** → **Copies folder** to `/backups`. Those copies hold the database only. The account sign-ins, the machine's own folder and cloned repositories stay in the volume.
+
+To copy the whole volume, stop the service and pack `/home/node` into an archive in the Compose folder:
+
+```sh
+docker compose stop
+docker compose run --rm --no-deps --user root -v "$PWD:/backup" even-keel \
+  sh -c "tar czf /backup/even-keel-home.tgz -C /home/node . && chmod 600 /backup/even-keel-home.tgz && chown $(id -u):$(id -g) /backup/even-keel-home.tgz"
+docker compose start
+```
+
+The archive holds the sign-ins, the tracker credentials and the page's settings in the clear, so keep it as private as `.env`. To put it back, for example on a new host or after `down -v`, run the following in the Compose folder with the archive in it:
+
+```sh
+docker compose down
+docker compose run --rm --no-deps --user root -v "$PWD:/backup:ro" even-keel \
+  sh -c 'find /home/node -mindepth 1 -delete && tar xzpf /backup/even-keel-home.tgz -C /home/node'
+docker compose up -d
+```
+
+This replaces everything in the volume. For a machine's folder, use the service name `machine` instead of `even-keel`. With `compose.hub-machine.yaml`, copy each service into an archive of its own name.
+
 ## Machines
 
 A [machine of a hub](setup.md#a-machine-of-a-hub-preview) runs the hub's tasks and has no page of its own. Either side may be a container.
@@ -75,3 +101,32 @@ docker compose pull && docker compose up -d
 ```
 
 Compose replaces the container and reattaches the home volume and any mounted repositories. The new service runs its usual storage migrations at startup.
+
+## Moving a host installation into Docker
+
+The data folder of an installation on the host cannot be copied into the volume as is. Its database stores the host's paths: project checkouts, agent account folders, task worktrees and the folders of running sessions. On Windows, these are Windows paths. Only the settings and projects move. Everything else starts afresh in the container:
+
+- tracker profiles and their credentials, the OpenRouter management keys and the agents' sign-ins;
+- tasks of a project on the built-in tracker (keep such a project on the host for now);
+- the chain's state, the launch log, the statistics and the database copies.
+
+1. Let the chains finish their tasks, then stop Even Keel on the host.
+2. Export the settings and projects. The command belongs to a clone of Even Keel, not to the npm package. For an npm installation, clone the same version, run `npm install` in the clone and point it at the installation's data folder:
+
+   ```sh
+   EVEN_KEEL_DATA=~/.local/share/even-keel npm run storage -- config-export even-keel.config.json
+   ```
+
+   The data folder is `%LOCALAPPDATA%\even-keel` on Windows (in PowerShell, set `$env:EVEN_KEEL_DATA` first) and `~/Library/Application Support/even-keel` on macOS. In a clone installed by itself, run the command without `EVEN_KEEL_DATA`.
+3. In the file, change each project's `repo` to its path inside the container: a mounted checkout (see [Data, accounts and repositories](#data-accounts-and-repositories)) or a clone under `/home/node`. If the file sets `backup.dir`, change it the same way or remove it.
+4. Create the Compose folder as in [First start](#first-start), but do not start Even Keel yet. The file is read only once, at the first start on an empty volume. Copy the file into the volume from the folder that holds it:
+
+   ```sh
+   docker compose run --rm --no-deps -v "$PWD/even-keel.config.json:/import.json:ro" even-keel \
+     sh -c 'mkdir -p /home/node/.local/share/even-keel && cp /import.json /home/node/.local/share/even-keel/even-keel.config.json'
+   docker compose up -d
+   ```
+
+5. On the page, add the tracker profiles in **Settings → Trackers and CI** and choose each project's profile again. Sign in to the agent accounts, then check each project's account.
+
+The volume should then keep the installation. A full move with the database is not available yet.

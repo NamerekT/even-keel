@@ -13,6 +13,8 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    # Docker's 10 s would cut the service's own 15 s shutdown (SHUTDOWN_MS) short.
+    stop_grace_period: 30s
 
   machine:
     image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:-latest}
@@ -23,6 +25,7 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    stop_grace_period: 30s
 
 volumes:
   home:

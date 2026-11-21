@@ -292,6 +292,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 256 | [A mailed picture as a thumbnail](unverified/page.md#a-mailed-picture-as-a-thumbnail-btn-1431) | anyone sending a picture to a working session whose hooks listen | the letter shows the file's name instead of the picture, or the picture blinks as the message is delivered; it is in the feed's bubble once delivered | — |
 | 257 | [Milestone fields read for the import](unverified/trackers.md#milestone-fields-read-for-the-import-btn-1436) | projects importing from Huly, GitHub or Linear | the plan's read fails on the milestones, or a milestone comes over without its date, status or description; set them on the built-in tracker's milestone by hand | BTN-1407 |
 | 258 | [Machines in Docker](unverified/machines.md#machines-in-docker-btn-1440) | a hub or a machine run from the Compose files | a machine in a container does not reach the hub, starts as a hub or stays waiting after its join; install the machine from npm on its host | — |
+| 259 | [Stopping, backing up and moving a Docker installation](unverified/platforms.md#stopping-backing-up-and-moving-a-docker-installation-btn-1442) | Docker installations stopped, updated, archived or moved from a host install | a stop is cut short, a restored volume has the wrong owner, or the moved settings are not imported; start on an empty volume and add the projects on the page | BTN-1177 |
 
 ### Waiting for the event / not checked by choice
 

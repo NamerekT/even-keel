@@ -10,6 +10,8 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+    # Docker's 10 s would cut the machine's own 15 s shutdown (SHUTDOWN_MS) short.
+    stop_grace_period: 30s
 
 volumes:
   machine-home:
