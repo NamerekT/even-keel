@@ -81,6 +81,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     hiddenSkills: ['update-config', 'keybindings-help', 'fewer-permission-prompts', 'loop', 'schedule', 'init', 'claude-api', 'claude-in-chrome', 'plugin-authoring', 'artifact-design', 'artifact-diagramming', 'artifact-capabilities', 'dataviz'],
     parallel: 1,
     keepWarm: 2,
+    cacheTrial: false,
     attachmentLimit: 25,
     defaultGit: null,
     setupPassed: [],
@@ -102,6 +103,6 @@ export const projectFormDefaults = (overrides: Partial<ProjectForm> = {}): Proje
 })
 
 export function sharedFormDefaults(): SharedForm {
-  const { projects, keys, names, rules, ownRules, slots, colors, trackers, trackerProjects, feeds, moves, briefs, settings, unattended, trimTools, homeShowTests, statsShowTests, tally, ...shared } = configDefaults()
+  const { projects, keys, names, rules, ownRules, slots, colors, trackers, trackerProjects, feeds, moves, briefs, settings, unattended, trimTools, homeShowTests, statsShowTests, tally, cacheTrial, ...shared } = configDefaults()
   return shared
 }

@@ -5,6 +5,7 @@ import type { Git } from '../git/types.js'
 import { MEMORY_SERVER } from '../memory/mcp.js'
 import { readJson } from '../packages/plugins.js'
 import type { Packages } from '../packages/service.js'
+import { trialTtl } from '../sessions/cache.js'
 import { chainSettings } from './panel.js'
 import { readProjectSettings } from './projectSettings.js'
 
@@ -32,6 +33,7 @@ export function createSessionSettings(deps: SessionSettingsDeps) {
     const files = await readProjectSettings(deps.git, repo, deps.branchOf(project), plain)
     const plugins = deps.packages.otherPlugins(project, task, [readJson(join(deps.globalDir, 'settings.json')), files.project, files.local])
     const own = config.settings[project]
-    return chainSettings(repo, plugins, deps.trim(), config.hiddenSkills, deps.globalDir, own?.cacheTtl ?? null, sessionSecrets(deps.packages.keyNames()), own?.protection ?? config.protection, own?.autoCompactWindow ?? null, plain, deps.packages.bringsServer(project, MEMORY_SERVER), files)
+    const ttl = (config.cacheTrial ? trialTtl(task) : null) ?? own?.cacheTtl ?? null
+    return chainSettings(repo, plugins, deps.trim(), config.hiddenSkills, deps.globalDir, ttl,sessionSecrets(deps.packages.keyNames()), own?.protection ?? config.protection, own?.autoCompactWindow ?? null, plain, deps.packages.bringsServer(project, MEMORY_SERVER), files)
   }
 }

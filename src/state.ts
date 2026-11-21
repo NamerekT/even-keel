@@ -89,6 +89,8 @@ export interface SessionView {
   /** The model's context window, from the transcript or the agent's own answer; `null` while unknown. */
   contextWindow: number | null
   cache: CacheWindow | null
+  /** The cache trial gave its lifetime (`byTrial`, BTN-1412); absent — it did not, or the trial is off. */
+  cacheTrial?: boolean
   /** The keep-warm pings of the current stretch of idleness (EKR-143); absent or `null` — none. Forgotten on a restart. */
   warm?: KeptWarm | null
   tokens: TokenTotals

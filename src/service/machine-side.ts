@@ -10,6 +10,7 @@ import { MachineMoves, type HeldMove } from '../machine/moves.js'
 import { machineValue, setMachineValue } from '../machine/state.js'
 import { MachineRecords } from '../machine/records.js'
 import { HANDOFF_EVENT, LEFTOVER_EVENT, MachineRunner, TRANSCRIPT_EVENT } from '../machine/runner.js'
+import { byTrial } from '../sessions/cache.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { steers } from '../sessions/view-index.js'
 import type { MachineContext } from './machine-context.js'
@@ -120,10 +121,14 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     accounts: () => machine.homes.all().map((home) => home.key),
     limitsOf: (account) => machine.limits.limits(account),
     ledger: () => machine.ledger.accounts,
-    sessions: () => machine.sessions.map((view) => {
-      const warm = machine.keepWarm.kept(view.sessionId, view.cache)
-      return warm === null ? view : { ...view, warm }
-    }),
+    sessions: () => {
+      const trial = machine.configStore.current.cacheTrial
+      return machine.sessions.map((view) => {
+        const warm = machine.keepWarm.kept(view.sessionId, view.cache)
+        const byIt = byTrial(view, trial)
+        return warm === null && !byIt ? view : { ...view, ...(warm !== null && { warm }), ...(byIt && { cacheTrial: true }) }
+      })
+    },
     mailbox: () => Object.fromEntries(machine.sessions.flatMap((view): [string, SessionMail][] => {
       const mail = machine.mailbox.of(view.sessionId)
       const steered = steers(machine.agents, view.sessionId)

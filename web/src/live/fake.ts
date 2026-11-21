@@ -795,6 +795,11 @@ export function createFakeSource(search: string): LiveSource {
     const kept = { cache: { ttl: '1h' as const, until: ago(125) }, warm: { at: ago(20), pings: 3 } }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? { ...each, ...kept } : each))
   }
+  // The cache trial gave ABC-5 its lifetime (BTN-1412): 5 mod 4 is 1, five minutes.
+  if (cache === 'trial' && current.state !== null) {
+    const trial = { cache: { ttl: '5m' as const, until: ago(-3) }, cacheTrial: true }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? { ...each, ...trial } : each))
+  }
   // A Copilot session's half-hour cache, as its transcript writes it (BTN-563).
   if (cache === 'copilot' && current.state !== null) {
     const copilot = { ttl: '30m' as const, until: ago(-12) }

@@ -274,6 +274,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 237 | [Orphaned processes killed after Done](unverified/sessions.md#orphaned-processes-killed-after-done-btn-1268) | chain sessions on Linux and macOS: Claude (SDK), Codex, OpenCode and Copilot by the task's mark; macOS's listing | background commands of a finished task live on, holding memory and ports; kill them by hand | — |
 | 238 | [Reading a Huly project's whole history for the import](unverified/trackers.md#reading-a-huly-projects-whole-history-for-the-import-btn-1402) | projects importing from Huly | the plan shows no changes, a picture comes over dead or comments under the wrong author; read them in Huly before it stops | BTN-1407 |
 | 239 | [A project chat on the hour-long cache](unverified/sessions.md#a-project-chat-on-the-hour-long-cache-btn-1401) | Claude project chats | a chat answered after five minutes writes its whole context again | — |
+| 240 | [The cache trial on live chain sessions](unverified/sessions.md#the-cache-trial-on-live-chain-sessions-btn-1412) | anyone running the cache trial | its two halves mix and the numbers say nothing; turn `cacheTrial` off | BTN-1414 |
 
 ### Waiting for the event / not checked by choice
 

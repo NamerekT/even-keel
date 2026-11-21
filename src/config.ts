@@ -94,6 +94,8 @@ export interface EvenKeelConfig {
   hiddenSkills: string[]
   /** The prompt cache TTL of chain sessions (`promptCacheTtl`); null leaves the CLI's own choice. A project's own goes over it. */
   cacheTtl: CacheTtl | null
+  /** The cache trial (BTN-1412, by hand): a numbered Claude chain task's lifetime is its number's variant (`trialTtl`), not `cacheTtl`. */
+  cacheTrial: boolean
   autoCompactWindow: number | null
   codexAutoCompactWindow: number | null
   openCodeAutoCompactWindow: number | null
@@ -355,6 +357,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     hiddenSkills: shared.hiddenSkills as string[],
     protection: shared.protection as Protection,
     cacheTtl: shared.cacheTtl as CacheTtl | null,
+    cacheTrial: shared.cacheTrial as boolean,
     autoCompactWindow: shared.autoCompactWindow as number | null,
     codexAutoCompactWindow: shared.codexAutoCompactWindow as number | null,
     openCodeAutoCompactWindow: shared.openCodeAutoCompactWindow as number | null,

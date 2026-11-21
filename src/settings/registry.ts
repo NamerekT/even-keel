@@ -341,6 +341,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (value !== null && value !== '5m' && value !== '1h') throw fail('config.cacheTtl', { value: json(value) })
     return value
   } },
+  // A measuring tool, written by hand (BTN-1412): on, a numbered chain task's lifetime is `trialTtl` over `cacheTtl`.
+  { key: 'cacheTrial', kind: 'boolean', scopes: ['global'], lands: ['cacheTrial'], default: false, check: boolean('cacheTrial') },
   { key: 'autoCompactWindow', kind: 'integer', scopes: ['global', 'project'], lands: ['autoCompactWindow', 'settings'], default: null, check: (value) => {
     if (value !== null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)) throw fail('config.autoCompactWindow', { value: json(value) })
     return value

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { AGENTS } from '../agent/adapters.js'
-import { ttlWithin, WARM_CACHE_MS, warmCacheMs } from './cache.js'
+import { byTrial, trialTtl, ttlWithin, WARM_CACHE_MS, warmCacheMs } from './cache.js'
 import type { CacheTtl, CacheWindow } from './transcript.js'
 
 const MINUTE = 60_000
@@ -44,5 +44,33 @@ describe('the warm window', () => {
 
   it('stays an hour for OpenCode: DeepSeek keeps its cache for hours', () => {
     expect([windowOf('opencode', null, false), windowOf('opencode', null, true)]).toEqual([55 * MINUTE, 55 * MINUTE])
+  })
+})
+
+describe("the cache trial's variant (BTN-1412)", () => {
+  it("is the number's second bit: 0 and 1 mod 4 five minutes, 2 and 3 an hour, whatever the parity", () => {
+    expect(['ABC-4', 'ABC-5', 'ABC-6', 'ABC-7', 'ABC_GH-1412', 'ABC-1413'].map(trialTtl)).toEqual(['5m', '5m', '1h', '1h', '5m', '5m'])
+  })
+
+  it('is none for a name without a number at its end', () => {
+    expect(['ABC-FIX', 'ABC-CARRY', 'ABC', 'ABC-12x'].map(trialTtl)).toEqual([null, null, null, null])
+  })
+})
+
+describe("the cache trial's mark on a session (BTN-1412)", () => {
+  const view = (task: string, ttl: CacheTtl | null, agent = 'claude') => ({ task, agent, cache: ttl === null ? null : { ttl, until: '2026-11-21T12:00:00.000Z' } })
+
+  it("is on a Claude chain session whose written lifetime is its number's variant, while the trial is on", () => {
+    expect(byTrial(view('ABC-8', '5m'), true)).toBe(true)
+    expect(byTrial(view('ABC-10', '1h'), true)).toBe(true)
+  })
+
+  it('is off when the trial is off, the lifetime differs or is not written yet, for another agent, a chat or a fix', () => {
+    expect(byTrial(view('ABC-8', '5m'), false)).toBe(false)
+    expect(byTrial(view('ABC-8', '1h'), true)).toBe(false)
+    expect(byTrial(view('ABC-8', null), true)).toBe(false)
+    expect(byTrial(view('ABC-10', '1h', 'codex'), true)).toBe(false)
+    expect(byTrial(view('chat-123456789012', '5m'), true)).toBe(false)
+    expect(byTrial(view('ABC-FIX', '5m'), true)).toBe(false)
   })
 })

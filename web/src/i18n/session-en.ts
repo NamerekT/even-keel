@@ -137,6 +137,7 @@ export const sessionEn = {
   warmUntil: 'warm until',
   coldAt: 'cold at',
   lifetime: 'lifetime',
+  trialNote: "The lifetime is the cache trial's, by the task's number",
   renewsNote: 'Every request of the session renews it',
   coldNote: 'The next turn rereads the whole context at the write price',
   renewed: 'renewed',

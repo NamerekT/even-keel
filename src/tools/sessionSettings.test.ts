@@ -42,6 +42,32 @@ describe("the project's settings.json of a chain session", { timeout: 30_000 }, 
   })
 })
 
+describe('the cache trial (BTN-1412)', () => {
+  const ttlOf = async (config: unknown, task: string) => {
+    const settingsFor = createSessionSettings({
+      config: () => parseConfig(config),
+      packages: { otherPlugins: () => ({}), keyNames: () => [], bringsServer: () => false },
+      globalDir: 'C:/example-home', trim: () => false, projectOf: () => 'p', git: noGit, branchOf: () => 'main',
+    })
+    return (JSON.parse((await settingsFor(task))!) as Record<string, unknown>).promptCacheTtl
+  }
+
+  it("gives a numbered task its variant over the project's own lifetime while on", async () => {
+    const config = { cacheTrial: true, cacheTtl: '1h', projects: [{ ...project, cacheTtl: null }] }
+    expect(await Promise.all(['ABC-8', 'ABC-9', 'ABC-10', 'ABC-11'].map((task) => ttlOf(config, task)))).toEqual(['5m', '5m', '1h', '1h'])
+  })
+
+  it("leaves the project's lifetime off, and to a session named without a number", async () => {
+    expect(await ttlOf({ cacheTtl: '1h', projects: [project] }, 'ABC-8')).toBe('1h')
+    expect(await ttlOf({ cacheTrial: true, projects: [{ ...project, cacheTtl: '1h' }] }, 'ABC-FIX')).toBe('1h')
+  })
+
+  it('is off by default and refuses a non-boolean', () => {
+    expect(parseConfig(raw).cacheTrial).toBe(false)
+    expect(() => parseConfig({ ...raw, cacheTrial: 'yes' })).toThrow(/cacheTrial/)
+  })
+})
+
 describe('chain auto-compaction window', () => {
   it('takes the project override, including null, before the shared value at each launch', async () => {
     let config = parseConfig({ ...raw, autoCompactWindow: 300_000 })

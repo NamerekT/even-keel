@@ -23,6 +23,7 @@ export const FULL = {
   hiddenSkills: ['loop', ' simplify '],
   protection: { disabled: ['deleteGithub', 'deleteJira'], claude: ['Write(.env)'], codex: [['terraform', 'destroy']], copilot: ['write(.env)'], opencode: ['terraform destroy*'] },
   cacheTtl: '1h',
+  cacheTrial: true,
   autoCompactWindow: 300_000,
   codexAutoCompactWindow: 250_000,
   openCodeAutoCompactWindow: 200_000,

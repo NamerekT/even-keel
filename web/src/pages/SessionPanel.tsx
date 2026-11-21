@@ -436,7 +436,7 @@ function SessionBody({ session, limit, refusal = null, scale, task, onChat }: Se
           </TipValue>
         </Fact>
         <Fact label={t.session.cache} tone={cacheTone(cache, now, session.lamp)}>
-          {cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={cache} warm={session.warm ?? null} />}
+          {cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={cache} warm={session.warm ?? null} trial={session.cacheTrial === true} />}
         </Fact>
         <ContextFact label={t.session.context} tokens={session.contextTokens} window={session.contextWindow} scale={scale} wide />
         <ModelFact agent={session.agent} model={session.model} title={session.modelTitle} effort={session.effort} />

@@ -17,9 +17,9 @@ import { useTip } from '../ui/useTip.js'
 
 /**
  * The cache clock; the tip, the only one it has (EKR-145), says until when it is warm or since when cold, its lifetime and,
- * when keep-warm pinged it this stretch of idleness, how often and when last (EKR-143).
+ * when keep-warm pinged it this stretch of idleness, how often and when last (EKR-143); `trial` — the cache trial gave the lifetime (BTN-1412).
  */
-export function CacheFact({ cache, warm }: { cache: CacheWindow; warm: KeptWarm | null }) {
+export function CacheFact({ cache, warm, trial = false }: { cache: CacheWindow; warm: KeptWarm | null; trial?: boolean }) {
   const now = useNow(1_000)
   const cold = cacheFreshness(cache, now).level === 'cold'
   return (
@@ -32,6 +32,7 @@ export function CacheFact({ cache, warm }: { cache: CacheWindow; warm: KeptWarm 
         <span className="panel__part-label">{t.session.lifetime}</span>
         <b>{t.cache.ttl[cache.ttl]}</b>
       </span>
+      {trial && <span className="panel__tip-note">{t.session.trialNote}</span>}
       {cold && <span className="panel__tip-note">{t.session.coldNote}</span>}
       {!cold && warm === null && <span className="panel__tip-note">{t.session.renewsNote}</span>}
       {warm !== null && <>
