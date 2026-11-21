@@ -55,7 +55,7 @@ export interface AccountWatcherOptions {
   markRemoving: (key: string, on: boolean) => void
   configPending: (key: string) => boolean
   /** Optional. The edits made right in a Claude folder's `settings.json` and the account's own layer (BTN-901). */
-  settings?: Pick<AccountSettings, 'edits' | 'own' | 'resolve' | 'dropOwn'>
+  settings?: Pick<AccountSettings, 'changes' | 'own' | 'resolve' | 'dropOwn'>
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
   /** Optional. The limits are old and unconfirmed since the start (`LimitsWatcher.outdated`). */

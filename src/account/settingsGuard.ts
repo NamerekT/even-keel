@@ -85,7 +85,7 @@ export async function guardSettingsEdit(input: unknown, config: SettingsGuardCon
         && paths.basename(account.key) === account.key
         && targets.some((path) => samePath(path, paths.join(config.accountsDir, account.key as string, 'settings.json'), platform))
     })
-    return managed ? 'Even Keel manages this account folder’s settings.json. Edit shared settings in ~/.claude/settings.json; Even Keel transfers them to all Claude accounts before launch. For account-only settings, use Accounts in Even Keel: resolve a settings change with “Keep for this account only”.' : null
+    return managed ? 'Even Keel manages this account folder’s settings.json. Edit shared settings in ~/.claude/settings.json; Even Keel transfers them to all Claude accounts before launch. For account-only settings, use Accounts in Even Keel: resolve a settings change with “This account only”.' : null
   } catch {
     return null
   }

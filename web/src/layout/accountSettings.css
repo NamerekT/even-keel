@@ -1,0 +1,37 @@
+/* The band of an account's direct settings edits (BTN-1395): its rows share one set of columns with their head. */
+.account-settings-bands .ui-fold-list__item { padding-block: 0; }
+.account-settings-bands > * + * { margin-top: var(--space-8); }
+/* Each row is a grid of its own (a fold list wraps it), so the columns line up by fixed key width and identical buttons. */
+.account-edits { --edit-columns: 144px minmax(0, 1fr) minmax(0, 1fr) max-content; display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
+.account-edits .ui-fold-list__item { padding-block: 0; }
+.account-edits__head, .account-edits__row { display: grid; grid-template-columns: var(--edit-columns); align-items: center; gap: var(--space-12); min-width: 0; }
+.account-edits__head {
+  padding-bottom: var(--space-4); opacity: 0.8;
+  font-size: var(--text-11); text-transform: uppercase; letter-spacing: 0.04em;
+}
+/* The head's copy of a row's buttons keeps its last column as wide as theirs. */
+.account-edits__ghost { visibility: hidden; height: 0; overflow: hidden; }
+.account-edits__row { padding-block: var(--space-6); border-top: 1px solid color-mix(in srgb, var(--warn-fg) 20%, transparent); }
+.account-edits__key { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: var(--text-13); }
+.account-edits__value { display: flex; min-width: 0; font-family: var(--mono); font-size: var(--text-12); }
+.account-edits__value--unset { font-family: var(--font); font-style: italic; opacity: 0.8; }
+.account-edits__text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-edits__names { flex-wrap: wrap; gap: var(--space-4); }
+.account-edits__names .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-edits__full { display: block; max-height: 320px; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: var(--text-12); }
+.account-edits__actions { display: flex; flex-wrap: wrap; gap: var(--space-4); justify-content: flex-end; }
+/* Too narrow for four columns (the drawer, a phone): the key and its buttons over what it was and is, each captioned. */
+@container (max-width: 900px) {
+  .account-edits__head { display: none; }
+  .account-edits__row { display: flex; flex-wrap: wrap; align-items: flex-start; row-gap: var(--space-6); }
+  .account-edits__key { flex: 1 1 0; align-self: center; }
+  .account-edits__actions { flex: none; order: 1; }
+  .account-edits__value { order: 2; flex: 1 1 calc(50% - var(--space-12)); flex-direction: column; gap: var(--space-2); }
+  .account-edits__value::before { content: attr(data-label); font-family: var(--font); font-style: normal; font-size: var(--text-11); text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.8; }
+  .account-edits__names { flex-direction: row; }
+  .account-edits__names::before { flex-basis: 100%; }
+}
+@container (max-width: 520px) {
+  .account-edits__key { flex-basis: 100%; }
+  .account-edits__actions { order: 3; flex-basis: 100%; justify-content: flex-start; }
+}

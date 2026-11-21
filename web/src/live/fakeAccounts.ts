@@ -10,6 +10,7 @@ import {
   type AccountStatus,
   type LongToken,
   type PoolEntry,
+  type SettingsEdit,
 } from '../../../src/account/model.js'
 import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import { cloudConnectionOf, cloudEnv, cloudOf, type AwsProfiles, type AzureCredentials, type GcloudCredentials } from '../../../src/account/cloud.js'
@@ -374,7 +375,13 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, configPending: true }] }
   if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, removing: true }] }
   if (mode === 'settings') {
-    return { ...signedIn, accounts: [{ ...global, settingsEdits: ['model'], ownSettings: ['permissions'] }, { ...work, settingsEdits: ['skillOverrides', 'env'], ownSettings: ['model', 'effortLevel'] }] }
+    const edits: SettingsEdit[] = [
+      { key: 'env', variables: { added: ['CLAUDE_CODE_MAX_OUTPUT_TOKENS'], removed: [], changed: ['DISABLE_TELEMETRY'] } },
+      { key: 'model', was: '"opus"', now: '"sonnet[1m]"' },
+      { key: 'permissions', was: '{"allow":["Bash(npm test:*)","Read(**)"],"deny":["Bash(git push:*)"],"defaultMode":"acceptEdits"}', now: '{"allow":["Bash(npm test:*)","Bash(npm run build:*)","Read(**)","WebFetch(domain:example.com)"],"deny":["Bash(git push:*)"],"defaultMode":"auto"}' },
+      { key: 'skillOverrides', now: '{"frontend-design":"off"}' },
+    ]
+    return { ...signedIn, accounts: [{ ...global, settingsEdits: [{ key: 'theme', was: '"dark"', now: '"light"' }], ownSettings: ['permissions'] }, { ...work, settingsEdits: edits, ownSettings: ['model', 'effortLevel'] }] }
   }
   if (mode === 'vscode-chats') {
     const sessions = [
@@ -689,12 +696,13 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, removing: false } : entry)) }
   }
   if (name === 'account/settings-edit' || name === 'account/own-setting') {
-    const setting = String(body.key)
+    const settings = Array.isArray(body.keys) ? body.keys.map(String) : [String(body.key)]
     return { ...account, accounts: account.accounts.map((entry) => {
       if (entry.key !== key) return entry
-      const own = (entry.ownSettings ?? []).filter((one) => one !== setting)
+      const own = (entry.ownSettings ?? []).filter((one) => !settings.includes(one))
       if (name === 'account/own-setting') return { ...entry, ownSettings: own }
-      return { ...entry, settingsEdits: (entry.settingsEdits ?? []).filter((one) => one !== setting), ownSettings: body.choice === 'own' ? [...own, setting] : own }
+      const edits = (entry.settingsEdits ?? []).filter((one) => !settings.includes(one.key))
+      return { ...entry, settingsEdits: edits.length === 0 ? undefined : edits, ownSettings: body.choice === 'own' ? [...own, ...settings].sort() : own }
     }) }
   }
   if (name === 'account/remote') {

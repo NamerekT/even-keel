@@ -598,7 +598,7 @@ describe('AccountWatcher settings edits (BTN-901)', () => {
     await accounts.refresh()
     const file = join(home.dir, 'settings.json')
     writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), model: 'sonnet' }))
-    expect(accounts.view.accounts[0]).toMatchObject({ key: 'work', settingsEdits: ['model'] })
+    expect(accounts.view.accounts[0]).toMatchObject({ key: 'work', settingsEdits: [{ key: 'model', now: '"sonnet"' }] })
     await expect(accounts.resolveSettingsEdit('work', 'theme', 'own')).rejects.toThrow(/theme/)
     await accounts.resolveSettingsEdit('work', 'model', 'own')
     expect(accounts.view.accounts[0]).toMatchObject({ ownSettings: ['model'] })

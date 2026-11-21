@@ -382,7 +382,7 @@ export const noticesRu: NoticeTexts = {
     `второй бесплатный аккаунт ChatGPT рядом с ${p.account} среди Codex и OpenCode: условия OpenAI не разрешают несколько бесплатных аккаунтов ради лимитов — сессии здесь не запускаются, пока план не платный`,
   'account.notRemoving': (p) => `${p.key} не удаляется`,
   'account.settingsEdited': (p) =>
-    `В аккаунте ${p.account} поменяли «${p.key}» напрямую; правка остаётся там, пока вы не решите, что с ней делать`,
+    `В аккаунте ${p.account} напрямую ${p.count === 1 ? 'поменяли настройку' : `поменяли ${p.count} ${plural('ru', p.count, { one: 'настройку', few: 'настройки', many: 'настроек', other: 'настройки' })}`}; правки остаются там, пока вы не решите, что делать с каждой`,
   'account.settingsNoEdit': (p) => `у ${p.account} больше нет правки «${p.key}»: обновите страницу`,
   'account.settingsNoOwn': (p) => `у ${p.account} больше нет своего «${p.key}»: обновите страницу`,
   'account.remoteNoSignIn': (p) => `${p.key} вошёл не через claude.ai, а Remote Control работает только при таком входе`,

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from './homes.js'
-import { AccountSettings, editedKeys, planSettings, type SettingsRecord } from './settingsLayer.js'
+import { AccountSettings, editedKeys, planSettings, settingsEdit, type SettingsRecord } from './settingsLayer.js'
 import { shareConfig } from './share.js'
 import { stripSettingsGuard } from './settingsGuard.js'
 
@@ -18,6 +18,26 @@ describe('editedKeys', () => {
     const written = { env: { ANTHROPIC_API_KEY: 'sk-ant-old', TOKEN: 'a' }, apiKeyHelper: 'old' }
     expect(editedKeys({ env: { ANTHROPIC_API_KEY: 'sk-ant-new', TOKEN: 'a' }, apiKeyHelper: 'new', autoUpdatesChannel: 'stable', minimumVersion: '2.1.0' }, written)).toEqual([])
     expect(editedKeys({ env: { ANTHROPIC_API_KEY: 'sk-ant-old', TOKEN: 'b' } }, written)).toEqual(['env'])
+  })
+})
+
+describe('settingsEdit', () => {
+  it('gives the value before and after as JSON, absent for a key that was not there', () => {
+    expect(settingsEdit('model', 'opus', 'sonnet')).toEqual({ key: 'model', was: '"opus"', now: '"sonnet"' })
+    expect(settingsEdit('permissions', undefined, { allow: ['Read'] })).toEqual({ key: 'permissions', now: '{"allow":["Read"]}' })
+    expect(settingsEdit('theme', 'dark', undefined)).toEqual({ key: 'theme', was: '"dark"' })
+  })
+
+  it('cuts a long value', () => {
+    const now = settingsEdit('hooks', undefined, { command: 'x'.repeat(5000) }).now!
+    expect(now.length).toBeLessThanOrEqual(2000)
+    expect(now.endsWith('…')).toBe(true)
+  })
+
+  it('names the changed variables of env and never gives their values', () => {
+    const edit = settingsEdit('env', { KEEP: 'a', GONE: 'b', MOVED: 'c', ANTHROPIC_API_KEY: 'sk-ant-old' }, { KEEP: 'a', MOVED: 'd', NEW: 'secret', ANTHROPIC_API_KEY: 'sk-ant-new' })
+    expect(edit).toEqual({ key: 'env', variables: { added: ['NEW'], removed: ['GONE'], changed: ['MOVED'] } })
+    expect(JSON.stringify(edit)).not.toMatch(/secret|sk-ant/)
   })
 })
 
@@ -97,9 +117,20 @@ describe('AccountSettings', () => {
     expect(settings.edits(home)).toEqual([])
     write(home.dir, { model: 'sonnet', theme: 'dark' })
     expect(settings.edits(home)).toEqual(['model'])
+    expect(settings.changes(home)).toEqual([{ key: 'model', was: '"opus"', now: '"sonnet"' }])
     share()
     expect(read(home.dir).model).toBe('sonnet')
     expect(settings.edits(home)).toEqual(['model'])
+  })
+
+  it('resolves several keys at once, and none of them when one is no edit', () => {
+    write(home.dir, { model: 'sonnet', theme: 'light' })
+    expect(() => settings.resolve(home, ['model', 'effortLevel'], 'share')).toThrow(/effortLevel/)
+    expect(read(globalDir)).toEqual({ model: 'opus', theme: 'dark' })
+    settings.resolve(home, ['model', 'theme'], 'share')
+    share()
+    expect(read(globalDir)).toEqual({ model: 'sonnet', theme: 'light' })
+    expect(settings.edits(home)).toEqual([])
   })
 
   it('"make shared" moves the value into the global settings', () => {

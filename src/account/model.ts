@@ -64,6 +64,18 @@ export interface CredentialTimes {
  */
 export type ReadBalance = { usd: number; at: string } | { rejected: true; at: string }
 
+/**
+ * A key changed right in an account folder's `settings.json` (BTN-1395): its value from the last transfer (`was`) and
+ * in the folder (`now`) as JSON, absent where the key is not there. `env` gives the names of the variables that
+ * differ in place of the values, which may be secrets.
+ */
+export interface SettingsEdit {
+  key: string
+  was?: string
+  now?: string
+  variables?: { added: string[]; removed: string[]; changed: string[] }
+}
+
 export interface AccountEntry {
   key: string
   /** The name the user gave the account (`AccountRecord.name`); the folder key stays its identity. */
@@ -89,7 +101,7 @@ export interface AccountEntry {
   removing: boolean
   configPending: boolean
   /** Top-level keys of a Claude folder's `settings.json` changed right there since the last transfer, held there (BTN-901). */
-  settingsEdits?: string[]
+  settingsEdits?: SettingsEdit[]
   /** The keys of the account's own layer, put on top of the global settings at every transfer (BTN-901). */
   ownSettings?: string[]
   apiKey: boolean

@@ -375,8 +375,8 @@ export const en = {
   'account.extraFree': (p: { account: string }) =>
     `A second free ChatGPT account next to ${p.account} across Codex and OpenCode is held. Sign in with a paid account to start sessions here`,
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
-  'account.settingsEdited': (p: { account: string; key: string }) =>
-    `In ${p.account}, "${p.key}" was changed directly; the change stays there until you choose what to do with it`,
+  'account.settingsEdited': (p: { account: string; count: number }) =>
+    `In ${p.account}, ${p.count === 1 ? 'a setting was' : `${p.count} settings were`} changed directly; the changes stay there until you choose what to do with each`,
   'account.settingsNoEdit': (p: { account: string; key: string }) => `claude: ${p.account} has no change of "${p.key}" to resolve any more; reload the page`,
   'account.settingsNoOwn': (p: { account: string; key: string }) => `claude: ${p.account} keeps no "${p.key}" of its own any more; reload the page`,
   'account.remoteNoSignIn': (p: { key: string }) => `claude: ${p.key} is not signed in with claude.ai, and Remote Control runs only on such a sign-in`,

@@ -108,7 +108,7 @@ export interface AccountControl {
   /** The name the page shows for the account; blank — its default. */
   rename(account: string, name: string): void
   /** A key changed right in a Claude folder's `settings.json` (BTN-901): made shared, kept as the account's own, or dropped. */
-  resolveSettingsEdit(account: string, key: string, choice: EditChoice): Promise<void>
+  resolveSettingsEdit(account: string, keys: string | readonly string[], choice: EditChoice): Promise<void>
   /** A key of the account's own settings layer goes; the global value comes back. */
   dropOwnSetting(account: string, key: string): Promise<void>
   /** Remote Control from the account's next session, for a claude.ai sign-in (EKR-148). */

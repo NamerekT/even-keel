@@ -164,7 +164,7 @@ const COMMANDS: Record<string, Command> = {
   'account/remove': ({ account }, body) => account.remove(accountOf(body)),
   'account/keep': ({ account }, body) => account.keep(accountOf(body)),
   'account/name': ({ account }, body) => account.rename(accountOf(body), typeof body.name === 'string' ? body.name : ''),
-  'account/settings-edit': ({ account }, body) => account.resolveSettingsEdit(accountOf(body), textOf(body.key, 'key'), editChoiceOf(body.choice)),
+  'account/settings-edit': ({ account }, body) => account.resolveSettingsEdit(accountOf(body), body.keys === undefined ? textOf(body.key, 'key') : labelList(body.keys, 'keys'), editChoiceOf(body.choice)),
   'account/own-setting': ({ account }, body) => account.dropOwnSetting(accountOf(body), textOf(body.key, 'key')),
   'account/remote': ({ account }, body) => account.enableRemote(accountOf(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),

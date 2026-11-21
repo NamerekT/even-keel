@@ -4,6 +4,7 @@ import { fail } from '../notice/notice.js'
 import type { Queryable } from '../storage/database.js'
 import { isCloudVariable } from './cloud.js'
 import type { AccountHome } from './homes.js'
+import type { SettingsEdit } from './model.js'
 import { API_KEY_VARIABLE, mergeSettings, type SettingsPlanner } from './share.js'
 import { stripSettingsGuard } from './settingsGuard.js'
 
@@ -63,6 +64,36 @@ export function editedKeys(folder: Json, written: Json): string[] {
   return [...keys].filter((key) => !SILENT_KEYS.has(key) && !FOLDER_KEYS.has(key) && comparable(key, folder[key]) !== comparable(key, written[key])).sort()
 }
 
+/** Longer values are cut: the page shows them in a tip, and a whole `hooks` block would weigh on every state. */
+const SHOWN_VALUE = 2000
+
+function shown(value: unknown): string | undefined {
+  if (value === undefined) return undefined
+  const text = JSON.stringify(value)
+  return text.length <= SHOWN_VALUE ? text : `${text.slice(0, SHOWN_VALUE - 1)}…`
+}
+
+/** What the page shows of an edited key: its value before and after, or for `env` only the names of what moved. */
+export function settingsEdit(key: string, was: unknown, now: unknown): SettingsEdit {
+  if (key === 'env') {
+    const before = sharedEnv(was)
+    const after = sharedEnv(now)
+    const names = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()
+    const differs = (name: string) => JSON.stringify(before[name]) !== JSON.stringify(after[name])
+    return { key, variables: {
+      added: names.filter((name) => !(name in before)),
+      removed: names.filter((name) => !(name in after)),
+      changed: names.filter((name) => name in before && name in after && differs(name)),
+    } }
+  }
+  const edit: SettingsEdit = { key }
+  const before = shown(was)
+  const after = shown(now)
+  if (before !== undefined) edit.was = before
+  if (after !== undefined) edit.now = after
+  return edit
+}
+
 export interface SettingsPlan {
   /** What goes into the folder's `settings.json`. */
   file: Json
@@ -96,7 +127,7 @@ export function planSettings(global: Json, folder: Json | undefined, record: Set
  */
 export class AccountSettings {
   private readonly discards = new Map<string, Set<string>>()
-  private readonly seen = new Map<string, { stamp: string; edits: string[] }>()
+  private readonly seen = new Map<string, { stamp: string; changes: SettingsEdit[] }>()
   private version = 0
 
   constructor(
@@ -120,6 +151,11 @@ export class AccountSettings {
 
   /** The keys changed in the folder since the last transfer; none before the first one. */
   edits(home: AccountHome): string[] {
+    return this.changes(home).map((change) => change.key)
+  }
+
+  /** `edits` with what each key was and is now. */
+  changes(home: AccountHome): SettingsEdit[] {
     const record = this.records.get(home.key)
     if (record === undefined) return []
     const file = join(home.dir, 'settings.json')
@@ -131,12 +167,16 @@ export class AccountSettings {
       return []
     }
     const cached = this.seen.get(home.key)
-    if (cached?.stamp === stamp) return cached.edits
-    const folder = readJson(file)
+    if (cached?.stamp === stamp) return cached.changes
+    const read = readJson(file)
     const discard = this.discards.get(home.key)
-    const edits = folder === undefined ? [] : editedKeys(folder, record.written).filter((key) => discard?.has(key) !== true)
-    this.seen.set(home.key, { stamp, edits })
-    return edits
+    const folder = stripSettingsGuard(read ?? {})
+    const written = stripSettingsGuard(record.written)
+    const changes = read === undefined ? [] : editedKeys(read, record.written)
+      .filter((key) => discard?.has(key) !== true)
+      .map((key) => settingsEdit(key, written[key], folder[key]))
+    this.seen.set(home.key, { stamp, changes })
+    return changes
   }
 
   /** The keys of the account's own layer. */
@@ -144,10 +184,18 @@ export class AccountSettings {
     return Object.keys(this.records.get(account)?.own ?? {}).sort()
   }
 
-  /** Takes effect at the next transfer into the folder, which the caller starts. */
-  resolve(home: AccountHome, key: string, choice: EditChoice): void {
+  /** Every key or none: a key that is no edit any more refuses them all. Takes effect at the next transfer, which the caller starts. */
+  resolve(home: AccountHome, keys: string | readonly string[], choice: EditChoice): void {
+    const list = typeof keys === 'string' ? [keys] : keys
+    const edits = this.edits(home)
+    const missing = list.find((key) => !edits.includes(key))
+    if (missing !== undefined) throw fail('account.settingsNoEdit', { account: home.key, key: missing })
+    for (const key of new Set(list)) this.resolveOne(home, key, choice)
+  }
+
+  private resolveOne(home: AccountHome, key: string, choice: EditChoice): void {
     const record = this.records.get(home.key)
-    if (record === undefined || !this.edits(home).includes(key)) throw fail('account.settingsNoEdit', { account: home.key, key })
+    if (record === undefined) throw fail('account.settingsNoEdit', { account: home.key, key })
     const value = stripSettingsGuard(readJson(join(home.dir, 'settings.json')) ?? {})[key]
     if (choice === 'discard') {
       this.discards.set(home.key, new Set([...(this.discards.get(home.key) ?? []), key]))

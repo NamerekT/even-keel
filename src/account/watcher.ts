@@ -507,15 +507,15 @@ export class AccountWatcher {
   private settingsOf(home: AccountHome): Pick<AccountEntry, 'settingsEdits' | 'ownSettings'> {
     const settings = this.options.settings
     if (settings === undefined || home.global || home.agent !== CLAUDE) return {}
-    const edits = settings.edits(home)
+    const edits = settings.changes(home)
     const own = settings.own(home.key)
     return { ...(edits.length > 0 && { settingsEdits: edits }), ...(own.length > 0 && { ownSettings: own }) }
   }
 
   /** An edit right in the folder's `settings.json`: made shared, kept as the account's own or dropped, then transferred. */
-  async resolveSettingsEdit(key: string, setting: string, choice: EditChoice): Promise<void> {
+  async resolveSettingsEdit(key: string, settings: string | readonly string[], choice: EditChoice): Promise<void> {
     const home = this.claudeHome(key)
-    this.options.settings?.resolve(home, setting, choice)
+    this.options.settings?.resolve(home, settings, choice)
     await this.options.prepare(home)
     this.options.onChange()
   }
