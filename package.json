@@ -97,8 +97,8 @@
     "yaml": "^2.9.1"
   },
   "dependencies": {
-    "@electric-sql/pglite": "^0.5.8",
-    "@electric-sql/pglite-socket": "^0.2.11",
+    "@electric-sql/pglite": "^0.5.17",
+    "@electric-sql/pglite-socket": "^0.2.20",
     "pg": "^8.23.1",
     "undici": "^8.12.4"
   },
