@@ -11,6 +11,8 @@ function task(id: string, fields: Partial<StatsTaskRow> = {}): StatsTaskRow {
     url: null,
     cost: 1,
     priceEstimate: null,
+    warmCost: null,
+    warmPings: 0,
     limit: null,
     sessions: 1,
     relays: 0,

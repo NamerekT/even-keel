@@ -193,6 +193,7 @@ export const statsRU = {
         `по лимиту: ${relays}, контрольные точки: ${checkpoints}, вручную: ${restarts}`,
       compacts: (auto: number, manual: number) => `автоматически: ${auto}, через /compact: ${manual}`,
       priceEstimate: (usd: string) => `Потрачено на ключе OpenRouter; оценка по цене: ${usd}`,
+      warm: (usd: string, pings: number) => `Из них пинги keep-warm: ${usd} (${pings} ${forms('пинг', 'пинга', 'пингов')(pings)})`,
       compaction: (trigger: string | null, pre: string, post: string) =>
         `${trigger === 'auto' ? 'Автоматическая компакция' : 'Компакция через /compact'}: ${pre} → ${post} токенов`,
       noSessions: 'Сессий по задаче нет.',

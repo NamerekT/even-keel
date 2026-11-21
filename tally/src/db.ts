@@ -1,6 +1,7 @@
 import pg from 'pg'
 import { stat } from 'node:fs/promises'
 import type { SessionKeySpend } from '../../src/account/spend.js'
+import type { StoredWarmPing } from '../../src/sessions/warm-pings.js'
 import { tallyVersion } from '../../src/stats/tally-schema.js'
 import type { TaskSource } from '../../src/chain/launches.js'
 import type { Entry } from '../../src/sessions/entry.js'
@@ -517,6 +518,21 @@ export class TallyDb implements Store {
         [JSON.stringify(spends.map((spend) => ({ session_id: spend.sessionId, account: spend.account, usd: spend.usd, shared: spend.shared, first_at: spend.firstAt, last_at: spend.lastAt })))],
       )
     })
+  }
+
+  /** Even Keel's keep-warm pings (BTN-1413): the new ones are added, those Tally holds stay as they are. */
+  async syncWarmPings(pings: StoredWarmPing[]): Promise<void> {
+    await this.client.query(
+      `insert into warm_pings (session_id, at, machine, account, task, project_id, model, input, cache_write_5m, cache_write_1h, cache_read, output)
+       select session_id, at, machine, account, task, project_id, model, input, cache_write_5m, cache_write_1h, cache_read, output
+       from jsonb_to_recordset($1::jsonb) as x(session_id text, at timestamptz, machine text, account text, task text, project_id text, model text,
+         input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint)
+       on conflict (session_id, at) do nothing`,
+      [JSON.stringify(pings.map((ping) => ({
+        session_id: ping.sessionId, at: ping.at, machine: ping.machine, account: ping.account, task: ping.task, project_id: ping.project, model: ping.model,
+        input: ping.input, cache_write_5m: ping.cacheWrite5m, cache_write_1h: ping.cacheWrite1h, cache_read: ping.cacheRead, output: ping.output,
+      })))],
+    )
   }
 
   /** The catalogue's prices, each of one exact `<provider>/<model>`: they replace the catalogue's earlier rows. */

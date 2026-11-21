@@ -12,7 +12,8 @@ import { settleMail } from '../sessions/mailRelay.js'
 import { Writes } from '../storage/database.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import { memoryDatabase } from '../storage/memory.js'
-import { MachineRecords, MAILBOX_EVENT, saveMachineRecord } from './records.js'
+import { readWarmPings } from '../sessions/warm-pings.js'
+import { MachineRecords, MAILBOX_EVENT, saveMachineRecord, WARM_EVENT } from './records.js'
 import { RemoteMachine } from './remote.js'
 
 const entry = { at: '2026-11-16T10:00:00.000Z', project: 'example-project', task: 'ABC-1', sessionId: 'session-1' }
@@ -73,6 +74,20 @@ describe('machine records over the wire', { timeout: 30_000 }, () => {
     await end.flushed()
     expect((await db.query('select usd from key_spends')).rows).toEqual([{ usd: 0.4 }])
     expect(store.outbox).toEqual([])
+  })
+
+  it("keeps a keep-warm ping on the hub under the machine that sent it, once after a lost answer", async () => {
+    const { db, end, wire, machine } = await bench()
+    const ping = { at: entry.at, sessionId: 'session-1', task: 'ABC-1', project: null, account: 'key', model: 'claude-opus-5-5', input: 3, cacheWrite5m: 10, cacheWrite1h: 0, cacheRead: 90_000, output: 4 }
+    wire.loseAnswers = true
+    await end.emit(WARM_EVENT, ping)
+    await end.flushed()
+    end.stop()
+    wire.loseAnswers = false
+    await end.start()
+    await vi.waitFor(() => expect(end.status().state).toBe('online'))
+    await end.flushed()
+    expect(await readWarmPings(db)).toEqual([{ ...ping, machine }])
   })
 
   it('keeps journal entries, session windows and chat changes at the hub', async () => {

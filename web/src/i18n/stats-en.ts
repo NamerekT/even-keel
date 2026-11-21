@@ -194,6 +194,7 @@ export const statsEN: Messages['stats'] = {
         `limit: ${relays}, checkpoints: ${checkpoints}, by hand: ${restarts}`,
       compacts: (auto: number, manual: number) => `automatic: ${auto}, /compact: ${manual}`,
       priceEstimate: (usd: string) => `Spent on the OpenRouter key; estimate by price: ${usd}`,
+      warm: (usd: string, pings: number) => `Of it keep-warm pings: ${usd} (${pings} ${pings === 1 ? 'ping' : 'pings'})`,
       compaction: (trigger: string | null, pre: string, post: string) =>
         `${trigger === 'auto' ? 'Automatic compaction' : 'Compaction by /compact'}: ${pre} → ${post} tokens`,
       noSessions: 'No sessions for the task.',

@@ -23,6 +23,21 @@ function remarkText(remark: TasksRemark | null): string | null {
     : t.stats.remarks.stubborn(remark.task, remark.sessions)
 }
 
+/** The tip of a cost: the estimate by price where it was paid on a key, the keep-warm pings' part (BTN-1413). */
+function costTip(spend: Pick<StatsTaskRow, 'priceEstimate' | 'warmCost' | 'warmPings'>): ReactNode | null {
+  const lines = [
+    spend.priceEstimate === null ? null : t.stats.tasks.priceEstimate(formatUsd(spend.priceEstimate)),
+    spend.warmCost === null ? null : t.stats.tasks.warm(formatUsd(spend.warmCost), spend.warmPings),
+  ].filter((line) => line !== null)
+  if (lines.length === 0) return null
+  return lines.map((line, index) => (
+    <Fragment key={line}>
+      {index > 0 && <br />}
+      {line}
+    </Fragment>
+  ))
+}
+
 export function TaskTable({ tasks, chats, trackerUrls, fold }: { tasks: StatsTaskRow[]; chats: StatsChatRow[]; trackerUrls: TrackerUrls; fold: FoldControl }) {
   const [sort, setSort] = useState<{ column: Column; down: boolean }>({ column: 'cost', down: true })
   const [open, setOpen] = useState<string | null>(null)
@@ -61,10 +76,10 @@ export function TaskTable({ tasks, chats, trackerUrls, fold }: { tasks: StatsTas
       case 'cost':
         return (
           <td key={column} className="tasks__num tasks__cost" style={{ '--share': top > 0 ? row.cost / top : 0 } as CSSProperties}>
-            {row.priceEstimate === null ? (
+            {costTip(row) === null ? (
               formatUsd(row.cost)
             ) : (
-              <Tipped tip={t.stats.tasks.priceEstimate(formatUsd(row.priceEstimate))} inline>
+              <Tipped tip={costTip(row)} inline>
                 {formatUsd(row.cost)}
               </Tipped>
             )}
@@ -244,10 +259,10 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
               </Tipped>
               <span className="timeline__meta">
                 {session.model !== null && <span className="tag">{modelLabel(session.model.replace(/^claude-([a-z]+).*$/, '$1'))}</span>}
-                {session.priceEstimate === null ? (
+                {costTip(session) === null ? (
                   <span>{formatUsd(session.cost)}</span>
                 ) : (
-                  <Tipped tip={t.stats.tasks.priceEstimate(formatUsd(session.priceEstimate))} align="start" inline>
+                  <Tipped tip={costTip(session)} align="start" inline>
                     {formatUsd(session.cost)}
                   </Tipped>
                 )}

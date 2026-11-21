@@ -179,9 +179,20 @@ const TASKS = `${PERIOD}, cur as (
   -- The real spend on the key where Even Keel read one (BTN-860): only those sessions, so the view prices no other.
   select p.message_id, p.paid from message_paid p where p.session_id in (select session_id from key_spends where not shared)
   order by p.message_id
+), warm as (
+  -- The keep-warm pings of the period (BTN-1413) of the sessions the period's filters left, with their weekly share.
+  select w.task, count(*) as pings, sum(w.cost) as cost, sum(ws.share) as share
+  from warm_ping_costs w
+  cross join bounds
+  left join seven ws on ws.message_id = w.ping_id
+  where w.at >= bounds.lo and w.at < bounds.hi and w.session_id in (select session_id from cur)
+  group by w.task
 )
-select c.task, min(c.project) as project, t.title, t.status, t.url, coalesce(sum(coalesce(pd.paid, c.cost)), 0) as cost,
-  case when count(pd.message_id) > 0 then coalesce(sum(c.cost), 0) end as price_estimate, sum(sv.share) as limit_share,
+select c.task, min(c.project) as project, t.title, t.status, t.url,
+  coalesce(sum(coalesce(pd.paid, c.cost)), 0) + coalesce(max(w.cost), 0) as cost,
+  case when count(pd.message_id) > 0 then coalesce(sum(c.cost), 0) + coalesce(max(w.cost), 0) end as price_estimate,
+  case when count(sv.share) > 0 or max(w.share) is not null then coalesce(sum(sv.share), 0) + coalesce(max(w.share), 0) end as limit_share,
+  max(w.cost) as warm_cost, coalesce(max(w.pings), 0) as warm_pings,
   count(distinct c.session_id) as sessions,
   count(distinct c.session_id) filter (where c.launch_reason = 'relay') as relays,
   count(distinct c.session_id) filter (where c.launch_reason = 'checkpoint') as checkpoints,
@@ -202,6 +213,7 @@ left join tasks t on t.task = c.task
 left join task_times tt on tt.task = c.task
 left join stuck st on st.task = c.task
 left join compacted cp on cp.task = c.task
+left join warm w on w.task = c.task
 group by c.task, t.title, t.status, t.url, t.labels, t.estimate_h, t.done, t.component, tt.active_s, tt.wait_s, tt.total_s
 order by cost desc, c.task`
 
@@ -243,12 +255,17 @@ limit ${TOP_STUCK}`
 
 const TASK_SESSIONS = `
 select c.session_id, coalesce(s.custom_title, s.ai_title) as title, s.launch_reason, mode() within group (order by c.model) as model,
-  min(c.at) as first_at, max(c.at) as last_at, coalesce(sum(c.paid), 0) as cost,
-  case when max(k.session_id) is not null then coalesce(sum(c.cost), 0) end as price_estimate,
+  min(c.at) as first_at, max(c.at) as last_at, coalesce(sum(c.paid), 0) + coalesce(max(w.cost), 0) as cost,
+  case when max(k.session_id) is not null then coalesce(sum(c.cost), 0) + coalesce(max(w.cost), 0) end as price_estimate,
+  max(w.cost) as warm_cost, coalesce(max(w.pings), 0) as warm_pings,
   mode() within group (order by c.account) as account
 from message_paid c
 left join sessions s on s.session_id = c.session_id
 left join key_spends k on k.session_id = c.session_id and not k.shared
+-- The session's keep-warm pings (BTN-1413), of all time as its responses are.
+left join (
+  select session_id, count(*) as pings, sum(cost) as cost from warm_ping_costs where task = $1::text group by session_id
+) w on w.session_id = c.session_id
 where c.task = $1::text
 group by c.session_id, s.custom_title, s.ai_title, s.launch_reason
 order by first_at`
@@ -430,6 +447,8 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
       url: text(row.url),
       cost: number(row.cost),
       priceEstimate: maybe(row.price_estimate),
+      warmCost: maybe(row.warm_cost),
+      warmPings: number(row.warm_pings),
       limit: maybe(row.limit_share),
       sessions: number(row.sessions),
       relays: number(row.relays),
@@ -471,6 +490,8 @@ export function mapTask(task: string, sessions: Row[], spans: Row[], steps: Stat
       lastAt: iso(row.last_at),
       cost: number(row.cost),
       priceEstimate: maybe(row.price_estimate),
+      warmCost: maybe(row.warm_cost),
+      warmPings: number(row.warm_pings),
       account: text(row.account),
     })),
     spans: spans.map(stuck),

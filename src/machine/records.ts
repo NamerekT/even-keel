@@ -3,6 +3,7 @@ import { saveKeySpend, type KeySpendGrowth } from '../account/spend.js'
 import { appendLaunch } from '../chain/store.js'
 import type { MachineEvent } from '../link/protocol.js'
 import { saveMailboxChange, type MailboxChange } from '../sessions/mailbox-store.js'
+import { saveWarmPing, type WarmPing } from '../sessions/warm-pings.js'
 import { saveSessionWindows } from '../storage/context-windows.js'
 import { inTransaction, type Db } from '../storage/database.js'
 
@@ -10,9 +11,10 @@ export const LAUNCH_EVENT = 'launch.record'
 export const WINDOWS_EVENT = 'session.windows'
 export const MAILBOX_EVENT = 'chat.mailbox'
 export const SPEND_EVENT = 'key.spend'
+export const WARM_EVENT = 'warm.ping'
 
 export function isRecordEvent(type: string): boolean {
-  return type === LAUNCH_EVENT || type === WINDOWS_EVENT || type === MAILBOX_EVENT || type === SPEND_EVENT
+  return type === LAUNCH_EVENT || type === WINDOWS_EVENT || type === MAILBOX_EVENT || type === SPEND_EVENT || type === WARM_EVENT
 }
 
 /**
@@ -64,6 +66,7 @@ export function saveMachineRecord(db: Db, machine: string, event: MachineEvent):
       await saveSessionWindows(tx, windows, at)
     } else if (event.type === MAILBOX_EVENT) await saveMailboxChange(tx, event.payload as MailboxChange, machine)
     else if (event.type === SPEND_EVENT) await saveKeySpend(tx, event.payload as KeySpendGrowth)
+    else if (event.type === WARM_EVENT) await saveWarmPing(tx, machine, event.payload as WarmPing)
     else throw new Error(`machine: unknown record ${event.type}`)
     await tx.query('update machines set last_event = $2 where id = $1', [machine, event.seq])
     return true

@@ -24,6 +24,8 @@ import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
 import { taskMoves, type TaskMove } from './task-moves.js'
 import { chatSessions, type ChatSession } from './chat-sessions.js'
+import { warmPings } from './warm-pings.js'
+import type { StoredWarmPing } from '../../src/sessions/warm-pings.js'
 import type { HulyProfiles, TimeTracker } from '../../src/stats/tally.js'
 import { hulyOfProfiles } from './huly-profiles.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
@@ -54,7 +56,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(home, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env)).all()
-  const { launches: journal, handoffs: saved, repos, closed, builtin, moves, chats = [], keySpends, translations } = await evenKeelState(stateDir, log)
+  const { launches: journal, handoffs: saved, repos, closed, builtin, moves, chats = [], keySpends, translations, pings } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
   const taskHomes = taskSources(journal)
   const hulyOf = hulyOfProfiles(huly, new Map(taskHomes.flatMap((home) => (home.profile === null ? [] : [[home.task, home.profile] as const]))))
@@ -122,6 +124,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const relabeled = await db.syncLaunches(launches)
     await db.syncTaskSources(taskHomes)
     if (keySpends !== undefined) await db.syncKeySpends(keySpends)
+    if (pings !== undefined) await db.syncWarmPings(pings)
     // A built-in task read whole is not given the archive's older state on top.
     const readWhole = new Set(builtin.map((task) => task.task))
     await db.syncClosedTasks(closedStates(closed.filter((each) => !readWhole.has(each.task)), journal))
@@ -161,7 +164,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
     log(
       `tally: ${paths.length} files (${rollouts.length} Codex, ${openCode.length} OpenCode, ${copilot.length} Copilot),${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
-        `${relabeled} sessions relabeled, ${cataloguePriced.length} catalogue prices, ${keySpends?.length ?? 'no'} key spends,${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
+        `${relabeled} sessions relabeled, ${cataloguePriced.length} catalogue prices, ${keySpends?.length ?? 'no'} key spends, ${pings?.length ?? 'no'} keep-warm pings,${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
         `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${builtin.length} built-in tasks, ${moves.length} moved tasks, ${chats.length} chat sessions, ${reports} time reports, ${classified} spans classified, ${seconds} s`,
     )
@@ -196,7 +199,8 @@ async function evenKeelState(stateDir: string, log: Log): Promise<EvenKeelState>
       // A service on the code before step 35 has no table yet: the rest of the state is read all the same.
       const keySpends = database === undefined ? undefined : await readKeySpends(reader.db).catch(() => undefined)
       const translations = database === undefined ? undefined : await readTranslationSpend(reader.db)
-      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos, closed, builtin, moves, chats, keySpends, translations }
+      const pings = database === undefined ? undefined : await warmPings(reader.db)
+      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos, closed, builtin, moves, chats, keySpends, translations, pings }
     } finally {
       await reader.close()
     }
@@ -210,7 +214,7 @@ async function evenKeelState(stateDir: string, log: Log): Promise<EvenKeelState>
  * `builtin` — the built-in tracker's tasks (BTN-785), only in the database; `moves` — the old ids of the copied ones
  * (BTN-1076); `chats` — the sessions of project chats (BTN-1233).
  */
-type EvenKeelState = { launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[]; closed: ClosedTask[]; builtin: TaskRecord[]; moves: TaskMove[]; chats?: ChatSession[]; keySpends?: SessionKeySpend[]; translations?: MessageRow[] }
+type EvenKeelState = { launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[]; closed: ClosedTask[]; builtin: TaskRecord[]; moves: TaskMove[]; chats?: ChatSession[]; keySpends?: SessionKeySpend[]; translations?: MessageRow[]; pings?: StoredWarmPing[] }
 
 async function legacyReader(stateDir: string): Promise<StateReader | undefined> {
   const file = join(stateDir, SQLITE_FILE)

@@ -255,6 +255,9 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
         cost: paid,
         // Every fifth task ran on an OpenRouter key whose real spend Even Keel read (BTN-860).
         priceEstimate: index % 5 === 2 ? paid * 1.18 : null,
+        // Every other task kept its cache warm between turns (BTN-1413); no draw, so the sequence stays.
+        warmCost: index % 2 === 1 ? paid * 0.06 : null,
+        warmPings: index % 2 === 1 ? 3 + (index % 7) : 0,
         limit: (cost / count) * 0.11,
         sessions,
         relays: next() > 0.8 ? 1 : 0,
@@ -344,6 +347,8 @@ export function fakeTask(mode: string | null, task: string): StatsAnswer<StatsTa
       lastAt: new Date(lastAt).toISOString(),
       cost,
       priceEstimate: index % 3 === 1 ? cost * 1.18 : null,
+      warmCost: index % 2 === 0 ? cost * 0.06 : null,
+      warmPings: index % 2 === 0 ? 2 + index : 0,
       account: index % 3 === 1 ? 'jane.roe' : 'global',
     }
   })

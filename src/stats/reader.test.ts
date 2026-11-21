@@ -82,6 +82,8 @@ describe('mapPeriod', () => {
             status: 'Done',
             cost: '3.2',
             price_estimate: '3.9',
+            warm_cost: '0.4',
+            warm_pings: '3',
             limit_share: null,
             sessions: '2',
             relays: '0',
@@ -127,6 +129,8 @@ describe('mapPeriod', () => {
       status: 'Done',
       cost: 3.2,
       priceEstimate: 3.9,
+      warmCost: 0.4,
+      warmPings: 3,
       limit: null,
       sessions: 2,
       relays: 0,
@@ -144,7 +148,7 @@ describe('mapPeriod', () => {
       component: 'Web',
       model: 'opus',
     })
-    expect(period.tasks[1]).toMatchObject({ url: null, priceEstimate: null, estimateH: null, activeS: null, waitS: null, totalS: null, done: null, component: null, model: null, compactsAuto: 0, compactsManual: 0 })
+    expect(period.tasks[1]).toMatchObject({ url: null, priceEstimate: null, warmCost: null, warmPings: 0, estimateH: null, activeS: null, waitS: null, totalS: null, done: null, component: null, model: null, compactsAuto: 0, compactsManual: 0 })
     expect(period.weeks).toEqual([{ week: '2026-09-28', reason: null, spans: 2 }])
     expect(period.stuck[0]).toMatchObject({ project: 'Example', sessionId: 'session-1', toAt: '2026-10-01T10:05:00.000Z', kinds: ['repeat'] })
   })
@@ -182,6 +186,8 @@ describe('mapTask', () => {
           lastAt: '2026-10-01T11:00:00.000Z',
           cost: 2,
           priceEstimate: null,
+          warmCost: null,
+          warmPings: 0,
           account: 'work',
         },
       ],

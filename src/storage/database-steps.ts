@@ -872,4 +872,22 @@ export const STEPS: readonly string[] = [
   );
   create index tracker_transfers_project on tracker_transfers (project_id, switched_at);
   `,
+  // The keep-warm pings (BTN-1413, `docs/storage.md`): a fork without a transcript, so Tally takes its tokens from here.
+  `
+  create table warm_pings (
+    session_id     text not null,
+    at             text not null,
+    machine_id     text not null,
+    account        text not null,
+    task           text not null,
+    project_id     text,
+    model          text,
+    input          bigint not null,
+    cache_write_5m bigint not null,
+    cache_write_1h bigint not null,
+    cache_read     bigint not null,
+    output         bigint not null,
+    primary key (session_id, at)
+  );
+  `,
 ]

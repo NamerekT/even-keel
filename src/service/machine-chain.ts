@@ -28,6 +28,8 @@ import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice
 import { replyParts } from '../sessions/ask.js'
 import { typedText } from '../sessions/commandPrompt.js'
 import { KEEP_WARM_PROMPT, KeepWarm, type WarmFacts } from '../sessions/keepwarm.js'
+import { warmPingOf } from '../sessions/warm-pings.js'
+import { WARM_EVENT } from '../machine/records.js'
 import { slotOccupants } from '../sessions/occupants.js'
 import { locateWorktree } from '../sessions/place.js'
 import { tellMail } from '../sessions/inboxes.js'
@@ -312,13 +314,19 @@ export function wireKeepWarm(ctx: MachineContext): KeepWarm {
           cache: view.cache,
         }]
       }),
-    ping: async ({ task, sessionId }) => {
+    ping: async ({ task, sessionId, cache }) => {
       const view = ctx.warmable({ task, sessionId })
       const session = ctx.monitor.handoff(task)
       if (view === undefined || session === undefined) throw new Error(`the session ${sessionId} is not live`)
       const home = ctx.homeOf(session.account)
-      const start: SessionStart = { name: task, cwd: session.cwd, prompt: KEEP_WARM_PROMPT, model: view.model, settings: await ctx.settingsFor(task), ...ctx.agentExtras(home, ctx.projectOf(task), task) }
-      return ctx.agentOf(home).warm!(home, session, start)
+      const project = ctx.projectOf(task)
+      const start: SessionStart = { name: task, cwd: session.cwd, prompt: KEEP_WARM_PROMPT, model: view.model, settings: await ctx.settingsFor(task), ...ctx.agentExtras(home, project, task) }
+      const at = new Date().toISOString()
+      const spend = await ctx.agentOf(home).warm!(home, session, start)
+      // What the ping took from the limit reaches Tally only this way (BTN-1413): its fork writes no transcript.
+      const ping = warmPingOf(spend, { at, sessionId, task, project: project ?? null, account: session.account, model: view.model, ttl: cache?.ttl ?? '5m' })
+      ctx.writes.add(`the keep-warm ping of ${task}`, ctx.tell.record(WARM_EVENT, ping))
+      return spend
     },
     onWarm: () => ctx.tell.changed(),
     now: () => new Date(),
