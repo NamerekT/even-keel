@@ -1,6 +1,16 @@
 /* The band of an account's direct settings edits (BTN-1395): its rows share one set of columns with their head. */
 .account-settings-bands .ui-fold-list__item { padding-block: 0; }
 .account-settings-bands > * + * { margin-top: var(--space-8); }
+.account-settings-edits.ui-band { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-12); }
+.account-settings-edits > .ui-band__text { display: flex; flex: none; flex-direction: column; gap: var(--space-12); width: 100%; }
+.account-settings-edits__row { display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+.account-settings-edits__row > .icon { flex: none; }
+.account-settings-edits__text { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: var(--text-13); }
+.account-settings-edits__actions { display: flex; gap: var(--space-4); flex: none; flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .account-settings-edits__row { flex-wrap: wrap; }
+  .account-settings-edits__actions { flex: 0 1 auto; min-width: 0; justify-content: flex-end; margin-left: auto; }
+}
 /* Each row is a grid of its own (a fold list wraps it), so the columns line up by fixed key width and identical buttons. */
 .account-edits { --edit-columns: 144px minmax(0, 1fr) minmax(0, 1fr) max-content; display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
 .account-edits .ui-fold-list__item { padding-block: 0; }

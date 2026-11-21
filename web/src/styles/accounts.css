@@ -256,11 +256,10 @@
   border-top: 1px solid var(--border);
 }
 
+/* "All accounts →" at the right end of the row "+ Add account" starts, a button of the same size. */
 .accounts__all {
   margin-left: auto;
-  color: var(--accent);
-  font-size: var(--text-14);
-  font-weight: 600;
+  text-decoration: none;
 }
 
 .account__actions {

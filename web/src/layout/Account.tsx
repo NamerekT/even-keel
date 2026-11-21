@@ -3,7 +3,8 @@ import type { AccountView } from '../../../src/account/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { type Spend, type Tokens } from './accountParts.js'
-import { AccountGroups, AccountProblems } from './accountRows.js'
+import { AccountProblems } from './accountProblems.js'
+import { AccountGroups } from './accountRows.js'
 import { AccountSettingsEdits } from './accountSettings.js'
 import { useOpenAdd } from './AddAccountDialog.js'
 import { useNow } from './useNow.js'
@@ -21,9 +22,9 @@ export function AccountPanel({ account, spend, tokens, onClose }: { account: Acc
     <section className="queue__section">
       <div className="accounts__add">
         <button type="button" className="button" disabled={account.login !== null} onClick={() => { onClose(); openAdd(null) }}>+ {t.account.add}</button>
-        <Link to="/accounts" className="accounts__all" onClick={onClose}>{t.account.all}</Link>
+        <Link to="/accounts" className="button accounts__all" onClick={onClose}>{t.account.all} →</Link>
       </div>
-      <AccountProblems {...props} />
+      <AccountProblems view={account} now={now} />
       <AccountSettingsEdits {...props} />
       {account.accounts.length === 0 ? <p className="queue__empty">{t.account.groupEmpty}</p> : <AccountGroups {...props} />}
     </section>

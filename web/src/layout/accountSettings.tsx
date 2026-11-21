@@ -37,11 +37,11 @@ export function AccountSettingsEdits({ view, send, sending }: { view: AccountVie
   const bands = view.accounts.flatMap((entry) => {
     const edits = (entry.settingsEdits ?? []).filter((edit) => !hidden.includes(editId(entry.key, edit)))
     if (edits.length === 0) return []
-    return [{ key: entry.key, children: <Band tone="warn" className="account-problems account-settings-edits">
-      <div className="account-problems__row">
+    return [{ key: entry.key, children: <Band tone="warn" className="account-settings-edits">
+      <div className="account-settings-edits__row">
         <AgentIcon agent={entry.agent} />
-        <div className="account-problems__text">{say(notice('account.settingsEdited', { account: accountName(entry, view.accounts), count: edits.length }))}</div>
-        {edits.length > 1 && <div className="account-problems__actions">
+        <div className="account-settings-edits__text">{say(notice('account.settingsEdited', { account: accountName(entry, view.accounts), count: edits.length }))}</div>
+        {edits.length > 1 && <div className="account-settings-edits__actions">
           {CHOICES.map((choice) => <Tipped key={choice} tip={t.account.settingsEdit.all[`${choice}Tip`]} align="start">
             <button type="button" className="button button--small" disabled={sending} onClick={() => void resolve(entry, edits, choice)}>
               {t.account.settingsEdit.all[choice]}

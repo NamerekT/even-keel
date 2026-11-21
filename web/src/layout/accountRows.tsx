@@ -1,16 +1,14 @@
-import { Link } from 'react-router'
 import type { PackagesView } from '../../../src/state.js'
-import { launchBlock, type AccountEntry, type AccountView } from '../../../src/account/model.js'
+import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { limitSpans, type LimitSpan, type LimitWindow, type ModelWeek } from '../../../src/limits/model.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
-import { accountName, agentLabel } from '../accountName.js'
-import { ACCESS_OWNER, accessGroups, accessOf, accountGroups, entrySlot, PROVIDERS, tightestWindow, type Access, type Provider } from '../accounts.js'
+import { agentLabel } from '../accountName.js'
+import { ACCESS_OWNER, accessGroups, accountGroups, entrySlot, PROVIDERS, tightestWindow, type Access, type Provider } from '../accounts.js'
 import { formatAgo, formatSpan, formatTokens } from '../format.js'
 import { overageTexts, say, t } from '../i18n/index.js'
-import { tokenShort, tokenTag } from '../longToken.js'
-import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
+import { tokenTag } from '../longToken.js'
 import { formatUsd } from '../stats/format.js'
-import { Card, Band } from '../ui/blocks.js'
+import { Card } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AccountRowMenu } from './AccountRowMenu.js'
@@ -19,7 +17,8 @@ import { OwnSettings } from './accountSettings.js'
 import { AccountMarketplace } from './AccountMarketplace.js'
 import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
-import { AccountMark, AccountName, AccountNotes, AgentIcon, limitsNote, NoteActions, planText, sharedLimitText, signInMixup, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
+import { AccountMark, AccountName, AgentIcon, limitsNote, planText, sharedLimitText, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
+import { accountAnchor, AccountProblem } from './accountProblems.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowFact, windowValue } from './Limits.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { TipFacts, type TipFact } from '../ui/TipFacts.js'
@@ -41,28 +40,6 @@ export interface RowsProps {
   marketplace?: PackagesView['marketplace']
   /** The page's "Machines" column (BTN-1309): the hub has machines elsewhere. */
   machines?: boolean
-}
-
-/** One actionable band, outside the provider rows, for every exception that needs attention. */
-export function AccountProblems(props: Pick<RowsProps, 'view' | 'now' | 'send' | 'sending'>) {
-  const { view, now, send, sending } = props
-  const entries = view.accounts.filter((entry) => entry.needsLogin || entry.usage.reason?.code === 'usage.goKeyExpired' || entry.error !== null || entry.removing ||
-    entry.spendingLimit != null || launchBlock(view, entry.key)?.code === 'account.extraFree' || signInMixup(entry, view.accounts) !== null ||
-    (entry.loginExpiresAt !== null && new Date(entry.loginExpiresAt).getTime() - now.getTime() < 86_400_000))
-  if (entries.length === 0) return null
-  return <Band tone="error" className="account-problems">
-    {entries.map((entry) => <div className="account-problems__row" key={entry.key}>
-      <AgentIcon agent={entry.agent} />
-      <div className="account-problems__text"><strong>{[agentLabel(entry.agent), accessLabel(accessOf(entry), entry.agent), accountName(entry, view.accounts)].join(' › ')}</strong>
-        <AccountNotes entry={entry} view={view} now={now} send={send} sending={sending} bare />
-      </div>
-      <div className="account-problems__actions">
-        <NoteActions entry={entry} view={view} now={now} send={send} sending={sending} />
-        {entry.error !== null && !entry.needsLogin && <a className="button button--small" href="/status">{t.account.checkConnection}</a>}
-        {launchBlock(view, entry.key)?.code === 'account.extraFree' && <Link className="button button--small" to="/settings" onClick={() => openTab(SHARED_SCOPE, 'models')}>{t.account.manageProviders}</Link>}
-      </div>
-    </div>)}
-  </Band>
 }
 
 /** The name of a connection group; Copilot inside OpenCode's block says which GitHub product it is. */
@@ -114,7 +91,7 @@ function AccessBlock({ agent, access, rows, ...props }: RowsProps & { agent: str
       <div className={`account-window-heads account-window-heads--${columns.length}`} aria-hidden="true">{columns.map((label) => <span key={label}>{label}</span>)}</div>
       {page && <><span aria-hidden="true">{overageTexts().column}</span><span aria-hidden="true">{t.account.sessionsLabel}</span><span aria-hidden="true">{t.account.runsThrough}</span></>}
     </div>
-    <ul className="account-rows">{rows.map((entry) => <li key={entry.key} style={seriesStyle(entrySlot(view, entry))}>
+    <ul className="account-rows">{rows.map((entry) => <li key={entry.key} id={accountAnchor(entry.key)} style={seriesStyle(entrySlot(view, entry))}>
       <AccountRow entry={entry} access={access} named={measure === 'limits'} {...props} />
     </li>)}</ul>
   </section>
@@ -125,9 +102,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
   const { view, now, send, sending, spend, tokens, page = false, fresh = [] } = props
   const held = rolesOf(entry, view, send).filter((role) => role.held)
   const plan = planText(entry)
-  const token = entry.longToken === undefined ? null : tokenShort(entry.longToken, now)
   const shared = sharedLimitText(entry, view.accounts)
-  const mixup = signInMixup(entry, view.accounts)
   const unsupported = access === 'github' && hasCopilot(entry)
   const roles = <div className="account-role-chips">{held.length === 0 ? <span className="account-role account-role--none">{unsupported ? t.account.notSupported : t.account.rolesNone}</span> :
     held.map((role) => <span key={role.label} className={`account-role account-role--${role.label === 'Even Keel' ? 'chain' : 'app'}`}>{role.label}</span>)}</div>
@@ -148,11 +123,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
           {plan !== null && !entry.apiKey && entry.agent !== OPENCODE && <span className="tag account-plan">{entry.longToken === undefined ? plan : tokenTag(entry.longToken)}</span>}
         </div>
         {!page && roles}
-        {entry.needsLogin && <span className="account-row__error">{entry.apiKey ? t.account.keyRejectedShort : entry.cloud !== undefined ? t.account.checkFailedShort : token ?? t.account.needsLogin}</span>}
-        {!entry.needsLogin && token !== null && <span className="account-row__warn">{token}</span>}
-        {!entry.needsLogin && entry.error !== null && <span className="account-row__error">{t.account.checkFailedShort}</span>}
         {entry.status?.loggedIn === null && <span className="account-row__error account-row__unknown">{t.account.authUnknown}</span>}
-        {mixup !== null && <span className="account-row__error">{mixup.short}</span>}
         {outdatedText(entry, now) !== null && <span className="account-row__outdated">{outdatedText(entry, now)}</span>}
         <Resets entry={entry} now={now} />
       </div>
@@ -177,6 +148,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
         <CompactLimit entry={entry} now={now} bare />
       </div>
     </div>
+    <AccountProblem entry={entry} view={view} now={now} send={send} sending={sending} />
     <OverageWarning entry={entry} view={view} />
     <MachineNotes entry={entry} send={send} sending={sending} />
     {page && <OwnSettings entry={entry} send={send} sending={sending} />}

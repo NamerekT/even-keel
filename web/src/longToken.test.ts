@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { tokenDay, tokenProblem, tokenShort, tokenState, tokenTag } from './longToken.js'
+import { t } from './i18n/index.js'
+import { tokenDay, tokenProblem, tokenState, tokenTag } from './longToken.js'
 
 const now = new Date('2026-11-15T12:00:00.000Z')
 
@@ -24,11 +25,9 @@ describe('a long token on the page (BTN-1005)', () => {
   })
 
   it('says what is wrong only when something is', () => {
-    expect(tokenShort({ until: '2027-11-15T12:00:00.000Z' }, now)).toBeNull()
     expect(tokenProblem({ until: '2027-11-15T12:00:00.000Z' }, now)).toBeNull()
-    expect(tokenShort({ until: '2026-11-30T12:00:00.000Z' }, now)).toBe('Token ends soon')
     expect(tokenProblem({ until: '2026-11-30T12:00:00.000Z' }, now)).toBe('The token ends on 30 Nov 2026: issue a new one')
     expect(tokenProblem({ until: '2026-11-01T12:00:00.000Z' }, now)).toBe('The token ran out on 1 Nov 2026: issue a new one')
-    expect(tokenShort({ until: null, refusedAt: '2026-11-14T00:00:00.000Z' }, now)).toBe('Token not accepted')
+    expect(tokenProblem({ until: null, refusedAt: '2026-11-14T00:00:00.000Z' }, now)).toBe(t.account.tokenRefused)
   })
 })

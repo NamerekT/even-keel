@@ -29,15 +29,7 @@ export function tokenTag(token: LongToken): string {
   return day === null ? t.account.longToken : t.account.longTokenUntil(day)
 }
 
-/** What is wrong with the token, in a few words for the row; null while it is fine. */
-export function tokenShort(token: LongToken, now: Date): string | null {
-  const state = tokenState(token, now)
-  if (state === 'refused') return t.account.tokenRefusedShort
-  if (state === 'over') return t.account.tokenOverShort
-  return state === 'ending' ? t.account.tokenEndingShort : null
-}
-
-/** The same with what to do, for the band of problems. */
+/** What is wrong with the token and what to do, for the band of problems under the account's row; null while it is fine. */
 export function tokenProblem(token: LongToken, now: Date): string | null {
   const state = tokenState(token, now)
   const day = tokenDay(token) ?? ''
