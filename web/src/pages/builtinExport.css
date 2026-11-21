@@ -296,6 +296,39 @@
   font-weight: 600;
 }
 
+/* The import's authors (BTN-1416): the name takes what is left, a long one wraps; the pick keeps a width its words fit. */
+.transfer__table--authors th:nth-child(2),
+.transfer__table--authors th:nth-child(3) {
+  width: 96px;
+}
+
+.transfer__table--authors th:nth-child(4) {
+  width: 200px;
+}
+
+.transfer__table--authors th {
+  white-space: nowrap;
+}
+
+.transfer__table--authors td {
+  overflow-wrap: anywhere;
+}
+
+.transfer__table--authors .transfer__becomes {
+  padding-block: var(--space-4);
+}
+
+.transfer__author-counts {
+  display: none;
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.transfer__author-counts > span {
+  white-space: nowrap;
+}
+
 .transfer__ok {
   color: var(--lamp-done);
 }
@@ -375,5 +408,22 @@
   .transfer__names {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  .transfer__table--authors .transfer__author-count {
+    display: none;
+  }
+
+  .transfer__author-counts {
+    display: block;
+  }
+
+  .transfer__table--authors th,
+  .transfer__table--authors td {
+    padding-inline: var(--space-8);
+  }
+
+  .transfer__table--authors th:nth-child(4) {
+    width: 156px;
   }
 }

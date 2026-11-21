@@ -1,6 +1,6 @@
 import { fail, notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import type { ImportPlan, ImportState } from '../../../src/tracker/import-plan.js'
+import type { ImportAuthorChoice, ImportPlan, ImportPlanAuthor, ImportState } from '../../../src/tracker/import-plan.js'
 import { importedStatus } from '../../../src/tracker/import-plan.js'
 import type { TransferCheck, TransferReport } from '../../../src/tracker/transfer-check.js'
 
@@ -23,6 +23,7 @@ interface Run {
 }
 
 let run: Run | null = null
+let authors: ImportAuthorChoice[] = []
 let seeded = false
 
 type Answer = { state: EvenKeelState; result: unknown; refusal?: Error }
@@ -38,8 +39,10 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
   switch (name) {
     case 'builtin/import/plan':
       if (mode === 'refused') throw fail('import.hadBuiltin', {})
-      return { state, result: planOf(tasks) }
+      return { state, result: planOf(tasks, choicesOf(body)) }
     case 'builtin/import/start': {
+      // The first start keeps the picks; "Continue" and "Repeat" go on with them.
+      if (run === null) authors = choicesOf(body)
       const ticks = run === null ? 0 : progressOf(run, total).ticks
       const failAt = FAIL_AT.step * total + FAIL_AT.done
       // A finished import passes again from its last step: the repeat brings the two attachments over.
@@ -56,8 +59,9 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
       if (run.short && body.anyway !== true) throw fail('switch.mismatch', {})
       const at = new Date().toISOString()
       const key = state.projectKeys[project] ?? project
-      report({ id: `import-${Date.now()}`, project, direction: 'import', tracker: 'huly', place: key, key, sourceKey: key, closed: true, history: true, startedAt: at, finishedAt: at, switchedAt: at, plan: planOf(tasks), check, matched: !run.short })
+      report({ id: `import-${Date.now()}`, project, direction: 'import', tracker: 'huly', place: key, key, sourceKey: key, closed: true, history: true, startedAt: at, finishedAt: at, switchedAt: at, plan: planOf(tasks, authors), check, matched: !run.short })
       run = null
+      authors = []
       seeded = false
       const form = state.config.projects[project]
       const projects = form === undefined ? state.config.projects : { ...state.config.projects, [project]: { ...form, tracker: 'builtin', trackerProject: null } }
@@ -86,7 +90,7 @@ function progressOf(current: Run, total: number) {
 
 function stateOf(total: number, ids: string[]): ImportState {
   const none = { tasks: 0, created: 0, linked: 0, attached: 0, journaled: 0, done: 0 }
-  const base = { authors: [], checkFailed: null, total }
+  const base = { authors, checkFailed: null, total }
   if (run === null) return { ...base, from: null, running: false, startedAt: null, finishedAt: null, progress: none, failed: null, check: null }
   const { ticks, failed, finished } = progressOf(run, total)
   const through = (step: number) => Math.max(0, Math.min(total, ticks - step * total))
@@ -121,7 +125,7 @@ function checkOf(total: number, ids: string[], short: boolean): TransferCheck {
   }
 }
 
-function planOf(tasks: EvenKeelState['tasks']): ImportPlan {
+function planOf(tasks: EvenKeelState['tasks'], choices: readonly ImportAuthorChoice[]): ImportPlan {
   const ids = tasks.map((each) => each.id)
   const statuses: ImportPlan['statuses'] = []
   for (const task of tasks) {
@@ -140,6 +144,17 @@ function planOf(tasks: EvenKeelState['tasks']): ImportPlan {
       { kind: 'links', tasks: ids.slice(0, 2), names: ['OPS-4', 'OPS-9'] },
       { kind: 'timeReports', tasks: [], names: [] },
     ],
-    authors: [],
+    authors: AUTHORS.map((each) => ({ ...each, as: choices.find((choice) => choice.kind === each.kind && choice.name === each.name)?.as ?? each.kind })),
   }
 }
+
+/** The authors of the fake's tracker, the most first: the agent without a name, the person of the page, two others. */
+const AUTHORS: Omit<ImportPlanAuthor, 'as'>[] = [
+  { kind: 'agent', name: null, comments: 41, changes: 212 },
+  { kind: 'user', name: 'John Doe', comments: 17, changes: 64 },
+  { kind: 'person', name: 'Jane Roe', comments: 6, changes: 19 },
+  { kind: 'person', name: 'Alex Smith-Montgomery of the Infrastructure Team', comments: 2, changes: 3 },
+]
+
+/** The picks of `builtin/import/plan` and `start`, unchecked: the fake trusts its page. */
+const choicesOf = (body: Record<string, unknown>): ImportAuthorChoice[] => (Array.isArray(body.authors) ? (body.authors as ImportAuthorChoice[]) : [])

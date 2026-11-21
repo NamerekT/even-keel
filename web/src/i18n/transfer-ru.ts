@@ -1,4 +1,5 @@
 import type { ExportLossKind } from '../../../src/tracker/export.js'
+import type { ImportAuthorKind } from '../../../src/tracker/import.js'
 import type { CheckKind, TransferDirection } from '../../../src/tracker/transfer-check.js'
 import type { ExportStep, ImportStep } from '../pages/exportMeter.js'
 import { keysRu } from './keys.js'
@@ -155,6 +156,15 @@ export const transferRu = {
     reading: (tracker: string) => `Читаем всю историю из ${tracker}…`,
     counts: { changes: 'Изменения', components: 'Компоненты' },
     statusBecomes: 'Станет',
+    /** Who the tracker's authors are written as (BTN-1416). */
+    authors: {
+      title: 'Авторы',
+      tip: 'Кем записать комментарии и изменения из трекера. Агент — агент Even Keel, вы — хозяин этой страницы, под своим именем — другой человек с именем из трекера. Когда перенос начнётся, выбор уже не изменить.',
+      author: 'Автор',
+      unnamed: (kind: ImportAuthorKind) => (kind === 'agent' ? 'Агент без имени' : 'Без имени'),
+      pick: (name: string) => `Кем станет ${name}`,
+      kinds: { agent: 'Агент', user: 'Вы', person: 'Под своим именем' } satisfies Record<ImportAuthorKind, string>,
+    },
     kinds: {
       links: 'Связи с другими проектами',
       parent: 'Родитель из другого проекта',

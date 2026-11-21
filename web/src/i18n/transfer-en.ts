@@ -150,6 +150,14 @@ export const transferEn: Messages['transfer'] = {
     reading: (tracker) => `Reading the whole history of ${tracker}…`,
     counts: { changes: 'Changes', components: 'Components' },
     statusBecomes: 'Becomes',
+    authors: {
+      title: 'Authors',
+      tip: "Who the tracker's comments and changes are written as. The agent is Even Keel's agent, you are the owner of this page, under their name is another person with the name from the tracker. Once the move begins, the choice cannot change.",
+      author: 'Author',
+      unnamed: (kind) => (kind === 'agent' ? 'An agent without a name' : 'No name'),
+      pick: (name) => `What ${name} becomes`,
+      kinds: { agent: 'Agent', user: 'You', person: 'Under their name' },
+    },
     kinds: {
       links: 'Links to other projects',
       parent: 'Parent in another project',

@@ -312,6 +312,8 @@ To bring a project's tasks into the built-in tracker, open its **Settings** → 
 
 The window reads the whole project, closed tasks too, and counts what will move — tasks, comments, attachments, links, milestones, labels, components and changes — shows which status each of the tracker's statuses becomes, and lists what stays behind: links and parents in other projects, time reports, and the change history where the tracker gives none.
 
+Under **Authors** each author of the tracker's comments and changes gets what it becomes here: the agent, you, or a person under their own name. Each starts as the tracker marks it; once the copy begins the choice stays.
+
 **Move** copies every task under its own number, with its status, parent, links, attachments, comments with their authors and dates, and the change log. Nothing changes in the tracker, and the chain keeps working with it while the copy runs.
 
 The copy runs in the service, as the move the other way: close the window and come back; **Continue** goes on after a stop. When it ends, both sides are counted and shown side by side; **Repeat** brings over what is missing, **Switch without them** switches as it is.

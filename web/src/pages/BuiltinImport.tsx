@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
+import type { ImportAuthor, ImportAuthorKind } from '../../../src/tracker/import.js'
 import type { ImportPlan, ImportState } from '../../../src/tracker/import-plan.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -8,6 +9,8 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
 import { Progress, Refusal } from './BuiltinExport.js'
+import { authorChoices, pickAuthor } from './authorPicks.js'
+import { ImportAuthors } from './ImportAuthors.js'
 import { importPhaseOf } from './importPhase.js'
 import { HelpTip } from './settingsParts.js'
 import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferMoves, TransferStatuses } from './TransferPlan.js'
@@ -58,6 +61,7 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
   const [planRefusal, setPlanRefusal] = useState<Notice | null>(null)
   const [refusal, setRefusal] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
+  const picks = useRef(0)
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -103,9 +107,22 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
       setBusy(false)
     }
   }
-  // "Move", "Continue" and "Repeat" alike: the service goes on from what it has, and a finished import passes again.
+  // A pick shows at once; the plan is asked again with it, and only the answer to the last pick is taken.
+  const pick = (author: ImportAuthor, as: ImportAuthorKind) => {
+    if (plan === null) return
+    const authors = pickAuthor(plan.authors, author, as)
+    setPlan({ ...plan, authors })
+    const asked = ++picks.current
+    query<ImportPlan>('builtin/import/plan', { project, authors: authorChoices(authors) }).then(
+      (answer) => asked === picks.current && setPlan(answer),
+      (reason) => asked === picks.current && setRefusal(noticeOf(reason)),
+    )
+  }
+  // "Move", "Continue" and "Repeat" alike: the service goes on from what it has, and a finished import passes again. The
+  // authors go only with the first start: the service keeps them from then on.
   const start = async () => {
-    const answer = await run('builtin/import/start', { project })
+    picks.current += 1
+    const answer = await run('builtin/import/start', phase === 'pick' && plan !== null ? { project, authors: authorChoices(plan.authors) } : { project })
     if (answer !== undefined) setImported(answer as ImportState)
   }
   const switchOver = async (anyway: boolean) => {
@@ -147,6 +164,7 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
               <>
                 <TransferMoves counts={plan.counts} />
                 <TransferStatuses rows={plan.statuses} tracker={tracker} direction="import" />
+                <ImportAuthors authors={plan.authors} onPick={busy ? null : pick} />
                 <Losses plan={plan} recheck={null} checking={false} direction="import" />
               </>
             )}
