@@ -8,17 +8,16 @@ import { useLive } from '../live/context.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
-import { Progress, Refusal } from './BuiltinExport.js'
+import { Lost, Progress, Refusal } from './BuiltinExport.js'
 import { authorChoices, pickAuthor } from './authorPicks.js'
 import { ImportAuthors } from './ImportAuthors.js'
 import { importPhaseOf } from './importPhase.js'
+import { POLL_MS, usePolledState } from './polledState.js'
 import { HelpTip } from './settingsParts.js'
 import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferMoves, TransferStatuses } from './TransferPlan.js'
 import '../tools/addPackage.css'
 import { CloseIcon } from '../ui/icons.js'
 import './builtinExport.css'
-
-const POLL_MS = 1_500
 
 /**
  * "Move to the built-in tracker" of a project on another tracker (BTN-1406): the button and its window. A tracker that
@@ -58,7 +57,6 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
   const heading = useId()
   // The window's reads stay off the page's loader: the window shows its own (BTN-1452).
   const { query, read: quiet } = useLive()
-  const [imported, setImported] = useState<ImportState | null>(null)
   const [plan, setPlan] = useState<ImportPlan | null>(null)
   const [planRefusal, setPlanRefusal] = useState<Notice | null>(null)
   const [refusal, setRefusal] = useState<Notice | null>(null)
@@ -69,23 +67,18 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
     if (dialog.current?.open === false) dialog.current.showModal()
   }, [])
 
-  const read = async () => {
-    try {
-      setImported(await quiet<ImportState>('builtin/import/state', { project }))
-    } catch (reason) {
-      setRefusal(noticeOf(reason))
-    }
-  }
-  useEffect(() => void read(), [project])
+  // The state is read on while the plan's read, the import or its switch goes on.
+  const polled = usePolledState(
+    () => quiet<ImportState>('builtin/import/state', { project }),
+    (state) => state?.running === true || state?.switching != null || state?.planning != null || (importPhaseOf(state) === 'pick' && plan === null && planRefusal === null),
+    project,
+  )
+  const { state: imported, set: setImported, read } = polled
+  const lost = polled.failure?.retrying === true
+  const stopped = refusal ?? (polled.failure?.retrying === false ? polled.failure.notice : null)
 
   const phase = importPhaseOf(imported)
   const planReading = phase === 'pick' && plan === null && planRefusal === null
-  // Each answer while the plan's read, the import or its switch goes on asks for the next one.
-  useEffect(() => {
-    if (imported?.running !== true && imported?.switching == null && imported?.planning == null && !planReading) return
-    const timer = setTimeout(() => void read(), POLL_MS)
-    return () => clearTimeout(timer)
-  }, [imported, planReading])
   // A switch followed here and gone with its import is done: the project is on the built-in tracker.
   const wasSwitching = useRef(false)
   useEffect(() => {
@@ -146,12 +139,12 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
   }
 
   const planning = imported?.planning ?? null
-  const reading = refusal === null && planning === null && (phase === 'read' || planReading)
+  const reading = stopped === null && planning === null && (phase === 'read' || planReading)
   const failed = phase === 'resume' ? imported!.failed : null
   const check = phase === 'finished' ? imported!.check : null
   const checkNotice = phase === 'finished' ? checkNoticeOf(imported!, tracker) : null
   const matched = check !== null && checkMatched(check)
-  const shownRefusal = refusal ?? (phase === 'pick' ? planRefusal : null)
+  const shownRefusal = stopped ?? (phase === 'pick' ? planRefusal : null)
 
   return (
     <dialog
@@ -202,16 +195,17 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
             {check !== null && <TransferCheckTable check={check} direction="import" tracker={tracker} />}
           </Loading>
         </div>
-        {phase === 'resume' && refusal === null && (
+        {phase === 'resume' && stopped === null && (
           <p role="alert" className={`notice ${failed === null ? 'notice--warn' : 'notice--error'} add-package__failure`}>
             {failed === null ? t.transfer.stopped : say(failed)}
           </p>
         )}
-        {checkNotice !== null && refusal === null && (
+        {checkNotice !== null && stopped === null && (
           <p role="alert" className={`notice notice--${checkNotice.tone} add-package__failure`}>
             {checkNotice.text}
           </p>
         )}
+        {lost && <Lost />}
         {shownRefusal !== null && <Refusal project={project} refusal={shownRefusal} />}
         <footer className="add-package__foot">
           <span className="add-package__spacer" />

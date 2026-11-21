@@ -16,6 +16,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
 import { EXPORT_STEPS, IMPORT_STEPS, meterOf, type ExportStep, type ImportStep } from './exportMeter.js'
+import { usePolledState } from './polledState.js'
 import { EMPTY_FIELDS, keyOfTyped, keyTyped, placeFields, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { ErrorStrip, FieldHead, HelpTip, SwitchField } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
@@ -24,7 +25,6 @@ import '../tools/addPackage.css'
 import { CloseIcon } from '../ui/icons.js'
 import './builtinExport.css'
 
-const POLL_MS = 1_500
 const CHECK_DELAY_MS = 400
 /** The losses a person fixes in the target tracker before a new check; the rest are the tracker's own. */
 const FIXABLE = new Set<ExportLoss['kind']>(['labels', 'milestones'])
@@ -69,7 +69,6 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
   const { query } = useLive()
-  const [exported, setExported] = useState<ExportState | null>(null)
   const [typed, setTyped] = useState<WizardFields>(EMPTY_FIELDS)
   const [checked, setChecked] = useState<{ basis: string; plan: ExportPlan | null; refusal: Notice | null } | null>(null)
   const [checking, setChecking] = useState(false)
@@ -83,20 +82,11 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
     if (dialog.current?.open === false) dialog.current.showModal()
   }, [])
 
-  const read = async () => {
-    try {
-      setExported(await query<ExportState>('builtin/export/state', { project }))
-    } catch (reason) {
-      setRefusal(noticeOf(reason))
-    }
-  }
-  useEffect(() => void read(), [project])
-  // Each answer while the copy runs asks for the next one.
-  useEffect(() => {
-    if (exported?.running !== true) return
-    const timer = setTimeout(() => void read(), POLL_MS)
-    return () => clearTimeout(timer)
-  }, [exported])
+  // The state is read on while the copy runs.
+  const polled = usePolledState(() => query<ExportState>('builtin/export/state', { project }), (state) => state?.running === true, project)
+  const { state: exported, set: setExported } = polled
+  const lost = polled.failure?.retrying === true
+  const stopped = refusal ?? (polled.failure?.retrying === false ? polled.failure.notice : null)
 
   const phase = phaseOf(exported)
   const kinds = state.profiles.kinds.filter((kind) => kind.tracker && kind.kind !== BUILTIN)
@@ -190,7 +180,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
           </button>
         </header>
         <div className="add-package__body transfer__body">
-          <Loading busy={phase === 'read' && refusal === null} label={t.transfer.checking} fit="block">
+          <Loading busy={phase === 'read' && stopped === null}label={t.transfer.checking} fit="block">
             <p className="add-package__note">{phase === 'finished' ? t.transfer.done(exported!.total, tracker) : kept.closed ? t.transfer.leadAll : t.transfer.lead}</p>
             <TrackerFields
               ids={(field) => `transfer-${field}`}
@@ -239,17 +229,18 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
             {check !== null && <TransferCheckTable check={check} direction="export" tracker={tracker} />}
           </Loading>
         </div>
-        {phase === 'resume' && refusal === null && (
+        {phase === 'resume' && stopped === null && (
           <p role="alert" className={`notice ${failed === null ? 'notice--warn' : 'notice--error'} add-package__failure`}>
             {failed === null ? t.transfer.stopped : say(failed)}
           </p>
         )}
-        {checkNotice !== null && refusal === null && (
+        {checkNotice !== null && stopped === null && (
           <p role="alert" className={`notice notice--${checkNotice.tone} add-package__failure`}>
             {checkNotice.text}
           </p>
         )}
-        {refusal !== null && <Refusal project={project} refusal={refusal} />}
+        {lost && <Lost />}
+        {stopped !== null && <Refusal project={project} refusal={stopped} />}
         <footer className="add-package__foot">
           <span className="add-package__spacer" />
           <button type="button" className="button" disabled={busy} onClick={onClose}>
@@ -319,6 +310,11 @@ export function Progress({ exported, direction = 'export' }: { exported: { progr
       <span className="transfer__figures">{t.transfer.progressOf(done, total)}</span>
     </div>
   )
+}
+
+/** A read of the state that went unanswered while the work goes on: the window asks again (BTN-1456). */
+export function Lost() {
+  return <p role="status" className="notice notice--warn add-package__failure">{t.transfer.lost}</p>
 }
 
 /** A refused start or switch, of either direction; a switch held by the running chain gets the button that stops it. */

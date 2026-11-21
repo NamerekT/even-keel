@@ -11,7 +11,8 @@ import type { TransferCheck, TransferReport } from '../../../src/tracker/transfe
  * step; `done`: it is through and the switch waits; `held`: through, the switch refused while the chain runs;
  * `mismatch`: through, its check short of two attachments until "Repeat"; `switching`: through, and its switch goes on —
  * the last pass over three changed tasks, the check of every task, then the move, a task each `STEP_MS`; `reading`: the
- * plan's read stands at 40 % (BTN-1452); `gone`: through, its check matched with an attachment Huly has no file of.
+ * plan's read stands at 40 % (BTN-1452); `gone`: through, its check matched with an attachment Huly has no file of;
+ * `lost`: an import runs, and the state's reads after the first fail for a while, as a proxy's 502 (BTN-1456).
  */
 const STEP_MS = 300
 const STEPS = 4
@@ -59,6 +60,7 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
       return { state, result: stateOf(total, ids, mode) }
     }
     case 'builtin/import/state':
+      if (mode === 'lost' && lostOf()) throw new Error('/api/builtin/import/state answered 502')
       return { state, result: stateOf(total, ids, mode) }
     case 'builtin/import/switch': {
       if (mode === 'held') throw fail('switch.held', { key: project }, { items: [notice('switch.chainRuns', {}), notice('switch.current', { task: ids[0] ?? `${project}-1` })] })
@@ -86,7 +88,7 @@ function seed(mode: string | null, total: number): void {
   seeded = true
   const now = Date.now()
   const failAt = FAIL_AT.step * total + FAIL_AT.done
-  if (mode === 'running') run = { startedAt: now, from: 0, failAt: null, short: false }
+  if (mode === 'running' || mode === 'lost') run = { startedAt: now, from: 0, failAt: null, short: false }
   if (mode === 'failed') run = { startedAt: now, from: failAt, failAt, short: false }
   if (mode === 'done' || mode === 'held' || mode === 'mismatch' || mode === 'switching' || mode === 'gone') run = { startedAt: now, from: STEPS * total, failAt: null, short: mode === 'mismatch' }
   gone = mode === 'gone'
@@ -95,6 +97,17 @@ function seed(mode: string | null, total: number): void {
 
 let switchStarted: number | null = null
 const CHANGED = 3
+
+/** `?import=lost`: when the state's reads began to fail; they fail `LOST_MS` from the second one, then answer again. */
+let lostFrom: number | null = null
+let stateReads = 0
+const LOST_MS = 8_000
+function lostOf(): boolean {
+  stateReads += 1
+  if (stateReads === 1) return false
+  lostFrom ??= Date.now()
+  return Date.now() - lostFrom < LOST_MS
+}
 
 /** When the plan's read began; `null` — none yet. A task takes `READ_MS`, with `?import=reading` `SLOW_READ_MS`. */
 let planRead: number | null = null
