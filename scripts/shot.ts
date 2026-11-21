@@ -96,7 +96,8 @@ const slug = (text: string): string => text.replace(/[^a-z0-9]+/gi, '-').replace
  */
 async function launch(): Promise<Browser> {
   try {
-    return await chromium.launch()
+    // A fake microphone answers getUserMedia without a prompt, so the chat's recording can be shot.
+    return await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })
   } catch (error) {
     throw new Error(`no browser: run \`npx playwright install chromium-headless-shell\`\n${String(error)}`)
   }

@@ -415,6 +415,8 @@ export const en: Messages = {
     llmModel: 'Model',
     llmModelHint: 'Empty — the default model.',
     llmModelDefault: 'the default',
+    llmDictation: 'Dictation model',
+    llmDictationHint: 'The chat microphone sends its recordings here and the language is heard, not chosen; the sound goes to the model’s provider. Empty — a model other than the classifier’s, so that dictation does not eat its free quota.',
     pending: 'A removed key still reaches new sessions: the daemon of the global folder restarts once its live sessions end.',
     purpose: {
       HULY_URL: 'The address of the Huly server',

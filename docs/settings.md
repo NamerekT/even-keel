@@ -156,6 +156,7 @@ schema version of a file of the format.
   database lives in the state folder), so they stay in the environment. So does `EVEN_KEEL_CPU_PROFILE`, a diagnostic
   of the start (`docs/service.md`, "A slow start").
 - **Tally's connection** — `TALLY_DB_*`, `TALLY_*_USER`, `TALLY_LLM_URL`, `TALLY_LLM_MODEL`, `TALLY_CONFIG`,
+  `TALLY_LLM_DICTATION_MODEL` (the chat microphone's model, BTN-1391; read by the service on each recording),
   `EVEN_KEEL_URL`: the collector's, which can run against an external Postgres. Tally's own file stays its own; its
   prices are reference data, already loaded into its `model_prices` table.
 - **State that sits among settings** — `updates.dismissed` (the service writes it when a toast is closed; `service_state`

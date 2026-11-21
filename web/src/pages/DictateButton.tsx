@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { language, t } from '../i18n/index.js'
+import { language, say, t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
+import { useLive } from '../live/context.js'
 import { MicIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import {
@@ -11,6 +12,8 @@ import {
   type DictationProblem,
   type SpeechRecognitionLike,
 } from './dictation.js'
+import { clockOf } from './recording.js'
+import { canRecord, recordsNow, useRecording } from './useRecording.js'
 
 interface Props {
   text: string
@@ -21,18 +24,24 @@ interface Props {
 const RECOGNIZER = typeof window === 'undefined' ? null : speechRecognitionOf(window)
 
 /**
- * The microphone of a chat field (BTN-1343): a press starts the browser's recognition, what is heard goes into the
- * field as it comes, a second press, a pause, typing or sending stops it. No button where the browser has no
- * recognition or the page is not on HTTPS.
+ * The microphone of a chat field. With LiteLLM set (BTN-1391) a press records, the second one stops and the service
+ * transcribes the sound in whatever language it was spoken; the text comes after the stop. Otherwise, and for a while
+ * after the model refused, it is the browser's recognition (BTN-1343): what is heard goes into the field as it comes,
+ * in the interface's language, and a second press, a pause, typing or sending stops it. No button where the page can
+ * do neither, or is not on HTTPS.
  */
 export function DictateButton({ text, onText, sending }: Props) {
   const coarse = useCoarsePointer()
+  const { state } = useLive()
   const [listening, setListening] = useState(false)
   const [problem, setProblem] = useState<DictationProblem | null>(null)
   const recognizer = useRef<SpeechRecognitionLike | null>(null)
   const written = useRef(text)
+  const current = useRef(text)
+  current.current = text
   const write = useRef(onText)
   write.current = onText
+  const recording = useRecording((said) => write.current(dictatedText(current.current, said)), sending)
 
   // Typing over the field while it listens hands it back to the keyboard: the next result would overwrite the edit.
   useEffect(() => {
@@ -45,9 +54,10 @@ export function DictateButton({ text, onText, sending }: Props) {
 
   useEffect(() => () => recognizer.current?.abort(), [])
 
-  if (RECOGNIZER === null) return null
+  if (RECOGNIZER === null && !(canRecord && state?.dictation === true)) return null
 
-  const start = () => {
+  const listen = () => {
+    if (RECOGNIZER === null) return
     const before = text
     const next = new RECOGNIZER()
     next.lang = language
@@ -76,21 +86,38 @@ export function DictateButton({ text, onText, sending }: Props) {
     }
   }
 
-  const tip = listening ? t.session.chat.dictate.stop : problem === null ? t.session.chat.dictate.start : t.session.chat.dictate[problem]
+  const start = () => {
+    setProblem(null)
+    if (recordsNow(state?.dictation === true) || RECOGNIZER === null) recording.start()
+    else listen()
+  }
+
+  const { phase, refusal } = recording
+  const recordingNow = phase === 'recording'
+  const waiting = phase === 'transcribing'
+  const active = listening || recordingNow
+  const shown = problem ?? refusal
+  const failure = shown === null ? null : typeof shown === 'string' ? t.session.chat.dictate[shown] : say(shown)
+  const label = recordingNow ? t.session.chat.dictate.recording(clockOf(recording.elapsed)) : active ? t.session.chat.dictate.stop : waiting ? t.session.chat.dictate.transcribing : t.session.chat.dictate.start
+  const tip = active || waiting || failure === null ? label : failure
+  const modifiers = [failure !== null && !active && !waiting && 'chat__dictate--problem', recordingNow && 'chat__dictate--recording', waiting && 'chat__dictate--waiting']
   return (
     <Tipped inline tip={tip}>
       <button
         type="button"
-        className={`chat__icon chat__dictate${problem === null ? '' : ' chat__dictate--problem'}`}
-        aria-label={listening ? t.session.chat.dictate.stop : t.session.chat.dictate.start}
-        aria-pressed={listening}
-        disabled={sending}
+        className={['chat__icon', 'chat__dictate', ...modifiers.filter(Boolean)].join(' ')}
+        aria-label={label}
+        aria-pressed={active}
+        aria-busy={waiting}
+        disabled={(sending && !recordingNow) || waiting}
         onClick={() => {
-          if (listening) recognizer.current?.stop()
+          if (recordingNow) recording.stop()
+          else if (listening) recognizer.current?.stop()
           else start()
         }}
       >
-        <MicIcon />
+        {waiting ? <span className="chat__dictate-spinner" aria-hidden="true" /> : <MicIcon />}
+        {recordingNow && <span className="chat__dictate-clock">{clockOf(recording.elapsed)}</span>}
       </button>
     </Tipped>
   )

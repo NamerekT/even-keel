@@ -49,6 +49,7 @@ import { checkMoves } from '../chain/moves.js'
 import { profilesControl } from '../profiles/control.js'
 import { disabledNotice } from '../profiles/service.js'
 import { taskHistory } from './hosting-state.js'
+import { Dictation } from '../dictation/transcribe.js'
 import { withinWindow } from '../stats/checkpoint.js'
 import { taskCheckpoint } from '../stats/task-checkpoint.js'
 import { setStateValue } from '../storage/service-state.js'
@@ -630,6 +631,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     builtinExports,
     builtinImports,
     chats: ctx.projectChats,
+    dictation: new Dictation(() => ctx.db),
     backup: ctx.backups,
     machines: ctx.machineLink.network,
     pool,

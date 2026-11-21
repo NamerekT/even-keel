@@ -1,4 +1,5 @@
 import type { ChatCard, ChatChoice, ChatPage } from '../../../src/chats/model.js'
+import { fail } from '../../../src/notice/notice.js'
 import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
 import type { EvenKeelState } from '../../../src/state.js'
 
@@ -6,6 +7,14 @@ import type { EvenKeelState } from '../../../src/state.js'
 const PAGE = 20
 /** How long a fake chat works on a message before it answers. */
 const ANSWER_MS = 3_000
+
+/** The service's answer to a chat recording (BTN-1391), by the `dictation` parameter. */
+export async function fakeDictation(mode: string | null): Promise<{ text: string }> {
+  await new Promise((done) => setTimeout(done, mode === 'slow' ? 8_000 : 900))
+  if (mode === 'quota') throw fail('dictation.quota', {})
+  if (mode === 'failed') throw fail('dictation.failed', {})
+  return { text: 'Run npm test on the dev branch and fix the pull request.' }
+}
 
 function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()

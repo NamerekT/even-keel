@@ -41,7 +41,7 @@ import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
-import { fakeChats } from './fakeChats.js'
+import { fakeChats, fakeDictation } from './fakeChats.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeFeedTrackers, fakeHuly, fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
@@ -460,6 +460,8 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('projects') === 'none' && current.state !== null) current.state = fakeNoProjects(current.state)
   // The demo's band (`running`) or its end card (`finished`) over ABC (BTN-776).
   if ((params.get('demo') === 'running' || params.get('demo') === 'finished') && current.state !== null) current.state.demo = { project: 'ABC', finished: params.get('demo') === 'finished' }
+  // The service transcribes the chat's recordings (BTN-1391); `quota`/`failed` refuse them, `slow` answers after 8 s.
+  if (params.has('dictation') && current.state !== null) current.state.dictation = params.get('dictation') !== 'off'
   if (params.has('tally') && current.state !== null) {
     const mode = params.get('tally')
     current.state.tally = isTallyMode(mode) ? mode : null
@@ -1009,6 +1011,7 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
       if (name === 'project/git/changes') return fakeGitChanges(params.get('gitChanges')) as T
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
+      if (name === 'dictation/transcribe') return (await fakeDictation(params.get('dictation'))) as T
       if (name === 'history/events') return current.state.eventLog as T
       if (name === 'history/task') return fakeTaskHistory(current.state, String(body.task)) as T
       if (name === 'machines/cards') return network.cards(current.state) as T

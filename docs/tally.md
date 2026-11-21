@@ -205,6 +205,15 @@ into `messages` with `entrypoint: badge-translate` and account `litellm`, includ
 The retained rows can be replayed without duplicates after a failed run or after Tally is turned on again. The
 project and folder are the classifier's; task descriptions and comments are never sent for translation.
 
+The chat microphone's recordings (BTN-1391, `src/dictation/transcribe.ts`) go through the same LiteLLM URL and key to
+their own model, `TALLY_LLM_DICTATION_MODEL` (by default `google-gemini-3.5-flash-lite`, the classifier's first
+fallback rather than its first model, since the free quota is per model and per day). One recording is one request;
+its usage goes into the same ledger with `entrypoint: chat-dictation` (`message_id`
+`chat-dictation:<uuid>:<model>`), so `/stats` shows how many requests dictation takes. LiteLLM's 429 — the whole
+fallback chain refused — is the notice `dictation.quota`, and the page uses the browser's recognition for an hour.
+Measured on 2026-11-21 through `3.5-flash-lite`: Opus in WebM and AAC in MP4 are both taken as a `file` part, ~0.75–1 s
+for a 5 s phrase; WAV transcribed English terms in a Russian phrase worse, so the page sends what the browser recorded.
+
 ## Rule versions (BTN-50)
 
 Which rule texts (CLAUDE.md, skills, memory, hooks, settings, agents) were in effect when — so that `/stats` can compare spend before and after a change. A rule file is `ruleFileOf` (`src/rules.ts`): `~/.claude` and the account folders are reduced to one key `~/.claude/…` (except `settings.json` and `.claude.json` — each account has its own), and so are the stores those folders link to (BTN-366, the root's `src/account/share.ts`): `~/.claude-skills/<name>/…` is `~/.claude/skills/<name>/…`, `~/.claude-hooks/…` and `~/.claude-agents/…` are `~/.claude/hooks/…` and `~/.claude/agents/…` (BTN-373), `~/.claude-memory/<slug>/…` is `~/.claude/projects/<slug>/memory/…` — chain sessions write memory by the store's path (`autoMemoryDirectory`); a worktree to the main checkout, a project folder without the drive letter and case (a project may move to another drive). `~/.githooks/**` are hooks (without logs, `*.bak*`, `*.tmp`, `package*.json`), of `.claude.json` only `mcpServers` and `projects.*.{mcpServers, allowedTools}` are stored, with `env`/`headers` values as `***`. The skills `skills/synced/**` and `skills/.*/**` are not rules; a skill folder `skills/<name>` itself is not a file (`rm -r`/`cp -r` of a folder is not written as an edit, BTN-52). The text is `canon` (CRLF → LF, whitespace at the edges trimmed), SKILL.md without frontmatter, the hash is SHA-1.

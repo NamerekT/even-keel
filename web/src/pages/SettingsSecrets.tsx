@@ -73,9 +73,10 @@ const LABELS: Record<ClassifierField, () => { label: string; hint: string }> = {
   url: () => ({ label: t.secrets.llmUrl, hint: t.secrets.llmUrlHint }),
   key: () => ({ label: t.secrets.llmKey, hint: t.secrets.llmKeyHint }),
   model: () => ({ label: t.secrets.llmModel, hint: t.secrets.llmModelHint }),
+  dictation: () => ({ label: t.secrets.llmDictation, hint: t.secrets.llmDictationHint }),
 }
 
-/** Settings → Stats: Tally's span classifier, its three variables of `.env` saved together with one button. */
+/** Settings → Stats: Tally's span classifier and dictation's model, their four variables of `.env` saved with one button. */
 export function ClassifierSettings({ state }: { state: EvenKeelState }) {
   const { send, sending, failure } = useCommand()
   const { variables } = state.secrets
@@ -84,10 +85,11 @@ export function ClassifierSettings({ state }: { state: EvenKeelState }) {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (await send('secrets/update', { values: changes })) setDraft({ url: draft.url.trim(), key: '', model: draft.model.trim() })
+    if (await send('secrets/update', { values: changes })) setDraft({ url: draft.url.trim(), key: '', model: draft.model.trim(), dictation: draft.dictation.trim() })
   }
 
-  const placeholder = (field: ClassifierField, set: boolean) => (field === 'key' ? (set ? t.secrets.kept : t.secrets.unset) : field === 'model' ? t.secrets.llmModelDefault : undefined)
+  const placeholder = (field: ClassifierField, set: boolean) =>
+    field === 'key' ? (set ? t.secrets.kept : t.secrets.unset) : field === 'model' || field === 'dictation' ? t.secrets.llmModelDefault : undefined
 
   return (
     <Section title={t.secrets.classifier} hint={t.secrets.classifierHint}>

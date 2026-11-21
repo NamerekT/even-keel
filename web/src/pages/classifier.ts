@@ -1,8 +1,13 @@
 import type { SecretView } from '../../../src/state.js'
 
-export type ClassifierField = 'url' | 'key' | 'model'
+export type ClassifierField = 'url' | 'key' | 'model' | 'dictation'
 
-export const CLASSIFIER: Record<ClassifierField, string> = { url: 'TALLY_LLM_URL', key: 'TALLY_LLM_KEY', model: 'TALLY_LLM_MODEL' }
+export const CLASSIFIER: Record<ClassifierField, string> = {
+  url: 'TALLY_LLM_URL',
+  key: 'TALLY_LLM_KEY',
+  model: 'TALLY_LLM_MODEL',
+  dictation: 'TALLY_LLM_DICTATION_MODEL',
+}
 
 export const CLASSIFIER_FIELDS = Object.keys(CLASSIFIER) as ClassifierField[]
 
@@ -13,7 +18,7 @@ export const classifierVariable = (variables: readonly SecretView[], field: Clas
 /** The form as it opens: the saved address and model; the key, a secret, blank. */
 export function classifierDraft(variables: readonly SecretView[]): Record<ClassifierField, string> {
   const value = (field: ClassifierField) => classifierVariable(variables, field)?.value ?? ''
-  return { url: value('url'), key: '', model: value('model') }
+  return { url: value('url'), key: '', model: value('model'), dictation: value('dictation') }
 }
 
 /**

@@ -7,6 +7,7 @@ import { fallbacksSince, fixEpisodes, launchDays, taskSessions, type TaskSession
 import { ciViews } from '../ci/wiring.js'
 import { idPrefixOf, projectLabels, runSettings } from '../config.js'
 import { DEMO_ACCOUNT } from '../demo/model.js'
+import { dictationSettings } from '../dictation/transcribe.js'
 import { gitSetup } from '../git/setup.js'
 import { hulyClient } from '../huly/client.js'
 import { stepJobs } from '../jobs/runner.js'
@@ -118,6 +119,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     showTests: { home: ctx.configStore.current.homeShowTests, stats: ctx.configStore.current.statsShowTests },
     tally: ctx.tallyMode(),
     tallyHealth: ctx.tally.health(),
+    dictation: dictationSettings(process.env) !== undefined,
     hulyClient: hulyClient.view(),
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
     backup: ctx.backups.view(),

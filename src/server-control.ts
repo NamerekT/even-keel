@@ -335,6 +335,8 @@ export interface ServerDeps {
   builtinImports?: Pick<BuiltinImports, 'plan' | 'start' | 'state' | 'switch'>
   /** The project chats (BTN-1230); without them their calls are refused. */
   chats?: import('./chats/chats.js').ProjectChats
+  /** The chat microphone's recordings to text through LiteLLM (BTN-1391); without it `dictation/transcribe` is refused. */
+  dictation?: Pick<import('./dictation/transcribe.js').Dictation, 'transcribe'>
   launches: () => unknown
   /** What the state leaves out (BTN-1256): the whole event log, and a task's every run and session. */
   history?: { events(): unknown; task(task: string): unknown }

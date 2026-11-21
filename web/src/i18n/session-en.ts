@@ -220,6 +220,9 @@ export const sessionEn = {
       network: 'The browser’s recognition service is out of reach: press again once the network is back',
       silence: 'Nothing was heard: press and speak',
       failed: 'Recognition broke off: press again',
+      /** `time` — how long it has recorded, `m:ss`. */
+      recording: (time: string) => `Recording, ${time}: press to stop and transcribe`,
+      transcribing: 'Transcribing the recording…',
     },
     drop: 'Drop the files to attach them',
     cold: {

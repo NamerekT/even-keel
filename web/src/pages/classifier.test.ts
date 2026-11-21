@@ -15,25 +15,35 @@ const variable = (name: string, value: string | null, extra: Partial<SecretView>
   ...extra,
 })
 
-const saved = [variable('TALLY_LLM_URL', 'https://llm.example.com'), variable('TALLY_LLM_KEY', 'key'), variable('TALLY_LLM_MODEL', null)]
+const saved = [
+  variable('TALLY_LLM_URL', 'https://llm.example.com'),
+  variable('TALLY_LLM_KEY', 'key'),
+  variable('TALLY_LLM_MODEL', null),
+  variable('TALLY_LLM_DICTATION_MODEL', 'listener'),
+]
 
 describe('classifierDraft', () => {
-  it('starts from the saved address and model, the key blank', () => {
-    expect(classifierDraft(saved)).toEqual({ url: 'https://llm.example.com', key: '', model: '' })
+  it('starts from the saved address and models, the key blank', () => {
+    expect(classifierDraft(saved)).toEqual({ url: 'https://llm.example.com', key: '', model: '', dictation: 'listener' })
   })
 })
 
 describe('classifierChanges', () => {
   it('is empty while nothing changed, a blank key keeping the saved one', () => {
-    expect(classifierChanges(saved, { url: ' https://llm.example.com ', key: '', model: '' })).toEqual({})
+    expect(classifierChanges(saved, { url: ' https://llm.example.com ', key: '', model: '', dictation: 'listener' })).toEqual({})
   })
 
   it('sends a changed field, a new key, and null for a cleared one that was set', () => {
-    expect(classifierChanges(saved, { url: '', key: 'new-key', model: 'small' })).toEqual({ TALLY_LLM_URL: null, TALLY_LLM_KEY: 'new-key', TALLY_LLM_MODEL: 'small' })
+    expect(classifierChanges(saved, { url: '', key: 'new-key', model: 'small', dictation: '' })).toEqual({
+      TALLY_LLM_URL: null,
+      TALLY_LLM_KEY: 'new-key',
+      TALLY_LLM_MODEL: 'small',
+      TALLY_LLM_DICTATION_MODEL: null,
+    })
   })
 
   it('leaves out a variable from the service environment', () => {
     const outer = [variable('TALLY_LLM_URL', 'https://llm.example.com', { outer: true }), ...saved.slice(1)]
-    expect(classifierChanges(outer, { url: 'https://other.example.com', key: '', model: 'small' })).toEqual({ TALLY_LLM_MODEL: 'small' })
+    expect(classifierChanges(outer, { url: 'https://other.example.com', key: '', model: 'small', dictation: 'listener' })).toEqual({ TALLY_LLM_MODEL: 'small' })
   })
 })

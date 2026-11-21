@@ -361,6 +361,11 @@ export interface EvenKeelState {
   tally: TallyMode | null
   /** The collector's last run, for `/status` (BTN-66). */
   tallyHealth: TallyHealth
+  /**
+   * The chat microphone records and the service transcribes through LiteLLM (BTN-1391): the Span classifier's address
+   * and key are set. Read live; absent or `false` — the browser's own recognition.
+   */
+  dictation?: boolean
   /** The Huly client's install into the data folder (BTN-666) while it runs or after it failed; `null` — none. */
   hulyClient?: Notice | null
   updates: UpdatesView

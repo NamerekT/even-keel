@@ -7,6 +7,7 @@ import { checkReportOf } from './chain/checkreports.js'
 import { statusMovesOf } from './chain/moves.js'
 import { CLAUDE } from './claude/name.js'
 import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
+import { DICTATION_BODY_BYTES } from './dictation/transcribe.js'
 import { formatEvent } from './events.js'
 import type { GuardSettings } from './guard.js'
 import { isLanguage } from './language.js'
@@ -237,13 +238,22 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),
   'history/events': async ({ history }) => history?.events() ?? [],
   'history/task': async ({ history }, body) => history?.task(textOf(body.task, 'task')) ?? { runs: [], sessions: [] },
+  'dictation/transcribe': async ({ dictation }, body) => {
+    if (dictation === undefined) throw fail('dictation.off', {})
+    return { text: await dictation.transcribe(textOf(body.audio, 'audio'), textOf(body.type, 'type')) }
+  },
 }
 
 const MAX_BODY_BYTES = 64 * 1024
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 /** An answer carries its files in base64. */
 const MAX_ANSWER_BYTES = 64 * 1024 * 1024
-const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES, ...BUILTIN_BODY_LIMITS, ...CHATS_BODY_LIMITS }
+const BODY_LIMITS: Record<string, number> = {
+  '/api/session/answer': MAX_ANSWER_BYTES,
+  '/api/dictation/transcribe': DICTATION_BODY_BYTES,
+  ...BUILTIN_BODY_LIMITS,
+  ...CHATS_BODY_LIMITS,
+}
 
 export function createEvenKeelServer(deps: ServerDeps): Server {
   return guardedServer(deps.guard, (request, response) => route(deps, request, response))

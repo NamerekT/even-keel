@@ -32,6 +32,8 @@ const TALLY = [
   'TALLY_LLM_URL',
   'TALLY_LLM_KEY',
   'TALLY_LLM_MODEL',
+  // The chat microphone's model on the same connection (BTN-1391), read by the service itself.
+  'TALLY_LLM_DICTATION_MODEL',
 ]
 export const PAGE_TOKEN = 'EVEN_KEEL_TOKEN'
 const PLAIN = /_(URL|WORKSPACE|EMAIL|HOST|PORT|NAME|MODEL)$/

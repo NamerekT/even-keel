@@ -637,8 +637,43 @@ button.tools__toggle:hover {
   animation: blink var(--motion-blink) ease-in-out infinite;
 }
 
+/* Recording for the service (BTN-1391): the button widens into a pill with the time, the microphone in the error red. */
+.chat__dictate--recording {
+  width: auto;
+  grid-auto-flow: column;
+  gap: var(--space-4);
+  padding: 0 var(--space-12) 0 var(--space-8);
+  border-radius: var(--radius-pill);
+}
+
+.chat__dictate--recording[aria-pressed='true'],
+.chat__dictate--recording[aria-pressed='true']:hover {
+  color: var(--lamp-error);
+}
+
+.chat__dictate-clock {
+  color: var(--fg);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The recording is with the model: a spinner in the microphone's place until the text comes. */
+.chat__dictate--waiting:disabled {
+  opacity: 1;
+}
+
+.chat__dictate-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin var(--motion-spin) linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .chat__dictate[aria-pressed='true'] .icon {
+  .chat__dictate[aria-pressed='true'] .icon,
+  .chat__dictate-spinner {
     animation: none;
   }
 }
