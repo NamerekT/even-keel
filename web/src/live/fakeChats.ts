@@ -1,7 +1,8 @@
 import type { ChatCard, ChatChoice, ChatPage } from '../../../src/chats/model.js'
 import { fail } from '../../../src/notice/notice.js'
 import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
-import type { EvenKeelState } from '../../../src/state.js'
+import type { EvenKeelState, SessionView } from '../../../src/state.js'
+import { session } from './fakeSessions.js'
 
 /** The archive's page, as the server's (BTN-1231). */
 const PAGE = 20
@@ -216,6 +217,21 @@ export function fakeChats(mode: string | null) {
       return Object.fromEntries(
         cards.flatMap((card) => (card.sessionId === null ? [] : [[card.sessionId, { listens: true, steers: false, mail: fakeMail(card) }]])),
       )
+    },
+    /**
+     * The views of the active chats' sessions, as the server's monitor finds a chat's session by its name: a working chat's
+     * session works, so its window shows the turn line (BTN-1427). The others have none, as a session gone quiet; `ids`
+     * names every chat session whose view the state drops first.
+     */
+    sessions(): { ids: Set<string>; views: SessionView[] } {
+      const cards = [...lists.values()].flatMap((list) => list.active)
+      const ids = new Set(cards.flatMap((card) => (card.sessionId === null ? [] : [card.sessionId])))
+      const views = cards.flatMap((card) =>
+        card.sessionId === null || card.state !== 'working'
+          ? []
+          : [{ ...session(card.id, card.context?.tokens ?? 0, 'working'), sessionId: card.sessionId, agent: card.agent, account: card.account, model: card.model, effort: card.effort, branch: null }],
+      )
+      return { ids, views }
     },
     /** The answer to a chats query; `undefined` — not one of them. */
     query(state: EvenKeelState, name: string, body: Record<string, unknown>): unknown {

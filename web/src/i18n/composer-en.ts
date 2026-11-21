@@ -63,6 +63,7 @@ export const composerEn = {
   thinking: 'Thinking',
   background: (command: string | null) => (command === null ? 'Waiting for its background command' : `Waiting for its background command: ${command}`),
   running: (tool: string) => `Running: ${tool}`,
+  turnSince: (time: string) => `The turn has been going since ${time}`,
   delivery: {
     delivering: 'Delivering',
     delivered: (time: string | null) => (time === null ? 'Delivered' : `Delivered at ${time}`),

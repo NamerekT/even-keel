@@ -286,6 +286,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 249 | [An outsider's task held on CI and agent files](unverified/trackers.md#an-outsiders-task-held-on-ci-and-agent-files-btn-1207) | projects with the GitHub intake whose outsider's task changes a workflow, `.claude`, `CLAUDE.md`, `AGENTS.md`, `.codex` or `package.json` | the branch is merged or pushed with its workflows run before a person looks, or a member's task is held; read such a branch's diff before it lands | — |
 | 250 | [The copy waits out a tracker's rate limit and goes on after a restart](unverified/trackers.md#the-copy-waits-out-a-trackers-rate-limit-and-goes-on-after-a-restart-btn-1190) | anyone moving a large built-in project into another tracker, GitHub first | the copy stops with an error on a limit, or after a restart; press "Continue" once the tracker takes writes again | — |
 | 251 | [The switch's last pass passes over unchanged tasks](unverified/trackers.md#the-switchs-last-pass-passes-over-unchanged-tasks-btn-1432) | projects switching to the built-in tracker from Huly or GitHub | a comment, a file or a change made in the source after the check stays behind, and the check still matches; press "Repeat" before the switch | — |
+| 253 | [A project chat's turn line in a live installation](unverified/sessions.md#a-project-chats-turn-line-in-a-live-installation-btn-1427) | anyone with a project chat mid-turn | the project chat's window still shows no action and no clock while it works | — |
 
 ### Waiting for the event / not checked by choice
 

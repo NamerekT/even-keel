@@ -62,6 +62,7 @@ export const composerRu = {
   thinking: 'Думает',
   background: (command: string | null) => (command === null ? 'Ждёт фоновую команду' : `Ждёт фоновую команду: ${command}`),
   running: (tool: string) => `Выполняет: ${tool}`,
+  turnSince: (time: string) => `Ход идёт с ${time}`,
   delivery: {
     delivering: 'Доставляется',
     delivered: (time: string | null) => (time === null ? 'Доставлено' : `Доставлено в ${time}`),

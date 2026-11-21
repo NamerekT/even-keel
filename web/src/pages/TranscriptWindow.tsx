@@ -6,7 +6,7 @@ import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import { isOwnName } from '../../../src/chain/fix.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
-import { formatElapsed } from '../format.js'
+import { formatElapsed, formatLineTime } from '../format.js'
 import { formatCombo } from '../hotkeys/combo.js'
 import { useDialogHotkey, useHotkeyLayout } from '../hotkeys/useHotkeys.js'
 import { localized, say, t } from '../i18n/index.js'
@@ -43,7 +43,7 @@ import { isReply, sentFeed, type FeedMark, type SentLine } from './sentLines.js'
 import { ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
-import { turnPhase, type TurnFacts } from './turnPhase.js'
+import { turnPhase, turnSession, type TurnFacts } from './turnPhase.js'
 import { useFileDrop } from './useFileDrop.js'
 import { NoticeFixButton } from './FixButtons.js'
 import './transcript.css'
@@ -128,10 +128,12 @@ interface Props {
   lead?: ReactNode
   /** A project chat's mailbox: its letters show under the feed, as a task chat's do (BTN-1346). */
   mail?: SessionMail
+  /** A project chat's session: its turn line shows over the foot, as a task chat's does (BTN-1427). */
+  session?: SessionView
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt, mail: ownMail }: Props) {
+export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt, mail: ownMail, session: ownSession }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
   const mail = chat?.mail ?? ownMail
   const sessionId = session ?? ''
@@ -166,7 +168,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const delivered = sent.filter((each) => each.failed !== true)
   // A message steered into a working session waits in the CLI's queue until its current tool call ends; the queue is
   // read from the transcript, so it outlives closing the window, and this window's own send shows until it is there.
-  const inQueue = chat?.session.lamp === 'working' ? (turn?.queued ?? []) : []
+  const inQueue = (chat?.session ?? ownSession)?.lamp === 'working' ? (turn?.queued ?? []) : []
   const queued = [...inQueue, ...unread.filter((each) => each.steered && !inQueue.some((line) => line.text === each.line.text)).map((each) => each.line)]
   const remoteUrl = chat?.session.remoteUrl
   // A reply sent from here counts after the transcript took over too: a late view of the session never brings its question back.
@@ -324,6 +326,20 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
     }
   }
 
+  const turning = turnSession(chat?.session, ownSession, handing.shown !== null)
+  const turnLine = turning !== null && (
+    <TurnLine
+      facts={{
+        working: true,
+        turn,
+        lastReplyAt: lines?.findLast(isReply)?.at ?? null,
+        answers: [chat?.answeredAt ?? null, delivered.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
+        delivering: chat?.delivering ?? false,
+        background: turning.background == null ? null : { command: turning.background.command, since: turning.lastActivityAt },
+      }}
+    />
+  )
+
   return (
     <dialog
       ref={dialogRef}
@@ -442,6 +458,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
           {blank !== undefined && entries?.length === 0 && loader === 'done' && <p className="placeholder transcript__blank">{blank}</p>}
           {foot !== undefined ? (
             <div className="transcript__foot">
+              {turnLine}
               {foot({
                 status,
                 awaitingFirstPrompt,
@@ -478,18 +495,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                   {say(handing.error)} <NoticeFixButton project={chat.project} notice={handing.error} />
                 </p>
               )}
-              {chat.session.lamp === 'working' && handing.shown === null && (
-                <TurnLine
-                  facts={{
-                    working: true,
-                    turn,
-                    lastReplyAt: lines?.findLast(isReply)?.at ?? null,
-                    answers: [chat.answeredAt, delivered.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
-                    delivering: chat.delivering,
-                    background: chat.session.background == null ? null : { command: chat.session.background.command, since: chat.session.lastActivityAt },
-                  }}
-                />
-              )}
+              {turnLine}
               <ChatComposer
                 project={chat.project}
                 task={chat.task}
@@ -533,15 +539,26 @@ function TurnLine({ facts }: { facts: TurnFacts }) {
       : phase.kind === 'thinking'
         ? t.session.chat.thinking
         : t.session.chat.running(phase.tool)
-  return <TurnRow doing={doing} elapsed={elapsed} />
+  return <TurnRow doing={doing} elapsed={elapsed} since={phase.since} />
 }
 
-export function TurnRow({ doing, elapsed }: { doing: string; elapsed: string | null }) {
+/**
+ * The lamp, the turn's clock as a grey pill of a fixed width, then what the session does: the action's text always starts
+ * at one place, and a long one is cut, never the pill (BTN-1427). The pill's tip tells when the turn began.
+ */
+export function TurnRow({ doing, elapsed, since }: { doing: string; elapsed: string | null; since: string | null }) {
+  const pill = elapsed === null ? null : <span className="count-badge transcript__turn-time">{elapsed}</span>
   return (
     <span className="transcript__turn">
       <span className="lamp lamp--working" aria-hidden="true" />
+      {pill !== null && since !== null ? (
+        <Tipped inline focusable align="start" className="transcript__turn-tip" tip={t.session.chat.turnSince(formatLineTime(since))}>
+          {pill}
+        </Tipped>
+      ) : (
+        pill
+      )}
       <span className="transcript__turn-text">{doing}</span>
-      {elapsed !== null && <span className="transcript__turn-time">{elapsed}</span>}
     </span>
   )
 }

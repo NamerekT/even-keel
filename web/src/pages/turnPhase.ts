@@ -1,3 +1,4 @@
+import type { Lamp } from '../../../src/sessions/agents.js'
 import type { Turn } from '../../../src/sessions/transcript.js'
 
 /** Longest an answer is taken to be on its way: the service's hold on a resumed session (`src/sessions/holds.ts`). */
@@ -30,6 +31,15 @@ export type TurnPhase =
   | { kind: 'background'; command: string | null; since: string | null }
   | { kind: 'thinking'; since: string | null }
   | { kind: 'running'; tool: string; since: string | null }
+
+/**
+ * The session whose turn the window's line tells: a task chat's, else the window's own — a project chat's, whose window
+ * has no task chat (BTN-1427). None while it does not work or a handover takes the line's place.
+ */
+export function turnSession<S extends { lamp: Lamp }>(chat: S | undefined, own: S | undefined, handing: boolean): S | null {
+  const session = chat ?? own
+  return session === undefined || handing || session.lamp !== 'working' ? null : session
+}
 
 export function turnPhase(facts: TurnFacts, now: number): TurnPhase | null {
   if (!facts.working) return null

@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { TaskSession } from '../../../src/chain/launches.js'
+import { formatLineTime } from '../format.js'
 import { t } from '../i18n/index.js'
 import { Loader } from '../ui/Loader.js'
 import { progressParts } from './jobProgress.js'
@@ -55,11 +56,15 @@ describe('the session glues no facts with a dot (BTN-1376)', () => {
     expect(markup).toContain(' | ')
   })
 
-  it("puts the turn's time in a cell of its own after what it does", () => {
-    const markup = html(createElement(TurnRow, { doing: t.session.chat.thinking, elapsed: '23s' }))
+  it("puts the turn's time in a grey pill before what it does, the start in its tip (BTN-1427)", () => {
+    const since = '2026-11-21T12:00:00Z'
+    const markup = html(createElement(TurnRow, { doing: t.session.chat.thinking, elapsed: '23s', since }))
     expect(markup).not.toContain('·')
-    expect(markup.indexOf(t.session.chat.thinking)).toBeLessThan(markup.indexOf('transcript__turn-time'))
-    expect(html(createElement(TurnRow, { doing: t.session.chat.thinking, elapsed: null }))).not.toContain('transcript__turn-time')
+    expect(markup).toMatch(/class="count-badge transcript__turn-time">23s</)
+    expect(markup.indexOf('transcript__turn-time')).toBeLessThan(markup.indexOf(t.session.chat.thinking))
+    expect(markup.indexOf('lamp--working')).toBeLessThan(markup.indexOf('transcript__turn-time'))
+    expect(markup).toContain(t.session.chat.turnSince(formatLineTime(since)))
+    expect(html(createElement(TurnRow, { doing: t.session.chat.thinking, elapsed: null, since: null }))).not.toContain('transcript__turn-time')
   })
 
   it("gives the loader's time a cell of its own", () => {

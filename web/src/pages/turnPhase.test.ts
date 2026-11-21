@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { turnPhase, type TurnFacts } from './turnPhase.js'
+import { turnPhase, turnSession, type TurnFacts } from './turnPhase.js'
 
 const second = (value: number) => new Date(Date.UTC(2026, 0, 1, 12, 0, value)).toISOString()
 const at = (value: number) => Date.parse(second(value))
@@ -95,5 +95,28 @@ describe('turnPhase', () => {
 
   it('skips a moment that is not a time', () => {
     expect(turnPhase(facts({ answers: [''] }), at(10))).toEqual({ kind: 'thinking', since: second(0) })
+  })
+})
+
+describe('turnSession', () => {
+  const working = { lamp: 'working' as const }
+  const idle = { lamp: 'waiting' as const }
+
+  it("tells a task chat's working session", () => {
+    expect(turnSession(working, undefined, false)).toBe(working)
+  })
+
+  it("tells a project chat's own working session, the window having no task chat (BTN-1427)", () => {
+    expect(turnSession(undefined, working, false)).toBe(working)
+  })
+
+  it('tells nothing of a session that does not work', () => {
+    expect(turnSession(idle, undefined, false)).toBeNull()
+    expect(turnSession(undefined, idle, false)).toBeNull()
+    expect(turnSession(undefined, undefined, false)).toBeNull()
+  })
+
+  it('tells nothing while a handover is shown', () => {
+    expect(turnSession(working, undefined, true)).toBeNull()
   })
 })

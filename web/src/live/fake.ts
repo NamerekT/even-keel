@@ -836,11 +836,17 @@ export function createFakeSource(search: string): LiveSource {
     if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(current.state))
     for (const listener of listeners) listener()
   }
-  // The chats' sessions join the page's mailbox once their list is read or a chat changes (BTN-1345).
+  // The chats' sessions join the page's mailbox and its sessions once their list is read or a chat changes (BTN-1345, BTN-1427).
   const chatMail = () => {
+    const state = current.state
+    if (state === null) return
     const rows = chats.mailbox()
-    if (current.state === null || Object.entries(rows).every(([id, row]) => JSON.stringify(current.state?.mailbox[id]) === JSON.stringify(row))) return
-    current.state = { ...current.state, mailbox: { ...current.state.mailbox, ...rows } }
+    const { ids, views } = chats.sessions()
+    const shown = state.sessions.filter((each) => ids.has(each.sessionId))
+    const sameMail = Object.entries(rows).every(([id, row]) => JSON.stringify(state.mailbox[id]) === JSON.stringify(row))
+    const sameViews = shown.length === views.length && views.every((view) => shown.some((each) => each.sessionId === view.sessionId))
+    if (sameMail && sameViews) return
+    current.state = { ...state, mailbox: { ...state.mailbox, ...rows }, sessions: [...state.sessions.filter((each) => !ids.has(each.sessionId)), ...views] }
     notify()
   }
 

@@ -62,6 +62,7 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
         { kind: 'prompt', at: chat.last.at, text: chat.last.text } : undefined}
       lead={chat.previous === null ? undefined : <Continued previous={chat.previous} onOpen={onOpen} />}
       mail={archived || chat.sessionId === null ? undefined : (state?.mailbox[chat.sessionId] ?? NO_MAIL)}
+      session={archived ? undefined : session}
       onClose={onClose}
       foot={(parts) =>
         archived ? (

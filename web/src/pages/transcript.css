@@ -408,11 +408,13 @@ button.tools__toggle:hover {
   font-size: var(--text-14);
 }
 
-.transcript__turn-time {
+/* The clock's pill sits right after the lamp, as wide as "59m 59s": the action's text never moves on a tick (BTN-1427). */
+.transcript__turn-tip {
   flex: none;
-  margin-inline-start: auto;
-  font-size: var(--text-12);
-  font-variant-numeric: tabular-nums;
+}
+
+.transcript__turn-time {
+  min-width: calc(8ch + 10px);
 }
 
 .transcript__turn-text {
