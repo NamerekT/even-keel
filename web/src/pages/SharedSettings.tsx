@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useDraftKeys } from '../hotkeys/draftKeys.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { Link, useSearchParams } from 'react-router'
@@ -166,6 +167,10 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   )
   const save = () =>
     landing.land(async () => next !== undefined && base !== undefined && (await send('settings', { ...next, base } as unknown as Record<string, unknown>)))
+  const canSave = !sending && !landing.on && (next !== undefined || keysOf(open).some((key) => draft.adding?.[key] !== undefined))
+  // Held by the shared draft's form only: a profile's rules in its place are a form of their own.
+  const formRef = useRef<HTMLFormElement>(null)
+  useDraftKeys(formRef, { canSave: canSave && dirty(open), save: () => formRef.current?.requestSubmit(), parts: [{ scope: SCOPE, keys: keysOf(open) }] })
   const numberInput = (key: string, invalid: boolean, extra: { placeholder?: string; disabled?: boolean } = {}) => (
     <input
       id={fieldId(key)}
@@ -690,6 +695,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const draftForm = (titled: boolean) => (
     <TableDraft value={{ draft, setDraft }}>
     <form
+      ref={formRef}
       key={open}
       className={titled ? 'settings__form settings-page__form' : 'settings__form'}
       aria-labelledby={titled ? 'settings-group' : undefined}
@@ -704,7 +710,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
       <SaveBar
         shown={dirty(open)}
-        canSave={!sending && !landing.on && (next !== undefined || keysOf(open).some((key) => draft.adding?.[key] !== undefined))}
+        canSave={canSave}
         saving={sending || landing.on}
         late={landing.late}
         onRevert={() => revert(keysOf(open))}

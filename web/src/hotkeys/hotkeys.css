@@ -25,7 +25,16 @@
 
 .hotkeys__row--fixed {
   color: var(--fg-muted);
+}
+
+.hotkeys__row--plain {
   grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.hotkeys__combos {
+  display: flex;
+  justify-self: end;
+  gap: var(--space-4);
 }
 
 .hotkeys__combo {

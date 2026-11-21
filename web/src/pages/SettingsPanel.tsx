@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import './projectSettingsTabs.css'
+import { useDraftKeys } from '../hotkeys/draftKeys.js'
 import { useMachineFilter } from '../layout/MachineFilter.js'
 import { ProjectMachineSettings } from './ProjectMachineSettings.js'
 import { useRepoBranches } from './BranchField.js'
@@ -120,6 +121,8 @@ export function SettingsPanel({
       return send('project/settings', { project, ...next, base })
     })
   const canSave = !sending && !landing.on && next !== undefined
+  const formRef = useRef<HTMLFormElement>(null)
+  useDraftKeys(formRef, { canSave: canSave && dirty(open), save: () => formRef.current?.requestSubmit(), parts: [{ scope: scopeOf(project), keys: keysOf(open) }] })
   const leftover = unplaced(project, failure, config)
 
   const groups: Record<GroupId, () => ReactNode> = {
@@ -193,6 +196,7 @@ export function SettingsPanel({
       </header>
       <TableDraft value={{ draft, setDraft }}>
       <form
+        ref={formRef}
         className="settings__form"
         role="tabpanel"
         aria-labelledby={`settings-tab-${open}`}

@@ -1,6 +1,8 @@
+import { useRef } from 'react'
 import { MOVE_SETTINGS } from '../../../src/chain/moves.js'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { EvenKeelState, ProfileView } from '../../../src/state.js'
+import { useDraftKeys } from '../hotkeys/draftKeys.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand, useLanding } from '../live/useCommand.js'
 import { knownStatuses, type RuleLevel } from './ruleRows.js'
@@ -49,9 +51,17 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
   const origins = Object.fromEntries(Object.keys(shared).map((key) => [key, key in own ? 'profile' : 'shared'])) as Record<keyof ChainRules, RuleLevel>
   const moves = useProfileMoves(state, profile, rules)
   const landing = useLanding(JSON.stringify([saved, moves.saved]), SAVE_LANDING_MS)
+  const canSave = !sending && !landing.on
+  const formRef = useRef<HTMLFormElement>(null)
+  useDraftKeys(formRef, {
+    canSave: canSave && (dirty || moves.dirty),
+    save: () => formRef.current?.requestSubmit(),
+    parts: [{ scope: profileGroup(profile.id), keys: PROFILE_RULE_KEYS }, { scope: movesGroup(profile.id) }],
+  })
 
   return (
     <form
+      ref={formRef}
       className="settings__form"
       aria-label={t.profiles.rulesOf(profile.name)}
       onSubmit={(event) => {
@@ -85,7 +95,7 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <SaveBar
         shown={dirty || moves.dirty}
-        canSave={!sending && !landing.on}
+        canSave={canSave}
         saving={sending || landing.on}
         late={landing.late}
         onRevert={() => {

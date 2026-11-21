@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { BUILTIN } from '../../../src/builtin/model.js'
+import { useDraftKeys } from '../hotkeys/draftKeys.js'
+import type { DraftPart } from './settingsStore.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { say, t } from '../i18n/index.js'
 import { useBackdropClose } from '../ui/backdrop.js'
@@ -19,6 +21,8 @@ export interface SourceTab<T extends string = string> {
   /** Whether the part holds edits nobody saved. */
   dirty: boolean
   fields?: readonly string[]
+  /** The drafts and fields Ctrl+Z steps back in while the tab is open (BTN-1064); none — the key does nothing there. */
+  undo?: readonly DraftPart[]
 }
 
 interface SourceDialogProps<T extends string> {
@@ -96,6 +100,23 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, i
   const dirty = tabs.some((each) => each.dirty)
   const frame = useRef<HTMLDivElement>(null)
   useHeightGlide(frame, tab.id)
+  const save = () => {
+    const valid = tablesValid(dialog.current!)
+    if (invalidTab !== undefined && tableDraft !== null) {
+      tableDraft.setDraft((before) => (invalidTab.fields ?? []).reduce((next, key) => {
+        const row = next.adding?.[key]
+        return row === undefined ? next : pendingRow(next, key, { ...row, checked: true })
+      }, before))
+      setOpen(invalidTab.id)
+      return
+    }
+    if (!valid) return
+    void onSave().then((saved) => {
+      if (saved) onClose()
+    })
+  }
+  // Ctrl+S here is the window's own: it saves the window, never the settings panel under it.
+  useDraftKeys(dialog, { canSave: dirty && canSave, save, parts: tab.undo ?? [] })
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -147,21 +168,7 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, i
             type="button"
             className="button button--primary"
             disabled={!dirty || !canSave}
-            onClick={() => {
-              const valid = tablesValid(dialog.current!)
-              if (invalidTab !== undefined && tableDraft !== null) {
-                tableDraft.setDraft((before) => (invalidTab.fields ?? []).reduce((next, key) => {
-                  const row = next.adding?.[key]
-                  return row === undefined ? next : pendingRow(next, key, { ...row, checked: true })
-                }, before))
-                setOpen(invalidTab.id)
-                return
-              }
-              if (!valid) return
-              void onSave().then((saved) => {
-                if (saved) onClose()
-              })
-            }}
+            onClick={save}
           >
             {t.settings.sourceSave}
           </button>

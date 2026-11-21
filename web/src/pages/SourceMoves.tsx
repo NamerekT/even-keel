@@ -52,6 +52,7 @@ export function useSourceMoves({ state, project, feed, kind, profile, rules, sav
         id: MOVES_TAB,
         title: t.profiles.moves.title,
         dirty,
+        undo: [{ scope: movesScope(project, feed) }],
         render: () => (
           <MovesSection
             hint={`${t.profiles.moves.hint} ${profile === undefined ? '' : t.profiles.moves.sourceHint(profile.name)}`.trim()}

@@ -24,6 +24,7 @@ import { same, STATUS_KEYS } from './projectSettingsDraft.js'
 import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
 import { changed, edited, reverted, type Value } from './settingsDraft.js'
 import { RULE_KEYS, rulesText, Section } from './settingsParts.js'
+import { projectScope } from './settingsStore.js'
 import type { ruleChoicesOf } from './settingsRows.js'
 
 /** The "Tracker" tab of the project settings panel, with the main tracker's window of rules, milestones and moves. */
@@ -159,6 +160,7 @@ export function ProjectTrackerTab({
               id: 'rules',
               title: t.settings.rules,
               dirty: changed(draft, ['active', 'terminal', 'requiredLabels', 'excludedLabels'], same).length > 0,
+              undo: [{ scope: projectScope(project), keys: ['active', 'terminal', 'requiredLabels', 'excludedLabels'] }],
               render: () => (
                 <RuleForm
                   level="project"
@@ -183,6 +185,7 @@ export function ProjectTrackerTab({
               fields: ['requiredMilestones', 'excludedMilestones'],
               title: t.settings.milestones,
               dirty: changed(draft, ['requiredMilestones', 'excludedMilestones'], same).length > 0,
+              undo: [{ scope: projectScope(project), keys: ['requiredMilestones', 'excludedMilestones'] }],
               render: () => (
                 <>
                 <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>

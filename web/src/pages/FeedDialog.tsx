@@ -66,6 +66,7 @@ export function FeedDialog({ state, project, feed, tasks, initialTab, onClose }:
       id: 'rules',
       title: t.settings.rules,
       dirty: changed(draft, RULE_TAB_KEYS, same).length > 0,
+      undo: [{ scope: feedScope(project, feed.id), keys: RULE_TAB_KEYS }],
       render: () => (
         <RuleForm
           level="project"
@@ -92,6 +93,7 @@ export function FeedDialog({ state, project, feed, tasks, initialTab, onClose }:
       fields: MILESTONE_KEYS,
       title: t.settings.milestones,
       dirty: changed(draft, MILESTONE_KEYS, same).length > 0,
+      undo: [{ scope: feedScope(project, feed.id), keys: MILESTONE_KEYS }],
       render: () => (
         <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>
           <MilestoneFields

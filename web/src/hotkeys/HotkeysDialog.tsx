@@ -4,7 +4,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Tipped } from '../ui/Tipped.js'
-import { comboOf, formatCombo, refusalOf, type Refusal } from './combo.js'
+import { comboOf, DRAFT_KEYS, draftCombos, formatCombo, refusalOf, type Refusal } from './combo.js'
 import { useHotkeyLayout } from './useHotkeys.js'
 import '../tools/addPackage.css'
 import './hotkeys.css'
@@ -17,7 +17,8 @@ interface Refused {
 
 /**
  * The gear's "Hotkeys" (BTN-880): a row per action with its combination, "Change" records the next press and Esc
- * cancels it. Each change is sent at once as the browser's whole layout; the double click is shown, not changed.
+ * cancels it. Each change is sent at once as the browser's whole layout; the forms' keys (BTN-1064) and the double
+ * click are shown, not changed.
  */
 export function HotkeysDialog({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -110,7 +111,24 @@ export function HotkeysDialog({ onClose }: { onClose: () => void }) {
                 )}
               </li>
             ))}
-            <li className="hotkeys__row hotkeys__row--fixed">
+            {DRAFT_KEYS.map((key) => (
+              <li key={key} className="hotkeys__row hotkeys__row--fixed">
+                <Tipped className="hotkeys__name" tip={t.hotkeys.draftTips[key]} inline focusable>
+                  {t.hotkeys.draft[key]}
+                </Tipped>
+                <span className="hotkeys__combos">
+                  {draftCombos(key, mac).map((combo) => (
+                    <kbd key={combo} className="hotkeys__combo">
+                      {formatCombo(combo, mac)}
+                    </kbd>
+                  ))}
+                </span>
+                <span className="hotkeys__buttons">
+                  <span className="tag">{t.hotkeys.fixed}</span>
+                </span>
+              </li>
+            ))}
+            <li className="hotkeys__row hotkeys__row--fixed hotkeys__row--plain">
               <span className="hotkeys__name">{t.hotkeys.doubleClick}</span>
               <span className="tag">{t.hotkeys.fixed}</span>
             </li>
@@ -133,6 +151,7 @@ export function HotkeysDialog({ onClose }: { onClose: () => void }) {
 
 function refusalText({ combo, refusal }: Refused, mac: boolean): string {
   if (refusal.kind === 'taken') return t.hotkeys.refusal.taken(t.hotkeys.actions[refusal.action])
+  if (refusal.kind === 'draft') return t.hotkeys.refusal.taken(t.hotkeys.draft[refusal.key])
   if (refusal.kind === 'reserved') return t.hotkeys.refusal.reserved(formatCombo(combo, mac))
   if (refusal.kind === 'field') return t.hotkeys.refusal.field
   return t.hotkeys.refusal.bare

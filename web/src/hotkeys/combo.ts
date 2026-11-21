@@ -71,8 +71,18 @@ export function formatCombo(text: string, mac: boolean): string {
   return symbols.length === 0 ? key : `${symbols.join('')} ${key}`
 }
 
+/** The fixed keys of a form with a draft (BTN-1064): save it, step an edit back, make it again. */
+export const DRAFT_KEYS = ['save', 'undo', 'redo'] as const
+export type DraftKey = (typeof DRAFT_KEYS)[number]
+
+/** Each draft key's combinations; Ctrl+Y redoes only off a Mac, where Cmd+Y is the browser's history. */
+export const DRAFT_COMBOS: Readonly<Record<DraftKey, readonly string[]>> = { save: ['Mod+S'], undo: ['Mod+Z'], redo: ['Mod+Shift+Z', 'Mod+Y'] }
+
+/** The combinations of a draft key on this system. */
+export const draftCombos = (key: DraftKey, mac: boolean): readonly string[] => (mac ? DRAFT_COMBOS[key].filter((combo) => combo !== 'Mod+Y') : DRAFT_COMBOS[key])
+
 /** Why a recorded combination is not taken. */
-export type Refusal = { kind: 'taken'; action: HotkeyAction } | { kind: 'bare' } | { kind: 'reserved' } | { kind: 'field' }
+export type Refusal = { kind: 'taken'; action: HotkeyAction } | { kind: 'draft'; key: DraftKey } | { kind: 'bare' } | { kind: 'reserved' } | { kind: 'field' }
 
 /** Browsers keep these for tabs and windows and never hand them to the page. */
 const RESERVED_KEYS = ['W', 'T', 'N', 'L', 'Tab', 'Q']
@@ -85,7 +95,9 @@ export function refusalOf(text: string, action: HotkeyAction, current: Readonly<
   const held = has('Mod') || has('Ctrl') || has('Meta') || has('Alt')
   if (!held && !/^F\d+$/.test(combo.key)) return { kind: 'bare' }
   if (combo.key === 'Enter' && TYPING_ACTIONS.includes(action)) return { kind: 'field' }
-  const other = Object.entries(current).find(([each, held]) => each !== action && held === text)
+  const draft = DRAFT_KEYS.find((key) => DRAFT_COMBOS[key].includes(text))
+  if (draft !== undefined) return { kind: 'draft', key: draft }
+  const other =Object.entries(current).find(([each, held]) => each !== action && held === text)
   return other === undefined ? null : { kind: 'taken', action: other[0] as HotkeyAction }
 }
 
