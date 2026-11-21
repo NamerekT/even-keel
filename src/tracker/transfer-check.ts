@@ -233,11 +233,40 @@ export interface ImportedTask {
   component: string | null
 }
 
+/** What the source has of a task: its comments, its change log's entries (0 where it gives none) and its files. */
+export interface SourceCounts {
+  comments: number
+  changes: number
+  files: number
+}
+
+export interface ImportCheckOptions {
+  /** The source's counts of a task; by default read from the source. The switch's check takes an unchanged task's from the last one (BTN-1432). */
+  counts?: (task: ImportTask) => Promise<SourceCounts>
+  /** Called as each task is counted. */
+  progress?: (done: number, total: number) => void
+}
+
+/** A task's counts read from the source. */
+export async function sourceCounts(source: ImportSource, task: ImportTask): Promise<SourceCounts> {
+  return {
+    comments: (await source.comments(task.ref)).length,
+    changes: source.changes === undefined ? 0 : (await source.changes(task.ref)).length,
+    files: (await source.files(task.ref)).length,
+  }
+}
+
 /**
  * Counts both sides of an import (BTN-1405): every task of the source against what the built-in tracker has of it.
  * The change log is counted only where the source gives one; a link only between two tasks of the project.
  */
-export async function checkImport(source: ImportSource, read: (task: ImportTask) => Promise<ImportedTask | null>, now: () => Date = () => new Date()): Promise<TransferCheck> {
+export async function checkImport(
+  source: ImportSource,
+  read: (task: ImportTask) => Promise<ImportedTask | null>,
+  now: () => Date = () => new Date(),
+  options: ImportCheckOptions = {},
+): Promise<TransferCheck> {
+  const countOf = options.counts ??((task: ImportTask) => sourceCounts(source, task))
   const tasks = await source.tasks()
   const refs = new Set(tasks.map((task) => task.ref))
   const own = (link: ImportLink | null) => link !== null && !link.foreign && refs.has(link.ref)
@@ -258,12 +287,14 @@ export async function checkImport(source: ImportSource, read: (task: ImportTask)
     seen.set(key, (seen.get(key) ?? true) && has)
     if (!has) counts.get(kind)!.tasks.add(task.id)
   }
-  for (const task of tasks) {
+  for (const [index, task] of tasks.entries()) {
     const got = await read(task)
+    const want = await countOf(task)
     add('tasks', task, 1, got === null ? 0 : 1)
-    add('comments', task, (await source.comments(task.ref)).length, got?.comments ?? 0)
-    if (source.changes !== undefined) add('history', task, (await source.changes(task.ref)).length, got?.changes ?? 0)
-    add('files', task, (await source.files(task.ref)).length, got?.files ?? 0)
+    add('comments', task, want.comments, got?.comments ?? 0)
+    if (source.changes !== undefined) add('history', task, want.changes, got?.changes ?? 0)
+    add('files', task, want.files, got?.files ?? 0)
+    options.progress?.(index + 1, tasks.length)
     const links = [
       ...task.blocks.filter(own).map((link) => got?.blocks.includes(link.ref) === true),
       ...task.related.filter((link) => own(link) && task.ref < link.ref).map((link) => got?.related.includes(link.ref) === true),

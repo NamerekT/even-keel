@@ -37,6 +37,7 @@ interface IssueDoc {
   relations?: { _id: string; _class: string }[]
   createdOn?: number
   createdBy?: string
+  modifiedOn?: number
 }
 
 interface MessageDoc {
@@ -45,6 +46,9 @@ interface MessageDoc {
   message: string
   createdBy?: string
   createdOn: number
+  modifiedOn?: number
+  /** When its thread was last answered. */
+  lastReply?: number
 }
 
 /** Huly's activity record of a change (`activity:class:DocUpdateMessage`). */
@@ -88,7 +92,7 @@ const PARALLEL = 8
 /**
  * The import's read of a Huly project (BTN-1402): every issue, its comments with the replies in their threads, its
  * files and the change log Huly's activity keeps. The project is read once, on the first call; comments and files a
- * task at a time.
+ * task at a time, the last task's kept for the next read.
  */
 export function hulyImport(deps: HulyImportDeps): ImportSource {
   const { client, markup, space } = deps
@@ -112,12 +116,13 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
     const own = new Set(issues.map((issue) => issue._id))
     const outside = [...new Set(issues.flatMap(linksOf))].filter((id) => !own.has(id))
     const labeled = issues.filter((issue) => (issue.labels ?? 0) > 0).map((issue) => issue._id)
-    const [foreign, labels, updates, texts, who] = await Promise.all([
+    const [foreign, labels, updates, texts, who, modified] = await Promise.all([
       chunked(outside, (ids) => client.findAll<{ _id: string; identifier: string }>(tracker.class.Issue, { _id: { $in: ids } }, { projection: { identifier: 1 } })),
       chunked(labeled, (ids) => client.findAll<{ attachedTo: string; title: string }>(TAG_REFERENCE, { attachedTo: { $in: ids } }, { projection: { attachedTo: 1, title: 1 } })),
       chunked([...own], (ids) => client.findAll<UpdateDoc>(UPDATE, { attachedTo: { $in: ids } })),
       inParallel(issues, async (issue) => (issue.description ? textOf(await client.fetchMarkup(tracker.class.Issue, issue._id, 'description', issue.description, 'markup')) : { markdown: '', images: [] })),
       authors(issues.map((issue) => issue.createdBy)),
+      threadTimes([...own]),
     ])
     const names: Names = {
       status: new Map(statuses.map((doc) => [doc._id, doc.name])),
@@ -161,6 +166,7 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
         createdAt: issue.createdOn ?? 0,
         createdBy: who(issue.createdBy),
         closedAt: CLOSED.has(status.category) ? (closing.map((doc) => doc.createdOn).sort((a, b) => b - a)[0] ?? null) : null,
+        modifiedAt: Math.max(issue.modifiedOn ?? issue.createdOn ?? 0, modified.get(issue._id) ?? 0, ...(updatesOf.get(issue._id) ?? []).map((doc) => doc.createdOn)),
       }
     })
     return {
@@ -171,7 +177,36 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
     }
   }
 
-  async function thread(ref: string): Promise<{ comments: ImportComment[]; images: HulyImage[]; attachments: HulyAttachmentDoc[] }> {
+  /**
+   * The last change of each issue's comments and files, the project's in a few queries: a comment's edit and its
+   * thread's last answer, a file of the issue or of a comment. The issue's own `modifiedOn` may not move with them.
+   */
+  async function threadTimes(issues: readonly string[]): Promise<Map<string, number>> {
+    const times = new Map<string, number>()
+    const bump = (issue: string | undefined, at: number | undefined) => {
+      if (issue !== undefined && at !== undefined && at > (times.get(issue) ?? 0)) times.set(issue, at)
+    }
+    const messages = await chunked(issues, (ids) => client.findAll<MessageDoc>(CHAT_MESSAGE, { attachedTo: { $in: ids } }))
+    const issueOf = new Map(messages.map((doc) => [doc._id, doc.attachedTo]))
+    for (const doc of messages) bump(doc.attachedTo, Math.max(doc.createdOn, doc.modifiedOn ?? 0, doc.lastReply ?? 0))
+    const files = await chunked([...issues, ...issueOf.keys()], (ids) => client.findAll<HulyAttachmentDoc>(ATTACHMENT, { attachedTo: { $in: ids } }))
+    for (const doc of files) bump(doc.attachedTo !== undefined && issueOf.has(doc.attachedTo) ? issueOf.get(doc.attachedTo) : doc.attachedTo, Math.max(doc.createdOn ?? 0, doc.modifiedOn))
+    return times
+  }
+
+  // The run and the check read a task's comments and files one after the other: its thread is read once for both.
+  let last: { ref: string; thread: ReturnType<typeof readThread> } | null = null
+  function thread(ref: string): ReturnType<typeof readThread> {
+    if (last?.ref === ref) return last.thread
+    const read = readThread(ref)
+    last = { ref, thread: read }
+    read.catch(() => {
+      if (last?.thread === read) last = null
+    })
+    return read
+  }
+
+  async function readThread(ref: string): Promise<{ comments: ImportComment[]; images: HulyImage[]; attachments: HulyAttachmentDoc[] }> {
     // No projection: Huly answers a projected query on comments or replies with no documents (BTN-1019).
     const messages = await client.findAll<MessageDoc>(CHAT_MESSAGE, { attachedTo: ref })
     const replies = messages.length === 0 ? [] : await client.findAll<MessageDoc>(THREAD_MESSAGE, { attachedTo: { $in: messages.map((doc) => doc._id) } })

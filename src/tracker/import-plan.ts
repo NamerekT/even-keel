@@ -59,6 +59,18 @@ export interface ImportState {
   /** The check after the last run; `null` — none yet. */
   check: TransferCheck | null
   checkFailed: Notice | null
+  /** The switch going on (BTN-1432); `null` — none. */
+  switching: ImportSwitching | null
+}
+
+/**
+ * The step of a switch: `pass` — the last pass over what changed in the source (`total` — the tasks it takes), `check`
+ * — the check counted again (`total` — every task), `switch` — the project moves onto the built-in tracker.
+ */
+export interface ImportSwitching {
+  stage: 'pass' | 'check' | 'switch'
+  done: number
+  total: number
 }
 
 /** The source's task as the import reads it, with the author of each entry of its journal and change log. */

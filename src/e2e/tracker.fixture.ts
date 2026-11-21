@@ -212,6 +212,7 @@ export class Board {
             createdAt: 0,
             createdBy: user,
             closedAt: null,
+            modifiedAt: null,
           })),
       comments: async (ref) => this.commentsOf(ref).map((body, index) => ({ ref: `${ref}-comment-${index + 1}`, author: user, at: index, body, images: [], files: [], replyTo: null })),
       files: async () => [],

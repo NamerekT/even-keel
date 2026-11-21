@@ -62,6 +62,7 @@ const task = (number: number, fields: Partial<ImportTask> = {}): ImportTask => (
   createdAt: T0 + number * 1000,
   createdBy: AGENT,
   closedAt: null,
+  modifiedAt: null,
   ...fields,
 })
 
@@ -105,20 +106,30 @@ function fakeSource() {
   const changes: Record<string, ImportChange[]> = {
     r5: [{ at: T0 + 50_000, author: JANE, field: 'status', from: 'Todo', to: 'Done' }],
   }
-  const state = { failComments: 0, passComments: 0 }
+  const state = { failComments: 0, passComments: 0, gate: null as Promise<void> | null }
+  /** The refs whose journal, files or change log were read. */
+  const reads: string[] = []
   const source: ImportSource = {
     tasks: async () => tasks,
     comments: async (ref) => {
+      reads.push(ref)
+      if (state.gate !== null) await state.gate
       if (state.failComments > 0 && state.passComments-- <= 0) {
         state.failComments -= 1
         throw new Error('the tracker is down')
       }
       return comments[ref] ?? []
     },
-    files: async (ref) => files[ref] ?? [],
-    changes: async (ref) => changes[ref] ?? [],
+    files: async (ref) => {
+      reads.push(ref)
+      return files[ref] ?? []
+    },
+    changes: async (ref) => {
+      reads.push(ref)
+      return changes[ref] ?? []
+    },
   }
-  return { source, tasks, comments, files, changes, state }
+  return { source, tasks, comments, files, changes, state, reads }
 }
 
 function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'import-'))) {
@@ -269,6 +280,44 @@ describe('the import into the built-in tracker', () => {
     const [report] = await new TransferReports(db).list(ABC)
     expect(report).toMatchObject({ direction: 'import', tracker: 'huly', matched: true })
     expect((await service.state(ABC)).from).toBeNull()
+  })
+
+  it('passes over a task unchanged since the check: the last pass and the check read only the changed and new ones', async () => {
+    const fake = fakeSource()
+    fake.tasks[0] = { ...fake.tasks[0]!, modifiedAt: T0 + 1 }
+    fake.tasks[1] = { ...fake.tasks[1]!, modifiedAt: T0 + 2 }
+    const { service } = imports(fake.source)
+    await service.start(ABC)
+    await service.settled(ABC)
+    fake.reads.length = 0
+    fake.tasks[1] = { ...fake.tasks[1]!, title: 'Task 5b', related: [link(3)], modifiedAt: T0 + 90_000 }
+    fake.changes.r5!.push({ at: T0 + 90_000, author: JANE, field: 'title', from: 'Task 5', to: 'Task 5b' })
+    fake.tasks.push(task(8, { title: 'Late', modifiedAt: T0 + 95_000 }))
+    expect(await service.switch(ABC)).toEqual({ key: 'ABC', renamed: 0 })
+    expect([...new Set(fake.reads)].sort()).toEqual(['r5', 'r8'])
+    expect(await store.get(key(5))).toMatchObject({ title: 'Task 5b', related: [key(3)] })
+    expect((await store.history(key(5))).filter((each) => each.field === 'title')).toHaveLength(1)
+    expect((await store.get(key(8)))?.title).toBe('Late')
+    const [report] = await new TransferReports(db).list(ABC)
+    expect(report).toMatchObject({ matched: true })
+  })
+
+  it('shows the step of the switch while it goes, and refuses a start meanwhile', async () => {
+    const fake = fakeSource()
+    const { service } = imports(fake.source)
+    await service.start(ABC)
+    await service.settled(ABC)
+    let release = () => {}
+    fake.state.gate = new Promise((resolve) => (release = resolve))
+    const switching = service.switch(ABC)
+    // The journal's read waits at the gate: the pass has taken its tasks and none is through.
+    for (let wait = 0; wait < 400 && !fake.reads.includes('r3'); wait += 1) await new Promise((resolve) => setTimeout(resolve, 5))
+    expect((await service.state(ABC)).switching).toEqual({ stage: 'pass', done: 0, total: 2 })
+    expect(await refusal(service.start(ABC))).toBe('import.running')
+    expect(await refusal(service.switch(ABC))).toBe('import.running')
+    release()
+    await switching
+    expect((await service.state(ABC)).switching).toBeNull()
   })
 
   it('renames the tasks whose ids in the source are not the key and the number', async () => {

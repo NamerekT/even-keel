@@ -214,6 +214,8 @@ export function linearImport(deps: LinearImportDeps): ImportSource {
         createdAt: Date.parse(issue.createdAt),
         createdBy: author(issue.creator),
         closedAt: closedAt(issue),
+        // Whether a comment or a file moves the issue's `updatedAt` was never seen: the last pass reads every task.
+        modifiedAt: null,
       }
     })
     return tasks.sort((a, b) => a.number - b.number)

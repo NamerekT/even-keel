@@ -72,6 +72,11 @@ export interface ImportTask {
   createdBy: ImportAuthor | null
   /** When it last went into its closed status, ms; `null` — it is open, or the tracker does not say. */
   closedAt: number | null
+  /**
+   * The tracker's time of the task's last change, ms, moved by a new comment or file too: the last pass before the
+   * switch passes over a task whose time stayed (BTN-1432). `null` — the tracker gives none, and the pass reads it again.
+   */
+  modifiedAt: number | null
 }
 
 export interface ImportComment {

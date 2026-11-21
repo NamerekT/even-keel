@@ -318,7 +318,7 @@ Under **Authors** each author of the tracker's comments and changes gets what it
 
 The copy runs in the service, as the move the other way: close the window and come back; **Continue** goes on after a stop. When it ends, both sides are counted and shown side by side; **Repeat** brings over what is missing, **Switch without them** switches as it is.
 
-**Switch to the built-in tracker** moves the project once the chain no longer works on it, and keeps the transfer's report under **Transfers**.
+**Switch to the built-in tracker** moves the project once the chain no longer works on it, and keeps the transfer's report under **Transfers**. Before the move it brings over the new tasks and those changed in the tracker since the copy (from Linear, every task) and counts both sides again; the window shows each step with its count, and you may close it meanwhile.
 
 ### Minimum: the adapter only
 

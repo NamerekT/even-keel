@@ -69,6 +69,7 @@ describe('github import', () => {
             state: 'CLOSED',
             stateReason: 'NOT_PLANNED',
             closedAt: '2026-11-03T12:00:00Z',
+            updatedAt: '2026-11-05T08:00:00Z',
             author: login('jdoe'),
             parent: ref(1),
             blockedBy: { nodes: [ref(1), ref(9, 'other/repo')] },
@@ -104,6 +105,7 @@ describe('github import', () => {
       createdAt: Date.parse('2026-11-01T10:00:00Z'),
       createdBy: { kind: 'user', name: 'jdoe' },
       closedAt: Date.parse('2026-11-03T12:00:00Z'),
+      modifiedAt: Date.parse('2026-11-05T08:00:00Z'),
     })
     expect(tasks[0]).toMatchObject({
       status: { name: 'Open', category: 'ToDo' },

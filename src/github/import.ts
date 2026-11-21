@@ -31,6 +31,7 @@ interface IssueNode extends LinkNode {
   state: IssueState
   stateReason: IssueStateReason | null
   createdAt: string
+  updatedAt?: string
   closedAt: string | null
   author: { login: string } | null
   parent: LinkNode | null
@@ -66,7 +67,7 @@ const ISSUES = `query($owner: String!, $name: String!, $after: String) {
     issues(first: ${PAGE}, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        ${LINK} title body state stateReason createdAt closedAt author { login }
+        ${LINK} title body state stateReason createdAt updatedAt closedAt author { login }
         parent { ${LINK} }
         blockedBy(first: 50) { nodes { ${LINK} } }
         blocking(first: 50) { nodes { ${LINK} } }
@@ -169,6 +170,8 @@ export function githubImport(deps: GithubImportDeps): ImportSource {
         createdAt: Date.parse(issue.createdAt),
         createdBy: author(issue.author?.login),
         closedAt: issue.state === 'CLOSED' && issue.closedAt !== null ? Date.parse(issue.closedAt) : null,
+        // A comment, a label or a closing moves it.
+        modifiedAt: issue.updatedAt === undefined ? null : Date.parse(issue.updatedAt),
       }
     })
     return { tasks: tasks.sort((a, b) => a.number - b.number), author }

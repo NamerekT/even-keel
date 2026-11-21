@@ -132,6 +132,7 @@ describe('linear import', () => {
       createdAt: Date.parse('2026-11-01T10:00:00Z'),
       createdBy: { kind: 'person', name: 'Jane Roe' },
       closedAt: Date.parse('2026-11-03T12:00:00Z'),
+      modifiedAt: null,
     })
     expect(tasks[0]).toMatchObject({
       status: { name: 'Todo', category: 'ToDo' },

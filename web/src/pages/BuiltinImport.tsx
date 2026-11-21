@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { ImportAuthor, ImportAuthorKind } from '../../../src/tracker/import.js'
-import type { ImportPlan, ImportState } from '../../../src/tracker/import-plan.js'
+import type { ImportPlan, ImportState, ImportSwitching } from '../../../src/tracker/import-plan.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useBackdropClose } from '../ui/backdrop.js'
@@ -75,14 +75,20 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
     }
   }
   useEffect(() => void read(), [project])
-  // Each answer while the import runs asks for the next one.
+  // Each answer while the import or its switch runs asks for the next one.
   useEffect(() => {
-    if (imported?.running !== true) return
+    if (imported?.running !== true && imported?.switching == null) return
     const timer = setTimeout(() => void read(), POLL_MS)
     return () => clearTimeout(timer)
   }, [imported])
 
   const phase = importPhaseOf(imported)
+  // A switch followed here and gone with its import is done: the project is on the built-in tracker.
+  const wasSwitching = useRef(false)
+  useEffect(() => {
+    if (phase === 'switching') wasSwitching.current = true
+    else if (wasSwitching.current && imported?.from === null) onClose()
+  }, [phase, imported])
   useEffect(() => {
     if (phase !== 'pick' || plan !== null || planRefusal !== null) return
     let live = true
@@ -125,8 +131,12 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
     const answer = await run('builtin/import/start', phase === 'pick' && plan !== null ? { project, authors: authorChoices(plan.authors) } : { project })
     if (answer !== undefined) setImported(answer as ImportState)
   }
+  // The switch takes minutes on a big project: the state is read on while it goes, for its meter.
   const switchOver = async (anyway: boolean) => {
-    if ((await run('builtin/import/switch', { project, ...(anyway ? { anyway } : {}) })) !== undefined) onClose()
+    const asked = run('builtin/import/switch', { project, ...(anyway ? { anyway } : {}) })
+    setTimeout(() => void read(), POLL_MS / 3)
+    if ((await asked) !== undefined) onClose()
+    else void read()
   }
 
   const reading = refusal === null && (phase === 'read' || (phase === 'pick' && plan === null && planRefusal === null))
@@ -170,6 +180,12 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
             )}
             {(phase === 'running' || phase === 'resume' || phase === 'finished') && <Progress exported={imported!} direction="import" />}
             {phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
+            {phase === 'switching' && (
+              <>
+                <SwitchMeter switching={imported!.switching!} tracker={tracker} />
+                <p className="add-package__note">{t.transfer.imports.switchingNote}</p>
+              </>
+            )}
             {check !== null && <TransferCheckTable check={check} direction="import" tracker={tracker} />}
           </Loading>
         </div>
@@ -186,7 +202,7 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
         {shownRefusal !== null && <Refusal project={project} refusal={shownRefusal} />}
         <footer className="add-package__foot">
           <span className="add-package__spacer" />
-          <button type="button" className="button" disabled={busy} onClick={onClose}>
+          <button type="button" className="button" disabled={busy && phase !== 'switching'} onClick={onClose}>
             {phase === 'pick' ? t.common.cancel : t.common.close}
           </button>
           {phase === 'pick' && (
@@ -212,6 +228,21 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
         </footer>
       </div>
     </dialog>
+  )
+}
+
+/** The switch's step with its count of tasks; the move itself has none. */
+function SwitchMeter({ switching, tracker }: { switching: ImportSwitching; tracker: string }) {
+  const name = t.transfer.imports.switching[switching.stage]
+  const counted = switching.total > 0
+  return (
+    <div className="transfer__meter">
+      <Tipped tip={t.transfer.imports.switchingTips[switching.stage](tracker)} focusable inline align="start" className="transfer__meter-name">
+        {name}
+      </Tipped>
+      <progress max={Math.max(switching.total, 1)} {...(counted ? { value: switching.done } : {})} aria-label={name} />
+      <span className="transfer__figures">{counted ? t.transfer.progressOf(switching.done, switching.total) : ''}</span>
+    </div>
   )
 }
 

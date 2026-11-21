@@ -3,13 +3,13 @@ import type { TrackerMove } from '../config-form.js'
 import type { EventDraft, EventLevel, EventPlace } from '../event-log/model.js'
 import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
-import type { ImportSource } from '../tracker/import.js'
+import type { ImportSource, ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
-import { countTasks, importPlan, type ImportAuthorChoice, type ImportPlan, type ImportState } from '../tracker/import-plan.js'
+import { countTasks, importPlan, type ImportAuthorChoice, type ImportPlan, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
 import { errorText } from '../tracker/link.js'
-import { checkImport, checkMatched, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
+import { checkImport, checkMatched, sourceCounts, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
 import { ImportRecords, type ImportHeader } from './import-store.js'
-import { IMPORT_STAGES, runImport, type ImportRow } from './import-run.js'
+import { IMPORT_STAGES, runImport, unchanged, type ImportRow } from './import-run.js'
 import { BUILTIN } from './model.js'
 import { BuiltinStore } from './store.js'
 import { switchHolds } from './switch.js'
@@ -50,6 +50,8 @@ export class BuiltinImports {
   private readonly runs = new Map<string, Promise<void>>()
   private readonly failures = new Map<string, Notice>()
   private readonly checkFailures = new Map<string, Notice>()
+  /** The step of each switch going on: the window's meter. */
+  private readonly switches = new Map<string, ImportSwitching>()
   private readonly say: (line: string) => void
   private readonly now: () => Date
 
@@ -69,6 +71,7 @@ export class BuiltinImports {
   /** Starts the import, or goes on with one that stopped; answers at once, the import runs on. */
   async start(project: string, authors: readonly ImportAuthorChoice[] = []): Promise<ImportState> {
     if (this.runs.has(project)) return this.state(project)
+    if (this.switches.has(project)) throw fail('import.running', {})
     await this.checkEmpty(project)
     const prepared = (async () => {
       const opened = await this.deps.open(project)
@@ -115,6 +118,7 @@ export class BuiltinImports {
       failed: this.failures.get(project) ?? null,
       check: header?.checked ?? null,
       checkFailed: this.checkFailures.get(project) ?? null,
+      switching: this.switches.get(project) ?? null,
     }
   }
 
@@ -129,21 +133,43 @@ export class BuiltinImports {
    * one under the same key. `anyway` — past a check that did not match.
    */
   async switch(project: string, anyway = false): Promise<{ key: string; renamed: number }> {
-    if (this.runs.has(project)) throw fail('import.running', {})
+    if (this.runs.has(project) || this.switches.has(project)) throw fail('import.running', {})
     const header = await this.records.header(project)
     if (header === null || header.finishedAt === null) throw fail('import.notFinished', {})
     if (header.checked === null) throw fail('switch.noCheck', {})
     if (!checkMatched(header.checked) && !anyway) throw fail('switch.mismatch', {})
     const holds = switchHolds(this.deps.switching.chain(), project)
     if (holds.length > 0) throw fail('switch.held', { key: header.key }, { items: holds })
+    const step = (stage: ImportSwitching['stage']) => (done: number, total: number) => this.switches.set(project, { stage, done, total })
+    step('pass')(0, 0)
+    try {
+      return await this.switchOver(project, header, anyway, step)
+    } finally {
+      this.switches.delete(project)
+    }
+  }
+
+  private async switchOver(
+    project: string,
+    header: ImportHeader,
+    anyway: boolean,
+    step: (stage: ImportSwitching['stage']) => (done: number, total: number) => void,
+  ): Promise<{ key: string; renamed: number }> {
+    this.say(`import: ${project}: the switch begins with a last pass over what changed in the source`)
     const { check, names, title } = await this.opened(project, async (opened) => {
-      await runImport(this.runOf(project, header, opened.source), true)
-      const check = await this.count(project, opened.source)
+      const tasks = await opened.source.tasks()
+      const taken = await runImport({ ...this.runOf(project, header, opened.source), progress: step('pass') }, true)
+      this.say(`import: ${project}: the last pass took ${taken} of ${tasks.length} tasks, new or changed in ${opened.title}`)
+      step('check')(0, tasks.length)
+      this.say(`import: ${project}: the check of the switch begins`)
+      const check = await this.count(project, opened.source, true, step('check'))
       await this.records.saveCheck(project, check)
-      const names = new Map((await opened.source.tasks()).flatMap((task) => (task.id === `${header.key}-${task.number}` ? [] : [[task.id, `${header.key}-${task.number}`] as const])))
+      this.say(`import: ${project}: the check of the switch ${checkMatched(check) ? 'matched' : 'did not match'}`)
+      const names = new Map(tasks.flatMap((task) => (task.id === `${header.key}-${task.number}` ? [] : [[task.id, `${header.key}-${task.number}`] as const])))
       return { check, names, title: opened.title }
     })
     if (!checkMatched(check) && !anyway) throw fail('switch.mismatch', {})
+    step('switch')(0, 0)
     if (names.size > 0) this.deps.switching.rename(project, names)
     this.deps.switching.move(project, { tracker: BUILTIN, trackerProject: null, key: header.key })
     this.say(`import: ${project}: the project now reads its tasks from the built-in tracker`)
@@ -247,13 +273,27 @@ export class BuiltinImports {
     }
   }
 
-  /** The check of both sides: the source's tasks against the built-in ones of their numbers. */
-  private async count(project: string, source: ImportSource): Promise<TransferCheck> {
+  /**
+   * The check of both sides: the source's tasks against the built-in ones of their numbers. Each task's counts in the
+   * source are kept in its row (`seen`); with `known` — the switch's check — a task unchanged since the last check is
+   * counted from them, not read again (BTN-1432). The built-in side is read whole either way.
+   */
+  private async count(project: string, source: ImportSource, known = false, progress?: (done: number, total: number) => void): Promise<TransferCheck> {
     const store = new BuiltinStore(this.deps.db)
     const tasks = await source.tasks()
+    const log = this.records.log(project)
+    const rows = new Map((await log.rows()).map((row) => [row.ref, row]))
+    const seen = new Map<string, ImportRow>()
     const refOf = new Map(tasks.map((task) => [task.number, task.ref]))
     const refs = (numbers: readonly { project: string; number: number }[]) => numbers.flatMap((each) => (each.project === project && refOf.has(each.number) ? [refOf.get(each.number)!] : []))
-    return checkImport(
+    const counts = async (task: ImportTask) => {
+      const row = rows.get(task.ref)
+      if (known && unchanged(task, row)) return row!.seen!
+      const counted = await sourceCounts(source, task)
+      if (row !== undefined && task.modifiedAt !== null) seen.set(task.ref, { ...row, seen: { at: task.modifiedAt, ...counted } })
+      return counted
+    }
+    const check = await checkImport(
       source,
       async (task): Promise<ImportedTask | null> => {
         const key = { project, number: task.number }
@@ -272,7 +312,10 @@ export class BuiltinImports {
         }
       },
       this.now,
+      { counts, ...(progress === undefined ? {} : { progress }) },
     )
+    for (const row of seen.values()) await log.save(row)
+    return check
   }
 
   private event(level: EventLevel, said: Notice, place: EventPlace): void {

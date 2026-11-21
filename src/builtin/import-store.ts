@@ -1,7 +1,7 @@
 import { inTransaction, type Db } from '../storage/database.js'
 import type { ImportAuthorChoice, ImportPlan } from '../tracker/import-plan.js'
 import type { TransferCheck } from '../tracker/transfer-check.js'
-import type { ImportLog, ImportRow, ImportStage } from './import-run.js'
+import type { ImportLog, ImportRow, ImportSeen, ImportStage } from './import-run.js'
 
 /** Where a project's history is imported from: the tracker it is on and its place there. */
 export interface ImportFrom {
@@ -91,11 +91,19 @@ export class ImportRecords {
   }
 
   async rows(project: string): Promise<ImportRow[]> {
-    const { rows } = await this.db.query<{ task_ref: string; number: number; stage: ImportStage; done: number; files: string; changes: number }>(
-      'select task_ref, number, stage, done, files, changes from tracker_import_tasks where project_id = $1 order by number',
+    const { rows } = await this.db.query<{ task_ref: string; number: number; stage: ImportStage; done: number; files: string; changes: number; seen: string | null }>(
+      'select task_ref, number, stage, done, files, changes, seen from tracker_import_tasks where project_id = $1 order by number',
       [project],
     )
-    return rows.map((row) => ({ ref: row.task_ref, number: row.number, stage: row.stage, done: row.done, files: JSON.parse(row.files) as Record<string, string>, changes: row.changes }))
+    return rows.map((row) => ({
+      ref: row.task_ref,
+      number: row.number,
+      stage: row.stage,
+      done: row.done,
+      files: JSON.parse(row.files) as Record<string, string>,
+      changes: row.changes,
+      seen: row.seen === null ? null : (JSON.parse(row.seen) as ImportSeen),
+    }))
   }
 
   log(project: string): ImportLog {
@@ -103,10 +111,10 @@ export class ImportRecords {
       rows: () => this.rows(project),
       save: async (row) => {
         await this.db.query(
-          `insert into tracker_import_tasks (project_id, task_ref, number, stage, done, files, changes, at) values ($1, $2, $3, $4, $5, $6, $7, $8)
+          `insert into tracker_import_tasks (project_id, task_ref, number, stage, done, files, changes, at, seen) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              on conflict (project_id, task_ref) do update set number = excluded.number, stage = excluded.stage, done = excluded.done,
-               files = excluded.files, changes = excluded.changes, at = excluded.at`,
-          [project, row.ref, row.number, row.stage, row.done, JSON.stringify(row.files), row.changes, this.now().toISOString()],
+               files = excluded.files, changes = excluded.changes, at = excluded.at, seen = excluded.seen`,
+          [project, row.ref, row.number, row.stage, row.done, JSON.stringify(row.files), row.changes, this.now().toISOString(), row.seen === null ? null : JSON.stringify(row.seen)],
         )
       },
     }

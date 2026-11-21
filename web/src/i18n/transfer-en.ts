@@ -180,5 +180,12 @@ export const transferEn: Messages['transfer'] = {
     mismatch: (kinds, tracker) => `The check did not match: ${kinds.join(', ').toLowerCase()}. Repeat it — Even Keel brings over what is missing. If it is not in ${tracker} either, switch without them.`,
     done: (count, tracker) => `All ${tasks(count)} are here. Switch the project — the chain takes its tasks from here, and ${tracker} stays as it is.`,
     switchTo: 'Switch to the built-in tracker',
+    switching: { pass: 'Last pass', check: 'Check', switch: 'Switching' },
+    switchingTips: {
+      pass: (tracker) => `New tasks and those changed in ${tracker} since the check move again. The others are not read again.`,
+      check: (tracker) => `Both sides are counted again. The tasks unchanged in ${tracker} count as the last check saw them.`,
+      switch: () => 'The project moves onto the built-in tracker.',
+    },
+    switchingNote: 'The project is switching. You can close the window: the switch goes on in the service.',
   },
 }

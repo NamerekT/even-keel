@@ -18,14 +18,15 @@ it('step 71 keeps the name of a comment by another person and an import under wa
     await readsWhole(frozen, 71, 71)
     const comments = await new BuiltinStore(frozen).comments({ project: XYZ, number: 7 })
     expect(comments.map((each) => [each.author, each.name])).toEqual([['person', 'Jane Doe']])
-    const records = new ImportRecords(frozen)
-    expect(await records.header(XYZ)).toMatchObject({ tracker: 'huly', key: 'XYZ', finishedAt: null, authors: [{ kind: 'person', name: 'Jane Doe', as: 'person' }, { kind: 'agent', as: 'agent' }] })
-    expect((await records.rows(XYZ)).map((row) => [row.ref, row.number, row.stage, row.changes])).toEqual([
-      ['huly-issue-7', 7, 'done', 2],
-      ['huly-issue-8', 8, 'created', 0],
-    ])
     await insertRows(made, await rowsOf(frozen))
     expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
+    await frozen.exec(STEPS[71]!) // step 74's column, read by today's rows
+    const records = new ImportRecords(frozen)
+    expect(await records.header(XYZ)).toMatchObject({ tracker: 'huly', key: 'XYZ', finishedAt: null, authors: [{ kind: 'person', name: 'Jane Doe', as: 'person' }, { kind: 'agent', as: 'agent' }] })
+    expect((await records.rows(XYZ)).map((row) => [row.ref, row.number, row.stage, row.changes, row.seen])).toEqual([
+      ['huly-issue-7', 7, 'done', 2, null],
+      ['huly-issue-8', 8, 'created', 0, null],
+    ])
     await upgraded.exec(fixture(70))
     await upgraded.exec(STEPS[68]!)
     expect(await new ImportRecords(upgraded).header(XYZ)).toBeNull()

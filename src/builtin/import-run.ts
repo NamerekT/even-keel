@@ -33,6 +33,17 @@ export interface ImportRow {
   files: Record<string, string>
   /** How many entries of the change log are written. */
   changes: number
+  /** The source as the last check saw the task; `null` — not checked yet. */
+  seen: ImportSeen | null
+}
+
+/** A task of the source at a check: its time of change and its counts, for a last pass that passes over it (BTN-1432). */
+export interface ImportSeen {
+  /** `ImportTask.modifiedAt`. */
+  at: number
+  comments: number
+  changes: number
+  files: number
 }
 
 export interface ImportLog {
@@ -53,19 +64,30 @@ export interface ImportRun {
   log: ImportLog
   /** A line of the service log, in English. */
   say?: (line: string) => void
+  /** Called as each task the call takes is through: how many of how many. */
+  progress?: (done: number, total: number) => void
 }
+
+/** The task as the last check saw it: the last pass passes over it. */
+export const unchanged = (task: ImportTask, row: ImportRow | undefined): boolean => task.modifiedAt !== null && row?.seen != null && row.seen.at === task.modifiedAt
 
 /**
  * Imports every task of the source by stages; a failed write throws and stops it, and the repeat takes each task from
  * the stage it reached. With `sync` — the last pass before the switch — a task through already gets what changed in the
- * source since: its fields, new links, attachments, comments and changes.
+ * source since: its fields, new links, attachments, comments and changes; one whose time of change stayed as the last
+ * check saw it is passed over (BTN-1432). Answers how many tasks the call took.
  */
-export async function runImport(run: ImportRun, sync = false): Promise<void> {
+export async function runImport(run: ImportRun, sync = false): Promise<number> {
   const { source, db, project, log, say = () => {} } = run
   const rows = new Map((await log.rows()).map((row) => [row.ref, row]))
   const tasks = importOrder((await source.tasks()).map((task) => ({ task }))).map((each) => each.task)
   const refs = new Map(tasks.map((task) => [task.ref, task]))
+  const throughBefore = new Set([...rows.values()].flatMap((row) => (row.stage === 'done' ? [row.ref] : [])))
+  const taken = tasks.filter((task) => !throughBefore.has(task.ref) || (sync && !unchanged(task, rows.get(task.ref)))).length
+  let through = 0
+  run.progress?.(0, taken)
   const save = async (row: ImportRow) => {
+    if (row.stage === 'done' && rows.get(row.ref)?.stage !== 'done') run.progress?.(++through, taken)
     rows.set(row.ref, row)
     await log.save(row)
   }
@@ -102,7 +124,7 @@ export async function runImport(run: ImportRun, sync = false): Promise<void> {
       })
     }
     await setParent(db, project, task.number, own(task.parent)?.number ?? null)
-    await save({ ref: task.ref, number: task.number, stage: 'created', done: 0, files: {}, changes: 0 })
+    await save({ ref: task.ref, number: task.number, stage: 'created', done: 0, files: {}, changes: 0, seen: null })
   }
 
   for (const { task, row } of at('created')) {
@@ -126,8 +148,10 @@ export async function runImport(run: ImportRun, sync = false): Promise<void> {
     await save({ ...rows.get(task.ref)!, stage: 'done', done: 0 })
   }
 
-  if (!sync) return
+  if (!sync) return taken
   for (const { task, row } of at('done')) {
+    // A task the stages above took now has all the source gave.
+    if (!throughBefore.has(task.ref) || unchanged(task, row)) continue
     await setFields(db, project, task, own(task.parent)?.number ?? null, storeAt(Date.now()))
     await linkTask(db, project, task, own)
     await attach(task, row)
@@ -136,7 +160,9 @@ export async function runImport(run: ImportRun, sync = false): Promise<void> {
     await journal(task, fresh, (await storeAt(Date.now()).comments(keyOf(task))).length)
     await history(task, rows.get(task.ref)!)
     await save({ ...rows.get(task.ref)!, stage: 'done', done: 0 })
+    run.progress?.(++through, taken)
   }
+  return taken
 
   /** Attaches the files not attached yet, by their key; a repeat goes on after the last one saved. */
   async function attach(task: ImportTask, row: ImportRow): Promise<void> {
@@ -218,20 +244,22 @@ async function setParent(db: Db, project: string, number: number, parent: number
 
 /**
  * The task's links to the other imported tasks, written as they are: no loop or milestone check, which the source did
- * not hold them to, and no history. Each pair once: a block from the blocking side, a relation from the lesser ref.
+ * not hold them to, and no history. Both its sides, so that a task the last pass takes brings a link the other task of
+ * the pair did not change for (BTN-1432); a pair already there is not written twice.
  */
 async function linkTask(db: Db, project: string, task: ImportTask, own: (link: ImportLink | null) => ImportTask | null): Promise<void> {
   await inTransaction(db, async (tx) => {
     const id = await rowOf(tx, project, task.number)
     if (id === undefined) return
-    const write = async (other: ImportTask, kind: 'blocks' | 'relates') => {
+    const write = async (other: ImportTask, kind: 'blocks' | 'blockedBy' | 'relates') => {
       const otherId = await rowOf(tx, project, other.number)
       if (otherId === undefined || otherId === id) return
-      const [a, b] = kind === 'relates' && otherId < id ? [otherId, id] : [id, otherId]
-      await tx.query('insert into builtin_relations (from_id, to_id, kind) values ($1, $2, $3) on conflict do nothing', [a, b, kind])
+      const [a, b] = kind === 'blockedBy' || (kind === 'relates' && otherId < id) ? [otherId, id] : [id, otherId]
+      await tx.query('insert into builtin_relations (from_id, to_id, kind) values ($1, $2, $3) on conflict do nothing', [a, b, kind === 'relates' ? 'relates' : 'blocks'])
     }
     for (const link of task.blocks) if (own(link) !== null) await write(own(link)!, 'blocks')
-    for (const link of task.related) if (own(link) !== null && task.ref < link.ref) await write(own(link)!, 'relates')
+    for (const link of task.blockedBy) if (own(link) !== null) await write(own(link)!, 'blockedBy')
+    for (const link of task.related) if (own(link) !== null) await write(own(link)!, 'relates')
   })
 }
 

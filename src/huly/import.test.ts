@@ -98,7 +98,7 @@ function fixture() {
       })()
     },
   })
-  return { source, queries }
+  return { source, queries, tables }
 }
 
 describe('hulyText', () => {
@@ -175,6 +175,28 @@ describe('hulyImport', () => {
       { at: 1460, author: { kind: 'person', name: 'Jane Roe' }, field: 'milestone', from: null, to: 'v1' },
       { at: 5000, author: { kind: 'agent', name: 'Claude Code' }, field: 'status', from: 'Todo', to: 'Done' },
     ])
+  })
+
+  it("gives a task's last change: its own, its activity's, its comments' and replies' and its files'", async () => {
+    const { source, tables } = fixture()
+    tables[ISSUE]![0]!.modifiedOn = 1100
+    tables[ISSUE]![1]!.modifiedOn = 2500
+    tables[ISSUE]![2]!.modifiedOn = 3000
+    tables['chunter:class:ChatMessage']![0]!.lastReply = 8000
+    tables['attachment:class:Attachment']!.push({ attachedTo: 'c2', file: 'blob-late', name: 'late.txt', createdOn: 9500, modifiedOn: 9500 })
+    tables['chunter:class:ChatMessage']!.push({ _id: 'c9', attachedTo: 'id-2', createdOn: 2600, modifiedOn: 2700, createdBy: 'social-user', message: doc(paragraph(text('Hi.'))) })
+    const [first, second, third] = await source.tasks()
+    expect([first!.modifiedAt, second!.modifiedAt, third!.modifiedAt]).toEqual([9500, 2700, 7000])
+    expect((await fixture().source.tasks())[0]!.modifiedAt).toBe(5000)
+  })
+
+  it("reads a task's thread once for its comments and files", async () => {
+    const { source, queries } = fixture()
+    await source.tasks()
+    const before = queries.filter((cls) => cls === 'chunter:class:ChatMessage').length
+    await source.comments('id-1')
+    await source.files('id-1')
+    expect(queries.filter((cls) => cls === 'chunter:class:ChatMessage').length).toBe(before + 1)
   })
 
   it('reads the project once for all its tasks', async () => {

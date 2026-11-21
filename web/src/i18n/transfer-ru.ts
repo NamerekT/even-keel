@@ -1,5 +1,6 @@
 import type { ExportLossKind } from '../../../src/tracker/export.js'
 import type { ImportAuthorKind } from '../../../src/tracker/import.js'
+import type { ImportSwitching } from '../../../src/tracker/import-plan.js'
 import type { CheckKind, TransferDirection } from '../../../src/tracker/transfer-check.js'
 import type { ExportStep, ImportStep } from '../pages/exportMeter.js'
 import { keysRu } from './keys.js'
@@ -188,5 +189,16 @@ export const transferRu = {
       `Сверка не сошлась: ${kinds.join(', ').toLowerCase()}. Повторите — Even Keel перенесёт недостающее. Если этого нет и в ${tracker}, переключайте без них.`,
     done: (count: number, tracker: string) => `Все ${tasks(count)} уже здесь. Переключите проект — цепь будет брать задачи отсюда, а ${tracker} останется как есть.`,
     switchTo: 'Переключить на встроенный трекер',
+    switching: {
+      pass: 'Последний проход',
+      check: 'Сверка',
+      switch: 'Переключение',
+    } satisfies Record<ImportSwitching['stage'], string>,
+    switchingTips: {
+      pass: (tracker: string) => `Новые задачи и изменившиеся в ${tracker} после сверки переносятся заново. Остальные не перечитываются.`,
+      check: (tracker: string) => `Обе стороны пересчитываются. Задачи, не менявшиеся в ${tracker}, считаются по прошлой сверке.`,
+      switch: () => 'Проект переходит на встроенный трекер.',
+    } satisfies Record<ImportSwitching['stage'], (tracker: string) => string>,
+    switchingNote: 'Проект переключается. Окно можно закрыть: переключение идёт в сервисе.',
   },
 }

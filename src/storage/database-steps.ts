@@ -928,4 +928,9 @@ export const STEPS: readonly string[] = [
   `
   alter table tracker_exports add column failed text;
   `,
+  // What the import last saw of each task in the source (BTN-1432, `docs/storage.md`), JSON: its time of change and its
+  // counts at the last check; `null` — not checked yet, and the last pass reads the task again.
+  `
+  alter table tracker_import_tasks add column seen text;
+  `,
 ]

@@ -15,6 +15,7 @@ const state = (over: Partial<ImportState> = {}): ImportState => ({
   failed: null,
   check: null,
   checkFailed: null,
+  switching: null,
   ...over,
 })
 const all = (count: number) => ({ tasks: count, created: count, linked: count, attached: count, journaled: count, done: count })
@@ -40,6 +41,10 @@ describe('importPhaseOf', () => {
 
   it('is finished once every task is through to the end', () => {
     expect(importPhaseOf(state({ from, total: 12, progress: all(12), finishedAt: '2026-11-21T10:00:00.000Z' }))).toBe('finished')
+  })
+
+  it('follows a switch while it goes', () => {
+    expect(importPhaseOf(state({ from, total: 12, progress: all(12), finishedAt: '2026-11-21T10:00:00.000Z', switching: { stage: 'check', done: 3, total: 12 } }))).toBe('switching')
   })
 
   it('goes on after a stop past the end of the run, when the last pass failed', () => {

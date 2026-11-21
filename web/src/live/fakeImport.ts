@@ -1,6 +1,6 @@
 import { fail, notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import type { ImportAuthorChoice, ImportPlan, ImportPlanAuthor, ImportState } from '../../../src/tracker/import-plan.js'
+import type { ImportAuthorChoice, ImportPlan, ImportPlanAuthor, ImportState, ImportSwitching } from '../../../src/tracker/import-plan.js'
 import { importedStatus } from '../../../src/tracker/import-plan.js'
 import type { TransferCheck, TransferReport } from '../../../src/tracker/transfer-check.js'
 
@@ -9,7 +9,8 @@ import type { TransferCheck, TransferReport } from '../../../src/tracker/transfe
  * a step each `STEP_MS` while the page polls, as `runImport` goes. `?import=` — `refused`: the plan refuses a project
  * that was on the built-in tracker; `running`: an import runs from the start; `failed`: it stopped at the attachments
  * step; `done`: it is through and the switch waits; `held`: through, the switch refused while the chain runs;
- * `mismatch`: through, its check short of two attachments until "Repeat".
+ * `mismatch`: through, its check short of two attachments until "Repeat"; `switching`: through, and its switch goes on —
+ * the last pass over three changed tasks, the check of every task, then the move, a task each `STEP_MS`.
  */
 const STEP_MS = 300
 const STEPS = 4
@@ -79,7 +80,20 @@ function seed(mode: string | null, total: number): void {
   const failAt = FAIL_AT.step * total + FAIL_AT.done
   if (mode === 'running') run = { startedAt: now, from: 0, failAt: null, short: false }
   if (mode === 'failed') run = { startedAt: now, from: failAt, failAt, short: false }
-  if (mode === 'done' || mode === 'held' || mode === 'mismatch') run = { startedAt: now, from: STEPS * total, failAt: null, short: mode === 'mismatch' }
+  if (mode === 'done' || mode === 'held' || mode === 'mismatch' || mode === 'switching') run = { startedAt: now, from: STEPS * total, failAt: null, short: mode === 'mismatch' }
+  switchStarted = mode === 'switching' ? now : null
+}
+
+let switchStarted: number | null = null
+const CHANGED = 3
+
+/** The fake's switch as the service reports it while it goes: it stays at the move once there. */
+function switchingOf(total: number): ImportSwitching | null {
+  if (switchStarted === null) return null
+  const ticks = Math.floor((Date.now() - switchStarted) / STEP_MS)
+  if (ticks < CHANGED) return { stage: 'pass', done: ticks, total: CHANGED }
+  if (ticks < CHANGED + total) return { stage: 'check', done: ticks - CHANGED, total }
+  return { stage: 'switch', done: 0, total: 0 }
 }
 
 function progressOf(current: Run, total: number) {
@@ -90,7 +104,7 @@ function progressOf(current: Run, total: number) {
 
 function stateOf(total: number, ids: string[]): ImportState {
   const none = { tasks: 0, created: 0, linked: 0, attached: 0, journaled: 0, done: 0 }
-  const base = { authors, checkFailed: null, total }
+  const base = { authors, checkFailed: null, total, switching: switchingOf(total) }
   if (run === null) return { ...base, from: null, running: false, startedAt: null, finishedAt: null, progress: none, failed: null, check: null }
   const { ticks, failed, finished } = progressOf(run, total)
   const through = (step: number) => Math.max(0, Math.min(total, ticks - step * total))
