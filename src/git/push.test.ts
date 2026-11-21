@@ -58,7 +58,7 @@ describe('pushTaskBranch with onlyNew (BTN-1274)', () => {
   const inRemote = 'merge-base --is-ancestor HEAD refs/remotes/origin/abc-1/task'
   const inMain = 'merge-base --is-ancestor HEAD refs/heads/main'
   const diff = 'diff --name-only -z refs/heads/main...HEAD'
-  const options = { onlyNew: { main: 'main', held: (files: readonly string[]) => files.filter((file) => file.startsWith('.github/')) } }
+  const options = { main: 'main', onlyNew: true, held: (files: readonly string[]) => files.filter((file) => file.startsWith('.github/')) }
   const answers = (remote: number, main: number, changed: Partial<GitResult> = { out: 'work.txt\0' }) =>
     ({ ...onBranch, remote: { out: 'origin\n' }, [inRemote]: { code: remote }, [inMain]: { code: main }, [diff]: changed })
 
@@ -89,6 +89,28 @@ describe('pushTaskBranch with onlyNew (BTN-1274)', () => {
     expect(held.calls).not.toContain(push)
     const unlisted = fakeGit(answers(1, 1, { code: 128, out: 'fatal: bad revision\n' }))
     expect(await pushTaskBranch(unlisted.git, folder, 'ABC-1', options)).toEqual({ skipped: 'held', files: [], failure: 'fatal: bad revision' })
+    expect(unlisted.calls).not.toContain(push)
+  })
+})
+
+describe('pushTaskBranch with held alone (BTN-1418: a handoff, a checkpoint, a stop)', () => {
+  const push = 'push origin abc-1/task:refs/heads/abc-1/task'
+  const diff = 'diff --name-only -z refs/heads/main...HEAD'
+  const options = { main: 'main', held: (files: readonly string[]) => files.filter((file) => file.startsWith('.github/')) }
+  const answers = (changed: Partial<GitResult>) => ({ ...onBranch, remote: { out: 'origin\n' }, [diff]: changed })
+
+  it('pushes a branch whose files are not held, without asking whether anything is new', async () => {
+    const { git, calls } = fakeGit(answers({ out: 'work.txt\0' }))
+    expect(await pushTaskBranch(git, folder, 'ABC-1', options)).toEqual({ remote: 'origin', branch: 'abc-1/task' })
+    expect(calls).toEqual(['symbolic-ref --quiet --short HEAD', 'remote', diff, push])
+  })
+
+  it('keeps a branch off the remote when it changes a held file, or git cannot list its files', async () => {
+    const held = fakeGit(answers({ out: '.github/workflows/ci.yml\0' }))
+    expect(await pushTaskBranch(held.git, folder, 'ABC-1', options)).toEqual({ skipped: 'held', files: ['.github/workflows/ci.yml'] })
+    expect(held.calls).not.toContain(push)
+    const unlisted = fakeGit(answers({ code: 128, out: '' }))
+    expect(await pushTaskBranch(unlisted.git, folder, 'ABC-1', options)).toEqual({ skipped: 'held', files: [], failure: 'git exited with 128' })
     expect(unlisted.calls).not.toContain(push)
   })
 })

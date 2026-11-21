@@ -450,17 +450,18 @@ export async function vacateSlot(ctx: MachineContext, slot: string, task: string
 /**
  * Pushes the task's branch from its folder (BTN-1270, `docs/chain/worktrees.md`, "Task branches on the remote"), so
  * another machine can take the task over. The chain's own sessions and plain projects have none; a refused push is a
- * log line, never a stop of the chain. `onlyNew` — at the end of a turn (BTN-1274): only a branch with new commits,
- * none in PR mode, whose own push goes behind its checks, and none that changes a file `guardedFiles` names, since the
- * machine cannot tell an outsider's task (BTN-1207) and such a push runs the branch's workflows.
+ * log line, never a stop of the chain. No push of a branch that changes a file `guardedFiles` names (BTN-1274,
+ * BTN-1418): the machine cannot tell an outsider's task (BTN-1207) and such a push runs the branch's workflows.
+ * `onlyNew` — at the end of a turn (BTN-1274): only a branch with new commits, none in PR mode, whose own push goes
+ * behind its checks.
  */
 export async function pushOf(ctx: MachineContext, project: string | undefined, task: string, folder: string, onlyNew = false): Promise<void> {
   if (project === undefined || isOwnName(task) || isPlain(ctx.configStore.current, project)) return
   if (onlyNew && ctx.pullRequestsOn(project)) return
   try {
-    const pushed = await pushTaskBranch(runGit, folder, task, onlyNew ? { onlyNew: { main: ctx.branchOf(project), held: guardedFiles } } : {})
+    const pushed = await pushTaskBranch(runGit, folder, task, { main: ctx.branchOf(project), onlyNew, held: guardedFiles })
     if ('skipped' in pushed && pushed.skipped === 'held') {
-      console.log(`push: the branch of ${task} is not pushed at the end of a turn: ${pushed.failure ?? `it changes ${pushed.files.join(', ')}`}`)
+      console.log(`push: the branch of ${task} is not pushed: ${pushed.failure ?? `it changes ${pushed.files.join(', ')}`}`)
     } else if ('failed' in pushed && pushed.failed !== undefined) console.warn(`push: ${pushed.branch} of ${task} was not pushed to ${pushed.remote}: ${pushed.failed.trim()}`)
     else if ('branch' in pushed) console.log(`push: ${pushed.branch} of ${task} is pushed to ${pushed.remote}`)
   } catch (error) {

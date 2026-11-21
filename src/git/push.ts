@@ -12,12 +12,13 @@ export type BranchPush =
   /** `held` named files of the branch, or git could not list them (`files` empty, `failure` its output). */
   | { skipped: 'held'; files: string[]; failure?: string }
 
-/**
- * `onlyNew` — push only a branch with something new (BTN-1274, the end of a turn): `main` is the project's main branch,
- * `held` names the branch's changed files (against `main`) that keep it off the remote.
- */
+/** What a push checks first; `main` is the project's main branch both checks compare HEAD with. */
 export interface PushOptions {
-  onlyNew?: { main: string; held: (files: readonly string[]) => string[] }
+  main: string
+  /** Push only a branch with something new (BTN-1274, the end of a turn). */
+  onlyNew?: boolean
+  /** Names the branch's changed files (against `main`) that keep it off the remote (BTN-1274, BTN-1418). */
+  held?: (files: readonly string[]) => string[]
 }
 
 /**
@@ -25,18 +26,17 @@ export interface PushOptions {
  * the remote"): only a folder on a branch `<task>/…`, and never forced, so a branch on the remote with commits the
  * folder lacks stays as it is.
  */
-export async function pushTaskBranch(git: Git, folder: string, task: string, options: PushOptions = {}): Promise<BranchPush> {
+export async function pushTaskBranch(git: Git, folder: string, task: string, options?: PushOptions): Promise<BranchPush> {
   const head = await git(folder, ['symbolic-ref', '--quiet', '--short', 'HEAD'])
   const branch = head.out.trim()
   if (head.code !== 0 || !branch.startsWith(`${task.toLowerCase()}/`)) return { skipped: 'noBranch' }
   const remote = await remoteOf(git, folder)
   if (remote === null) return { skipped: 'noRemote' }
-  const only = options.onlyNew
-  if (only !== undefined) {
-    if (!(await somethingNew(git, folder, remote, branch, only.main))) return { skipped: 'nothingNew' }
-    const changed = await git(folder, ['diff', '--name-only', '-z', `refs/heads/${only.main}...HEAD`])
+  if (options?.onlyNew === true && !(await somethingNew(git, folder, remote, branch, options.main))) return { skipped: 'nothingNew' }
+  if (options?.held !== undefined) {
+    const changed = await git(folder, ['diff', '--name-only', '-z', `refs/heads/${options.main}...HEAD`])
     if (changed.code !== 0) return { skipped: 'held', files: [], failure: changed.out.trim() || `git exited with ${changed.code}` }
-    const held = only.held(changed.out.split('\0').filter(Boolean))
+    const held = options.held(changed.out.split('\0').filter(Boolean))
     if (held.length > 0) return { skipped: 'held', files: held }
   }
   const pushed = await git(folder, ['push', remote, `${branch}:refs/heads/${branch}`])
