@@ -1,3 +1,4 @@
+import type { Notice } from '../notice/notice.js'
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
 import type { TaskMoved, TaskRef } from '../tracker/card.js'
 import type { ExportLog, ExportPlan, ExportRow, ExportStage, ExportTargetFields } from '../tracker/export.js'
@@ -15,6 +16,8 @@ export interface ExportHeader extends ExportTargetFields {
   plan: ExportPlan | null
   /** The check after the last run; `null` — none yet. */
   checked: TransferCheck | null
+  /** Why the last run stopped (step 73); `null` — it did not: an unfinished copy goes on at the service's start. */
+  failed: Notice | null
 }
 
 /** The copy of each built-in project in the state database (step 49): its target and each task's progress. */
@@ -36,7 +39,8 @@ export class ExportRecords {
       source_key: string | null
       plan: string | null
       checked: string | null
-    }>('select profile, place, key, started_at, finished_at, history_summary, closed_tasks, source_key, plan, checked from tracker_exports where project_id = $1', [project])
+      failed: string | null
+    }>('select profile, place, key, started_at, finished_at, history_summary, closed_tasks, source_key, plan, checked, failed from tracker_exports where project_id = $1', [project])
     const row = rows[0]
     if (row === undefined) return null
     return {
@@ -50,7 +54,21 @@ export class ExportRecords {
       sourceKey: row.source_key,
       plan: row.plan === null ? null : (JSON.parse(row.plan) as ExportPlan),
       checked: row.checked === null ? null : (JSON.parse(row.checked) as TransferCheck),
+      failed: row.failed === null ? null : (JSON.parse(row.failed) as Notice),
     }
+  }
+
+  /** The projects whose copy is not finished and did not stop on a failure: a restart broke them off. */
+  async unfinished(): Promise<string[]> {
+    const { rows } = await this.db.query<{ project_id: string }>(
+      'select project_id from tracker_exports where finished_at is null and failed is null order by started_at',
+    )
+    return rows.map((row) => row.project_id)
+  }
+
+  /** `null` — the run goes on or ended well. */
+  async saveFailed(project: string, failed: Notice | null): Promise<void> {
+    await this.db.query('update tracker_exports set failed = $2 where project_id = $1', [project, failed === null ? null : JSON.stringify(failed)])
   }
 
   async savePlan(project: string, plan: ExportPlan): Promise<void> {
@@ -74,7 +92,7 @@ export class ExportRecords {
            values ($1, $2, $3, $4, $5, null, (select key from projects where id = $1), $6, $7)
            on conflict (project_id) do update set profile = excluded.profile, place = excluded.place, key = excluded.key,
              started_at = excluded.started_at, finished_at = null, source_key = excluded.source_key, history_summary = excluded.history_summary,
-             closed_tasks = excluded.closed_tasks, plan = null, checked = null`,
+             closed_tasks = excluded.closed_tasks, plan = null, checked = null, failed = null`,
         [project, target.profile, target.place, target.key, this.now().toISOString(), target.history ?? false, target.closed ?? false],
       )
     })

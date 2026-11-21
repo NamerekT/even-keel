@@ -114,7 +114,7 @@ export function forgejoEditor(deps: ForgejoEditorDeps): TaskEditor {
         if (labels.length > 0) await deps.relabel(id, { add: labels, remove: [] })
         if (status !== null) await setStatus(id, { state: 'open' }, status.name)
       } catch (error) {
-        throw new CreatedThenRefused(id, error instanceof Error ? error.message : String(error))
+        throw new CreatedThenRefused(id, error instanceof Error ? error.message : String(error), error)
       }
       return id
     },

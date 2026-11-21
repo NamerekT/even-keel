@@ -16,7 +16,7 @@ it("step 69 keeps a running export's direction, plan and check and the reports o
     await readsWhole(frozen, 69, 69)
     await insertRows(made, await rowsOf(frozen))
     expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
-    await frozen.exec(STEPS[69]!) // step 72's column, read by today's header
+    await frozen.exec(STEPS[69]! + STEPS[70]!) // the columns of steps 72 and 73, read by today's header
     const header = await new ExportRecords(frozen).header(ABC)
     expect(header?.plan?.losses).toEqual([{ kind: 'estimate', tasks: ['ABC-1'], names: [] }])
     expect(header?.checked?.rows.find((row) => row.kind === 'comments')).toEqual({ kind: 'comments', source: 2, target: 1, tasks: ['ABC-1'] })
@@ -25,7 +25,7 @@ it("step 69 keeps a running export's direction, plan and check and the reports o
     expect((await reports.read('transfer-aaaaaaaaaaaa'))?.sourceKey).toBe('XYZ')
     await upgraded.exec(fixture(68))
     await upgraded.exec(STEPS[66]!)
-    await upgraded.exec(STEPS[69]!)
+    await upgraded.exec(STEPS[69]! + STEPS[70]!)
     const old = await new ExportRecords(upgraded).header(ABC)
     expect([old?.plan, old?.checked]).toEqual([null, null])
     expect((await upgraded.query<{ direction: string }>('select direction from tracker_exports')).rows).toEqual([{ direction: 'export' }])

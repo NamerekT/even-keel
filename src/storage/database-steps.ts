@@ -923,4 +923,9 @@ export const STEPS: readonly string[] = [
   `
   alter table tracker_exports add column closed_tasks boolean;
   `,
+  // Why the copy into another tracker last stopped (BTN-1190, `docs/storage.md`), the notice's JSON; `null` — it did
+  // not, so an unfinished copy goes on by itself at the service's start.
+  `
+  alter table tracker_exports add column failed text;
+  `,
 ]

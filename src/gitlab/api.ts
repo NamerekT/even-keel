@@ -1,6 +1,7 @@
 import { fail } from '../notice/notice.js'
 import { CredentialsRefused, TrackerNotFound } from '../tracker/source.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
+import { limitOfResponse } from '../tracker/rate-limit.js'
 
 export const GITLAB_URL = 'GITLAB_URL'
 export const GITLAB_TOKEN = 'GITLAB_TOKEN'
@@ -37,6 +38,8 @@ export class GitlabApi {
     }, path)
     if (response.ok) return response
     await response.body?.cancel()
+    const limited = limitOfResponse('gitlab', response, '')
+    if (limited !== null) throw limited
     if (response.status === 401) throw new CredentialsRefused('gitlab: the token is refused (HTTP 401)')
     if (response.status === 404) throw new TrackerNotFound('gitlab: not found or the token cannot see it (HTTP 404)')
     throw new GitlabHttpError(response.status)

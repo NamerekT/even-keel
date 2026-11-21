@@ -376,7 +376,6 @@ export function journalEntry(comment: ExportComment): string {
   return `${who}, ${when} UTC:\n\n${comment.body}`
 }
 
-/** How many tasks of the copy reached each stage. */
 /** Where a project's tasks are copied (BTN-1073): the fields of the wizard's tracker step. */
 export interface ExportTargetFields {
   /** Include a single change-history summary comment per task; fixed for a started copy. */
@@ -400,14 +399,17 @@ export interface ExportState {
   progress: ReturnType<typeof progressOf>
   /** The tasks the copy is to take: the open ones (all, with `closed`) and those it took that are closed since — the "M" of the page's "N of M". */
   total: number
-  /** Why the last run stopped; `null` — it did not, or none ran since the start of the service. */
+  /** Why the last run stopped; `null` — it did not. */
   failed: Notice | null
+  /** The run waits out the tracker's rate limit until then (ISO, BTN-1190) and goes on by itself; `null` — it does not wait. */
+  waiting: string | null
   /** The check after the last run or repeat (BTN-1291); `null` — none yet since the copy began. */
   check: TransferCheck | null
   /** Why the last check could not count; `null` — it did, or none ran since the start of the service. */
   checkFailed: Notice | null
 }
 
+/** How many tasks of the copy reached each stage. */
 export function progressOf(rows: readonly ExportRow[]): { tasks: number } & Record<Exclude<ExportStage, 'pending'>, number> {
   const reached = (stage: ExportStage) => rows.filter((row) => EXPORT_STAGES.indexOf(row.stage) >= EXPORT_STAGES.indexOf(stage)).length
   return { tasks: rows.length, created: reached('created'), linked: reached('linked'), attached: reached('attached'), journaled: reached('journaled'), marked: reached('marked') }

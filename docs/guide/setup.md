@@ -294,7 +294,7 @@ The change history does not become the tracker's own: no tracker accepts past ch
 
 Every comment the copy writes, the summary too, comes from the profile's account and starts with who wrote it and when. A personal token always writes as its owner, so for the copy to write as a bot, add a profile on the bot's own token: a GitHub App, a Linear OAuth application, a GitLab project access token, a separate Huly or Forgejo account; in Jira a separate user takes a paid seat.
 
-The copy runs in the service: close the window or the tab and come back to it. If it stops (a refused write, a restart), **Continue** goes on from where it stopped.
+The copy runs in the service: close the window or the tab and come back to it. When the tracker says it takes no more writes for now (its rate limit), the copy waits the time the tracker names, or a pause that grows while it keeps refusing, and goes on by itself from the same place; the window says until when it waits. To GitHub it writes no faster than 60 a minute, under GitHub's limits, so a large project takes a while but is not refused. A restart of the service breaks the copy off, and it goes on by itself once the service is back. If a write is refused for another reason, the copy stops and **Continue** goes on from where it stopped.
 
 While it runs, the project's tasks cannot be edited.
 

@@ -64,6 +64,7 @@ import type { ServiceContext } from '../service.js'
 import { builtinControl, builtinPlaces } from '../builtin/control.js'
 import { BuiltinExports } from '../builtin/export.js'
 import { connectExportTarget } from '../tracker/export-target.js'
+import { errorText } from '../tracker/link.js'
 import { BuiltinImports } from '../builtin/import.js'
 import { connectImportSource } from '../tracker/import-source.js'
 import { attachmentsDirOf } from '../builtin/files.js'
@@ -218,6 +219,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       },
     },
   })
+  void builtinExports.resume().catch((error: unknown) => console.log(`export: the copies broken off by the restart do not go on: ${errorText(error)}`))
   const builtinImports = new BuiltinImports({
     db: ctx.db,
     filesDir: attachmentsDirOf(stateDirOf()),

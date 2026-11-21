@@ -100,6 +100,7 @@ export const transferEn: Messages['transfer'] = {
   stageTip: (step, steps, what) => `Step ${step} of ${steps}: each step goes through every task, and the bar fills again. ${what}`,
   progressOf: (done, total) => `${done} of ${total}`,
   running: 'The copy runs in the service: the window and the tab may be closed, it goes on.',
+  waiting: (tracker: string, until: string) => `${tracker} limits how fast it takes writes: the copy waits until ${until} and goes on by itself, from where it stopped.`,
   stopped: 'The copy stopped before its end. Continue it — it goes on from where it stopped.',
   resume: 'Continue',
   locked: 'Tasks have already been copied here: the copy goes on only into the same tracker.',

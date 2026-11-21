@@ -8,9 +8,12 @@ import { openDatabase } from '../storage/database.js'
 import type { TrackerCard } from '../tracker/card.js'
 import type { TaskDraft, TaskEditor } from '../tracker/editor.js'
 import { TrackerNotFound } from '../tracker/source.js'
+import { TrackerRateLimited } from '../tracker/rate-limit.js'
 import type { OpenedExportTarget } from '../tracker/export-target.js'
 import { builtinControl } from './control.js'
-import { BuiltinExports } from './export.js'
+import { BuiltinExports, type ExportState } from './export.js'
+import { ExportRecords } from './export-store.js'
+import { isExporting } from './exporting.js'
 import { BuiltinFiles } from './files.js'
 import { builtinSource } from './source.js'
 import { BuiltinStore } from './store.js'
@@ -48,7 +51,7 @@ const refusal = async (work: Promise<unknown>) => {
 }
 
 /** A tracker that keeps what it is given; `hold` keeps the first create waiting until it is let go. */
-function fakeTarget(options: { failComment?: boolean; components?: string[] } = {}) {
+function fakeTarget(options: { failComment?: boolean; components?: string[]; limited?: (Date | null)[]; writes?: TaskEditor['writes'] } = {}) {
   const created: TaskDraft[] = []
   const comments: { id: string; body: string }[] = []
   const attached: string[] = []
@@ -79,6 +82,8 @@ function fakeTarget(options: { failComment?: boolean; components?: string[] } = 
           options.failComment = false
           throw new Error('HTTP 502')
         }
+        // Each refusal of the rate limit once, its time given or not.
+        if (options.limited !== undefined && options.limited.length > 0) throw new TrackerRateLimited('github: rate limited (HTTP 403)', options.limited.shift()!)
         comments.push({ id, body })
         return String(comments.length)
       },
@@ -90,6 +95,7 @@ function fakeTarget(options: { failComment?: boolean; components?: string[] } = 
         comment: async () => '',
       },
       ...(options.components === undefined ? {} : { components: true as const }),
+      ...(options.writes === undefined ? {} : { writes: options.writes }),
     }
     return {
       title: 'GitHub', project: ABC, editor, close: async () => {},
@@ -325,6 +331,89 @@ describe('BuiltinExports', () => {
 
   it('refuses a project not on the built-in tracker', async () => {
     expect(await refusal(exportsWith(fakeTarget()).plan('99999999-9999-4999-8999-999999999999', TARGET))).toBe('builtin.noProject')
+  })
+})
+
+describe("the tracker's rate limit and a restart (BTN-1190)", () => {
+  const NOW = Date.parse('2026-11-21T12:00:00Z')
+
+  /** The copy with a clock that moves only by its waits; `during` — the state and the lock at each wait. */
+  function waitingExports(tracker: ReturnType<typeof fakeTarget>) {
+    let at = NOW
+    const waits: number[] = []
+    const during: { state: ExportState; locked: boolean }[] = []
+    const exports: BuiltinExports = new BuiltinExports({
+      db, places: () => PLACES, filesDir: dir, connect: async () => tracker.target(), refresh: async () => true, say: () => {}, now: () => new Date(at),
+      sleep: async (ms) => {
+        waits.push(ms)
+        during.push({ state: await exports.state(ABC), locked: isExporting(ABC) })
+        at += ms
+      },
+    })
+    return { exports, waits, during }
+  }
+
+  it('waits until the time the tracker names and goes on from the same stage, with no duplicate', async () => {
+    await seed()
+    const tracker = fakeTarget({ limited: [new Date(NOW + 120_000)] })
+    const { exports, waits, during } = waitingExports(tracker)
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    expect(waits).toEqual([121_000])
+    expect(during).toMatchObject([{ state: { running: true, failed: null, waiting: '2026-11-21T12:02:01.000Z', progress: { created: 2, attached: 2, journaled: 1 } }, locked: true }])
+    expect(await exports.state(ABC)).toMatchObject({ running: false, failed: null, waiting: null, finishedAt: expect.any(String), progress: { marked: 2 } })
+    expect(tracker.created).toHaveLength(2)
+    expect(tracker.comments).toHaveLength(2)
+  })
+
+  it('without a time pauses a minute, then twice as long at each refusal in a row', async () => {
+    await seed()
+    const tracker = fakeTarget({ limited: [null, null, null] })
+    const { exports, waits } = waitingExports(tracker)
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    expect(waits).toEqual([60_000, 120_000, 240_000])
+    expect(await exports.state(ABC)).toMatchObject({ failed: null, progress: { marked: 2 } })
+  })
+
+  it("keeps the writes within the target's windows", async () => {
+    await seed()
+    const tracker = fakeTarget({ writes: [{ count: 2, ms: 60_000 }] })
+    const { exports, waits } = waitingExports(tracker)
+    await exports.start(ABC, TARGET)
+    await exports.settled(ABC)
+    // Two creates, a link, an attachment and two comments: two writes a minute.
+    expect(waits).toEqual([60_000, 60_000])
+    expect(await exports.state(ABC)).toMatchObject({ failed: null, progress: { marked: 2 } })
+  })
+
+  it('stops on any other refusal as before, and keeps why over a restart', async () => {
+    await seed()
+    const tracker = fakeTarget({ failComment: true })
+    const first = exportsWith(tracker)
+    await first.start(ABC, TARGET)
+    await first.settled(ABC)
+    const restarted = exportsWith(tracker)
+    expect(await restarted.state(ABC)).toMatchObject({ running: false, waiting: null, failed: { code: 'export.failed', detail: 'HTTP 502' } })
+    await restarted.resume()
+    await restarted.settled(ABC)
+    expect(tracker.comments, 'a copy stopped by a failure waits for "Continue"').toHaveLength(0)
+  })
+
+  it('goes on by itself at the start with a copy the restart broke off', async () => {
+    await seed()
+    const tracker = fakeTarget({ failComment: true })
+    const first = exportsWith(tracker)
+    await first.start(ABC, TARGET)
+    await first.settled(ABC)
+    // As a run the restart broke off: unfinished, with no failure kept.
+    await new ExportRecords(db).saveFailed(ABC, null)
+    const restarted = exportsWith(tracker)
+    await restarted.resume()
+    await restarted.settled(ABC)
+    expect(await restarted.state(ABC)).toMatchObject({ failed: null, finishedAt: expect.any(String), progress: { marked: 2 } })
+    expect(tracker.created).toHaveLength(2)
+    expect(tracker.comments).toHaveLength(2)
   })
 })
 

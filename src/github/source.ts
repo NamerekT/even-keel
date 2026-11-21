@@ -1,6 +1,7 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
+import { limitOfResponse, TrackerRateLimited, untilOf } from '../tracker/rate-limit.js'
 import { subtaskRef } from '../tracker/card.js'
 import { parseTaskId, type TaskStatus, type TextEdit, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
@@ -181,8 +182,12 @@ export async function connectGithub(
       signal: AbortSignal.timeout(timeoutMs),
     }, '/graphql')
     const body = (await response.json().catch(() => ({}))) as { data?: T | null; errors?: GraphqlError[]; message?: string }
-    if (!response.ok) throw new Error(`github: HTTP ${response.status}${body.message ? `: ${body.message}` : ''}`)
+    if (!response.ok) {
+      throw limitOfResponse('github', response, body.message ?? '') ?? new Error(`github: HTTP ${response.status}${body.message ? `: ${body.message}` : ''}`)
+    }
     const failed = (body.errors ?? []).filter((error) => error.type !== 'NOT_FOUND')
+    const limited = failed.find((error) => error.type === 'RATE_LIMITED')
+    if (limited !== undefined) throw new TrackerRateLimited(`github: ${limited.message}`, untilOf(response.headers))
     if (failed.length > 0 || body.data == null) {
       throw new Error(`github: ${(failed.length > 0 ? failed : (body.errors ?? [])).map((error) => error.message).join('; ') || 'empty answer'}`)
     }
@@ -584,8 +589,8 @@ export async function connectGithub(
         signal: AbortSignal.timeout(timeoutMs),
       }, '/repos/issues')
       if (!response.ok) {
-        await response.body?.cancel()
-        throw new Error(`github: HTTP ${response.status} reading recent issues`)
+        const message = await response.json().then((body: { message?: string }) => body.message ?? '', () => '')
+        throw limitOfResponse('github', response, message) ?? new Error(`github: HTTP ${response.status} reading recent issues`)
       }
       return await response.json() as T
     },

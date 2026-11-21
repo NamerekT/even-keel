@@ -156,7 +156,7 @@ export function jiraEditor(deps: JiraEditorDeps): TaskEditor {
         try {
           await moveTo(await issueOf(created.key), draft.status)
         } catch (error) {
-          throw new CreatedThenRefused(created.key, error instanceof Error ? error.message : String(error))
+          throw new CreatedThenRefused(created.key, error instanceof Error ? error.message : String(error), error)
         }
       }
       return created.key

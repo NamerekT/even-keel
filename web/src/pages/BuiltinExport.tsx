@@ -5,7 +5,8 @@ import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { ExportLoss, ExportPlan } from '../../../src/tracker/export.js'
 import type { TransferDirection } from '../../../src/tracker/transfer-check.js'
-import { say, t } from '../i18n/index.js'
+import { language, say, t } from '../i18n/index.js'
+import { localMoment } from '../moment.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
@@ -228,7 +229,9 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
               </>
             )}
             {phase !== 'pick' && phase !== 'read' && <Progress exported={exported!} />}
-            {phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
+            {phase === 'running' && (
+              <p className="add-package__note">{exported!.waiting === null ? t.transfer.running : t.transfer.waiting(tracker, localMoment(exported!.waiting, new Date(), language))}</p>
+            )}
             {check !== null && <TransferCheckTable check={check} direction="export" tracker={tracker} />}
           </Loading>
         </div>

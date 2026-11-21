@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskStatus } from '../tracker/model.js'
+import { TrackerRateLimited } from '../tracker/rate-limit.js'
 import { issue } from './fixture.js'
 import { connectLinear } from './source.js'
 
@@ -8,7 +9,7 @@ interface Call {
   variables: Record<string, unknown>
 }
 
-type Reply = { status?: number; body: unknown }
+type Reply = { status?: number; body: unknown; headers?: Record<string, string> }
 
 function fakeFetch(replies: Reply[]) {
   const calls: Call[] = []
@@ -18,7 +19,7 @@ function fakeFetch(replies: Reply[]) {
     headers.push(new Headers(init?.headers))
     const reply = replies.shift()
     if (reply === undefined) throw new Error(`unexpected call: ${calls.at(-1)!.query}`)
-    return new Response(JSON.stringify(reply.body), { status: reply.status ?? 200 })
+    return new Response(JSON.stringify(reply.body), { status: reply.status ?? 200, ...(reply.headers === undefined ? {} : { headers: reply.headers }) })
   }
   return { fetch: fetch as typeof globalThis.fetch, calls, headers }
 }
@@ -63,6 +64,19 @@ describe('linear source', () => {
   it('refuses a bad key', async () => {
     const fake = fakeFetch([{ status: 401, body: { errors: [{ message: 'Authentication required, not authenticated' }] } }])
     await expect(connectLinear({ token: 'bad', projects: {} }, 5_000, fake.fetch)).rejects.toThrow(/401.*Authentication required/)
+  })
+
+  it('refuses for the rate limit with the reset Linear names (BTN-1190)', async () => {
+    const { source } = await connect([
+      {
+        status: 400,
+        body: { data: null, errors: [{ message: 'Rate limit exceeded', extensions: { code: 'RATELIMITED' } }] },
+        headers: { 'x-ratelimit-requests-reset': '1795003200000' },
+      },
+    ])
+    const error = await source.chainTasks('ENG', notTerminal).catch((each: unknown) => each)
+    expect(error).toBeInstanceOf(TrackerRateLimited)
+    expect((error as TrackerRateLimited).until?.toISOString()).toBe('2026-11-18T12:00:00.000Z')
   })
 
   it('reads the open issues of the team page by page, by the open states of its workflow', async () => {
