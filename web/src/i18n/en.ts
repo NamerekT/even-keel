@@ -25,6 +25,7 @@ import { ADVICE } from '../../../src/notice/en-advice.js'
 import { eventsEn } from './events-en.js'
 import { hotkeysEn } from './hotkeys-en.js'
 import { plural } from './plural.js'
+import { keysEn } from './keys.js'
 import type { ContextResets } from '../state.js'
 import type { Messages } from './ru.js'
 
@@ -40,6 +41,7 @@ export const en: Messages = {
   notice: noticesEn,
   advice: ADVICE,
   common: {
+    taskKeys: keysEn,
     close: 'Close',
     retry: 'Retry',
     cancel: 'Cancel',

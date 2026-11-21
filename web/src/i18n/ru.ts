@@ -27,6 +27,7 @@ import type { NoticeAdvice } from '../../../src/notice/notice.js'
 import { eventsRu } from './events-ru.js'
 import { hotkeysRu } from './hotkeys-ru.js'
 import { plural } from './plural.js'
+import { keysRu } from './keys.js'
 
 const forms = (one: string, few: string, many: string) => (count: number) => plural('ru', count, { one, few, many, other: few })
 const counted = (one: string, few: string, many: string) => (count: number) => `${count} ${forms(one, few, many)(count)}`
@@ -45,6 +46,8 @@ export const ru = {
   notice: noticesRu,
   advice: adviceRu as NoticeAdvice,
   common: {
+    /** Task keys for a tip: the first 20, then "и ещё N". */
+    taskKeys: keysRu,
     close: 'Закрыть',
     retry: 'Повторить',
     cancel: 'Отмена',

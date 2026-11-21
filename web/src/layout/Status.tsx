@@ -25,8 +25,8 @@ export function Waiting({ sessions, tasks, row = false }: { sessions: SessionVie
     <Link
       to={`${projectPath(taskProject(state, first.task))}#${first.task}`}
       className={row ? 'gear__item waiting-row' : 'waiting'}
-      title={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
-      aria-label={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
+      title={t.status.waitingTitle(t.common.taskKeys(waiting.map((view) => view.task)))}
+      aria-label={t.status.waitingTitle(t.common.taskKeys(waiting.map((view) => view.task)))}
     >
       {row ? (
         <>

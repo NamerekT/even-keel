@@ -1,3 +1,4 @@
+import { keysEn } from './keys.js'
 import { plural } from './plural.js'
 import type { Messages } from './ru.js'
 
@@ -45,7 +46,7 @@ export const transferEn: Messages['transfer'] = {
   losses: 'What will not move',
   lossesNone: 'Everything moves: statuses, links, attachments, labels, milestones and the journal.',
   lossTasks: tasks,
-  lossTip: (ids) => ids.join(', '),
+  lossTip: keysEn,
   kinds: {
     history: 'Change history',
     priority: 'Priority',
@@ -121,7 +122,7 @@ export const transferEn: Messages['transfer'] = {
     components: 'Components',
   },
   checkOk: 'Matches',
-  checkShort: (ids) => `Missing on ${ids.length === 1 ? 'the task' : 'the tasks'} ${ids.join(', ')}`,
+  checkShort: (ids) => `Missing on ${ids.length === 1 ? 'the task' : 'the tasks'} ${keysEn(ids)}`,
   checkNone: 'The transfer is not checked yet. Press "Repeat": Even Keel brings over what is missing and checks both sides.',
   mismatch: (kinds) => `The check did not match: ${kinds.join(', ').toLowerCase()}. Repeat it — Even Keel brings over what is missing. If it is not here either, switch without them.`,
   retry: 'Repeat',

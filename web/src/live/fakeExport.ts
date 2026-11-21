@@ -213,7 +213,7 @@ function plan(tasks: EvenKeelState['tasks'], mode: string | null, closed = false
           { kind: 'priority', tasks: ids.slice(1, 5), names: [] },
           // Links to closed tasks are lost only while the closed tasks stay behind (BTN-1289).
           ...(closed ? [] : [{ kind: 'links' as const, tasks: ids.slice(0, 1), names: [] }]),
-          { kind: 'history', tasks: ids.slice(0, 6), names: [] },
+          { kind: 'history', tasks: mode === 'long' ? ids : ids.slice(0, 6), names: [] },
         ]
   const open = { name: 'Open', category: 'ToDo' } as const
   const targetOf = (category: string) => (category === 'Won' ? ({ name: 'Done', category: 'Won' } as const) : category === 'Lost' ? ({ name: 'Canceled', category: 'Lost' } as const) : open)

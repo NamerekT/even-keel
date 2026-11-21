@@ -592,7 +592,7 @@ function replacedText(replaced: NonNullable<TaskSession['replaced']>): string {
 }
 
 function leftText(left: NonNullable<TaskSession['left']>): string {
-  return left.reason === 'skip' ? t.session.skipped : t.session.postponed(left.blockers.join(', '))
+  return left.reason === 'skip' ? t.session.skipped : t.session.postponed(t.common.taskKeys(left.blockers))
 }
 
 function SessionWindow({ row, live, scale, task, onClose }: { row: TaskSession; live: boolean; scale: ContextScale; task: WindowTask; onClose: () => void }) {

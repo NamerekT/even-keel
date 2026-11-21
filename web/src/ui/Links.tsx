@@ -49,7 +49,7 @@ function Count({ kind, title, icon, items, onCard }: CountProps) {
       ref={anchor}
       className={`links__count links__count--${kind}`}
       tabIndex={0}
-      aria-label={`${title}: ${items.map((item) => item.id).join(', ')}`}
+      aria-label={`${title}: ${t.common.taskKeys(items.map((item) => item.id))}`}
       onMouseEnter={point}
       onMouseLeave={hide}
       onFocus={show}

@@ -1,6 +1,7 @@
 import type { ExportLossKind } from '../../../src/tracker/export.js'
 import type { CheckKind, TransferDirection } from '../../../src/tracker/transfer-check.js'
 import type { ExportStep, ImportStep } from '../pages/exportMeter.js'
+import { keysRu } from './keys.js'
 import { plural } from './plural.js'
 
 const tasks = (count: number) => `${count} ${plural('ru', count, { one: 'задача', few: 'задачи', many: 'задач', other: 'задачи' })}`
@@ -48,7 +49,7 @@ export const transferRu = {
   losses: 'Что не перенесётся',
   lossesNone: 'Перенесётся всё: статусы, связи, вложения, метки, вехи и журнал.',
   lossTasks: tasks,
-  lossTip: (ids: string[]) => ids.join(', '),
+  lossTip: (ids: string[]) => keysRu(ids),
   kinds: {
     history: 'История изменений',
     priority: 'Приоритет',
@@ -124,7 +125,7 @@ export const transferRu = {
     components: 'Компоненты',
   } satisfies Record<CheckKind, string>,
   checkOk: 'Сошлось',
-  checkShort: (ids: string[]) => `Не хватает у ${ids.length === 1 ? 'задачи' : 'задач'} ${ids.join(', ')}`,
+  checkShort: (ids: string[]) => `Не хватает у ${ids.length === 1 ? 'задачи' : 'задач'} ${keysRu(ids)}`,
   checkNone: 'Перенос ещё не сверен. Нажмите «Повторить» — Even Keel докачает недостающее и сверит обе стороны.',
   mismatch: (kinds: string[]) =>
     `Сверка не сошлась: ${kinds.join(', ').toLowerCase()}. Повторите — Even Keel перенесёт недостающее. Если этого нет и здесь, переключайте без них.`,

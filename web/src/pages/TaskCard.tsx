@@ -220,7 +220,7 @@ function RemoveDialog({ card, editor, onClose, onRemoved }: { card: Card & { edi
   return (
     <ConfirmDialog
       title={t.card.edit.removeTitle(card.id)}
-      question={t.card.edit.removeQuestion((card.subtasks ?? []).map((child) => child.id).join(', '))}
+      question={t.card.edit.removeQuestion(t.common.taskKeys((card.subtasks ?? []).map((child) => child.id)))}
       confirm={t.card.edit.removeConfirm}
       cancel={t.card.edit.cancel}
       busy={editor.busy}
