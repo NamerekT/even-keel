@@ -1,6 +1,6 @@
 import { fail, notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import type { ImportAuthorChoice, ImportPlan, ImportPlanAuthor, ImportState, ImportSwitching } from '../../../src/tracker/import-plan.js'
+import type { ImportAuthorChoice, ImportPlan, ImportPlanAuthor, ImportPlanning, ImportState, ImportSwitching } from '../../../src/tracker/import-plan.js'
 import { importedStatus } from '../../../src/tracker/import-plan.js'
 import type { TransferCheck, TransferReport } from '../../../src/tracker/transfer-check.js'
 
@@ -10,7 +10,8 @@ import type { TransferCheck, TransferReport } from '../../../src/tracker/transfe
  * that was on the built-in tracker; `running`: an import runs from the start; `failed`: it stopped at the attachments
  * step; `done`: it is through and the switch waits; `held`: through, the switch refused while the chain runs;
  * `mismatch`: through, its check short of two attachments until "Repeat"; `switching`: through, and its switch goes on —
- * the last pass over three changed tasks, the check of every task, then the move, a task each `STEP_MS`.
+ * the last pass over three changed tasks, the check of every task, then the move, a task each `STEP_MS`; `reading`: the
+ * plan's read stands at 40 % (BTN-1452).
  */
 const STEP_MS = 300
 const STEPS = 4
@@ -38,9 +39,14 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
   const ids = tasks.map((each) => each.id)
   seed(mode, total)
   switch (name) {
-    case 'builtin/import/plan':
+    case 'builtin/import/plan': {
       if (mode === 'refused') throw fail('import.hadBuiltin', {})
-      return { state, result: planOf(tasks, choicesOf(body)) }
+      // One read for the window: an ask while it goes waits for it, an ask after it answers at once.
+      planRead ??= Date.now()
+      const left = planRead + readMsOf(mode) * total - Date.now()
+      const plan = () => planOf(tasks, choicesOf(body))
+      return { state, result: left <= 0 ? plan() : new Promise((resolve) => setTimeout(() => resolve(plan()), left)) }
+    }
     case 'builtin/import/start': {
       // The first start keeps the picks; "Continue" and "Repeat" go on with them.
       if (run === null) authors = choicesOf(body)
@@ -49,10 +55,11 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
       // A finished import passes again from its last step: the repeat brings the two attachments over.
       const from = ticks >= STEPS * total ? (STEPS - 1) * total : ticks
       run = { startedAt: Date.now(), from, failAt: mode === 'failed' && ticks < failAt ? failAt : null, short: false }
-      return { state, result: stateOf(total, ids) }
+      planRead = null
+      return { state, result: stateOf(total, ids, mode) }
     }
     case 'builtin/import/state':
-      return { state, result: stateOf(total, ids) }
+      return { state, result: stateOf(total, ids, mode) }
     case 'builtin/import/switch': {
       if (mode === 'held') throw fail('switch.held', { key: project }, { items: [notice('switch.chainRuns', {}), notice('switch.current', { task: ids[0] ?? `${project}-1` })] })
       if (run === null || !progressOf(run, total).finished) throw fail('import.notFinished', {})
@@ -64,6 +71,7 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
       run = null
       authors = []
       seeded = false
+      planRead = null
       const form = state.config.projects[project]
       const projects = form === undefined ? state.config.projects : { ...state.config.projects, [project]: { ...form, tracker: 'builtin', trackerProject: null } }
       return { state: { ...state, config: { ...state.config, projects } }, result: { key, renamed: 0 } }
@@ -87,6 +95,20 @@ function seed(mode: string | null, total: number): void {
 let switchStarted: number | null = null
 const CHANGED = 3
 
+/** When the plan's read began; `null` — none yet. A task takes `READ_MS`, with `?import=reading` `SLOW_READ_MS`. */
+let planRead: number | null = null
+const READ_MS = 120
+const SLOW_READ_MS = 60_000
+const readMsOf = (mode: string | null) => (mode === 'reading' ? SLOW_READ_MS : READ_MS)
+
+/** The plan's read as the service reports it while it goes; with `?import=reading` it stands at 40 % for a shot. */
+function planningOf(total: number, mode: string | null): ImportPlanning | null {
+  if (planRead === null) return null
+  const done = Math.floor((Date.now() - planRead) / readMsOf(mode))
+  if (done >= total) return null
+  return { done: mode === 'reading' ? Math.min(total - 1, Math.round(total * 0.4)) : done, total }
+}
+
 /** The fake's switch as the service reports it while it goes: it stays at the move once there. */
 function switchingOf(total: number): ImportSwitching | null {
   if (switchStarted === null) return null
@@ -102,9 +124,9 @@ function progressOf(current: Run, total: number) {
   return { ticks, failed: current.failAt !== null && reached >= current.failAt, finished: ticks >= STEPS * total }
 }
 
-function stateOf(total: number, ids: string[]): ImportState {
+function stateOf(total: number, ids: string[], mode: string | null): ImportState {
   const none = { tasks: 0, created: 0, linked: 0, attached: 0, journaled: 0, done: 0 }
-  const base = { authors, checkFailed: null, total, switching: switchingOf(total) }
+  const base = { authors, checkFailed: null, total, switching: switchingOf(total), planning: planningOf(total, mode) }
   if (run === null) return { ...base, from: null, running: false, startedAt: null, finishedAt: null, progress: none, failed: null, check: null }
   const { ticks, failed, finished } = progressOf(run, total)
   const through = (step: number) => Math.max(0, Math.min(total, ticks - step * total))

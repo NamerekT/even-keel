@@ -56,7 +56,8 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
-  const { query } = useLive()
+  // The window's reads stay off the page's loader: the window shows its own (BTN-1452).
+  const { query, read: quiet } = useLive()
   const [imported, setImported] = useState<ImportState | null>(null)
   const [plan, setPlan] = useState<ImportPlan | null>(null)
   const [planRefusal, setPlanRefusal] = useState<Notice | null>(null)
@@ -70,20 +71,21 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
 
   const read = async () => {
     try {
-      setImported(await query<ImportState>('builtin/import/state', { project }))
+      setImported(await quiet<ImportState>('builtin/import/state', { project }))
     } catch (reason) {
       setRefusal(noticeOf(reason))
     }
   }
   useEffect(() => void read(), [project])
-  // Each answer while the import or its switch runs asks for the next one.
-  useEffect(() => {
-    if (imported?.running !== true && imported?.switching == null) return
-    const timer = setTimeout(() => void read(), POLL_MS)
-    return () => clearTimeout(timer)
-  }, [imported])
 
   const phase = importPhaseOf(imported)
+  const planReading = phase === 'pick' && plan === null && planRefusal === null
+  // Each answer while the plan's read, the import or its switch goes on asks for the next one.
+  useEffect(() => {
+    if (imported?.running !== true && imported?.switching == null && imported?.planning == null && !planReading) return
+    const timer = setTimeout(() => void read(), POLL_MS)
+    return () => clearTimeout(timer)
+  }, [imported, planReading])
   // A switch followed here and gone with its import is done: the project is on the built-in tracker.
   const wasSwitching = useRef(false)
   useEffect(() => {
@@ -93,7 +95,7 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
   useEffect(() => {
     if (phase !== 'pick' || plan !== null || planRefusal !== null) return
     let live = true
-    query<ImportPlan>('builtin/import/plan', { project }).then(
+    quiet<ImportPlan>('builtin/import/plan', { project }).then(
       (answer) => live && setPlan(answer),
       (reason) => live && setPlanRefusal(noticeOf(reason)),
     )
@@ -114,13 +116,14 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
       setBusy(false)
     }
   }
-  // A pick shows at once; the plan is asked again with it, and only the answer to the last pick is taken.
+  // A pick shows at once; the plan is asked again with it, counted from the service's read, and only the answer to the
+  // last pick is taken.
   const pick = (author: ImportAuthor, as: ImportAuthorKind) => {
     if (plan === null) return
     const authors = pickAuthor(plan.authors, author, as)
     setPlan({ ...plan, authors })
     const asked = ++picks.current
-    query<ImportPlan>('builtin/import/plan', { project, authors: authorChoices(authors) }).then(
+    quiet<ImportPlan>('builtin/import/plan', { project, authors: authorChoices(authors) }).then(
       (answer) => asked === picks.current && setPlan(answer),
       (reason) => asked === picks.current && setRefusal(noticeOf(reason)),
     )
@@ -129,6 +132,8 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
   // authors go only with the first start: the service keeps them from then on.
   const start = async () => {
     picks.current += 1
+    // A start past the kept read reads the source again: its meter shows meanwhile.
+    setTimeout(() => void read(), POLL_MS / 3)
     const answer = await run('builtin/import/start', phase === 'pick' && plan !== null ? { project, authors: authorChoices(plan.authors) } : { project })
     if (answer !== undefined) setImported(answer as ImportState)
   }
@@ -140,7 +145,8 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
     else void read()
   }
 
-  const reading = refusal === null && (phase === 'read' || (phase === 'pick' && plan === null && planRefusal === null))
+  const planning = imported?.planning ?? null
+  const reading = refusal === null && planning === null && (phase === 'read' || planReading)
   const failed = phase === 'resume' ? imported!.failed : null
   const check = phase === 'finished' ? imported!.check : null
   const checkNotice = phase === 'finished' ? checkNoticeOf(imported!, tracker) : null
@@ -179,8 +185,14 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
                 <Losses plan={plan} recheck={null} checking={false} direction="import" />
               </>
             )}
-            {(phase === 'running' || phase === 'resume' || phase === 'finished') && <Progress exported={imported!} direction="import" />}
-            {phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
+            {planning !== null && (planReading || phase === 'running') && (
+              <>
+                <Meter name={t.transfer.imports.planning} tip={t.transfer.imports.planningTip(tracker)} done={planning.done} total={planning.total} />
+                <p className="add-package__note">{t.transfer.imports.planningNote}</p>
+              </>
+            )}
+            {planning === null && (phase === 'running' || phase === 'resume' || phase === 'finished') && <Progress exported={imported!} direction="import" />}
+            {planning === null && phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
             {phase === 'switching' && (
               <>
                 <SwitchMeter switching={imported!.switching!} tracker={tracker} />
@@ -234,15 +246,19 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
 
 /** The switch's step with its count of tasks; the move itself has none. */
 function SwitchMeter({ switching, tracker }: { switching: ImportSwitching; tracker: string }) {
-  const name = t.transfer.imports.switching[switching.stage]
-  const counted = switching.total > 0
+  return <Meter name={t.transfer.imports.switching[switching.stage]} tip={t.transfer.imports.switchingTips[switching.stage](tracker)} done={switching.done} total={switching.total} />
+}
+
+/** A step with "N of M"; without a total the bar runs on its own. */
+function Meter({ name, tip, done, total }: { name: string; tip: string; done: number; total: number }) {
+  const counted = total > 0
   return (
     <div className="transfer__meter">
-      <Tipped tip={t.transfer.imports.switchingTips[switching.stage](tracker)} focusable inline align="start" className="transfer__meter-name">
+      <Tipped tip={tip} focusable inline align="start" className="transfer__meter-name">
         {name}
       </Tipped>
-      <progress max={Math.max(switching.total, 1)} {...(counted ? { value: switching.done } : {})} aria-label={name} />
-      <span className="transfer__figures">{counted ? t.transfer.progressOf(switching.done, switching.total) : ''}</span>
+      <progress max={Math.max(total, 1)} {...(counted ? { value: done } : {})} aria-label={name} />
+      <span className="transfer__figures">{counted ? t.transfer.progressOf(done, total) : ''}</span>
     </div>
   )
 }

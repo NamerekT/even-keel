@@ -143,9 +143,13 @@ function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'im
   const moves: TrackerMove[] = []
   const renames: ReadonlyMap<string, string>[] = []
   const opened = (): OpenedImportSource => ({ tracker: 'huly', place: '', key: 'ABC', title: 'Huly', source, close: async () => {} })
+  const opens = { count: 0 }
   const service = new BuiltinImports({
     db,
-    open: async () => opened(),
+    open: async () => {
+      opens.count += 1
+      return opened()
+    },
     filesDir,
     refresh: async () => {},
     say: () => {},
@@ -155,7 +159,7 @@ function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'im
       move: (_project, move) => moves.push(move),
     },
   })
-  return { service, moves, renames }
+  return { service, moves, renames, opens }
 }
 
 const key = (number: number) => ({ project: ABC, number })
@@ -283,6 +287,32 @@ describe('the import into the built-in tracker', () => {
     expect(plan.losses).toEqual([{ kind: 'links', tasks: ['ABC-5'], names: ['OTHER-1'] }])
     expect(plan.authors.find((each) => each.name === 'Jane Doe')).toMatchObject({ comments: 1, changes: 1, tasks: 0, as: 'agent' })
     expect(await store.list([ABC])).toEqual([])
+  })
+
+  it("reads the history once for the window's plans and the start, showing the read while it goes", async () => {
+    const fake = fakeSource()
+    const { service, opens } = imports(fake.source)
+    let release = () => {}
+    fake.state.gate = new Promise((resolve) => (release = resolve))
+    const first = service.plan(ABC)
+    const second = service.plan(ABC, [{ kind: 'person', name: 'Jane Doe', as: 'agent' }])
+    for (let wait = 0; wait < 400 && !fake.reads.includes('r5'); wait += 1) await new Promise((resolve) => setTimeout(resolve, 5))
+    expect((await service.state(ABC)).planning).toEqual({ done: 0, total: 2 })
+    release()
+    fake.state.gate = null
+    expect((await first).counts.tasks).toBe(2)
+    expect((await second).authors.find((each) => each.name === 'Jane Doe')?.as).toBe('agent')
+    expect((await service.state(ABC)).planning).toBeNull()
+    const read = fake.reads.length
+    expect((await service.plan(ABC)).counts.comments).toBe(3)
+    expect(fake.reads).toHaveLength(read)
+    expect(opens.count).toBe(1)
+    // The start takes the plan as read: its reads are the run's alone, which waits at the gate meanwhile.
+    fake.state.gate = new Promise((resolve) => (release = resolve))
+    expect((await service.start(ABC)).total).toBe(2)
+    release()
+    await service.settled(ABC)
+    expect(await store.comments(key(3))).toHaveLength(3)
   })
 
   it('counts the tasks an author created apart from the changes', async () => {

@@ -156,6 +156,9 @@ export const transferRu = {
     leadTip: (tracker: string) =>
       `Задачи копируются, в ${tracker} ничего не меняется. Пока идёт перенос, цепь работает с ${tracker}. Проект перейдёт на встроенный трекер только по кнопке «Переключить», после сверки.`,
     reading: (tracker: string) => `Читаем всю историю из ${tracker}…`,
+    planning: 'Прочитано',
+    planningTip: (tracker: string) => `У каждой задачи из ${tracker} читаются комментарии, изменения и файлы, чтобы их посчитать. Пока ничего не пишется.`,
+    planningNote: 'Окно можно закрыть: чтение идёт в сервисе, и при новом открытии окно покажет его же.',
     counts: { changes: 'Изменения', components: 'Компоненты' },
     statusBecomes: 'Станет',
     /** Who the tracker's authors are written as (BTN-1416). */

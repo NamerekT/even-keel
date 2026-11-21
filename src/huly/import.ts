@@ -272,6 +272,7 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
 
   return {
     timeReports: true,
+    parallel: PARALLEL,
     // Huly's milestone has no closing time: a closed one takes its tasks' last closing.
     milestoneGaps: ['closedAt'],
     tasks: async () => (await project()).tasks,

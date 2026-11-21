@@ -63,7 +63,18 @@ export interface ImportState {
   checkFailed: Notice | null
   /** The switch going on (BTN-1432); `null` — none. */
   switching: ImportSwitching | null
+  /** The plan's read of the source going on (BTN-1452); `null` — none. */
+  planning: ImportPlanning | null
 }
+
+/** The plan's read: `done` tasks of the `total` the source gave; `total` is 0 until it gave its list. */
+export interface ImportPlanning {
+  done: number
+  total: number
+}
+
+/** How many tasks the plan reads at once where the source names no number of its own (`ImportSource.parallel`). */
+export const PLAN_PARALLEL = 4
 
 /**
  * The step of a switch: `pass` — the last pass over what changed in the source (`total` — the tasks it takes), `check`
@@ -117,13 +128,32 @@ export function importOrder<T extends { task: ImportTask }>(tasks: readonly T[])
   return [...tasks].sort((a, b) => depth(a.task) - depth(b.task) || a.task.number - b.task.number)
 }
 
-/** Reads each task's journal, change log and files to count them. */
-export async function countTasks(source: ImportSource): Promise<CountedTask[]> {
-  const counted: CountedTask[] = []
-  for (const task of await source.tasks()) {
-    const [comments, changes, files] = await Promise.all([source.comments(task.ref), source.changes?.(task.ref) ?? [], source.files(task.ref)])
-    counted.push({ task, comments: comments.map((each) => each.author), changes: changes.map((each) => each.author), files: files.length })
+/**
+ * Reads each task's journal, change log and files to count them, `source.parallel` tasks at once; `progress` hears the
+ * tasks read so far of the list. The first failure stops the read.
+ */
+export async function countTasks(source: ImportSource, progress?: (done: number, total: number) => void): Promise<CountedTask[]> {
+  const tasks = await source.tasks()
+  const counted = new Array<CountedTask>(tasks.length)
+  let next = 0
+  let done = 0
+  let failed = false
+  progress?.(0, tasks.length)
+  const worker = async () => {
+    while (!failed && next < tasks.length) {
+      const task = tasks[next]!
+      const index = next++
+      try {
+        const [comments, changes, files] = await Promise.all([source.comments(task.ref), source.changes?.(task.ref) ?? [], source.files(task.ref)])
+        counted[index] = { task, comments: comments.map((each) => each.author), changes: changes.map((each) => each.author), files: files.length }
+      } catch (error) {
+        failed = true
+        throw error
+      }
+      progress?.((done += 1), tasks.length)
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, source.parallel ?? PLAN_PARALLEL), tasks.length) }, worker))
   return counted
 }
 

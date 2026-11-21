@@ -5,9 +5,10 @@ import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
 import type { ImportSource, ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
-import { countTasks, importPlan, type ImportAuthorChoice, type ImportPlan, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
+import { importPlan, type ImportAuthorChoice, type ImportPlan, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
 import { errorText } from '../tracker/link.js'
 import { checkImport, checkMatched, sourceCounts, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
+import { PlanReads } from './import-reading.js'
 import { ImportRecords, type ImportHeader } from './import-store.js'
 import { IMPORT_STAGES, runImport, unchanged, type ImportRow } from './import-run.js'
 import { listMilestones } from './milestones.js'
@@ -38,6 +39,8 @@ export interface BuiltinImportsDeps {
   event?: (draft: EventDraft) => void
   say?: (line: string) => void
   now?: () => Date
+  /** How long the plan's read of the source is kept (`PLAN_KEEP_MS` where absent). */
+  planKeepMs?: number
 }
 
 /**
@@ -53,6 +56,7 @@ export class BuiltinImports {
   private readonly checkFailures = new Map<string, Notice>()
   /** The step of each switch going on: the window's meter. */
   private readonly switches = new Map<string, ImportSwitching>()
+  private readonly plans: PlanReads
   private readonly say: (line: string) => void
   private readonly now: () => Date
 
@@ -61,12 +65,17 @@ export class BuiltinImports {
     this.records = new ImportRecords(deps.db, this.now)
     this.reports = new TransferReports(deps.db)
     this.say = deps.say ?? ((line) => console.log(line))
+    this.plans = new PlanReads({ open: deps.open, say: this.say, now: () => this.now().getTime(), ...(deps.planKeepMs === undefined ? {} : { keepMs: deps.planKeepMs }) })
   }
 
-  /** What the import would write, with the authors as `authors` picks them. Nothing is written. */
+  /**
+   * What the import would write, with the authors as `authors` picks them. Nothing is written. The source is read once
+   * for the window: a pick counts again from the same read (`PlanReads`).
+   */
   async plan(project: string, authors: readonly ImportAuthorChoice[] = []): Promise<ImportPlan> {
     await this.checkEmpty(project)
-    return this.opened(project, async (opened) => importPlan(opened.source, await countTasks(opened.source), authors, await opened.source.milestones()))
+    const read = await this.plans.get(project)
+    return importPlan(read.source, read.counted, authors, read.milestones)
   }
 
   /** Starts the import, or goes on with one that stopped; answers at once, the import runs on. */
@@ -83,7 +92,8 @@ export class BuiltinImports {
         if (same) {
           if (header.finishedAt !== null) await this.records.reopen(project)
         } else {
-          const plan = importPlan(opened.source, await countTasks(opened.source), authors, await opened.source.milestones())
+          const read = await this.plans.take(project, opened)
+          const plan = importPlan(read.source, read.counted, authors, read.milestones)
           await this.records.begin(project, opened, authors, plan)
         }
         this.failures.delete(project)
@@ -120,6 +130,7 @@ export class BuiltinImports {
       check: header?.checked ?? null,
       checkFailed: this.checkFailures.get(project) ?? null,
       switching: this.switches.get(project) ?? null,
+      planning: this.plans.planning(project),
     }
   }
 

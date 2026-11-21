@@ -16,6 +16,7 @@ const state = (over: Partial<ImportState> = {}): ImportState => ({
   check: null,
   checkFailed: null,
   switching: null,
+  planning: null,
   ...over,
 })
 const all = (count: number) => ({ tasks: count, created: count, linked: count, attached: count, journaled: count, done: count })

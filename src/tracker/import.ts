@@ -159,4 +159,9 @@ export interface ImportSource {
   changes?(ref: string): Promise<ImportChange[]>
   /** The tracker keeps time reports the import does not read: the plan names them among what does not move. */
   timeReports?: boolean
+  /**
+   * How many tasks the plan reads at once (`PLAN_PARALLEL` where absent). A task's journal, change log and files are
+   * asked for together, in one tick: a source caching the last task's thread serves both from one read.
+   */
+  parallel?: number
 }

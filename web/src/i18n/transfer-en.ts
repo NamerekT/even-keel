@@ -149,6 +149,9 @@ export const transferEn: Messages['transfer'] = {
     leadTip: (tracker) =>
       `The tasks are copied; nothing changes in ${tracker}. While the copy runs, the chain works with ${tracker}. The project moves to the built-in tracker only when you press "Switch", after the check.`,
     reading: (tracker) => `Reading the whole history of ${tracker}…`,
+    planning: 'Read',
+    planningTip: (tracker) => `The comments, changes and files of each task in ${tracker} are read to count them. Nothing is written yet.`,
+    planningNote: 'You can close the window: the read goes on in the service, and the window shows the same read when opened again.',
     counts: { changes: 'Changes', components: 'Components' },
     statusBecomes: 'Becomes',
     authors: {
