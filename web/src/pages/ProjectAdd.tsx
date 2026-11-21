@@ -301,22 +301,17 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 error={keyRefused ? check!.entry! : null}
               />
             )}
-            <Row
-              className="settings__field"
-              label={t.wizard.name}
-              hint={t.wizard.nameHint}
-              htmlFor="wizard-name"
-              control={
-                <input
-                  id="wizard-name"
-                  className="settings__text"
-                  autoComplete="off"
-                  value={fields.name}
-                  placeholder={fields.key || t.wizard.namePlaceholder}
-                  onChange={(event) => changeFields((before) => typedIn(before, 'name', event.target.value))}
-                />
-              }
-            />
+            <div className="settings__field">
+              <FieldHead label={t.wizard.name} hint={t.wizard.nameHint} htmlFor="wizard-name" />
+              <input
+                id="wizard-name"
+                className="settings__text"
+                autoComplete="off"
+                value={fields.name}
+                placeholder={fields.key || t.wizard.namePlaceholder}
+                onChange={(event) => changeFields((before) => typedIn(before, 'name', event.target.value))}
+              />
+            </div>
             {(milestonesOpen || trackerShared || fields.milestones.trim() !== '' || tableDraft.adding?.milestones !== undefined) && (
               <div className="settings__field">
                 <FieldHead label={t.settings.rule.requiredMilestones} hint={t.wizard.milestonesHint} />
@@ -340,6 +335,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               <Row
                 className="settings__field project-add__pick"
                 label={t.wizard.place}
+                hint={t.wizard.placeHints[fields.place]}
                 control={
                   <Segmented
                     label={t.wizard.place}
@@ -351,9 +347,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                     onChange={(place) => set({ place })}
                   />
                 }
-              >
-                <span className="settings__hint">{t.wizard.placeHints[fields.place]}</span>
-              </Row>
+              />
             )}
             {fields.git && fields.place === 'slots' && (
               <Row

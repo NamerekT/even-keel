@@ -106,6 +106,7 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
       <Row
         className="settings__field project-add__pick"
         label={t.wizard.mode}
+        hint={t.wizard.modeHints[fields.git ? 'git' : 'plain']}
         control={
           <Segmented
             label={t.wizard.mode}
@@ -119,7 +120,6 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
           />
         }
       >
-        <span className="settings__hint">{t.wizard.modeHints[fields.git ? 'git' : 'plain']}</span>
         {ready.missing && (
           <span className="project-add__gate">
             <Status>{t.creation.gitMissing}</Status>

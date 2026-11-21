@@ -134,6 +134,7 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
             <Row
               className="settings__field project-add__pick"
               label={t.wizard.place}
+              hint={t.wizard.placeHints[place]}
               control={
                 <Segmented
                   label={t.wizard.place}
@@ -145,9 +146,7 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
                   onChange={setPlace}
                 />
               }
-            >
-              <span className="settings__hint">{t.wizard.placeHints[place]}</span>
-            </Row>
+            />
             {place === 'slots' && (
               <Row
                 className="settings__field"
