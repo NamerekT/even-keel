@@ -402,6 +402,11 @@ export class Packages {
     return { mcp: found.mcp, plugins: found.plugins.filter((each) => each.dir !== skip) }
   }
 
+  /** Whether a session's `plugins` bring the built-in one, whose hooks ask for the chat's mail mid-turn. */
+  bringsMail(plugins: SessionPlugin[] | undefined): boolean {
+    return this.builtIn !== undefined && plugins?.some((each) => each.package === this.builtIn) === true
+  }
+
   /**
    * A project chat's plugins (`bridgePlugins`, BTN-1346): the built-in one's current install, not pinned — a chat has no
    * end the pin would wait for, and its next turn takes the install current then. `withoutServers` — a copy of it without

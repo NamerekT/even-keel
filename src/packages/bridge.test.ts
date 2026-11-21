@@ -93,6 +93,17 @@ describe('the built-in bridge transition', () => {
     expect(packages.startOf('project', 'ABC-1', 'claude').plugins.map((each) => each.package)).toEqual([BRIDGE])
   })
 
+  it('knows which sessions bring the mail hooks: the bridge, not the old pinned plugin', () => {
+    const saved = emptyPackages()
+    saved.packages[OLD] = record('checkpoint', 'old')
+    saved.packages[BRIDGE] = record('agent-bridge', 'new')
+    saved.pins.project = { 'ABC-1': { [OLD]: 'old' } }
+    const { packages } = fixture(saved)
+    expect(packages.bringsMail(packages.startOf('project', 'ABC-1', 'claude').plugins)).toBe(false)
+    expect(packages.bringsMail(packages.startOf('project', 'ABC-2', 'claude').plugins)).toBe(true)
+    expect(packages.bringsMail(undefined)).toBe(false)
+  })
+
   it('prunes an empty retired record when its stale pin is released', () => {
     const saved = emptyPackages()
     saved.packages[OLD] = record('checkpoint')

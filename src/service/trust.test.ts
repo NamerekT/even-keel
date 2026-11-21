@@ -36,6 +36,7 @@ describe('project trust wiring', () => {
       projectOf: () => 'p',
       cliLease: { session: async (_home: AccountHome, run: () => Promise<string>) => run() },
       keySpend: { beforeTurn: async () => {} },
+      packages: { bringsMail: () => false },
     } as unknown as Parameters<typeof wireLaunchIn>[0]
     const start = { name: 'ABC-1', cwd: 'D:/checkout/.claude/worktrees/abc-1', prompt: 'test', model: null }
     const first: AccountHome = { key: 'one', dir: 'D:/one', global: false, agent: 'claude' }

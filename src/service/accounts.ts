@@ -223,7 +223,7 @@ export function wireLaunchIn(ctx: MachineContext): (home: AccountHome, start: Se
     const trusted = withTrust(ctx, start, project)
     await ctx.keySpend.beforeTurn(home.key)
     try {
-      return await ctx.cliLease.session(home, () => ctx.agentOf(home).launch(home, trusted))
+      return listening(ctx, start, await ctx.cliLease.session(home, () => ctx.agentOf(home).launch(home, trusted)))
     } catch (error) {
       const folder = trusted.trustedRepo
       const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username, service: await runsAsService() }
@@ -241,13 +241,22 @@ export function wireResumeIn(ctx: MachineContext): (home: AccountHome, session: 
     const trusted = withTrust(ctx, start, project)
     await ctx.keySpend.beforeTurn(home.key)
     try {
-      return await ctx.cliLease.session(home, () => ctx.agentOf(home).resume(home, session, trusted))
+      return listening(ctx, start, await ctx.cliLease.session(home, () => ctx.agentOf(home).resume(home, session, trusted)))
     } catch (error) {
       const folder = trusted.trustedRepo
       const place = folder === undefined ? null : { task: start.name, folder, platform: process.platform, user: userInfo().username, service: await runsAsService() }
       throw (place === null ? null : untrustedStart(error, place, ctx.stateDir)) ?? error
     }
   }
+}
+
+/**
+ * A session started with the built-in plugin takes the chat's mail from its turn's start (BTN-1430): a message right
+ * after the one that started it waits in the mailbox instead of being refused before the hooks first ask.
+ */
+function listening(ctx: MachineContext, start: SessionStart, sessionId: string): string {
+  if (ctx.packages.bringsMail(start.plugins)) ctx.mailbox.expect(sessionId)
+  return sessionId
 }
 
 function withTrust(ctx: MachineContext, start: SessionStart, project: string | undefined): SessionStart {

@@ -71,9 +71,17 @@ export class Mailbox {
     this.mails = mails.map((mail) => ({ ...mail }))
   }
 
-  /** The session's hooks have asked for mail at least once since the service started. */
+  /** The session's hooks have asked for mail at least once since the service started, or it `expect`s them to. */
   listens(sessionId: string): boolean {
     return this.heard.has(sessionId)
+  }
+
+  /**
+   * The service has just started or resumed the session with the hooks that ask for mail (BTN-1430): it listens from
+   * now, before they first ask. Mail its hooks never take settles at the end of the turn like any other.
+   */
+  expect(sessionId: string): void {
+    this.heard.add(sessionId)
   }
 
   post(task: string, sessionId: string, text: string, files: string[]): Mail {

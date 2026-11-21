@@ -79,6 +79,13 @@ describe('Mailbox', { timeout: 30_000 }, () => {
     expect(mailbox.listens(OTHER)).toBe(false)
   })
 
+  it('counts a session started with the mail hooks as listening before they first ask', async () => {
+    const { mailbox } = await box()
+    mailbox.expect(SESSION)
+    expect(mailbox.listens(SESSION)).toBe(true)
+    expect(mailbox.listens(OTHER)).toBe(false)
+  })
+
   it('settles only what still waits', async () => {
     const { mailbox } = await box()
     const first = mailbox.post('ABC-1', SESSION, 'one', [])
