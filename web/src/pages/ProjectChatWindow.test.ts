@@ -27,7 +27,7 @@ let changed: () => void
 let live: unknown = null
 vi.mock('../live/context.js', () => ({
   useLive: () => ({
-    state: live, command, deliver: command, transcript, session: async () => null, sentFileUrl: () => '/file.png',
+    state: live, command, deliver: command, transcript, session: async () => null, sentFileUrl: () => '/file.png', imageUrl: () => '/image.png',
     onTranscript: (_id: string, listener: () => void) => { changed = listener; return () => {} },
   }),
 }))
@@ -256,31 +256,51 @@ it('marks the message as not delivered and puts it back in the field when the la
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
 
-it('keeps a sent picture from the chosen file while the first session starts for minutes, then shows the service’s', async () => {
+it('keeps a sent picture from the chosen file while the first session starts for minutes and after the transcript has it', async () => {
   const { host, delivery } = await start('one.png')
   await act(async () => delivery.resolve())
   const thumb = () => host.querySelector<HTMLImageElement>('.bubble .thumb img')
-  expect(thumb()?.getAttribute('src')).toMatch(/^blob:/)
-  const settings = (window as unknown as HappyWindow).happyDOM.settings
+  const chosen = thumb()?.getAttribute('src')
+  expect(chosen).toMatch(/^blob:/)
   vi.useFakeTimers()
   try {
     transcript.mockResolvedValue({ lines: [], turn: null })
     await render({ ...card, sessionId: 'first-session', state: 'starting' })
     await act(async () => vi.advanceTimersByTimeAsync(3 * 60_000))
-    expect(thumb()?.getAttribute('src')).toMatch(/^blob:/)
+    expect(thumb()?.getAttribute('src')).toBe(chosen)
     expect(host.querySelector('.bubble .chat__file')).toBeNull()
-    settings.fetch.interceptor = { beforeAsyncRequest: async ({ window }) => new window.Response(png) }
-    settings.enableImageFileLoading = true
     transcript.mockResolvedValue({ lines: [{ at: card.lastAt, kind: 'prompt', text: message, files: ['.temp/inbox/one.png'] }], turn: null })
     await act(async () => changed())
     await act(async () => vi.advanceTimersByTimeAsync(100))
-    expect(thumb()?.getAttribute('src')).toBe('/file.png')
-    expect(thumb()?.naturalWidth).toBe(1)
+    expect([...host.querySelectorAll('.bubble .thumb img')].map((img) => img.getAttribute('src'))).toEqual([chosen])
   } finally {
-    settings.enableImageFileLoading = false
-    settings.fetch.interceptor = null
     vi.useRealTimers()
   }
+})
+
+it('keeps a sent picture on view through the first session’s start and the delivery, and closes it on a handoff (BTN-1425)', async () => {
+  const { host, delivery } = await start('one.png')
+  await act(async () => host.querySelector<HTMLButtonElement>('.bubble .thumb')!.click())
+  const viewer = () => host.querySelector<HTMLImageElement>('.viewer img:not(.viewer__next)')
+  const chosen = viewer()?.getAttribute('src')
+  expect(chosen).toMatch(/^blob:/)
+  await act(async () => delivery.resolve())
+  transcript.mockResolvedValue({ lines: [], turn: null })
+  await render({ ...card, sessionId: 'first-session', state: 'working' })
+  expect(viewer()?.getAttribute('src')).toBe(chosen)
+  const landed: FeedLine = { at: card.lastAt, kind: 'prompt', text: message, files: ['C:\\repos\\example\\.temp\\inbox\\one.png'] }
+  const read: FeedLine[] = [
+    { at: card.lastAt, kind: 'tool', text: 'Read one.png', tool: 'toolu_a', name: 'Read', subject: 'C:\\repos\\example\\.temp\\inbox\\one.png' },
+    { at: card.lastAt, kind: 'image', text: 'one.png', tool: 'toolu_a', images: 1 },
+  ]
+  for (const lines of [[landed], [landed, ...read]]) {
+    transcript.mockResolvedValue({ lines, turn: null })
+    await act(async () => changed())
+    expect(host.querySelectorAll('.viewer img')).toHaveLength(1)
+    expect(viewer()?.getAttribute('src')).toBe(chosen)
+  }
+  await render({ ...card, sessionId: 'second-session', state: 'working' })
+  expect(host.querySelector('.viewer')).toBeNull()
 })
 
 /** Whether a sent picture's bubble ever drew a file chip in the records: added, or a class it had for a moment. */
@@ -289,7 +309,7 @@ const drewChip = (records: MutationRecord[]): boolean => records.some((record) =
   return [...record.addedNodes].some((node) => node.textContent?.includes('📎') || (node instanceof Element && node.matches('.chat__file, :has(.chat__file)')))
 })
 
-it('keeps a sent picture on screen in a running chat until the service’s copy has loaded (BTN-1390)', async () => {
+it('keeps a sent picture on the chosen file in a running chat once the transcript has it (BTN-1390, BTN-1425)', async () => {
   live = { config: { projects: {} }, branchDrift: {}, sessions: [], account: { accounts: [] }, mailbox: {} }
   transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at: card.lastAt, text: 'Run the tests' }], turn: null })
   const host = document.body.appendChild(document.createElement('div'))
@@ -303,11 +323,7 @@ it('keeps a sent picture on screen in a running chat until the service’s copy 
   await act(async () => host.querySelector<HTMLButtonElement>('.chat__send')!.click())
   const shown = () => [...host.querySelectorAll<HTMLImageElement>('.bubble .thumb img')].filter((img) => !img.classList.contains('thumb__next'))
   await vi.waitFor(() => expect(shown().map((img) => img.getAttribute('src'))).toEqual([expect.stringMatching(/^blob:/)]))
-  const settings = (window as unknown as HappyWindow).happyDOM.settings
-  let serve!: () => void
-  const served = new Promise<void>((resolve) => { serve = resolve })
-  settings.fetch.interceptor = { beforeAsyncRequest: async ({ window }) => { await served; return new window.Response(png) } }
-  settings.enableImageFileLoading = true
+  const chosen = shown()[0]!
   const observer = new MutationObserver(() => {})
   observer.observe(host, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['class'] })
   try {
@@ -316,15 +332,11 @@ it('keeps a sent picture on screen in a running chat until the service’s copy 
       turn: null,
     })
     await act(async () => changed())
-    expect(shown().map((img) => img.getAttribute('src'))).toEqual([expect.stringMatching(/^blob:/)])
-    await act(async () => serve())
-    await vi.waitFor(() => expect(shown().map((img) => img.getAttribute('src'))).toEqual(['/file.png']))
-    expect(shown()[0]!.naturalWidth).toBe(1)
+    expect(host.querySelectorAll('.bubble .thumb img')).toHaveLength(1)
+    expect(shown()).toEqual([chosen])
     expect(drewChip(observer.takeRecords())).toBe(false)
   } finally {
     observer.disconnect()
-    settings.enableImageFileLoading = false
-    settings.fetch.interceptor = null
   }
 })
 

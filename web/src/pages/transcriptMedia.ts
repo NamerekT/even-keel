@@ -21,6 +21,11 @@ export interface MediaUrls {
 export interface TranscriptMedia {
   /** Every picture of the transcript in its order: what tool results held, what the user sent and what the session sent. */
   items: Media[]
+  /**
+   * The name of each item, what it shows rather than where it stands: a sent picture by its file's name from the send to
+   * the agent's read, the rest by the call; a repeated name gets `#2`, `#3` in its order. The viewer holds one by it.
+   */
+  keys: string[]
   /** The places in `items` of each call's pictures, by the call's id. */
   byTool: Map<string, number[]>
   /** The place in `items` of each picture the user sent, by its path. */
@@ -67,6 +72,11 @@ function readPicture(line: FeedLine, subjects: Map<string, string>): string | nu
  */
 export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: string): TranscriptMedia {
   const items: Media[] = []
+  const keys: string[] = []
+  const add = (item: Media, key: string): number => {
+    keys.push(keys.includes(key) ? `${key}#${keys.filter((each) => each === key || each.startsWith(`${key}#`)).length + 1}` : key)
+    return items.push(item) - 1
+  }
   const byTool = new Map<string, number[]>()
   const byFile = new Map<string, number>()
   const byShare = new Map<string, number>()
@@ -85,7 +95,7 @@ export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: st
       if (frame !== undefined) byTool.set(line.tool, [frame.place])
       else {
         const name = line.text || toolTexts.get(line.tool) || fallback
-        const places = Array.from({ length: line.images ?? 0 }, (_, index) => items.push({ kind: 'image', name, url: urls.image(line.tool!, index) }) - 1)
+        const places = Array.from({ length: line.images ?? 0 }, (_, index) => add({ kind: 'image', name, url: urls.image(line.tool!, index) }, path === null ? `tool:${line.tool}/${index}` : sentKey(fileName(path))))
         if (path !== null) frames.push({ place: places[0]!, path, read: true })
         byTool.set(line.tool, places)
       }
@@ -100,22 +110,24 @@ export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: st
       const name = fileName(file)
       const read = reads.find((each) => sameSent(each.path, file))
       const local = urls.local?.(name)
-      // A bare name is a reply sent from this page the transcript has not got yet: the service may not give it so far.
-      const item: Media = read !== undefined
-        ? { kind: 'image', name, url: urls.image(read.tool, 0) }
-        : local !== undefined && file === name
-          ? { kind: 'image', name, url: local }
-          : { kind: 'image', name, url: urls.file(name), inbox: true, ...(local !== undefined && { fallback: local }) }
-      const place = items.push(item) - 1
+      // The browser's copy wins at every stage: the same bytes under a new address would load again and blink (BTN-1425).
+      const item: Media = local !== undefined
+        ? { kind: 'image', name, url: local }
+        : read !== undefined
+          ? { kind: 'image', name, url: urls.image(read.tool, 0) }
+          : { kind: 'image', name, url: urls.file(name), inbox: true }
+      const place = add(item, sentKey(name))
       frames.push({ place, path: file, read: false })
       byFile.set(file, place)
     }
     if (line.share !== undefined && line.tool !== undefined) {
       line.share.files.forEach((file, index) => {
         if (sharedKind(file) !== 'image') return
-        byShare.set(`${line.tool}/${index}`, items.push({ kind: 'image', name: fileName(file), url: urls.shared(line.tool!, index) }) - 1)
+        byShare.set(`${line.tool}/${index}`, add({ kind: 'image', name: fileName(file), url: urls.shared(line.tool!, index) }, `share:${line.tool}/${index}`))
       })
     }
   }
-  return { items, byTool, byFile, byShare }
+  return { items, keys, byTool, byFile, byShare }
 }
+
+const sentKey = (name: string): string => `sent:${name.toLowerCase()}`

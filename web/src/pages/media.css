@@ -349,6 +349,15 @@ video.viewer__media {
   cursor: zoom-out;
 }
 
+/* The next address of the picture on view, loading out of sight. */
+.viewer__next {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .viewer__caption {
   display: flex;
   flex-wrap: wrap;

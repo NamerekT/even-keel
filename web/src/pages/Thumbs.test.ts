@@ -108,22 +108,6 @@ describe('a picture the user sent', () => {
     expect(host.textContent).not.toContain('📎')
   })
 
-  it('shows the chosen file while the service’s copy loads, then the service’s', async () => {
-    const host = await inbox({ kind: 'image', name: 'order.png', url: '/files/order.png', inbox: true, fallback: 'blob:order' })
-    expect(shown(host)).toEqual(['blob:order'])
-    expect(host.textContent).not.toContain('📎')
-    await load(host, '/files/order.png')
-    expect(shown(host)).toEqual(['/files/order.png'])
-  })
-
-  it('falls back to the chosen file when the service does not give it', async () => {
-    const host = await inbox({ kind: 'image', name: 'order.png', url: '/files/order.png', inbox: true, fallback: 'blob:order' })
-    await fail(host, '/files/order.png')
-    expect(shown(host)).toEqual(['blob:order'])
-    await act(async () => host.querySelector('img.thumb__next')!.dispatchEvent(new Event('load')))
-    expect(shown(host)).toEqual(['blob:order'])
-    expect(host.textContent).not.toContain('📎')
-  })
 
   it('keeps the picture on screen when its address turns, until the next one has loaded (BTN-1390)', async () => {
     const chosen: Media = { kind: 'image', name: 'order.png', url: 'blob:order' }

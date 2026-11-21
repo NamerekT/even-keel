@@ -56,18 +56,17 @@ export function ThumbStack({ places, items, onOpen }: Props) {
 }
 
 /**
- * A picture the user sent. Its address changes on the way — the chosen file, the service's copy, the transcript's once
- * the agent read it — and the picture on screen stays until the next address has loaded, or for good when that one
- * fails (BTN-1390). One the browser still holds shows at once; one of the service with nothing on screen yet is a file
- * chip until it loads (the service may not have it yet) and falls back to the browser's copy where there is one.
+ * A picture the user sent. One the browser still holds keeps that address all the way (BTN-1425); without it the address
+ * changes — the service's copy, the transcript's once the agent read it — and the picture on screen stays until the next
+ * address has loaded, or for good when that one fails (BTN-1390). One the browser holds shows at once; one of the service
+ * with nothing on screen yet is a file chip until it loads (the service may not have it yet).
  */
 export function InboxThumb({ item, onOpen }: { item: Media; onOpen: () => void }) {
   const [loaded, setLoaded] = useState<string | null>(null)
   const [broken, setBroken] = useState<string | null>(null)
   const inbox = item.inbox === true
-  const held = loaded ?? (inbox ? item.fallback ?? null : null)
   const ready = loaded === item.url
-  const stale = !ready && held !== null && held !== item.url
+  const stale = !ready && loaded !== null
   const failed = broken === item.url
   if (failed && !stale) return <span className="chat__file">📎 {item.name}</span>
   const onScreen = ready || stale || !inbox
@@ -75,9 +74,9 @@ export function InboxThumb({ item, onOpen }: { item: Media; onOpen: () => void }
   return (
     <button type="button" className={onScreen ? 'thumb' : 'chat__file'} title={item.name} aria-label={t.session.chat.openPicture(item.name)} onClick={onOpen}>
       {!onScreen && `📎 ${item.name}`}
-      {stale && <img src={held} alt="" decoding="async" />}
+      {stale && <img src={loaded} alt="" decoding="async" />}
       {!failed && (inbox
-        ? <InboxImage key={item.url} className={next} src={item.url} fallback={item.fallback} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(item.url)} />
+        ? <InboxImage key={item.url} className={next} src={item.url} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(item.url)} />
         : <img key={item.url} className={next} src={item.url} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(item.url)} onError={() => setBroken(item.url)} />)}
     </button>
   )

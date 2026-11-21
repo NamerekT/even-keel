@@ -155,7 +155,8 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>(() => initialPrompt === undefined ? [] : [{ id: 0, line: initialPrompt, after: 0, steered: false, first: true }])
   const sentCount = useRef(sent.length)
-  const [viewing, setViewing] = useState<number | null>(null)
+  // The picture on view by its key in `media.keys`, not its place: the list is built again as the message is delivered.
+  const [viewing, setViewing] = useState<string | null>(null)
   const localPictures = useLocalPictures(sessionId)
   const awaitingFirstPrompt = sent[0]?.first === true && sent[0].failed !== true && !recorded?.some(isReply)
   const starting = session === null || awaitingFirstPrompt
@@ -180,6 +181,8 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
     { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name), shared, local: localPictures.get },
     t.session.chat.picture,
   )
+  const viewed = viewing === null ? -1 : media.keys.indexOf(viewing)
+  const view = (place: number) => setViewing(media.keys[place] ?? null)
   // An answered question shows as the card of its answer, the one the session waits on — in the panel under the chat.
   const entries =
     all == null
@@ -244,9 +247,16 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
     setLines(undefined)
     setReadFor(null)
     setTurn(null)
-    if (changedSession) setSent([])
-    setViewing(null)
+    if (changedSession) {
+      setSent([])
+      setViewing(null)
+    }
   }, [sessionId])
+
+  // The viewer closes by itself only when its picture left the chat, not while the feed is being read again.
+  useEffect(() => {
+    if (viewing !== null && all != null && viewed < 0) setViewing(null)
+  }, [viewing, all, viewed])
 
   // Delivering an answer stops the session for a while: the lines read so far stay, reading goes on from them.
   // A live transcript is read when the service says its file changed; the poll only covers a missed word.
@@ -401,7 +411,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
             <div className="transcript__handover">
               {handing.last.message !== null && (
                 <div className="transcript__entry transcript__entry--prompt">
-                  <UserBubble text={handing.last.message} files={[]} media={media} onOpen={setViewing} />
+                  <UserBubble text={handing.last.message} files={[]} media={media} onOpen={view} />
                 </div>
               )}
               <HandoverLoader handover={handing.last} phase={handing.phase} />
@@ -424,13 +434,13 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                     return (
                       <li key={index} className="transcript__entry transcript__entry--tools">
                         <LineTime at={entry.calls[0]!.line.at} hover />
-                        <ToolGroup calls={entry.calls} media={media} onOpen={setViewing} />
+                        <ToolGroup calls={entry.calls} media={media} onOpen={view} />
                       </li>
                     )
                   }
                   // A sent line and the transcript line that lands for it share a key: the bubble stays, only its mark changes.
                   const mark = marks.get(entry.line)
-                  const line = <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} sharedUrl={shared} />
+                  const line = <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={view} sharedUrl={shared} />
                   return (
                     <li key={mark?.key ?? index} className={`transcript__entry transcript__entry--${entry.line.kind}`}>
                       {mark === undefined ? (
@@ -518,8 +528,8 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
           )}
         </div>
       </div>
-      {viewing !== null && media.items[viewing] !== undefined && (
-        <MediaViewer items={media.items} index={viewing} onIndex={setViewing} onClose={() => setViewing(null)} />
+      {viewed >= 0 && (
+        <MediaViewer items={media.items} index={viewed} onIndex={view} onClose={() => setViewing(null)} />
       )}
     </dialog>
   )

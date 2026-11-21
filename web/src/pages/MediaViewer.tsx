@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { t } from '../i18n/index.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CloseIcon } from '../ui/icons.js'
@@ -10,8 +10,6 @@ export interface Media {
   url: string
   /** A file the user sent, given by the service only once the transcript names it (`InboxImage` retries it). */
   inbox?: boolean
-  /** Of an inbox picture: the browser's own copy of the chosen file, shown when the service does not give it. */
-  fallback?: string
 }
 
 interface Props {
@@ -45,6 +43,11 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
 
   useEffect(() => setZoomed(false), [index])
 
+  // A sent picture's address may turn while it is on view; the one on screen stays until the next has loaded (BTN-1425).
+  const [held, setHeld] = useState<{ name: string; url: string } | null>(null)
+  const [broken, setBroken] = useState<string | null>(null)
+  const stale = held !== null && held.name === item.name && held.url !== item.url && broken !== item.url
+
   const go = (to: number | null) => to !== null && onIndex(to)
 
   const swiped = (event: PointerEvent) => {
@@ -54,6 +57,18 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
     if (Math.abs(dx) < SWIPE) return
     event.preventDefault()
     go(dx > 0 ? prev : next)
+  }
+
+  const pictureProps = {
+    alt: item.name,
+    className: zoomed ? 'viewer__media viewer__media--zoomed' : 'viewer__media',
+    draggable: false,
+    onPointerDown: (event: PointerEvent) => (swipe.current = event.clientX),
+    onPointerUp: swiped,
+    onClick: (event: MouseEvent) => {
+      if (!event.defaultPrevented) setZoomed((on) => !on)
+    },
+    ...(!item.inbox && { onError: () => setBroken(item.url) }),
   }
 
   return (
@@ -83,19 +98,16 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
       )}
       <figure className="viewer__stage">
         {item.kind === 'image' ? (
-          <Picture
-            key={item.url}
-            src={item.url}
-            {...(item.inbox && item.fallback !== undefined && { fallback: item.fallback })}
-            alt={item.name}
-            className={zoomed ? 'viewer__media viewer__media--zoomed' : 'viewer__media'}
-            draggable={false}
-            onPointerDown={(event) => (swipe.current = event.clientX)}
-            onPointerUp={swiped}
-            onClick={(event) => {
-              if (!event.defaultPrevented) setZoomed((on) => !on)
-            }}
-          />
+          <>
+            {stale && <img {...pictureProps} src={held.url} />}
+            <Picture
+              key={item.url}
+              {...pictureProps}
+              src={item.url}
+              className={stale ? 'viewer__next' : pictureProps.className}
+              onLoad={() => setHeld({ name: item.name, url: item.url })}
+            />
+          </>
         ) : (
           <video key={item.url} src={item.url} className="viewer__media" controls autoPlay playsInline />
         )}

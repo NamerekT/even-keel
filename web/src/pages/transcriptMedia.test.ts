@@ -34,7 +34,7 @@ describe('transcriptMedia', () => {
     expect(media.byFile.has('C:\\repos\\example\\.temp\\inbox\\notes.txt')).toBe(false)
   })
 
-  it('shows a picture of a reply the transcript has not got yet from the chosen file, then the service with it behind', () => {
+  it('shows a picture the browser holds from the chosen file, the transcript has it or not; the rest from the service', () => {
     const local = new Map([['order.png', 'blob:order']])
     const lines: FeedLine[] = [
       { at, kind: 'prompt', text: 'Earlier', files: ['C:\\repos\\example\\.temp\\inbox\\order.png', 'C:\\repos\\example\\.temp\\inbox\\shot.png'] },
@@ -44,12 +44,40 @@ describe('transcriptMedia', () => {
     const media = transcriptMedia(lines, { ...urls, local: (name) => local.get(name) }, 'Picture')
 
     expect(media.items).toEqual([
-      { kind: 'image', name: 'order.png', url: 'file:order.png', inbox: true, fallback: 'blob:order' },
+      { kind: 'image', name: 'order.png', url: 'blob:order' },
       { kind: 'image', name: 'shot.png', url: 'file:shot.png', inbox: true },
       { kind: 'image', name: 'order.png', url: 'blob:order' },
       { kind: 'image', name: 'lost.png', url: 'file:lost.png', inbox: true },
     ])
     expect(media.byFile.get('order.png')).toBe(2)
+  })
+
+  it('keeps the address of a picture the browser holds from the send through the transcript to the read (BTN-1425)', () => {
+    const inbox = 'C:\\repos\\example\\.temp\\inbox'
+    const local = { ...urls, local: (name: string) => (name === 'paste-1.png' ? 'blob:paste-1' : undefined) }
+    const sent: FeedLine = { at, kind: 'prompt', text: 'Look', files: ['paste-1.png'] }
+    const landed: FeedLine = { ...sent, files: [`${inbox}\\paste-1.png`] }
+    const read: FeedLine[] = [
+      { at, kind: 'tool', text: 'Read paste-1.png', tool: 'toolu_a', name: 'Read', subject: `${inbox}\\paste-1.png` },
+      { at, kind: 'image', text: 'paste-1.png', tool: 'toolu_a', images: 1 },
+    ]
+
+    const stages = [[sent], [landed], [landed, ...read]].map((lines) => transcriptMedia(lines, local, 'Picture'))
+
+    expect(stages.map((media) => media.items)).toEqual(Array(3).fill([{ kind: 'image', name: 'paste-1.png', url: 'blob:paste-1' }]))
+    expect(stages.map((media) => media.keys)).toEqual(Array(3).fill(['sent:paste-1.png']))
+    expect(stages[2]!.byTool.get('toolu_a')).toEqual([0])
+  })
+
+  it('names each picture by what it shows, so a list built again finds the same one', () => {
+    const share = { caption: 'Shots', files: ['C:\\repos\\example\\.temp\\dark.png'], folder: 'C:\\repos\\example' }
+    const lines: FeedLine[] = [
+      { at, kind: 'image', text: '', tool: 'toolu_b', images: 2 },
+      { at, kind: 'prompt', text: 'Two', files: ['C:\\repos\\example\\.temp\\inbox\\Shot.png', 'D:\\other\\.temp\\inbox\\shot.png'] },
+      { at, kind: 'tool', text: 'SendUserFile Shots', tool: 'toolu_s', share },
+    ]
+
+    expect(transcriptMedia(lines, urls, 'Picture').keys).toEqual(['tool:toolu_b/0', 'tool:toolu_b/1', 'sent:shot.png', 'sent:shot.png#2', 'share:toolu_s/0'])
   })
 
   it('makes a sent picture and the agent reading it one frame at the message, given from the transcript', () => {
@@ -64,11 +92,11 @@ describe('transcriptMedia', () => {
       { at, kind: 'image', text: 'paste-1.png', tool: 'toolu_c', images: 1 },
     ]
 
-    const media = transcriptMedia(lines, { ...urls, local: (name) => `blob:${name}` }, 'Picture')
+    const media = transcriptMedia(lines, { ...urls, local: (name) => (name === 'paste-2.png' ? 'blob:paste-2.png' : undefined) }, 'Picture')
 
     expect(media.items).toEqual([
       { kind: 'image', name: 'paste-1.png', url: 'img:toolu_a/0' },
-      { kind: 'image', name: 'paste-2.png', url: 'file:paste-2.png', inbox: true, fallback: 'blob:paste-2.png' },
+      { kind: 'image', name: 'paste-2.png', url: 'blob:paste-2.png' },
       { kind: 'image', name: '3.png', url: 'img:toolu_b/0' },
     ])
     expect(media.byFile.get(`${inbox}\\paste-1.png`)).toBe(0)
