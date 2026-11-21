@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { globalBinOf, isAccessError, nearestExisting, npmPrefixAdvice, rcFileOf, rootRefusal } from './npm-access.js'
+import { globalBinOf, isAccessError, loginShell, nearestExisting, npmPrefixAdvice, rcFileOf, rootRefusal } from './npm-access.js'
 
 describe('nearestExisting', () => {
   it('is the folder itself when it is there', () => {
@@ -32,9 +32,29 @@ describe('rcFileOf', () => {
     expect(rcFileOf('/usr/local/bin/bash')).toBe('~/.bashrc')
   })
 
-  it('takes zsh, the default of macOS, for an unknown or missing shell', () => {
-    expect(rcFileOf(undefined)).toBe('~/.zshrc')
+  it('takes zsh, the default of macOS, for an unknown shell', () => {
     expect(rcFileOf('/bin/sh')).toBe('~/.zshrc')
+  })
+
+  it('takes ~/.profile, the login file of sh and bash, when no shell is known', () => {
+    expect(rcFileOf(undefined)).toBe('~/.profile')
+  })
+})
+
+describe('loginShell', () => {
+  it('is $SHELL when it is set', () => {
+    expect(loginShell('/bin/zsh', () => '/bin/bash')).toBe('/bin/zsh')
+  })
+
+  it('is the account shell of /etc/passwd when $SHELL is empty or unset', () => {
+    expect(loginShell('', () => '/bin/bash')).toBe('/bin/bash')
+    expect(loginShell(undefined, () => '/bin/bash')).toBe('/bin/bash')
+  })
+
+  it('is none when the account has no shell or it cannot be read', () => {
+    expect(loginShell(undefined, () => null)).toBeUndefined()
+    expect(loginShell('', () => '')).toBeUndefined()
+    expect(loginShell(undefined, () => { throw new Error('no passwd entry') })).toBeUndefined()
   })
 })
 

@@ -12,7 +12,7 @@ import { home, inContainer, loadEnv, root, source, stateDirOf } from './location
 import { UPDATE_BLOCKS } from './notice/en-values.js'
 import { accountsRoot } from './account/homes.js'
 import { removeAccountSettingsGuards } from './account/settingsGuard.js'
-import { globalBinOf, isAccessError, nearestExisting, npmPrefixAdvice, rootRefusal, writable } from './npm-access.js'
+import { globalBinOf, isAccessError, loginShell, nearestExisting, npmPrefixAdvice, rootRefusal, writable } from './npm-access.js'
 import { samePath } from './paths.js'
 import { autostartControl, launchdControl, systemdControl, windowsControl, type ServiceControl } from './updates/control.js'
 import { fromNpxCache, globalPrefixOf } from './updates/prefix.js'
@@ -142,6 +142,10 @@ function npmOutput(...command: string[]): string {
   return result.stdout.trim()
 }
 
+function shell(): string | undefined {
+  return loginShell(process.env.SHELL, () => userInfo().shell)
+}
+
 /** npx keeps the package in a cache it may clear: the service runs from a global install of the same version. */
 async function installGlobally(options: InstallOptions): Promise<void> {
   const npx = `npx ${name}@${installedVersion}`
@@ -151,7 +155,7 @@ async function installGlobally(options: InstallOptions): Promise<void> {
   const posix = process.platform !== 'win32'
   if (posix) {
     const blocked = [modules, globalBinOf(modules)].filter((folder) => folder !== null).map((folder) => nearestExisting(folder, existsSync)).find((folder) => !writable(folder))
-    if (blocked !== undefined) fail(npmPrefixAdvice(blocked, process.env.SHELL, npx))
+    if (blocked !== undefined) fail(npmPrefixAdvice(blocked, shell(), npx))
   }
   console.log(`even-keel: installing ${name}@${installedVersion} globally, the service needs a folder npx does not clear`)
   // A host of an earlier install runs node from the global folder npm replaces.
@@ -160,7 +164,7 @@ async function installGlobally(options: InstallOptions): Promise<void> {
     if (before !== null) quitHost(before.exe)
   }
   const { error, stderr } = await attemptKeepingErrors(npm('install', '--global', `${name}@${installedVersion}`, '--no-audit', '--no-fund'), 'npm install --global')
-  if (error !== null) fail(posix && isAccessError(stderr) ? `${error}\n${npmPrefixAdvice(modules, process.env.SHELL, npx)}` : error)
+  if (error !== null) fail(posix && isAccessError(stderr) ? `${error}\n${npmPrefixAdvice(modules, shell(), npx)}` : error)
   // The global copy waits for the page and prints its address; the browser opens only at this first install.
   run([process.execPath, join(modules, name, 'dist', 'src', 'cli.js'), 'install', ...installArgsOf(options)], 'even-keel install', noServiceManagerCode)
   // A machine has no page, and the Windows service waits for its password in services.msc.

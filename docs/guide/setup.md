@@ -722,7 +722,7 @@ Once the service is set up, `even-keel install` and `even-keel update` wait up t
 
 #### npm's global folder on macOS and Linux
 
-Node from the nodejs.org installer puts npm's global folder under `/usr/local`, which belongs to root, so `npm install --global` fails with `EACCES`. `npx even-keel` checks the folder first and, when it cannot write there, installs nothing and prints these commands: they move the folder into your home (`~/.bashrc` instead of `~/.zshrc` in bash).
+Node from the nodejs.org installer puts npm's global folder under `/usr/local`, which belongs to root, so `npm install --global` fails with `EACCES`. `npx even-keel` checks the folder first and, when it cannot write there, installs nothing and prints these commands: they move the folder into your home (`~/.bashrc` instead of `~/.zshrc` in bash; with `SHELL` empty, as under `docker exec`, the shell of your account in `/etc/passwd`, and `~/.profile` when that is unknown too).
 
 ```sh
 mkdir -p ~/.npm-global

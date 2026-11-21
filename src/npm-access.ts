@@ -29,9 +29,23 @@ export function writable(folder: string): boolean {
   }
 }
 
-/** The startup file of the login shell `$SHELL`; zsh, the default of macOS, when it is neither zsh nor bash. */
+/**
+ * The user's login shell: `$SHELL`, else the account's shell in /etc/passwd (`accountShell`, `os.userInfo().shell`).
+ * `docker exec` and other starts without a login shell leave `$SHELL` empty.
+ */
+export function loginShell(shell: string | undefined, accountShell: () => string | null | undefined): string | undefined {
+  if (shell !== undefined && shell !== '') return shell
+  try {
+    return accountShell() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** The startup file of the login shell; zsh, the default of macOS, for another shell; `~/.profile` when none is known. */
 export function rcFileOf(shell: string | undefined): string {
-  return shell !== undefined && posix.basename(shell) === 'bash' ? '~/.bashrc' : '~/.zshrc'
+  if (shell === undefined) return '~/.profile'
+  return posix.basename(shell) === 'bash' ? '~/.bashrc' : '~/.zshrc'
 }
 
 /** What to do when npm cannot write `folder`: move npm's global folder into the home, then run `npx` again. */
