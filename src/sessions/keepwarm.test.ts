@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { emptyChainState, newChain, type ActiveChain } from '../chain/model.js'
 import type { PullRequest } from '../review/model.js'
 import type { TurnSpend } from '../state.js'
-import { KeepWarm, warmStep, warmTasks, type WarmFacts } from './keepwarm.js'
+import { KeepWarm, warmStep, warmTasks, type KeepWarmDeps, type WarmFacts } from './keepwarm.js'
 
 const HOUR = 60 * 60_000
 const at = (time: string) => new Date(`2026-10-26T${time}:00.000Z`)
@@ -132,7 +132,7 @@ describe('warmStep', () => {
 })
 
 describe('KeepWarm', () => {
-  const setup = (answer: () => Promise<TurnSpend>, hours = 8) => {
+  const setup = (answer: () => Promise<TurnSpend>, hours = 8, transcript?: KeepWarmDeps['transcript']) => {
     const clock = { now: at('12:56') }
     const sessions = [facts()]
     const pinged: string[] = []
@@ -143,14 +143,46 @@ describe('KeepWarm', () => {
       sessions: () => sessions,
       ping: (each) => {
         pinged.push(each.sessionId)
+        lines.push('answered')
         return answer()
       },
       onWarm: () => woken.count++,
       now: () => clock.now,
       log: (line) => lines.push(line),
+      ...(transcript !== undefined && { transcript }),
     })
     return { keep, clock, pinged, lines, woken }
   }
+
+  const decisions = (lines: string[]) => lines.filter((line) => line.includes(' starts at '))
+
+  it('logs the inputs of its decision as each ping starts (BTN-1394)', async () => {
+    const file = { size: 4096, modifiedAt: '2026-10-26T12:00:01.000Z', lastEntryAt: '2026-10-26T12:00:00.500Z' }
+    const { keep, clock, lines } = setup(async () => spend(30_000), 8, async () => file)
+    await keep.check()
+    expect(lines[0]).toBe(
+      'keepwarm: ABC-1: the ping 1 of session-1 starts at 2026-10-26T12:56:00.000Z: cache 1h until 2026-10-26T13:00:00.000Z ' +
+        'from the request at 2026-10-26T12:00:00.000Z; busy false, onTool false, held false, limited false; series none; ' +
+        'transcript 4096 bytes, modified 2026-10-26T12:00:01.000Z, last entry 2026-10-26T12:00:00.500Z',
+    )
+    expect(lines[1]).toBe('answered')
+    clock.now = at('13:51')
+    await keep.check()
+    expect(decisions(lines)[1]).toContain(
+      'the ping 2 of session-1 starts at 2026-10-26T13:51:00.000Z: cache 1h until 2026-10-26T13:00:00.000Z from the request at ' +
+        '2026-10-26T12:00:00.000Z; busy false, onTool false, held false, limited false; ' +
+        'series stretch 2026-10-26T12:00:00.000Z, pings 1, warmed 2026-10-26T12:56:00.000Z; transcript 4096 bytes',
+    )
+  })
+
+  it('still pings when the transcript file cannot be read, and says so in the line', async () => {
+    const { keep, pinged, lines } = setup(async () => spend(30_000), 8, async () => {
+      throw new Error('ENOENT')
+    })
+    await keep.check()
+    expect(pinged).toEqual(['session-1'])
+    expect(decisions(lines)[0]).toMatch(/; transcript unknown$/)
+  })
 
   it('sends nothing while it is off', async () => {
     const { keep, pinged } = setup(async () => spend(30_000), 0)
@@ -206,7 +238,7 @@ describe('KeepWarm', () => {
     await keep.check()
     expect(pinged).toHaveLength(2)
     expect(keep.warmedAt('session-1')).toBe('2026-10-26T12:57:00.000Z')
-    expect(lines[0]).toContain('skipped')
+    expect(lines.find((line) => line.includes('skipped'))).toContain('529 overloaded_error')
   })
 
   it('tells the page the pings of the current stretch of idleness and wakes it on each (EKR-143)', async () => {

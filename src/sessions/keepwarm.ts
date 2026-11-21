@@ -46,6 +46,29 @@ export interface WarmMemory {
 
 export type WarmStep = 'ping' | 'wait'
 
+/** A session's transcript file as a ping goes out: whether the service read it late shows here (BTN-1394). */
+export interface TranscriptFile {
+  size: number
+  modifiedAt: string
+  /** The last line the service folded from it. */
+  lastEntryAt: string | null
+}
+
+/** The log line of a ping as it starts: every input of `warmStep`'s decision, to explain a ping that went out early. */
+export function pingLine(facts: WarmFacts, memory: WarmMemory | undefined, now: Date, file: TranscriptFile | null): string {
+  const { task, sessionId, cache } = facts
+  const stretch = Date.parse(cache!.until) - TTL_MS[cache!.ttl]
+  const ping = memory !== undefined && Date.parse(memory.stretch) === stretch ? memory.pings + 1 : 1
+  const states = `busy ${facts.busy}, onTool ${facts.onTool}, held ${facts.held}, limited ${facts.limited}`
+  const series = memory === undefined ? 'none' : `stretch ${memory.stretch}, pings ${memory.pings}, warmed ${memory.warmedAt ?? 'never'}`
+  const transcript = file === null ? 'unknown' : `${file.size} bytes, modified ${file.modifiedAt}, last entry ${file.lastEntryAt ?? 'none'}`
+  return (
+    `keepwarm: ${task}: the ping ${ping} of ${sessionId} starts at ${now.toISOString()}: ` +
+    `cache ${cache!.ttl} until ${cache!.until} from the request at ${new Date(stretch).toISOString()}; ${states}; ` +
+    `series ${series}; transcript ${transcript}`
+  )
+}
+
 /** Whether to ping the session now: only a warm cache about to go cold, within the idle ceiling and the break-even. */
 export function warmStep(facts: WarmFacts, memory: WarmMemory | undefined, now: Date, maxIdleMs: number): WarmStep {
   const { cache } = facts
@@ -90,6 +113,8 @@ export interface KeepWarmDeps {
   ping: (facts: WarmFacts) => Promise<TurnSpend>
   /** A ping kept a cache warm: the page's clock of it moves on (`kept`). */
   onWarm?: () => void
+  /** The session's transcript file for the ping's log line; `null` or a failure — unknown. */
+  transcript?: (facts: WarmFacts) => Promise<TranscriptFile | null>
   now: () => Date
   log: (line: string) => void
 }
@@ -139,6 +164,8 @@ export class KeepWarm {
     const stretch = new Date(Date.parse(cache!.until) - TTL_MS[cache!.ttl]).toISOString()
     this.flying.add(sessionId)
     try {
+      const file = await (this.deps.transcript?.(facts) ?? Promise.resolve(null)).catch(() => null)
+      this.deps.log(pingLine(facts, this.memory.get(sessionId), now, file))
       const { tokens } = await this.deps.ping(facts)
       const prompt = tokens.input + tokens.cacheRead + tokens.cacheWrite
       const read = `read ${tokens.cacheRead} of ${prompt} tokens from the cache, wrote ${tokens.cacheWrite}`

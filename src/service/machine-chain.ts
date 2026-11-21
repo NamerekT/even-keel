@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
 import { type AccountHome } from '../account/homes.js'
 import { accountAt } from '../account/ledger.js'
 import { accountId, launchBlock } from '../account/model.js'
@@ -329,6 +329,12 @@ export function wireKeepWarm(ctx: MachineContext): KeepWarm {
       return spend
     },
     onWarm: () => ctx.tell.changed(),
+    transcript: async ({ task }) => {
+      const path = ctx.monitor.handoff(task)?.transcript
+      if (path == null) return null
+      const info = await stat(path)
+      return { size: info.size, modifiedAt: info.mtime.toISOString(), lastEntryAt: ctx.liveView(task)?.lastActivityAt ?? null }
+    },
     now: () => new Date(),
     log: (line) => console.log(line),
   })
