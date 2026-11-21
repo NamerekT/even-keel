@@ -138,6 +138,11 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
       calls.push(['checkReport', id, report])
       return true
     },
+    outsiderFiles: (id, files) => {
+      if (id !== 'chain-session') return undefined
+      calls.push(['outsiderFiles', id, files])
+      return files.filter((file) => file.startsWith('.github/'))
+    },
     mail: (id, event) => (id !== 'chain-session' ? undefined : Promise.resolve(event === 'PostToolUse' ? { message: `mail on ${event}`, finish: () => {} } : null)),
     tools: async (project) => (project === 'ABC' ? { project } : undefined),
     vocabulary: async (id) => {

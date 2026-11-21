@@ -28,6 +28,8 @@ export const REVIEW_NOTICES_RU = {
   'review.dirty': (p) => `в ${p.path} есть незакоммиченные изменения`,
   'review.nothingAhead': (p) => `у ${p.branch} нет коммитов сверх ${p.base}`,
   'review.pushFailed': (p) => `не удалось запушить ${p.branch} в ${p.remote}`,
+  'review.outsiderFiles': (p) =>
+    `${p.task} взята из issue постороннего, и её ветка меняет ${p.files.length === 0 ? 'файлы, которые не удалось прочитать' : `${p.files.join(', ')}${p.more > 0 ? ` и ещё ${p.more}` : ''}`}: ${p.pull ? 'pull request' : 'слияние'} ждёт вас`,
   'review.pushBehind': (p) =>
     `в ${p.branch} на ${p.remote} есть коммиты, которых нет у сессии (например, конфликт разрешён на форже): сессия сливает их к себе и снова отмечает pull request`,
 } satisfies { [K in keyof typeof REVIEW_NOTICES]: NoticeTexts[K] }

@@ -87,6 +87,13 @@ label you put on yourself ([the chain](chain.md#which-tasks-enter-the-chain)).
   branch itself and Even Keel pushes it to every remote. In PR mode Even Keel pushes the task's branch and opens a pull
   request, and CI runs on that branch. A change to CI workflows, hooks, `CLAUDE.md`, `AGENTS.md`, skills or package
   scripts acts outside the session: in CI, in the service and in every next session.
+- **Except an outsider's task that changes such files.** A task taken in from an outsider's issue whose branch changes
+  a CI workflow (`.github/workflows/`, `.forgejo/workflows/`, `.gitea/workflows/`, `.gitlab-ci.yml`), the agent's files
+  (`.claude/`, `.codex/`, `CLAUDE.md`, `AGENTS.md`, at any level) or a `package.json` waits for you. Its session's merge
+  is refused, and in PR mode Even Keel does not push the branch, since the push alone runs its workflows. The chain
+  pauses on the task and names the files: look at the branch's diff, then merge it or push it and open the pull request
+  yourself, or tell the session in the chat what to change. Once the task is done the chain goes on. A task you or a
+  member filed is never held this way.
 
 ## Setting up a public repository
 

@@ -13,6 +13,7 @@ const SESSION_ROUTES = new Map<string, readonly string[]>([
   ['note', ['GET']],
   ['check', ['GET', 'POST']],
   ['standards', ['GET']],
+  ['outsider', ['POST']],
   ['mail', ['POST']],
   ['permission', ['POST']],
 ])

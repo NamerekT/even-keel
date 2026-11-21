@@ -87,14 +87,20 @@ export function runCommand(command, cwd, timeoutMs = COMMAND_TIMEOUT_MS) {
  * such merge, no check, or every command passed. `checkOf` asks Even Keel; when it fails, the merge goes on.
  * Once every command passed, `report` tells Even Keel the tree they passed on (EKR-103): only that report counts main
  * as checked after the push. A worktree with changes to tracked files is no tree of a commit, so it is not reported.
+ * A task from an outsider's issue (`check.outsider`, BTN-1207) sends the branch's changed files to `held`, Even Keel's
+ * answer of those it holds; any, or no answer, refuses the merge for a person to look at.
  */
-export async function mergeRefusal(command, cwd, checkOf, report = async () => {}) {
+export async function mergeRefusal(command, cwd, checkOf, report = async () => {}, held = async () => null) {
   if (!String(command ?? "").includes("merge")) return null;
   const root = await git(cwd, ["rev-parse", "--show-toplevel"]);
   const branch = root === "" ? "" : await git(root, ["branch", "--show-current"]);
   if (branch === "" || !mergesBranch(command, branch)) return null;
   const check = await checkOf().catch(() => null);
   if (check === null || branch === check.main) return null;
+  if (check.outsider === true) {
+    const outsider = await outsiderRefusal(root, check.main, held);
+    if (outsider !== null) return outsider;
+  }
   const standards = await standardsRefusal(root, check.main, check.standards);
   if (standards !== null) return standards;
   for (const step of check.commands) {
@@ -103,6 +109,23 @@ export async function mergeRefusal(command, cwd, checkOf, report = async () => {
   }
   if (check.commands.length > 0) await reportTree(root, check.commands, report);
   return null;
+}
+
+async function outsiderRefusal(root, main, held) {
+  const diff = await new Promise((resolve) => {
+    execFile("git", ["diff", "--name-only", `${main}...HEAD`], { cwd: root, encoding: "utf8", windowsHide: true }, (error, stdout) => resolve(error ? null : stdout));
+  });
+  const files = diff === null ? null : diff.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== "");
+  const answer = files === null ? null : await Promise.resolve(held(files)).catch(() => null);
+  if (Array.isArray(answer) && answer.length === 0) return null;
+  const named = Array.isArray(answer) ? answer.map((file) => `- \`${file}\``).join("\n") : "- (Even Keel or git could not tell which ones)";
+  return (
+    "Even Keel stopped the merge: this task comes from an issue by someone outside the project, and the branch changes " +
+    "files that act outside this session — CI workflows, the agent's settings, hooks, skills and rules, package scripts:\n\n" +
+    `${named}\n\n` +
+    "A person reviews the branch's diff and merges it or not; the chain waits for them. Do not merge it another way " +
+    "and do not revert those changes to get past this. End the turn and say what you changed in these files and why.\n"
+  );
 }
 
 async function reportTree(root, commands, report) {

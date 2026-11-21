@@ -14,6 +14,8 @@ export const ADVICE = {
   'review.noNote': (p) => (p.reason === undefined ? undefined : 'answer its session from the chat to write it under .temp/ and mark again: the chain goes on by itself'),
   'review.noBranch': () => "check out the task's branch there and press Resume, or skip the task",
   'review.dirty': () => 'commit or remove them and press Resume, answer its session from the chat, or skip the task',
+  'review.outsiderFiles': (p) =>
+    p.pull ? 'look at its diff, then push the branch and open its pull request yourself, or skip the task' : 'look at its diff, then merge the branch yourself, or skip the task',
   'review.notReady': () => 'fix that and the chain goes on by itself within a minute, or turn PR mode off',
   'review.noToken': (p) => `add a ${FORGES[p.kind]} profile for its host`,
   'accept.notChecked': () => 'try again in a moment',

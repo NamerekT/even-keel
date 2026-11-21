@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -123,5 +123,53 @@ describe("mergeRefusal", children, () => {
     expect(await mergeRefusal("npm test", repo, never)).toBeNull();
     expect(await mergeRefusal(merge, tmpdir(), never)).toBeNull();
     expect(await mergeRefusal(merge, repo, () => Promise.reject(new Error("refused")))).toBeNull();
+  });
+});
+
+describe("mergeRefusal of an outsider's task (BTN-1207)", children, () => {
+  let repo;
+  beforeAll(() => {
+    repo = mkdtempSync(join(tmpdir(), "merge-outsider-"));
+    const git = (...args) => execFileSync("git", ["-c", "user.name=John Doe", "-c", "user.email=john@example.com", ...args], { cwd: repo });
+    git("init", "-q", "-b", "main");
+    writeFileSync(join(repo, "README.md"), "app\n");
+    git("add", ".");
+    git("commit", "-q", "-m", "base");
+    git("checkout", "-q", "-b", branch);
+    mkdirSync(join(repo, ".github", "workflows"), { recursive: true });
+    writeFileSync(join(repo, ".github", "workflows", "ci.yml"), "on: push\n");
+    writeFileSync(join(repo, "app.js"), "1\n");
+    git("add", ".");
+    git("commit", "-q", "-m", "task");
+  });
+  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+  const merge = "git merge --no-edit abc-12/task";
+  const checkOf = (outsider) => async () => ({ commands: [], standards: [], main: "main", outsider });
+
+  it("sends the branch's files to Even Keel and refuses the merge with the files it holds", async () => {
+    const asked = [];
+    const held = async (files) => {
+      asked.push([...files].sort());
+      return [".github/workflows/ci.yml"];
+    };
+    const text = await mergeRefusal(merge, repo, checkOf(true), undefined, held);
+    expect(asked).toEqual([[".github/workflows/ci.yml", "app.js"]]);
+    expect(text).toContain("someone outside the project");
+    expect(text).toContain("`.github/workflows/ci.yml`");
+    expect(text).toContain("Do not merge it another way");
+  });
+
+  it("lets the merge go when Even Keel holds none of the files, and never asks for a task of no outsider", async () => {
+    expect(await mergeRefusal(merge, repo, checkOf(true), undefined, async () => [])).toBeNull();
+    const never = async () => {
+      throw new Error("asked");
+    };
+    expect(await mergeRefusal(merge, repo, checkOf(false), undefined, never)).toBeNull();
+  });
+
+  it("refuses when Even Keel, having named the task an outsider's, does not answer about its files", async () => {
+    expect(await mergeRefusal(merge, repo, checkOf(true), undefined, async () => null)).toContain("could not tell");
+    expect(await mergeRefusal(merge, repo, checkOf(true), undefined, () => Promise.reject(new Error("down")))).toContain("could not tell");
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { fail } from '../notice/notice.js'
+import { fail, NoticeError } from '../notice/notice.js'
+import { outsiderHold } from '../review/outsider.js'
 import type { PullRequest, ReviewCheck } from '../review/model.js'
 import { PROMPTS } from './prompts.js'
 import { done, setup, task, type SetupOptions } from './dispatcher.fixture.js'
@@ -209,6 +210,47 @@ describe('Dispatcher in PR mode', () => {
     expect(relays).toEqual([])
     expect(stopped).toEqual([])
     expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  const outsiderFiles = (pull = true) => outsiderHold('ABC-1', ['.github/workflows/ci.yml'], pull)
+
+  it('pauses on an outsider task whose branch changes guarded files, tells the session nothing and never retries the push on resume (BTN-1207)', async () => {
+    const { pulls, tries } = refusing(new NoticeError(outsiderFiles()))
+    const { dispatcher, relays, stopped, launched } = await running({ reviews: pulls.deps })
+
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: { task: 'ABC-1' }, error: { code: 'review.outsiderFiles' } })
+    dispatcher.resume('ABC')
+    await dispatcher.idle()
+
+    expect(tries.count).toBe(1)
+    expect(pulls.opened).toEqual([])
+    expect(relays).toEqual([])
+    expect(stopped).toEqual([])
+    expect(launched).toEqual([])
+  })
+
+  it('lets the outsider task paused on its guarded files go once a person merged it and the tracker has it done (BTN-1207)', async () => {
+    const { pulls } = refusing(new NoticeError(outsiderFiles()))
+    const { dispatcher, launched } = await running({ reviews: pulls.deps })
+
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null, current: { task: 'ABC-2' } })
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('holds the chain on its current task when asked to, its session untouched, and ignores a task no lane runs (BTN-1207)', async () => {
+    const { dispatcher, relays, stopped } = await running()
+
+    expect(dispatcher.holdTask('ABC', 'ABC-9', outsiderFiles(false))).toBe(false)
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false })
+    expect(dispatcher.holdTask('ABC', 'ABC-1', outsiderFiles(false))).toBe(true)
+    await dispatcher.idle()
+
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: { task: 'ABC-1', sessionId: 'old-session' }, error: { code: 'review.outsiderFiles' } })
+    expect(relays).toEqual([])
+    expect(stopped).toEqual([])
   })
 
   it('keeps a pause for another reason when the current task is done', async () => {

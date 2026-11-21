@@ -12,7 +12,15 @@ describe('openPull', () => {
   const now = () => new Date('2026-10-19T12:00:00Z')
 
   /** `status` — what `git status` lists; `note` — whether the session wrote the pull request's note; `push` — what the push answers. */
-  async function opening(ahead: GitResult, status = '', note = true, closes?: { issue: string; repo: string }, push: GitResult = { code: 0, out: '' }) {
+  /** `outsider` — the task is an outsider's, `diff` — what git names as the branch's changed files (BTN-1207). */
+  async function opening(
+    ahead: GitResult,
+    status = '',
+    note = true,
+    closes?: { issue: string; repo: string },
+    push: GitResult = { code: 0, out: '' },
+    { outsider, diff = { code: 0, out: '' } }: { outsider?: string; diff?: GitResult } = {},
+  ) {
     const dir = await mkdtemp(join(tmpdir(), 'open-pull-'))
     if (note) await writeFile(join(dir, 'pull.md'), 'Fix the parser\n\nQuotes kept.\n')
     const asked: string[] = []
@@ -22,6 +30,7 @@ describe('openPull', () => {
       if (args[0] === 'push') return push
       if (args[0] === 'rev-list') return ahead
       if (args[0] === 'status') return { code: 0, out: status }
+      if (args[0] === 'diff') return diff
       return { code: 0, out: '' }
     }
     const created: string[] = []
@@ -37,9 +46,27 @@ describe('openPull', () => {
       state: async () => ({ state: 'open', mergeable: true, head: 'a1' }),
       changes: async () => [],
     }
-    const result = openPull(git, dir, 'pull.md', 'origin', forge, 'trunk', now, closes)
+    const result = openPull(git, dir, 'pull.md', 'origin', forge, 'trunk', now, closes, outsider)
     return { result, asked, created, bodies }
   }
+
+  it('holds the push of an outsider’s branch that changes a workflow or the agent’s rules, and lets every other through (BTN-1207)', async () => {
+    const changed = { code: 0, out: 'src/parser.ts\n.github/workflows/ci.yml\nweb/CLAUDE.md\n.claude/settings.json\npackage.json\n' }
+    const held = await opening({ code: 0, out: '1\n' }, '', true, undefined, undefined, { outsider: 'ABC-7', diff: changed })
+    await expect(held.result).rejects.toMatchObject({
+      notice: { code: 'review.outsiderFiles', params: { task: 'ABC-7', files: ['.github/workflows/ci.yml', 'web/CLAUDE.md', '.claude/settings.json'], more: 1, pull: true } },
+    })
+    expect(held.asked).toContain('diff --name-only refs/remotes/origin/trunk...HEAD')
+    expect(held.asked.some((each) => each.startsWith('push'))).toBe(false)
+    expect(held.created).toEqual([])
+    const unread = await opening({ code: 0, out: '1\n' }, '', true, undefined, undefined, { outsider: 'ABC-7', diff: { code: 128, out: 'fatal' } })
+    await expect(unread.result).rejects.toMatchObject({ notice: { code: 'review.outsiderFiles', params: { files: [], more: 0 } } })
+    const plain = await opening({ code: 0, out: '1\n' }, '', true, undefined, undefined, { outsider: 'ABC-7', diff: { code: 0, out: 'src/parser.ts\ndocs/ci.md\n' } })
+    await expect(plain.result).resolves.toMatchObject({ number: 3 })
+    const member = await opening({ code: 0, out: '1\n' }, '', true, undefined, undefined, { diff: changed })
+    await expect(member.result).resolves.toMatchObject({ number: 3 })
+    expect(member.asked.some((each) => each.startsWith('diff'))).toBe(false)
+  })
 
   it('opens nothing for a branch with no commits beyond the remote base and a clean worktree, note or not, and pushes nothing', async () => {
     for (const note of [true, false]) {

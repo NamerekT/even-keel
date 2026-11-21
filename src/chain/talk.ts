@@ -9,6 +9,12 @@ import type { HandoffSession } from './relay.js'
 import { guardRestart } from './restartGuard.js'
 import type { Unchanged } from './unchanged.js'
 
+/**
+ * The pauses that wait on the user about a landing of the task: a pull request not opened (BTN-715) or an outsider's
+ * branch held (BTN-1207). An answer to the session or a Done of the task ends them.
+ */
+export const USER_HOLDS: ReadonlySet<string> = new Set(['review.notOpened', 'review.outsiderFiles'])
+
 export interface TalkHost {
   /** The project's head lane; with `task` — the lane holding it, else the head. */
   chainOf: (project: string, task?: string) => ActiveChain | undefined
@@ -124,9 +130,12 @@ export class Talks {
     return accepted
   }
 
-  /** A pause for the user to tell the session of a mark refused what to do ends once they do: its next mark opens at once. */
+  /**
+   * A pause for the user to tell the session of a mark refused, or of an outsider's branch held (BTN-1207), what to do
+   * ends once they do: its next mark opens at once, and the hold is checked again on it.
+   */
   unhold(chain: ActiveChain): void {
-    if (!chain.paused || chain.error?.code !== 'review.notOpened') return
+    if (!chain.paused || !USER_HOLDS.has(chain.error?.code ?? '')) return
     chain.paused = false
     chain.error = null
   }

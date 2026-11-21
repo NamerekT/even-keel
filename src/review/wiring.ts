@@ -40,6 +40,8 @@ export interface ReviewWiring {
   complete: ReviewDeps['complete']
   /** How the task's tracker names its issue to a forge (`TaskSource.closingRef`); `null` — it does not. */
   closingRef?: (project: string, task: string) => Promise<string | null>
+  /** Whether the task came from an outsider's issue (`Intake.outsider`, BTN-1207); none — no task is. */
+  outsider?: (project: string, task: string) => boolean
   /** Where a token the forge refused to open a pull request with is told, for the profile's card (EKR-9). */
   refusals?: PullRefusals
   now: () => Date
@@ -80,7 +82,8 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       const closes = (issue == null ? null : closingOf(target, issue)) ?? undefined
       let opened: Awaited<ReturnType<typeof openPull>>
       try {
-        opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now, closes)
+        const outsider = wiring.outsider?.(project, task) === true ? task : undefined
+        opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now, closes, outsider)
       } catch (error) {
         const why = noticeOf(error)
         if (why.code === 'review.denied') wiring.refusals?.note(project, target, ready.token)

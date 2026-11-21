@@ -250,6 +250,18 @@ describe('Even Keel HTTP server', () => {
     expect((await post('chain-session', { tree: 'HEAD', commands: [] })).status).toBe(400)
   })
 
+  it('answers the merge hook which of the branch files an outsider task holds, 404 for another session, 400 without files (BTN-1207)', async () => {
+    const post = (id: string, body: unknown) => fetch(base + `/api/sessions/${id}/outsider`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    const files = ['src/a.ts', '.github/workflows/ci.yml']
+    const held = await post('chain-session', { files })
+    expect(held.status).toBe(200)
+    expect(await held.json()).toEqual({ held: ['.github/workflows/ci.yml'] })
+    expect(calls).toContainEqual(['outsiderFiles', 'chain-session', files])
+    expect((await post('other', { files })).status).toBe(404)
+    expect((await post('chain-session', { files: [1] })).status).toBe(400)
+    expect((await post('chain-session', {})).status).toBe(400)
+  })
+
   it('gives the standards hook the standards of a chain session and 404 for any other', async () => {
     const found = await fetch(base + '/api/sessions/chain-session/standards')
     expect(found.status).toBe(200)

@@ -4,7 +4,7 @@
 // a failed command blocks the merge, and its output goes back to the session to fix. A passed check is reported with
 // the tree it ran on: only that report lets Even Keel count main checked after the push (EKR-103).
 import { readFileSync } from "node:fs";
-import { checkOf, reportCheck } from "./evenkeel.mjs";
+import { checkOf, outsiderHeld, reportCheck } from "./evenkeel.mjs";
 import { mergeRefusal } from "./merges.mjs";
 
 function readInput() {
@@ -24,6 +24,7 @@ async function main() {
     cwd,
     () => checkOf(input.session_id),
     (tree, commands) => reportCheck(input.session_id, tree, commands),
+    (files) => outsiderHeld(input.session_id, files),
   );
   if (text === null) return;
   // An explicit denial: Codex 0.164.0 ignores exit code 2 alone for the nested shell calls of code mode.

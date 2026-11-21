@@ -37,7 +37,17 @@ export interface IntakeEntry {
   seen: number
   /** The task is done and the line is posted: the version it named, `null` — the next release. */
   shipped?: { version: string | null; at: string }
+  /**
+   * The issue's author is not one of the repository's own people (`trustedAuthor`): the task's branch is held before its
+   * merge or pull request while it changes files that act outside the session (BTN-1207, `src/review/outsider.ts`).
+   */
+  outsider?: true
+  /** An outsider's issue closed on GitHub: no longer followed there, kept only for the mark until its task is done or gone. */
+  closed?: true
 }
+
+/** Whether the issue's author is an outsider (`IntakeEntry.outsider`). */
+export const outsiderIssue = (issue: Pick<IntakeIssue, 'association' | 'author'>): boolean => !trustedAuthor(issue.association, issue.author, null)
 
 /** Whose comment is copied: a collaborator's as it is, the issue author's as information; anyone else's is not. */
 export type Voice = 'member' | 'author'

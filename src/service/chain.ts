@@ -70,6 +70,7 @@ export type ChainContext = Pick<ServiceContext,
   | 'homeOf'
   | 'homes'
   | 'hub'
+  | 'intake'
   | 'keepWarm'
   | 'launchIn'
   | 'launches'
@@ -234,6 +235,7 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
       // The issue is named only to show the link on GitHub: a tracker that does not answer leaves the body as it is.
       closingRef: async (project, task) =>
         (await ctx.linkFor(project, task)?.run(async (tracker) => tracker.closingRef?.(task) ?? null).catch(() => null)) ?? null,
+      outsider: (project, task) => ctx.intake.outsider(project, task),
       refusals: ctx.pullRefusals,
       now: () => new Date(),
       timeoutMs: ctx.CI_TIMEOUT_MS,

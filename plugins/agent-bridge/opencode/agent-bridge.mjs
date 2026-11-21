@@ -14,7 +14,7 @@
 // subagent runs in a session of its own, which Even Keel does not know, so it is left alone. Only `server` is
 // exported: OpenCode takes the module's exports for plugins.
 import { addressRefusal } from "../hooks/addressban.mjs";
-import { checkOf, checkpointNote, mailOf, noteAtEnd, reportCheck, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
+import { checkOf, checkpointNote, mailOf, noteAtEnd, outsiderHeld, reportCheck, STATE_DIR, standardsOf } from "../hooks/evenkeel.mjs";
 import { gitRefusal } from "../hooks/gitban.mjs";
 import { hasMark, isKeptCall, isNotePath, markOf } from "../hooks/handoff.mjs";
 import { mailPost } from "../hooks/mailpost.mjs";
@@ -65,6 +65,7 @@ export const server = async ({ client, directory }) => {
         directory,
         () => checkOf(input.sessionID),
         (tree, commands) => reportCheck(input.sessionID, tree, commands),
+        (files) => outsiderHeld(input.sessionID, files),
       ).catch(() => null);
       if (text !== null) throw new Error(text);
     },

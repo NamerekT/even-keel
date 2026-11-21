@@ -5,6 +5,7 @@ import { BUILTIN_BODY_LIMITS, BUILTIN_QUERIES, BUILTIN_UPLOAD, builtinUpload } f
 import { CHATS_BODY_LIMITS, CHATS_QUERIES } from './chats/routes.js'
 import { checkReportOf } from './chain/checkreports.js'
 import { statusMovesOf } from './chain/moves.js'
+import { filesOf } from './review/outsider.js'
 import { CLAUDE } from './claude/name.js'
 import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
 import { DICTATION_BODY_BYTES } from './dictation/transcribe.js'
@@ -340,6 +341,22 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     }
     if (known) sendJson(response, 200, { ok: true })
     else response.writeHead(404).end()
+    return
+  }
+
+  const outsider = /^\/api\/sessions\/([^/]+)\/outsider$/.exec(path)
+  if (request.method === 'POST' && outsider !== null) {
+    let held: string[] | undefined
+    try {
+      const files = filesOf(await readJsonBody(request, MAX_BODY_BYTES))
+      if (files === null) throw fail('request.required', { field: 'files' })
+      held = deps.outsiderFiles(decodeURIComponent(outsider[1]!), files)
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (held === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, { held })
     return
   }
 

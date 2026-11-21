@@ -5,7 +5,7 @@ import { englishOf, noticeOf } from '../notice/notice.js'
 import type { StatusCategory } from '../tracker/model.js'
 import { templateHits, type IssueTemplate, type TemplateHit } from '../tracker/templates.js'
 import type { IntakeRepo } from './github.js'
-import { copyOf, nextVersion, shippedLine, taskOf, voiceOf, type IntakeComment, type IntakeEntry, type IntakeIssue } from './model.js'
+import { copyOf, nextVersion, outsiderIssue, shippedLine, taskOf, voiceOf, type IntakeComment, type IntakeEntry, type IntakeIssue } from './model.js'
 
 /** A project that takes the issues of a GitHub repository in: those with `label`, through `repo`'s calls. */
 export interface IntakePlace {
@@ -101,7 +101,8 @@ export class Intake {
       const comments = await place.repo.comments(issue.number, 0)
       this.skip(place.slug, issue, comments)
       const task = await this.deps.create(place.project, taskOf(issue, comments, this.deps.language(place.project)))
-      this.store([...this.entries, { project: place.project, repo: place.slug, number: issue.number, task, seen: comments.at(-1)?.id ?? 0 }])
+      const entry: IntakeEntry = { project: place.project, repo: place.slug, number: issue.number, task, seen: comments.at(-1)?.id ?? 0 }
+      this.store([...this.entries, outsiderIssue(issue) ? { ...entry, outsider: true } : entry])
       this.deps.log(`intake: ${place.slug}#${issue.number} is taken in as ${task}`)
     }
   }
@@ -122,33 +123,57 @@ export class Intake {
     return true
   }
 
+  /** Whether the project's task came from an outsider's issue (`IntakeEntry.outsider`). */
+  outsider(project: string, task: string): boolean {
+    return this.entries.some((entry) => entry.project === project && entry.task === task && entry.outsider === true)
+  }
+
   private async follow(entry: IntakeEntry, place: IntakePlace): Promise<void> {
     const where = `${entry.repo}#${entry.number}`
+    if (entry.closed === true) return this.followClosed(entry)
     const issue = await place.repo.issue(entry.number)
-    if (issue === null || !issue.open) return this.drop(entry, `intake: ${where} is closed on GitHub; ${entry.task} is not followed any more`)
-    if (entry.shipped !== undefined) {
-      const { version, at } = entry.shipped
-      if (!(await (version === null ? place.repo.releasedSince(at) : place.repo.released(version)))) return
-      await place.repo.close(entry.number)
-      return this.drop(entry, `intake: ${where} is closed: ${version ?? 'a release'} is out with ${entry.task}`)
+    if (issue === null || !issue.open) {
+      if (entry.outsider !== true) return this.drop(entry, `intake: ${where} is closed on GitHub; ${entry.task} is not followed any more`)
+      // Closing the issue must not let the outsider's task land unchecked.
+      this.update(entry, { closed: true })
+      this.deps.log(`intake: ${where} is closed on GitHub; ${entry.task} is not followed there any more and stays an outsider's task until it is done`)
+      return
     }
-    const task = await this.deps.task(entry.project, entry.task)
-    if (task === null || task.category === 'Lost') return this.drop(entry, `intake: ${entry.task} is gone or dropped; ${where} is not followed any more`)
+    let current = outsiderIssue(issue) === (entry.outsider === true) ? entry : this.mark(entry, outsiderIssue(issue))
+    if (current.shipped !== undefined) {
+      const { version, at } = current.shipped
+      if (!(await (version === null ? place.repo.releasedSince(at) : place.repo.released(version)))) return
+      await place.repo.close(current.number)
+      return this.drop(current, `intake: ${where} is closed: ${version ?? 'a release'} is out with ${current.task}`)
+    }
+    const task = await this.deps.task(current.project, current.task)
+    if (task === null || task.category === 'Lost') return this.drop(current, `intake: ${current.task} is gone or dropped; ${where} is not followed any more`)
     if (task.category === 'Won') {
       const tags = nextVersion(task.milestone, []) === null ? [] : await place.repo.tags('v')
       const version = nextVersion(task.milestone, tags)
-      await place.repo.comment(entry.number, shippedLine(version))
-      this.update(entry, { shipped: { version, at: this.deps.now().toISOString() } })
-      this.deps.log(`intake: ${where}: ${entry.task} is done, the issue says it ships in ${version ?? 'the next release'}`)
+      await place.repo.comment(current.number, shippedLine(version))
+      this.update(current, { shipped: { version, at: this.deps.now().toISOString() } })
+      this.deps.log(`intake: ${where}: ${current.task} is done, the issue says it ships in ${version ?? 'the next release'}`)
       return
     }
-    let current = entry
-    for (const comment of await place.repo.comments(entry.number, entry.seen)) {
+    for (const comment of await place.repo.comments(current.number, current.seen)) {
       const voice = voiceOf(comment, issue)
       if (voice === null) this.skipOne(entry.repo, issue, comment)
       else await this.deps.comment(entry.project, entry.task, copyOf(comment, voice, this.deps.language(entry.project)))
       current = this.update(current, { seen: comment.id })
     }
+  }
+
+  private async followClosed(entry: IntakeEntry): Promise<void> {
+    const task = await this.deps.task(entry.project, entry.task)
+    if (task !== null && task.category !== 'Won' && task.category !== 'Lost') return
+    this.drop(entry, `intake: ${entry.task} is done or gone; it is not held as an outsider's task any more`)
+  }
+
+  /** The author's standing changed since the issue was taken in: a collaborator now, or not any more. */
+  private mark(entry: IntakeEntry, outsider: boolean): IntakeEntry {
+    const { outsider: _, ...rest } = entry
+    return this.update(entry, outsider ? { ...rest, outsider: true } : rest, true)
   }
 
   private skip(slug: string, issue: IntakeIssue, comments: IntakeComment[]): void {
@@ -163,8 +188,9 @@ export class Intake {
     )
   }
 
-  private update(entry: IntakeEntry, change: Partial<IntakeEntry>): IntakeEntry {
-    const next = { ...entry, ...change }
+  /** `whole` — `change` is the whole new entry, so a field it lacks is dropped. */
+  private update(entry: IntakeEntry, change: Partial<IntakeEntry>, whole = false): IntakeEntry {
+    const next = whole ? (change as IntakeEntry) : { ...entry, ...change }
     this.store(this.entries.map((each) => (each === entry ? next : each)))
     return next
   }

@@ -8,6 +8,7 @@ import { CODEX } from '../codex/name.js'
 import { handoffsOf } from '../chain/launches.js'
 import { mergeCheck } from '../chain/mainci.js'
 import { pullReadiness } from '../review/open.js'
+import { guardedFiles, outsiderHold } from '../review/outsider.js'
 import { ConfigStore } from '../config-store.js'
 import { DEFAULT_BRANCH, isPlain, listenOf, projectLabel, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
 import { runGit } from '../git/run.js'
@@ -114,6 +115,7 @@ export type HostingContext = Pick<ServiceContext,
   | 'hub'
   | 'inHomes'
   | 'inboxes'
+  | 'intake'
   | 'launches'
   | 'linkFor'
   | 'listen'
@@ -587,7 +589,18 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         standards: settings?.standards ?? [],
         ...(isPlain(ctx.configStore.current, run.project) ? { git: false as const } : {}),
         ...(guardsOwnAddress(protection) ? { ownAddress: true as const } : {}),
+        ...(ctx.intake.outsider(run.project, run.task) ? { outsider: true as const } : {}),
       }
+    },
+    outsiderFiles: (sessionId, files) => {
+      const run = handoffsOf(ctx.launches, sessionId)
+      if (run === undefined) return undefined
+      if (!ctx.intake.outsider(run.project, run.task)) return []
+      const held = guardedFiles(files)
+      if (held.length === 0) return held
+      console.log(`review: ${run.task} comes from an outsider's issue, its merge is refused for: ${held.join(', ')}`)
+      ctx.dispatcher.holdTask(run.project, run.task, outsiderHold(run.task, held, false))
+      return held
     },
     checkReport: (sessionId, report) => {
       const run = handoffsOf(ctx.launches, sessionId)

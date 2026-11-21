@@ -1,5 +1,5 @@
 import type { CiKind } from '../ci/model.js'
-import type { ShownPath } from './en-values.js'
+import { list, type ShownPath } from './en-values.js'
 
 const NOTE_REFUSALS = {
   outside: 'the file is outside the task folder',
@@ -33,6 +33,9 @@ export const REVIEW_NOTICES = {
   'review.dirty': (p: ShownPath) => `${p.path} has uncommitted changes`,
   'review.nothingAhead': (p: { branch: string; base: string }) => `${p.branch} has no commits beyond ${p.base}`,
   'review.pushFailed': (p: { branch: string; remote: string }) => `could not push ${p.branch} to ${p.remote}`,
+  /** `files` — the first few, `more` — how many the log names besides; none at all — git could not tell them (BTN-1207). */
+  'review.outsiderFiles': (p: { task: string; files: string[]; more: number; pull?: true }) =>
+    `${p.task} comes from an outsider's issue and its branch changes ${p.files.length === 0 ? 'files that could not be read' : `${list(p.files)}${p.more > 0 ? ` and ${p.more} more` : ''}`}: ${p.pull ? 'the pull request' : 'the merge'} waits for you`,
   'review.pushBehind': (p: { branch: string; remote: string }) =>
     `${p.branch} on ${p.remote} has commits the session's branch lacks (a conflict resolved on the forge, say): the session is to merge them and mark the pull request again`,
 }

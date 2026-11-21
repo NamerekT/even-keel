@@ -283,6 +283,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 246 | [A chat opening at the end of its feed on a phone](unverified/page.md#a-chat-opening-at-the-end-of-its-feed-on-a-phone-btn-1372) | anyone opening a chat on a phone | the chat opens short of its end, or the feed jumps back to its end while you read up it; scroll a little up first | — |
 | 247 | [Dictation through the classifier's model](unverified/page.md#dictation-through-the-classifiers-model-btn-1391) | anyone pressing the chat microphone with the classifier's LiteLLM set | the tip says the recording was not transcribed, or the text is translated or in the wrong language; press again for the browser's recognition | — |
 | 248 | [A Claude sign-in on this computer without a code](unverified/accounts.md#a-claude-sign-in-on-this-computer-without-a-code-btn-1292) | anyone adding or renewing a Claude subscription account in a browser of Even Keel's computer | "On this computer" does not end the sign-in, or is not offered; use the link and the code | — |
+| 249 | [An outsider's task held on CI and agent files](unverified/trackers.md#an-outsiders-task-held-on-ci-and-agent-files-btn-1207) | projects with the GitHub intake whose outsider's task changes a workflow, `.claude`, `CLAUDE.md`, `AGENTS.md`, `.codex` or `package.json` | the branch is merged or pushed with its workflows run before a person looks, or a member's task is held; read such a branch's diff before it lands | — |
 
 ### Waiting for the event / not checked by choice
 

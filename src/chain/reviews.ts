@@ -169,7 +169,11 @@ export class Reviews {
       this.refused.set(task, session.lastReplyAt)
       const why = noticeOf(error)
       const text = this.toldOf(task, why)
-      if (text !== null) {
+      if (why.code === 'review.outsiderFiles') {
+        // Its own code, not `review.notOpened`: Resume must not retry a push only a person may make (BTN-1207).
+        this.deps.log(`review: ${task}: an outsider's task, its branch is not pushed: ${englishOf(why)}`)
+        this.host.hold(chain, why)
+      } else if (text !== null) {
         // The session is told as a chat answer is, by `--resume` whatever its cache: the reply belongs to its own turn.
         this.deps.log(`review: ${task}: no pull request opened, ${englishOf(why)}; the session is told`)
         await this.handovers.deliver(chain, current, session, text, null, 'review')

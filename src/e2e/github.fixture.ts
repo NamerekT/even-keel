@@ -16,6 +16,8 @@ interface Issue {
   labels: string[]
   state: 'open' | 'closed'
   reason: string | null
+  /** The author's `author_association`; none — GitHub's `NONE`, an outsider. */
+  association?: Association
 }
 
 interface Comment {
@@ -169,4 +171,5 @@ const answer = (issue: Issue) => ({
   html_url: `https://github.com/${OWNER}/${GITHUB_REPO}/issues/${issue.number}`,
   state: issue.state,
   user: { login: issue.author },
+  ...(issue.association === undefined ? {} : { author_association: issue.association }),
 })

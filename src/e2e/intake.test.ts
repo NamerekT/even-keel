@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commitAndMerge, ends } from './agent.fixture.js'
+import { commitAndMerge, ends, forReview } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { DONE } from './tracker.fixture.js'
 
@@ -76,6 +76,28 @@ describe('GitHub issues taken into the tracker end to end', { timeout: 60_000 },
     run.board.reply('ABC-101', '1')
     await run.until(() => run.board.status('ABC-101') === 'Done', 'ABC-101 done')
     expect(resumes()).toEqual([expect.objectContaining({ task: 'ABC-101', prompt: expect.stringContaining('Yes') })])
+  })
+
+  it("pushes no branch of an outsider's task that changes a workflow in PR mode and goes on once it is done; a member's same change opens its pull request (BTN-1207)", async () => {
+    run.project.pullRequests = true
+    run.github.open(7, 'Speed up CI', 'Cache the modules.', 'jane', 'intake')
+    run.github.open(8, 'Speed up CI too', 'Cache more.', 'john', 'intake')
+    run.github.issues.get(8)!.association = 'OWNER'
+    run.agent.script('ABC-101', forReview('.github/workflows/ci.yml'))
+    run.agent.script('ABC-102', forReview('.github/workflows/ci.yml'))
+    await run.start()
+    await taken(2)
+    await run.startChain(PROJECT_ID)
+
+    const chain = () => run.service.dispatcher.state.active.find((each) => each.project === PROJECT_ID)
+    await run.until(() => chain()?.error?.code === 'review.outsiderFiles', "the chain paused on the outsider's branch")
+    expect(chain()).toMatchObject({ paused: true, current: { task: 'ABC-101' }, error: { params: { task: 'ABC-101', files: ['.github/workflows/ci.yml'], pull: true } } })
+    expect(run.githubPulls.of('ABC-101')).toBeUndefined()
+    expect(run.gitIn(run.githubBare, 'branch', '--format=%(refname:short)')).not.toContain('abc-101/task')
+
+    run.board.move('ABC-101', DONE)
+    await run.until(() => run.githubPulls.of('ABC-102') !== undefined, "the member's pull request opened")
+    expect(run.githubPulls.of('ABC-102')).toMatchObject({ branch: 'abc-102/task' })
   })
 
   it('says on the issue which version ships the done task and closes it with the published release; a cancelled task is let go in silence', async () => {

@@ -358,8 +358,14 @@ export interface ServerDeps {
    * standards (BTN-359), which the standards hook reads too; `undefined` for a session the chain did not start.
    * `git: false` — a project without git: the `agent-bridge` hook refuses its sessions' calls of git (BTN-1052).
    * `ownAddress: true` — the project's Protection group is on: the same hook refuses requests to Even Keel's address (BTN-1127).
+   * `outsider: true` — the task came from an outsider's issue: the hook sends the branch's files to `outsiderFiles` (BTN-1207).
    */
-  mergeCheck: (sessionId: string) => { commands: string[]; branch: string; standards: Standard[]; git?: false; ownAddress?: true } | undefined
+  mergeCheck: (sessionId: string) => { commands: string[]; branch: string; standards: Standard[]; git?: false; ownAddress?: true; outsider?: true } | undefined
+  /**
+   * For the merge hook (BTN-1207): of the branch's changed `files`, those an outsider's task may not merge by itself;
+   * any — the chain is paused on the task. Empty for a task of no outsider, `undefined` for a session the chain did not start.
+   */
+  outsiderFiles: (sessionId: string, files: string[]) => string[] | undefined
   /** For the merge hook: the check before the merge passed on a tree (EKR-103); `false` for a session the chain did not start. */
   checkReport: (sessionId: string, report: CheckReport) => boolean
   /**

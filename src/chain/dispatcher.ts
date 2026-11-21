@@ -34,7 +34,7 @@ import { excludes, isDone, isTerminal } from './rules.js'
 import { shelve } from './shelved.js'
 import { inTurn } from './start.js'
 import { followCurrent, launchNext, stopAfterTurn, type StepHost } from './step.js'
-import { Talks } from './talk.js'
+import { Talks, USER_HOLDS } from './talk.js'
 import { Unchanged } from './unchanged.js'
 
 export {
@@ -414,11 +414,23 @@ export class Dispatcher {
   }
 
   /**
-   * A pause on the task's refused pull request ends once the task is merged or done (BTN-715): the chain goes on as on
-   * any Done. Pauses for other reasons stay.
+   * Pauses the lane whose current task is `task`, the task staying current and its session untouched: the merge hook
+   * refused an outsider's branch (BTN-1207). `false` — no lane of the project runs the task.
+   */
+  holdTask(project: string, task: string, why: Notice): boolean {
+    const chain = laneOf(this.state, project, task)
+    if (chain === undefined || chain.current?.task !== task) return false
+    this.halt(chain, why, true)
+    this.changed()
+    return true
+  }
+
+  /**
+   * A pause on the task's refused pull request, or on an outsider's branch a person was to land (BTN-1207), ends once
+   * the task is merged or done (BTN-715): the chain goes on as on any Done. Pauses for other reasons stay.
    */
   private settle(chain: ActiveChain, task: string, why: string): boolean {
-    if (chain.current?.task !== task || !chain.paused || chain.error?.code !== 'review.notOpened') return false
+    if (chain.current?.task !== task || !chain.paused || !USER_HOLDS.has(chain.error?.code ?? '')) return false
     this.talks.unhold(chain)
     this.deps.log(`chain: ${chain.project} goes on: ${task}, paused on its unopened pull request, is over: ${why}`)
     this.deps.save(this.state)

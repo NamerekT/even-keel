@@ -134,8 +134,44 @@ describe('Intake', () => {
     expect(created[0]!.description).toContain('note 10 of owner')
     expect(created[0]!.description).toContain('note 12 of jdoe')
     expect(created[0]!.description).not.toContain('stranger')
-    expect(saved()).toEqual([{ project: 'p1', repo: 'acme/app', number: 1, task: 'ABC-1', seen: 12 }])
+    expect(saved()).toEqual([{ project: 'p1', repo: 'acme/app', number: 1, task: 'ABC-1', seen: 12, outsider: true }])
     expect(logs.filter((line) => line.includes('is not copied'))).toHaveLength(1)
+  })
+
+  it('marks the task of an outsider’s issue and keeps the mark in step with the author’s standing, also on an entry from before it (BTN-1207)', async () => {
+    const { intake, repo, tasks } = setup([{ project: 'p1', repo: 'acme/app', number: 7, task: 'ABC-7', seen: 0 }])
+    tasks.set('ABC-7', { category: 'ToDo', milestone: null })
+    repo.add(issueOf(1))
+    repo.add(issueOf(2, { association: 'MEMBER' }))
+    repo.add(issueOf(7))
+    await intake.tick()
+    expect(intake.outsider('p1', 'ABC-1')).toBe(true)
+    expect(intake.outsider('p1', 'ABC-2')).toBe(false)
+    expect(intake.outsider('p2', 'ABC-1')).toBe(false)
+    expect(intake.outsider('p1', 'ABC-7')).toBe(true)
+    repo.issues.set(1, { ...repo.issues.get(1)!, association: 'COLLABORATOR' })
+    await intake.tick()
+    expect(intake.outsider('p1', 'ABC-1')).toBe(false)
+  })
+
+  it('keeps an outsider’s task marked after its issue is closed on GitHub, until the task is done or gone (BTN-1207)', async () => {
+    const { intake, repo, tasks, saved, logs } = setup()
+    repo.add(issueOf(1))
+    repo.add(issueOf(2, { association: 'OWNER' }))
+    await intake.tick()
+    await repo.close(1)
+    await repo.close(2)
+    await intake.tick()
+    await intake.tick()
+    expect(intake.outsider('p1', 'ABC-1')).toBe(true)
+    expect(saved()).toEqual([{ project: 'p1', repo: 'acme/app', number: 1, task: 'ABC-1', seen: 0, outsider: true, closed: true }])
+    expect(logs.filter((line) => line.includes('acme/app#1 is closed on GitHub'))).toHaveLength(1)
+    expect(repo.posted).toEqual([])
+    tasks.set('ABC-1', { category: 'Won', milestone: 'v1.2' })
+    await intake.tick()
+    expect(intake.outsider('p1', 'ABC-1')).toBe(false)
+    expect(saved()).toEqual([])
+    expect(repo.posted).toEqual([])
   })
 
   it('holds an outsider’s issue changed after the label until the label goes on again, with one log line (BTN-1124)', async () => {
@@ -202,9 +238,9 @@ describe('Intake', () => {
     expect(repo.closed).toEqual([1])
   })
 
-  it('forgets an issue closed on GitHub or a task dropped, saying nothing on the issue', async () => {
+  it('forgets a member’s issue closed on GitHub or a task dropped, saying nothing on the issue', async () => {
     const { intake, repo, tasks, saved } = setup()
-    repo.add(issueOf(1))
+    repo.add(issueOf(1, { association: 'MEMBER' }))
     repo.add(issueOf(2))
     await intake.tick()
     repo.issues.set(1, { ...repo.issues.get(1)!, open: false })

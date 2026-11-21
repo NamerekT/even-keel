@@ -176,6 +176,7 @@ const context = {
   get hub() { return hub },
   get importedProfiles() { return importedProfiles },
   get inHomes() { return inHomes },
+  get intake() { return intake },
   get intakeEntries() { return intakeEntries },
   get intakePlaces() { return intakePlaces },
   get intakeTemplateHits() { return intakeTemplateHits },

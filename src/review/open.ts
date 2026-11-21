@@ -2,9 +2,10 @@ import { isAbsolute, join, relative } from 'node:path'
 import type { CiTarget, Remote, UnsupportedRemote } from '../ci/remote.js'
 import { gitlabRepo, parseRemote, remoteKind } from '../ci/remote.js'
 import type { Git } from '../git/types.js'
-import { fail, notice, type Notice } from '../notice/notice.js'
+import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { Forge, Opened } from './model.js'
 import { readPullNote, refusedNote } from './note.js'
+import { guardedFiles, outsiderHold } from './outsider.js'
 
 /**
  * The remote a project's pull requests go to: `origin` if its address parses, else the first one that does (BTN-205);
@@ -109,7 +110,9 @@ const BEHIND = /\[rejected\].*\((?:fetch first|non-fast-forward)\)/
  * that fixed what the review asked marks again, and its branch goes to the same pull request. `null` — the branch has
  * nothing beyond the base and its worktree is clean: the task changed nothing in the repository, nothing is pushed
  * (BTN-222). `closes` — the task's issue the forge closes on the merge (`closingOf`), for `closingBody`. A push refused
- * as behind the remote's branch is `review.pushBehind`, never forced: the forge's commits would be lost.
+ * as behind the remote's branch is `review.pushBehind`, never forced: the forge's commits would be lost. `outsider` — the
+ * task, when it came from an outsider's issue: a branch that changes a `guardedFiles` file is not pushed at all, since
+ * the push itself runs its workflows with the repository's secrets (BTN-1207), and is `review.outsiderFiles`.
  */
 export async function openPull(
   git: Git,
@@ -120,6 +123,7 @@ export async function openPull(
   base: string,
   now: () => Date,
   closes?: Closes,
+  outsider?: string,
 ): Promise<Opened | null> {
   const branch = (await git(workdir, ['symbolic-ref', '--quiet', '--short', 'HEAD'])).out.trim()
   if (branch === '') throw fail('review.noBranch', { path: workdir })
@@ -132,6 +136,7 @@ export async function openPull(
   if (status.code !== 0 || status.out.trim() !== '') throw fail('review.dirty', { path: workdir }, { detail: status.out })
   const described = describedBy(await readPullNote(workdir, notePath))
   if (described === null) throw refusedNote(workdir, notePath, 'empty')
+  if (outsider !== undefined) await holdOutsider(git, workdir, `refs/remotes/${remote}/${base}`, outsider)
 
   const pushed = await git(workdir, ['push', '--set-upstream', remote, `${branch}:refs/heads/${branch}`])
   if (pushed.code !== 0) throw fail(BEHIND.test(pushed.out) ? 'review.pushBehind' : 'review.pushFailed', { branch, remote }, { detail: pushed.out })
@@ -150,6 +155,14 @@ async function aheadOf(git: Git, workdir: string, remote: string, base: string):
   const counted = await git(workdir, ['rev-list', '--count', `refs/remotes/${remote}/${base}..HEAD`])
   const count = Number(counted.out.trim())
   return counted.code === 0 && counted.out.trim() !== '' && Number.isInteger(count) ? count : null
+}
+
+/** Throws when the branch changes a guarded file since `base`, or git cannot tell which files it changes. */
+async function holdOutsider(git: Git, workdir: string, base: string, task: string): Promise<void> {
+  const diff = await git(workdir, ['diff', '--name-only', `${base}...HEAD`])
+  const files = diff.code === 0 ? guardedFiles(diff.out.split(/\r?\n/).filter((line) => line.trim() !== '')) : null
+  if (files !== null && files.length === 0) return
+  throw new NoticeError(outsiderHold(task, files ?? [], true, files === null ? diff.out : undefined))
 }
 
 /** Whether the worktree holds no work left out of a commit, new files included; the pull request's note is not work. */
