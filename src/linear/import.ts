@@ -1,5 +1,5 @@
 import { linkedFiles } from '../tracker/comments.js'
-import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportImage, ImportLink, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
+import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportGone, ImportImage, ImportLink, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
 import { linearMinutes } from './estimate.js'
 import { LINEAR_UPLOADS, linearPriority, linearStatus, type LinearAttachment, type LinearState } from './model.js'
 
@@ -18,8 +18,8 @@ export interface LinearImportDeps {
   project?: string
   /** The id of the user: the creator of the Linear project the place names; `null` — a whole team has none. */
   user: string | null
-  /** An upload of the task `id`, its bytes and type; `null` — Linear gives it no more. */
-  download(id: string, link: string): Promise<{ type: string; bytes: Uint8Array } | null>
+  /** An upload of the task `id`, its bytes and type, or why Linear gives it no more; on the contract of `ImportFile.read`. */
+  download(id: string, link: string): Promise<{ type: string; bytes: Uint8Array } | ImportGone>
 }
 
 interface Page<T> {
@@ -306,7 +306,7 @@ export function linearImport(deps: LinearImportDeps): ImportSource {
           size: null,
           async read() {
             const got = await deps.download(task.id, upload.link)
-            if (got === null) return null
+            if ('gone' in got) return got
             file.type = got.type
             file.size = got.bytes.byteLength
             return got.bytes

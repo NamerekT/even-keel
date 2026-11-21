@@ -1,5 +1,5 @@
 import { linkedFiles } from '../tracker/comments.js'
-import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportImage, ImportLink, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
+import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportGone, ImportImage, ImportLink, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
 import type { TaskPriority } from '../tracker/model.js'
 import { githubPriority, githubStatus, PRIORITY_LABEL, type IssueState, type IssueStateReason, type Repo, type RepoMap } from './model.js'
 import { uploadId, UPLOADS } from './uploads.js'
@@ -10,8 +10,8 @@ export interface GithubImportDeps {
   repos: RepoMap
   /** The login of the token's account: what it wrote is the agent's. */
   viewer: string
-  /** An upload of the task `id`, its bytes and type; `null` — GitHub gives it no more. */
-  download(id: string, link: string): Promise<{ type: string; bytes: Uint8Array } | null>
+  /** An upload of the task `id`, its bytes and type, or why GitHub gives it no more; on the contract of `ImportFile.read`. */
+  download(id: string, link: string): Promise<{ type: string; bytes: Uint8Array } | ImportGone>
 }
 
 interface Page<T> {
@@ -257,7 +257,7 @@ export function githubImport(deps: GithubImportDeps): ImportSource {
           size: null,
           async read() {
             const got = await deps.download(task.id, upload.link)
-            if (got === null) return null
+            if ('gone' in got) return got
             file.type = got.type
             file.size = got.bytes.byteLength
             return got.bytes

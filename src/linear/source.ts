@@ -6,7 +6,8 @@ import { labelKey, resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { limitOfResponse, TrackerRateLimited, untilOf } from '../tracker/rate-limit.js'
 import { subtaskRef } from '../tracker/card.js'
 import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
-import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
+import { fileGone } from '../tracker/import.js'
+import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { LINEAR_PRIORITY, linearEditor, teamMilestones } from './editor.js'
 import { ESTIMATION_FIELDS, linearScale, type LinearEstimation } from './estimate.js'
 import { linearImport } from './import.js'
@@ -192,6 +193,17 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     if (!response.ok) throw new Error(`linear: HTTP ${response.status}${errors ? `: ${errors}` : ''}`)
     if (errors || body.data == null) throw new Error(`linear: ${errors || 'empty answer'}`)
     return body.data
+  }
+
+  /** An upload of Linear's, with the key; the HTTP status when Linear gives no file. */
+  async function fetchUpload(link: string): Promise<TaskFile | number> {
+    const response = await trackedFetch(fetchImpl, link, { headers: { authorization: settings.token }, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' }, '/uploads/[redacted]')
+    if (!response.ok || response.body === null) {
+      await response.body?.cancel()
+      return response.status
+    }
+    const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
+    return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
   }
 
   async function collect<T extends LinearIssue = LinearIssue>(filter: IssueFilter, query = ISSUES): Promise<T[]> {
@@ -498,13 +510,8 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     // A file of a comment is its upload link; the key goes only to Linear's upload host.
     async file(_id, file) {
       if (!LINEAR_UPLOADS.test(file)) return null
-      const response = await trackedFetch(fetchImpl, file, { headers: { authorization: settings.token }, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' }, '/uploads/[redacted]')
-      if (!response.ok || response.body === null) {
-        await response.body?.cancel()
-        return null
-      }
-      const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
-      return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
+      const found = await fetchUpload(file)
+      return typeof found === 'number' ? null : found
     },
 
     // The Linear project's creator is the user; a whole team names none.
@@ -526,9 +533,14 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         scale: linearScale(team.estimation),
         viewer: viewer.id,
         user: creator,
+        // On the contract of `ImportFile.read`: a status that is not 404 or 410 stops the import, unlike the page's `file`.
         async download(id, link) {
-          const file = await source.file!(id, link)
-          if (file === null) return null
+          if (!LINEAR_UPLOADS.test(link)) return { gone: 'the link is not an upload of Linear' }
+          const file = await fetchUpload(link)
+          if (typeof file === 'number') {
+            if (fileGone(file)) return { gone: `the upload got HTTP ${file}` }
+            throw new Error(`linear: ${id}: an upload got HTTP ${file}`)
+          }
           const chunks: Uint8Array[] = []
           for await (const chunk of file.body) chunks.push(chunk)
           return { type: file.type, bytes: new Uint8Array(Buffer.concat(chunks)) }

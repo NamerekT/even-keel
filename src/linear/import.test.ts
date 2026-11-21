@@ -234,7 +234,7 @@ describe('linear import', () => {
     ])
     expect(await files[0]!.read()).toEqual(new Uint8Array([137, 80, 78, 71]))
     expect(files[0]).toMatchObject({ type: 'image/png', size: 4 })
-    expect(await files[2]!.read()).toBeNull()
+    expect(await files[2]!.read()).toEqual({ gone: 'the upload got HTTP 404' })
     expect(requests).toEqual([SHOT, NOTE])
     expect(calls.filter((call) => call.query.includes('attachments(')).map((call) => call.variables)).toEqual([
       { id: 'uuid-ENG-7', after: null },

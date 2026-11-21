@@ -222,12 +222,12 @@ describe('the import into the built-in tracker', () => {
     const fake = fakeSource()
     const lines: string[] = []
     let reads = 0
-    fake.files.r3!.push({ key: 'f3', name: 'gone.png', type: 'image/png', size: 4, read: async () => (reads++, null) })
+    fake.files.r3!.push({ key: 'f3', name: 'gone.png', type: 'image/png', size: 4, read: async () => (reads++, { gone: 'the tracker got HTTP 404' }) })
     const { service } = imports(fake.source, undefined, lines)
     await service.start(ABC)
     await service.settled(ABC)
     expect((await store.files(key(3))).map((each) => each.name).sort()).toEqual(['log.txt', 'shot.png'])
-    expect(lines).toContain('import: ABC-3: the attachment gone.png has no file and is not imported')
+    expect(lines).toContain('import: ABC-3: the attachment gone.png has no file and is not imported: the tracker got HTTP 404')
     const { check, failed } = await service.state(ABC)
     expect(failed).toBeNull()
     expect(check?.rows.find((row) => row.kind === 'files')).toEqual({ kind: 'files', source: 2, target: 2, tasks: [], gone: [{ task: 'ABC-3', name: 'gone.png' }] })

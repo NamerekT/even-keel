@@ -2,7 +2,7 @@ import type { Transaction } from '@electric-sql/pglite'
 import { inTransaction, type Db } from '../storage/database.js'
 import type { ChangeAuthor } from '../tracker/history.js'
 import { sameName } from '../chain/rules.js'
-import { withBefore, type ImportComment, type ImportImage, type ImportLink, type ImportMilestone, type ImportSource, type ImportTask } from '../tracker/import.js'
+import { withBefore, type ImportComment, type ImportGone, type ImportImage, type ImportLink, type ImportMilestone, type ImportSource, type ImportTask } from '../tracker/import.js'
 import { importedAuthor, importedStatus, importOrder, type ImportAuthorChoice } from '../tracker/import-plan.js'
 import { isOpen } from '../tracker/model.js'
 import { componentIdOf } from './components.js'
@@ -182,14 +182,14 @@ export async function runImport(run: ImportRun, sync = false): Promise<number> {
     let current = row
     for (const file of await source.files(task.ref)) {
       if (Object.hasOwn(current.files, file.key)) continue
-      let bytes: Uint8Array | null
+      let bytes: Uint8Array | ImportGone
       try {
         bytes = await file.read()
       } catch (error) {
         throw new Error(`${task.id}: the attachment ${file.name}`, { cause: error })
       }
-      if (bytes === null) {
-        say(`import: ${task.id}: the attachment ${file.name} has no file and is not imported`)
+      if (!(bytes instanceof Uint8Array)) {
+        say(`import: ${task.id}: the attachment ${file.name} has no file and is not imported: ${bytes.gone}`)
         current = { ...current, files: { ...current.files, [file.key]: GONE } }
         await save(current)
         continue

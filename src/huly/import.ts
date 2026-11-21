@@ -274,7 +274,7 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
       try {
         for await (const chunk of await deps.readFile(key)) chunks.push(chunk)
       } catch (error) {
-        if (storageNotFound(error)) return null
+        if (storageNotFound(error)) return { gone: "Huly's storage has no such file" }
         throw error
       }
       return new Uint8Array(Buffer.concat(chunks))

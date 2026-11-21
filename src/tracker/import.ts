@@ -40,9 +40,23 @@ export interface ImportFile {
   type: string
   /** bytes; `null` — the tracker does not say. */
   size: number | null
-  /** The bytes; `null` — they are gone. */
-  read(): Promise<Uint8Array | null>
+  /**
+   * The bytes, or `{ gone }` with why when the tracker surely has no file: 404, 410 or its own "not found" (`fileGone`).
+   * Anything else throws and stops the import, which a repeat goes on from this file: the network, a timeout, 429, 5xx,
+   * and no access (401, 403). The one more `gone` is GitHub's upload its token gets no file of and no text links signed.
+   * The import, not the adapter, writes the line of a file passed over (BTN-1458); `import-files.test.ts` holds every
+   * adapter to this.
+   */
+  read(): Promise<Uint8Array | ImportGone>
 }
+
+/** An attachment the tracker has no file of: why, in English, for the log's line. */
+export interface ImportGone {
+  gone: string
+}
+
+/** An HTTP status that says the file is no more: passed over, not a stop. */
+export const fileGone = (status: number): boolean => status === 404 || status === 410
 
 export interface ImportTask {
   /** The source's own id of the task: the import keeps its progress by it. */

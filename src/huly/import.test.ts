@@ -190,7 +190,7 @@ describe('hulyImport', () => {
     const { source, failures } = fixture()
     const [, shot] = await source.files('id-1')
     failures['blob-img2'] = Object.assign(new Error(''), { name: 'NotFoundError' })
-    expect(await shot!.read()).toBeNull()
+    expect(await shot!.read()).toEqual({ gone: "Huly's storage has no such file" })
     failures['blob-img2'] = Object.assign(new Error('fetch failed'), { name: 'NetworkError' })
     await expect(shot!.read()).rejects.toThrow('fetch failed')
   })

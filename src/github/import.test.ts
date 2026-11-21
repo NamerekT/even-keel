@@ -196,7 +196,7 @@ describe('github import', () => {
   it('gives no bytes of an upload GitHub serves no more', async () => {
     const { importing } = await connect({ issues: [page([issueNode(7, { body: `[report.pdf](${PDF})` })])], comments: [page([])] })
     const [file] = await importing.files('I_octo-org/abc_7')
-    expect(await file!.read()).toBeNull()
+    expect(await file!.read()).toEqual({ gone: `the token got HTTP 404 for ${PDF}` })
   })
 
   it('reads the change log from the timeline, a priority label as the priority', async () => {

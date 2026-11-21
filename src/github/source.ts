@@ -1,6 +1,7 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
+import { fileGone, type ImportGone } from '../tracker/import.js'
 import { limitOfResponse, TrackerRateLimited, untilOf } from '../tracker/rate-limit.js'
 import { subtaskRef } from '../tracker/card.js'
 import { parseTaskId, type TaskStatus, type TextEdit, type TrackerTask } from '../tracker/model.js'
@@ -257,12 +258,37 @@ export async function connectGithub(
   }
 
   /**
-   * The signed link of an upload in the `body_html` of the task's description or its comments, read now: a signed link
-   * lives minutes. A description it cannot read leaves the comments to look in.
+   * A comment's file on the contract of `ImportFile.read`: the token goes only to GitHub's own upload hosts. A
+   * fine-grained token gets no upload of a private repository (401, 403 or 404), so then the comment's signed link is
+   * fetched, with no token (BTN-652); a file the token gets nothing of and no text links signed is `gone` too.
+   * 429, 5xx and the network throw, and so does an upload with no signed form the token may not read.
    */
-  async function signedUpload(id: string, upload: string): Promise<{ link: string } | { reason: string }> {
+  async function readUpload(id: string, file: string): Promise<TaskFile | ImportGone> {
+    if (!UPLOADS.test(file)) return { gone: 'the link is not an upload of GitHub' }
+    const upload = uploadId(file)
+    const direct = await fetchUpload(file, true)
+    if (typeof direct !== 'number') return direct
+    const refused = `the token got HTTP ${direct} for ${file.split('?')[0]}`
+    if (direct !== 401 && direct !== 403 && !fileGone(direct)) throw new Error(`github: ${refused}`)
+    if (upload === null) {
+      if (fileGone(direct)) return { gone: refused }
+      throw new Error(`github: ${refused}`)
+    }
+    const signed = await signedUpload(id, upload)
+    if ('gone' in signed) return signed
+    const found = await fetchUpload(signed.link, false)
+    if (typeof found !== 'number') return found
+    if (fileGone(found)) return { gone: `its signed link got HTTP ${found}` }
+    throw new Error(`github: the signed link of ${upload} got HTTP ${found}`)
+  }
+
+  /**
+   * The signed link of an upload in the `body_html` of the task's description or its comments, read now: a signed link
+   * lives minutes. A description that is gone leaves the comments to look in; any other failure throws.
+   */
+  async function signedUpload(id: string, upload: string): Promise<{ link: string } | ImportGone> {
     const parsed = parseTaskId(id)
-    if (parsed === null) return { reason: `${id} is not a task id` }
+    if (parsed === null) return { gone: `${id} is not a task id` }
     const repo = repoOfTasks(parsed.project)
     const issue = `${repo.owner}/${repo.name}#${parsed.number}`
     const base = `https://api.github.com/repos/${repo.owner}/${repo.name}/issues/${parsed.number}`
@@ -275,13 +301,18 @@ export async function connectGithub(
     if (own.ok) {
       const link = signedLink(((await own.json()) as { body_html?: string }).body_html ?? '', upload)
       if (link !== null) return { link }
-    } else await own.body?.cancel()
+    } else {
+      await own.body?.cancel()
+      if (!fileGone(own.status)) throw new Error(`github: ${issue} got HTTP ${own.status}`)
+    }
     let page: string | null = `${base}/comments?per_page=100`
     while (page !== null) {
       const response = await html(page, '/repos/issues/comments')
       if (!response.ok) {
         await response.body?.cancel()
-        return { reason: `the comments of ${issue} got HTTP ${response.status}` }
+        const failed = `the comments of ${issue} got HTTP ${response.status}`
+        if (fileGone(response.status)) return { gone: failed }
+        throw new Error(`github: ${failed}`)
       }
       for (const comment of (await response.json()) as { body_html?: string }[]) {
         const link = signedLink(comment.body_html ?? '', upload)
@@ -289,7 +320,7 @@ export async function connectGithub(
       }
       page = nextPage(response.headers.get('link'))
     }
-    return { reason: 'the token got no file and neither the description nor a comment links it signed' }
+    return { gone: 'the token got no file and neither the description nor a comment links it signed' }
   }
 
   /** The text changes of outsiders' open issues by task id (BTN-1124), read apart: an outsider's issue is rare, the history is long. */
@@ -569,8 +600,7 @@ export async function connectGithub(
       return saved.map((label) => label.name)
     },
 
-    // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts. A fine-grained token
-    // gets no upload of a private repository, so then the comment's signed link is fetched, with no token (BTN-652).
+    // A file of a comment is its upload link, read by `readUpload`; for the page any failure is a file not given.
     async file(id, file) {
       if (!UPLOADS.test(file)) return null
       const upload = uploadId(file)
@@ -579,13 +609,8 @@ export async function connectGithub(
         return null
       }
       try {
-        const direct = await fetchUpload(file, true)
-        if (typeof direct !== 'number') return direct
-        if (upload === null) return unavailable(`the token got HTTP ${direct} for ${file.split('?')[0]}`)
-        const signed = await signedUpload(id, upload)
-        if ('reason' in signed) return unavailable(signed.reason)
-        const found = await fetchUpload(signed.link, false)
-        return typeof found === 'number' ? unavailable(`its signed link got HTTP ${found}`) : found
+        const found = await readUpload(id, file)
+        return 'gone' in found ? unavailable(found.gone) : found
       } catch (error) {
         return unavailable((error as Error).message)
       }
@@ -598,8 +623,8 @@ export async function connectGithub(
         repos,
         viewer: viewer.login,
         async download(id, link) {
-          const file = await source.file!(id, link)
-          if (file === null) return null
+          const file = await readUpload(id, link)
+          if ('gone' in file) return file
           const chunks: Uint8Array[] = []
           for await (const chunk of file.body) chunks.push(chunk)
           return { type: file.type, bytes: new Uint8Array(Buffer.concat(chunks)) }
