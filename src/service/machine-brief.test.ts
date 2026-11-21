@@ -16,6 +16,7 @@ describe('a brief carried from the hub', () => {
       briefOn: () => true,
       packages: { bringsServer: () => false },
       linkOf: () => ({ run: async (call: (tracker: { brief: typeof read }) => unknown) => call({ brief: read }) }),
+      intake: { outsider: () => false },
     } as unknown as ChainContext
     const hub = wireBriefed(ctx)
     const sent = await hub.prepare('ABC-1', 'p1')
@@ -40,6 +41,7 @@ describe('a brief carried from the hub', () => {
       briefOn: () => false,
       packages: { bringsServer: (_project: string, server: string) => memory && server === 'memory' },
       memory: { index },
+      intake: { outsider: () => false },
     }) as unknown as ChainContext
     const sent = await wireBriefed(ctx(true)).prepare('ABC-1', 'p1')
     expect(index).toHaveBeenCalledExactlyOnceWith('p1')
@@ -47,6 +49,36 @@ describe('a brief carried from the hub', () => {
     const without = await wireBriefed(ctx(false)).prepare('ABC-1', 'p1')
     expect(without.prompt).not.toContain('memory_write')
     expect(index).toHaveBeenCalledTimes(1)
+  })
+
+  it("vouches for a task that is not an outsider's, asked of the intake at every brief, a retained one too (BTN-1419)", async () => {
+    let outsider = false
+    const ctx = {
+      projectOf: () => 'p1', readerFor: () => 'p1', promptLanguage: () => 'en',
+      readers: () => ({ keys: { p1: 'ABC' }, trackers: {} }),
+      configStore: { current: { feeds: {} } },
+      trackerPlace: () => null,
+      briefOn: () => false,
+      packages: { bringsServer: () => false },
+      intake: { outsider: (project: string, task: string) => project === 'p1' && task === 'ABC-1' && outsider },
+    } as unknown as ChainContext
+    const hub = wireBriefed(ctx)
+    expect((await hub.prepare('ABC-1', 'p1')).own).toBe(true)
+    outsider = true
+    expect((await hub.prepare('ABC-1', 'p1', true)).own).toBeUndefined()
+    expect((await hub.prepare('ABC-1', 'p1')).own).toBeUndefined()
+  })
+
+  it("tells on the machine whether the last brief received vouched for the task; none kept is an outsider's (BTN-1419)", () => {
+    const briefed = launchBriefs()
+    expect(briefed.own('ABC-1')).toBe(false)
+    briefed.apply('ABC-1', '', { prompt: 'Task text', own: true })
+    expect(briefed.own('ABC-1')).toBe(true)
+    briefed.apply('ABC-1', 'Handoff')
+    expect(briefed.own('ABC-1')).toBe(true)
+    briefed.apply('ABC-1', '', { prompt: 'Task text' })
+    expect(briefed.own('ABC-1')).toBe(false)
+    expect(briefed.own('ABC-2')).toBe(false)
   })
 
   it('keeps on the machine the received task and prompt for a handoff, with no tracker there', () => {

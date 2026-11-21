@@ -88,6 +88,8 @@ export interface Briefed {
 export interface LaunchBriefs {
   apply(task: string, given: string, received?: LaunchBrief): string
   kept(task: string): TaskBrief | undefined
+  /** Whether the last brief received vouched the task is not an outsider's (`LaunchBrief.own`); none kept — it is not. */
+  own(task: string): boolean
 }
 
 /** Briefs kept for that many tasks at most: a day's chain never comes near it. */
@@ -99,7 +101,11 @@ export function wireBriefed(ctx: ChainContext): Briefed {
     if (project === undefined) return { prompt: '' }
     const key = `${project}\u0000${task}`
     const previous = prepared.get(key)
-    if (retained && previous !== undefined) return previous
+    const result = retained && previous !== undefined ? previous : await read(task, project, key)
+    // Asked at every brief, never kept with it: the intake follows the author's association (BTN-1207, BTN-1419).
+    return ctx.intake.outsider(project, task) ? result : { ...result, own: true }
+  }
+  const read = async (task: string, project: string, key: string): Promise<LaunchBrief> => {
     const reader = ctx.readerFor(project, task)
     const language = ctx.promptLanguage(project)
     const own = idPrefixOf(ctx.readers(), reader).toUpperCase()
@@ -137,6 +143,7 @@ export function launchBriefs(): LaunchBriefs {
       return given + brief.prompt
     },
     kept: (task) => kept.get(task)?.task,
+    own: (task) => kept.get(task)?.own === true,
   }
 }
 

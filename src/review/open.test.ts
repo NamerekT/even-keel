@@ -19,7 +19,7 @@ describe('openPull', () => {
     note = true,
     closes?: { issue: string; repo: string },
     push: GitResult = { code: 0, out: '' },
-    { outsider, diff = { code: 0, out: '' } }: { outsider?: string; diff?: GitResult } = {},
+    { outsider, diff = { code: 0, out: '' }, remoteAt = { code: 2, out: '' } }: { outsider?: string; diff?: GitResult; remoteAt?: GitResult } = {},
   ) {
     const dir = await mkdtemp(join(tmpdir(), 'open-pull-'))
     if (note) await writeFile(join(dir, 'pull.md'), 'Fix the parser\n\nQuotes kept.\n')
@@ -31,6 +31,8 @@ describe('openPull', () => {
       if (args[0] === 'rev-list') return ahead
       if (args[0] === 'status') return { code: 0, out: status }
       if (args[0] === 'diff') return diff
+      if (args[0] === 'ls-remote') return remoteAt
+      if (args[0] === 'rev-parse') return { code: 0, out: 'c0ffee1\n' }
       return { code: 0, out: '' }
     }
     const created: string[] = []
@@ -120,6 +122,18 @@ describe('openPull', () => {
       const { result } = await opening({ code: 0, out: '1\n' }, '', true, undefined, push)
       await expect(result).rejects.toMatchObject({ notice: { code: 'review.pushFailed', params: { branch: 'abc-7/task', remote: 'origin' } } })
     }
+  })
+
+  it('opens the pull request when the push lost a race to the end-of-turn push of the same commit (BTN-1419)', async () => {
+    const raced = { code: 1, out: ' ! [remote rejected] abc-7/task -> abc-7/task (reference already exists)\n' }
+    const same = await opening({ code: 0, out: '1\n' }, '', true, undefined, raced, { remoteAt: { code: 0, out: 'c0ffee1\trefs/heads/abc-7/task\n' } })
+    await expect(same.result).resolves.toMatchObject({ number: 3, branch: 'abc-7/task' })
+    expect(same.asked).toContain('ls-remote --exit-code --heads origin refs/heads/abc-7/task')
+    const other = await opening({ code: 0, out: '1\n' }, '', true, undefined, raced, { remoteAt: { code: 0, out: 'beef002\trefs/heads/abc-7/task\n' } })
+    await expect(other.result).rejects.toMatchObject({ notice: { code: 'review.pushFailed' } })
+    expect(other.created).toEqual([])
+    const none = await opening({ code: 0, out: '1\n' }, '', true, undefined, raced)
+    await expect(none.result).rejects.toMatchObject({ notice: { code: 'review.pushFailed' } })
   })
 })
 

@@ -15,6 +15,11 @@ export interface LaunchBrief {
    * the remote, and `text` goes at the end of the start prompt.
    */
   restore?: { branch: string; text: string }
+  /**
+   * The hub vouches the task is not an outsider's (`Intake.outsider`, BTN-1419): the machine pushes its branch without
+   * the `guardedFiles` check. None — an outsider's task, or a hub that does not tell.
+   */
+  own?: true
 }
 
 /**

@@ -127,7 +127,6 @@ describe('PR mode end to end: opening and closing', { timeout: 60_000 }, () => {
     await run.until(() => chain()?.paused === true, 'the chain paused on the external note')
     expect(chain()).toMatchObject({ current: { task: 'ABC-1' }, error: { code: 'review.notOpened', cause: { code: 'review.noNote', params: { reason: 'outside' } } } })
     expect(run.pulls.creates).toBe(0)
-    expect(branches(run.remote)).not.toContain('abc-1/task')
 
     await run.restart()
     await run.post('chain/resume', { project: PROJECT_ID })

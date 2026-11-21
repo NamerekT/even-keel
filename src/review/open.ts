@@ -112,7 +112,9 @@ const BEHIND = /\[rejected\].*\((?:fetch first|non-fast-forward)\)/
  * (BTN-222). `closes` — the task's issue the forge closes on the merge (`closingOf`), for `closingBody`. A push refused
  * as behind the remote's branch is `review.pushBehind`, never forced: the forge's commits would be lost. `outsider` — the
  * task, when it came from an outsider's issue: a branch that changes a `guardedFiles` file is not pushed at all, since
- * the push itself runs its workflows with the repository's secrets (BTN-1207), and is `review.outsiderFiles`.
+ * the push itself runs its workflows with the repository's secrets (BTN-1207), and is `review.outsiderFiles`. Any other
+ * refused push finds the remote's branch already at HEAD when the machine's end-of-turn push of the same commit raced
+ * it (BTN-1419): that counts as pushed.
  */
 export async function openPull(
   git: Git,
@@ -139,7 +141,9 @@ export async function openPull(
   if (outsider !== undefined) await holdOutsider(git, workdir, `refs/remotes/${remote}/${base}`, outsider)
 
   const pushed = await git(workdir, ['push', '--set-upstream', remote, `${branch}:refs/heads/${branch}`])
-  if (pushed.code !== 0) throw fail(BEHIND.test(pushed.out) ? 'review.pushBehind' : 'review.pushFailed', { branch, remote }, { detail: pushed.out })
+  if (pushed.code !== 0 && (BEHIND.test(pushed.out) || !(await remoteAtHead(git, workdir, remote, branch)))) {
+    throw fail(BEHIND.test(pushed.out) ? 'review.pushBehind' : 'review.pushFailed', { branch, remote }, { detail: pushed.out })
+  }
   const pushedAt = now().toISOString()
   const body = closes === undefined ? described.body : closingBody(described.body, closes.issue, closes.repo, closes.gitlab)
   const pull = (await forge.find(branch)) ?? (await forge.create({ branch, base, title: described.title, body }))
@@ -155,6 +159,14 @@ async function aheadOf(git: Git, workdir: string, remote: string, base: string):
   const counted = await git(workdir, ['rev-list', '--count', `refs/remotes/${remote}/${base}..HEAD`])
   const count = Number(counted.out.trim())
   return counted.code === 0 && counted.out.trim() !== '' && Number.isInteger(count) ? count : null
+}
+
+/** Whether the remote's `branch` points at the folder's HEAD; a git error or no such branch — it does not. */
+async function remoteAtHead(git: Git, workdir: string, remote: string, branch: string): Promise<boolean> {
+  const listed = await git(workdir, ['ls-remote', '--exit-code', '--heads', remote, `refs/heads/${branch}`])
+  const head = await git(workdir, ['rev-parse', 'HEAD'])
+  const at = listed.out.trim().split(/\s+/)[0] ?? ''
+  return listed.code === 0 && head.code === 0 && at !== '' && at === head.out.trim()
 }
 
 /** Throws when the branch changes a guarded file since `base`, or git cannot tell which files it changes. */
