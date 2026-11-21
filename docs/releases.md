@@ -113,6 +113,8 @@ Passed on 2026-11-16, for 0.3.0: Claude Code 2.1.325 (Haiku, with `/usage`, wind
 
 Passed on 2026-11-17, for 0.3.2: Copilot CLI 1.0.113 on Windows x64, on the CLI's default model, which was now `mai-code-2-flash` instead of `gpt-6-luna` (window 922000, the model's `maxPromptTokens`); Claude Code 2.1.326, codex-cli 0.169.0 and OpenCode 1.19.6 were still the newest. `npm run cli-fetch` passed for all five (SDK 0.3.326). `cli-compare` against 1.0.112 gained or lost no event type; the field changes follow the model and its tools, not the CLI: `modelMetrics` keyed by the new model, a `powershell` call with `shellExecution` instead of `apply_patch` with `fileEdits`, no reasoning blocks. The transcript reads `toolRequests` and `shellExecution.exitCode`, both already read for earlier captures; the rest is read by nothing.
 
+Passed on 2026-11-20, for 0.3.4: codex-cli 0.171.0 (`gpt-5.6-luna` on a free ChatGPT account, `rate_limits` from the rollout, window 258400) and Copilot CLI 1.0.114 (the CLI's default model, window 922000) on Windows x64; OpenCode 1.19.6 was still the newest. `npm run cli-fetch` passed for all five. `cli-compare` gained or lost no event type for either. Codex added `metadata.model_search_state` to its response items; Copilot's assistant messages gained `reasoningBlocks`, `encryptedContent` and `reasoningOpaque`. Nothing reads them. Then Claude Code 2.1.330 (`haiku` on a Pro account, window 250000, `/usage` 5h and 7d): a new transcript line type, `data-flow-records`, and a `dataFlowOn` flag on assistant, user and system lines; nothing reads them either.
+
 ## Tally across clones
 
 - A task's cost is by its ID, whatever folder its sessions ran in.

@@ -35,7 +35,7 @@ Polled every 5 minutes like `/usage`, through the adapters' `usage`; the page sh
 
 ### Answers of plans we have no account for (BTN-609)
 
-The author has Claude Pro and ChatGPT Plus; no plans are bought for checks. The limit answers of the other plans (Claude Max, Ultra, Team; ChatGPT Pro; paid Copilot; OpenCode Go) come from public GitHub issues and the MIT code of tools that show subscription limits: their users paste the raw answer with the plan named, and a new shape shows up there within days of a provider's change. Every release starts with a search since the last one (`docs/releases.md`, "A release"); the last was on 2026-11-17 (EKR-131, EKR-132, EKR-133). Searches that found them on 2026-11-02:
+The author has Claude Pro and ChatGPT Plus; no plans are bought for checks. The limit answers of the other plans (Claude Max, Ultra, Team; ChatGPT Pro; paid Copilot; OpenCode Go) come from public GitHub issues and the MIT code of tools that show subscription limits: their users paste the raw answer with the plan named, and a new shape shows up there within days of a provider's change. Every release starts with a search since the last one (`docs/releases.md`, "A release"); the last was on 2026-11-20 (EKR-152: the per-seat credit limit of a ChatGPT business seat in `wham/usage`); the one before on 2026-11-17 (EKR-131, EKR-132, EKR-133). Searches that found them on 2026-11-02:
 
 - `gh search issues '"weekly_scoped"'`, `'"model_scoped"'`, `'"five_hour" null'`, `'"api/oauth/usage"'` — Claude;
 - `'"wham/usage"'`, `'"x-codex-primary-used-percent"'` — ChatGPT and Codex;

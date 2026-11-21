@@ -658,7 +658,7 @@ The Forgejo rights for pull requests follow from the API calls Even Keel makes a
 
 Sessions can be answered from the page's chat or the tracker.
 
-To answer them in Claude's own app as well, use Remote Control: a Claude account added from the page with a claude.ai sign-in has it on, and the page links each session's Remote Control. For an account where it is off, "Turn on Remote Control" in the account row's menu or the session panel turns it on from the account's next session.
+To answer them in Claude's own app as well, use Remote Control: a Claude account added from the page with a claude.ai sign-in has it on, and the page links each session's Remote Control. For an account where it is off, "Turn on Remote Control" in the account row's menu or the session panel turns it on from the account's next session. This also resolves a pending edit to that setting.
 
 Codex sessions have no remote control: they run through `codex exec`, whose threads the Codex app and ChatGPT on the phone do not list, so they are answered only from the page's chat or the tracker ([docs/sessions/codex.md](../sessions/codex.md#codex-btn-168-srccodex)).
 

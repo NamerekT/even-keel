@@ -149,7 +149,7 @@ export class AccountSettings {
     }
   }
 
-  /** The keys changed in the folder since the last transfer; none before the first one. */
+  /** The folder edits that would still need a decision at the next transfer. */
   edits(home: AccountHome): string[] {
     return this.changes(home).map((change) => change.key)
   }
@@ -159,22 +159,18 @@ export class AccountSettings {
     const record = this.records.get(home.key)
     if (record === undefined) return []
     const file = join(home.dir, 'settings.json')
-    let stamp: string
-    try {
-      const stat = statSync(file)
-      stamp = `${this.version}:${stat.mtimeMs}:${stat.size}`
-    } catch {
-      return []
-    }
+    const folderStamp = fileStamp(file)
+    if (folderStamp === undefined) return []
+    const globalFile = join(this.globalDir, 'settings.json')
+    const stamp = `${this.version}:${folderStamp}:${fileStamp(globalFile)}`
     const cached = this.seen.get(home.key)
     if (cached?.stamp === stamp) return cached.changes
     const read = readJson(file)
-    const discard = this.discards.get(home.key)
     const folder = stripSettingsGuard(read ?? {})
     const written = stripSettingsGuard(record.written)
-    const changes = read === undefined ? [] : editedKeys(read, record.written)
-      .filter((key) => discard?.has(key) !== true)
-      .map((key) => settingsEdit(key, written[key], folder[key]))
+    const changes = read === undefined ? [] : planSettings(
+      stripSettingsGuard(readJson(globalFile) ?? {}), folder, record, this.discards.get(home.key),
+    ).edits.map((key) => settingsEdit(key, written[key], folder[key]))
     this.seen.set(home.key, { stamp, changes })
     return changes
   }
@@ -210,14 +206,17 @@ export class AccountSettings {
     const global = readJson(file) ?? {}
     setOrDelete(global, key, key === 'env' && value !== undefined ? { ...sharedEnv(value), ...ownVariables(global.env) } : value)
     writeFileSync(file, JSON.stringify(global, null, 2))
-    this.version++
+    if (Object.hasOwn(record.own, key)) this.dropOwn(home, key)
   }
 
   /** A key Even Keel itself gives the account (EKR-148); takes effect at the next transfer, which the caller starts. */
   setOwn(home: AccountHome, key: string, value: unknown): void {
-    // A folder never transferred counts its file as written, so its keys are no edits.
-    const record = this.records.get(home.key) ?? { written: stripSettingsGuard(readJson(join(home.dir, 'settings.json')) ?? {}), own: {} }
-    this.keep(home.key, { ...record, own: { ...record.own, [key]: value } })
+    const folder = stripSettingsGuard(readJson(join(home.dir, 'settings.json')) ?? {})
+    const record = this.records.get(home.key)
+    // A new folder starts at its current file. In a known folder only this key's edit is acknowledged.
+    const written = { ...(record?.written ?? folder) }
+    setOrDelete(written, key, folder[key])
+    this.keep(home.key, { written, own: { ...record?.own, [key]: value } })
   }
 
   /** Takes effect at the next transfer into the folder, which the caller starts. */
@@ -265,6 +264,15 @@ export async function saveAccountSettings(db: Queryable, account: string, record
 function setOrDelete(target: Json, key: string, value: unknown): void {
   if (value === undefined) delete target[key]
   else target[key] = value
+}
+
+function fileStamp(file: string): string | undefined {
+  try {
+    const stat = statSync(file)
+    return `${stat.mtimeMs}:${stat.size}`
+  } catch {
+    return undefined
+  }
 }
 
 function readJson(file: string): Json | undefined {
