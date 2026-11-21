@@ -108,4 +108,6 @@ export interface ImportSource {
   files(ref: string): Promise<ImportFile[]>
   /** The change log, oldest first; absent — the tracker gives none, and the plan names it among what does not move. */
   changes?(ref: string): Promise<ImportChange[]>
+  /** The tracker keeps time reports the import does not read: the plan names them among what does not move. */
+  timeReports?: boolean
 }

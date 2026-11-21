@@ -176,7 +176,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         blocks: await refs(task.blocks),
         related: await refs(task.related),
         comments: (await store.comments(task)).map((each) => ({
-          author: AUTHORS[each.author],
+          author: each.name ?? AUTHORS[each.author],
           at: Date.parse(each.at),
           text: each.body,
           journal: { id: each.id, by: each.author, model: each.model },

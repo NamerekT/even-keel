@@ -1,6 +1,7 @@
 import { TrackerNotFound, type NewTask, type TaskSource, type TrackerAdapter } from '../tracker/source.js'
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
 import type { TaskEditor } from '../tracker/editor.js'
+import type { ImportAuthor, ImportLink, ImportSource } from '../tracker/import.js'
 import { sameName } from '../chain/rules.js'
 import { changedLabels } from '../tracker/labels.js'
 import type { TaskStatus, TrackerTask } from '../tracker/model.js'
@@ -177,7 +178,43 @@ export class Board {
       },
       card: async (id) => this.card(id),
       editor: this.editor(),
+      importSource: async (project) => this.importSource(project),
       close: async () => {},
+    }
+  }
+
+  /** The project's whole history for an import (BTN-1405): its tasks, blocks and comments, every comment the user's. */
+  private importSource(project: string): ImportSource {
+    const key = this.keys.get(project)
+    const link = (id: string): ImportLink => ({ ref: id, id, foreign: key !== undefined && !id.startsWith(`${key}-`) })
+    const user: ImportAuthor = { kind: 'user', name: 'John Doe' }
+    return {
+      tasks: async () =>
+        [...this.tasks.values()]
+          .filter((task) => key === undefined || task.id.startsWith(`${key}-`))
+          .map((task) => ({
+            ref: task.id,
+            number: Number(task.id.slice(task.id.lastIndexOf('-') + 1)),
+            id: task.id,
+            title: task.title,
+            description: '',
+            images: [],
+            status: task.status,
+            priority: task.priority,
+            milestone: task.milestone?.label ?? null,
+            component: null,
+            labels: [...task.labels],
+            estimate: task.estimate,
+            parent: task.parent === null ? null : link(task.parent),
+            blocks: [...this.tasks.values()].filter((other) => other.blockedBy.includes(task.id)).map((other) => link(other.id)),
+            blockedBy: task.blockedBy.map(link),
+            related: [],
+            createdAt: 0,
+            createdBy: user,
+            closedAt: null,
+          })),
+      comments: async (ref) => this.commentsOf(ref).map((body, index) => ({ ref: `${ref}-comment-${index + 1}`, author: user, at: index, body, images: [], files: [], replyTo: null })),
+      files: async () => [],
     }
   }
 

@@ -48,7 +48,8 @@ export class BuiltinStore {
 
   /**
    * Creates the task and returns its number: one past the project's last, and past the last of `sharing` — the projects of
-   * the same key, so that `<KEY>-<N>` stays one task.
+   * the same key, so that `<KEY>-<N>` stays one task. A `number` the caller gives (the import's) is kept, and the counter
+   * goes on from the greatest.
    */
   create(task: NewBuiltinTask, sharing: readonly string[] = []): Promise<number> {
     return inTransaction(this.db, async (tx) => {
@@ -59,9 +60,9 @@ export class BuiltinStore {
         'select coalesce(max(last), 0)::int as last from builtin_counters where project_id = any($1)',
         [[task.project, ...sharing]],
       )
-      const number = rows[0]!.last + 1
+      const number = task.number ?? rows[0]!.last + 1
       await tx.query(
-        `insert into builtin_counters (project_id, last) values ($1, $2) on conflict (project_id) do update set last = excluded.last`,
+        `insert into builtin_counters (project_id, last) values ($1, $2) on conflict (project_id) do update set last = greatest(builtin_counters.last, excluded.last)`,
         [task.project, number],
       )
       const at = this.stamp()
@@ -252,13 +253,16 @@ export class BuiltinStore {
     return this.link(from, to, kind, false)
   }
 
-  /** Posts a comment and returns its id; `model` — of the session an agent's comment came from. */
-  async comment(key: TaskKey, author: CommentAuthor, body: string, model: string | null = null): Promise<string> {
+  /**
+   * Posts a comment and returns its id; `model` — of the session an agent's comment came from; `name` — of another person
+   * of the tracker an imported comment came from (BTN-1405).
+   */
+  async comment(key: TaskKey, author: CommentAuthor, body: string, model: string | null = null, name: string | null = null): Promise<string> {
     let id = ''
     await this.change(key, async (tx, row) => {
       const { rows } = await tx.query<{ id: number }>(
-        'insert into builtin_comments (task_id, author, body, at, model) values ($1, $2, $3, $4, $5) returning id',
-        [row.id, author, body, this.stamp(), author === 'agent' ? model : null],
+        'insert into builtin_comments (task_id, author, body, at, model, author_name) values ($1, $2, $3, $4, $5, $6) returning id',
+        [row.id, author, body, this.stamp(), author === 'agent' ? model : null, author === 'person' ? name : null],
       )
       id = String(rows[0]!.id)
       return true
@@ -271,7 +275,7 @@ export class BuiltinStore {
     let removed = false
     await this.change(key, async (tx, row) => {
       const { rows } = await tx.query<{ id: number }>(
-        "delete from builtin_comments where task_id = $1 and id = $2 and author = 'person' returning id",
+        "delete from builtin_comments where task_id = $1 and id = $2 and author = 'person' and author_name is null returning id",
         [row.id, Number.isSafeInteger(Number(id)) ? Number(id) : -1],
       )
       removed = rows.length > 0
@@ -284,11 +288,11 @@ export class BuiltinStore {
   async comments(key: TaskKey, after?: string): Promise<BuiltinComment[]> {
     const row = await this.row(this.db, key)
     if (row === undefined) return []
-    const { rows } = await this.db.query<{ id: number; author: CommentAuthor; body: string; at: string; model: string | null }>(
-      'select id, author, body, at, model from builtin_comments where task_id = $1 order by id',
+    const { rows } = await this.db.query<{ id: number; author: CommentAuthor; body: string; at: string; model: string | null; author_name: string | null }>(
+      'select id, author, body, at, model, author_name from builtin_comments where task_id = $1 order by id',
       [row.id],
     )
-    const list = rows.map((each) => ({ ...each, id: String(each.id) }))
+    const list: BuiltinComment[] = rows.map(({ author_name, ...each }) => ({ ...each, id: String(each.id), ...(author_name === null ? {} : { name: author_name }) }))
     if (after === undefined) return list
     const index = list.findIndex((each) => each.id === after)
     return index < 0 ? [] : list.slice(index + 1)

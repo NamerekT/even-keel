@@ -100,7 +100,8 @@ export interface ExportLog {
   save(row: ExportRow): Promise<void>
 }
 
-export type ExportLossKind = 'priority' | 'estimate' | 'blocks' | 'relates' | 'files' | 'labels' | 'milestones' | 'components' | 'status' | 'parent' | 'links' | 'markers' | 'history'
+/** `timeReports` is the import's (BTN-1405): the source's time reports, which nothing reads. */
+export type ExportLossKind = 'priority' | 'estimate' | 'blocks' | 'relates' | 'files' | 'labels' | 'milestones' | 'components' | 'status' | 'parent' | 'links' | 'markers' | 'history' | 'timeReports'
 
 /** What the copy leaves behind: the tasks it concerns by id, the labels, milestones or statuses by name. */
 export interface ExportLoss {

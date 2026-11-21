@@ -1,6 +1,7 @@
 import { sameName } from '../chain/rules.js'
 import type { TrackerCard } from './card.js'
 import { journalEntry, keptBy, runExport, type ExportLog, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportTarget, type ExportTask, type Kept } from './export.js'
+import type { ImportLink, ImportSource, ImportTask } from './import.js'
 import { isOpen } from './model.js'
 import { TrackerNotFound } from './source.js'
 
@@ -217,6 +218,69 @@ async function inspect(source: ExportSource, target: ExportTarget, rows: readonl
     })
   }
   return { kept, seen, links, found }
+}
+
+/** A task the import wrote, as the built-in tracker keeps it; its links by the source's refs. */
+export interface ImportedTask {
+  comments: number
+  /** Entries of its history but its creation. */
+  changes: number
+  files: number
+  blocks: string[]
+  related: string[]
+  parent: string | null
+  milestone: string | null
+  labels: string[]
+  component: string | null
+}
+
+/**
+ * Counts both sides of an import (BTN-1405): every task of the source against what the built-in tracker has of it.
+ * The change log is counted only where the source gives one; a link only between two tasks of the project.
+ */
+export async function checkImport(source: ImportSource, read: (task: ImportTask) => Promise<ImportedTask | null>, now: () => Date = () => new Date()): Promise<TransferCheck> {
+  const tasks = await source.tasks()
+  const refs = new Set(tasks.map((task) => task.ref))
+  const own = (link: ImportLink | null) => link !== null && !link.foreign && refs.has(link.ref)
+  const counts = new Map<CheckKind, { source: number; target: number; tasks: Set<string> }>()
+  const kinds: CheckKind[] = ['tasks', 'comments', ...(source.changes === undefined ? [] : ['history' as const]), 'files', 'links', 'milestones', 'labels', 'components']
+  for (const kind of kinds) counts.set(kind, { source: 0, target: 0, tasks: new Set() })
+  const add = (kind: CheckKind, task: ImportTask, want: number, got: number) => {
+    const row = counts.get(kind)!
+    row.source += want
+    row.target += Math.min(want, got)
+    if (got < want) row.tasks.add(task.id)
+  }
+  const names = new Map<CheckKind, Map<string, boolean>>([['milestones', new Map()], ['labels', new Map()], ['components', new Map()]])
+  const name = (kind: CheckKind, task: ImportTask, wanted: string | null, has: boolean) => {
+    if (wanted === null || wanted.trim() === '') return
+    const key = wanted.trim().toLocaleLowerCase()
+    const seen = names.get(kind)!
+    seen.set(key, (seen.get(key) ?? true) && has)
+    if (!has) counts.get(kind)!.tasks.add(task.id)
+  }
+  for (const task of tasks) {
+    const got = await read(task)
+    add('tasks', task, 1, got === null ? 0 : 1)
+    add('comments', task, (await source.comments(task.ref)).length, got?.comments ?? 0)
+    if (source.changes !== undefined) add('history', task, (await source.changes(task.ref)).length, got?.changes ?? 0)
+    add('files', task, (await source.files(task.ref)).length, got?.files ?? 0)
+    const links = [
+      ...task.blocks.filter(own).map((link) => got?.blocks.includes(link.ref) === true),
+      ...task.related.filter((link) => own(link) && task.ref < link.ref).map((link) => got?.related.includes(link.ref) === true),
+      ...(own(task.parent) ? [got?.parent === task.parent!.ref] : []),
+    ]
+    add('links', task, links.length, links.filter(Boolean).length)
+    name('milestones', task, task.milestone, got?.milestone != null && sameName(got.milestone, task.milestone ?? ''))
+    for (const label of task.labels) name('labels', task, label, got?.labels.some((each) => sameName(each, label)) === true)
+    name('components', task, task.component, got?.component != null && sameName(got.component, task.component ?? ''))
+  }
+  for (const [kind, seen] of names) {
+    const row = counts.get(kind)!
+    row.source = seen.size
+    row.target = [...seen.values()].filter(Boolean).length
+  }
+  return { at: now().toISOString(), rows: kinds.map((kind) => ({ kind, source: counts.get(kind)!.source, target: counts.get(kind)!.target, tasks: [...counts.get(kind)!.tasks] })) }
 }
 
 async function cardOf(read: NonNullable<ExportTarget['read']>, key: string): Promise<TrackerCard | null> {

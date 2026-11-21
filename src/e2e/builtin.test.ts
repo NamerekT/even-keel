@@ -145,4 +145,40 @@ describe('the built-in tracker end to end', { timeout: 120_000 }, () => {
     expect(run.board.status('BRD-2')).toBe('Done')
     expect((await statusOf(1)) === 'Done').toBe(false)
   })
+
+  it('imports the tasks of the board, switches the project to the built-in tracker and runs them there (BTN-1405)', async () => {
+    run.board.add('ABC-1')
+    run.board.add('ABC-2', 'ABC-1')
+    run.board.reply('ABC-1', 'Note from the board')
+    for (const task of ['ABC-1', 'ABC-2']) run.agent.script(task, commitAndMerge(`${task}.txt`))
+    await run.start()
+
+    expect((await run.refused('builtin/import/switch', { project: PROJECT_ID })).code).toBe('import.notFinished')
+    const plan = await run.answer<{ counts: { tasks: number; comments: number; blocks: number } }>('builtin/import/plan', { project: PROJECT_ID })
+    expect(plan.counts).toMatchObject({ tasks: 2, comments: 1, blocks: 1 })
+    await run.post('builtin/import/start', { project: PROJECT_ID, authors: [{ kind: 'user', name: 'John Doe', as: 'user' }] })
+    let checked = false
+    await run.until(() => {
+      void run.service.db.query<{ checked: string | null }>('select checked from tracker_imports').then(({ rows }) => (checked = rows[0]?.checked != null))
+      return checked
+    }, 'the import finished and checked')
+    expect(await run.answer('builtin/import/switch', { project: PROJECT_ID })).toEqual({ key: 'ABC', renamed: 0 })
+    const { rows: reports } = await run.service.db.query<{ direction: string; matched: boolean }>('select direction, matched from tracker_transfers')
+    expect(reports).toEqual([{ direction: 'import', matched: true }])
+    expect(run.service.configStore.current).toMatchObject({ trackers: { [PROJECT_ID]: 'builtin' }, keys: { [PROJECT_ID]: 'ABC' } })
+    const store = new BuiltinStore(run.service.db)
+    expect((await store.comments({ project: PROJECT_ID, number: 1 })).map((each) => each.body)).toEqual(['Note from the board'])
+    expect(run.board.status('ABC-1')).toBe('Todo')
+
+    await run.startChain(PROJECT_ID)
+    let last: string | undefined
+    await run.until(() => {
+      void statusOf(2).then((status) => (last = status))
+      return last === 'Done'
+    }, 'ABC-2 done on the built-in tracker')
+    const launches = run.agent.calls.filter((call) => call.kind === 'launch').map((call) => call.task)
+    expect(launches).toEqual(['ABC-1', 'ABC-2'])
+    expect(await statusOf(1)).toBe('Done')
+    expect(run.board.status('ABC-1')).toBe('Todo')
+  })
 })

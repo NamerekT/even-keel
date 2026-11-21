@@ -56,6 +56,7 @@ export const transferEn: Messages['transfer'] = {
     parent: 'Parent',
     links: 'Links to closed tasks',
     markers: 'Guard against double creation',
+    timeReports: 'Time reports',
   },
   kindTips: {
     history: 'Native history cannot be imported. Enable the single summary comment to keep its text in the destination task. The original events stay here.',
@@ -71,6 +72,7 @@ export const transferEn: Messages['transfer'] = {
     parent: 'The parent is closed and does not move: the tasks arrive without a parent.',
     links: 'Links to closed tasks and to tasks of other projects stay only on the old tasks.',
     markers: 'The tracker cannot find a task by its marker: if the copy breaks off in the middle of a create, a repeat may create that task twice.',
+    timeReports: 'The time reports of the tasks are not read: they stay only in the old tracker.',
   },
   recheck: 'Check again',
   start: 'Move',

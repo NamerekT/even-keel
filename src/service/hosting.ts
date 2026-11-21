@@ -71,6 +71,8 @@ import type { ServiceContext } from '../service.js'
 import { builtinControl, builtinPlaces } from '../builtin/control.js'
 import { BuiltinExports } from '../builtin/export.js'
 import { connectExportTarget } from '../tracker/export-target.js'
+import { BuiltinImports } from '../builtin/import.js'
+import { connectImportSource } from '../tracker/import-source.js'
 import { attachmentsDirOf } from '../builtin/files.js'
 import { BUILTIN } from '../builtin/model.js'
 import { isChatSession } from '../chats/model.js'
@@ -384,6 +386,24 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       move: (project, move, profile) => {
         ctx.configStore.moveTracker(project, move, ctx.profiles.current().profiles.find((each) => each.id === profile)?.rules)
         ctx.profiles.link(project, profile)
+      },
+    },
+  })
+  const builtinImports = new BuiltinImports({
+    db: ctx.db,
+    filesDir: attachmentsDirOf(stateDirOf()),
+    open: (project) => connectImportSource(ADAPTERS, ctx.profiles.current(), ctx.configStore.current, BUILTIN, project, ctx.TRACKER_CHECK_MS),
+    refresh: (project) => ctx.refreshProject(project),
+    event: (draft) => ctx.eventLog.add(draft),
+    switching: {
+      chain: () => ctx.dispatcher.state,
+      rename: (project, names) => {
+        ctx.dispatcher.rename(project, names)
+        ctx.taskRuns.rename(project, names)
+      },
+      move: (project, move) => {
+        ctx.configStore.moveTracker(project, move)
+        ctx.profiles.link(project, null)
       },
     },
   })
@@ -782,6 +802,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     builtin,
     builtinExports,
+    builtinImports,
     chats: ctx.projectChats,
     backup: ctx.backups,
     machines: ctx.machineLink.network,

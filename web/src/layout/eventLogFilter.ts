@@ -46,6 +46,13 @@ const categories = {
   'eventLog.trackerSwitched': 'settings',
   'eventLog.transferMatched': 'settings',
   'eventLog.transferMismatched': 'settings',
+  // The import into the built-in tracker (BTN-1405), for the same reason.
+  'eventLog.importStarted': 'settings',
+  'eventLog.importContinued': 'settings',
+  'eventLog.importFailed': 'settings',
+  'eventLog.importFinished': 'settings',
+  'eventLog.importMatched': 'settings',
+  'eventLog.importMismatched': 'settings',
 } satisfies Record<Extract<NoticeCode, `eventLog.${string}`>, EventCategory>
 
 export function categoryOf(notice: Notice): EventCategory {

@@ -42,6 +42,8 @@ export interface BuiltinComment {
   at: string
   /** `<Provider> | <model>` of the session an agent's comment came from; `null` — not an agent's, or not known. */
   model: string | null
+  /** The name of another person of the tracker an imported comment came from (BTN-1405); absent — the user's own. */
+  name?: string
 }
 
 /** An attachment of a task (BTN-773): its bytes are `files/<sha256>` of the state database's folder. */
@@ -72,6 +74,8 @@ export interface NewBuiltinTask {
   estimate?: number | null
   /** The row's id, chosen by the caller (a tasks_create marker, BTN-905); a new UUID by default. */
   id?: string
+  /** The number the import keeps from the source tracker (BTN-1405); one past the last by default. */
+  number?: number
 }
 
 /**

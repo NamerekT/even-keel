@@ -890,4 +890,32 @@ export const STEPS: readonly string[] = [
     primary key (session_id, at)
   );
   `,
+  // The import of a project's whole history into the built-in tracker (BTN-1405, `docs/storage.md`): the name another
+  // person of the source tracker wrote a comment under; the running import with the tracker it reads, the authors as
+  // the plan chose them, the plan and the last check, both JSON; each task's progress with its files' hashes by key.
+  `
+  alter table builtin_comments add column author_name text;
+  create table tracker_imports (
+    project_id  text primary key,
+    tracker     text not null,
+    place       text not null,
+    key         text not null,
+    started_at  text not null,
+    finished_at text,
+    authors     text not null,
+    plan        text,
+    checked     text
+  );
+  create table tracker_import_tasks (
+    project_id text not null,
+    task_ref   text not null,
+    number     integer not null,
+    stage      text not null check (stage in ('created', 'linked', 'attached', 'journaled', 'done')),
+    done       integer not null default 0,
+    files      text not null default '{}',
+    changes    integer not null default 0,
+    at         text not null,
+    primary key (project_id, task_ref)
+  );
+  `,
 ]

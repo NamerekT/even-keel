@@ -660,6 +660,15 @@ export const en = {
   'switch.noCopy': (p: { key: string }) => `${p.key} can move to another tracker only after its tasks are copied there. Copy them first, or let the copy finish.`,
   'switch.notCopied': (p: { tasks: string[] }) => `These open tasks were not copied and would be lost: ${list(p.tasks)}. Copy the tasks again to bring them over, then switch.`,
   'switch.held': (p: { key: string }) => `${p.key} stays on its tracker while the chain works on it`,
+  // The import into the built-in tracker (BTN-1405).
+  'import.hadBuiltin': () => 'This project was on Even Keel\'s own tracker before, and its tasks are still there. Moving them back will come in a later version.',
+  'import.builtin': () => 'This project\'s tasks are already on Even Keel\'s own tracker: there is nothing to import.',
+  'import.otherTracker': (p: { tracker: string }) => `Part of the tasks were already imported from another tracker. Finish that import before importing from ${p.tracker}.`,
+  'import.none': (p: { tracker: string }) => `The import from ${p.tracker} is not built yet. It will come in a later version.`,
+  'import.running': () => 'The import is still running. Wait until it ends.',
+  'import.notFinished': () => 'The project can move to Even Keel\'s own tracker only after its import finished. Start the import, or let it finish.',
+  'import.failed': (p: { tracker: string }) => `The import from ${p.tracker} stopped: Even Keel could not read it or write a task. The project stays on ${p.tracker}; start the import again to go on from where it stopped. Response`,
+  'import.checkFailed': (p: { tracker: string }) => `The tasks are imported from ${p.tracker}, but Even Keel could not read them again to check the import. Start the import again to check it. Response`,
   'switch.chainRuns': () => 'its chain runs: pause or stop it',
   'switch.current': (p: { task: string }) => `the chain holds ${p.task}: skip it or let it finish`,
   'switch.released': (p: { tasks: string[] }) => `released tasks wait for their cleanup: ${list(p.tasks)}`,
@@ -912,6 +921,15 @@ export const en = {
     `the transfer to ${p.tracker} is finished and its check matched: the key ${p.from} is now ${p.to}`,
   'eventLog.transferMismatched': (p: { project: string; tracker: string; from: string; to: string }) =>
     `the transfer to ${p.tracker} is finished, but its check did not match: the project switched without what is missing; the key ${p.from} is now ${p.to}`,
+  'eventLog.importStarted': (p: { project: string; tracker: string; total: number }) =>
+    `the import of ${p.total} ${p.total === 1 ? 'task' : 'tasks'} from ${p.tracker} into Even Keel's own tracker started`,
+  'eventLog.importContinued': (p: { project: string; tracker: string; total: number }) => `the import from ${p.tracker} goes on, ${p.total} ${p.total === 1 ? 'task' : 'tasks'} in all`,
+  'eventLog.importFailed': (p: { project: string; tracker: string }) => `the import from ${p.tracker} stopped. Response`,
+  'eventLog.importFinished': (p: { project: string; tracker: string; imported: number }) =>
+    `the import from ${p.tracker} is finished: ${p.imported} ${p.imported === 1 ? 'task' : 'tasks'} imported`,
+  'eventLog.importMatched': (p: { project: string; tracker: string }) => `the import from ${p.tracker} is finished and its check matched: the project reads its tasks from Even Keel's own tracker now`,
+  'eventLog.importMismatched': (p: { project: string; tracker: string }) =>
+    `the import from ${p.tracker} is finished, but its check did not match: the project switched to Even Keel's own tracker without what is missing`,
   // `from` and `to` are the machines' names (BTN-996).
   'eventLog.limitMoved': (p: { task: string; from: string; to: string }) =>
     `went to the machine ${p.to}: the limit on ${p.from} is spent, and “Go on where a limit is left” is on`,

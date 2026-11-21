@@ -207,6 +207,7 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
   })
 
   return {
+    timeReports: true,
     tasks: async () => (await project()).tasks,
     comments: async (ref) => (await thread(ref)).comments,
     async files(ref) {

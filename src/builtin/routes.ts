@@ -2,6 +2,7 @@ import type { IncomingMessage } from 'node:http'
 import { fail } from '../notice/notice.js'
 import type { ServerDeps } from '../server.js'
 import { labelList, numberOf, projectOf, taskOf, textOf } from '../server-request.js'
+import type { ImportAuthorChoice } from '../tracker/import-plan.js'
 import { PRIORITIES, type TaskPriority } from '../tracker/model.js'
 import type { BuiltinAttached, BuiltinControl, BuiltinDraft, BuiltinEdit } from './control.js'
 import type { ExportTargetFields } from './export-store.js'
@@ -83,11 +84,39 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
   // The reports of the project's finished transfers (BTN-1291).
   'builtin/transfers': async (deps, body) => ({ transfers: await exports(deps).transfers(projectOf(body)) }),
   'builtin/transfer': async (deps, body) => ({ report: await exports(deps).transfer(textOf(body.id, 'id')) }),
+  // The import of the project's whole history from its tracker (BTN-1405); `authors` — the plan's choices.
+  'builtin/import/plan': (deps, body) => imports(deps).plan(projectOf(body), authorsOf(body)),
+  'builtin/import/start': (deps, body) => imports(deps).start(projectOf(body), authorsOf(body)),
+  'builtin/import/state': (deps, body) => imports(deps).state(projectOf(body)),
+  'builtin/import/switch': async (deps, body) => {
+    if (body.anyway !== undefined && typeof body.anyway !== 'boolean') throw fail('request.required', { field: 'anyway' })
+    return imports(deps).switch(projectOf(body), body.anyway === true)
+  },
 }
 
 function exports({ builtinExports }: ServerDeps): NonNullable<ServerDeps['builtinExports']> {
   if (builtinExports === undefined) throw fail('builtin.off', {})
   return builtinExports
+}
+
+function imports({ builtinImports }: ServerDeps): NonNullable<ServerDeps['builtinImports']> {
+  if (builtinImports === undefined) throw fail('builtin.off', {})
+  return builtinImports
+}
+
+const AUTHOR_KINDS: readonly ImportAuthorChoice['kind'][] = ['agent', 'user', 'person']
+
+/** The plan's choice of each author: who in the source and whom the import writes them as. */
+function authorsOf(body: Record<string, unknown>): ImportAuthorChoice[] {
+  if (body.authors === undefined) return []
+  if (!Array.isArray(body.authors)) throw fail('request.required', { field: 'authors' })
+  return body.authors.map((each: unknown) => {
+    const item = (typeof each === 'object' && each !== null ? each : {}) as Record<string, unknown>
+    const kind = AUTHOR_KINDS.find((known) => known === item.kind)
+    const as = AUTHOR_KINDS.find((known) => known === item.as)
+    if (kind === undefined || as === undefined || (item.name !== null && typeof item.name !== 'string')) throw fail('request.required', { field: 'authors' })
+    return { kind, name: item.name, as }
+  })
 }
 
 function targetOf(body: Record<string, unknown>): ExportTargetFields {

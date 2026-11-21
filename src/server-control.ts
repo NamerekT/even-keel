@@ -6,6 +6,7 @@ import type { BadgeCheck } from './badge/check.js'
 import type { BadgeSettings } from './badge/model.js'
 import type { BuiltinControl } from './builtin/control.js'
 import type { BuiltinExports } from './builtin/export.js'
+import type { BuiltinImports } from './builtin/import.js'
 import type { CheckReport } from './chain/checkreports.js'
 import type { StatusMoves } from './chain/moves.js'
 import type { ChainRules } from './chain/rules.js'
@@ -330,6 +331,8 @@ export interface ServerDeps {
   builtin?: BuiltinControl
   /** The copy of a built-in project's tasks into another tracker (BTN-1073) and the switch to it (BTN-1074); without it they are refused. */
   builtinExports?: Pick<BuiltinExports, 'plan' | 'start' | 'state' | 'switch' | 'retry' | 'transfers' | 'transfer'>
+  /** The import of a project's whole history into the built-in tracker and the switch to it (BTN-1405); without it they are refused. */
+  builtinImports?: Pick<BuiltinImports, 'plan' | 'start' | 'state' | 'switch'>
   /** The project chats (BTN-1230); without them their calls are refused. */
   chats?: import('./chats/chats.js').ProjectChats
   launches: () => unknown
