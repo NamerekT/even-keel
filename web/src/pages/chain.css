@@ -210,6 +210,52 @@
   font-weight: 600;
 }
 
+/* The "N more" row of a long milestone (BTN-1188): a far row's width and height, an accent fill and a solid edge,
+   so it reads neither as a task (a surface card with a lamp and a key) nor as the dashed, half-clear add ghost. */
+.chain__page-more {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: var(--space-4) var(--space-12);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-13);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.chain__page-more:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+.chain__page-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chain__page-more .icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* Priority: the shape of the number */
 
 .chain .block__number {
@@ -530,6 +576,11 @@
 
   .chain .block--acting {
     grid-template-areas: 'number head tail' '. title title' '. action action' '. side side';
+  }
+
+  /* A phone's rows are two lines: the button takes a touch target's height. */
+  .chain__page-more {
+    min-height: 44px;
   }
 }
 

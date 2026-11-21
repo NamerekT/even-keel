@@ -58,7 +58,8 @@ interface Options {
   listRef: RefObject<HTMLElement | null>
   blocks: ChainBlock[]
   disabled: boolean
-  onDrop: (order: string[]) => void
+  /** `order` — the open rows in view after the drop, `moved` — the dragged task. */
+  onDrop: (order: string[], moved: string) => void
 }
 
 export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
@@ -218,7 +219,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
       else setReflow({ id: state.id, from: positions(list) })
       swallowClick.current = true
       setTimeout(() => (swallowClick.current = false))
-      if (to !== state.from) latest.current.onDrop(moveItem(state.order, state.from, to))
+      if (to !== state.from) latest.current.onDrop(moveItem(state.order, state.from, to), state.id)
     }
 
     const cancelPress = () => {

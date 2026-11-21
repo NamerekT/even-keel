@@ -268,6 +268,7 @@ export const chainEN: Messages['chain'] = {
     archiveShown: (shown: number, total: number) => `${shown} of ${total}`,
     archiveMore: (next: number) => `${next} more`,
     loadMore: (next: number, hidden: number) => `Show ${next} older of the ${hidden} folded`,
+    pageMore: (next: number, hidden: number) => (next < hidden ? `Show ${next} more of ${hidden}` : `Show the remaining ${tasks(next)}`),
     openArchive: 'Show the latest closed tasks',
     foldArchive: 'Fold the archive',
     nextMilestone: 'Show the milestone',

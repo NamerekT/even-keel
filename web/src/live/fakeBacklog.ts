@@ -33,6 +33,23 @@ export function withBacklogLinks(state: EvenKeelState): EvenKeelState {
   return { ...state, tasks: state.tasks.map((each) => (linked[each.id] === undefined ? each : { ...each, ...linked[each.id] })) }
 }
 
+/**
+ * `?chain=long` (BTN-1188): 80 more Todo tasks in ABC's first milestone, so it stops at 50 rows with its "N more" button;
+ * the 66th of them asks a question, so it stays in view under the button.
+ */
+export function withLongChain(state: EvenKeelState): EvenKeelState {
+  const milestone = 'v0.1 — каркас'
+  const made = Array.from({ length: 80 }, (_, index) => {
+    const made = task(`ABC-${200 + index}`, `${TOPICS[index % TOPICS.length]} №${index + 1}`, 'Todo', 'ToDo', [], milestone)
+    return index === 65 ? { ...made, question: true } : made
+  })
+  const order = state.chain.projects['ABC']!
+  const inMilestone = new Set(state.tasks.filter((each) => each.milestone?.label === milestone).map((each) => each.id))
+  const at = order.order.findLastIndex((id) => inMilestone.has(id)) + 1
+  const chain = { ...order, order: order.order.toSpliced(at, 0, ...made.map((each) => each.id)) }
+  return { ...state, tasks: [...state.tasks, ...made], chain: { ...state.chain, projects: { ...state.chain.projects, ABC: chain } } }
+}
+
 /** `?backlog=many` (BTN-982): 64 more backlog tasks in ABC, every fifth with a run, so the panel shows "More" and the search has something to find. */
 export function withLongBacklog(state: EvenKeelState): EvenKeelState {
   const made = Array.from({ length: 64 }, (_, index) => {

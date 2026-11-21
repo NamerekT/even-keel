@@ -8,7 +8,7 @@ import { blockMetered, sessionCache, taskTitle, type ChainBlock, type Ghost, typ
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
 import { ActionMeter, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
-import { IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
+import { ChevronIcon, IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { useLive } from '../live/context.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
@@ -20,7 +20,8 @@ import { parentsTo } from '../parents.js'
 import { milestoneView, type EmptyMilestones, type Section } from '../ui/milestones.js'
 import { chainPlace, looseGhost, takesGhost, type MilestoneRules } from '../ui/addGhost.js'
 import { AddGhost } from './AddGhost.js'
-import { placeLeaving, type Mark } from '../ui/motion.js'
+import { placeLeaving, type Mark, type Slot } from '../ui/motion.js'
+import { droppedOrder, milestonePage, staysInView, type MilestonePage } from '../ui/chainPage.js'
 import { PullChip } from '../ui/PullChip.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { cardAction, lampLabel } from './sessionStatus.js'
@@ -86,8 +87,10 @@ type Relation = 'dragged' | 'blocker' | 'dependent'
 export function ChainList(props: Props) {
   const { project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard, adding = null, switcher, rowSearch } = props
   const { ghost, leaving } = useLingering(aimed, chain)
-  const [pages, setPages] = useState(0)
+  const [archivePages, setArchivePages] = useState(0)
   const [revealed, setRevealed] = useState(0)
+  /** The presses of each milestone's "N more" button, by milestone; a fold of the milestone forgets them. */
+  const [more, setMore] = useState<ReadonlyMap<string, number>>(new Map())
   const { send, sending, failure } = useCommand()
   const location = useLocation()
   const navigate = useNavigate()
@@ -97,15 +100,19 @@ export function ChainList(props: Props) {
 
   const ordered = pending === null ? chain : withOrder(chain, pending)
   const target = ghost?.id ?? arrival?.id ?? focus
-  const archive = archiveView(withGhost(ordered, ghost), pages, target)
+  const archive = archiveView(withGhost(ordered, ghost), archivePages, target)
   const empty = adding?.empty
   const view = milestoneView(archive.visible, revealed, target, empty)
   const settled = milestoneView(archive.visible, revealed, arrival?.id ?? focus, empty).sections.length
-  const blocks = view.sections.flatMap((section) => section.blocks)
+  // A ghost or an arrival behind a milestone's button stays there: only the address's focus opens the page (BTN-1188).
+  const pages = view.sections.map((section) =>
+    milestonePage(section.blocks, more.get(pageKey(section)) ?? 0, { keeps: staysInView, counts: (block) => block.id !== ghost?.id, focus }),
+  )
+  const rows = pages.map((page) => [...page.head, ...page.kept])
+  const blocks = rows.flat()
   const shown = new Set([...archive.archived, ...blocks].map((block) => block.id))
-  const hidden = openIds(ordered).filter((id) => !shown.has(id))
   const open = new Set(linkedIds(ordered))
-  const numbers = new Map(openIds(blocks).map((id, index) => [id, index + 1]))
+  const numbers = new Map(openIds(view.sections.flatMap((section) => section.blocks)).map((id, index) => [id, index + 1]))
   const [hovered, setHovered] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   // Each view of the feed keeps its own last frame: a switch of the view is no motion of the chain.
@@ -116,10 +123,7 @@ export function ChainList(props: Props) {
   const ghostTier = ghost === null ? 'far' : (tiersOf(blocks.map((block) => ({ ...block, live: blockMetered(block) }))).get(ghost.id) ?? 'far')
   const rails = railsOf(real)
   const kin = real.find((block) => block.id === hovered)?.parent ?? null
-  const slots = placeLeaving(
-    view.sections.map((section) => section.blocks),
-    motion.leaving,
-  )
+  const slots = placeLeaving(rows, motion.leaving)
   const copies = new Map(motion.leaving.toReversed().map((each) => [each.item.id, each]))
 
   const keep = arrival === null ? 0 : view.revealed
@@ -140,11 +144,13 @@ export function ChainList(props: Props) {
     if (focus !== '' && !kept.some((block) => block.id === focus)) navigate({ search: location.search, hash: '' })
   }
   const collapseArchive = () => {
-    setPages(0)
+    setArchivePages(0)
     unfocus(archiveView(ordered, 0, '').visible)
   }
   const foldMilestones = (kept: number) => {
     setRevealed(kept)
+    const folded = view.sections.slice(view.fixed + kept).map(pageKey)
+    setMore((current) => new Map([...current].filter(([key]) => !folded.includes(key))))
     unfocus(milestoneView(archive.visible, kept, '', empty).sections.flatMap((section) => section.blocks))
   }
 
@@ -152,8 +158,8 @@ export function ChainList(props: Props) {
     listRef,
     blocks,
     disabled: sending,
-    onDrop: (order) => {
-      const full = [...order, ...hidden]
+    onDrop: (order, moved) => {
+      const full = droppedOrder(openIds(ordered), order, moved)
       setPending(full)
       void send('chain/order', { project, order: full }).then((ok) => ok || setPending(null))
     },
@@ -173,7 +179,7 @@ export function ChainList(props: Props) {
                   count={<ArchiveCounts tasks={archive.hidden - archive.hiddenFixes} fixes={archive.hiddenFixes} />}
                   hidden
                   bump={motion.bump ?? undefined}
-                  toggle={{ expanded: false, title: t.chain.openArchive, run: () => setPages(1) }}
+                  toggle={{ expanded: false, title: t.chain.openArchive, run: () => setArchivePages(1) }}
                 />
               )}
             </TopRow>
@@ -196,7 +202,7 @@ export function ChainList(props: Props) {
                       type="button"
                       className="chain__more"
                       title={t.chain.loadMore(archive.next, archive.hidden)}
-                      onClick={() => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}
+                      onClick={() => setArchivePages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}
                     >
                       {t.chain.archiveMore(archive.next)}
                     </button>
@@ -238,8 +244,10 @@ export function ChainList(props: Props) {
               />
             )}
             <ol className="chain__blocks">
-              {slots[index]!.map(({ block, leaving }) =>
-                leaving ? (
+              {withButton(slots[index]!, pages[index]!).map((slot) => {
+                if (slot === 'more') return <MoreRows key="more" page={pages[index]!} onMore={() => setMore((current) => pressed(current, section))} />
+                const { block, leaving } = slot
+                return leaving ? (
                   <LeavingBlock
                     key={`leaving:${block.id}`}
                     block={block}
@@ -275,8 +283,8 @@ export function ChainList(props: Props) {
                     onUnready={!unready(block) ? null : sending ? undefined : () => void send('task/unready', { task: block.id })}
                     onCard={onCard}
                   />
-                ),
-              )}
+                )
+              })}
               {adding !== null && index < settled && takesGhost(section, adding.rules) && (
                 <li className="chain__add">
                   <AddGhost
@@ -307,6 +315,37 @@ export function ChainList(props: Props) {
       )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </div>
+  )
+}
+
+/** The milestone a section's "N more" presses are kept under. */
+function pageKey(section: Section<ChainBlock>): string {
+  return section.milestone ?? ''
+}
+
+function pressed(more: ReadonlyMap<string, number>, section: Section<ChainBlock>): Map<string, number> {
+  const key = pageKey(section)
+  return new Map(more).set(key, (more.get(key) ?? 0) + 1)
+}
+
+/** The section's slots with the "N more" button after the last row of its head, above the rows kept past the cut. */
+function withButton(slots: Slot<ChainBlock>[], page: MilestonePage<ChainBlock>): (Slot<ChainBlock> | 'more')[] {
+  if (page.hidden === 0) return slots
+  const kept = new Set(page.kept.map((block) => block.id))
+  const cut = slots.findIndex((slot) => !slot.leaving && kept.has(slot.block.id))
+  const at = cut < 0 ? slots.length : cut
+  return [...slots.slice(0, at), 'more', ...slots.slice(at)]
+}
+
+/** A row of the chain's width that adds the next rows of a long milestone (BTN-1188). */
+function MoreRows({ page, onMore }: { page: MilestonePage<ChainBlock>; onMore: () => void }) {
+  return (
+    <li className="chain__page">
+      <button type="button" className="chain__page-more" onClick={onMore}>
+        <ChevronIcon />
+        <span>{t.chain.pageMore(page.next, page.hidden)}</span>
+      </button>
+    </li>
   )
 }
 

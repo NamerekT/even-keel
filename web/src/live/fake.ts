@@ -27,7 +27,7 @@ import { withFix } from './fakeFix.js'
 import { withLiveMilestones, withMilestonePreview, withSavedMilestoneOrder } from './fakeMilestones.js'
 import { withDragPreview } from './fakeDrag.js'
 import { withFamilies } from './fakeFamilies.js'
-import { withBacklogLinks, withChangedText, withLongBacklog } from './fakeBacklog.js'
+import { withBacklogLinks, withChangedText, withLongBacklog, withLongChain } from './fakeBacklog.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
@@ -595,6 +595,7 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (params.get('chain') === 'drag' && current.state !== null) current.state = withDragPreview(current.state)
   if (params.get('backlog') === 'many' && current.state !== null) current.state = withLongBacklog(current.state)
+  if (params.get('chain') === 'long' && current.state !== null) current.state = withLongChain(current.state)
   if (params.get('backlog') === 'changed' && current.state !== null) current.state = withChangedText(current.state)
   if (params.get('backlog') === 'links' && current.state !== null) current.state = withBacklogLinks(current.state)
   if (params.get('chain') === 'backlog' && current.state !== null) {

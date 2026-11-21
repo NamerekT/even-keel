@@ -270,6 +270,7 @@ export const chainRU = {
     archiveShown: (shown: number, total: number) => `${shown} из ${total}`,
     archiveMore: (next: number) => `ещё ${next}`,
     loadMore: (next: number, hidden: number) => `Показать ${next} более старых из ${hidden} свёрнутых`,
+    pageMore: (next: number, hidden: number) => (next < hidden ? `Ещё ${next} из ${hidden}` : `Ещё ${tasks(next)}`),
     openArchive: 'Показать последние закрытые задачи',
     foldArchive: 'Свернуть архив',
     nextMilestone: 'Показать веху',
