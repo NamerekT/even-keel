@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { splitUserMessage } from '../chain/user-message.js'
 import { launchBriefs, wireBriefed } from './chain-prompts.js'
 import type { ChainContext } from './chain.js'
 import { wireMachine } from './machine-chain.js'
@@ -145,5 +146,39 @@ describe('a session of a chain task on the machine without a brief (BTN-1252)', 
     await expect(port.relay('ABC-1', session as never, 'Handoff', 'restart')).rejects.toThrow(expect.objectContaining({ notice: { code: 'chain.briefMissing', params: { task: 'ABC-1' } } }))
     expect(stopIn).not.toHaveBeenCalled()
     expect(launchIn).not.toHaveBeenCalled()
+  })
+})
+
+describe("a handoff with the user's message (BTN-1423)", () => {
+  const relayed = async (handoff: string, reason: 'message' | 'restart') => {
+    const launchIn = vi.fn(async (_home: unknown, _start: { prompt: string }) => 'session-1')
+    const ctx = {
+      homeOf: () => ({ key: 'main', dir: 'C:/example/home' }),
+      homes: { find: () => undefined },
+      choiceFor: () => ({ account: 'main', model: 'example' }),
+      daemons: { prepare: async () => {} },
+      promptLanguage: () => 'en',
+      briefed: launchBriefs(),
+      withProject: (prompt: string) => `${prompt}\nProject rules\n`,
+      planFor: (_task: string, prompt: string) => ({ prompt: `${prompt}\nUnattended rules\n\nModel prompt`, model: 'example', provider: 'claude', fallback: null }),
+      agentExtras: () => ({}),
+      settingsFor: async () => undefined,
+      projectOf: () => undefined,
+      writes: { add: () => {} },
+      launchIn,
+    } as unknown as MachineContext
+    const session = { sessionId: 'session-0', account: 'main', workdir: 'C:/example/repo/.claude/worktrees/abc-1', checkpoint: null, stopped: true }
+    await wireMachine(ctx, async () => {}).relay('ABC-1', session as never, handoff, reason, { prompt: '\nTask brief\n' })
+    return launchIn.mock.calls[0]![1].prompt
+  }
+
+  it('ends the prompt with the message, after the brief and every setting\'s text, so the page splits off only the message', async () => {
+    const prompt = await relayed("Handoff\n\nThe user's message:\n\nTry again\n", 'message')
+    expect(prompt.endsWith("\n\nThe user's message:\n\nTry again\n")).toBe(true)
+    expect(splitUserMessage(prompt)).toEqual({ handoff: 'Handoff\n\nTask brief\n\nProject rules\n\nUnattended rules\n\nModel prompt', message: 'Try again' })
+  })
+
+  it('leaves the other handoffs as they were', async () => {
+    expect(await relayed('Handoff\n', 'restart')).toBe('Handoff\n\nTask brief\n\nProject rules\n\nUnattended rules\n\nModel prompt')
   })
 })

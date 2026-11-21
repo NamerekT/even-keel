@@ -9,6 +9,7 @@ import { limitSpent } from '../chain/limitNotice.js'
 import { TaskPlaces } from '../chain/places.js'
 import { carryPrompt, fixPrompt, noteOf, resumePrompt, startPrompt, type HandoffSession } from '../chain/relay.js'
 import { readNote, snapshotReason, type HandoffSnapshot } from '../chain/snapshots.js'
+import { cutUserMessage } from '../chain/user-message.js'
 import { DEFAULT_CI, isPlain, projectLabel } from '../config.js'
 import { changesOf } from '../git/changes.js'
 import { pushTaskBranch, restoreBranch } from '../git/push.js'
@@ -137,7 +138,9 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       user === true && (await toldInbox(ctx, task, session, prompt)) ? session.sessionId : ctx.resumeWith(task, session, prompt),
     relay: async (task, session, handoff, reason, brief) => {
       // Before the stop: without a brief the handoff pauses, and the session it was to replace is left as it is.
-      const told = ctx.briefed.apply(task, handoff, brief)
+      // The user's message goes last, after the brief and every setting's text: the agent and the page look for it there.
+      const cut = reason === 'message' ? cutUserMessage(handoff) : null
+      const told = ctx.briefed.apply(task, cut?.rest ?? handoff, brief)
       const previous = ctx.homes.find(session.account)
       if (previous !== undefined && !session.stopped) await ctx.stopIn(previous, session)
       const project = ctx.projectOf(task)
@@ -145,7 +148,9 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       ctx.writes.add(`the push of ${task}`, pushOf(ctx, project, task, session.workdir))
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
-      const { prompt, model } = ctx.planFor(task, ctx.withProject(told, project), project)
+      const plan = ctx.planFor(task, ctx.withProject(told, project), project)
+      const { model } = plan
+      const prompt = cut === null ? plan.prompt : `${plan.prompt.trimEnd()}\n\n${cut.tail}`
       const notePath = noteOf(session)
       const note = await readNote(notePath)
       const at = new Date().toISOString()
