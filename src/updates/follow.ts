@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { imageTagOf } from '../cli-install.js'
 import type { VersionRefusal } from '../link/protocol.js'
 import type { MachineFollow } from '../link/view.js'
 import { LINK_FILE } from '../machine/join.js'
@@ -18,6 +19,8 @@ export interface FollowOptions {
   source: InstallSource
   /** The installed version. */
   current: string
+  /** It runs in a container (BTN-1440): Docker replaces it, it never updates itself. */
+  container?: boolean
   control: () => Promise<ServiceControl | null>
   checkout?: (root: string) => Promise<Checkout | null>
   /** `logs/update.json`; `null` — none or unreadable. */
@@ -63,6 +66,11 @@ export class HubFollower {
 
   private async follow(refusal: VersionRefusal): Promise<boolean> {
     const { options } = this
+    if (options.container) {
+      const version = refusal.evenKeel
+      if (version === undefined) return false
+      return this.stay(version, 'manual', `it runs in a container: put EVEN_KEEL_IMAGE_TAG=${imageTagOf(version)} in the Compose folder's .env and run docker compose pull && docker compose up -d there`)
+    }
     const npm = options.source === 'npm'
     const target: Target | undefined = npm
       ? refusal.evenKeel !== undefined && refusal.evenKeel !== options.current ? { version: refusal.evenKeel, ref: `v${refusal.evenKeel}` } : undefined

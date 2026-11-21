@@ -11,6 +11,24 @@ export function joinedHub(stateDir: string): boolean {
   return readLinkFile(stateDir) !== undefined
 }
 
+/** `EVEN_KEEL_MACHINE=1`: the installation is a machine's (the Compose templates' `machine` service, BTN-1440), never a hub. */
+export function machineOnly(env: NodeJS.ProcessEnv): boolean {
+  return env.EVEN_KEEL_MACHINE === '1'
+}
+
+const JOIN_POLL_MS = 5_000
+
+/**
+ * Until `join` writes the link file: a machine's container started before its join holds nothing, so the join from
+ * `docker compose run` goes through, and this process then starts as the machine.
+ */
+export async function waitForJoin(stateDir: string, wait: { sleep?: (ms: number) => Promise<void>; log: (line: string) => void }): Promise<void> {
+  const sleep = wait.sleep ?? ((ms: number) => new Promise<void>((done) => setTimeout(done, ms)))
+  if (joinedHub(stateDir)) return
+  wait.log('machine: EVEN_KEEL_MACHINE=1 and this installation has joined no hub: it waits for even-keel join <connection string> (docker compose run --rm machine even-keel join <string>)')
+  while (!joinedHub(stateDir)) await sleep(JOIN_POLL_MS)
+}
+
 /** The installation held by this process; `release` lets it go. */
 export interface Held {
   release(): Promise<void>

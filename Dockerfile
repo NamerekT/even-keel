@@ -14,7 +14,7 @@ RUN --mount=type=bind,from=build,source=/package,target=/package \
     npm install --global /package/even-keel-*.tgz --no-audit --no-fund && npm cache clean --force
 
 ENV EVEN_KEEL_HOST=0.0.0.0
-EXPOSE 4747
+EXPOSE 4747 4749
 USER node
 WORKDIR /home/node
 RUN even-keel --help > /dev/null

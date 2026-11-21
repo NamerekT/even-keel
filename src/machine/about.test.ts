@@ -48,4 +48,10 @@ describe("the machine's report about itself", () => {
     expect(about.commit).toBe(commit)
     expect(isAbout(about)).toBe(true)
   })
+
+  it('says it runs in a container, so the hub\'s page gives Compose commands instead of an update in place', async () => {
+    const sources = { evenKeel: '0.4.0', root: '/home/node/projects', home: '/home/node', git: gitWith({}), version: async () => null }
+    expect((await machineAbout({ ...sources, container: true })).container).toBe(true)
+    expect('container' in (await machineAbout({ ...sources, container: false }))).toBe(false)
+  })
 })

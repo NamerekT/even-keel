@@ -41,7 +41,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     for (const close of closing.splice(0).reverse()) await close()
   })
 
-  const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>) => {
+  const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>, inContainer = false) => {
     const db = await PGlite.create()
     await db.exec(fixture(60))
     const settings = { address: null as string | null }
@@ -59,6 +59,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       repoOf: (project) => (project === ABC ? 'D:\\repos\\example' : undefined),
       allowedHosts: () => ['box.example.com'],
       serviceHost: '0.0.0.0',
+      inContainer,
       version: '0.4.0',
       changed: () => void changes.push(1),
       projectSettings: (project) => (project === ABC ? { beforeStart: [], check: [], afterGreen: ['npm run deploy'] } : undefined),
@@ -78,6 +79,11 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(folderUnder('C:\\projects', '/srv/repos/example/')).toBe('C:\\projects\\example')
   })
 
+  it('offers no network card of a hub in a container: those addresses are the container\'s, not the Docker host\'s', async () => {
+    const { network } = await started(undefined, undefined, undefined, true)
+    expect(network.addresses()).toEqual([{ address: 'box.example.com', from: 'allowedHosts' }])
+  })
+
   it('listens only while the address is set, and a machine joins, reports itself and gets a project inside its root', async () => {
     const { db, network, settings } = await started()
     await expect(network.invite('Example laptop')).rejects.toThrow(/Hub address for machines/)
@@ -90,6 +96,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     const string = parseToken(invite.line)!
     expect(new URL(string.hub).hostname).toBe('127.0.0.1')
     expect(invite.command).toBe(`npx even-keel@0.4.0 install --machine ${invite.line}`)
+    expect(invite.docker).toEqual({ env: 'EVEN_KEEL_IMAGE_TAG=0.4.0', join: `docker compose run --rm machine even-keel join ${invite.line}` })
     const joined = await joinHub(string, ABOUT, 5_000)
     if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
 

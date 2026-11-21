@@ -31,14 +31,16 @@ export class FakeNetwork {
     const joined = (id: string, name: string, report: MachineAbout, online: boolean): MachineView => ({
       id, name, createdAt: Date.now() - 86_400_000, revokedAt: null, inviteExpires: null, joinedAt: Date.now() - 86_000_000, host: report.host, about: report, online, projects: [], taken: [],
     })
-    // `follow`: the hub refused the laptop's API version and its update to the hub's commit failed (BTN-1275).
+    // `follow`: the hub refused the laptop's API version and its update to the hub's commit failed (BTN-1275);
+    // `container`: the laptop runs in a container, an older image the hub refused (BTN-1440).
     const laptop: Partial<MachineAbout> =
       mode === 'nocli' ? { agents: {} }
       : mode === 'version' ? { evenKeel: '0.3.9' }
+      : mode === 'container' ? { evenKeel: '0.3.9', container: true, root: '/home/node/.local/share/even-keel/projects', follow: { to: '0.4.0', stuck: 'manual' } }
       : mode === 'follow' ? { commit: '4b1d2c3e5f60718293a4b5c6d7e8f90123456789', follow: { to: '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432', stuck: 'failed' } }
       : { gitUser: false, gitName: undefined }
     this.machines = [
-      joined('machine-1', 'Example laptop', about('example-laptop', laptop), mode !== 'offline' && mode !== 'follow'),
+      joined('machine-1', 'Example laptop', about('example-laptop', laptop), mode !== 'offline' && mode !== 'follow' && mode !== 'container'),
       joined('machine-2', 'Example desktop', about('example-desktop', { os: 'win32 10.0.26200', agents: { claude: '2.1.322', codex: '0.98.0' }, root: 'D:/Projects' }), true),
     ]
     // The wizard's block (BTN-1297) shows each state of a row: a third machine, off the link.
@@ -69,7 +71,10 @@ export class FakeNetwork {
       for (const listener of this.listeners) listener()
     }, JOIN_MS)
     const line = `ek1_${btoa(id).replace(/=+$/, '')}example`
-    return { line, machine: id, expiresAt: Date.now() + INVITE_MS, command: `npx even-keel@0.4.0 install --machine ${line}` } satisfies MachineInvite
+    return {
+      line, machine: id, expiresAt: Date.now() + INVITE_MS, command: `npx even-keel@0.4.0 install --machine ${line}`,
+      docker: { env: 'EVEN_KEEL_IMAGE_TAG=0.4.0', join: `docker compose run --rm machine even-keel join ${line}` },
+    } satisfies MachineInvite
   }
 
   private rows(project: string): PoolMachine[] {

@@ -8,7 +8,7 @@ import type { MachineEnd } from './link/machine.js'
 import { httpsTransport } from './link/machine-transport.js'
 import { parseToken } from './link/protocol.js'
 import { HookReceiver } from './machine/hook-receiver.js'
-import { home, loadEnv, root, source, stateDirOf } from './locations.js'
+import { home, inContainer, loadEnv, root, source, stateDirOf } from './locations.js'
 import { machineAbout } from './machine/about.js'
 import type { HubBrief } from './machine/brief.js'
 import { folderMarks } from './machine/marks.js'
@@ -54,7 +54,7 @@ const projectsRoot = (await storedRoot(machineDb)) ?? null
 const version = installed(root).version
 const commit = source === 'git' ? await headOf(root) : null
 // At a refusal of its API version the machine moves itself to the hub's commit or version (BTN-1275).
-const follower = new HubFollower({ root, home, stateDir, source, current: version, control: () => serviceControl(root), log })
+const follower = new HubFollower({ root, home, stateDir, source, current: version, container: inContainer, control: () => serviceControl(root), log })
 
 const writes = new Writes((text) => console.warn(text))
 const tell = laterTell()
@@ -92,7 +92,7 @@ const side = wireMachineSide(machine, {
   // The hub names the machine at its invitation; the machine knows itself by its host, so a mark names that.
   marks: folderMarks(() => ({ machine: token.machine, name: hostname() }), process.env),
   about: async () => {
-    const about = await machineAbout({ evenKeel: version, root: projectsRoot, commit, git: runGit, home: homedir() })
+    const about = await machineAbout({ evenKeel: version, root: projectsRoot, commit, container: inContainer, git: runGit, home: homedir() })
     const follow = follower.view()
     return follow === undefined ? about : { ...about, follow }
   },

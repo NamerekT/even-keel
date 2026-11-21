@@ -1,0 +1,29 @@
+# The hub and a machine of it on one Docker host, one image and one EVEN_KEEL_IMAGE_TAG for both. Save it as compose.yaml
+# in the hub's Compose folder; docs/guide/docker.md, "Machines". The machine reaches the hub as even-keel.
+services:
+  even-keel:
+    image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:-latest}
+    ports:
+      - "127.0.0.1:4747:4747"
+      - "${EVEN_KEEL_MACHINES_PUBLISH:-127.0.0.1}:4749:4749"
+    environment:
+      EVEN_KEEL_TOKEN: ${EVEN_KEEL_TOKEN:?Set EVEN_KEEL_TOKEN in .env before starting Even Keel}
+    volumes:
+      - home:/home/node
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  machine:
+    image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:-latest}
+    environment:
+      EVEN_KEEL_MACHINE: "1"
+    volumes:
+      - machine-home:/home/node
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  home:
+  machine-home:

@@ -1,6 +1,6 @@
 import type { Server } from 'node:https'
 import { networkInterfaces } from 'node:os'
-import { installCommandOf } from '../cli-install.js'
+import { dockerJoinOf, installCommandOf } from '../cli-install.js'
 import { fail } from '../notice/notice.js'
 import { hubUrlOf } from '../link/address.js'
 import { colorOf, machineColors } from '../link/colors.js'
@@ -8,7 +8,7 @@ import { createHubServer } from '../link/hub-server.js'
 import type { MachineRecord } from '../link/hub-store.js'
 import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
 import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken } from '../link/protocol.js'
-import type { AddressChoice, MachineSignIn, MachineView, TakenFolder } from '../link/view.js'
+import type { AddressChoice, MachineInvite, MachineSignIn, MachineView, TakenFolder } from '../link/view.js'
 import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { RemoteMachine } from '../machine/remote.js'
@@ -475,7 +475,7 @@ export class MachineNetwork {
   /** The names the page offers for the setting, each once. */
   addresses(): AddressChoice[] {
     const choices: AddressChoice[] = this.options.allowedHosts().map((address) => ({ address, from: 'allowedHosts' }))
-    for (const [adapter, entries] of Object.entries(networkInterfaces())) {
+    for (const [adapter, entries] of Object.entries(this.options.inContainer ? {} : networkInterfaces())) {
       for (const entry of entries ?? []) {
         if (entry.internal || LOOPBACK.test(entry.address) || entry.address.startsWith('169.254.') || /^fe80:/i.test(entry.address)) continue
         choices.push({ address: entry.family === 'IPv6' ? `[${entry.address}]` : entry.address, from: 'adapter', adapter })
@@ -493,7 +493,7 @@ export class MachineNetwork {
    * address is a proxy that ends TLS with a public authority's certificate (BTN-1286): the string pins no fingerprint,
    * and an address without a port means 443, not the machines' port.
    */
-  async invite(name: string, given?: string, color?: string, proxied = false): Promise<Invite & { command: string }> {
+  async invite(name: string, given?: string, color?: string, proxied = false): Promise<Invite & Pick<MachineInvite, 'command' | 'docker'>> {
     const painted = color === undefined ? undefined : colorOf(color)
     if (color !== undefined && painted === undefined) throw fail('request.required', { field: 'color' })
     const chosen = given?.trim().toLowerCase()
@@ -511,7 +511,7 @@ export class MachineNetwork {
       await this.refresh()
     }
     this.options.log(`machines: a connection string for "${name.trim() || '(its host)'}" was issued, good until ${new Date(invite.expiresAt).toISOString()}`)
-    return { ...invite, command: installCommandOf(this.options.version, invite.line) }
+    return { ...invite, command: installCommandOf(this.options.version, invite.line), docker: dockerJoinOf(this.options.version, invite.line) }
   }
 
   async revoke(machine: string): Promise<void> {

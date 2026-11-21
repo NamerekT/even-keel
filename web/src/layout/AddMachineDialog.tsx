@@ -10,6 +10,7 @@ import { addMachineOf, joinedMachine, takenColors, withAddMachine } from '../mac
 import { machineArrival } from '../machineArrival.js'
 import { HubAddressField } from '../pages/HubAddressField.js'
 import { HelpTip, Switch } from '../pages/settingsParts.js'
+import { Segmented } from '../stats/common.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { CloseIcon, ServerIcon } from '../ui/icons.js'
@@ -189,6 +190,8 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<Notice | null>(null)
   const blank = address.trim() === ''
+  // A hub in a container offers no address of its own: machines reach it at the Docker host (BTN-1440).
+  const container = state.updates.blocked === 'container'
 
   const issue = async () => {
     setSending(true)
@@ -216,6 +219,12 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
           </label>
           <HubAddressField id={addressId} value={address} invalid={failure?.code === 'config.machinesAddress'} placeholder={t.machines.addressNone} onChange={setAddress} />
           <p className="add-package__note">{t.machines.addressHint}</p>
+          {container && (
+            <p className="add-package__note add-machine__hinted">
+              {t.machines.addressContainer}
+              <HelpTip text={t.machines.addressContainerHint} align="start" />
+            </p>
+          )}
           <span className="add-machine__proxy">
             <label className="add-machine__proxy-label">
               <Switch checked={proxied} disabled={sending} label={t.machines.proxied} onChange={setProxied} />
@@ -249,7 +258,7 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
           </span>
           <p className="add-package__note">{t.machines.colorHint}</p>
         </div>
-        {invite !== null && <CommandPart invite={invite} sending={sending} blank={blank} onAgain={() => void issue()} />}
+        {invite !== null && <CommandPart invite={invite} container={container} sending={sending} blank={blank} onAgain={() => void issue()} />}
       </div>
       {failure !== null && (
         <p role="alert" className="notice notice--error add-package__failure">
@@ -281,15 +290,40 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
   )
 }
 
-/** The one command for every system, until when it holds, and the wait for the machine that runs it. */
-function CommandPart({ invite, sending, blank, onAgain }: { invite: MachineInvite; sending: boolean; blank: boolean; onAgain: () => void }) {
+type Way = 'npx' | 'docker'
+
+/**
+ * The one command for every system or, for a machine in a container (BTN-1440), the `.env` line, the join and the
+ * start; until when the string holds, and the wait for the machine that runs it.
+ */
+function CommandPart({ invite, container, sending, blank, onAgain }: { invite: MachineInvite; container: boolean; sending: boolean; blank: boolean; onAgain: () => void }) {
   const now = useNow(5_000)
   const expired = now.getTime() > invite.expiresAt
+  const [way, setWay] = useState<Way>(container ? 'docker' : 'npx')
+  const text = t.machines
   return (
     <>
       <div key={invite.machine} className="add-package__field add-machine__appear">
-        <span className="add-package__label">{t.machines.run}</span>
-        <CommandBlock command={invite.command} copyLabel={t.machines.copy} className="add-machine__command" />
+        <span className="add-machine__way">
+          <span className="add-package__label">{text.run}</span>
+          <Segmented<Way> label={text.way} options={[['npx', text.wayNpx], ['docker', text.wayDocker]]} value={way} onChange={setWay} />
+        </span>
+        {way === 'npx' ? (
+          <CommandBlock command={invite.command} copyLabel={text.copy} className="add-machine__command" />
+        ) : (
+          <>
+            <p className="add-package__note add-machine__hinted">
+              {text.dockerFolder}
+              <HelpTip text={text.dockerFolderHint} align="start" />
+            </p>
+            <span className="add-machine__step">{text.dockerEnv}</span>
+            <CommandBlock command={invite.docker.env} copyLabel={text.copy} className="add-machine__command" />
+            <span className="add-machine__step">{text.dockerJoin}</span>
+            <CommandBlock command={invite.docker.join} copyLabel={text.copy} className="add-machine__command" />
+            <span className="add-machine__step">{text.dockerStart}</span>
+            <CommandBlock command="docker compose up -d" copyLabel={text.copy} className="add-machine__command" />
+          </>
+        )}
         <p className="add-machine__meta">
           <span>{t.machines.until(formatLineTime(new Date(invite.expiresAt).toISOString()))}</span>
           <Tipped tip={t.machines.againHint} inline align="start">
@@ -298,7 +332,7 @@ function CommandPart({ invite, sending, blank, onAgain }: { invite: MachineInvit
             </button>
           </Tipped>
         </p>
-        <p className="add-package__note">{t.machines.needs}</p>
+        <p className="add-package__note">{way === 'npx' ? text.needs : text.dockerNeeds}</p>
       </div>
       <p className={`add-machine__wait${expired ? ' add-machine__wait--expired' : ''}`} role="status">
         {!expired && <span className="add-machine__spinner" aria-hidden="true" />}

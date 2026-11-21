@@ -9,7 +9,7 @@ import { AccountIdentities } from '../limits/identity.js'
 import { briefAccounts } from '../machine/account-here.js'
 import { foldersHere } from './folders-here.js'
 import { listenOf, localUrlOf, runSettings } from '../config.js'
-import { root, source } from '../locations.js'
+import { inContainer, root, source } from '../locations.js'
 import { headOf } from '../updates/checkout.js'
 import { installed } from '../updates/watcher.js'
 import { machinesPortOf } from '../link/address.js'
@@ -339,6 +339,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     repoOf: (project) => ctx.configStore.current.projects[project],
     allowedHosts: () => ctx.configStore.current.allowedHosts,
     serviceHost: listenOf(process.env).host,
+    inContainer,
     version: installed(root).version,
     changed: () => ctx.hub.broadcast('machines', { changedAt: Date.now() }),
     projectSettings: (project) => ctx.configStore.current.settings[project],

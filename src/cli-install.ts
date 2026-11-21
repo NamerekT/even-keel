@@ -1,4 +1,5 @@
 // What `even-keel install` checks and says around the install of a hub or a machine (BTN-1243).
+import type { DockerJoin } from './link/view.js'
 import type { LinkFile } from './machine/join.js'
 
 const NODE_MAJOR = 24
@@ -26,6 +27,19 @@ export function prerequisiteRefusal({ node, git, machine, container }: Prerequis
 /** The one command that makes a computer a machine of a hub: the same version as the hub's, on any OS. */
 export function installCommandOf(version: string, line: string): string {
   return `npx even-keel@${version} install --machine ${line}`
+}
+
+/** The Compose service of a machine in the templates `compose.machine.yaml` and `compose.hub-machine.yaml`. */
+export const MACHINE_SERVICE = 'machine'
+
+/** The image's tag of a version: the version's number without a leading `v`. */
+export function imageTagOf(version: string): string {
+  return version.replace(/^v/, '')
+}
+
+/** A machine in a container joins with the CLI inside it, the string on the command line only, never in a file. */
+export function dockerJoinOf(version: string, line: string): DockerJoin {
+  return { env: `EVEN_KEEL_IMAGE_TAG=${imageTagOf(version)}`, join: `docker compose run --rm ${MACHINE_SERVICE} even-keel join ${line}` }
 }
 
 export interface ContactWait {

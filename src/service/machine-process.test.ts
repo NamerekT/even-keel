@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readLinkFile, writeLinkFile } from '../machine/join.js'
 import { databaseDirOf, readOwner } from '../storage/owner.js'
-import { CONTACT_EVERY_MS, contactKeeper, holdInstallation, joinedHub } from './machine-process.js'
+import { CONTACT_EVERY_MS, contactKeeper, holdInstallation, joinedHub, machineOnly, waitForJoin } from './machine-process.js'
 
 const LINK = { hub: 'https://hub.example.com:4750', machine: '11111111-1111-4111-8111-111111111111', root: '/home/example/projects', joinedAt: 1_000 }
 
@@ -24,6 +24,23 @@ describe('the process of a machine elsewhere', () => {
     expect(joinedHub(dir)).toBe(false)
     writeLinkFile(dir, LINK)
     expect(joinedHub(dir)).toBe(true)
+  })
+
+  it('waits for the join of a container meant for a machine instead of starting as a hub, saying so once', async () => {
+    const dir = stateDir()
+    const log: string[] = []
+    let waits = 0
+    const sleep = async () => {
+      waits++
+      if (waits === 3) writeLinkFile(dir, LINK)
+    }
+    await waitForJoin(dir, { sleep, log: (line) => void log.push(line) })
+    expect(waits).toBe(3)
+    expect(log).toHaveLength(1)
+    expect(log[0]).toMatch(/EVEN_KEEL_MACHINE.*even-keel join/)
+    expect(machineOnly({ EVEN_KEEL_MACHINE: '1' })).toBe(true)
+    expect(machineOnly({ EVEN_KEEL_MACHINE: '' })).toBe(false)
+    expect(machineOnly({})).toBe(false)
   })
 
   it('holds the installation as the service does, so a second start and a join see it run, and lets it go', async () => {

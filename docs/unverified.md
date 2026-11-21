@@ -291,6 +291,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 255 | [A task chat counts its branch through a handoff](unverified/sessions.md#a-task-chat-counts-its-branch-through-a-handoff-btn-1424) | anyone with a chain task's chat open | the foot's +N −M disappears after a handoff or shows another number than the branch; `git diff --shortstat` in the task's folder tells the real one | — |
 | 256 | [A mailed picture as a thumbnail](unverified/page.md#a-mailed-picture-as-a-thumbnail-btn-1431) | anyone sending a picture to a working session whose hooks listen | the letter shows the file's name instead of the picture, or the picture blinks as the message is delivered; it is in the feed's bubble once delivered | — |
 | 257 | [Milestone fields read for the import](unverified/trackers.md#milestone-fields-read-for-the-import-btn-1436) | projects importing from Huly, GitHub or Linear | the plan's read fails on the milestones, or a milestone comes over without its date, status or description; set them on the built-in tracker's milestone by hand | BTN-1407 |
+| 258 | [Machines in Docker](unverified/machines.md#machines-in-docker-btn-1440) | a hub or a machine run from the Compose files | a machine in a container does not reach the hub, starts as a hub or stays waiting after its join; install the machine from npm on its host | — |
 
 ### Waiting for the event / not checked by choice
 

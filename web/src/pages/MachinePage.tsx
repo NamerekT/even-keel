@@ -40,6 +40,21 @@ const WINDOWS_DIFFER = { code: 'usage.tokenWindowsDiffer', params: {} } as const
 /** A commit by its first seven characters, as git shows it; a version stays whole. */
 const shortRef = (ref: string): string => (/^[0-9a-f]{40}$/.test(ref) ? ref.slice(0, 7) : ref)
 
+/** The image's tag of the hub's version in the Compose folder's `.env`, then the pull or the rebuild of an own image. */
+function ContainerSteps({ version }: { version: string }) {
+  const text = t.machinePage
+  return (
+    <span className="machine-page__steps">
+      <span className="machine-page__step">{text.containerEnv}</span>
+      <CommandBlock command={`EVEN_KEEL_IMAGE_TAG=${version.replace(/^v/, '')}`} />
+      <span className="machine-page__step">{text.containerPull}</span>
+      <CommandBlock command="docker compose pull && docker compose up -d" />
+      <span className="machine-page__step">{text.containerBuild}</span>
+      <CommandBlock command="docker compose build --pull && docker compose up -d" />
+    </span>
+  )
+}
+
 /** The machine's page, read again at each `machines` event, every `REREAD_MS` and after `reload`; `null` while read, `false` — none. */
 function useMachinePage(machine: string): { page: MachinePageView | null | false; reload: () => void } {
   const { read, onMachines } = useLive()
@@ -86,6 +101,9 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
     if (await send('machines/revoke', { machine: page.id })) navigate('/')
   }
   const more = page.own ? [] : [{ label: text.revoke, danger: true, pick: () => setRevoking(true) }]
+  const otherVersion = page.about !== null && page.about.evenKeel !== page.hubVersion
+  // Docker replaces a machine in a container: the page gives the Compose commands, never an update in place (BTN-1440).
+  const boxed = page.about?.container === true
   return (
     <div className="machine-page__body">
       <PageHead
@@ -96,14 +114,21 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
         <span className={`chip machine-page__state${page.online ? ' machine-page__state--online' : ''}`}>{page.online ? text.online : text.offline}</span>
         {page.own && <span className="tag">{text.own}</span>}
       </PageHead>
-      {!page.own && page.about !== null && page.about.evenKeel !== page.hubVersion && (
+      {!page.own && otherVersion && page.about !== null && (
         <Band tone="warn" className="machine-page__version">
           <span>{text.otherVersion(page.about.evenKeel, page.hubVersion)}</span>
-          <CommandBlock command={`even-keel update ${page.hubVersion}`} />
+          {boxed ? <ContainerSteps version={page.hubVersion} /> : <CommandBlock command={`even-keel update ${page.hubVersion}`} />}
         </Band>
       )}
-      {!page.own && page.about?.follow !== undefined && (
-        <Band tone="warn">{text.follow[page.about.follow.stuck](shortRef(page.about.follow.to))}</Band>
+      {!page.own && page.about?.follow !== undefined && !(boxed && otherVersion) && (
+        boxed ? (
+          <Band tone="warn" className="machine-page__version">
+            <span>{text.followContainer(page.about.follow.to)}</span>
+            <ContainerSteps version={page.about.follow.to} />
+          </Band>
+        ) : (
+          <Band tone="warn">{text.follow[page.about.follow.stuck](shortRef(page.about.follow.to))}</Band>
+        )
       )}
       {page.taken.map((each) => (
         <Band key={each.project} tone="warn" action={<TakeOverButton project={each.project} owner={each.machine} name={each.name} machine={page.id} className="button button--small" />}>

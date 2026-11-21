@@ -1,0 +1,15 @@
+# A machine of a hub elsewhere, alone on its Docker host. Save it as compose.yaml in an empty folder; docs/guide/docker.md, "Machines".
+services:
+  machine:
+    image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:?Set EVEN_KEEL_IMAGE_TAG in .env to the hub's version}
+    environment:
+      # Never a hub: until it joins, the container waits for even-keel join.
+      EVEN_KEEL_MACHINE: "1"
+    volumes:
+      - machine-home:/home/node
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  machine-home:

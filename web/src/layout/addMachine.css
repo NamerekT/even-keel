@@ -23,6 +23,28 @@
   margin: 0;
 }
 
+/* The command's label with the switch between npx and Docker at its right (BTN-1440). */
+.add-machine__way {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+/* A short note with its details in a tip at its end. */
+.add-machine__hinted {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* A step of the Docker way over its command block. */
+.add-machine__step {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
 .add-machine__meta {
   display: flex;
   flex-wrap: wrap;

@@ -4,7 +4,7 @@ import { runGit } from '../git/run.js'
 import { joinHub } from '../link/machine-transport.js'
 import { encodeToken } from '../link/protocol.js'
 import { MACHINE_DIR, openMachineDatabase, storeJoin } from '../link/machine-store.js'
-import { home, stateDirOf } from '../locations.js'
+import { home, inContainer, stateDirOf } from '../locations.js'
 import { databaseDirOf, readOwner, readStateDatabase } from '../storage/owner.js'
 import { machineAbout } from './about.js'
 import { joinAsMachine, joinedWith, JoinRefused } from './join.js'
@@ -30,7 +30,7 @@ export async function joinFromCli(line: string, root: string | null, version: st
           await reader.close()
         }
       },
-      about: (folder) => machineAbout({ evenKeel: version, root: folder, git: runGit, home: homedir() }),
+      about: (folder) => machineAbout({ evenKeel: version, root: folder, container: inContainer, git: runGit, home: homedir() }),
       exchange: (token, about) => joinHub(token, about),
       keep: async (token, folder) => {
         const db = await openMachineDatabase(join(stateDir, MACHINE_DIR))

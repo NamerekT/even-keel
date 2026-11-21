@@ -33,6 +33,8 @@ export interface MachineAbout {
   commit?: string
   /** Why the machine did not move itself to the hub's version (BTN-1275); none — it had no need or is moving. */
   follow?: MachineFollow
+  /** Even Keel runs there in a container (BTN-1440): Docker updates it, the page gives the Compose commands. */
+  container?: true
 }
 
 /**
@@ -60,6 +62,14 @@ export interface MachineInvite {
   machine: string
   expiresAt: number
   command: string
+  /** The same machine in a container (BTN-1440): the line of the Compose folder's `.env` and the join, before `up -d`. */
+  docker: DockerJoin
+}
+
+export interface DockerJoin {
+  /** `EVEN_KEEL_IMAGE_TAG=<hub's version>`: the machine runs the hub's image. */
+  env: string
+  join: string
 }
 
 /** A machine of the network as the page sees it (BTN-1242; its window is BTN-1056). */

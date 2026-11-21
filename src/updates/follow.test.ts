@@ -116,6 +116,14 @@ describe('HubFollower', () => {
     expect(same.made.view()).toEqual({ to: '0.4.0', stuck: 'manual' })
   })
 
+  it('leaves a container to Docker, naming the hub\'s version as the image tag to put in .env', async () => {
+    const boxed = follower({ source: 'npm', container: true, root: '/usr/local/lib/node_modules/even-keel', platform: 'linux' })
+    await boxed.made.refused({ refused: 'version', api: 12, evenKeel: '0.4.1', commit: HUB })
+    expect(boxed.plans).toEqual([])
+    expect(boxed.made.view()).toEqual({ to: '0.4.1', stuck: 'manual' })
+    expect(boxed.log.join('\n')).toMatch(/container.*EVEN_KEEL_IMAGE_TAG=0\.4\.1.*docker compose pull/)
+  })
+
   it('names a launch that did not start as a failure', async () => {
     const { made } = follower({ launch: () => { throw new Error('dist/src/updates/run.js is missing: run npm run build') } })
     await made.refused(REFUSAL)

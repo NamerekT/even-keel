@@ -874,6 +874,8 @@ The first installation is the hub: it has the page, the trackers and the chains,
 
 The command installs the package globally, joins the hub and installs the service the same way as for a hub: on Windows the start at sign-in with its tray icon (add `--service` for the Windows service `EvenKeel`, from PowerShell 7 as administrator, as in [Windows: without a sign-in](#windows-without-a-sign-in)), on Linux and macOS the user service. It then waits up to 30 seconds for the machine to reach the hub and says whether it did. Without Node.js 24 or git it installs nothing and says what is missing. Run it again (an update, a failed install) with the same string: the machine stays joined and only the service is installed again.
 
+**A machine or a hub in Docker.** The window's **Docker** switch gives the same machine as a container: the line for the Compose folder's `.env`, the join and the start. Each of the four ways — hub and machines on hosts, either of them in Docker, both in Docker — and how machines on several hosts are updated are in [Installing with Docker, Machines](docker.md#machines).
+
 **A machine from a clone.** The window's command names the hub's version, and a hub that runs from a clone between releases has the last release's version, which has no machines yet. Make such a hub's machine from a clone at the hub's commit instead, with the connection string:
 
 ```sh

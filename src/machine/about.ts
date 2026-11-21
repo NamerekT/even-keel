@@ -18,6 +18,8 @@ export interface AboutSources {
   root: string | null
   /** The commit of the checkout Even Keel runs from; none for a package of npm. */
   commit?: string | null
+  /** Even Keel runs in a container (`inContainer`). */
+  container?: boolean
   git: Git
   home: string
   /** What `<binary> --version` prints; `null` — no such binary or it did not answer. */
@@ -63,5 +65,6 @@ export async function machineAbout(sources: AboutSources): Promise<MachineAbout>
     ...(git.email !== null && { gitEmail: git.email }),
     root: sources.root,
     ...(typeof sources.commit === 'string' && { commit: sources.commit }),
+    ...(sources.container === true && { container: true as const }),
   }
 }

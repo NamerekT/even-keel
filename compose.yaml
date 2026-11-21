@@ -3,6 +3,8 @@ services:
     image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:-latest}
     ports:
       - "127.0.0.1:4747:4747"
+      # The port for machines: loopback by default, as the page; EVEN_KEEL_MACHINES_PUBLISH=0.0.0.0 in .env opens it to machines on other hosts.
+      - "${EVEN_KEEL_MACHINES_PUBLISH:-127.0.0.1}:4749:4749"
     environment:
       EVEN_KEEL_TOKEN: ${EVEN_KEEL_TOKEN:?Set EVEN_KEEL_TOKEN in .env before starting Even Keel}
     volumes:

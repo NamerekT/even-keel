@@ -67,6 +67,8 @@ export interface MachineNetworkOptions {
   allowedHosts: () => string[]
   /** `EVEN_KEEL_HOST`: offered when it is no loopback or wildcard address. */
   serviceHost: string
+  /** The hub runs in a container (BTN-1440): its network cards' addresses are the container's, not offered. */
+  inContainer?: boolean
   /** The hub's version of Even Keel: a machine installs the same one. */
   version: string
   /** The commit of the checkout the hub runs from, as it started (BTN-1275): a machine from a checkout moves to it. */

@@ -267,6 +267,22 @@ a.machine-page__name:hover {
   color: var(--fg-muted);
 }
 
+/* A machine in a container: the Compose steps under the band's text, a label over each command (BTN-1440). */
+.machine-page__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+}
+
+.machine-page__step {
+  font-size: var(--text-13);
+}
+
+.machine-page__step:not(:first-child) {
+  margin-top: var(--space-4);
+}
+
 @media (max-width: 760px) {
   .machine-page__grid {
     grid-template-columns: minmax(0, 1fr);
