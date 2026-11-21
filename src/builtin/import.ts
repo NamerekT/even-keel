@@ -10,6 +10,7 @@ import { errorText } from '../tracker/link.js'
 import { checkImport, checkMatched, sourceCounts, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
 import { ImportRecords, type ImportHeader } from './import-store.js'
 import { IMPORT_STAGES, runImport, unchanged, type ImportRow } from './import-run.js'
+import { listMilestones } from './milestones.js'
 import { BUILTIN } from './model.js'
 import { BuiltinStore } from './store.js'
 import { switchHolds } from './switch.js'
@@ -65,7 +66,7 @@ export class BuiltinImports {
   /** What the import would write, with the authors as `authors` picks them. Nothing is written. */
   async plan(project: string, authors: readonly ImportAuthorChoice[] = []): Promise<ImportPlan> {
     await this.checkEmpty(project)
-    return this.opened(project, async (opened) => importPlan(opened.source, await countTasks(opened.source), authors))
+    return this.opened(project, async (opened) => importPlan(opened.source, await countTasks(opened.source), authors, await opened.source.milestones()))
   }
 
   /** Starts the import, or goes on with one that stopped; answers at once, the import runs on. */
@@ -82,7 +83,7 @@ export class BuiltinImports {
         if (same) {
           if (header.finishedAt !== null) await this.records.reopen(project)
         } else {
-          const plan = importPlan(opened.source, await countTasks(opened.source), authors)
+          const plan = importPlan(opened.source, await countTasks(opened.source), authors, await opened.source.milestones())
           await this.records.begin(project, opened, authors, plan)
         }
         this.failures.delete(project)
@@ -312,7 +313,7 @@ export class BuiltinImports {
         }
       },
       this.now,
-      { counts, ...(progress === undefined ? {} : { progress }) },
+      { counts, milestones: () => listMilestones(this.deps.db, project), ...(progress === undefined ? {} : { progress }) },
     )
     for (const row of seen.values()) await log.save(row)
     return check

@@ -2,7 +2,7 @@ import { BUILTIN_STATUSES } from '../builtin/model.js'
 import type { ExportCounts, ExportLoss, ExportLossKind, ExportPlan, ExportStatusRow } from './export.js'
 import { statusFor } from './export.js'
 import type { ChangeBy } from './history.js'
-import type { ImportAuthor, ImportAuthorKind, ImportSource, ImportTask } from './import.js'
+import type { ImportAuthor, ImportAuthorKind, ImportMilestone, ImportSource, ImportTask } from './import.js'
 import type { StatusCategory, TaskStatus } from './model.js'
 import type { Notice } from '../notice/notice.js'
 import type { TransferCheck } from './transfer-check.js'
@@ -127,8 +127,17 @@ export async function countTasks(source: ImportSource): Promise<CountedTask[]> {
   return counted
 }
 
-/** What the import would write: nothing is. `choices` — the authors as the person picked them so far. */
-export function importPlan(source: Pick<ImportSource, 'changes' | 'timeReports'>, counted: readonly CountedTask[], choices: readonly ImportAuthorChoice[] = []): ImportPlan {
+/**
+ * What the import would write: nothing is. `choices` — the authors as the person picked them so far; `milestones` — the
+ * source's, those without tasks count too. The milestone fields the source does not keep are a loss of `milestones`
+ * whose names are the fields (`ImportMilestoneField`).
+ */
+export function importPlan(
+  source: Pick<ImportSource, 'changes' | 'timeReports' | 'milestoneGaps'>,
+  counted: readonly CountedTask[],
+  choices: readonly ImportAuthorChoice[] = [],
+  milestones: readonly ImportMilestone[] = [],
+): ImportPlan {
   const moving = importOrder(counted)
   const refs = new Set(moving.map((each) => each.task.ref))
   const own = (link: { ref: string; foreign: boolean }) => !link.foreign && refs.has(link.ref)
@@ -141,8 +150,10 @@ export function importPlan(source: Pick<ImportSource, 'changes' | 'timeReports'>
   add('parent', (task) => (task.parent !== null && !own(task.parent) ? [task.parent.id] : []))
   if (source.changes === undefined) losses.push({ kind: 'history', tasks: [], names: [] })
   if (source.timeReports === true) losses.push({ kind: 'timeReports', tasks: [], names: [] })
+  if ((source.milestoneGaps ?? []).length > 0) losses.push({ kind: 'milestones', tasks: [], names: [...source.milestoneGaps!] })
   const sum = (count: (each: CountedTask) => number) => moving.reduce((total, each) => total + count(each), 0)
-  const distinct = (names: (task: ImportTask) => (string | null)[]) => new Set(moving.flatMap((each) => names(each.task)).flatMap((name) => (name === null ? [] : [name.toLocaleLowerCase()]))).size
+  const distinct = (names: (task: ImportTask) => (string | null)[], more: readonly string[] = []) =>
+    new Set([...moving.flatMap((each) => names(each.task)), ...more].flatMap((name) => (name === null || name.trim() === '' ? [] : [name.trim().toLocaleLowerCase()]))).size
   const counts: ImportCounts = {
     tasks: moving.length,
     comments: sum((each) => each.comments.length),
@@ -150,7 +161,7 @@ export function importPlan(source: Pick<ImportSource, 'changes' | 'timeReports'>
     blocks: sum((each) => each.task.blocks.filter(own).length),
     relates: sum((each) => each.task.related.filter((link) => own(link) && each.task.ref < link.ref).length),
     subtasks: moving.filter((each) => each.task.parent !== null && own(each.task.parent)).length,
-    milestones: distinct((task) => [task.milestone]),
+    milestones: distinct((task) => [task.milestone], milestones.map((each) => each.name)),
     labels: distinct((task) => task.labels),
     components: distinct((task) => [task.component]),
     changes: sum((each) => each.changes.length),

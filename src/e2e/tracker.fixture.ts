@@ -188,10 +188,16 @@ export class Board {
     const key = this.keys.get(project)
     const link = (id: string): ImportLink => ({ ref: id, id, foreign: key !== undefined && !id.startsWith(`${key}-`) })
     const user: ImportAuthor = { kind: 'user', name: 'John Doe' }
+    const own = () => [...this.tasks.values()].filter((task) => key === undefined || task.id.startsWith(`${key}-`))
     return {
+      // The board keeps a milestone on its tasks alone: those of the project's tasks, planned.
+      milestoneGaps: ['status', 'description', 'closedAt'],
+      milestones: async () => {
+        const milestones = new Map(own().flatMap((task) => (task.milestone === null ? [] : [[task.milestone.label.toLowerCase(), task.milestone] as const])))
+        return [...milestones.values()].map((each) => ({ name: each.label, date: each.targetDate, status: 'planned' as const, description: '', closedAt: null }))
+      },
       tasks: async () =>
-        [...this.tasks.values()]
-          .filter((task) => key === undefined || task.id.startsWith(`${key}-`))
+        own()
           .map((task) => ({
             ref: task.id,
             number: Number(task.id.slice(task.id.lastIndexOf('-') + 1)),

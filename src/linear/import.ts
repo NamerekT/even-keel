@@ -1,5 +1,5 @@
 import { linkedFiles } from '../tracker/comments.js'
-import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportImage, ImportLink, ImportSource, ImportTask } from '../tracker/import.js'
+import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportImage, ImportLink, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
 import { linearMinutes } from './estimate.js'
 import { LINEAR_UPLOADS, linearPriority, linearStatus, type LinearAttachment, type LinearState } from './model.js'
 
@@ -13,6 +13,9 @@ export interface LinearImportDeps {
   scale: readonly number[] | null
   /** The id of the key's account: what it wrote is the agent's. */
   viewer: string
+  /** The team's id, and the Linear project's the place names; a whole team has none. */
+  team: string
+  project?: string
   /** The id of the user: the creator of the Linear project the place names; `null` — a whole team has none. */
   user: string | null
   /** An upload of the task `id`, its bytes and type; `null` — Linear gives it no more. */
@@ -114,6 +117,17 @@ const COMMENTS = `query($id: String!, $after: String) {
 const ATTACHMENTS = `query($id: String!, $after: String) {
   issue(id: $id) { attachments(first: ${LIST}, after: $after) { pageInfo { hasNextPage endCursor } nodes { title url } } }
 }`
+
+/** Linear keeps a milestone in a project: the team's projects, each with its milestones. */
+const MILESTONES = `query($team: String!) {
+  team(id: $team) { projects(first: 50) { nodes { id projectMilestones(first: 50) { nodes { name targetDate description } } } } }
+}`
+
+interface MilestoneNode {
+  name: string
+  targetDate: string | null
+  description: string | null
+}
 
 const HISTORY = `query($id: String!, $after: String) {
   issue(id: $id) {
@@ -240,6 +254,20 @@ export function linearImport(deps: LinearImportDeps): ImportSource {
 
   return {
     tasks: project,
+
+    // A milestone has a target date and a description, no status: each is planned. A name of two projects comes once.
+    milestoneGaps: ['status', 'closedAt'],
+    async milestones() {
+      type Projects = { team: { projects: { nodes: { id: string; projectMilestones: { nodes: MilestoneNode[] } }[] } } | null }
+      const { team } = await graphql<Projects>(MILESTONES, { team: deps.team })
+      if (team === null) throw new Error(`linear: ${deps.place} not found or the key cannot see it`)
+      const out: ImportMilestone[] = []
+      for (const node of team.projects.nodes.filter((each) => deps.project === undefined || each.id === deps.project).flatMap((each) => each.projectMilestones.nodes)) {
+        if (out.some((each) => each.name.toLocaleLowerCase() === node.name.toLocaleLowerCase())) continue
+        out.push({ name: node.name, date: node.targetDate === null ? null : Date.parse(node.targetDate), status: 'planned', description: node.description ?? '', closedAt: null })
+      }
+      return out
+    },
 
     async comments(ref) {
       const nodes = await commentsOf(ref)

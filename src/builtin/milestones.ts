@@ -116,6 +116,19 @@ export async function milestoneIdOf(tx: Transaction, stamp: Stamp, project: stri
 }
 
 /**
+ * A milestone the import brings (BTN-1436): made with the source's fields, or with `update` — the last pass — the one of
+ * its name set to them; one already there is otherwise left. A closed one takes `closedAt` (ISO) when it is given.
+ */
+export async function importMilestone(tx: Transaction, stamp: Stamp, project: string, fields: MilestoneFields & { closedAt: string | null }, update: boolean): Promise<void> {
+  const { rows } = await tx.query<{ id: string }>('select id from builtin_milestones where project_id = $1 and lower(name) = lower($2)', [project, nameOf(fields.name)])
+  const id = rows[0]?.id ?? null
+  if (id !== null && !update) return
+  const { closedAt, ...own } = fields
+  const saved = await saveMilestone(tx, stamp, project, id, own)
+  if (closedAt !== null && isClosedMilestone(fields.status)) await tx.query('update builtin_milestones set closed_at = $2 where id = $1', [saved, closedAt])
+}
+
+/**
  * Deletes the milestone; its tasks go to the milestone `to` or to none, each recording the move. Refused while it has a
  * closed task: those keep what they were done in, so such a milestone is canceled instead. Its own history stays, its
  * deletion last; `renamed` gets its name inside the write. Returns the moved tasks' row ids.

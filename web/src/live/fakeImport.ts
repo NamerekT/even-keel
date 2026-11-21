@@ -157,6 +157,7 @@ function planOf(tasks: EvenKeelState['tasks'], choices: readonly ImportAuthorCho
     losses: [
       { kind: 'links', tasks: ids.slice(0, 2), names: ['OPS-4', 'OPS-9'] },
       { kind: 'timeReports', tasks: [], names: [] },
+      { kind: 'milestones', tasks: [], names: ['closedAt'] },
     ],
     authors: AUTHORS.map((each) => ({ ...each, as: choices.find((choice) => choice.kind === each.kind && choice.name === each.name)?.as ?? each.kind })),
   }

@@ -86,6 +86,9 @@ export function Losses({
   const kindOf = (kind: ExportLossKind) => (own?.kinds as Partial<Record<ExportLossKind, string>> | undefined)?.[kind] ?? t.transfer.kinds[kind]
   const tipOf = (kind: ExportLossKind) => (own?.kindTips as Partial<Record<ExportLossKind, string>> | undefined)?.[kind] ?? t.transfer.kindTips[kind]
   const named = (kind: ExportLossKind) => own === null || !IDS_ONLY.has(kind)
+  // An import's milestone loss names the fields the tracker does not keep.
+  const nameOf = (kind: ExportLossKind, name: string) =>
+    own !== null && kind === 'milestones' ? ((own.milestoneFields as Partial<Record<string, string>>)[name] ?? name) : name
   return (
     <section className="transfer__losses" aria-label={title}>
       <header className="transfer__losses-head">
@@ -105,7 +108,7 @@ export function Losses({
               <Tipped tip={tipOf(loss.kind)} focusable inline align="start" className="transfer__kind">
                 {kindOf(loss.kind)}
               </Tipped>
-              {loss.names.length > 0 && named(loss.kind) && <span className="transfer__names">{loss.names.join(', ')}</span>}
+              {loss.names.length > 0 && named(loss.kind) && <span className="transfer__names">{loss.names.map((name) => nameOf(loss.kind, name)).join(', ')}</span>}
               {loss.tasks.length > 0 && (
                 <Tipped tip={t.transfer.lossTip(loss.tasks)} focusable inline className="transfer__count">
                   {t.transfer.lossTasks(loss.tasks.length)}

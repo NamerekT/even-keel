@@ -1,5 +1,5 @@
 import { linkedFiles } from '../tracker/comments.js'
-import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportImage, ImportLink, ImportSource, ImportTask } from '../tracker/import.js'
+import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportImage, ImportLink, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
 import type { TaskPriority } from '../tracker/model.js'
 import { githubPriority, githubStatus, PRIORITY_LABEL, type IssueState, type IssueStateReason, type Repo, type RepoMap } from './model.js'
 import { uploadId, UPLOADS } from './uploads.js'
@@ -77,6 +77,23 @@ const ISSUES = `query($owner: String!, $name: String!, $after: String) {
     }
   }
 }`
+
+const MILESTONES = `query($owner: String!, $name: String!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    milestones(first: ${PAGE}, after: $after, states: [OPEN, CLOSED]) {
+      pageInfo { hasNextPage endCursor }
+      nodes { title description dueOn state closedAt }
+    }
+  }
+}`
+
+interface MilestoneNode {
+  title: string
+  description: string | null
+  dueOn: string | null
+  state: 'OPEN' | 'CLOSED'
+  closedAt: string | null
+}
 
 const COMMENTS = `query($id: ID!, $after: String) {
   node(id: $id) { ... on Issue { comments(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { id body createdAt author { login } } } } }
@@ -196,6 +213,18 @@ export function githubImport(deps: GithubImportDeps): ImportSource {
 
   return {
     tasks: async () => (await project()).tasks,
+
+    // GitHub keeps a milestone open or closed: a closed one is completed.
+    async milestones() {
+      const nodes = await pages(MILESTONES, { ...repo }, (data: { repository: { milestones: Page<MilestoneNode> } | null }) => data.repository?.milestones, slug)
+      return nodes.map((node): ImportMilestone => ({
+        name: node.title,
+        date: node.dueOn === null ? null : Date.parse(node.dueOn),
+        status: node.state === 'CLOSED' ? 'completed' : 'planned',
+        description: node.description ?? '',
+        closedAt: node.state === 'CLOSED' && node.closedAt !== null ? Date.parse(node.closedAt) : null,
+      }))
+    },
 
     async comments(ref) {
       const [{ author }, nodes] = await Promise.all([project(), commentsOf(ref)])

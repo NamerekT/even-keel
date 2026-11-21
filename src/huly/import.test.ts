@@ -31,7 +31,12 @@ function fixture() {
       { _id: 'id-3', identifier: 'ABC-3', number: 3, title: 'Third', status: 'canceled', space: 'space', createdOn: 3000, createdBy: 'social-user', relations: [{ _id: 'id-x9', _class: ISSUE }, { _id: 'id-gone', _class: ISSUE }] },
       { _id: 'id-x9', identifier: 'XYZ-9', number: 9, title: 'Elsewhere', status: 'todo', space: 'other' },
     ],
-    'tracker:class:Milestone': [{ _id: 'm1', label: 'v1', space: 'space' }],
+    'tracker:class:Milestone': [
+      { _id: 'm1', label: 'v1', space: 'space', status: 2, targetDate: 9000, description: 'blob-m1' },
+      { _id: 'm2', label: 'v2', space: 'space', status: 1, targetDate: 0, description: doc(paragraph(text('Inline'))) },
+      { _id: 'm3', label: 'v3', space: 'space', status: 3 },
+      { _id: 'm9', label: 'other', space: 'other', status: 0 },
+    ],
     'tracker:class:Component': [{ _id: 'c1', label: 'UI', space: 'space' }],
     'tags:class:TagReference': [{ attachedTo: 'id-1', title: 'Bug' }],
     'contact:class:SocialIdentity': [
@@ -66,6 +71,7 @@ function fixture() {
     ],
   }
   const markups: Record<string, string> = {
+    'blob-m1': doc(paragraph(text('The first release'))),
     'blob-1': doc(
       paragraph(text('See '), reference('person-user', 'contact:class:Person', 'John Doe'), text(' and '), reference('id-2', ISSUE, 'ABC-2')),
       image('blob-img1', 'diagram.png'),
@@ -142,6 +148,17 @@ describe('hulyImport', () => {
     })
     // A link to an issue that is gone is no link.
     expect(third).toMatchObject({ status: { category: 'Lost' }, related: [{ ref: 'id-x9', id: 'XYZ-9', foreign: true }], closedAt: 7000, createdBy: { kind: 'user', name: 'John Doe' } })
+  })
+
+  it("reads the project's milestones with their date, status and description; Huly keeps no closing time", async () => {
+    const { source } = fixture()
+    const milestones = await source.milestones()
+    expect(milestones.map(({ description, ...rest }) => ({ ...rest, description: description.trim() }))).toEqual([
+      { name: 'v1', date: 9000, status: 'completed', description: 'The first release', closedAt: null },
+      { name: 'v2', date: null, status: 'active', description: 'Inline', closedAt: null },
+      { name: 'v3', date: null, status: 'canceled', description: '', closedAt: null },
+    ])
+    expect(source.milestoneGaps).toEqual(['closedAt'])
   })
 
   it('reads the journal oldest first, a reply with the comment it answers', async () => {

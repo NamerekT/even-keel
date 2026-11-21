@@ -126,9 +126,31 @@ export function withBefore(changes: readonly ImportChange[]): ImportChange[] {
   return out
 }
 
+/** A milestone's status as the built-in tracker keeps it (BTN-1287). */
+export type ImportMilestoneStatus = 'planned' | 'active' | 'completed' | 'canceled'
+
+/** The fields of a milestone a tracker may not keep. */
+export type ImportMilestoneField = 'date' | 'status' | 'description' | 'closedAt'
+
+/** A milestone of the project (BTN-1436). A field the tracker does not keep is empty and named in `milestoneGaps`. */
+export interface ImportMilestone {
+  name: string
+  /** The target date, ms; `null` — none. */
+  date: number | null
+  status: ImportMilestoneStatus
+  /** Markdown; empty — none. */
+  description: string
+  /** When it was completed or canceled, ms; `null` — it is open, or the tracker does not say. */
+  closedAt: number | null
+}
+
 export interface ImportSource {
   /** Every task of the project, closed ones too; by number. */
   tasks(): Promise<ImportTask[]>
+  /** Every milestone of the project, those without tasks too; a name once. */
+  milestones(): Promise<ImportMilestone[]>
+  /** The milestone fields the tracker does not keep: the plan names them among what does not move. */
+  milestoneGaps?: readonly ImportMilestoneField[]
   /** The journal, oldest first; a reply right after the comments before it in time. */
   comments(ref: string): Promise<ImportComment[]>
   /** The task's attachments, its comments' and the pictures of its texts, each once. */

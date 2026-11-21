@@ -1,5 +1,5 @@
 import type { ExportLossKind } from '../../../src/tracker/export.js'
-import type { ImportAuthorKind } from '../../../src/tracker/import.js'
+import type { ImportAuthorKind, ImportMilestoneField } from '../../../src/tracker/import.js'
 import type { ImportSwitching } from '../../../src/tracker/import-plan.js'
 import type { CheckKind, TransferDirection } from '../../../src/tracker/transfer-check.js'
 import type { ExportStep, ImportStep } from '../pages/exportMeter.js'
@@ -171,12 +171,16 @@ export const transferRu = {
       links: 'Связи с другими проектами',
       parent: 'Родитель из другого проекта',
       history: 'История изменений',
+      milestones: 'Поля вех',
     } satisfies Partial<Record<ExportLossKind, string>>,
     kindTips: {
       links: 'Связи с задачами других проектов не переносятся: они останутся только в старом трекере.',
       parent: 'Родитель — задача другого проекта: задачи придут без родителя.',
       history: 'Трекер не отдаёт журнал изменений: у задач будут только создание и закрытие.',
+      milestones:
+        'Трекер не хранит у вех этих полей: вехи придут без них. Веха без статуса придёт запланированной, закрытая веха без времени закрытия получит время последней закрытой задачи в ней.',
     } satisfies Partial<Record<ExportLossKind, string>>,
+    milestoneFields: { date: 'дата', status: 'статус', description: 'описание', closedAt: 'время закрытия' } satisfies Record<ImportMilestoneField, string>,
     lossesNone: 'Переносится всё: статусы, связи, вложения, метки, вехи, компоненты и журнал.',
     stages: { journaled: 'Журнал' } satisfies Partial<Record<ExportStep, string>>,
     stageTips: {

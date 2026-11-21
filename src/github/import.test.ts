@@ -35,10 +35,10 @@ interface Graphql {
 }
 
 /** GraphQL answered by what the query reads, page by page; anything else by URL. */
-async function connect(answers: { issues?: unknown[]; comments?: unknown[]; events?: unknown[]; owner?: string }, routes: Record<string, () => Response> = {}) {
+async function connect(answers: { issues?: unknown[]; comments?: unknown[]; events?: unknown[]; milestones?: unknown[]; owner?: string }, routes: Record<string, () => Response> = {}) {
   const calls: Graphql[] = []
   const requests: string[] = []
-  const queue = { issues: [...(answers.issues ?? [])], comments: [...(answers.comments ?? [])], events: [...(answers.events ?? [])] }
+  const queue = { issues: [...(answers.issues ?? [])], comments: [...(answers.comments ?? [])], events: [...(answers.events ?? [])], milestones: [...(answers.milestones ?? [])] }
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = String(input)
     if (url !== 'https://api.github.com/graphql') {
@@ -49,6 +49,7 @@ async function connect(answers: { issues?: unknown[]; comments?: unknown[]; even
     calls.push(call)
     if (call.query.includes('viewer')) return Response.json({ data: { viewer: { login: 'octocat' } } })
     const owner = { __typename: answers.owner ?? 'User', login: 'jdoe' }
+    if (call.query.includes('milestones(')) return Response.json({ data: { repository: { milestones: queue.milestones.shift() } } })
     if (call.query.includes('issues(')) return Response.json({ data: { repository: { owner, issues: queue.issues.shift() } } })
     if (call.query.includes('comments(')) return Response.json({ data: { node: { comments: queue.comments.shift() } } })
     if (call.query.includes('timelineItems(')) return Response.json({ data: { node: { timelineItems: queue.events.shift() } } })
@@ -59,6 +60,20 @@ async function connect(answers: { issues?: unknown[]; comments?: unknown[]; even
 }
 
 describe('github import', () => {
+  it("reads the repository's milestones, closed ones too, page by page, with the due date, state, description and closing", async () => {
+    const { importing } = await connect({
+      milestones: [
+        page([{ title: 'v1.0', description: 'The first', dueOn: '2026-12-01T00:00:00Z', state: 'CLOSED', closedAt: '2026-11-20T09:00:00Z' }], 'cursor-1'),
+        page([{ title: 'v2.0', description: null, dueOn: null, state: 'OPEN', closedAt: null }]),
+      ],
+    })
+    expect(await importing.milestones()).toEqual([
+      { name: 'v1.0', date: Date.parse('2026-12-01T00:00:00Z'), status: 'completed', description: 'The first', closedAt: Date.parse('2026-11-20T09:00:00Z') },
+      { name: 'v2.0', date: null, status: 'planned', description: '', closedAt: null },
+    ])
+    expect(importing.milestoneGaps ?? []).toEqual([])
+  })
+
   it('reads every issue of the repository, closed ones too, page by page, with its fields and links', async () => {
     const { importing, calls } = await connect({
       issues: [

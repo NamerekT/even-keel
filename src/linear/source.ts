@@ -520,6 +520,8 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       return linearImport({
         graphql,
         filter: { team: { id: { eq: team.id } }, ...(team.project === undefined ? {} : { project: { id: { eq: team.project } } }) },
+        team: team.id,
+        ...(team.project === undefined ? {} : { project: team.project }),
         place: project === null ? teamKey : `${teamKey}/${project}`,
         scale: linearScale(team.estimation),
         viewer: viewer.id,

@@ -7,15 +7,17 @@ import { emptyChainState } from '../chain/model.js'
 import type { TrackerMove } from '../config-form.js'
 import { NoticeError } from '../notice/notice.js'
 import { openDatabase } from '../storage/database.js'
-import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportSource, ImportTask } from '../tracker/import.js'
+import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
 import { fileUrl } from './files.js'
 import { BuiltinImports } from './import.js'
+import { listMilestones } from './milestones.js'
 import { BuiltinStore } from './store.js'
 import { TransferReports } from './transfer-store.js'
 
 const ABC = '11111111-1111-4111-8111-111111111111'
 const T0 = Date.UTC(2026, 0, 2, 3, 4, 5)
+const V1_DATE = Date.UTC(2026, 2, 1)
 const AGENT: ImportAuthor = { kind: 'agent', name: 'Agent Bot' }
 const USER: ImportAuthor = { kind: 'user', name: 'John Doe' }
 const JANE: ImportAuthor = { kind: 'person', name: 'Jane Doe' }
@@ -106,11 +108,16 @@ function fakeSource() {
   const changes: Record<string, ImportChange[]> = {
     r5: [{ at: T0 + 50_000, author: JANE, field: 'status', from: 'Todo', to: 'Done' }],
   }
+  const milestones: ImportMilestone[] = [
+    { name: 'v1', date: V1_DATE, status: 'completed', description: 'The first one', closedAt: T0 + 70_000 },
+    { name: 'v2', date: null, status: 'planned', description: '', closedAt: null },
+  ]
   const state = { failComments: 0, passComments: 0, gate: null as Promise<void> | null }
   /** The refs whose journal, files or change log were read. */
   const reads: string[] = []
   const source: ImportSource = {
     tasks: async () => tasks,
+    milestones: async () => milestones,
     comments: async (ref) => {
       reads.push(ref)
       if (state.gate !== null) await state.gate
@@ -129,7 +136,7 @@ function fakeSource() {
       return changes[ref] ?? []
     },
   }
-  return { source, tasks, comments, files, changes, state, reads }
+  return { source, tasks, milestones, comments, files, changes, state, reads }
 }
 
 function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'import-'))) {
@@ -271,7 +278,7 @@ describe('the import into the built-in tracker', () => {
   it('plans what moves, what stays behind and the authors, writing nothing', async () => {
     const { service } = imports(fakeSource().source)
     const plan = await service.plan(ABC, [{ kind: 'person', name: 'Jane Doe', as: 'agent' }])
-    expect(plan.counts).toMatchObject({ tasks: 2, comments: 3, files: 2, blocks: 1, subtasks: 1, milestones: 1, labels: 1, components: 1, changes: 1 })
+    expect(plan.counts).toMatchObject({ tasks: 2, comments: 3, files: 2, blocks: 1, subtasks: 1, milestones: 2, labels: 1, components: 1, changes: 1 })
     expect(plan.tasks.map((each) => [each.id, each.status])).toEqual([['ABC-3', 'Todo'], ['ABC-5', 'Done']])
     expect(plan.losses).toEqual([{ kind: 'links', tasks: ['ABC-5'], names: ['OTHER-1'] }])
     expect(plan.authors.find((each) => each.name === 'Jane Doe')).toMatchObject({ comments: 1, changes: 1, tasks: 0, as: 'agent' })
@@ -283,6 +290,59 @@ describe('the import into the built-in tracker', () => {
     const plan = await service.plan(ABC)
     expect(plan.authors.find((each) => each.name === 'John Doe')).toMatchObject({ comments: 1, changes: 0, tasks: 1 })
     expect(plan.authors.find((each) => each.kind === 'agent')).toMatchObject({ comments: 1, changes: 0, tasks: 1 })
+  })
+
+  it('brings the milestones with their date, status, description and closing time, those without tasks too', async () => {
+    const { service } = imports(fakeSource().source)
+    await service.start(ABC)
+    await service.settled(ABC)
+    const milestones = await listMilestones(db, ABC)
+    expect(milestones.map(({ name, date, status, description, closedAt, total }) => ({ name, date, status, description, closedAt, total }))).toEqual([
+      { name: 'v1', date: V1_DATE, status: 'completed', description: 'The first one', closedAt: new Date(T0 + 70_000).toISOString(), total: 1 },
+      { name: 'v2', date: null, status: 'planned', description: '', closedAt: null, total: 0 },
+    ])
+    expect((await service.state(ABC)).check?.rows.find((row) => row.kind === 'milestones')).toMatchObject({ source: 2, target: 2, tasks: [] })
+  })
+
+  it("gives a closed milestone the tracker keeps no closing time of its tasks' last one, and the plan names the gap", async () => {
+    const fake = fakeSource()
+    fake.source.milestoneGaps = ['closedAt']
+    fake.milestones[0] = { ...fake.milestones[0]!, closedAt: null }
+    fake.tasks[1] = { ...fake.tasks[1]!, milestone: 'v1' }
+    const { service } = imports(fake.source)
+    expect((await service.plan(ABC)).losses).toContainEqual({ kind: 'milestones', tasks: [], names: ['closedAt'] })
+    await service.start(ABC)
+    await service.settled(ABC)
+    expect((await listMilestones(db, ABC))[0]).toMatchObject({ name: 'v1', closedAt: new Date(T0 + 50_000).toISOString() })
+  })
+
+  it("the check sees a milestone whose date or status differs from the tracker's", async () => {
+    const { service } = imports(fakeSource().source)
+    await service.start(ABC)
+    await service.settled(ABC)
+    await db.query(`update builtin_milestones set status = 'active', closed_at = null where project_id = $1 and name = 'v1'`, [ABC])
+    await service.start(ABC)
+    await service.settled(ABC)
+    expect((await service.state(ABC)).check?.rows.find((row) => row.kind === 'milestones')).toMatchObject({ source: 2, target: 1, tasks: ['ABC-3'] })
+  })
+
+  it("the last pass brings a milestone's new fields and a new milestone", async () => {
+    const fake = fakeSource()
+    const { service } = imports(fake.source)
+    await service.start(ABC)
+    await service.settled(ABC)
+    fake.milestones[1] = { name: 'v2', date: V1_DATE + 86_400_000, status: 'active', description: 'Next', closedAt: null }
+    fake.milestones.push({ name: 'v3', date: null, status: 'canceled', description: '', closedAt: T0 + 80_000 })
+    expect(await service.switch(ABC)).toEqual({ key: 'ABC', renamed: 0 })
+    const milestones = await listMilestones(db, ABC)
+    expect(milestones.map(({ name, date, status, description }) => [name, date, status, description])).toEqual([
+      ['v1', V1_DATE, 'completed', 'The first one'],
+      ['v2', V1_DATE + 86_400_000, 'active', 'Next'],
+      ['v3', null, 'canceled', ''],
+    ])
+    expect(milestones[2]!.closedAt).toBe(new Date(T0 + 80_000).toISOString())
+    const [report] = await new TransferReports(db).list(ABC)
+    expect(report).toMatchObject({ matched: true })
   })
 
   it('refuses a project the built-in tracker already has tasks of', async () => {

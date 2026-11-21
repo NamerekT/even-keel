@@ -1,4 +1,4 @@
-import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportLink, ImportSource, ImportTask } from '../tracker/import.js'
+import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportLink, ImportMilestone, ImportMilestoneStatus, ImportSource, ImportTask } from '../tracker/import.js'
 import { tracker } from './ids.js'
 import { hulyText, type HulyImage, type HulyText } from './import-text.js'
 import { HULY_PRIORITIES, personName, toStatus, type HulyAttachmentDoc, type HulyStatusDoc } from './model.js'
@@ -61,8 +61,21 @@ interface UpdateDoc {
   attributeUpdates?: { attrKey: string; set?: unknown[]; prevValue?: unknown; added?: unknown[]; removed?: unknown[] }
 }
 
+interface MilestoneDoc {
+  _id: string
+  label: string
+  /** Huly's `MilestoneStatus`: Planned, InProgress, Completed, Canceled. */
+  status?: number
+  targetDate?: number | null
+  /** Markup, or a reference to its collaborative document. */
+  description?: string | null
+}
+
+const MILESTONE_STATUSES: readonly ImportMilestoneStatus[] = ['planned', 'active', 'completed', 'canceled']
+
 interface Project {
   tasks: ImportTask[]
+  milestones: ImportMilestone[]
   updates: ReadonlyMap<string, UpdateDoc[]>
   images: ReadonlyMap<string, HulyImage[]>
   names: Names
@@ -110,19 +123,20 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
     const [statuses, issues, milestones, components] = await Promise.all([
       client.findAll<HulyStatusDoc>(tracker.class.IssueStatus, {}),
       client.findAll<IssueDoc>(tracker.class.Issue, { space: space._id }),
-      client.findAll<{ _id: string; label: string }>(tracker.class.Milestone, { space: space._id }, { projection: { label: 1 } }),
+      client.findAll<MilestoneDoc>(tracker.class.Milestone, { space: space._id }, { projection: { label: 1, status: 1, targetDate: 1, description: 1 } }),
       client.findAll<{ _id: string; label: string }>(tracker.class.Component, { space: space._id }, { projection: { label: 1 } }),
     ])
     const own = new Set(issues.map((issue) => issue._id))
     const outside = [...new Set(issues.flatMap(linksOf))].filter((id) => !own.has(id))
     const labeled = issues.filter((issue) => (issue.labels ?? 0) > 0).map((issue) => issue._id)
-    const [foreign, labels, updates, texts, who, modified] = await Promise.all([
+    const [foreign, labels, updates, texts, who, modified, milestoneTexts] = await Promise.all([
       chunked(outside, (ids) => client.findAll<{ _id: string; identifier: string }>(tracker.class.Issue, { _id: { $in: ids } }, { projection: { identifier: 1 } })),
       chunked(labeled, (ids) => client.findAll<{ attachedTo: string; title: string }>(TAG_REFERENCE, { attachedTo: { $in: ids } }, { projection: { attachedTo: 1, title: 1 } })),
       chunked([...own], (ids) => client.findAll<UpdateDoc>(UPDATE, { attachedTo: { $in: ids } })),
       inParallel(issues, async (issue) => (issue.description ? textOf(await client.fetchMarkup(tracker.class.Issue, issue._id, 'description', issue.description, 'markup')) : { markdown: '', images: [] })),
       authors(issues.map((issue) => issue.createdBy)),
       threadTimes([...own]),
+      inParallel(milestones, milestoneText),
     ])
     const names: Names = {
       status: new Map(statuses.map((doc) => [doc._id, doc.name])),
@@ -171,6 +185,13 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
     })
     return {
       tasks: tasks.sort((a, b) => a.number - b.number),
+      milestones: milestones.map((doc, index): ImportMilestone => ({
+        name: doc.label,
+        date: doc.targetDate ? doc.targetDate : null,
+        status: MILESTONE_STATUSES[doc.status ?? 0] ?? 'planned',
+        description: milestoneTexts[index]!,
+        closedAt: null,
+      })),
       updates: updatesOf,
       images: new Map(issues.map((issue, index) => [issue._id, texts[index]!.images])),
       names,
@@ -192,6 +213,14 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
     const files = await chunked([...issues, ...issueOf.keys()], (ids) => client.findAll<HulyAttachmentDoc>(ATTACHMENT, { attachedTo: { $in: ids } }))
     for (const doc of files) bump(doc.attachedTo !== undefined && issueOf.has(doc.attachedTo) ? issueOf.get(doc.attachedTo) : doc.attachedTo, Math.max(doc.createdOn ?? 0, doc.modifiedOn))
     return times
+  }
+
+  /** A milestone's description as Markdown: kept inline as markup, or as a reference to its collaborative document. */
+  async function milestoneText(doc: MilestoneDoc): Promise<string> {
+    const value = doc.description
+    if (!value) return ''
+    const markupText = value.trimStart().startsWith('{') ? value : await client.fetchMarkup(tracker.class.Milestone, doc._id, 'description', value, 'markup')
+    return markupText === '' ? '' : textOf(markupText).markdown
   }
 
   // The run and the check read a task's comments and files one after the other: its thread is read once for both.
@@ -243,7 +272,10 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
 
   return {
     timeReports: true,
+    // Huly's milestone has no closing time: a closed one takes its tasks' last closing.
+    milestoneGaps: ['closedAt'],
     tasks: async () => (await project()).tasks,
+    milestones: async () => (await project()).milestones,
     comments: async (ref) => (await thread(ref)).comments,
     async files(ref) {
       const [{ images: own }, { images, attachments }] = await Promise.all([project(), thread(ref)])

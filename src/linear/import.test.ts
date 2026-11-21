@@ -63,6 +63,16 @@ async function connect(
     if (query.includes('organization {')) return Response.json({ data: { organization: { urlKey: 'example' } } })
     if (query.includes('viewer {')) return Response.json({ data: { viewer: { id: 'u-agent' } } })
     if (query.includes('creator { id } }')) return Response.json({ data: { project: { creator: { id: 'u-user' } } } })
+    if (query.includes('projectMilestones(')) {
+      const milestones = (nodes: unknown[]) => ({ nodes })
+      const projects = {
+        nodes: [
+          { id: 'p-web', projectMilestones: milestones([{ name: 'Beta', targetDate: '2026-12-01', description: 'The beta' }, { name: 'GA', targetDate: null, description: null }]) },
+          { id: 'p-api', projectMilestones: milestones([{ name: 'beta', targetDate: '2027-01-01', description: '' }, { name: 'API v2', targetDate: null, description: null }]) },
+        ],
+      }
+      return Response.json({ data: { team: { projects } } })
+    }
     if (query.includes('team(id:')) {
       const projects = { nodes: [{ id: 'p-web', url: 'https://linear.app/example/project/web' }] }
       return Response.json({ data: { team: { id: 't-eng', issueEstimationType: answers.estimation ?? 'notUsed', states: { nodes: [] }, projects } } })
@@ -78,6 +88,17 @@ async function connect(
 }
 
 describe('linear import', () => {
+  it("reads the milestones of the place's Linear project, or of every project of a team, a name once; Linear keeps no status", async () => {
+    const team = await connect()
+    expect((await team.importing.milestones()).map((each) => each.name)).toEqual(['Beta', 'GA', 'API v2'])
+    const { importing } = await connect({}, {}, 'id-web')
+    expect(await importing.milestones()).toEqual([
+      { name: 'Beta', date: Date.parse('2026-12-01'), status: 'planned', description: 'The beta', closedAt: null },
+      { name: 'GA', date: null, status: 'planned', description: '', closedAt: null },
+    ])
+    expect(importing.milestoneGaps).toEqual(['status', 'closedAt'])
+  })
+
   it('reads every issue of the team, closed and archived ones too, page by page, with its fields and links', async () => {
     const { importing, calls } = await connect({
       estimation: 'fibonacci',

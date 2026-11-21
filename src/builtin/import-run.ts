@@ -1,13 +1,14 @@
 import type { Transaction } from '@electric-sql/pglite'
 import { inTransaction, type Db } from '../storage/database.js'
 import type { ChangeAuthor } from '../tracker/history.js'
-import { withBefore, type ImportComment, type ImportImage, type ImportLink, type ImportSource, type ImportTask } from '../tracker/import.js'
+import { sameName } from '../chain/rules.js'
+import { withBefore, type ImportComment, type ImportImage, type ImportLink, type ImportMilestone, type ImportSource, type ImportTask } from '../tracker/import.js'
 import { importedAuthor, importedStatus, importOrder, type ImportAuthorChoice } from '../tracker/import-plan.js'
 import { isOpen } from '../tracker/model.js'
 import { componentIdOf } from './components.js'
 import { BuiltinFiles, fileUrl } from './files.js'
 import { logTask, SERVICE_AUTHOR, writerOf } from './history-log.js'
-import { milestoneIdOf } from './milestones.js'
+import { importMilestone, milestoneIdOf } from './milestones.js'
 import { BuiltinStore, type TaskKey } from './store.js'
 import { estimateOf } from './task-rows.js'
 
@@ -105,6 +106,7 @@ export async function runImport(run: ImportRun, sync = false): Promise<number> {
     const known = (await storeAt(Date.now()).components(project)).some((each) => each.name.toLocaleLowerCase() === component.toLocaleLowerCase())
     if (!known && component !== '') await storeAt(Date.now()).saveComponent(project, null, { name: component, description: '' })
   }
+  await importMilestones(db, project, await source.milestones(), tasks, sync)
 
   for (const task of tasks) {
     if (rows.has(task.ref)) continue
@@ -229,6 +231,21 @@ export function commentBody(comment: ImportComment, files: Readonly<Record<strin
     return shown.has(key) || sha === undefined ? [] : [`[${names.get(key) ?? key}](${fileUrl(task, sha)})`]
   })
   return links.length === 0 ? text : `${text}\n\n${links.join('\n')}`
+}
+
+/**
+ * The source's milestones before the tasks, so a task finds its own (BTN-1436); the last pass sets an existing one's
+ * fields again. A closed milestone the source gives no closing time of takes the last closing of its tasks.
+ */
+async function importMilestones(db: Db, project: string, milestones: readonly ImportMilestone[], tasks: readonly ImportTask[], update: boolean): Promise<void> {
+  const stamp = { at: new Date().toISOString(), writer: writerOf(SERVICE_AUTHOR) }
+  for (const milestone of milestones) {
+    if (milestone.name.trim() === '') continue
+    const closings = tasks.flatMap((task) => (task.closedAt !== null && task.milestone !== null && sameName(task.milestone, milestone.name) ? [task.closedAt] : []))
+    const closedAt = milestone.closedAt ?? (closings.length === 0 ? null : Math.max(...closings))
+    const { name, date, status, description } = milestone
+    await inTransaction(db, (tx) => importMilestone(tx, stamp, project, { name, date, status, description, closedAt: closedAt === null ? null : new Date(closedAt).toISOString() }, update))
+  }
 }
 
 const rowOf = async (tx: Pick<Db, 'query'>, project: string, number: number) =>

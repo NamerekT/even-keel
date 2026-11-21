@@ -1,7 +1,7 @@
 import { sameName } from '../chain/rules.js'
 import type { TrackerCard } from './card.js'
 import { journalEntry, keptBy, runExport, takes, type ExportLog, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportTarget, type ExportTask, type Kept } from './export.js'
-import type { ImportLink, ImportSource, ImportTask } from './import.js'
+import type { ImportLink, ImportMilestone, ImportSource, ImportTask } from './import.js'
 import { TrackerNotFound } from './source.js'
 
 /**
@@ -245,6 +245,18 @@ export interface ImportCheckOptions {
   counts?: (task: ImportTask) => Promise<SourceCounts>
   /** Called as each task is counted. */
   progress?: (done: number, total: number) => void
+  /**
+   * The built-in tracker's milestones: each of the source's is there only with its date and status, where the source
+   * keeps them (BTN-1436). Without it a milestone counts by its tasks alone.
+   */
+  milestones?: () => Promise<readonly ImportedMilestone[]>
+}
+
+/** A milestone the import wrote, as the built-in tracker keeps it. */
+export interface ImportedMilestone {
+  name: string
+  date: number | null
+  status: ImportMilestone['status']
 }
 
 /** A task's counts read from the source. */
@@ -304,6 +316,19 @@ export async function checkImport(
     name('milestones', task, task.milestone, got?.milestone != null && sameName(got.milestone, task.milestone ?? ''))
     for (const label of task.labels) name('labels', task, label, got?.labels.some((each) => sameName(each, label)) === true)
     name('components', task, task.component, got?.component != null && sameName(got.component, task.component ?? ''))
+  }
+  if (options.milestones !== undefined) {
+    const built = await options.milestones()
+    const gaps = new Set(source.milestoneGaps ?? [])
+    for (const milestone of await source.milestones()) {
+      if (milestone.name.trim() === '') continue
+      const there = built.find((each) => sameName(each.name, milestone.name))
+      const same = there !== undefined && (gaps.has('date') || there.date === milestone.date) && (gaps.has('status') || there.status === milestone.status)
+      const key = milestone.name.trim().toLocaleLowerCase()
+      const seen = names.get('milestones')!
+      seen.set(key, (seen.get(key) ?? true) && same)
+      if (!same) for (const task of tasks) if (task.milestone !== null && sameName(task.milestone, milestone.name)) counts.get('milestones')!.tasks.add(task.id)
+    }
   }
   for (const [kind, seen] of names) {
     const row = counts.get(kind)!

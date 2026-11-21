@@ -163,12 +163,16 @@ export const transferEn: Messages['transfer'] = {
       links: 'Links to other projects',
       parent: 'Parent in another project',
       history: 'Change history',
+      milestones: 'Milestone fields',
     },
     kindTips: {
       links: 'Links to tasks of other projects do not move: they stay only in the old tracker.',
       parent: 'The parent is a task of another project: the tasks arrive without a parent.',
       history: 'The tracker gives no change log: the tasks keep only their creation and closing.',
+      milestones:
+        'The tracker keeps no such fields of a milestone: the milestones arrive without them. A milestone without a status arrives planned; a closed one without a closing time takes the time its last task closed.',
     },
+    milestoneFields: { date: 'target date', status: 'status', description: 'description', closedAt: 'closing time' },
     lossesNone: 'Everything moves: statuses, links, attachments, labels, milestones, components and the journal.',
     stages: { journaled: 'Journal' },
     stageTips: {
