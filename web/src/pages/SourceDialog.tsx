@@ -5,7 +5,7 @@ import type { DraftPart } from './settingsStore.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { say, t } from '../i18n/index.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { SlidersIcon, TrackerIcon } from '../ui/icons.js'
+import { CloseIcon, SlidersIcon, TrackerIcon } from '../ui/icons.js'
 import { useHeightGlide } from '../ui/useHeightGlide.js'
 import { GroupTabs, UnsavedDot } from './settingsParts.js'
 import { tablesValid, useTableDraft } from './settingsTableDraft.js'
@@ -141,7 +141,7 @@ export function SourceDialog<T extends string>({ kind, sourceKey, title, tabs, i
             {title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         {tabs.length > 1 && (

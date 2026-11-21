@@ -15,6 +15,7 @@ import { BuiltInTag, GroupBox, IssueBands, PackageBrings, PackageLine, PackageSe
 import { choiceLabel, choiceTip, passes, problemText, trackerDoubled, trackerPackage, type TrackerChoice } from './packageView.js'
 import { useRowFocus } from './useRowFocus.js'
 import '../pages/settings.css'
+import { CloseIcon } from '../ui/icons.js'
 import './addPackage.css'
 
 const SCOPE = 'project'
@@ -96,7 +97,7 @@ export function ProjectPackages({ state, project, adding, onAdded, onClose }: Pr
             {t.packages.projectTitle(label)}
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body packages packages--project">

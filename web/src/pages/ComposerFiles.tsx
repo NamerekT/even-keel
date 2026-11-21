@@ -105,7 +105,7 @@ function AttachSheet({ onPick, onClose }: { onPick: (files: File[]) => void; onC
             {text.title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="attach-sheet__tiles">

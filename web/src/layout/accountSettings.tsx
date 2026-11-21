@@ -5,6 +5,7 @@ import { accountName } from '../accountName.js'
 import { say, t } from '../i18n/index.js'
 import { Band } from '../ui/blocks.js'
 import { FoldList } from '../ui/Fold.js'
+import { CloseIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AgentIcon, type Send } from './accountParts.js'
 import './accountSettings.css'
@@ -110,7 +111,7 @@ export function OwnSettings({ entry, send, sending }: { entry: AccountEntry; sen
     <Tipped inline focusable tip={t.account.ownSettingsTip} align="start">{t.account.ownSettings}</Tipped>
     {keys.map((key) => <span key={key} className="tag account-own__key">{key}
       <button type="button" className="account-own__drop" aria-label={t.account.dropOwnSetting(key)} title={t.account.dropOwnSetting(key)} disabled={sending}
-        onClick={() => void send('account/own-setting', { account: entry.key, key })}>×</button>
+        onClick={() => void send('account/own-setting', { account: entry.key, key })}><CloseIcon /></button>
     </span>)}
   </div>
 }

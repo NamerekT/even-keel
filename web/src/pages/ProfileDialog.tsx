@@ -8,7 +8,7 @@ import { Field } from '../tools/AddPackage.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { SectionLabel } from '../ui/blocks.js'
 import type { StripLine } from '../ui/fieldStripFit.js'
-import { TrackerIcon } from '../ui/icons.js'
+import { CloseIcon, TrackerIcon } from '../ui/icons.js'
 import { stillMotion } from '../ui/landing.js'
 import { secretInput } from '../ui/secret.js'
 import { alternativeOf, draftValues, hostValues, trackerFields, unfilled } from './profileForm.js'
@@ -74,7 +74,7 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
             {activeProfile !== undefined ? t.profiles.editTitle(activeProfile.name) : view === undefined ? t.profiles.add : t.profiles.addKind(view.title)}
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={close}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         {added !== null ? (

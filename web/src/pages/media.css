@@ -392,7 +392,11 @@ video.viewer__media {
   right: 1.5rem;
   width: 2.5rem;
   height: 2.5rem;
-  font-size: 2em;
+}
+
+.viewer__close .icon {
+  width: 2rem;
+  height: 2rem;
 }
 
 .viewer__nav {

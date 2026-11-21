@@ -9,6 +9,7 @@ import { fullSignIn, hubSessionsOnly, machineLogin, machineMarks, machineSend } 
 import { MachineLabels } from '../ui/MachineLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { LOGIN_FOCUS, LoginSteps, type Send } from './accountParts.js'
+import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
 
 /**
@@ -106,7 +107,7 @@ export function MachineLoginDialog() {
         <header className="add-package__head">
           <h2 id={title} className="add-package__title">{t.account.machineLogin(machine.name)}</h2>
           <button type="button" className="panel__close" aria-label={t.account.cancelLogin} disabled={sending} onClick={cancel}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">

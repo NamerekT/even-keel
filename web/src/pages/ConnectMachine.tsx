@@ -8,6 +8,7 @@ import { Select, type SelectOption } from '../ui/Select.js'
 import { folderBlocked, lastFolder, machineFolder, NEW_FOLDER, type FolderPick } from './machinePicks.js'
 import { MachineFolderField, useFolderAnswers } from './MachineFolderField.js'
 import '../tools/addPackage.css'
+import { CloseIcon } from '../ui/icons.js'
 import './projectMachines.css'
 
 /** A machine as the pick lists it: its name, and one off the link marked by a hollow lamp whose tip says so (BTN-1381). */
@@ -95,7 +96,7 @@ export function ConnectMachineDialog({
             {t.pool.dialog.title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">

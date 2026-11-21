@@ -19,7 +19,7 @@ import { cacheTone, sessionCache, sessionElapsed, taskProject, type ChainBlock }
 import { AccountTag } from '../ui/AccountTag.js'
 import { Band, Fact, FactList, SectionLabel } from '../ui/blocks.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
-import { ChatIcon, CompactIcon, KeepGoingIcon, OpenOutIcon, PipelineIcon } from '../ui/icons.js'
+import { ChatIcon, CloseIcon, CompactIcon, KeepGoingIcon, OpenOutIcon, PipelineIcon } from '../ui/icons.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
@@ -132,7 +132,7 @@ export function SessionPanel({ block: given, scale, ci, onCard, onClose, onChatt
           </a>
         )}
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
-          ×
+          <CloseIcon />
         </button>
       </header>
       {/* A skipped task has no flag here: its Restore button says so in its tip. */}
@@ -642,7 +642,7 @@ function SessionWindow({ row, live, scale, task, onClose }: { row: TaskSession; 
             <AccountTag account={account} agent={record?.agent ?? row.agent ?? state?.sessions.find((session) => session.sessionId === row.sessionId)?.agent} />
           </h2>
           <button type="button" className="panel__close" aria-label={t.session.closeDialog} onClick={() => dialogRef.current?.close()}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         {error !== null && <p className="notice notice--error">{error}</p>}

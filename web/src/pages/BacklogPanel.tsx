@@ -5,7 +5,7 @@ import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import type { ReadyButton, TaskLinks } from '../state.js'
-import { ByPriorityIcon, FlagIcon, IntoChainIcon, NewestFirstIcon, OldestFirstIcon, SearchIcon, StackIcon } from '../ui/icons.js'
+import { ByPriorityIcon, CloseIcon, FlagIcon, IntoChainIcon, NewestFirstIcon, OldestFirstIcon, SearchIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
@@ -150,7 +150,7 @@ export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCar
         </h2>
         <OrderSwitch value={order} onChange={setOrder} />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
-          ×
+          <CloseIcon />
         </button>
       </header>
       <p className="chain__hint">{t.project.backlogHint}</p>
@@ -272,7 +272,7 @@ function SearchField({ value, onChange }: { value: string; onChange: (text: stri
               field.current?.focus()
             }}
           >
-            ×
+            <CloseIcon />
           </button>
         </Tipped>
       )}

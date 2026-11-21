@@ -9,6 +9,7 @@ import { CommandBlock } from '../ui/blocks.js'
 import { Banner } from './Banner.js'
 import { cliText, installCommand } from './cliText.js'
 import './cliCopies.css'
+import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
 
 const EVENT = 'even-keel:cli-consent'
@@ -72,7 +73,7 @@ export function CliDownloadDialog({ provider, onClose, stay = false }: { provide
   return <dialog ref={dialog} className="add-package add-package--narrow" aria-labelledby={heading} onCancel={(event) => { event.preventDefault(); onClose() }} {...backdrop}>
     <div className="add-package__frame">
       <header className="add-package__head"><h2 id={heading} className="add-package__title">{copy.source === 'system' ? titleOf(provider) : text.title}</h2>
-        <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>×</button>
+        <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}><CloseIcon /></button>
       </header>
       <div className="add-package__body">
         {copy.source === 'checked' && copy.status !== 'downloading' && <p>{text.about(titleOf(provider), copy.version, mb(copy.approximate))}</p>}

@@ -75,6 +75,12 @@ describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
     )
     expect(single, 'Use Switch or SwitchField of pages/settingsParts.tsx for one option (docs/design.md, "Switch")').toEqual([])
   })
+  it('a button closes or removes with CloseIcon, never the "×" glyph that sits off its line box\'s middle', () => {
+    const glyphs = Object.entries(sources).flatMap(([path, source]) =>
+      [...source.matchAll(/>\s*(?:×|\{(['"`])×\1\})\s*<\/button>/g)].map((found) => `${path}:${source.slice(0, found.index).split('\n').length}`),
+    )
+    expect(glyphs, 'Put <CloseIcon /> of ui/icons.tsx into the button (docs/design.md, "Close")').toEqual([])
+  })
   it('no stylesheet has more violations than the baseline, and the baseline is not above what is left', () => {
     const baseline = JSON.parse(baselineText) as Record<string, number>
     const { more, fewer } = compareBaseline(violationCounts(sheets), baseline)

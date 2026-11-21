@@ -525,9 +525,15 @@
 }
 
 .queue__remove {
+  display: grid;
+  place-items: center;
   justify-self: end;
-  font-size: var(--text-22);
   cursor: pointer;
+}
+
+.queue__remove .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .queue__handle:hover:not(:disabled),

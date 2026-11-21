@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import type { AccountView } from '../../../src/account/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { CloseIcon } from '../ui/icons.js'
 import { type Spend, type Tokens } from './accountParts.js'
 import { AccountProblems } from './accountProblems.js'
 import { AccountGroups } from './accountRows.js'
@@ -17,7 +18,7 @@ export function AccountPanel({ account, spend, tokens, onClose }: { account: Acc
   return <aside id="account-panel" className="drawer account-drawer" role="dialog" aria-label={t.account.title}>
     <div className="drawer__head">
       <h2 className="drawer__title">{t.account.title}</h2>
-      <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>×</button>
+      <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}><CloseIcon /></button>
     </div>
     <section className="queue__section">
       <div className="accounts__add">

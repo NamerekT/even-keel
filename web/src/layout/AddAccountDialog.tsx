@@ -14,7 +14,7 @@ import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
-import { CheckIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, ServerIcon, TerminalIcon } from '../ui/icons.js'
+import { CheckIcon, CloseIcon, CodexIcon, CopilotIcon, GiftIcon, KeyIcon, ServerIcon, TerminalIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
 import type { AwsProfiles, AzureCredentials, GcloudCredentials } from '../../../src/account/cloud.js'
 import { cloudBody, cloudReady, EMPTY_CLOUD } from '../cloudDraft.js'
@@ -229,7 +229,7 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
             {title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={leave}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         {cloudAdded ? (

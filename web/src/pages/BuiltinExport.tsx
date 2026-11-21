@@ -18,6 +18,7 @@ import { ErrorStrip, FieldHead, HelpTip, SwitchField } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
 import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferMoves, TransferStatuses } from './TransferPlan.js'
 import '../tools/addPackage.css'
+import { CloseIcon } from '../ui/icons.js'
 import './builtinExport.css'
 
 const POLL_MS = 1_500
@@ -182,7 +183,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
             <HelpTip text={t.transfer.leadTip} align="start" />
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body transfer__body">

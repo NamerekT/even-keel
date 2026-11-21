@@ -9,7 +9,7 @@ import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { EmptyState } from '../ui/blocks.js'
-import { ChatIcon, PlusIcon, SearchIcon } from '../ui/icons.js'
+import { ChatIcon, CloseIcon, PlusIcon, SearchIcon } from '../ui/icons.js'
 import { EffortBars } from '../ui/RunLabelTag.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { NewChatDialog } from './NewChatDialog.js'
@@ -86,7 +86,7 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
       <header className="panel__head chats__head">
         <GroupTabs groups={groups} open={section} dirty={() => false} onOpen={setSection} label={t.chats.sections} />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
-          ×
+          <CloseIcon />
         </button>
       </header>
       {section === 'active' ? (

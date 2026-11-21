@@ -121,17 +121,25 @@
   font-weight: 600;
 }
 
+/* The CloseIcon in the middle of its box, as large as the other icons of a panel's head (`.panel__remote`). */
 .panel__close {
   flex: none;
+  display: grid;
+  place-items: center;
   width: 32px;
   height: 32px;
   margin: -4px -6px 0 0;
+  padding: 0;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg-muted);
-  font: var(--text-22)/1 var(--font);
   cursor: pointer;
+}
+
+.panel__close .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .panel__close:hover {

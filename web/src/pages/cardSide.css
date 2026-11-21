@@ -176,6 +176,11 @@
   color: var(--fg-muted);
 }
 
+/* An inline box would stand the icon on the text's baseline, above the chevron's middle. */
+.task-card__as-project > [role='img'] {
+  display: flex;
+}
+
 /* The inheritance arrow turned down to the bar: the value comes down from the project. */
 .task-card__as-project .icon {
   transform: scaleY(-1);

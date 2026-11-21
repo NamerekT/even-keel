@@ -5,7 +5,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Fact, FactList } from '../ui/blocks.js'
-import { CheckIcon } from '../ui/icons.js'
+import { CheckIcon, CloseIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { DAY } from './CardFields.js'
 import { FieldHead, HelpTip } from './settingsParts.js'
@@ -55,7 +55,7 @@ export function Modal({ title, onClose, onSubmit, children, foot, failure, busy,
             {title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.components.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">{children}</div>

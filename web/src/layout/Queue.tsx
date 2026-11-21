@@ -4,7 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainStatus, projectLabel, projectName, projectPath, projectSlot } from '../state.js'
-import { ProjectsIcon } from '../ui/icons.js'
+import { CloseIcon, ProjectsIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
@@ -158,7 +158,7 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
               disabled={disabled}
               onClick={() => onRemove(project)}
             >
-              ×
+              <CloseIcon />
             </button>
             <TaskLine state={state} project={project} />
           </li>

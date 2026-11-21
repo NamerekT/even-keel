@@ -20,6 +20,7 @@ import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
 import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
+import { CloseIcon } from '../ui/icons.js'
 import './chats.css'
 
 interface Props {
@@ -113,7 +114,7 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
             {t.chats.dialog.title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.chats.dialog.cancel} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body new-chat__body">

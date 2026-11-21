@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { t } from '../i18n/index.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { CloseIcon } from '../ui/icons.js'
 import { InboxImage } from './InboxImage.js'
 
 export interface Media {
@@ -73,7 +74,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
       {...backdrop}
     >
       <button ref={closer} type="button" className="viewer__close" aria-label={t.card.viewer.close} title={t.card.viewer.close} onClick={onClose}>
-        ×
+        <CloseIcon />
       </button>
       {prev !== null && (
         <button type="button" className="viewer__nav viewer__nav--prev" aria-label={t.card.viewer.prev} title={t.card.viewer.prev} onClick={() => go(prev)}>

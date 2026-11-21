@@ -6,6 +6,7 @@ import { CommandBlock } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { secretInput } from '../ui/secret.js'
 import { Select } from '../ui/Select.js'
+import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
 
 export interface MachineTokenTarget {
@@ -64,7 +65,7 @@ export function MachineTokenDialog({ target: given, choices, onClose, onAdded = 
             {t.account.machineTokenTitle(target.name)}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">

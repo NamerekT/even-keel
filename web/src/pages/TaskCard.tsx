@@ -34,6 +34,7 @@ import './card.css'
 import './cardMain.css'
 import './cardSide.css'
 import './cardNarrow.css'
+import { CloseIcon } from '../ui/icons.js'
 import './cardEdit.css'
 
 /** Labels whose meaning stops a session or keeps the task out of the chain get a callout above the description. */
@@ -148,7 +149,7 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
             </a>
           )}
           <button type="button" className="task-card__close" aria-label={t.card.close} title={t.card.close} onClick={close}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="task-card__body">

@@ -7,6 +7,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { secretInput } from '../ui/secret.js'
+import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
 
 /** Copilot's account holds a GitHub token, a Claude subscription may run on a long token (BTN-1005), the others hold an API key. */
@@ -54,7 +55,7 @@ export function ReplaceKeyDialog({ entry, title, onClose }: { entry: AccountEntr
             {title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">

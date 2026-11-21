@@ -4,6 +4,7 @@ import { deviceLogin } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { LOGIN_FOCUS, LoginSteps, loginHeading } from './accountParts.js'
+import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
 
 /**
@@ -44,7 +45,7 @@ export function LoginDialog({ account }: { account: AccountView }) {
             {loginHeading(account)}
           </h2>
           <button type="button" className="panel__close" aria-label={t.account.cancelLogin} disabled={sending} onClick={cancel}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">

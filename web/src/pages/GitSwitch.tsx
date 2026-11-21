@@ -16,6 +16,7 @@ import { GitInstall, Identity } from './SetupGit.js'
 import { Row, Section, Switch } from './settingsParts.js'
 import '../tools/addPackage.css'
 import './projectAdd.css'
+import { CloseIcon } from '../ui/icons.js'
 import './gitSwitch.css'
 
 type Place = 'worktree' | 'slots'
@@ -120,7 +121,7 @@ function GitOnDialog({ state, project, onClose }: { state: EvenKeelState; projec
             {text.title(projectLabel(state, project))}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.cancel} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body git-on__body">

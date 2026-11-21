@@ -3,6 +3,7 @@ import { DEFAULT_HOTKEYS, HOTKEY_ACTIONS, type HotkeyAction, type HotkeyBindings
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { CloseIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { comboOf, DRAFT_KEYS, draftCombos, formatCombo, refusalOf, type Refusal } from './combo.js'
 import { useHotkeyLayout } from './useHotkeys.js'
@@ -76,7 +77,7 @@ export function HotkeysDialog({ onClose }: { onClose: () => void }) {
             {t.hotkeys.title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">

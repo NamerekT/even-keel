@@ -204,7 +204,6 @@ button.task-card__status-pick[aria-expanded='true'] {
   background: none;
   color: var(--fg-muted);
   font: inherit;
-  font-size: var(--text-16);
   line-height: 1;
   cursor: pointer;
 }
@@ -244,7 +243,11 @@ button.task-card__status-pick[aria-expanded='true'] {
   height: 14px;
   padding: 0;
   border-radius: 50%;
-  font-size: var(--text-13);
+}
+
+.task-card__chip-edit .task-card__remove .icon {
+  width: 12px;
+  height: 12px;
 }
 
 .task-card__chip-edit .task-card__remove::after {

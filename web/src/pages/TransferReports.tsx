@@ -11,6 +11,7 @@ import { Section } from './settingsParts.js'
 import { Losses, TransferCheckTable, TransferMoves, TransferStatuses } from './TransferPlan.js'
 import { takeReport, usePendingReport } from './transferStore.js'
 import '../tools/addPackage.css'
+import { CloseIcon } from '../ui/icons.js'
 import './builtinExport.css'
 
 const titleOf = (state: EvenKeelState, kind: string) => state.config.trackers.find((each) => each.name === kind)?.title ?? kind
@@ -109,7 +110,7 @@ function TransferReportDialog({ state, id, onClose }: { state: EvenKeelState; id
             {report == null ? t.transfer.reports : t.transfer.reportTitle(report.direction, tracker)}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body transfer__body">

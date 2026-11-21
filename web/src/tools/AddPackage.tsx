@@ -9,7 +9,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import type { StripLine } from '../ui/fieldStripFit.js'
 import { agentLabel } from '../accountName.js'
-import { PlugIcon, PlusIcon, ServerIcon, StackIcon } from '../ui/icons.js'
+import { CloseIcon, PlugIcon, PlusIcon, ServerIcon, StackIcon } from '../ui/icons.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Select } from '../ui/Select.js'
 import { serverEntry, serverPairs, type Transport } from './packageView.js'
@@ -82,7 +82,7 @@ function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; p
             {asking ? t.packages.marketplaceAsk : kind === null ? t.packages.addOpen : t.packages.addKind[kind].title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         {asking && view.marketplace !== null ? (

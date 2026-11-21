@@ -32,6 +32,7 @@ import { ProjectTrackerTab } from './ProjectTrackerTab.js'
 import { ProjectSessionsTab } from './ProjectSessionsTab.js'
 import { ProjectCiTab } from './ProjectCiTab.js'
 import { poolShown, ProjectMachinesTab } from './ProjectMachinesTab.js'
+import { CloseIcon } from '../ui/icons.js'
 import './settings.css'
 
 export { useSettingsDirty } from './projectSettingsDraft.js'
@@ -168,7 +169,7 @@ export function SettingsPanel({
             {machine.name}
           </span>
           <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="settings__form">
@@ -191,7 +192,7 @@ export function SettingsPanel({
         )}
         <GroupTabs groups={shownGroups.map(({ id }) => ({ id, title: t.settings.groups[id] }))} open={open} dirty={dirty} onOpen={setOpen} />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
-          ×
+          <CloseIcon />
         </button>
       </header>
       <TableDraft value={{ draft, setDraft }}>

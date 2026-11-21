@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { t } from '../i18n/index.js'
 import { Card, SectionLabel } from '../ui/blocks.js'
+import { CloseIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import type { BlockLamp, ChainBlock } from '../state.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
@@ -44,7 +45,7 @@ export function HelpPanel({ blocks, ci, narrow, onClose }: Props) {
     <aside className="panel page-help" aria-label={t.help.title}>
       <header className="panel__head">
         <h2 className="panel__task">{t.help.title}</h2>
-        <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>×</button>
+        <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}><CloseIcon /></button>
       </header>
       <Card title={t.help.head} className="page-help__section">
         <ul className="page-help__signs"><HeaderSigns narrow={narrow} /></ul>

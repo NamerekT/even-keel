@@ -27,7 +27,7 @@ import { formatAgo, formatClock, formatMoment, formatSpan } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { issueLink } from '../state.js'
-import { ClockIcon, InfoIcon } from '../ui/icons.js'
+import { ClockIcon, CloseIcon, InfoIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { NoticeFixButton } from './FixButtons.js'
@@ -153,7 +153,7 @@ export function CiPanel({
       <header className="panel__head">
         <h2 className="panel__task">{t.ci.panel}</h2>
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
-          ×
+          <CloseIcon />
         </button>
       </header>
       {ordered.map((view, index) => {

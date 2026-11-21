@@ -9,6 +9,7 @@ import { CliProgress, mb, titleOf } from './CliCopies.js'
 import { cliLockOf, type CliSource } from './cliLock.js'
 import { cliText, installCommand } from './cliText.js'
 import './cliCopies.css'
+import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
 
 /**
@@ -44,7 +45,7 @@ function CliConsentDialog({ provider, onClose }: { provider: string; onClose: ()
     <div className="add-package__frame">
       <header className="add-package__head">
         <h2 id={heading} className="add-package__title">{text.ask(titleOf(provider), copy.version, mb(copy.approximate))}</h2>
-        <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>×</button>
+        <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}><CloseIcon /></button>
       </header>
       <div className="add-package__body">
         <p className="add-package__question">{text.askNote}</p>

@@ -15,6 +15,7 @@ import { importPhaseOf } from './importPhase.js'
 import { HelpTip } from './settingsParts.js'
 import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferMoves, TransferStatuses } from './TransferPlan.js'
 import '../tools/addPackage.css'
+import { CloseIcon } from '../ui/icons.js'
 import './builtinExport.css'
 
 const POLL_MS = 1_500
@@ -164,7 +165,7 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
             <HelpTip text={t.transfer.imports.leadTip(tracker)} align="start" />
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body transfer__body">

@@ -3,7 +3,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import type { TaskCard as Card, TaskRef } from '../../../src/tracker/card.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { PlusIcon } from '../ui/icons.js'
+import { CloseIcon, PlusIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { linkBody, linkRefusal, type LinkKind } from './cardEdit.js'
@@ -202,7 +202,7 @@ function Refs({ kind, title, items, onOpen, onRemove }: RefsProps) {
 export function Remove({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
     <button type="button" className="task-card__remove" aria-label={label} title={label} disabled={disabled} onClick={onPress}>
-      ×
+      <CloseIcon />
     </button>
   )
 }

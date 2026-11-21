@@ -8,6 +8,7 @@ import type { ReleaseNote, UpdatesView } from '../../../src/updates/release.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
+import { CloseIcon } from '../ui/icons.js'
 import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { Toast, ToastPresence } from '../ui/Toast.js'
 import '../tools/addPackage.css'
@@ -212,7 +213,7 @@ function UpdateDialog({ updates }: { updates: UpdatesView }) {
             {t.updates.windowTitle}
           </h2>
           <button type="button" className="panel__close" aria-label={t.updates.close} onClick={close}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">

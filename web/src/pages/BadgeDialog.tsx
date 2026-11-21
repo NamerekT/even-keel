@@ -10,7 +10,7 @@ import { useCommand } from '../live/useCommand.js'
 import { projectLabel } from '../state.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Band, CommandBlock } from '../ui/blocks.js'
-import { GoToIcon } from '../ui/icons.js'
+import { CloseIcon, GoToIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
 import { Tipped } from '../ui/Tipped.js'
 import { badgeDraft, badgeMarkdown, BADGE_GROUPS, badgePngName, defaultSlug, groupOn, releasesLink, withGroup } from './badgeParts.js'
@@ -63,7 +63,7 @@ export function BadgeDialog({ state, project, onClose }: { state: EvenKeelState;
             {t.badge.title(label)}
           </h2>
           <button type="button" className="panel__close" aria-label={t.badge.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body badge-dialog__body">

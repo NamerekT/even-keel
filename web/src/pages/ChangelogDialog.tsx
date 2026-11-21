@@ -16,7 +16,7 @@ import { shortModel } from '../ui/modelLabel.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { DiffLines } from '../ui/DiffLines.js'
-import { ChangelogIcon } from '../ui/icons.js'
+import { ChangelogIcon, CloseIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { TipFacts } from '../ui/TipFacts.js'
@@ -173,7 +173,7 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
             <span className="tag">{milestone}</span>
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body changelog__body">

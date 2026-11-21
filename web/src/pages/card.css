@@ -92,6 +92,8 @@ html:has(.task-card[open]) {
 
 .task-card__close {
   flex: none;
+  display: grid;
+  place-items: center;
   width: 32px;
   height: 32px;
   padding: 0;
@@ -99,9 +101,12 @@ html:has(.task-card[open]) {
   border-radius: var(--radius-control);
   background: none;
   color: var(--fg-muted);
-  font-size: var(--text-22);
-  line-height: 1;
   cursor: pointer;
+}
+
+.task-card__close .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .task-card__close:hover {

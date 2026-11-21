@@ -12,7 +12,7 @@ import { HubAddressField } from '../pages/HubAddressField.js'
 import { HelpTip, Switch } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
-import { ServerIcon } from '../ui/icons.js'
+import { CloseIcon, ServerIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { useHeightGlide } from '../ui/useHeightGlide.js'
 import { MachineJoined } from './MachineJoined.js'
@@ -125,7 +125,7 @@ function MachineDialog({ state, at }: { state: EvenKeelState; at: string }) {
             {t.machines.title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={close}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         {joined !== undefined ? (

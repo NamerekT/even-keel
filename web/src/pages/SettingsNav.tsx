@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { t } from '../i18n/index.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { MenuIcon } from '../ui/icons.js'
+import { CloseIcon, MenuIcon } from '../ui/icons.js'
 import { UnsavedDot } from './settingsParts.js'
 
 interface Props<T extends string> {
@@ -64,7 +64,7 @@ export function SettingsNav<T extends string>({ groups, open, dirty, onOpen }: P
           <div className="settings-drawer__head">
             <span className="settings-drawer__heading">{t.settings.groupsLabel}</span>
             <button type="button" className="panel__close" aria-label={t.session.closePanel} onClick={() => drawer.current?.close()}>
-              ×
+              <CloseIcon />
             </button>
           </div>
           {list}

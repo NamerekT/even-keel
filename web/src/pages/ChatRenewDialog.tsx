@@ -13,7 +13,7 @@ import { Segmented } from '../stats/common.js'
 import '../tools/addPackage.css'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ButtonWithTip } from '../ui/ButtonWithTip.js'
-import { InfoIcon } from '../ui/icons.js'
+import { CloseIcon, InfoIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -142,7 +142,7 @@ export function ChatRenewDialog({ chat, renewal, message, choice, busy, failure,
             {renewal.kind === 'cold' ? text.coldTitle : text.limitTitle(chatName)}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.cancel} onClick={onClose}>
-            ×
+            <CloseIcon />
           </button>
         </header>
         <div className="add-package__body renew-chat__body">
