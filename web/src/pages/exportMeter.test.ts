@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { meterOf } from './exportMeter.js'
+import { IMPORT_STEPS, meterOf } from './exportMeter.js'
 
 const progress = (created: number, linked = 0, attached = 0, journaled = 0, marked = 0) => ({ tasks: created, created, linked, attached, journaled, marked })
 
@@ -27,5 +27,17 @@ describe('meterOf', () => {
 
   it('is through with nothing to move', () => {
     expect(meterOf(progress(0), 0)).toEqual({ stage: null, step: 5, done: 0 })
+  })
+})
+
+describe('meterOf on the import', () => {
+  const imported = (created: number, linked = 0, attached = 0, journaled = 0) => ({ tasks: created, created, linked, attached, journaled, done: journaled })
+
+  it('goes through four steps, the journal last', () => {
+    expect(meterOf(imported(40, 40, 40, 12), 40, IMPORT_STEPS)).toEqual({ stage: 'journaled', step: 4, done: 12 })
+  })
+
+  it('is the whole move once every journal is written', () => {
+    expect(meterOf(imported(40, 40, 40, 40), 40, IMPORT_STEPS)).toEqual({ stage: null, step: 4, done: 40 })
   })
 })

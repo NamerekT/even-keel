@@ -381,6 +381,11 @@ export interface TrackerAdapter {
    * wizard's list of trackers leave it out.
    */
   own?: true
+  /**
+   * Optional. Its connection gives `importSource`, so the Tracker tab offers to move a project's whole history into the
+   * built-in tracker (BTN-1406); without it the button is there, quiet, saying the import comes later.
+   */
+  imports?: true
   /** Optional, with `moves`. The status moves its tasks always take; neither a profile nor a project changes them. */
   fixedMoves?: Readonly<StatusMoves>
   /** Optional. Its connection writes a task's time into the tracker (`logTime`): Tally hands it the done tasks' time (EKR-35). */

@@ -62,16 +62,17 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
 }
 
 /** The trackers a project may run on, Even Keel's own first (BTN-769): it needs no account. */
-export function trackerChoices(adapters: Readonly<Record<string, Pick<TrackerAdapter, 'title' | 'projectKey' | 'own'>>> = ADAPTERS): TrackerChoice[] {
+export function trackerChoices(adapters: Readonly<Record<string, Pick<TrackerAdapter, 'title' | 'projectKey' | 'own' | 'imports'>>> = ADAPTERS): TrackerChoice[] {
   const entries = Object.entries(adapters)
   const ordered = [...entries.filter(([, adapter]) => adapter.own === true), ...entries.filter(([, adapter]) => adapter.own !== true)]
-  return ordered.map(([name, { title, projectKey }]) => ({
+  return ordered.map(([name, { title, projectKey, imports }]) => ({
     name,
     title,
     projectKey:
       projectKey === undefined
         ? null
         : { key: projectKey.key, example: projectKey.example, optional: projectKey.optional === true, alias: projectKey.alias === true },
+    ...(imports === true ? { imports: true } : {}),
   }))
 }
 

@@ -525,7 +525,7 @@ export const settingsEN: Messages['settings'] = {
       "Empty — the project's key. Another project lets two projects of Even Keel share one tracker project, each with its own milestones (chain rules).",
     trackerSoon: 'v0.2',
     builtinLocked: 'The project has tasks in the built-in tracker: to move them, press "Move to another tracker" above.',
-    builtinUnavailable: "The project has tasks in its tracker: moving them to the built-in one is not supported yet",
+    builtinUnavailable: 'The project has tasks in its tracker: to move them here, press "Move to the built-in tracker" above',
     milestonesNone: 'The project has no milestones in the built-in tracker yet: a task card creates them, or "All except" here',
     trackerLocked:
       "The chain has started tasks of this project, so its tracker and profile stay: the IDs of its tasks would no longer reach their branches, folders and stats. Another tracker's tasks join the chain as a task feed below.",

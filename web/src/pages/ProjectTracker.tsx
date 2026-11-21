@@ -83,7 +83,8 @@ export function ProjectTracker({ state, project, tracker, trackerProject, known,
     const value = placeOf(next)
     if (next.tracker !== fields.tracker || value !== placeOf(fields)) onEdit(next.tracker, value)
   }
-  // Tasks of the built-in tracker do not move to another one, nor another's to it, yet: that is an export (BTN-769).
+  // Tasks of the built-in tracker do not move to another one by a pick here, nor another's to it: that is an export
+  // (BTN-1075) or an import (BTN-1406), the buttons of the card's head.
   const ownLocked = saved === BUILTIN && hasTasks
   const builtin = { unavailable: saved !== BUILTIN && hasTasks ? t.settings.builtinUnavailable : undefined }
   const hint = locked ? `${t.wizard.trackerPickHint} ${t.settings.trackerLocked}` : ownLocked ? `${t.wizard.trackerPickHint} ${t.settings.builtinLocked}` : t.wizard.trackerPickHint

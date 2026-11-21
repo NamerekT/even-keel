@@ -10,6 +10,7 @@ export const huly: TrackerAdapter = {
   mcpServer: 'huly',
   editsTasks: true,
   moves: true,
+  imports: true,
   profileName: (values, account) => account?.name ?? (values.HULY_WORKSPACE || 'Huly'),
   account: async (values, timeoutMs) => (await import('./profile.js')).hulyAccount(values, timeoutMs),
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).hulyProjects(values, query, timeoutMs),

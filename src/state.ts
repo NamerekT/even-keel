@@ -152,6 +152,8 @@ export interface TrackerChoice {
   title: string
   /** `alias` — the value names the tracker's project in place of the key (Huly), see `TrackerProjectKey.alias`. */
   projectKey: { key: string; example: string; optional: boolean; alias: boolean } | null
+  /** Its tasks move into the built-in tracker with their whole history (`TrackerAdapter.imports`, BTN-1406). */
+  imports?: true
 }
 
 export type { DraftMachine, FolderPlace, ProjectDraft, ProjectCheck, ProjectTrust, RepoSource, SourceRead } from './projects/state.js'

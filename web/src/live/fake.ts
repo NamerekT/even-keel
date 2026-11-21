@@ -33,7 +33,8 @@ import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
 import { builtinVocabulary, fakeAttach, fakeBuiltinCard, fakeBuiltinQuery, isBuiltinCard, withBuiltinTracker } from './fakeBuiltin.js'
-import { fakeExportQuery, withMovedRefs } from './fakeExport.js'
+import { addFakeReport, fakeExportQuery, withMovedRefs } from './fakeExport.js'
+import { fakeImportQuery } from './fakeImport.js'
 import { fakeBadgeCheck, fakeBadgeUrl, withFakeBadge } from './fakeBadge.js'
 import { fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeSentFileUrl, fakeSharedUrl, fakeAsk, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import { fakeTools } from './fakeTools.js'
@@ -1030,7 +1031,10 @@ export function createFakeSource(search: string): LiveSource {
           { address: '100.64.0.7', from: 'adapter', adapter: 'Tailscale' },
         ] as T
       }
-      const builtin = fakeExportQuery(current.state, name, body, params.get('export')) ?? fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
+      const builtin =
+        fakeExportQuery(current.state, name, body, params.get('export')) ??
+        fakeImportQuery(current.state, name, body, params.get('import'), addFakeReport) ??
+        fakeBuiltinQuery(current.state, name, body, params.get('card'), params.get('journal'))
       if (builtin !== null) {
         current = { ...current, state: builtin.state }
         notify()

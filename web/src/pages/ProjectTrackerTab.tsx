@@ -8,6 +8,7 @@ import { t } from '../i18n/index.js'
 import { isOpenToAll } from '../openToAll.js'
 import { Band } from '../ui/blocks.js'
 import { BuiltinExportButton } from './BuiltinExport.js'
+import { BuiltinImportButton } from './BuiltinImport.js'
 import { ComponentList } from './ComponentList.js'
 import { FeedList } from './FeedList.js'
 import { MilestoneOrder } from './MilestoneOrder.js'
@@ -83,7 +84,13 @@ export function ProjectTrackerTab({
     <>
       <Section
         title={t.settings.sections.tracker}
-        aside={state !== null && saved.tracker === BUILTIN && mainTasks.length > 0 ? <BuiltinExportButton state={state} project={project} /> : undefined}
+        aside={
+          state === null || !saved.tracker ? undefined : saved.tracker === BUILTIN ? (
+            mainTasks.length > 0 ? <BuiltinExportButton state={state} project={project} /> : undefined
+          ) : (
+            <BuiltinImportButton state={state} project={project} tracker={String(saved.tracker)} />
+          )
+        }
       >
         {state !== null && (
           <ProjectTracker

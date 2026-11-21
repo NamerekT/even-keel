@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { ExportCounts, ExportPlan, ExportStatusRow } from '../../../src/tracker/export.js'
+import type { ExportCounts, ExportLossKind, ExportPlan, ExportStatusRow } from '../../../src/tracker/export.js'
 import type { CheckRow, TransferCheck, TransferDirection } from '../../../src/tracker/transfer-check.js'
 import { language, t } from '../i18n/index.js'
 import { Tile, TileGrid } from '../ui/blocks.js'
@@ -22,8 +22,11 @@ export function TransferBlock({ title, help, className, children }: { title: str
   )
 }
 
-/** What moves, a tile a kind; the links split by kind in the tip of their label. */
-export function TransferMoves({ counts, title = t.transfer.moves }: { counts: ExportCounts; title?: string }) {
+/**
+ * What moves, a tile a kind; the links split by kind in the tip of their label. The import's counts (`ImportCounts`)
+ * add the changes and the components, which no export target takes.
+ */
+export function TransferMoves({ counts, title = t.transfer.moves }: { counts: ExportCounts & { changes?: number; components?: number }; title?: string }) {
   const links = counts.blocks + counts.relates + counts.subtasks
   const words = t.transfer.counts
   return (
@@ -31,6 +34,7 @@ export function TransferMoves({ counts, title = t.transfer.moves }: { counts: Ex
       <TileGrid className="transfer__tiles">
         <Tile label={words.tasks} value={count(counts.tasks)} />
         <Tile label={words.comments} value={count(counts.comments)} />
+        {counts.changes !== undefined && <Tile label={t.transfer.imports.counts.changes} value={count(counts.changes)} />}
         <Tile label={words.files} value={count(counts.files)} />
         <Tile
           label={
@@ -50,25 +54,38 @@ export function TransferMoves({ counts, title = t.transfer.moves }: { counts: Ex
         />
         <Tile label={words.milestones} value={count(counts.milestones)} />
         <Tile label={words.labels} value={count(counts.labels)} />
+        {counts.components !== undefined && <Tile label={t.transfer.imports.counts.components} value={count(counts.components)} />}
       </TileGrid>
     </TransferBlock>
   )
 }
 
-/** What the target leaves behind, a line per kind: its names where they are names, the tasks in a tip of their count. */
+/** Of the import's losses, those whose names are other projects' task ids: only their count of this project's tasks shows. */
+const IDS_ONLY = new Set<ExportLossKind>(['links', 'parent'])
+
+/**
+ * What the target leaves behind, a line per kind: its names where they are names, the tasks in a tip of their count.
+ * An import names its kinds its own way where they differ (`t.transfer.imports.kinds`).
+ */
 export function Losses({
   plan,
   recheck,
   checking,
+  direction = 'export',
   title = t.transfer.losses,
-  none = t.transfer.lossesNone,
+  none = direction === 'export' ? t.transfer.lossesNone : t.transfer.imports.lossesNone,
 }: {
   plan: ExportPlan
   recheck: (() => void) | null
   checking: boolean
+  direction?: TransferDirection
   title?: string
   none?: string
 }) {
+  const own = direction === 'import' ? t.transfer.imports : null
+  const kindOf = (kind: ExportLossKind) => (own?.kinds as Partial<Record<ExportLossKind, string>> | undefined)?.[kind] ?? t.transfer.kinds[kind]
+  const tipOf = (kind: ExportLossKind) => (own?.kindTips as Partial<Record<ExportLossKind, string>> | undefined)?.[kind] ?? t.transfer.kindTips[kind]
+  const named = (kind: ExportLossKind) => own === null || !IDS_ONLY.has(kind)
   return (
     <section className="transfer__losses" aria-label={title}>
       <header className="transfer__losses-head">
@@ -85,10 +102,10 @@ export function Losses({
         <ul className="transfer__loss-list">
           {plan.losses.map((loss) => (
             <li key={loss.kind} className="transfer__loss">
-              <Tipped tip={t.transfer.kindTips[loss.kind]} focusable inline align="start" className="transfer__kind">
-                {t.transfer.kinds[loss.kind]}
+              <Tipped tip={tipOf(loss.kind)} focusable inline align="start" className="transfer__kind">
+                {kindOf(loss.kind)}
               </Tipped>
-              {loss.names.length > 0 && <span className="transfer__names">{loss.names.join(', ')}</span>}
+              {loss.names.length > 0 && named(loss.kind) && <span className="transfer__names">{loss.names.join(', ')}</span>}
               {loss.tasks.length > 0 && (
                 <Tipped tip={t.transfer.lossTip(loss.tasks)} focusable inline className="transfer__count">
                   {t.transfer.lossTasks(loss.tasks.length)}
@@ -160,19 +177,23 @@ export function TransferCheckTable({ check, direction, tracker }: { check: Trans
   )
 }
 
-/** Each status of the moving tasks, how many have it, and the one they get in `tracker`. */
-export function TransferStatuses({ rows, tracker }: { rows: readonly ExportStatusRow[]; tracker: string }) {
+/**
+ * Each status of the moving tasks, how many have it, and the one they get in `tracker`; an import's rows are the source's
+ * statuses, so the table reads "In <tracker> | Tasks | Becomes".
+ */
+export function TransferStatuses({ rows, tracker, direction = 'export' }: { rows: readonly ExportStatusRow[]; tracker: string; direction?: TransferDirection }) {
   if (rows.length === 0) return null
+  const [from, to] = direction === 'export' ? [t.transfer.statusHere, t.transfer.statusThere(tracker)] : [t.transfer.statusThere(tracker), t.transfer.imports.statusBecomes]
   return (
     <TransferBlock title={t.transfer.statuses} help={t.transfer.statusesTip}>
       <table className="transfer__table">
         <thead>
           <tr>
-            <th scope="col">{t.transfer.statusHere}</th>
+            <th scope="col">{from}</th>
             <th scope="col" className="transfer__num">
               {t.transfer.statusTasks}
             </th>
-            <th scope="col">{t.transfer.statusThere(tracker)}</th>
+            <th scope="col">{to}</th>
           </tr>
         </thead>
         <tbody>

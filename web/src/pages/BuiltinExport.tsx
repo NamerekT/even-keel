@@ -4,13 +4,14 @@ import { BUILTIN } from '../../../src/builtin/model.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { ExportLoss, ExportPlan } from '../../../src/tracker/export.js'
+import type { TransferDirection } from '../../../src/tracker/transfer-check.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
-import { EXPORT_STEPS, meterOf } from './exportMeter.js'
+import { EXPORT_STEPS, IMPORT_STEPS, meterOf, type ExportStep, type ImportStep } from './exportMeter.js'
 import { EMPTY_FIELDS, keyOfTyped, keyTyped, placeFields, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { ErrorStrip, FieldHead, HelpTip, SwitchField } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
@@ -285,18 +286,21 @@ function checkNoticeOf(exported: ExportState): { tone: 'warn' | 'error'; text: s
 
 /**
  * "N of M" as the download meter shows its megabytes: the step the copy is at, a bar, the figures of that step (BTN-1194);
- * "Moved" once every task is through.
+ * "Moved" once every task is through. An import (BTN-1406) has four steps of its own, without the marks.
  */
-export function Progress({ exported }: { exported: Pick<ExportState, 'progress' | 'total'> }) {
-  const { stage, step, done } = meterOf(exported.progress, exported.total)
+export function Progress({ exported, direction = 'export' }: { exported: { progress: Partial<Record<ExportStep, number>>; total: number }; direction?: TransferDirection }) {
+  const steps = direction === 'export' ? EXPORT_STEPS : IMPORT_STEPS
+  const { stage, step, done } = meterOf(exported.progress, exported.total, steps)
   const total = Math.max(exported.total, done)
-  const name = stage === null ? t.transfer.progress : t.transfer.stages[stage]
+  const own = direction === 'import' ? t.transfer.imports : null
+  const name = stage === null ? t.transfer.progress : ((own?.stages as Partial<Record<ExportStep, string>> | undefined)?.[stage] ?? t.transfer.stages[stage])
+  const what = stage === null ? '' : own === null ? t.transfer.stageTips[stage] : own.stageTips[stage as ImportStep]
   return (
     <div className="transfer__meter">
       {stage === null ? (
         <span className="transfer__meter-name">{name}</span>
       ) : (
-        <Tipped tip={t.transfer.stageTip(step, EXPORT_STEPS.length, t.transfer.stageTips[stage])} focusable inline align="start" className="transfer__meter-name">
+        <Tipped tip={t.transfer.stageTip(step, steps.length, what)} focusable inline align="start" className="transfer__meter-name">
           {name}
         </Tipped>
       )}
@@ -306,8 +310,8 @@ export function Progress({ exported }: { exported: Pick<ExportState, 'progress' 
   )
 }
 
-/** A refused start or switch; a switch held by the running chain gets the button that stops it. */
-function Refusal({ project, refusal }: { project: string; refusal: Notice }) {
+/** A refused start or switch, of either direction; a switch held by the running chain gets the button that stops it. */
+export function Refusal({ project, refusal }: { project: string; refusal: Notice }) {
   const { state } = useLive()
   const { send, sending } = useCommand()
   const runs = (refusal.items ?? []).some((item) => item.code === 'switch.chainRuns')

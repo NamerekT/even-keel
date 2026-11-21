@@ -38,6 +38,11 @@ let run: Run | null = null
 let seeded = false
 const reports: TransferReport[] = []
 
+/** A switched transfer of the other direction (`fakeImport.ts`), listed with these. */
+export function addFakeReport(report: TransferReport): void {
+  reports.unshift(report)
+}
+
 type Answer = { state: EvenKeelState; result: unknown; refusal?: Error }
 
 export function fakeExportQuery(state: EvenKeelState, name: string, body: Record<string, unknown>, mode: string | null): Answer | null {

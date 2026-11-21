@@ -1,6 +1,6 @@
 import type { ExportLossKind } from '../../../src/tracker/export.js'
 import type { CheckKind, TransferDirection } from '../../../src/tracker/transfer-check.js'
-import type { ExportStep } from '../pages/exportMeter.js'
+import type { ExportStep, ImportStep } from '../pages/exportMeter.js'
 import { plural } from './plural.js'
 
 const tasks = (count: number) => `${count} ${plural('ru', count, { one: 'задача', few: 'задачи', many: 'задач', other: 'задачи' })}`
@@ -132,10 +132,44 @@ export const transferRu = {
   reportMatched: 'сверка сошлась',
   reportMismatched: 'сверка не сошлась',
   reportTitle: (direction: TransferDirection, tracker: string) => (direction === 'export' ? `Перенос в ${tracker}` : `Перенос из ${tracker}`),
-  reportWhen: (switched: string, key: string, sourceKey: string | null) => `Переключён ${switched}${sourceKey === null ? '' : `, ключ ${sourceKey} сменился на ${key}`}.`,
+  reportWhen: (switched: string, key: string, sourceKey: string | null) => `Переключён ${switched}${sourceKey === null || sourceKey === key ? '' : `, ключ ${sourceKey} сменился на ${key}`}.`,
   reportMoves: 'Что переносилось',
   reportLosses: 'Что не перенеслось',
   reportLossesNone: 'Перенеслось всё: статусы, связи, вложения, метки, вехи и журнал.',
   reportMismatch: 'Сверка не сошлась, проект переключили без недостающего.',
   reportGone: 'Отчёта больше нет.',
+  /** The import of a project's whole history into the built-in tracker (BTN-1406): what differs from the copy out. */
+  imports: {
+    open: 'Перенести во встроенный трекер',
+    none: 'Импорт не реализован. Будет доступен в следующих релизах.',
+    title: 'Перенос во встроенный трекер',
+    lead: (tracker: string) => `Задачи из ${tracker} со всей историей переедут сюда под теми же номерами.`,
+    leadTip: (tracker: string) =>
+      `Задачи копируются, в ${tracker} ничего не меняется. Пока идёт перенос, цепь работает с ${tracker}. Проект перейдёт на встроенный трекер только по кнопке «Переключить», после сверки.`,
+    reading: (tracker: string) => `Читаем всю историю из ${tracker}…`,
+    counts: { changes: 'Изменения', components: 'Компоненты' },
+    statusBecomes: 'Станет',
+    kinds: {
+      links: 'Связи с другими проектами',
+      parent: 'Родитель из другого проекта',
+      history: 'История изменений',
+    } satisfies Partial<Record<ExportLossKind, string>>,
+    kindTips: {
+      links: 'Связи с задачами других проектов не переносятся: они останутся только в старом трекере.',
+      parent: 'Родитель — задача другого проекта: задачи придут без родителя.',
+      history: 'Трекер не отдаёт журнал изменений: у задач будут только создание и закрытие.',
+    } satisfies Partial<Record<ExportLossKind, string>>,
+    lossesNone: 'Переносится всё: статусы, связи, вложения, метки, вехи, компоненты и журнал.',
+    stages: { journaled: 'Журнал' } satisfies Partial<Record<ExportStep, string>>,
+    stageTips: {
+      created: 'Задачи создаются с теми же номерами, родители первыми.',
+      linked: 'Между задачами ставятся связи «блокирует», «связана с» и родитель.',
+      attached: 'К задачам прикладываются их файлы, картинки из текста тоже.',
+      journaled: 'Переносятся комментарии с авторами и датами и журнал изменений.',
+    } satisfies Record<ImportStep, string>,
+    mismatch: (kinds: string[], tracker: string) =>
+      `Сверка не сошлась: ${kinds.join(', ').toLowerCase()}. Повторите — Even Keel перенесёт недостающее. Если этого нет и в ${tracker}, переключайте без них.`,
+    done: (count: number, tracker: string) => `Все ${tasks(count)} уже здесь. Переключите проект — цепь будет брать задачи отсюда, а ${tracker} останется как есть.`,
+    switchTo: 'Переключить на встроенный трекер',
+  },
 }

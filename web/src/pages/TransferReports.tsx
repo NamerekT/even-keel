@@ -119,9 +119,9 @@ function TransferReportDialog({ state, id, onClose }: { state: EvenKeelState; id
               <>
                 <p className="add-package__note">{t.transfer.reportWhen(formatFullTime(report.switchedAt), report.key, report.sourceKey)}</p>
                 <TransferMoves counts={report.plan.counts} title={t.transfer.reportMoves} />
-                <TransferStatuses rows={report.plan.statuses} tracker={tracker} />
-                <Losses plan={report.plan} recheck={null} checking={false} title={t.transfer.reportLosses} none={t.transfer.reportLossesNone} />
-                <Progress exported={{ progress: all, total: tasks?.source ?? moved }} />
+                <TransferStatuses rows={report.plan.statuses} tracker={tracker} direction={report.direction} />
+                <Losses plan={report.plan} recheck={null} checking={false} direction={report.direction} title={t.transfer.reportLosses} none={t.transfer.reportLossesNone} />
+                <Progress exported={{ progress: all, total: tasks?.source ?? moved }} direction={report.direction} />
                 <TransferCheckTable check={report.check} direction={report.direction} tracker={tracker} />
               </>
             )}

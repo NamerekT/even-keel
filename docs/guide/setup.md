@@ -244,7 +244,7 @@ Under **Project tasks** the **Milestone order** block lists every milestone of t
 
 **Components** sort a project's tasks by area, at most one a task: create, rename and delete them there, and pick a task's one in its card under **Milestone** (typing a new name there creates it). The chain ignores them, except for **Lanes by component**; sessions can set a task's component by name but never create one. Deleting a component moves its tasks, closed ones too, to another component or to none. The card's **Estimate** has a pencil: type minutes or hours ("20", "1h 20m", "1.5h"), Enter saves, an empty field clears it.
 
-A project with another tracker's tasks cannot move to the built-in one.
+A project with another tracker's tasks moves to the built-in one through the import ([Moving from a real tracker](#moving-from-a-real-tracker)), not by switching the tracker field.
 
 For sessions to file and edit its tasks themselves — record decisions, split a task, link a blocker — a project needs the package `tasks@even-keel`.
 
@@ -303,6 +303,18 @@ Once every task is copied, **Switch to <tracker>** moves the project: the chain 
 The switch waits until the chain no longer works on the project: stop or pause it, and let a task it holds finish.
 
 The switch keeps a report of the transfer: the plan with what did not move, the count of both sides and what was switched without. It stays as long as the project, under **Transfers** on the project's **Tracker** tab, and the event log's line of the switch opens it.
+
+#### Moving from a real tracker
+
+To bring a project's tasks into the built-in tracker, open its **Settings** → **Tracker** and press **Move to the built-in tracker**. For now Huly gives its whole history; for the other trackers the button is dimmed and its tip says the import comes in a later release.
+
+The window reads the whole project, closed tasks too, and counts what will move — tasks, comments, attachments, links, milestones, labels, components and changes — shows which status each of the tracker's statuses becomes, and lists what stays behind: links and parents in other projects, time reports, and the change history where the tracker gives none.
+
+**Move** copies every task under its own number, with its status, parent, links, attachments, comments with their authors and dates, and the change log. Nothing changes in the tracker, and the chain keeps working with it while the copy runs.
+
+The copy runs in the service, as the move the other way: close the window and come back; **Continue** goes on after a stop. When it ends, both sides are counted and shown side by side; **Repeat** brings over what is missing, **Switch without them** switches as it is.
+
+**Switch to the built-in tracker** moves the project once the chain no longer works on it, and keeps the transfer's report under **Transfers**.
 
 ### Minimum: the adapter only
 
