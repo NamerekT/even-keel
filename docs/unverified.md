@@ -293,6 +293,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 257 | [Milestone fields read for the import](unverified/trackers.md#milestone-fields-read-for-the-import-btn-1436) | projects importing from Huly, GitHub or Linear | the plan's read fails on the milestones, or a milestone comes over without its date, status or description; set them on the built-in tracker's milestone by hand | BTN-1407 |
 | 258 | [Machines in Docker](unverified/machines.md#machines-in-docker-btn-1440) | a hub or a machine run from the Compose files | a machine in a container does not reach the hub, starts as a hub or stays waiting after its join; install the machine from npm on its host | — |
 | 259 | [Stopping, backing up and moving a Docker installation](unverified/platforms.md#stopping-backing-up-and-moving-a-docker-installation-btn-1442) | Docker installations stopped, updated, archived or moved from a host install | a stop is cut short, a restored volume has the wrong owner, or the moved settings are not imported; start on an empty volume and add the projects on the page | BTN-1177 |
+| 260 | [An own image over the Docker image](unverified/platforms.md#an-own-image-over-the-docker-image-btn-1439) | Docker installations with a `Dockerfile` of their own over ours | the own image stays on the old version after the update, or the agents do not find its tools; rebuild with `--no-cache`, or install the tools in the image rather than the volume | BTN-1441 |
 
 ### Waiting for the event / not checked by choice
 

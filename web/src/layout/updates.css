@@ -28,6 +28,18 @@
   line-height: 1.5;
 }
 
+/* A container: where to run, then a label over each command (BTN-1439). */
+.update-window__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.update-window__step {
+  margin-top: var(--space-8);
+  font-size: var(--text-13);
+}
+
 .update-window__notes {
   display: flex;
   flex-direction: column;

@@ -42,6 +42,42 @@ docker compose exec even-keel git config --global credential.helper 'store --fil
 
 Keep these files on the host, outside the repository and image. The token in Compose's `.env` grants access to the Even Keel page. Tracker credentials are entered separately in **Settings → Trackers and CI**.
 
+## Your own tools
+
+The image carries Node.js, git, SSH and curl, nothing a project may need besides: Python, a compiler, system libraries. They cannot be installed from inside, since the container runs as `node`, without sudo and with `no-new-privileges`. A `docker compose exec -u root even-keel apt-get install …` does work, but it changes only that container: the next update replaces it with a fresh one, and the tools are gone.
+
+Build an image of your own over ours instead. Put a `Dockerfile` beside `compose.yaml`:
+
+```dockerfile
+ARG EVEN_KEEL_IMAGE_TAG=latest
+FROM ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG}
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-venv build-essential \
+    && rm -rf /var/lib/apt/lists/*
+USER node
+```
+
+The last line matters: the service and its agents must run as `node`, the owner of the volume. Then tell Compose to build it, in `compose.override.yaml`:
+
+```yaml
+services:
+  even-keel:
+    image: even-keel-own:${EVEN_KEEL_IMAGE_TAG:-latest}
+    build:
+      context: .
+      args:
+        EVEN_KEEL_IMAGE_TAG: ${EVEN_KEEL_IMAGE_TAG:-latest}
+```
+
+The build argument passes the tag from `.env` to the `FROM` line, so a pinned version or `next` holds for your image too. The image gets a name of its own so that a `docker compose pull` does not put ours in its place. Build and start it:
+
+```sh
+docker compose build --pull && docker compose up -d
+```
+
+Everything under `/home/node` survives an update, as it lives in the volume: the database, the account folders, the checked CLIs and the clones. Tools that install into the home folder may go there instead of into an image, for example mise, uv or rustup. Their folder must be on the service's `PATH` for the agents to find them, for example `ENV PATH=/home/node/.local/bin:$PATH` in your `Dockerfile`, or the image's whole `PATH` with that folder in front under `environment` in `compose.override.yaml`.
+
 ## Stopping and backing up
 
 `docker compose stop`, `down` and the `up -d` of an update give Even Keel 30 seconds to close (`stop_grace_period` in the Compose files), while it needs up to 15. Without that setting, Docker kills the container after 10 seconds, so a Compose file of your own needs it too.
@@ -94,13 +130,19 @@ Every Compose folder has one version: `EVEN_KEEL_IMAGE_TAG` in its `.env`. Updat
 
 The default image tag is `latest`. To follow release candidates, put `EVEN_KEEL_IMAGE_TAG=next` in `.env`. To pin a version, use its number without the leading `v`. When updating a pinned install, change that number first.
 
-Wait for active sessions to finish, then run the command shown in the page's update window from the Compose folder on the host:
+Wait for active sessions to finish, then run one of the two commands shown in the page's update window from the Compose folder on the host. With our image:
 
 ```sh
 docker compose pull && docker compose up -d
 ```
 
-Compose replaces the container and reattaches the home volume and any mounted repositories. The new service runs its usual storage migrations at startup.
+With [your own image](#your-own-tools) over ours, rebuild it on the new version instead: `pull` would leave it as it is, and the page would keep offering the update.
+
+```sh
+docker compose build --pull && docker compose up -d
+```
+
+From inside the container the two images look alike, so the window shows both. Compose replaces the container and reattaches the home volume and any mounted repositories. The new service runs its usual storage migrations at startup.
 
 ## Moving a host installation into Docker
 

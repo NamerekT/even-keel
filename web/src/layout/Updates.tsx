@@ -8,6 +8,7 @@ import type { ReleaseNote, UpdatesView } from '../../../src/updates/release.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
+import { CommandBlock } from '../ui/blocks.js'
 import { CloseIcon } from '../ui/icons.js'
 import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { Toast, ToastPresence } from '../ui/Toast.js'
@@ -175,6 +176,23 @@ function resultBody(result: UpdateResultView): string {
   return t.updates.resultBody(t.updates.steps[result.step], result.rollback, result.from, rollbackStep)
 }
 
+/**
+ * Docker updates a container, never the service: our image is pulled, an own image over ours is rebuilt. From inside
+ * the two are alike, so both commands are given (BTN-1439).
+ */
+function ContainerSteps() {
+  const text = t.updates.container
+  return (
+    <div className="update-window__steps">
+      <p className="update-window__muted">{t.updates.blocked.container}</p>
+      <span className="update-window__step">{text.pull}</span>
+      <CommandBlock command="docker compose pull && docker compose up -d" />
+      <span className="update-window__step">{text.build}</span>
+      <CommandBlock command="docker compose build --pull && docker compose up -d" />
+    </div>
+  )
+}
+
 /** The update window: the versions, the notes of every newer release, "Update", and "Revert" or why there is none. */
 export function UpdateWindow() {
   const { state } = useLive()
@@ -236,7 +254,8 @@ function UpdateDialog({ updates }: { updates: UpdatesView }) {
               ))}
             </section>
           )}
-          {available !== null && <p className="update-window__muted">{blocked === null ? t.updates.updateHint(source) : t.updates.blocked[blocked]}</p>}
+          {available !== null &&
+            (blocked === 'container' ? <ContainerSteps /> : <p className="update-window__muted">{blocked === null ? t.updates.updateHint(source) : t.updates.blocked[blocked]}</p>)}
           {previous !== null && (
             <section className="update-window__previous">
               <h3>
