@@ -217,6 +217,29 @@ describe('the import into the built-in tracker', () => {
     expect(state.check?.rows.every((row) => row.source === row.target)).toBe(true)
   })
 
+  it("fills a change's missing before from the field's change before it, and the last after is the task's value", async () => {
+    const fake = fakeSource()
+    fake.tasks[1]!.title = 'Final title'
+    fake.changes.r5 = [
+      { at: T0 + 20_000, author: JANE, field: 'status', from: null, to: 'In Progress' },
+      { at: T0 + 30_000, author: JANE, field: 'title', from: null, to: 'Final title' },
+      { at: T0 + 40_000, author: JANE, field: 'status', from: null, to: 'In Review' },
+      { at: T0 + 50_000, author: JANE, field: 'status', from: null, to: 'Closed' },
+    ]
+    const { service } = imports(fake.source)
+    await service.start(ABC)
+    await service.settled(ABC)
+    const changes = (await store.history(key(5))).filter((each) => each.field !== 'created')
+    expect(changes.map(({ field, from, to }) => [field, from, to])).toEqual([
+      ['status', null, 'In Progress'],
+      ['title', null, 'Final title'],
+      ['status', 'In Progress', 'In Review'],
+      ['status', 'In Review', 'Closed'],
+    ])
+    expect(changes.filter((each) => each.field === 'status').at(-1)!.to).toBe(fake.tasks[1]!.status.name)
+    expect(changes.filter((each) => each.field === 'title').at(-1)!.to).toBe((await store.get(key(5)))!.title)
+  })
+
   it('without a change log writes the closing alone', async () => {
     const fake = fakeSource()
     const { changes: _dropped, ...source } = fake.source

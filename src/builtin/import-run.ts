@@ -1,7 +1,7 @@
 import type { Transaction } from '@electric-sql/pglite'
 import { inTransaction, type Db } from '../storage/database.js'
 import type { ChangeAuthor } from '../tracker/history.js'
-import type { ImportComment, ImportImage, ImportLink, ImportSource, ImportTask } from '../tracker/import.js'
+import { withBefore, type ImportComment, type ImportImage, type ImportLink, type ImportSource, type ImportTask } from '../tracker/import.js'
 import { importedAuthor, importedStatus, importOrder, type ImportAuthorChoice } from '../tracker/import-plan.js'
 import { isOpen } from '../tracker/model.js'
 import { componentIdOf } from './components.js'
@@ -203,7 +203,7 @@ export async function runImport(run: ImportRun, sync = false): Promise<number> {
       await save({ ...row, changes: 1 })
       return
     }
-    const changes = (await source.changes(task.ref)).slice(row.changes)
+    const changes = withBefore(await source.changes(task.ref)).slice(row.changes)
     if (changes.length === 0) return
     await writeChanges(db, project, task.number, changes.map((change) => ({ ...change, author: writer(change.author) })))
     await save({ ...rows.get(task.ref)!, changes: row.changes + changes.length })

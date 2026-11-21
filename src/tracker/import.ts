@@ -104,6 +104,28 @@ export interface ImportChange {
   to: string | null
 }
 
+/** Fields that hold one value: a change of one with no `from` came from the `to` of the field's change before it. */
+const SCALAR_FIELDS: ReadonlySet<ImportChange['field']> = new Set(['title', 'status', 'priority', 'milestone', 'component', 'estimate', 'parent'])
+
+/**
+ * The change log with each missing `from` of a one-value field taken from the field's change before it, by time and
+ * then by the log's order; the log's own `from` stays, and so does the empty one of a field's first change. Huly gives
+ * no previous value of the status, the title or the estimate (BTN-1434). The log keeps its order and length: the import
+ * goes on after the changes it wrote by their count.
+ */
+export function withBefore(changes: readonly ImportChange[]): ImportChange[] {
+  const out = [...changes]
+  const last = new Map<ImportChange['field'], string | null>()
+  const order = out.map((_, index) => index).sort((a, b) => out[a]!.at - out[b]!.at || a - b)
+  for (const index of order) {
+    const change = out[index]!
+    if (!SCALAR_FIELDS.has(change.field)) continue
+    if (change.from === null && last.has(change.field)) out[index] = { ...change, from: last.get(change.field)! }
+    last.set(change.field, change.to)
+  }
+  return out
+}
+
 export interface ImportSource {
   /** Every task of the project, closed ones too; by number. */
   tasks(): Promise<ImportTask[]>
