@@ -102,6 +102,7 @@ export const transferEn: Messages['transfer'] = {
   running: 'The copy runs in the service: the window and the tab may be closed, it goes on.',
   waiting: (tracker: string, until: string) => `${tracker} limits how fast it takes writes: the copy waits until ${until} and goes on by itself, from where it stopped.`,
   stopped: 'The copy stopped before its end. Continue it — it goes on from where it stopped.',
+  lost: 'No answer from the service, trying again.',
   resume: 'Continue',
   locked: 'Tasks have already been copied here: the copy goes on only into the same tracker.',
   done: (count, tracker) => `All ${tasks(count)} are in ${tracker}. Switch the project — the chain takes its tasks from there, and the old ones stay here marked "Moved".`,
