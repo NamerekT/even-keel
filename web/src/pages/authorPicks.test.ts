@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ImportPlanAuthor } from '../../../src/tracker/import-plan.js'
 import { authorChoices, authorKinds, pickAuthor } from './authorPicks.js'
 
-const row = (over: Partial<ImportPlanAuthor>): ImportPlanAuthor => ({ kind: 'person', name: 'John Doe', comments: 1, changes: 1, as: 'person', ...over })
+const row = (over: Partial<ImportPlanAuthor>): ImportPlanAuthor => ({ kind: 'person', name: 'John Doe', tasks: 0, comments: 1, changes: 1, as: 'person', ...over })
 
 describe('authorChoices', () => {
   it('sends every author of the plan with what it becomes', () => {

@@ -51,6 +51,8 @@ export interface RuleFormProps {
   errorOf: (field: string) => Notice | null
   marks: Marks
   hint?: string
+  /** Only the labels: the built-in tracker's statuses are fixed (BTN-1429). */
+  labelsOnly?: boolean
 }
 
 /** `undefined` — the level leaves the key to the one above (a tracker profile). */
@@ -94,7 +96,7 @@ export function RuleForm(props: RuleFormProps) {
   }
   return (
     <Section title={t.settings.rules} hint={hint}>
-      <StatusTable {...props} put={put} />
+      {props.labelsOnly !== true && <StatusTable {...props} put={put} />}
       <LabelTable {...props} put={put} />
     </Section>
   )

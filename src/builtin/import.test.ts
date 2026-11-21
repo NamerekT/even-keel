@@ -274,8 +274,15 @@ describe('the import into the built-in tracker', () => {
     expect(plan.counts).toMatchObject({ tasks: 2, comments: 3, files: 2, blocks: 1, subtasks: 1, milestones: 1, labels: 1, components: 1, changes: 1 })
     expect(plan.tasks.map((each) => [each.id, each.status])).toEqual([['ABC-3', 'Todo'], ['ABC-5', 'Done']])
     expect(plan.losses).toEqual([{ kind: 'links', tasks: ['ABC-5'], names: ['OTHER-1'] }])
-    expect(plan.authors.find((each) => each.name === 'Jane Doe')).toMatchObject({ comments: 1, changes: 1, as: 'agent' })
+    expect(plan.authors.find((each) => each.name === 'Jane Doe')).toMatchObject({ comments: 1, changes: 1, tasks: 0, as: 'agent' })
     expect(await store.list([ABC])).toEqual([])
+  })
+
+  it('counts the tasks an author created apart from the changes', async () => {
+    const { service } = imports(fakeSource().source)
+    const plan = await service.plan(ABC)
+    expect(plan.authors.find((each) => each.name === 'John Doe')).toMatchObject({ comments: 1, changes: 0, tasks: 1 })
+    expect(plan.authors.find((each) => each.kind === 'agent')).toMatchObject({ comments: 1, changes: 0, tasks: 1 })
   })
 
   it('refuses a project the built-in tracker already has tasks of', async () => {

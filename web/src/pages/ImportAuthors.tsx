@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { ImportAuthor, ImportAuthorKind } from '../../../src/tracker/import.js'
 import type { ImportPlanAuthor } from '../../../src/tracker/import-plan.js'
 import { language, t } from '../i18n/index.js'
@@ -14,18 +15,23 @@ const count = (value: number) => value.toLocaleString(language)
 export function ImportAuthors({ authors, onPick }: { authors: readonly ImportPlanAuthor[]; onPick: ((author: ImportAuthor, as: ImportAuthorKind) => void) | null }) {
   if (authors.length === 0) return null
   const words = t.transfer.imports.authors
+  // The tasks an author created are a column of their own: the plan's "Changes" has no creations (BTN-1429).
+  const columns = [
+    ['tasks', t.transfer.counts.tasks],
+    ['comments', t.transfer.counts.comments],
+    ['changes', t.transfer.imports.counts.changes],
+  ] as const
   return (
     <TransferBlock title={words.title} help={words.tip}>
       <table className="transfer__table transfer__table--authors">
         <thead>
           <tr>
             <th scope="col">{words.author}</th>
-            <th scope="col" className="transfer__num transfer__author-count">
-              {t.transfer.counts.comments}
-            </th>
-            <th scope="col" className="transfer__num transfer__author-count">
-              {t.transfer.imports.counts.changes}
-            </th>
+            {columns.map(([key, label]) => (
+              <th key={key} scope="col" className="transfer__num transfer__author-count">
+                {label}
+              </th>
+            ))}
             <th scope="col">{t.transfer.imports.statusBecomes}</th>
           </tr>
         </thead>
@@ -38,16 +44,20 @@ export function ImportAuthors({ authors, onPick }: { authors: readonly ImportPla
                   <span className={author.name === null ? 'transfer__muted' : undefined}>{name}</span>
                   {/* A narrow screen has no room for the count columns: the counts go under the name. */}
                   <span className="transfer__author-counts">
-                    <span>
-                      {t.transfer.counts.comments} {count(author.comments)}
-                    </span>{' '}
-                    <span>
-                      {t.transfer.imports.counts.changes} {count(author.changes)}
-                    </span>
+                    {columns.map(([key, label]) => (
+                      <Fragment key={key}>
+                        <span>
+                          {label} {count(author[key])}
+                        </span>{' '}
+                      </Fragment>
+                    ))}
                   </span>
                 </td>
-                <td className="transfer__num transfer__author-count">{count(author.comments)}</td>
-                <td className="transfer__num transfer__author-count">{count(author.changes)}</td>
+                {columns.map(([key]) => (
+                  <td key={key} className="transfer__num transfer__author-count">
+                    {count(author[key])}
+                  </td>
+                ))}
                 <td className="transfer__becomes">
                   <Select
                     className="add-package__input"

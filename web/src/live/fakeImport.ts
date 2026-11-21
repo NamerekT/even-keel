@@ -164,10 +164,10 @@ function planOf(tasks: EvenKeelState['tasks'], choices: readonly ImportAuthorCho
 
 /** The authors of the fake's tracker, the most first: the agent without a name, the person of the page, two others. */
 const AUTHORS: Omit<ImportPlanAuthor, 'as'>[] = [
-  { kind: 'agent', name: null, comments: 41, changes: 212 },
-  { kind: 'user', name: 'John Doe', comments: 17, changes: 64 },
-  { kind: 'person', name: 'Jane Roe', comments: 6, changes: 19 },
-  { kind: 'person', name: 'Alex Smith-Montgomery of the Infrastructure Team', comments: 2, changes: 3 },
+  { kind: 'agent', name: null, tasks: 9, comments: 41, changes: 203 },
+  { kind: 'user', name: 'John Doe', tasks: 36, comments: 17, changes: 28 },
+  { kind: 'person', name: 'Jane Roe', tasks: 2, comments: 6, changes: 17 },
+  { kind: 'person', name: 'Alex Smith-Montgomery of the Infrastructure Team', tasks: 0, comments: 2, changes: 3 },
 ]
 
 /** The picks of `builtin/import/plan` and `start`, unchecked: the fake trusts its page. */

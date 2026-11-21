@@ -153,7 +153,7 @@ export const transferEn: Messages['transfer'] = {
     statusBecomes: 'Becomes',
     authors: {
       title: 'Authors',
-      tip: "Who the tracker's comments and changes are written as. The agent is Even Keel's agent, you are the owner of this page, under their name is another person with the name from the tracker. Once the move begins, the choice cannot change.",
+      tip: "Who the tracker's tasks, comments and changes are written as. \"Tasks\" are the tasks the author created; their creation is not among the changes. The agent is Even Keel's agent, you are the owner of this page, under their name is another person with the name from the tracker. Once the move begins, the choice cannot change.",
       author: 'Author',
       unnamed: (kind) => (kind === 'agent' ? 'An agent without a name' : 'No name'),
       pick: (name) => `What ${name} becomes`,

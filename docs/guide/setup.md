@@ -238,7 +238,7 @@ It is the first choice of the tracker in the setup and in **Add project**, and t
 
 **Status** and **Settings** → **Trackers and CI** always show it.
 
-In a built-in project's **Tracker** → **Configure** only **Project tasks** and **Components** are left: its statuses and labels are fixed, and the milestones you name there are created in it on save.
+In a built-in project's **Tracker** → **Configure** the **Chain rules** have only the labels: its statuses are fixed, while its labels are the project's own and the shared label rules apply to them as to any tracker, so they show there and can be changed for the project. **Project tasks** and **Components** follow, and the milestones you name there are created in it on save.
 
 Under **Project tasks** the **Milestone order** block lists every milestone of the project, closed ones folded at the bottom. **+ New milestone** and a row's pencil open its editor: name, status (Planned, Active, Completed, Canceled), target date, description. The status is for you: the chain still follows its milestone rules and the tasks' statuses, and closing a milestone with open tasks only warns. A rename follows into the project's chain rules and milestone order. A milestone with done tasks cannot be deleted — cancel it; otherwise deleting it moves its open tasks to another milestone or to none, and drops it from the rules and the order.
 
@@ -312,7 +312,7 @@ To bring a project's tasks into the built-in tracker, open its **Settings** → 
 
 The window reads the whole project, closed tasks too, and counts what will move — tasks, comments, attachments, links, milestones, labels, components and changes — shows which status each of the tracker's statuses becomes, and lists what stays behind: links and parents in other projects, time reports, and the change history where the tracker gives none.
 
-Under **Authors** each author of the tracker's comments and changes gets what it becomes here: the agent, you, or a person under their own name. Each starts as the tracker marks it; once the copy begins the choice stays.
+Under **Authors** each author of the tracker's tasks, comments and changes gets what it becomes here: the agent, you, or a person under their own name. **Tasks** counts the tasks the author created; their creation is not among the **Changes**, which count the change log as the plan's **Changes** do. Each starts as the tracker marks it; once the copy begins the choice stays.
 
 **Move** copies every task under its own number, with its status, parent, links, attachments, comments with their authors and dates, and the change log. Nothing changes in the tracker, and the chain keeps working with it while the copy runs.
 

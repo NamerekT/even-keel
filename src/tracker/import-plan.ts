@@ -19,10 +19,12 @@ export interface ImportCounts extends ExportCounts {
   changes: number
 }
 
-/** An author of comments and changes, as the source marks them, and what the import writes them as. */
+/** An author of tasks, comments and changes, as the source marks them, and what the import writes them as. */
 export interface ImportPlanAuthor {
   kind: ImportAuthorKind
   name: string | null
+  /** The tasks the author created: not among `changes`, as the plan's own count of changes has no creations (BTN-1429). */
+  tasks: number
   comments: number
   changes: number
   as: ImportAuthorKind
@@ -164,23 +166,24 @@ export function importPlan(source: Pick<ImportSource, 'changes' | 'timeReports'>
 
 function authorsOf(moving: readonly CountedTask[], choices: readonly ImportAuthorChoice[]): ImportPlanAuthor[] {
   const authors = new Map<string, ImportPlanAuthor>()
-  const count = (author: ImportAuthor | null, field: 'comments' | 'changes') => {
+  const count = (author: ImportAuthor | null, field: 'tasks' | 'comments' | 'changes') => {
     if (author === null) return
     const key = authorKey(author.kind, author.name)
-    const row = authors.get(key) ?? { kind: author.kind, name: author.name, comments: 0, changes: 0, as: author.kind }
+    const row = authors.get(key) ?? { kind: author.kind, name: author.name, tasks: 0, comments: 0, changes: 0, as: author.kind }
     row[field] += 1
     authors.set(key, row)
   }
   for (const each of moving) {
     for (const author of each.comments) count(author, 'comments')
     for (const author of each.changes) count(author, 'changes')
-    count(each.task.createdBy, 'changes')
+    count(each.task.createdBy, 'tasks')
   }
   for (const choice of choices) {
     const row = authors.get(authorKey(choice.kind, choice.name))
     if (row !== undefined) row.as = choice.as
   }
-  return [...authors.values()].sort((a, b) => b.comments + b.changes - (a.comments + a.changes))
+  const total = (author: ImportPlanAuthor) => author.tasks + author.comments + author.changes
+  return [...authors.values()].sort((a, b) => total(b) - total(a))
 }
 
 function statusesOf(tasks: readonly ImportTask[]): ExportStatusRow[] {

@@ -297,12 +297,12 @@
 }
 
 /* The import's authors (BTN-1416): the name takes what is left, a long one wraps; the pick keeps a width its words fit. */
-.transfer__table--authors th:nth-child(2),
-.transfer__table--authors th:nth-child(3) {
-  width: 96px;
+/* The counts take their head's width, so the name keeps room for its words. */
+.transfer__table--authors th.transfer__author-count {
+  width: 1%;
 }
 
-.transfer__table--authors th:nth-child(4) {
+.transfer__table--authors th:last-child {
   width: 200px;
 }
 
@@ -423,7 +423,7 @@
     padding-inline: var(--space-8);
   }
 
-  .transfer__table--authors th:nth-child(4) {
+  .transfer__table--authors th:last-child {
     width: 156px;
   }
 }

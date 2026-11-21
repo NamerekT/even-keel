@@ -23,7 +23,7 @@ import type { PanelFields } from './projectSettingsFields.js'
 import { same, STATUS_KEYS } from './projectSettingsDraft.js'
 import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
 import { changed, edited, reverted, type Value } from './settingsDraft.js'
-import { RULE_KEYS, rulesText, Section } from './settingsParts.js'
+import { RULE_KEYS, rulesText, Section, type RuleKey } from './settingsParts.js'
 import { projectScope } from './settingsStore.js'
 import type { ruleChoicesOf } from './settingsRows.js'
 
@@ -81,6 +81,8 @@ export function ProjectTrackerTab({
   const statusesReset = text('tracker') !== saved.tracker && form.ownRules.some((key) => STATUS_KEYS.includes(key))
   const trackerTitle = config.trackers.find((each) => each.name === text('tracker'))?.title ?? text('tracker')
   const onBuiltin = text('tracker') === BUILTIN
+  // The built-in tracker's statuses are fixed (BTN-767), its labels are the project's own and the rules apply to them (BTN-1429).
+  const ruleKeys: RuleKey[] = onBuiltin ? ['requiredLabels', 'excludedLabels'] : ['active', 'terminal', 'requiredLabels', 'excludedLabels']
   return (
     <>
       <Section
@@ -155,15 +157,16 @@ export function ProjectTrackerTab({
           title={ruleProfile?.name ?? trackerTitle}
           note={state !== null && isOpenToAll(state, project) ? <Band tone="note">{t.project.openToAll(form.trackerProject ?? state.projectKeys[project] ?? project)}</Band> : undefined}
           tabs={[
-            // The built-in tracker's statuses and labels are fixed (BTN-767): only which tasks are the project's.
-            ...(onBuiltin ? [] : [{
+            {
               id: 'rules',
               title: t.settings.rules,
-              dirty: changed(draft, ['active', 'terminal', 'requiredLabels', 'excludedLabels'], same).length > 0,
-              undo: [{ scope: projectScope(project), keys: ['active', 'terminal', 'requiredLabels', 'excludedLabels'] }],
+              dirty: changed(draft, ruleKeys, same).length > 0,
+              undo: [{ scope: projectScope(project), keys: ruleKeys }],
               render: () => (
                 <RuleForm
                   level="project"
+                  labelsOnly={onBuiltin}
+                  hint={onBuiltin ? t.settings.rulesLabelsHint : undefined}
                   rules={chain}
                   inherited={inherited}
                   origins={origins}
@@ -179,7 +182,7 @@ export function ProjectTrackerTab({
                   marks={marks}
                 />
               ),
-            }]),
+            },
             {
               id: 'milestones',
               fields: ['requiredMilestones', 'excludedMilestones'],

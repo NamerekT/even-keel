@@ -572,6 +572,8 @@ export const settingsEN: Messages['settings'] = {
     rules: 'Chain rules',
     rulesHint:
       'Which tasks the chain takes: where each status puts a task and what each label does. A level keeps each list whole: moving one status or changing one label makes the whole list this level’s own, and "From" shows where each row comes from.',
+    rulesLabelsHint:
+      'Which tasks the chain takes by their labels; the built-in tracker’s statuses are fixed. A level keeps each list whole: changing one label makes the whole list this level’s own, and "From" shows where each row comes from.',
     ruleAdd: {
       active: 'Add a status',
       terminal: 'Add a status',
