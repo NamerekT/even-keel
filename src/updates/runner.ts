@@ -1,11 +1,11 @@
 import { spawn } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { readCheckout } from './checkout.js'
+import { isAncestor, readCheckout } from './checkout.js'
 import type { ServiceControl } from './control.js'
-import { recordOf, type UpdateRecord, type UpdateStep } from './model.js'
+import { recordOf, type UpdateRecord, type UpdateStep, type UpdateTarget } from './model.js'
 import { busyChains } from './settle.js'
-import { runSteps, StepError, type StepPlan } from './steps.js'
+import { CheckoutMoved, runSteps, StepError, type StepPlan } from './steps.js'
 
 /**
  * What the service hands the update process (`plan.json`). The process is the compiled `dist/src/updates/` copied out
@@ -53,10 +53,21 @@ export const RESULT_FILE = join('logs', 'update.json')
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/** How many more builds a rebuild runs after a chain moved its checkout on along the branch (BTN-1426). */
+export const CATCH_UP_BUILDS = 3
+
 class Runner {
   private readonly began = Date.now()
+  /** The commit a rebuild builds: a chain merging into the checkout meanwhile moves it on. */
+  target: UpdateTarget | null
+  /** The commit a rebuild's rollback went on to instead of the one before, the checkout having moved on. */
+  onward: UpdateTarget | null = null
+  private built = false
+  private stopped = false
 
-  constructor(private readonly plan: UpdatePlan) {}
+  constructor(private readonly plan: UpdatePlan) {
+    this.target = plan.target
+  }
 
   log(line: string): void {
     mkdirSync(dirname(this.plan.log), { recursive: true })
@@ -71,7 +82,7 @@ class Runner {
       case 'settle':
         return this.settle()
       case 'stop':
-        if (plan.mode === 'rebuild') await this.checkRebuildCheckout()
+        if (plan.mode === 'rebuild' && !rollback) return this.stopRebuild()
         return this.run(plan.service.stop)
       case 'start':
         return this.run(plan.service.start)
@@ -82,7 +93,7 @@ class Runner {
         // Following the hub leaves the branch where it was: its commits stay, and a rollback puts HEAD back on it.
         return this.run(plan.mode === 'follow' ? ['git', 'checkout', '--detach', plan.target!.tag] : this.checkout(plan.target!.tag))
       case 'restore':
-        if (plan.mode === 'rebuild') await this.checkRebuildCheckout()
+        if (plan.mode === 'rebuild') return this.restoreRebuild()
         return this.run(plan.package === undefined ? this.checkout(plan.from.commit) : this.installPackage(plan.from.version))
       case 'install':
         if (plan.package !== undefined) return this.run(this.installPackage(plan.target!.version))
@@ -90,7 +101,10 @@ class Runner {
         if (plan.install === null && !dependenciesChanged(plan.root)) return this.log('package-lock.json did not change, nothing to install')
         return this.run(npm(plan.install === 'install' ? 'install' : 'ci', '--no-audit', '--no-fund'))
       case 'build':
-        return this.run(npm('run', plan.machine === undefined ? 'build' : 'build:machine'))
+        await this.run(this.buildCommand())
+        if (plan.mode === 'rebuild' && (rollback ? this.onward !== null : this.stopped)) await this.catchUp(rollback)
+        if (!rollback) this.built = true
+        return
       case 'answer':
         if (plan.machine !== undefined) return this.contact(plan.machine.contact, rollback)
         return this.answer(rollback)
@@ -99,12 +113,73 @@ class Runner {
     }
   }
 
-  /** The wait for chains or for an answer can outlast the green commit this run was called for. */
-  private async checkRebuildCheckout(): Promise<void> {
-    const checkout = await readCheckout(this.plan.root)
-    if (checkout === null || checkout.dirty || checkout.commit !== this.plan.target?.tag || checkout.branch !== this.plan.from.branch) {
-      throw new StepError('The checkout changed during the rebuild')
+  private buildCommand(): string[] {
+    return npm('run', this.plan.machine === undefined ? 'build' : 'build:machine')
+  }
+
+  /**
+   * The checkout against the commit aimed at: still on it, moved on along its branch by a chain's merge (the commit and
+   * its version to aim at now), or `away` — off the branch, rewound, edited, or no checkout to read.
+   */
+  private async drift(): Promise<'same' | 'away' | UpdateTarget> {
+    const { root, from } = this.plan
+    const aim = this.onward ?? this.target
+    const checkout = await readCheckout(root)
+    if (aim === null || checkout === null || checkout.dirty || checkout.branch !== from.branch) return 'away'
+    if (checkout.commit === aim.tag) return 'same'
+    if (checkout.branch === null || !(await isAncestor(root, aim.tag, checkout.commit))) return 'away'
+    try {
+      const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version?: unknown }
+      return typeof version === 'string' ? { version, tag: checkout.commit } : 'away'
+    } catch {
+      return 'away'
     }
+  }
+
+  private aimAt(next: UpdateTarget, rollback: boolean, what: string): void {
+    const aim = this.onward ?? this.target
+    this.log(`the checkout moved on from ${aim?.tag} to ${next.tag} (${next.version}) during the rebuild, ${what}`)
+    if (rollback) this.onward = next
+    else this.target = next
+  }
+
+  /** The wait for chains can outlast the green commit this run was called for: a merge since is built, anything else stops it. */
+  private async stopRebuild(): Promise<void> {
+    const drift = await this.drift()
+    if (drift === 'away') throw new CheckoutMoved('The checkout changed during the rebuild')
+    await this.run(this.plan.service.stop)
+    this.stopped = true
+    if (drift === 'same') return
+    if (this.built) return this.catchUp(false)
+    this.aimAt(drift, false, 'building it')
+  }
+
+  /**
+   * After a build with the service down: while a chain's merges move the checkout on, install what changed and build
+   * again, `CATCH_UP_BUILDS` times at most. A checkout gone elsewhere is left to the answer, which then fails on the
+   * commit, and to the rollback, which leaves it too.
+   */
+  private async catchUp(rollback: boolean): Promise<void> {
+    for (let builds = 0; ; builds++) {
+      const drift = await this.drift()
+      if (drift === 'same') return
+      if (drift === 'away') return this.log('the checkout changed during the rebuild and is left as it is')
+      if (builds === CATCH_UP_BUILDS) throw new StepError(`The checkout kept moving during the rebuild: ${CATCH_UP_BUILDS} more builds did not catch up with ${drift.tag}`)
+      this.aimAt(drift, rollback, 'building again')
+      if (dependenciesChanged(this.plan.root)) await this.run(npm(rollback ? 'ci' : (this.plan.install ?? 'install'), '--no-audit', '--no-fund'))
+      await this.run(this.buildCommand())
+    }
+  }
+
+  /**
+   * The rollback never resets the branch under a chain's merge: a checkout moved on along it is built where it is
+   * instead of the commit before, a checkout gone elsewhere is left for inspection.
+   */
+  private async restoreRebuild(): Promise<void> {
+    const drift = await this.drift()
+    if (drift === 'away') throw new CheckoutMoved('The checkout changed during the rebuild, so the commit before is not restored')
+    if (drift === 'same') return this.run(this.checkout(this.plan.from.commit))
+    this.aimAt(drift, true, 'building it instead of the commit before')
   }
 
   /** A branch the checkout was on moves with it, so a `git pull` by hand still works; a detached HEAD stays detached. */
@@ -188,11 +263,16 @@ class Runner {
     throw new StepError(`the hub took no handshake of the machine in ${this.plan.answerMs / 1000} s (${file}): ${last}`)
   }
 
-  /** A later start of the expected version and, for a rebuild, commit, still answering after steadyMs. */
+  /**
+   * A later start of the expected version and, for a rebuild, commit, still answering after steadyMs. A rollback
+   * expects the version before, or the commit it went on to.
+   */
   private async answer(rollback: boolean): Promise<void> {
     const { plan } = this
-    const version = rollback ? plan.from.version : (plan.target?.version ?? null)
-    const commit = plan.mode === 'rebuild' ? (rollback ? plan.from.commit : plan.target?.tag) : undefined
+    const to = rollback ? this.onward : this.target
+    const back = rollback && to === null
+    const version = back ? plan.from.version : (to?.version ?? null)
+    const commit = plan.mode === 'rebuild' ? (back ? plan.from.commit : to?.tag) : undefined
     const deadline = Date.now() + plan.answerMs
     let last = 'no answer'
     while (Date.now() < deadline) {
@@ -202,7 +282,7 @@ class Runner {
         const startedAt = state.startedAt
         if (typeof startedAt !== 'string' || startedAt === plan.startedAt) last = 'no new service start yet'
         else if (version !== null && current !== version) last = `it answers with version ${String(current)}`
-        else if (commit !== undefined && state.hubCommit !== commit && !(rollback && plan.legacyRollback && state.hubCommit === undefined)) {
+        else if (commit !== undefined && state.hubCommit !== commit && !(back && plan.legacyRollback && state.hubCommit === undefined)) {
           last = `it answers with commit ${String(state.hubCommit)}, expected ${commit}`
         } else {
           await sleep(plan.steadyMs)
@@ -254,11 +334,22 @@ export async function runPlan(plan: UpdatePlan): Promise<UpdateRecord> {
   const startedAt = new Date().toISOString()
   runner.log(`${plan.mode} from ${plan.from.version} (${plan.from.commit})${plan.target === null ? '' : ` to ${plan.target.tag}`}, pid ${process.pid}`)
   const outcome = await runSteps(plan, (step, rollback) => runner.act(step, rollback))
-  const record: UpdateRecord = { mode: plan.mode, from: plan.from, to: plan.target, startedAt, finishedAt: new Date().toISOString(), ...outcome, seen: false }
+  if (outcome.rollback !== null && runner.onward !== null) outcome.rollback.to = runner.onward
+  const record: UpdateRecord = { mode: plan.mode, from: plan.from, to: runner.target, startedAt, finishedAt: new Date().toISOString(), ...outcome, seen: false }
   writeRecord(plan.result, record)
-  if (outcome.failed === null) runner.log(`${plan.mode} done`)
+  if (outcome.failed === null) runner.log(`${plan.mode} done${runner.target === null ? '' : ` at ${runner.target.tag}`}`)
   else {
-    const back = outcome.rollback === null ? 'nothing to roll back' : outcome.rollback.failed === null ? 'rolled back' : `the rollback failed at ${outcome.rollback.failed.step}`
+    const { rollback } = outcome
+    const back =
+      rollback === null
+        ? 'nothing to roll back'
+        : rollback.failed === null
+          ? rollback.to === undefined
+            ? 'rolled back'
+            : `went on to ${rollback.to.tag} instead`
+          : rollback.failed.moved === true
+            ? 'the checkout moved, nothing was rolled back'
+            : `the rollback failed at ${rollback.failed.step}`
     runner.log(`${plan.mode} failed at ${outcome.failed.step}; ${back}`)
   }
   return record

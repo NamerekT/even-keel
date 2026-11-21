@@ -131,15 +131,20 @@ export const en: Messages = {
     progressBody: 'The service restarts; the page reloads by itself.',
     resultDone: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Updated to' : 'Reverted to'} ${version}`,
     resultFailed: (mode: 'update' | 'revert', version: string) => `The ${mode === 'update' ? 'update' : 'revert'} to ${version} failed`,
-    resultBody: (step: string, rollback: 'none' | 'done' | 'failed', from: string, rollbackStep: string) =>
+    resultBody: (step: string, rollback: 'none' | 'done' | 'failed' | 'moved', from: string, rollbackStep: string) =>
       rollback === 'done'
         ? `At “${step}”. ${from} is back.`
         : rollback === 'failed'
           ? `At “${step}”. Bringing ${from} back failed too, at “${rollbackStep}”: see logs/update.log.`
-          : `At “${step}”.`,
+          : rollback === 'moved'
+            ? `At “${step}”. The checkout moved meanwhile, so nothing was rolled back: see logs/update.log.`
+            : `At “${step}”.`,
     resultDoneBody: (from: string) => `The previous version is ${from}.`,
     rebuildFailed: (commit: string) => `The rebuild at ${commit} did not come up`,
     rebuildRestored: (commit: string) => `The hub is running on ${commit} again.`,
+    rebuildOnward: (commit: string) => `A new commit was merged into the checkout meanwhile: the hub was built and started on ${commit}.`,
+    rebuildMoved: (commit: string) =>
+      `The checkout moved during the rebuild, so nothing was rolled back: ${commit} was not brought back and the checkout is left as it is. The next green push builds again.`,
     steps: {
       settle: 'waiting for the chains',
       stop: 'stopping the service',

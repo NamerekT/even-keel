@@ -167,7 +167,8 @@ function resultTitle(result: UpdateResultView): string {
 }
 
 function resultBody(result: UpdateResultView): string {
-  if (result.mode === 'rebuild' && result.rollback === 'done') return t.updates.rebuildRestored(result.from)
+  if (result.mode === 'rebuild' && result.rollback === 'done') return result.onward === undefined ? t.updates.rebuildRestored(result.from) : t.updates.rebuildOnward(result.onward)
+  if (result.mode === 'rebuild' && result.rollback === 'moved') return t.updates.rebuildMoved(result.from)
   if (result.step === null) return t.updates.resultDoneBody(result.from)
   const rollbackStep = result.rollbackStep === null ? '' : t.updates.steps[result.rollbackStep]
   return t.updates.resultBody(t.updates.steps[result.step], result.rollback, result.from, rollbackStep)

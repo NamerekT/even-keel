@@ -44,6 +44,12 @@ If it is wrong: a Huly project's chain waits on a tracker that stays `down`, or 
 
 The automated scenario uses a temporary checkout, real git and npm, and a simulated service answer. On the BTN-1277 bench, let a systemd hub rebuild at a green commit that cannot answer. Check that it returns to its actual previous commit, the page names both SHAs, the machine gets the restored SHA on a version refusal and a later green commit succeeds. The systemd, launchd and Windows rebuild scripts still need a live rollback. If the hub stays down, inspect the failed step in `logs/update.log`, restore the last working commit, install its locked dependencies, build and start the service.
 
+## A rebuild catching up with a chain's merge (BTN-1426)
+
+A chain session merging into the checkout while a rebuild after a green push runs makes the rebuild build again on the new HEAD instead of failing ("A chain merging meanwhile" in `docs/service.md`). The automated scenarios run the updater on a temporary checkout with real git and npm, the merge played from the build or the service's start, and a simulated service answer. Not checked: a real rebuild on Windows with a chain merging mid-build — the hub coming up on the new commit, no "did not come up" window, no "not everything after it went through" warning on the project page — and the rollback going on to a merged commit.
+
+If it is wrong: the page shows a failed rebuild or the project page a warning after a task's Done, and `logs/update.log` names the step. Restart the service once the next green push has rebuilt, or run `npm run build` and restart it by hand.
+
 ## Plugins from a git URL marketplace
 
 A marketplace added from a local path is read from its folder, so an update of the code reaches the plugins by itself; that was checked. One added from a git URL (`owner/repo`, `https://…`) keeps a copy by version, and README tells you to run `claude plugin marketplace update even-keel` and `claude plugin update <plugin>@even-keel` in each project. The commands were run, but a copy that is actually behind was never brought up to date with them. If sessions still run the old plugin, `claude plugin uninstall … --scope project` and `claude plugin install … --scope project` in the project install the current one.

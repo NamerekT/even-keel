@@ -147,6 +147,17 @@ describe('resultView', () => {
     expect(resultView({ ...failed, rollback: { failed: { step: 'restore', output: 'git' } } })).toMatchObject({ rollback: 'failed' })
     expect(resultView({ ...failed, to: null })).toBeNull()
   })
+
+  it('tells a rollback the moved checkout stopped from a failed one, and names the commit a rollback went on to', () => {
+    const failed = { ...RECORD, mode: 'rebuild' as const, to: { version: '0.2.0', tag: 'abc1234' }, failed: { step: 'answer' as const, output: 'timeout' } }
+    const moved = { ...failed, rollback: { failed: { step: 'restore' as const, output: 'The checkout changed', moved: true as const } } }
+    expect(resultView(moved)).toMatchObject({ rollback: 'moved', rollbackStep: 'restore' })
+    expect(resultView(recordOf(JSON.parse(JSON.stringify(moved))))).toMatchObject({ rollback: 'moved' })
+    const onward = { ...failed, rollback: { failed: null, to: { version: '0.2.1', tag: 'def5678901' } } }
+    expect(resultView(onward)).toMatchObject({ rollback: 'done', onward: 'def56789' })
+    expect(recordOf(JSON.parse(JSON.stringify(onward)))?.rollback).toEqual({ failed: null, to: { version: '0.2.1', tag: 'def5678901' } })
+    expect(resultView(failed as UpdateRecord)).not.toHaveProperty('onward')
+  })
 })
 
 describe('leftRunning', () => {

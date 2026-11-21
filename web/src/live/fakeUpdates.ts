@@ -36,6 +36,14 @@ function result(kind: string | null, previous: string): UpdateResultView | null 
     mode: 'rebuild', from: 'feedcafe', to: 'c0decafe', at: '2026-10-22T09:30:00.000Z',
     step: 'answer', output: 'The service did not answer in 120 s', rollback: 'done', rollbackStep: null,
   }
+  if (kind === 'rebuildOnward') return {
+    mode: 'rebuild', from: 'feedcafe', to: 'c0decafe', at: '2026-10-22T09:30:00.000Z',
+    step: 'answer', output: 'it answers with commit 0ddba11e, expected c0decafe', rollback: 'done', rollbackStep: null, onward: '0ddba11e',
+  }
+  if (kind === 'rebuildMoved') return {
+    mode: 'rebuild', from: 'feedcafe', to: 'c0decafe', at: '2026-10-22T09:30:00.000Z',
+    step: 'answer', output: 'The service did not answer in 120 s\n\nThe checkout changed during the rebuild, so the commit before is not restored', rollback: 'moved', rollbackStep: 'restore',
+  }
   const step: UpdateStep | null = kind === 'done' ? null : UPDATE_STEPS.includes(kind as UpdateStep) ? (kind as UpdateStep) : 'build'
   const rollback = kind === 'done' ? 'none' : kind === 'rollback' ? 'failed' : 'done'
   return {
@@ -56,7 +64,9 @@ function result(kind: string | null, previous: string): UpdateResultView | null 
  * `?updateBlocked=<service|git|dirty|tag|global|checking|container>` no "Update", and why;
  * `?updateSource=npm` installed from npm, not a checkout;
  * `?previous=<version>` this version came by an update from that one, `&storage` across a storage change;
- * `?updateResult=<done|step|rollback|rebuild>` how the last run ended (`rebuild` — the old commit is back);
+ * `?updateResult=<done|step|rollback|rebuild|rebuildOnward|rebuildMoved>` how the last run ended (`rebuild` — the old
+ * commit is back, `rebuildOnward` — the rollback built a commit merged meanwhile, `rebuildMoved` — the moved checkout
+ * stopped the rollback);
  * `?updateProgress=<settling|running>` an update under way.
  */
 export function fakeUpdates(params: URLSearchParams | null): UpdatesView {

@@ -10,6 +10,14 @@ export async function headOf(root: string): Promise<string | null> {
   return git(root, 'rev-parse', 'HEAD').catch(() => null)
 }
 
+/** `ancestor` is `commit` or comes before it in its history; a git error counts as no. */
+export async function isAncestor(root: string, ancestor: string, commit: string): Promise<boolean> {
+  return git(root, 'merge-base', '--is-ancestor', ancestor, commit).then(
+    () => true,
+    () => false,
+  )
+}
+
 /** HEAD of the folder, its branch and tags, and whether tracked files changed; `null` — no git checkout or no git. */
 export async function readCheckout(root: string): Promise<Checkout | null> {
   try {

@@ -1,7 +1,10 @@
-import type { NpmPackage, StepFailure, UpdateMode, UpdateStep } from './model.js'
+import type { NpmPackage, StepFailure, UpdateMode, UpdateStep, UpdateTarget } from './model.js'
 
 /** A step that failed with what its command printed. */
 export class StepError extends Error {}
+
+/** A rebuild's checkout moved off its branch or changed during the run: the step leaves it as it is. */
+export class CheckoutMoved extends StepError {}
 
 export interface StepPlan {
   mode: UpdateMode
@@ -39,12 +42,12 @@ export function rollbackOf(mode: UpdateMode, failed: UpdateStep, npm = false): U
 
 export interface StepsOutcome {
   failed: StepFailure | null
-  rollback: { failed: StepFailure | null } | null
+  rollback: { failed: StepFailure | null; to?: UpdateTarget } | null
 }
 
 /** The step as it failed: a `StepError` carries the command's output, anything else its message. */
 function failureOf(step: UpdateStep, error: unknown): StepFailure {
-  return { step, output: error instanceof Error ? error.message : String(error) }
+  return { step, output: error instanceof Error ? error.message : String(error), ...(error instanceof CheckoutMoved && { moved: true as const }) }
 }
 
 /**

@@ -51,19 +51,33 @@ export interface StepFailure {
   step: UpdateStep
   /** The end of the failed command's output. */
   output: string
+  /** A rebuild's checkout moved off its branch or changed during the run: the step left it as it was (BTN-1426). */
+  moved?: true
+}
+
+/** A rebuild's target: a commit and the version its `package.json` has. */
+export interface UpdateTarget {
+  version: string
+  tag: string
 }
 
 /** `logs/update.json`: how the last update, revert or rebuild ended, written by the update process. */
 export interface UpdateRecord {
   mode: UpdateMode
   from: { version: string; commit: string; branch: string | null; tag: string | null; storage: StorageVersions | null }
-  /** `tag` is the ref for this run, a commit for rebuild and follow; older rebuilds had no target. */
-  to: { version: string; tag: string } | null
+  /**
+   * `tag` is the ref for this run, a commit for rebuild and follow; older rebuilds had no target. A rebuild whose
+   * checkout a chain moved on along its branch meanwhile names the commit it built last.
+   */
+  to: UpdateTarget | null
   startedAt: string
   finishedAt: string
   failed: StepFailure | null
-  /** `null` — nothing was rolled back; `failed: null` — the rollback went through. */
-  rollback: { failed: StepFailure | null } | null
+  /**
+   * `null` — nothing was rolled back; `failed: null` — the rollback went through. `to` — a rebuild's checkout moved on
+   * along its branch after the failure, so the rollback built and started that commit instead of the one before.
+   */
+  rollback: { failed: StepFailure | null; to?: UpdateTarget } | null
   /** The page's "Close" on the result. */
   seen: boolean
 }
@@ -91,8 +105,11 @@ export interface UpdateResultView {
   /** `null` — it went through. */
   step: UpdateStep | null
   output: string
-  rollback: 'none' | 'done' | 'failed'
+  /** `moved` — a rebuild's checkout moved during the run, so the rollback left it and the running service as they were. */
+  rollback: 'none' | 'done' | 'failed' | 'moved'
   rollbackStep: UpdateStep | null
+  /** The commit a rebuild's rollback built instead of the one before (`UpdateRecord.rollback.to`). */
+  onward?: string
 }
 
 /** The tag of the installed version at HEAD; `null` — none. */
@@ -153,9 +170,14 @@ export function resultView(record: UpdateRecord | null): UpdateResultView | null
     at: record.finishedAt,
     step: failed?.step ?? null,
     output,
-    rollback: rollback === null ? 'none' : rollback.failed === null ? 'done' : 'failed',
+    rollback: rollback === null ? 'none' : rollback.failed === null ? 'done' : rollback.failed.moved === true ? 'moved' : 'failed',
     rollbackStep: rollback?.failed?.step ?? null,
+    ...(rollback?.to !== undefined && { onward: rollback.to.tag.slice(0, 8) }),
   }
+}
+
+function targetOf(raw: unknown): UpdateTarget | null {
+  return isObject(raw) && text(raw.version) !== null && text(raw.tag) !== null ? { version: raw.version as string, tag: raw.tag as string } : null
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -170,7 +192,13 @@ function storageOf(raw: unknown): StorageVersions | null {
 
 function failureOf(raw: unknown): StepFailure | null {
   if (!isObject(raw)) return null
-  return { step: (text(raw.step) ?? 'launch') as UpdateStep, output: text(raw.output) ?? '' }
+  return { step: (text(raw.step) ?? 'launch') as UpdateStep, output: text(raw.output) ?? '', ...(raw.moved === true && { moved: true as const }) }
+}
+
+function rollbackOf(raw: unknown): UpdateRecord['rollback'] {
+  if (!isObject(raw)) return null
+  const to = targetOf(raw.to)
+  return { failed: failureOf(raw.failed), ...(to !== null && { to }) }
 }
 
 /** `logs/update.json` as read back; a version that wrote another shape leaves what it cannot read out. */
@@ -182,15 +210,14 @@ export function recordOf(raw: unknown): UpdateRecord | null {
   const version = text(from.version)
   const commit = text(from.commit)
   if (version === null || commit === null) return null
-  const target = isObject(to) && text(to.version) !== null && text(to.tag) !== null ? { version: to.version as string, tag: to.tag as string } : null
   return {
     mode,
     from: { version, commit, branch: text(from.branch), tag: text(from.tag), storage: storageOf(from.storage) },
-    to: target,
+    to: targetOf(to),
     startedAt: text(raw.startedAt) ?? '',
     finishedAt: text(raw.finishedAt) ?? '',
     failed: failureOf(raw.failed),
-    rollback: isObject(rollback) ? { failed: failureOf(rollback.failed) } : null,
+    rollback: rollbackOf(rollback),
     seen: raw.seen === true,
   }
 }

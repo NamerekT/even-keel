@@ -137,15 +137,20 @@ export const ru = {
     progressBody: 'Служба перезапускается, страница перезагрузится сама.',
     resultDone: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Обновлено до' : 'Возвращена'} ${version}`,
     resultFailed: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Обновление до' : 'Возврат на'} ${version} не удался`,
-    resultBody: (step: string, rollback: 'none' | 'done' | 'failed', from: string, rollbackStep: string) =>
+    resultBody: (step: string, rollback: 'none' | 'done' | 'failed' | 'moved', from: string, rollbackStep: string) =>
       rollback === 'done'
         ? `Шаг «${step}». Вернулась ${from}.`
         : rollback === 'failed'
           ? `Шаг «${step}». Вернуть ${from} тоже не удалось, шаг «${rollbackStep}»: смотрите logs/update.log.`
-          : `Шаг «${step}».`,
+          : rollback === 'moved'
+            ? `Шаг «${step}». Чекаут тем временем сдвинулся, откат не делался: смотрите logs/update.log.`
+            : `Шаг «${step}».`,
     resultDoneBody: (from: string) => `Прежняя версия — ${from}.`,
     rebuildFailed: (commit: string) => `Пересборка на ${commit} не поднялась`,
     rebuildRestored: (commit: string) => `Хаб вернулся на ${commit}.`,
+    rebuildOnward: (commit: string) => `Тем временем в чекаут влили новый коммит: хаб собран и запущен на ${commit}.`,
+    rebuildMoved: (commit: string) =>
+      `Чекаут сдвинулся во время пересборки — откат не делался: ${commit} не возвращён, чекаут оставлен как есть. Следующий зелёный пуш соберёт заново.`,
     steps: {
       settle: 'ожидание цепочек',
       stop: 'остановка службы',
