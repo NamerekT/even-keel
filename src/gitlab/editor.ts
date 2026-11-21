@@ -144,7 +144,7 @@ export function gitlabEditor(deps: GitlabEditorDeps): TaskEditor {
         // A new issue takes no estimate: it is set through its own call.
         if (draft.estimate != null) await setEstimate(id, draft.estimate)
       } catch (error) {
-        throw new CreatedThenRefused(id, error instanceof Error ? error.message : String(error))
+        throw new CreatedThenRefused(id, error instanceof Error ? error.message : String(error), error)
       }
       return id
     },

@@ -13,11 +13,12 @@ it('step 72 keeps whether the copy takes the closed tasks too; a copy begun befo
     await frozen.exec(fixture(72))
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
     await readsWhole(frozen, 72, 72)
-    expect(await new ExportRecords(frozen).header(ABC)).toMatchObject({ key: 'GH', closed: true, history: false })
     await insertRows(made, await rowsOf(frozen))
     expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
+    await frozen.exec(STEPS[70]!) // step 73's column, read by today's header
+    expect(await new ExportRecords(frozen).header(ABC)).toMatchObject({ key: 'GH', closed: true, history: false })
     await upgraded.exec(fixture(71))
-    await upgraded.exec(STEPS[69]!)
+    await upgraded.exec(STEPS[69]! + STEPS[70]!)
     expect(await new ExportRecords(upgraded).header(ABC)).toMatchObject({ key: 'GH', closed: false })
   } finally {
     await Promise.all([frozen.close(), made.close(), upgraded.close()])

@@ -1,6 +1,7 @@
 import type { TaskRun } from '../sessions/runs.js'
 import type { LabelChange } from './labels.js'
 import type { TaskPriority, TrackerTask } from './model.js'
+import type { WriteWindow } from './pace.js'
 
 /** A new task with every field at once (`TaskEditor.create`); names, not ids, everywhere. */
 export interface TaskDraft {
@@ -114,6 +115,12 @@ export interface TaskEditor {
    * `blockedBy`, and such a link is refused before any write of a `task_update`. Absent — all three are kept.
    */
   linkTypes?: readonly TaskLink[]
+  /**
+   * How many writes a long run of them (the copy into this tracker, BTN-1190) makes at most in each window, kept under
+   * the tracker's own limit so that it is never hit (GitHub's secondary limits). Absent — no pace: a refusal of the
+   * limit is waited out.
+   */
+  writes?: readonly WriteWindow[]
   /** The description's revision: it grows only with a change of the description, not of any other field. */
   revision(id: string): Promise<number>
   /** Replaces the description whole; refused when its revision is not `rev` any more. `false` — the text was the same. */
@@ -168,8 +175,9 @@ export class EditRefused extends Error {}
 
 /** A create the tracker took, after which it refused the rest of the task (a status, a parent, labels): the task exists. */
 export class CreatedThenRefused extends EditRefused {
-  constructor(readonly id: string, reason: string) {
-    super(`${id} was created, but ${reason}; do not create it again`)
+  /** `cause` — the refusal itself, so that a rate limit among them is still seen as one (BTN-1190). */
+  constructor(readonly id: string, reason: string, cause?: unknown) {
+    super(`${id} was created, but ${reason}; do not create it again`, cause === undefined ? undefined : { cause })
   }
 }
 

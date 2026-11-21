@@ -3,6 +3,7 @@ import { descriptionEdits, EditRefused, type TaskEditor } from '../tracker/edito
 import { markerComment, withMarker } from '../tracker/markers.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
+import { GITHUB_WRITES } from '../tracker/pace.js'
 import { TrackerNotFound } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubPriority, githubStatus, PRIORITY_LABEL, type IssueRef, type IssueState, type IssueStateReason, type Repo, type RepoMap } from './model.js'
 
@@ -233,6 +234,7 @@ export function githubEditor(deps: GithubEditorDeps): TaskEditor {
     },
     relabel: (id, change) => deps.relabel(id, change),
     linkTypes: ['blocks', 'blockedBy'],
+    writes: GITHUB_WRITES,
     // A GitHub comment has no field for the session's model: its author is the token's account.
     comment: (id, body) => deps.comment(id, body),
   }

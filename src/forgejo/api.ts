@@ -1,6 +1,7 @@
 import { forgejoBase } from '../ci/host.js'
 import { notice, NoticeError } from '../notice/notice.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
+import { limitOfResponse } from '../tracker/rate-limit.js'
 import { CredentialsRefused, TrackerNotFound } from '../tracker/source.js'
 
 export class ForgejoHttpError extends Error {
@@ -50,9 +51,16 @@ export class ForgejoApi {
     }, path.replace(/\?.*$/, ''))
     if (response.ok) return response
     if (response.status === 403) {
-      const scope = missingScope(await response.text().catch(() => ''))
+      const text = await response.text().catch(() => '')
+      const scope = missingScope(text)
       if (scope !== null) throw new ForgejoScopeError(scope)
-    } else await response.body?.cancel()
+      const limited = limitOfResponse('forgejo', response, text.slice(0, 200))
+      if (limited !== null) throw limited
+    } else {
+      await response.body?.cancel()
+      const limited = limitOfResponse('forgejo', response, '')
+      if (limited !== null) throw limited
+    }
     if (response.status === 401) throw new CredentialsRefused('forgejo: the token is refused (HTTP 401)')
     if (response.status === 404) throw new TrackerNotFound('forgejo: not found or the token cannot see it (HTTP 404)')
     throw new ForgejoHttpError(response.status)

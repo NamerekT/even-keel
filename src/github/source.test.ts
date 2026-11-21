@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { fakeTask } from '../tracker/fixture.js'
 import type { TaskStatus } from '../tracker/model.js'
 import { ParentCloser } from '../tracker/parents.js'
+import { TrackerRateLimited } from '../tracker/rate-limit.js'
 import { trackerOf } from '../tracker/source.js'
 import { issue } from './fixture.js'
 import { connectGithub } from './source.js'
@@ -11,7 +12,7 @@ interface Call {
   variables: Record<string, unknown>
 }
 
-type Reply = { status?: number; body: unknown }
+type Reply = { status?: number; body: unknown; headers?: Record<string, string> }
 
 function fakeFetch(replies: Reply[]) {
   const calls: Call[] = []
@@ -19,7 +20,7 @@ function fakeFetch(replies: Reply[]) {
     calls.push(JSON.parse(String(init?.body)) as Call)
     const reply = replies.shift()
     if (reply === undefined) throw new Error(`unexpected call: ${calls.at(-1)!.query}`)
-    return new Response(JSON.stringify(reply.body), { status: reply.status ?? 200 })
+    return new Response(JSON.stringify(reply.body), { status: reply.status ?? 200, ...(reply.headers === undefined ? {} : { headers: reply.headers }) })
   }
   return { fetch: fetch as typeof globalThis.fetch, calls }
 }
@@ -174,6 +175,24 @@ describe('github source', () => {
   it('fails on any error but a missing issue', async () => {
     const { source } = await connect([{ body: { data: null, errors: [{ type: 'RATE_LIMITED', message: 'API rate limit exceeded' }] } }])
     await expect(source.tasks(['ABC-1'])).rejects.toThrow(/rate limit/)
+  })
+
+  it('refuses for the rate limit with the time GitHub names, primary or secondary (BTN-1190)', async () => {
+    const reset = { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1795003200' }
+    const { source } = await connect([
+      { body: { data: null, errors: [{ type: 'RATE_LIMITED', message: 'API rate limit exceeded' }] }, headers: reset },
+      { status: 403, body: { message: 'You have exceeded a secondary rate limit.' }, headers: { 'retry-after': '60' } },
+      { status: 403, body: { message: 'Resource not accessible by integration' } },
+    ])
+    const primary = await source.tasks(['ABC-1']).catch((error: unknown) => error)
+    expect(primary).toBeInstanceOf(TrackerRateLimited)
+    expect((primary as TrackerRateLimited).until?.toISOString()).toBe('2026-11-18T12:00:00.000Z')
+    const secondary = await source.tasks(['ABC-1']).catch((error: unknown) => error)
+    expect(secondary).toBeInstanceOf(TrackerRateLimited)
+    expect((secondary as TrackerRateLimited).until).not.toBeNull()
+    const other = await source.tasks(['ABC-1']).catch((error: unknown) => error)
+    expect(other).not.toBeInstanceOf(TrackerRateLimited)
+    expect(String(other)).toContain('HTTP 403: Resource not accessible')
   })
 
   it('gives the title and the body as the brief', async () => {

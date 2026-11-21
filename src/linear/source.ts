@@ -3,6 +3,7 @@ import { fail } from '../notice/notice.js'
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { labelKey, resolveLabels, type NamedLabel } from '../tracker/labels.js'
+import { limitOfResponse, TrackerRateLimited, untilOf } from '../tracker/rate-limit.js'
 import { subtaskRef } from '../tracker/card.js'
 import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
@@ -182,8 +183,12 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       body: JSON.stringify({ query, variables }),
       signal: AbortSignal.timeout(timeoutMs),
     }, '/graphql')
-    const body = (await response.json().catch(() => ({}))) as { data?: T | null; errors?: { message: string }[] }
+    const body = (await response.json().catch(() => ({}))) as { data?: T | null; errors?: { message: string; extensions?: { code?: string } }[] }
     const errors = (body.errors ?? []).map((error) => error.message).join('; ')
+    // Linear answers its limits with HTTP 400 and the code RATELIMITED, the reset in its headers.
+    if ((body.errors ?? []).some((error) => error.extensions?.code === 'RATELIMITED')) throw new TrackerRateLimited(`linear: ${errors}`, untilOf(response.headers))
+    const limited = response.ok ? null : limitOfResponse('linear', response, errors)
+    if (limited !== null) throw limited
     if (!response.ok) throw new Error(`linear: HTTP ${response.status}${errors ? `: ${errors}` : ''}`)
     if (errors || body.data == null) throw new Error(`linear: ${errors || 'empty answer'}`)
     return body.data
@@ -213,6 +218,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     try {
       ;({ team } = await graphql<{ team: Team | null }>(project === null ? TEAM : TEAM_PROJECT, project === null ? { team: teamKey } : { team: teamKey, project }))
     } catch (error) {
+      if (error instanceof TrackerRateLimited) throw error
       throw new Error(`linear: team ${teamKey}: ${(error as Error).message.replace(/^linear: /, '')}`)
     }
     if (team === null) throw new TrackerNotFound(`linear: team ${teamKey} not found or the key cannot see it`)

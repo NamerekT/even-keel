@@ -169,10 +169,21 @@ The copy of a built-in project's open tasks into another tracker (`docs/trackers
 - Jira's, GitLab's and Forgejo's editors take the draft as the tests' fake does, and their markers find the task a cut create made;
 - an estimate reaches Huly and Linear, and comments by an agent or Even Keel get their headers;
 - a journal comment longer than a tracker's limit (GitHub's 65,536 characters) fits or fails cleanly;
-- a copy does not run into a tracker's rate limit before it ends; if it does, it stops and a start goes on (hundreds of tasks: BTN-1190, BTN-1191);
-- the window reopened or a tab reloaded mid-copy, and a run lost to a restart coming back as "Continue".
+- a copy does not run into a tracker's rate limit before it ends; if it does, it waits and goes on by itself (hundreds of tasks: BTN-1190, BTN-1191; see the entry below);
+- the window reopened or a tab reloaded mid-copy.
 
 If one is wrong, the copy stops with `export.failed`, or a task is copied twice or without its parent, links or files. **Workaround:** the project stays on the built-in tracker; fix the target (create the missing labels and milestones, wait for the rate limit) and start the copy again; delete a doubled task in the tracker by hand. To check: on a bench, copy a built-in project with a parent and a child, a `blocks` pair, a label, a milestone, an estimate, an attachment and comments by a person, an agent and Even Keel into Jira, GitLab and Forgejo; cut the copy mid-way and start again; see no task, comment or file twice and "Moved to" in every old task.
+
+## The copy waits out a tracker's rate limit and goes on after a restart (BTN-1190)
+
+A copy into another tracker reads a rate-limit refusal as `TrackerRateLimited`, waits the time it names (or a growing pause) and runs again from the same stage; into GitHub it writes no faster than 60 a minute and 400 an hour; at the service's start it goes on with every copy a restart broke off (`docs/trackers.md`, "The copy into another tracker"). Checked by tests on recorded answers (`src/tracker/rate-limit.test.ts`, the GitHub and Linear source tests) and on a fake editor with a fake clock (`src/builtin/export.test.ts`). Never seen live, assumed:
+
+- GitHub's secondary limit answers 403 or 429 with `retry-after` or a message naming the limit, and the pace keeps a copy of a few hundred tasks under it;
+- Linear's, GitLab's, Forgejo's and Jira's refusals carry the headers `untilOf` reads, or at least a 429;
+- a refusal inside a create (a task made, its labels refused) waits and goes on without a second task;
+- a copy broken off by a restart goes on by itself, the window showing it running again.
+
+If one is wrong, the copy stops with `export.failed` on a limit, or is refused again and again before the pace lets it through, or a task is copied twice. **Workaround:** press **Continue** once the tracker takes writes again; after a restart press **Continue** if the copy shows stopped. To check: on a bench, copy a project of 300 tasks into a GitHub test repository and see it end with no `export.failed` and no doubled issue; restart the service mid-copy and see the copy go on by itself.
 
 ## Outsiders' comments hidden from `task_read` (BTN-1122)
 

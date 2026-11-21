@@ -1,5 +1,6 @@
 import { fail } from '../notice/notice.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
+import { limitOfResponse } from '../tracker/rate-limit.js'
 import { CredentialsRefused, TrackerNotFound } from '../tracker/source.js'
 
 export const JIRA_URL = 'JIRA_URL'
@@ -96,6 +97,8 @@ export class JiraApi {
     if (response.ok) return response
     const answer: unknown = await response.json().catch(() => ({}))
     const detail = errorText(answer)
+    const limited = limitOfResponse('jira', response, detail)
+    if (limited !== null) throw limited
     if (response.status === 401) throw new CredentialsRefused(`jira: the e-mail and the API token are refused (HTTP 401)${detail ? `: ${detail}` : ''}`)
     if (response.status === 404) throw new TrackerNotFound(`jira: not found or the account cannot see it (HTTP 404)${detail ? `: ${detail}` : ''}`)
     throw new JiraHttpError(response.status, detail, Object.keys(fieldErrors(answer)), errorMessagesOf(answer))

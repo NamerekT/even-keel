@@ -2,7 +2,9 @@ import { readFile } from 'node:fs/promises'
 import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
 import type { EventDraft, EventLevel, EventPlace } from '../event-log/model.js'
 import type { Db } from '../storage/database.js'
-import { exportPlan, progressOf, runExport, takes, type ExportComment, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportState } from '../tracker/export.js'
+import { exportPlan, progressOf, runExport, takes, type ExportComment, type ExportLog, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportState } from '../tracker/export.js'
+import { pacedEditor, realClock, WritePace } from '../tracker/pace.js'
+import { rateLimitOf } from '../tracker/rate-limit.js'
 import type { TaskChange } from '../tracker/history.js'
 import type { OpenedExportTarget } from '../tracker/export-target.js'
 import { errorText } from '../tracker/link.js'
@@ -126,7 +128,15 @@ export interface BuiltinExportsDeps {
   /** A tracker's name by its adapter's kind, for the switch's entry; without it the kind itself. */
   trackerTitle?: (kind: string) => string
   now?: () => Date
+  /** The wait for a tracker's rate limit and the pace of its writes; tests give their own. */
+  sleep?: (ms: number) => Promise<void>
 }
+
+/** The first wait for a limit refusal that names no time, doubled at each next one in a row up to the last. */
+const FIRST_PAUSE_MS = 60_000
+const LAST_PAUSE_MS = 30 * 60_000
+/** Past the tracker's own time: its clock and ours may differ by a little. */
+const AFTER_RESET_MS = 1_000
 
 /**
  * The copy of a built-in project's tasks into another tracker (BTN-1073): the plan, the start and the state. A copy runs
@@ -135,14 +145,17 @@ export interface BuiltinExportsDeps {
 export class BuiltinExports {
   private readonly records: ExportRecords
   private readonly runs = new Map<string, Promise<void>>()
-  private readonly failures = new Map<string, Notice>()
+  /** Until when each project's run waits out its tracker's rate limit (ISO). */
+  private readonly waiting = new Map<string, string>()
   private readonly checkFailures = new Map<string, Notice>()
   private readonly reports: TransferReports
   private readonly say: (line: string) => void
   private readonly now: () => Date
+  private readonly sleep: (ms: number) => Promise<void>
 
   constructor(private readonly deps: BuiltinExportsDeps) {
     this.now = deps.now ?? (() => new Date())
+    this.sleep = deps.sleep ?? realClock.sleep
     this.records = new ExportRecords(deps.db, this.now)
     this.reports = new TransferReports(deps.db)
     this.say = deps.say ?? ((line) => console.log(line))
@@ -184,7 +197,7 @@ export class BuiltinExports {
       this.checkTarget(project, header)
       const target = await this.deps.connect(project, header)
       if (header.finishedAt !== null) await this.records.reopen(project)
-      this.failures.delete(project)
+      await this.records.saveFailed(project, null)
       const total = await this.total(project, await this.records.rows(project), header.closed)
       this.event('info', notice('eventLog.exportContinued', { project, tracker: target.title, total }), { view: 'tracker', project })
       return target
@@ -216,7 +229,8 @@ export class BuiltinExports {
       finishedAt: header?.finishedAt ?? null,
       progress: progressOf(rows),
       total: await this.total(project, rows, header?.closed),
-      failed: this.failures.get(project) ?? null,
+      failed: header?.failed ?? null,
+      waiting: this.waiting.get(project) ?? null,
       check: header?.checked ?? null,
       checkFailed: this.checkFailures.get(project) ?? null,
     }
@@ -334,7 +348,7 @@ export class BuiltinExports {
       // The plan as the person saw it, kept for the report (BTN-1291).
       await this.records.savePlan(project, await exportPlan(source, target))
     }
-    this.failures.delete(project)
+    await this.records.saveFailed(project, null)
     const total = await this.total(project, await this.records.rows(project), source.closed)
     const said = same
       ? notice('eventLog.exportContinued', { project, tracker: target.title, total })
@@ -345,9 +359,12 @@ export class BuiltinExports {
 
   private async run(project: string, source: ExportSource, target: OpenedExportTarget, work: (run: ExportRun) => Promise<void>): Promise<void> {
     const place: EventPlace = { view: 'tracker', project }
+    const { writes } = target.editor
+    const clock = { now: () => this.now().getTime(), sleep: this.sleep }
+    const paced = writes === undefined ? target : { ...target, editor: pacedEditor(target.editor, new WritePace(writes, clock)) }
     try {
       await whileExporting(project, async () => {
-        await work({ source, target, log: this.records.log(project), say: this.say })
+        await this.throughLimits(project, target.title, (log) => work({ source, target: paced, log, say: this.say }))
         await this.records.finish(project)
         this.say(`export: ${project}: the tasks are copied to ${target.title}`)
         const copied = progressOf(await this.records.rows(project)).marked
@@ -357,12 +374,63 @@ export class BuiltinExports {
     } catch (error) {
       const detail = errorText(error)
       const failed = notice('export.failed', { tracker: target.title }, { detail })
-      this.failures.set(project, failed)
+      await this.records.saveFailed(project, failed).catch(() => {})
       this.say(`export: ${project}: ${englishOf(failed)}`)
       this.event('warning', notice('eventLog.exportFailed', { project, tracker: target.title }, { detail }), place)
     } finally {
       await target.close().catch(() => {})
       await this.deps.refresh(project).catch(() => {})
+    }
+  }
+
+  /**
+   * Runs `work` again after each refusal of the tracker's rate limit (BTN-1190): its stages are saved, so it goes on from
+   * where the refusal stopped it. The wait is the tracker's time, else a pause doubled at each refusal in a row that
+   * moved nothing on; the run counts as going on meanwhile, the project's edits still refused.
+   */
+  private async throughLimits(project: string, tracker: string, work: (log: ExportLog) => Promise<void>): Promise<void> {
+    const records = this.records.log(project)
+    let saves = 0
+    const log: ExportLog = {
+      rows: () => records.rows(),
+      save: async (row) => {
+        saves += 1
+        await records.save(row)
+      },
+    }
+    for (let pauses = 0; ; ) {
+      const before = saves
+      try {
+        return await work(log)
+      } catch (error) {
+        const limit = rateLimitOf(error)
+        if (limit === null) throw error
+        if (saves > before) pauses = 0
+        const now = this.now().getTime()
+        const ms = limit.until === null ? Math.min(FIRST_PAUSE_MS * 2 ** pauses++, LAST_PAUSE_MS) : Math.max(limit.until.getTime() - now, 0) + AFTER_RESET_MS
+        const until = new Date(now + ms).toISOString()
+        this.waiting.set(project, until)
+        this.say(`export: ${project}: ${tracker} limits the writes, the copy waits until ${until}: ${errorText(error)}`)
+        try {
+          await this.sleep(ms)
+        } finally {
+          this.waiting.delete(project)
+        }
+      }
+    }
+  }
+
+  /**
+   * Goes on with each copy a restart of the service broke off (BTN-1190): not finished and not stopped by a failure,
+   * which waits for "Continue" as before.
+   */
+  async resume(): Promise<void> {
+    const names = new BuiltinNames(this.deps.places())
+    for (const project of await this.records.unfinished()) {
+      const header = names.knows(project) ? await this.records.header(project) : null
+      if (header === null || this.runs.has(project)) continue
+      this.say(`export: ${project}: the copy goes on after the restart`)
+      await this.start(project, header).catch((error: unknown) => this.say(`export: ${project}: the copy does not go on after the restart: ${errorText(error)}`))
     }
   }
 

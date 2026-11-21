@@ -13,7 +13,8 @@ import { GITHUB_PROFILE } from './fakeProfiles.js'
  * `clean`: the plan loses nothing; `prefix`: the plan refuses the key as the project's own; `running`: a copy runs from
  * the start; `comments`: it runs at the comments step; `failed`: it stopped on a refused write at the attachments step;
  * `done`: it is through and the switch waits; `held`: through, and the switch is refused while the chain runs and holds a task;
- * `mismatch`: through, its check short of two attachments until "Repeat"; `reports`: the Tracker tab lists two transfers.
+ * `mismatch`: through, its check short of two attachments until "Repeat"; `reports`: the Tracker tab lists two transfers;
+ * `waiting`: it runs at the comments step and stops a task later to wait out the tracker's limit (BTN-1190).
  */
 const STEP_MS = 300
 const STEPS = 5
@@ -30,7 +31,12 @@ interface Run {
   failAt: number | null
   /** Its check misses two attachments (`?export=mismatch`) until a repeat. */
   short: boolean
+  /** At this many ticks it waits for the tracker's limit and goes no further (`?export=waiting`). */
+  waitAt?: number
 }
+
+/** How long `?export=waiting` waits, from the run's start. */
+const WAIT_MS = 12 * 60_000
 
 const tickOf = (at: { step: number; done: number }, total: number) => at.step * total + at.done
 
@@ -120,20 +126,22 @@ function seed(mode: string | null, total: number): void {
   const now = Date.now()
   if (mode === 'running') run = { target, startedAt: now, from: 0, failAt: null, short: false }
   if (mode === 'comments') run = { target, startedAt: now, from: tickOf(COMMENTS_AT, total), failAt: null, short: false }
+  if (mode === 'waiting') run = { target, startedAt: now, from: tickOf(COMMENTS_AT, total), failAt: null, short: false, waitAt: tickOf(COMMENTS_AT, total) + 1 }
   if (mode === 'failed') run = { target, startedAt: now, from: tickOf(FAIL_AT, total), failAt: tickOf(FAIL_AT, total), short: false }
   if (mode === 'done' || mode === 'held' || mode === 'mismatch') run = { target, startedAt: now, from: STEPS * total, failAt: null, short: mode === 'mismatch' }
 }
 
 function progressOf(current: Run, total: number) {
   const reached = current.from + Math.floor((Date.now() - current.startedAt) / STEP_MS)
-  const ticks = Math.min(reached, current.failAt ?? STEPS * total, STEPS * total)
-  return { ticks, failed: current.failAt !== null && reached >= current.failAt, finished: ticks >= STEPS * total }
+  const ticks = Math.min(reached, current.failAt ?? STEPS * total, current.waitAt ?? STEPS * total, STEPS * total)
+  const waiting = current.waitAt !== undefined && reached >= current.waitAt
+  return { ticks, failed: current.failAt !== null && reached >= current.failAt, finished: ticks >= STEPS * total, waiting }
 }
 
 function stateOf(total: number, ids: string[]): ExportState {
   const none = { tasks: 0, created: 0, linked: 0, attached: 0, journaled: 0, marked: 0 }
-  if (run === null) return { target: null, running: false, startedAt: null, finishedAt: null, progress: none, total, failed: null, check: null, checkFailed: null }
-  const { ticks, failed, finished } = progressOf(run, total)
+  if (run === null) return { target: null, running: false, startedAt: null, finishedAt: null, progress: none, total, failed: null, waiting: null, check: null, checkFailed: null }
+  const { ticks, failed, finished, waiting } = progressOf(run, total)
   const through = (step: number) => Math.max(0, Math.min(total, ticks - step * total))
   const created = through(0)
   const taken = Math.min(total, created + (failed || finished ? 0 : 1))
@@ -145,6 +153,7 @@ function stateOf(total: number, ids: string[]): ExportState {
     progress: { tasks: taken, created, linked: through(1), attached: through(2), journaled: through(3), marked: through(4) },
     total,
     failed: failed ? notice('export.failed', { tracker: 'GitHub' }, { detail: 'HTTP 502 Bad Gateway' }) : null,
+    waiting: waiting ? new Date(run.startedAt + WAIT_MS).toISOString() : null,
     check: finished ? checkOf(total, ids, run.short) : null,
     checkFailed: null,
   }
