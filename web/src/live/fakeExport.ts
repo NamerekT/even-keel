@@ -12,7 +12,8 @@ import { GITHUB_PROFILE } from './fakeProfiles.js'
  * `STEP_MS` while the page polls, every task through one step before the next one, as `runExport` goes. `?export=` —
  * `clean`: the plan loses nothing; `prefix`: the plan refuses the key as the project's own; `running`: a copy runs from
  * the start; `comments`: it runs at the comments step; `failed`: it stopped on a refused write at the attachments step;
- * `done`: it is through and the switch waits; `held`: through, and the switch is refused while the chain runs and holds a task;
+ * `done`: it is through and the switch waits; `held`: through, and the switch is refused while the chain runs, holds a
+ * task and has two released ones, each id a link to its card (BTN-1459);
  * `mismatch`: through, its check short of two attachments until "Repeat"; `reports`: the Tracker tab lists two transfers;
  * `waiting`: it runs at the comments step and stops a task later to wait out the tracker's limit (BTN-1190).
  */
@@ -83,7 +84,8 @@ export function fakeExportQuery(state: EvenKeelState, name: string, body: Record
       return { state, result: stateOf(tasks.length, ids) }
     case 'builtin/export/switch': {
       if (mode === 'held') {
-        throw fail('switch.held', { key: project }, { items: [notice('switch.chainRuns', {}), notice('switch.current', { task: tasks[0]?.id ?? `${project}-1` })] })
+        const id = (index: number) => tasks[index]?.id ?? `${project}-${index + 1}`
+        throw fail('switch.held', { key: project }, { items: [notice('switch.chainRuns', {}), notice('switch.current', { task: id(0) }), notice('switch.released', { tasks: [id(1), id(2)] })] })
       }
       const target = run?.target
       if (target === undefined) throw fail('switch.noCopy', { key: project })

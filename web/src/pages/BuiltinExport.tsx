@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import type { ExportState } from '../../../src/tracker/export.js'
 import { BUILTIN } from '../../../src/builtin/model.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
@@ -7,6 +8,8 @@ import type { ExportLoss, ExportPlan } from '../../../src/tracker/export.js'
 import type { TransferDirection } from '../../../src/tracker/transfer-check.js'
 import { language, say, t } from '../i18n/index.js'
 import { localMoment } from '../moment.js'
+import { projectPath } from '../state.js'
+import { heldTasksOf, taskParts } from './heldTasks.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
@@ -327,7 +330,7 @@ export function Refusal({ project, refusal }: { project: string; refusal: Notice
     if (state?.chain.queue.includes(project) === true && !(await send('chain/dequeue', { project }))) return
     await send('chain/stop', { project })
   }
-  const items = (refusal.items ?? []).map(say)
+  const items = refusal.items ?? []
   return (
     <div role="alert" className="notice notice--error add-package__failure transfer__refusal">
       <div className="transfer__refusal-text">
@@ -336,7 +339,9 @@ export function Refusal({ project, refusal }: { project: string; refusal: Notice
         {items.length > 0 && (
           <ul className="transfer__refusal-items">
             {items.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={say(item)}>
+                <LinkedTasks project={project} text={say(item)} tasks={heldTasksOf(item)} />
+              </li>
             ))}
           </ul>
         )}
@@ -347,5 +352,18 @@ export function Refusal({ project, refusal }: { project: string; refusal: Notice
         </button>
       )}
     </div>
+  )
+}
+
+/** A reason's text with each task id it names a link to that task's card. */
+function LinkedTasks({ project, text, tasks }: { project: string; text: string; tasks: string[] }) {
+  return taskParts(text, tasks).map((part, index) =>
+    part.task === undefined ? (
+      part.text
+    ) : (
+      <Link key={index} className="transfer__refusal-task" to={{ pathname: projectPath(project), search: `?task=${encodeURIComponent(part.task)}` }} title={t.transfer.openTaskTip}>
+        {part.text}
+      </Link>
+    ),
   )
 }

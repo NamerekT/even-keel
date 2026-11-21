@@ -297,6 +297,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 261 | [The archive's older pages from a live tracker](unverified/trackers.md#the-archives-older-pages-from-a-live-tracker-btn-1445) | projects on Huly or GitHub with closed tasks beyond the live read | the archive's count disagrees with its pages, a page skips or repeats tasks, or a link to an old task opens no row | — |
 | 262 | [The import plan's read in parallel](unverified/trackers.md#the-import-plans-read-in-parallel-btn-1452) | projects importing from Huly, GitHub or Linear | the plan's read fails on the tracker's limits, the counts differ from a read one task at a time, or the meter stands still; close the window and open it again after the limit's reset | — |
 | 263 | [An attachment Huly has no file of in the import](unverified/trackers.md#an-attachment-huly-has-no-file-of-in-the-import-btn-1454) | projects importing from Huly with an attachment whose file is gone | the import still stops at the attachments, or the check does not match on it; switch past the check after a look at the task | — |
+| 264 | [The import's switch past released tasks](unverified/trackers.md#the-imports-switch-past-released-tasks-btn-1459) | projects switched onto the built-in tracker while the chain holds released tasks or open pull requests | a released task never cleaned up after its Done, or its session's tasks server still writing to the old tracker; remove its worktree by hand | — |
 
 ### Waiting for the event / not checked by choice
 

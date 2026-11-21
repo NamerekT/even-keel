@@ -150,8 +150,8 @@ export class BuiltinImports {
     if (header === null || header.finishedAt === null) throw fail('import.notFinished', {})
     if (header.checked === null) throw fail('switch.noCheck', {})
     if (!checkMatched(header.checked) && !anyway) throw fail('switch.mismatch', {})
-    const holds = switchHolds(this.deps.switching.chain(), project)
-    if (holds.length > 0) throw fail('switch.held', { key: header.key }, { items: holds })
+    // The ids the switch changes are known only after the source's read: its released tasks are asked again then.
+    this.checkHolds(project, header, () => true)
     const step = (stage: ImportSwitching['stage']) => (done: number, total: number) => this.switches.set(project, { stage, done, total })
     step('pass')(0, 0)
     try {
@@ -181,6 +181,8 @@ export class BuiltinImports {
       return { check, names, title: opened.title }
     })
     if (!checkMatched(check) && !anyway) throw fail('switch.mismatch', {})
+    // Asked again at the move: the chain may have started during the pass.
+    this.checkHolds(project, header, (task) => !names.has(task))
     step('switch')(0, 0)
     if (names.size > 0) this.deps.switching.rename(project, names)
     this.deps.switching.move(project, { tracker: BUILTIN, trackerProject: null, key: header.key })
@@ -192,6 +194,12 @@ export class BuiltinImports {
     this.event(matched ? 'info' : 'warning', notice(matched ? 'eventLog.importMatched' : 'eventLog.importMismatched', { project, tracker: title }), place)
     await this.deps.refresh(project).catch(() => {})
     return { key: header.key, renamed: names.size }
+  }
+
+  /** Refuses the switch while the chain works on the project; released tasks and pull requests whose ids it `kept` do not hold it. */
+  private checkHolds(project: string, header: ImportHeader, kept: (task: string) => boolean): void {
+    const holds = switchHolds(this.deps.switching.chain(), project, kept)
+    if (holds.length > 0) throw fail('switch.held', { key: header.key }, { items: holds })
   }
 
   /** The switched import's report; `null` — it could not be written, and the switch stands. */

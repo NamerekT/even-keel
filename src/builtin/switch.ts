@@ -84,16 +84,19 @@ export function checkMove(deps: Pick<SwitchDeps, 'config' | 'raw' | 'profiles'>,
 
 /**
  * What keeps the project on its tracker now: a chain that runs or waits in the queue, a task the chain holds, released
- * tasks whose sessions rest, open pull requests. Each of them names tasks by their old ids.
+ * tasks whose sessions rest, open pull requests. Each of them names tasks by their old ids. `kept` — whether the switch
+ * keeps a task's id (the import, BTN-1459): such a released task or pull request does not hold it, as its branch,
+ * worktree, launch log and record stay right and the next read of its status goes to the new tracker.
  */
-export function switchHolds(state: Readonly<ChainState>, project: string): Notice[] {
+export function switchHolds(state: Readonly<ChainState>, project: string, kept: (task: string) => boolean = () => false): Notice[] {
   const holds: Notice[] = []
   const chain = state.active.find((each) => each.project === project)
   if ((chain !== undefined && !chain.paused) || state.queue.includes(project)) holds.push(notice('switch.chainRuns', {}))
   if (chain?.current != null) holds.push(notice('switch.current', { task: chain.current.task }))
-  const released = [...new Set([...(state.released[project] ?? []), ...(state.shelved[project] ?? []).map((each) => each.task)])]
+  const moved = (task: string) => !kept(task)
+  const released = [...new Set([...(state.released[project] ?? []), ...(state.shelved[project] ?? []).map((each) => each.task)])].filter(moved)
   if (released.length > 0) holds.push(notice('switch.released', { tasks: released }))
-  const reviews = (state.reviews[project] ?? []).map((each) => each.task)
+  const reviews = (state.reviews[project] ?? []).map((each) => each.task).filter(moved)
   if (reviews.length > 0) holds.push(notice('switch.reviews', { tasks: reviews }))
   return holds
 }

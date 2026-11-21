@@ -112,6 +112,7 @@ export const transferRu = {
   done: (count: number, tracker: string) => `Все ${tasks(count)} уже в ${tracker}. Переключите проект — цепь будет брать задачи оттуда, а старые останутся здесь с пометкой «Перенесена».`,
   switchTo: (tracker: string) => `Переключить на ${tracker}`,
   stopChain: 'Остановить цепь',
+  openTaskTip: 'Открыть задачу с её сессией: ответьте там сессии или закройте задачу',
   movedTo: 'Перенесена в',
   movedTitle: (title: string, key: string) => `${title} (перенесена в ${key})`,
   check: 'Сверка',

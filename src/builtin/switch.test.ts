@@ -146,6 +146,19 @@ describe('switchHolds', () => {
     ])
   })
 
+  it('passes over the released tasks whose ids the switch keeps, never over the chain and its task (BTN-1459)', () => {
+    const state: ChainState = {
+      ...emptyChainState(),
+      active: [{ project: ABC, current, paused: true, error: null }],
+      released: { [ABC]: ['ABC-2', 'NAM-4'] },
+      shelved: { [ABC]: [{ task: 'ABC-3', sessionId: 's3', at: '' }] },
+    }
+    expect(switchHolds(state, ABC, (task) => task.startsWith('ABC-'))).toEqual([
+      { code: 'switch.current', params: { task: 'ABC-1' } },
+      { code: 'switch.released', params: { tasks: ['NAM-4'] } },
+    ])
+  })
+
   it('holds a paused chain that still has its task', () => {
     const state = { ...emptyChainState(), active: [{ project: ABC, current, paused: true, error: null }] }
     expect(switchHolds(state, ABC).map((each) => each.code)).toEqual(['switch.current'])

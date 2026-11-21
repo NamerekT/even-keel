@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { emptyChainState } from '../chain/model.js'
+import { emptyChainState, type ChainState } from '../chain/model.js'
 import type { TrackerMove } from '../config-form.js'
 import { NoticeError } from '../notice/notice.js'
+import type { PullRequest } from '../review/model.js'
 import { openDatabase } from '../storage/database.js'
 import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
@@ -140,7 +141,7 @@ function fakeSource() {
   return { source, tasks, milestones, comments, files, changes, state, reads }
 }
 
-function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'import-')), lines: string[] = []) {
+function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'import-')), lines: string[] = [], chain: ChainState = emptyChainState()) {
   const moves: TrackerMove[] = []
   const renames: ReadonlyMap<string, string>[] = []
   const opened = (): OpenedImportSource => ({ tracker: 'huly', place: '', key: 'ABC', title: 'Huly', source, close: async () => {} })
@@ -155,7 +156,7 @@ function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'im
     refresh: async () => {},
     say: (line) => lines.push(line),
     switching: {
-      chain: () => emptyChainState(),
+      chain: () => chain,
       rename: (_project, names) => renames.push(names),
       move: (_project, move) => moves.push(move),
     },
@@ -477,6 +478,46 @@ describe('the import into the built-in tracker', () => {
     await service.settled(ABC)
     expect(await service.switch(ABC)).toEqual({ key: 'ABC', renamed: 1 })
     expect(renames.map((names) => [...names])).toEqual([[['NAM-4', 'ABC-4']]])
+  })
+
+  const pull = (task: string): PullRequest => ({ task, remote: 'origin', number: 1, url: 'https://example.com/pull/1', branch: task.toLowerCase(), at: '', pushedAt: '', markAt: null, seen: [] })
+
+  it('is not held by released tasks and pull requests that keep their ids, and leaves them in the chain state (BTN-1459)', async () => {
+    const chain: ChainState = {
+      ...emptyChainState(),
+      released: { [ABC]: ['ABC-3'] },
+      shelved: { [ABC]: [{ task: 'ABC-5', sessionId: 's5', at: '' }] },
+      reviews: { [ABC]: [pull('ABC-5')] },
+    }
+    const { service, moves } = imports(fakeSource().source, undefined, undefined, chain)
+    await service.start(ABC)
+    await service.settled(ABC)
+    expect(await service.switch(ABC)).toEqual({ key: 'ABC', renamed: 0 })
+    expect(moves).toHaveLength(1)
+    expect(chain.released[ABC]).toEqual(['ABC-3'])
+    expect(chain.shelved[ABC]!.map((each) => each.task)).toEqual(['ABC-5'])
+  })
+
+  it('is held by a released task whose id the switch changes, naming it by its old id', async () => {
+    const fake = fakeSource()
+    fake.tasks.splice(0, fake.tasks.length, task(4, { id: 'NAM-4' }))
+    const chain: ChainState = { ...emptyChainState(), released: { [ABC]: ['NAM-4'] } }
+    const { service, moves } = imports(fake.source, undefined, undefined, chain)
+    await service.start(ABC)
+    await service.settled(ABC)
+    const held = await service.switch(ABC).catch((error: unknown) => (error as NoticeError).notice)
+    expect(held).toMatchObject({ code: 'switch.held', items: [{ code: 'switch.released', params: { tasks: ['NAM-4'] } }] })
+    expect(moves).toEqual([])
+  })
+
+  it('is held by a chain that runs or a task it holds, whatever their ids', async () => {
+    const chain: ChainState = { ...emptyChainState(), active: [{ project: ABC, current: { task: 'ABC-3', sessionId: 's3', since: '' }, paused: true, error: null }] }
+    const { service, moves } = imports(fakeSource().source, undefined, undefined, chain)
+    await service.start(ABC)
+    await service.settled(ABC)
+    const held = await service.switch(ABC).catch((error: unknown) => (error as NoticeError).notice)
+    expect(held).toMatchObject({ code: 'switch.held', items: [{ code: 'switch.current', params: { task: 'ABC-3' } }] })
+    expect(moves).toEqual([])
   })
 })
 

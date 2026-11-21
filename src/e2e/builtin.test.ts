@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { BuiltinStore } from '../builtin/store.js'
-import { commitAndMerge } from './agent.fixture.js'
+import { commitAndMerge, ends } from './agent.fixture.js'
 import { FEED_ID, FEED_KEY, Harness, PROJECT_ID } from './service.fixture.js'
 import { BOARD_TRACKER } from './tracker.fixture.js'
 
@@ -180,5 +180,35 @@ describe('the built-in tracker end to end', { timeout: 120_000 }, () => {
     expect(launches).toEqual(['ABC-1', 'ABC-2'])
     expect(await statusOf(1)).toBe('Done')
     expect(run.board.status('ABC-1')).toBe('Todo')
+  })
+
+  it('switches an import past a released task: it stays released, and its Done on the built-in tracker cleans up after it (BTN-1459)', async () => {
+    const released = () => run.service.dispatcher.state.released[PROJECT_ID] ?? []
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', ends({ say: 'Half of it' }))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.state === 'done', 'the turn of ABC-1 ended')
+    await run.post('chain/stop', { project: PROJECT_ID })
+    await run.until(() => released().includes('ABC-1'), 'ABC-1 released')
+
+    await run.post('builtin/import/plan', { project: PROJECT_ID })
+    await run.post('builtin/import/start', { project: PROJECT_ID, authors: [] })
+    let checked = false
+    await run.until(() => {
+      void run.service.db.query<{ checked: string | null }>('select checked from tracker_imports').then(({ rows }) => (checked = rows[0]?.checked != null))
+      return checked
+    }, 'the import finished and checked')
+    expect(await run.answer('builtin/import/switch', { project: PROJECT_ID })).toEqual({ key: 'ABC', renamed: 0 })
+    expect(run.service.configStore.current.trackers[PROJECT_ID]).toBe('builtin')
+    expect(released()).toEqual(['ABC-1'])
+    expect(run.git('worktree', 'list').split('\n')).toHaveLength(2)
+
+    const store = new BuiltinStore(run.service.db)
+    const key = { project: PROJECT_ID, number: 1 }
+    await store.edit(key, { field: 'status', from: (await store.get(key))!.status.name, to: 'Done' })
+    await run.until(() => !released().includes('ABC-1'), 'ABC-1 cleaned up after on the built-in tracker')
+    expect(run.git('worktree', 'list').split('\n')).toHaveLength(1)
+    expect(run.board.status('ABC-1')).not.toBe('Done')
   })
 })

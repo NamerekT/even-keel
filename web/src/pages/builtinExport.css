@@ -273,6 +273,15 @@
   padding-left: var(--space-16);
 }
 
+/* The held switch's tasks (BTN-1459): each id in a reason's text is a link to its card. */
+.transfer__refusal-task {
+  color: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* The check (BTN-1291): two number columns and a mark; a row short of something is red, its figure there too. */
 .transfer__table--check th:nth-child(2),
 .transfer__table--check th:nth-child(3) {

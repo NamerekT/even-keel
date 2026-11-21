@@ -681,7 +681,8 @@ export const en = {
   'import.checkFailed': (p: { tracker: string }) => `The tasks are imported from ${p.tracker}, but Even Keel could not read them again to check the import. Start the import again to check it. Response`,
   'switch.chainRuns': () => 'its chain runs: pause or stop it',
   'switch.current': (p: { task: string }) => `the chain holds ${p.task}: skip it or let it finish`,
-  'switch.released': (p: { tasks: string[] }) => `released tasks wait for their cleanup: ${list(p.tasks)}`,
+  'switch.released': (p: { tasks: string[] }) =>
+    `released tasks keep their sessions and worktrees while they are open: ${list(p.tasks)}; let each one's session finish it, or close it with another status`,
   'switch.reviews': (p: { tasks: string[] }) => `pull requests are open for ${list(p.tasks)}: merge or close them`,
   'switch.samePrefix': (p: { prefix: string }) =>
     `The new tracker's tasks would be named ${p.prefix}-…, as the project's are now: old and new tasks of one number would mix in the history and stats. Pick another key or tracker project for the copy.`,

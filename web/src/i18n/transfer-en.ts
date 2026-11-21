@@ -107,6 +107,7 @@ export const transferEn: Messages['transfer'] = {
   done: (count, tracker) => `All ${tasks(count)} are in ${tracker}. Switch the project — the chain takes its tasks from there, and the old ones stay here marked "Moved".`,
   switchTo: (tracker) => `Switch to ${tracker}`,
   stopChain: 'Stop the chain',
+  openTaskTip: 'Open the task with its session: answer the session there, or close the task',
   movedTo: 'Moved to',
   movedTitle: (title: string, key: string) => `${title} (moved to ${key})`,
   check: 'Check',
