@@ -11,6 +11,7 @@ export const linear: TrackerAdapter = {
   mcpServer: 'linear',
   editsTasks: true,
   moves: true,
+  imports: true,
   profileName: (_values, account) => account?.name ?? 'Linear',
   account: async (values, timeoutMs) => (await import('./profile.js')).linearAccount(values, timeoutMs),
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).linearProjects(values, query, timeoutMs),

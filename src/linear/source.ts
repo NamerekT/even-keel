@@ -8,6 +8,7 @@ import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { LINEAR_PRIORITY, linearEditor, teamMilestones } from './editor.js'
 import { ESTIMATION_FIELDS, linearScale, type LinearEstimation } from './estimate.js'
+import { linearImport } from './import.js'
 import { LINEAR_UPLOADS, backlogState, linearPlace, linearStatus, milestoneOf, readyState, toCard, toTrackerTask, type LinearAttachment, type LinearCardIssue, type LinearIssue, type LinearMilestone, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
@@ -164,6 +165,8 @@ const CREATE_ISSUE = `mutation($input: IssueCreateInput!) {
   issueCreate(input: $input) { success issue { identifier } }
 }`
 
+
+const PROJECT_CREATOR = `query($id: String!) { project(id: $id) { creator { id } } }`
 
 const FILE_UPLOAD = `mutation($contentType: String!, $filename: String!, $size: Int!) {
   fileUpload(contentType: $contentType, filename: $filename, size: $size) { success uploadFile { uploadUrl assetUrl headers { key value } } }
@@ -496,6 +499,33 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       }
       const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
       return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
+    },
+
+    // The Linear project's creator is the user; a whole team names none.
+    async importSource(key) {
+      const team = await teamOf(key)
+      const { team: teamKey, project } = placeOf(key)
+      const [{ viewer }, creator] = await Promise.all([
+        graphql<{ viewer: { id: string } }>('query { viewer { id } }'),
+        team.project === undefined
+          ? null
+          : graphql<{ project: { creator: { id: string } | null } | null }>(PROJECT_CREATOR, { id: team.project }).then((data) => data.project?.creator?.id ?? null),
+      ])
+      return linearImport({
+        graphql,
+        filter: { team: { id: { eq: team.id } }, ...(team.project === undefined ? {} : { project: { id: { eq: team.project } } }) },
+        place: project === null ? teamKey : `${teamKey}/${project}`,
+        scale: linearScale(team.estimation),
+        viewer: viewer.id,
+        user: creator,
+        async download(id, link) {
+          const file = await source.file!(id, link)
+          if (file === null) return null
+          const chunks: Uint8Array[] = []
+          for await (const chunk of file.body) chunks.push(chunk)
+          return { type: file.type, bytes: new Uint8Array(Buffer.concat(chunks)) }
+        },
+      })
     },
 
     close: async () => {},

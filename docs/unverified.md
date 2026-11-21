@@ -278,6 +278,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 241 | [Keep-warm pings in Tally](unverified/sessions.md#keep-warm-pings-in-tally-btn-1413) | chain sessions with keep-warm and stats on | the pings stay out of a task's spend or count twice | BTN-1414 |
 | 242 | [The import into the built-in tracker on a live project](unverified/trackers.md#the-import-into-the-built-in-tracker-on-a-live-project-btn-1405) | projects importing their history into the built-in tracker | comments or attachments come over twice or not at all, a picture is a dead link, a clean import does not match; the source is untouched, stay on it | BTN-1407 |
 | 243 | [Reading a GitHub repository's whole history for the import](unverified/trackers.md#reading-a-github-repositorys-whole-history-for-the-import-btn-1403) | projects importing from GitHub | the read fails, pull requests come over as tasks, the change log is wrong or a picture is a dead link; the repository is untouched, stay on it | BTN-1408 |
+| 244 | [Reading a Linear project's whole history for the import](unverified/trackers.md#reading-a-linear-projects-whole-history-for-the-import-btn-1404) | projects importing from Linear | the read fails on a field Linear refuses, archived issues stay behind, the change log is wrong or a picture is a dead link; the team is untouched, stay on it | BTN-1408 |
 
 ### Waiting for the event / not checked by choice
 
