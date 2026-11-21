@@ -446,7 +446,8 @@ describe('github source', () => {
     const ID = 'b24027f6-4820-4f55-9258-d80d7b7ca8d0'
     const ASSET = `https://github.com/user-attachments/assets/${ID}`
     const SIGNED = `https://private-user-images.githubusercontent.com/1001/691051256-${ID}.png?jwt=eyJ.secret.sig`
-    const COMMENTS = 'https://api.github.com/repos/octo-org/abc/issues/7/comments?per_page=100'
+    const ISSUE = 'https://api.github.com/repos/octo-org/abc/issues/7'
+    const COMMENTS = `${ISSUE}/comments?per_page=100`
     const PAGE_2 = 'https://api.github.com/repositories/1/issues/7/comments?per_page=100&page=2'
     const png = () => new Response(new Uint8Array([137, 80, 78, 71]), { headers: { 'content-type': 'image/png', 'content-length': '4' } })
     const json = (body: unknown, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { headers })
@@ -481,16 +482,23 @@ describe('github source', () => {
       })
       const file = await source.file!('ABC-7', ASSET)
       expect(file).toMatchObject({ type: 'image/png', size: 4 })
-      expect(requests.map((request) => request.url)).toEqual([ASSET, COMMENTS, PAGE_2, SIGNED])
-      expect(requests[1]!.headers).toMatchObject({ authorization: 'bearer github_pat_example', accept: 'application/vnd.github.html+json' })
-      expect(requests[3]!.headers.authorization).toBeUndefined()
+      expect(requests.map((request) => request.url)).toEqual([ASSET, ISSUE, COMMENTS, PAGE_2, SIGNED])
+      expect(requests[2]!.headers).toMatchObject({ authorization: 'bearer github_pat_example', accept: 'application/vnd.github.html+json' })
+      expect(requests[4]!.headers.authorization).toBeUndefined()
       expect(lines).toEqual([])
     })
 
-    it('logs a file no comment links signed, naming no link', async () => {
-      const { source, lines } = await connectFiles({ [COMMENTS]: () => json([{ body_html: '<p>no picture</p>' }]) })
+    it('takes the signed link from the description before the comments', async () => {
+      const { source, requests } = await connectFiles({ [ISSUE]: () => json({ body_html: `<p><img src="${SIGNED}"></p>` }), [SIGNED]: png })
+      expect(await source.file!('ABC-7', ASSET)).toMatchObject({ type: 'image/png', size: 4 })
+      expect(requests.map((request) => request.url)).toEqual([ASSET, ISSUE, SIGNED])
+      expect(requests[1]!.headers).toMatchObject({ authorization: 'bearer github_pat_example', accept: 'application/vnd.github.html+json' })
+    })
+
+    it('logs a file no text links signed, naming no link', async () => {
+      const { source, lines } = await connectFiles({ [ISSUE]: () => json({ body_html: '<p>no picture</p>' }), [COMMENTS]: () => json([{ body_html: '<p>no picture</p>' }]) })
       expect(await source.file!('ABC-7', ASSET)).toBeNull()
-      expect(lines).toEqual([`github: ABC-7: the comment file ${ID} is not available: the token got no file and no comment links it signed`])
+      expect(lines).toEqual([`github: ABC-7: the comment file ${ID} is not available: the token got no file and neither the description nor a comment links it signed`])
     })
 
     it('logs a file whose signed link fails too, and comments it cannot read', async () => {

@@ -28,7 +28,7 @@ describe('formsOf', () => {
     expect(trackerChoices()).toEqual([
       { name: 'builtin', title: 'Even Keel', projectKey: null },
       { name: 'huly', title: 'Huly', projectKey: { key: 'huly', example: 'ABC', optional: true, alias: true }, imports: true },
-      { name: 'github', title: 'GitHub', projectKey: { key: 'github', example: 'octo-org/example', optional: false, alias: false } },
+      { name: 'github', title: 'GitHub', projectKey: { key: 'github', example: 'octo-org/example', optional: false, alias: false }, imports: true },
       { name: 'linear', title: 'Linear', projectKey: { key: 'linear', example: 'Web app', optional: true, alias: false } },
       { name: 'gitlab', title: 'GitLab', projectKey: { key: 'gitlab', example: 'group/subgroup/project', optional: false, alias: false } },
       { name: 'jira', title: 'Jira', projectKey: null },

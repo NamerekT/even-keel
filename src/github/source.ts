@@ -6,6 +6,7 @@ import { parseTaskId, type TaskStatus, type TextEdit, type TrackerTask } from '.
 import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubAuthored, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
 import { githubEditor } from './editor.js'
+import { githubImport } from './import.js'
 import { EDITS, textEditOf, type GithubEdits } from './edits.js'
 import { Skipped, trustedAuthor } from './trust.js'
 import { nextPage, signedLink, uploadId, UPLOADS } from './uploads.js'
@@ -241,18 +242,29 @@ export async function connectGithub(
     return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
   }
 
-  /** The signed link of an upload in the `body_html` of the task's comments, read now: a signed link lives minutes. */
+  /**
+   * The signed link of an upload in the `body_html` of the task's description or its comments, read now: a signed link
+   * lives minutes. A description it cannot read leaves the comments to look in.
+   */
   async function signedUpload(id: string, upload: string): Promise<{ link: string } | { reason: string }> {
     const parsed = parseTaskId(id)
     if (parsed === null) return { reason: `${id} is not a task id` }
     const repo = repoOfTasks(parsed.project)
     const issue = `${repo.owner}/${repo.name}#${parsed.number}`
-    let page: string | null = `https://api.github.com/repos/${repo.owner}/${repo.name}/issues/${parsed.number}/comments?per_page=100`
-    while (page !== null) {
-      const response = await trackedFetch(fetchImpl, page, {
+    const base = `https://api.github.com/repos/${repo.owner}/${repo.name}/issues/${parsed.number}`
+    const html = (url: string, path: string) =>
+      trackedFetch(fetchImpl, url, {
         headers: { authorization: `bearer ${settings.token}`, accept: 'application/vnd.github.html+json', 'user-agent': 'even-keel' },
         signal: AbortSignal.timeout(timeoutMs),
-      }, '/repos/issues/comments')
+      }, path)
+    const own = await html(base, '/repos/issues')
+    if (own.ok) {
+      const link = signedLink(((await own.json()) as { body_html?: string }).body_html ?? '', upload)
+      if (link !== null) return { link }
+    } else await own.body?.cancel()
+    let page: string | null = `${base}/comments?per_page=100`
+    while (page !== null) {
+      const response = await html(page, '/repos/issues/comments')
       if (!response.ok) {
         await response.body?.cancel()
         return { reason: `the comments of ${issue} got HTTP ${response.status}` }
@@ -263,7 +275,7 @@ export async function connectGithub(
       }
       page = nextPage(response.headers.get('link'))
     }
-    return { reason: 'the token got no file and no comment links it signed' }
+    return { reason: 'the token got no file and neither the description nor a comment links it signed' }
   }
 
   /** The text changes of outsiders' open issues by task id (BTN-1124), read apart: an outsider's issue is rare, the history is long. */
@@ -544,6 +556,22 @@ export async function connectGithub(
       } catch (error) {
         return unavailable((error as Error).message)
       }
+    },
+
+    async importSource(project) {
+      return githubImport({
+        graphql,
+        repo: repoOf(project),
+        repos,
+        viewer: viewer.login,
+        async download(id, link) {
+          const file = await source.file!(id, link)
+          if (file === null) return null
+          const chunks: Uint8Array[] = []
+          for await (const chunk of file.body) chunks.push(chunk)
+          return { type: file.type, bytes: new Uint8Array(Buffer.concat(chunks)) }
+        },
+      })
     },
 
     close: async () => {},

@@ -306,7 +306,7 @@ The switch keeps a report of the transfer: the plan with what did not move, the 
 
 #### Moving from a real tracker
 
-To bring a project's tasks into the built-in tracker, open its **Settings** → **Tracker** and press **Move to the built-in tracker**. For now Huly gives its whole history; for the other trackers the button is dimmed and its tip says the import comes in a later release.
+To bring a project's tasks into the built-in tracker, open its **Settings** → **Tracker** and press **Move to the built-in tracker**. For now Huly and GitHub give their whole history (GitHub's issues, not its pull requests); for the other trackers the button is dimmed and its tip says the import comes in a later release.
 
 The window reads the whole project, closed tasks too, and counts what will move — tasks, comments, attachments, links, milestones, labels, components and changes — shows which status each of the tracker's statuses becomes, and lists what stays behind: links and parents in other projects, time reports, and the change history where the tracker gives none.
 
