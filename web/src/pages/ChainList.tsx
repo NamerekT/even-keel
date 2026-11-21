@@ -31,7 +31,7 @@ import { BlockTail } from './BlockTail.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import './chain.css'
 import { ChangelogButton } from './ChangelogDialog.js'
-import { Divider } from './ChainDivider.js'
+import { ArchiveCounts, Divider, HiddenCount } from './ChainDivider.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
 import { useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
@@ -170,7 +170,7 @@ export function ChainList(props: Props) {
               {archive.hidden > 0 && (
                 <Divider
                   name={t.chain.archive}
-                  count={t.chain.archived(archive.hidden - archive.hiddenFixes, archive.hiddenFixes)}
+                  count={<ArchiveCounts tasks={archive.hidden - archive.hiddenFixes} fixes={archive.hiddenFixes} />}
                   hidden
                   bump={motion.bump ?? undefined}
                   toggle={{ expanded: false, title: t.chain.openArchive, run: () => setPages(1) }}
@@ -186,7 +186,7 @@ export function ChainList(props: Props) {
                 count={
                   archive.hidden > 0
                     ? t.chain.archiveShown(archive.shown, archive.shown + archive.hidden)
-                    : t.chain.archived(archive.shown - archive.shownFixes, archive.shownFixes)
+                    : <ArchiveCounts tasks={archive.shown - archive.shownFixes} fixes={archive.shownFixes} />
                 }
                 bump={motion.bump ?? undefined}
                 toggle={{ expanded: true, title: t.chain.foldArchive, run: collapseArchive }}
@@ -300,7 +300,7 @@ export function ChainList(props: Props) {
       {view.next !== null && (
         <Divider
           name={view.next.milestone ?? t.chain.noMilestone}
-          count={t.chain.hidden(t.chain.tasks(openCount(view.next, ghost)))}
+          count={<HiddenCount tasks={openCount(view.next, ghost)} />}
           hidden
           toggle={{ expanded: false, title: t.chain.nextMilestone, run: () => setRevealed(view.revealed + 1) }}
         />
@@ -723,7 +723,7 @@ function CheckIcon() {
 function priorityTitle(block: ChainBlock, number: number | undefined): string | undefined {
   if (block.priority === 'none' || block.priority === 'medium') return undefined
   const title = `${t.card.priority}: ${t.card.priorities[block.priority]}`
-  return block.priority === 'urgent' && number !== undefined ? `${title} · #${number}` : title
+  return block.priority === 'urgent' && number !== undefined ? `${title}\n${t.chain.place(number)}` : title
 }
 
 function relativesOf(blocks: ChainBlock[], id: string | null): Relatives | null {

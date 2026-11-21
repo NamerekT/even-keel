@@ -7,6 +7,7 @@ import { AnswerNotice, loadedData, useStatsAnswer, type Loaded } from '../stats/
 import { formatDuration, formatShare, formatUsd, weeklyLimit } from '../stats/format.js'
 import { chartData } from '../stats/history.js'
 import { formatDay, formatRange, localDay, resolvePeriod } from '../stats/period.js'
+import { ClockIcon } from '../ui/icons.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { keptTasks, stripTasks, type StripMemory, type StripTasks } from './stripTasks.js'
@@ -105,7 +106,12 @@ function TaskFacts({ tasks: { median, top }, onCard }: { tasks: StripTasks; onCa
           <dd>
             <Tipped tip={t.strip.medianTip(median.count, DAYS)} inline>
               {formatUsd(median.cost)}
-              {median.activeS !== null && <span className="strip__since"> · {formatDuration(median.activeS)}</span>}
+              {median.activeS !== null && (
+                <span className="strip__since strip__time">
+                  <ClockIcon />
+                  {formatDuration(median.activeS)}
+                </span>
+              )}
             </Tipped>
           </dd>
         </div>

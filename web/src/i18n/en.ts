@@ -322,8 +322,9 @@ export const en: Messages = {
     paused: 'paused',
     queued: 'queued',
     idle: 'not started',
-    position: (position: number) => `#${position}`,
+    position: (position: number) => `Place in the queue: ${position}`,
     waiting: 'waiting',
+    waitsFor: (what: string) => `Waiting for: ${what}`,
     waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', model: 'model week', gateway: 'MCP gateway', packages: 'packages', slot: 'slot', folder: 'folder' },
   },
   lamp: {
@@ -351,7 +352,7 @@ export const en: Messages = {
     label: (value: string) => `cache ${value}`,
   },
   context: {
-    of: (tokens: string, window: string, percent: number) => `${tokens} of ${window} · ${percent}%`,
+    of: (tokens: string, window: string, percent: number) => `${tokens} of ${window} (${percent}%)`,
     label: 'Context usage',
   },
   account: accountEn,
@@ -474,7 +475,8 @@ export const en: Messages = {
   session: sessionEn,
   changelog: {
     button: 'Changelog draft of the milestone',
-    title: (milestone: string) => `Changelog · ${milestone}`,
+    title: 'Changelog',
+    section: (milestone: string) => `Changelog of ${milestone}`,
     writing: "The agent is writing the draft from the milestone's closed tasks — this takes a minute or two.",
     counts: (done: number, open: number) =>
       open === 0 ? `From ${tasks(done)} in Done.` : `From ${tasks(done)} in Done; ${tasks(open)} still open — not in the draft.`,
@@ -510,6 +512,9 @@ export const en: Messages = {
     sinceTip: 'Done tasks of the milestone closed after its changelog was last written',
     tokens: (amount: string) => `${amount} tokens`,
     spentAll: (total: string) => `${total} in all`,
+    spendAccount: 'Account',
+    spendModel: 'Model',
+    spendTime: 'Time',
     tokensDetail: (input: string, output: string, cacheRead: string, cacheWrite: string) =>
       `Tokens: ${input} in, ${output} out, ${cacheRead} read from cache, ${cacheWrite} written to cache`,
     paidByLimits: "Spent from the account's 5-hour and weekly limits; the dollars are at API prices.",

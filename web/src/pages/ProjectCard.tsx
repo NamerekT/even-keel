@@ -203,9 +203,20 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
 /** A queued chain's place where Start stands: an outline, not a dimmed primary button, which would read as a broken Start. */
 function QueuedPlace({ position, after }: { position: number; after: string | null }) {
   return (
-    <Tipped className="card__queued" tip={after === null ? undefined : t.project.after(after)} off={after === null} focusable={after !== null} inline>
+    <Tipped
+      className="card__queued"
+      tip={
+        <>
+          <span>{t.chainStatus.position(position)}</span>
+          {after !== null && <span>{t.project.after(after)}</span>}
+        </>
+      }
+      focusable
+      inline
+    >
       <ClockIcon />
-      {`${t.project.inQueue} · ${t.chainStatus.position(position)}`}
+      {t.project.inQueue}
+      <span className="count-badge">{position}</span>
     </Tipped>
   )
 }

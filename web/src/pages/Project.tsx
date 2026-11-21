@@ -591,7 +591,10 @@ function ChainControls({
           </div>
           <div className="field-strip__room">
             <Tipped tip={line.tip} off={line.tip === null} focusable={line.tip !== null} align="end" className={`chip chip--${line.kind} field-strip__line project__state`}>
-              <Morph id={line.text}>{line.text}</Morph>
+              <Morph id={`${line.text}:${line.count ?? ''}`}>
+                {line.text}
+                {line.count !== null && <span className="count-badge">{line.count}</span>}
+              </Morph>
             </Tipped>
           </div>
         </div>
@@ -614,11 +617,19 @@ function ChainControls({
  * (`stopsOn`, `null` when no session is named), the first thing a running chain waits for, the project a queued one
  * waits behind.
  */
-function runLine(status: ChainStatus, wait: ChainWait | undefined, stopsOn: string | null | undefined, after: string | null): { kind: string; text: string; tip: ReactNode } {
-  if (status.kind === 'running' && stopsOn !== undefined) return { kind: 'stopping', text: t.project.stopping, tip: t.project.stopsAfter(stopsOn) }
+function runLine(status: ChainStatus, wait: ChainWait | undefined, stopsOn: string | null | undefined, after: string | null): { kind: string; text: string; count: number | null; tip: ReactNode } {
+  if (status.kind === 'running' && stopsOn !== undefined) return { kind: 'stopping', text: t.project.stopping, count: null, tip: t.project.stopsAfter(stopsOn) }
   if (status.kind === 'running' && wait !== undefined) {
-    return { kind: 'waiting', text: `${t.chainStatus.waiting} · ${t.chainStatus.waitFor[wait.kind]}`, tip: <WaitLine wait={wait} compact={false} /> }
+    return { kind: 'waiting', text: t.chainStatus.waiting, count: null, tip: <WaitLine wait={wait} compact={false} /> }
   }
-  if (status.kind === 'queued') return { kind: 'queued', text: `${t.chainStatus.queued} · ${t.chainStatus.position(status.position)}`, tip: after === null ? null : t.project.after(after) }
-  return { kind: status.kind, text: t.chainStatus[status.kind], tip: null }
+  if (status.kind === 'queued') {
+    const tip = (
+      <>
+        <span>{t.chainStatus.position(status.position)}</span>
+        {after !== null && <span>{t.project.after(after)}</span>}
+      </>
+    )
+    return { kind: 'queued', text: t.chainStatus.queued, count: status.position, tip }
+  }
+  return { kind: status.kind, text: t.chainStatus[status.kind], count: null, tip: null }
 }

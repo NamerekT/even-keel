@@ -158,6 +158,20 @@
   white-space: nowrap;
 }
 
+/* This turn's cost and the milestone's in all, parted by a short line (docs/design.md, "Dividers in a segmented box"). */
+.changelog__spend-part + .changelog__spend-part {
+  margin-left: var(--space-8);
+  padding-left: var(--space-8);
+  background: linear-gradient(var(--border), var(--border)) left center / 1px 12px no-repeat;
+}
+
+/* The milestone as a tag after the word (BTN-1374). */
+.changelog__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
 .changelog__foot > .changelog__reason {
   flex: 0 1 auto;
   min-width: 0;

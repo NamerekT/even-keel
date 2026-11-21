@@ -44,9 +44,19 @@
 }
 
 .chain__milestone-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
   color: var(--fg-muted);
   font-size: var(--text-12);
   font-weight: 400;
+}
+
+/* A count of the archive or a folded milestone: an icon and its grey number, the words in the title (BTN-1374). */
+.chain__count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
 }
 
 .chain__milestone--hidden {
@@ -862,6 +872,30 @@ button.block__key {
 .count-badge--work {
   background: var(--error-bg);
   color: var(--lamp-error);
+}
+
+/* A number inside a status plaque ("queued (2)", "uncommitted (49)"): a smaller pill a space after the word, tinted by
+   the plaque's own text so it reads on any fill or outline. */
+.chip:has(> .count-badge) {
+  display: inline-flex;
+  align-items: center;
+}
+
+.chip .count-badge {
+  min-width: 14px;
+  height: 14px;
+  margin-left: var(--space-4);
+  padding: 0 4px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  color: inherit;
+  font-size: var(--text-11);
+}
+
+@supports (text-box: trim-both cap alphabetic) {
+  .chip .count-badge {
+    height: auto;
+    padding-block: calc((14px - 1cap) / 2);
+  }
 }
 
 .chip--link {

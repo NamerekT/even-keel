@@ -94,7 +94,7 @@ export function ContextFact({ label, tokens, window, scale, wide = false }: { la
   return (
     <Fact label={label} wide={wide} tone={contextFill(tokens, scale, window).level} className="panel__inline panel__context">
       <dd>
-        <ContextMeter tokens={tokens} window={window} scale={scale} full />
+        <ContextMeter tokens={tokens} window={window} scale={scale} />
       </dd>
     </Fact>
   )

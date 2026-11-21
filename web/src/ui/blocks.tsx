@@ -121,11 +121,15 @@ export function Fact({ label, children, tone = 'ok', wide = false, className }: 
 
 export type BandTone = 'note' | 'warn' | 'error'
 
-/** A compact warning summary; its action stays reachable while the list is folded. */
-export function FoldBand({ title, summary, action, children }: { title: string; summary: string; action?: ReactNode; children: ReactNode }) {
+/**
+ * A compact warning summary; its action stays reachable while the list is folded. Several summaries stand apart, a
+ * short line between them, never glued (BTN-1374).
+ */
+export function FoldBand({ title, summary, action, children }: { title: string; summary: string | readonly string[]; action?: ReactNode; children: ReactNode }) {
+  const parts = typeof summary === 'string' ? [summary] : summary
   return (
     <Fold className="ui-fold-band" summaryClassName="ui-fold-band__toggle"
-      summary={<><strong>{title}</strong><span className="ui-fold-band__summary">{summary}</span></>}
+      summary={<><strong>{title}</strong><span className="ui-fold-band__summary">{parts.map((part) => <span key={part} className="ui-fold-band__part">{part}</span>)}</span></>}
       header={(toggle) => <Band tone="warn" action={action}>{toggle}</Band>}
     >
       <div className="ui-fold-band__content">{children}</div>

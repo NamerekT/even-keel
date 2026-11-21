@@ -34,7 +34,10 @@ export function WorkChip({ work, leftovers }: { work: TaskWork; leftovers?: Noti
   )
   return (
     <Tipped tip={tip} inline focusable className="work-tip">
-      <span className="chip chip--work">{work.files > 0 ? t.chain.work.uncommitted(work.files) : t.chain.work.unmerged(work.ahead)}</span>
+      <span className="chip chip--work">
+        {work.files > 0 ? t.chain.work.uncommitted : t.chain.work.unmerged}
+        <span className="count-badge">{work.files > 0 ? work.files : work.ahead}</span>
+      </span>
     </Tipped>
   )
 }

@@ -325,8 +325,9 @@ export const ru = {
     paused: 'пауза',
     queued: 'в очереди',
     idle: 'не запущена',
-    position: (position: number) => `${position}-я`,
+    position: (position: number) => `Место в очереди: ${position}`,
     waiting: 'ждёт',
+    waitsFor: (what: string) => `Ждёт: ${what}`,
     waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', model: 'неделя модели', gateway: 'шлюз MCP', packages: 'пакеты', slot: 'слот', folder: 'папка' },
   },
   lamp: {
@@ -354,7 +355,7 @@ export const ru = {
     label: (value: string) => `кэш ${value}`,
   },
   context: {
-    of: (tokens: string, window: string, percent: number) => `${tokens} из ${window} · ${percent}%`,
+    of: (tokens: string, window: string, percent: number) => `${tokens} из ${window} (${percent}%)`,
     label: 'Заполнение контекста',
   },
   account: accountRu,
@@ -481,7 +482,8 @@ export const ru = {
   session: sessionRu,
   changelog: {
     button: 'Черновик changelog по вехе',
-    title: (milestone: string) => `Changelog · ${milestone}`,
+    title: 'Changelog',
+    section: (milestone: string) => `Changelog вехи ${milestone}`,
     writing: 'Агент пишет черновик по закрытым задачам вехи — это займёт минуту-другую.',
     counts: (done: number, open: number) =>
       open === 0 ? `По ${tasks(done)} в Done.` : `По ${tasks(done)} в Done; ещё открыто: ${tasks(open)} — в черновик не вошли.`,
@@ -517,6 +519,9 @@ export const ru = {
     sinceTip: 'Закрытые задачи вехи, появившиеся после последней записи ченджлога',
     tokens: (amount: string) => `${amount} токенов`,
     spentAll: (total: string) => `всего ${total}`,
+    spendAccount: 'Аккаунт',
+    spendModel: 'Модель',
+    spendTime: 'Время',
     tokensDetail: (input: string, output: string, cacheRead: string, cacheWrite: string) =>
       `Токены: ${input} на вход, ${output} на выход, ${cacheRead} из кэша, ${cacheWrite} в кэш`,
     paidByLimits: 'Списано с 5-часового и недельного лимитов аккаунта; доллары — по ценам API.',

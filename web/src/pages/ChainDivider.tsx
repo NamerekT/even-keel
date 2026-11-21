@@ -1,8 +1,35 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { t } from '../i18n/index.js'
+import { CheckIcon, HammersIcon, HiddenIcon } from '../ui/icons.js'
+
+/** A count of the line as an icon and a grey `.count-badge`, its words in the title and for a reader (BTN-1374). */
+function CountMark({ icon, count, label }: { icon: ReactNode; count: number; label: string }) {
+  return (
+    <span className="chain__count" role="img" aria-label={label} title={label}>
+      {icon}
+      <span className="count-badge">{count}</span>
+    </span>
+  )
+}
+
+/** The archive's closed tasks and fixes of main, each its own mark; a kind with none is left out. */
+export function ArchiveCounts({ tasks, fixes }: { tasks: number; fixes: number }) {
+  return (
+    <>
+      {tasks > 0 && <CountMark icon={<CheckIcon />} count={tasks} label={t.chain.tasks(tasks)} />}
+      {fixes > 0 && <CountMark icon={<HammersIcon />} count={fixes} label={t.chain.fixes(fixes)} />}
+    </>
+  )
+}
+
+/** A folded milestone's open tasks. */
+export function HiddenCount({ tasks }: { tasks: number }) {
+  return <CountMark icon={<HiddenIcon />} count={tasks} label={t.chain.hidden(t.chain.tasks(tasks))} />
+}
 
 interface DividerProps {
   name: string
-  count: string
+  count: ReactNode
   hidden?: boolean
   /** The delay before the count bumps as a closed task folds into the line. */
   bump?: number

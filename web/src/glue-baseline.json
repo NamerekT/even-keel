@@ -1,16 +1,4 @@
 {
-  "i18n/en.ts": 2,
   "i18n/project-forms-en.ts": 1,
-  "i18n/project-forms-ru.ts": 1,
-  "i18n/ru.ts": 2,
-  "i18n/workspace-en.ts": 4,
-  "i18n/workspace-ru.ts": 4,
-  "pages/ChainList.tsx": 1,
-  "pages/ChangelogDialog.tsx": 2,
-  "pages/Project.tsx": 2,
-  "pages/ProjectCard.tsx": 1,
-  "pages/ProjectNotices.tsx": 1,
-  "pages/StatsStrip.tsx": 1,
-  "ui/ContextMeter.tsx": 1,
-  "ui/StatusChip.tsx": 2
+  "i18n/project-forms-ru.ts": 1
 }

@@ -235,6 +235,12 @@
   white-space: nowrap;
 }
 
+.ui-fold-band__part + .ui-fold-band__part {
+  margin-left: var(--space-8);
+  padding-left: var(--space-8);
+  background: linear-gradient(var(--border), var(--border)) left center / 1px 12px no-repeat;
+}
+
 .ui-fold-band__content { padding-top: var(--space-8); }
 
 /* Command: a code block of its own inside a band or a card, the copy button in its top right corner. */

@@ -34,7 +34,7 @@ export function ProjectNotices({ state, project, rows, settingsOpen = false }: {
   const summary = [
     ...(tasks.length > 0 ? [t.project.cleanupSummary(tasks.slice(0, 3).join(', ') + (tasks.length > 3 ? '…' : ''))] : []),
     ...(tone !== null && tone !== 'error' ? [forwardSummary(state, project)] : []),
-  ].join(' · ')
+  ]
   const dismissAll = async () => {
     setDismissing(true)
     try {

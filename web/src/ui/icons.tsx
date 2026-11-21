@@ -222,6 +222,27 @@ export function ProjectsIcon() {
   )
 }
 
+/** A fix of a red main among the closed tasks: two crossed hammers, as the fix row's mark (`Forge`). */
+export function HammersIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m3.5 13.5 8-8M12.5 13.5l-8-8" />
+      <path d="m9.75 3.75 2.5 2.5 2-2-2.5-2.5zM6.25 3.75l-2.5 2.5-2-2 2.5-2.5z" />
+    </svg>
+  )
+}
+
+/** Something folded out of sight: a closed eye with a stroke over it. */
+export function HiddenIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2 8s2.25-4 6-4 6 4 6 4-2.25 4-6 4-6-4-6-4z" />
+      <circle cx="8" cy="8" r="1.75" />
+      <path d="M2.5 13.5 13.5 2.5" />
+    </svg>
+  )
+}
+
 /** Save: a check mark. */
 export function CheckIcon() {
   return (

@@ -7,12 +7,10 @@ interface ContextMeterProps {
   tokens: number
   window: number | null
   scale: ContextScale
-  full?: boolean
-  /** Only the percent, for the chain's row: the tokens are in its tip. */
-  brief?: boolean
 }
 
-export function ContextMeter({ tokens, window, scale, full = false, brief = false }: ContextMeterProps) {
+/** The bar, then the percent and "61k / 250k" as two cells of the box, each after a short divider (BTN-1374). */
+export function ContextMeter({ tokens, window, scale }: ContextMeterProps) {
   const { percent, level } = contextFill(tokens, scale, window)
   if (window === null || percent === null) {
     return (
@@ -22,12 +20,6 @@ export function ContextMeter({ tokens, window, scale, full = false, brief = fals
       </div>
     )
   }
-  const value = full
-    ? t.context.of(formatTokens(tokens), formatTokens(window), Math.round(percent))
-    : brief
-      ? `${Math.round(percent)}%`
-      : `${Math.round(percent)}% · ${formatTokens(tokens)}`
-
   return (
     <div className={`context-meter context-meter--${level}`}>
       <span
@@ -40,7 +32,8 @@ export function ContextMeter({ tokens, window, scale, full = false, brief = fals
       >
         <span className="context-meter__fill" style={{ width: `${percent}%` }} />
       </span>
-      <span className="context-meter__value">{value}</span>
+      <span className="context-meter__value">{`${Math.round(percent)}%`}</span>
+      <span className="context-meter__value">{`${formatTokens(tokens)} / ${formatTokens(window)}`}</span>
     </div>
   )
 }

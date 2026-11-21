@@ -758,6 +758,14 @@
   line-height: var(--strip-label);
 }
 
+/* The median task's time, a cell of its own after its cost: a clock and the figure (BTN-1374). */
+.strip__time {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: var(--space-12);
+}
+
 .strip__spark {
   flex: 1;
   display: flex;

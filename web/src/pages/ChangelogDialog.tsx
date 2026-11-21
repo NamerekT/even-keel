@@ -19,6 +19,7 @@ import { DiffLines } from '../ui/DiffLines.js'
 import { ChangelogIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
+import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
 import '../stats/overview.css'
 import '../tools/addPackage.css'
@@ -167,8 +168,9 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
     >
       <div className="add-package__frame">
         <header className="add-package__head">
-          <h2 id={title} className="add-package__title">
-            {t.changelog.title(milestone)}
+          <h2 id={title} className="add-package__title changelog__title">
+            {t.changelog.title}
+            <span className="tag">{milestone}</span>
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={onClose}>
             ×
@@ -218,11 +220,11 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
                     {frozen !== null ? t.changelog.releasedNone(view.released ?? '') : t.changelog.none(start?.done ?? 0)}
                   </div>
                 ) : look === 'preview' ? (
-                  <div className="changelog__text changelog__preview" role="document" aria-label={t.changelog.title(milestone)} tabIndex={0}>
+                  <div className="changelog__text changelog__preview" role="document" aria-label={t.changelog.section(milestone)} tabIndex={0}>
                     <SessionMarkdown text={text} />
                   </div>
                 ) : (
-                  <Section lines={diffSection(frozen !== null ? text : (version?.base ?? null), text)} label={t.changelog.title(milestone)} />
+                  <Section lines={diffSection(frozen !== null ? text : (version?.base ?? null), text)} label={t.changelog.section(milestone)} />
                 )}
                 {version !== null && frozen === null && (
                   <textarea
@@ -327,18 +329,18 @@ const costText = (cost: number | null, tokens: TokenTotals) => (cost !== null ? 
 function Spend({ spend, spent, accounts }: { spend: ChangelogSpend | null; spent: ChangelogSpent; accounts: AccountEntry[] }) {
   const entry = spend === null ? undefined : accounts.find((each) => each.key === spend.account)
   const total = spent.unpriced === spent.turns ? costText(null, spent.tokens) : formatUsd(spent.cost)
-  const label = [spend === null ? '' : costText(spend.cost, spend.tokens), spent.turns > 1 || spend === null ? t.changelog.spentAll(total) : '']
-    .filter((part) => part !== '')
-    .join(' · ')
+  const parts = [spend === null ? '' : costText(spend.cost, spend.tokens), spent.turns > 1 || spend === null ? t.changelog.spentAll(total) : ''].filter((part) => part !== '')
   const tip = (
     <>
       {spend !== null && (
         <>
-          <span className="tip__head">
-            {[entry === undefined ? spend.account : accountName(entry, accounts), spend.model === null ? '' : shortModel(spend.model).name, formatElapsed(spend.durationMs)]
-              .filter((part) => part !== '')
-              .join(' · ')}
-          </span>
+          <TipFacts
+            rows={[
+              [t.changelog.spendAccount, entry === undefined ? spend.account : accountName(entry, accounts)],
+              spend.model === null ? null : [t.changelog.spendModel, shortModel(spend.model).name],
+              [t.changelog.spendTime, formatElapsed(spend.durationMs)],
+            ]}
+          />
           <span>{t.changelog.tokensDetail(formatTokens(spend.tokens.input), formatTokens(spend.tokens.output), formatTokens(spend.tokens.cacheRead), formatTokens(spend.tokens.cacheWrite))}</span>
           <span>{entry?.apiKey === true ? t.changelog.paidByKey : spend.cost === null ? t.changelog.paidByLimitsNoCost : t.changelog.paidByLimits}</span>
         </>
@@ -349,7 +351,11 @@ function Spend({ spend, spent, accounts }: { spend: ChangelogSpend | null; spent
   )
   return (
     <Tipped tip={tip} inline focusable align="start" className="changelog__spend">
-      {label}
+      {parts.map((part) => (
+        <span key={part} className="changelog__spend-part">
+          {part}
+        </span>
+      ))}
     </Tipped>
   )
 }
