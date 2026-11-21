@@ -121,7 +121,14 @@ function authorsOf(body: Record<string, unknown>): ImportAuthorChoice[] {
 
 function targetOf(body: Record<string, unknown>): ExportTargetFields {
   if (body.history !== undefined && typeof body.history !== 'boolean') throw fail('request.required', { field: 'history' })
-  return { profile: textOf(body.profile, 'profile'), place: textOf(body.place ?? '', 'place').trim(), key: textOf(body.key, 'key').trim(), ...(body.history === true ? { history: true } : {}) }
+  if (body.closed !== undefined && typeof body.closed !== 'boolean') throw fail('request.required', { field: 'closed' })
+  return {
+    profile: textOf(body.profile, 'profile'),
+    place: textOf(body.place ?? '', 'place').trim(),
+    key: textOf(body.key, 'key').trim(),
+    ...(body.history === true ? { history: true } : {}),
+    ...(body.closed === true ? { closed: true } : {}),
+  }
 }
 
 /** An attachment's upload (BTN-773): the bytes are the raw body, the task and the name are in the query. */

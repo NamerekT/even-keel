@@ -72,6 +72,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
   const [refusal, setRefusal] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const [history, setHistory] = useState(false)
+  const [closed, setClosed] = useState(false)
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -99,7 +100,9 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
   const fields = fixed ?? typed
   const shape = shapeOf(state.config.trackers.find((each) => each.name === fields.tracker))
   const tracker = state.config.trackers.find((each) => each.name === fields.tracker)?.title ?? fields.tracker
-  const target = { ...targetOf(fields), history }
+  const target = { ...targetOf(fields), history, closed }
+  /** The choices a started copy keeps (BTN-1289): its own, not the window's. */
+  const kept = fixed === null ? { history, closed } : { history: exported?.target?.history ?? false, closed: exported?.target?.closed ?? false }
   const basis = JSON.stringify(target)
   const ready = phase === 'pick' && target.profile !== '' && target.key !== ''
 
@@ -183,7 +186,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
         </header>
         <div className="add-package__body transfer__body">
           <Loading busy={phase === 'read' && refusal === null} label={t.transfer.checking} fit="block">
-            <p className="add-package__note">{phase === 'finished' ? t.transfer.done(exported!.total, tracker) : t.transfer.lead}</p>
+            <p className="add-package__note">{phase === 'finished' ? t.transfer.done(exported!.total, tracker) : kept.closed ? t.transfer.leadAll : t.transfer.lead}</p>
             <TrackerFields
               ids={(field) => `transfer-${field}`}
               state={state}
@@ -215,7 +218,8 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
                 </div>
               )}
             </TrackerFields>
-            <SwitchField className="settings__field"label={t.transfer.historySummary} hint={t.transfer.historySummaryHint} checked={fixed === null ? history : exported?.target?.history ?? false} disabled={fixed !== null || busy} onChange={setHistory} />
+            <SwitchField className="settings__field" label={t.transfer.closedTasks} hint={t.transfer.closedTasksHint} checked={kept.closed} disabled={fixed !== null || busy} onChange={setClosed} />
+            <SwitchField className="settings__field" label={t.transfer.historySummary} hint={t.transfer.historySummaryHint} checked={kept.history} disabled={fixed !== null || busy} onChange={setHistory} />
             {phase === 'pick' && plan !== null && (
               <>
                 <TransferMoves counts={plan.counts} />

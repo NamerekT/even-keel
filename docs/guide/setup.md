@@ -288,6 +288,8 @@ Pick the tracker profile and the project in it (and a key where the tracker need
 
 **Move** copies the open tasks with their statuses, parents, links, attachments and journal; closed ones stay in Even Keel.
 
+Turn on **Move the closed tasks too** to take every task, done and canceled ones as well, so the decisions and links behind finished work move with it. Trackers do not accept back-dated tasks: a closed task is created and closed on the day of the copy, and its journal starts with the dates it was created and closed in Even Keel. Everyone subscribed to the project gets a notification for each such task, and on GitHub its limits on creating issues stretch a long move over hours. Like the history switch, the choice holds for the whole copy, and **Switch** then waits for the closed tasks too.
+
 The change history does not become the tracker's own: no tracker accepts past changes through its API. Turn on **Change history as one comment** and each task gets one more comment, a table of when, who, which field and its old and new value; the choice holds for the whole copy.
 
 Every comment the copy writes, the summary too, comes from the profile's account and starts with who wrote it and when. A personal token always writes as its owner, so for the copy to write as a bot, add a profile on the bot's own token: a GitHub App, a Linear OAuth application, a GitLab project access token, a separate Huly or Forgejo account; in Jira a separate user takes a paid seat.

@@ -52,7 +52,8 @@ export function switchTracker(deps: SwitchDeps, { project, header, rows, tasks, 
   const config = deps.config()
   if (header === null || header.finishedAt === null) throw fail('switch.noCopy', { key: projectLabel(config, project) })
   const copied = new Map(rows.flatMap((row) => (row.stage === 'marked' && row.key !== null ? [[row.ref, row.key] as const] : [])))
-  const left = tasks.filter((task) => task.open && !copied.has(task.ref)).map((task) => task.id)
+  // A copy with the closed tasks (BTN-1289) waits for every task, not only the open ones.
+  const left = tasks.filter((task) => (task.open || header.closed === true) && !copied.has(task.ref)).map((task) => task.id)
   if (left.length > 0) throw fail('switch.notCopied', { tasks: left })
   // The check is frozen into the report at the switch, while the source still has what it is compared with (BTN-1291).
   if (header.checked === null || header.plan === null) throw fail('switch.noCheck', {})

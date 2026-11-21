@@ -1,8 +1,7 @@
 import { sameName } from '../chain/rules.js'
 import type { TrackerCard } from './card.js'
-import { journalEntry, keptBy, runExport, type ExportLog, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportTarget, type ExportTask, type Kept } from './export.js'
+import { journalEntry, keptBy, runExport, takes, type ExportLog, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportTarget, type ExportTask, type Kept } from './export.js'
 import type { ImportLink, ImportSource, ImportTask } from './import.js'
-import { isOpen } from './model.js'
 import { TrackerNotFound } from './source.js'
 
 /**
@@ -185,7 +184,7 @@ async function inspect(source: ExportSource, target: ExportTarget, rows: readonl
   if (read === undefined) throw new Error('the target tracker cannot read its tasks back')
   const kept = await keptBy(target)
   const byRef = new Map(rows.map((row) => [row.ref, row]))
-  const tasks = (await source.tasks()).filter((task) => byRef.get(task.ref)?.key != null || isOpen(task.status))
+  const tasks = (await source.tasks()).filter((task) => byRef.get(task.ref)?.key != null || takes(source, task))
   const refs = new Set(tasks.map((task) => task.ref))
   const refOfKey = new Map(rows.flatMap((row) => (row.key === null ? [] : [[row.key.toUpperCase(), row.ref] as const])))
   const links = new Map<string, ExportTask>()

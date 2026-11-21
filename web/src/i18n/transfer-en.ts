@@ -7,9 +7,13 @@ export const transferEn: Messages['transfer'] = {
   open: 'Move to another tracker',
   title: 'Move to another tracker',
   lead: "The project's open tasks will move to the tracker you pick.",
+  leadAll: "All the project's tasks, the closed ones too, will move to the tracker you pick.",
   leadTip:
     'The tasks are copied; the old ones stay here marked "Moved". While the copy runs, the chain works with the built-in tracker. The project moves to the new tracker only when you press "Switch", once every task is copied.',
   profileHint: 'The profile names the tracker and the account the tasks are created as.',
+  closedTasks: 'Move the closed tasks too',
+  closedTasksHint:
+    "Closed tasks are created in the new tracker and closed today: trackers do not take them back-dated. Their original creation and closing dates are the first entry of each task's journal. Subscribers get a notification for each one. On GitHub, creation limits make a long move take hours. This choice stays fixed for the whole copy.",
   historySummary: 'Change history as one comment',
   historySummaryHint: 'Each task gets a table: when, who, field, before → after. The destination cannot accept native past events. This choice stays fixed for the whole copy.',
   key: 'Project key',

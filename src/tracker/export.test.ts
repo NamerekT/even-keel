@@ -19,6 +19,7 @@ const task = (number: number, fields: Partial<ExportTask> = {}): ExportTask => (
 
 class FakeSource implements ExportSource {
   marks: { ref: string; key: string; url: string | null }[] = []
+  closed = false
   constructor(
     private readonly list: ExportTask[],
     private readonly journals: Record<string, ExportComment[]> = {},
@@ -234,6 +235,25 @@ describe('exportPlan', () => {
       { name: 'In Review', category: 'Active', tasks: 1, target: { name: 'Doing', category: 'Active' } },
     ])
   })
+
+  it('with the closed tasks takes them too: no parent or link of the project is lost, their names are counted', async () => {
+    const source = new FakeSource([
+      task(1, { parent: 'r2', blocks: ['r3', 'XYZ-1'] }),
+      task(2, { status: DONE, comments: 2, labels: ['Later'] }),
+      task(3, { status: status('Canceled', 'Lost'), milestone: 'v9' }),
+    ])
+    source.closed = true
+    const plan = await exportPlan(source, target(new FakeTracker()))
+    expect(plan.tasks.map((each) => [each.id, each.status])).toEqual([['ABC-2', 'Closed'], ['ABC-3', null], ['ABC-1', 'Todo']])
+    expect(plan.counts).toMatchObject({ tasks: 3, comments: 2, blocks: 1, subtasks: 1 })
+    expect(plan.losses).toEqual([
+      { kind: 'labels', tasks: ['ABC-2'], names: ['Later'] },
+      { kind: 'milestones', tasks: ['ABC-3'], names: ['v9'] },
+      { kind: 'status', tasks: ['ABC-3'], names: ['Canceled'] },
+      { kind: 'links', tasks: ['ABC-1'], names: [] },
+    ])
+    expect(plan.statuses.map((each) => [each.name, each.tasks, each.target?.name ?? null])).toEqual([['Todo', 1, 'Todo'], ['Done', 1, 'Closed'], ['Canceled', 1, null]])
+  })
 })
 
 describe('runExport', () => {
@@ -264,6 +284,23 @@ describe('runExport', () => {
     ])
     expect([...log.saved.values()].map((row) => [row.ref, row.number, row.key, row.stage])).toEqual([['r1', 1, 'GH-1', 'marked'], ['r3', 3, 'GH-2', 'marked']])
     expect(progressOf(await log.rows())).toEqual({ tasks: 2, created: 2, linked: 2, attached: 2, journaled: 2, marked: 2 })
+  })
+
+  it('with the closed tasks creates them too, parents first, in the status of their category', async () => {
+    const source = new FakeSource(tasks(), { r2: [note('Done it')] })
+    source.closed = true
+    const tracker = new FakeTracker()
+    const log = new MemoryLog()
+    await runExport({ source, target: target(tracker), log })
+    expect(tracker.created.map((each) => [each.draft.title, each.draft.status, each.draft.parent])).toEqual([
+      ['Task 1', 'Todo', null],
+      ['Task 2', 'Closed', null],
+      ['Task 9', null, null],
+      ['Task 3', 'Doing', 'GH-1'],
+    ])
+    expect(tracker.links).toContainEqual({ id: 'GH-1', other: 'GH-3', link: 'blocks' })
+    expect(tracker.comments).toEqual([{ id: 'GH-2', body: 'Person, 2026-11-10 08:05 UTC:\n\nDone it' }])
+    expect(source.marks.map((each) => each.ref)).toEqual(['r1', 'r2', 'r9', 'r3'])
   })
 
   it('a finished export run again creates and writes nothing', async () => {

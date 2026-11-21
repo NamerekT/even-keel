@@ -32,10 +32,11 @@ export class ExportRecords {
       started_at: string
       finished_at: string | null
       history_summary: boolean | null
+      closed_tasks: boolean | null
       source_key: string | null
       plan: string | null
       checked: string | null
-    }>('select profile, place, key, started_at, finished_at, history_summary, source_key, plan, checked from tracker_exports where project_id = $1', [project])
+    }>('select profile, place, key, started_at, finished_at, history_summary, closed_tasks, source_key, plan, checked from tracker_exports where project_id = $1', [project])
     const row = rows[0]
     if (row === undefined) return null
     return {
@@ -43,6 +44,7 @@ export class ExportRecords {
       place: row.place,
       key: row.key,
       history: row.history_summary === true,
+      closed: row.closed_tasks === true,
       startedAt: row.started_at,
       finishedAt: row.finished_at,
       sourceKey: row.source_key,
@@ -68,12 +70,12 @@ export class ExportRecords {
     return inTransaction(this.db, async (tx) => {
       await tx.query('delete from tracker_export_tasks where project_id = $1', [project])
       await tx.query(
-        `insert into tracker_exports (project_id, profile, place, key, started_at, finished_at, source_key, history_summary)
-           values ($1, $2, $3, $4, $5, null, (select key from projects where id = $1), $6)
+        `insert into tracker_exports (project_id, profile, place, key, started_at, finished_at, source_key, history_summary, closed_tasks)
+           values ($1, $2, $3, $4, $5, null, (select key from projects where id = $1), $6, $7)
            on conflict (project_id) do update set profile = excluded.profile, place = excluded.place, key = excluded.key,
              started_at = excluded.started_at, finished_at = null, source_key = excluded.source_key, history_summary = excluded.history_summary,
-             plan = null, checked = null`,
-        [project, target.profile, target.place, target.key, this.now().toISOString(), target.history ?? false],
+             closed_tasks = excluded.closed_tasks, plan = null, checked = null`,
+        [project, target.profile, target.place, target.key, this.now().toISOString(), target.history ?? false, target.closed ?? false],
       )
     })
   }

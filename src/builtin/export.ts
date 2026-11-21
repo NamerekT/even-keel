@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises'
 import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
 import type { EventDraft, EventLevel, EventPlace } from '../event-log/model.js'
 import type { Db } from '../storage/database.js'
-import { exportPlan, progressOf, runExport, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportState } from '../tracker/export.js'
+import { exportPlan, progressOf, runExport, takes, type ExportComment, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportState } from '../tracker/export.js'
+import type { TaskChange } from '../tracker/history.js'
 import type { OpenedExportTarget } from '../tracker/export-target.js'
 import { errorText } from '../tracker/link.js'
 import type { TrackerPlace } from '../tracker/source.js'
@@ -17,8 +18,18 @@ import { BuiltinNames } from './source.js'
 import { BuiltinStore, type TaskKey } from './store.js'
 import { historySummary } from '../tracker/history-export.js'
 
-/** A built-in project's tasks as the copy reads them; a task is named by its row id. */
-export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, project: string, files?: BuiltinFiles, history = false): ExportSource {
+/** What the copy takes besides a task's fields and journal: the history as one summary, the closed tasks (BTN-1289). */
+export interface BuiltinExportOptions {
+  files?: BuiltinFiles
+  history?: boolean
+  closed?: boolean
+}
+
+/**
+ * A built-in project's tasks as the copy reads them; a task is named by its row id. With `closed`, a closed task's
+ * journal starts with its dates here: the target creates and closes the copy today.
+ */
+export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, project: string, { files, history = false, closed = false }: BuiltinExportOptions = {}): ExportSource {
   let ids: Promise<Map<number, string>> | undefined
   const idsOf = () => (ids ??= store.rowIds(project))
   const keyOf = async (ref: string): Promise<TaskKey> => {
@@ -28,6 +39,7 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
   /** The journal without the copy's own "Moved to" notes: they stay behind, neither copied nor counted by the check. */
   const journalOf = async (task: TaskKey) => (await store.comments(task)).filter((each) => !(each.author === 'service' && each.body.startsWith('Moved to ')))
   return {
+    closed,
     async tasks() {
       const map = await idsOf()
       const refOf = (key: TaskKey) => (key.project === project ? (map.get(key.number) ?? names.name(key)) : names.name(key))
@@ -49,16 +61,19 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
           blocks: task.blocks.map(refOf),
           related: task.related.map(refOf),
           files: (await store.files(task)).length,
-          comments: (await journalOf(task)).length + (history && (await store.history(task)).length > 0 ? 1 : 0),
+          comments: (await journalOf(task)).length + (history && (await store.history(task)).length > 0 ? 1 : 0) + (closed && !isOpen(task.status) ? 1 : 0),
           history: (await store.history(task)).length,
         })),
       )
     },
     async comments(ref) {
       const task = await keyOf(ref)
-      const comments = (await journalOf(task)).map((each) => ({ author: each.author, model: each.model, body: each.body, at: each.at }))
-      const changes = history ? await store.history(task) : []
+      const comments: ExportComment[] = (await journalOf(task)).map((each) => ({ author: each.author, model: each.model, body: each.body, at: each.at }))
+      const all = history || closed ? await store.history(task) : []
+      const changes = history ? all : []
       if (changes.length > 0) comments.push({ author: 'service', model: null, body: historySummary(changes), at: new Date(Math.max(...changes.map((each) => each.at))).toISOString() })
+      const card = closed ? await store.get(task) : null
+      if (card != null && !isOpen(card.status)) comments.unshift(datesEntry(card.createdAt, closedAt(all) ?? card.updatedAt))
       return comments
     },
     async files(ref) {
@@ -77,6 +92,18 @@ export function builtinExportSource(store: BuiltinStore, names: BuiltinNames, pr
       await store.comment(task, 'service', body)
     },
   }
+}
+
+/** The time of the task's last change of status; `null` — its history does not go back that far. */
+function closedAt(changes: readonly TaskChange[]): string | null {
+  const last = changes.findLast((each) => each.field === 'status')
+  return last === undefined ? null : new Date(last.at).toISOString()
+}
+
+/** The first entry of a closed task's copied journal: when it was created and closed here, in UTC as `journalEntry`. */
+function datesEntry(created: string, closed: string): ExportComment {
+  const utc = (at: string) => new Date(at).toISOString().slice(0, 16).replace('T', ' ')
+  return { author: 'service', model: null, body: `Created ${utc(created)} UTC, closed ${utc(closed)} UTC in the built-in tracker.`, at: closed }
 }
 
 export type { ExportState }
@@ -122,7 +149,7 @@ export class BuiltinExports {
   }
 
   async plan(project: string, fields: ExportTargetFields): Promise<ExportPlan> {
-    const source = this.sourceOf(project, fields.history)
+    const source = this.sourceOf(project, fields)
     this.checkTarget(project, fields)
     const target = await this.deps.connect(project, fields)
     try {
@@ -139,7 +166,7 @@ export class BuiltinExports {
   async start(project: string, fields: ExportTargetFields): Promise<ExportState> {
     const header = await this.records.header(project)
     const same = header !== null && header.profile === fields.profile && header.place === fields.place && header.key === fields.key
-    const source = this.sourceOf(project, same ? header.history : fields.history)
+    const source = this.sourceOf(project, same ? header : fields)
     if (this.runs.has(project)) return this.state(project)
     return this.launch(project, source, this.prepare(project, source, fields), runExport)
   }
@@ -151,14 +178,14 @@ export class BuiltinExports {
   async retry(project: string): Promise<ExportState> {
     const header = await this.records.header(project)
     if (header === null) throw fail('switch.noCopy', { key: this.deps.switching?.config().keys[project] ?? project })
-    const source = this.sourceOf(project, header.history)
+    const source = this.sourceOf(project, header)
     if (this.runs.has(project)) return this.state(project)
     const prepared = (async () => {
       this.checkTarget(project, header)
       const target = await this.deps.connect(project, header)
       if (header.finishedAt !== null) await this.records.reopen(project)
       this.failures.delete(project)
-      const total = await this.total(project, await this.records.rows(project))
+      const total = await this.total(project, await this.records.rows(project), header.closed)
       this.event('info', notice('eventLog.exportContinued', { project, tracker: target.title, total }), { view: 'tracker', project })
       return target
     })()
@@ -180,12 +207,15 @@ export class BuiltinExports {
     const header = await this.records.header(project)
     const rows = await this.records.rows(project)
     return {
-      target: header === null ? null : { profile: header.profile, place: header.place, key: header.key, ...(header.history === true ? { history: true } : {}) },
+      target:
+        header === null
+          ? null
+          : { profile: header.profile, place: header.place, key: header.key, ...(header.history === true ? { history: true } : {}), ...(header.closed === true ? { closed: true } : {}) },
       running: this.runs.has(project),
       startedAt: header?.startedAt ?? null,
       finishedAt: header?.finishedAt ?? null,
       progress: progressOf(rows),
-      total: await this.total(project, rows),
+      total: await this.total(project, rows, header?.closed),
       failed: this.failures.get(project) ?? null,
       check: header?.checked ?? null,
       checkFailed: this.checkFailures.get(project) ?? null,
@@ -202,12 +232,12 @@ export class BuiltinExports {
     return this.reports.read(id)
   }
 
-  private async total(project: string, rows: readonly ExportRow[]): Promise<number> {
+  private async total(project: string, rows: readonly ExportRow[], closed = false): Promise<number> {
     const names = new BuiltinNames(this.deps.places())
     if (!names.knows(project)) return rows.length
     const store = new BuiltinStore(this.deps.db, (key) => names.name(key))
     const taken = new Set(rows.map((row) => row.number))
-    return rows.length + (await store.list([project])).filter((task) => isOpen(task.status) && !taken.has(task.number)).length
+    return rows.length + (await store.list([project])).filter((task) => takes({ closed }, task) && !taken.has(task.number)).length
   }
 
   /** The run of the project, if one goes on: tests wait for it. */
@@ -252,7 +282,7 @@ export class BuiltinExports {
         place: header.place,
         key: header.key,
         sourceKey: header.sourceKey ?? from,
-        closed: false,
+        closed: header.closed === true,
         history: header.history === true,
         startedAt: header.startedAt,
         finishedAt: header.finishedAt,
@@ -275,22 +305,24 @@ export class BuiltinExports {
     if (this.deps.switching !== undefined) checkMove(this.deps.switching, project, fields)
   }
 
-  private sourceOf(project: string, history = false): ExportSource {
+  /** The source with the choices of `fields`: a started copy's, from its header. */
+  private sourceOf(project: string, { history = false, closed = false }: Pick<ExportTargetFields, 'history' | 'closed'>): ExportSource {
     const names = new BuiltinNames(this.deps.places())
     if (!names.knows(project)) throw fail('builtin.noProject', { project })
     const store = new BuiltinStore(this.deps.db, (key) => names.name(key))
     const files = this.deps.filesDir === undefined ? undefined : new BuiltinFiles(store, this.deps.filesDir, this.say)
-    return builtinExportSource(store, names, project, files, history)
+    return builtinExportSource(store, names, project, { files, history, closed })
   }
 
-  /** The target to copy into; `null` — the copy to it is finished and every open task is there. */
+  /** The target to copy into; `null` — the copy to it is finished and every task it takes is there. */
   private async prepare(project: string, source: ExportSource, fields: ExportTargetFields): Promise<OpenedExportTarget | null> {
     const header = await this.records.header(project)
     const same = header !== null && header.profile === fields.profile && header.place === fields.place && header.key === fields.key
-    // A task filed after a finished copy goes over by its repeat (BTN-1074): the switch waits for every open one.
+    // A task filed after a finished copy goes over by its repeat (BTN-1074): the switch waits for every open one, or
+    // every one with the closed ones.
     if (same && header.finishedAt !== null) {
       const marked = new Set((await this.records.rows(project)).flatMap((row) => (row.stage === 'marked' ? [row.ref] : [])))
-      if ((await source.tasks()).every((task) => !isOpen(task.status) || marked.has(task.ref))) return null
+      if ((await source.tasks()).every((task) => !takes(source, task) || marked.has(task.ref))) return null
       await this.records.reopen(project)
     }
     // A row may stand for a task created there already: the copy goes on only with that target.
@@ -303,7 +335,7 @@ export class BuiltinExports {
       await this.records.savePlan(project, await exportPlan(source, target))
     }
     this.failures.delete(project)
-    const total = await this.total(project, await this.records.rows(project))
+    const total = await this.total(project, await this.records.rows(project), source.closed)
     const said = same
       ? notice('eventLog.exportContinued', { project, tracker: target.title, total })
       : notice('eventLog.exportStarted', { project, tracker: target.title, place: fields.place, newKey: fields.key, total })

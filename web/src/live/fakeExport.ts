@@ -60,9 +60,10 @@ export function fakeExportQuery(state: EvenKeelState, name: string, body: Record
   switch (name) {
     case 'builtin/export/plan':
       if (mode === 'prefix') throw fail('switch.samePrefix', { prefix: String(body.key ?? '') })
-      return { state, result: plan(tasks, mode) }
+      // The closed tasks switch (BTN-1289) adds the project's closed tasks to the plan.
+      return { state, result: body.closed === true ? plan(projectTasks(state, project), mode, true) : plan(tasks, mode) }
     case 'builtin/export/start': {
-      const target = { profile: String(body.profile), place: String(body.place ?? ''), key: String(body.key) }
+      const target = { profile: String(body.profile), place: String(body.place ?? ''), key: String(body.key), ...(body.closed === true ? { closed: true } : {}) }
       const ticks = run === null ? 0 : progressOf(run, tasks.length).ticks
       const failAt = tickOf(FAIL_AT, tasks.length)
       run = { target, startedAt: Date.now(), from: ticks, failAt: mode === 'failed' && ticks < failAt ? failAt : null, short: false }
@@ -84,7 +85,7 @@ export function fakeExportQuery(state: EvenKeelState, name: string, body: Record
       const check = checkOf(tasks.length, ids, run!.short)
       if (run!.short && body.anyway !== true) throw fail('switch.mismatch', {})
       const at = new Date().toISOString()
-      reports.unshift({ id: `transfer-${reports.length + 1}`, project, direction: 'export', tracker: kind, place: target.place, key: target.key, sourceKey: project, closed: false, history: false, startedAt: at, finishedAt: at, switchedAt: at, plan: plan(tasks, mode), check, matched: !run!.short })
+      reports.unshift({ id: `transfer-${reports.length + 1}`, project, direction: 'export', tracker: kind, place: target.place, key: target.key, sourceKey: project, closed: target.closed === true, history: false, startedAt: at, finishedAt: at, switchedAt: at, plan: plan(tasks, mode), check, matched: !run!.short })
       run = null
       seeded = false
       const form = state.config.projects[project]
@@ -104,7 +105,11 @@ export function withMovedRefs(card: TaskCard | null, mode: string | null): TaskC
 }
 
 function openTasks(state: EvenKeelState, project: string) {
-  return state.tasks.filter((each) => each.project === project && each.parent === null && each.status.category !== 'Won' && each.status.category !== 'Lost')
+  return projectTasks(state, project).filter((each) => each.status.category !== 'Won' && each.status.category !== 'Lost')
+}
+
+function projectTasks(state: EvenKeelState, project: string) {
+  return state.tasks.filter((each) => each.project === project && each.parent === null)
 }
 
 /** The modes that open on a copy already made. */
@@ -197,7 +202,7 @@ function seedReports(mode: string | null, project: string, tasks: EvenKeelState[
   )
 }
 
-function plan(tasks: EvenKeelState['tasks'], mode: string | null): ExportPlan {
+function plan(tasks: EvenKeelState['tasks'], mode: string | null, closed = false): ExportPlan {
   const ids = tasks.map((each) => each.id)
   const losses: ExportPlan['losses'] =
     mode === 'clean'
@@ -206,21 +211,23 @@ function plan(tasks: EvenKeelState['tasks'], mode: string | null): ExportPlan {
           { kind: 'labels', tasks: ids.slice(0, 3), names: ['UI', 'Docs'] },
           { kind: 'milestones', tasks: ids.slice(0, 2), names: ['v0.4 — выпуск'] },
           { kind: 'priority', tasks: ids.slice(1, 5), names: [] },
-          { kind: 'links', tasks: ids.slice(0, 1), names: [] },
+          // Links to closed tasks are lost only while the closed tasks stay behind (BTN-1289).
+          ...(closed ? [] : [{ kind: 'links' as const, tasks: ids.slice(0, 1), names: [] }]),
           { kind: 'history', tasks: ids.slice(0, 6), names: [] },
         ]
   const open = { name: 'Open', category: 'ToDo' } as const
+  const targetOf = (category: string) => (category === 'Won' ? ({ name: 'Done', category: 'Won' } as const) : category === 'Lost' ? ({ name: 'Canceled', category: 'Lost' } as const) : open)
   const statuses: ExportPlan['statuses'] = []
   for (const task of tasks) {
     const row = statuses.find((each) => each.name === task.status.name)
     if (row !== undefined) row.tasks += 1
-    else statuses.push({ name: task.status.name, category: task.status.category, tasks: 1, target: open })
+    else statuses.push({ name: task.status.name, category: task.status.category, tasks: 1, target: targetOf(task.status.category) })
   }
   const order = ['UnStarted', 'ToDo', 'Active', 'Won', 'Lost']
   statuses.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category))
   const count = tasks.length
   return {
-    tasks: tasks.map((each) => ({ id: each.id, title: each.title, status: open.name })),
+    tasks: tasks.map((each) => ({ id: each.id, title: each.title, status: targetOf(each.status.category).name })),
     counts: { tasks: count, comments: count * 3 + 2, files: Math.ceil(count / 3), blocks: Math.max(0, count - 2), relates: Math.floor(count / 2), subtasks: 1, milestones: 2, labels: 5 },
     statuses,
     losses,

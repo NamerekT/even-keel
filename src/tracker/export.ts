@@ -65,6 +65,13 @@ export interface ExportSource {
   files(ref: string): Promise<ExportFile[]>
   /** Notes in the old task's journal that it moved to `key`; a note there already is not written again. */
   mark(ref: string, key: string, url: string | null): Promise<void>
+  /** The copy takes the closed tasks too (BTN-1289), not only the open ones; fixed for a started copy. */
+  closed?: boolean
+}
+
+/** Whether the copy takes the task: an open one, any one where the source gives the closed ones too. */
+export function takes(source: Pick<ExportSource, 'closed'>, task: Pick<ExportTask, 'status'>): boolean {
+  return source.closed === true || isOpen(task.status)
 }
 
 export interface ExportTarget {
@@ -202,7 +209,7 @@ export function parentsFirst(tasks: ExportTask[]): ExportTask[] {
 /** What a target would get and lose: nothing is written. */
 export async function exportPlan(source: ExportSource, target: ExportTarget): Promise<ExportPlan> {
   const kept = await keptBy(target)
-  const moving = parentsFirst((await source.tasks()).filter((task) => isOpen(task.status)))
+  const moving = parentsFirst((await source.tasks()).filter((task) => takes(source, task)))
   const refs = new Set(moving.map((task) => task.ref))
   const losses: ExportLoss[] = []
   const add = (kind: ExportLossKind, which: (task: ExportTask) => boolean, names: (task: ExportTask) => string[] = () => []) => {
@@ -270,15 +277,16 @@ export interface ExportRun {
 }
 
 /**
- * Copies the project's open tasks by stages: the tasks, parents first; the links between the copied ones; the
- * attachments; the journal; the note in each old task. A failed write throws and stops it; the repeat takes each task
- * from the stage it reached. A task copied once stays in the copy even when it was closed since.
+ * Copies the project's open tasks, or all of them (`ExportSource.closed`), by stages: the tasks, parents first; the
+ * links between the copied ones; the attachments; the journal; the note in each old task. A failed write throws and
+ * stops it; the repeat takes each task from the stage it reached. A task copied once stays in the copy even when it was
+ * closed since.
  */
 export async function runExport({ source, target, log, say = () => {} }: ExportRun): Promise<void> {
   const { editor, project } = target
   const kept = await keptBy(target)
   const rows = new Map((await log.rows()).map((row) => [row.ref, row]))
-  const moving = parentsFirst((await source.tasks()).filter((task) => rows.has(task.ref) || isOpen(task.status)))
+  const moving = parentsFirst((await source.tasks()).filter((task) => rows.has(task.ref) || takes(source, task)))
   const save = async (row: ExportRow) => {
     rows.set(row.ref, row)
     await log.save(row)
@@ -373,6 +381,8 @@ export function journalEntry(comment: ExportComment): string {
 export interface ExportTargetFields {
   /** Include a single change-history summary comment per task; fixed for a started copy. */
   history?: boolean
+  /** Copy the closed tasks too (BTN-1289); fixed for a started copy. */
+  closed?: boolean
   /** The tracker profile's id. */
   profile: string
   /** The project in the tracker (`trackerProject`); empty where the tracker needs none. */
@@ -388,7 +398,7 @@ export interface ExportState {
   finishedAt: string | null
   /** How many tasks reached each stage; `tasks` — those the copy took up so far. */
   progress: ReturnType<typeof progressOf>
-  /** The tasks the copy is to take: the open ones and those it took that are closed since — the "M" of the page's "N of M". */
+  /** The tasks the copy is to take: the open ones (all, with `closed`) and those it took that are closed since — the "M" of the page's "N of M". */
   total: number
   /** Why the last run stopped; `null` — it did not, or none ran since the start of the service. */
   failed: Notice | null

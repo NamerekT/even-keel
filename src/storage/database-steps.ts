@@ -918,4 +918,9 @@ export const STEPS: readonly string[] = [
     primary key (project_id, task_ref)
   );
   `,
+  // The copy into another tracker takes the closed tasks too (BTN-1289, `docs/storage.md`); `null` — a copy begun
+  // before the step, which takes the open ones only (nullable, so that a copy of an older database's rows fits).
+  `
+  alter table tracker_exports add column closed_tasks boolean;
+  `,
 ]
