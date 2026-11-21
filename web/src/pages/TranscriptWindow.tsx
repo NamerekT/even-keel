@@ -30,6 +30,7 @@ import { useFeedPin } from './feedPin.js'
 import { ShutComposer } from './ComposerBox.js'
 import type { DraftOwner } from './useChatDraft.js'
 import { ChatStatus, useStatusFacts, type StatusFacts } from './ChatStatus.js'
+import { chatEdits } from './chatEdits.js'
 import { ChatTaskPanel, useTaskPanelOpen } from './ChatTaskPanel.js'
 import { answeredAsks } from './composerHold.js'
 import { DeliveryMark } from './DeliveryMark.js'
@@ -190,7 +191,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
       : feedEntries(all.filter((line) => line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id))))
   // The agent's last message carries the menu with "Accept as answer" and "Copy text" (BTN-1363).
   const lastText = entries?.findLastIndex((entry) => entry.kind === 'line' && entry.line.kind === 'text' && entry.line.ask === undefined && entry.line.share === undefined) ?? -1
-  const edits = editTotals(all ?? [])
+  const edits = chatEdits(state?.diffs, task, editTotals(all ?? []))
   // Files dropped anywhere on the chat window join the composer's list, not only on its small field.
   const drop = useFileDrop(chat !== undefined || foot !== undefined, (files) => composerRef.current?.attach(files))
   const loader = useLoader(error === null && lines === undefined && handing.shown === null)

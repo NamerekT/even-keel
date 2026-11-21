@@ -345,7 +345,7 @@ export function wireWorks(ctx: MachineContext): TaskWorks {
   return new TaskWorks({
     read: async (project) =>
       isPlain(ctx.configStore.current, project)
-        ? {}
+        ? { works: {}, diffs: {} }
         : worksOf(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), ctx.brief.tasksOf(project)),
     ttlMs: ctx.WORK_TTL_MS,
     now: () => Date.now(),

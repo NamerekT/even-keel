@@ -112,6 +112,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     taskSessions: allTaskSessions(ctx),
     fixes: fixEpisodes(ctx.launches).episodes,
     works: machine.works(),
+    diffs: machine.diffs(),
     context: ctx.configStore.current.context,
     configError: ctx.configStore.error ?? ctx.listenError,
     packages: ctx.packages.view(),

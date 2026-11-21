@@ -17,7 +17,7 @@ import { EffortBars } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
 import { checkpointMark, ringFacts, type RingFacts } from './contextRing.js'
 import { EditSize } from './ToolCalls.js'
-import type { EditTotal } from './toolGroups.js'
+import type { ChatEdits } from './chatEdits.js'
 import './chatStatus.css'
 
 /** What the status line knows of a session: all of it for one the state lists, its record's facts for a past one. */
@@ -78,17 +78,17 @@ export function useStatusFacts(sessionId: string, account: string | null, listed
 interface Props {
   facts: StatusFacts
   scale: ContextScale | null
-  edits: EditTotal | null
+  edits: ChatEdits | null
 }
 
 /**
- * The line under the chat's field, what the session is at now: its branch and edits at the left; its account, the
- * model and effort of its last answer and the ring of its context at the right.
+ * The line under the chat's field, what the session is at now: its branch and the lines changed (`chatEdits`) at the
+ * left; its account, the model and effort of its last answer and the ring of its context at the right.
  */
 export function ChatStatus({ facts, scale, edits }: Props) {
-  const place = [facts.branch === null ? null : t.session.chat.head.branch(facts.branch), edits === null ? null : t.session.chat.head.edits(edits.added, edits.removed)].filter(
-    (part) => part !== null,
-  )
+  const head = t.session.chat.head
+  const changed = edits === null ? null : (edits.of === 'branch' ? head.branchEdits : head.edits)(edits.added, edits.removed)
+  const place = [facts.branch === null ? null : head.branch(facts.branch), changed].filter((part) => part !== null)
   return (
     <div className="chat-status">
       {place.length > 0 && (
@@ -99,7 +99,7 @@ export function ChatStatus({ facts, scale, edits }: Props) {
               <span className="chat-status__branch-name">{facts.branch}</span>
             </span>
           )}
-          {edits !== null && <EditSize {...edits} />}
+          {edits !== null && <EditSize added={edits.added} removed={edits.removed} />}
         </Tipped>
       )}
       <span className="chat-status__session">

@@ -255,6 +255,12 @@ export interface TaskWork {
   ahead: number
 }
 
+/** The lines a task's branch changed against the main branch, its working tree with them (`branchDiffOf`). */
+export interface BranchDiff {
+  added: number
+  removed: number
+}
+
 /** Git on the service's machine as the first run's Git step checks it (BTN-731). */
 export interface GitSetupView {
   /** The version `git --version` gives; `null` — git does not start from the service. */
@@ -349,6 +355,12 @@ export interface EvenKeelState {
   fixes: Record<string, FixEpisode[]>
   /** The work left in each project's task folders, by project and task; a task with nothing there has no key (BTN-298). */
   works: Record<string, Record<string, TaskWork>>
+  /**
+   * The lines each task's branch changed against the main branch, by project and task, for the chat's foot (BTN-1424):
+   * every task worktree or slot, a clean one with zeros; kept through its session's turns, unlike `works`. Absent — an
+   * older service.
+   */
+  diffs?: Record<string, Record<string, BranchDiff>>
   context: ContextScale
   configError: Notice | null
   packages: PackagesView

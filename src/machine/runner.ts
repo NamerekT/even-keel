@@ -11,7 +11,7 @@ import { isMove, MOVE_PREFIX, type MoveCall, type MoveDone, type MoveName } from
 import type { MachinePort } from './port.js'
 import { serviceHandlers, type MachineServices } from './services.js'
 import type { SessionMail } from '../sessions/mail.js'
-import type { FoundRepository, SessionView, TaskWork } from '../state.js'
+import type { BranchDiff, FoundRepository, SessionView, TaskWork } from '../state.js'
 
 /** The port's commands and queries, as the link names them: `port.<member>` with `{ args }` as the payload. */
 export const PORT_COMMANDS = [
@@ -83,6 +83,7 @@ export interface RunnerDeps {
   brief?: (brief: HubBrief) => void
   /** By project, what the task folders hold, and the repositories found in projects without git (`MachineFacts`). */
   works?: () => Record<string, Record<string, TaskWork>>
+  diffs?: () => Record<string, Record<string, BranchDiff>>
   gitFound?: () => Record<string, FoundRepository>
   /** Makes the moves of a task's session the hub asks for (`task.<move>`). */
   moves?: { run: (name: MoveName, call: MoveCall) => Promise<MoveDone> }
@@ -258,6 +259,7 @@ export class MachineRunner {
       ...(this.deps.compactions === undefined ? {} : { compactions: this.deps.compactions() }),
       ...(this.deps.identities === undefined ? {} : { identities: this.deps.identities() }),
       ...(this.deps.works === undefined ? {} : { works: this.deps.works() }),
+      ...(this.deps.diffs === undefined ? {} : { diffs: this.deps.diffs() }),
       ...(this.deps.gitFound === undefined ? {} : { gitFound: this.deps.gitFound() }),
       sessionsRead: local.sessionsRead(),
       accountsRead: local.accountsRead(),

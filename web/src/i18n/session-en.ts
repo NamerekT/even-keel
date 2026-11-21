@@ -261,6 +261,7 @@ export const sessionEn = {
       copied: 'Session id copied',
       branch: (name: string) => `Branch ${name}`,
       edits: (added: number, removed: number) => `Edits of the session: +${added} −${removed} lines`,
+      branchEdits: (added: number, removed: number) => `Changes of the branch: +${added} −${removed} lines`,
       model: 'The model of the last answer',
       effort: 'Its effort',
       ring: 'Context and account limits',

@@ -179,6 +179,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       if (first) void machine.gitFound.checkAll().catch((error: unknown) => log(`git: the projects without git were not read: ${messageOf(error)}`))
     },
     works: () => machine.works.view(),
+    diffs: () => machine.works.diffs(),
     gitFound: () => machine.gitFound.view(),
     moves,
     services: wireMachineServices(machine, {

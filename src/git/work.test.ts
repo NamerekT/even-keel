@@ -6,7 +6,7 @@ import type { TaskWork } from '../state.js'
 import { runGit } from './run.js'
 import { slotPaths } from './slot.js'
 import { taskPlace } from './worktree.js'
-import { TaskWorks, worksOf } from './work.js'
+import { TaskWorks, worksOf, type TaskFolders } from './work.js'
 
 let repo: string
 
@@ -57,17 +57,18 @@ describe('worksOf', { timeout: 30_000 }, () => {
     await git(repo, 'worktree', 'add', '-q', '-b', stranger.branch, stranger.path, 'trunk')
     writeFileSync(join(stranger.path, 'c.ts'), 'c')
 
-    const works = await worksOf(runGit, repo, 'trunk', ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4'])
+    const { works, diffs } = await worksOf(runGit, repo, 'trunk', ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4'])
     expect(works).toEqual({
       'ABC-1': { path: expect.stringMatching(/abc-1$/), branch: 'abc-1/task', files: 2, ahead: 0 },
       'ABC-2': { path: expect.stringMatching(/even-keel$/), branch: 'abc-2/by-hand', files: 0, ahead: 2 },
     })
+    expect(diffs).toEqual({ 'ABC-1': { added: 2, removed: 0 }, 'ABC-2': { added: 2, removed: 0 }, 'ABC-3': { added: 0, removed: 0 } })
   })
 
   it('takes nothing from the main checkout, even on a task branch', async () => {
     await git(repo, 'switch', '-q', '-c', 'abc-1/task')
     writeFileSync(join(repo, 'a.ts'), 'a')
-    expect(await worksOf(runGit, repo, 'trunk', ['ABC-1'])).toEqual({})
+    expect(await worksOf(runGit, repo, 'trunk', ['ABC-1'])).toEqual({ works: {}, diffs: {} })
   })
 
   it('knows the main checkout and spells a worktree as the project does when the project is opened through a link', async () => {
@@ -79,7 +80,7 @@ describe('worksOf', { timeout: 30_000 }, () => {
       const tree = join(link, '.claude', 'worktrees', 'abc-2')
       await git(link, 'worktree', 'add', '-q', '-b', 'abc-2/task', tree, 'trunk')
       writeFileSync(join(tree, 'b.ts'), 'b')
-      expect(await worksOf(runGit, link, 'trunk', ['ABC-1', 'ABC-2'])).toEqual({
+      expect((await worksOf(runGit, link, 'trunk', ['ABC-1', 'ABC-2'])).works).toEqual({
         'ABC-2': { path: tree, branch: 'abc-2/task', files: 1, ahead: 0 },
       })
     } finally {
@@ -91,14 +92,15 @@ describe('worksOf', { timeout: 30_000 }, () => {
     const place = taskPlace(repo, 'ABC-12')
     await git(repo, 'worktree', 'add', '-q', '-b', place.branch, place.path, 'trunk')
     writeFileSync(join(place.path, 'a.ts'), 'a')
-    expect(Object.keys(await worksOf(runGit, repo, 'trunk', ['ABC-1', 'ABC-12']))).toEqual(['ABC-12'])
+    expect(Object.keys((await worksOf(runGit, repo, 'trunk', ['ABC-1', 'ABC-12'])).works)).toEqual(['ABC-12'])
   })
 })
 
 describe('TaskWorks', () => {
   const work: TaskWork = { path: 'D:/work/abc/.claude/worktrees/abc-1', branch: 'abc-1/task', files: 3, ahead: 0 }
 
-  function setup(answers: (Record<string, TaskWork> | Error)[]) {
+  /** A read's answer: the works alone, or with the diffs. */
+  function setup(answers: (Record<string, TaskWork> | TaskFolders | Error)[]) {
     let now = 0
     let reads = 0
     const changes: number[] = []
@@ -109,7 +111,7 @@ describe('TaskWorks', () => {
       read: async () => {
         const answer = answers[Math.min(reads++, answers.length - 1)]!
         if (answer instanceof Error) throw answer
-        return answer
+        return 'diffs' in answer ? (answer as TaskFolders) : { works: answer as Record<string, TaskWork>, diffs: {} }
       },
       ttlMs: 60_000,
       now: () => now,
@@ -136,6 +138,28 @@ describe('TaskWorks', () => {
     await context.works.poll('abc')
     expect(context.reads()).toBe(2)
     expect(context.works.view()).toEqual({})
+  })
+
+  it('keeps the lines of a branch through its session’s turn and tells of their change', async () => {
+    const diff = { added: 720, removed: 89 }
+    const context = setup([
+      { works: { 'ABC-1': work }, diffs: { 'ABC-1': diff } },
+      { works: { 'ABC-1': work }, diffs: { 'ABC-1': { added: 730, removed: 89 } } },
+    ])
+    await context.works.poll('abc')
+    context.at(10_000)
+    context.activity.set('ABC-1', 5_000)
+    context.busy.add('ABC-1')
+    expect(context.works.view()).toEqual({})
+    expect(context.works.diffs()).toEqual({ abc: { 'ABC-1': diff } })
+
+    context.at(70_000)
+    await context.works.poll('abc')
+    expect(context.works.diffs()).toEqual({ abc: { 'ABC-1': { added: 730, removed: 89 } } })
+    expect(context.changes).toEqual([0, 70_000])
+
+    context.works.keep([])
+    expect(context.works.diffs()).toEqual({})
   })
 
   it('shows the work read after the last activity of its task', async () => {
@@ -186,7 +210,7 @@ describe('TaskWorks', () => {
       read: async () => {
         const answer = answers[Math.min(reads++, answers.length - 1)]!
         if (reads === 1) await new Promise<void>((resolve) => (release = resolve))
-        return answer
+        return { works: answer, diffs: {} }
       },
       ttlMs: 60_000,
       now: () => 0,

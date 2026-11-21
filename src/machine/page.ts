@@ -3,7 +3,7 @@ import type { AccountView } from '../account/model.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import type { SessionMail } from '../sessions/mail.js'
-import type { FoundRepository, SessionView, TaskWork } from '../state.js'
+import type { BranchDiff, FoundRepository, SessionView, TaskWork } from '../state.js'
 import type { MachineFacts } from './facts.js'
 
 const WAITING: UsageHealth = { state: 'waiting', reason: null, since: null }
@@ -37,6 +37,8 @@ export interface PageReads {
   compactionsOf(sessionId: string): number
   /** By project and task, what the task's working folder holds. */
   works(): Record<string, Record<string, TaskWork>>
+  /** By project and task, the lines the task's branch changed. */
+  diffs(): Record<string, Record<string, BranchDiff>>
   /** By project without git, the repository its folder has become. */
   gitFound(): Record<string, FoundRepository>
 }
@@ -71,6 +73,7 @@ export function pageReads(facts: () => MachineFacts | undefined): PageReads {
     },
     compactionsOf: (sessionId) => facts()?.compactions?.[sessionId] ?? 0,
     works: () => facts()?.works ?? {},
+    diffs: () => facts()?.diffs ?? {},
     gitFound: () => facts()?.gitFound ?? {},
   }
 }

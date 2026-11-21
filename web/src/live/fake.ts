@@ -260,6 +260,10 @@ function fakeState(
             'ABC-19': { path: 'D:/work/abc/.claude/worktrees/abc-19', branch: 'abc-19/task', files: 49, ahead: 0 },
           },
         },
+    // The chat's foot counts ABC-5's branch, more than its session's own edits (BTN-1424).
+    diffs: idle
+      ? {}
+      : { ABC: { 'ABC-5': { added: 720, removed: 89 }, 'ABC-9': { added: 214, removed: 37 }, 'ABC-19': { added: 1_380, removed: 410 } } },
     context: { warn: 50, danger: 80 },
     configError: null,
     packages: fakePackages(['ABC', 'DEMO', 'XYZ', 'OPS'], null),

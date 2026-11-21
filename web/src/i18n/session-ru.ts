@@ -260,6 +260,7 @@ export const sessionRu = {
       copied: 'Id сессии скопирован',
       branch: (name: string) => `Ветка ${name}`,
       edits: (added: number, removed: number) => `Правки за сессию: +${added} −${removed} строк`,
+      branchEdits: (added: number, removed: number) => `Изменения ветки: +${added} −${removed} строк`,
       model: 'Модель последнего ответа',
       effort: 'Его усилие',
       ring: 'Контекст и лимиты аккаунта',
