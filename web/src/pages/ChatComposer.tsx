@@ -51,6 +51,8 @@ interface Props {
   answered: ReadonlySet<string>
   /** `steered` — the message goes straight into the working session; called before the server answers, it gives what takes the line back. `files` — the chosen ones, whose pictures the line shows at once. */
   onSent: (line: FeedLine, steered: boolean, files: File[]) => () => void
+  /** A message went into the mailbox: keeps the pictures among `files` for its letter; gives what drops them. */
+  onMailed: (files: File[]) => () => void
   /** A new session is taking the message over (BTN-1281): the field is shut until it is up. */
   handing: boolean
   /** "New session with this message" is pressed; called before the server answers, it gives what takes the press back. */
@@ -68,7 +70,7 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, answered, onSent, handing, onRenew, restore, handle, status }: Props) {
+export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, answered, onSent, onMailed, handing, onRenew, restore, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
   const accept = useCommand()
   const { deliver: post } = useLive()
@@ -136,7 +138,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
     // in between; on `renew` the window shows the handover with the message instead (BTN-1281).
     const show = () => {
       if (ask !== null) setPending(ask.id)
-      const retract = renew ? onRenew(text.trim()) : !mailing ? onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering, files) : () => {}
+      const retract = renew ? onRenew(text.trim()) : mailing ? onMailed(files) : onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering, files)
       return () => {
         setPending(null)
         retract()

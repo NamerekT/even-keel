@@ -6,7 +6,8 @@ import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { Tipped } from '../ui/Tipped.js'
 import { letterPhase, nextLetterChange } from './letterPhase.js'
-import { fileName } from './feedLine.js'
+import { SentFiles } from './Thumbs.js'
+import type { TranscriptMedia } from './transcriptMedia.js'
 
 /** A letter's fate in a few words; how it gets there or how it went is the tip. */
 export function LetterFate({ text, tip }: { text: string; tip: string }) {
@@ -17,16 +18,24 @@ export function LetterFate({ text, tip }: { text: string; tip: string }) {
   )
 }
 
+/** A letter as the line of the user's message it becomes, for the window's pictures; a dismissed one shows nothing. */
+export function letterLine(mail: Mail): FeedLine[] {
+  return mail.fate === 'dismissed' ? [] : [{ at: mail.postedAt, kind: 'prompt', text: mail.text, files: mail.files }]
+}
+
 interface Props {
   sessionId: string
   mail: Mail[]
   /** Messages the working session has queued, not the mailbox: it takes them once its current tool call ends. */
   queued: FeedLine[]
+  /** The window's pictures, the letters' and the queued messages' among them (`letterLine`). */
+  media: TranscriptMedia
+  onOpen: (place: number) => void
   onReply: (text: string) => void
 }
 
 /** The fate of the messages sent to the session mid-turn (BTN-181): waiting for the hook or the tool call, delivered, or back. */
-export function ChatMail({ sessionId, mail, queued, onReply }: Props) {
+export function ChatMail({ sessionId, mail, queued, media, onOpen, onReply }: Props) {
   const { send, sending } = useCommand()
   // A delivered line fades on its own clock, not only when the state changes.
   const [, tick] = useReducer((count: number) => count + 1, 0)
@@ -44,14 +53,14 @@ export function ChatMail({ sessionId, mail, queued, onReply }: Props) {
       {queued.map((line, index) => (
         <li key={`queued-${index}`} className="bubble chat__letter">
           <span className="chat__letter-text">{line.text}</span>
-          {line.files?.map((file, at) => <span key={at} className="chat__file">{fileName(file)}</span>)}
+          <SentFiles files={line.files ?? []} media={media} onOpen={onOpen} />
           <LetterFate text={t.session.chat.mail.queued} tip={t.session.chat.mail.queuedTip} />
         </li>
       ))}
       {shown.map(({ each, phase }) => (
         <li key={each.id} className={`bubble chat__letter chat__letter--${each.fate}${phase === 'leaving' ? ' chat__letter--leaving' : ''}`}>
           <span className="chat__letter-text">{each.text}</span>
-          {each.files.map((file, at) => <span key={at} className="chat__file">{fileName(file)}</span>)}
+          <SentFiles files={each.files} media={media} onOpen={onOpen} />
           {each.fate === 'returned' ? (
             <>
               <span className="chat__letter-fate">{t.session.chat.mail.returned[each.reason ?? 'asked']}</span>

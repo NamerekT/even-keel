@@ -276,7 +276,7 @@ export function fakeDismissMail(state: EvenKeelState, sessionId: string): EvenKe
 }
 
 /**
- * `?chain=mail`: the working session of ABC-5 listens, one message was delivered, one waits for the hook, one came back
+ * `?chain=mail`: the working session of ABC-5 listens, one message was delivered, one waits for the hook with a picture, one came back
  * after a question and one after the task's branch landed in main (BTN-558).
  */
 export function fakeMailbox(task: string, sessionId: string, now: number): SessionMail {
@@ -288,7 +288,7 @@ export function fakeMailbox(task: string, sessionId: string, now: number): Sessi
       { ...fakeMail(task, sessionId, minutes(1), 'Не трогай миграции, только чтение.', 'delivered'), event: 'PostToolUse', settledAt: new Date(now).toISOString() },
       { ...fakeMail(task, sessionId, minutes(3), 'И проверь тёмную тему на узком экране — карточки там переносятся в две строки.', 'returned'), reason: 'asked' },
       { ...fakeMail(task, sessionId, minutes(2), 'И шрифт на плашках ошибок сделай поменьше.', 'returned'), reason: 'closed' },
-      fakeMail(task, sessionId, minutes(0.2), 'Ещё учти: порядок задач берём из blocks, не из приоритета.', 'waiting'),
+      { ...fakeMail(task, sessionId, minutes(0.2), 'Ещё учти: порядок задач берём из blocks, не из приоритета.', 'waiting'), files: [`${ROOT}\\.temp\\inbox\\order-blocks.png`] },
     ],
   }
 }

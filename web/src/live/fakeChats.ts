@@ -150,10 +150,16 @@ function longModelChat(state: EvenKeelState, project: string): ChatCard {
   })
 }
 
-/** A letter of a fake chat's mailbox: the working chat's is waiting, the cold Codex one's came back (BTN-1346). */
+/**
+ * A letter of a fake chat's mailbox: the working chat's is waiting with a picture (BTN-1431), the cold Codex one's came
+ * back (BTN-1346).
+ */
 function fakeMail(card: ChatCard): Mail[] {
   const letter = { id: 0, task: card.id, sessionId: card.sessionId ?? '', files: [], event: null, reason: null, settledAt: null }
-  if (card.id.endsWith('-chat-3')) return [{ ...letter, id: 1, text: 'Only the runs on the Windows runner, please.', postedAt: ago(0.5), fate: 'waiting' }]
+  if (card.id.endsWith('-chat-3')) {
+    const files = ['C:\\repos\\example-project\\.temp\\inbox\\paste-20261121-160801.png']
+    return [{ ...letter, id: 1, text: 'Only the runs on the Windows runner, please.', files, postedAt: ago(0.5), fate: 'waiting' }]
+  }
   if (card.id.endsWith('-chat-4'))
     return [{ ...letter, id: 2, text: 'Add the attachments to the format too.', postedAt: ago(142), fate: 'returned', reason: 'gone', settledAt: ago(141) }]
   return []

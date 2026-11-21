@@ -340,6 +340,50 @@ it('keeps a sent picture on the chosen file in a running chat once the transcrip
   }
 })
 
+it("shows a mailed picture as the chosen file's thumbnail while it waits for the hook and through its delivery (BTN-1431)", async () => {
+  const mail: SessionMail = { listens: true, steers: false, mail: [] }
+  const { host, box, rerender } = await midTurn(mail)
+  await type(box, message)
+  await attach(host, 'one.png')
+  command.mockResolvedValueOnce(undefined)
+  await act(async () => host.querySelector<HTMLButtonElement>('.chat__send')!.click())
+  await vi.waitFor(() => expect(command).toHaveBeenCalledWith('chats/send', expect.objectContaining({ text: message })))
+  expect(bubbles(host)).toEqual(['Run the tests'])
+  const files = ['C:\\repos\\example\\.temp\\inbox\\one.png']
+  mail.mail = [letter({ files })]
+  await rerender()
+  const waiting = host.querySelector<HTMLImageElement>('.chat__letter--waiting .thumb img')
+  const chosen = waiting?.getAttribute('src')
+  expect(chosen).toMatch(/^blob:/)
+  expect(host.querySelector('.chat__letter .chat__file')).toBeNull()
+  await act(async () => host.querySelector<HTMLButtonElement>('.chat__letter .thumb')!.click())
+  const viewer = () => host.querySelector<HTMLImageElement>('.viewer img:not(.viewer__next)')
+  expect(viewer()?.getAttribute('src')).toBe(chosen)
+  const observer = new MutationObserver(() => {})
+  observer.observe(host, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: ['class'] })
+  try {
+    mail.mail = [letter({ files, fate: 'delivered', event: 'PostToolUse', settledAt: new Date().toISOString() })]
+    transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at: card.lastAt, text: 'Run the tests' }, { kind: 'prompt', at: card.lastAt, text: message, files }], turn: null })
+    await act(async () => changed())
+    await rerender()
+    expect([...host.querySelectorAll('.bubble .thumb img')].map((img) => img.getAttribute('src'))).toEqual([chosen, chosen])
+    expect(host.querySelectorAll('.viewer img')).toHaveLength(1)
+    expect(viewer()?.getAttribute('src')).toBe(chosen)
+    expect(drewChip(observer.takeRecords())).toBe(false)
+  } finally {
+    observer.disconnect()
+  }
+})
+
+it('opens the picture of a letter that came back, sent where the browser holds no copy (BTN-1431)', async () => {
+  const files = ['C:\\repos\\example\\.temp\\inbox\\two.png']
+  const { host } = await midTurn({ listens: true, steers: false, mail: [letter({ files, fate: 'returned', reason: 'asked', settledAt: new Date().toISOString() })] })
+  const picture = host.querySelector<HTMLButtonElement>('.chat__letter--returned button[aria-label]')!
+  expect(picture.getAttribute('aria-label')).toBe(t.session.chat.openPicture('two.png'))
+  await act(async () => picture.click())
+  expect(host.querySelector('.viewer__name')?.textContent).toBe('two.png')
+})
+
 it('opens a sent picture from its chip and retries both images after a temporary 404', async () => {
   // The window opened after the send: the browser holds no copy of the picture.
   const settings = (window as unknown as HappyWindow).happyDOM.settings

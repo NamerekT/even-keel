@@ -289,6 +289,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 253 | [A project chat's turn line in a live installation](unverified/sessions.md#a-project-chats-turn-line-in-a-live-installation-btn-1427) | anyone with a project chat mid-turn | the project chat's window still shows no action and no clock while it works | — |
 | 254 | [A sent picture on view through its delivery](unverified/page.md#a-sent-picture-on-view-through-its-delivery-btn-1425) | anyone opening a picture they just sent in a chat | the viewer closes when a new chat's session starts, or the picture blinks or turns into another one as the message is delivered; open it again | — |
 | 255 | [A task chat counts its branch through a handoff](unverified/sessions.md#a-task-chat-counts-its-branch-through-a-handoff-btn-1424) | anyone with a chain task's chat open | the foot's +N −M disappears after a handoff or shows another number than the branch; `git diff --shortstat` in the task's folder tells the real one | — |
+| 256 | [A mailed picture as a thumbnail](unverified/page.md#a-mailed-picture-as-a-thumbnail-btn-1431) | anyone sending a picture to a working session whose hooks listen | the letter shows the file's name instead of the picture, or the picture blinks as the message is delivered; it is in the feed's bubble once delivered | — |
 
 ### Waiting for the event / not checked by choice
 

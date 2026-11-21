@@ -1,7 +1,9 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { t } from '../i18n/index.js'
+import { fileName } from './feedLine.js'
 import { InboxImage } from './InboxImage.js'
 import type { Media } from './MediaViewer.js'
+import type { TranscriptMedia } from './transcriptMedia.js'
 import './media.css'
 
 interface Props {
@@ -79,6 +81,28 @@ export function InboxThumb({ item, onOpen }: { item: Media; onOpen: () => void }
         ? <InboxImage key={item.url} className={next} src={item.url} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(item.url)} />
         : <img key={item.url} className={next} src={item.url} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(item.url)} onError={() => setBroken(item.url)} />)}
     </button>
+  )
+}
+
+/**
+ * The files of a message the user sent — in the feed or still in the mailbox (BTN-1431): pictures as thumbnails, the rest
+ * as names. By place alone: the sent line names a file by its name, the transcript's by its path (BTN-1390).
+ */
+export function SentFiles({ files, media, onOpen }: { files: string[]; media: TranscriptMedia; onOpen: (place: number) => void }) {
+  if (files.length === 0) return null
+  return (
+    <ul className="bubble__files">
+      {files.map((file, index) => {
+        const place = media.byFile.get(file)
+        return (
+          <li key={index}>
+            {place === undefined ? <span className="chat__file">📎 {fileName(file)}</span> : (
+              <InboxThumb item={media.items[place]!} onOpen={() => onOpen(place)} />
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

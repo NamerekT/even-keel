@@ -144,7 +144,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
 
   const submit = async () => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
-    const retract = mailing ? () => {} : parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files)
+    const retract = mailing ? parts.onMailed(files) : parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files)
     if (ask !== null) setPending(ask.id)
     const ok = await send(async (message) => deliver('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }))
     if (ok) onChanged()

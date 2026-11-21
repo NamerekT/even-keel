@@ -24,7 +24,7 @@ import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
-import { ChatMail } from './ChatMail.js'
+import { ChatMail, letterLine } from './ChatMail.js'
 import { useChatViewport } from './useChatViewport.js'
 import { useFeedPin } from './feedPin.js'
 import { ShutComposer } from './ComposerBox.js'
@@ -34,11 +34,10 @@ import { chatEdits } from './chatEdits.js'
 import { ChatTaskPanel, useTaskPanelOpen } from './ChatTaskPanel.js'
 import { answeredAsks } from './composerHold.js'
 import { DeliveryMark } from './DeliveryMark.js'
-import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { MessageMenu } from './MessageMenu.js'
 import { ShareCard } from './ShareCard.js'
-import { InboxThumb, Thumbs } from './Thumbs.js'
+import { SentFiles, Thumbs } from './Thumbs.js'
 import { useLocalPictures } from './localPictures.js'
 import { isReply, sentFeed, type FeedMark, type SentLine } from './sentLines.js'
 import { ToolGroup } from './ToolCalls.js'
@@ -100,6 +99,8 @@ export interface WindowFoot {
   answered: ReadonlySet<string>
   /** Shows a sent message and its chosen `files` in the feed until the transcript has it; gives what takes it back. */
   onSent: (line: FeedLine, files: File[]) => () => void
+  /** Keeps the pictures among `files` of a message that went into the mailbox, so its letter shows them at once; gives what drops them. */
+  onMailed: (files: File[]) => () => void
 }
 
 interface Props {
@@ -177,8 +178,10 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const answered = answeredAsks([...(all ?? []), ...delivered.map((each) => each.line)])
   const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
   const shared = (tool: string, index: number) => sharedUrl(sessionId, tool, index)
+  const letters = [...queued, ...(mail?.mail ?? []).flatMap(letterLine)]
+  // The pictures of the messages not in the feed yet come after it, as their bubbles do; one the feed holds keeps its place.
   const media = transcriptMedia(
-    all ?? [],
+    [...(all ?? []), ...letters],
     { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name), shared, local: localPictures.get },
     t.session.chat.picture,
   )
@@ -462,7 +465,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                     </li>
                   )
                 })}
-                {(chat || ownMail) && <ChatMail sessionId={sessionId} mail={mail?.mail ?? []} queued={queued} onReply={(text) => composerRef.current?.replyToMail?.(text)} />}
+                {(chat || ownMail) && <ChatMail sessionId={sessionId} mail={mail?.mail ?? []} queued={queued} media={media} onOpen={view} onReply={(text) => composerRef.current?.replyToMail?.(text)} />}
               </ol>
             </div>
           ) : null}
@@ -476,6 +479,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 handle: composerRef,
                 answered,
                 onSent: (line, files) => addSent(line, false, files, session === null),
+                onMailed: localPictures.add,
               })}
             </div>
           ) : chat === undefined ? (
@@ -524,6 +528,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 onRenew={handing.press}
                 restore={handing.restore}
                 onSent={(line, steered, files) => addSent(line, steered, files, false)}
+                onMailed={localPictures.add}
               />
             </div>
           )}
@@ -682,21 +687,7 @@ function UserBubble({ text, files, media, onOpen }: BubbleProps) {
   return (
     <div className="bubble">
       {text !== '' && <FoldBody id={bodyId} open={!long || open} preview={long}><span className="transcript__plain bubble__text">{text}</span></FoldBody>}
-      {files.length > 0 && (
-        <ul className="bubble__files">
-          {files.map((file, index) => {
-            const place = media.byFile.get(file)
-            return (
-              // By place alone: the sent line names a file by its name, the transcript's by its path (BTN-1390).
-              <li key={index}>
-                {place === undefined ? <span className="chat__file">📎 {fileName(file)}</span> : (
-                  <InboxThumb item={media.items[place]!} onOpen={() => onOpen(place)} />
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      <SentFiles files={files} media={media} onOpen={onOpen} />
       {long && (
         <FoldToggle className="bubble__more" aria-controls={bodyId} aria-expanded={open} onClick={() => setOpen(!open)}>
           {open ? t.session.showLess : t.session.showMore}
