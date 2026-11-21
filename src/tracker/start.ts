@@ -22,6 +22,8 @@ const TASKS_REFRESH_MS = 30_000
 /** How long a task the chain ran stays on the page once closed, whatever its milestone. */
 export const RAN_SHOWN_MS = 7 * 24 * 60 * 60_000
 const TRACKER_TIMEOUT_MS = 15_000
+/** How long the count of a reader's closed tasks holds while the live read's closed tasks stay the same (BTN-1445). */
+const CLOSED_RECOUNT_MS = 5 * 60_000
 
 /**
  * What a tracker reads is a reader (BTN-66): a project or one of its feeds, each of its own id. The deps take a reader
@@ -91,6 +93,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   let closesParents = false
   let setsMilestones = false
   let forge = false
+  let pagesClosed = false
   const unfilled = new Set<string>()
   const link = new TrackerLink({
     name: title,
@@ -100,6 +103,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       closesParents = completes && tracker.children !== undefined
       setsMilestones = tracker.setMilestone !== undefined
       forge = tracker.isPublic !== undefined
+      pagesClosed = tracker.closedPage !== undefined
       view.ready = tracker.ready !== undefined
       view.relabel = tracker.relabel !== undefined
       view.unready = tracker.unready !== undefined
@@ -312,6 +316,31 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       console.error(`${title}: ${label(project)}: vocabulary: ${text}`)
     }
   }
+  const counted = new Map<string, { closed: string; at: number }>()
+  const countFailures = new Map<string, string>()
+  /**
+   * How many closed tasks the tracker has for the reader (BTN-1445), by a page of one: recounted only when the closed
+   * tasks of the live read change or `CLOSED_RECOUNT_MS` passed. A failed count keeps the last and is logged once.
+   */
+  const countClosed = async (project: string, rules: ChainRules, shown: readonly Task[]): Promise<void> => {
+    if (!pagesClosed) return
+    const closed = shown.filter((task) => !isOpen(task.status)).map((task) => task.id).sort().join(' ')
+    const last = counted.get(project)
+    if (last !== undefined && last.closed === closed && Date.now() - last.at < CLOSED_RECOUNT_MS) return
+    try {
+      const key = JSON.stringify(['closedPage', readKey(project), rules.active, rules.terminal])
+      const page = await link.run(async (tracker) => (tracker.closedPage === undefined ? null : await tracker.closedPage(project, rules, { after: null, limit: 1 })), key)
+      countFailures.delete(project)
+      if (page === null || stopped) return
+      counted.set(project, { closed, at: Date.now() })
+      ;(view.closedTotal ??= {})[project] = page.total
+    } catch (error) {
+      const text = errorText(error)
+      if (countFailures.get(project) === text) return
+      countFailures.set(project, text)
+      if (!stopped) console.error(`${title}: ${label(project)}: closed tasks: ${text}`)
+    }
+  }
   const readProject = async (project: string): Promise<void> => {
     let failure: { error: unknown } | null = null
     try {
@@ -342,6 +371,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       tasksByProject.set(project, shown)
       dispatcher.setTasks(project, shown)
       view.readAt[project] = new Date().toISOString()
+      await countClosed(project, rules, shown)
       await checkOpenToAll(project, rules)
       await checkTemplates(project, rules)
       await checkTerms(project)

@@ -127,6 +127,26 @@ describe('the built-in tracker as a task source', () => {
     expect((await source.card!('ABC-1'))?.edit?.labels.find((label) => label.name === 'Manual')).toEqual({ name: 'Manual', builtin: false })
   })
 
+  it('gives the closed tasks of any milestone by pages, the last closed first, with their count', async () => {
+    const at = (iso: string) => new BuiltinStore(db, undefined, () => new Date(iso))
+    await at('2026-01-01T00:00:00Z').create({ project: ABC, title: 'Closed late', milestone: 'v0.1' })
+    await at('2026-01-02T00:00:00Z').create({ project: ABC, title: 'Born done', status: 'Done', milestone: 'v0.1' })
+    await at('2026-01-03T00:00:00Z').create({ project: ABC, title: 'Canceled' })
+    await at('2026-01-04T00:00:00Z').edit({ project: ABC, number: 3 }, { field: 'status', from: 'Todo', to: 'Canceled' })
+    await at('2026-01-05T00:00:00Z').edit({ project: ABC, number: 1 }, { field: 'status', from: 'Todo', to: 'Done' })
+    await store.create({ project: ABC, title: 'Open' })
+    await store.create({ project: SECOND_ABC, title: 'Same key', status: 'Done' })
+    const first = await source.closedPage!(ABC, open, { after: null, limit: 2 })
+    expect(first.tasks.map((task) => [task.id, task.status.name, task.milestone?.label ?? null])).toEqual([
+      ['ABC-1', 'Done', 'v0.1'],
+      ['ABC-3', 'Canceled', null],
+    ])
+    expect(first.total).toBe(3)
+    const second = await source.closedPage!(ABC, open, { after: first.next, limit: 2 })
+    expect([second.tasks.map((task) => task.id), second.total, second.next]).toEqual([['ABC-2'], 1, null])
+    expect(await source.closedPage!(XYZ, open, { after: null, limit: 2 })).toEqual({ total: 0, tasks: [], next: null })
+  })
+
   it('gives the attachments on the card with their paths, in the brief while their files are there, and serves them', async () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'ek-source-')), 'files')
     const withFiles = builtinSource(db, PLACES, dir)

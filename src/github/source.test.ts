@@ -84,6 +84,24 @@ describe('github source', () => {
     expect(calls[2]!.variables).toMatchObject({ after: 'cursor-1' })
   })
 
+  it('gives a page of the closed issues of any milestone in one request, the last changed first, with their count', async () => {
+    const { source, calls } = await connect([
+      {
+        body: {
+          data: {
+            repository: {
+              issues: { totalCount: 40, ...page([issue(9, { state: 'CLOSED', stateReason: 'COMPLETED' }), issue(3, { state: 'CLOSED', stateReason: 'NOT_PLANNED' })], 'c2') },
+            },
+          },
+        },
+      },
+    ])
+    const read = await source.closedPage!('ABC', notTerminal, { after: null, limit: 2 })
+    expect([read.total, read.next, read.tasks.map((task) => [task.id, task.status.category])]).toEqual([40, 'c2', [['ABC-9', 'Won'], ['ABC-3', 'Lost']]])
+    expect(calls).toHaveLength(2)
+    expect(calls[1]!.variables).toMatchObject({ owner: 'octo-org', name: 'abc', states: ['CLOSED'], first: 2, after: null })
+  })
+
   it('adds the closed issues of the milestones its open leaf issues are in', async () => {
     const v1 = { number: 4, title: 'v1.0', dueOn: null }
     const { source, calls } = await connect([

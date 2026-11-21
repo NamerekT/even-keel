@@ -8,6 +8,7 @@ import { ResetsBadge } from '../ui/BlockMetrics.js'
 import { Lamp } from '../ui/Lamp.js'
 import { ArchiveCounts, Divider, SubtasksChip } from './ChainDivider.js'
 import { Forge } from './Forge.js'
+import type { ArchiveBusy } from './useArchivePages.js'
 
 interface Props {
   archive: ArchiveView<ChainBlock>
@@ -17,13 +18,15 @@ interface Props {
   focus: string
   /** The address search a row's link keeps. */
   rowSearch: string | undefined
+  /** The button whose page of older rows is on its way (BTN-1445): it spins, the page's loader does not. */
+  busy: ArchiveBusy
   onOpen: () => void
   onMore: () => void
   onFold: () => void
 }
 
 /** The archive above the chain: its line, folded or with its unfolded pages under it. */
-export function ChainArchive({ archive, switcher, bump, focus, rowSearch, onOpen, onMore, onFold }: Props) {
+export function ChainArchive({ archive, switcher, bump, focus, rowSearch, busy, onOpen, onMore, onFold }: Props) {
   if (archive.shown === 0) {
     return (
       (archive.hidden > 0 || switcher !== undefined) && (
@@ -34,7 +37,7 @@ export function ChainArchive({ archive, switcher, bump, focus, rowSearch, onOpen
               count={<ArchiveCounts tasks={archive.hidden - archive.hiddenFixes} fixes={archive.hiddenFixes} />}
               hidden
               bump={bump}
-              toggle={{ expanded: false, title: t.chain.openArchive, run: onOpen }}
+              toggle={{ expanded: false, title: t.chain.openArchive, run: onOpen, busy: busy === 'open' }}
             />
           )}
         </TopRow>
@@ -55,7 +58,13 @@ export function ChainArchive({ archive, switcher, bump, focus, rowSearch, onOpen
           toggle={{ expanded: true, title: t.chain.foldArchive, run: onFold }}
           action={
             archive.hidden > 0 && (
-              <button type="button" className="chain__more" title={t.chain.loadMore(archive.next, archive.hidden)} onClick={onMore}>
+              <button
+                type="button"
+                className="chain__more"
+                title={t.chain.loadMore(archive.next, archive.hidden)}
+                aria-busy={busy === 'more' ? 'true' : undefined}
+                onClick={onMore}
+              >
                 {t.chain.archiveMore(archive.next)}
               </button>
             )

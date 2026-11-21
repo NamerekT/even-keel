@@ -38,6 +38,7 @@ import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
 import { useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
+import { useArchivePages } from './useArchivePages.js'
 
 /** How long the ghost takes to grow open or fold shut. */
 const GHOST_MS = 250
@@ -101,7 +102,14 @@ export function ChainList(props: Props) {
 
   const ordered = pending === null ? chain : withOrder(chain, pending)
   const target = ghost?.id ?? arrival?.id ?? focus
-  const archive = archiveView(withGhost(ordered, ghost), archivePages, target)
+  const older = useArchivePages(project, focus, (id) => ordered.some((block) => block.id === id))
+  const archive = archiveView(withGhost(ordered, ghost), archivePages, target, older)
+  /** Opens the archive to `count` pages, asking the server first for the rows the page does not have (BTN-1445). */
+  const unfold = (count: number, busy: 'open' | 'more') => {
+    const missing = Math.min(count * ARCHIVE_PAGE, archive.shown + archive.hidden) - archive.loaded
+    if (missing <= 0) setArchivePages(count)
+    else older.load(missing, busy, () => setArchivePages(count))
+  }
   const empty = adding?.empty
   const view = milestoneView(archive.visible, revealed, target, empty)
   const settled = milestoneView(archive.visible, revealed, arrival?.id ?? focus, empty).sections.length
@@ -177,8 +185,9 @@ export function ChainList(props: Props) {
         bump={motion.bump ?? undefined}
         focus={focus}
         rowSearch={rowSearch}
-        onOpen={() => setArchivePages(1)}
-        onMore={() => setArchivePages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}
+        busy={older.busy}
+        onOpen={() => unfold(1, 'open')}
+        onMore={() => unfold(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1, 'more')}
         onFold={collapseArchive}
       />
       {motion.quiet && (

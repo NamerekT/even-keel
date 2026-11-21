@@ -3,16 +3,18 @@ import type { AccountView } from '../account/model.js'
 import { AGENTS } from '../agent/adapters.js'
 import { outdatedDaemonView } from '../agent/versions.js'
 import { archivedShown } from '../chain/archive.js'
+import { archivePage } from '../chain/archive-pages.js'
 import { fallbacksSince, fixEpisodes, launchDays, taskSessions, type TaskSession } from '../chain/launches.js'
 import { spentLimit } from '../chain/limitNotice.js'
 import { ciViews } from '../ci/wiring.js'
-import { idPrefixOf, projectLabels, runSettings } from '../config.js'
+import { idPrefixOf, projectLabels, readerIds, runSettings } from '../config.js'
 import { DEMO_ACCOUNT } from '../demo/model.js'
 import { dictationSettings } from '../dictation/transcribe.js'
 import { gitSetup } from '../git/setup.js'
 import { hulyClient } from '../huly/client.js'
 import { stepJobs } from '../jobs/runner.js'
-import type { EvenKeelState, SessionView, TaskHistory } from '../state.js'
+import type { ArchivePage, EvenKeelState, SessionView, TaskHistory } from '../state.js'
+import { isOpen, type Task } from '../tracker/model.js'
 import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runOf } from './demo.js'
 import type { HostingContext } from './hosting.js'
@@ -47,11 +49,8 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       skipped: ctx.dispatcher.state.skipped,
       leftovers: ctx.dispatcher.state.leftovers,
     },
-    tasks: Object.keys(ctx.configStore.current.projects).flatMap((project) => {
-      const listed = ctx.tasksByProject.get(project) ?? []
-      const archived = archivedShown(ctx.archive, project, listed, new Date(Date.now() - RAN_SHOWN_MS))
-      return [...listed, ...archived].map((task) => ({ ...task, project }))
-    }),
+    tasks: Object.keys(ctx.configStore.current.projects).flatMap((project) => shownTasks(ctx, project).map((task) => ({ ...task, project }))),
+    archiveMore: archiveMore(ctx),
     runs: Object.fromEntries(Object.keys(ctx.configStore.current.projects).flatMap((project) => {
       const runs = ctx.runsOfProject(project)
       return Object.keys(runs).length === 0 ? [] : [[project, runs]]
@@ -157,6 +156,38 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     const recent = recentHistory({ ...state, current }, new Date())
     return { ...state, ...recent }
   }
+}
+
+/** The project's tasks the page gets: those its readers read, and the archive's lately closed ones they no longer give. */
+function shownTasks(ctx: HostingContext, project: string): Task[] {
+  const listed = ctx.tasksByProject.get(project) ?? []
+  return [...listed, ...archivedShown(ctx.archive, project, listed, new Date(Date.now() - RAN_SHOWN_MS))]
+}
+
+/** `EvenKeelState.archiveMore` (BTN-1445): the closed tasks the readers' trackers count, less the closed ones shown. */
+function archiveMore(ctx: HostingContext): Record<string, number> {
+  const views = ctx.trackers.views()
+  return Object.fromEntries(Object.keys(ctx.configStore.current.projects).flatMap((project) => {
+    const counts = readerIds(ctx.configStore.current, project).flatMap((reader) => views.find((view) => view.projects.includes(reader))?.closedTotal?.[reader] ?? [])
+    if (counts.length === 0) return []
+    const shown = shownTasks(ctx, project).filter((task) => !isOpen(task.status)).length
+    return [[project, Math.max(0, counts.reduce((sum, count) => sum + count, 0) - shown)]]
+  }))
+}
+
+/** `archive/page`: a page of the project's closed tasks beyond those in the state (BTN-1445). */
+export function archiveOf(ctx: HostingContext, project: string, after: string | null, focus?: string): Promise<ArchivePage> {
+  return archivePage(
+    {
+      readers: (id) => readerIds(ctx.configStore.current, id),
+      linkOf: ctx.linkOf,
+      rulesOf: ctx.readerRules,
+      shown: (id) => new Set(shownTasks(ctx, id).map((task) => task.id)),
+    },
+    project,
+    after,
+    focus,
+  )
 }
 
 // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the

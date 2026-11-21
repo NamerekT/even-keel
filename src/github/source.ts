@@ -54,6 +54,15 @@ const REPOSITORY_ISSUES =`query($owner: String!, $name: String!, $states: [Issue
   }
 }`
 
+// GitHub orders issues by no closing time: the last changed first stands nearest (BTN-1445).
+const CLOSED_ISSUES = `query($owner: String!, $name: String!, $states: [IssueState!], $first: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    issues(states: $states, first: $first, after: $after, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      totalCount pageInfo { hasNextPage endCursor } nodes { ${ISSUE} }
+    }
+  }
+}`
+
 const MILESTONE_ISSUES = `query($owner: String!, $name: String!, $number: Int!, $states: [IssueState!], $after: String) {
   repository(owner: $owner, name: $name) {
     milestone(number: $number) {
@@ -328,6 +337,25 @@ export async function connectGithub(
       const tasks = [...openIssues, ...closedIssues.flat().filter((issue) => !isOpen(issue))].map((issue) => toTrackerTask(issue, repos, trusted))
       const edits = await editsOf(repo, openIssues.filter((issue) => toTrackerTask(issue, repos, trusted).outsider === true))
       return { tasks: tasks.map((task) => (edits.has(task.id) ? { ...task, edited: edits.get(task.id)! } : task)), statuses: GITHUB_STATUSES.map((status) => status.name) }
+    },
+
+    async closedPage(project, open, { after, limit }) {
+      const repo = repoOf(project)
+      const states = statesOf(GITHUB_STATUSES.filter((status) => !open(status)))
+      if (states.length === 0) return { total: 0, tasks: [], next: null }
+      const data = await graphql<{ repository: { issues: Connection<GithubIssue> & { totalCount: number } } | null }>(CLOSED_ISSUES, {
+        ...repo,
+        states,
+        first: Math.min(PAGE, Math.max(1, limit)),
+        after,
+      })
+      const issues = data.repository?.issues
+      if (issues == null) throw new TrackerNotFound(`github: ${repo.owner}/${repo.name} not found or the token cannot see it`)
+      return {
+        total: issues.totalCount,
+        tasks: issues.nodes.filter((issue) => !open(githubStatus(issue.state, issue.stateReason))).map((issue) => toTrackerTask(issue, repos, trusted)),
+        next: issues.pageInfo.hasNextPage ? issues.pageInfo.endCursor : null,
+      }
     },
 
     async tasks(ids) {

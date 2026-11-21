@@ -119,6 +119,23 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
       const closed = all.filter((task) => !open(task.status) && task.milestone !== null && milestones.has(task.milestone.name.toLocaleLowerCase()))
       return { tasks: [...live, ...closed].map(trackerTask), statuses: BUILTIN_STATUSES.map((status) => status.name) }
     },
+    async closedPage(project, open, { after, limit }) {
+      const offset = after === null ? 0 : Number(after)
+      const { total, rows } = await store.closed(project, BUILTIN_STATUSES.filter((status) => !open(status)).map((status) => status.name), offset, limit)
+      const tasks = rows.map((row): TrackerTask => ({
+        id: names.name(row),
+        title: row.title,
+        status: row.status,
+        blockedBy: [],
+        parent: row.parent === null ? null : names.name({ project, number: row.parent }),
+        subtasks: row.subtasks,
+        milestone: row.milestone === null ? null : { label: row.milestone.name, targetDate: row.milestone.date },
+        priority: row.priority,
+        labels: [],
+        estimate: null,
+      }))
+      return { total: Math.max(0, total - offset), tasks, next: offset + rows.length < total && rows.length > 0 ? String(offset + rows.length) : null }
+    },
     async tasks(list) {
       const found: TrackerTask[] = []
       for (const id of list) {

@@ -49,7 +49,7 @@ import { cleanRules, projectRules, rulesWith } from '../profiles/rules.js'
 import { checkMoves } from '../chain/moves.js'
 import { profilesControl } from '../profiles/control.js'
 import { disabledNotice } from '../profiles/service.js'
-import { taskHistory } from './hosting-state.js'
+import { archiveOf, taskHistory } from './hosting-state.js'
 import { Dictation } from '../dictation/transcribe.js'
 import { withinWindow } from '../stats/checkpoint.js'
 import { taskCheckpoint } from '../stats/task-checkpoint.js'
@@ -119,6 +119,7 @@ export type HostingContext = Pick<ServiceContext,
   | 'intake'
   | 'launches'
   | 'linkFor'
+  | 'linkOf'
   | 'listen'
   | 'listenError'
   | 'lockedReaders'
@@ -137,6 +138,7 @@ export type HostingContext = Pick<ServiceContext,
   | 'intakeTemplateHits'
   | 'pullReadinessOf'
   | 'readerFor'
+  | 'readerRules'
   | 'readerTasks'
   | 'readers'
   | 'refreshProject'
@@ -551,7 +553,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       if (ctx.lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(ctx.configStore.current, project) })
     }),
     launches: () => ctx.launches,
-    history: { events: () => ctx.eventLog.entries, task: (task) => taskHistory(ctx, task) },
+    history: { events: () => ctx.eventLog.entries, task: (task) => taskHistory(ctx, task), archive: (project, after, focus) => archiveOf(ctx, project, after, focus) },
     sessionRecord: (sessionId) => transcripts.record(sessionId),
     transcript: (sessionId, after) => transcripts.feed(sessionId, after),
     transcriptImage: async (sessionId, tool, index) => taskFileOf(await transcripts.image(sessionId, tool, index)),

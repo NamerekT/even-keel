@@ -54,6 +54,12 @@ export interface TrackerView {
    * that reader's creates and edits, and a session's prompt goes without its line of roles. In memory only.
    */
   termsRefused?: Record<string, Notice>
+  /**
+   * By reader of a tracker with `closedPage` (BTN-1445): how many closed tasks of any milestone and age the tracker has
+   * there, recounted when the live read's closed tasks change or every few minutes; a failed count keeps the last one.
+   * The state's `archiveMore` comes of it. In memory only.
+   */
+  closedTotal?: Record<string, number>
   /** Status moves on a task's start or pull request that did not go through (BTN-554), by reader. In memory only. */
   moveFailures?: Record<string, Notice[]>
 }

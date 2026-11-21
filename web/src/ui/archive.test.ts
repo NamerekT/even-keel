@@ -94,4 +94,21 @@ describe('archiveView', () => {
     expect(archiveView(chain(40, 1), 0, 'T-41').hidden).toBe(39)
     expect(archiveView(chain(40, 1), 0, 'T-99').hidden).toBe(39)
   })
+
+  it('puts the loaded older pages above the live closed blocks and counts what the server has left (BTN-1445)', () => {
+    const older = { rows: [{ id: 'O-1', lamp: 'canceled' as BlockLamp }, { id: 'O-2', lamp: 'done' as BlockLamp }, { id: 'T-3', lamp: 'done' as BlockLamp }], left: 30 }
+    const folded = archiveView(chain(5, 1), 0, '', older)
+    expect([folded.shown, folded.hidden, folded.loaded]).toEqual([0, 36, 6])
+    const view = archiveView(chain(5, 1), 1, '', older)
+    expect(ids(view.archived)).toEqual(['O-1', 'O-2', 'T-1', 'T-2', 'T-3', 'T-4'])
+    expect([view.shown, view.hidden, view.next]).toEqual([6, 30, 16])
+    expect(ids(view.visible)).toEqual(['T-5', 'T-6'])
+  })
+
+  it('opens to a focused block of the loaded older pages', () => {
+    const rows = Array.from({ length: 40 }, (_, index) => ({ id: `O-${index + 1}`, lamp: 'done' as BlockLamp }))
+    const view = archiveView(chain(5, 1), 0, 'O-20', { rows, left: 5 })
+    expect(ids(view.archived)[0]).toBe('O-13')
+    expect(view.hidden).toBe(12 + 5)
+  })
 })

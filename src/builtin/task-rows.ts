@@ -174,6 +174,58 @@ export async function readTasks(db: Db, projects: readonly string[], number?: nu
   })
 }
 
+/** A closed task of the archive's page (BTN-1445): only what its row shows, with no labels or links. */
+export interface ClosedRow extends TaskKey {
+  title: string
+  status: TaskStatus
+  priority: TaskPriority
+  milestone: BuiltinMilestone | null
+  parent: number | null
+  subtasks: number
+  /** The last change of its status; one never changed — its last change. */
+  closedAt: string
+}
+
+/** The project's tasks in `statuses`, the last closed first, `limit` from `offset` on, and how many there are: one query. */
+export async function readClosed(db: Db, project: string, statuses: readonly string[], offset: number, limit: number): Promise<{ total: number; rows: ClosedRow[] }> {
+  const { rows } = await db.query<{
+    number: number; title: string; status: string; priority: string; milestone: string | null; milestone_date: number | null
+    parent: number | null; subtasks: number; closed_at: string; total: number
+  }>(
+    `with closed as (
+       select t.id, t.number, t.title, t.status, t.priority, t.milestone_id, t.parent_id,
+              coalesce((select max(h.at) from builtin_history h where h.task_id = t.id and h.field = 'status'), t.updated_at) as closed_at
+         from builtin_tasks t where t.project_id = $1 and t.status = any($2)
+     )
+     select n.total, c.number, c.title, c.status, c.priority, c.closed_at, m.name as milestone, m.date::float8 as milestone_date,
+            p.number as parent, (select count(*)::int from builtin_tasks s where s.parent_id = c.id) as subtasks
+       from (select count(*)::int as total from closed) n
+       left join lateral (select * from closed order by closed_at desc, number desc offset $3 limit $4) c on true
+       left join builtin_milestones m on m.id = c.milestone_id
+       left join builtin_tasks p on p.id = c.parent_id
+      order by c.closed_at desc, c.number desc`,
+    [project, statuses, offset, limit],
+  )
+  return {
+    total: rows[0]?.total ?? 0,
+    rows: rows.flatMap((row) =>
+      row.number === null
+        ? []
+        : [{
+            project,
+            number: row.number,
+            title: row.title,
+            status: builtinStatus(row.status) ?? { name: row.status, category: 'Won' },
+            priority: priorityOf(row.priority),
+            milestone: row.milestone === null ? null : { name: row.milestone, date: row.milestone_date },
+            parent: row.parent,
+            subtasks: row.subtasks,
+            closedAt: row.closed_at,
+          }],
+    ),
+  }
+}
+
 /** Whole minutes; the tasks server already refuses anything below one. */
 export function estimateOf(minutes: number | null): number | null {
   return minutes === null ? null : Math.round(minutes)

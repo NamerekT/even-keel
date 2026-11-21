@@ -30,6 +30,10 @@ What each lamp and shape of a row means, and each sign of the header that has no
 
 A task's row in the chain shows its live session: a ring for the prompt cache that drains until it goes cold, the context with its percent in blue, amber or red by its level, the account's initial when the session runs on an account other than the project's, and a counter of context resets — every handoff plus every compaction of the agent's own — hidden while there are none; a closed task keeps that counter on its archive row.
 
+### The archive
+
+The **Archive** line above the chain holds the project's closed tasks of every milestone and age, the last closed nearest the chain. Press it to open the latest page and **N more** for older ones; on the built-in tracker, Huly and GitHub the older pages are read from the tracker as you ask for them, and the pressed button spins meanwhile. Huly and GitHub keep no closing time, so there the older pages go by the last change of a task. A link to a closed task opens the archive down to it. On Linear, Jira, GitLab and Forgejo the archive holds only the closed tasks of milestones that still have open ones and those the chain ran in the last week.
+
 While the session works, the title has the first line to itself and the second is one field: what the session is doing right now, filled up to the context level with a clear edge, the percent, resets and initial at its end; on the current task's row the cache ring stands left of the lamp.
 
 A session that waits for a reply, rests or has stopped keeps the row on one line, with the context as a small bar.

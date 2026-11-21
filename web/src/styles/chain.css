@@ -145,6 +145,49 @@
   outline: 2px solid var(--accent);
 }
 
+/* An older page of the archive on its way (BTN-1445): the pressed button spins, the page's loader stays still. */
+.chain__toggle[aria-busy='true'],
+.chain__more[aria-busy='true'] {
+  cursor: progress;
+}
+
+.chain__toggle[aria-busy='true'] .chain__chevron {
+  display: none;
+}
+
+.chain__toggle[aria-busy='true']::before,
+.chain__more[aria-busy='true']::before {
+  content: '';
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-right: -4px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin var(--motion-spin) linear infinite;
+}
+
+.chain__more[aria-busy='true'] {
+  position: relative;
+  color: transparent;
+}
+
+.chain__more[aria-busy='true']::before {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border-color: var(--accent);
+  border-right-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chain__toggle[aria-busy='true']::before,
+  .chain__more[aria-busy='true']::before {
+    animation-duration: 3s;
+  }
+}
+
 .chain__archived {
   display: flex;
   flex-direction: column;

@@ -47,6 +47,13 @@ export interface TaskSource {
   /** The tasks with these ids, whatever their status; an id the tracker no longer has is left out. */
   tasks(ids: string[]): Promise<TrackerTask[]>
   /**
+   * Optional. A page of the project's tasks closed by `open`, of any milestone and age, the last closed first, in one
+   * request to the tracker (BTN-1445): the archive above the chain. `after` — the `next` of the page before, `null` for
+   * the first; `total` — how many there are, exact on the first page; a later one gives what the tracker counts there
+   * (Huly's cursor counts only what is past it). Without it the archive holds only what `chainTasks` reads.
+   */
+  closedPage?(project: string, open: (status: TaskStatus) => boolean, page: PageRequest): Promise<ClosedPage<TrackerTask>>
+  /**
    * Optional. The title and description of a task; Even Keel adds them to the launch and handoff prompts,
    * so a session needs nothing but the adapter to know its task. `brief: false` in `even-keel.config.json`
    * turns this off for projects whose sessions read the task themselves (an MCP server of the tracker).
@@ -222,6 +229,18 @@ export interface TrackerComment {
   /** Markdown. */
   body: string
   files: { name: string; file: string }[]
+}
+
+export interface PageRequest {
+  after: string | null
+  limit: number
+}
+
+export interface ClosedPage<T> {
+  total: number
+  tasks: T[]
+  /** The cursor of the next page; `null` — this was the last. */
+  next: string | null
 }
 
 export interface TrackerTasks {
@@ -444,6 +463,7 @@ export interface ChainTasks {
 export interface Tracker {
   chainTasks(project: string, rules: ChainRules): Promise<ChainTasks>
   tasks(ids: string[]): Promise<Task[]>
+  closedPage?(project: string, rules: ChainRules, page: PageRequest): Promise<ClosedPage<Task>>
   brief?(id: string): Promise<TaskBrief>
   complete?(id: string, status?: string): Promise<boolean>
   moveTo?(id: string, status: string): Promise<TaskStatus | null>
@@ -484,6 +504,12 @@ export function trackerOf(source: TaskSource): Tracker {
     },
     tasks: async (ids) => (await source.tasks(ids)).map(toTask),
     close: () => source.close(),
+  }
+  if (source.closedPage !== undefined) {
+    tracker.closedPage = async (project, rules, page) => {
+      const read = await source.closedPage!(project, (status) => !isTerminal(rules, status), page)
+      return { ...read, tasks: read.tasks.map(toTask) }
+    }
   }
   if (source.brief !== undefined) tracker.brief = (id) => briefWithAncestors(source, id)
   if (source.complete !== undefined) tracker.complete = (id, status) => (status === undefined ? source.complete!(id) : source.complete!(id, status))

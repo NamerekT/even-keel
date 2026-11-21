@@ -20,8 +20,8 @@ import {
 } from './milestones.js'
 
 import {
-  estimateOf, FILE_COLUMNS, fileOf, normal, priorityOf, readTasks, shown, statusOf, TASK_COLUMNS, titleOf,
-  type BuiltinComment, type BuiltinFile, type BuiltinTask, type FieldEdit, type NewBuiltinTask, type TaskKey, type TaskRow,
+  estimateOf, FILE_COLUMNS, fileOf, normal, priorityOf, readClosed, readTasks, shown, statusOf, TASK_COLUMNS, titleOf,
+  type BuiltinComment, type ClosedRow, type BuiltinFile, type BuiltinTask, type FieldEdit, type NewBuiltinTask, type TaskKey, type TaskRow,
 } from './task-rows.js'
 
 export type { BuiltinComment, BuiltinFile, BuiltinTask, FieldEdit, NewBuiltinTask, TaskKey } from './task-rows.js'
@@ -95,6 +95,11 @@ export class BuiltinStore {
   async rowIds(project: string): Promise<Map<number, string>> {
     const { rows } = await this.db.query<{ id: string; number: number }>('select id, number from builtin_tasks where project_id = $1', [project])
     return new Map(rows.map((row) => [row.number, row.id]))
+  }
+
+  /** A page of the project's tasks in `statuses`, the last closed first (BTN-1445). */
+  closed(project: string, statuses: readonly string[], offset: number, limit: number): Promise<{ total: number; rows: ClosedRow[] }> {
+    return readClosed(this.db, project, statuses, offset, limit)
   }
 
   /** Every task of the projects, by project and number. */

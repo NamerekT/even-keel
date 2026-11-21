@@ -338,8 +338,11 @@ export interface ServerDeps {
   /** The chat microphone's recordings to text through LiteLLM (BTN-1391); without it `dictation/transcribe` is refused. */
   dictation?: Pick<import('./dictation/transcribe.js').Dictation, 'transcribe'>
   launches: () => unknown
-  /** What the state leaves out (BTN-1256): the whole event log, and a task's every run and session. */
-  history?: { events(): unknown; task(task: string): unknown }
+  /**
+   * What the state leaves out (BTN-1256): the whole event log, a task's every run and session, and a page of the
+   * project's closed tasks past `after` (BTN-1445), paged until `focus` is among them where one is given.
+   */
+  history?: { events(): unknown; task(task: string): unknown; archive?(project: string, after: string | null, focus?: string): Promise<unknown> }
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */
   transcript: (sessionId: string, after: number) => Promise<unknown>

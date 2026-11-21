@@ -116,6 +116,40 @@ describe('startTracker', () => {
     expect(plain.view.openToAll).toBeUndefined()
   })
 
+  it('counts the closed tasks of a tracker with pages of them only when the live read\'s closed ones change, a failure keeping the count (BTN-1445)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const done = (id: string): TrackerTask => ({ ...task(id), status: { name: 'Done', category: 'Won' } })
+    let live = [task('APP-1'), done('APP-2')]
+    let total = 40
+    let fails = false
+    const asked: unknown[] = []
+    const { view, refreshers } = start(['APP'], async () => ({
+      chainTasks: async () => ({ tasks: live, statuses: [] }), tasks: async () => [], close: async () => {},
+      closedPage: async (_project: string, _open: unknown, page: unknown) => {
+        asked.push(page)
+        if (fails) throw new Error('huly: timeout')
+        return { total, tasks: [], next: null }
+      },
+    }))
+    await vi.waitFor(() => expect(view.closedTotal).toEqual({ APP: 40 }))
+    expect(asked).toEqual([{ after: null, limit: 1 }])
+    total = 41
+    live = [task('APP-1'), done('APP-2')]
+    await refreshers.get('APP')!()
+    expect(asked).toHaveLength(1)
+    live = [done('APP-1'), done('APP-2')]
+    await refreshers.get('APP')!()
+    expect(view.closedTotal).toEqual({ APP: 41 })
+    fails = true
+    live = [done('APP-1')]
+    await refreshers.get('APP')!()
+    expect(asked).toHaveLength(3)
+    expect(view.closedTotal).toEqual({ APP: 41 })
+    const plain = start(['HUL'], async () => ({ chainTasks: async () => ({ tasks: [done('HUL-1')], statuses: [] }), tasks: async () => [], close: async () => {} }))
+    await vi.waitFor(() => expect(plain.view.readAt.HUL).toBeDefined())
+    expect(plain.view.closedTotal).toBeUndefined()
+  })
+
   it('reads each reader\'s vocabulary once the link is live and keeps a refusal for the page, the tracker staying live (EKR-106)', async () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
     let refused = true

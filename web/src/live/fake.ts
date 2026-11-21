@@ -53,6 +53,7 @@ import { closeCurrent, failedRenew, fakeCommand, finishCurrent, LAUNCH_DAYS, set
 import { fakeCheckpoint, fakeHandedTranscript, fakeRecord, fakeTranscript } from './fakeTranscript.js'
 import { withTrustPause } from './fakeTrust.js'
 import { fakeTaskHistory, withHistoryLeft } from './fakeHistory.js'
+import { fakeArchiveCount, fakeArchivePage, withFakeArchive } from './fakeArchive.js'
 import { withFeeds, withLongNames, withMixedNames } from './fakeLong.js'
 
 const TICK_MS = 2_000
@@ -377,6 +378,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('long') === 'mixed' && current.state !== null) current.state = withMixedNames(current.state)
   if (params.has('feeds') && current.state !== null) current.state = withFeeds(current.state, params.get('feeds')!)
   if (params.get('families') === '3' && current.state !== null) current.state = withFamilies(current.state)
+  if (params.has('archive') && current.state !== null) current.state = withFakeArchive(current.state, fakeArchiveCount(params.get('archive')))
   // The "Test projects" switches as stored before a reload (BTN-1364): `showTests=home,stats`.
   const shownTests = params.get('showTests')?.split(',') ?? []
   if (current.state !== null) current.state.showTests = { home: shownTests.includes('home'), stats: shownTests.includes('stats') }
@@ -1036,6 +1038,7 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'dictation/transcribe') return (await fakeDictation(params.get('dictation'))) as T
       if (name === 'history/events') return current.state.eventLog as T
       if (name === 'history/task') return fakeTaskHistory(current.state, String(body.task)) as T
+      if (name === 'archive/page') return (await fakeArchivePage(current.state, body, fakeArchiveCount(params.get('archive')))) as T
       if (name === 'machines/cards') return network.cards(current.state) as T
       if (name === 'machines/view') {
         const page = network.page(String(body.machine), current.state)

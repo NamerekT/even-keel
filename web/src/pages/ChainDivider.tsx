@@ -48,7 +48,7 @@ interface DividerProps {
   /** The delay before the count bumps as a closed task folds into the line. */
   bump?: number
   /** Makes the whole line a button that folds or reveals what the line stands for. */
-  toggle?: { expanded: boolean; title: string; run: () => void }
+  toggle?: { expanded: boolean; title: string; run: () => void; busy?: boolean }
   /** A button of its own after the line, outside the toggle. */
   action?: ReactNode
 }
@@ -75,7 +75,14 @@ export function Divider({ name, count, hidden = false, bump, toggle, action }: D
       {toggle === undefined ? (
         line
       ) : (
-        <button type="button" className="chain__toggle" aria-expanded={toggle.expanded} title={toggle.title} onClick={toggle.run}>
+        <button
+          type="button"
+          className="chain__toggle"
+          aria-expanded={toggle.expanded}
+          aria-busy={toggle.busy === true ? 'true' : undefined}
+          title={toggle.title}
+          onClick={toggle.run}
+        >
           {line}
         </button>
       )}

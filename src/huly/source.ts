@@ -50,7 +50,12 @@ interface ChatMessageDoc {
 }
 
 interface PlatformClient extends HulyLabelClient {
-  findAll<T>(cls: string, query: Query, options?: { projection?: Record<string, 1> }): Promise<T[]>
+  /** With `total`, the array carries how many the query finds whatever the `limit` (Huly's `FindResult`). */
+  findAll<T>(
+    cls: string,
+    query: Query,
+    options?: { projection?: Record<string, 1>; sort?: Record<string, 1 | -1>; limit?: number; total?: boolean },
+  ): Promise<T[] & { total?: number }>
   findOne<T>(cls: string, query: Query, options?: { sort?: Record<string, 1 | -1> }): Promise<T | undefined>
   updateDoc(cls: string, space: string, id: string, update: Record<string, unknown>, retrieve?: boolean): Promise<unknown>
   addCollection(
@@ -316,6 +321,28 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         milestones.length === 0 ? [] : await findIssues({ space: space._id, milestone: { $in: milestones }, status: { $nin: opened } })
       const tasks = await resolve([...openIssues, ...closedIssues], statuses)
       return { tasks, statuses: statuses.map((doc) => doc.name) }
+    },
+    // Huly keeps no closing time and no offset: the page goes by the last change, the cursor is the last row's.
+    async closedPage(project, open, { after, limit }) {
+      const [space, statuses] = await Promise.all([spaceOf(project), findStatuses()])
+      const closed = statuses.filter((doc) => !open(toStatus(doc))).map((doc) => doc._id)
+      const query: Query = { space: space._id, status: { $in: closed }, ...(after === null ? {} : { modifiedOn: { $lt: Number(after) } }) }
+      const issues = await client.findAll<HulyIssueDoc & { modifiedOn: number }>(tracker.class.Issue, query, {
+        projection: { ...ISSUE_FIELDS, modifiedOn: 1 },
+        sort: { modifiedOn: -1 },
+        limit,
+        total: true,
+      })
+      const planned = [...new Set(issues.flatMap((issue) => (issue.milestone ? [issue.milestone] : [])))]
+      const milestones =
+        planned.length === 0 ? [] : await client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { _id: { $in: planned } }, { projection: MILESTONE_FIELDS })
+      const total = issues.total ?? issues.length
+      const last = issues.at(-1)
+      return {
+        total,
+        tasks: toTasks([...issues], statuses, new Map(), milestones).map((task) => ({ ...task, blockedBy: [], labels: [] })),
+        next: last !== undefined && issues.length < total ? String(last.modifiedOn) : null,
+      }
     },
     async tasks(identifiers) {
       const [issues, statuses] = await Promise.all([findIssues({ identifier: { $in: identifiers } }), findStatuses()])

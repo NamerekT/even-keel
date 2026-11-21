@@ -113,6 +113,13 @@ export interface TaskHistory {
   sessions: SessionView[]
 }
 
+/** `archive/page` (BTN-1445): closed tasks of the project the state does not hold, the last closed first. */
+export interface ArchivePage {
+  tasks: Task[]
+  /** The cursor of the next page; `null` — the archive has no more. */
+  next: string | null
+}
+
 export interface SessionRecord {
   sessionId: string
   startedAt: string | null
@@ -316,6 +323,11 @@ export interface EvenKeelState {
   }
   /** The tasks of every project with its project: a task of a tracker project two projects share is here for each. */
   tasks: ProjectTask[]
+  /**
+   * By project, how many closed tasks its trackers have beyond the closed ones in `tasks` (BTN-1445): the archive's
+   * older pages, which come by `archive/page`. A project none of whose trackers pages its closed tasks has no key.
+   */
+  archiveMore?: Record<string, number>
   /** What the tasks' sessions run on where the card set it (BTN-983), by project and task; a task that runs as its project says has no key. */
   runs: Record<string, Record<string, TaskRun>>
   /** The tasks with subtasks of each project, open and closed, for the "Parents" view (BTN-1041); a project without any has no key. */

@@ -239,6 +239,8 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'forward/resolve': ({ resolveCarry }, body) => resolveCarry(projectOf(body)),
   'history/events': async ({ history }) => history?.events() ?? [],
   'history/task': async ({ history }, body) => history?.task(textOf(body.task, 'task')) ?? { runs: [], sessions: [] },
+  'archive/page': async ({ history }, body) =>
+    (await history?.archive?.(projectOf(body), body.after === null || body.after === undefined ? null : textOf(body.after, 'after'), body.focus === undefined ? undefined : textOf(body.focus, 'focus'))) ?? { tasks: [], next: null },
   'dictation/transcribe': async ({ dictation }, body) => {
     if (dictation === undefined) throw fail('dictation.off', {})
     return { text: await dictation.transcribe(textOf(body.audio, 'audio'), textOf(body.type, 'type')) }
