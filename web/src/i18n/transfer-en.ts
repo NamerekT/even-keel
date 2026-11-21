@@ -124,6 +124,8 @@ export const transferEn: Messages['transfer'] = {
   },
   checkOk: 'Matches',
   checkShort: (ids) => `Missing on ${ids.length === 1 ? 'the task' : 'the tasks'} ${keysEn(ids)}`,
+  checkGone: (count, tracker) => `${count} ${plural('en', count, { one: 'attachment has', other: 'attachments have' })} no file in ${tracker} and ${plural('en', count, { one: 'is', other: 'are' })} not imported`,
+  checkGoneTip: (files) => keysEn(files),
   checkNone: 'The transfer is not checked yet. Press "Repeat": Even Keel brings over what is missing and checks both sides.',
   mismatch: (kinds) => `The check did not match: ${kinds.join(', ').toLowerCase()}. Repeat it — Even Keel brings over what is missing. If it is not here either, switch without them.`,
   retry: 'Repeat',

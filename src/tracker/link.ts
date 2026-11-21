@@ -191,11 +191,15 @@ export class TrackerLink {
   }
 }
 
-/** The message of an error with its cause: Node's `fetch` says only "fetch failed" and keeps the reason (DNS, refused) in `cause`. */
+/**
+ * The message of an error with its cause: Node's `fetch` says only "fetch failed" and keeps the reason (DNS, refused) in
+ * `cause`. An error without a message, as Huly storage's `NotFoundError` of a 404, is named by its class (BTN-1454).
+ */
 export function errorText(error: unknown): string {
   if (!(error instanceof Error)) return String(error)
+  const said = (each: Error) => (each.message === '' ? each.name : each.message)
   const { cause } = error
-  return cause instanceof Error ? `${error.message}: ${cause.message}` : error.message
+  return cause instanceof Error ? `${said(error)}: ${said(cause)}` : said(error)
 }
 
 class CallTimeout extends Error {}

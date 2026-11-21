@@ -296,6 +296,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 260 | [An own image over the Docker image](unverified/platforms.md#an-own-image-over-the-docker-image-btn-1439) | Docker installations with a `Dockerfile` of their own over ours | the own image stays on the old version after the update, or the agents do not find its tools; rebuild with `--no-cache`, or install the tools in the image rather than the volume | BTN-1441 |
 | 261 | [The archive's older pages from a live tracker](unverified/trackers.md#the-archives-older-pages-from-a-live-tracker-btn-1445) | projects on Huly or GitHub with closed tasks beyond the live read | the archive's count disagrees with its pages, a page skips or repeats tasks, or a link to an old task opens no row | — |
 | 262 | [The import plan's read in parallel](unverified/trackers.md#the-import-plans-read-in-parallel-btn-1452) | projects importing from Huly, GitHub or Linear | the plan's read fails on the tracker's limits, the counts differ from a read one task at a time, or the meter stands still; close the window and open it again after the limit's reset | — |
+| 263 | [An attachment Huly has no file of in the import](unverified/trackers.md#an-attachment-huly-has-no-file-of-in-the-import-btn-1454) | projects importing from Huly with an attachment whose file is gone | the import still stops at the attachments, or the check does not match on it; switch past the check after a look at the task | — |
 
 ### Waiting for the event / not checked by choice
 

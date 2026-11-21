@@ -129,6 +129,9 @@ export const transferRu = {
   } satisfies Record<CheckKind, string>,
   checkOk: 'Сошлось',
   checkShort: (ids: string[]) => `Не хватает у ${ids.length === 1 ? 'задачи' : 'задач'} ${keysRu(ids)}`,
+  checkGone: (count: number, tracker: string) =>
+    `У ${count} ${plural('ru', count, { one: 'вложения', few: 'вложений', many: 'вложений', other: 'вложения' })} нет файла в ${tracker} — ${plural('ru', count, { one: 'оно не перенесено', other: 'они не перенесены' })}`,
+  checkGoneTip: (files: string[]) => keysRu(files),
   checkNone: 'Перенос ещё не сверен. Нажмите «Повторить» — Even Keel докачает недостающее и сверит обе стороны.',
   mismatch: (kinds: string[]) =>
     `Сверка не сошлась: ${kinds.join(', ').toLowerCase()}. Повторите — Even Keel перенесёт недостающее. Если этого нет и здесь, переключайте без них.`,

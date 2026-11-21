@@ -78,6 +78,8 @@ function fixture() {
     ),
   }
   const blobs: Record<string, Uint8Array> = { 'blob-a1': new Uint8Array([1, 2, 3]) }
+  /** What the storage throws on reading a blob. */
+  const failures: Record<string, Error> = {}
   const matches = (row: Record<string, unknown>, query: Record<string, unknown>) =>
     Object.entries(query).every(([key, wanted]) =>
       wanted !== null && typeof wanted === 'object' && '$in' in wanted ? (wanted.$in as unknown[]).includes(row[key]) : row[key] === wanted,
@@ -96,6 +98,7 @@ function fixture() {
     space: { _id: 'space', createdBy: 'social-user' },
     ownSocialId: 'social-agent',
     readFile: async (blob) => {
+      if (failures[blob] !== undefined) throw failures[blob]
       const bytes = blobs[blob]
       if (bytes === undefined) throw new Error(`no blob ${blob}`)
       return (async function* () {
@@ -104,7 +107,7 @@ function fixture() {
       })()
     },
   })
-  return { source, queries, tables }
+  return { source, queries, tables, failures }
 }
 
 describe('hulyText', () => {
@@ -181,6 +184,15 @@ describe('hulyImport', () => {
       { key: 'blob-img1', name: 'diagram.png', type: '', size: null },
     ])
     expect(await files[0]!.read()).toEqual(new Uint8Array([1, 2, 3]))
+  })
+
+  it("gives no bytes of a file the storage does not have, and stops on the storage's other failures", async () => {
+    const { source, failures } = fixture()
+    const [, shot] = await source.files('id-1')
+    failures['blob-img2'] = Object.assign(new Error(''), { name: 'NotFoundError' })
+    expect(await shot!.read()).toBeNull()
+    failures['blob-img2'] = Object.assign(new Error('fetch failed'), { name: 'NetworkError' })
+    await expect(shot!.read()).rejects.toThrow('fetch failed')
   })
 
   it('reads the change log by name, oldest first, without the fields it does not know', async () => {

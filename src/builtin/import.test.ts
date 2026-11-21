@@ -9,6 +9,7 @@ import { NoticeError } from '../notice/notice.js'
 import { openDatabase } from '../storage/database.js'
 import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
+import { checkMatched } from '../tracker/transfer-check.js'
 import { fileUrl } from './files.js'
 import { BuiltinImports } from './import.js'
 import { listMilestones } from './milestones.js'
@@ -139,7 +140,7 @@ function fakeSource() {
   return { source, tasks, milestones, comments, files, changes, state, reads }
 }
 
-function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'import-'))) {
+function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'import-')), lines: string[] = []) {
   const moves: TrackerMove[] = []
   const renames: ReadonlyMap<string, string>[] = []
   const opened = (): OpenedImportSource => ({ tracker: 'huly', place: '', key: 'ABC', title: 'Huly', source, close: async () => {} })
@@ -152,7 +153,7 @@ function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'im
     },
     filesDir,
     refresh: async () => {},
-    say: () => {},
+    say: (line) => lines.push(line),
     switching: {
       chain: () => emptyChainState(),
       rename: (_project, names) => renames.push(names),
@@ -214,6 +215,34 @@ describe('the import into the built-in tracker', () => {
     const log = files.find((each) => each.name === 'log.txt')!
     expect((await store.get(key(3)))!.description).toBe(`Look: ![shot](${fileUrl('ABC-3', shot.sha256)})`)
     expect((await store.comments(key(3)))[1]!.body).toBe(`see the log\n\n[log.txt](${fileUrl('ABC-3', log.sha256)})`)
+  })
+
+  it("passes over an attachment the source has no file of, names it in the check, and a repeat does not read it again", async () => {
+    const fake = fakeSource()
+    const lines: string[] = []
+    let reads = 0
+    fake.files.r3!.push({ key: 'f3', name: 'gone.png', type: 'image/png', size: 4, read: async () => (reads++, null) })
+    const { service } = imports(fake.source, undefined, lines)
+    await service.start(ABC)
+    await service.settled(ABC)
+    expect((await store.files(key(3))).map((each) => each.name).sort()).toEqual(['log.txt', 'shot.png'])
+    expect(lines).toContain('import: ABC-3: the attachment gone.png has no file and is not imported')
+    const { check, failed } = await service.state(ABC)
+    expect(failed).toBeNull()
+    expect(check?.rows.find((row) => row.kind === 'files')).toEqual({ kind: 'files', source: 2, target: 2, tasks: [], gone: [{ task: 'ABC-3', name: 'gone.png' }] })
+    expect(check !== null && checkMatched(check)).toBe(true)
+    await service.start(ABC)
+    await service.settled(ABC)
+    expect(reads).toBe(1)
+  })
+
+  it('stops on a failed read of an attachment, naming the task and the file', async () => {
+    const fake = fakeSource()
+    fake.files.r3![1] = { ...fake.files.r3![1]!, read: async () => Promise.reject(Object.assign(new Error(''), { name: 'NetworkError' })) }
+    const { service } = imports(fake.source)
+    await service.start(ABC)
+    await service.settled(ABC)
+    expect((await service.state(ABC)).failed?.detail).toBe('ABC-3: the attachment log.txt: NetworkError')
   })
 
   it('writes the change log with its authors, and the check matches', async () => {

@@ -132,9 +132,11 @@ export const checkMatched = (check: TransferCheck): boolean => check.rows.every(
 
 /**
  * The check at the end of a transfer (BTN-1291): a row a kind, "Here" against the other tracker — the source first, so
- * an import reads the other way round; a row short of something is red, its tasks under the "!".
+ * an import reads the other way round; a row short of something is red, its tasks under the "!". The files an import's
+ * source has no bytes of stand in a line under the table, each under its tip (BTN-1454).
  */
 export function TransferCheckTable({ check, direction, tracker }: { check: TransferCheck; direction: TransferDirection; tracker: string }) {
+  const gone = check.rows.flatMap((row) => row.gone ?? [])
   const heads = [t.transfer.statusHere, t.transfer.statusThere(tracker)]
   const [first, second] = direction === 'export' ? heads : [heads[1]!, heads[0]!]
   return (
@@ -176,6 +178,13 @@ export function TransferCheckTable({ check, direction, tracker }: { check: Trans
           })}
         </tbody>
       </table>
+      {gone.length > 0 && (
+        <p className="transfer__none">
+          <Tipped tip={t.transfer.checkGoneTip(gone.map((each) => `${each.task}: ${each.name}`))} focusable inline align="start" className="transfer__kind">
+            {t.transfer.checkGone(gone.length, tracker)}
+          </Tipped>
+        </p>
+      )}
     </TransferBlock>
   )
 }

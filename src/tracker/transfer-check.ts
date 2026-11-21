@@ -23,6 +23,15 @@ export interface CheckRow {
   target: number
   /** The source's ids of the tasks short of it in the target. */
   tasks: string[]
+  /** The files of an import the source has no bytes of: not in `source`, named apart so none is lost unseen (BTN-1454). */
+  gone?: CheckGone[]
+}
+
+export interface CheckGone {
+  /** The task's id in the source. */
+  task: string
+  /** The file's name. */
+  name: string
 }
 
 export interface TransferCheck {
@@ -225,6 +234,8 @@ export interface ImportedTask {
   /** Entries of its history but its creation. */
   changes: number
   files: number
+  /** The names of the source's files the import passed over, the source having no bytes of them (BTN-1454). */
+  gone?: readonly string[]
   blocks: string[]
   related: string[]
   parent: string | null
@@ -291,6 +302,7 @@ export async function checkImport(
     row.target += Math.min(want, got)
     if (got < want) row.tasks.add(task.id)
   }
+  const gone: CheckGone[] = []
   const names = new Map<CheckKind, Map<string, boolean>>([['milestones', new Map()], ['labels', new Map()], ['components', new Map()]])
   const name = (kind: CheckKind, task: ImportTask, wanted: string | null, has: boolean) => {
     if (wanted === null || wanted.trim() === '') return
@@ -305,7 +317,9 @@ export async function checkImport(
     add('tasks', task, 1, got === null ? 0 : 1)
     add('comments', task, want.comments, got?.comments ?? 0)
     if (source.changes !== undefined) add('history', task, want.changes, got?.changes ?? 0)
-    add('files', task, want.files, got?.files ?? 0)
+    const passed = got?.gone ?? []
+    add('files', task, Math.max(0, want.files - passed.length), got?.files ?? 0)
+    for (const name of passed) gone.push({ task: task.id, name })
     options.progress?.(index + 1, tasks.length)
     const links = [
       ...task.blocks.filter(own).map((link) => got?.blocks.includes(link.ref) === true),
@@ -335,7 +349,8 @@ export async function checkImport(
     row.source = seen.size
     row.target = [...seen.values()].filter(Boolean).length
   }
-  return { at: now().toISOString(), rows: kinds.map((kind) => ({ kind, source: counts.get(kind)!.source, target: counts.get(kind)!.target, tasks: [...counts.get(kind)!.tasks] })) }
+  const rowOf = (kind: CheckKind): CheckRow => ({ kind, source: counts.get(kind)!.source, target: counts.get(kind)!.target, tasks: [...counts.get(kind)!.tasks] })
+  return { at: now().toISOString(), rows: kinds.map((kind) => (kind === 'files' && gone.length > 0 ? { ...rowOf(kind), gone } : rowOf(kind))) }
 }
 
 async function cardOf(read: NonNullable<ExportTarget['read']>, key: string): Promise<TrackerCard | null> {

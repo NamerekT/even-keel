@@ -11,7 +11,7 @@ import type { TransferCheck, TransferReport } from '../../../src/tracker/transfe
  * step; `done`: it is through and the switch waits; `held`: through, the switch refused while the chain runs;
  * `mismatch`: through, its check short of two attachments until "Repeat"; `switching`: through, and its switch goes on —
  * the last pass over three changed tasks, the check of every task, then the move, a task each `STEP_MS`; `reading`: the
- * plan's read stands at 40 % (BTN-1452).
+ * plan's read stands at 40 % (BTN-1452); `gone`: through, its check matched with an attachment Huly has no file of.
  */
 const STEP_MS = 300
 const STEPS = 4
@@ -88,7 +88,8 @@ function seed(mode: string | null, total: number): void {
   const failAt = FAIL_AT.step * total + FAIL_AT.done
   if (mode === 'running') run = { startedAt: now, from: 0, failAt: null, short: false }
   if (mode === 'failed') run = { startedAt: now, from: failAt, failAt, short: false }
-  if (mode === 'done' || mode === 'held' || mode === 'mismatch' || mode === 'switching') run = { startedAt: now, from: STEPS * total, failAt: null, short: mode === 'mismatch' }
+  if (mode === 'done' || mode === 'held' || mode === 'mismatch' || mode === 'switching' || mode === 'gone') run = { startedAt: now, from: STEPS * total, failAt: null, short: mode === 'mismatch' }
+  gone = mode === 'gone'
   switchStarted = mode === 'switching' ? now : null
 }
 
@@ -143,16 +144,20 @@ function stateOf(total: number, ids: string[], mode: string | null): ImportState
   }
 }
 
+/** `?import=gone`: the source has no file of one attachment, and the check names it under the table (BTN-1454). */
+let gone = false
+
 function checkOf(total: number, ids: string[], short: boolean): TransferCheck {
   const files = Math.ceil(total / 3)
   const row = (kind: TransferCheck['rows'][number]['kind'], count: number) => ({ kind, source: count, target: count, tasks: [] })
+  const missing = gone ? { gone: [{ task: ids[0] ?? 'ABC-1', name: 'screenshot.png' }] } : {}
   return {
     at: new Date().toISOString(),
     rows: [
       row('tasks', total),
       row('comments', total * 4 + 3),
       row('history', total * 9),
-      { kind: 'files', source: files, target: short ? Math.max(0, files - 2) : files, tasks: short ? ids.slice(0, 2) : [] },
+      { kind: 'files', source: files, target: short ? Math.max(0, files - 2) : files, tasks: short ? ids.slice(0, 2) : [], ...missing },
       row('links', Math.max(0, total - 2) + Math.floor(total / 2)),
       row('milestones', 3),
       row('labels', 6),

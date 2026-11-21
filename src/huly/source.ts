@@ -6,7 +6,7 @@ import { collabUpdater } from './collab.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { hulyEditor, parentsUnder, type HulyFullIssue, type HulyNewIssue } from './editor.js'
 import { tracker } from './ids.js'
-import { hulyImport } from './import.js'
+import { hulyImport, storageNotFound } from './import.js'
 import { quietModelNoise } from './quiet.js'
 import { relabelHuly, type HulyLabelClient } from './labels.js'
 import {
@@ -162,13 +162,14 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     comments.length === 0 ? [] : client.findAll<ChatMessageDoc>(THREAD_MESSAGE, { attachedTo: { $in: comments.map((doc) => doc._id) } })
 
   let storage: Promise<StorageClient> | null = null
-  // The storage token may expire while the service runs: a failed call connects anew once.
+  // The storage token may expire while the service runs: a failed call connects anew once; a file it has not is no failure of the token.
   async function withStorage<T>(work: (each: StorageClient) => Promise<T>): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       storage ??= api.connectStorage(credentials.url, account)
       try {
         return await work(await storage)
       } catch (error) {
+        if (storageNotFound(error)) throw error
         storage = null
         if (attempt > 0) throw error
       }

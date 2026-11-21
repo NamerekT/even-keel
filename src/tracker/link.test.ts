@@ -260,6 +260,12 @@ describe('TrackerLink', () => {
     expect(errorText(failed)).toBe('fetch failed: getaddrinfo ENOTFOUND huly.example.com')
   })
 
+  it('names an error without a message by its class, so no reason is blank', () => {
+    const missing = Object.assign(new Error(''), { name: 'NotFoundError' })
+    expect(errorText(missing)).toBe('NotFoundError')
+    expect(errorText(new Error('ABC-1: the attachment shot.png', { cause: missing }))).toBe('ABC-1: the attachment shot.png: NotFoundError')
+  })
+
   it('does not report a change when a failure repeats with the same error', async () => {
     const onHealth = vi.fn()
     const link = new TrackerLink({ name: 'huly',connect: async () => Promise.reject(new Error('refused')), timeoutMs: 1000, onHealth })

@@ -103,6 +103,12 @@ const CHUNK = 200
 const PARALLEL = 8
 
 /**
+ * The storage has no file of the blob: its client throws a `NotFoundError` with the 404's empty text (BTN-1454). Known by
+ * its name, the package's class is not imported; the attachment stays with no bytes, so a repeat cannot bring them.
+ */
+export const storageNotFound = (error: unknown): boolean => error instanceof Error && error.name === 'NotFoundError'
+
+/**
  * The import's read of a Huly project (BTN-1402): every issue, its comments with the replies in their threads, its
  * files and the change log Huly's activity keeps. The project is read once, on the first call; comments and files a
  * task at a time, the last task's kept for the next read.
@@ -265,7 +271,12 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
     size,
     async read() {
       const chunks: Uint8Array[] = []
-      for await (const chunk of await deps.readFile(key)) chunks.push(chunk)
+      try {
+        for await (const chunk of await deps.readFile(key)) chunks.push(chunk)
+      } catch (error) {
+        if (storageNotFound(error)) return null
+        throw error
+      }
       return new Uint8Array(Buffer.concat(chunks))
     },
   })

@@ -405,6 +405,21 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  /* The check's number columns narrower, so a kind's name keeps its word whole on a phone. */
+  .transfer__table--check th,
+  .transfer__table--check td {
+    padding-inline: var(--space-8);
+  }
+
+  .transfer__table--check th:nth-child(2),
+  .transfer__table--check th:nth-child(3) {
+    width: 64px;
+  }
+
+  .transfer__table--check th:nth-child(4) {
+    width: 28px;
+  }
+
   .transfer__names {
     grid-column: 1 / -1;
     grid-row: 2;

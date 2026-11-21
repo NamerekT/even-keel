@@ -10,7 +10,7 @@ import { errorText } from '../tracker/link.js'
 import { checkImport, checkMatched, sourceCounts, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
 import { PlanReads } from './import-reading.js'
 import { ImportRecords, type ImportHeader } from './import-store.js'
-import { IMPORT_STAGES, runImport, unchanged, type ImportRow } from './import-run.js'
+import { goneKeys, IMPORT_STAGES, runImport, unchanged, type ImportRow } from './import-run.js'
 import { listMilestones } from './milestones.js'
 import { BUILTIN } from './model.js'
 import { BuiltinStore } from './store.js'
@@ -311,10 +311,12 @@ export class BuiltinImports {
         const key = { project, number: task.number }
         const got = await store.get(key)
         if (got === undefined) return null
+        const passed = new Set(rows.has(task.ref) ? goneKeys(rows.get(task.ref)!) : [])
         return {
           comments: (await store.comments(key)).length,
           changes: (await store.history(key)).filter((each) => each.field !== 'created').length,
           files: (await store.files(key)).length,
+          ...(passed.size === 0 ? {} : { gone: (await source.files(task.ref)).filter((file) => passed.has(file.key)).map((file) => file.name) }),
           blocks: refs(got.blocks),
           related: refs(got.related),
           parent: got.parent === null ? null : (refOf.get(got.parent) ?? null),

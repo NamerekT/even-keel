@@ -23,6 +23,15 @@ import { estimateOf } from './task-rows.js'
 export const IMPORT_STAGES = ['created', 'linked', 'attached', 'journaled', 'done'] as const
 export type ImportStage = (typeof IMPORT_STAGES)[number]
 
+/**
+ * The value of `ImportRow.files` for an attachment the source has no bytes of (BTN-1454): passed over and not read again,
+ * and the check names it apart from the files short.
+ */
+export const GONE = ''
+
+/** The keys of the task's attachments passed over with no bytes. */
+export const goneKeys = (row: ImportRow): string[] => Object.keys(row.files).filter((key) => row.files[key] === GONE)
+
 export interface ImportRow {
   /** The source's own id of the task. */
   ref: string
@@ -30,7 +39,7 @@ export interface ImportRow {
   stage: ImportStage
   /** Files attached or comments posted of the stage after `stage`. */
   done: number
-  /** The sha256 of each attached file by its source `key`: a text's pictures point at them. */
+  /** The sha256 of each attached file by its source `key`: a text's pictures point at them; `GONE` — passed over. */
   files: Record<string, string>
   /** How many entries of the change log are written. */
   changes: number
@@ -173,9 +182,16 @@ export async function runImport(run: ImportRun, sync = false): Promise<number> {
     let current = row
     for (const file of await source.files(task.ref)) {
       if (Object.hasOwn(current.files, file.key)) continue
-      const bytes = await file.read()
+      let bytes: Uint8Array | null
+      try {
+        bytes = await file.read()
+      } catch (error) {
+        throw new Error(`${task.id}: the attachment ${file.name}`, { cause: error })
+      }
       if (bytes === null) {
         say(`import: ${task.id}: the attachment ${file.name} has no file and is not imported`)
+        current = { ...current, files: { ...current.files, [file.key]: GONE } }
+        await save(current)
         continue
       }
       const made = await files.add(keyOf(task), { name: file.name, type: file.type, bytes })
@@ -217,7 +233,7 @@ export function pictured(text: string, images: readonly ImportImage[], files: Re
   let result = text
   for (const image of images) {
     const sha = files[image.file]
-    if (sha !== undefined && image.ref !== '') result = result.split(image.ref).join(fileUrl(task, sha))
+    if (sha !== undefined && sha !== GONE && image.ref !== '') result = result.split(image.ref).join(fileUrl(task, sha))
   }
   return result
 }
@@ -228,7 +244,7 @@ export function commentBody(comment: ImportComment, files: Readonly<Record<strin
   const shown = new Set(comment.images.map((image) => image.file))
   const links = comment.files.flatMap((key) => {
     const sha = files[key]
-    return shown.has(key) || sha === undefined ? [] : [`[${names.get(key) ?? key}](${fileUrl(task, sha)})`]
+    return shown.has(key) || sha === undefined || sha === GONE ? [] : [`[${names.get(key) ?? key}](${fileUrl(task, sha)})`]
   })
   return links.length === 0 ? text : `${text}\n\n${links.join('\n')}`
 }
