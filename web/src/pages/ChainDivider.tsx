@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { t } from '../i18n/index.js'
 import { CheckIcon, HammersIcon, HiddenIcon } from '../ui/icons.js'
+import { familyHue } from '../ui/look.js'
 
 /** A count of the line as an icon and a grey `.count-badge`, its words in the title and for a reader (BTN-1374). */
 function CountMark({ icon, count, label }: { icon: ReactNode; count: number; label: string }) {
@@ -19,6 +20,19 @@ export function ArchiveCounts({ tasks, fixes }: { tasks: number; fixes: number }
       {tasks > 0 && <CountMark icon={<CheckIcon />} count={tasks} label={t.chain.tasks(tasks)} />}
       {fixes > 0 && <CountMark icon={<HammersIcon />} count={fixes} label={t.chain.fixes(fixes)} />}
     </>
+  )
+}
+
+/** A parent's count of closed subtasks, in the colour of its subtasks' rail. */
+export function SubtasksChip({ family, subtasks }: { family: string; subtasks: { closed: number; total: number } }) {
+  return (
+    <span
+      className="chip block__subtasks"
+      style={{ '--family': `var(--family-${familyHue(family)})` } as CSSProperties}
+      title={t.chain.subtasksClosed(subtasks.closed, subtasks.total)}
+    >
+      {subtasks.closed}/{subtasks.total}
+    </span>
   )
 }
 

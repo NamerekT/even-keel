@@ -7,7 +7,7 @@ import { useCommand } from '../live/useCommand.js'
 import { blockMetered, sessionCache, taskTitle, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, withOrder } from '../ui/chainOrder.js'
-import { ActionMeter, CacheRing, ResetsBadge } from '../ui/BlockMetrics.js'
+import { ActionMeter, CacheRing } from '../ui/BlockMetrics.js'
 import { ChevronIcon, IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { useLive } from '../live/context.js'
@@ -15,7 +15,7 @@ import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { MachineTag } from '../ui/MachineTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
-import { familyHue, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
+import { isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
 import { parentsTo } from '../parents.js'
 import { milestoneView, type EmptyMilestones, type Section } from '../ui/milestones.js'
 import { chainPlace, looseGhost, takesGhost, type MilestoneRules } from '../ui/addGhost.js'
@@ -32,7 +32,8 @@ import { BlockTail } from './BlockTail.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import './chain.css'
 import { ChangelogButton } from './ChangelogDialog.js'
-import { ArchiveCounts, Divider, HiddenCount } from './ChainDivider.js'
+import { ChainArchive } from './ChainArchive.js'
+import { Divider, HiddenCount, SubtasksChip } from './ChainDivider.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
 import { useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
@@ -170,59 +171,16 @@ export function ChainList(props: Props) {
 
   return (
     <div className="chain" style={{ '--key-chars': keyChars(ordered) } as CSSProperties}>
-      {archive.shown === 0
-        ? (archive.hidden > 0 || switcher !== undefined) && (
-            <TopRow switcher={switcher}>
-              {archive.hidden > 0 && (
-                <Divider
-                  name={t.chain.archive}
-                  count={<ArchiveCounts tasks={archive.hidden - archive.hiddenFixes} fixes={archive.hiddenFixes} />}
-                  hidden
-                  bump={motion.bump ?? undefined}
-                  toggle={{ expanded: false, title: t.chain.openArchive, run: () => setArchivePages(1) }}
-                />
-              )}
-            </TopRow>
-          )
-        : (
-            <section className="chain__archive">
-              <TopRow switcher={switcher}>
-              <Divider
-                name={t.chain.archive}
-                count={
-                  archive.hidden > 0
-                    ? t.chain.archiveShown(archive.shown, archive.shown + archive.hidden)
-                    : <ArchiveCounts tasks={archive.shown - archive.shownFixes} fixes={archive.shownFixes} />
-                }
-                bump={motion.bump ?? undefined}
-                toggle={{ expanded: true, title: t.chain.foldArchive, run: collapseArchive }}
-                action={
-                  archive.hidden > 0 && (
-                    <button
-                      type="button"
-                      className="chain__more"
-                      title={t.chain.loadMore(archive.next, archive.hidden)}
-                      onClick={() => setArchivePages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}
-                    >
-                      {t.chain.archiveMore(archive.next)}
-                    </button>
-                  )
-                }
-              />
-              </TopRow>
-              <ol className="chain__archived">
-                {archive.archived.map((block, index) => (
-                  <ArchivedRow
-                    key={block.id}
-                    block={block}
-                    search={rowSearch}
-                    milestone={block.milestone !== archive.archived[index - 1]?.milestone ? block.milestone : null}
-                    focused={block.id === focus}
-                  />
-                ))}
-              </ol>
-            </section>
-          )}
+      <ChainArchive
+        archive={archive}
+        switcher={switcher}
+        bump={motion.bump ?? undefined}
+        focus={focus}
+        rowSearch={rowSearch}
+        onOpen={() => setArchivePages(1)}
+        onMore={() => setArchivePages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}
+        onFold={collapseArchive}
+      />
       {motion.quiet && (
         <p className="chain__away" role="status">
           {t.chain.away(motion.quiet)}
@@ -444,53 +402,6 @@ function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: 
       <p className="block__title">{block.title}</p>
       <div className="block__side" />
     </li>
-  )
-}
-
-/** A row of the unfolded archive: one quiet line, its context resets and its milestone, named only where the milestone changes. */
-function ArchivedRow({ block, search, milestone, focused }: { block: ChainBlock; search: string | undefined; milestone: string | null; focused: boolean }) {
-  return (
-    <li id={block.id} className={`archived archived--${block.lamp}${focused ? ' archived--focus' : ''}`} data-block={block.id}>
-      <span className="archived__head">
-        <Lamp lamp={block.lamp} />
-        <Link to={{ search, hash: block.id }} className="archived__key" draggable={false} aria-current={focused ? 'true' : undefined}>
-          {block.id}
-        </Link>
-      </span>
-      <span className="archived__title" title={block.title ?? undefined}>
-        {block.title}
-        {isOwnName(block.id) && <Forge lamp={block.lamp} />}
-      </span>
-      <span className="archived__side">
-        {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
-        <ResetsBadge sessions={block.sessions} />
-        {milestone !== null && <span className="archived__milestone">{milestone}</span>}
-      </span>
-    </li>
-  )
-}
-
-/** The feed's first row: the archive line, the view switch at its right. */
-function TopRow({ switcher, children }: { switcher: ReactNode; children: ReactNode }) {
-  if (switcher === undefined) return children
-  return (
-    <div className="chain__top">
-      {children}
-      <span className="chain__switch">{switcher}</span>
-    </div>
-  )
-}
-
-/** A parent's count of closed subtasks, in the colour of its subtasks' rail. */
-function SubtasksChip({ family, subtasks }: { family: string; subtasks: { closed: number; total: number } }) {
-  return (
-    <span
-      className="chip block__subtasks"
-      style={{ '--family': `var(--family-${familyHue(family)})` } as CSSProperties}
-      title={t.chain.subtasksClosed(subtasks.closed, subtasks.total)}
-    >
-      {subtasks.closed}/{subtasks.total}
-    </span>
   )
 }
 
