@@ -645,7 +645,12 @@ export class AccountWatcher {
   }
 
   private begin(home: AccountHome, adding: boolean, method?: string): void {
-    const child = this.options.agentOf(home).login(home, method)
+    const onLocalLink = (localUrl: string) => {
+      if (this.running !== running || this.current === null) return
+      this.current = { ...this.current, localUrl }
+      this.options.onChange()
+    }
+    const child = this.options.agentOf(home).login(home, method, onLocalLink)
     const running = { child, home, adding }
     this.running = running
     this.output = ''

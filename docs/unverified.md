@@ -282,6 +282,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 245 | [Closed tasks in a copy to a real tracker](unverified/trackers.md#closed-tasks-in-a-copy-to-a-real-tracker-btn-1289) | projects moving from the built-in tracker with their closed tasks | a closed task lands open and the chain there takes it, or GitHub's limits stop the copy; close them by hand before the switch, press "Continue" later | — |
 | 246 | [A chat opening at the end of its feed on a phone](unverified/page.md#a-chat-opening-at-the-end-of-its-feed-on-a-phone-btn-1372) | anyone opening a chat on a phone | the chat opens short of its end, or the feed jumps back to its end while you read up it; scroll a little up first | — |
 | 247 | [Dictation through the classifier's model](unverified/page.md#dictation-through-the-classifiers-model-btn-1391) | anyone pressing the chat microphone with the classifier's LiteLLM set | the tip says the recording was not transcribed, or the text is translated or in the wrong language; press again for the browser's recognition | — |
+| 248 | [A Claude sign-in on this computer without a code](unverified/accounts.md#a-claude-sign-in-on-this-computer-without-a-code-btn-1292) | anyone adding or renewing a Claude subscription account in a browser of Even Keel's computer | "On this computer" does not end the sign-in, or is not offered; use the link and the code | — |
 
 ### Waiting for the event / not checked by choice
 

@@ -149,7 +149,7 @@ export const claude: AgentAdapter = {
         await observeOAuth(home)
         return cli.authStatus(home)
       },
-      login: (home) => cli.authLogin(home),
+      login: (home, _method, onLocalLink) => cli.authLogin(home, onLocalLink),
       logout: (home) => cli.authLogout(home),
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),

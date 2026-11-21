@@ -491,14 +491,16 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
   const [opened, setOpened] = useState(false)
   const [copied, setCopied] = useState(false)
   const link = useRef<HTMLAnchorElement>(null)
-  const linked = login.urls.length > 0
+  // The CLI's own link: no code, but a browser of the service's computer only (BTN-1292).
+  const local = device ? undefined : login.localUrl
+  const linked = login.urls.length > 0 || local !== undefined
   // A device sign-in whose code was not read keeps its output open: the code is only there.
   const outputOpen = device && login.deviceCode === null
 
   // The dialog opens before the CLI prints the link and focuses the code field meanwhile; the link, once there, goes first.
   useEffect(() => {
     if (linked) link.current?.focus()
-  }, [linked])
+  }, [linked, local])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -529,20 +531,34 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
   // A focus alone is no step: the dialog puts it on the code field by itself.
   const row = loginRow(login, { opened, coding: copied || code.trim() !== '' })
   const at = (each: LoginRow) => ({ className: `login-rows__row${each === row ? ' login-rows__row--on' : ''}`, 'aria-current': each === row ? ('step' as const) : undefined })
-  const hint = device ? t.addAccount.picksUp : login.codeSent ? t.account.codeSent : null
+  const hint = device ? t.addAccount.picksUp : login.codeSent ? t.account.codeSent : local !== undefined ? t.account.localHint : null
   return (
     <>
       <ol className="login-rows">
         <li {...at('open')}>
           <span className="login-rows__label">{t.addAccount.rows.open}</span>
-          {login.urls.length === 0 ? (
+          {login.urls.length === 0 && local === undefined ? (
             <span className="login-rows__wait">{t.account.waitingLink}</span>
           ) : (
             <span className="login-rows__links">
+              {local !== undefined && (
+                <a
+                  ref={link}
+                  className="button button--primary login-rows__link"
+                  href={local}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={t.account.thisComputerTip}
+                  onClick={() => setOpened(true)}
+                  onAuxClick={() => setOpened(true)}
+                >
+                  {t.account.thisComputer} ↗
+                </a>
+              )}
               {login.urls.map((url, index) => (
                 <a
                   key={url}
-                  ref={index === 0 ? link : undefined}
+                  ref={index === 0 && local === undefined ? link : undefined}
                   className="button login-rows__link"
                   href={url}
                   target="_blank"
@@ -550,7 +566,7 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
                   onClick={() => setOpened(true)}
                   onAuxClick={() => setOpened(true)}
                 >
-                  {new URL(url).host} ↗
+                  {local !== undefined && login.urls.length === 1 ? t.account.otherDevice : new URL(url).host} ↗
                 </a>
               ))}
             </span>

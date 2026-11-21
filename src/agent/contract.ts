@@ -241,9 +241,11 @@ export interface Agent {
   authStatus(home: AccountHome): Promise<AccountStatus>
   /**
    * Starts the sign-in; the page shows its output and passes the code the user types to its stdin. `method` — which of
-   * the agent's ways to sign in, for an agent that has several (OpenCode: `chatgpt`, `copilot`).
+   * the agent's ways to sign in, for an agent that has several (OpenCode: `chatgpt`, `copilot`). `onLocalLink` — a link the
+   * CLI wanted to open in a browser itself, one that ends the sign-in without a code on this computer only (Claude's
+   * `localhost` callback, BTN-1292); an agent without one never calls it.
    */
-  login(home: AccountHome, method?: string): ChildProcessWithoutNullStreams
+  login(home: AccountHome, method?: string, onLocalLink?: (url: string) => void): ChildProcessWithoutNullStreams
   /**
    * Optional. The command that signs the folder in from a terminal of this machine, for a sign-in `login` cannot finish
    * without one (Copilot's plaintext fallback, EKR-73); the page shows it instead of its sign-in button.

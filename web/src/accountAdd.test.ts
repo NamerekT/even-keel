@@ -186,6 +186,10 @@ describe('loginRow', () => {
   it('takes the code as the step when it was copied before the link was opened', () => {
     expect(loginRow(login({ agent: 'codex', deviceCode: 'ABCD-1234' }), { opened: false, coding: true })).toBe('code')
   })
+
+  it('takes the link of this computer alone as the link (BTN-1292)', () => {
+    expect(loginRow(login({ urls: [], localUrl: 'https://claude.example.com/oauth/authorize?local' }), { opened: true, coding: false })).toBe('signIn')
+  })
 })
 
 describe('freshKeys', () => {

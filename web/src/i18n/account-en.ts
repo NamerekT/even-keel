@@ -151,6 +151,10 @@ export const accountEn = {
       "Set by Claude Code's Execution in the Even Keel settings → Providers and models. The Agent SDK runs only on the Checked CLI version, so picking it locks that version; with EVEN_KEEL_CLAUDE_BIN sessions go on CLI --bg. A session already running stays on what it started on.",
     transportTerms:
       "Anthropic asks products built on the Agent SDK to sign in with an API key, not a claude.ai subscription: on a subscription account it is your own call.",
+    thisComputer: 'On this computer',
+    thisComputerTip: 'Signs in with no code, but only in a browser of the computer Even Keel runs on.',
+    otherDevice: 'From another device',
+    localHint: 'On this computer the sign-in ends by itself; the code is only for a sign-in from another device.',
     waitingLink: 'Waiting for the sign-in link…',
     code: 'Code from the sign-in page',
     send: 'Send',

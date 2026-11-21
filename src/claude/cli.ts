@@ -18,6 +18,7 @@ import { TranscriptTail } from '../sessions/tail.js'
 import type { TurnSpend } from '../state.js'
 import { CallTimeout, FolderCalls, QueueWait } from './calls.js'
 import { contextArgs } from './context.js'
+import { openLoginBrowser } from './login-browser.js'
 import { daemonVersionOf, noDaemonIn } from './release.js'
 import { descendantsOf, killLeftovers, leftoversAfterStop, sessionProcessAlive } from './tree.js'
 
@@ -149,8 +150,21 @@ export class ClaudeCli {
     return parseWarmAnswer(await runWithInput(this.bin(), warmArgs(sessionId, model, extras), prompt, { cwd, env: this.envOf(home), timeoutMs: WARM_TIMEOUT_MS }), model)
   }
 
-  authLogin(home: AccountHome): ChildProcessWithoutNullStreams {
-    return spawn(this.bin(), ['auth', 'login', '--claudeai'], { env: this.envOf(home), windowsHide: true, stdio: 'pipe' })
+  /** With `onLocalLink`, the CLI's own link goes to it through `openLoginBrowser` instead of opening a browser. */
+  authLogin(home: AccountHome, onLocalLink?: (url: string) => void): ChildProcessWithoutNullStreams {
+    const browser = onLocalLink === undefined ? null : openLoginBrowser()
+    const env = browser === null ? this.envOf(home) : { ...this.envOf(home), BROWSER: browser.program }
+    const child = spawn(this.bin(), ['auth', 'login', '--claudeai'], { env, windowsHide: true, stdio: 'pipe' })
+    if (browser !== null && onLocalLink !== undefined) {
+      const stop = browser.watch(onLocalLink)
+      const done = () => {
+        stop()
+        browser.remove()
+      }
+      child.once('close', done)
+      child.once('error', done)
+    }
+    return child
   }
 
   async authLogout(home: AccountHome): Promise<void> {

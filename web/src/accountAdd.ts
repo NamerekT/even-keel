@@ -176,7 +176,7 @@ export type LoginRow = 'open' | 'signIn' | 'code'
  * The sign-in itself happens on another site, so it is the step between the two.
  */
 export function loginRow(login: AccountLogin, done: { opened: boolean; coding: boolean }): LoginRow {
-  if (login.urls.length === 0) return 'open'
+  if (login.urls.length === 0 && login.localUrl === undefined) return 'open'
   if (done.coding || login.codeSent) return 'code'
   return done.opened ? 'signIn' : 'open'
 }

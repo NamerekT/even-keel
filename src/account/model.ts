@@ -141,6 +141,11 @@ export interface AccountLogin {
   target: string | null
   startedAt: string
   urls: string[]
+  /**
+   * The link the CLI asked to open in a browser (`Agent.login`'s `onLocalLink`): it signs in without a code, but only in
+   * a browser of the computer the CLI runs on. Absent until then; never passed to a hub (`MachineLogin`).
+   */
+  localUrl?: string
   /** The one-time code a device sign-in printed (`loginCode`), for the user to enter on the sign-in page. */
   deviceCode: string | null
   output: string

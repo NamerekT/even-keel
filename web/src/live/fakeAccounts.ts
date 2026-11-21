@@ -49,6 +49,7 @@ const FAKE_LOGIN: AccountLogin = {
   target: null,
   startedAt: ago(1),
   urls: ['https://claude.example.com/oauth/authorize?code=true&state=example'],
+  localUrl: 'https://claude.example.com/oauth/authorize?code=true&redirect_uri=http%3A%2F%2Flocalhost%3A54321%2Fcallback&state=example',
   deviceCode: null,
   output: "Browser didn't open? Use the url below to sign in:\n\nhttps://claude.example.com/oauth/authorize?code=true&state=example",
   error: null,
