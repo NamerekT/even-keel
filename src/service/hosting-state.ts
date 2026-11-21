@@ -4,6 +4,7 @@ import { AGENTS } from '../agent/adapters.js'
 import { outdatedDaemonView } from '../agent/versions.js'
 import { archivedShown } from '../chain/archive.js'
 import { fallbacksSince, fixEpisodes, launchDays, taskSessions, type TaskSession } from '../chain/launches.js'
+import { spentLimit } from '../chain/limitNotice.js'
 import { ciViews } from '../ci/wiring.js'
 import { idPrefixOf, projectLabels, runSettings } from '../config.js'
 import { DEMO_ACCOUNT } from '../demo/model.js'
@@ -36,7 +37,10 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     branchDrift: ctx.branches.view(),
     chain: {
       // The page names each lane's machine: one on the own machine gets its id too.
-      active: ctx.dispatcher.state.active.map((lane) => (lane.machine === undefined ? { ...lane, machine: ctx.machineLink.machines.own() } : lane)),
+      active: ctx.dispatcher.state.active.map((lane) => {
+        const spent = lane.current === null ? null : spentLimit({ machine: ctx.machineLink.port }, lane.project, lane.current.task)
+        return { ...lane, ...(lane.machine === undefined && { machine: ctx.machineLink.machines.own() }), ...(spent !== null && { spent }) }
+      }),
       parallel: ctx.configStore.current.parallel,
       queue: ctx.dispatcher.state.queue,
       projects: orders,

@@ -6,7 +6,7 @@ import { formatMoment } from './format.js'
 import { FAKE_SHARED, fakeConfig } from './live/fakeConfig.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
-import type { EvenKeelState, ProjectTask, SessionView } from '../../src/state.js'
+import type { ActiveChainView, EvenKeelState, ProjectTask, SessionView } from '../../src/state.js'
 import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import {
@@ -150,7 +150,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   }
 }
 
-type ChainPatch = Omit<Partial<EvenKeelState['chain']>, 'active'> & { active?: ActiveChain | ActiveChain[] | null }
+type ChainPatch = Omit<Partial<EvenKeelState['chain']>, 'active'> & { active?: ActiveChainView | ActiveChainView[] | null }
 
 const chain = ({ active = [], ...patch }: ChainPatch): EvenKeelState['chain'] => ({
   active: active === null ? [] : Array.isArray(active) ? active : [active],
@@ -921,6 +921,21 @@ describe('chainBlocks', () => {
 
     const acted = stateOf({ ...state, chain: chain({ ...state.chain, active: { ...running('ABC-1'), current: { task: 'ABC-1', sessionId: 's', since: 't', limit: { ...hold, acted: 'relay' } } } }) })
     expect(chainBlocks(acted, 'ABC')[0]?.limit).toBeNull()
+  })
+
+  it("carries the spent limit of the current task's account, which holds New session (BTN-1359)", () => {
+    const spent = { until: '2026-01-01T13:00:00.000Z', account: 'Account B', provider: 'codex' }
+    const state = stateOf({
+      tasks: [task('ABC-1', 'Active'), task('ABC-2', 'ToDo')],
+      chain: chain({
+        active: { ...running('ABC-1'), spent },
+        projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error: null } },
+      }),
+    })
+    const [first, second] = chainBlocks(state, 'ABC')
+    expect(first?.spent).toEqual(spent)
+    expect(second?.spent).toBeUndefined()
+    expect(chainBlocks(stateOf({ ...state, chain: chain({ ...state.chain, active: running('ABC-1') }) }), 'ABC')[0]?.spent).toBeUndefined()
   })
 
   describe('lanes (BTN-993)', () => {

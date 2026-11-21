@@ -99,6 +99,8 @@ The service log records the task, account folder, reset time (or that it is unkn
 
 The session panel groups the limit messages together, newest first, with earlier messages folded below. It names the affected account and provider and shows the reset in local time.
 
+While the account the task runs on has its limit used up, **New session** cannot be pressed: its tooltip names the account and the reset, and the chain hands the task to a new session by itself once the limit frees up. The button comes back as soon as a limits poll sees a free window; **Skip** works all along.
+
 Its settings button opens **Project settings → Sessions**: change that provider's account in the shared or own pool, or change the provider on the task's card.
 
 A task on a different provider from the active one does not change accounts when you switch the header's account.

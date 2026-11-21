@@ -62,6 +62,8 @@ export const en = {
     `Waiting for the first answer about the limits of the account ${p.account}: without it a spent limit looks free.${p.next === undefined ? '' : ` The next poll is at ${p.next}.`}`,
   'chain.limitSpent': (p: { until: string; account?: string; provider?: string }) =>
     `chain: The usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. Wait for the reset, change the account in the project's pool under Project settings → Sessions, or the provider on the task's card.`,
+  'chain.limitHeld': (p: { until: string; account?: string; provider?: string }) =>
+    `Not yet: the usage limit is spent until ${p.until}${p.account === undefined ? '' : ` on ${p.provider ?? ''} account “${p.account}”`}. The chain hands the task to a new session by itself once the limit frees up.`,
   'session.transient': () => 'waiting to retry',
   'session.approvalExpired': (p: { tool: string }) =>
     `The question about the ${p.tool} call is closed: the CLI stopped waiting for an answer and refused the call itself, it did not run. The session goes on without it.`,

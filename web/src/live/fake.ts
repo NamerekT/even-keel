@@ -10,7 +10,7 @@ import { isLanguage } from '../../../src/language.js'
 import { COPILOT } from '../../../src/copilot/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
-import type { EvenKeelState, GitSetupView, SessionView } from '../../../src/state.js'
+import type { ActiveChainView, EvenKeelState, GitSetupView, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeModels, fakeUsage, FAKE_LIMITS, MANY_MODEL_PROMPTS, withAccount } from './fakeAccounts.js'
@@ -294,6 +294,16 @@ function fakeLimit(kind: string | null): { limit: LimitHold } | Record<string, n
   }
 }
 
+/** A held task with a known reset has its account spent, as the service tells the page (BTN-1359): "New session" waits for it. */
+function withFakeSpent(state: EvenKeelState, lane: ActiveChainView): ActiveChainView {
+  const resetsAt = lane.current?.limit?.resetsAt
+  const view = state.sessions.find((each) => each.task === lane.current?.task)
+  if (resetsAt == null || view === undefined || view.apiErrorKind === 'transient') return lane
+  const entry = state.account.accounts.find((each) => each.key === view.account)
+  const account = entry?.name ?? entry?.status?.email ?? view.account ?? undefined
+  return { ...lane, spent: { until: resetsAt, ...(account !== undefined && { account }), provider: view.agent } }
+}
+
 function limitedSession(view: SessionView, kind: string): SessionView {
   if (kind === 'codex' || kind === 'codexLong') return {
     ...view, agent: 'codex', account: 'codex', model: 'gpt-6.1-sol', remoteUrl: null, remoteOff: null,
@@ -353,6 +363,7 @@ export function createFakeSource(search: string): LiveSource {
     const entry = current.state.account.accounts.find((each) => each.key === 'codex')!
     entry.name = params.get('limit') === 'codexLong' ? 'Build account for the documentation and integration project with a deliberately long display name' : 'Build account'
   }
+  if (current.state !== null) current.state.chain.active = current.state.chain.active.map((lane) => withFakeSpent(current.state!, lane))
   if (params.has('badgeState') && current.state !== null) current.state = withFakeBadge(current.state, params.get('badgeState')!)
   if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
   if (params.get('models') === 'many' && current.state !== null) current.state.config.shared.modelPrompts = MANY_MODEL_PROMPTS

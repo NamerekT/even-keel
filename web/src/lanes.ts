@@ -1,14 +1,14 @@
 import type { ActiveChain } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
-import type { EvenKeelState } from '../../src/state.js'
+import type { ActiveChainView, EvenKeelState } from '../../src/state.js'
 
 /** The project's lanes (BTN-993): its active chains, the head first. */
-export function lanesOf(chain: EvenKeelState['chain'], project: string): ActiveChain[] {
+export function lanesOf(chain: EvenKeelState['chain'], project: string): ActiveChainView[] {
   return chain.active.filter((each) => each.project === project)
 }
 
 /** The lane whose current task it is; `undefined` — none. */
-export function laneOfTask(lanes: ActiveChain[], task: string): ActiveChain | undefined {
+export function laneOfTask(lanes: ActiveChainView[], task: string): ActiveChainView | undefined {
   return lanes.find((lane) => lane.current?.task === task)
 }
 

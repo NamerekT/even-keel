@@ -33,7 +33,7 @@ import { feedParts } from './feedLine.js'
 import { backgroundTip, sessionStatus } from './sessionStatus.js'
 import { LimitNotice } from './LimitNotice.js'
 import { NoticeFixButton } from './FixButtons.js'
-import type { LimitRefusal } from './limitMessages.js'
+import { spentHeld, type LimitRefusal } from './limitMessages.js'
 import { CacheFact, ContextFact, ModelFact, TipValue, TokensFact } from './SessionFacts.js'
 import { useTaskHistory } from './taskHistory.js'
 import { CarryWait } from './CarryWait.js'
@@ -244,7 +244,9 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
         : midTurn
           ? t.session.held.midTurn
           : null
+  // A spent limit holds only "New session": the service would refuse it, while Skip still goes (BTN-1359).
   const restartHeld =
+    spentHeld(block.spent) ??
     (earlyRestart && !starting ? null : midTurn && quietText !== null && !starting ? quietText : wait) ??
     (block.skipped ? t.session.held.skipped : !block.current ? t.session.held.notCurrent : live === null ? t.session.held.noSession : null)
 

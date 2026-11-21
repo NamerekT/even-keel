@@ -2,14 +2,33 @@ import { notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { ActiveChain, DispatcherDeps } from './model.js'
 import type { AccountNow } from './relay.js'
 
-export const limitSpent = (until: string, account: AccountNow): Notice =>
-  notice('chain.limitSpent', { until, account: account.label ?? account.id ?? undefined, provider: account.provider })
+/** Until when the task's account has its limit spent, and the account as the `chain.limitSpent` notice names it. */
+export interface LimitSpent {
+  until: string
+  account?: string
+  provider?: string
+}
 
-/** Refuse a new session against the task's selected account, including the provider of the task's run. */
-export function requireLimit(deps: Pick<DispatcherDeps, 'machine'>, project: string, task: string): void {
+const spentOf = (until: string, account: AccountNow): LimitSpent => {
+  const name = account.label ?? account.id ?? undefined
+  return { until, ...(name !== undefined && { account: name }), ...(account.provider !== undefined && { provider: account.provider }) }
+}
+
+export const limitSpent = (until: string, account: AccountNow): Notice => notice('chain.limitSpent', spentOf(until, account))
+
+/**
+ * The spent limit of the task's selected account, including the provider of the task's run; `null` — a window is free.
+ * The page holds "New session" on it (BTN-1359), and `requireLimit` refuses one.
+ */
+export function spentLimit(deps: Pick<DispatcherDeps, 'machine'>, project: string, task: string): LimitSpent | null {
   const until = deps.machine.limitReset(project, task)
-  if (until === null) return
-  throw new NoticeError(limitSpent(until, deps.machine.account(project, task)))
+  return until === null ? null : spentOf(until, deps.machine.account(project, task))
+}
+
+/** Refuse a new session against the task's selected account while its limit is spent. */
+export function requireLimit(deps: Pick<DispatcherDeps, 'machine'>, project: string, task: string): void {
+  const spent = spentLimit(deps, project, task)
+  if (spent !== null) throw new NoticeError(notice('chain.limitSpent', spent))
 }
 
 /**

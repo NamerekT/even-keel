@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { notice } from '../../../src/notice/notice.js'
 import { formatMoment } from '../format.js'
 import { say, sayIds, setLanguage } from '../i18n/index.js'
-import { limitMessage } from './limitMessages.js'
+import { limitMessage, spentHeld } from './limitMessages.js'
 import { session } from '../live/fakeSessions.js'
 
 afterEach(() => setLanguage('en'))
@@ -36,5 +36,17 @@ describe('limit notice on the page', () => {
     const nested = sayIds(notice('chain.empty', { project: 'ABC' }, { cause: notice('chain.limitSpent', { until }) }))
     expect(nested).toContain(formatMoment(until, new Date()))
     expect(nested).not.toContain(until)
+  })
+
+  it.each(['en', 'ru'] as const)('holds New session on a spent limit with the account as the red card names it in %s (BTN-1359)', (language) => {
+    setLanguage(language)
+    const spent = { until: '2026-10-27T06:54:09.000Z', account: 'Build account', provider: 'codex' }
+    const card = say(notice('chain.limitSpent', spent))
+    const tip = spentHeld(spent)
+    expect(tip).toContain(formatMoment(spent.until, new Date()))
+    expect(tip).toContain(language === 'en' ? 'on Codex account “Build account”' : 'на аккаунте Codex «Build account»')
+    expect(card).toContain(language === 'en' ? 'on Codex account “Build account”' : 'на аккаунте Codex «Build account»')
+    expect(tip).toContain(language === 'en' ? 'new session by itself' : 'сама передаст задачу новой сессии')
+    expect(spentHeld(undefined)).toBeNull()
   })
 })

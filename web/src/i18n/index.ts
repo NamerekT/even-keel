@@ -62,14 +62,20 @@ export function sayIds(notice: Notice): string {
   return renderNotice(namedAccounts(notice), pageTexts(), t.advice)
 }
 
+type SpentParams = { until: string; account?: string; provider?: string }
+
+// The spent limit's moment and provider as the page shows them: its red card and the held "New session" alike (BTN-1359).
+const spentShown = (p: SpentParams): SpentParams => ({
+  ...p,
+  until: localMoment(p.until, new Date(), language),
+  provider: p.provider === undefined ? undefined : (t.account.agents as Record<string, string>)[p.provider] ?? p.provider,
+})
+
 function pageTexts(): NoticeTexts {
   return {
     ...t.notice,
-    'chain.limitSpent': (p) => t.notice['chain.limitSpent']({
-      ...p,
-      until: localMoment(p.until, new Date(), language),
-      provider: p.provider === undefined ? undefined : (t.account.agents as Record<string, string>)[p.provider] ?? p.provider,
-    }),
+    'chain.limitSpent': (p) => t.notice['chain.limitSpent'](spentShown(p)),
+    'chain.limitHeld': (p) => t.notice['chain.limitHeld'](spentShown(p)),
     'changelog.limitSpent': (p) => t.notice['changelog.limitSpent']({ ...p, until: p.until === undefined ? undefined : localMoment(p.until, new Date(), language) }),
   }
 }

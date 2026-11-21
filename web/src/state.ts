@@ -9,6 +9,7 @@ import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../s
 import { fixNameOf, fixTaskOf, isCarryName, isFixName, isOwnName, liveFixId, projectOfFix, releaseOfCarry } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { ancestorsOf, chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
+import type { LimitSpent } from '../../src/chain/limitNotice.js'
 import type { LimitHold } from '../../src/chain/relay.js'
 import { PROJECT_COLORS } from '../../src/projects/colors.js'
 import { isOpen, type StatusCategory, type Task, type TaskPriority } from '../../src/tracker/model.js'
@@ -79,6 +80,8 @@ export interface ChainBlock {
   session: SessionView | null
   sessions: TaskSession[]
   limit: LimitHold | null
+  /** The current task's account has its limit spent until then: "New session" is held (BTN-1359); absent — a window is free. */
+  spent?: LimitSpent
   start: SessionStart | null
   /** "New session with this message" on its way, for the chat (BTN-1281); absent — none. */
   handover?: ChatHandover
@@ -554,6 +557,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       session,
       sessions,
       limit: pendingOf(lane),
+      ...(lane?.spent !== undefined && { spent: lane.spent }),
       ...startOf(lane, ownRun, seen, sessions, now),
       ...(ownRun !== null && answeringSince(ownRun)),
       ...(machines !== undefined && { machines }),
@@ -589,6 +593,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       open: true,
       current: name === current,
       limit: name === current ? pending : null,
+      ...(name === current && active?.spent !== undefined && { spent: active.spent }),
       ...startOf(active, running?.task === name ? running : null, seen, sessions, now),
       ...(running?.task === name && answeringSince(running)),
     }

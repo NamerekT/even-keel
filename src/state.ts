@@ -3,6 +3,7 @@ export type { Standard, ProjectSettings, OwnKey, OwnValues, CiSettings, SlotClea
 import type { AccountView } from './account/model.js'
 import type { BadgeStatus } from './badge/status.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
+import type { LimitSpent } from './chain/limitNotice.js'
 import type { FixEpisode, LaunchDay, TaskSession } from './chain/launches.js'
 import type { MainCiView } from './chain/model.js'
 import type { StatusMoves } from './chain/moves.js'
@@ -273,6 +274,9 @@ export interface GitSetupView {
  */
 export type WindowsStart = { by: 'tray' } | { by: 'service'; name: string } | { by: 'console' }
 
+/** A chain's lane as the page gets it: `spent` — its current task's account has its limit spent, so "New session" is held (BTN-1359). */
+export type ActiveChainView = ActiveChain & { spent?: LimitSpent }
+
 export interface EvenKeelState {
   /** The checkout commit captured at hub startup; absent for an npm install. */
   hubCommit?: string
@@ -296,7 +300,7 @@ export interface EvenKeelState {
   /** The projects whose main checkout stood off their main branch when last read: the settings opened or the chain started (BTN-754). */
   branchDrift: Record<string, BranchDrift>
   chain: {
-    active: ActiveChain[]
+    active: ActiveChainView[]
     /** How many chains run at once (`parallel` in the config). */
     parallel: number
     queue: string[]

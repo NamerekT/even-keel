@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { notice, noticeOf } from '../notice/notice.js'
 import { setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
+import { limitSpent, spentLimit } from './limitNotice.js'
+import type { DispatcherDeps } from './model.js'
+import type { AccountNow } from './relay.js'
 
 const SELECTED = { id: 'claude-b', ready: true, label: 'Account B', provider: 'claude' }
 const SESSION_SPENT = notice('chain.limitSpent', { until: '2026-09-26T18:00:00Z', account: 'Account A', provider: 'codex' })
@@ -50,5 +53,20 @@ describe('spent limit refusal', () => {
   it("starts a new session on the selected account when only the session's own account is spent", async () => {
     const context = await waiting({ sessionBlock: () => SESSION_SPENT })
     expect(refusal(() => context.dispatcher.renew('ABC', 'ABC-1', 'old', null, 'Continue'))).toBeUndefined()
+  })
+})
+
+describe('spent limit for the page (BTN-1359)', () => {
+  const machine = (reset: string | null, account: AccountNow) => ({ limitReset: () => reset, account: () => account }) as unknown as DispatcherDeps['machine']
+
+  it('gives what the refusal names, so the page holds New session on the same terms', () => {
+    const spent = spentLimit({ machine: machine('2026-09-26T15:00:00Z', SELECTED) }, 'ABC', 'ABC-1')
+    expect(spent).toEqual({ until: '2026-09-26T15:00:00Z', account: 'Account B', provider: 'claude' })
+    expect(notice('chain.limitSpent', spent!)).toEqual(limitSpent('2026-09-26T15:00:00Z', SELECTED))
+  })
+
+  it('names an account without a label by its id, and gives nothing while a window is free', () => {
+    expect(spentLimit({ machine: machine('2026-09-26T15:00:00Z', { id: 'claude-b', ready: true }) }, 'ABC', 'ABC-1')).toEqual({ until: '2026-09-26T15:00:00Z', account: 'claude-b' })
+    expect(spentLimit({ machine: machine(null, SELECTED) }, 'ABC', 'ABC-1')).toBeNull()
   })
 })
