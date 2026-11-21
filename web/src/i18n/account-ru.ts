@@ -128,6 +128,8 @@ export const accountRu = {
     authUnknownNote: 'Не удалось проверить вход.',
     expiry: (left: string) => `вход: ${left}`,
     expired: 'истёк',
+    anyMoment: 'в любой момент',
+    loginWindow: (from: string, to: string) => `Вход может кончиться в любой момент между ${from} и ${to}; работа в аккаунте его не продлевает`,
     underDay: 'меньше суток',
     days: (days: number) => `${days}д`,
     folder: (key: string) => `папка ${key}`,

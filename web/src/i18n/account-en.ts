@@ -128,6 +128,8 @@ export const accountEn = {
     authUnknownNote: 'Could not check sign-in.',
     expiry: (left: string) => `sign-in: ${left}`,
     expired: 'expired',
+    anyMoment: 'any moment now',
+    loginWindow: (from: string, to: string) => `The sign-in may end any moment between ${from} and ${to}; using the account does not extend it`,
     underDay: 'under a day',
     days: (days: number) => `${days}d`,
     folder: (key: string) => `folder ${key}`,

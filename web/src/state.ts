@@ -4,7 +4,7 @@ import { chatHandover, sessionStart, type ChatHandover, type SessionStart } from
 export { idleBeforePrompt } from '../../src/sessions/boot.js'
 export { keySlots, ownProjects, projectLabel, projectName, projectOfPath, projectPages, projectPath, projectSlot, projectSlots, projectTracker, trackerTitle, type TrackerPage } from './projectLookup.js'
 export { chatHandover, sessionStart, type ChatHandover, type SessionStart, type StartPhase } from './sessionStart.js'
-export { accountBadge, entryBadge, headerAccounts, loginLeft, limitedUntil, canWork, accountOrder, type AccountBadge } from './account-state.js'
+export { accountBadge, entryBadge, headerAccounts, loginLeft, loginEndsFrom, loginWindowTip, limitedUntil, canWork, accountOrder, type AccountBadge } from './account-state.js'
 import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
 import { fixNameOf, fixTaskOf, isCarryName, isFixName, isOwnName, liveFixId, projectOfFix, releaseOfCarry } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'

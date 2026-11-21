@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
 import { Link } from 'react-router'
 import { launchBlock, type AccountEntry, type AccountView } from '../../../src/account/model.js'
+import { loginEndsFrom } from '../account-state.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { t } from '../i18n/index.js'
 import { tokenState } from '../longToken.js'
@@ -22,7 +23,8 @@ export function problemTone(entry: AccountEntry, view: AccountView, now: Date): 
   const token = entry.longToken === undefined ? 'fine' : tokenState(entry.longToken, now)
   if (entry.needsLogin || entry.error !== null || entry.usage.reason?.code === 'usage.goKeyExpired' || signInMixup(entry, view.accounts) !== null ||
     token === 'refused' || token === 'over') return 'error'
-  const ending = entry.loginExpiresAt !== null && new Date(entry.loginExpiresAt).getTime() - now.getTime() < DAY_MS
+  // A day before the early end of the sign-in's window: it may end any moment of the window (BTN-1443).
+  const ending = entry.loginExpiresAt !== null && Date.parse(loginEndsFrom(entry.loginExpiresAt)) - now.getTime() < DAY_MS
   if (entry.removing || entry.spendingLimit != null || launchBlock(view, entry.key)?.code === 'account.extraFree' || ending || token === 'ending') return 'warn'
   return null
 }

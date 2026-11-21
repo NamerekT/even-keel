@@ -110,6 +110,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?account=outdated` | the active account's limits are 17 hours old and no poll has confirmed them since the restart (BTN-631): muted values and bars, a "Last read … ago" line under the name, the age in the header card |
 | `?account=pending` | the new configuration is waiting for the account's sessions to finish |
 | `?account=removing` | the folder is waiting for sessions to finish so it can be removed |
+| `?account=ending\|ending-window` | jane.roe's sign-in a day before the early end of its window and inside the window (BTN-1443): a yellow band with "sign-in: under a day" or "any moment now", the window's two ends in the tip |
 | `?account=settings` | `settings.json` keys changed right in the account folders (BTN-901, BTN-1395): a yellow band per account — one key in the global account, four in the other (an `env` by variable names, a long `permissions`, a key added) with the "All …" buttons in its head — each row with "Was", "Now", "Make shared", "This account only" and "Discard", and on `/accounts` each row's own settings with their × |
 | `?account=vscode-chats` | VS Code cannot move because of two open chats on jane.roe, counted in the card's sessions line and listed by their tab titles in its tip |
 | `?account=vscode-broken` | VS Code `settings.json` is unreadable |

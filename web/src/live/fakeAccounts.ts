@@ -375,6 +375,10 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   const workSessions = ['ABC-7', 'ABC-8']
   if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, configPending: true }] }
   if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, removing: true }] }
+  // BTN-1443: a day before the early end of the sign-in's window, and inside it.
+  if (mode === 'ending' || mode === 'ending-window') {
+    return { ...signedIn, accounts: [global, { ...work, loginExpiresAt: inDays(mode === 'ending' ? 3.5 : 2) }] }
+  }
   if (mode === 'settings') {
     const edits: SettingsEdit[] = [
       { key: 'env', variables: { added: ['CLAUDE_CODE_MAX_OUTPUT_TOKENS'], removed: [], changed: ['DISABLE_TELEMETRY'] } },

@@ -1,5 +1,6 @@
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import { accountName } from './accountName.js'
+import { formatMoment } from './format.js'
 import { t } from './i18n/index.js'
 
 export interface AccountBadge {
@@ -34,12 +35,31 @@ export function headerAccounts(view: AccountView): AccountEntry[] {
 const DAY_MS = 24 * 60 * 60_000
 const RENEW_WITHIN_DAYS = 7
 
+/**
+ * A Claude sign-in may end at any moment of the last three days before `refreshTokenExpiresAt`: `claude auth status --text`
+ * says "Sign-in ends: between <early> and <late>" (https://code.claude.com/docs/en/authentication, "Check when a stored
+ * login ends"), and the CLI warns from the early date. Use does not extend it.
+ */
+const LOGIN_WINDOW_MS = 3 * DAY_MS
+
+/** The early end of a sign-in whose `loginExpiresAt` is the late one (BTN-1443). */
+export function loginEndsFrom(expiresAt: string): string {
+  return new Date(Date.parse(expiresAt) - LOGIN_WINDOW_MS).toISOString()
+}
+
+/** The time left to the early end of a sign-in — the day to renew it by; "expired" only past the late end. */
 export function loginLeft(expiresAt: string | null, now: Date): { text: string; renew: boolean } {
   if (expiresAt === null) return { text: '—', renew: false }
-  const left = Date.parse(expiresAt) - now.getTime()
-  if (left <= 0) return { text: t.account.expired, renew: true }
+  if (Date.parse(expiresAt) <= now.getTime()) return { text: t.account.expired, renew: true }
+  const left = Date.parse(loginEndsFrom(expiresAt)) - now.getTime()
+  if (left <= 0) return { text: t.account.anyMoment, renew: true }
   const days = Math.floor(left / DAY_MS)
   return { text: days === 0 ? t.account.underDay : t.account.days(days), renew: days < RENEW_WITHIN_DAYS }
+}
+
+/** The tip next to a sign-in's time left: the window it may end in. */
+export function loginWindowTip(expiresAt: string, now: Date): string {
+  return t.account.loginWindow(formatMoment(loginEndsFrom(expiresAt), now), formatMoment(expiresAt, now))
 }
 
 export function limitedUntil(entry: AccountEntry, now: Date): string | null {

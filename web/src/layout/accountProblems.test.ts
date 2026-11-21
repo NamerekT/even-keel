@@ -39,6 +39,17 @@ describe('problemTone', () => {
     expect(problemTone(ending.accounts.find((entry) => entry.key === 'global')!, ending, NOW)).toBe('warn')
   })
 
+  it('warns of a sign-in a day before the early end of its window, not before; only needsLogin makes it an error', () => {
+    const at = (hours: number) => {
+      const account = patch(view('expired'), 'global', { needsLogin: false, loginExpiresAt: new Date(NOW.getTime() + hours * 3_600_000).toISOString() })
+      return problemTone(account.accounts.find((entry) => entry.key === 'global')!, account, NOW)
+    }
+    expect(at(4 * 24 + 1)).toBeNull()
+    expect(at(4 * 24 - 1)).toBe('warn')
+    expect(at(2 * 24)).toBe('warn')
+    expect(at(-1)).toBe('warn')
+  })
+
   it('finds nothing in an account that works', () => {
     const account = view('cli')
     expect(account.accounts.map((entry) => problemTone(entry, account, NOW))).toEqual(account.accounts.map(() => null))

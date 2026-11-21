@@ -15,7 +15,7 @@ import { formatMoment } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { tokenProblem, tokenTag } from '../longToken.js'
-import { loginLeft } from '../state.js'
+import { loginLeft, loginWindowTip } from '../state.js'
 import { loadedData, useStatsAnswer, type Loaded } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
 import { ClaudeIcon, CodexIcon, CopilotIcon, OpenCodeIcon } from '../ui/icons.js'
@@ -107,7 +107,10 @@ export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; 
     <>
       <span className="tip__head">{agentLabel(entry.agent)}</span>
       <span>{t.account.connection(t.account.connections[connection])}</span>
-      {!paysPerToken(entry) && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <span>{t.account.expiry(left.text)}</span>}
+      {!paysPerToken(entry) && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <>
+        <span>{t.account.expiry(left.text)}</span>
+        <span className="tip__muted">{loginWindowTip(entry.loginExpiresAt, now)}</span>
+      </>}
       {entry.longToken !== undefined && <span>{tokenTag(entry.longToken)}</span>}
       {entry.longToken !== undefined && <span>{same === undefined ? t.account.longTokenTip : t.account.longTokenSameTip(accountName(same, accounts))}</span>}
       {entry.cloud !== undefined && <span>{t.account.cloudTip}</span>}
@@ -337,7 +340,8 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
       )}
       {!goExpired && signsIn && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
         <div className="accounts__note accounts__note--warn">
-          <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
+          {entry.needsLogin || entry.loginExpiresAt === null ? <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
+            : <Tipped inline tip={loginWindowTip(entry.loginExpiresAt, now)} align="start" focusable>{t.account.expiry(left.text)}</Tipped>}
           {actions(<RenewButton entry={entry} view={view} sending={sending} send={send} />)}
         </div>
       )}

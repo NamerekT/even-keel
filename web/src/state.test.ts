@@ -20,6 +20,7 @@ import {
   blockMetered,
   canUnready,
   loginLeft,
+  loginEndsFrom,
   cardTask,
   openQuestions,
   chainBlocks,
@@ -1843,10 +1844,20 @@ describe('headerAccounts', () => {
 describe('loginLeft', () => {
   const now = new Date('2026-09-28T10:00:00.000Z')
 
-  it('counts the days left of a login and asks to renew it in its last week', () => {
-    expect(loginLeft('2026-10-27T10:00:00.000Z', now)).toEqual({ text: '29д', renew: false })
-    expect(loginLeft('2026-10-02T09:00:00.000Z', now)).toEqual({ text: '3д', renew: true })
-    expect(loginLeft('2026-09-28T20:00:00.000Z', now)).toEqual({ text: 'меньше суток', renew: true })
+  it('counts the days left to the early end of a login and asks to renew it in the week before', () => {
+    expect(loginLeft('2026-10-27T10:00:00.000Z', now)).toEqual({ text: '26д', renew: false })
+    expect(loginLeft('2026-10-08T10:00:00.000Z', now)).toEqual({ text: '7д', renew: false })
+    expect(loginLeft('2026-10-08T09:00:00.000Z', now)).toEqual({ text: '6д', renew: true })
+    expect(loginLeft('2026-10-02T09:00:00.000Z', now)).toEqual({ text: 'меньше суток', renew: true })
+  })
+
+  it('says a login inside its window may end any moment', () => {
+    expect(loginLeft('2026-10-01T10:00:00.000Z', now)).toEqual({ text: 'в любой момент', renew: true })
+    expect(loginLeft('2026-09-28T20:00:00.000Z', now)).toEqual({ text: 'в любой момент', renew: true })
+  })
+
+  it('puts the early end of a login three days before refreshTokenExpiresAt', () => {
+    expect(loginEndsFrom('2026-12-03T14:29:53.591Z')).toBe('2026-11-30T14:29:53.591Z')
   })
 
   it('says a login ran out or is not known', () => {
