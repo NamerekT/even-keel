@@ -221,8 +221,8 @@ export class MachineNetwork {
       const panel = peer.remote.page.panel()
       if (panel === undefined) return []
       const { login } = panel
-      const { polled } = this.options
-      const polls = polled === undefined ? undefined : { panel: panel.accounts, identities: peer.remote.facts()?.identities, polled }
+      const { polled, differs } = this.options
+      const polls = polled === undefined ? undefined : { panel: panel.accounts, identities: peer.remote.facts()?.identities, polled, ...(differs !== undefined && { differs }) }
       return [{
         machine,
         name: peer.name,

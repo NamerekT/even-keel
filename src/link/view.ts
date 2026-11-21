@@ -200,6 +200,8 @@ export interface MachineAccount {
   longToken?: true
   /** A long token whose account no machine polls: its limits come only from its sessions (BTN-1266). */
   sessionsOnly?: true
+  /** A long token whose sessions tell other limit windows than the poll of its account's full sign-in (BTN-1267). */
+  limitsDiffer?: true
 }
 
 /** The machine's sign-in under way as its panel shows it (`AccountLogin`); the code the person types goes back through the hub. */

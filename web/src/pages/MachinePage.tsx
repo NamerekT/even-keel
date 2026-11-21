@@ -7,6 +7,7 @@ import { checkText } from '../layout/MachineJoined.js'
 import { Limits } from '../layout/Limits.js'
 import { useOpenAdd } from '../layout/AddAccountDialog.js'
 import { SessionsOnly } from '../layout/MachineSignIns.js'
+import { MachineTokenDialog, type MachineTokenTarget } from '../layout/MachineTokenDialog.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -34,6 +35,7 @@ import './machinePage.css'
 const REREAD_MS = 15_000
 const CLOCK_MS = 30_000
 const PICK_REST_MS = 400
+const WINDOWS_DIFFER = { code: 'usage.tokenWindowsDiffer', params: {} } as const
 
 /** A commit by its first seven characters, as git shows it; a version stays whole. */
 const shortRef = (ref: string): string => (/^[0-9a-f]{40}$/.test(ref) ? ref.slice(0, 7) : ref)
@@ -379,6 +381,17 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
   const machine = signIns?.find((each) => each.machine === page.id)
   const gaps = page.own || machine === undefined ? [] : hubGapsOn(state.account.accounts, machine)
   const busy = sending || machineLogin(signIns) !== undefined
+  const [token, setToken] = useState<MachineTokenTarget | null>(null)
+  // A token whose windows differ from the poll (BTN-1267) is issued again for the hub's full sign-in of its e-mail.
+  const newToken = (email: string | null) => {
+    const hub = state.account.accounts.find((entry) => entry.agent === 'claude' && entry.longToken === undefined && email !== null && entry.status?.email === email)
+    if (hub === undefined || page.own || !page.online) return null
+    return (
+      <button type="button" className="button button--small" disabled={busy} onClick={() => setToken({ machine: page.id, name: page.name, account: hub.key, who: email! })}>
+        {t.account.newKey.longToken}
+      </button>
+    )
+  }
   // A folder signed out is signed in again where it is: on a machine elsewhere through its sign-in window, here on `/accounts`.
   const signIn = (agent: string, account?: string) =>
     page.own ? (
@@ -426,6 +439,12 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
                   {account.longToken === true && <span className="tag">{text.longToken}</span>}
                 </span>
                 {account.signedIn && account.sessionsOnly === true && <span className="machine-page__note"><SessionsOnly email={account.email} send={send} sending={sending} /></span>}
+                {account.signedIn && account.limitsDiffer === true && (
+                  <span className="machine-page__note">
+                    <Tipped className="machine-page__warn" tip={say(WINDOWS_DIFFER)} align="start" focusable>{text.limitsDiffer}</Tipped>
+                    {newToken(account.email)}
+                  </span>
+                )}
               </span>
               {account.signedIn ? <Limits limits={account.limits} now={now} /> : signIn(account.agent, account.key)}
             </li>
@@ -448,6 +467,7 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
           {say(failure)}
         </p>
       )}
+      {token !== null && <MachineTokenDialog target={token} onClose={() => setToken(null)} />}
     </Card>
   )
 }

@@ -1,5 +1,6 @@
 import { sameJson } from '../machine/facts.js'
 import { newestLimits, type RateLimits } from './model.js'
+import { tokenWindowsDiffer } from './token-windows.js'
 
 /** What a machine says of one of its account folders (`MachineFacts.identities`, `docs/machines.md`, "Account limits"). */
 export interface AccountTie {
@@ -73,6 +74,8 @@ export class AccountPolls {
   private readonly pollers = new Map<string, string>()
   private readonly told = new Map<string, Told>()
   private sharedNow: SharedAccount[] = []
+  /** The accounts whose long-token windows differ from their full sign-in's poll (BTN-1267). */
+  private readonly differing = new Set<string>()
 
   constructor(private readonly options: AccountPollsOptions) {}
 
@@ -86,6 +89,11 @@ export class AccountPolls {
     return this.sharedNow
   }
 
+  /** A long token's session windows of the account differ from its full sign-in's poll: the hub hands on the poll alone. */
+  differs(account: string): boolean {
+    return this.differing.has(account)
+  }
+
   /** A new connection of the machine: what it was told before is not known to hold any more. */
   connected(machine: string): void {
     this.told.delete(machine)
@@ -95,6 +103,7 @@ export class AccountPolls {
   plan(machines: MachineAccounts[]): Map<string, LimitsPlan> {
     this.choose(machines)
     this.warn(machines)
+    this.compare(machines)
     const plans = new Map<string, LimitsPlan>()
     for (const each of machines) {
       if (!each.online) continue
@@ -155,10 +164,50 @@ export class AccountPolls {
     for (const other of machines) {
       if (other.machine === machine) continue
       for (const [folder, tie] of Object.entries(other.identities)) {
-        if (tie.account === account) newest = newestLimits(newest, other.limits[folder] ?? undefined)
+        const told = other.limits[folder] ?? undefined
+        if (tie.account !== account || (told !== undefined && this.differing.has(account) && tokenReading(tie, told))) continue
+        newest = newestLimits(newest, told)
       }
     }
     return newest
+  }
+
+  /**
+   * A long token's session windows against the newest poll of the account's full sign-in (BTN-1267): the account stays
+   * as the last pair that could be compared left it, so a token folder's echo of the poll changes nothing.
+   */
+  private compare(machines: MachineAccounts[]): void {
+    const polled = new Map<string, { limits: RateLimits; machine: string }>()
+    for (const each of machines) {
+      for (const [folder, tie] of Object.entries(each.identities)) {
+        const told = each.limits[folder]
+        if (!tie.polls || told?.source !== 'usage') continue
+        const was = polled.get(tie.account)
+        if (was === undefined || Date.parse(told.updatedAt) > Date.parse(was.limits.updatedAt)) polled.set(tie.account, { limits: told, machine: each.machine })
+      }
+    }
+    const verdicts = new Map<string, { machine: string; span: string } | null>()
+    for (const each of machines) {
+      for (const [folder, tie] of Object.entries(each.identities)) {
+        const told = each.limits[folder]
+        const poll = polled.get(tie.account)
+        if (told == null || poll === undefined || !tokenReading(tie, told)) continue
+        const span = tokenWindowsDiffer(told, poll.limits)
+        if (span !== undefined) verdicts.set(tie.account, { machine: each.machine, span })
+        else if (!verdicts.has(tie.account)) verdicts.set(tie.account, null)
+      }
+    }
+    for (const [account, verdict] of verdicts) {
+      const name = this.nameOf(account, machines)
+      if (verdict !== null && !this.differing.has(account)) {
+        this.differing.add(account)
+        this.options.log(
+          `limits: the ${verdict.span} window of ${name}'s long token on machine ${verdict.machine} differs from its full sign-in's poll on machine ${polled.get(account)!.machine}: the full sign-in's poll is taken, the token's windows are not handed to other machines`,
+        )
+      } else if (verdict === null && this.differing.delete(account)) {
+        this.options.log(`limits: the long-token windows of ${name} agree again with its full sign-in's poll`)
+      }
+    }
   }
 
   private warn(machines: MachineAccounts[]): void {
@@ -183,4 +232,9 @@ export class AccountPolls {
     for (const each of machines) for (const tie of Object.values(each.identities)) if (tie.account === account && tie.email !== null) return tie.email
     return account
   }
+}
+
+/** What a long-token folder's own sessions told, not the poll it was handed and posted back. */
+function tokenReading(tie: AccountTie, limits: RateLimits): boolean {
+  return !tie.polls && limits.source === 'sdk'
 }

@@ -86,6 +86,8 @@ export interface MachineNetworkOptions {
   hubAccount?: (key: string) => TokenAccountOf | undefined
   /** Whether a machine on the link polls the claude.ai account; absent — the sign-ins carry no `sessionsOnly` (BTN-1266). */
   polled?: (account: string) => boolean
+  /** The account's long-token windows differ from its full sign-in's poll; absent — no `limitsDiffer` (BTN-1267). */
+  differs?: (account: string) => boolean
   log: (line: string) => void
 }
 

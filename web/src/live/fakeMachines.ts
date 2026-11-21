@@ -386,19 +386,22 @@ function joinJob(state: EvenKeelState, body: Record<string, unknown>): StepJob {
  * `?machines=signIn|login|offline|nocli` (BTN-1245): a machine elsewhere where the active Claude account is not signed
  * in; `login` with its sign-in under way, `offline` gone from the link, `nocli` without the Claude CLI, `token` with the
  * other machine on long tokens (BTN-1002), `tokenAlone` on long tokens of the hub's Claude folders signed out, so no
- * machine polls them (BTN-1266; with `?accounts=tokenOnly`). Its commands go through `fakeMachineCommand`.
+ * machine polls them (BTN-1266; with `?accounts=tokenOnly`), `tokenDiffer` on long tokens whose windows differ from
+ * the hub's poll (BTN-1267). Its commands go through `fakeMachineCommand`.
  */
 export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): MachineSignIn[] | undefined {
   if (mode === null) return undefined
   const alone = mode === 'tokenAlone'
+  const differ = mode === 'tokenDiffer'
   const desktop: MachineSignIn = {
     machine: 'machine-2', name: 'Example desktop', online: true, login: null, missing: [],
     accounts: state.account.accounts
       .filter((entry) => (alone ? entry.longToken === undefined && entry.lastEmail != null : entry.status?.loggedIn === true))
       .map((entry) => ({
         key: entry.key, agent: entry.agent, email: entry.status?.email ?? entry.lastEmail ?? null, signedIn: true,
-        ...((mode === 'token' || alone) && { longToken: true as const }),
+        ...((mode === 'token' || alone || differ) && { longToken: true as const }),
         ...(alone && { sessionsOnly: true as const }),
+        ...(differ && { limitsDiffer: true as const }),
       })),
   }
   const laptop: MachineSignIn = {

@@ -508,6 +508,8 @@ export const en = {
   'usage.copilotUnlimited': () => 'the Copilot plan has no monthly limit',
   'usage.sessionsOnly': () =>
     'No full sign-in polls this account’s limits, on the hub or a machine: they come only from its sessions, without a model’s own week or an early reset. Sign in to it fully on the hub.',
+  'usage.tokenWindowsDiffer': () =>
+    'This token’s sessions report other limit windows than the account’s poll, so the hub shows the poll. The token may be of another account: issue a new one signed in to this account.',
   'usage.copilotUnread': () => "GitHub's Copilot answer has no readable allowance",
   'usage.copilotNoQuota': () => 'GitHub did not provide a Copilot allowance for this account; check its plan on GitHub',
   'usage.copilotBillingEmpty': () => 'GitHub returned no Copilot usage data; check its billing page',

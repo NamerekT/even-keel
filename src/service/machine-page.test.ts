@@ -86,6 +86,23 @@ describe('the page of a machine (BTN-1272)', () => {
     expect(only).toEqual({ polled: false, alone: true, unknown: true, beside: false, main: false })
   })
 
+  it("marks a long-token folder whose sessions tell other windows than its account's poll, not the full sign-in (BTN-1267)", async () => {
+    const tokens = {
+      ...facts,
+      panel: { accounts: [{ key: 'token', agent: 'claude', status: { loggedIn: true, email: null }, needsLogin: false, longToken: {} }, ...panel.accounts], missing: [] },
+      identities: {
+        token: { account: 'uuid-main', email: null, polls: false },
+        main: { account: 'uuid-main', email: 'john.doe@example.com', polls: true },
+      },
+    } as unknown as MachineFacts
+    const page = await machinePageControl(deps({
+      mirror: () => ({ facts: () => tokens, page: pageReads(() => tokens) }),
+      polled: () => true,
+      differs: (account) => account === 'uuid-main',
+    })).view('srv')
+    expect(Object.fromEntries(page.accounts.map((each) => [each.key, each.limitsDiffer === true]))).toEqual({ token: true, main: false })
+  })
+
   it("writes the own machine's capacity into `parallel` and a machine elsewhere's into its row", async () => {
     const all = deps()
     const control = machinePageControl(all)

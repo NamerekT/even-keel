@@ -51,6 +51,7 @@ export const machinePageRu = {
   signedIn: 'вход выполнен',
   signedOut: 'не вошли на машине',
   longToken: 'долгий токен',
+  limitsDiffer: 'лимиты расходятся с хабом',
   projects: 'Проекты',
   projectsNone: 'Машина не делает ни одного проекта: включите её на вкладке «Машины» настроек проекта.',
   projectsOpen: 'К проектам',

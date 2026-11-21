@@ -139,6 +139,33 @@ describe('AccountPolls', () => {
     expect(plans.get(HUB)).toEqual({ picture: { global: limits('2026-11-17T10:05:00.000Z', 30) } })
   })
 
+  it("warns when a long token's session windows differ from the full sign-in's poll, and hands on the poll alone (BTN-1267)", () => {
+    const { polls, lines } = pollsOf()
+    const poll = limits('2026-11-17T10:00:00.000Z', 40)
+    const apart: RateLimits = { ...limits('2026-11-17T10:05:00.000Z', 10), source: 'sdk' }
+    const state = (token: RateLimits) => [
+      machine(HUB, { global: tie('a') }, { limits: { global: poll } }),
+      machine('m1', { token: tie('a', { polls: false }) }, { limits: { token } }),
+    ]
+    const plans = polls.plan(state(apart))
+    expect(polls.differs('a')).toBe(true)
+    expect(plans.get(HUB)).toBeUndefined()
+    const warned = lines.filter((line) => line.includes('differ'))
+    expect(warned).toHaveLength(1)
+    expect(warned[0]).toContain('a@example.com')
+    expect(warned[0]).toContain('m1')
+    expect(warned[0]).toContain("the full sign-in's poll is taken")
+    polls.plan(state(apart))
+    expect(lines.filter((line) => line.includes('differ'))).toHaveLength(1)
+    // A reading of the poll's own echo is no evidence either way.
+    polls.plan(state(poll))
+    expect(polls.differs('a')).toBe(true)
+    const agreeing: RateLimits = { ...limits('2026-11-17T10:10:00.000Z', 45), source: 'sdk' }
+    expect(polls.plan(state(agreeing)).get(HUB)).toEqual({ picture: { global: agreeing } })
+    expect(polls.differs('a')).toBe(false)
+    expect(lines.filter((line) => line.includes('agree again'))).toHaveLength(1)
+  })
+
   it('chooses no poller for an account only long tokens are signed in to', () => {
     const { polls } = pollsOf()
     polls.plan([machine(HUB, {}), machine('m1', { token: tie('a', { polls: false }) })])

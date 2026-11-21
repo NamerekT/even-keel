@@ -17,6 +17,14 @@ export interface PollsOf {
   panel: PanelEntry[]
   identities: Record<string, AccountTie> | undefined
   polled: Polled
+  /** The account's long-token windows differ from its full sign-in's poll (`AccountPolls.differs`, BTN-1267). */
+  differs?: Polled
+}
+
+/** A long-token folder whose sessions tell other windows than the poll of its account (BTN-1267). */
+function limitsDiffer(entry: PanelEntry, polls: PollsOf): boolean {
+  const tie = polls.identities?.[entry.key]
+  return entry.longToken !== undefined && tie !== undefined && polls.differs?.(tie.account) === true
 }
 
 /**
@@ -40,6 +48,7 @@ export function machineAccountOf(entry: PanelEntry, polls?: PollsOf): MachineAcc
     signedIn: entry.status?.loggedIn === true && !entry.needsLogin,
     ...(entry.longToken !== undefined && { longToken: true as const }),
     ...(polls !== undefined && sessionsOnly(entry, polls) && { sessionsOnly: true as const }),
+    ...(polls !== undefined && limitsDiffer(entry, polls) && { limitsDiffer: true as const }),
   }
 }
 
@@ -63,6 +72,8 @@ export interface MachinePageDeps {
   version: string
   /** Absent — the accounts carry no `sessionsOnly`. */
   polled?: Polled
+  /** Absent — the accounts carry no `limitsDiffer`. */
+  differs?: Polled
   log: (line: string) => void
 }
 
@@ -82,7 +93,7 @@ export function machinePageControl(deps: MachinePageDeps) {
       const panel = mirror?.page.panel()
       const color = deps.colors()[record.id] ?? MACHINE_PALETTE[0]!
       const entries = panel?.accounts ?? []
-      const polls = deps.polled === undefined ? undefined : { panel: entries, identities: facts?.identities, polled: deps.polled }
+      const polls = deps.polled === undefined ? undefined : { panel: entries, identities: facts?.identities, polled: deps.polled, ...(deps.differs !== undefined && { differs: deps.differs }) }
       return {
         id: record.id,
         name: record.name,

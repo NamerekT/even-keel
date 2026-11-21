@@ -52,6 +52,7 @@ export const machinePageEn: Messages['machinePage'] = {
   signedIn: 'signed in',
   signedOut: 'not signed in on the machine',
   longToken: 'long token',
+  limitsDiffer: 'limits differ from the hub’s',
   projects: 'Projects',
   projectsNone: "The machine runs no project: turn it on in the project settings' \"Machines\" tab.",
   projectsOpen: 'To the projects',
