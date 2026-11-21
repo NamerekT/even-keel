@@ -1,11 +1,11 @@
 import { taskMoves, type TaskMoves } from '../machine/tasks.js'
-import { englishOf, fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
+import { englishOf, fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { type Task } from '../tracker/model.js'
 import { Arrangement } from './arrange.js'
 import { MainCarry } from './carry.js'
 import { Cleanups } from './cleanup.js'
-import { isCarryName, isFixName, isOwnName } from './fix.js'
+import { isOwnName } from './fix.js'
 import { TaskLists } from './lists.js'
 import { MainCheck } from './maincheck.js'
 import { MainFix } from './mainfix.js'
@@ -17,24 +17,23 @@ import {
   type ActiveChain,
   type CarrySession,
   type ChainState,
-  type ChainMachines,
   type CurrentTask,
   type DispatcherDeps,
   type LaunchEntry,
   type ProjectOrder,
   type ReleaseReason,
 } from './model.js'
-import { goneLanes, heldFrom, laneMachine, laneOf, lanesOf, leaveLane, widens } from './lanes.js'
-import { moveOffLimit } from './limit-moves.js'
-import { byNumber, chainOrder, nextTask, openBlockers } from './order.js'
+import { goneLanes, laneOf, lanesOf, leaveLane } from './lanes.js'
+import { byNumber } from './order.js'
 import { LaunchPauses } from './pauses.js'
+import { LanePlacement } from './placement.js'
 import type { HandoffSession } from './relay.js'
-import { quietTooLong, unanswered } from './quiet.js'
+import { quietTooLong } from './quiet.js'
 import { Reviews } from './reviews.js'
 import { excludes, isDone, isTerminal } from './rules.js'
-import { returned as returnedSession, shelve } from './shelved.js'
-import { wasSkipped } from './skippedown.js'
-import { inTurn, startTask } from './start.js'
+import { shelve } from './shelved.js'
+import { inTurn } from './start.js'
+import { followCurrent, launchNext, stopAfterTurn, type StepHost } from './step.js'
 import { Talks } from './talk.js'
 import { Unchanged } from './unchanged.js'
 
@@ -51,8 +50,6 @@ export {
   type ReviewView,
 } from './model.js'
 
-const SLOT_RETRY_MS = 30_000
-
 export class Dispatcher {
   private work: Promise<void> = Promise.resolve()
   /** The check of main; the page reads its `view` (BTN-829). */
@@ -68,6 +65,8 @@ export class Dispatcher {
   private readonly pauses: LaunchPauses
   private readonly talks: Talks
   private readonly arrange: Arrangement
+  private readonly placement: LanePlacement
+  private readonly steps: StepHost
 
   constructor(
     readonly state: ChainState,
@@ -127,6 +126,29 @@ export class Dispatcher {
       release: (chain, reason, blockers) => this.release(chain, reason, blockers),
       changed: () => this.changed(),
     })
+    this.placement = new LanePlacement(state, deps, this.lists, this.main, this.reviews)
+    this.steps = {
+      state,
+      deps,
+      lists: this.lists,
+      main: this.main,
+      fixes: this.fixes,
+      carries: this.carries,
+      handovers: this.handovers,
+      reviews: this.reviews,
+      unchanged: this.unchanged,
+      waits: this.waits,
+      pauses: this.pauses,
+      placement: this.placement,
+      halt: (chain, error, keep) => this.halt(chain, error, keep),
+      release: (chain, reason, blockers) => this.release(chain, reason, blockers),
+      letGo: (chain) => this.letGo(chain),
+      take: (chain, current) => this.take(chain, current),
+      drop: (chain) => this.drop(chain),
+      stop: (project) => this.stop(project),
+      stopLane: (chain) => this.stopLane(chain),
+      changed: () => this.changed(),
+    }
   }
 
   setTasks(project: string, read: Task[]): void {
@@ -243,7 +265,7 @@ export class Dispatcher {
   private enqueue(project: string): void {
     const { active, queue } = this.state
     const machines = this.deps.machines
-    const machine = machines === undefined ? undefined : this.placeFor(project)
+    const machine = machines === undefined ? undefined : this.placement.placeFor(project)
     if (machines === undefined ? active.length < this.deps.parallel() : machine !== undefined) {
       const chain: ActiveChain = machine === undefined ? newChain(project) : { ...newChain(project), machine }
       this.pauses.admit(chain)
@@ -482,7 +504,7 @@ export class Dispatcher {
     if (tasks === undefined) return false
     if (this.main?.sessionFix(project) !== undefined || this.carries.due(project) !== undefined) return true
     try {
-      return this.nextOf(project, tasks) !== undefined
+      return this.placement.nextOf(project, tasks) !== undefined
     } catch {
       // A broken order halts the chain, which shows why.
       return true
@@ -498,30 +520,13 @@ export class Dispatcher {
   }
 
   /**
-   * The task the chain takes next by its list, the fix of a red main first; `undefined` — none. Throws on a broken order.
-   * With `machine` — what a lane on it may take (BTN-993): no task another lane or machine holds, none it cannot run,
-   * and the fix of main only in the project's head lane.
-   */
-  private nextOf(project: string, tasks: Task[], machine?: string, lane?: ActiveChain): string | undefined {
-    const order = chainOrder(tasks, this.state.orders[project])
-    const skipped = this.state.skipped[project] ?? []
-    const machines = this.deps.machines
-    const listed = tasks.map((task) => task.id)
-    const held = machines === undefined || machine === undefined ? [] : heldFrom(this.state, machines, project, machine, tasks, lane)
-    const open = listed.filter((id) => !skipped.includes(id) && !held.includes(id))
-    const lanes = lanesOf(this.state, project)
-    const head = machine === undefined || lanes.length === 0 || lanes[0] === lane
-    return (head ? this.main?.fixOf(project, open) : undefined) ?? this.reviews.next(project, open) ?? nextTask(tasks, order, [...skipped, ...this.lists.waitingIds(project), ...held])
-  }
-
-  /**
    * The task whose launch the chain waits for: the current one, else the next by the list. `undefined` when unknown
    * or the order is broken — then `blocked` checks no account, and the launch itself does (BTN-521).
    */
   private firstOf(project: string, chain = this.chainOf(project)): string | undefined {
     if (chain?.current != null) return chain.current.task
     try {
-      return this.nextOf(project, this.lists.tasks.get(project) ?? [])
+      return this.placement.nextOf(project, this.lists.tasks.get(project) ?? [])
     } catch {
       return undefined
     }
@@ -530,40 +535,6 @@ export class Dispatcher {
   /** The project's head lane; with `task` — the lane holding it, else the head. */
   private chainOf(project: string, task?: string): ActiveChain | undefined {
     return (task === undefined ? undefined : laneOf(this.state, project, task)) ?? this.state.active.find((chain) => chain.project === project)
-  }
-
-  /** The machine whose capacity the lane takes; `undefined` — no machines, only `parallel` counts. */
-  private machineOf(chain: ActiveChain): string | undefined {
-    return this.deps.machines === undefined ? undefined : laneMachine(chain, this.deps.machines)
-  }
-
-  /**
-   * The machine a new lane of the project goes to (BTN-993): the first listed one with a free place that serves the
-   * project and has a task of it to run — a project with lanes already only while they all go plainly and fewer than
-   * its width. A project whose tasks no machine can take now goes to none; `undefined` — no machine takes it now.
-   */
-  private placeFor(project: string, only?: string): string | undefined {
-    const machines = this.deps.machines!
-    const lanes = lanesOf(this.state, project)
-    if (lanes.length > 0 && (lanes.length >= machines.width(project) || !widens(lanes))) return undefined
-    for (const { id, capacity } of machines.list()) {
-      if (only !== undefined && id !== only) continue
-      if (this.state.active.filter((chain) => this.machineOf(chain) === id).length >= capacity || !machines.serves(project, id)) continue
-      if (this.readyOn(project, id, lanes.length === 0)) return id
-    }
-    return undefined
-  }
-
-  /** The project has a task a new lane on the machine may take; a first lane goes also when no machine has one, to end or halt as before. */
-  private readyOn(project: string, machine: string, first: boolean): boolean {
-    const tasks = this.lists.tasks.get(project)
-    if (tasks === undefined) return first
-    try {
-      if (this.nextOf(project, tasks, machine) !== undefined) return true
-      return first && this.nextOf(project, tasks) === undefined && this.main?.sessionFix(project) === undefined
-    } catch {
-      return first
-    }
   }
 
   /** The task the chain leads; while a fix session of main runs — the task it interrupted, if any. */
@@ -575,43 +546,6 @@ export class Dispatcher {
 
   private drop(chain: ActiveChain): void {
     this.state.active = this.state.active.filter((each) => each !== chain)
-  }
-
-  /**
-   * Takes queued projects while fewer chains than `parallel` are active; a lowered `parallel` stops nothing that runs.
-   * With machines (BTN-993) each machine with a free place pulls: the first project by the chain's order — the active
-   * ones, then the queue — that `placeFor` gives it gets a lane there.
-   */
-  private fill(): void {
-    if (this.deps.machines !== undefined) {
-      this.pull(this.deps.machines)
-      return
-    }
-    let taken = false
-    while (this.state.active.length < this.deps.parallel()) {
-      const next = this.state.queue.shift()
-      if (next === undefined) break
-      this.state.active.push(newChain(next))
-      taken = true
-    }
-    if (taken) this.deps.save(this.state)
-  }
-
-  private pull(machines: ChainMachines): void {
-    let taken = false
-    for (const { id } of machines.list()) {
-      for (;;) {
-        const projects = [...new Set([...this.state.active.map((chain) => chain.project), ...this.state.queue])]
-        const project = projects.find((each) => this.placeFor(each, id) === id)
-        if (project === undefined) break
-        const queued = this.state.queue.indexOf(project)
-        if (queued >= 0) this.state.queue.splice(queued, 1)
-        if (lanesOf(this.state, project).length > 0) this.deps.log(`chain: ${project} takes another lane, on machine ${id}`)
-        this.state.active.push({ ...newChain(project), machine: id })
-        taken = true
-      }
-    }
-    if (taken) this.deps.save(this.state)
   }
 
   private release(chain: ActiveChain, reason: ReleaseReason, blockers: string[]): void {
@@ -677,7 +611,7 @@ export class Dispatcher {
     await this.waits.settle()
     const seen = new Set<ActiveChain>()
     for (;;) {
-      this.fill()
+      this.placement.fill()
       const chain = this.state.active.find((each) => !seen.has(each))
       if (chain === undefined) return
       seen.add(chain)
@@ -699,220 +633,19 @@ export class Dispatcher {
       const tasks = this.lists.tasks.get(chain.project)
       if (tasks === undefined) return
       if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return
-      // Asked to stop, the chain only waits out the session's turn: no Done, handoff or relay is followed meanwhile.
       if (chain.stopAfter) {
-        const current = chain.current
-        if (current !== null && inTurn(this.deps, current)) return
-        // Only the dispatcher closes a task of a project without git, so the mark the turn ended with is still followed (BTN-1044).
-        const closes = current !== null && current.sessionId !== null && this.unchanged.closesByMark(current.task) && tasks.some((open) => open.id === current.task)
-        if (closes && (await this.unchanged.follow(chain, current))) {
-          if (chain.paused) return
-          if (this.lists.done.get(chain.project)?.has(current.task)) {
-            chain.current = null
-            chain.closing = current.task
-            this.deps.save(this.state)
-            continue
-          }
-        }
-        this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
-        if (lanesOf(this.state, chain.project).length > 1) {
-          this.stopLane(chain)
-          this.changed()
-        } else this.stop(chain.project)
+        if ((await stopAfterTurn(this.steps, chain, tasks)) === 'again') continue
         return
       }
-
       const current = chain.current
       if (current !== null) {
-        const { task, sessionId } = current
-        // A skip or a release from the page may end the task while the step awaits (BTN-1330): the step starts over.
-        const moved = () => chain.current !== current
-        if (sessionId === null) {
-          this.halt(chain, notice('chain.interrupted', { task }))
-          return
-        }
-        if (isFixName(task)) {
-          if (this.fixes === null) chain.current = null
-          else if (!(await this.fixes.follow(chain, current)) && !moved()) {
-            // A fix session that found nothing to fix (EKR-88) is over once the red commit turns green, as after a rerun,
-            // or main is green past it (BTN-1328); one that ended its turn otherwise is let go once main is green past it.
-            const mark = await this.unchanged.check(chain, current)
-            if (moved()) continue
-            if (mark === 'acted') return
-            const over = mark === null ? await this.fixes.outrun(chain, current) : await this.fixes.unneeded(chain, current)
-            if (!over) {
-              if (moved()) continue
-              await this.handovers.follow(chain, current)
-              return
-            }
-          }
-          continue
-        }
-        // A fix session is not let go by unattended mode: that would launch tasks on a red main (BTN-693).
-        if (isCarryName(task)) {
-          if ((await this.carries.follow(chain, current)) || moved()) continue
-          if (!unanswered(this.state, this.deps, current)) {
-            await this.handovers.follow(chain, current)
-            return
-          }
-          this.carries.letGo(chain, 'is let go after ten quiet minutes in unattended mode')
-          this.deps.save(this.state)
-          continue
-        }
-        if (!tasks.some((open) => open.id === task)) {
-          if (this.lists.done.get(chain.project)?.has(task)) {
-            chain.current = null
-            chain.closing = task
-            this.deps.save(this.state)
-            continue
-          }
-          shelve(this.state, this.deps, chain.project, current)
-          this.letGo(chain)
-          this.deps.save(this.state)
-        } else {
-          const blockers = openBlockers([...tasks, ...(this.lists.waiting.get(chain.project) ?? [])], task)
-          if (blockers.length > 0 && !this.deps.machine.busy(task)) {
-            this.release(chain, 'postpone', blockers)
-          } else if ((await this.reviews.follow(chain, current)) || moved() || (await this.unchanged.follow(chain, current)) || moved()) {
-            // Feedback or a hint went to the session, which leads the chain on; a released or done task left the task list.
-            if (chain.current !== null) return
-            continue
-          } else if (unanswered(this.state, this.deps, current)) {
-            const skipped = (this.state.skipped[chain.project] ??= [])
-            if (!skipped.includes(task)) skipped.push(task)
-            this.release(chain, 'skip', [])
-          } else if (this.fixes === null || !(await this.fixes.yields(chain, current))) {
-            if (moved()) continue
-            await this.handovers.follow(chain, current)
-            return
-          }
-          this.deps.save(this.state)
-          if (chain.paused) return
-        }
+        const outcome = await followCurrent(this.steps, chain, current, tasks)
+        if (outcome === 'again') continue
+        if (outcome === 'end') return
       }
-
-      // Only the project's head lane carries a release project in (BTN-993); the lane `fixer` chose fixes main (BTN-995).
-      const head = lanesOf(this.state, chain.project)[0] === chain
-      const fix = this.fixes?.fixer(chain.project) === chain ? this.main?.sessionFix(chain.project) : undefined
-      // A carry goes after the current task and the one a fix interrupted, before the next by the chain's order (BTN-369).
-      const carry = head && fix === undefined && chain.interrupted === undefined ? this.carries.due(chain.project) : undefined
-      const own = fix ?? carry
-      if (own === undefined && chain.fixOnly) {
-        this.drop(chain)
-        this.deps.save(this.state)
-        return
-      }
-      if (fix === undefined && chain.interrupted !== undefined) {
-        if (await this.fixes!.resume(chain, tasks)) continue
-        return
-      }
-
-      let next: string | undefined
-      const machine = this.machineOf(chain)
-      try {
-        next = this.nextOf(chain.project, tasks, machine, chain)
-      } catch (error) {
-        this.halt(chain, noticeOf(error))
-        return
-      }
-
-      const listed = tasks.map((open) => open.id)
-      const task = own?.task ?? next
-      if (task === undefined) {
-        this.endLane(chain, tasks)
-        return
-      }
-      // `nextOf` gave no task another machine holds: from here on its facts and launch are the lane's machine's.
-      if (machine !== undefined && own === undefined) this.deps.machines!.bind(chain.project, task, machine)
-
-      const since = this.deps.now().toISOString()
-      const found = this.deps.machine.liveSession(task)
-      // A fix or carry session the user skipped lives on under the name of the next one, which starts a session of its own.
-      const live = own !== undefined && found !== undefined && wasSkipped(this.state, chain.project, task, found) ? undefined : found
-      const returned = own === undefined && live !== undefined ? returnedSession(this.state, this.deps, chain.project, task, live) : undefined
-      if (live !== undefined && returned === undefined) {
-        delete chain.limitUntil
-        delete chain.modelWeek
-        delete chain.slotWait
-        delete chain.ciWait
-        delete chain.limitsWait
-        this.take(chain, { task, sessionId: live, since })
-        this.deps.save(this.state)
-        // The feedback on the task's pull request goes to the session at once.
-        if (own === undefined && this.reviews.feedbackOf(chain.project, task) !== undefined) continue
-        return
-      }
-
-      const left = own === undefined && live === undefined ? this.unchanged.left(chain.project, task) : undefined
-      if (left !== undefined) {
-        this.deps.log(`chain: ${task} is not started again: its session ${left} is over and its last turn ended with the mark`)
-        this.take(chain, { task, sessionId: left, since })
-        this.deps.save(this.state)
-        continue
-      }
-
-      // A handover keeps the task's place and branch: like a relay after a limit, it does not wait for main.
-      if (fix === undefined && returned === undefined && this.waits.heldByMain(chain, task, listed)) return
-
-      const blocked = this.pauses.block(chain.project, task)
-      if (blocked !== undefined) {
-        this.halt(chain, blocked)
-        return
-      }
-
-      if (own === undefined && returned === undefined && moveOffLimit(this.state, this.deps, chain, task)) continue
-      if (this.pauses.waits(chain, task, fix !== undefined)) return
-
-      if (returned !== undefined) {
-        delete chain.limitUntil
-        delete chain.modelWeek
-        delete chain.slotWait
-        delete chain.ciWait
-        const current: CurrentTask = { task, sessionId: returned.session.sessionId, since }
-        this.take(chain, current)
-        this.deps.save(this.state)
-        await this.handovers.handOverCurrent(chain, current, returned.session, returned.reason, returned.extra)
-        return
-      }
-
-      const lastTry = chain.slotWait === undefined ? undefined : Date.parse(chain.slotWait.at)
-      if (lastTry !== undefined && this.deps.now().getTime() - lastTry < SLOT_RETRY_MS) return
-
-      const unjudged = fix === undefined ? this.main?.due(chain.project) : undefined
-      if (unjudged !== undefined) {
-        if (!(await this.waits.checkMain(chain, task, unjudged))) return
-        continue
-      }
-
-      delete chain.limitUntil
-      delete chain.modelWeek
-      const starting: CurrentTask = { task, sessionId: null, since, starting: since }
-      this.take(chain, starting)
-      this.deps.save(this.state)
-      const feedback = own === undefined ? (this.reviews.feedbackOf(chain.project, task) ?? this.reviews.closedNoteOf(chain.project, task)) : undefined
-      await startTask(this.state, this.deps, chain, starting, fix, carry, feedback,
-        () => this.reviews.delivered(chain.project, task), (failure) => this.halt(chain, failure))
+      if ((await launchNext(this.steps, chain, tasks)) === 'again') continue
       return
     }
-  }
-
-  /**
-   * The lane has no task to take. Another lane of the project goes on: only this one ends. The last one ends the chain,
-   * unless a task is left that no machine of the lanes may take now — then the project waits in the queue for one.
-   */
-  private endLane(chain: ActiveChain, tasks: Task[]): void {
-    const machine = this.machineOf(chain)
-    this.drop(chain)
-    if (lanesOf(this.state, chain.project).length > 0) {
-      this.deps.log(`chain: a lane of ${chain.project} on machine ${machine} ends, no task left for it`)
-    } else if (machine !== undefined && this.nextOf(chain.project, tasks) !== undefined) {
-      this.deps.log(`chain: ${chain.project} waits for a machine that may take its next task`)
-      this.state.queue.unshift(chain.project)
-    } else {
-      this.deps.log(`chain: ${chain.project} ended, no task left to run`)
-      this.reviews.ended(chain.project)
-    }
-    this.deps.save(this.state)
   }
 
   private finish(chain: ActiveChain, task: string): Promise<boolean> {
