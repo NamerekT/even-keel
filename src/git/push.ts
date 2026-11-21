@@ -6,21 +6,52 @@ export function taskRemote(remotes: readonly string[]): string | null {
 }
 
 /** What a push of a task's branch did; `failed` — git's output of a refused push. */
-export type BranchPush = { remote: string; branch: string; failed?: string } | { skipped: 'noBranch' | 'noRemote' }
+export type BranchPush =
+  | { remote: string; branch: string; failed?: string }
+  | { skipped: 'noBranch' | 'noRemote' | 'nothingNew' }
+  /** `held` named files of the branch, or git could not list them (`files` empty, `failure` its output). */
+  | { skipped: 'held'; files: string[]; failure?: string }
+
+/**
+ * `onlyNew` — push only a branch with something new (BTN-1274, the end of a turn): `main` is the project's main branch,
+ * `held` names the branch's changed files (against `main`) that keep it off the remote.
+ */
+export interface PushOptions {
+  onlyNew?: { main: string; held: (files: readonly string[]) => string[] }
+}
 
 /**
  * Pushes the task's branch of a working folder to the remote (BTN-1270, `docs/chain/worktrees.md`, "Task branches on
  * the remote"): only a folder on a branch `<task>/…`, and never forced, so a branch on the remote with commits the
  * folder lacks stays as it is.
  */
-export async function pushTaskBranch(git: Git, folder: string, task: string): Promise<BranchPush> {
+export async function pushTaskBranch(git: Git, folder: string, task: string, options: PushOptions = {}): Promise<BranchPush> {
   const head = await git(folder, ['symbolic-ref', '--quiet', '--short', 'HEAD'])
   const branch = head.out.trim()
   if (head.code !== 0 || !branch.startsWith(`${task.toLowerCase()}/`)) return { skipped: 'noBranch' }
   const remote = await remoteOf(git, folder)
   if (remote === null) return { skipped: 'noRemote' }
+  const only = options.onlyNew
+  if (only !== undefined) {
+    if (!(await somethingNew(git, folder, remote, branch, only.main))) return { skipped: 'nothingNew' }
+    const changed = await git(folder, ['diff', '--name-only', '-z', `refs/heads/${only.main}...HEAD`])
+    if (changed.code !== 0) return { skipped: 'held', files: [], failure: changed.out.trim() || `git exited with ${changed.code}` }
+    const held = only.held(changed.out.split('\0').filter(Boolean))
+    if (held.length > 0) return { skipped: 'held', files: held }
+  }
   const pushed = await git(folder, ['push', remote, `${branch}:refs/heads/${branch}`])
   return pushed.code === 0 ? { remote, branch } : { remote, branch, failed: pushed.out }
+}
+
+/**
+ * Whether the folder's HEAD has commits worth a push: neither the remote-tracking ref of the last push (a push updates
+ * it) nor `main` (a merged task closes) holds it. No such ref, or a git error, counts as new: the push then tells.
+ */
+async function somethingNew(git: Git, folder: string, remote: string, branch: string, main: string): Promise<boolean> {
+  for (const ref of [`refs/remotes/${remote}/${branch}`, `refs/heads/${main}`]) {
+    if ((await git(folder, ['merge-base', '--is-ancestor', 'HEAD', ref])).code === 0) return false
+  }
+  return true
 }
 
 /** The repository's `taskRemote`; `null` — it has none. */

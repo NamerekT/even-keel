@@ -12,15 +12,16 @@
 
 ## Task branches on the remote (BTN-1270)
 
-A task's branch goes to the remote whatever the project's mode, so another machine can take the task over when its machine is gone ([machines](../machines.md#a-machine-gone)). Sessions never push it; Even Keel does, on the machine that runs the task (`pushTaskBranch`, `src/git/push.ts`, called by `wireMachine` in `src/service/machine-chain.ts`):
+A task's branch goes to the remote whatever the project's mode, so another machine can take the task over when its machine is gone ([machines](../machines.md#a-machine-gone)). Sessions never push it; Even Keel does, on the machine that runs the task (`pushTaskBranch`, `src/git/push.ts`, through `pushOf` in `src/service/machine-chain.ts`):
 
 - at a handoff and a checkpoint (`relay`): once the previous session is stopped, from its folder, behind the next session's launch (the machine's `writes`), so a slow pre-push hook holds nothing;
 - at a stop of a task's session (`stop`: a red main interrupting it, extra usage held);
+- at the end of a turn of a session Even Keel launched (BTN-1274: a question, an `AskUserQuestion` or a permission prompt, a turn with no mark, a session that died mid-turn), from the session's folder, in the background (`writes`). The session monitor's tick (`wireMonitor`, `src/service/session-monitor.ts`) hands the ended turns to it: `TurnEnds` (`src/sessions/turn-ends.ts`) names a session once when it leaves `busy`/`shell`, and a live one first seen between turns, so work from before a restart goes too. Such a push is `onlyNew`: no `git push` when HEAD is already in the remote-tracking ref of the last push (`refs/remotes/<remote>/<branch>`, which a push updates) or in `main` (a merged task closes), two local `merge-base --is-ancestor` calls; a repository whose fetch refspec keeps no such ref pushes at every turn end, harmlessly. Two cases push nothing at a turn's end: PR mode, where the branch goes to the forge only through `openPull` and its checks (the note, nothing ahead, an outsider's files), and a branch whose changes against `main` (`git diff --name-only -z main...HEAD`) touch a file `guardedFiles` names, or that git cannot list — the machine cannot tell an outsider's task (BTN-1207, known only to the hub's intake), and a push of a changed workflow runs it with the repository's secrets; a `push:` line says so. The handoff, checkpoint and stop pushes above have no such check;
 - in PR mode, as before (`docs/chain/pr-mode.md`).
 
 The remote is `taskRemote`: `origin` when the repository has one, else its first remote. Only a folder standing on the task's own branch (`<key>-<number>/…`) is pushed, never forced; a refused push (the remote moved on, a server hook) or a repository without remotes is a `push:` line in the log, never a pause. The chain's fix and carry sessions and a project without git push nothing. The cleanup after Done removes the remote branch with the local one (below), on the same `taskRemote`.
 
-Not pushed yet: the end of a session's turn while the task stays open (a question, a session that stopped without merging). Such work reaches the remote with the next handoff, checkpoint or stop; until then a machine gone takes it with it (BTN-1274).
+Not pushed: commits made mid-turn until that turn ends. A machine gone mid-turn takes them with it.
 
 ## Cleanup after Done
 

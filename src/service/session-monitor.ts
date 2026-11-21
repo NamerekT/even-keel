@@ -5,9 +5,11 @@ import { isInside } from '../paths.js'
 import { SessionMonitor } from '../sessions/monitor.js'
 import { TranscriptOwners } from '../sessions/owners.js'
 import { rareEvents } from '../sessions/rare.js'
+import { TurnEnds } from '../sessions/turn-ends.js'
 import type { SessionView } from '../state.js'
 import { saveContextWindow } from '../storage/context-windows.js'
 import type { MachineContext } from './machine-context.js'
+import { pushOf } from './machine-chain.js'
 
 export function wireOwners(ctx: MachineContext): TranscriptOwners {
   return new TranscriptOwners({
@@ -45,6 +47,7 @@ export function wireMonitor(ctx: MachineContext, sessionWindows: [string, number
     const project = launched?.project ?? (candidates.length === 1 ? candidates[0]![0] : undefined)
     return project === undefined ? undefined : projectLabel(ctx.configStore.current, project)
   }
+  const turns = new TurnEnds()
   return new SessionMonitor({
     agentOf: ctx.agentOf,
     homes: () => ctx.homes.list(),
@@ -64,6 +67,11 @@ export function wireMonitor(ctx: MachineContext, sessionWindows: [string, number
       ctx.keySpend.observe(list.flatMap((agent) => (agent.account === undefined ? [] : [{ account: agent.account, sessionId: agent.sessionId, busy: agent.status === 'busy' || agent.status === 'shell' }])))
       // Every tick, not only on a change of the views: a session in the task's folder may have none (BTN-616).
       void ctx.stopLingering()
+      for (const agent of turns.ended(list)) {
+        // Only a session Even Keel launched: a hand session's branch is pushed by its person.
+        const launched = ctx.journal.findLast((entry) => entry.sessionId === agent.sessionId)
+        if (launched !== undefined) ctx.writes.add(`the push of ${launched.task}`, pushOf(ctx, launched.project, launched.task, agent.cwd, true))
+      }
       ctx.approvals.settle(new Set(list.filter((agent) => agent.status === 'waiting').map((agent) => agent.sessionId)))
       if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.machineChanged()
     },

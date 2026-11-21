@@ -53,6 +53,46 @@ describe('pushTaskBranch', () => {
   })
 })
 
+describe('pushTaskBranch with onlyNew (BTN-1274)', () => {
+  const push = 'push origin abc-1/task:refs/heads/abc-1/task'
+  const inRemote = 'merge-base --is-ancestor HEAD refs/remotes/origin/abc-1/task'
+  const inMain = 'merge-base --is-ancestor HEAD refs/heads/main'
+  const diff = 'diff --name-only -z refs/heads/main...HEAD'
+  const options = { onlyNew: { main: 'main', held: (files: readonly string[]) => files.filter((file) => file.startsWith('.github/')) } }
+  const answers = (remote: number, main: number, changed: Partial<GitResult> = { out: 'work.txt\0' }) =>
+    ({ ...onBranch, remote: { out: 'origin\n' }, [inRemote]: { code: remote }, [inMain]: { code: main }, [diff]: changed })
+
+  it('pushes nothing when the remote already has every commit of the branch', async () => {
+    const { git, calls } = fakeGit(answers(0, 1))
+    expect(await pushTaskBranch(git, folder, 'ABC-1', options)).toEqual({ skipped: 'nothingNew' })
+    expect(calls).not.toContain(push)
+  })
+
+  it('pushes nothing when the branch is merged into main already', async () => {
+    const { git, calls } = fakeGit(answers(1, 0))
+    expect(await pushTaskBranch(git, folder, 'ABC-1', options)).toEqual({ skipped: 'nothingNew' })
+    expect(calls).not.toContain(push)
+  })
+
+  it('pushes a branch with commits the remote lacks, or one it never had', async () => {
+    const ahead = fakeGit(answers(1, 1))
+    expect(await pushTaskBranch(ahead.git, folder, 'ABC-1', options)).toEqual({ remote: 'origin', branch: 'abc-1/task' })
+    expect(ahead.calls).toContain(push)
+    const never = fakeGit(answers(128, 1))
+    expect(await pushTaskBranch(never.git, folder, 'ABC-1', options)).toEqual({ remote: 'origin', branch: 'abc-1/task' })
+    expect(never.calls).toContain(push)
+  })
+
+  it('keeps a branch off the remote when it changes a held file, or git cannot list its files', async () => {
+    const held = fakeGit(answers(1, 1, { out: 'work.txt\0.github/workflows/ci.yml\0' }))
+    expect(await pushTaskBranch(held.git, folder, 'ABC-1', options)).toEqual({ skipped: 'held', files: ['.github/workflows/ci.yml'] })
+    expect(held.calls).not.toContain(push)
+    const unlisted = fakeGit(answers(1, 1, { code: 128, out: 'fatal: bad revision\n' }))
+    expect(await pushTaskBranch(unlisted.git, folder, 'ABC-1', options)).toEqual({ skipped: 'held', files: [], failure: 'fatal: bad revision' })
+    expect(unlisted.calls).not.toContain(push)
+  })
+})
+
 describe('remoteHas', () => {
   it('tells a branch the remote has from one it lacks and from a remote that does not answer', async () => {
     const ask = 'ls-remote --exit-code --heads origin refs/heads/abc-1/task'
