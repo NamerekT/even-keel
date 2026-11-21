@@ -88,7 +88,7 @@ export function TaskSearch({ project, label, refusal, onPick, onClose, focus = t
           label={label}
           placeholder={t.card.edit.findTask}
           value={text}
-          options={found.map((each) => ({ value: each.id, label: each.moved === undefined ? each.title : `${each.title} · ${t.transfer.movedTo} ${each.moved.key}` }))}
+          options={found.map((each) => ({ value: each.id, label: each.moved === undefined ? each.title : t.transfer.movedTitle(each.title, each.moved.key) }))}
           invalid={refusal !== null}
           onChange={setText}
           onPick={onPick}

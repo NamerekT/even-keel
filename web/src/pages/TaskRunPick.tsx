@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { taskProject } from '../state.js'
+import { InheritIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
+import { Tipped } from '../ui/Tipped.js'
 import { modelOf } from '../../../src/agent/model-slots.js'
 import { effortsOf, rememberModel, runPickChange, runPickOf, withProvider, type RunPick } from './runPick.js'
 import { accountVendor, providerName } from './settingsRun.js'
@@ -17,6 +19,17 @@ interface Props {
   onChanged: () => void
 }
 
+/** The mark of the provider option that follows the project: an icon, its words in the tip (BTN-1375). */
+function AsProject({ value }: { value: string }) {
+  return (
+    <Tipped tip={t.card.run.asProjectTip(value)} inline className="task-card__as-project">
+      <span role="img" aria-label={t.card.run.asProject}>
+        <InheritIcon />
+      </span>
+    </Tipped>
+  )
+}
+
 /** What the task's sessions run on, as a provider, a model and an effort pick (BTN-983): Even Keel keeps it, the tracker does not. */
 export function TaskRunPick({ task, live, onChanged }: Props) {
   const { state } = useLive()
@@ -25,6 +38,7 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
   const run = state?.runs?.[project]?.[task]
   const shown = runPickOf(run)
   const [draft, setDraft] = useState<RunPick>(shown)
+  const effortId = useId()
   // The model typed for each provider while the card is open: picking a provider again brings its model back (BTN-984).
   const [typed, setTyped] = useState<Record<string, string>>({})
   useEffect(() => setDraft(shown), [`${shown.provider}|${shown.model}|${shown.effort}`])
@@ -67,7 +81,7 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
           label={t.card.run.provider}
           value={draft.provider}
           options={[
-            { value: '', label: t.card.run.asProject(providerName(projectProvider)) },
+            { value: '', label: providerName(projectProvider), aside: <AsProject value={providerName(projectProvider)} />, keywords: t.card.run.asProject },
             ...providers.map((provider) => ({ value: provider, label: providerName(provider) })),
           ]}
           disabled={sending}
@@ -80,7 +94,7 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
             value={draft.model}
             options={offersOf(models, account)}
             loading={modelsReading(models, account)}
-            placeholder={t.card.run.modelAsProject(projectModel)}
+            placeholder={projectModel}
             disabled={sending}
             onChange={(model) => setDraft({ ...draft, model })}
             onKeyDown={(event) => {
@@ -89,14 +103,19 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
           />
         )}
         {efforts.length > 0 && (
-          <Select
-            className="task-card__field"
-            label={t.card.run.effort}
-            value={draft.effort}
-            options={[{ value: '', label: t.card.run.effortNone }, ...efforts.map((effort) => ({ value: effort, label: t.card.run.effortOf(effort) }))]}
-            disabled={sending}
-            onChange={(effort) => setDraft({ ...draft, effort })}
-          />
+          <div className="task-card__run-part">
+            <label className="task-card__run-label" htmlFor={effortId}>
+              {t.card.run.effort}
+            </label>
+            <Select
+              id={effortId}
+              className="task-card__field"
+              value={draft.effort}
+              options={[{ value: '', label: t.card.run.effortNone }, ...efforts.map((effort) => ({ value: effort, label: effort }))]}
+              disabled={sending}
+              onChange={(effort) => setDraft({ ...draft, effort })}
+            />
+          </div>
         )}
         {live && change !== null && <p className="task-card__run-note">{t.card.run.live}</p>}
         {failure !== null && <p className="notice notice--error">{say(failure)}</p>}

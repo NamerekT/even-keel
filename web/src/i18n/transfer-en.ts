@@ -106,6 +106,7 @@ export const transferEn: Messages['transfer'] = {
   switchTo: (tracker) => `Switch to ${tracker}`,
   stopChain: 'Stop the chain',
   movedTo: 'Moved to',
+  movedTitle: (title: string, key: string) => `${title} (moved to ${key})`,
   check: 'Check',
   checkTip:
     'Even Keel counts both sides again: what the transfer was to take and what the moved tasks have. Only what the tracker keeps is counted — the plan\'s losses were agreed already. Something extra there hides nothing missing.',

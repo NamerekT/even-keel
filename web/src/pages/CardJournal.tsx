@@ -36,11 +36,15 @@ export function CardJournal({ task, comments, history, editor, render, plain }: 
   const { shown, hidden } = journalWindow(items, all)
   const journal = history !== undefined || editor !== null || comments.some((comment) => comment.journal !== undefined)
   if (comments.length === 0 && editor === null && history === undefined) return null
+  const count = journal ? items.length : comments.length
 
   return (
     <section className="task-card__section">
       <div className="task-card__journal-head">
-        <h3 className="task-card__heading">{journal ? t.card.journal.heading(items.length) : t.card.comments(comments.length)}</h3>
+        <h3 className="task-card__heading">
+          {journal ? t.card.journal.heading : t.card.comments}
+          {count > 0 && <> <span className="task-card__count">{count}</span></>}
+        </h3>
         {history !== undefined && <div className="segmented task-card__journal-filter" role="group" aria-label={t.card.journal.filter}>
           {(['all', 'comments', 'changes'] as const).map((value) => <button key={value} type="button" className={`segmented__item${filter === value ? ' segmented__item--on' : ''}`} aria-pressed={filter === value} onClick={() => { setFilter(value); setAll(false) }}>{t.card.journal.filters[value]}</button>)}
         </div>}

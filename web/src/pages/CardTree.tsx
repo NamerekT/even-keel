@@ -5,6 +5,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PlusIcon } from '../ui/icons.js'
+import { Tipped } from '../ui/Tipped.js'
 import { chainOrdered, isClosed, parentRefusal } from './cardEdit.js'
 import { RefLink, Remove, TaskSearch } from './CardLinks.js'
 import type { CardEditor } from './useCardEdit.js'
@@ -97,7 +98,17 @@ export function Subtasks({ card, project, adding, inWork, onOpen }: SubtasksProp
 
   return (
     <section className="task-card__section">
-      <h3 className="task-card__heading">{t.card.edit.subtasks(closed, subtasks.length)}</h3>
+      <h3 className="task-card__heading">
+        {t.card.edit.subtasks}
+        {subtasks.length > 0 && (
+          <>
+            {' '}
+            <Tipped tip={t.card.edit.subtasksClosed(closed, subtasks.length)} focusable inline className="task-card__count">
+              {closed}/{subtasks.length}
+            </Tipped>
+          </>
+        )}
+      </h3>
       {subtasks.length > 0 && (
         <ul className="task-card__refs task-card__subtasks">
           {chainOrdered(subtasks, order).map((child) => (

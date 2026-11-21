@@ -22,7 +22,7 @@ One task can run on something else: its run — a provider, a model and an effor
 
 ### A task's own run
 
-On the task card, **Runs on** has a provider pick, a model field and an effort pick. "As the project" leaves the provider to the project; a provider with an empty model takes the model set for that provider.
+On the task card, **Runs on** has a provider pick, a model field and an effort pick. The first provider, marked with an arrow down to a bar ("As the project" in its tip), leaves the provider to the project; a provider with an empty model takes the model set for that provider, shown greyed in the field.
 
 The effort is Claude Code's `low`, `medium`, `high`, `xhigh` or `max` and Codex's `minimal`, `low`, `medium`, `high` or `xhigh`; OpenCode and Copilot offer `none`, `minimal`, `low`, `medium`, `high`, `xhigh` and `max`, but each model takes only some of them (in OpenCode, the model's variants), so pick one your model has.
 

@@ -109,6 +109,7 @@ export const transferRu = {
   switchTo: (tracker: string) => `Переключить на ${tracker}`,
   stopChain: 'Остановить цепь',
   movedTo: 'Перенесена в',
+  movedTitle: (title: string, key: string) => `${title} (перенесена в ${key})`,
   check: 'Сверка',
   checkTip:
     'Even Keel заново считает обе стороны: что перенос должен был отдать и что есть у перенесённых задач. Считается только то, что трекер хранит, — потери плана уже согласованы. Лишнее у цели недостачу не прячет.',

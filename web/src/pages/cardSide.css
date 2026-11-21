@@ -76,6 +76,7 @@
 
 /* Every label of the side is one section label: the property names here, the relation groups' heads below. */
 .task-card__prop dt,
+.task-card__run-label,
 .task-card__side .task-card__heading {
   margin: 0;
   color: var(--fg-muted);
@@ -157,6 +158,27 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The effort under its own label, as the other properties of the side (BTN-1375). */
+.task-card__run-part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* "As the project" of the provider: a muted icon after the name, its words in the tip. */
+.task-card__as-project {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-6);
+  color: var(--fg-muted);
+}
+
+/* The inheritance arrow turned down to the bar: the value comes down from the project. */
+.task-card__as-project .icon {
+  transform: scaleY(-1);
 }
 
 .task-card__run-note {
