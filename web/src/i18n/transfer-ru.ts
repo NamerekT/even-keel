@@ -161,7 +161,7 @@ export const transferRu = {
       title: 'Авторы',
       tip: 'Кем записать комментарии и изменения из трекера. Агент — агент Even Keel, вы — хозяин этой страницы, под своим именем — другой человек с именем из трекера. Когда перенос начнётся, выбор уже не изменить.',
       author: 'Автор',
-      unnamed: (kind: ImportAuthorKind) => (kind === 'agent' ? 'Агент без имени' : 'Без имени'),
+      unnamed: (kind: ImportAuthorKind): string => (kind === 'agent' ? 'Агент без имени' : 'Без имени'),
       pick: (name: string) => `Кем станет ${name}`,
       kinds: { agent: 'Агент', user: 'Вы', person: 'Под своим именем' } satisfies Record<ImportAuthorKind, string>,
     },
