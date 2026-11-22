@@ -50,7 +50,39 @@ function checked(stand: Stand, index: number): Stand {
   return stand
 }
 
-export const adapterOf = (stand: Stand): TrackerAdapter => ADAPTERS[stand.tracker]!
+/**
+ * Stands up only on demand (self-hosted Huly since 2026-11-22) are split from the night: the night passes over the ones
+ * in `SKIP_VARIABLE`, the run before a release takes only those in `ONLY_VARIABLE`. Each holds stand names or adapter
+ * names, comma-separated.
+ */
+export const SKIP_VARIABLE = 'EVEN_KEEL_TRACKER_STANDS_SKIP'
+export const ONLY_VARIABLE = 'EVEN_KEEL_TRACKER_STANDS_ONLY'
+
+export interface StandSelection {
+  run: Stand[]
+  skipped: { stand: Stand; reason: string }[]
+}
+
+export function selectStands(stands: readonly Stand[], env: NodeJS.ProcessEnv = process.env): StandSelection {
+  const only = namesIn(env[ONLY_VARIABLE])
+  const skip = namesIn(env[SKIP_VARIABLE])
+  const named = (names: Set<string>, stand: Stand): boolean => names.has(stand.name) || names.has(stand.tracker)
+  const lacking = [...only].filter((name) => !stands.some((stand) => stand.name === name || stand.tracker === name))
+  if (lacking.length > 0) throw new Error(`${ONLY_VARIABLE} names no stand: ${lacking.join(', ')}`)
+  const selection: StandSelection = { run: [], skipped: [] }
+  for (const stand of stands) {
+    if (only.size > 0 && !named(only, stand)) selection.skipped.push({ stand, reason: `not in ${ONLY_VARIABLE}` })
+    else if (named(skip, stand)) selection.skipped.push({ stand, reason: `up only on demand (${SKIP_VARIABLE}), run before a release` })
+    else selection.run.push(stand)
+  }
+  return selection
+}
+
+function namesIn(value: string | undefined): Set<string> {
+  return new Set((value ?? '').split(',').map((name) => name.trim()).filter((name) => name !== ''))
+}
+
+export const adapterOf =(stand: Stand): TrackerAdapter => ADAPTERS[stand.tracker]!
 
 /** The prefix of the stand's task ids: `TT` of Linear's `TT-12` when the key is Even Keel's own. */
 export function idPrefix(stand: Stand): string {

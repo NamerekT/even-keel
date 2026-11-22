@@ -1,13 +1,23 @@
 name: Tracker contract
 
 # The tracker adapters' contract on live trackers (src/e2e-trackers/, docs/trackers.md, "Contract tests on live trackers",
-# BTN-470): one set of cases over each stand of the secret TRACKER_STANDS, each in a test project of its own. A red
-# night holds every release (scripts/nights-green.sh, checked by publish.yml). A schedule fires only on the default
-# branch, so the night checks out `dev`, the next version; a run by hand takes the branch it is started on.
+# BTN-470): one set of cases over each stand of the secret TRACKER_STANDS, each in a test project of its own. A schedule
+# fires only on the default branch, so the night checks out `dev`, the next version; a run by hand takes the branch it is
+# started on. The stands up only on demand (ON_DEMAND below: self-hosted Huly, BTN-1489) are skipped by the night and run
+# alone by hand with `on_demand`, before a release (scripts/huly-contract.sh brings Huly up and down around it). A red
+# night and a red last on-demand run on `dev` each hold every release (scripts/nights-green.sh, checked by publish.yml),
+# told apart by the run's title.
 on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
+    inputs:
+      on_demand:
+        description: Run only the stands up on demand (Huly), brought up for this run
+        type: boolean
+        default: false
+
+run-name: ${{ inputs.on_demand && 'Huly contract' || 'Tracker contract' }}
 
 permissions:
   contents: read
@@ -21,6 +31,8 @@ jobs:
       # The self-hosted stands (Huly, Forgejo) are reached over the tailnet; without its OAuth client only the stands
       # on the internet may be in TRACKER_STANDS.
       TAILNET_CLIENT: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      # Stand or adapter names, comma-separated (stands.fixture.ts, selectStands).
+      ON_DEMAND: huly
 
     steps:
       - uses: actions/checkout@v7
@@ -44,3 +56,5 @@ jobs:
       - run: npm run test:trackers
         env:
           EVEN_KEEL_TRACKER_STANDS: ${{ secrets.TRACKER_STANDS }}
+          EVEN_KEEL_TRACKER_STANDS_SKIP: ${{ !inputs.on_demand && env.ON_DEMAND || '' }}
+          EVEN_KEEL_TRACKER_STANDS_ONLY: ${{ inputs.on_demand && env.ON_DEMAND || '' }}

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, type TestContext } from 'vit
 import { ADAPTERS } from '../tracker/adapters.js'
 import { labelKey } from '../tracker/labels.js'
 import type { TaskSource } from '../tracker/source.js'
-import { adapterOf, idPrefix, readStands, STANDS_VARIABLE, type Stand } from './stands.fixture.js'
+import { adapterOf, idPrefix, readStands, selectStands, STANDS_VARIABLE, type Stand } from './stands.fixture.js'
 
 // One contract over every live tracker (BTN-470, docs/trackers.md, "Contract tests on live trackers"): each stand runs the
 // same cases against its adapter. A case the stand cannot run — an optional method the adapter lacks, no task created —
@@ -11,16 +11,18 @@ import { adapterOf, idPrefix, readStands, STANDS_VARIABLE, type Stand } from './
 const TIMEOUT = 60_000
 const PROJECT = 'contract'
 const LABEL = 'contract-check'
-const stands = readStands()
+const given = readStands()
+const { run: stands, skipped } = selectStands(given)
 
 describe('the stands', () => {
   it.runIf(stands.length === 0 && process.env.CI !== undefined)(`are given in ${STANDS_VARIABLE}`, () => {
-    expect.fail(`${STANDS_VARIABLE} is empty: a night without stands checks nothing`)
+    expect.fail(given.length === 0 ? `${STANDS_VARIABLE} is empty: a night without stands checks nothing` : 'every stand is skipped: the run checks nothing')
   })
 
-  const covered = new Set(stands.map((stand) => stand.tracker))
+  const covered = new Set(given.map((stand) => stand.tracker))
   const missing = Object.entries(ADAPTERS).filter(([name, adapter]) => adapter.own !== true && !covered.has(name))
   for (const [name] of missing) it.skip(`${name}: no stand`, () => {})
+  for (const { stand, reason } of skipped) it.skip(`${stand.name}: ${reason}`, () => {})
 })
 
 for (const stand of stands) describe(stand.name, () => contract(stand))
