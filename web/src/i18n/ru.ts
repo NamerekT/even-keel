@@ -37,6 +37,7 @@ export type ToolCounts = Record<'edit' | 'read' | 'search' | 'run' | 'other', nu
 export type RightsUse = 'tracker' | 'ci' | 'pullRequests'
 
 const launches = counted('запуск', 'запуска', 'запусков')
+const launchesGenitive = counted('запуска', 'запусков', 'запусков')
 const tasks = counted('задача', 'задачи', 'задач')
 const fixes = counted('починка', 'починки', 'починок')
 const fixOf = (red: string | null) => (red === null ? 'Починка main' : `Починка main: ${red}`)
@@ -398,7 +399,7 @@ export const ru = {
     memes: {
       self: ['Even Keel: мемы про вайбкодеров...', ' Написано вайбкодером?!', ' Мда.'],
       peak: (day: string, count: number) => [`${day}: ${launches(count)}.`, ' Ты вообще спал?'],
-      favorite: (project: string, count: number, total: number) => [`${count} из ${launches(total)} — ${project}.`, ' Любимчик, да?'],
+      favorite: (project: string, count: number, total: number) => [`${count} из ${launchesGenitive(total)} — ${project}.`, ' Любимчик, да?'],
       questions: (count: number) => [
         `${count} ${forms('вопрос', 'вопроса', 'вопросов')(count)} ${forms('ждёт', 'ждут', 'ждут')(count)} ответа.`,
         ' Они не обидятся.',
