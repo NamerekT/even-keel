@@ -9,7 +9,7 @@
 
 **You write the tickets. It takes the night shift.** Even Keel is a service on your own machine that you drive from one web page. It takes a project's open tasks, in the order of their `blocks` links, and works through them one at a time with [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), [Codex](https://github.com/openai/codex), [OpenCode](https://opencode.ai) or [GitHub Copilot](https://github.com/github/copilot-cli) while you do something else. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away; only a question or a decision waits for you — on that page, in the tracker or on your phone.
 
-**Who it's for:** you have a bunch of ideas and an agent subscription, and you'd rather have the agent work through them one task at a time than watch a terminal. No tracker? It has one built in. No git? A plain folder works.
+**Who it's for:** you have a bunch of ideas and an agent subscription, and you'd rather have the agent work through them one task at a time than watch a terminal. No tracker? It has one built in. No git? A plain folder works. No subscription? OpenCode's free models, Codex and Copilot free tiers work too.
 
 **Not for:** ten agents at once — it runs one task per folder, on purpose. And it won't write your tasks for you: a clear task makes a good night.
 
