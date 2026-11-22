@@ -23,7 +23,8 @@ export async function writeActivity(client: pg.Client, lines: Iterable<ArchivedL
 /** The cursor and the completion mark share the collector transaction. A failed backfill can be retried. */
 export async function backfillActivity(client: pg.Client): Promise<void> {
   await client.query(`declare archive_activity no scroll cursor for
-    select uuid, session_id as "sessionId", at::text, raw from lines where session_id is not null`)
+    select l.uuid, l.session_id as "sessionId", l.at::text, r.raw
+    from lines l join line_raws r on r.uuid = l.uuid where l.session_id is not null`)
   for (;;) {
     const { rows } = await client.query<ArchivedLine>('fetch 512 from archive_activity')
     if (rows.length === 0) break

@@ -100,9 +100,9 @@ where c.agent_id is null and c.trigger = 'auto' and a.key = 'BTN'
 
 -- 4. What else changed that week: the CLI version of BTN sessions by day.
 --    Post: 2.1.303 on 10-19, 2.1.306 and 2.1.308 on 10-22, 2.1.309 and 2.1.310 from 10-23.
-select (l.at at time zone 'UTC')::date as day, l.raw->>'version' as cli, count(distinct l.session_id) as sessions
-from lines l join session_tasks st on st.session_id = l.session_id join audit_tasks a on a.task = st.task
-where a.key = 'BTN' and l.type = 'assistant' and l.raw->>'version' is not null
+select (l.at at time zone 'UTC')::date as day, r.raw->>'version' as cli, count(distinct l.session_id) as sessions
+from lines l join line_raws r on r.uuid = l.uuid join session_tasks st on st.session_id = l.session_id join audit_tasks a on a.task = st.task
+where a.key = 'BTN' and l.type = 'assistant' and r.raw->>'version' is not null
   and l.at >= '2026-10-16' and l.at < '2026-10-26 19:00'
 group by 1, 2 order by 1, 2;
 

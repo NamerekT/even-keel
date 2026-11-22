@@ -5,7 +5,7 @@ description: Audit of Claude Code (and Codex) sessions from Even Keel's Tally da
 
 # Session audit from the Tally database
 
-Tally, the collector built into Even Keel, has the numbers ready: it reads the session transcripts into Postgres every five minutes (the embedded PGlite or your own server). An audit only reads them: it writes nothing to the database and does not run the collector. Go to raw transcripts only if the database lacks what is needed (`lines.raw` rows are cut to 2000 characters), and say so in the report.
+Tally, the collector built into Even Keel, has the numbers ready: it reads the session transcripts into Postgres every five minutes (the embedded PGlite or your own server). An audit only reads them: it writes nothing to the database and does not run the collector. Go to raw transcripts only if the database lacks what is needed (the raw rows of `line_raws.raw`, joined to `lines` by `uuid`, are cut to 2000 characters), and say so in the report.
 
 ## Query script
 
@@ -251,8 +251,8 @@ ramp as (select m.session_id, count(*) as req, round(sum(m.cost), 2) as usd
          from m left join fe using (session_id) where m.at < coalesce(fe.at, 'infinity') group by 1),
 calls as (select l.session_id, b->>'name' as name,
             lower(replace(coalesce(b->'input'->>'file_path', b->'input'->>'command'), '\', '/')) as arg
-          from lines l, jsonb_array_elements(case when jsonb_typeof(l.raw->'message'->'content') = 'array'
-            then l.raw->'message'->'content' else '[]' end) b
+          from lines l join line_raws r using (uuid), jsonb_array_elements(case when jsonb_typeof(r.raw->'message'->'content') = 'array'
+            then r.raw->'message'->'content' else '[]' end) b
           where l.agent_id is null and l.type = 'assistant' and b->>'type' = 'tool_use' and b->>'name' in ('Read', 'Bash')
             and l.session_id in (select session_id from h union select previous from h)),
 rep as (select h.session_id,
@@ -314,7 +314,7 @@ All compactions at once — drop the `st.task` condition (a session by hand may 
 
 A verdict per handoff in one word: **lost** (the new session dug up again what the previous one knew, and the note did not carry it), **repeated** (a deliberate repeat: the note said to re-run or re-measure), **clean**. For it, check three things:
 
-1. Repeated runs: `bash_prev`, and the same run with other flags — by the run's keys (test names, case numbers) in `lines`.
+1. Repeated runs: `bash_prev`, and the same run with other flags — by the run's keys (test names, case numbers) in `line_raws`.
 2. A ruled-out idea taken up again: what the note ruled out (sections like "ruled out", "tried"), searched for in the next notes and in the new session's calls. A return with a new reason is fine if the note said on what case it was ruled out.
 3. Where the previous session stood: its last calls before it wrote the note — a boundary (a commit, a green run, a finished measurement) or the middle of something (a trace, a trial edit, a run in the background).
 

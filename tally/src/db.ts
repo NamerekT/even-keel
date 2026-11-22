@@ -137,10 +137,12 @@ export class TallyDb implements Store {
     const lines = [...batch.lines.values()]
     if (lines.length > 0) {
       const inserted = await this.client.query<{ uuid: string }>(
-        `insert into lines (uuid, session_id, agent_id, type, at, raw)
-       select uuid, session_id, agent_id, type, at, raw
-       from jsonb_to_recordset($1::jsonb) as x(uuid text, session_id text, agent_id text, type text, at timestamptz, raw jsonb)
-       on conflict (uuid) do nothing returning uuid`,
+        // The raw row goes into its own table (BTN-1471), only for a row `lines` took: its trigger reads `lines`.
+        `with x as (select * from jsonb_to_recordset($1::jsonb) as x(uuid text, session_id text, agent_id text, type text, at timestamptz, raw jsonb)),
+       narrow as (insert into lines (uuid, session_id, agent_id, type, at) select uuid, session_id, agent_id, type, at from x
+         on conflict (uuid) do nothing returning uuid),
+       wide as (insert into line_raws (uuid, raw) select x.uuid, x.raw from x join narrow using (uuid))
+       select uuid from narrow`,
         [JSON.stringify(lines.map(snake))],
       )
       const accepted = new Set(inserted.rows.map((row) => row.uuid))

@@ -14,9 +14,9 @@ comp as (select st.task, count(*) as n from compactions c join session_tasks st 
          where c.agent_id is null and c.trigger = 'auto' group by 1),
 mc as (select st.task, bool_or(m.model not like 'claude%') as other_agent
        from message_costs m join session_tasks st using (session_id) group by 1),
-ver as (select st.task, count(distinct l.raw->>'version') as clis
-        from lines l join session_tasks st using (session_id)
-        where l.type = 'assistant' and l.agent_id is null and l.raw->>'version' is not null
+ver as (select st.task, count(distinct r.raw->>'version') as clis
+        from lines l join line_raws r using (uuid) join session_tasks st using (session_id)
+        where l.type = 'assistant' and l.agent_id is null and r.raw->>'version' is not null
           and l.at >= '2026-11-12 13:14:16+00' group by 1),
 t as (select case when split_part(a.task, '-', 2)::int % 2 = 0 then 'compaction' else 'handoff' end as arm,
         a.task, a.labels, a.checkpoints, te.done, coalesce(mc.other_agent, false) as other_agent,
@@ -135,9 +135,9 @@ mc as (select st.task, sum(m.output) as output,
          sum(m.input + m.cache_read + m.cache_write_5m + m.cache_write_1h) filter (where m.agent_id is null) as main_ctx,
          bool_or(m.model not like 'claude%') as other_agent
        from message_costs m join session_tasks st using (session_id) group by 1),
-ver as (select distinct on (st.task) st.task, l.raw->>'version' as cli
-        from lines l join session_tasks st using (session_id)
-        where l.type = 'assistant' and l.agent_id is null and l.raw->>'version' is not null
+ver as (select distinct on (st.task) st.task, r.raw->>'version' as cli
+        from lines l join line_raws r using (uuid) join session_tasks st using (session_id)
+        where l.type = 'assistant' and l.agent_id is null and r.raw->>'version' is not null
           and l.at >= '2026-11-12 13:14:16+00'
         order by st.task, l.at),
 t as (select case when split_part(a.task, '-', 2)::int % 2 = 0 then 'compaction' else 'handoff' end as arm,

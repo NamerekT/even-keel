@@ -34,7 +34,8 @@ describe('compactions', () => {
       ['a-sum1', 's', 'agent1', 'user', '2026-10-01T10:30:01Z', summary('a-b1', [{ type: 'text', text: 'abc' }, { type: 'text', text: 'de' }])],
     ]
     for (const [uuid, session, agent, type, at, raw] of lines) {
-      await db.query('insert into lines (uuid, session_id, agent_id, type, at, raw) values ($1, $2, $3, $4, $5, $6)', [uuid, session, agent, type, at, { ...raw, type, uuid }])
+      await db.query('insert into lines (uuid, session_id, agent_id, type, at) values ($1, $2, $3, $4, $5)', [uuid, session, agent, type, at])
+      await db.query('insert into line_raws (uuid, raw) values ($1, $2)', [uuid, { ...raw, type, uuid }])
     }
   }, 30_000)
 
@@ -77,7 +78,7 @@ describe('compactions', () => {
     const before = await rows()
     await db.exec('begin')
     try {
-      await db.exec('truncate lines')
+      await db.exec('truncate lines, line_raws')
       expect(await rows()).toEqual(before)
     } finally {
       await db.exec('rollback')

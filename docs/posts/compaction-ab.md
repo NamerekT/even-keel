@@ -65,7 +65,7 @@ task long. Stop the primary collection at the first completed assignment sweep w
 at least **30 closed long tasks**. Include all eligible tasks completed by that sweep, including any
 overshoot, and report short controls separately. Do not publish interim outcome numbers or stop early.
 
-Compute each metric inside CLI-version strata first (`lines.raw->>'version'`). For task-level metrics,
+Compute each metric inside CLI-version strata first (`line_raws.raw->>'version'`). For task-level metrics,
 fix the stratum to the first main Claude assistant line's version in that task; a version change stays
 in that stratum and is additionally a deviation. Session and compaction metrics use their own session's
 version. Calculate the unweighted mean of the per-version group differences over versions represented

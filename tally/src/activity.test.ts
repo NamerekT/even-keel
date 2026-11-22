@@ -51,12 +51,14 @@ it('backfills historical activity and accepts retried machine tails without open
     await client.query("insert into sessions(session_id,account,last_at) values ('s','global',now())")
     const line = (raw: TurnEntry): LineRow => ({ uuid: raw.uuid!, sessionId: 's', agentId: raw.agentId ?? null, at, type: raw.type!, raw })
     const prompt = entries[0]!
-    await client.query('insert into lines(uuid,session_id,type,at,raw) values ($1,$2,$3,$4,$5)', [prompt.uuid, 's', prompt.type, at, prompt])
+    await client.query('insert into lines(uuid,session_id,type,at) values ($1,$2,$3,$4)', [prompt.uuid, 's', prompt.type, at])
+    await client.query('insert into line_raws(uuid,raw) values ($1,$2)', [prompt.uuid, prompt])
     await db.backfillActivity()
     const tail = { lines: entries.slice(1).map(line), calls: [], results: [], messages: [], sessions: [] }
     await db.writeMachine('remote', tail)
     await db.writeMachine('remote', tail)
     await client.query('alter table lines rename to offline_archive')
+    await client.query('alter table line_raws rename to offline_raws')
 
     await db.backfillActivity()
     await db.fillPrompts()

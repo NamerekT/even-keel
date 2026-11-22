@@ -20,10 +20,10 @@ where s.project_dir is null
 export const MESSAGE_EFFORTS = `
 update messages m set effort = e.effort
 from (
-  select distinct on (raw->'message'->>'id') raw->'message'->>'id' as message_id, raw->>'effort' as effort
-  from lines
-  where type = 'assistant' and raw->>'effort' is not null
-  order by raw->'message'->>'id', at desc
+  select distinct on (r.raw->'message'->>'id') r.raw->'message'->>'id' as message_id, r.raw->>'effort' as effort
+  from lines l join line_raws r on r.uuid = l.uuid
+  where l.type = 'assistant' and r.raw->>'effort' is not null
+  order by r.raw->'message'->>'id', l.at desc
 ) e
 where e.message_id = m.message_id and m.effort is null`
 

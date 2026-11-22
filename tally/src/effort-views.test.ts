@@ -35,7 +35,8 @@ describe('effort level', () => {
       ['l4', { type: 'assistant', effort: 'max', message: { id: 'h1' } }],
     ]
     for (const [uuid, raw] of lines) {
-      await db.query(`insert into lines (uuid, session_id, type, raw) values ($1, 'old', 'assistant', $2)`, [uuid, raw])
+      await db.query(`insert into lines (uuid, session_id, type) values ($1, 'old', 'assistant')`, [uuid])
+      await db.query('insert into line_raws (uuid, raw) values ($1, $2)', [uuid, raw])
     }
     await db.exec(MESSAGE_EFFORTS)
   }, 30_000)
