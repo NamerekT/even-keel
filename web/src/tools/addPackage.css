@@ -270,11 +270,107 @@
 .add-package__skills {
   display: flex;
   flex-direction: column;
-  max-height: 240px;
-  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--bg);
+  overflow: hidden;
+}
+
+/* The search and the filter on top of the list, inside its frame; on a phone the filter wraps under the search. */
+.add-package__skills-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 6px 6px 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.add-package__skills-find {
+  display: flex;
+  flex: 1 1 180px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--fg-muted);
+}
+
+.add-package__skills-find:focus-within {
+  color: var(--accent);
+}
+
+.add-package__skills-find .icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.add-package__skills-find input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-14);
+  outline: none;
+}
+
+.add-package__skills-find input::placeholder {
+  color: var(--fg-muted);
+}
+
+.add-package__skills-clear button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.add-package__skills-clear button .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.add-package__skills-clear button:hover,
+.add-package__skills-clear button:focus-visible {
+  background: var(--surface-muted);
+  color: var(--fg);
+  outline: none;
+}
+
+.add-package__skills-count {
+  margin-left: 4px;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.add-package__skills-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 264px;
+  overflow-y: auto;
+}
+
+.add-package__skills-none {
+  margin: 0;
+  padding: 14px 12px;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.add-package__skill-match {
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: inherit;
 }
 
 .add-package__skill {
