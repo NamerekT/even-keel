@@ -912,6 +912,9 @@ export function createFakeSource(search: string): LiveSource {
     snapshot: () => current,
     retryNow: () => {},
     command: async (name, body = {}) => {
+      // A package's install takes a while, so Update all's progress shows (BTN-1480).
+      if (delay !== null && (name === 'packages/update' || name === 'packages/install')) await answer()
+      if (params.get('packages') === 'updateFails' && name === 'packages/update' && body.name === 'playwright@claude-plugins-official') throw fail('packages.busy', { name: body.name })
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       if (name === 'machines/takeOver' && params.get('chain') === 'folderTakenGone') throw fail('machines.notTaken', {})

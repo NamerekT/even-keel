@@ -53,6 +53,37 @@
   border-color: var(--accent);
 }
 
+/*
+ * Update all on its way (BTN-1480) keeps its words — which row of how many — with the spinner before them, instead of
+ * the busy button's spinner in place of the text; the row it is on is a plain busy button.
+ */
+.packages .packages__update-all[aria-busy='true']:disabled {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: color-mix(in srgb, var(--lamp-working) 55%, var(--border));
+  opacity: 1;
+  animation: none;
+}
+
+.packages .packages__update-all[aria-busy='true']:disabled::before {
+  position: static;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0;
+  border-color: var(--lamp-working);
+  border-right-color: transparent;
+  opacity: 1;
+  animation: spin var(--motion-spin) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .packages .packages__update-all[aria-busy='true']:disabled::before {
+    animation: none;
+  }
+}
+
 .packages .packages__add {
   display: inline-flex;
   align-items: center;

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, PackagesView, PackageView } from '../../../src/state.js'
 import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
@@ -10,9 +9,10 @@ import { Section, Switch } from '../pages/settingsParts.js'
 import { Band, EmptyState } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
-import { catalogIssues, looseKeys, PACKAGE_PARAM, packageGroups, packageKeys } from './packageGroups.js'
+import { catalogIssues, looseKeys, PACKAGE_PARAM, packageGroups, packageKeys, shortName } from './packageGroups.js'
 import { BuiltInTag, GroupBox, ImportOffers, IssueBands, KeyList, PackageBrings, PackageLine, PackageSettings, rowId, ScriptsSwitch } from './PackagesParts.js'
 import { passes, pendingCommands, rowNeedsInstall } from './packageView.js'
+import { runningStep, unshownFailures, updateAllRuns, useUpdateAll } from './updateAll.js'
 import { useRowFocus } from './useRowFocus.js'
 
 const SCOPE = 'catalog'
@@ -49,6 +49,7 @@ export function PackageCatalog({ state }: { state: EvenKeelState }) {
         }
       >
         {view.gateway !== null && <Band tone="error">{say(view.gateway)}</Band>}
+        <UpdateAllFailures view={view} />
         <IssueBands issues={issues} go={go} />
         <ImportOffers view={view} projects={state.projects} />
         <Tipped className="packages__manual" tip={t.packages.manualTip} align="start" focusable inline>
@@ -100,56 +101,66 @@ function CheckAll({ view }: { view: PackagesView }) {
 
 /**
  * Presses every row's Install and Update in turn (EKR-127). A failed package does not stop the rest: a failed install
- * shows in its row; what the row does not show, as a marketplace that could not be fetched, stays here.
+ * shows in its row; what the row does not show, as a marketplace that could not be fetched, stays here. The run lives
+ * outside the catalog (`updateAll.ts`, BTN-1480), so its progress and failures outlast a visit to another section.
  */
 function UpdateAll({ view }: { view: PackagesView }) {
   const { command } = useLive()
-  const [running, setRunning] = useState(false)
-  const [failures, setFailures] = useState<{ name: string; notice: Notice }[]>([])
+  const run = useUpdateAll()
   const pending = pendingCommands(view)
-  const run = async () => {
-    setRunning(true)
-    setFailures([])
-    const failed: { name: string; notice: Notice }[] = []
-    for (const each of pending) {
-      try {
-        await command(each.command, { name: each.name })
-      } catch (reason) {
-        failed.push({ name: each.name, notice: noticeOf(reason) })
-      }
-    }
-    setFailures(failed)
-    setRunning(false)
-  }
-  const unshown = failures.filter((each) => view.packages.find((pkg) => pkg.name === each.name)?.error === null)
+  const at = runningStep(run)
+  const going = run?.finished === false
   return (
-    <>
-      {unshown.map((each) => (
-        <span key={each.name} className="packages__error">
-          {each.name}: {say(each.notice)}
-        </span>
-      ))}
-      <Tipped tip={pending.length === 0 ? t.packages.updateAllNone : t.packages.updateAllTip} inline>
-        <button type="button" className="button button--small" aria-busy={running || undefined} disabled={running || pending.length === 0} onClick={() => void run()}>
-          {t.packages.updateAll}
-        </button>
-      </Tipped>
-    </>
+    <Tipped tip={going && at !== null ? t.packages.updatingAllTip(shownName(view, at.name)) : pending.length === 0 ? t.packages.updateAllNone : t.packages.updateAllTip} inline>
+      <button type="button" className="button button--small packages__update-all" aria-busy={going || undefined} disabled={going || pending.length === 0} onClick={() => void updateAllRuns.run(pending, command)}>
+        {going && at !== null ? t.packages.updatingAll(run.steps.indexOf(at) + 1, run.steps.length) : t.packages.updateAll}
+      </button>
+    </Tipped>
   )
+}
+
+/** What Update all failed that the rows do not show, a band each with the press that tries that row again. */
+function UpdateAllFailures({ view }: { view: PackagesView }) {
+  const { command } = useLive()
+  const failures = unshownFailures(useUpdateAll(), view)
+  const pending = pendingCommands(view)
+  return failures.map((each) => (
+    <Band
+      key={each.name}
+      tone="error"
+      action={
+        <button type="button" className="button button--small" onClick={() => void updateAllRuns.run(pending.filter((one) => one.name === each.name), command)}>
+          {t.packages.updateAllRetry}
+        </button>
+      }
+    >
+      {t.packages.updateAllFailed(shownName(view, each.name), say(each.notice))}
+    </Band>
+  ))
+}
+
+function shownName(view: PackagesView, name: string): string {
+  const pkg = view.packages.find((each) => each.name === name)
+  return pkg === undefined ? name : shortName(pkg)
 }
 
 function CatalogLine({ pkg, view, open, alert, onToggle }: { pkg: PackageView; view: PackagesView; open: boolean; alert: boolean; onToggle: () => void }) {
   const { send, sending, failure } = useCommand()
+  const run = useUpdateAll()
+  // A row Update all has yet to press or presses now: its own buttons wait for it.
+  const queued = run?.finished === false ? run.steps.find((step) => step.name === pkg.name && (step.state === 'waiting' || step.state === 'running')) : undefined
+  const held = sending || queued !== undefined
+  const busy = queued?.state === 'running' || undefined
   const broken = rowNeedsInstall(pkg)
   const aside = pkg.removed ? null : (
     <>
       {!pkg.installing && broken && (
-        <button type="button" className="button button--small" disabled={sending} onClick={() => void send('packages/install', { name: pkg.name })}>
+        <button type="button" className="button button--small" aria-busy={busy} disabled={held} onClick={() => void send('packages/install', { name: pkg.name })}>
           {t.packages.install}
         </button>
       )}
       {!pkg.installing && !broken && pkg.latest !== null && (
-        <button type="button" className="button button--small packages__update" aria-label={t.packages.updateTo(pkg.latest)} disabled={sending} onClick={() => void send('packages/update', { name: pkg.name })}>
+        <button type="button" className="button button--small packages__update" aria-label={t.packages.updateTo(pkg.latest)} aria-busy={busy} disabled={held} onClick={() => void send('packages/update', { name: pkg.name })}>
           {t.packages.update}
         </button>
       )}
