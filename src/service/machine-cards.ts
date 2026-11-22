@@ -17,8 +17,8 @@ export interface MachineCardsDeps {
   mirror: (machine: string) => Pick<RemoteMachine, 'facts' | 'page'> | undefined
   /** The own machine's accounts panel, with the limits it read. */
   ownAccounts: () => Pick<AccountView, 'accounts' | 'active'>
-  /** Git on the own machine has a user name and e-mail; `null` — not read yet. */
-  ownGitUser: () => boolean | null
+  /** Git's name and e-mail on the own machine, the hub's (`null` each — unset); `null` — not read yet. */
+  ownGit: () => { name: string | null; email: string | null } | null
   /** The hub's version of Even Keel. */
   version: string
   now: () => number
@@ -46,6 +46,10 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       limits: isOwn ? entry.limits : mirror!.page.limits(entry.key),
     }))
     const online = isOwn || deps.online(record.id)
+    const ownGit = isOwn ? deps.ownGit() : null
+    const git = isOwn
+      ? { name: ownGit?.name ?? undefined, email: ownGit?.email ?? undefined, user: ownGit === null ? null : ownGit.name !== null && ownGit.email !== null }
+      : { name: record.about?.gitName, email: record.about?.gitEmail, user: record.about?.gitUser ?? null }
     return {
       id: record.id,
       name: record.name,
@@ -53,7 +57,9 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       own: isOwn,
       online,
       offlineSince: online ? null : (deps.offlineSince(record.id) ?? null),
-      gitUser: isOwn ? deps.ownGitUser() : (record.about?.gitUser ?? null),
+      gitUser: git.user,
+      ...(git.name !== undefined && { gitName: git.name }),
+      ...(git.email !== undefined && { gitEmail: git.email }),
       ...(!isOwn && record.about !== null && record.about.evenKeel !== deps.version && { otherVersion: record.about.evenKeel }),
       ...limitedOf(accounts.filter((account) => account.signedIn), now),
       accounts,

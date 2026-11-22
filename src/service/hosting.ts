@@ -281,6 +281,12 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     taken: (machine) => network.takenOn(machine),
     setCapacity: (machine, capacity) => network.setCapacity(machine, capacity),
     setColor: (machine, color) => network.setColor(machine, color),
+    ownIdentity: async (name, email) => {
+      await gitSetup.identity(name, email)
+      ownAbout = undefined
+      ctx.hub.broadcast('machines', { changedAt: Date.now() })
+    },
+    setGitIdentity: (machine, name, email) => network.gitIdentity(machine, name, email),
     version: installed(root).version,
     polled: (account) => ctx.machineLink.polled(account),
     differs: (account) => ctx.machineLink.differs(account),
@@ -295,9 +301,9 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     folders: (machine) => network.foldersOf(machine),
     mirror: (machine) => ctx.machineLink.mirror(machine),
     ownAccounts: () => ctx.getState().account,
-    ownGitUser: () => {
+    ownGit: () => {
       const git = ctx.getState().git
-      return git === undefined ? null : git.name !== null && git.email !== null
+      return git === undefined ? null : { name: git.name, email: git.email }
     },
     version: installed(root).version,
     now: () => Date.now(),

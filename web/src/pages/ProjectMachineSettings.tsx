@@ -8,6 +8,7 @@ import { machinePath } from '../machineColor.js'
 import { packagesOver } from '../tools/packageGroups.js'
 import { Loading } from '../ui/Loader.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
+import { IdentityButton } from './IdentityDialog.js'
 import { JobWindow } from './JobWindow.js'
 import { MachineOwnValues } from './MachineOwnValues.js'
 import { usePool } from './ProjectMachinesTab.js'
@@ -68,6 +69,27 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
                 }
               />
               <Row className={ROW} label={view.pool} hint={view.poolHint} control={<Switch checked={row.enabled} disabled={sending} label={t.pool.enable(card.name)} onChange={(on) => void enable(on)} />} />
+              {card.gitUser !== null && (
+                <Row
+                  className={ROW}
+                  label={view.git}
+                  hint={view.gitHint}
+                  control={
+                    <span className="pool__packages">
+                      <span className={card.gitUser ? 'pool__packages-state' : 'pool__packages-state pool__packages-state--blocked'}>
+                        {card.gitUser ? `${card.gitName ?? ''} <${card.gitEmail ?? ''}>` : view.gitUnset}
+                      </span>
+                      {card.online && (
+                        <IdentityButton
+                          className="button button--small"
+                          label={card.gitUser ? t.machinePage.gitChange : t.machinePage.gitSet}
+                          machine={{ id: card.id, name: card.name, gitName: card.gitName, gitEmail: card.gitEmail }}
+                        />
+                      )}
+                    </span>
+                  }
+                />
+              )}
               <Row
                 className={ROW}
                 label={view.packages}

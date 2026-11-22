@@ -42,6 +42,8 @@ function deps(patch: Partial<MachinePageDeps> = {}): MachinePageDeps {
     taken: () => [],
     setCapacity: vi.fn(async () => {}),
     setColor: vi.fn(async () => {}),
+    ownIdentity: vi.fn(async () => {}),
+    setGitIdentity: vi.fn(async () => {}),
     log: () => {},
     ...patch,
   }
@@ -111,5 +113,16 @@ describe('the page of a machine (BTN-1272)', () => {
     await control.capacity('srv', 2)
     expect(all.setCapacity).toHaveBeenCalledWith('srv', 2)
     await expect(control.capacity('srv', 0)).rejects.toMatchObject({ notice: { code: 'request.required' } })
+  })
+
+  it("writes the own machine's git name and e-mail as the hub's own and a machine elsewhere's over the link (BTN-1503)", async () => {
+    const all = deps({ ownIdentity: vi.fn(async () => {}), setGitIdentity: vi.fn(async () => {}) })
+    const control = machinePageControl(all)
+    await control.gitIdentity('own', 'John Doe', 'john@example.com')
+    expect(all.ownIdentity).toHaveBeenCalledWith('John Doe', 'john@example.com')
+    expect(all.setGitIdentity).not.toHaveBeenCalled()
+    await control.gitIdentity('srv', 'Jane Doe', 'jane@example.com')
+    expect(all.setGitIdentity).toHaveBeenCalledWith('srv', 'Jane Doe', 'jane@example.com')
+    await expect(control.gitIdentity('gone', 'John Doe', 'john@example.com')).rejects.toMatchObject({ notice: { code: 'machines.unknown' } })
   })
 })

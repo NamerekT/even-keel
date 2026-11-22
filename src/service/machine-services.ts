@@ -1,9 +1,11 @@
 import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import type { HandoffSession } from '../chain/relay.js'
 import { trustFolder } from '../claude/trust.js'
 import type { CloneProgress } from '../git/clone-progress.js'
 import { cloner, type Clone } from '../git/remote-run.js'
 import { runGit } from '../git/run.js'
+import { readGitSetup, saveIdentity } from '../git/setup.js'
 import type { Git } from '../git/types.js'
 import { checkFolderStep, cloneTarget, probeFolder } from '../machine/folder-check.js'
 import { fail } from '../notice/notice.js'
@@ -44,6 +46,8 @@ export interface MachineServicesDeps {
   /** git and the clone; the real ones by default (tests). */
   git?: Git
   clone?: Clone
+  /** The home folder git's global config is read in; the process's by default (tests). */
+  home?: string
 }
 
 /** What a chat message into a session's inbox needs on the machine (`tellMail`, BTN-1322). */
@@ -142,6 +146,15 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
       probe: (spec) => probeFolder(deps.git ?? runGit, spec.folder, spec.remotes),
     },
     chats: deps.chats ?? noChats,
+    git: {
+      identity: async (name, email) => {
+        const git = deps.git ?? runGit
+        const home = deps.home ?? homedir()
+        await saveIdentity(git, home, name, email)
+        const read = await readGitSetup(git, home, () => null, async () => null)
+        return { name: read.name, email: read.email }
+      },
+    },
   }
 }
 

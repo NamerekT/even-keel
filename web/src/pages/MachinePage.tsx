@@ -26,6 +26,7 @@ import { MoreMenu } from '../ui/MoreMenu.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
+import { IdentityButton } from './IdentityDialog.js'
 import { HelpTip } from './settingsParts.js'
 import { TakeOverButton } from './TakeOverButton.js'
 import './settings.css'
@@ -138,7 +139,7 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
       <div className="machine-page__grid">
         <div className="machine-page__column">
           <SettingsCard page={page} reload={reload} />
-          <ReportCard state={state} page={page} now={now} />
+          <ReportCard state={state} page={page} now={now} reload={reload} />
         </div>
         <div className="machine-page__column">
           <ProjectsCard page={page} />
@@ -266,8 +267,9 @@ function SettingsCard({ page, reload }: { page: MachinePageView; reload: () => v
 /**
  * What the machine reported, a fact each: its system, Even Keel, when it joined, Node, git with its name and e-mail,
  * the agents' CLIs as tags, and its folder of projects. What follows from a failed check is the tip of its value.
+ * Under them, git's name and e-mail set there by the setup's dialog (BTN-1503), while the machine is on the link.
  */
-function ReportCard({ state, page, now }: { state: EvenKeelState; page: MachinePageView; now: Date }) {
+function ReportCard({ state, page, now, reload }: { state: EvenKeelState; page: MachinePageView; now: Date; reload: () => void }) {
   const text = t.machinePage
   const about = page.about
   if (about === null) {
@@ -332,6 +334,16 @@ function ReportCard({ state, page, now }: { state: EvenKeelState; page: MachineP
           </Fact>
         )}
       </FactList>
+      {about.git !== null && page.online && (
+        <div className="machine-page__report-actions">
+          <IdentityButton
+            className="button button--small"
+            label={about.gitUser ? text.gitChange : text.gitSet}
+            machine={{ id: page.id, name: page.name, gitName: about.gitName, gitEmail: about.gitEmail }}
+            onSaved={reload}
+          />
+        </div>
+      )}
     </Card>
   )
 }

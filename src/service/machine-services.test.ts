@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
+import type { Git } from '../git/types.js'
 import { fromCarried } from '../machine/services.js'
 import { wireMachineServices, type MachineServicesContext } from './machine-services.js'
 
@@ -28,6 +29,41 @@ function rig(workdir: string | null) {
   } as unknown as MachineServicesContext, { steer: async () => false, restore: async () => {} })
   return services.transcript
 }
+
+/** A git whose global config is a map: `config --global` writes it, `config --get` reads it. */
+function configGit(config: Record<string, string> = {}, refuse = false): Git & { calls: string[][] } {
+  const calls: string[][] = []
+  const git = async (_cwd: string, args: string[]) => {
+    calls.push(args)
+    if (args[0] === '--version') return { code: 0, out: 'git version 2.47.1' }
+    if (args[0] === 'config' && args[1] === '--global') {
+      if (refuse) return { code: 255, out: 'error: could not lock config file' }
+      config[args[2]!] = args[3]!
+      return { code: 0, out: '' }
+    }
+    const value = config[args[2]!]
+    return value === undefined ? { code: 1, out: '' } : { code: 0, out: `${value}\n` }
+  }
+  return Object.assign(git, { calls })
+}
+
+function gitRig(git: Git) {
+  return wireMachineServices({ configStore: { current: {} } } as unknown as MachineServicesContext, { steer: async () => false, restore: async () => {}, git, home: '/home/example' }).git
+}
+
+describe('git.identity (BTN-1503)', () => {
+  it("writes the name and e-mail into the machine's global git config and answers what git reads back", async () => {
+    const git = configGit()
+    expect(await gitRig(git).identity(' John Doe ', 'john@example.com')).toEqual({ name: 'John Doe', email: 'john@example.com' })
+    expect(git.calls).toContainEqual(['config', '--global', 'user.name', 'John Doe'])
+    expect(git.calls).toContainEqual(['config', '--global', 'user.email', 'john@example.com'])
+  })
+
+  it('refuses a blank field and a config git did not write', async () => {
+    await expect(gitRig(configGit()).identity('John Doe', ' ')).rejects.toMatchObject({ notice: { code: 'git.identityBlank' } })
+    await expect(gitRig(configGit({}, true)).identity('John Doe', 'john@example.com')).rejects.toMatchObject({ notice: { code: 'git.identityFailed' } })
+  })
+})
 
 function sessionFolder(): string {
   const dir = mkdtempSync(join(tmpdir(), 'inbox-file-'))

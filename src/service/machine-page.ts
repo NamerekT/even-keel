@@ -68,6 +68,10 @@ export interface MachinePageDeps {
   taken: (machine: string) => TakenFolder[]
   setCapacity: (machine: string, capacity: number) => Promise<void>
   setColor: (machine: string, color: string | null) => Promise<void>
+  /** The own machine's git is the hub's: its name and e-mail as the setup's Git step saves them, and its report read again. */
+  ownIdentity: (name: string, email: string) => Promise<void>
+  /** A machine elsewhere's: written there by `git.identity`, its report updated with what git read back. */
+  setGitIdentity: (machine: string, name: string, email: string) => Promise<void>
   /** The hub's version of Even Keel: a machine of another one takes no new tasks (BTN-994). */
   version: string
   /** Absent — the accounts carry no `sessionsOnly`. */
@@ -77,7 +81,7 @@ export interface MachinePageDeps {
   log: (line: string) => void
 }
 
-/** The page of one machine (`/machines/<id>`, BTN-1272): its query and its two commands besides "Revoke". */
+/** The page of one machine (`/machines/<id>`, BTN-1272): its query and its commands besides "Revoke". */
 export function machinePageControl(deps: MachinePageDeps) {
   const known = async (machine: string): Promise<MachineRecord> => {
     const record = await deps.record(machine)
@@ -128,6 +132,12 @@ export function machinePageControl(deps: MachinePageDeps) {
       deps.log(`machines: the own machine runs ${capacity} of the hub's task(s) at once (parallel)`)
     },
     color: (machine: string, color: string | null) => deps.setColor(machine, color),
+    /** Git's `user.name` and `user.email` on the machine (BTN-1503): `git config --global` there, its facts at once. */
+    async gitIdentity(machine: string, name: string, email: string): Promise<void> {
+      const record = await known(machine)
+      if (record.id === deps.own()) return deps.ownIdentity(name, email)
+      return deps.setGitIdentity(record.id, name, email)
+    },
   }
 }
 

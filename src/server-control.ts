@@ -301,11 +301,12 @@ export interface ServerDeps {
     /** What a folder on a machine elsewhere is to a project with the remote, before it is made (BTN-1297), or to a project made (BTN-1298). */
     probe(machine: string, folder: string, of: import('./service/machine-pool.js').ProbeOf): Promise<import('./machine/folder-check.js').FolderProbe>
   }
-  /** The page of one machine (BTN-1272): its view, its capacity (the own one's is `parallel`) and its colour. */
+  /** The page of one machine (BTN-1272): its view, its capacity (the own one's is `parallel`), its colour and git's name and e-mail there (BTN-1503). */
   machinePage?: {
     view(machine: string): Promise<MachinePage>
     capacity(machine: string, capacity: number): Promise<void>
     color(machine: string, color: string | null): Promise<void>
+    gitIdentity(machine: string, name: string, email: string): Promise<void>
   }
   /** The header's machines panel (BTN-1051): every machine with what only the hub knows of it. */
   machineCards?: () => Promise<MachineCard[]>

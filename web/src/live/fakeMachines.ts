@@ -102,6 +102,8 @@ export class FakeNetwork {
   /** The colours picked on the machines' pages and their capacities (BTN-1272), by machine. */
   private readonly colors = new Map<string, string | null>()
   private readonly capacities = new Map<string, number>()
+  /** The git authors set from the page's window (BTN-1503), by machine. */
+  private readonly identities = new Map<string, { name: string; email: string }>()
   /** With `?machines=taken` (BTN-1262), the laptop's first project's folder is held by a gone machine's mark until taken over. */
   private held: boolean
 
@@ -146,13 +148,21 @@ export class FakeNetwork {
       return {
         id, name: names[id] ?? id, color: colors[id]!, own: id === own, online,
         offlineSince: online ? null : Date.now() - 2 * 3_600_000,
-        gitUser: id === 'machine-1' ? this.mode === 'nocli' : true,
+        ...this.cardGit(id),
         agents: this.agentsOf(state, id, id === own),
         limitedUntil: id === 'machine-2' && this.mode === 'limit' ? { claude: until.toISOString() } : {},
         projects: pooled,
         ...this.cardAccounts(state, id, id === own, until),
       }
     })
+  }
+
+  /** The laptop's git has no name (`?machines=nocli` — it has), until the page's window sets one (BTN-1503). */
+  private cardGit(id: string): Pick<MachineCard, 'gitUser' | 'gitName' | 'gitEmail'> {
+    const set = this.identities.get(id)
+    if (set !== undefined) return { gitUser: true, gitName: set.name, gitEmail: set.email }
+    if (id === 'machine-1' && this.mode !== 'nocli') return { gitUser: false }
+    return { gitUser: true, gitName: 'John Doe', gitEmail: 'john.doe@example.com' }
   }
 
   /** The agents a machine has a signed-in account of: with `?machines=signIn` a machine elsewhere's are those its sign-ins posted. */
@@ -191,7 +201,9 @@ export class FakeNetwork {
     if (name === undefined) return undefined
     const own = id === OWN
     const view = this.machines.find((machine) => machine.id === id)
-    const report = own ? about('workstation', { os: 'win32 10.0.26200', root: null, agents: { claude: '2.1.322', codex: '0.98.0', opencode: null, copilot: null } }) : (view?.about ?? about(name.toLowerCase().replace(/\W+/g, '-')))
+    const told = own ? about('workstation', { os: 'win32 10.0.26200', root: null, agents: { claude: '2.1.322', codex: '0.98.0', opencode: null, copilot: null } }) : (view?.about ?? about(name.toLowerCase().replace(/\W+/g, '-')))
+    const set = this.identities.get(id)
+    const report = set === undefined ? told : { ...told, gitUser: true, gitName: set.name, gitEmail: set.email }
     // A machine elsewhere's accounts and missing CLIs are its panel's, as the hub's mirror has them.
     const panel = own ? undefined : state.machineSignIns?.find((each) => each.machine === id)
     const pooled = state.projects.filter((project) => own || this.pools.get(project)?.some((row) => row.id === id) || view?.projects.includes(project) || project === state.projects[0])
@@ -238,6 +250,11 @@ export class FakeNetwork {
   command(name: string, body: Record<string, unknown>): boolean {
     if (name === 'machines/capacity') {
       this.capacities.set(String(body.machine), Number(body.capacity))
+      this.changed()
+      return true
+    }
+    if (name === 'machines/gitIdentity') {
+      this.identities.set(String(body.machine), { name: String(body.name), email: String(body.email) })
       this.changed()
       return true
     }

@@ -279,11 +279,36 @@ export class MachineNetwork {
     await (await this.accountsOf(machine)).cancel()
   }
 
+  /**
+   * Git's `user.name` and `user.email` written on the machine (BTN-1503): its report takes what git read back there at
+   * once, so its facts and its cards change without waiting for its next handshake, which reports the same.
+   */
+  async gitIdentity(machine: string, name: string, email: string): Promise<void> {
+    const record = await this.foreign(machine)
+    const read = await (await this.servicesOf(machine)).git.identity(name, email)
+    this.options.log(`machines: git's name and e-mail are set on machine ${record.id} (${record.name})`)
+    const about = (await this.options.store.machine(record.id))?.about ?? record.about
+    if (about !== null) {
+      const { gitName: _name, gitEmail: _email, ...rest } = about
+      await this.options.store.described(record.id, {
+        ...rest,
+        gitUser: read.name !== null && read.email !== null,
+        ...(read.name !== null && { gitName: read.name }),
+        ...(read.email !== null && { gitEmail: read.email }),
+      })
+    }
+    this.options.changed()
+  }
+
   private async accountsOf(machine: string): Promise<MachineServices['account']> {
+    return (await this.servicesOf(machine)).account
+  }
+
+  private async servicesOf(machine: string): Promise<MachineServices> {
     const record = await this.foreign(machine)
     const peer = this.peers.get(record.id)
     if (peer === undefined || !this.hub.connected(record.id)) throw fail('machines.offline', { name: record.name })
-    return peer.remote.services().account
+    return peer.remote.services()
   }
 
   async tellLimits(machine: string, plan: LimitsPlan): Promise<void> {

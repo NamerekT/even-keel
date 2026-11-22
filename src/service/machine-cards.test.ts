@@ -41,7 +41,7 @@ function deps(patch: Partial<MachineCardsDeps> = {}): MachineCardsDeps {
     folders: async (machine) => (machine === 'laptop' ? [{ project: 'p1', folder: '/x', enabled: true }] : [{ project: 'p1', folder: '/y', enabled: false }]),
     mirror: () => undefined,
     ownAccounts: () => ({ accounts: [], active: '' }),
-    ownGitUser: () => true,
+    ownGit: () => ({ name: 'John Doe', email: 'john@example.com' }),
     version: '0.4.0',
     now: () => NOW,
     ...patch,
@@ -65,6 +65,17 @@ describe('machineCards', () => {
     const records = async () => [record('pc'), record('laptop', { about: { ...ABOUT, gitUser: false } }), record('desk', { about: null })]
     const cards = await machineCards(deps({ records }))
     expect(cards.map((card) => card.gitUser)).toEqual([true, false, null])
+  })
+
+  it("names git's name and e-mail of each machine: the own one's as the hub's git reads them, another's from its report (BTN-1503)", async () => {
+    const records = async () => [record('pc'), record('laptop', { about: { ...ABOUT, gitUser: false, gitName: 'Jane Doe' } }), record('desk', { about: null })]
+    const cards = await machineCards(deps({ records, ownGit: () => ({ name: 'John Doe', email: 'john@example.com' }) }))
+    expect(cards.map(({ gitUser, gitName, gitEmail }) => ({ gitUser, gitName, gitEmail }))).toEqual([
+      { gitUser: true, gitName: 'John Doe', gitEmail: 'john@example.com' },
+      { gitUser: false, gitName: 'Jane Doe', gitEmail: undefined },
+      { gitUser: null, gitName: undefined, gitEmail: undefined },
+    ])
+    expect((await machineCards(deps({ records, ownGit: () => null })))[0]?.gitUser).toBeNull()
   })
 
   it("names the version of a machine elsewhere that is not the hub's (BTN-994)", async () => {

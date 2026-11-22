@@ -6,13 +6,14 @@ import type { MachinePage } from './link/view.js'
 const PAGE = { id: 'srv', name: 'Home server', own: false, online: true, capacity: 2, color: '#6f8f7f' } as MachinePage
 
 describe('the routes of a machine page (BTN-1272)', () => {
-  it('reads the page and sets the capacity and the colour', async () => {
+  it("reads the page and sets the capacity, the colour and git's name and e-mail (BTN-1503)", async () => {
     const calls: unknown[][] = []
     const { publicDir, base, close } = await serverFixture({
       machinePage: {
         view: async (machine) => (calls.push(['view', machine]), PAGE),
         capacity: async (machine, capacity) => void calls.push(['capacity', machine, capacity]),
         color: async (machine, color) => void calls.push(['color', machine, color]),
+        gitIdentity: async (machine, name, email) => void calls.push(['git', machine, name, email]),
       },
     })
     const post = (path: string, body: unknown) => fetch(`${base}/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -22,11 +23,14 @@ describe('the routes of a machine page (BTN-1272)', () => {
       expect((await post('machines/color', { machine: 'srv', color: '#a08060' })).status).toBe(200)
       expect((await post('machines/color', { machine: 'srv', color: null })).status).toBe(200)
       expect((await post('machines/color', { machine: 'srv' })).status).toBe(400)
+      expect((await post('machines/gitIdentity', { machine: 'srv', name: 'John Doe', email: 'john@example.com' })).status).toBe(200)
+      expect((await post('machines/gitIdentity', { machine: 'srv', name: 'John Doe' })).status).toBe(400)
       expect(calls).toEqual([
         ['view', 'srv'],
         ['capacity', 'srv', 3],
         ['color', 'srv', '#a08060'],
         ['color', 'srv', null],
+        ['git', 'srv', 'John Doe', 'john@example.com'],
       ])
     } finally {
       await close()

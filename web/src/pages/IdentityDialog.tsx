@@ -8,25 +8,39 @@ import { IdentityFields, useIdentityForm } from './SetupGit.js'
 import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
 
+/** A machine whose git the dialog sets (BTN-1503): its name for the lead, and git's name and e-mail it reported. */
+export interface IdentityMachine {
+  id: string
+  name: string
+  gitName?: string | undefined
+  gitEmail?: string | undefined
+}
+
 /**
  * "Set them" under `git.noIdentity` (BTN-1094): a dialog over the page with the setup Git step's name and e-mail, saved
  * by the same command, so a wizard or a creation window keeps everything typed. `onSaved` runs once git took them —
  * the wizard checks its field again, the creation window retries its failed step. Nothing without a git that starts.
  * Opening it reads git again, and Save takes the fields once both are filled, even the same values the view showed.
+ *
+ * With `machine` it sets git on that machine (BTN-1503, `machines/gitIdentity`): a field the machine has no value for
+ * holds the hub's, and Save takes them unchanged while the machine lacks either.
  */
-export function IdentityButton({ className, onSaved }: { className: string; onSaved?: () => void }) {
+export function IdentityButton({ className, onSaved, machine, label }: { className: string; onSaved?: () => void; machine?: IdentityMachine; label?: string }) {
   const { state } = useLive()
   const [open, setOpen] = useState(false)
-  const git = state?.git
-  if (git === undefined || git.version === null) return null
+  const hub = state?.git
+  if (machine === undefined && (hub === undefined || hub.version === null)) return null
+  const git: GitSetupView =
+    machine === undefined ? hub! : { version: null, name: machine.gitName ?? hub?.name ?? null, email: machine.gitEmail ?? hub?.email ?? null }
   return (
     <>
       <button type="button" className={className} onClick={() => setOpen(true)}>
-        {t.fix.identity}
+        {label ?? t.fix.identity}
       </button>
       {open && (
         <IdentityDialog
           git={git}
+          machine={machine}
           onClose={() => setOpen(false)}
           onSaved={() => {
             setOpen(false)
@@ -38,17 +52,20 @@ export function IdentityButton({ className, onSaved }: { className: string; onSa
   )
 }
 
-function IdentityDialog({ git, onClose, onSaved }: { git: GitSetupView; onClose: () => void; onSaved: () => void }) {
+function IdentityDialog({ git, machine, onClose, onSaved }: { git: GitSetupView; machine: IdentityMachine | undefined; onClose: () => void; onSaved: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
   const { command } = useLive()
-  const form = useIdentityForm(git, true)
+  const missing = machine === undefined || machine.gitName === undefined || machine.gitEmail === undefined
+  const form = useIdentityForm(git, missing, machine?.id)
   const text = t.setup.git
 
   // The view is read only at the start and on "Check again", so git's name may have gone since (BTN-1104).
-  // Once per opening: `command` is a new function every render.
-  useEffect(() => void command('git/check').catch(() => {}), [])
+  // Once per opening: `command` is a new function every render. A machine's git is its report's, not the hub's.
+  useEffect(() => {
+    if (machine === undefined) void command('git/check').catch(() => {})
+  }, [])
 
   useEffect(() => {
     const box = dialog.current
@@ -88,7 +105,7 @@ function IdentityDialog({ git, onClose, onSaved }: { git: GitSetupView; onClose:
           </button>
         </header>
         <div className="add-package__body">
-          <p className="add-package__note">{text.identityLead}</p>
+          <p className="add-package__note">{machine === undefined ? text.identityLead : text.identityLeadMachine(machine.name)}</p>
           <IdentityFields form={form} id="identity-dialog" />
         </div>
         {form.failure !== null && (

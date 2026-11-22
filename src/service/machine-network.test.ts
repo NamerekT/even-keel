@@ -466,6 +466,47 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await expect(network.login(OWN, 'claude')).rejects.toThrow(/no such machine/)
   })
 
+  it("sets git's name and e-mail on a machine elsewhere and keeps what git read back there in its report (BTN-1503)", async () => {
+    const peers: NetworkPeers = {
+      remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
+      brief: () => ({ config: { projects: {} } }) as unknown as HubBrief,
+      changed: () => {},
+      connected: () => {},
+      mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      hook: () => Promise.resolve({ status: 200, body: '' }),
+      write: async () => {},
+    }
+    const { network, settings, changes } = await started(peers)
+    settings.address = '127.0.0.1'
+    await network.apply()
+    const unset: MachineAbout = { ...ABOUT, gitUser: false }
+    const joined = await joinHub(parseToken((await network.invite('Example laptop')).line)!, unset, 5_000)
+    if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+    await expect(network.gitIdentity(joined.machine, 'John Doe', 'john@example.com')).rejects.toThrow(/not connected/)
+
+    const ran: NumberedCommand[] = []
+    const end: MachineEnd = new MachineEnd({
+      transport: httpsTransport(joined, { log: () => {}, timeoutMs: 5_000 }),
+      store: new MemoryMachineStore(),
+      snapshot: () => ({ boot: 'boot-1', rev: 1, facts: { sessionsRead: true, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {}, limits: {} } as unknown as FactsSnapshot['facts'] }),
+      command: async (command) => {
+        ran.push(command)
+        await end.emit(DONE_EVENT, { seq: command.seq, value: { name: 'John Doe', email: 'john@example.com' } })
+      },
+      log: () => {},
+    })
+    closing.push(async () => end.stop())
+    await end.start()
+    await until(() => network.connected(joined.machine), 'the machine online')
+
+    const before = changes.length
+    await network.gitIdentity(joined.machine, 'John Doe', 'john@example.com')
+    expect(ran.filter((command) => command.type === 'git.identity').map((command) => command.payload)).toEqual([{ args: ['John Doe', 'john@example.com'] }])
+    expect((await network.record(joined.machine))?.about).toEqual({ ...unset, gitUser: true, gitName: 'John Doe', gitEmail: 'john@example.com' })
+    expect(changes.length).toBeGreaterThan(before)
+    await expect(network.gitIdentity(OWN, 'John Doe', 'john@example.com')).rejects.toThrow(/no such machine/)
+  })
+
   it("pulls tasks only to a machine of the hub's version of Even Keel (BTN-994)", async () => {
     const peers: NetworkPeers = {
       remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),

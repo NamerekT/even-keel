@@ -282,3 +282,11 @@ To check (BTN-1448), with a second release candidate: update the hub and leave a
 Assumed: a machine without a copy of its own downloads the hub's checked version within the 5 s brief tick after the hub's copy is consented to, and its chain's pause lifts by itself. If not, the chain on the machine waits on "Waiting for the checked copy … on machine X" with no way to lift it from the page but Yours; the machine's log names the download or says nothing at all.
 
 To check (BTN-1522), with a release candidate that has BTN-1516: a hub on Checked with its copy, a machine in Docker without one, a task to Done on the machine; then a hub without its copy, its download, and the machine following.
+
+## A machine's git author set from the hub's page (BTN-1503)
+
+`docs/machines.md`, "The machine's page" ("On the machine"); guide `docs/guide/docker.md`, "Machines". Covered by `src/service/machine-services.test.ts` (the machine writes `git config --global` and answers what git reads back), `src/service/machine-network.test.ts` (the answer goes into the machine's facts at once, an offline machine is refused), `src/service/machine-page.test.ts`, `src/server-machine-page.test.ts` and `web/src/pages/IdentityDialog.test.ts` (the window's values, the hub's where the machine has none). Seen on `dev:fake` only; never run against a real machine.
+
+Assumed: the machine's service runs git as the same user its sessions commit as, so `git config --global` there is the author of their commits; the container's `HOME` (`machine-home`) keeps it across a recreate. If not, the window saves and the facts say the name, while a session's commit still fails on "Author identity unknown", or the facts stay "not set"; set it by hand with `docker compose exec machine git config --global user.name …`.
+
+To check, on the `docker-rc` bench with a release candidate that has BTN-1503: a machine in Docker without a git name, its page's "Set name and e-mail" — the window holds the hub's author; save, and GIT NAME / GIT E-MAIL show it without a reconnect; "Commit author" in the project's machine settings shows the same; recreate the container and see it kept; a task merged on the machine carries that author.

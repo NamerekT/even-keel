@@ -143,6 +143,18 @@ export function cloneTold(tell: (payload: CloneTold) => void, now: () => number 
   }
 }
 
+/** Git's `user.name` and `user.email` on the machine as git reads them; `null` — unset. */
+export interface GitIdentity {
+  name: string | null
+  email: string | null
+}
+
+/** The machine's git as the hub's page sets it (BTN-1503). */
+export interface MachineGit {
+  /** `git config --global` of the user Even Keel runs as there; what git reads back, for the machine's report. */
+  identity(name: string, email: string): Promise<GitIdentity>
+}
+
 /**
  * What the hub's page, hooks and chat ask of a machine besides the chain's port (`docs/machines.md`, "The seam"): each
  * member is the link's command `<group>.<member>` with `{args}`, its value in `command.done` as for `port.*`.
@@ -154,6 +166,7 @@ export interface MachineServices {
   records: { restore(records: RetainedRecords): Promise<void> }
   folders: MachineFolders
   chats: MachineChats
+  git: MachineGit
 }
 
 export const SERVICE_COMMANDS = {
@@ -166,6 +179,7 @@ export const SERVICE_COMMANDS = {
   records: ['restore'],
   folders: ['check', 'clone', 'probe'],
   chats: ['launch', 'send', 'stop', 'title', 'past'],
+  git: ['identity'],
 } as const satisfies { [G in keyof MachineServices]: ReadonlyArray<keyof MachineServices[G]> }
 
 type Group = keyof MachineServices

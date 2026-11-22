@@ -104,6 +104,9 @@ export interface MachineCard {
   offlineSince: number | null
   /** Its git has a user name and e-mail: without them a session's commit fails, so it takes no task. `null` — not told yet. */
   gitUser: boolean | null
+  /** Git's `user.name` and `user.email` there (BTN-1503); none — unset, not told yet or a machine older than the fields. */
+  gitName?: string
+  gitEmail?: string
   /** Even Keel's version its report names, where it is not the hub's: it takes no new task (BTN-994). */
   otherVersion?: string
   /** The agents it has a signed-in account of. */

@@ -705,6 +705,8 @@ export const setupEN: Messages['setup'] = {
       again: 'Check again',
       identity: 'Name and e-mail for commits',
       identityLead: 'Sessions commit and merge under this name. It is written into the global git config of the user the service runs as.',
+      identityLeadMachine: (machine: string) =>
+        `Sessions on ${machine} commit and merge under this name. It is written into the global git config of the user Even Keel runs as there. A field the machine has no value for holds the hub's own.`,
       identityMissing: 'Git has no name or e-mail yet, and the first commit of the first task would fail.',
       name: 'Name',
       email: 'E-mail',
