@@ -213,8 +213,8 @@ export function ChainList(props: Props) {
             <ol className="chain__blocks">
               {withButton(slots[index]!, pages[index]!).map((slot) => {
                 if (slot === 'more') return <MoreRows key="more" page={pages[index]!} onMore={() => setMore((current) => pressed(current, section))} />
-                const { block, leaving } = slot
-                return leaving ? (
+                const { block } = slot
+                return slot.leaving ? (
                   <LeavingBlock
                     key={`leaving:${block.id}`}
                     block={block}
