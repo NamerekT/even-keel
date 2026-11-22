@@ -20,8 +20,13 @@ describe('briefAccounts', () => {
 })
 
 describe('folderHere', () => {
-  it('keeps the key when the hub told nothing of the folder', () => {
-    expect(folderHere(undefined, 'main', [])).toBe('main')
+  it('keeps the key when the hub told nothing of the folder and one of that name is here', () => {
+    expect(folderHere(undefined, 'main', [{ key: 'main', agent: 'claude', email: null }])).toBe('main')
+  })
+
+  it('finds none when the hub told nothing of the folder and none of that name is here', () => {
+    const folders: FolderHere[] = [{ key: 'other', agent: 'claude', signed: 'account-1', email: 'john.doe@example.com' }]
+    expect(folderHere(undefined, 'main', folders)).toBeNull()
   })
 
   it('takes the folder of the same name when it is of the same account', () => {
@@ -59,7 +64,11 @@ describe('folderHere', () => {
     expect(folderHere({ agent: 'codex', email: 'john.doe@example.com' }, 'codex', folders)).toBe('codex-2')
   })
 
-  it('keeps the key when the hub knows no e-mail and no account of the folder', () => {
-    expect(folderHere({ agent: 'opencode', email: null }, 'opencode', [])).toBe('opencode')
+  it('keeps the key when the hub knows no e-mail and no account of the folder and one of that name and agent is here', () => {
+    expect(folderHere({ agent: 'opencode', email: null }, 'opencode', [{ key: 'opencode', agent: 'opencode', email: null }])).toBe('opencode')
+  })
+
+  it('finds none when the hub knows nothing of the folder and the one of that name here is of another agent', () => {
+    expect(folderHere({ agent: 'opencode', email: null }, 'opencode', [{ key: 'opencode', agent: 'codex', email: null }])).toBeNull()
   })
 })
