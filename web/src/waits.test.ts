@@ -59,6 +59,18 @@ describe('chainWaits', () => {
     expect(chainWaits(stateOf(running(), packagesOf({ ABC: held({}) }, error)), 'ABC')).toEqual([{ kind: 'gateway', error }])
   })
 
+  it("names the machine elsewhere whose packages hold the lane, whatever the hub's own set (BTN-1524)", () => {
+    const docs = { name: 'docs', problems: [{ kind: 'noResponse' as const, servers: ['docs'] }] }
+    const state = { ...stateOf(running({ machine: 'srv', packagesWait: { machine: 'srv', packages: [docs] } })), machineNames: { srv: 'Home server' } }
+    expect(chainWaits(state, 'ABC')).toEqual([{ kind: 'machinePackages', machine: 'srv', name: 'Home server', packages: [docs], gateway: false, passing: false }])
+
+    const probing = running({ packagesWait: { machine: 'gone', packages: [{ name: 'docs', problems: [{ kind: 'probing' }] }] } })
+    expect(chainWaits(stateOf(probing), 'ABC')).toMatchObject([{ kind: 'machinePackages', machine: 'gone', name: 'gone', passing: true }])
+    const gateway = running({ packagesWait: { machine: 'srv', gateway: true, packages: [] } })
+    expect(chainWaits(stateOf(gateway), 'ABC')).toMatchObject([{ kind: 'machinePackages', gateway: true, passing: false }])
+    expect(chainWaits(stateOf(running({ fixOnly: true, packagesWait: { machine: 'srv', packages: [docs] } })), 'ABC')).toEqual([])
+  })
+
   it('leaves the packages out while a task is closing or the chain only runs a fix', () => {
     const packages = packagesOf({ ABC: held({}) }, notice('packages.port', { port: 4748 }))
     expect(chainWaits(stateOf(running({ closing: 'ABC-1' }), packages), 'ABC')).toEqual([{ kind: 'closing', task: 'ABC-1' }])

@@ -126,6 +126,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       return ctx.limits.unread(account) ? { account, next: ctx.limits.nextPoll() } : undefined
     },
     packagesBlocked: (project) => ctx.packages.blocked(project),
+    packagesHeld: (project) => ctx.packages.held(project),
     packagesPause: (project) => {
       const packages = ctx.packages.unready(project)
       return packages.length === 0 ? undefined : notice('chain.packagesNotReady', { project: projectLabel(ctx.configStore.current, project), packages })

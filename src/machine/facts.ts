@@ -8,7 +8,7 @@ import type { OverageSession } from '../limits/overage-session.js'
 import type { UsageHealth } from '../limits/usage.js'
 import type { Notice } from '../notice/notice.js'
 import type { SessionMail } from '../sessions/mail.js'
-import type { BranchDiff, FoundRepository, SessionView, TaskWork } from '../state.js'
+import type { BranchDiff, FoundRepository, PackagesHeld, SessionView, TaskWork } from '../state.js'
 import type { MachinePort } from './port.js'
 
 /** What the machine knows of a task's sessions; a field left out is the port's neutral answer. */
@@ -39,6 +39,8 @@ export interface RunFacts {
 
 export interface ProjectFacts {
   packagesBlocked?: true
+  /** What holds it while blocked (BTN-1524); absent from a machine older than it. */
+  packagesHeld?: PackagesHeld
   packagesPause?: Notice
   trackerMissing?: string
   run: RunFacts
@@ -160,7 +162,7 @@ export function applyPatch(facts: MachineFacts, patch: FactsPatch): MachineFacts
 export type MirrorReads = Pick<MachinePort,
   | 'liveSession' | 'lastSession' | 'busy' | 'midTurn' | 'shell' | 'asked' | 'silentSince' | 'limited' | 'overage' | 'handoff' | 'modelRefusal'
   | 'sessionsRead' | 'reportedTree' | 'account' | 'accountAt' | 'launchBlock' | 'sessionBlock' | 'limitReset' | 'modelWeek' | 'limitResetAfter' | 'limitReopenedAt'
-  | 'limitsUnread' | 'accountsRead' | 'packagesBlocked' | 'packagesPause' | 'trackerMissing'
+  | 'limitsUnread' | 'accountsRead' | 'packagesBlocked' | 'packagesHeld' | 'packagesPause' | 'trackerMissing'
 >
 
 /**
@@ -198,6 +200,10 @@ export function mirrorReads(facts: () => MachineFacts | undefined, lastSession: 
     limitsUnread: (project, name) => run(project, name)?.limitsUnread,
     accountsRead: () => facts()?.accountsRead === true,
     packagesBlocked: (project) => facts()?.projects[project]?.packagesBlocked === true,
+    packagesHeld: (project) => {
+      const known = facts()?.projects[project]
+      return known?.packagesBlocked === true ? (known.packagesHeld ?? { packages: [] }) : undefined
+    },
     packagesPause: (project) => facts()?.projects[project]?.packagesPause,
     trackerMissing: (project) => facts()?.projects[project]?.trackerMissing,
   }

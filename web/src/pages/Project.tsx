@@ -585,7 +585,7 @@ function ChainControls({
   // What only says how the chain runs lives in the strip and its tip, so a press or a passing wait moves nothing under
   // the head; a wait with a fix of its own keeps its line and button (BTN-1162).
   const line = runLine(status, waits[0], stopsAfter ? stopsOn : undefined, after === null ? null : projectLabel(state, after))
-  const loud = waits.filter((wait) => (wait.kind === 'packages' && !wait.passing) || wait.kind === 'slot' || wait.kind === 'folder')
+  const loud = waits.filter((wait) => ((wait.kind === 'packages' || wait.kind === 'machinePackages') && !wait.passing) || wait.kind === 'slot' || wait.kind === 'folder')
   return (
     <>
       <div className="project__controls">

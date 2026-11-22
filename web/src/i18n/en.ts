@@ -180,6 +180,7 @@ export const en: Messages = {
     milestoneOrder: 'Open the milestone order',
     resume: 'Check again and resume',
     packages: 'Open the project’s packages',
+    machine: 'Open the machine’s page',
     identity: 'Set them',
     enableProfile: 'Turn on',
     stopChains: (count: number) => (count > 1 ? 'Stop the chains' : 'Stop the chain'),
@@ -212,6 +213,10 @@ export const en: Messages = {
     packagesHold: (packages: string) => `The next task waits for its packages: ${packages} — it starts once they answer.`,
     packagesSilentHold: (packages: string) =>
       `The next task waits for its packages: ${packages}. They are asked again in half a minute, then less often up to once an hour; check their command and settings.`,
+    machineGatewayHold: (machine: string) => `The next task waits for the MCP gateway of ${machine}, which does not run there.`,
+    machinePackagesHold: (machine: string, packages: string | null) =>
+      packages === null ? `The next task waits for the packages of ${machine}: they are not ready there.`
+        : `The next task waits for the packages of ${machine}: ${packages} — it starts once they answer there.`,
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in Settings → Chain.',
   },
   limits: {
@@ -332,7 +337,7 @@ export const en: Messages = {
     position: (position: number) => `Place in the queue: ${position}`,
     waiting: 'waiting',
     waitsFor: (what: string) => `Waiting for: ${what}`,
-    waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', model: 'model week', gateway: 'MCP gateway', packages: 'packages', slot: 'slot', folder: 'folder' },
+    waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', model: 'model week', gateway: 'MCP gateway', packages: 'packages', machinePackages: 'machine packages', slot: 'slot', folder: 'folder' },
   },
   lamp: {
     done: 'done',

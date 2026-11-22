@@ -309,6 +309,19 @@ describe('the machine port over the link', () => {
     expect(remote.page.mailbox()).toEqual({})
   })
 
+  it("tells the hub what holds the machine's packages, and nothing once they are ready (BTN-1524)", async () => {
+    const { state, port, runner } = await started()
+    state.held = { packages: [{ name: 'docs', problems: [{ kind: 'noResponse', servers: ['docs'] }] }] }
+    await runner.publish()
+    await tick()
+    expect(port.packagesBlocked(PROJECT)).toBe(true)
+    expect(port.packagesHeld!(PROJECT)).toEqual(state.held)
+    state.held = undefined
+    await runner.publish()
+    await tick()
+    expect(port.packagesHeld!(PROJECT)).toBeUndefined()
+  })
+
   it('gives the page the accounts and the sessions of the machine from the mirror, as fresh as its last post', async () => {
     const { state, remote, runner } = await started()
     const entry = { key: 'main', agent: 'claude', status: { loggedIn: true, email: 'john@example.com' } } as unknown as AccountEntry

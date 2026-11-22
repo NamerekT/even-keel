@@ -325,6 +325,25 @@ export const fakeMachineColors = (names: Record<string, string>): Pick<EvenKeelS
   ownMachine: OWN,
 })
 
+/**
+ * `?chain=machinePackages|machineGateway|machineOld` (BTN-1524): the first project's lane went to the laptop and waits
+ * there — for docs, which does not answer, and forgejo, still starting; for the laptop's MCP gateway; for packages an
+ * older laptop only says are not ready. The hub's own set is fine.
+ */
+export function fakeMachinePackagesWait(state: EvenKeelState, mode: string): void {
+  const lane = state.chain.active[0]
+  const waits: Record<string, NonNullable<typeof lane>['packagesWait']> = {
+    machinePackages: { machine: 'machine-1', packages: [{ name: 'docs', problems: [{ kind: 'noResponse', servers: ['docs'] }] }, { name: 'forgejo', problems: [{ kind: 'probing' }] }] },
+    machineGateway: { machine: 'machine-1', gateway: true, packages: [] },
+    machineOld: { machine: 'machine-1', packages: [] },
+  }
+  const packagesWait = waits[mode]
+  if (lane === undefined || packagesWait === undefined) return
+  state.machineNames = { ...FAKE_MACHINE_NAMES, ...state.machineNames }
+  Object.assign(state, fakeMachineColors(state.machineNames))
+  state.chain.active = [{ ...lane, machine: 'machine-1', current: null, packagesWait }, ...state.chain.active.slice(1)]
+}
+
 const folderName = (path: string): string => path.split(/[\\/]/).filter((part) => part !== '').pop() ?? 'project'
 
 const CONNECT_CHECKS = ['repo', 'remote', 'branch', 'trust', 'packages', 'push'].map((step) => `machine-${step}`)

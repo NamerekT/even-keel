@@ -9,7 +9,7 @@ import { FINGERPRINT, HUB_ADDRESS, MemoryHubStore, MemoryMachineStore, Wire } fr
 import { MachineEnd } from '../link/machine.js'
 import { bearerOf, parseToken, type NumberedCommand } from '../link/protocol.js'
 import { fail } from '../notice/notice.js'
-import type { FoundRepository, SessionView, TaskWork } from '../state.js'
+import type { FoundRepository, PackagesHeld, SessionView, TaskWork } from '../state.js'
 import type { HubBrief } from './brief.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { Writes, type Db } from '../storage/database.js'
@@ -45,6 +45,8 @@ export function machineOf() {
     briefs: [] as HubBrief[],
     works: {} as Record<string, Record<string, TaskWork>>,
     gitFound: {} as Record<string, FoundRepository>,
+    /** What holds the project's packages; absent — they are ready. */
+    held: undefined as PackagesHeld | undefined,
   }
   const local = {
     launch: async (_project: string, task: string) => {
@@ -76,7 +78,8 @@ export function machineOf() {
     limitReset: () => null,
     limitResetAfter: () => null,
     limitsUnread: () => undefined,
-    packagesBlocked: () => false,
+    packagesBlocked: () => state.held !== undefined,
+    packagesHeld: () => state.held,
     packagesPause: () => undefined,
     trackerMissing: () => undefined,
   } as unknown as MachinePort

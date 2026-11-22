@@ -1,10 +1,12 @@
 import { Fragment } from 'react'
+import { Link } from 'react-router'
 import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
+import { machinePath } from '../machineColor.js'
 import { ciWaitText, limitsWaitText, limitWaitText } from '../state.js'
 import { problemText } from '../tools/packageView.js'
 import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
-import type { ChainWait } from '../waits.js'
+import type { ChainWait, WaitedPackage } from '../waits.js'
 import { FixButton, NoticeFixButton } from './FixButtons.js'
 
 /**
@@ -18,10 +20,14 @@ export function ChainWaits({ project, waits, className, compact = false }: { pro
         <WaitLine wait={wait} compact={compact} />
       </p>
       {wait.kind === 'packages' && !wait.passing && <FixButton project={project} fix={{ to: 'packages' }} />}
+      {/* The machine's page holds its packages of the project (BTN-1524). */}
+      {wait.kind === 'machinePackages' && !wait.passing && <Link className="button button--small notice-fix" to={machinePath(wait.machine)}>{t.fix.machine}</Link>}
       {(wait.kind === 'slot' || wait.kind === 'folder') && <NoticeFixButton project={project} notice={wait.notice} />}
     </Fragment>
   ))
 }
+
+const namedPackages = (packages: WaitedPackage[]) => packages.map((each) => `${each.name} — ${each.problems.map(problemText).join(', ')}`).join('; ')
 
 export function WaitLine({ wait, compact }: { wait: ChainWait; compact: boolean }) {
   const now = new Date()
@@ -39,9 +45,12 @@ export function WaitLine({ wait, compact }: { wait: ChainWait; compact: boolean 
     case 'gateway':
       return t.banner.gatewayHold
     case 'packages': {
-      const named = wait.packages.map((each) => `${each.name} — ${each.problems.map(problemText).join(', ')}`).join('; ')
+      const named = namedPackages(wait.packages)
       return wait.passing ? t.banner.packagesHold(named) : t.banner.packagesSilentHold(named)
     }
+    case 'machinePackages':
+      if (wait.gateway) return t.banner.machineGatewayHold(wait.name)
+      return t.banner.machinePackagesHold(wait.name, wait.packages.length === 0 ? null : namedPackages(wait.packages))
     case 'slot':
     case 'folder': {
       // A copy, not a spread: a spread over the `Notice` union is a union too large for the compiler.

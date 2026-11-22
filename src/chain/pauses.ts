@@ -82,6 +82,23 @@ export class LaunchPauses {
    * model's week or the project's packages. The wait is written into the chain for the page.
    */
   waits(chain: ActiveChain, task: string, fix: boolean): boolean {
+    const forAccount = this.waitsForAccount(chain, task)
+    // A session would start without some of its tools; the page shows why (`packages` in the state, or the chain's
+    // `packagesWait` for the lane's machine elsewhere).
+    const packages = !forAccount && !fix && this.deps.machine.packagesBlocked(chain.project, task)
+    const held = packages ? this.deps.machine.packagesHeld?.(chain.project, task) : undefined
+    this.notePackages(chain, held?.machine === undefined ? undefined : { ...held, machine: held.machine })
+    return forAccount || packages
+  }
+
+  private notePackages(chain: ActiveChain, wait: ActiveChain['packagesWait']): void {
+    if (JSON.stringify(chain.packagesWait) === JSON.stringify(wait)) return
+    if (wait === undefined) delete chain.packagesWait
+    else chain.packagesWait = wait
+    this.deps.save(this.state)
+  }
+
+  private waitsForAccount(chain: ActiveChain, task: string): boolean {
     if (waitsForLimits(this.deps, chain, task, () => this.deps.save(this.state))) return true
     const reset = this.deps.machine.limitReset(chain.project, task)
     if (reset !== null) {
@@ -102,7 +119,6 @@ export class LaunchPauses {
       }
       return true
     }
-    // A session would start without some of its tools; the page shows why (`packages` in the state).
-    return !fix && this.deps.machine.packagesBlocked(chain.project, task)
+    return false
   }
 }

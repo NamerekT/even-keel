@@ -286,8 +286,11 @@ export class MachineRunner {
     for (const project of this.deps.projects()) {
       const pause = local.packagesPause(project)
       const missing = local.trackerMissing(project)
+      const blocked = local.packagesBlocked(project)
+      const held = blocked ? local.packagesHeld?.(project) : undefined
       projects[project] = {
-        ...(local.packagesBlocked(project) && { packagesBlocked: true as const }),
+        ...(blocked && { packagesBlocked: true as const }),
+        ...(held !== undefined && { packagesHeld: held }),
         ...(pause !== undefined && { packagesPause: pause }),
         ...(missing !== undefined && { trackerMissing: missing }),
         run: this.run(project),

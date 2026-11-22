@@ -3,6 +3,7 @@ import type { AccountNow, HandoffReason, HandoffSession, LimitedSession } from '
 import type { Changes, FinishOutcome } from '../git/types.js'
 import type { OverageSession } from '../limits/overage-session.js'
 import type { Notice } from '../notice/notice.js'
+import type { PackagesHeld } from '../state.js'
 import type { MovesPort } from './move-call.js'
 import type { TaskBrief } from '../tracker/source.js'
 
@@ -176,6 +177,11 @@ export interface MachinePort {
    * yet, or the gateway down. The chain waits and the page says so (BTN-657). With `task` — on the machine that runs it.
    */
   packagesBlocked: (project: string, task?: string) => boolean
+  /**
+   * Snapshot. What of the set holds it while `packagesBlocked` (BTN-1524); `undefined` — nothing does, or the machine
+   * does not tell. With `task` — on the machine that runs it, which `machine` names where it is not the own one.
+   */
+  packagesHeld?: (project: string, task?: string) => PackagesHeld | undefined
   /**
    * Snapshot. A package of the set needs the user: not installed, failed to install or lacks a key
    * (`chain.packagesNotReady`, BTN-657). The chain pauses on it, except for a fix session of a red main, and goes on by

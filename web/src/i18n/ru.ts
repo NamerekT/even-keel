@@ -188,6 +188,7 @@ export const ru = {
     milestoneOrder: 'Открыть порядок вех',
     resume: 'Проверить и продолжить',
     packages: 'Открыть пакеты проекта',
+    machine: 'Открыть страницу машины',
     identity: 'Указать',
     enableProfile: 'Включить',
     stopChains: (count: number): string => (count > 1 ? 'Остановить цепочки' : 'Остановить цепочку'),
@@ -219,6 +220,10 @@ export const ru = {
     packagesHold: (packages: string) => `Следующая задача ждёт пакеты: ${packages} — запустится, когда они ответят.`,
     packagesSilentHold: (packages: string) =>
       `Следующая задача ждёт пакеты: ${packages}. Их спросят снова через полминуты, потом всё реже, до раза в час; проверьте их команду и настройки.`,
+    machineGatewayHold: (machine: string) => `Следующая задача ждёт шлюз MCP машины ${machine}: он там не работает.`,
+    machinePackagesHold: (machine: string, packages: string | null) =>
+      packages === null ? `Следующая задача ждёт пакеты машины ${machine}: они там не готовы.`
+        : `Следующая задача ждёт пакеты машины ${machine}: ${packages} — запустится, когда они там ответят.`,
     unattended: 'Включён режим без присмотра: сессии не задают вопросов. Выключается в настройках → Цепочка.',
   },
   limits: {
@@ -338,7 +343,7 @@ export const ru = {
     position: (position: number) => `Место в очереди: ${position}`,
     waiting: 'ждёт',
     waitsFor: (what: string) => `Ждёт: ${what}`,
-    waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', model: 'неделя модели', gateway: 'шлюз MCP', packages: 'пакеты', slot: 'слот', folder: 'папка' },
+    waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', model: 'неделя модели', gateway: 'шлюз MCP', packages: 'пакеты', machinePackages: 'пакеты машины', slot: 'слот', folder: 'папка' },
   },
   lamp: {
     done: 'готово',

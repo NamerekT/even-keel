@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { SessionPlugin, SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { ServerOverride } from '../link/view.js'
-import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
+import type { KeyView, PackagesHeld, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { TASKS_SERVER } from '../taskmcp/server.js'
 import { PassMemo } from '../pass-memo.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
@@ -19,6 +19,7 @@ import { availablePlugins, builtInPackage, FETCHED, knowsMarketplace, locatePlug
 import { readsOwnSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, type SkillRoot } from './skills.js'
 import { ownSkills, rewrap, wrapChosen, wrapsSkills } from './skills-package.js'
 import { loadPackages, savePackages } from './store.js'
+import { heldPackages } from './held.js'
 import { hubRoutes, packageTarget } from './hub.js'
 import { stdioOf, type StdioServer } from './stdio.js'
 import { isNewer } from './version.js'
@@ -381,6 +382,12 @@ export class Packages {
   /** The chain waits while the project's set has a problem that holds it. */
   blocked(project: string): boolean {
     return this.gatewayError !== null || this.check(project).blocked
+  }
+
+  /** What holds the project's sessions while `blocked`, for a hub that does not see this machine's set (BTN-1524). */
+  held(project: string): PackagesHeld | undefined {
+    if (!this.blocked(project)) return undefined
+    return { ...(this.gatewayError !== null && { gateway: true as const }), packages: heldPackages(this.check(project)) }
   }
 
   /**

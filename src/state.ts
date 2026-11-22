@@ -684,6 +684,22 @@ export type PackageProblem =
    */
   | { kind: 'unsupported'; agent: string; skills?: boolean }
 
+/** An enabled package of a set that holds the chain, with the problems that hold it (`heldPackages`). */
+export interface WaitedPackage {
+  name: string
+  problems: PackageProblem[]
+}
+
+/**
+ * What holds a project's launches on a machine (`MachinePort.packagesHeld`, BTN-1524): its gateway does not run, or
+ * enabled packages do not answer. `machine` — the machine, where it is not the hub's own.
+ */
+export interface PackagesHeld {
+  machine?: string
+  gateway?: true
+  packages: WaitedPackage[]
+}
+
 export interface SecretsView {
   variables: SecretView[]
   /** A removed key still reaches new sessions: the daemon of the global folder waits for its live sessions to end. */

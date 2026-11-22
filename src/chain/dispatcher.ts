@@ -672,6 +672,7 @@ export class Dispatcher {
     delete chain.limitUntil
     delete chain.modelWeek
     delete chain.slotWait
+    delete chain.packagesWait
     delete chain.ciWait
     delete chain.limitsWait
     this.deps.log(`chain: ${chain.project} paused: ${englishOf(error)}`)

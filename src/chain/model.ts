@@ -5,7 +5,7 @@ import type { Language } from '../language.js'
 import type { MachinePort } from '../machine/port.js'
 import type { Notice } from '../notice/notice.js'
 import type { Opened, PullRequest, ReviewCheck } from '../review/model.js'
-import type { ConflictFile } from '../state.js'
+import type { ConflictFile, PackagesHeld } from '../state.js'
 import type { Task, TaskMilestone } from '../tracker/model.js'
 import type { NewTask } from '../tracker/source.js'
 import type { SequencedMilestone } from './milestone-sequence.js'
@@ -52,6 +52,11 @@ export interface ActiveChain {
    * until the week opens. `until` — when it opens, unknown without it: the poll is then the only thing that can tell.
    */
   modelWeek?: ModelWeekHold
+  /**
+   * The packages of the lane's machine hold the next launch, where that machine is not the hub's own (BTN-1524): the
+   * page reads the own one's from the state's `packages`, but not another's.
+   */
+  packagesWait?: PackagesHeld & { machine: string }
   /** Unattended, a launch refused for want of a slot leaves the chain running; `at` is the last attempt. */
   slotWait?: { notice: Notice; at: string }
   /**

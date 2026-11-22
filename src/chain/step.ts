@@ -193,6 +193,7 @@ export async function launchNext(host: StepHost, chain: ActiveChain, tasks: Task
     delete chain.limitUntil
     delete chain.modelWeek
     delete chain.slotWait
+    delete chain.packagesWait
     delete chain.ciWait
     delete chain.limitsWait
     host.take(chain, { task, sessionId: live, since })

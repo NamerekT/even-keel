@@ -104,6 +104,11 @@ export function machinePool(deps: PoolDeps): MachinePort {
     accountsRead: () => own().accountsRead(),
     // The lane's machine runs the session with its own tools: the own one's may be refused once off the pool.
     packagesBlocked: (project, task) => byTask(project, task).packagesBlocked(project, task),
+    packagesHeld: (project, task) => {
+      const machine = idOf(task === undefined ? undefined : deps.machineOf(project, task))
+      const held = at(machine).packagesHeld?.(project, task)
+      return held === undefined || machine === deps.own() ? held : { ...held, machine }
+    },
     packagesPause: (project, task) => byTask(project, task).packagesPause(project, task),
     trackerMissing: (project) => own().trackerMissing(project),
 

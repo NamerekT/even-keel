@@ -42,7 +42,7 @@ import { fakeChats, fakeDictation } from './fakeChats.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
-import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineNames, fakeMachineSignIns } from './fakeMachines.js'
+import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineNames, fakeMachinePackagesWait, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -335,6 +335,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state!.packages = fakePackages(current.state!.projects, packageWait)
     current.state!.chain.active = [{ ...active, current: null }]
   }
+  if (current.state !== null) fakeMachinePackagesWait(current.state, params.get('chain') ?? '')
   if (params.get('chain') === 'packagesPause' && active) {
     const error = notice('chain.packagesNotReady', { project: 'ABC', packages: ['forgejo'] })
     current.state!.packages = fakePackages(current.state!.projects, 'blocked')

@@ -33,6 +33,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?chain=slot` | an unattended chain is waiting for a free slot |
 | `?chain=closing` | ABC-4 is Done and the chain waits for its session to end its turn and its folder to be cleaned up |
 | `?chain=packages\|packagesSilent\|gateway` | ABC's next task waits for its packages: still starting (no button), forgejo does not answer ("Open the project's packages"), the MCP gateway does not run (the red banner, and each project's line points at it) |
+| `?chain=machinePackages\|machineGateway\|machineOld` | ABC's lane went to Example laptop and its next task waits for the packages there, the hub's own being fine (BTN-1524, `fakeMachinePackagesWait`): docs does not answer and forgejo is starting, the laptop's MCP gateway does not run, an older laptop only says its packages are not ready |
 | `?chain=packagesPause` | ABC's chain paused with `chain.packagesNotReady` (BTN-657): forgejo lacks its key; "Open the project's packages" beside the reason |
 | `?chain=ci` | the chain is waiting for the CI of a pushed main |
 | `?chain=check` | the chain is running the project's own check on a pushed main in the next task's folder |

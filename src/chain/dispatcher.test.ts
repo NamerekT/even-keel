@@ -654,6 +654,37 @@ describe('Dispatcher', () => {
     expect(launched).toEqual(['ABC/ABC-1'])
   })
 
+  it("writes what holds the launch on another machine into the chain, and drops it once the packages answer (BTN-1524)", async () => {
+    const remote = { machine: 'srv', packages: [{ name: 'docs', problems: [{ kind: 'noResponse' as const, servers: ['docs'] }] }] }
+    const options: SetupOptions = { packagesBlocked: new Set(['ABC']), packagesHeld: remote }
+    const { dispatcher, launched, saved } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toMatchObject({ current: null, paused: false, packagesWait: remote })
+
+    const savedWhileHeld = saved.length
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(saved).toHaveLength(savedWhileHeld)
+
+    // The own machine's set: the page reads it from the state's packages, not from the chain.
+    options.packagesHeld = { packages: remote.packages }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]!.packagesWait).toBeUndefined()
+
+    options.packagesHeld = remote
+    dispatcher.check()
+    await dispatcher.idle()
+    options.packagesBlocked = new Set()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]!.packagesWait).toBeUndefined()
+  })
+
   it('goes in paused with the reason when brief is off and no package brings the tracker server, and goes on once one does', async () => {
     const missing = notice('chain.noTrackerMcp', { project: 'ABC', server: 'huly' })
     const options: SetupOptions = { trackerBlock: missing }

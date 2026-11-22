@@ -1,6 +1,7 @@
 import type { FinishOutcome } from '../git/types.js'
 import type { MachineMainPort, MachinePort } from '../machine/port.js'
 import { textNotice, type Notice } from '../notice/notice.js'
+import type { PackagesHeld } from '../state.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
@@ -57,6 +58,8 @@ export interface SetupOptions {
   limitsUnread?: LimitsWait
   /** Projects whose set of packages has a problem that holds the chain. */
   packagesBlocked?: Set<string>
+  /** What holds them (`MachinePort.packagesHeld`); absent — the port does not tell. */
+  packagesHeld?: PackagesHeld
   /** Brief is off and no package brings the tracker's MCP server. */
   trackerBlock?: Notice
   /** Why a user's Start does not go by the project's task list (BTN-830). */
@@ -203,6 +206,7 @@ export function setup(options: SetupOptions = {}) {
       modelWeek: () => options.modelWeek ?? null,
       limitsUnread: () => options.limitsUnread,
       packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
+      packagesHeld: (project) => (options.packagesBlocked?.has(project) === true ? options.packagesHeld : undefined),
       packagesPause: () => options.packagesPause,
       accountsRead: () => options.accountsRead ?? true,
       sessionsRead: () => options.sessionsRead ?? true,

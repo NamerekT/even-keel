@@ -72,6 +72,15 @@ describe('machinePool', () => {
     expect(pool.packagesPause('p', 'A-2')).toBe('own')
   })
 
+  it("names the machine whose packages hold a task where it is not the own one (BTN-1524)", () => {
+    const held = (machine: string) => ({ packagesHeld: () => ({ packages: [{ name: machine, problems: [{ kind: 'probing' }] }] }) }) as unknown as MachinePort
+    const { pool } = poolOf({ port: (machine) => (machine === 'gone' ? undefined : held(machine)) })
+    expect(pool.packagesHeld!('p', 'A-1')).toEqual({ machine: 'server', packages: [{ name: 'server', problems: [{ kind: 'probing' }] }] })
+    expect(pool.packagesHeld!('p', 'A-2')).toEqual({ packages: [{ name: 'own', problems: [{ kind: 'probing' }] }] })
+    expect(pool.packagesHeld!('p', 'A-3')).toEqual({ packages: [{ name: 'own', problems: [{ kind: 'probing' }] }] })
+    expect(pool.packagesHeld!('p')).toEqual({ packages: [{ name: 'own', problems: [{ kind: 'probing' }] }] })
+  })
+
   it('keeps the project\'s main, fix sessions and account reads on the own machine', async () => {
     const { pool } = poolOf()
     expect(await pool.head('p')).toBe('own')
