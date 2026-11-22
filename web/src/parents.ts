@@ -27,6 +27,25 @@ export function parentsTo(search: string, parent = ''): { search: string; hash: 
   return { search: next.toString(), hash: parent }
 }
 
+/** `?view=outside`: the open tasks the rules keep out of both the chain and the backlog (BTN-1428). */
+export const OUTSIDE_VIEW = 'outside'
+
+/** What the project's feed shows by the address; the parents only while the project has some. */
+export type FeedView = 'chain' | 'parents' | 'outside'
+
+export function feedView(search: string, anyParents: boolean): FeedView {
+  const view = new URLSearchParams(search).get(VIEW_PARAM)
+  if (view === OUTSIDE_VIEW) return 'outside'
+  return parentView(search, anyParents) ? 'parents' : 'chain'
+}
+
+/** The address of the "Outside the chain" view; no panel is open there. */
+export function outsideTo(search: string): { search: string; hash: string } {
+  const next = new URLSearchParams(search)
+  next.set(VIEW_PARAM, OUTSIDE_VIEW)
+  return { search: next.toString(), hash: '' }
+}
+
 /** The address of the chain view: the view parameter gone, the rest kept. */
 export function chainTo(search: string): { search: string; hash: string } {
   const next = new URLSearchParams(search)

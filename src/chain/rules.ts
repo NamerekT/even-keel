@@ -1,3 +1,4 @@
+import type { OutsideTask } from '../state.js'
 import { type StatusCategory, type TaskMilestone, type TaskStatus, type TextEdit } from '../tracker/model.js'
 
 export interface ChainRules {
@@ -97,6 +98,18 @@ export function ownsMilestone(rules: Pick<ChainRules, 'requiredMilestones' | 'ex
   const name = task.milestone?.label
   if (name !== undefined && listed(rules.excludedMilestones, name)) return false
   return rules.requiredMilestones.length === 0 || (name !== undefined && listed(rules.requiredMilestones, name))
+}
+
+/**
+ * Why an open task stays out of both the chain and the backlog (BTN-1428), the first of an excluding label, a milestone
+ * the rules leave out and a status they count as closed; `null` — the chain or the backlog takes it.
+ */
+export function outsideReason(rules: ChainRules, task: { status: TaskStatus; labels: string[]; milestone: TaskMilestone | null }): Omit<OutsideTask, 'task'> | null {
+  const label = task.labels.find((each) => listed(rules.excludedLabels, each))
+  if (label !== undefined) return { reason: 'label', label }
+  if (!ownsMilestone(rules, task)) return { reason: 'milestone' }
+  if (isTerminal(rules, task.status)) return { reason: 'status' }
+  return null
 }
 
 /** No task, with a milestone or without one, is owned by both: two projects on one tracker project need it. */

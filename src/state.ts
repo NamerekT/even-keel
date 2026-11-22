@@ -113,6 +113,20 @@ export interface TaskHistory {
   sessions: SessionView[]
 }
 
+/**
+ * Why an open task is in neither the chain nor the backlog (BTN-1428): an excluding label, a milestone the rules leave
+ * out, or a status they count as closed. A task with several is filed under the first in this order.
+ */
+export type OutsideReason = 'label' | 'milestone' | 'status'
+
+/** A task of `outside/tasks` (BTN-1428). */
+export interface OutsideTask {
+  task: Task
+  reason: OutsideReason
+  /** The excluding label it carries, as the tracker spells it; only for `label`. */
+  label?: string
+}
+
 /** `archive/page` (BTN-1445): closed tasks of the project the state does not hold, the last closed first. */
 export interface ArchivePage {
   tasks: Task[]

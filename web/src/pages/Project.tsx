@@ -51,7 +51,7 @@ import { ChainList, type Adding } from './ChainList.js'
 import { CHATS_HASH, ChatsChip, ChatsPanel } from './ChatsPanel.js'
 import { useProjectChats } from './useProjectChats.js'
 import { FeedSwitch } from './FeedSwitch.js'
-import { chainCalls, parentBlocks, parentsTo, parentView } from '../parents.js'
+import { chainCalls, feedView, parentBlocks, parentsTo } from '../parents.js'
 import { BUILTIN } from '../../../src/builtin/model.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { emptyMilestones } from '../ui/addGhost.js'
@@ -86,6 +86,7 @@ import { useHotkey } from '../hotkeys/useHotkeys.js'
 import './project.css'
 
 const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).TaskCard }))
+const OutsideView = lazy(async () => ({ default: (await import('./OutsideView.js')).OutsideView }))
 const BadgeDialog = lazy(async () => ({ default: (await import('./BadgeDialog.js')).BadgeDialog }))
 const ProjectPackages = lazy(async () => ({ default: (await import('../tools/ProjectPackages.js')).ProjectPackages }))
 const CARD_PARAM = 'task'
@@ -101,8 +102,10 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const machine = machines.selected?.id
   const machineBlocks = useMemo(() => (machine === undefined ? blocks : machineChain(blocks, state, machines.cards, key, machine)), [blocks, state, machines.cards, key, machine])
   const parents = useMemo(() => parentBlocks(state, key), [state, key])
-  // The feed shows the chain or, by the address, the project's parents (BTN-1041); the panel follows what it shows.
-  const showParents = parentView(location.search, parents.length > 0)
+  // The feed shows the chain or, by the address, the project's parents (BTN-1041) or the tasks outside the chain and the
+  // backlog (BTN-1428); the panel follows the parents where they are shown, the chain otherwise.
+  const view = feedView(location.search, parents.length > 0)
+  const showParents = view === 'parents'
   const shown = showParents ? parents : blocks
   const entered = useRef<string | null>(null)
   // Once per arrival, so the cross keeps the panel closed; not where the panel would cover the whole page.
@@ -165,7 +168,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const flight = arrival.flight
   const selected = shown.find((block) => block.id === focus && !block.locked)
   const status = chainStatus(state.chain, key)
-  const switcher = parents.length === 0 ? undefined : <FeedSwitch parents={showParents} calls={chainCalls(blocks, status)} />
+  const switcher = <FeedSwitch view={view} parents={parents.length > 0} calls={chainCalls(blocks, status)} />
   const allBacklog = backlogTasks(state, key)
   const backlog = machine === undefined ? allBacklog : machineBacklog(allBacklog, state, machines.cards, key, machine)
   const backlogWorks = backlogWork(state, key)
@@ -260,7 +263,11 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         {blocks.length > 0 && order === undefined && <TrackerDown project={key} tracker={tracker} />}
         <FeedsDown state={state} project={key} />
         <TermsRefused state={state} project={key} />
-        {showParents ? (
+        {view === 'outside' ? (
+          <Suspense fallback={null}>
+            <OutsideView key={`outside-${key}`} project={key} switcher={feedSwitcher} onCard={openCard} />
+          </Suspense>
+        ) : showParents ? (
           // The parents are out of the chain's order: no ghosts, no moves, no buttons that put a task in or out of the chain.
           <ChainList
             key={`parents-${key}`}

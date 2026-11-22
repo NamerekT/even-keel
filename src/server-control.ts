@@ -341,9 +341,15 @@ export interface ServerDeps {
   launches: () => unknown
   /**
    * What the state leaves out (BTN-1256): the whole event log, a task's every run and session, and a page of the
-   * project's closed tasks past `after` (BTN-1445), paged until `focus` is among them where one is given.
+   * project's closed tasks past `after` (BTN-1445), paged until `focus` is among them where one is given, and the open
+   * tasks the rules keep out of both the chain and the backlog (BTN-1428).
    */
-  history?: { events(): unknown; task(task: string): unknown; archive?(project: string, after: string | null, focus?: string): Promise<unknown> }
+  history?: {
+    events(): unknown
+    task(task: string): unknown
+    archive?(project: string, after: string | null, focus?: string): Promise<unknown>
+    outside?(project: string): Promise<unknown>
+  }
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */
   transcript: (sessionId: string, after: number) => Promise<unknown>

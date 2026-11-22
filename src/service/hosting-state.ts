@@ -4,6 +4,7 @@ import { AGENTS } from '../agent/adapters.js'
 import { outdatedDaemonView } from '../agent/versions.js'
 import { archivedShown } from '../chain/archive.js'
 import { archivePage } from '../chain/archive-pages.js'
+import { outsideTasks } from '../chain/outside.js'
 import { fallbacksSince, fixEpisodes, launchDays, taskSessions, type TaskSession } from '../chain/launches.js'
 import { spentLimit } from '../chain/limitNotice.js'
 import { ciViews } from '../ci/wiring.js'
@@ -13,7 +14,7 @@ import { dictationSettings } from '../dictation/transcribe.js'
 import { gitSetup } from '../git/setup.js'
 import { hulyClient } from '../huly/client.js'
 import { stepJobs } from '../jobs/runner.js'
-import type { ArchivePage, EvenKeelState, SessionView, TaskHistory } from '../state.js'
+import type { ArchivePage, EvenKeelState, OutsideTask, SessionView, TaskHistory } from '../state.js'
 import { isOpen, type Task } from '../tracker/model.js'
 import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runOf } from './demo.js'
@@ -187,6 +188,19 @@ export function archiveOf(ctx: HostingContext, project: string, after: string | 
     project,
     after,
     focus,
+  )
+}
+
+/** `outside/tasks`: the project's open tasks the rules keep out of both the chain and the backlog (BTN-1428). */
+export function outsideOf(ctx: HostingContext, project: string): Promise<OutsideTask[]> {
+  return outsideTasks(
+    {
+      readers: (id) => readerIds(ctx.configStore.current, id),
+      linkOf: ctx.linkOf,
+      rulesOf: ctx.readerRules,
+      milestoneOrder: (id) => ctx.configStore.current.settings[id]?.milestoneOrder ?? [],
+    },
+    project,
   )
 }
 

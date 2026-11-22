@@ -304,6 +304,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 270 | [A colour mark without a colour in a Huly text](unverified/trackers.md#a-colour-mark-without-a-colour-in-a-huly-text-btn-1450) | projects on Huly or importing from it with text once coloured | `<span style="color: null">` stays in a text, or a card's mention or picture link leads elsewhere; remove the tag by hand | — |
 | 271 | [The import plan's read stopped by its window's close](unverified/trackers.md#the-import-plans-read-stopped-by-its-windows-close-btn-1453) | projects importing from Huly, GitHub or Linear | the plan's reads go on in the log after the window closed, or a new window shows the old read; wait for the read's end in the log, then open the window again | — |
 | 272 | [Files of the phone's sheet without the camera in Chrome on Android](unverified/page.md#files-of-the-phones-sheet-without-the-camera-in-chrome-on-android-btn-1421) | anyone attaching a file in a chat from Chrome on Android | Files still shows the camera menu, or the file manager greys out some files; attach a picture through Photos | BTN-1487 |
+| 273 | [The tasks outside the chain read by status categories](unverified/trackers.md#the-tasks-outside-the-chain-read-by-status-categories-btn-1428) | anyone opening "Outside the chain" on the project page | a task the rules keep out is missing from the view, or its read is slow; open the task by its address | BTN-1488 |
 
 ### Waiting for the event / not checked by choice
 

@@ -68,6 +68,10 @@ The backlog panel shows a task's provider and model next to its key when its car
 
 A long backlog shows its first 50 tasks and a **More** button for the next 50.
 
+### Outside the chain
+
+The crossed-out eye in the switch above the chain shows the open tasks that are neither in the chain nor in the backlog: those with an excluding label (such as `Manual`), those in a milestone the project's rules leave out, and those in a status the rules count as closed while the tracker still has it open. They are grouped by that reason and, inside a group, by milestone; a task with several reasons goes under the first in that order. Canceled tasks are not shown. The milestone group starts folded, since it is mostly old milestones' leftovers, and the page remembers which groups you folded, per project on this device. A group shows 50 tasks and then **Show more**. A row only opens the task's card: to bring a task into the chain, take its label off or change its milestone there. The view reads the tracker each time you open it.
+
 ## Notices and warnings
 
 Notices under the header stay with it as you scroll, with a dividing line between them. The project settings panel leaves room for them and keeps its save button in view.
