@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AccountStatus } from '../account/model.js'
 import { vendorOf } from '../agent/model-slots.js'
@@ -53,6 +53,7 @@ export function keyVendor(key: string): 'anthropic' | 'openai' | 'openrouter' {
 export function writeKey(dir: string, key: string, provider: string = keyVendor(key)): void {
   mkdirSync(join(dir, 'data', 'opencode'), { recursive: true })
   writeFileSync(authFile(dir), JSON.stringify({ [provider]: { type: 'api', key } }, null, 2))
+  authKept.delete(authFile(dir))
   keepOwnInstructions(dir)
 }
 
@@ -61,6 +62,7 @@ export function replaceKey(dir: string, key: string): void {
   const auth = readAuth(dir)
   const provider = consoleKey(auth)?.provider ?? keyVendor(key)
   writeFileSync(authFile(dir), JSON.stringify({ ...credentials(auth), [provider]: { type: 'api', key } }, null, 2))
+  authKept.delete(authFile(dir))
 }
 
 /** Console keys have no distinct prefix; the saved provider, including legacy Zen, is authoritative. */
@@ -75,9 +77,10 @@ export function consoleKey(auth: string | undefined): { provider: 'opencode-go' 
 
 /** The first API key of `auth.json`; `null` for a folder signed in otherwise or not at all. */
 export function keyOf(dir: string): string | null {
-  const console = consoleKey(readAuth(dir))
+  const auth = readAuth(dir)
+  const console = consoleKey(auth)
   if (console !== null) return console.key
-  for (const credential of Object.values(credentials(readAuth(dir)))) {
+  for (const credential of Object.values(credentials(auth))) {
     if (credential.type === 'api' && typeof credential.key === 'string' && credential.key !== '') return credential.key
   }
   return null
@@ -106,10 +109,27 @@ export function folderVendor(dir: string): string {
   return vendorOf(Object.keys(credentials(readAuth(dir))))
 }
 
+/**
+ * `auth.json` by its path as last read, kept while its size and time stay (BTN-1475): the machine's facts ask it of
+ * every OpenCode folder several times a computation. OpenCode's own writes change the time; ours drop the entry.
+ */
+const authKept = new Map<string, { mtimeMs: number; size: number; text: string }>()
+
 export function readAuth(dir: string): string | undefined {
+  const file = authFile(dir)
   try {
-    return readFileSync(authFile(dir), 'utf8')
+    const stat = statSync(file, { throwIfNoEntry: false })
+    if (stat === undefined) {
+      authKept.delete(file)
+      return undefined
+    }
+    const held = authKept.get(file)
+    if (held !== undefined && held.mtimeMs === stat.mtimeMs && held.size === stat.size) return held.text
+    const text = readFileSync(file, 'utf8')
+    authKept.set(file, { mtimeMs: stat.mtimeMs, size: stat.size, text })
+    return text
   } catch {
+    authKept.delete(file)
     return undefined
   }
 }

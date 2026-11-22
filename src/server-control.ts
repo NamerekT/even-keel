@@ -312,9 +312,10 @@ export interface ServerDeps {
   demo?: { start(language?: Language): Promise<unknown>; again(language?: Language): Promise<unknown>; remove(): Promise<void> }
   /**
    * Brings the hub's mirror of its machine up to date before a command or a query runs: they refuse by what the mirror
-   * says of a session (`docs/machines.md`, "The mirror"). Absent — nothing to catch up with.
+   * says of a session (`docs/machines.md`, "The mirror"). Absent — nothing to catch up with. `whole` — a command: the
+   * machine reads its facts anew even when its last read is fresh (BTN-1475).
    */
-  catchUp?: () => Promise<void>
+  catchUp?: (whole?: boolean) => Promise<void>
   hub: EventHub
   publicDir: string
   getState: () => unknown

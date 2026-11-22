@@ -174,12 +174,12 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     agreedFor = signature
   }
 
-  const catchUp = async (): Promise<void> => {
+  const catchUp = async (whole = false): Promise<void> => {
     try {
       await agree()
       if (end.status().state !== 'online') return
       await briefs.send()
-      await runner.publish()
+      await (whole ? runner.publish() : runner.refresh())
       await end.flushed()
     } catch (error) {
       log(`machine: the hub could not catch up with its own machine: ${messageOf(error)}`)

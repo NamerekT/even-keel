@@ -173,24 +173,25 @@ export interface MachinePort {
   accountsRead: () => boolean
   /**
    * Snapshot. The project's set of packages has a problem that holds its sessions (BTN-174): installing, no answer
-   * yet, or the gateway down. The chain waits and the page says so (BTN-657).
+   * yet, or the gateway down. The chain waits and the page says so (BTN-657). With `task` — on the machine that runs it.
    */
-  packagesBlocked: (project: string) => boolean
+  packagesBlocked: (project: string, task?: string) => boolean
   /**
    * Snapshot. A package of the set needs the user: not installed, failed to install or lacks a key
    * (`chain.packagesNotReady`, BTN-657). The chain pauses on it, except for a fix session of a red main, and goes on by
-   * itself once it is fixed.
+   * itself once it is fixed. With `task` — on the machine that runs it.
    */
-  packagesPause: (project: string) => Notice | undefined
+  packagesPause: (project: string, task?: string) => Notice | undefined
   /** Snapshot. The server of the project's tracker that no installed package brings; `undefined` — one does. */
   trackerMissing: (project: string) => string | undefined
 
   /**
    * Brings the snapshot members up to the machine's state now, before a step of the chain reads them: the port over the
    * link has the machine in this process post what changed (`docs/machines.md`, "The mirror"). Absent — the members
-   * read the machine itself, or a machine elsewhere whose mirror is as fresh as its last event.
+   * read the machine itself, or a machine elsewhere whose mirror is as fresh as its last event. Facts read under
+   * `FRESH_MS` ago with no change told since are taken as they are, unless `whole` (a person's command, BTN-1475).
    */
-  catchUp?: () => Promise<void>
+  catchUp?: (whole?: boolean) => Promise<void>
 
   /**
    * Command. The moves of a task's session (limit, checkpoint, answer, handoff, paid usage) made by the machine

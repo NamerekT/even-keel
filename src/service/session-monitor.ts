@@ -48,6 +48,7 @@ export function wireMonitor(ctx: MachineContext, sessionWindows: [string, number
     return project === undefined ? undefined : projectLabel(ctx.configStore.current, project)
   }
   const turns = new TurnEnds()
+  let agentsBefore: string | undefined
   return new SessionMonitor({
     agentOf: ctx.agentOf,
     homes: () => ctx.homes.list(),
@@ -63,6 +64,10 @@ export function wireMonitor(ctx: MachineContext, sessionWindows: [string, number
     intervalMs: ctx.SESSION_POLL_MS,
     onAgents: (list) => {
       const before = JSON.stringify(ctx.account.view.loginBlock)
+      // The facts' busy, mid-turn and live sessions come from this list: a change of it is told (BTN-1475).
+      const listed = JSON.stringify(list)
+      const agentsChanged = listed !== agentsBefore
+      agentsBefore = listed
       ctx.agents = list
       ctx.keySpend.observe(list.flatMap((agent) => (agent.account === undefined ? [] : [{ account: agent.account, sessionId: agent.sessionId, busy: agent.status === 'busy' || agent.status === 'shell' }])))
       // Every tick, not only on a change of the views: a session in the task's folder may have none (BTN-616).
@@ -73,7 +78,7 @@ export function wireMonitor(ctx: MachineContext, sessionWindows: [string, number
         if (launched !== undefined) ctx.writes.add(`the push of ${launched.task}`, pushOf(ctx, launched.project, launched.task, agent.cwd, true))
       }
       ctx.approvals.settle(new Set(list.filter((agent) => agent.status === 'waiting').map((agent) => agent.sessionId)))
-      if (JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.machineChanged()
+      if (agentsChanged || JSON.stringify(ctx.account.view.loginBlock) !== before) ctx.machineChanged()
     },
     onChange: (views) => {
       for (const view of views) {

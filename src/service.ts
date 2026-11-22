@@ -621,7 +621,8 @@ function steer(task: string, session: HandoffSession, prompt: string): Promise<b
 
 const { mailRelay, answerSession } = createChat({
   dispatcher,
-  catchUp: async () => machineLink.port.catchUp?.(),
+  // A reply acts on what the session is doing now: read whole, never a fresh enough mirror.
+  catchUp: async () => machineLink.port.catchUp?.(true),
   mailbox,
   configuredProject,
   liveView: (task) => machineLink.page.liveView(task),
