@@ -65,3 +65,15 @@ export const ATTACH_SOURCES: readonly AttachSource[] = [
   { id: 'photos', accept: 'image/*,video/*', multiple: true },
   { id: 'files', multiple: true },
 ]
+
+/**
+ * The sheet's tiles for a browser. Chromium on Android (`SelectFileDialog`) adds Camera and Camera Video to its chooser
+ * when `accept` is empty or names an image or video type, so the sheet's Files gets `application/octet-stream`: that
+ * type names neither, and as Chromium's "generic" type it lifts every filter of the file manager, so pictures and
+ * videos stay pickable there. Firefox on Android would filter by it, and other browsers are not checked: they keep
+ * the plain input.
+ */
+export function sheetSources(userAgent: string): readonly AttachSource[] {
+  if (!/Android/.test(userAgent) || !/Chrome\//.test(userAgent)) return ATTACH_SOURCES
+  return ATTACH_SOURCES.map((source) => (source.id === 'files' ? { ...source, accept: 'application/octet-stream' } : source))
+}

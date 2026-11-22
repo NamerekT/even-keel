@@ -5,7 +5,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { CameraIcon, CloseIcon, FileUpIcon, PasteIcon, PhotoIcon, PlusIcon, StartIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { clipboardPictures, clipboardReader } from './chatFiles.js'
-import { ATTACH_SOURCES, shortStem, syncUrls, tileOf, type AttachSource, type AttachSourceId } from './fileTiles.js'
+import { ATTACH_SOURCES, sheetSources, shortStem, syncUrls, tileOf, type AttachSource, type AttachSourceId } from './fileTiles.js'
 import { MediaViewer, type Media } from './MediaViewer.js'
 import './composerFiles.css'
 import './media.css'
@@ -109,7 +109,7 @@ function AttachSheet({ onPick, onClose }: { onPick: (files: File[]) => void; onC
           </button>
         </header>
         <div className="attach-sheet__tiles">
-          {ATTACH_SOURCES.map((source) => (
+          {sheetSources(navigator.userAgent).map((source) => (
             <label key={source.id} className="attach-sheet__tile">
               <span className="attach-sheet__icon">{ICONS[source.id]}</span>
               {text[source.id]}

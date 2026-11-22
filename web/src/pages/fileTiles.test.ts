@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { ATTACH_SOURCES, shortStem, syncUrls, tileOf } from './fileTiles.js'
+import { ATTACH_SOURCES, sheetSources, shortStem, syncUrls, tileOf } from './fileTiles.js'
 
 const file = (name: string, type = '') => new File(['x'], name, { type })
 
@@ -42,4 +42,20 @@ it('opens the camera, the gallery of photos and videos, and any file', () => {
     { id: 'photos', accept: 'image/*,video/*', multiple: true },
     { id: 'files', multiple: true },
   ])
+})
+
+const ANDROID_CHROME = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36'
+const ANDROID_FIREFOX = 'Mozilla/5.0 (Android 15; Mobile; rv:145.0) Gecko/145.0 Firefox/145.0'
+const IPHONE_CHROME = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/142.0.0.0 Mobile/15E148 Safari/604.1'
+
+it('gives Files of the sheet a generic type in Chromium on Android, so it opens the file manager without the camera', () => {
+  const files = sheetSources(ANDROID_CHROME).find((source) => source.id === 'files')
+  expect(files).toEqual({ id: 'files', accept: 'application/octet-stream', multiple: true })
+  expect(sheetSources(ANDROID_CHROME).filter((source) => source.id !== 'files')).toEqual(ATTACH_SOURCES.filter((source) => source.id !== 'files'))
+})
+
+it('leaves the sheet as it is outside Chromium on Android', () => {
+  expect(sheetSources(ANDROID_FIREFOX)).toEqual(ATTACH_SOURCES)
+  expect(sheetSources(IPHONE_CHROME)).toEqual(ATTACH_SOURCES)
+  expect(sheetSources('')).toEqual(ATTACH_SOURCES)
 })
