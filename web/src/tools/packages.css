@@ -118,24 +118,34 @@
 /* A group by source: its head, then the rows split by lines. */
 
 .packages__group {
+  container-type: inline-size;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
 }
 
+/* Its words never break inside: a long source's name pushes the column's label onto a line of its own (BTN-1485). */
 .packages__group-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
+  gap: 2px 8px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-muted);
   border-radius: var(--radius) var(--radius) 0 0;
 }
 
+.packages__group-head > * {
+  white-space: nowrap;
+}
+
 .packages__group-title {
+  min-width: 0;
+  overflow: hidden;
   font-size: var(--text-13);
   font-weight: 600;
+  text-overflow: ellipsis;
 }
 
 .packages__group-note,
@@ -277,6 +287,39 @@
 .packages__probing {
   display: inline-flex;
   cursor: help;
+}
+
+/*
+ * A narrow group (a phone): the version goes under the name and the controls stand beside both, so a row with
+ * "Update" and a switch keeps its whole name and its "→ latest" (BTN-1485).
+ */
+@container (max-width: 520px) {
+  .packages__line-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 8px;
+    padding-block: 6px;
+  }
+
+  .packages__name {
+    grid-area: 1 / 1;
+    justify-self: start;
+    max-width: 100%;
+  }
+
+  .packages__meta {
+    grid-area: 2 / 1;
+    padding-left: 20px;
+  }
+
+  .packages__meta:empty {
+    display: none;
+  }
+
+  .packages__aside {
+    grid-area: 1 / 2 / 3 / 3;
+    margin-left: 0;
+  }
 }
 
 /* "N more" under a group: the other trackers' plugins. */
@@ -433,6 +476,24 @@
 
 .packages__key-form .packages__input {
   width: min(100%, 260px);
+}
+
+/* The catalog's head on a narrow form: the buttons go under the title rather than squeeze it into two lines (BTN-1485). */
+@container (max-width: 600px) {
+  .packages > .settings__heading {
+    flex-wrap: wrap;
+    row-gap: var(--space-8);
+  }
+
+  .packages > .settings__heading > .settings__heading-aside {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .packages__head-actions {
+    display: flex;
+    justify-content: flex-start;
+  }
 }
 
 /* The project's packages over its page: wider than the add dialog, the whole screen on a narrow one. */
