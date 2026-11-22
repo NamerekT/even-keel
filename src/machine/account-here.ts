@@ -33,10 +33,13 @@ export function briefAccounts(folders: readonly FolderHere[]): Record<string, Br
 /**
  * The folder of this machine that runs what the hub's folder `key` runs (`docs/machines.md`, "The pool"): the one of
  * the same name when it is of the same account, else a full sign-in of that account, else a long token of it; `null` —
- * none here. The key as it is when the hub told nothing that names the account.
+ * none here. When the hub told nothing that names the account, the folder of the same name (and agent, if told) or
+ * `null` (BTN-1512): a key with no folder here is the account absent from this machine, not a folder to switch from.
  */
 export function folderHere(wanted: BriefAccount | undefined, key: string, folders: readonly FolderHere[]): string | null {
-  if (wanted === undefined || (wanted.account === undefined && wanted.email === null)) return key
+  if (wanted === undefined || (wanted.account === undefined && wanted.email === null)) {
+    return folders.some((folder) => folder.key === key && (wanted === undefined || folder.agent === wanted.agent)) ? key : null
+  }
   const own = folders.filter((folder) => folder.agent === wanted.agent)
   const email = wanted.email?.toLowerCase()
   const signedIn = (folder: FolderHere) =>

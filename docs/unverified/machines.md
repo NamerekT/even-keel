@@ -223,6 +223,8 @@ Assumed: the hub reads the claude.ai account of each of its Claude folders (`oau
 
 To check, on the benches: a project of width 2 with the hub and machine-1 in its pool, the hub's Claude account signed in on machine-1 on a long token (folder `token`); start the chain and see a task start on machine-1 in that folder with no pause. Then remove the token folder on machine-1 and start two tasks: the hub runs one, machine-1's lane stays free, the project is not paused; with the hub out of the pool the lane pauses with "The project's account … is not signed in on machine machine-1" and its "Add account" opens the window with machine-1 picked.
 
+A hub folder the brief tells nothing of (a long token with no `sameAs`) is found on a machine only by its name since BTN-1512: the `0.4.0-rc.1` check (BTN-1441, `docker-rc`) paused with `account.activeGone` when the machine's folder had another name. To check it: such a hub folder, the machine signed in under another folder name, the hub out of the pool — the lane pauses with `machines.accountAbsent` and "Add account" for that machine, not "the active account folder … is gone".
+
 ## A task's session on a machine elsewhere in its chain row (BTN-1314)
 
 `docs/machines.md`, "The mirror". `src/machine/page.test.ts` covers reading the sessions of several mirrors, `src/service/machine-network.test.ts` a machine elsewhere's sessions read from its mirror over HTTPS on loopback, and `dev:fake` `?chain=elsewhere` the row and the panel of such a task; no e2e scenario runs a second machine, so the page never showed a live session of one.

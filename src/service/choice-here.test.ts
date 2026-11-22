@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseConfig } from '../config.js'
+import { folderHere, type FolderHere } from '../machine/account-here.js'
 import type { TaskRun } from '../sessions/runs.js'
 import { wireChoiceFor, wirePlanFor, type ChoiceContext } from './accounts.js'
 
@@ -26,6 +27,12 @@ describe('the launch choice on a machine (BTN-1311)', () => {
 
   it('names the hub\'s folder as absent and no folder here when the machine has none of its account', () => {
     const choiceFor = wireChoiceFor(machine(() => null, { main: 'claude' }))
+    expect(choiceFor(undefined)).toMatchObject({ provider: 'claude', account: '', absent: 'main' })
+  })
+
+  it('names the hub\'s folder as absent when the brief tells nothing of it and no folder of its name is here (BTN-1512)', () => {
+    const folders: FolderHere[] = [{ key: 'jane', agent: 'claude', signed: 'account-2', email: 'jane.doe@example.com' }]
+    const choiceFor = wireChoiceFor(machine((key) => folderHere(undefined, key, folders), { jane: 'claude' }))
     expect(choiceFor(undefined)).toMatchObject({ provider: 'claude', account: '', absent: 'main' })
   })
 
