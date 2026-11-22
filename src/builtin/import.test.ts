@@ -516,6 +516,29 @@ describe('the import into the built-in tracker', () => {
     expect(await store.comments(key(3))).toHaveLength(3)
   })
 
+  it("stops the plan's read when its window closes: the tracker is asked nothing more, the next window reads anew (BTN-1453)", async () => {
+    const fake = fakeSource()
+    const { service, opens } = imports({ ...fake.source, parallel: 1 })
+    let release = () => {}
+    fake.state.gate = new Promise((resolve) => (release = resolve))
+    const asked = service.plan(ABC).catch((error: unknown) => error)
+    for (let wait = 0; wait < 400 && !fake.reads.includes('r3'); wait += 1) await new Promise((resolve) => setTimeout(resolve, 5))
+    expect(service.stopPlan(ABC)).toEqual({ stopped: true })
+    expect((await service.state(ABC)).planning).toBeNull()
+    release()
+    fake.state.gate = null
+    expect(((await asked) as NoticeError).notice.code).toBe('import.planStopped')
+    // ABC-3 was asked before the close; ABC-5 is not asked after it.
+    expect(fake.reads.filter((ref) => ref === 'r5')).toEqual([])
+    expect(service.stopPlan(ABC)).toEqual({ stopped: false })
+    expect((await service.plan(ABC)).counts.tasks).toBe(2)
+    expect(opens.count).toBe(2)
+    // A plan read through stays past a close.
+    expect(service.stopPlan(ABC)).toEqual({ stopped: false })
+    await service.plan(ABC)
+    expect(opens.count).toBe(2)
+  })
+
   it('counts the tasks an author created apart from the changes', async () => {
     const { service } = imports(fakeSource().source)
     const plan = await service.plan(ABC)

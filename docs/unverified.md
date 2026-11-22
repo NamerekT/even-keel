@@ -302,6 +302,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 268 | [The kept `claude agents` answer on a hand resume](unverified/sessions.md#the-kept-claude-agents-answer-on-a-hand-resume-btn-1478) | Claude `--bg` sessions resumed outside Even Keel, or whose state changes without a roster or steady-state change | the page shows the session's state up to 30 s late | — |
 | 269 | [An overloaded Huly asked again in the import](unverified/trackers.md#an-overloaded-huly-asked-again-in-the-import-btn-1460) | projects importing from a busy Huly server | the plan is refused with the raw error and no word of an overload, or a run stops at once on a refusal that passes by itself; press "Read again" or "Continue" after a couple of minutes | — |
 | 270 | [A colour mark without a colour in a Huly text](unverified/trackers.md#a-colour-mark-without-a-colour-in-a-huly-text-btn-1450) | projects on Huly or importing from it with text once coloured | `<span style="color: null">` stays in a text, or a card's mention or picture link leads elsewhere; remove the tag by hand | — |
+| 271 | [The import plan's read stopped by its window's close](unverified/trackers.md#the-import-plans-read-stopped-by-its-windows-close-btn-1453) | projects importing from Huly, GitHub or Linear | the plan's reads go on in the log after the window closed, or a new window shows the old read; wait for the read's end in the log, then open the window again | — |
 
 ### Waiting for the event / not checked by choice
 

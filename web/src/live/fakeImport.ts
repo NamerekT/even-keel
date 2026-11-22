@@ -58,6 +58,12 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
       const plan = () => planOf(tasks, choicesOf(body))
       return { state, result: left <= 0 ? plan() : new Promise((resolve) => setTimeout(() => resolve(plan()), left)) }
     }
+    case 'builtin/import/planStop': {
+      // The window closed mid-read (BTN-1453): the next window reads anew; a read that is through stays.
+      const stopped = planRead !== null && planRead + readMsOf(mode) * total > Date.now()
+      if (stopped) planRead = null
+      return { state, result: { stopped } }
+    }
     case 'builtin/import/start': {
       // The first start keeps the picks; "Continue" and "Repeat" go on with them.
       if (run === null) authors = choicesOf(body)

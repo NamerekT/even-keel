@@ -155,7 +155,7 @@ export const transferEn: Messages['transfer'] = {
     reading: (tracker) => `Reading the whole history of ${tracker}…`,
     planning: 'Read',
     planningTip: (tracker) => `The comments, changes and files of each task in ${tracker} are read to count them. Nothing is written yet.`,
-    planningNote: 'You can close the window: the read goes on in the service, and the window shows the same read when opened again.',
+    planningNote: 'Better keep the window open until the plan is read: closing it stops the read, and the next opening starts it anew.',
     readAgain: 'Read again',
     checking: 'Check',
     checkingTip: (tracker) => `Each task is read again from ${tracker} and counted against its copy here: its comments, changes, files and links.`,

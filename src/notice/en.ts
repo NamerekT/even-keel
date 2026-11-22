@@ -682,6 +682,8 @@ export const en = {
   // The plan's read after every retry of a transient refusal (BTN-1460); the last refusal is in the log only.
   'import.planBusy': (p: { tracker: string; tries: number }) =>
     `${p.tracker} was overloaded and refused the plan's read on all ${p.tries} tries. Nothing is written; press “Read again” in a couple of minutes.`,
+  // A window closed while the plan was read stops the read (BTN-1453): another window waiting on it hears this.
+  'import.planStopped': () => 'The plan\'s read stopped: its window was closed. Nothing is written; press “Read again” to read it anew.',
   'import.notFinished': () => 'The project can move to Even Keel\'s own tracker only after its import finished. Start the import, or let it finish.',
   // These three: the cause is where it stopped (`transfer.stop`), the detail the reason (BTN-1455).
   'import.failed': (p: { tracker: string }) => `The import from ${p.tracker} stopped. The project stays on ${p.tracker}; start the import again to go on from where it stopped.`,

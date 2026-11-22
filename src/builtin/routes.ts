@@ -86,6 +86,8 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
   'builtin/transfer': async (deps, body) => ({ report: await exports(deps).transfer(textOf(body.id, 'id')) }),
   // The import of the project's whole history from its tracker (BTN-1405); `authors` — the plan's choices.
   'builtin/import/plan': (deps, body) => imports(deps).plan(projectOf(body), authorsOf(body)),
+  // Sent as the window closes while its plan is read (BTN-1453).
+  'builtin/import/planStop': async (deps, body) => imports(deps).stopPlan(projectOf(body)),
   'builtin/import/start': (deps, body) => imports(deps).start(projectOf(body), authorsOf(body)),
   'builtin/import/state': (deps, body) => imports(deps).state(projectOf(body)),
   'builtin/import/switch': async (deps, body) => {

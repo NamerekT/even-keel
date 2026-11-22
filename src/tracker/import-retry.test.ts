@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ImportFile, ImportSource, ImportTask } from './import.js'
-import { retryingSource, SourceBusy, sourceBusy } from './import-retry.js'
+import { abortableSource, retryingSource, SourceBusy, sourceBusy } from './import-retry.js'
 import { errorText } from './error-text.js'
 
 const BUSY = 'sql: memory budget exceeded'
@@ -92,9 +92,37 @@ describe('retryingSource', () => {
     expect(retrying.milestoneGaps).toEqual(['closedAt'])
   })
 
+  it('asks no more once its signal is aborted, the pause cut short', async () => {
+    const source = flaky([new Error(BUSY), new Error(BUSY)])
+    const stop = new AbortController()
+    const reason = new Error('the window closed')
+    const asked = retryingSource(source, { pauses: [60_000, 60_000], say: () => {}, signal: stop.signal }).tasks()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    stop.abort(reason)
+    await expect(asked).rejects.toBe(reason)
+    expect(source.calls).toEqual(['tasks'])
+  })
+
   it('finds SourceBusy under the errors that wrap it', () => {
     const busy = new SourceBusy(4, new Error(BUSY))
     expect(sourceBusy(new Error('stop', { cause: busy }))).toBe(busy)
     expect(sourceBusy(new Error(BUSY))).toBeNull()
+  })
+})
+
+describe('abortableSource', () => {
+  it('asks the source nothing once its signal is aborted', async () => {
+    const source = flaky([])
+    const stop = new AbortController()
+    const abortable = abortableSource(source, stop.signal)
+    await abortable.tasks()
+    const reason = new Error('the window closed')
+    stop.abort(reason)
+    await expect(abortable.comments('t1')).rejects.toBe(reason)
+    await expect(abortable.files('t1')).rejects.toBe(reason)
+    await expect(abortable.changes!('t1')).rejects.toBe(reason)
+    await expect(abortable.milestones()).rejects.toBe(reason)
+    expect(source.calls).toEqual(['tasks'])
+    expect(abortable.parallel).toBe(3)
   })
 })

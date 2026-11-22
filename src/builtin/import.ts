@@ -6,7 +6,7 @@ import type { Db } from '../storage/database.js'
 import { distinctFiles, type ImportSource, type ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
 import { importPlan, type ImportAuthorChoice, type ImportPlan, type ImportPlanning, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
-import { retryingSource } from '../tracker/import-retry.js'
+import { abortableSource, retryingSource } from '../tracker/import-retry.js'
 import { errorText } from '../tracker/link.js'
 import { checkImport, checkMatched, sourceCounts, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
 import { atStage, stackOf, stopExtras } from '../tracker/transfer-stop.js'
@@ -66,7 +66,7 @@ export class BuiltinImports {
   private readonly say: (line: string) => void
   private readonly now: () => Date
   /** The project's tracker with each transient refusal asked again (BTN-1460): every read of the import goes through it. */
-  private readonly open: (project: string) => Promise<OpenedImportSource>
+  private readonly open: (project: string, signal?: AbortSignal) => Promise<OpenedImportSource>
 
   constructor(private readonly deps: BuiltinImportsDeps) {
     this.now = deps.now ?? (() => new Date())
@@ -74,9 +74,11 @@ export class BuiltinImports {
     this.reports = new TransferReports(deps.db)
     this.say = deps.say ?? ((line) => console.log(line))
     const retry = { say: this.say, ...(deps.retryPausesMs === undefined ? {} : { pauses: deps.retryPausesMs }) }
-    this.open = async (project) => {
+    // `signal` — the plan's read its window may stop (BTN-1453): neither a try nor a new ask goes after it.
+    this.open = async (project, signal) => {
       const opened = await deps.open(project)
-      return { ...opened, source: retryingSource(opened.source, retry) }
+      if (signal === undefined) return { ...opened, source: retryingSource(opened.source, retry) }
+      return { ...opened, source: retryingSource(abortableSource(opened.source, signal), { ...retry, signal }) }
     }
     this.plans = new PlanReads({ open: this.open, say: this.say, now: () => this.now().getTime(), ...(deps.planKeepMs === undefined ? {} : { keepMs: deps.planKeepMs }) })
   }
@@ -89,6 +91,14 @@ export class BuiltinImports {
     await this.checkEmpty(project)
     const read = await this.plans.get(project)
     return importPlan(read.source, read.counted, authors, read.milestones)
+  }
+
+  /**
+   * The window closed while its plan was read (BTN-1453): the read stops, the tracker is asked nothing more, and the
+   * next window reads anew. A plan read through stays kept; the start's read goes on.
+   */
+  stopPlan(project: string): { stopped: boolean } {
+    return { stopped: this.plans.stop(project) }
   }
 
   /** Starts the import, or goes on with one that stopped; answers at once, the import runs on. */

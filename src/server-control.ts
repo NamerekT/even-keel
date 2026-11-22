@@ -333,7 +333,7 @@ export interface ServerDeps {
   /** The copy of a built-in project's tasks into another tracker (BTN-1073) and the switch to it (BTN-1074); without it they are refused. */
   builtinExports?: Pick<BuiltinExports, 'plan' | 'start' | 'state' | 'switch' | 'retry' | 'transfers' | 'transfer'>
   /** The import of a project's whole history into the built-in tracker and the switch to it (BTN-1405); without it they are refused. */
-  builtinImports?: Pick<BuiltinImports, 'plan' | 'start' | 'state' | 'switch'>
+  builtinImports?: Pick<BuiltinImports, 'plan' | 'stopPlan' | 'start' | 'state' | 'switch'>
   /** The project chats (BTN-1230); without them their calls are refused. */
   chats?: import('./chats/chats.js').ProjectChats
   /** The chat microphone's recordings to text through LiteLLM (BTN-1391); without it `dictation/transcribe` is refused. */

@@ -2,7 +2,7 @@ import type { ImportMilestone, ImportSource } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
 import { countTasks, type CountedTask, type ImportPlanning } from '../tracker/import-plan.js'
 import { notice, NoticeError } from '../notice/notice.js'
-import { sourceBusy } from '../tracker/import-retry.js'
+import { abortableSource, sourceBusy } from '../tracker/import-retry.js'
 import { errorText } from '../tracker/link.js'
 
 /**
@@ -25,10 +25,13 @@ interface Entry {
   /** `planning` is `null` once the read is through. */
   progress: { planning: ImportPlanning | null }
   usedAt: number
+  /** The window's own read, which its close stops; the start's read has none. */
+  stop?: AbortController
 }
 
 export interface PlanReadsDeps {
-  open: (project: string) => Promise<OpenedImportSource>
+  /** `signal` aborted — the source sends nothing more, a pause between tries included. */
+  open: (project: string, signal?: AbortSignal) => Promise<OpenedImportSource>
   say: (line: string) => void
   now: () => number
   keepMs?: number
@@ -36,7 +39,7 @@ export interface PlanReadsDeps {
 
 /**
  * One read of a project's history for its import's plan (BTN-1452): a second ask while it goes waits for it, an ask
- * after it takes what it read for `PLAN_KEEP_MS`. A read that failed is not kept.
+ * after it takes what it read for `PLAN_KEEP_MS`. A read that failed is not kept, nor one its window's close stopped.
  */
 export class PlanReads {
   private readonly entries = new Map<string, Entry>()
@@ -73,9 +76,25 @@ export class PlanReads {
     return this.entries.get(project)?.progress.planning ?? null
   }
 
+  /**
+   * Stops the window's read going on (BTN-1453): its window closed. The tracker is asked nothing more, nothing is kept,
+   * and whoever waits on it hears `import.planStopped`. A read that is through and the start's read are left; `false` —
+   * there was no read to stop.
+   */
+  stop(project: string): boolean {
+    const entry = this.entries.get(project)
+    if (entry?.stop === undefined || entry.progress.planning === null) return false
+    this.entries.delete(project)
+    entry.progress.planning = null
+    this.deps.say(`import: ${project}: the plan's read is stopped, its window closed`)
+    entry.stop.abort(new NoticeError(notice('import.planStopped', {})))
+    return true
+  }
+
   private begin(project: string, given: OpenedImportSource | null): Promise<PlanRead> {
     const progress: Entry['progress'] = { planning: { done: 0, total: 0 } }
-    const entry: Entry = { read: this.read(project, given, progress), progress, usedAt: this.deps.now() }
+    const stop = given === null ? new AbortController() : undefined
+    const entry: Entry = { read: this.read(project, given, progress, stop?.signal), progress, usedAt: this.deps.now(), ...(stop === undefined ? {} : { stop }) }
     this.entries.set(project, entry)
     entry.read.then(
       () => {
@@ -83,7 +102,7 @@ export class PlanReads {
         entry.usedAt = this.deps.now()
       },
       (error: unknown) => {
-        this.deps.say(`import: ${project}: the plan's read stopped: ${errorText(error)}`)
+        if (stop?.signal.aborted !== true) this.deps.say(`import: ${project}: the plan's read stopped: ${errorText(error)}`)
         if (this.entries.get(project) === entry) this.entries.delete(project)
       },
     )
@@ -91,15 +110,17 @@ export class PlanReads {
   }
 
   /** Reads the history from `given`, left open, else from the project's tracker opened and closed for it. */
-  private async read(project: string, given: OpenedImportSource | null, progress: Entry['progress']): Promise<PlanRead> {
-    const opened = given ?? (await this.deps.open(project))
+  private async read(project: string, given: OpenedImportSource | null, progress: Entry['progress'], signal?: AbortSignal): Promise<PlanRead> {
+    const opened = given ?? (await this.deps.open(project, signal))
     try {
+      signal?.throwIfAborted()
       const started = this.deps.now()
       this.deps.say(`import: ${project}: the plan reads the whole history of ${opened.title}`)
-      const counted = await countTasks(opened.source, (done, total) => {
-        progress.planning = { done, total }
+      const source = signal === undefined ? opened.source : abortableSource(opened.source, signal)
+      const counted = await countTasks(source, (done, total) => {
+        if (signal?.aborted !== true) progress.planning = { done, total }
       })
-      const milestones = await opened.source.milestones()
+      const milestones = await source.milestones()
       this.deps.say(`import: ${project}: the plan read ${counted.length} tasks of ${opened.title} in ${Math.round((this.deps.now() - started) / 1000)} s`)
       const { changes, timeReports, milestoneGaps } = opened.source
       return {

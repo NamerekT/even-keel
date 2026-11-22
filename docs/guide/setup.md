@@ -312,6 +312,8 @@ To bring a project's tasks into the built-in tracker, open its **Settings** → 
 
 The window reads the whole project, closed tasks too, and counts what will move — tasks, comments, attachments, links, milestones, labels, components and changes — shows which status each of the tracker's statuses becomes, and lists what stays behind: links and parents in other projects, time reports, the change history where the tracker gives none, and the milestone fields it does not keep. Milestones move with their target date, status and description, those without tasks too; Linear's have no status and arrive planned, and a closed one without a closing time (Huly's) takes the time its last task closed.
 
+Keep the window open while it reads: on a big project that takes minutes, and closing the window, or leaving the page, stops the read, so the next opening starts it anew. Once the plan is read it is kept for half an hour, and once you press **Move** the window may be closed: the copy runs in the service.
+
 Under **Authors** each author of the tracker's tasks, comments and changes gets what it becomes here: the agent, you, or a person under their own name. **Tasks** counts the tasks the author created; their creation is not among the **Changes**, which count the change log as the plan's **Changes** do. Each starts as the tracker marks it; once the copy begins the choice stays.
 
 **Move** copies every task under its own number, with its status, parent, links, attachments, comments with their authors and dates, and the change log. Nothing changes in the tracker, and the chain keeps working with it while the copy runs.

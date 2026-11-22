@@ -99,6 +99,22 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
       live = false
     }
   }, [phase, project, planAsks])
+  // The window closed or the page left while the plan is read stops the read in the service (BTN-1453): a read that is
+  // through is kept there, the start's read goes on.
+  const readingNow = useRef(false)
+  readingNow.current = planReading
+  useEffect(() => {
+    const stop = () => {
+      if (!readingNow.current) return
+      readingNow.current = false
+      quiet('builtin/import/planStop', { project }, { keepalive: true }).catch(() => {})
+    }
+    window.addEventListener('pagehide', stop)
+    return () => {
+      window.removeEventListener('pagehide', stop)
+      stop()
+    }
+  }, [project])
   // The service read nothing it keeps: the new ask reads the source again, its meter showing meanwhile.
   const readPlanAgain = () => {
     setPlanRefusal(null)
@@ -190,13 +206,10 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
               </>
             )}
             {planning !== null && (planReading || phase === 'running') && (
-              <>
-                <Meter name={t.transfer.imports.planning} tip={t.transfer.imports.planningTip(tracker)} done={planning.done} total={planning.total} />
-                <p className="add-package__note">{t.transfer.imports.planningNote}</p>
-              </>
+              <Meter name={t.transfer.imports.planning} tip={t.transfer.imports.planningTip(tracker)} done={planning.done} total={planning.total} />
             )}
             {planning === null && checking === null && (phase === 'running' || phase === 'resume' || phase === 'finished') && <Progress exported={imported!} direction="import" />}
-            {planning === null && checking === null && phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
+            {checking === null && phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
             {checking !== null && (
               <>
                 <Meter name={t.transfer.imports.checking} tip={t.transfer.imports.checkingTip(tracker)} done={checking.done} total={checking.total} />
@@ -211,6 +224,7 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
             )}
             {check !== null && <TransferCheckTable check={check} direction="import" tracker={tracker} />}
           </Loading>
+          {planReading && <p className="add-package__note">{t.transfer.imports.planningNote}</p>}
         </div>
         {phase === 'resume' && stopped === null && (
           <p role="alert" className={`notice ${failed === null ? 'notice--warn' : 'notice--error'} add-package__failure`}>
