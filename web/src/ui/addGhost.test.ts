@@ -49,8 +49,14 @@ describe('what the made task gets', () => {
 })
 
 describe('emptyMilestones', () => {
+  const planned = (name: string) => ({ name, closed: false })
+
   it('lists the project milestones no task carries, in their order, ignoring case', () => {
-    expect(emptyMilestones(['v0.2', 'v0.3', 'v0.4'], ['V0.2', null, 'v0.2'])).toEqual(['v0.3', 'v0.4'])
+    expect(emptyMilestones([planned('v0.2'), planned('v0.3'), planned('v0.4')], ['V0.2', null, 'v0.2'])).toEqual(['v0.3', 'v0.4'])
     expect(emptyMilestones([], ['v0.2'])).toEqual([])
+  })
+
+  it('leaves out a closed milestone, completed or canceled: only an open one is an empty group (BTN-1462)', () => {
+    expect(emptyMilestones([{ name: 'v0.1', closed: true }, planned('v0.3'), { name: 'v0.2', closed: true }, planned('v0.4')], [])).toEqual(['v0.3', 'v0.4'])
   })
 })

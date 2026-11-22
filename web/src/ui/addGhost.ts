@@ -21,10 +21,19 @@ export const draftKey = (project: string, place: AddPlace): string => `${project
 const owns = (rules: MilestoneRules, milestone: string | null) =>
   ownsMilestone(rules, { milestone: milestone === null ? null : { label: milestone, targetDate: null } })
 
-/** The project's milestones that no task of it carries, in their order: each is an empty group of the chain. */
-export function emptyMilestones(milestones: readonly string[], used: readonly (string | null)[]): string[] {
+/** A milestone of the project; `closed` — completed or canceled. */
+export interface ProjectMilestone {
+  name: string
+  closed: boolean
+}
+
+/**
+ * The project's open milestones that no task of it carries, in their order: each is an empty group of the chain. A closed
+ * one never is: its closed tasks are in the archive (BTN-1462).
+ */
+export function emptyMilestones(milestones: readonly ProjectMilestone[], used: readonly (string | null)[]): string[] {
   const taken = new Set(used.flatMap((name) => (name === null ? [] : [name.toLocaleLowerCase()])))
-  return milestones.filter((name) => !taken.has(name.toLocaleLowerCase()))
+  return milestones.filter((each) => !each.closed && !taken.has(each.name.toLocaleLowerCase())).map((each) => each.name)
 }
 
 /**

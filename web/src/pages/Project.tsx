@@ -156,7 +156,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
     ? null
     : {
         rules: settings?.chain ?? DEFAULT_RULES,
-        empty: { names: emptyMilestones(milestones, [...ownTasks.map((task) => task.milestone?.label ?? null), ...blocks.map((block) => block.milestone)]), order: milestones },
+        empty: { names: emptyMilestones(milestones, [...ownTasks.map((task) => task.milestone?.label ?? null), ...blocks.map((block) => block.milestone)]), order: milestones.map((each) => each.name) },
         running: chainStatus(state.chain, key).kind === 'running',
       }
 
