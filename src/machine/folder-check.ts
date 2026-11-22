@@ -90,7 +90,16 @@ export async function checkFolderStep(deps: FolderCheckDeps, step: FolderStep, s
   const tracked = (await git(folder, ['rev-parse', '--verify', '--quiet', `refs/remotes/${remote.name}/${branch}`])).code === 0
   const source = tracked ? `refs/remotes/${remote.name}/${branch}` : `refs/heads/${branch}`
   const push = await git(folder, ['push', '--dry-run', '--porcelain', remote.name, `${source}:refs/heads/${branch}`])
-  return push.code === 0 ? null : notice('pool.noPush', { remote: remote.url }, { detail: push.out.trim() })
+  return push.code === 0 || behindOnly(push.out) ? null : notice('pool.noPush', { remote: remote.url }, { detail: push.out.trim() })
+}
+
+/**
+ * git refused the dry run only because the remote branch went ahead of the folder's copy (BTN-1513): git decides that
+ * after the forge answered the push, so the right to push is there.
+ */
+function behindOnly(out: string): boolean {
+  const refused = out.split('\n').filter((line) => line.startsWith('!'))
+  return refused.length > 0 && refused.every((line) => /\t\[rejected\] \((fetch first|non-fast-forward)\)\s*$/.test(line))
 }
 
 /** The folder a clone goes into: absent, or empty. */

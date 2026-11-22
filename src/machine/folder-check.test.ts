@@ -113,6 +113,19 @@ describe('checkFolderStep', () => {
     const refused = gitOf({ [REMOTES]: remotes[REMOTES]!, 'push --dry-run --porcelain origin refs/heads/trunk:refs/heads/trunk': { code: 128, out: 'denied\n' } })
     expect(await checkFolderStep(depsOf(refused), 'push', spec)).toMatchObject({ code: 'pool.noPush', params: { remote: 'https://forge.example.com/team/abc.git' }, detail: 'denied' })
   })
+
+  it('push: a remote branch gone ahead of the folder is a refusal by history, not of the right (BTN-1513)', async () => {
+    const remotes = { [REMOTES]: ok('remote.origin.url https://forge.example.com/team/abc.git\n'), 'rev-parse --verify --quiet refs/remotes/origin/trunk': ok('abc\n') }
+    const answer = (reason: string): GitResult => ({
+      code: 1,
+      out: `To https://forge.example.com/team/abc.git\n!\trefs/remotes/origin/trunk:refs/heads/trunk\t[rejected] (${reason})\nDone\nerror: failed to push some refs to 'https://forge.example.com/team/abc.git'`,
+    })
+    const key = 'push --dry-run --porcelain origin refs/remotes/origin/trunk:refs/heads/trunk'
+    expect(await checkFolderStep(depsOf(gitOf({ ...remotes, [key]: answer('fetch first') })), 'push', spec)).toBeNull()
+    expect(await checkFolderStep(depsOf(gitOf({ ...remotes, [key]: answer('non-fast-forward') })), 'push', spec)).toBeNull()
+    const declined: GitResult = { code: 1, out: 'To https://forge.example.com/team/abc.git\n!\trefs/remotes/origin/trunk:refs/heads/trunk\t[remote rejected] (protected branch hook declined)\nDone' }
+    expect(await checkFolderStep(depsOf(gitOf({ ...remotes, [key]: declined })), 'push', spec)).toMatchObject({ code: 'pool.noPush' })
+  })
 })
 
 describe('cloneTarget', () => {
