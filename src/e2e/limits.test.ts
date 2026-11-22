@@ -96,7 +96,8 @@ describe('limits end to end', { timeout: 60_000 }, () => {
   })
 
   it('after a restart, holds the next task until the first poll answers, and keeps it out of a spent window', async () => {
-    const reset = '2026-10-01T11:00:00.000Z'
+    // Close after the two three-minute holds: each minute of the service's time costs real time on a slow runner.
+    const reset = '2026-10-01T09:30:00.000Z'
     run.agent.windows = (_account, at) => (at < reset ? { fiveHour: hours(100, reset), sevenDay: week(40) } : { fiveHour: null, sevenDay: week(40) })
     run.board.add('ABC-1')
     run.agent.script('ABC-1', commitAndMerge())
