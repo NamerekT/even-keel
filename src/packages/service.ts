@@ -76,6 +76,8 @@ export interface PackagesDeps {
   log: (line: string) => void
   /** The view or what a project is held on changed. */
   onChange: () => void
+  /** The project has a chain running, not paused: its failing servers are asked again at least once a minute (BTN-1518). */
+  waited?: (project: string) => boolean
 }
 
 /** Packages of the projects (BTN-174): the catalog, each project's set, the pins of running tasks, the keys and the gateway. */
@@ -124,6 +126,7 @@ export class Packages {
       urlOf: (project, name, install, server) => (this.gateway.listening ? `${this.gateway.origin}${routeOf(project, name, install, server)}` : undefined),
       now: () => Date.now(),
       onChange: deps.onChange,
+      ...(deps.waited === undefined ? {} : { waited: deps.waited }),
     })
   }
 
@@ -630,7 +633,10 @@ export class Packages {
     this.deps.onChange()
   }
 
-  /** The profiles changed: a server that failed on their credentials is asked again at once, not after its backoff. */
+  /**
+   * The profiles changed, or a chain started or resumed (BTN-1518): a server that failed is asked again at once, not
+   * after its backoff.
+   */
   retryProbes(): void {
     this.probes.retry()
   }

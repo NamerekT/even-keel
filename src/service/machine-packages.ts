@@ -36,5 +36,6 @@ export function wireMachinePackages(ctx: MachineContext): Packages {
     port: ctx.mcpPort,
     log: (line) => console.log(line),
     onChange: () => ctx.machineChanged(),
+    waited: (project) => ctx.brief.active().some((chain) => chain.project === project && !chain.paused),
   })
 }

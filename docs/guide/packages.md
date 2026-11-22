@@ -79,7 +79,7 @@ OpenCode sessions get the MCP servers and a plugin's skills, plus hooks from plu
 
 Huly refuses descriptions and comments whose inline code is inside another formatting mark, and shows the estimate calibration when setting an estimate, with one refusal and a retry when the estimate disagrees with the data.
 
-The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
+The chain does not start a task while a package of its project is not installed, lacks a key or does not answer. A server that does not answer is asked again by itself: while the project's chain runs, at least once a minute, and at once when you start or resume the chain.
 
 Nor does it start a Codex task when Codex would not run a plugin's hooks (it checks that it trusts them first, and a new Codex version may change how): the session would go without the check before a merge and the context reminders.
 

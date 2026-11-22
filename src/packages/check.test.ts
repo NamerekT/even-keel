@@ -287,4 +287,38 @@ describe('Probes', () => {
     now += 31_000
     await asks(5)
   })
+
+  it('lifts the block of a waiting chain without a restart once a server that failed for an hour answers (BTN-1518)', async () => {
+    let mode: 'refused' | 'ok' = 'refused'
+    let asked = 0
+    server = createServer((_req, res) => {
+      asked++
+      if (mode === 'ok') res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":0,"result":{}}')
+      // The hub refuses a machine outside the project's pool.
+      else res.writeHead(403).end()
+    })
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve))
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/mcp`
+    let now = 0
+    let waited = false
+    const probes = new Probes({ urlOf: () => url, now: () => now, onChange: () => {}, waited: () => waited, timeoutMs: 1_000 })
+    const blocked = () => projectPackages(input({ probe: (name, id, server) => probes.result('p-1', name, id, server) })).blocked
+    const result = () => probes.result('p-1', 'huly@even-keel', 'i1', 'huly')
+    // Out of the pool for long: the failures in a row reach the hour's wait.
+    for (const step of [0, 31_000, 61_000, 2 * 60_000 + 1_000, 5 * 60_000 + 1_000, 15 * 60_000 + 1_000, 30 * 60_000 + 1_000, 60 * 60_000 + 1_000]) {
+      now += step
+      const before = asked
+      await expect.poll(() => (result(), asked), { timeout: 5_000, interval: 25 }).toBe(before + 1)
+      await expect.poll(result, { timeout: 5_000, interval: 25 }).toBe(false)
+    }
+    expect(blocked()).toBe(true)
+    mode = 'ok'
+    now += 61_000
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect((result(), asked)).toBe(8)
+    // The project's chain runs and waits on the server: it is asked within a minute, however long it failed.
+    waited = true
+    await expect.poll(blocked, { timeout: 5_000, interval: 25 }).toBe(false)
+    expect(asked).toBe(9)
+  }, 30_000)
 })

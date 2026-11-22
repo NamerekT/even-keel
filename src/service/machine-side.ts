@@ -53,6 +53,8 @@ export interface MachineSide {
 }
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+/** The projects of a brief's chains that run, not paused. */
+const running = (active: { project: string; paused: boolean }[]): string[] => active.filter((chain) => !chain.paused).map((chain) => chain.project)
 
 /**
  * The machine's end of the link (`docs/machines.md`): its port behind `MachineRunner`, talking to a hub through
@@ -166,9 +168,12 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       const first = !machine.brief.received
       const changed = !sameJson(brief, machine.brief.whole)
       const consentBefore = machine.brief.cliConsent()
+      const runningBefore = running(machine.brief.active())
       machine.brief.take(brief)
       // The hub's consent to a checked copy is the machine's too (BTN-1516): a copy it now may fetch starts at once.
       if (!sameJson(consentBefore, machine.brief.cliConsent())) machine.cliCopies.resume()
+      // A chain started or resumed asks its failing servers again at once, not after their backoff (BTN-1518).
+      if (running(machine.brief.active()).some((project) => !runningBefore.includes(project))) machine.packages.retryProbes()
       // A machine elsewhere follows the hub's catalog of its projects' packages (BTN-1299).
       if (brief.packages !== undefined) {
         try {

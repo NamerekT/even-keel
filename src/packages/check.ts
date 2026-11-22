@@ -8,6 +8,8 @@ import { pageSettings } from './settings.js'
 const PROBE_OK_MS = 5 * 60_000
 /** The wait before asking a failing server again, by its failures in a row; the last one repeats (BTN-589). */
 const PROBE_FAILED_MS = [30_000, 60_000, 2 * 60_000, 5 * 60_000, 15 * 60_000, 30 * 60_000, 60 * 60_000]
+/** The longest wait while the project's chain runs: it may be waiting on the server (BTN-1518). */
+const PROBE_WAITED_MS = 60_000
 const PROBE_TIMEOUT_MS = 30_000
 
 /** Does not hold the chain. */
@@ -100,7 +102,9 @@ export function projectPackages(input: CheckInput): ProjectPackages {
  * answers or the gateway says it is gone. With no address yet (the gateway does not listen) nothing is asked and the
  * result stays `undefined` (BTN-1225). A server that has answered fails only on its second miss in a row: one miss is
  * a blink of the host's network as often as the server's fault, so it stays `undefined` until the ask 30 seconds on
- * (BTN-1248).
+ * (BTN-1248). While the project's chain runs (`waited`) a failing server is asked at least once a minute, however long
+ * it failed: a server that fails for an hour (a machine outside the project's pool, refused by the hub) would otherwise
+ * hold the chain up to an hour after it answers again (BTN-1518).
  */
 export class Probes {
   /** `failures` — results `false` in a row, for the wait; `misses` — asks without an answer in a row. */
@@ -114,6 +118,8 @@ export class Probes {
       now: () => number
       /** A result changed. */
       onChange: () => void
+      /** The project has a chain running, not paused. */
+      waited?: (project: string) => boolean
       timeoutMs?: number
     },
   ) {}
@@ -122,7 +128,8 @@ export class Probes {
   result(project: string, name: string, install: string, server: string): boolean | undefined {
     const key = `${name}\u0000${install}\u0000${server}`
     const known = this.results.get(key)
-    const wait = known?.ok ? PROBE_OK_MS : PROBE_FAILED_MS[Math.max(0, Math.min((known?.failures ?? 0) - 1, PROBE_FAILED_MS.length - 1))]!
+    const backoff = PROBE_FAILED_MS[Math.max(0, Math.min((known?.failures ?? 0) - 1, PROBE_FAILED_MS.length - 1))]!
+    const wait = known?.ok ? PROBE_OK_MS : this.deps.waited?.(project) === true ? Math.min(backoff, PROBE_WAITED_MS) : backoff
     const starting = known?.ok === undefined && known?.misses === 0
     const stale = known === undefined || starting || this.deps.now() - known.at > wait
     const url = stale && !this.running.has(key) ? this.deps.urlOf(project, name, install, server) : undefined
