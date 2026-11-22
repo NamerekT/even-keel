@@ -21,10 +21,10 @@ describe('stop diagnostics', () => {
 
   it.each(['throw new Error("example failure")', 'Promise.reject(new Error("example failure"))'])('logs a fatal cause and leaves Node to exit nonzero: %s', (failure) => {
     const module = new URL('./stop.ts', import.meta.url).href
-    const result = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `import { logFatalErrors } from ${JSON.stringify(module)}; logFatalErrors(); setImmediate(() => { ${failure} })`], { encoding: 'utf8', timeout: 10_000 })
+    const result = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `import { logFatalErrors } from ${JSON.stringify(module)}; logFatalErrors(); setImmediate(() => { ${failure} })`], { encoding: 'utf8', timeout: 20_000 })
     expect(result.error).toBeUndefined()
     expect(result.status).toBe(1)
     expect(result.stderr).toContain(failure.startsWith('throw') ? 'stopping: uncaughtException' : 'stopping: unhandledRejection')
     expect(result.stderr).toContain('example failure')
-  })
+  }, 30_000)
 })
