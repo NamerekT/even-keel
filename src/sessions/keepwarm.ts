@@ -5,10 +5,13 @@ import { isTransientError } from './transient.js'
 import type { WarmPing } from './warm-pings.js'
 
 /**
- * How long before the cache goes cold the ping goes out: the check runs every `KEEP_WARM_TICK_MS`. Even the five-minute
- * cache's 90 s outlast a usual restart of the service, 5–20 s down and a few seconds until the facts are read (BTN-1507).
+ * How long before the cache goes cold the ping goes out: the check runs every `KEEP_WARM_TICK_MS`. The five-minute
+ * cache's 90 s outlast a restart without a build under it, 5–20 s down and 30–52 s more until the facts are read
+ * (BTN-1527); a planned stop with a build under it, 74–173 s down, is covered by the ping ahead of it (`ahead`).
  */
 const MARGIN_MS: Record<CacheTtl, number> = { '1h': 5 * 60_000, '30m': 5 * 60_000, '5m': 90_000 }
+/** After the checks begin, the facts of every session are read well within this (52 s at most measured, BTN-1527). */
+const STARTUP_MS = 3 * 60_000
 /**
  * The pings a miss costs: a ping reads the context at ~0.1× the input price, a miss writes it again at 2× (an hour's
  * cache) or 1.25× (five minutes', and GPT's half hour).
@@ -56,7 +59,8 @@ export interface WarmMemory {
   warmedAt: string | null
 }
 
-export type WarmStep = 'ping' | 'wait'
+/** `cold` — the cache went cold while the session could still have been pinged. */
+export type WarmStep = 'ping' | 'wait' | 'cold'
 
 function readCache(cacheRead: number, prompt: number): boolean {
   return prompt > 0 && cacheRead / prompt >= HIT_SHARE
@@ -89,17 +93,27 @@ export function pingLine(facts: WarmFacts, memory: WarmMemory | undefined, now: 
   )
 }
 
-/** Whether to ping the session now: only a warm cache about to go cold, within the idle ceiling and the break-even. */
-export function warmStep(facts: WarmFacts, memory: WarmMemory | undefined, now: Date, maxIdleMs: number): WarmStep {
+/** When the cache goes cold: a lifetime after the request or after the last ping of the same stretch that read it. */
+function warmUntilOf(cache: CacheWindow, memory: WarmMemory | undefined): number {
+  const ttlMs = TTL_MS[cache.ttl]
+  const own = memory !== undefined && Date.parse(memory.stretch) === Date.parse(cache.until) - ttlMs ? memory : undefined
+  return Math.max(Date.parse(cache.until), own?.warmedAt == null ? 0 : Date.parse(own.warmedAt) + ttlMs)
+}
+
+/**
+ * Whether to ping the session now: only a warm cache about to go cold, within the idle ceiling and the break-even.
+ * `aheadMs` — a planned stop of the service: a cache that would go cold within it is pinged now (BTN-1527).
+ */
+export function warmStep(facts: WarmFacts, memory: WarmMemory | undefined, now: Date, maxIdleMs: number, aheadMs = 0): WarmStep {
   const { cache } = facts
   if ((facts.busy && !facts.onTool && !facts.ended) || facts.held || facts.limited || cache === null) return 'wait'
-  const ttlMs = TTL_MS[cache.ttl]
-  const stretch = Date.parse(cache.until) - ttlMs
+  const stretch = Date.parse(cache.until) - TTL_MS[cache.ttl]
   const own = memory !== undefined && Date.parse(memory.stretch) === stretch ? memory : undefined
-  const warmUntil = Math.max(Date.parse(cache.until), own?.warmedAt == null ? 0 : Date.parse(own.warmedAt) + ttlMs)
+  const warmUntil = warmUntilOf(cache, memory)
   const time = now.getTime()
-  if (time >= warmUntil || time - stretch >= maxIdleMs || (own?.pings ?? 0) >= BREAK_EVEN[cache.ttl]) return 'wait'
-  return time >= warmUntil - MARGIN_MS[cache.ttl] ? 'ping' : 'wait'
+  if (time - stretch >= maxIdleMs || (own?.pings ?? 0) >= BREAK_EVEN[cache.ttl]) return 'wait'
+  if (time >= warmUntil) return 'cold'
+  return time >= warmUntil - Math.max(MARGIN_MS[cache.ttl], aheadMs) ? 'ping' : 'wait'
 }
 
 export interface WarmTask {
@@ -150,11 +164,17 @@ export interface KeepWarmDeps {
  */
 export class KeepWarm {
   private readonly memory = new Map<string, WarmMemory>()
-  private readonly flying = new Set<string>()
+  private readonly flying = new Map<string, Promise<void>>()
   private readonly off = new Set<string>()
   private readonly failures = new Map<string, number>()
   /** The pings kept before this start, by session, oldest first: each session's series is taken from them once its cache is known. */
   private readonly restored = new Map<string, WarmPing[]>()
+  /** When the first check of this process ran. */
+  private began: number | null = null
+  /** When a check of this process first knew each session's cache. */
+  private readonly seen = new Map<string, number>()
+  /** The stretch of idleness each session's cut series was logged for, once. */
+  private readonly cut = new Map<string, number>()
 
   constructor(private readonly deps: KeepWarmDeps) {}
 
@@ -188,20 +208,66 @@ export class KeepWarm {
     this.deps.log(`keepwarm: ${task}: ${hits.length} pings of ${sessionId} before the restart restored, the last at ${hits.at(-1)!.at}`)
   }
 
-  /** Wakes the check: the timer sends nothing itself. Resolves once the pings it started are answered. */
-  async check(): Promise<void> {
+  /**
+   * Wakes the check: the timer sends nothing itself. Resolves once the pings it started are answered and gives their
+   * count. `aheadMs` — see `ahead`.
+   */
+  async check(aheadMs = 0): Promise<number> {
     const hours = this.deps.hours()
-    if (hours <= 0) return
+    if (hours <= 0) return 0
     const sessions = this.deps.sessions()
     for (const each of sessions) this.seed(each)
     const present = new Set(sessions.map((each) => each.sessionId))
     for (const id of this.memory.keys()) if (!present.has(id) && !this.flying.has(id)) this.memory.delete(id)
+    for (const map of [this.seen, this.cut]) for (const id of map.keys()) if (!present.has(id)) map.delete(id)
     const now = this.deps.now()
-    const pings = sessions
-      .filter((each) => !this.off.has(each.sessionId) && !this.flying.has(each.sessionId))
-      .filter((each) => warmStep(each, this.memory.get(each.sessionId), now, hours * 60 * 60_000) === 'ping')
-      .map((each) => this.ping(each, now))
+    this.began ??= now.getTime()
+    for (const each of sessions) if (each.cache !== null && !this.seen.has(each.sessionId)) this.seen.set(each.sessionId, now.getTime())
+    const pings: Promise<void>[] = []
+    for (const each of sessions) {
+      const { sessionId } = each
+      if (this.off.has(sessionId) || this.flying.has(sessionId)) continue
+      const step = warmStep(each, this.memory.get(sessionId), now, hours * 60 * 60_000, aheadMs)
+      if (step === 'cold') this.reportCut(each)
+      if (step !== 'ping') continue
+      const ping = this.ping(each, now).finally(() => this.flying.delete(sessionId))
+      this.flying.set(sessionId, ping)
+      pings.push(ping)
+    }
     await Promise.all(pings)
+    return pings.length
+  }
+
+  /**
+   * A planned stop of the service, `aheadMs` long with the facts read after it (BTN-1527): pings now every session
+   * whose cache would go cold within it, and resolves with their count once they and the pings already in flight are
+   * answered — the stop would cut a ping and lose its record, which the next start takes the series from.
+   */
+  async ahead(aheadMs: number): Promise<number> {
+    const flying = [...this.flying.values()]
+    // A window longer than the shortest lifetime would ping a cache just written.
+    const pinged = await this.check(Math.min(Math.max(aheadMs, 0), TTL_MS['5m'] - KEEP_WARM_TICK_MS))
+    await Promise.all(flying)
+    return pinged
+  }
+
+  /**
+   * One line when a session's cache went cold before any check of this process could ping it: the facts came after
+   * its ping was due, soon after the checks began — the service was down, or still reading facts, through the margin.
+   */
+  private reportCut({ task, sessionId, cache }: WarmFacts): void {
+    const stretch = Date.parse(cache!.until) - TTL_MS[cache!.ttl]
+    const seen = this.seen.get(sessionId)
+    if (this.cut.get(sessionId) === stretch || seen === undefined || this.began === null) return
+    const warmUntil = warmUntilOf(cache!, this.memory.get(sessionId))
+    const due = warmUntil - MARGIN_MS[cache!.ttl]
+    if (seen < due || seen - this.began > STARTUP_MS) return
+    this.cut.set(sessionId, stretch)
+    const iso = (time: number) => new Date(time).toISOString()
+    this.deps.log(
+      `keepwarm: ${task}: the cache of ${sessionId} went cold at ${iso(warmUntil)} unpinged: its ping was due from ${iso(due)}, ` +
+        `and the first check that knew the session came at ${iso(seen)}, the checks having begun at ${iso(this.began)}: the series ends`,
+    )
   }
 
   /** When the last ping that read the session's cache went out; `null` — none did. */
@@ -220,7 +286,6 @@ export class KeepWarm {
   private async ping(facts: WarmFacts, now: Date): Promise<void> {
     const { task, sessionId, cache } = facts
     const stretch = new Date(Date.parse(cache!.until) - TTL_MS[cache!.ttl]).toISOString()
-    this.flying.add(sessionId)
     try {
       const file = await (this.deps.transcript?.(facts) ?? Promise.resolve(null)).catch(() => null)
       this.deps.log(pingLine(facts, this.memory.get(sessionId), now, file))
@@ -248,8 +313,6 @@ export class KeepWarm {
       const next = failures < MAX_FAILURES ? `tried again (${failures} of ${MAX_FAILURES})` : 'not kept warm until a restart'
       if (failures >= MAX_FAILURES) this.off.add(sessionId)
       this.deps.log(`keepwarm: the ping of ${task} (${sessionId}) failed: ${(error as Error).message}; ${next}`)
-    } finally {
-      this.flying.delete(sessionId)
     }
   }
 }

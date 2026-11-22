@@ -93,6 +93,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
       installUpdate: async () => record('installUpdate')(),
       revertUpdate: async () => record('revertUpdate')(),
       closeUpdateResult: record('closeUpdateResult'),
+      warmAhead: async (ms) => record('warmAhead')(ms),
     },
     packages: {
       install: async (name) => record('install')(name),

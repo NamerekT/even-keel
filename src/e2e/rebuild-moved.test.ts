@@ -90,7 +90,32 @@ describe('a rebuild whose checkout a chain moves', () => {
     expect(head).not.toBe(green)
     expect(record).toMatchObject({ failed: null, rollback: null, to: { tag: head, version: '1.1.0' } })
     expect(readFileSync(join(root, 'built'), 'utf8')).toBe('onward')
-    expect(readFileSync(join(base, 'update.log'), 'utf8')).toContain(`the checkout moved on from ${green} to ${head}`)
+    const lines = readFileSync(join(base, 'update.log'), 'utf8').split('\n')
+    expect(lines.join('\n')).toContain(`the checkout moved on from ${green} to ${head} (1.1.0) during the rebuild, building it before the stop`)
+    // The service stays up through the second build (BTN-1527): keep-warm is asked ahead of the stop, then it stops.
+    const builds = lines.flatMap((line, at) => (line.includes('$ ') && line.endsWith(' run build') ? [at] : []))
+    const warm = lines.findIndex((line) => line.includes('keep-warm pinged the caches that would go cold within 240 s'))
+    const stopped = lines.findIndex((line, at) => at > warm && line.includes('$ '))
+    expect(builds).toHaveLength(2)
+    expect(warm).toBeGreaterThan(builds[1]!)
+    expect(lines[stopped]).toMatch(/ -e $/)
+  }, 60_000)
+
+  it('asks keep-warm ahead of the stop and stops all the same when the service cannot answer (BTN-1527)', async () => {
+    const running = commit('running')
+    const green = commit('green')
+    const asked: string[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      if (init?.method === 'POST') {
+        asked.push(`${String(url)} ${String(init.body)}`)
+        return new Response('', { status: 404 })
+      }
+      return Response.json({ startedAt: readFileSync(join(root, 'built'), 'utf8'), updates: { current: '1.0.0' }, hubCommit: git('rev-parse', 'HEAD') })
+    })
+    const record = await runPlan(planOf(green, null, running))
+    expect(record).toMatchObject({ failed: null, rollback: null, to: { tag: green } })
+    expect(asked).toEqual(['http://localhost/api/updates/warm {"ms":240000}'])
+    expect(readFileSync(join(base, 'update.log'), 'utf8')).toContain('keep-warm did not ping ahead of the stop: HTTP 404')
   }, 60_000)
 
   it('builds again when the checkout moved on during the build with the service down', async () => {

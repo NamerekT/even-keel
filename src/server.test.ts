@@ -185,6 +185,13 @@ describe('Even Keel HTTP server', () => {
     expect(calls).toEqual(expect.arrayContaining([['installUpdate'], ['revertUpdate'], ['closeUpdateResult']]))
   })
 
+  it('passes on the update process asking keep-warm to ping ahead of its stop (BTN-1527)', async () => {
+    const post = (body: unknown) => fetch(base + '/api/updates/warm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    expect((await post({ ms: 240_000 })).status).toBe(200)
+    expect(calls).toContainEqual(['warmAhead', 240_000])
+    expect((await post({})).status).toBe(400)
+  })
+
   it('refuses settings without the milestone switch', async () => {
     const body = {
       project: 'ABC',
