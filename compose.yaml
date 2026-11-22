@@ -1,6 +1,8 @@
 services:
   even-keel:
     image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:-latest}
+    # The hub's own machine is named by its host: never the container's ID, gone on recreation.
+    hostname: even-keel
     ports:
       - "127.0.0.1:4747:4747"
       # The port for machines: loopback by default, as the page; EVEN_KEEL_MACHINES_PUBLISH=0.0.0.0 in .env opens it to machines on other hosts.

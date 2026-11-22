@@ -2,6 +2,8 @@
 services:
   machine:
     image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:?Set EVEN_KEEL_IMAGE_TAG in .env to the hub's version}
+    # The hub names a machine joined without a name by its host; Docker's default is the container's ID, gone on recreation.
+    hostname: even-keel-machine
     environment:
       # Never a hub: until it joins, the container waits for even-keel join.
       EVEN_KEEL_MACHINE: "1"

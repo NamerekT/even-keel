@@ -22,5 +22,16 @@ describe('compose files', () => {
         expect(durationMs(service.stop_grace_period!), `${file}: ${name}`).toBeGreaterThan(SHUTDOWN_MS)
       }
     })
+
+    // A machine joined without a name is named by its host (BTN-1496): without `hostname:` that is the container's ID,
+    // which a recreated container no longer has.
+    it(`${file} gives every service a host name of its own`, () => {
+      const { services } = parse(readFileSync(file, 'utf8')) as { services: Record<string, { hostname?: string }> }
+      const names = Object.entries(services).map(([name, service]) => {
+        expect(service.hostname, `${file}: ${name}`).toMatch(/^even-keel(-[a-z0-9]+)*$/)
+        return service.hostname
+      })
+      expect(new Set(names).size, file).toBe(names.length)
+    })
   }
 })
