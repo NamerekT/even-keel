@@ -141,7 +141,8 @@ export function builtinUpload(deps: ServerDeps, params: URLSearchParams, request
   const name = textOf(params.get('name') ?? '', 'name').trim()
   if (name === '') throw fail('request.required', { field: 'name' })
   const type = (request.headers['content-type'] ?? '').split(';')[0]!.trim().toLowerCase()
-  return control(deps).attach(task, { name, type, body: request as AsyncIterable<Uint8Array> })
+  const size = Number(request.headers['content-length'])
+  return control(deps).attach(task, { name, type, body: request as AsyncIterable<Uint8Array>, ...(Number.isSafeInteger(size) ? { size } : {}) })
 }
 
 function control({ builtin }: ServerDeps): BuiltinControl {

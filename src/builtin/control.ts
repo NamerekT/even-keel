@@ -108,6 +108,8 @@ export interface BuiltinUpload {
   name: string
   type: string
   body: AsyncIterable<Uint8Array>
+  /** The `content-length` the client declared; past the limit the body is refused unread. */
+  size?: number
 }
 
 /** An attachment taken: `file` — its record, `url` — where the page and the description reach its bytes. */
@@ -287,7 +289,7 @@ export function builtinControl({
       const { names, store } = open()
       const files = filesOf(store)
       const task = await writable(names, store, id)
-      const bytes = await readLimited(upload.body, limit(), upload.name)
+      const bytes = await readLimited(upload.body, limit(), upload.name, upload.size)
       const file = await files.add(task, { name: upload.name, type: upload.type, bytes })
       await refresh(task.project)
       return { file: file.id, name: file.name, type: file.type, size: file.size, url: fileUrl(names.name(task), file.sha256) }

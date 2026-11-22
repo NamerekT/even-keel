@@ -106,6 +106,23 @@ describe('attachments', () => {
     })
   })
 
+  // A browser reads no answer before it has sent the whole body (BTN-1534): the rest is read and thrown away.
+  it('reads a body past the limit to its end before refusing it, and refuses a declared bigger one unread', async () => {
+    let read = 0
+    async function* counted(count: number) {
+      for (let index = 0; index < count; index++) {
+        read++
+        yield PNG
+      }
+    }
+    expect(await failure(readLimited(counted(5), PNG.length, 'big.png'))).toMatchObject({ code: 'builtin.fileTooLarge' })
+    expect(read).toBe(5)
+    read = 0
+    expect(await failure(readLimited(counted(5), PNG.length, 'big.png', PNG.length * 5))).toMatchObject({ code: 'builtin.fileTooLarge' })
+    expect(read).toBe(0)
+    expect(await readLimited(counted(1), PNG.length, 'screenshot.png', PNG.length)).toEqual(PNG)
+  })
+
   it('names a picture by its first bytes only', () => {
     expect(sniffedType(Buffer.from([0xff, 0xd8, 0xff, 0xe0]))).toBe('image/jpeg')
     expect(sniffedType(Buffer.from('GIF89a'))).toBe('image/gif')
