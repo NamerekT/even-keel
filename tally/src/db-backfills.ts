@@ -26,18 +26,15 @@ from (
   order by raw->'message'->>'id', at desc
 ) e
 where e.message_id = m.message_id and m.effort is null`
-// Only rows that can be a prompt: the rest of a session's user rows are tool results, heavy to fetch.
-export const SESSION_PROMPT_ROWS = `
-select s.session_id, coalesce(s.last_at < now() - interval '1 day', false) as old,
-  (select coalesce(jsonb_agg(p.raw order by p.at, p.uuid), '[]'::jsonb)
-   from (
-     select l.raw, l.at, l.uuid from lines l
-     where l.session_id = s.session_id and l.agent_id is null and l.type = 'user'
-       and coalesce(l.raw->>'isMeta', '') <> 'true'
-       and (jsonb_typeof(l.raw->'message'->'content') = 'string'
-         or not (l.raw->'message'->'content') @> '[{"type": "tool_result"}]')
-     order by l.at, l.uuid
-     limit 10
-   ) p) as rows
-from sessions s
-where s.prompt is null`
+
+export const SESSION_PROMPTS = `
+with missing as materialized (
+  select s.session_id, coalesce(p.prompt, case when s.last_at < now() - interval '1 day' then '' end) as prompt
+  from sessions s left join lateral (
+    select a.prompt from session_activity a
+    where a.session_id = s.session_id and a.prompt is not null order by a.at, a.uuid limit 1
+  ) p on true
+  where s.prompt is null
+)
+update sessions s set prompt = m.prompt from missing m
+where s.session_id = m.session_id and s.prompt is null and m.prompt is not null`

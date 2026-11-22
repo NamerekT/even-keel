@@ -78,6 +78,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     }
     const migrated = migratedLine(migration)
     if (migrated !== null) log(migrated)
+    await db.backfillActivity()
     await db.syncPrices(config.prices)
     await db.writeLlmCosts(translations ?? [])
 

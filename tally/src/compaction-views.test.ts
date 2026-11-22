@@ -72,4 +72,15 @@ describe('compactions', () => {
   it('leaves the size empty for a boundary without a summary', async () => {
     expect((await rows())['s-b3']!.summary_chars).toBeNull()
   })
+
+  it('serves the same rows after the raw archive is taken offline', async () => {
+    const before = await rows()
+    await db.exec('begin')
+    try {
+      await db.exec('truncate lines')
+      expect(await rows()).toEqual(before)
+    } finally {
+      await db.exec('rollback')
+    }
+  })
 })

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { blocksOf } from '../../src/sessions/entry.js'
+import { TIMEOUT } from './activity-result.js'
 import { commandOf, streamsOf, type Call, type TranscriptEntry } from './stream.js'
 
 export type StepMode = 'foreground' | 'background' | 'detached'
@@ -57,15 +58,11 @@ export const DEFAULT_STEPS: StepSettings = {
 const STEPS_VERSION = 2
 const SHELLS: ReadonlySet<string> = new Set(['Bash', 'PowerShell'])
 const COMMAND_LIMIT = 300
-const BACKGROUND = /in background with ID: ([\w-]+)|moved to the background \(ID: ([\w-]+)\)/
-const OUTPUT_FILE = /Output is being written to: (.+?\.output)\b/
 const LOG_NAME = /[\w.-]+\.(log|out|output|txt)\b/gi
 const SLEEP = /^(sleep\s+\d|Start-Sleep\b|Wait-Process\b|timeout\s+\/t\b)/i
 const SKIPPED = /^(cd|Set-Location|pushd|mkdir|New-Item|export)\b|^\$[\w:]+\s*=/i
 const ENV_ASSIGN = /^[A-Za-z_]\w*=/
 const RUNNERS: ReadonlySet<string> = new Set(['npm', 'pnpm', 'yarn', 'bun'])
-const TIMEOUT = /timed out|no exit after/i
-const INTERRUPTED = /^\[Request interrupted/
 
 export function rulesFor(settings: StepSettings, project: string | null): StepRule[] {
   const own = Object.entries(settings.projects).find(([name]) => project !== null && name.toLowerCase() === project.toLowerCase())
@@ -185,10 +182,8 @@ export function runsOf(entries: TranscriptEntry[], rules: StepRule[]): StepRun[]
 }
 
 function launch(call: Call, command: string, resultAt: string, rules: StepRule[], branch: string, agentId: string | null): Open {
-  const text = call.result?.text ?? ''
-  const background = BACKGROUND.exec(text)
-  const taskId = background === null ? null : (background[1] ?? background[2] ?? null)
-  const output = OUTPUT_FILE.exec(text)?.[1]
+  const taskId = call.result?.taskId ?? null
+  const output = call.result?.outputFile
   const mode: StepMode = taskId !== null ? 'background' : isDetached(command) ? 'detached' : 'foreground'
   const keys = [...new Set([...(command.match(LOG_NAME) ?? []), ...(output !== undefined ? [baseName(output)] : [])].map((key) => key.toLowerCase()))]
   if (taskId !== null) keys.push(taskId.toLowerCase())
@@ -203,7 +198,7 @@ function launch(call: Call, command: string, resultAt: string, rules: StepRule[]
     seconds: seconds(call.at, resultAt),
     mode,
     endBy: mode === 'foreground' ? 'result' : 'open',
-    outcome: mode === 'foreground' ? outcomeOf(call) : null,
+    outcome: mode === 'foreground' ? call.result?.outcome ?? 'ok' : null,
     place: placeOf(call.cwd, branch),
     polls: 0,
   }
@@ -261,14 +256,6 @@ function isDetached(command: string): boolean {
   )
 }
 
-function outcomeOf(call: Call): StepOutcome {
-  const result = call.result
-  if (result === undefined) return 'ok'
-  if (INTERRUPTED.test(result.text)) return 'killed'
-  if (TIMEOUT.test(result.text)) return 'timeout'
-  return result.isError ? 'fail' : 'ok'
-}
-
 function noticeOutcome(notice: Notice): StepOutcome | null {
   const status = notice.status.toLowerCase()
   if (TIMEOUT.test(notice.summary)) return 'timeout'
@@ -281,7 +268,7 @@ function noticeOutcome(notice: Notice): StepOutcome | null {
   return null
 }
 
-function noticeText(entry: TranscriptEntry): string | null {
+export function noticeText(entry: TranscriptEntry): string | null {
   const attachment = entry.attachment as { prompt?: unknown } | undefined
   const candidates: unknown[] = [attachment?.prompt]
   if (entry.type === 'user') {

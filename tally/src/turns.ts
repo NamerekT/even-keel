@@ -27,7 +27,7 @@ export interface TurnSource {
 }
 
 type Origin = { kind?: string; body?: unknown }
-type TurnEntry = TranscriptEntry & { origin?: Origin; isCompactSummary?: boolean; durationMs?: unknown }
+export type TurnEntry = TranscriptEntry & { origin?: Origin; isCompactSummary?: boolean; durationMs?: unknown; turnStart?: TurnStart | null }
 
 const TURNS_VERSION = 4
 const USER_WAIT_TOOLS: ReadonlySet<string> = new Set(['AskUserQuestion', 'ExitPlanMode'])
@@ -51,7 +51,7 @@ export function turnsOf(entries: TranscriptEntry[], launched: boolean): Turn[] {
       if (turn !== null && isReply(entry) && at > turn.endedAt) turn.endedAt = at
       continue
     }
-    const start = startOf(entry)
+    const start = entry.turnStart === undefined ? startOf(entry) : entry.turnStart
     if (start !== null) {
       const first = turns.length === 0
       turn = {
@@ -105,7 +105,7 @@ function isReply(entry: TurnEntry): boolean {
   return entry.type === 'assistant' && entry.isApiErrorMessage !== true && entry.message?.model !== '<synthetic>'
 }
 
-function startOf(entry: TurnEntry): TurnStart | null {
+export function startOf(entry: TurnEntry): TurnStart | null {
   if (entry.type === 'system' && entry.subtype === 'scheduled_task_fire') return 'notification'
   if (entry.type !== 'user' || entry.isCompactSummary === true) return null
   const blocks = blocksOf(entry.message?.content)

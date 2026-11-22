@@ -1,13 +1,9 @@
-import { blocksOf, type Entry } from '../../src/sessions/entry.js'
-import { errorKindOf, resultText, type ErrorKind } from './parse.js'
+import { blocksOf, type ContentBlock, type Entry } from '../../src/sessions/entry.js'
+import { callResult, type CallResult } from './activity-result.js'
 
 export type TranscriptEntry = Entry & { parentUuid?: string | null; isCompactSummary?: boolean }
 
-export interface CallResult {
-  isError: boolean
-  kind: ErrorKind | null
-  text: string
-}
+export type ActivityBlock = ContentBlock & { brief?: string; result?: CallResult }
 
 export interface Call {
   uuid: string
@@ -16,6 +12,7 @@ export interface Call {
   name: string
   input: Record<string, unknown>
   cwd: string | undefined
+  brief?: string
   result?: CallResult
 }
 
@@ -55,24 +52,22 @@ export function streamsOf(entries: TranscriptEntry[]): Stream[] {
         stream.replies.add(message.id)
         events.push({ type: 'reply', uuid, at })
       }
-      for (const block of blocksOf(message?.content)) {
+      for (const block of blocksOf(message?.content) as ActivityBlock[]) {
         if (block.type === 'text' && typeof block.text === 'string' && block.text.trim() !== '') {
           events.push({ type: 'say', uuid, at, text: block.text })
         } else if (block.type === 'tool_use' && typeof block.id === 'string' && typeof block.name === 'string') {
-          const call: Call = { uuid, at, id: block.id, name: block.name, input: block.input ?? {}, cwd: entry.cwd }
+          const call: Call = { uuid, at, id: block.id, name: block.name, input: block.input ?? {}, cwd: entry.cwd, brief: block.brief }
           calls.set(block.id, call)
           events.push({ type: 'call', uuid, at, call })
         }
       }
     } else if (entry.type === 'user') {
-      const blocks = blocksOf(entry.message?.content)
+      const blocks = blocksOf(entry.message?.content) as ActivityBlock[]
       const results = blocks.filter((block) => block.type === 'tool_result')
       for (const block of results) {
         const call = typeof block.tool_use_id === 'string' ? calls.get(block.tool_use_id) : undefined
         if (call === undefined) continue
-        const isError = block.is_error === true
-        const text = resultText(block)
-        call.result = { isError, kind: isError ? errorKindOf(text) : null, text }
+        call.result = block.result ?? callResult(block)
       }
       if (results.length > 0 || entry.isMeta === true || entry.isCompactSummary === true) continue
       const text = promptText(entry.message?.content)
@@ -90,7 +85,7 @@ export function commandOf(call: Call): string | null {
   return typeof command === 'string' && command.trim() !== '' ? command : null
 }
 
-function promptText(content: unknown): string {
+export function promptText(content: unknown): string {
   if (typeof content === 'string') return content.trim()
   return blocksOf(content)
     .map((block) => (block.type === 'text' && typeof block.text === 'string' ? block.text : ''))

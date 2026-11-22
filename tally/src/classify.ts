@@ -1,4 +1,5 @@
 import { root } from '../../src/locations.js'
+import { EXCERPT_LIMIT as TEXT_LIMIT } from './activity-result.js'
 import { describeTool, flatten } from '../../src/sessions/entry.js'
 import type { MessageRow } from './parse.js'
 import { commandOf, streamsOf, type StreamEvent, type TranscriptEntry } from './stream.js'
@@ -23,7 +24,6 @@ Answer with only a JSON object, no prose: {"reason": "<code>", "note": "<one or 
 
 const HEAD_EVENTS = 40
 const TAIL_EVENTS = 80
-const TEXT_LIMIT = 300
 const REQUEST_TIMEOUT_MS = 180_000
 
 export interface LlmSettings {
@@ -180,7 +180,7 @@ function lineOf(event: StreamEvent): string | undefined {
     case 'call': {
       const { call } = event
       const command = commandOf(call)
-      const what = command === null ? describeTool(call.name, call.input, call.cwd) : `${call.name}: ${flatten(command, TEXT_LIMIT)}`
+      const what = command === null ? call.brief ?? describeTool(call.name, call.input, call.cwd) : `${call.name}: ${flatten(command, TEXT_LIMIT)}`
       const result = call.result
       const outcome =
         result === undefined ? 'no result' : result.isError ? `${result.kind ?? 'error'}: ${flatten(result.text, TEXT_LIMIT)}` : 'ok'

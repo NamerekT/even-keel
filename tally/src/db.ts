@@ -4,7 +4,8 @@ import type { SessionKeySpend } from '../../src/account/spend.js'
 import type { StoredWarmPing } from '../../src/sessions/warm-pings.js'
 import { tallyVersion } from '../../src/stats/tally-schema.js'
 import type { TaskSource } from '../../src/chain/launches.js'
-import type { Entry } from '../../src/sessions/entry.js'
+import { backfillActivity, writeActivity } from './db-activity.js'
+import { CLOSED_TASK_STATES, MESSAGE_EFFORTS, SESSION_FOLDERS, SESSION_PROMPTS } from './db-backfills.js'
 import type { CatalogueModel } from './catalogue.js'
 import type { ClosedState } from './closed-tasks.js'
 import type { ClassifySettings, DbSettings, Price } from './config.js'
@@ -23,7 +24,6 @@ import type { Turn } from './turns.js'
 import { cleanText } from './compact.js'
 import type { HandoffRow } from './handoffs.js'
 import { migrate, pgDb, type Migration } from './migrations.js'
-import { firstPrompt } from './prompt.js'
 import { REPAIR_GLOBAL_RULE_SNAPSHOTS } from './rule-repair.js'
 import { TASK_MOVES, type TaskMove } from './task-moves.js'
 import { CHAT_SESSIONS, type ChatSession } from './chat-sessions.js'
@@ -59,8 +59,7 @@ export interface StoredChange extends RuleChange {
   removed: number
 }
 
-import { CLOSED_TASK_STATES, MESSAGE_EFFORTS, SESSION_FOLDERS, SESSION_PROMPT_ROWS } from './db-backfills.js'
-export { CLOSED_TASK_STATES, MESSAGE_EFFORTS, SESSION_FOLDERS, SESSION_PROMPT_ROWS } from './db-backfills.js'
+export { CLOSED_TASK_STATES, MESSAGE_EFFORTS, SESSION_FOLDERS } from './db-backfills.js'
 const LOCK_KEY = 'tally-collector'
 
 export class TallyDb implements Store {
@@ -135,13 +134,18 @@ export class TallyDb implements Store {
 
   /** `machine` is a column of the row: empty on the hub's own rows, which never carry it. */
   private async writeRows(batch: Pick<Batch, 'lines' | 'messages' | 'calls' | 'results' | 'sessions'> | MachineRows): Promise<void> {
-    await this.upsert(
-      `insert into lines (uuid, session_id, agent_id, type, at, raw)
+    const lines = [...batch.lines.values()]
+    if (lines.length > 0) {
+      const inserted = await this.client.query<{ uuid: string }>(
+        `insert into lines (uuid, session_id, agent_id, type, at, raw)
        select uuid, session_id, agent_id, type, at, raw
        from jsonb_to_recordset($1::jsonb) as x(uuid text, session_id text, agent_id text, type text, at timestamptz, raw jsonb)
-       on conflict (uuid) do nothing`,
-      batch.lines,
-    )
+       on conflict (uuid) do nothing returning uuid`,
+        [JSON.stringify(lines.map(snake))],
+      )
+      const accepted = new Set(inserted.rows.map((row) => row.uuid))
+      await writeActivity(this.client, lines.filter((line) => accepted.has(line.uuid)))
+    }
     await this.upsert(
       `insert into messages (message_id, session_id, agent_id, account, project, project_dir, task, branch, entrypoint, model, speed, at,
          input, cache_write_5m, cache_write_1h, cache_read, output, effort, provider, machine)
@@ -415,6 +419,14 @@ export class TallyDb implements Store {
     return result.rowCount ?? 0
   }
 
+  async backfillActivity(): Promise<void> {
+    if (await this.meta('session_activity') !== null) return
+    await this.transaction(async () => {
+      await backfillActivity(this.client)
+      await this.setMeta('session_activity', new Date().toISOString())
+    })
+  }
+
   async fillSessionFolders(): Promise<number> {
     const result = await this.client.query(SESSION_FOLDERS)
     return result.rowCount ?? 0
@@ -443,18 +455,7 @@ export class TallyDb implements Store {
 
   /** The first prompt of sessions without one; a session that has none a day after its last row gets '' and is not read again. */
   async fillPrompts(): Promise<number> {
-    const result = await this.client.query<{ session_id: string; old: boolean; rows: Entry[] }>(SESSION_PROMPT_ROWS)
-    const rows = result.rows.flatMap((row) => {
-      const prompt = firstPrompt(row.rows)
-      return prompt !== null || row.old ? [{ session_id: row.session_id, prompt: prompt ?? '' }] : []
-    })
-    if (rows.length === 0) return 0
-    const updated = await this.client.query(
-      `update sessions s set prompt = x.prompt
-       from jsonb_to_recordset($1::jsonb) as x(session_id text, prompt text)
-       where s.session_id = x.session_id`,
-      [JSON.stringify(rows)],
-    )
+    const updated = await this.client.query(SESSION_PROMPTS)
     return updated.rowCount ?? 0
   }
 
@@ -575,11 +576,11 @@ export class TallyDb implements Store {
   }
 
   async sessionEntries(sessionId: string): Promise<TranscriptEntry[]> {
-    const result = await this.client.query<{ raw: TranscriptEntry }>(
-      'select raw from lines where session_id = $1 order by at, uuid',
+    const result = await this.client.query<{ uuid: string; event: TranscriptEntry }>(
+      'select uuid, event from session_activity where session_id = $1 order by at, uuid',
       [sessionId],
     )
-    return result.rows.map((row) => row.raw)
+    return result.rows.map(({ uuid, event }) => ({ ...event, uuid }))
   }
 
   async writeSigns(sessionId: string, lastAt: string | null, key: string, signs: Sign[], spans: Span[]): Promise<void> {
