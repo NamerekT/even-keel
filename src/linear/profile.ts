@@ -1,5 +1,6 @@
 import { CredentialsRefused, type ProfileAccount, type TrackerProject } from '../tracker/source.js'
 import { LINEAR_TOKEN } from './adapter.js'
+import { graphqlBody } from './answer.js'
 
 const API = 'https://api.linear.app/graphql'
 /** The most a `projects` answer lists. */
@@ -23,7 +24,7 @@ async function graphql<T>(query: string, token: string, timeoutMs: number, fetch
     body: JSON.stringify({ query }),
     signal: AbortSignal.timeout(timeoutMs),
   })
-  const body = (await response.json().catch(() => ({}))) as { data?: T | null; errors?: GraphqlError[] }
+  const body = await graphqlBody<{ data: T | null; errors: GraphqlError[] }>(response)
   const errors = body.errors ?? []
   const text = errors.map((error) => error.message).join('; ')
   if (response.status === 401 || errors.some(refusal)) throw new CredentialsRefused(`linear: the key is refused${text ? `: ${text}` : ''}`)

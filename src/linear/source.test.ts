@@ -79,6 +79,24 @@ describe('linear source', () => {
     expect((error as TrackerRateLimited).until?.toISOString()).toBe('2026-11-18T12:00:00.000Z')
   })
 
+  it('names an answer that broke off mid-body, not an empty answer (BTN-1467)', async () => {
+    const broken = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"data":{"team'))
+        controller.error(new TypeError('terminated'))
+      },
+    })
+    const replies = [new Response(JSON.stringify(ORGANIZATION.body)), new Response(broken, { status: 200 })]
+    const fetch = (async () => replies.shift()!) as unknown as typeof globalThis.fetch
+    const source = await connectLinear({ token: 'lin_api_example', projects: {} }, 5_000, fetch)
+    await expect(source.chainTasks('ENG', notTerminal)).rejects.toThrow('linear: team ENG: the answer broke off: terminated')
+  })
+
+  it('still calls a 2xx answer without data or errors an empty answer', async () => {
+    const { source } = await connect([{ body: { data: null } }])
+    await expect(source.chainTasks('ENG', notTerminal)).rejects.toThrow('linear: team ENG: empty answer')
+  })
+
   it('reads the open issues of the team page by page, by the open states of its workflow', async () => {
     const { source, calls } = await connect([
       team(),

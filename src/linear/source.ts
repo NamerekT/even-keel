@@ -8,6 +8,7 @@ import { subtaskRef } from '../tracker/card.js'
 import { parseTaskId, uniqueStatuses, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import { fileGone } from '../tracker/import.js'
 import { TrackerNotFound, type TaskFile, type TaskSource, type TrackerPlace } from '../tracker/source.js'
+import { graphqlBody } from './answer.js'
 import { LINEAR_PRIORITY, linearEditor, teamMilestones } from './editor.js'
 import { ESTIMATION_FIELDS, linearScale, type LinearEstimation } from './estimate.js'
 import { linearImport } from './import.js'
@@ -184,7 +185,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       body: JSON.stringify({ query, variables }),
       signal: AbortSignal.timeout(timeoutMs),
     }, '/graphql')
-    const body = (await response.json().catch(() => ({}))) as { data?: T | null; errors?: { message: string; extensions?: { code?: string } }[] }
+    const body = await graphqlBody<{ data: T | null; errors: { message: string; extensions?: { code?: string } }[] }>(response)
     const errors = (body.errors ?? []).map((error) => error.message).join('; ')
     // Linear answers its limits with HTTP 400 and the code RATELIMITED, the reset in its headers.
     if ((body.errors ?? []).some((error) => error.extensions?.code === 'RATELIMITED')) throw new TrackerRateLimited(`linear: ${errors}`, untilOf(response.headers))
