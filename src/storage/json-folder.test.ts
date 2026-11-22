@@ -44,6 +44,35 @@ describe('JsonFolder', () => {
     expect(ids(folder)).toEqual(['a', 'b', 'c'])
   })
 
+  it('parses again only the files that changed, and drops the removed ones', () => {
+    put('a.json', '{"id":"a"}')
+    put('b.json', '{"id":"b"}')
+    const parsed: string[] = []
+    const folder = new JsonFolder(dir, (raw) => (parsed.push(raw), parse(raw)), 1_000, () => now)
+    expect(ids(folder)).toEqual(['a', 'b'])
+    expect(parsed).toHaveLength(2)
+    put('b.json', '{"id":"bb"}')
+    rmSync(join(dir, 'a.json'))
+    put('c.json', '{"id":"c"}')
+    now = 1_000
+    expect(ids(folder)).toEqual(['bb', 'c'])
+    expect(parsed.slice(2).sort()).toEqual(['{"id":"bb"}', '{"id":"c"}'])
+    now = 2_000
+    expect(ids(folder)).toEqual(['bb', 'c'])
+    expect(parsed).toHaveLength(4)
+  })
+
+  it('parses a named file again after forget, even with its stamp unchanged', () => {
+    put('a.json', '{"id":"a"}')
+    put('b.json', '{"id":"b"}')
+    const parsed: string[] = []
+    const folder = new JsonFolder(dir, (raw) => (parsed.push(raw), parse(raw)), 1_000, () => now)
+    folder.all()
+    folder.forget('a.json')
+    expect(ids(folder)).toEqual(['a', 'b'])
+    expect(parsed).toEqual(['{"id":"a"}', '{"id":"b"}', '{"id":"a"}'])
+  })
+
   it('is empty while the folder does not exist', () => {
     expect(new JsonFolder(join(dir, 'none'), parse, 1_000, () => now).all()).toEqual([])
   })

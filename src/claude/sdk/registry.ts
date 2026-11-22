@@ -64,7 +64,7 @@ export class SdkRegistry {
   save(session: SdkSession): void {
     mkdirSync(this.sessionsDir, { recursive: true })
     writeAtomic(join(this.sessionsDir, `${session.sessionId}.json`), `${JSON.stringify({ version: SCHEMA_VERSION, ...session }, null, 2)}\n`)
-    this.sessions.forget()
+    this.sessions.forget(`${session.sessionId}.json`)
   }
 
   /** The executor's log and the file its backlog spills into. */

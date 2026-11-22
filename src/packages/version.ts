@@ -1,4 +1,5 @@
 const VERSION = /^v?(\d+(?:\.\d+)*)(?:-([0-9A-Za-z.-]+))?(?:\+.*)?$/
+const preReleases = new Intl.Collator('en', { numeric: true })
 
 /**
  * `candidate` is a later version than `installed`: dotted numbers compare as numbers, a pre-release comes before its
@@ -18,5 +19,5 @@ export function isNewer(candidate: string | null, installed: string | null): boo
   }
   const [pre, old] = [a[2], b[2]]
   if (pre === undefined || old === undefined) return pre === undefined && old !== undefined
-  return pre.localeCompare(old, 'en', { numeric: true }) > 0
+  return preReleases.compare(pre, old) > 0
 }

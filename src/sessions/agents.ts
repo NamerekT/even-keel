@@ -2,6 +2,9 @@ import { isChatName } from '../chats/model.js'
 import { questionsOf, type Ask } from './ask.js'
 import type { ApiErrorKind } from './transcript.js'
 
+// One collator for the module: `localeCompare` with a locale and options builds one on every call (BTN-1476).
+const byNumber = new Intl.Collator('en', { numeric: true })
+
 /** `shell` — the turn has ended, but a background command the session started still runs. */
 export type AgentStatus = 'idle' | 'busy' | 'shell' | 'waiting'
 export type AgentState = 'working' | 'blocked' | 'done' | 'failed' | 'stopped'
@@ -263,7 +266,7 @@ export function sessionsByTask(
   return new Map(
     [...byTask]
       .map(([task, { agent }]) => [task, agent] as const)
-      .sort(([a], [b]) => a.localeCompare(b, 'en', { numeric: true })),
+      .sort(([a], [b]) => byNumber.compare(a, b)),
   )
 }
 
