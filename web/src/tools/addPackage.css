@@ -111,6 +111,35 @@
   line-height: 1.45;
 }
 
+/* One choice a row: the icon on the left of its title and hint, so a hint reads in one or two lines. */
+
+.add-package__kinds--list {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.add-package__kinds--list .add-package__kind {
+  grid-template-rows: auto auto;
+  gap: 2px 14px;
+  padding: 12px 16px;
+}
+
+.add-package__kinds--list .add-package__kind-icon {
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 36px;
+  height: 36px;
+}
+
+.add-package__kinds--list .add-package__kind-icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.add-package__kinds--list .add-package__kind-hint {
+  grid-column: 2;
+}
+
 /* Step 2: the fields */
 
 .add-package__form {

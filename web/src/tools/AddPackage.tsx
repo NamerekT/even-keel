@@ -103,7 +103,7 @@ function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; p
 function KindStep({ onPick }: { onPick: (kind: Kind) => void }) {
   const icons: Record<Kind, ReactNode> = { plugin: <PlugIcon />, mcp: <ServerIcon />, skills: <StackIcon /> }
   return (
-    <div className="add-package__kinds">
+    <div className="add-package__kinds add-package__kinds--list">
       {(['plugin', 'mcp', 'skills'] as const).map((kind) => (
         <button key={kind} type="button" className="add-package__kind" onClick={() => onPick(kind)}>
           <span className="add-package__kind-icon">{icons[kind]}</span>
