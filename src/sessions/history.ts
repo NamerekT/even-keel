@@ -2,6 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { SessionRecord } from '../state.js'
 import { blocksOf, imagesOf, parseEntry, type TranscriptImage } from './entry.js'
+import { expandPromptFile } from './prompt-file.js'
 import { TranscriptFold, type Feed, type TranscriptSummary } from './transcript.js'
 
 const SESSION_ID = /^[0-9a-f][0-9a-f-]{7,63}$/i
@@ -10,7 +11,7 @@ const ANY_SESSION_ID = /^[\w-]{1,128}$/
 const HISTORY_FEED = 5_000
 
 export async function readSessionRecord(projectsDir: string, sessionId: string): Promise<Omit<SessionRecord, 'agent'> | undefined> {
-  const summary = await foldTranscript(projectsDir, sessionId, new TranscriptFold(HISTORY_FEED))
+  const summary = await foldTranscript(projectsDir, sessionId, new TranscriptFold(HISTORY_FEED, false, expandPromptFile))
   if (summary === undefined) return undefined
   return {
     sessionId,
@@ -32,7 +33,7 @@ export async function readSessionRecord(projectsDir: string, sessionId: string):
 
 /** Every prompt, text and tool call of the session, uncut, from line `after` on: lines are only ever appended. */
 export async function readTranscript(projectsDir: string, sessionId: string, after = 0): Promise<Feed | undefined> {
-  const summary = await foldTranscript(projectsDir, sessionId, new TranscriptFold(Infinity, true))
+  const summary = await foldTranscript(projectsDir, sessionId, new TranscriptFold(Infinity, true, expandPromptFile))
   return summary === undefined ? undefined : { lines: summary.feed.slice(after), turn: summary.turn }
 }
 

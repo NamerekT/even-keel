@@ -3,7 +3,10 @@ import { join } from 'node:path'
 import type { AgentEntry } from './agents.js'
 import { lineSlices } from './lines.js'
 import { projectDirName } from './paths.js'
+import { expandPromptFile } from './prompt-file.js'
 import { TranscriptFold, type TranscriptSummary } from './transcript.js'
+
+const newFold = () => new TranscriptFold(undefined, false, expandPromptFile)
 
 interface Found {
   file: string
@@ -12,7 +15,7 @@ interface Found {
 }
 
 export class TranscriptTail {
-  fold = new TranscriptFold()
+  fold = newFold()
   private file: string | undefined
   private ino: number | undefined
   private offset = 0
@@ -62,7 +65,7 @@ export class TranscriptTail {
   }
 
   private restart(found: Found): void {
-    this.fold = new TranscriptFold()
+    this.fold = newFold()
     this.file = found.file
     this.ino = found.ino
     this.offset = 0

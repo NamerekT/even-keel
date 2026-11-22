@@ -22,7 +22,6 @@ import {
   type Entry,
   type Usage,
 } from './entry.js'
-import { expandPromptFile } from './prompt-file.js'
 import { remoteUrlOf } from './remote.js'
 import { SHARE_TOOL, shareOf, type Share } from './share.js'
 
@@ -236,10 +235,14 @@ export class TranscriptFold {
   private readonly queue: { content: string | undefined; line: FeedLine | null }[] = []
   private summed: TranscriptSummary | undefined
 
-  /** `whole` keeps texts and prompts as written and adds shell commands to tool lines. */
+  /**
+   * `whole` keeps texts and prompts as written and adds shell commands to tool lines. `expand` gives the prompt a
+   * `promptPointer` stands for: the server passes `expandPromptFile`, kept out of this module because the page imports it.
+   */
   constructor(
     private readonly feedSize = FEED_SIZE,
     private readonly whole = false,
+    private readonly expand: (text: string, cwd: string | undefined) => string = (text) => text,
   ) {}
 
   push(line: string): void {
@@ -470,7 +473,7 @@ export class TranscriptFold {
       const answered = this.openAsk ?? this.strayAsk
       this.openAsk = null
       this.strayAsk = null
-      const prompt = expandPromptFile(promptOf(entry.message?.content), entry.cwd)
+      const prompt = this.expand(promptOf(entry.message?.content), entry.cwd)
       const line = userLine(entry.timestamp ?? '', prompt, answered, (text) => this.textOf(text))
       if (line !== null) this.addFeed(line)
     }

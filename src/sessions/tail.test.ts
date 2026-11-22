@@ -5,6 +5,7 @@ import { setImmediate } from 'node:timers/promises'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentEntry } from './agents.js'
 import { projectDirName } from './paths.js'
+import { promptPointer, writePromptFile } from './prompt-file.js'
 import { TranscriptTail } from './tail.js'
 
 const SESSION = '86e70ef5-0000-4000-8000-000000000001'
@@ -50,6 +51,15 @@ describe('TranscriptTail', () => {
     await tail.read()
 
     expect(texts(tail)).toEqual(['first', 'second'])
+  })
+
+  it('shows the prompt a pointer stands for, read from the session folder', async () => {
+    const pointer = promptPointer(await writePromptFile(projects, 'ABC-1 the whole prompt'))
+    write(ROOT, `${JSON.stringify({ type: 'user', timestamp: '2026-01-01T10:00:00Z', cwd: projects, message: { role: 'user', content: pointer } })}\n`)
+    const tail = new TranscriptTail(projects, agent(ROOT))
+    await tail.read()
+
+    expect(texts(tail)).toEqual(['ABC-1 the whole prompt'])
   })
 
   it('follows the transcript when the session moves into a worktree', async () => {
