@@ -400,6 +400,22 @@ export class TallyDb implements Store {
     return result.rowCount ?? 0
   }
 
+  /**
+   * The tasks the built-in tracker holds (`taskHomes`, BTN-1497) lose the profile a launch read them through and take the
+   * link of their card, `null` without one: an older run's value from the launch log goes, which `syncTaskSources`
+   * never clears. Only rows already there: a task without sessions needs none.
+   */
+  async syncOwnedTasks(owned: ReadonlyMap<string, string | null>): Promise<number> {
+    if (owned.size === 0) return 0
+    const result = await this.client.query(
+      `update tasks t set profile_id = null, url = x.url
+       from jsonb_to_recordset($1::jsonb) as x(task text, url text)
+       where t.task = x.task and (t.profile_id is not null or t.url is distinct from x.url)`,
+      [JSON.stringify([...owned].map(([task, url]) => ({ task, url })))],
+    )
+    return result.rowCount ?? 0
+  }
+
   /** The status and the done mark of tasks of other trackers than Huly, from Even Keel's archive (`closedStates`). */
   async syncClosedTasks(states: ClosedState[]): Promise<number> {
     const result = await this.client.query(CLOSED_TASK_STATES, [JSON.stringify(states)])

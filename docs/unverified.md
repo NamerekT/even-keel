@@ -303,6 +303,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 272 | [Files of the phone's sheet without the camera in Chrome on Android](unverified/page.md#files-of-the-phones-sheet-without-the-camera-in-chrome-on-android-btn-1421) | anyone attaching a file in a chat from Chrome on Android | Files still shows the camera menu, or the file manager greys out some files; attach a picture through Photos | BTN-1487 |
 | 273 | [The tasks outside the chain read by status categories](unverified/trackers.md#the-tasks-outside-the-chain-read-by-status-categories-btn-1428) | anyone opening "Outside the chain" on the project page | a task the rules keep out is missing from the view, or its read is slow; open the task by its address | BTN-1488 |
 | 274 | [The Huly contract before a release](unverified/ci.md#the-huly-contract-before-a-release-btn-1489) | the maintainer's releases | a night red on a stopped Huly holds a release again, or a release passes a red Huly run; read the runs `sh scripts/nights-green.sh` names | — |
+| 275 | [Tally's tasks after the move to the built-in tracker](unverified/trackers.md#tallys-tasks-after-the-move-to-the-built-in-tracker-btn-1497) | projects that moved from Huly to the built-in tracker | `/stats` opens the old Huly, the calibration counts no estimate, or time goes to an old Huly copy | — |
 
 ### Waiting for the event / not checked by choice
 

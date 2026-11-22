@@ -59,8 +59,9 @@ export function wireNewTally(ctx: StatsContext): () => TallyService {
           return values === undefined ? [] : [[idPrefixOf(config, project), values] as const]
         })
         const elsewhere = Object.entries(config.trackers).flatMap(([project, kind]) => (kind === 'huly' ? [] : [idPrefixOf(config, project)]))
+        const prefixes = Object.keys(config.trackers).map((project) => idPrefixOf(config, project))
         const byId = Object.fromEntries(set.profiles.filter((profile) => profile.kind === 'huly').map((profile) => [profile.id, profile.values]))
-        return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere, byId }
+        return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere, prefixes, byId }
       },
       trackers: () => timeTrackers(ctx.readers(), ctx.profiles.current(), ADAPTERS),
       log: (message) => console.log(message),

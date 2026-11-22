@@ -93,17 +93,21 @@ export async function refreshTasks(db: TallyDb, hulyOf: HulyOf, log: Log): Promi
   return fetched
 }
 
-/** A task a Huly profile reaches is reported to Huly; the rest go to the GitLab or Jira profile of their prefix (EKR-35). */
+/**
+ * A task a Huly profile reaches is reported to Huly; the rest go to the GitLab or Jira profile of their prefix (EKR-35).
+ * A task the built-in tracker holds (`owned`, BTN-1497) goes to none, whatever tracker gives its prefix.
+ */
 export async function reportTaskTimes(
-  db: TallyDb,
+  db: Pick<TallyDb, 'pendingReports' | 'markReported'>,
   since: string | null,
   hulyOf: HulyOf,
   trackers: readonly TimeTracker[],
   log: Log,
+  owned: { has(task: string): boolean } = new Set(),
   connect: ConnectTracker = connectTracker(HULY_TIMEOUT_MS),
 ): Promise<number> {
   if (since === null) return 0
-  const pending = await db.pendingReports(since, REPORT_IDLE_MINUTES)
+  const pending = (await db.pendingReports(since, REPORT_IDLE_MINUTES)).filter((report) => !owned.has(report.task))
   let written = 0
   for (const { credentials, items } of byCredentials(pending, (report) => report.task, hulyOf)) {
     try {
