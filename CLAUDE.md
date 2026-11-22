@@ -1,6 +1,6 @@
 # Even Keel
 
-Formerly called Baton (Батон): that is how it is recorded in old commits, tasks and memory; the Huly key `BTN` and the `btn-*` branches stayed.
+Formerly called Baton (Батон): that is how it is recorded in old commits, tasks and memory; the task key `BTN` and the `btn-*` branches stayed.
 
 A dispatcher of Claude Code session chains. It takes a project's open tasks from the tracker, builds the order from `blocks` relations, starts a session on the first task and, when the task goes to Done, starts the next one. A web page shows the chain and, for each session, the stage, the current action and how full the context is. It runs as a service on the user's workstation: agents are launched only here.
 
@@ -73,17 +73,17 @@ The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A ch
 
 Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, public). `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetch from all remotes, merge, push to all), never `git push origin <branch>`. Task branches are pushed by Even Keel alone.
 
-Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own; the next version is built on `dev` (this checkout, Huly `BTN`), fixes of the released one on `release/v<x.y>` (the clone `even-keel-github`, Huly `EKR`), carried into `dev` by Even Keel. Both folders share one auto-memory: a memory that holds only for one branch or folder names it.
+Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own; the next version is built on `dev` (this checkout, `BTN`), fixes of the released one on `release/v<x.y>` (the clone `even-keel-github`, `EKR`), carried into `dev` by Even Keel. Both folders share one auto-memory: a memory that holds only for one branch or folder names it.
 
 ## Tasks
 
-Work is tracked in Huly: `BTN` for the next version, `EKR` for fixes of the released one. Tasks go through the `tasks` plugin: read `tasks:task`.
+Work is tracked in Even Keel's built-in tracker (Huly until 2026-11-22): `BTN` for the next version, `EKR` for fixes of the released one. Tasks go through the `tasks` plugin: read `tasks:task`.
 
 - A session started by hand talks things through and files tasks; the chain codes them. A talk that ends in "do it" becomes a task in `BTN` (Backlog) and the session stops: no worktree, no code. Code by hand only when the user says to do it here (this overrides the global "without a task — commit at once"); such work is a commit to the checkout's branch, `dev` or `release/v<x.y>`, never `main`.
 - A bug of the released version goes to `EKR` instead, in its version's milestone, Todo, unless the user says it can wait.
 - Branch: `btn-<number>/short-description`. Commit: `[BTN-<number>] Message`. Task content is in Russian.
 - A session merges its task branch itself (`git merge --no-edit` in the main working copy) and reports what was done. A chain session then leaves the worktree, the branch and the push to Even Keel; a hand session cleans up per `tasks:task` and pushes through `git sync`.
-- GitHub issues are taken into `EKR` or `BTN` as `docs/releases.md` ("Trackers") says; decisions come only from the Huly task.
+- GitHub issues are taken into `EKR` or `BTN` as `docs/releases.md` ("Trackers") says; decisions come only from our task.
 
 Even Keel prepares a task's worktree itself (`.claude/worktrees/<key>-<number>` or a slot) and removes it after Done; sessions never create one (`docs/chain.md`).
 

@@ -15,16 +15,17 @@ Users of a clone update with `git pull` (README, "Updating"), so whatever lands 
 - Merges go one way only: `release/v<x.y>` into `dev` ("A fix" below). `main` has no commits of its own, so nothing is ever merged out of it.
 - Only the newest minor version gets patches: once `v0.2.0` is out, `release/v0.1` is left as it is.
 - `git sync` (the global alias) syncs the branch the checkout is on with every remote; `dev` and `release/*` are pushed only by it.
-- Two Huly projects, because before BTN-172 Even Keel could run neither two projects on one tracker project nor a chain of one milestone's tasks. Now it can (`docs/chain/projects.md`, "Several projects on one tracker project"): the fixes may go back into `BTN` as a milestone, with a release project of its own key on the `BTN` tracker project (`huly: BTN`, `requiredMilestones: ["v0.1"]`, and `excludedMilestones: ["v0.1"]` on `BTN`), and `EKR` closes. Until that switch `EKR` stays.
+- Two tracker projects, because before BTN-172 Even Keel could run neither two projects on one tracker project nor a chain of one milestone's tasks. Now it can (`docs/chain/projects.md`, "Several projects on one tracker project"): the fixes may go back into `BTN` as a milestone, with a release project of its own key on `BTN`'s tracker (`requiredMilestones: ["v0.1"]`, and `excludedMilestones: ["v0.1"]` on `BTN`), and `EKR` closes. Until that switch `EKR` stays.
+- Both are on Even Keel's built-in tracker since 2026-11-22, moved from Huly with their whole history (BTN-1407); older commits and notes name Huly.
 - Both folders share one auto-memory: Even Keel keeps a store per folder (`sharedMemory`, `docs/accounts.md`), and `~/.claude-memory/D--Projects-git-repos-even-keel-github` is a junction to `even-keel`'s store, made by hand on 2026-10-20. A new release branch reuses `even-keel-github`; a further clone of the repository needs the same junction.
 
 ## Trackers
 
-- `BTN` — the next version. Its Huly milestones are versions (`v0.2`, `v0.3`); a task belongs to the version it ships in, an idea for later goes into a later milestone. A blocker must not sit in a later milestone than the task it blocks: the chain halts on that (`order.later`).
+- `BTN` — the next version. Its milestones are versions (`v0.2`, `v0.3`); a task belongs to the version it ships in, an idea for later goes into a later milestone. A blocker must not sit in a later milestone than the task it blocks: the chain halts on that (`order.later`).
 - `EKR` — fixes of the released version, its milestone named by that version (`v0.1`), so the changelog of the chain's milestone head is the patch's section.
 - A bug of the released version that must reach its users before the next minor is an `EKR` task; one that can wait is a `BTN` task in the next milestone.
 - Urgency is the priority: an `Urgent` fix is released as a patch at once, the others wait for the next patch.
-- GitHub issues are where users report. No chain reads them: the user picks the ones worth doing and puts a label on, and Even Keel takes each into `EKR` or `BTN` with a link back, by the label each of the two projects names in its `intakeLabel` (`docs/trackers.md`, "Taking GitHub issues in"), so the work and its decisions stay in Huly and a stranger's comment steers nothing. The issue gets one line when its task is done, the version that ships it, and is closed by Even Keel when that release is published (step 7 below). A session asked to take an issue by hand copies it the same way.
+- GitHub issues are where users report. No chain reads them: the user picks the ones worth doing and puts a label on, and Even Keel takes each into `EKR` or `BTN` with a link back, by the label each of the two projects names in its `intakeLabel` (`docs/trackers.md`, "Taking GitHub issues in"), so the work and its decisions stay in our tracker and a stranger's comment steers nothing. The issue gets one line when its task is done, the version that ships it, and is closed by Even Keel when that release is published (step 7 below). A session asked to take an issue by hand copies it the same way.
 
 ## A fix
 
