@@ -1,3 +1,6 @@
+import { linkedFiles } from '../tracker/comments.js'
+import type { TrackerComment } from '../tracker/source.js'
+
 /** Where GitHub keeps the files dropped into a comment. */
 export const UPLOADS = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
 
@@ -18,6 +21,14 @@ export function uploadId(link: string): string | null {
   }
   const match = url.host === 'github.com' ? ASSET_PATH.exec(url.pathname) : url.host === SIGNED_HOST ? SIGNED_PATH.exec(url.pathname) : null
   return match?.[1]?.toLowerCase() ?? null
+}
+
+/**
+ * The files uploaded into a text, each once. An uploaded image GitHub named itself — `alt="Image"` of the HTML it
+ * writes on a drop, `![image]` of the older markdown — is named by its id instead: every picture would be "Image".
+ */
+export function uploadsIn(text: string): TrackerComment['files'] {
+  return linkedFiles(text, UPLOADS).map(({ name, file }) => ({ name: /^image$/i.test(name) ? uploadId(file) ?? name : name, file }))
 }
 
 /**

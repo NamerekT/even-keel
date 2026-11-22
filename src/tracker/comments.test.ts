@@ -27,4 +27,17 @@ describe('linkedFiles', () => {
       { name: 'raw name.png', file: 'https://uploads.example.com/d/raw%20name.png' },
     ])
   })
+
+  it("names an HTML picture by its alt, whatever the attributes' order", () => {
+    const body = [
+      '<img width="640" height="480" alt="Board &amp; cards" src="https://uploads.example.com/e/id-1" />',
+      "<img src='https://uploads.example.com/e/id-2' alt='second'>",
+      '<img alt="" src="https://uploads.example.com/e/id-3">',
+    ].join('\n')
+    expect(linkedFiles(body, host)).toEqual([
+      { name: 'Board & cards', file: 'https://uploads.example.com/e/id-1' },
+      { name: 'second', file: 'https://uploads.example.com/e/id-2' },
+      { name: 'id-3', file: 'https://uploads.example.com/e/id-3' },
+    ])
+  })
 })

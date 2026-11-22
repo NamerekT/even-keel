@@ -1,8 +1,8 @@
-import { linkedFiles } from '../tracker/comments.js'
+import { withExtension } from '../tracker/file-names.js'
 import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportGone, ImportImage, ImportLink, ImportMilestone, ImportSource, ImportTask } from '../tracker/import.js'
 import type { TaskPriority } from '../tracker/model.js'
 import { githubPriority, githubStatus, PRIORITY_LABEL, type IssueState, type IssueStateReason, type Repo, type RepoMap } from './model.js'
-import { uploadId, UPLOADS } from './uploads.js'
+import { uploadId, uploadsIn } from './uploads.js'
 
 export interface GithubImportDeps {
   graphql<T>(query: string, variables: Record<string, unknown>): Promise<T>
@@ -145,6 +145,8 @@ export function githubImport(deps: GithubImportDeps): ImportSource {
       loading = null
       throw error
     }))
+  // The type each upload was served with, by task and key: the journal's later list names a file as its download did.
+  const served = new Map<string, string>()
 
   async function pages<T, D>(query: string, variables: Record<string, unknown>, pick: (data: D) => Page<T> | null | undefined, what: string): Promise<T[]> {
     const out: T[] = []
@@ -255,16 +257,20 @@ export function githubImport(deps: GithubImportDeps): ImportSource {
       const files = new Map<string, ImportFile>()
       for (const upload of [...uploadsOf(task.description), ...nodes.flatMap((node) => uploadsOf(node.body))]) {
         if (files.has(upload.key)) continue
-        // GitHub names no type before the download: the file takes the one it is served with.
+        // GitHub names no type before the download: the file takes the one it is served with, and its extension.
+        const known = `${ref}\u0000${upload.key}`
+        const type = served.get(known) ?? ''
         const file: ImportFile = {
           key: upload.key,
-          name: upload.name,
-          type: '',
+          name: withExtension(upload.name, type),
+          type,
           size: null,
           async read() {
             const got = await deps.download(task.id, upload.link)
             if ('gone' in got) return got
+            served.set(known, got.type)
             file.type = got.type
+            file.name = withExtension(upload.name, got.type)
             file.size = got.bytes.byteLength
             return got.bytes
           },
@@ -290,7 +296,7 @@ interface Upload {
 
 /** The files uploaded into a text, each once: its key is the upload's id, or the link where it has none. */
 function uploadsOf(text: string): Upload[] {
-  return linkedFiles(text, UPLOADS).map(({ name, file }) => ({ key: uploadId(file) ?? file, link: file, name }))
+  return uploadsIn(text).map(({ name, file }) => ({ key: uploadId(file) ?? file, link: file, name }))
 }
 
 // Every upload link, a file's as a picture's, stands at its own address: the import points it at the attachment.

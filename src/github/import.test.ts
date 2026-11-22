@@ -193,6 +193,29 @@ describe('github import', () => {
     expect(calls.filter((call) => call.query.includes('comments('))).toHaveLength(1)
   })
 
+  it("names an upload by its picture's alt, by its id behind GitHub's own \"Image\", with the extension of the type it is served", async () => {
+    const SECOND = 'https://github.com/user-attachments/assets/7c2acc2c-0000-4000-8000-000000000001'
+    const png = () => new Response(new Uint8Array([137, 80, 78, 71]), { headers: { 'content-type': 'image/png' } })
+    const pdf = () => new Response(new Uint8Array([37, 80]), { headers: { 'content-type': 'application/pdf' } })
+    const { importing } = await connect(
+      {
+        issues: [page([issueNode(7, { body: `<img width="300" alt="Image" src="${ASSET}" />` })])],
+        comments: [page([{ id: 'IC_1', body: `![board](${SECOND}) [report.pdf](${PDF})`, createdAt: '2026-11-02T10:00:00Z', author: null }])],
+      },
+      { [ASSET]: png, [SECOND]: png, [PDF]: pdf },
+    )
+    const files = await importing.files('I_octo-org/abc_7')
+    expect(files.map((file) => file.name)).toEqual([ASSET_ID, 'board', 'report.pdf'])
+    for (const file of files) await file.read()
+    expect(files.map((file) => file.name)).toEqual([`${ASSET_ID}.png`, 'board.png', 'report.pdf'])
+    const again = await importing.files('I_octo-org/abc_7')
+    expect(again.map(({ name, type }) => ({ name, type }))).toEqual([
+      { name: `${ASSET_ID}.png`, type: 'image/png' },
+      { name: 'board.png', type: 'image/png' },
+      { name: 'report.pdf', type: 'application/pdf' },
+    ])
+  })
+
   it('gives no bytes of an upload GitHub serves no more', async () => {
     const { importing } = await connect({ issues: [page([issueNode(7, { body: `[report.pdf](${PDF})` })])], comments: [page([])] })
     const [file] = await importing.files('I_octo-org/abc_7')

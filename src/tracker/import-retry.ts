@@ -54,7 +54,14 @@ export function retryingSource(source: ImportSource, options: RetryOptions): Imp
       }
     }
   }
-  const fileOf = (file: ImportFile): ImportFile => ({ ...file, read: () => retried(`the file ${file.name}`, () => file.read()) })
+  // The fields are read through: an adapter may learn a file's name, type and size on its read.
+  const fileOf = (file: ImportFile): ImportFile => ({
+    key: file.key,
+    get name() { return file.name },
+    get type() { return file.type },
+    get size() { return file.size },
+    read: () => retried(`the file ${file.name}`, () => file.read()),
+  })
   const { changes } = source
   return {
     ...source,

@@ -375,11 +375,18 @@ describe('github source', () => {
     const nodes = [
       { id: 'IC_0', body: 'earlier', ...by('jdoe', 'OWNER') },
       { id: 'IC_1', body: 'Which one?', ...by('octocat', 'NONE') },
-      { id: 'IC_2', body: '2\n![shot](https://github.com/user-attachments/assets/abc-123)', ...by('jdoe', 'OWNER') },
+      { id: 'IC_2', body: '2\n![shot](https://github.com/user-attachments/assets/abc-123)\n<img alt="Image" src="https://github.com/user-attachments/assets/def-456" />', ...by('jdoe', 'OWNER') },
     ]
     const { source } = await connect([{ body: { data: { repository: { issue: { comments: { nodes } } } } } }])
     expect(await source.commentsAfter!('ABC-7', 'IC_1')).toEqual([
-      { id: 'IC_2', body: nodes[2]!.body, files: [{ name: 'shot', file: 'https://github.com/user-attachments/assets/abc-123' }] },
+      {
+        id: 'IC_2',
+        body: nodes[2]!.body,
+        files: [
+          { name: 'shot', file: 'https://github.com/user-attachments/assets/abc-123' },
+          { name: 'def-456', file: 'https://github.com/user-attachments/assets/def-456' },
+        ],
+      },
     ])
   })
 

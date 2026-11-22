@@ -1,4 +1,4 @@
-import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
+import { commentsAfterId } from '../tracker/comments.js'
 import { trackedFetch } from '../tracker/diagnostics.js'
 import { resolveLabels, type NamedLabel } from '../tracker/labels.js'
 import { fileGone, type ImportGone } from '../tracker/import.js'
@@ -11,7 +11,7 @@ import { githubEditor } from './editor.js'
 import { githubImport } from './import.js'
 import { EDITS, textEditOf, type GithubEdits } from './edits.js'
 import { Skipped, trustedAuthor } from './trust.js'
-import { nextPage, signedLink, uploadId, UPLOADS } from './uploads.js'
+import { nextPage, signedLink, uploadId, UPLOADS, uploadsIn } from './uploads.js'
 
 export interface GithubSettings {
   token: string
@@ -462,7 +462,7 @@ export async function connectGithub(
         skipped.note(node.id, `github: ${id}: the comment ${node.id} of ${author} is skipped: its author is not a collaborator of ${repo.owner}/${repo.name}`)
         return false
       })
-      return passed.map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, UPLOADS) }))
+      return passed.map((node) => ({ id: node.id, body: node.body, files: uploadsIn(node.body) }))
     },
 
     async isPublic(project) {

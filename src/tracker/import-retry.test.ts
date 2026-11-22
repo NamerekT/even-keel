@@ -71,6 +71,19 @@ describe('retryingSource', () => {
     expect(source.calls).toEqual(['read', 'read'])
   })
 
+  it("gives the name, type and size the source's file learns on its read", async () => {
+    const learning: ImportFile = {
+      key: 'f1', name: 'id', type: '', size: null,
+      async read() {
+        Object.assign(learning, { name: 'id.png', type: 'image/png', size: 1 })
+        return new Uint8Array([1])
+      },
+    }
+    const [file] = await retryingSource(flaky([], { files: async () => [learning] }), quick).files('t1')
+    await file!.read()
+    expect(file).toMatchObject({ name: 'id.png', type: 'image/png', size: 1 })
+  })
+
   it('keeps what the source has and has not', () => {
     const retrying = retryingSource(flaky([], { changes: undefined, milestoneGaps: ['closedAt'] }), quick)
     expect(retrying.changes).toBeUndefined()
