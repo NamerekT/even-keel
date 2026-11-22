@@ -328,20 +328,23 @@ export const fakeMachineColors = (names: Record<string, string>): Pick<EvenKeelS
 /**
  * `?chain=machinePackages|machineGateway|machineOld` (BTN-1524): the first project's lane went to the laptop and waits
  * there — for docs, which does not answer, and forgejo, still starting; for the laptop's MCP gateway; for packages an
- * older laptop only says are not ready. The hub's own set is fine.
+ * older laptop only says are not ready. The hub's own set is fine. `?chain=machineLimits` (BTN-1521): the lane there
+ * waits for the first limits poll of the laptop's account, the next one in 4 minutes.
  */
-export function fakeMachinePackagesWait(state: EvenKeelState, mode: string): void {
+export function fakeMachineLaneWait(state: EvenKeelState, mode: string): void {
+  type Lane = NonNullable<(typeof state.chain.active)[number]>
   const lane = state.chain.active[0]
-  const waits: Record<string, NonNullable<typeof lane>['packagesWait']> = {
-    machinePackages: { machine: 'machine-1', packages: [{ name: 'docs', problems: [{ kind: 'noResponse', servers: ['docs'] }] }, { name: 'forgejo', problems: [{ kind: 'probing' }] }] },
-    machineGateway: { machine: 'machine-1', gateway: true, packages: [] },
-    machineOld: { machine: 'machine-1', packages: [] },
+  const waits: Record<string, Partial<Lane>> = {
+    machinePackages: { packagesWait: { machine: 'machine-1', packages: [{ name: 'docs', problems: [{ kind: 'noResponse', servers: ['docs'] }] }, { name: 'forgejo', problems: [{ kind: 'probing' }] }] } },
+    machineGateway: { packagesWait: { machine: 'machine-1', gateway: true, packages: [] } },
+    machineOld: { packagesWait: { machine: 'machine-1', packages: [] } },
+    machineLimits: { limitsWait: { account: 'laptop', next: new Date(Date.now() + 4 * 60_000).toISOString() } },
   }
-  const packagesWait = waits[mode]
-  if (lane === undefined || packagesWait === undefined) return
+  const wait = waits[mode]
+  if (lane === undefined || wait === undefined) return
   state.machineNames = { ...FAKE_MACHINE_NAMES, ...state.machineNames }
   Object.assign(state, fakeMachineColors(state.machineNames))
-  state.chain.active = [{ ...lane, machine: 'machine-1', current: null, packagesWait }, ...state.chain.active.slice(1)]
+  state.chain.active = [{ ...lane, machine: 'machine-1', current: null, ...wait }, ...state.chain.active.slice(1)]
 }
 
 const folderName = (path: string): string => path.split(/[\\/]/).filter((part) => part !== '').pop() ?? 'project'

@@ -72,6 +72,14 @@ describe('machinePool', () => {
     expect(pool.packagesPause('p', 'A-2')).toBe('own')
   })
 
+  it("reads a task's limits on the machine it went to: the wait for its account's first poll there (BTN-1521)", () => {
+    const { pool } = poolOf()
+    expect(pool.limitsUnread('p', 'A-1')).toBe('server')
+    expect(pool.limitReset('p', 'A-1')).toBe('server')
+    expect(pool.limitsUnread('p', 'A-2')).toBe('own')
+    expect(pool.limitsUnread('p')).toBe('own')
+  })
+
   it("names the machine whose packages hold a task where it is not the own one (BTN-1524)", () => {
     const held = (machine: string) => ({ packagesHeld: () => ({ packages: [{ name: machine, problems: [{ kind: 'probing' }] }] }) }) as unknown as MachinePort
     const { pool } = poolOf({ port: (machine) => (machine === 'gone' ? undefined : held(machine)) })
