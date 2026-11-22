@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { remotesOf, type Remote } from '../ci/remote.js'
+import { remoteUrls } from '../git/remote-urls.js'
 import type { Git } from '../git/types.js'
 import { pathKey, pathsOf } from '../paths.js'
 import type { RemoteRef } from '../state.js'
@@ -41,7 +42,7 @@ function localRef(path: string, repo: string, platform: NodeJS.Platform): Remote
 
 /** A checkout's remotes by name and address; none when git cannot read the folder. */
 export async function remotesIn(git: Git, repo: string): Promise<Remote[]> {
-  const urls = await git(repo, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+  const urls = await remoteUrls(git, repo)
   return urls.code === 0 ? remotesOf(urls.out) : []
 }
 

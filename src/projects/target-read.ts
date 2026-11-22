@@ -1,4 +1,5 @@
 import { remotesOf } from '../ci/remote.js'
+import { remoteUrls } from '../git/remote-urls.js'
 import type { Git } from '../git/types.js'
 import { notice, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath } from '../paths.js'
@@ -90,7 +91,7 @@ function freeName(deps: TargetDeps, name: string): string {
 
 /** The repository's `origin`, or its first remote, the address without a user or a password; `null` — none. */
 async function firstRemote(git: Git, root: string): Promise<{ name: string; url: string } | null> {
-  const urls = await git(root, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+  const urls = await remoteUrls(git, root)
   if (urls.code !== 0) return null
   const remotes = remotesOf(urls.out)
   const first = remotes.find((each) => each.name === 'origin') ?? remotes[0]

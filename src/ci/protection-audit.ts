@@ -1,5 +1,6 @@
 import type { EvenKeelConfig } from '../config.js'
 import { createHash } from 'node:crypto'
+import { remoteUrls } from '../git/remote-urls.js'
 import type { Git } from '../git/types.js'
 import { branchProtection } from './protection.js'
 import type { RemoteProtection } from './protection-model.js'
@@ -36,7 +37,7 @@ export class ProtectionAudit {
     const repo = config.projects[project]
     const settings = config.settings[project]
     if (repo === undefined || settings === undefined) return
-    const result = await this.deps.git(repo, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+    const result = await remoteUrls(this.deps.git, repo)
     if (result.code !== 0 && result.code !== 1) return
     const targets = remotesOf(result.out).flatMap<CiTarget>(remote => {
       const parsed = parseRemote(remote.url)

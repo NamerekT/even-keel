@@ -6,6 +6,7 @@ import { withNewProject, yieldedMilestones } from '../config-form.js'
 import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels, runSettings } from '../config.js'
 import { currentBranch, isBranchName, readBranches } from '../git/branches.js'
 import { sharedRemoteReader, type ReadRemote } from '../git/remote-run.js'
+import { remoteUrls } from '../git/remote-urls.js'
 import type { Git } from '../git/types.js'
 import { fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath, sameSpelling, workingFolder } from '../paths.js'
@@ -156,7 +157,7 @@ export async function sourcedDraft(git: Git, draft: ProjectDraft, raw: unknown, 
 
 async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | undefined, env: Readonly<Record<string, string | undefined>>): Promise<string | null> {
   if (adapter?.projectOfRemote === undefined) return null
-  const urls = await git(root, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+  const urls = await remoteUrls(git, root)
   if (urls.code !== 0) return null
   for (const { url } of remotesOf(urls.out)) {
     const remote = parseRemote(url)
@@ -244,7 +245,7 @@ async function checkTracker(
 /** The issue templates of the folder's branch, where the folder is a clone of the tracker's repository `place` (BTN-1130). */
 async function folderTemplates(git: Git, { root, branch }: { root: string; branch: string }, place: string): Promise<IssueTemplate[] | null> {
   if (place === '') return null
-  const urls = await git(root, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+  const urls = await remoteUrls(git, root)
   return urls.code === 0 && isOwnRepo(remotesOf(urls.out), place) ? readIssueTemplates(git, root, branch) : null
 }
 

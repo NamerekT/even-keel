@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { remotesOf, type Remote } from '../ci/remote.js'
 import { sameRemote } from '../git/clone-progress.js'
+import { remoteUrls } from '../git/remote-urls.js'
 import type { Git } from '../git/types.js'
 import type { FolderProbe } from '../link/view.js'
 import { fail, NoticeError, notice, type Notice } from '../notice/notice.js'
@@ -42,7 +43,7 @@ const PACKAGES_WAIT_MS = 3 * 60_000
 
 /** The folder's remote that is the project's: one of the hub's addresses, the scheme and `.git` apart. */
 async function projectRemote(git: Git, spec: Pick<FolderSpec, 'folder' | 'remotes'>): Promise<Remote | undefined> {
-  const urls = await git(spec.folder, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+  const urls = await remoteUrls(git, spec.folder)
   if (urls.code !== 0) return undefined
   return remotesOf(urls.out).find((remote) => spec.remotes.some((url) => sameRemote(url, remote.url)))
 }

@@ -2,6 +2,7 @@ import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { GITHUB_TOKEN } from '../github/adapter.js'
 import { GITLAB_TOKEN, GITLAB_URL, webUrl } from '../gitlab/api.js'
+import { remoteUrls } from '../git/remote-urls.js'
 import type { Git } from '../git/types.js'
 import { defaultProfile, profileFor, type ProfileSet, type TrackerProfile } from '../profiles/model.js'
 import { FORGEJO_TOKEN, FORGEJO_URL, hostOf } from './forgejo-profile.js'
@@ -67,7 +68,7 @@ export function ciSource(target: CiTarget, token: string | null, timeoutMs: numb
 
 /** The remotes with configuration for their forge's CI, using current profiles to identify self-managed GitLab. */
 export async function projectTargets(git: Git, repo: string, profiles: readonly TrackerProfile[] = []): Promise<CiTarget[]> {
-  const urls = await git(repo, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+  const urls = await remoteUrls(git, repo)
   if (urls.code !== 0) return []
   const [forgejo, github] = await Promise.all([hasWorkflows(join(repo, '.forgejo', 'workflows')), hasWorkflows(join(repo, '.github', 'workflows'))])
   const gitlab = await stat(join(repo, '.gitlab-ci.yml')).then((file) => file.isFile(), () => false)

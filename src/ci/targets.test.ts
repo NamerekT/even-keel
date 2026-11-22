@@ -16,7 +16,7 @@ describe('projectTargets', () => {
     expect(await projectTargets(git, 'example', [profile])).toEqual([
       { kind: 'gitlab', remote: 'origin', web: 'https://git.example.com', owner: 'group/sub', repo: 'app' },
     ])
-    expect(String(vi.mocked(stat).mock.calls[0]![0]).replaceAll('\\', '/')).toBe('example/.gitlab-ci.yml')
+    expect(vi.mocked(stat).mock.calls.map(([path]) => String(path).replaceAll('\\', '/'))).toContain('example/.gitlab-ci.yml')
     vi.mocked(stat).mockResolvedValue({ isFile: () => false } as Awaited<ReturnType<typeof stat>>)
     expect(await projectTargets(git, 'example', [profile])).toEqual([])
     vi.mocked(stat).mockRejectedValue(new Error('missing'))
