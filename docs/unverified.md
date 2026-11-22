@@ -304,6 +304,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 273 | [The tasks outside the chain read by status categories](unverified/trackers.md#the-tasks-outside-the-chain-read-by-status-categories-btn-1428) | anyone opening "Outside the chain" on the project page | a task the rules keep out is missing from the view, or its read is slow; open the task by its address | BTN-1488 |
 | 274 | [The Huly contract before a release](unverified/ci.md#the-huly-contract-before-a-release-btn-1489) | the maintainer's releases | a night red on a stopped Huly holds a release again, or a release passes a red Huly run; read the runs `sh scripts/nights-green.sh` names | — |
 | 275 | [Tally's tasks after the move to the built-in tracker](unverified/trackers.md#tallys-tasks-after-the-move-to-the-built-in-tracker-btn-1497) | projects that moved from Huly to the built-in tracker | `/stats` opens the old Huly, the calibration counts no estimate, or time goes to an old Huly copy | — |
+| 276 | [A long `--bg` prompt through a file in a live chain](unverified/sessions.md#a-long---bg-prompt-through-a-file-in-a-live-chain-btn-1505) | Claude `--bg` sessions on Windows whose handoff or reply passes 32,767 characters with the flags | the chain pauses on `ENAMETOOLONG` again, or the chat shows the pointer instead of the prompt | — |
 
 ### Waiting for the event / not checked by choice
 

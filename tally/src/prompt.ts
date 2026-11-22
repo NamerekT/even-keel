@@ -1,4 +1,5 @@
 import type { Entry } from '../../src/sessions/entry.js'
+import { expandPromptFile } from '../../src/sessions/prompt-file.js'
 import { isContextBlock, isPrompt, promptOf } from '../../src/sessions/transcript.js'
 
 const COMMAND = /^<(?:command-|local-command-)/
@@ -10,7 +11,7 @@ export function firstPrompt(entries: Iterable<Entry>, limit = PROMPT_LIMIT): str
     if (entry.type !== 'user' || entry.isMeta === true || entry.agentId !== undefined) continue
     if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') continue
     if (!isPrompt(entry.message?.content)) continue
-    const text = promptOf(entry.message?.content).trim()
+    const text = expandPromptFile(promptOf(entry.message?.content), entry.cwd).trim()
     if (text === '' || COMMAND.test(text) || isContextBlock(text)) continue
     return text.slice(0, limit)
   }

@@ -7,12 +7,14 @@ import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type AccountStatus } from '../account/model.js'
 import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
+import { execFailure } from '../agent/exec-failure.js'
 import { npmCliBinary, thisMachine, type BinaryMachine, type NpmCli } from '../agent/npm-global.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { binaryPath, pathsOf, samePath } from '../paths.js'
 import { blockedAsk, blockedOn, launchedModel, launchedSettings, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
+import { commandLineFits, promptPointer, writePromptFile } from '../sessions/prompt-file.js'
 import { rareEvents } from '../sessions/rare.js'
 import { TranscriptTail } from '../sessions/tail.js'
 import type { TurnSpend } from '../state.js'
@@ -176,13 +178,13 @@ export class ClaudeCli {
     try {
       await run(this.bin(), ['auth', 'logout'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
-      throw fail('claude.signOutFailed', { account: home.key }, { detail: outputOf(error) }, { cause: error })
+      throw fail('claude.signOutFailed', { account: home.key }, { detail: callFailure(error) }, { cause: error })
     }
   }
 
   async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: string | null, extras: SessionExtras = {}): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    await this.start(home, [...sessionArgs(task, model, extras), promptArg(prompt)], cwd, notice('claude.startFailed', { task, cwd }))
+    await this.start(home, [...sessionArgs(task, model, extras), promptArg(prompt)], [], cwd, notice('claude.startFailed', { task, cwd }))
     return this.appear(home, launchedAs(task, cwd, launchedAt), notice('claude.notShown', { task }))
   }
 
@@ -199,7 +201,9 @@ export class ClaudeCli {
     const resumedAt = Date.now()
     const kept = existsSync(join(home.dir, 'jobs', agentId, 'state.json'))
     const args = resumeArgs(sessionId, prompt, kept, task, model, extras)
-    await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
+    // A kept job's saved options are put on its line by the daemon itself.
+    const saved = kept ? sessionArgs(task, model, extras) : []
+    await this.start(home, args, saved, cwd, notice('claude.resumeFailed', { task, cwd }))
     const found = await this.appear(home, resumedAs(agentId, sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
     if (found.sessionId !== sessionId) rareEvents.copy(sessionId, { ...found, task }, resumedAt,
       await new TranscriptTail(join(home.dir, 'projects'), found).exists())
@@ -222,7 +226,7 @@ export class ClaudeCli {
     try {
       await run(this.bin(), ['stop', agentId], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
-      throw fail('claude.stopFailed', { agent: agentId }, { detail: outputOf(error) }, { cause: error })
+      throw fail('claude.stopFailed', { agent: agentId }, { detail: callFailure(error) }, { cause: error })
     }
     const wait = new QueueWait(APPEAR_TIMEOUT_MS)
     while (wait.open) {
@@ -255,23 +259,24 @@ export class ClaudeCli {
     try {
       await run(this.bin(), ['daemon', 'stop', '--any'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
-      throw fail('claude.daemonStopFailed', { account: home.key }, { detail: outputOf(error) }, { cause: error })
+      throw fail('claude.daemonStopFailed', { account: home.key }, { detail: callFailure(error) }, { cause: error })
     }
   }
 
-  private async start(home: AccountHome, args: string[], cwd: string, failure: Notice): Promise<void> {
+  /** `args` ends with the prompt; `saved` — the flags the daemon adds to the line it spawns the session with. */
+  private async start(home: AccountHome, args: string[], saved: string[], cwd: string, failure: Notice): Promise<void> {
     const env = { ...this.envOf(home) }
     const selected = this.bin()
     const binary = binaryPath(selected, env, cwd) ?? selected
     const override = env.CLAUDE_CONFIG_DIR
     const recovery = { binary, configDir: override ? (isAbsolute(override) ? override : resolve(cwd, override)) : null }
     try {
-      await run(binary, args, { cwd, env, timeout: this.timeoutMs, windowsHide: true })
+      await run(binary, await fittedArgs(binary, args, saved, cwd), { cwd, env, timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
       if (failure.code === 'claude.startFailed' || failure.code === 'claude.resumeFailed') {
         failure = { ...failure, params: { ...failure.params, recovery } }
       }
-      throw new NoticeError({ ...failure, detail: outputOf(error) }, { cause: error })
+      throw new NoticeError({ ...failure, detail: callFailure(error) }, { cause: error })
     }
   }
 
@@ -463,6 +468,17 @@ export function promptArg(prompt: string): string {
   return prompt.startsWith('-') ? `\n${prompt}` : prompt
 }
 
+/**
+ * `args` with their last, the prompt, put into a file of the folder and given as a short pointer to it when the line the
+ * daemon spawns the session with would not fit (BTN-1505). Stdin is no way round: `--bg` reads a prompt from it, but the
+ * daemon still puts the prompt on its own line (CLI 2.1.330, `ENAMETOOLONG … uv_spawn`).
+ */
+export async function fittedArgs(binary: string, args: string[], saved: string[], cwd: string, platform: NodeJS.Platform = process.platform): Promise<string[]> {
+  if (commandLineFits(binary, [...saved, ...args], platform)) return args
+  const prompt = args.at(-1)!
+  return [...args.slice(0, -1), promptPointer(await writePromptFile(cwd, prompt))]
+}
+
 function launchedAs(task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {
   return (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= since - CLOCK_SKEW_MS
 }
@@ -565,16 +581,7 @@ async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<Ag
   )
 }
 
-/** A failed `execFile` in a line: how it ended and what the CLI printed, without the command line `message` starts with. */
+/** `execFailure`, and a wait the folder's queue gave up as a timeout. */
 export function callFailure(error: unknown): string {
-  if (error instanceof CallTimeout) return 'timed out'
-  const { code, killed } = error as { code?: unknown; killed?: boolean }
-  const ended = killed === true ? 'timed out' : typeof code === 'number' ? `exit code ${code}` : undefined
-  if (ended === undefined) return error instanceof Error ? error.message : String(error)
-  return [ended, outputOf(error)].filter(Boolean).join(' / ')
-}
-
-function outputOf(error: unknown): string {
-  const { stdout, stderr } = error as { stdout?: string; stderr?: string }
-  return [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
+  return error instanceof CallTimeout ? 'timed out' : execFailure(error)
 }

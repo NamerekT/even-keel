@@ -1,5 +1,9 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Entry } from '../../src/sessions/entry.js'
+import { promptPointer, writePromptFile } from '../../src/sessions/prompt-file.js'
 import { firstPrompt } from './prompt.js'
 
 const user = (content: unknown, extra: Partial<Entry> = {}): Entry => ({ type: 'user', message: { role: 'user', content }, ...extra }) as Entry
@@ -8,6 +12,15 @@ describe('firstPrompt', () => {
   it('takes the first human prompt, string or text blocks', () => {
     expect(firstPrompt([user('делай CBL-169'), user('и ещё')])).toBe('делай CBL-169')
     expect(firstPrompt([user([{ type: 'text', text: ' ABC-1 ' }])])).toBe('ABC-1')
+  })
+
+  // BTN-1505: a prompt too long for the command line reaches the session as a pointer to its file.
+  it('takes the text of a prompt file for the pointer to it', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'tally-prompt-file-'))
+    const pointer = promptPointer(await writePromptFile(cwd, 'Задача ABC-1 целиком'))
+    expect(firstPrompt([user(pointer, { cwd })])).toBe('Задача ABC-1 целиком')
+    await rm(cwd, { recursive: true, force: true })
+    expect(firstPrompt([user(pointer, { cwd })])).toBe(pointer)
   })
 
   it('drops the context blocks clients wrap around a prompt but keeps pasted text', () => {

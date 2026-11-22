@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { readSessionRecord, readTranscript, readTranscriptImage, transcriptFile } from './history.js'
+import { promptPointer, writePromptFile } from './prompt-file.js'
 
 const SESSION = '0a1b2c3d-1e04-43ce-b2ed-9b4a4eb36c23'
 
@@ -63,6 +64,17 @@ describe('readSessionRecord', () => {
     expect(await readTranscript(projects, other)).toBeUndefined()
     expect(await transcriptFile(projects, other)).toBeUndefined()
     expect(await readTranscriptImage(projects, other, 'toolu_1', 0)).toBeUndefined()
+  })
+
+  // BTN-1505: a prompt too long for the command line reaches the session as a pointer to its file.
+  it('shows the text of a prompt file in place of the pointer to it', async () => {
+    const dir = join(projects, 'C--repos-example')
+    mkdirSync(dir)
+    const prompt = 'Задача ABC-1\n'.repeat(3_000)
+    const pointer = promptPointer(await writePromptFile(projects, prompt))
+    const first = { type: 'user', timestamp: '2026-09-27T09:59:00.000Z', cwd: projects, message: { role: 'user', content: pointer } }
+    writeFileSync(join(dir, `${SESSION}.jsonl`), `${JSON.stringify(first)}\n`)
+    expect((await readTranscript(projects, SESSION))?.lines[0]).toMatchObject({ kind: 'prompt', text: prompt.trim() })
   })
 
   it('reads the whole transcript with the first prompt and texts uncut', async () => {

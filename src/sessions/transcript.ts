@@ -22,6 +22,7 @@ import {
   type Entry,
   type Usage,
 } from './entry.js'
+import { expandPromptFile } from './prompt-file.js'
 import { remoteUrlOf } from './remote.js'
 import { SHARE_TOOL, shareOf, type Share } from './share.js'
 
@@ -461,7 +462,8 @@ export class TranscriptFold {
       const answered = this.openAsk ?? this.strayAsk
       this.openAsk = null
       this.strayAsk = null
-      const line = userLine(entry.timestamp ?? '', promptOf(entry.message?.content), answered, (text) => this.textOf(text))
+      const prompt = expandPromptFile(promptOf(entry.message?.content), entry.cwd)
+      const line = userLine(entry.timestamp ?? '', prompt, answered, (text) => this.textOf(text))
       if (line !== null) this.addFeed(line)
     }
   }

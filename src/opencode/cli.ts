@@ -418,6 +418,7 @@ export class OpenCodeCli {
     const out = this.registry.turnFile(start.name, at)
     const fd = openSync(out, 'a')
     let exited = false
+    let spawnError = ''
     let child
     try {
       child = spawn(this.bin(), args, {
@@ -427,7 +428,10 @@ export class OpenCodeCli {
         stdio: ['pipe', fd, fd],
         windowsHide: true,
       })
-      child.on('error', () => (exited = true))
+      child.on('error', (error) => {
+        exited = true
+        spawnError = error.message
+      })
       child.on('exit', () => (exited = true))
       // An early CLI exit can close stdin during the write. Its diagnostic is in the turn file below.
       child.stdin!.on('error', () => {}).end(start.prompt)
@@ -445,7 +449,8 @@ export class OpenCodeCli {
       if (session !== undefined && child.pid !== undefined) return { session, pid: child.pid, out, at }
       if (exited || Date.now() > deadline) {
         if (!exited && child.pid !== undefined) await killTree(child.pid)
-        throw new NoticeError({ ...failure, detail: text.trim().slice(-500) })
+        // A spawn that never ran wrote nothing into the turn file: its error is the reason (BTN-1505).
+        throw new NoticeError({ ...failure, detail: text.trim().slice(-500) || spawnError })
       }
       await delay(POLL_MS)
     }

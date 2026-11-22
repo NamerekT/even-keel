@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { CallTimeout, FolderCalls, type CallOptions, type CallOutput } from './calls.js'
-import { callFailure, ClaudeCli, parseWarmAnswer, parseWriteAnswer, promptArg, resolveClaudeBinary, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
+import { NoticeError } from '../notice/notice.js'
+import { expandPromptFile } from '../sessions/prompt-file.js'
+import { callFailure, ClaudeCli, fittedArgs, parseWarmAnswer, parseWriteAnswer, promptArg, resolveClaudeBinary, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
 
 // EKR-102: at the service's start the chain's `claude agents` timed out behind the /context probes and paused the chain.
 describe('ClaudeCli.stop in a clogged folder queue', () => {
@@ -250,6 +252,59 @@ describe('parseWarmAnswer', () => {
 
   it('keeps the overload refusal from a failed fork for keep-warm to skip it', () => {
     expect(() => parseWarmAnswer(JSON.stringify({ subtype: 'error_during_execution', is_error: true, errors: ['API Error: 529 overloaded_error'] }), null)).toThrow('overloaded_error')
+  })
+})
+
+// BTN-1505: a handoff prompt past Windows' 32,767-character line failed with `spawn ENAMETOOLONG` and an empty reason.
+describe('fittedArgs', () => {
+  const binary = 'C:\\Users\\someone\\.local\\bin\\claude.exe'
+  let cwd: string
+  beforeEach(async () => {
+    cwd = await mkdtemp(join(tmpdir(), 'even-keel-fitted-'))
+  })
+  afterEach(async () => {
+    await rm(cwd, { recursive: true, force: true })
+  })
+
+  it('leaves a prompt that fits on the line', async () => {
+    const args = [...sessionArgs('ABC-1', 'opus'), 'Задача ABC-1']
+    expect(await fittedArgs(binary, args, [], cwd, 'win32')).toEqual(args)
+  })
+
+  it('puts a launch prompt longer than the line into a file and passes a pointer to it', async () => {
+    const prompt = 'Записка хендоффа: "кавычки" и \\слэши\\\n'.repeat(1_500)
+    expect(prompt.length).toBeGreaterThan(32_767)
+    const fitted = await fittedArgs(binary, [...sessionArgs('ABC-1', 'opus'), promptArg(prompt)], [], cwd, 'win32')
+    expect(fitted.slice(0, -1)).toEqual(sessionArgs('ABC-1', 'opus'))
+    expect(fitted.at(-1)!.length).toBeLessThan(300)
+    expect(expandPromptFile(fitted.at(-1)!, cwd)).toBe(prompt)
+  })
+
+  it('puts a long reply of a resume into a file the same way', async () => {
+    const reply = 'ответ '.repeat(6_000)
+    const fitted = await fittedArgs(binary, resumeArgs('s-1', reply, true, 'ABC-1', 'opus'), [], cwd, 'win32')
+    expect(fitted.slice(0, -1)).toEqual(['--bg', '--resume', 's-1'])
+    expect(expandPromptFile(fitted.at(-1)!, cwd)).toBe(reply)
+  })
+
+  it('counts the flags the daemon puts back on a kept job\'s line', async () => {
+    const settings = JSON.stringify({ padding: 'x'.repeat(21_000) })
+    const args = resumeArgs('s-1', 'y'.repeat(12_000), true, 'ABC-1', 'opus', { settings })
+    expect((await fittedArgs(binary, args, [], cwd, 'win32')).at(-1)!.length).toBe(12_000)
+    const saved = sessionArgs('ABC-1', 'opus', { settings })
+    expect((await fittedArgs(binary, args, saved, cwd, 'win32')).at(-1)!.length).toBeLessThan(300)
+  })
+})
+
+describe('a launch that never ran', () => {
+  it('names the spawn error, which printed nothing, as the reason', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'even-keel-nolaunch-'))
+    const home: AccountHome = { key: 'one', dir: cwd, global: false, agent: 'claude' }
+    const cli = new ClaudeCli(() => join(cwd, 'no-such-claude.exe'), 30_000, () => ({}), new FolderCalls())
+    const failure = await cli.launch(home, 'ABC-1', cwd, 'prompt', null).catch((error: unknown) => error)
+    await rm(cwd, { recursive: true, force: true })
+    expect(failure).toBeInstanceOf(NoticeError)
+    expect((failure as NoticeError).notice).toMatchObject({ code: 'claude.startFailed', detail: expect.stringContaining('ENOENT') })
   })
 })
 

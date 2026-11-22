@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import type { OneTurnAnswer, SessionStart } from '../agent/contract.js'
+import { execFailure } from '../agent/exec-failure.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { isAlive, killTree, stopTree } from '../agent/process.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
@@ -300,7 +301,7 @@ export class CodexCli {
     try {
       await run(this.bin(), ['logout'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
-      throw fail('codex.signOutFailed', { account: home.key }, { detail: outputOf(error) }, { cause: error })
+      throw fail('codex.signOutFailed', { account: home.key }, { detail: execFailure(error) }, { cause: error })
     }
   }
 
@@ -361,6 +362,7 @@ export class CodexCli {
     const out = this.registry.turnFile(start.name, at)
     const fd = openSync(out, 'a')
     let exited = false
+    let spawnError = ''
     let child
     try {
       child = spawn(this.bin(), args, {
@@ -370,7 +372,10 @@ export class CodexCli {
         stdio: ['pipe', fd, fd],
         windowsHide: true,
       })
-      child.on('error', () => (exited = true))
+      child.on('error', (error) => {
+        exited = true
+        spawnError = error.message
+      })
       child.on('exit', () => (exited = true))
       // An early CLI exit can close stdin during the write. Its diagnostic is in the turn file below.
       child.stdin!.on('error', () => {}).end(start.prompt)
@@ -387,14 +392,11 @@ export class CodexCli {
       if (thread !== undefined && child.pid !== undefined) return { thread, pid: child.pid, out, at }
       if (exited || Date.now() > deadline) {
         if (!exited && child.pid !== undefined) await killTree(child.pid)
-        throw new NoticeError({ ...failure, detail: text.trim().slice(-500) })
+        // A spawn that never ran wrote nothing into the turn file: its error is the reason (BTN-1505).
+        throw new NoticeError({ ...failure, detail: text.trim().slice(-500) || spawnError })
       }
       await delay(POLL_MS)
     }
   }
 }
 
-export function outputOf(error: unknown): string {
-  const { stdout, stderr } = error as { stdout?: string; stderr?: string }
-  return [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
-}
