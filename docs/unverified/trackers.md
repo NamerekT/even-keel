@@ -152,14 +152,13 @@ If wrong, a hand session with the service down shows only a failed server in `/m
 
 ## Attachments of the built-in tracker (BTN-773)
 
-A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Checked live on 2026-11-22 ([verified](../verified/trackers.md)): Claude chain sessions open the pictures their brief and `task_read` list, the upload past the limit is refused with its notice, and the service's automatic copy hashes every attachment in its trial restore. Assumed:
+A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by tests: the store, the bytes and the sweep (`src/builtin/files.test.ts`), the upload and file routes (`src/server-builtin.test.ts`), step 32 and a backup (`src/storage/database-files.test.ts`), the editor's marks (`descriptionUpload.test.ts`), and on the fake page by shots (a synthetic paste and drop). Checked live on 2026-11-22/23 ([verified](../verified/trackers.md)): Claude chain sessions open the pictures their brief and `task_read` list, OpenCode reads a text attachment, a real paste and a drop on the PC become a picture and a tile, the upload past the limit is refused with its notice, and the service's automatic copy hashes every attachment in its trial restore. Copilot sessions cannot read the store yet (BTN-1535), a phone has no way to attach (BTN-1533). Assumed:
 
-- A real paste from the clipboard (a screenshot tool, a browser's copied image) and a drop from the file manager reach the editor as files in Chrome, Edge and Firefox, also on a phone over the HTTPS address, and the raw-body upload of a large file is not cut by a proxy in front of the service.
-- The pasted picture shows in the saved description and opens from its tile on the live service.
-- Codex, OpenCode and Copilot sessions open an attachment by the path in their brief or in `task_read` their own way.
+- The raw-body upload of a large file is not cut by a proxy in front of the service, and Firefox takes a paste and a drop as Chrome and Edge do.
+- Codex sessions open an attachment by the path in their brief or in `task_read`.
 - On Windows the hourly sweep removes unreferenced bytes once nothing has them open: the live log has never had its line.
 
-If one is wrong, a picture is not taken or not shown, or a session works without the screenshot it was given. **Workaround:** attach the file in Markdown as a link to where it lies, or describe it in words. To check (BTN-807): paste a screenshot into a bench project's task, save, reload the card; start the task on Codex and see the session open the picture; delete it, wait a day, see the bytes gone from `state/even-keel/files/` and the sweep's line `builtin: removed … attachment files` in the log.
+If one is wrong, a picture is not taken, or a session works without the screenshot it was given. **Workaround:** attach the file in Markdown as a link to where it lies, or describe it in words. To check (BTN-807): start a task with a picture on Codex and see the session open it; delete an attachment, wait a day, see the bytes gone from `state/even-keel/files/` and the sweep's line `builtin: removed … attachment files` in the log.
 
 ## Copying built-in tasks into another tracker (BTN-1073)
 
