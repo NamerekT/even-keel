@@ -230,8 +230,8 @@ export class BuiltinStore {
     })
   }
 
-  /** Removes, then adds labels, ignoring case; a label the project lacks is created. Returns the task's labels. */
-  async relabel(key: TaskKey, change: LabelChange): Promise<string[]> {
+  /** Removes, then adds labels, ignoring case; a missing label is created. The import supplies its own history. */
+  async relabel(key: TaskKey, change: LabelChange, logged = true): Promise<string[]> {
     const task = await this.change(key, async (tx, row) => {
       let changed = false
       for (const name of uniqueNames(change.remove)) {
@@ -240,10 +240,10 @@ export class BuiltinStore {
             where tl.task_id = $1 and tl.label_id = l.id and lower(l.name) = lower($2) returning l.name`,
           [row.id, name],
         )
-        if (rows[0] !== undefined) await this.log(tx, row, [{ field: 'label', before: rows[0].name, after: null }])
+        if (logged && rows[0] !== undefined) await this.log(tx, row, [{ field: 'label', before: rows[0].name, after: null }])
         changed ||= rows.length > 0
       }
-      for (const name of uniqueNames(change.add)) changed = (await this.attach(tx, row.id, row.project_id, name)) || changed
+      for (const name of uniqueNames(change.add)) changed = (await this.attach(tx, row.id, row.project_id, name, logged)) || changed
       return changed
     })
     return task.labels

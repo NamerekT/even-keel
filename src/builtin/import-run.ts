@@ -362,5 +362,5 @@ async function setFields(db: Db, project: string, task: ImportTask, parent: numb
   const key = { project, number: task.number }
   const had = (await store.get(key))?.labels ?? []
   const lower = new Set(task.labels.map((name) => name.trim().toLocaleLowerCase()))
-  await store.relabel(key, { add: task.labels, remove: had.filter((name) => !lower.has(name.toLocaleLowerCase())) })
+  await store.relabel(key, { add: task.labels, remove: had.filter((name) => !lower.has(name.toLocaleLowerCase())) }, false)
 }

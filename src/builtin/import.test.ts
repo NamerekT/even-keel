@@ -533,6 +533,26 @@ describe('the import into the built-in tracker', () => {
     expect((await service.state(ABC)).from).toBeNull()
   })
 
+  it('takes label changes in the last pass only from the source history', async () => {
+    const fake = fakeSource()
+    const { service } = imports(fake.source)
+    await service.start(ABC)
+    await service.settled(ABC)
+
+    fake.tasks[0]!.labels = ['UI']
+    fake.changes.r3 = [
+      { at: T0 + 60_000, author: JANE, field: 'label', from: 'Bug', to: null },
+      { at: T0 + 61_000, author: AGENT, field: 'label', from: null, to: 'UI' },
+    ]
+    await service.switch(ABC)
+
+    expect((await store.get(key(3)))?.labels).toEqual(['UI'])
+    expect((await store.history(key(3))).filter((change) => change.field === 'label')).toMatchObject([
+      { at: T0 + 60_000, by: 'person', name: 'Jane Doe', from: 'Bug', to: null },
+      { at: T0 + 61_000, by: 'agent', from: null, to: 'UI' },
+    ])
+  })
+
   it('passes over a task unchanged since the check: the last pass and the check read only the changed and new ones', async () => {
     const fake = fakeSource()
     fake.tasks[0] = { ...fake.tasks[0]!, modifiedAt: T0 + 1 }
