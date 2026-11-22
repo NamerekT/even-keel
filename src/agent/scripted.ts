@@ -6,7 +6,7 @@ import type { SessionLimits } from '../limits/model.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import type { MailEvent } from '../sessions/mail.js'
 import { hungEntry } from '../sessions/silence.js'
-import { type FeedLine, type Stage, TranscriptFold, type TranscriptSummary, userLine } from '../sessions/transcript.js'
+import { type CacheTtl, type FeedLine, type Stage, TranscriptFold, type TranscriptSummary, TTL_MS, userLine } from '../sessions/transcript.js'
 import type { SessionRecord } from '../state.js'
 import type { Agent, AgentAdapter, AgentOptions, SessionHandle, SessionMcp, SessionStart } from './contract.js'
 
@@ -37,6 +37,8 @@ export interface TurnContext {
   reportCheck(): Promise<void>
   /** Starts a background command that outlives the turn: the turn ends in `shell`, its process alive until a stop. */
   background(): void
+  /** The turn's requests wrote a prompt cache of `ttl`: its window runs from the turn's end, as the last request's would. */
+  cache(ttl: CacheTtl): void
   /** Reports the account's windows mid-turn, as a Claude SDK session's `rate_limit_event` does (`AgentOptions.onLimits`). */
   limits(reported: SessionLimits): void
   /** Calls a tool of the session's gateway server `server`, as the CLI does over HTTP; the text of its answer, thrown when an error. */
@@ -304,6 +306,7 @@ export class ScriptedAgent implements Agent {
     const id = ++session.turn
     session.wroteAt = Date.now()
     let background = false
+    let cache: CacheTtl | null = null
     const at = () => new Date().toISOString()
     session.entry = { ...session.entry, pid: SCRIPT_PID, status: 'busy', state: 'working', resting: false }
     delete session.entry.ask
@@ -359,6 +362,7 @@ export class ScriptedAgent implements Agent {
         if (!response.ok) throw new Error(`script: check report: ${response.status}`)
       },
       background: () => void (background = true),
+      cache: (ttl) => void (cache = ttl),
       limits: (reported) => this.onLimits?.(session.entry.account!, reported),
       tool: async (server, name, args) => {
         const url = session.mcp.find((each) => each.name === server)?.url
@@ -382,7 +386,9 @@ export class ScriptedAgent implements Agent {
       })
       .then((end) => {
         if (session.turn !== id) return
-        this.end(session, end, at())
+        const endedAt = at()
+        this.end(session, end, endedAt)
+        if (cache !== null) session.summary = { ...session.summary, cache: { ttl: cache, until: new Date(Date.parse(endedAt) + TTL_MS[cache]).toISOString() } }
         if (background && session.entry.resting === true) session.entry = { ...session.entry, pid: SCRIPT_PID, status: 'shell', resting: false }
         this.changed()
       })

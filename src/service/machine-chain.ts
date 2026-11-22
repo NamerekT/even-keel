@@ -315,6 +315,8 @@ export function wireKeepWarm(ctx: MachineContext): KeepWarm {
           sessionId: view.sessionId,
           busy: ctx.agentStatus(view.task) === 'busy',
           onTool,
+          // `shell` is Claude's own sign of a background command; a background agent may show as plain `busy`, the transcript's turn end covers both.
+          ended: view.turnEnded === true || agentOfSession(ctx.agents, view.sessionId)?.status === 'shell',
           held: ctx.monitor.holds.held(view.sessionId),
           limited: view.lamp === 'limit',
           cache: view.cache,

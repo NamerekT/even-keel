@@ -2,9 +2,13 @@ import type { ChainState } from '../chain/model.js'
 import type { KeptWarm, TurnSpend } from '../state.js'
 import { TTL_MS, type CacheTtl, type CacheWindow } from './transcript.js'
 import { isTransientError } from './transient.js'
+import type { WarmPing } from './warm-pings.js'
 
-/** How long before the cache goes cold the ping goes out: the check runs every `KEEP_WARM_TICK_MS`. */
-const MARGIN_MS: Record<CacheTtl, number> = { '1h': 5 * 60_000, '30m': 5 * 60_000, '5m': 60_000 }
+/**
+ * How long before the cache goes cold the ping goes out: the check runs every `KEEP_WARM_TICK_MS`. Even the five-minute
+ * cache's 90 s outlast a usual restart of the service, 5–20 s down and a few seconds until the facts are read (BTN-1507).
+ */
+const MARGIN_MS: Record<CacheTtl, number> = { '1h': 5 * 60_000, '30m': 5 * 60_000, '5m': 90_000 }
 /**
  * The pings a miss costs: a ping reads the context at ~0.1× the input price, a miss writes it again at 2× (an hour's
  * cache) or 1.25× (five minutes', and GPT's half hour).
@@ -12,7 +16,10 @@ const MARGIN_MS: Record<CacheTtl, number> = { '1h': 5 * 60_000, '30m': 5 * 60_00
 const BREAK_EVEN: Record<CacheTtl, number> = { '1h': 20, '30m': 12, '5m': 12 }
 /** A ping that read less of its prompt from the cache missed it. */
 const HIT_SHARE = 0.9
-export const KEEP_WARM_TICK_MS = 30_000
+/** Failed pings in a row, none of them an overload, before a session is not kept warm until a restart. */
+const MAX_FAILURES = 3
+/** The check only reads facts in memory: a short tick finds a session at once after a restart. */
+export const KEEP_WARM_TICK_MS = 5_000
 /** The most hours the `keepWarm` setting takes. */
 export const MAX_KEEP_WARM_HOURS = 24
 export const KEEP_WARM_PROMPT = 'Reply with the single word ok.'
@@ -28,6 +35,11 @@ export interface WarmFacts {
    * from the cache (EKR-142): a long build or test run would let the cache go cold under it.
    */
   onTool: boolean
+  /**
+   * The turn has ended while a background command or agent of the session runs: the chain still counts it busy, but no
+   * request is in flight and the cache goes cold until the job's notice comes (BTN-1507).
+   */
+  ended: boolean
   /** Being resumed or handed over. */
   held: boolean
   /** The session or its chain waits on a limit: the ping would hit it too. */
@@ -46,6 +58,14 @@ export interface WarmMemory {
 
 export type WarmStep = 'ping' | 'wait'
 
+function readCache(cacheRead: number, prompt: number): boolean {
+  return prompt > 0 && cacheRead / prompt >= HIT_SHARE
+}
+
+function isHit(ping: WarmPing): boolean {
+  return readCache(ping.cacheRead, ping.input + ping.cacheRead + ping.cacheWrite5m + ping.cacheWrite1h)
+}
+
 /** A session's transcript file as a ping goes out: whether the service read it late shows here (BTN-1394). */
 export interface TranscriptFile {
   size: number
@@ -59,7 +79,7 @@ export function pingLine(facts: WarmFacts, memory: WarmMemory | undefined, now: 
   const { task, sessionId, cache } = facts
   const stretch = Date.parse(cache!.until) - TTL_MS[cache!.ttl]
   const ping = memory !== undefined && Date.parse(memory.stretch) === stretch ? memory.pings + 1 : 1
-  const states = `busy ${facts.busy}, onTool ${facts.onTool}, held ${facts.held}, limited ${facts.limited}`
+  const states = `busy ${facts.busy}, onTool ${facts.onTool}, ended ${facts.ended}, held ${facts.held}, limited ${facts.limited}`
   const series = memory === undefined ? 'none' : `stretch ${memory.stretch}, pings ${memory.pings}, warmed ${memory.warmedAt ?? 'never'}`
   const transcript = file === null ? 'unknown' : `${file.size} bytes, modified ${file.modifiedAt}, last entry ${file.lastEntryAt ?? 'none'}`
   return (
@@ -72,7 +92,7 @@ export function pingLine(facts: WarmFacts, memory: WarmMemory | undefined, now: 
 /** Whether to ping the session now: only a warm cache about to go cold, within the idle ceiling and the break-even. */
 export function warmStep(facts: WarmFacts, memory: WarmMemory | undefined, now: Date, maxIdleMs: number): WarmStep {
   const { cache } = facts
-  if ((facts.busy && !facts.onTool) || facts.held || facts.limited || cache === null) return 'wait'
+  if ((facts.busy && !facts.onTool && !facts.ended) || facts.held || facts.limited || cache === null) return 'wait'
   const ttlMs = TTL_MS[cache.ttl]
   const stretch = Date.parse(cache.until) - ttlMs
   const own = memory !== undefined && Date.parse(memory.stretch) === stretch ? memory : undefined
@@ -91,13 +111,16 @@ export interface WarmTask {
 /**
  * The tasks a running chain will go on in a session of: its current one, unless it is starting, being moved or on a
  * limit with a handoff planned, and those whose pull request is open (BTN-205). A paused or halted chain has none;
- * warmStep excludes actual limits, while a temporary model error waiting for a resume remains eligible.
+ * warmStep excludes actual limits, while a temporary model error waiting for a resume remains eligible. A handoff on a
+ * limit already made leaves its record behind for `moved` and `recover`: its new session is kept warm (BTN-1507).
  */
 export function warmTasks(state: ChainState): WarmTask[] {
   return state.active.flatMap((chain) => {
     if (chain.paused || chain.error !== null || chain.limitUntil !== undefined) return []
     const { current } = chain
-    const leads = current !== null && current.sessionId !== null && current.starting === undefined && (current.limit === undefined || current.limit.then === 'resume')
+    const limit = current?.limit
+    const free = limit === undefined || limit.then === 'resume' || limit.acted === 'relay'
+    const leads = current !== null && current.sessionId !== null && current.starting === undefined && free
     const own: WarmTask[] = leads ? [{ task: current.task, sessionId: current.sessionId }] : []
     const reviewed = (state.reviews[chain.project] ?? []).filter((pull) => pull.closed === undefined && pull.task !== current?.task)
     return [...own, ...reviewed.map((pull) => ({ task: pull.task, sessionId: null }))]
@@ -121,21 +144,56 @@ export interface KeepWarmDeps {
 
 /**
  * Keeps the prompt cache of a session that waits warm (BTN-437): a fork of it with no transcript asks for one word
- * shortly before the cache goes cold, and the API reads the same prefix again. A miss or a failure turns it off for
- * that session until a restart, except an overload refusal, which is skipped; what it sent is kept in memory.
+ * shortly before the cache goes cold, and the API reads the same prefix again. A miss turns it off for that session
+ * until a restart, and so do `MAX_FAILURES` failures in a row; an overload refusal is skipped. The series is kept in
+ * memory and, after a restart, taken again from the pings `warm_pings` keeps (`restore`).
  */
 export class KeepWarm {
   private readonly memory = new Map<string, WarmMemory>()
   private readonly flying = new Set<string>()
   private readonly off = new Set<string>()
+  private readonly failures = new Map<string, number>()
+  /** The pings kept before this start, by session, oldest first: each session's series is taken from them once its cache is known. */
+  private readonly restored = new Map<string, WarmPing[]>()
 
   constructor(private readonly deps: KeepWarmDeps) {}
+
+  /** The pings the hub kept before this start (`records.restore`). */
+  restore(pings: WarmPing[]): void {
+    for (const ping of [...pings].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))) {
+      if (this.memory.has(ping.sessionId)) continue
+      this.restored.set(ping.sessionId, [...(this.restored.get(ping.sessionId) ?? []), ping])
+    }
+  }
+
+  /**
+   * The series of the session's current stretch of idleness from the pings kept before this start: those that read the
+   * cache count, the cache is warm from the last of them, and a last one that missed keeps the session off.
+   */
+  private seed({ task, sessionId, cache }: WarmFacts): void {
+    const pings = this.restored.get(sessionId)
+    if (pings === undefined || cache === null) return
+    this.restored.delete(sessionId)
+    if (this.memory.has(sessionId)) return
+    const stretch = Date.parse(cache.until) - TTL_MS[cache.ttl]
+    const own = pings.filter((ping) => Date.parse(ping.at) >= stretch)
+    if (own.length === 0) return
+    if (!isHit(own.at(-1)!)) {
+      this.off.add(sessionId)
+      this.deps.log(`keepwarm: ${task}: the last ping before the restart missed the cache of ${sessionId}: not kept warm until a restart`)
+      return
+    }
+    const hits = own.filter(isHit)
+    this.memory.set(sessionId, { stretch: new Date(stretch).toISOString(), pings: hits.length, warmedAt: hits.at(-1)!.at })
+    this.deps.log(`keepwarm: ${task}: ${hits.length} pings of ${sessionId} before the restart restored, the last at ${hits.at(-1)!.at}`)
+  }
 
   /** Wakes the check: the timer sends nothing itself. Resolves once the pings it started are answered. */
   async check(): Promise<void> {
     const hours = this.deps.hours()
     if (hours <= 0) return
     const sessions = this.deps.sessions()
+    for (const each of sessions) this.seed(each)
     const present = new Set(sessions.map((each) => each.sessionId))
     for (const id of this.memory.keys()) if (!present.has(id) && !this.flying.has(id)) this.memory.delete(id)
     const now = this.deps.now()
@@ -169,7 +227,8 @@ export class KeepWarm {
       const { tokens } = await this.deps.ping(facts)
       const prompt = tokens.input + tokens.cacheRead + tokens.cacheWrite
       const read = `read ${tokens.cacheRead} of ${prompt} tokens from the cache, wrote ${tokens.cacheWrite}`
-      if (prompt === 0 || tokens.cacheRead / prompt < HIT_SHARE) {
+      this.failures.delete(sessionId)
+      if (!readCache(tokens.cacheRead, prompt)) {
         this.off.add(sessionId)
         this.deps.log(`keepwarm: the ping of ${task} missed the cache of ${sessionId} (${read}): not kept warm until a restart`)
         return
@@ -184,8 +243,11 @@ export class KeepWarm {
         this.deps.log(`keepwarm: the ping of ${task} (${sessionId}) skipped: ${(error as Error).message}`)
         return
       }
-      this.off.add(sessionId)
-      this.deps.log(`keepwarm: the ping of ${task} (${sessionId}) failed: ${(error as Error).message}; not kept warm until a restart`)
+      const failures = (this.failures.get(sessionId) ?? 0) + 1
+      this.failures.set(sessionId, failures)
+      const next = failures < MAX_FAILURES ? `tried again (${failures} of ${MAX_FAILURES})` : 'not kept warm until a restart'
+      if (failures >= MAX_FAILURES) this.off.add(sessionId)
+      this.deps.log(`keepwarm: the ping of ${task} (${sessionId}) failed: ${(error as Error).message}; ${next}`)
     } finally {
       this.flying.delete(sessionId)
     }

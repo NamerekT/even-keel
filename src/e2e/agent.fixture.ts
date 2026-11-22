@@ -2,13 +2,14 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
-import type { ModelList, OneTurn, OneTurnAnswer, SessionHandle } from '../agent/contract.js'
+import type { ModelList, OneTurn, OneTurnAnswer, SessionHandle, SessionStart } from '../agent/contract.js'
 import { Gate, SCRIPT_PID, ScriptedAgent as ScriptCore, type Turn, type TurnEnd } from '../agent/scripted.js'
 import { runGit } from '../git/run.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageAnswer } from '../limits/usage.js'
 import { notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
+import type { TurnSpend } from '../state.js'
 
 export { Gate, type Call, type Turn, type TurnContext, type TurnEnd } from '../agent/scripted.js'
 
@@ -74,6 +75,20 @@ export class ScriptedAgent extends ScriptCore {
   /** Set by `oneTurn`: an agent without one-off turns leaves the method out. */
   get write(): ((home: AccountHome, turn: OneTurn) => Promise<OneTurnAnswer>) | undefined {
     return this.oneTurn ?? undefined
+  }
+
+  /** The agent pings a fork of a session to keep its cache warm (`Agent.warm`); off — it leaves the method out. */
+  warming = false
+  /** Each keep-warm ping: the session and the time it went out. */
+  readonly warms: { sessionId: string; at: string }[] = []
+
+  /** Set by `warming`: every ping reads the cache whole, as a fork of a warm session does. */
+  get warm(): ((home: AccountHome, session: SessionHandle, start: SessionStart) => Promise<TurnSpend>) | undefined {
+    if (!this.warming) return undefined
+    return async (_home, session) => {
+      this.warms.push({ sessionId: session.sessionId, at: new Date().toISOString() })
+      return { model: null, tokens: { input: 3, output: 1, cacheRead: 50_000, cacheWrite: 0 }, cost: 0, durationMs: 1 }
+    }
   }
 
   /** Set by `windows`: an agent without a source of limits leaves the method out. */

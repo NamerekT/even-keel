@@ -27,6 +27,8 @@ it('step 70 keeps the keep-warm pings with their machine and tokens', { timeout:
     await saveWarmPing(upgraded, ping.machine, ping)
     await saveWarmPing(upgraded, ping.machine, ping)
     expect(await readWarmPings(upgraded)).toEqual([ping])
+    expect(await readWarmPings(upgraded, new Date('2026-11-12T10:08:00.000Z'))).toEqual([ping])
+    expect(await readWarmPings(upgraded, new Date('2026-11-12T10:08:00.001Z'))).toEqual([])
   } finally {
     await Promise.all([frozen.close(), made.close(), upgraded.close()])
   }

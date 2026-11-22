@@ -99,6 +99,8 @@ export interface SessionView {
   action: FeedLine | null
   /** Its live turn waits on the result of a tool call, the transcript's `Turn.tool`; absent — it does not, or the model is at work. */
   onTool?: boolean
+  /** Its last turn has ended, the transcript's `Turn.ended`, though a background job may keep it busy; absent — not known to. */
+  turnEnded?: boolean
   feed: FeedLine[]
   /** The session's own status line for the README badge (`TranscriptSummary.badgeStatus`); absent — its agent writes none. */
   badgeStatus?: BadgeStatus | null

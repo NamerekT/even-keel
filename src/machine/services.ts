@@ -5,6 +5,7 @@ import type { CloneProgress } from '../git/clone-progress.js'
 import type { AccountControl } from '../server-control.js'
 import type { Notice } from '../notice/notice.js'
 import type { Mail, MailReason } from '../sessions/mail.js'
+import type { WarmPing } from '../sessions/warm-pings.js'
 import type { FolderProbe, FolderSpec, FolderStep } from './folder-check.js'
 
 /** A file read on the machine or sent to it, carried through the link whole as base64. */
@@ -96,6 +97,8 @@ export interface RetainedRecords {
   launches: LaunchEntry[]
   windows: [string, number][]
   mail: Mail[]
+  /** The keep-warm pings of the last `MAX_KEEP_WARM_HOURS`, for the series a restart would lose (BTN-1507); absent — none handed. */
+  warm?: WarmPing[]
 }
 
 /**

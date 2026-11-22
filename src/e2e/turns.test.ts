@@ -87,6 +87,31 @@ describe('a turn the chain cannot see the end of', { timeout: 60_000 }, () => {
     await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
   })
 
+  it('keeps warm the cache of a session whose turn ended on a background command, the chain still waiting for it', async () => {
+    run.config.keepWarm = 1
+    run.agent.warming = true
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', async (turn) => {
+      turn.background()
+      turn.cache('5m')
+      return { say: 'Waiting for the build.' }
+    })
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.status === 'shell', 'the turn ended on a background command')
+    const [first] = launches()
+    const cache = () => run.service.sessions.find((view) => view.sessionId === first!.sessionId)?.cache ?? null
+    await run.until(() => cache() !== null, 'the cache window seen', { step: 100 })
+    const until = Date.parse(cache()!.until)
+
+    await run.until(() => run.agent.warms.length > 0, 'the keep-warm ping', { step: 5_000, limitMs: 6 * 60_000 })
+    const [ping] = run.agent.warms
+    expect(ping!.sessionId).toBe(first!.sessionId)
+    expect(Date.parse(ping!.at)).toBeLessThan(until)
+    expect(launches()).toHaveLength(1)
+    expect(run.board.status('ABC-1')).not.toBe('Done')
+  })
+
   it('hands over a task marked CHECKPOINT: whose turn ended on a background command, without waiting for the command', async () => {
     run.board.add('ABC-1')
     run.agent.script('ABC-1', async (turn) => {

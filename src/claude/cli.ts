@@ -9,7 +9,7 @@ import { parseAuthStatus, type AccountStatus } from '../account/model.js'
 import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
 import { execFailure } from '../agent/exec-failure.js'
 import { npmCliBinary, thisMachine, type BinaryMachine, type NpmCli } from '../agent/npm-global.js'
-import { runWithInput } from '../agent/oneturn.js'
+import { runWithInput, stdoutOf } from '../agent/oneturn.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { binaryPath, pathsOf, samePath } from '../paths.js'
 import { blockedAsk, blockedOn, launchedModel, launchedSettings, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
@@ -152,9 +152,17 @@ export class ClaudeCli {
     return parseWriteAnswer(await runWithInput(this.bin(), writeArgs(model), prompt, { cwd, env: this.envOf(home), timeoutMs }))
   }
 
-  /** The keep-warm ping of a session (`warmArgs`) in its own folder; loading a long transcript takes longer than a short call. */
+  /**
+   * The keep-warm ping of a session (`warmArgs`) in its own folder; loading a long transcript takes longer than a short
+   * call. A fork that ended on `error_max_turns` exits with 1 and still prints its result (BTN-1507).
+   */
   async warm(home: AccountHome, sessionId: string, cwd: string, prompt: string, model: string | null, extras: SessionExtras): Promise<TurnSpend> {
-    return parseWarmAnswer(await runWithInput(this.bin(), warmArgs(sessionId, model, extras), prompt, { cwd, env: this.envOf(home), timeoutMs: WARM_TIMEOUT_MS }), model)
+    const stdout = await runWithInput(this.bin(), warmArgs(sessionId, model, extras), prompt, { cwd, env: this.envOf(home), timeoutMs: WARM_TIMEOUT_MS }).catch((error: unknown) => {
+      const printed = stdoutOf(error)
+      if (printed === null || !printed.trimStart().startsWith('{')) throw error
+      return printed
+    })
+    return parseWarmAnswer(stdout, model)
   }
 
   /** With `onLocalLink`, the CLI's own link goes to it through `openLoginBrowser` instead of opening a browser. */
@@ -433,8 +441,14 @@ export interface WarmResult {
   usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
 }
 
+/**
+ * A fork that answered with a tool call ends on `error_max_turns`, the mode refusing the call: its one request still read
+ * and wrote what `usage` says, so it counts by it (BTN-1507). Any other error, or one with no prompt read, throws.
+ */
 export function warmSpend(answer: WarmResult, model: string | null): TurnSpend {
-  if (answer.is_error === true || answer.subtype !== 'success') {
+  const prompt = (answer.usage?.input_tokens ?? 0) + (answer.usage?.cache_read_input_tokens ?? 0) + (answer.usage?.cache_creation_input_tokens ?? 0)
+  const answered = answer.subtype === 'error_max_turns' && prompt > 0
+  if (!answered && (answer.is_error === true || answer.subtype !== 'success')) {
     const detail = [typeof answer.result === 'string' ? answer.result : '', ...(answer.errors ?? [])].filter(Boolean).join('; ')
     throw new Error(detail || `the turn ended with ${answer.subtype ?? 'no result'}`)
   }

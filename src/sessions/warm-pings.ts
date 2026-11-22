@@ -69,10 +69,12 @@ interface PingRow {
   output: number
 }
 
-export async function readWarmPings(db: Queryable): Promise<StoredWarmPing[]> {
+/** The kept pings, oldest first; `since` — only those sent from then on. */
+export async function readWarmPings(db: Queryable, since?: Date): Promise<StoredWarmPing[]> {
   const { rows } = await db.query<PingRow>(
     `select session_id, at, machine_id, account, task, project_id, model, input, cache_write_5m, cache_write_1h, cache_read, output
-     from warm_pings order by at, session_id`,
+     from warm_pings ${since === undefined ? '' : 'where at >= $1'} order by at, session_id`,
+    since === undefined ? [] : [since.toISOString()],
   )
   return rows.map((row) => ({
     at: new Date(row.at).toISOString(),

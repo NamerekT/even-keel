@@ -320,6 +320,7 @@ function toView(
     stage: summary.stage,
     action: summary.action,
     ...(present && summary.turn?.tool != null && { onTool: true }),
+    ...(present && summary.turn?.ended === true && { turnEnded: true }),
     feed: summary.feed,
     ...(summary.badgeStatus === undefined ? {} : { badgeStatus: summary.badgeStatus }),
     remoteUrl: remote.url,

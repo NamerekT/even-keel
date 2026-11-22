@@ -243,8 +243,13 @@ describe('parseWarmAnswer', () => {
     expect(answer).toEqual({ model: 'claude-haiku-5-5', tokens: { input: 2, output: 4, cacheRead: 22478, cacheWrite: 101 }, cost: null, durationMs: 2400 })
   })
 
-  it('throws when the fork did more than answer', () => {
-    expect(() => parseWarmAnswer(JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true, usage }), null)).toThrow('error_max_turns')
+  it('counts a fork that answered with a tool call by the usage of its one request (BTN-1507)', () => {
+    const answer = parseWarmAnswer(JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true, errors: ['Reached maximum number of turns (1)'], usage }), null)
+    expect(answer.tokens).toEqual({ input: 2, output: 4, cacheRead: 22478, cacheWrite: 101 })
+    expect(() => parseWarmAnswer(JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true }), null)).toThrow('error_max_turns')
+  })
+
+  it('throws when the fork failed', () => {
     expect(() => parseWarmAnswer(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Credit balance is too low', usage }), null)).toThrow(
       'Credit balance is too low',
     )

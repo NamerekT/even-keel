@@ -98,6 +98,8 @@ export interface Turn {
   startedAt: string
   /** The tool line of a call that has no result yet; `null` while the model writes or thinks. */
   tool: string | null
+  /** Claude wrote the turn's `turn_duration` line: it has ended, though a background job may still run (BTN-1507). */
+  ended?: true
   /** The user's messages the CLI queued mid-turn and the session has not taken yet (Claude's `queue-operation`); absent — none. */
   queued?: FeedLine[]
 }
@@ -218,6 +220,7 @@ export class TranscriptFold {
   /** The file name of each `Read` call of a whole transcript, until its result comes. */
   private readonly readFiles = new Map<string, string>()
   private turnStartedAt: string | null = null
+  private turnEnded = false
   private readonly mailSeen = new Set<number>()
   /** A hook asked for a `status: …` line in this turn and none came yet. */
   private statusAsked = false
@@ -257,6 +260,10 @@ export class TranscriptFold {
     }
     if (entry.type === 'system' && entry.subtype === 'compact_boundary') {
       this.compactions++
+      return
+    }
+    if (entry.type === 'system' && entry.subtype === 'turn_duration') {
+      this.turnEnded = this.turnStartedAt !== null
       return
     }
     if (entry.type === 'system' && typeof entry.content === 'string' && entry.content.startsWith(REMOTE_DROPPED)) {
@@ -320,6 +327,7 @@ export class TranscriptFold {
           : {
               startedAt: this.turnStartedAt,
               tool: [...this.runningTools.values()].pop() ?? null,
+              ...(this.turnEnded && { ended: true as const }),
               ...queuedOf(this.queue),
             },
       action: this.action,
@@ -474,6 +482,7 @@ export class TranscriptFold {
     this.pullRequest = null
     this.noChanges = null
     this.turnStartedAt = at
+    this.turnEnded = false
     this.statusAsked = false
     this.runningTools.clear()
     this.callTools.clear()

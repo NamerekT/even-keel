@@ -159,15 +159,15 @@ On by default, for 2 hours. A Claude Code chain session writes its prompt cache 
 
 With **Settings → Sessions → Keep the cache of a waiting session warm, hours** above 0, Even Keel asks a copy of the session for one word shortly before its cache would expire, so the next real turn reads it from the cache.
 
-The copy writes nothing: the session, its transcript and its question stay as they were, and the statistics do not see the pings — the service log has a line for each. The page counts the cache clock from the last ping that read the cache, and the tip of the session's **Cache** shows until when it is warm, how many times it was renewed since the session's last answer and when last; a restart of the service forgets both.
+The copy writes nothing: the session, its transcript and its question stay as they were. The statistics count what the pings spent as part of the task's cost, and the service log has a line for each. The page counts the cache clock from the last ping that read the cache, and the tip of the session's **Cache** shows until when it is warm, how many times it was renewed since the session's last answer and when last.
 
-It covers the current session of each running chain that is not paused and not on a limit, including a session waiting to retry a temporary model error, and in pull-request mode the sessions waiting on their open pull requests; a session waiting on a question with answer buttons too; never a session mid-turn or one whose cache has already gone cold.
+It covers the current session of each running chain that is not paused and not on a limit, including a session waiting to retry a temporary model error and the new session that took a task over after a usage limit, and in pull-request mode the sessions waiting on their open pull requests; a session waiting on a question with answer buttons too. A Claude Code session mid-turn is kept warm while it waits on a long command, and so is one whose turn ended while a background command or agent still runs; never while the model is answering, and never one whose cache has already gone cold.
 
 The pings stop after the hours you set, counted from the session's last answer, or once they would cost more than a cold start: 20 on an hour cache, 12 on a half-hour or a five-minute one.
 
 OpenCode and Copilot sessions are not kept warm. An overloaded ping is skipped and can be tried again while the cache remains warm.
 
-A ping that misses the cache or fails for another reason stops the pings for that session until the service restarts, and a restart forgets the pings, so a session waiting across one is let go cold.
+A ping that misses the cache stops the pings for that session until the service restarts, and so do three failed pings in a row. A restart of the service picks the series up again from the pings it recorded, so a session waiting across one stays warm.
 
 Each ping spends the account's limits.
 

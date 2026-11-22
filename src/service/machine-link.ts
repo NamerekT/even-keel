@@ -46,6 +46,8 @@ import { ADAPTERS } from '../tracker/adapters.js'
 import { servesTasks, TASKS_SERVER } from '../taskmcp/server.js'
 import { samePath } from '../paths.js'
 import { loadMail } from '../sessions/mailbox.js'
+import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
+import { readWarmPings } from '../sessions/warm-pings.js'
 import { adoptMail } from '../sessions/mailbox-store.js'
 import type { MachineServices } from '../machine/services.js'
 import { BriefSender, hubBrief } from './hub-brief.js'
@@ -493,7 +495,9 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       await end.flushed()
       // The machine's journal, mailbox and windows are the hub's records, replayed ones included: handed over the link,
       // never read from the hub's database by the machine. Its mailbox gets only its own messages.
-      await services.records.restore({ launches: ctx.launches, windows: await loadSessionWindows(ctx.db), mail: await loadMail(ctx.db, own) })
+      // The longest series a restart could cut: the idle ceiling and an hour's cache warmed past it.
+      const warm = await readWarmPings(ctx.db, new Date(Date.now() - (MAX_KEEP_WARM_HOURS + 1) * 60 * 60_000))
+      await services.records.restore({ launches: ctx.launches, windows: await loadSessionWindows(ctx.db), mail: await loadMail(ctx.db, own), warm })
       // The machines elsewhere are caught up beside the own one, never inside a step of the chain.
       publishing = setInterval(() => {
         void catchUp()

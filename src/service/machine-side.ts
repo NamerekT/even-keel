@@ -184,10 +184,11 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     moves,
     services: wireMachineServices(machine, {
       steer: (task, session, prompt) => steer(machine, task, session, prompt),
-      restore: async ({ launches, windows, mail }) => {
+      restore: async ({ launches, windows, mail, warm }) => {
         records.restore(launches)
         machine.mailbox.restore(mail)
         machine.monitor.restoreWindows(windows)
+        machine.keepWarm.restore(warm ?? [])
       },
       cloneProgress: cloneTold((payload) => void end.emit(CLONE_PROGRESS_EVENT, payload).catch(() => {})),
       chats: wireMachineChats(machine),

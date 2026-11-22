@@ -278,6 +278,19 @@ describe('TranscriptFold', () => {
     expect(fold(lines).summary().turn).toMatchObject({ tool: null })
   })
 
+  it('marks the turn ended at its turn_duration line, until the next prompt starts one (BTN-1507)', () => {
+    const prompt = (content: string) => JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content } })
+    const system = (subtype: string) => JSON.stringify({ type: 'system', subtype, timestamp: at(), durationMs: 1000 })
+    const lines = [prompt('ABC-7'), assistant('m1', [text('Waiting for the run.')])]
+    expect(fold(lines).summary().turn?.ended).toBeUndefined()
+
+    lines.push(system('stop_hook_summary'), system('turn_duration'))
+    expect(fold(lines).summary().turn).toMatchObject({ tool: null, ended: true })
+
+    lines.push(prompt('<task-notification>done</task-notification>'))
+    expect(fold(lines).summary().turn?.ended).toBeUndefined()
+  })
+
   it('keeps the command of the last call started in the background, for a session that waits on it (BTN-960)', () => {
     const lines = [assistant('m1', [tool('Bash', { command: 'npm run lint' })])]
     expect(fold(lines).summary().backgroundCommand).toBeNull()
