@@ -5,7 +5,8 @@ import { chatGptAccountIn, chatGptPool, chatGptSignInIn, pollChatGpt, type ChatG
 import type { UsageAnswer } from '../limits/usage.js'
 import { notice } from '../notice/notice.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
-import { limitsOfRollout, rolloutFiles } from './rollout.js'
+import { limitsOfRollout } from './rollout.js'
+import { rolloutFiles } from './rolloutFiles.js'
 
 /** How many of the newest rollouts are searched for the account's limits. */
 const LIMIT_ROLLOUTS = 20
@@ -61,7 +62,7 @@ export class CodexUsage {
       }
     }
     const account = chatGptAccountIn(auth)
-    for (const { file } of (await rolloutFiles(home.dir)).slice(0, LIMIT_ROLLOUTS)) {
+    for (const { file } of await rolloutFiles(home.dir, LIMIT_ROLLOUTS)) {
       const limits = limitsOfRollout(await readFile(file, 'utf8').catch(() => ''))
       if (limits !== undefined) return { kind: 'limits', limits: account === null ? limits : { ...limits, pool: chatGptPool(account) } }
     }

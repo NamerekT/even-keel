@@ -4,7 +4,8 @@ import type { AgentEntry } from '../sessions/agents.js'
 import type { RateLimits } from '../limits/model.js'
 import { lineSlices } from '../sessions/lines.js'
 import type { TranscriptSummary } from '../sessions/transcript.js'
-import { RolloutFold, rolloutFile } from './rollout.js'
+import { RolloutFold } from './rollout.js'
+import { rolloutFile } from './rolloutFiles.js'
 
 /**
  * A Codex session's rollout read as it grows; a resume appends to the same file. Each read that brings newer limits

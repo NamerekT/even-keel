@@ -1,5 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
 import { chatGptPool } from '../limits/chatgpt.js'
 import type { LimitWindow, RateLimits, SessionLimits } from '../limits/model.js'
 import { chatGptCredits } from '../limits/overage.js'
@@ -23,6 +22,7 @@ import {
   type TokenTotals,
   type TranscriptSummary,
 } from '../sessions/transcript.js'
+import { rolloutFile } from './rolloutFiles.js'
 import { rolloutImagePath, rolloutImages } from './rolloutImages.js'
 
 /**
@@ -41,7 +41,6 @@ const FIVE_HOURS = 300
 const WEEK = 10_080
 const MONTH = 43_200
 export const CODEX_TTL: CacheTtl = '30m'
-const ROLLOUT = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i
 
 interface Line {
   timestamp?: string
@@ -389,27 +388,6 @@ function limitsOfLine(line: Line | undefined): RateLimits | undefined {
   }
 }
 
-/** The rollout files of a Codex folder, newest first. */
-export async function rolloutFiles(home: string): Promise<{ id: string; file: string }[]> {
-  const found: { id: string; file: string }[] = []
-  const root = join(home, 'sessions')
-  for (const year of await newestFirst(root)) {
-    for (const month of await newestFirst(join(root, year))) {
-      for (const day of await newestFirst(join(root, year, month))) {
-        for (const name of await newestFirst(join(root, year, month, day))) {
-          const id = ROLLOUT.exec(name)?.[1]
-          if (id !== undefined) found.push({ id, file: join(root, year, month, day, name) })
-        }
-      }
-    }
-  }
-  return found
-}
-
-export async function rolloutFile(home: string, sessionId: string): Promise<string | undefined> {
-  return (await rolloutFiles(home)).find((rollout) => rollout.id === sessionId)?.file
-}
-
 /** Folds a whole rollout; `undefined` — the folder has no such session. */
 export async function foldRollout(home: string, sessionId: string, fold: RolloutFold): Promise<TranscriptSummary | undefined> {
   const file = await rolloutFile(home, sessionId)
@@ -429,10 +407,6 @@ export async function readRolloutImage(home: string, sessionId: string, tool: st
     if (images.length > 0) return images[index]
   }
   return undefined
-}
-
-async function newestFirst(dir: string): Promise<string[]> {
-  return (await readdir(dir).catch(() => [])).sort().reverse()
 }
 
 function windowOf(windows: (Record<string, unknown> | undefined)[], minutes: number): LimitWindow | null {
