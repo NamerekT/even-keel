@@ -452,8 +452,18 @@ describe('Even Keel HTTP server', () => {
 
   it('makes a file that is not a picture, video or PDF a download, so it never runs on the page origin', async () => {
     const response = await fetch(base + '/api/tasks/ABC-1/files/page.html')
+    expect(response.headers.get('content-type')).toBe('text/html')
     expect(response.headers.get('content-disposition')).toBe('attachment')
     expect(response.headers.get('content-security-policy')).toBe('sandbox')
+  })
+
+  it('shows an SVG in place under a policy that runs none of its scripts, its inline styles and SMIL kept', async () => {
+    const response = await fetch(base + '/api/tasks/ABC-1/files/drawing.svg')
+    expect(response.headers.get('content-type')).toBe('image/svg+xml')
+    expect(response.headers.get('content-disposition')).toBe('inline')
+    expect(response.headers.get('content-security-policy')).toBe("default-src 'none'; style-src 'unsafe-inline'; sandbox")
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(await response.text()).toBe('<svg/>')
   })
 
   it('moves a backlog task to Todo', async () => {

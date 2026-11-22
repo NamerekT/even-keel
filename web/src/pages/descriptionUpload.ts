@@ -15,10 +15,10 @@ export function inserted(text: string, from: number | null, to: number | null, p
 /** The upload's mark replaced by what it came to; a mark the user already deleted leaves the text as it is. */
 export const settled = (text: string, mark: string, final: string): string => text.replace(mark, () => final)
 
-/** A raster picture shows in the card, any other file is a link to download. */
-export const fileMarkdown = (name: string, type: string, url: string): string => `${RASTER.test(type) ? '!' : ''}[${escaped(name)}](${url})`
+/** A picture shows in the card, any other file is a link to download. */
+export const fileMarkdown = (name: string, type: string, url: string): string => `${PICTURE.test(type) ? '!' : ''}[${escaped(name)}](${url})`
 
-/** The pictures the service shows in place (`sniffedType`); an SVG is a download, never a picture of the page. */
-const RASTER = /^image\/(png|jpeg|gif|webp|bmp)$/
+/** The pictures the service shows in place (`sniffedType`); an SVG under a policy that runs none of its scripts. */
+const PICTURE = /^image\/(png|jpeg|gif|webp|bmp|svg\+xml)$/
 
 const escaped = (text: string) => text.replace(/[[\]\\]/g, (char) => `\\${char}`)

@@ -171,6 +171,7 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
         if (task !== 'ABC-1') return undefined
         if (file === 'shot 1.png') return { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) }
         if (file === 'page.html') return { type: 'text/html', size: 6, body: Readable.from([Buffer.from('<html>')]) }
+        if (file === 'drawing.svg') return { type: 'image/svg+xml', size: 6, body: Readable.from([Buffer.from('<svg/>')]) }
         return undefined
       },
     },

@@ -72,13 +72,15 @@ describe('attachments', () => {
     expect((await store.get(task))!.version).toBe(before + 1)
   })
 
-  it('serves a raster picture as itself and anything else as bytes, whatever the browser declared', async () => {
+  it('serves a picture as itself and anything else as bytes, whatever the browser declared', async () => {
     const picture = await files.add(task, { name: 'screenshot.png', type: 'image/png', bytes: PNG })
-    const script = await files.add(task, { name: 'drawing.svg', type: 'image/svg+xml', bytes: SVG })
+    const drawing = await files.add(task, { name: 'drawing.svg', type: 'image/svg+xml', bytes: SVG })
+    const page = await files.add(task, { name: 'picture.svg', type: 'image/svg+xml', bytes: Buffer.from('<!doctype html><script>alert(1)</script>') })
     const served = await files.read(task, picture.sha256)
     expect(served).toMatchObject({ type: 'image/png', size: PNG.length, name: 'screenshot.png' })
     expect(await text(served!.body)).toEqual(PNG)
-    expect(await files.read(task, script.sha256)).toMatchObject({ type: 'application/octet-stream', name: 'drawing.svg' })
+    expect(await files.read(task, drawing.sha256)).toMatchObject({ type: 'image/svg+xml', name: 'drawing.svg' })
+    expect(await files.read(task, page.sha256)).toMatchObject({ type: 'application/octet-stream', name: 'picture.svg' })
     expect(await files.read(task, '../../even-keel.log')).toBeUndefined()
     expect(await files.read(task, 'b'.repeat(64))).toBeUndefined()
   })
@@ -104,12 +106,30 @@ describe('attachments', () => {
     })
   })
 
-  it('names a raster picture by its first bytes only', () => {
+  it('names a picture by its first bytes only', () => {
     expect(sniffedType(Buffer.from([0xff, 0xd8, 0xff, 0xe0]))).toBe('image/jpeg')
     expect(sniffedType(Buffer.from('GIF89a'))).toBe('image/gif')
     expect(sniffedType(Buffer.from('RIFF\0\0\0\0WEBP'))).toBe('image/webp')
     expect(sniffedType(Buffer.from('BM\0\0'))).toBe('image/bmp')
-    expect(sniffedType(SVG)).toBe('application/octet-stream')
+    expect(sniffedType(SVG)).toBe('image/svg+xml')
+    expect(sniffedType(Buffer.from('<html><body>hi</body></html>'))).toBe('application/octet-stream')
+    expect(sniffedType(Buffer.from('<svgs>not a drawing</svgs>'))).toBe('application/octet-stream')
+    expect(sniffedType(Buffer.from('plain text'))).toBe('application/octet-stream')
+  })
+
+  it('knows an SVG after a byte order mark, an XML declaration, comments and a doctype', () => {
+    const animated = [
+      '﻿<?xml version="1.0" encoding="UTF-8"?>',
+      '<!-- Generator: an editor -->',
+      '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" [ <!ENTITY ns "x"> ]>',
+      '\n<svg',
+      ' xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">',
+      '<style>@keyframes spin { to { transform: rotate(360deg) } } circle { animation: spin 2s infinite }</style>',
+      '<circle r="8"><animate attributeName="r" values="8;12;8" dur="1s" repeatCount="indefinite"/></circle></svg>',
+    ].join('\n')
+    expect(sniffedType(Buffer.from(animated))).toBe('image/svg+xml')
+    expect(sniffedType(Buffer.from('<svg>'))).toBe('image/svg+xml')
+    expect(sniffedType(Buffer.from('<?xml version="1.0"?><note/>'))).toBe('application/octet-stream')
   })
 })
 

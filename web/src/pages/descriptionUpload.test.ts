@@ -29,6 +29,7 @@ describe('the upload of a file into the description', () => {
   it('makes a picture an image and any other file a link, with brackets of the name escaped', () => {
     expect(fileMarkdown('screen [1].png', 'image/png', '/api/tasks/ABC-1/files/ab')).toBe('![screen \\[1\\].png](/api/tasks/ABC-1/files/ab)')
     expect(fileMarkdown('notes.pdf', 'application/pdf', '/f')).toBe('[notes.pdf](/f)')
-    expect(fileMarkdown('logo.svg', 'image/svg+xml', '/f')).toBe('[logo.svg](/f)')
+    expect(fileMarkdown('logo.svg', 'image/svg+xml', '/f')).toBe('![logo.svg](/f)')
+    expect(fileMarkdown('page.html', 'text/html', '/f')).toBe('[page.html](/f)')
   })
 })

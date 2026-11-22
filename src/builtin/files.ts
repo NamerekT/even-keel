@@ -63,7 +63,7 @@ export class BuiltinFiles {
 
   /**
    * The bytes `sha256` names, with the name the task's record gives them; served whether or not a record is left, so
-   * a picture an undo brought back shows until the sweep. Only a raster picture is served as itself.
+   * a picture an undo brought back shows until the sweep. Only a picture (`sniffedType`) is served as itself.
    */
   async read(key: TaskKey, sha256: string): Promise<TaskFile | undefined> {
     if (!SHA.test(sha256)) return undefined
@@ -140,7 +140,10 @@ export async function readLimited(body: AsyncIterable<Uint8Array>, limit: number
   return Buffer.concat(parts)
 }
 
-/** The type of a raster picture by its first bytes; anything else — bytes to download, never a page or an SVG. */
+/**
+ * The type of a picture by its first bytes: a raster one, or an SVG whose root element is `<svg>` (served under a
+ * policy that runs none of its scripts, `sendFile`); anything else — bytes to download, never a page.
+ */
 export function sniffedType(first: Uint8Array): string {
   const bytes = Buffer.from(first)
   const ascii = (from: number, to: number) => bytes.subarray(from, to).toString('latin1')
@@ -149,14 +152,21 @@ export function sniffedType(first: Uint8Array): string {
   if (ascii(0, 4) === 'GIF8') return 'image/gif'
   if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp'
   if (ascii(0, 2) === 'BM') return 'image/bmp'
+  if (SVG_ROOT.test(bytes.toString('utf8'))) return 'image/svg+xml'
   return 'application/octet-stream'
 }
+
+/** A byte order mark, then an XML declaration, comments and a doctype (an internal subset too) before `<svg`. */
+const SVG_ROOT = /^﻿?\s*(?:<\?xml[^>]*\?>\s*)?(?:(?:<!--[\s\S]*?-->|<!DOCTYPE\s[^[>]*(?:\[[\s\S]*?\])?\s*>)\s*)*<svg[\s>/]/i
+
+/** Enough of a file for `sniffedType` to see past an SVG's declaration, comments and doctype. */
+const HEAD_BYTES = 4096
 
 async function head(path: string): Promise<Uint8Array> {
   const handle = await open(path, 'r')
   try {
-    const buffer = Buffer.alloc(12)
-    const { bytesRead } = await handle.read(buffer, 0, 12, 0)
+    const buffer = Buffer.alloc(HEAD_BYTES)
+    const { bytesRead } = await handle.read(buffer, 0, HEAD_BYTES, 0)
     return buffer.subarray(0, bytesRead)
   } finally {
     await handle.close()

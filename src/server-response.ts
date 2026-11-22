@@ -10,6 +10,9 @@ import { securePage } from './server-security.js'
 
 /** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
 const SHOWN_IN_PLACE = /^(image\/(png|jpeg|gif|webp|avif|bmp)|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf)$/
+const SVG = /^image\/svg\+xml\s*(;.*)?$/i
+/** No script, no fetch, no form or frame — only the drawing's own inline styles (CSS `@keyframes` keep running). */
+const SVG_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
 
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -81,15 +84,20 @@ export function eventWriter(response: ServerResponse): { write(frame: string): v
   }
 }
 
+/**
+ * A file shown in place keeps the page's policy; an SVG gets one that runs no script even opened by its own address,
+ * its inline styles and SMIL animation kept; anything else is a sandboxed download.
+ */
 export async function sendFile(response: ServerResponse, file: TaskFile): Promise<void> {
-  const shown = SHOWN_IN_PLACE.test(file.type)
+  const drawing = SVG.test(file.type)
+  const shown = drawing || SHOWN_IN_PLACE.test(file.type)
   response.writeHead(200, {
     'content-type': file.type || 'application/octet-stream',
     ...(file.size === null ? {} : { 'content-length': String(file.size) }),
     'content-disposition': `${shown ? 'inline' : 'attachment'}${file.name === undefined ? '' : `; filename*=UTF-8''${encodeURIComponent(file.name)}`}`,
     'x-content-type-options': 'nosniff',
     'cache-control': 'private, max-age=3600',
-    ...(shown ? {} : { 'content-security-policy': 'sandbox' }),
+    ...(drawing ? { 'content-security-policy': SVG_POLICY } : shown ? {} : { 'content-security-policy': 'sandbox' }),
   })
   try {
     await pipeline(Readable.from(file.body), response)
