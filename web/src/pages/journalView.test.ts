@@ -8,25 +8,26 @@ const note = (at: number, journal?: TaskComment['journal']): TaskComment => ({ a
 const texts = { you: 'You', agent: 'Agent', service: 'Even Keel', noAuthor: 'no author' }
 
 describe('journalWindow', () => {
-  it('puts the oldest entry first whatever order the tracker gave', () => {
-    const { shown, hidden } = journalWindow([note(3), note(1), note(2)], false)
-    expect(shown.map((each) => each.at)).toEqual([1, 2, 3])
+  it('puts the newest entry first whatever order the tracker gave (BTN-1451)', () => {
+    const { shown, hidden } = journalWindow([note(1), note(3), note(2)], false)
+    expect(shown.map((each) => each.at)).toEqual([3, 2, 1])
     expect(hidden).toBe(0)
   })
 
-  it('shows only the last entries of a long journal and counts the rest', () => {
+  it('shows only the newest entries of a long journal and counts the older rest', () => {
     const comments = Array.from({ length: JOURNAL_SHOWN + 5 }, (_, index) => note(index))
     const { shown, hidden } = journalWindow(comments, false)
     expect(shown).toHaveLength(JOURNAL_SHOWN)
-    expect(shown[0]!.at).toBe(5)
-    expect(shown.at(-1)!.at).toBe(JOURNAL_SHOWN + 4)
+    expect(shown[0]!.at).toBe(JOURNAL_SHOWN + 4)
+    expect(shown.at(-1)!.at).toBe(5)
     expect(hidden).toBe(5)
   })
 
-  it('shows every entry once asked to', () => {
+  it('shows every entry once asked to, the oldest last', () => {
     const comments = Array.from({ length: JOURNAL_SHOWN + 5 }, (_, index) => note(index))
     const { shown, hidden } = journalWindow(comments, true)
     expect(shown).toHaveLength(JOURNAL_SHOWN + 5)
+    expect(shown.at(-1)!.at).toBe(0)
     expect(hidden).toBe(0)
   })
 })

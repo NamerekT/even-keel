@@ -5,11 +5,11 @@ import { groupChanges, type ChangeField, type ChangeGroup, type TaskChange } fro
 /** How many of the latest entries a long journal shows before "N more". */
 export const JOURNAL_SHOWN = 20
 
-/** The entries in the order they were written, the oldest first; `hidden` — how many older ones stay folded. */
+/** The entries the newest first (BTN-1451); `hidden` — how many older ones stay folded under "N more". */
 export function journalWindow<T extends { at: number }>(entries: T[], all: boolean): { shown: T[]; hidden: number } {
-  const sorted = [...entries].sort((a, b) => a.at - b.at)
+  const sorted = [...entries].sort((a, b) => b.at - a.at)
   const hidden = all ? 0 : Math.max(0, sorted.length - JOURNAL_SHOWN)
-  return { shown: sorted.slice(hidden), hidden }
+  return { shown: sorted.slice(0, sorted.length - hidden), hidden }
 }
 
 /** The replies in a comment's thread (BTN-909), the oldest first; never folded. */

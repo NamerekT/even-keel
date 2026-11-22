@@ -25,8 +25,8 @@ interface Props {
 }
 
 /**
- * The task's comments in the order they were written (BTN-774). For the built-in tracker it is the task journal: agent
- * reports, session questions with the answers given in the page's chat, and the person's notes with a field below.
+ * The task's comments, the newest first (BTN-1451). For the built-in tracker it is the task journal: agent reports,
+ * session questions with the answers given in the page's chat, and the person's notes with a field above the entries.
  */
 export function CardJournal({ task, comments, history, editor, render, plain }: Props) {
   const [all, setAll] = useState(false)
@@ -49,11 +49,7 @@ export function CardJournal({ task, comments, history, editor, render, plain }: 
           {(['all', 'comments', 'changes'] as const).map((value) => <button key={value} type="button" className={`segmented__item${filter === value ? ' segmented__item--on' : ''}`} aria-pressed={filter === value} onClick={() => { setFilter(value); setAll(false) }}>{t.card.journal.filters[value]}</button>)}
         </div>}
       </div>
-      {hidden > 0 && (
-        <button type="button" className="task-card__ghost task-card__journal-more" onClick={() => setAll(true)}>
-          {t.card.journal.more(hidden)}
-        </button>
-      )}
+      {editor !== null && <NoteField task={task} editor={editor} />}
       {items.length === 0 && <p className="placeholder">{filter === 'all' ? t.card.journal.empty : t.card.journal.filteredEmpty}</p>}
       {shown.length > 0 && (
         <ol className="task-card__comments">
@@ -68,7 +64,11 @@ export function CardJournal({ task, comments, history, editor, render, plain }: 
           ))}
         </ol>
       )}
-      {editor !== null && <NoteField task={task} editor={editor} />}
+      {hidden > 0 && (
+        <button type="button" className="task-card__ghost task-card__journal-more" onClick={() => setAll(true)}>
+          {t.card.journal.more(hidden)}
+        </button>
+      )}
       {removing !== null && editor !== null && <RemoveNote task={task} comment={removing} editor={editor} onClose={() => setRemoving(null)} />}
     </section>
   )

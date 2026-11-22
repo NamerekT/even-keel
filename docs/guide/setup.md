@@ -276,7 +276,7 @@ The task's journal also records every change of its fields — status, title, de
 
 One author's changes within five minutes make one entry, a table of each field's old and new value; a description change folds out its difference.
 
-The filter over the journal shows **All**, only **Comments** or only **Changes**. Tasks created before this version have no history of their earlier changes.
+The journal shows the newest entries first, the field for your note right under its heading; **N more** at the bottom shows the older ones. The filter over the journal shows **All**, only **Comments** or only **Changes**. Tasks created before this version have no history of their earlier changes.
 
 A session reads the history only when it asks for it (`task_read` with `history: true`), so it costs no context otherwise.
 

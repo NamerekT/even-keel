@@ -198,16 +198,18 @@
   font-size: var(--text-14);
 }
 
+/* The newest entries first (BTN-1451): the note field above them, "N more" under the oldest shown. */
+
 .task-card__journal-more {
   align-self: flex-start;
-  margin-bottom: var(--space-12);
+  margin-top: var(--space-12);
 }
 
 .task-card__note {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  margin-top: var(--space-16);
+  margin-bottom: var(--space-16);
 }
 
 .task-card__note-row {
