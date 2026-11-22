@@ -255,6 +255,8 @@ Profiled live after the change (2026-11-18, [verified](../verified/machines.md))
 
 Not settled: the thread is still busy half the time, with 93 stretches over 200 ms in those 150 s, spread over the memoised packages pass (the accounts' watcher and the machine runner's reads, 12%) and `machine-chain` (8%); and the ~30 `event loop: blocked` lines an hour, of 1–3 s, come outside the start's window, which `EVEN_KEEL_CPU_PROFILE` does not reach, so their cause is not profiled. If they grow, the page's commands and saves wait seconds again. Taking the own machine's work off the hub's thread is BTN-1319.
 
+BTN-1465 checks the remaining stalls over 24–48 hours of normal chain work. Enable `EVEN_KEEL_STALL_PROFILE=1`, match the saved windows to their delay warnings and inspect the active stacks during each block. File one issue per confirmed cause with its capture time and stack.
+
 ## One folder field in "Connect a machine" and "Add a machine" (BTN-1298)
 
 `docs/machines.md`, "The pool on the page" and "Machines elsewhere". `src/service/machine-pool.test.ts` covers the probe of a made project's folder against its remotes, `src/server-pool.test.ts` the routes (`clone` absent is `auto`, `machines/folder` by project), `web/src/pages/machinePicks.test.ts` and `web/src/machineAdd.test.ts` the picks and what "Connect" sends; both windows were only seen on `dev:fake`.
