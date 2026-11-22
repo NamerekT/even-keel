@@ -9,10 +9,12 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import type { StripLine } from '../ui/fieldStripFit.js'
 import { agentLabel } from '../accountName.js'
-import { CloseIcon, PlugIcon, PlusIcon, ServerIcon, StackIcon } from '../ui/icons.js'
+import { CloseIcon, PlugIcon, PlusIcon, SearchIcon, ServerIcon, StackIcon } from '../ui/icons.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Select } from '../ui/Select.js'
+import { Tipped } from '../ui/Tipped.js'
 import { serverEntry, serverPairs, type Transport } from './packageView.js'
+import { shownSkills, skillOrder, type Skill } from './skillList.js'
 import './addPackage.css'
 
 type Kind = 'plugin' | 'mcp' | 'skills'
@@ -283,15 +285,7 @@ function SkillsStep({ view, projects, onBack, onClose }: StepProps) {
         <>
           <fieldset className="add-package__field">
             <legend className="add-package__label add-package__legend">{t.packages.skills}</legend>
-            <div className="add-package__skills">
-              {list.map((skill) => (
-                <label key={skill.name} className="add-package__skill">
-                  <input type="checkbox" checked={picked.has(skill.name)} onChange={() => toggle(skill.name)} />
-                  <span className="add-package__skill-name">{skill.name}</span>
-                  <span className="add-package__skill-from">{skill.from === null ? t.packages.skillsGone : agentLabel(skill.from)}</span>
-                </label>
-              ))}
-            </div>
+            <SkillList list={list} picked={picked} onToggle={toggle} />
           </fieldset>
           <p className="add-package__note add-package__note--warn">{t.packages.skillsTools}</p>
           <p className="add-package__note">{t.packages.skillsClaude}</p>
@@ -299,6 +293,85 @@ function SkillsStep({ view, projects, onBack, onClose }: StepProps) {
         </>
       )}
     </StepForm>
+  )
+}
+
+/** The skills with a search over their names and a filter of the ticked ones (`shownSkills`). */
+function SkillList({ list, picked, onToggle }: { list: Skill[]; picked: Set<string>; onToggle: (skill: string) => void }) {
+  const [query, setQuery] = useState('')
+  const [only, setOnly] = useState<Set<string> | null>(null)
+  const [first] = useState(() => skillOrder(list, picked))
+  const field = useRef<HTMLInputElement>(null)
+  const words = query.trim().toLowerCase()
+  const shown = shownSkills(first, list, only, query)
+  const clear = () => {
+    setQuery('')
+    field.current?.focus()
+  }
+  return (
+    <div className="add-package__skills">
+      <div className="add-package__skills-bar">
+        <div className="add-package__skills-find">
+          <SearchIcon />
+          <input
+            ref={field}
+            type="text"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={t.packages.skillsFind}
+            aria-label={t.packages.skillsFind}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              // Esc clears the search first; on an empty field it closes the dialog as anywhere else.
+              if (event.key !== 'Escape' || query === '') return
+              event.preventDefault()
+              event.stopPropagation()
+              clear()
+            }}
+          />
+          {query !== '' && (
+            <Tipped tip={t.packages.skillsFindClear} inline className="add-package__skills-clear">
+              <button type="button" aria-label={t.packages.skillsFindClear} onClick={clear}>
+                <CloseIcon />
+              </button>
+            </Tipped>
+          )}
+        </div>
+        <div className="segmented" role="group" aria-label={t.packages.skills}>
+          <button type="button" className={only === null ? 'segmented__item segmented__item--on' : 'segmented__item'} aria-pressed={only === null} onClick={() => setOnly(null)}>
+            {t.packages.skillsAll} <span className="add-package__skills-count">{list.length}</span>
+          </button>
+          <button type="button" className={only !== null ? 'segmented__item segmented__item--on' : 'segmented__item'} aria-pressed={only !== null} onClick={() => setOnly(new Set(picked))}>
+            {t.packages.skillsTicked} <span className="add-package__skills-count">{picked.size}</span>
+          </button>
+        </div>
+      </div>
+      <div className="add-package__skills-list">
+        {shown.length === 0 && <p className="add-package__skills-none">{t.packages.skillsNothing}</p>}
+        {shown.map((skill) => (
+          <label key={skill.name} className="add-package__skill">
+            <input type="checkbox" checked={picked.has(skill.name)} onChange={() => onToggle(skill.name)} />
+            <span className="add-package__skill-name">
+              <Marked text={skill.name} words={words} />
+            </span>
+            <span className="add-package__skill-from">{skill.from === null ? t.packages.skillsGone : agentLabel(skill.from)}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Marked({ text, words }: { text: string; words: string }) {
+  const at = words === '' ? -1 : text.toLowerCase().indexOf(words)
+  if (at < 0) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark className="add-package__skill-match">{text.slice(at, at + words.length)}</mark>
+      {text.slice(at + words.length)}
+    </>
   )
 }
 
