@@ -307,7 +307,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     git: gitSetup,
     jobs: stepJobs,
     demo: ctx.demo,
-    catchUp: async () => ctx.machineLink.port.catchUp?.(),
+    catchUp: async (whole) => ctx.machineLink.port.catchUp?.(whole),
     hub: ctx.hub,
     publicDir: join(root, 'dist', 'web'),
     getState: ctx.getState,

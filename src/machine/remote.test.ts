@@ -5,7 +5,7 @@ import { noticeOf } from '../notice/notice.js'
 import type { FoundRepository, SessionView, TaskWork } from '../state.js'
 import { emptyBrief } from './brief.js'
 import { bench, machineOf, PROJECT, tick } from './remote.fixture.js'
-import { HANDOFF_EVENT, MachineRunner } from './runner.js'
+import { DONE_EVENT, FACTS_EVENT, FRESH_MS, HANDOFF_EVENT, MachineRunner, SETTLE_MS } from './runner.js'
 import { RemoteMachine } from './remote.js'
 
 describe('the machine port over the link', () => {
@@ -463,5 +463,91 @@ describe('MachineRunner facts', () => {
     expect(scopes).toHaveBeenCalledTimes(3)
     expect(posted).toHaveLength(3)
     expect(posted[2]).toMatchObject({ patch: { tasks: { set: { 'ABC-3': { live: 'session-3' } } } } })
+  })
+})
+
+describe('MachineRunner reads (BTN-1475)', () => {
+  const runnerOf = (services?: ConstructorParameters<typeof MachineRunner>[0]['services']) => {
+    const { state, local } = machineOf()
+    const scopes = vi.fn(<T>(body: () => T): T => body())
+    const emitted: Array<[string, unknown]> = []
+    const runner = new MachineRunner({
+      local,
+      emit: async (type, payload) => void emitted.push([type, payload]),
+      boot: 'boot-1',
+      projects: () => [PROJECT],
+      tasks: () => Object.entries(state.live).map(([task, session]) => ({ task, sessions: [session] })),
+      runs: () => [],
+      reported: () => [],
+      model: () => null,
+      accounts: () => ['main'],
+      limitsOf: () => null,
+      ledger: () => ({}),
+      scope: scopes,
+      ...(services !== undefined && { services }),
+      log: () => {},
+    })
+    runner.snapshot()
+    scopes.mockClear()
+    return { state, runner, scopes, emitted }
+  }
+
+  beforeEach(() => void vi.useFakeTimers())
+  afterEach(() => void vi.useRealTimers())
+
+  it('gathers the changes told within the settle window into one read and one post', async () => {
+    const { state, runner, scopes, emitted } = runnerOf()
+    state.live['ABC-1'] = 'session-1'
+    runner.changed()
+    state.live['ABC-2'] = 'session-2'
+    runner.changed()
+    runner.changed()
+    expect(scopes).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(SETTLE_MS)
+    expect(scopes).toHaveBeenCalledTimes(1)
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]).toMatchObject([FACTS_EVENT, { patch: { tasks: { set: { 'ABC-1': { live: 'session-1' }, 'ABC-2': { live: 'session-2' } } } } }])
+  })
+
+  it('reads at once for a post asked outright, and the settle window then has nothing left to read', async () => {
+    const { state, runner, scopes } = runnerOf()
+    state.live['ABC-1'] = 'session-1'
+    runner.changed()
+    await runner.publish()
+    expect(scopes).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(SETTLE_MS * 2)
+    expect(scopes).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads for a catch-up only after a change told or once the last read is older than FRESH_MS', async () => {
+    const { state, runner, scopes } = runnerOf()
+    await runner.refresh()
+    await runner.refresh()
+    expect(scopes).not.toHaveBeenCalled()
+    state.live['ABC-1'] = 'session-1'
+    runner.changed()
+    await runner.refresh()
+    expect(scopes).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(FRESH_MS)
+    await runner.refresh()
+    expect(scopes).toHaveBeenCalledTimes(2)
+  })
+
+  it('posts the facts before the result of a command, and before a query only when a change was told since the last read', async () => {
+    const record = vi.fn(async () => ({ sessionId: 'session-1' }))
+    const services = { transcript: { record } } as unknown as NonNullable<ConstructorParameters<typeof MachineRunner>[0]['services']>
+    const { state, runner, scopes, emitted } = runnerOf(services)
+    await runner.command({ seq: 1, type: 'transcript.record', payload: { args: ['session-1'] } })
+    expect(scopes).not.toHaveBeenCalled()
+    expect(emitted.map(([type]) => type)).toEqual([DONE_EVENT])
+
+    state.live['ABC-1'] = 'session-1'
+    runner.changed()
+    await runner.command({ seq: 2, type: 'port.head', payload: { args: [PROJECT] } })
+    expect(scopes).toHaveBeenCalledTimes(1)
+    expect(emitted.map(([type]) => type)).toEqual([DONE_EVENT, FACTS_EVENT, DONE_EVENT])
+
+    await runner.command({ seq: 3, type: 'port.launch', payload: { args: [PROJECT, 'ABC-2'] } })
+    expect(scopes).toHaveBeenCalledTimes(2)
   })
 })

@@ -9,7 +9,7 @@ import { noticeOf, type Notice } from '../notice/notice.js'
 import { patchOf, resetKey, type FactsPatch, type MachineFacts, type ProjectFacts, type RunFacts, type TaskFacts } from './facts.js'
 import { isMove, MOVE_PREFIX, type MoveCall, type MoveDone, type MoveName } from './move-call.js'
 import type { MachinePort } from './port.js'
-import { serviceHandlers, type MachineServices } from './services.js'
+import { SERVICE_COMMANDS, serviceHandlers, type MachineServices } from './services.js'
 import type { SessionMail } from '../sessions/mail.js'
 import type { BranchDiff, FoundRepository, SessionView, TaskWork } from '../state.js'
 
@@ -20,6 +20,20 @@ export const PORT_COMMANDS = [
 ] as const
 export type PortCommand = (typeof PORT_COMMANDS)[number]
 export const COMMAND_PREFIX = 'port.'
+
+/** The changes told within this window go out in one read and one post (BTN-1475). */
+export const SETTLE_MS = 250
+/**
+ * How long facts read with no change told since stay fresh for a catch-up and a query (BTN-1475). Some change untold, by
+ * the time alone (a turn taken for busy by its last activity); a step right after a post, which wakes it, reads none.
+ */
+export const FRESH_MS = 1_000
+
+/** The commands that change nothing on the machine (`MachinePort`'s queries and the transcript reads): no facts of their own. */
+const QUERIES = new Set([
+  ...(['locate', 'head', 'tree', 'merged', 'carried', 'changes', 'history', 'modelBlock'] satisfies PortCommand[]).map((name) => `${COMMAND_PREFIX}${name}`),
+  ...SERVICE_COMMANDS.transcript.map((name) => `transcript.${name}`),
+])
 
 /** The machine's events of the chain: a command's result, the facts that changed, a handoff snapshot for the hub's database. */
 export const DONE_EVENT = 'command.done'
@@ -107,6 +121,10 @@ export class MachineRunner {
   private publishing: Promise<void> = Promise.resolve()
   /** The post queued behind `publishing` whose read has not begun yet. */
   private waiting: Promise<void> | undefined
+  /** A change was told since the last read began. */
+  private told = false
+  private readAt = Number.NEGATIVE_INFINITY
+  private settling: ReturnType<typeof setTimeout> | undefined
   private readonly served: Map<string, (...args: unknown[]) => unknown>
 
   constructor(private readonly deps: RunnerDeps) {
@@ -142,6 +160,32 @@ export class MachineRunner {
     return run
   }
 
+  /**
+   * Something the facts hold changed: posted at once, unless the last read began under `SETTLE_MS` ago; then once that
+   * time is up, together with whatever else is told by then.
+   */
+  changed(): void {
+    this.told = true
+    if (this.settling !== undefined) return
+    const post = () => void this.publish().catch((error: unknown) => this.deps.log(`machine: the facts were not posted: ${error instanceof Error ? error.message : String(error)}`))
+    const wait = this.readAt + SETTLE_MS - Date.now()
+    if (wait <= 0) return post()
+    this.settling = setTimeout(() => {
+      this.settling = undefined
+      post()
+    }, wait)
+    this.settling.unref?.()
+  }
+
+  /**
+   * `publish` for a catch-up and a query, which change nothing themselves: with no change told since a read under
+   * `FRESH_MS` ago, only waits for the post under way.
+   */
+  refresh(): Promise<void> {
+    if (!this.told && Date.now() - this.readAt < FRESH_MS) return this.waiting ?? this.publishing
+    return this.publish()
+  }
+
   /** Runs one command of the hub. An unknown one throws, which the link reports as `command.failed`. */
   async command(command: NumberedCommand): Promise<void> {
     const run = this.handler(command)
@@ -153,7 +197,7 @@ export class MachineRunner {
       const under = error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined
       done = { seq: command.seq, notice: noticeOf(error), ...(under === undefined ? {} : { cause: under }) }
     }
-    await this.publish().catch((error: unknown) => this.deps.log(`machine: the facts after command ${command.seq} were not posted: ${error instanceof Error ? error.message : String(error)}`))
+    await (QUERIES.has(command.type) ? this.refresh() : this.publish()).catch((error: unknown) => this.deps.log(`machine: the facts after command ${command.seq} were not posted: ${error instanceof Error ? error.message : String(error)}`))
     await this.deps.emit(DONE_EVENT, done)
   }
 
@@ -190,6 +234,11 @@ export class MachineRunner {
   }
 
   private facts(): MachineFacts {
+    // What was told up to here is in this read.
+    this.told = false
+    this.readAt = Date.now()
+    clearTimeout(this.settling)
+    this.settling = undefined
     return this.deps.scope === undefined ? this.read() : this.deps.scope(() => this.read())
   }
 

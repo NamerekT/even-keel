@@ -64,6 +64,14 @@ describe('machinePool', () => {
     expect(pool.account('p')).toBe('own')
   })
 
+  it("reads a task's packages on the machine it went to, a project's alone on the own one", () => {
+    const { pool } = poolOf()
+    expect(pool.packagesBlocked('p', 'A-1')).toBe('server')
+    expect(pool.packagesPause('p', 'A-1')).toBe('server')
+    expect(pool.packagesBlocked('p')).toBe('own')
+    expect(pool.packagesPause('p', 'A-2')).toBe('own')
+  })
+
   it('keeps the project\'s main, fix sessions and account reads on the own machine', async () => {
     const { pool } = poolOf()
     expect(await pool.head('p')).toBe('own')

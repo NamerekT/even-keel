@@ -73,7 +73,7 @@ export class LaunchPauses {
    * see, then a package only the user can make ready, which a fix session of a red main does not wait for.
    */
   block(project: string, task?: string): Notice | undefined {
-    const packages = task !== undefined && isFixName(task) ? undefined : this.deps.machine.packagesPause(project)
+    const packages = task !== undefined && isFixName(task) ? undefined : this.deps.machine.packagesPause(project, task)
     return this.deps.blocked(project, task) ?? this.deps.trackerBlock(project) ?? packages
   }
 
@@ -103,6 +103,6 @@ export class LaunchPauses {
       return true
     }
     // A session would start without some of its tools; the page shows why (`packages` in the state).
-    return !fix && this.deps.machine.packagesBlocked(chain.project)
+    return !fix && this.deps.machine.packagesBlocked(chain.project, task)
   }
 }

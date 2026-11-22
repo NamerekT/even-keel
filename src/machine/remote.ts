@@ -57,7 +57,7 @@ export interface RemoteDeps {
    * With the machine in this process: has it post what changed and waits until the hub took it, so a step of the chain
    * reads the machine as it is now. Absent for a machine elsewhere, whose mirror is as fresh as its last event.
    */
-  catchUp?: () => Promise<void>
+  catchUp?: (whole?: boolean) => Promise<void>
   log: (line: string) => void
 }
 

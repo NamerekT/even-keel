@@ -102,11 +102,12 @@ export function machinePool(deps: PoolDeps): MachinePort {
     limitReopenedAt: (account, when, resetsAt, project, task) => byTask(project, task).limitReopenedAt(account, when, resetsAt, project, task),
     limitsUnread: (project, task) => byTask(project, task).limitsUnread(project, task),
     accountsRead: () => own().accountsRead(),
-    packagesBlocked: (project) => own().packagesBlocked(project),
-    packagesPause: (project) => own().packagesPause(project),
+    // The lane's machine runs the session with its own tools: the own one's may be refused once off the pool.
+    packagesBlocked: (project, task) => byTask(project, task).packagesBlocked(project, task),
+    packagesPause: (project, task) => byTask(project, task).packagesPause(project, task),
     trackerMissing: (project) => own().trackerMissing(project),
 
-    ...(first.catchUp === undefined ? {} : { catchUp: () => own().catchUp!() }),
+    ...(first.catchUp === undefined ? {} : { catchUp: (whole?: boolean) => own().catchUp!(whole) }),
     ...(first.moves === undefined ? {} : {
       moves: {
         run: (name, move) => (byTask(move.project, move.task).moves ?? first.moves!).run(name, move),

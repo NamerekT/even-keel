@@ -642,7 +642,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     }
     try {
       const body = await readJsonBody(request, BODY_LIMITS[path] ?? MAX_BODY_BYTES)
-      await deps.catchUp?.()
+      await deps.catchUp?.(true)
       await command(deps, body)
       if (path.startsWith('/api/chain/') || path === '/api/session/answer') {
         console.log(`page: ${path.slice('/api/'.length)} ${commandTarget(body)}`.trimEnd())
