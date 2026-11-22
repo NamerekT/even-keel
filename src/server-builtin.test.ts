@@ -1,4 +1,5 @@
 import { mkdtempSync, readdirSync } from 'node:fs'
+import { Agent, request as httpRequest } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -44,7 +45,7 @@ async function fixture(withBuiltin = true, files?: { dir: string; limit: number 
     const response = await fetch(`${base}attach?${query}`, { method: 'POST', headers: { 'content-type': type }, body: bytes })
     return { status: response.status, body: await response.json() }
   }
-  return { refresh, post, upload }
+  return { refresh, post, upload, base }
 }
 
 describe('the built-in tracker over HTTP', () => {
@@ -187,5 +188,36 @@ describe('the built-in tracker over HTTP', () => {
     expect((await upload('task=ABC-9&name=a.png', bytes)).body.notice.code).toBe('builtin.noTask')
     expect((await post('detach', { task: 'ABC-1', file: taken.body.file })).status).toBe(200)
     expect((await post('detach', { task: 'ABC-1', file: taken.body.file })).body.notice).toEqual({ code: 'builtin.noFile', params: { task: 'ABC-1' } })
+  })
+
+  // BTN-1534: a refusal mid-body left the rest unread — Chromium never saw the answer, a keep-alive client got a reset.
+  it('refuses an upload past the limit with the body read off, so the same socket serves the next request', async () => {
+    const dir = join(mkdtempSync(join(tmpdir(), 'ek-attach-')), 'files')
+    const { post, base } = await fixture(true, { dir, limit: 8 })
+    await post('create', { project: ABC, title: 'with a picture' })
+    const agent = new Agent({ keepAlive: true, maxSockets: 1 })
+    const sockets = new Set<unknown>()
+    const send = (query: string, chunks: Buffer[], length?: number) => new Promise<{ status: number; body: any }>((resolve, reject) => {
+      const headers = { 'content-type': 'image/png', ...(length === undefined ? {} : { 'content-length': String(length) }) }
+      const request = httpRequest(`${base}attach?${query}`, { method: 'POST', agent, headers }, (response) => {
+        let text = ''
+        response.setEncoding('utf8').on('data', (part: string) => (text += part)).on('end', () => resolve({ status: response.statusCode!, body: JSON.parse(text) }))
+      })
+      request.on('socket', (socket) => sockets.add(socket)).on('error', reject)
+      for (const chunk of chunks) request.write(chunk)
+      request.end()
+    })
+    try {
+      const chunk = Buffer.alloc(256 * 1024)
+      const declared = await send('task=ABC-1&name=declared.png', [chunk, chunk, chunk, chunk], chunk.length * 4)
+      expect(declared.body.notice).toEqual({ code: 'builtin.fileTooLarge', params: { name: 'declared.png', limit: 8 } })
+      const streamed = await send('task=ABC-1&name=streamed.png', [chunk, chunk, chunk, chunk])
+      expect(streamed.body.notice).toEqual({ code: 'builtin.fileTooLarge', params: { name: 'streamed.png', limit: 8 } })
+      const small = await send('task=ABC-1&name=small.png', [Buffer.from([0x89, 0x50, 0x4e, 0x47])])
+      expect(small.status).toBe(200)
+      expect(sockets.size).toBe(1)
+    } finally {
+      agent.destroy()
+    }
   })
 })

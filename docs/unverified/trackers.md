@@ -156,10 +156,11 @@ A built-in task's attachments (`docs/trackers.md`, "Attachments") are checked by
 
 - A real paste from the clipboard (a screenshot tool, a browser's copied image) and a drop from the file manager reach the editor as files in Chrome, Edge and Firefox, also on a phone over the HTTPS address, and the raw-body upload of a large file is not cut by a proxy in front of the service.
 - The pasted picture shows in the saved description and opens from its tile on the live service.
+- A raw upload past the limit is answered with `builtin.fileTooLarge` within seconds in a real Chrome on the live service, and a file past it pasted into the card shows the refusal with its Settings button at once (BTN-1534): checked only in headless Chromium against a test server of the branch, where 26 MB past 25 got the 400 in about a second and the next upload went through.
 - Codex, OpenCode and Copilot sessions open an attachment by the path in their brief or in `task_read` their own way.
 - On Windows the hourly sweep removes unreferenced bytes once nothing has them open: the live log has never had its line.
 
-If one is wrong, a picture is not taken or not shown, or a session works without the screenshot it was given. **Workaround:** attach the file in Markdown as a link to where it lies, or describe it in words. To check (BTN-807): paste a screenshot into a bench project's task, save, reload the card; start the task on Codex and see the session open the picture; delete it, wait a day, see the bytes gone from `state/even-keel/files/` and the sweep's line `builtin: removed … attachment files` in the log.
+If one is wrong, a picture is not taken or not shown, or a session works without the screenshot it was given. **Workaround:** attach the file in Markdown as a link to where it lies, or describe it in words. To check (BTN-807): paste a screenshot into a bench project's task, save, reload the card; paste a file past the limit and see the refusal; run `fetch` of a 26 MB body to `/api/builtin/attach` from the service's page in Chrome's console and see the 400 within seconds; start the task on Codex and see the session open the picture; delete it, wait a day, see the bytes gone from `state/even-keel/files/` and the sweep's line `builtin: removed … attachment files` in the log.
 
 ## Copying built-in tasks into another tracker (BTN-1073)
 

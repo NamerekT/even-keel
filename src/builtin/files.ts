@@ -128,15 +128,20 @@ export async function sweepAttachments(store: BuiltinStore, dir: string, log: (l
   }
 }
 
-/** Reads an upload whole, refusing it once it passes `limit` bytes. */
-export async function readLimited(body: AsyncIterable<Uint8Array>, limit: number, name: string): Promise<Buffer> {
+/**
+ * Reads an upload whole, refusing it past `limit` bytes. A `declared` length past the limit is refused unread: the
+ * HTTP server throws the unread body away after the answer. One past the limit midway is read off to its end first:
+ * leaving the loop destroys the request, and a browser that is still sending never reads the answer (BTN-1534).
+ */
+export async function readLimited(body: AsyncIterable<Uint8Array>, limit: number, name: string, declared?: number): Promise<Buffer> {
+  if (declared !== undefined && declared > limit) throw fail('builtin.fileTooLarge', { name, limit })
   const parts: Buffer[] = []
   let size = 0
   for await (const part of body) {
     size += part.length
-    if (size > limit) throw fail('builtin.fileTooLarge', { name, limit })
-    parts.push(Buffer.from(part))
+    if (size <= limit) parts.push(Buffer.from(part))
   }
+  if (size > limit) throw fail('builtin.fileTooLarge', { name, limit })
   return Buffer.concat(parts)
 }
 
