@@ -44,13 +44,14 @@ export function assembleKeySpend(ctx: Pick<MachineContext, 'homes' | 'account' |
   })
 }
 
-export async function assembleCliCopies(ctx: Pick<MachineContext, 'runtimes' | 'configStore' | 'machineChanged' | 'account' | 'cliVersions' | 'machineDb' | 'writes'>) {
+export async function assembleCliCopies(ctx: Pick<MachineContext, 'runtimes' | 'configStore' | 'machineChanged' | 'account' | 'cliVersions' | 'machineDb' | 'writes' | 'brief'>) {
   return copies(ctx.runtimes, (name, source) => ctx.configStore.saveCli(name, source), (name) => ctx.configStore.fallBackCli(name),
     () => { ctx.machineChanged(); void ctx.account.refresh() },
     async () => { await ctx.cliVersions.check(); await ctx.account.refresh() },
     {
       downloaded: ((await machineValue(ctx.machineDb, 'cli.downloaded')) as string[] | undefined) ?? [],
       remember: (downloaded) => ctx.writes.add('the providers with a downloaded CLI copy', setMachineValue(ctx.machineDb, 'cli.downloaded', downloaded)),
+      hub: () => ctx.brief.cliConsent(),
     })
 }
 

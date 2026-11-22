@@ -24,6 +24,8 @@ export interface HubBrief {
   accounts?: Record<string, BriefAccount>
   /** Routes whose servers belong to the hub; never their targets or credentials. */
   hubServers?: string[]
+  /** The providers whose checked CLI copy the hub downloaded with consent: the machine downloads its own by it (BTN-1516). */
+  cliConsent?: string[]
   trackers?: Record<string, { server: string; required: boolean; also?: string }>
   /** For a machine elsewhere, the hub's catalog of its projects' packages that it follows (BTN-1299); the own machine shares the hub's. */
   packages?: CatalogBrief
@@ -117,6 +119,7 @@ export class BriefCopy {
   /** Whose account the hub's folder is; `undefined` — the hub did not say. */
   accountOf(key: string): BriefAccount | undefined { return this.brief.accounts?.[key] }
   hubServers(): string[] { return this.brief.hubServers ?? [] }
+  cliConsent(): string[] { return this.brief.cliConsent ?? [] }
   tracker(project: string) { return this.brief.trackers?.[project] }
   /** The stdio command of a package's server on this machine in the project, where the hub names one. */
   serverOf(project: string, name: string, server: string): ServerOverride | undefined { return this.brief.servers?.[project]?.[name]?.[server] }

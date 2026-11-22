@@ -6,6 +6,8 @@ import { notice } from '../notice/notice.js'
 export interface CopyConsent {
   downloaded: readonly string[]
   remember: (downloaded: string[]) => void
+  /** On a machine, the providers the hub consented to (`HubBrief.cliConsent`, BTN-1516): its consent is the machine's too. */
+  hub?: () => readonly string[]
 }
 
 /**
@@ -48,20 +50,25 @@ export function copies(
   /** Missing, not failed: a failed download waits for the explicit retry. */
   const fetchesItself = (name: string) => {
     const view = runtimes.get(name)?.cli?.state()
-    return consented.has(name) && view?.source === 'checked' && view.status === 'missing'
+    return (consented.has(name) || (consent.hub?.().includes(name) ?? false)) && view?.source === 'checked' && view.status === 'missing'
   }
   const auto = (name: string) => {
-    console.log(`agents: ${name} downloads the checked version ${runtimes.get(name)!.cli!.view().version} by itself, its copy was downloaded with consent before`)
+    const whose = consented.has(name) ? 'its copy was downloaded with consent before' : 'the hub consented to its copy'
+    console.log(`agents: ${name} downloads the checked version ${runtimes.get(name)!.cli!.view().version} by itself, ${whose}`)
     fetch(name)
   }
   return {
     view: () => Object.fromEntries([...runtimes].flatMap(([name, agent]) => agent.cli ? [[name, agent.cli.view()]] : [])),
+    /** `downloading` — the copy is on its way, so the wait ends by itself; the hub tells a machine's pause by it. */
     blocked(name: string) {
       const view = runtimes.get(name)?.cli?.state()
       if (view?.source !== 'checked' || view.status === 'ready') return undefined
-      if (fetchesItself(name)) auto(name)
-      return notice('agent.copyMissing', { title: AGENTS[name]!.title, agent: name })
+      const fetches = fetchesItself(name)
+      if (fetches) auto(name)
+      return notice('agent.copyMissing', { title: AGENTS[name]!.title, agent: name, downloading: fetches || view.status === 'downloading' })
     },
+    /** The providers consented to here, for the hub's brief to its machines. */
+    consented: (): string[] => [...consented].sort(),
     /** At the start: the consented providers on Checked fetch a checked version they lack; gives their names. */
     resume(): string[] {
       const names = [...runtimes.keys()].filter(fetchesItself)

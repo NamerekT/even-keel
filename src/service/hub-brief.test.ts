@@ -47,6 +47,13 @@ describe('the hub brief', () => {
     expect(hubBrief(sources()).config.settings['project-1']?.check).toEqual([])
   })
 
+  it("carries the hub's consent to checked CLI copies, none before the hub names it (BTN-1516)", () => {
+    const copy = new BriefCopy()
+    expect(copy.cliConsent()).toEqual([])
+    copy.take(hubBrief(sources({ cliConsent: () => ['claude'] })))
+    expect(copy.cliConsent()).toEqual(['claude'])
+  })
+
   it('gives the machine copy the project of a listed task and of a chain current one', () => {
     const state = emptyChainState()
     state.active.push({ project: 'project-1', current: { task: 'ABC-9' } } as unknown as ChainState['active'][number])

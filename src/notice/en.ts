@@ -170,6 +170,12 @@ export const en = {
   'machines.offline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: sign in there once it is back`,
   'machines.accountAbsent': (p: { account: string; machine: string; name: string }) =>
     `The project's account ${p.account} is not signed in on ${p.name === '' ? 'this machine' : `machine ${p.name}`}: add it there`,
+  'machines.copyMissing': (p: { title: string; agent: string; machine: string; name: string; state: 'downloading' | 'consent' | 'failed' }) => {
+    const where = p.name === '' ? 'the machine' : `machine ${p.name}`
+    if (p.state === 'downloading') return `Waiting for ${where} to download the checked copy of ${p.title}: the chain goes on by itself once it is there`
+    if (p.state === 'consent') return `Waiting for the checked copy of ${p.title} on ${where}. Download it here in Settings → Providers and models, and the machine downloads its own after it; or set its CLI version to Yours there`
+    return `There is no checked copy of ${p.title} on ${where}, and its download did not go through: see the machine's log, or set its CLI version to Yours in Settings → Providers and models`
+  },
   'pool.noGit': () => 'git is not installed on the machine: install it there, then Retry',
   'pool.notRepository': (p: { folder: string }) => `There is no git repository in ${p.folder} on the machine: name an empty folder, and the project is cloned into it, or the folder its clone is in`,
   'pool.hubNoRemote': () => 'The project\'s repository here has no remote: a machine elsewhere gets its work only through one, so add a remote first',
@@ -469,7 +475,7 @@ export const en = {
   'login.running': () => 'claude: a sign-in is already running',
   'login.timeout': (p: { minutes: number }) => `claude: sign-in did not finish in ${p.minutes} min`,
   'login.startFailed': () => 'claude: could not start the sign-in',
-  'agent.copyMissing': ({ title }: { title: string; agent?: string }) => `Waiting for the checked copy of ${title}. Download it, or set its CLI version to Yours in Settings → Providers and models.`,
+  'agent.copyMissing': ({ title }: { title: string; agent?: string; downloading?: boolean }) => `Waiting for the checked copy of ${title}. Download it, or set its CLI version to Yours in Settings → Providers and models.`,
   'agent.copyFailed': ({ title }: { title: string }) => `Could not download ${title}. CLI version was changed to Yours. Try downloading again.`,
   'login.codexMissing': () => 'Codex CLI is not found. Install it:\n\n```sh\nnpm install -g @openai/codex\n```',
   'login.claudeMissing': () => 'Claude Code CLI is not found. Install it:\n\n```sh\ncurl -fsSL https://claude.ai/install.sh | bash\n```\n\nOn Windows, in PowerShell:\n\n```powershell\nirm https://claude.ai/install.ps1 | iex\n```',

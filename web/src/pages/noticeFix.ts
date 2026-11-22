@@ -44,6 +44,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'storage.backupCheckFailed': { to: 'shared', tab: 'backup' },
   'agent.copyMissing': { to: 'shared', tab: 'models' },
   'agent.copyFailed': { to: 'shared', tab: 'models' },
+  'machines.copyMissing': { to: 'shared', tab: 'models' },
   'copilot.binaryMissing': { to: 'shared', tab: 'models' },
   'git.noBranch': { to: 'project', tab: 'repo' },
   'git.wrongBranch': { to: 'project', tab: 'repo' },

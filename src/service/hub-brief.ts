@@ -22,6 +22,8 @@ export interface BriefSources {
   demoOwns: (project: string) => boolean
   reports: Pick<CheckReports, 'ofProject'>
   hubServers?: () => string[]
+  /** The providers the hub consented to a checked CLI copy of (BTN-1516). */
+  cliConsent?: () => string[]
   tracker?: (project: string) => { server: string; required: boolean; also?: string } | undefined
   /** The hub's catalog of these projects' packages, for a machine elsewhere (BTN-1299); the own machine shares the hub's file. */
   catalog?: (projects: string[]) => CatalogBrief
@@ -46,6 +48,7 @@ export function hubBrief(sources: BriefSources): HubBrief {
     active: state.active.filter((chain) => projects.includes(chain.project)).map(({ project, paused }) => ({ project, paused })),
     ...(sources.accounts === undefined ? {} : { accounts: sources.accounts() }),
     hubServers: sources.hubServers?.() ?? [],
+    ...(sources.cliConsent === undefined ? {} : { cliConsent: sources.cliConsent() }),
     trackers: Object.fromEntries(projects.flatMap((project) => { const tracker = sources.tracker?.(project); return tracker === undefined ? [] : [[project, tracker]] })),
     ...(sources.catalog === undefined ? {} : { packages: sources.catalog(projects) }),
     config: { ...config, projects: Object.fromEntries(projects.map((project) => [project, folders[project]!])), settings },

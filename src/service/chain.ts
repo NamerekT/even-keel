@@ -12,6 +12,7 @@ import { createCiWatches } from '../ci/wiring.js'
 import { DEFAULT_BRANCH, DEFAULT_CI, isPlain, mergeTargetOf, projectLabel, readerIds } from '../config.js'
 import { runGit } from '../git/run.js'
 import { slotPaths } from '../git/slot.js'
+import { namedBlock } from '../machine/block-names.js'
 import type { MachinePort } from '../machine/port.js'
 import { fail, notice } from '../notice/notice.js'
 import { isInside } from '../paths.js'
@@ -175,11 +176,11 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
       const reason = ctx.profileBlock(project) ?? ctx.pullBlock(project)
       if (reason !== undefined || task === undefined) return reason
       const block = machine.launchBlock(project, task)
-      if (block?.code !== 'machines.accountAbsent') return block
-      // Only the hub knows the name the person gave the machine; the button signs the account in there.
+      if (block === undefined) return block
       const link = ctx.machineLink
-      const id = link.assignments.machineOf(project, task) ?? link.own()
-      return notice('machines.accountAbsent', { ...block.params, machine: id, name: link.network.names()[id] ?? '' })
+      const own = link.own()
+      const id = link.assignments.machineOf(project, task) ?? own
+      return namedBlock(block, { id, name: link.network.names()[id] ?? '', own: id === own }, ctx.cliCopies.consented())
     },
     save: (state) => {
       ctx.writes.add('the chain state', saveChainState(ctx.db, state))

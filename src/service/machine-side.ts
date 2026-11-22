@@ -165,7 +165,10 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     brief: (brief) => {
       const first = !machine.brief.received
       const changed = !sameJson(brief, machine.brief.whole)
+      const consentBefore = machine.brief.cliConsent()
       machine.brief.take(brief)
+      // The hub's consent to a checked copy is the machine's too (BTN-1516): a copy it now may fetch starts at once.
+      if (!sameJson(consentBefore, machine.brief.cliConsent())) machine.cliCopies.resume()
       // A machine elsewhere follows the hub's catalog of its projects' packages (BTN-1299).
       if (brief.packages !== undefined) {
         try {

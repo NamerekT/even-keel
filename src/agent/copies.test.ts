@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Agent } from './contract.js'
 import { copies } from './copies.js'
 
-function fixture(system = true, { downloaded = [] as string[], hadCopy = false, fails = false, source: initial = 'checked' as 'checked' | 'system' } = {}) {
+function fixture(system = true, { downloaded = [] as string[], hadCopy = false, fails = false, source: initial = 'checked' as 'checked' | 'system', hub = undefined as string[] | undefined } = {}) {
   let source = initial
   let status: 'ready' | 'missing' | 'downloading' | 'failed' = 'missing'
   let finish = () => {}
@@ -20,7 +20,7 @@ function fixture(system = true, { downloaded = [] as string[], hadCopy = false, 
     state: () => ({ source, status }),
     download, prune: async () => {}, hadCopy: () => hadCopy,
   }
-  const manager = copies(new Map([['codex', { cli } as unknown as Agent]]), save, (name) => save(name, 'system'), changed, async () => {}, { downloaded, remember })
+  const manager = copies(new Map([['codex', { cli } as unknown as Agent]]), save, (name) => save(name, 'system'), changed, async () => {}, { downloaded, remember, ...(hub === undefined ? {} : { hub: () => hub }) })
   const done = async () => { await vi.waitFor(() => expect(download).toHaveBeenCalled()); finish() }
   return { manager, download, save, changed, remember, done, view }
 }
@@ -104,6 +104,25 @@ describe('CLI copy control', () => {
     await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(2))
     expect(manager.view().codex?.source).toBe('checked')
     log.mockRestore()
+  })
+
+  it("downloads by itself on a machine with the hub's consent, and remembers it as its own (BTN-1516)", async () => {
+    const hub: string[] = []
+    const { manager, download, remember, done } = fixture(true, { hub })
+    expect(manager.resume()).toEqual([])
+    expect(manager.blocked('codex')?.params).toMatchObject({ downloading: false })
+    hub.push('codex')
+    expect(manager.resume()).toEqual(['codex'])
+    expect(manager.blocked('codex')?.params).toMatchObject({ downloading: true })
+    await done()
+    await vi.waitFor(() => expect(manager.blocked('codex')).toBeUndefined())
+    expect(download).toHaveBeenCalledOnce()
+    expect(remember).toHaveBeenCalledWith(['codex'])
+  })
+
+  it("gives the hub only its own consents, never the hub's it was told (BTN-1516)", async () => {
+    expect(fixture(true, { hub: ['codex'] }).manager.consented()).toEqual([])
+    expect(fixture(true, { downloaded: ['codex'] }).manager.consented()).toEqual(['codex'])
   })
 
   it('offers Installed only when the binary exists', () => {

@@ -272,3 +272,11 @@ To check, on the benches: with a machine elsewhere joined, open a git project's 
 Assumed: a machine of another version gets the version refusal, its page names the hub's tag and `docker compose pull && docker compose up -d`, and after that command it joins again on its own. If not, the machine stays offline or reconnects again and again; `docker compose logs machine` names it. Put the hub's tag into the machine folder's `.env` and run the command by hand, or install the machine from npm on its host.
 
 To check (BTN-1448), with a second release candidate: update the hub and leave a machine on the older tag; its page shows the `.env` line and the commands, and the command brings it back. Join a new machine without a name: the hub names it `even-keel-machine`, before and after a `--force-recreate`.
+
+## A machine's checked CLI copy on the hub's consent (BTN-1516)
+
+`docs/machines.md`, "Machines elsewhere" ("The checked CLI"); guide `docs/guide/docker.md`, "Machines". Covered by `src/agent/copies.test.ts`, `src/machine/block-names.test.ts` and `src/service/hub-brief.test.ts`: a copy fetched on the brief's `cliConsent`, the pause named by the machine and its state. Never run with a real machine elsewhere and a real download.
+
+Assumed: a machine without a copy of its own downloads the hub's checked version within the 5 s brief tick after the hub's copy is consented to, and its chain's pause lifts by itself. If not, the chain on the machine waits on "Waiting for the checked copy … on machine X" with no way to lift it from the page but Yours; the machine's log names the download or says nothing at all.
+
+To check (BTN-1522), with a release candidate that has BTN-1516: a hub on Checked with its copy, a machine in Docker without one, a task to Done on the machine; then a hub without its copy, its download, and the machine following.

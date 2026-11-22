@@ -205,6 +205,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       demoOwns: (project) => ctx.demo.owns(project),
       reports: ctx.checkReports,
       hubServers: () => routes,
+      cliConsent: () => ctx.cliCopies.consented(),
       tracker: (project) => {
         const adapter = ADAPTERS[ctx.configStore.current.trackers[project]!]!
         const server = adapter?.mcpServer

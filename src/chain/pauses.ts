@@ -4,7 +4,7 @@ import { waitsForLimits } from './limitNotice.js'
 import type { ActiveChain, ChainState, DispatcherDeps } from './model.js'
 
 /** Launch blocks Start and Resume go in paused on and the chain lifts by itself once they are gone (`cleared`). */
-const SELF_CLEARING: readonly string[] = ['review.notReady', 'agent.copyMissing', 'chain.noTrackerMcp', 'chain.packagesNotReady']
+const SELF_CLEARING: readonly string[] = ['review.notReady', 'agent.copyMissing', 'machines.copyMissing', 'chain.noTrackerMcp', 'chain.packagesNotReady']
 
 /** What keeps a chain's new sessions from starting, and the pauses on it that lift by themselves. */
 export class LaunchPauses {
