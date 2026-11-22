@@ -1,3 +1,4 @@
+import { remoteHead } from '../git/remote-head.js'
 import type { Git } from '../git/types.js'
 import { englishOf, fail, notice, noticeOf, sameNotice } from '../notice/notice.js'
 import { currentRunOf, failedKey, failedUntaken, isFinished, mediansOf, pushesOf, pushKey, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun, type WorkflowRun } from './model.js'
@@ -182,8 +183,7 @@ export class CiWatch {
 
   /** Whether the remote's main moved since the last look; the first look is not a push. */
   private async readHead(now: Date, branch: string): Promise<boolean> {
-    const read = await this.deps.git(this.deps.repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/${this.deps.target.remote}/${branch}`])
-    const head = read.code === 0 ? read.out.trim() : null
+    const head = await remoteHead(this.deps.git, this.deps.repo, this.deps.target.remote, branch)
     const first = this.head === undefined
     const moved = !first && head !== null && head !== this.head
     this.head = head

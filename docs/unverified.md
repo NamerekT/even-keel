@@ -299,6 +299,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 264 | [The import's switch past released tasks](unverified/trackers.md#the-imports-switch-past-released-tasks-btn-1459) | projects switched onto the built-in tracker while the chain holds released tasks or open pull requests | a released task never cleaned up after its Done, or its session's tasks server still writing to the old tracker; remove its worktree by hand | — |
 | 265 | [A deleted upload of GitHub or Linear in the import](unverified/trackers.md#a-deleted-upload-of-github-or-linear-in-the-import-btn-1458) | projects importing from GitHub or Linear with a file whose upload is gone | the import stops at that attachment on every repeat; delete the link to the file in the tracker and repeat | — |
 | 266 | [Where a live import or copy stopped](unverified/trackers.md#where-a-live-import-or-copy-stopped-btn-1455) | projects importing into or copying out of the built-in tracker whose run fails | the stop names no task or a bare "Error", or the task's link opens nothing; the service log's line after it has the stack | — |
+| 268 | [The kept `claude agents` answer on a hand resume](unverified/sessions.md#the-kept-claude-agents-answer-on-a-hand-resume-btn-1478) | Claude `--bg` sessions resumed outside Even Keel, or whose state changes without a roster or steady-state change | the page shows the session's state up to 30 s late | — |
 
 ### Waiting for the event / not checked by choice
 

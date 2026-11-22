@@ -1,5 +1,6 @@
-import { readFile, stat } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { stat } from 'node:fs/promises'
+import { join } from 'node:path'
+import { gitDirs } from './dirs.js'
 import type { Git, GitResult } from './types.js'
 
 export const REMOTE_URLS_ARGS = ['config', '--get-regexp', '^remote\\..*\\.url$']
@@ -41,13 +42,9 @@ export async function remoteUrls(git: Git, repo: string): Promise<GitResult> {
 /** The mtime and size of the config files git reads for `repo`; null when `repo` holds no `.git` or it cannot be read. */
 export async function configStamp(repo: string): Promise<string | null> {
   try {
-    const dotGit = join(repo, '.git')
-    const gitDir = (await stat(dotGit)).isDirectory() ? dotGit : await linkedGitDir(repo, dotGit)
-    if (gitDir === null) return null
-    const commonDir = await readFile(join(gitDir, 'commondir'), 'utf8').then(
-      (text) => absolute(gitDir, text.trim()),
-      () => gitDir,
-    )
+    const dirs = await gitDirs(repo)
+    if (dirs === null) return null
+    const { gitDir, commonDir } = dirs
     const config = await stat(join(commonDir, 'config'))
     const worktree = gitDir === commonDir ? null : await stat(join(gitDir, 'config.worktree')).catch(() => null)
     // Git writes its config into a lock file renamed over the old one: a new inode on every write, whatever the clock.
@@ -56,10 +53,3 @@ export async function configStamp(repo: string): Promise<string | null> {
     return null
   }
 }
-
-async function linkedGitDir(repo: string, dotGit: string): Promise<string | null> {
-  const match = /^gitdir:\s*(.+?)\s*$/m.exec(await readFile(dotGit, 'utf8'))
-  return match === null ? null : absolute(repo, match[1]!)
-}
-
-const absolute = (base: string, path: string): string => (isAbsolute(path) ? path : resolve(base, path))

@@ -18,6 +18,7 @@ import { TranscriptTail } from '../sessions/tail.js'
 import type { TurnSpend } from '../state.js'
 import { CallTimeout, FolderCalls, QueueWait } from './calls.js'
 import { contextArgs } from './context.js'
+import { FolderListings } from './listing.js'
 import { openLoginBrowser } from './login-browser.js'
 import { daemonVersionOf, noDaemonIn } from './release.js'
 import { descendantsOf, killLeftovers, leftoversAfterStop, sessionProcessAlive } from './tree.js'
@@ -82,6 +83,8 @@ export async function addMarketplace(env: NodeJS.ProcessEnv, dir: string, timeou
 }
 
 export class ClaudeCli {
+  private readonly listings = new FolderListings()
+
   constructor(
     private readonly bin: () => string,
     private readonly timeoutMs: number,
@@ -92,8 +95,10 @@ export class ClaudeCli {
 
   /** `priority` — a listing the chain waits on (a launch, a resume, a stop) goes ahead of the folder's waiting calls. */
   async agents(home: AccountHome, priority = false): Promise<AgentEntry[]> {
-    const { stdout } = await this.call(home, ['agents', '--json', '--all'], undefined, 16 * 1024 * 1024, this.timeoutMs, priority)
-    return withJobFiles(home, withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home)))
+    const records = await liveRecords(home)
+    const ask = async () => (await this.call(home, ['agents', '--json', '--all'], undefined, 16 * 1024 * 1024, this.timeoutMs, priority)).stdout
+    const stdout = await this.listings.stdout(home.dir, this.bin(), records, priority, ask)
+    return withJobFiles(home, withLiveRecords(parseAgents(stdout, home.key), records))
   }
 
   /** The chain's own listing within `wait`: ahead of the waiting calls, and tried again after a timeout in the queue. */
