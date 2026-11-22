@@ -123,6 +123,22 @@ const PERIOD = `${BASE}, bounds as (
   where b.at >= bounds.prev and b.at < bounds.hi and ($10::text[] is null or b.project = any($10::text[]))
 )`
 
+/**
+ * Each request of an agent with the pause before it (BTN-1530): `from` gives the rows as `row` (`session_id`,
+ * `agent_id`, `at`, `message_id`, `cost`) with their tokens as `m`, `keep` the columns kept. An agent's lifetime is an
+ * hour when it ever wrote an hour's cache, five minutes otherwise.
+ */
+function agentRequests(from: string, row: string, keep: string): string {
+  const agent = `partition by ${row}.session_id, ${row}.agent_id`
+  return `select ${keep}, ${row}.cost, m.cache_read, m.cache_write_5m + m.cache_write_1h as written,
+    ${row}.at - lag(${row}.at) over (${agent} order by ${row}.at, ${row}.message_id) as pause,
+    bool_or(m.cache_write_1h > 0) over (${agent}) as hour
+  from ${from}`
+}
+
+/** A cold agent: keep-warm warms only the session's cache, and after its lifetime the agent wrote more than it read. */
+const AGENT_MISS = `pause > case when hour then interval '1 hour' else interval '5 minutes' end and written > cache_read`
+
 const TOTALS = `${PERIOD}
 select r.cur, coalesce(sum(r.cost), 0) as cost, count(*) as messages, count(distinct r.session_id) as sessions,
   count(distinct r.task) as tasks, count(*) filter (where r.cost is null) as unpriced, sum(sv.share) as limit_share,
@@ -187,12 +203,18 @@ const TASKS = `${PERIOD}, cur as (
   left join seven ws on ws.message_id = w.ping_id
   where w.at >= bounds.lo and w.at < bounds.hi and w.session_id in (select session_id from cur)
   group by w.task
+), agent_requests as (
+  -- The earlier period's requests too: the pause before the period's first one of an agent.
+  ${agentRequests(`ranged r join messages m on m.message_id = r.message_id where r.agent_id <> '' and r.task is not null`, 'r', 'r.task, r.cur')}
+), agent_misses as (
+  select task, count(*) as misses, sum(cost) as cost from agent_requests where cur and ${AGENT_MISS} group by task
 )
 select c.task, min(c.project) as project, t.title, t.status, t.url,
   coalesce(sum(coalesce(pd.paid, c.cost)), 0) + coalesce(max(w.cost), 0) as cost,
   case when count(pd.message_id) > 0 then coalesce(sum(c.cost), 0) + coalesce(max(w.cost), 0) end as price_estimate,
   case when count(sv.share) > 0 or max(w.share) is not null then coalesce(sum(sv.share), 0) + coalesce(max(w.share), 0) end as limit_share,
   max(w.cost) as warm_cost, coalesce(max(w.pings), 0) as warm_pings,
+  max(am.cost) as agent_miss_cost, coalesce(max(am.misses), 0) as agent_misses,
   count(distinct c.session_id) as sessions,
   count(distinct c.session_id) filter (where c.launch_reason = 'relay') as relays,
   count(distinct c.session_id) filter (where c.launch_reason = 'checkpoint') as checkpoints,
@@ -214,6 +236,7 @@ left join task_times tt on tt.task = c.task
 left join stuck st on st.task = c.task
 left join compacted cp on cp.task = c.task
 left join warm w on w.task = c.task
+left join agent_misses am on am.task = c.task
 group by c.task, t.title, t.status, t.url, t.labels, t.estimate_h, t.done, t.component, tt.active_s, tt.wait_s, tt.total_s
 order by cost desc, c.task`
 
@@ -258,6 +281,7 @@ select c.session_id, coalesce(s.custom_title, s.ai_title) as title, s.launch_rea
   min(c.at) as first_at, max(c.at) as last_at, coalesce(sum(c.paid), 0) + coalesce(max(w.cost), 0) as cost,
   case when max(k.session_id) is not null then coalesce(sum(c.cost), 0) + coalesce(max(w.cost), 0) end as price_estimate,
   max(w.cost) as warm_cost, coalesce(max(w.pings), 0) as warm_pings,
+  max(am.cost) as agent_miss_cost, coalesce(max(am.misses), 0) as agent_misses,
   mode() within group (order by c.account) as account
 from message_paid c
 left join sessions s on s.session_id = c.session_id
@@ -266,6 +290,12 @@ left join key_spends k on k.session_id = c.session_id and not k.shared
 left join (
   select session_id, count(*) as pings, sum(cost) as cost from warm_ping_costs where task = $1::text group by session_id
 ) w on w.session_id = c.session_id
+left join (
+  select session_id, count(*) as misses, sum(cost) as cost
+  from (${agentRequests(`message_costs m where m.task = $1::text and m.agent_id is not null`, 'm', 'm.session_id')}) a
+  where ${AGENT_MISS}
+  group by session_id
+) am on am.session_id = c.session_id
 where c.task = $1::text
 group by c.session_id, s.custom_title, s.ai_title, s.launch_reason
 order by first_at`
@@ -449,6 +479,8 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
       priceEstimate: maybe(row.price_estimate),
       warmCost: maybe(row.warm_cost),
       warmPings: number(row.warm_pings),
+      agentMisses: number(row.agent_misses),
+      agentMissCost: maybe(row.agent_miss_cost),
       limit: maybe(row.limit_share),
       sessions: number(row.sessions),
       relays: number(row.relays),
@@ -492,6 +524,8 @@ export function mapTask(task: string, sessions: Row[], spans: Row[], steps: Stat
       priceEstimate: maybe(row.price_estimate),
       warmCost: maybe(row.warm_cost),
       warmPings: number(row.warm_pings),
+      agentMisses: number(row.agent_misses),
+      agentMissCost: maybe(row.agent_miss_cost),
       account: text(row.account),
     })),
     spans: spans.map(stuck),

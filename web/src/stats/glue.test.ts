@@ -20,7 +20,7 @@ function period(): StatsPeriod {
 
 function task(id: string, fields: Partial<StatsTaskRow>): StatsTaskRow {
   return {
-    task: id, project: 'ABC', title: null, status: 'Done', url: null, cost: 1, priceEstimate: null, warmCost: null, warmPings: 0, limit: null, sessions: 1, relays: 0,
+    task: id, project: 'ABC', title: null, status: 'Done', url: null, cost: 1, priceEstimate: null, warmCost: null, warmPings: 0, agentMisses: 0, agentMissCost: null, limit: null, sessions: 1, relays: 0,
     checkpoints: 0, restarts: 0, compactsAuto: 0, compactsManual: 0, spans: 0, rework: false, estimateH: null, activeS: null, waitS: null,
     totalS: null, done: true, component: null, model: null, ...fields,
   }

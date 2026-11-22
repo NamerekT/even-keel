@@ -309,6 +309,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 279 | [A machine's checked CLI copy on the hub's consent](unverified/machines.md#a-machines-checked-cli-copy-on-the-hubs-consent-btn-1516) | machines elsewhere without their own copy of a provider the hub runs on Checked | the machine's chain waits on its copy until the provider is set to Yours | BTN-1522 |
 | 280 | [A waiting chain's server asked again within a minute](unverified/packages.md#a-waiting-chains-server-asked-again-within-a-minute-btn-1518) | projects whose package server failed for long and then answers, such as a machine put back into a project's pool | the chain keeps waiting on the package for up to an hour; stop and start the chain | — |
 | 281 | [Keep-warm through a rebuild with a build under the stop](unverified/sessions.md#keep-warm-through-a-rebuild-with-a-build-under-the-stop-btn-1527) | chain sessions on a five-minute cache with keep-warm on (the default) on a hub that rebuilds itself | a rebuild that moved on or installs lets the cache go cold, as before; set `cacheTtl` to `1h` | — |
+| 282 | [Agents gone cold on /stats, and no fork of an agent](unverified/sessions.md#agents-gone-cold-on-stats-and-no-fork-of-an-agent-btn-1530) | chain sessions whose agents wait longer than their cache's lifetime | the cost tip misses cold agents or counts warm ones; or an agent could be pinged after all | — |
 
 ### Waiting for the event / not checked by choice
 

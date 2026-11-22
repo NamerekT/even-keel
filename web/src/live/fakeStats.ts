@@ -258,6 +258,9 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
         // Every other task kept its cache warm between turns (BTN-1413); no draw, so the sequence stays.
         warmCost: index % 2 === 1 ? paid * 0.06 : null,
         warmPings: index % 2 === 1 ? 3 + (index % 7) : 0,
+        // Every third task had an agent that went cold under it (BTN-1530).
+        agentMisses: index % 3 === 1 ? 1 + (index % 4) : 0,
+        agentMissCost: index % 3 === 1 ? paid * 0.04 : null,
         limit: (cost / count) * 0.11,
         sessions,
         relays: next() > 0.8 ? 1 : 0,
@@ -349,6 +352,8 @@ export function fakeTask(mode: string | null, task: string): StatsAnswer<StatsTa
       priceEstimate: index % 3 === 1 ? cost * 1.18 : null,
       warmCost: index % 2 === 0 ? cost * 0.06 : null,
       warmPings: index % 2 === 0 ? 2 + index : 0,
+      agentMisses: index % 3 === 0 ? 1 : 0,
+      agentMissCost: index % 3 === 0 ? cost * 0.04 : null,
       account: index % 3 === 1 ? 'jane.roe' : 'global',
     }
   })
