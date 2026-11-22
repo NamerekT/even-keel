@@ -65,6 +65,33 @@ describe('the built-in tracker as a task source', () => {
     expect(await notice(source.create!({ project: 'unknown', title: 'x', description: '', priority: 'none', milestoneOf: null }))).toBe('builtin.noProject')
   })
 
+  it('reads a list of tasks at once in the list\'s order, the first project of a shared key first, as each read alone (BTN-1473)', async () => {
+    await store.create({ project: ABC, title: 'One', labels: ['b', 'A'], milestone: 'v1', estimate: 90 })
+    await store.create({ project: SECOND_ABC, title: 'Shadow', number: 1 })
+    await store.create({ project: SECOND_ABC, title: 'Parent', number: 4 })
+    await store.create({ project: SECOND_ABC, title: 'Five', number: 5, parent: 4, labels: ['x'] })
+    await store.create({ project: XYZ, title: 'Elsewhere' })
+    await store.relate({ project: XYZ, number: 1 }, { project: ABC, number: 1 }, 'blocks')
+    await store.relate({ project: SECOND_ABC, number: 5 }, { project: ABC, number: 1 }, 'blocks')
+    await store.relate({ project: XYZ, number: 1 }, { project: SECOND_ABC, number: 5 }, 'relates')
+    const all = [...(await source.chainTasks(ABC, () => true)).tasks, ...(await source.chainTasks(SECOND_ABC, () => true)).tasks, ...(await source.chainTasks(XYZ, () => true)).tasks]
+    const alone = (id: string) => all.find((task) => task.id === id)
+    const list = ['XYZ-1', 'ABC-5', 'ABC-9', 'nonsense', 'ABC-1', 'ABC-4', 'ABC-5']
+    const found = await source.tasks(list)
+    expect(found).toEqual(['XYZ-1', 'ABC-5', 'ABC-1', 'ABC-4', 'ABC-5'].map(alone))
+    expect(found.map((task) => task.title)).toEqual(['Elsewhere', 'Five', 'One', 'Parent', 'Five'])
+    expect(found[2]).toMatchObject({ labels: ['A', 'b'], blockedBy: ['XYZ-1', 'ABC-5'], milestone: { label: 'v1' }, estimate: 1.5 })
+    expect(found[1]).toMatchObject({ parent: 'ABC-4', labels: ['x'] })
+    expect(found[3]?.subtasks).toBe(1)
+    expect(await source.tasks([])).toEqual([])
+    let queries = 0
+    const counted = new Proxy(db, {
+      get: (target, prop) => (prop === 'query' ? (...args: Parameters<PGlite['query']>) => (queries++, target.query(...args)) : Reflect.get(target, prop, target)),
+    })
+    expect(await builtinSource(counted, PLACES).tasks(list)).toEqual(found)
+    expect(queries).toBe(3)
+  })
+
   it('gives the chain a task\'s component by name, none for a task without one (BTN-1288)', async () => {
     await store.saveComponent(ABC, null, { name: 'Server', description: '' })
     await store.create({ project: ABC, title: 'With', component: 'server' })

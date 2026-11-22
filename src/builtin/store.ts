@@ -20,11 +20,11 @@ import {
 } from './milestones.js'
 
 import {
-  estimateOf, FILE_COLUMNS, fileOf, normal, priorityOf, readClosed, readTasks, shown, statusOf, TASK_COLUMNS, titleOf,
-  type BuiltinComment, type ClosedRow, type BuiltinFile, type BuiltinTask, type FieldEdit, type NewBuiltinTask, type TaskKey, type TaskRow,
+  estimateOf, FILE_COLUMNS, fileOf, normal, priorityOf, readClosed, readTaskHeads, readTasks, shown, statusOf, TASK_COLUMNS, titleOf,
+  type BuiltinComment, type ClosedRow, type BuiltinFile, type BuiltinTask, type BuiltinTaskHead, type FieldEdit, type NewBuiltinTask, type TaskKey, type TaskRow,
 } from './task-rows.js'
 
-export type { BuiltinComment, BuiltinFile, BuiltinTask, FieldEdit, NewBuiltinTask, TaskKey } from './task-rows.js'
+export type { BuiltinComment, BuiltinFile, BuiltinTask, BuiltinTaskHead, FieldEdit, NewBuiltinTask, TaskKey } from './task-rows.js'
 
 type FileRow = BuiltinFile
 
@@ -83,6 +83,11 @@ export class BuiltinStore {
 
   async get(key: TaskKey): Promise<BuiltinTask | undefined> {
     return (await this.read([key.project], key.number))[0]
+  }
+
+  /** The tasks of these keys without descriptions, in one pass over the database (BTN-1473); a key of no task is left out. */
+  heads(keys: readonly TaskKey[]): Promise<BuiltinTaskHead[]> {
+    return readTaskHeads(this.db, keys)
   }
 
   /** The number of the project's task with this row id; `null` — none. */

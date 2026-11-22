@@ -8,7 +8,7 @@ import { builtinEditor } from './editor.js'
 import { movedName, movedTasks, withMoved } from './export-store.js'
 import { BuiltinFiles } from './files.js'
 import { SERVICE_AUTHOR } from './history-log.js'
-import { BuiltinStore, type BuiltinTask, type TaskKey } from './store.js'
+import { BuiltinStore, type BuiltinTask, type BuiltinTaskHead, type TaskKey } from './store.js'
 import type { ChangeAuthor } from '../tracker/history.js'
 
 /** How the built-in tracker names its tasks: `<KEY>-<N>` by the key of each of its projects. */
@@ -68,7 +68,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
     return task
   }
   const ids = (keys: TaskKey[]) => keys.filter((key) => names.knows(key.project)).map((key) => names.name(key))
-  const trackerTask = (task: BuiltinTask): TrackerTask => ({
+  const trackerTask = (task: BuiltinTaskHead): TrackerTask => ({
     id: names.name(task),
     title: task.title,
     status: task.status,
@@ -136,13 +136,16 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
       }))
       return { total: Math.max(0, total - offset), tasks, next: offset + rows.length < total && rows.length > 0 ? String(offset + rows.length) : null }
     },
+    // One pass for the whole list, as the status poll asks for a thousand tasks every 5 s (BTN-1473); each id is still
+    // the first of its candidates there is, as `find` takes it.
     async tasks(list) {
-      const found: TrackerTask[] = []
-      for (const id of list) {
-        const task = await find(id)
-        if (task !== undefined) found.push(trackerTask(task))
-      }
-      return found
+      const candidates = new Map(list.map((id) => [id, names.candidates(id)]))
+      const heads = await store.heads([...candidates.values()].flat())
+      const byKey = new Map(heads.map((task) => [`${task.project}\n${task.number}`, task]))
+      return list.flatMap((id) => {
+        const task = candidates.get(id)!.map((key) => byKey.get(`${key.project}\n${key.number}`)).find((each) => each !== undefined)
+        return task === undefined ? [] : [trackerTask(task)]
+      })
     },
     async brief(id) {
       const task = await must(id)
