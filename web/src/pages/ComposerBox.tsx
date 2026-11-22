@@ -1,3 +1,4 @@
+import type { SessionMail } from '../../../src/sessions/mail.js'
 import { useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { t } from '../i18n/index.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
@@ -104,6 +105,7 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
 }
 
 interface ShutProps {
+  mail?: SessionMail
   owner: DraftOwner
   sessionId: string
   /** Why nothing can be sent from here. */
@@ -116,9 +118,9 @@ interface ShutProps {
  * The composer of a transcript window that answers nothing — a session that is not the task's current one, or the
  * task is closed: the field keeps the task's draft and takes more, and shows why sending is unavailable.
  */
-export function ShutComposer({ owner, sessionId, reason, status }: ShutProps) {
+export function ShutComposer({ owner, sessionId, mail, reason, status }: ShutProps) {
   const command = useRef<CommandTextHandle>(null)
-  const { text, files, setText, setFiles } = useChatDraft(owner, sessionId)
+  const { text, files, setText, setFiles } = useChatDraft(owner, sessionId, mail)
   return (
     <form className="chat" onSubmit={(event) => event.preventDefault()}>
       <ComposerBox

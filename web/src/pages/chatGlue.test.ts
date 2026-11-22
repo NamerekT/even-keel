@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../../src/account/model.js'
 import { t } from '../i18n/index.js'
-import { LetterFate } from './ChatMail.js'
 import { RenewWhy } from './ChatRenewDialog.js'
 import { ActiveTab } from './ChatsPanel.js'
 import { barTip, blockOf } from './NewChatDialog.js'
@@ -47,15 +46,6 @@ describe('the chats glue no facts with a dot (BTN-1377)', () => {
     const bare = html(createElement(RenewWhy, { renewal: { kind: 'limit', span: null, resetsAt: null }, now: NOW }))
     expect(bare).toContain(t.chats.renew.limitBare)
     expect(bare).not.toContain('renew-chat__info')
-  })
-
-  it("keeps a letter's fate to a few words, the rest in the tip", () => {
-    const queued = html(createElement(LetterFate, { text: t.session.chat.mail.queued, tip: t.session.chat.mail.queuedTip }))
-    expect(queued).not.toContain('·')
-    expect(queued).toContain(t.session.chat.mail.queuedTip)
-    const delivered = html(createElement(LetterFate, { text: t.session.chat.mail.delivered('09:14'), tip: t.session.chat.mail.events.Stop }))
-    expect(delivered).not.toContain('·')
-    expect(delivered).toContain(t.session.chat.mail.events.Stop)
   })
 
   it("draws a limit bar's tip as captioned rows", () => {

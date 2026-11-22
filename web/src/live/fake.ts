@@ -495,7 +495,7 @@ export function createFakeSource(search: string): LiveSource {
     const working = session('ABC-5', contextTokens)
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? working : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: working.sessionId, since: ago(42) } }]
-    const box = params.get('chain') === 'mail' ? fakeMailbox('ABC-5', working.sessionId, Date.now()) : { listens: true, steers: true, mail: [] }
+    const box = params.get('chain') === 'mail' ? fakeMailbox('ABC-5', working.sessionId, Date.now(), params.get('mail')) : { listens: true, steers: true, mail: [] }
     current.state.mailbox = { [working.sessionId]: box }
   }
   if (params.get('chain') === 'dialog' && current.state !== null && active) {
@@ -695,7 +695,7 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'session/answer') {
         setTimeout(() => {
           if (current.state === null) return
-          current = { ...current, state: fakeDeliverMail(current.state) }
+          current = { ...current, state: fakeDeliverMail(current.state, params.get('mail') === 'returned') }
           notify()
         }, MAIL_MS)
       }
@@ -728,6 +728,14 @@ export function createFakeSource(search: string): LiveSource {
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
       const turn = view?.lamp === 'working' ? { startedAt: turnStartedAt, tool: view.task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null } : null
       if (after === 0 && view?.task === 'ABC-5' && ['apiError', 'apiRetry', 'transient', 'streamError', 'modelError'].includes(params.get('chain') ?? '')) return { lines: view.feed, turn }
+      if (params.get('chain') === 'mail' && view?.task === 'ABC-5') {
+        const mail = current.state?.mailbox[sessionId]?.mail ?? []
+        const delivered: FeedLine[] = mail.filter(each => each.fate === 'delivered').map(each =>
+          ({ kind: 'prompt', text: each.text, at: each.settledAt ?? each.postedAt, files: each.files }))
+        const history = fakeTranscript(null, params.get('shots'))
+        const base = params.has('mail') ? history.slice(0, 3) : history
+        return { lines: [...base, ...delivered].slice(after), turn }
+      }
       const handed = view === undefined || current.state === null ? null : fakeHandedTranscript(current.state, view)
       if (after === 0) return { lines: handed ?? fakeTranscript(view?.ask ?? null, params.get('shots')), turn }
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }

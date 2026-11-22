@@ -108,10 +108,42 @@ async function sendNow(host: HTMLElement, box: HTMLTextAreaElement, tip: string)
   expect(send.closest('.tipped')?.textContent).toContain(tip)
   command.mockResolvedValueOnce(undefined)
   await act(async () => send.click())
-  expect(command).toHaveBeenCalledWith('chats/send', expect.objectContaining({ id: card.id, text: message }))
+  await vi.waitFor(() => expect(command).toHaveBeenCalledWith('chats/send', expect.objectContaining({ id: card.id, text: message })))
 }
 
 const bubbles = (host: HTMLElement) => [...host.querySelectorAll('.bubble')].map((each) => each.textContent)
+
+it('keeps both external queue entries through a dequeue and checks only the copy that landed', async () => {
+  const { host } = await midTurn({ listens: true, steers: false, mail: [] })
+  const queued = { kind: 'prompt', at: new Date().toISOString(), text: message }
+  transcript.mockResolvedValue({ lines: [], turn: { queued: [queued, { ...queued }] } })
+  await act(async () => changed())
+  const entries = [...host.querySelectorAll('li:has(> .bubble)')].filter(row => row.querySelector('.delivery--delivering'))
+  expect(entries).toHaveLength(2)
+  transcript.mockResolvedValue({ lines: [], turn: null })
+  await act(async () => changed())
+  transcript.mockResolvedValue({ lines: [queued], turn: null })
+  await act(async () => changed())
+  expect(bubbles(host)).toEqual(['Run the tests', message, message])
+  expect(entries[0]?.querySelector('.delivery--delivered')).toBeTruthy()
+  expect(entries[1]?.querySelector('.delivery--delivering')).toBeTruthy()
+  expect(entries.every(row => host.contains(row))).toBe(true)
+})
+
+it('checks the original bubbles when one resume carries both messages', async () => {
+  const messages = [letter(), letter({ id: 2, text: 'Also check the build' })]
+  const mail: SessionMail = { listens: true, steers: false, mail: messages }
+  const { host, rerender } = await midTurn(mail)
+  const entries = [...host.querySelectorAll('.delivery--delivering')].map(mark => mark.closest('li')!)
+  const at = new Date().toISOString()
+  mail.mail = messages.map(each => ({ ...each, fate: 'delivered', event: 'resume', settledAt: at }))
+  await rerender()
+  transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at, text: messages.map(each => each.text).join('\n\n') }], turn: null })
+  await act(async () => changed())
+  expect(bubbles(host)).toEqual(['Run the tests', ...messages.map(each => each.text)])
+  expect(entries).toHaveLength(2)
+  expect(entries.every(row => host.contains(row) && row.querySelector('.delivery--delivered'))).toBe(true)
+})
 
 it('takes a message mid-turn from a session that steers and shows it in the feed', async () => {
   const { host, box } = await midTurn({ listens: true, steers: true, mail: [] })
@@ -119,23 +151,42 @@ it('takes a message mid-turn from a session that steers and shows it in the feed
   expect(bubbles(host)).toEqual(['Run the tests', message])
 })
 
-it("takes a message mid-turn for the session's inbox or hooks and shows it as the mailbox's letter (BTN-1346)", async () => {
+it("takes a message mid-turn for the session's inbox or hooks and keeps one bubble through delivery", async () => {
   const mail: SessionMail = { listens: true, steers: false, mail: [] }
   const { host, box, rerender } = await midTurn(mail)
   await sendNow(host, box, t.session.chat.mailbox)
-  expect(bubbles(host)).toEqual(['Run the tests'])
+  const entry = host.querySelector('.delivery--delivering')?.closest('li')
+  expect(entry?.querySelector('.bubble')?.textContent).toBe(message)
   mail.mail = [letter()]
   await rerender()
-  expect(host.querySelector('.chat__letter--waiting')?.textContent).toBe(message + t.session.chat.mail.waiting)
+  expect(host.querySelector('.delivery--delivering')?.closest('li')).toBe(entry)
+  mail.mail = [{ ...mail.mail[0]!, fate: 'delivered', event: 'inbox' }]
+  await rerender()
+  expect(host.querySelector('.delivery--delivering')?.closest('li')).toBe(entry)
+  transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at: new Date().toISOString(), text: message }], turn: null })
+  await act(async () => changed())
+  expect(bubbles(host)).toEqual(['Run the tests', message])
+  expect(entry?.querySelector('.delivery--delivered')).toBeTruthy()
 })
 
-it('shows a letter the mailbox gave back, and Reply puts its words into the field (BTN-1346)', async () => {
-  const { host, box } = await midTurn({ listens: true, steers: false, mail: [letter({ fate: 'returned', reason: 'gone', settledAt: new Date().toISOString() })] })
-  const returned = host.querySelector('.chat__letter--returned')!
-  expect(returned.textContent).toContain(t.session.chat.mail.returned.gone)
-  const reply = [...returned.querySelectorAll('button')].find((each) => each.textContent === t.session.chat.mail.reply)!
-  await act(async () => reply.click())
-  expect(box.value).toBe(message)
+it('restores a returned send and its files ahead of the next draft once, including after reopening', async () => {
+  const mail: SessionMail = { listens: true, steers: false, mail: [] }
+  const { host, box, rerender } = await midTurn(mail)
+  await attach(host, 'notes.txt')
+  await sendNow(host, box, t.session.chat.mailbox)
+  await type(box, 'Next')
+  await attach(host, 'next.txt')
+  await act(async () => root.render(null))
+  mail.mail = [letter({ fate: 'returned', reason: 'gone', files: ['.temp/inbox/notes.txt'] })]
+  await rerender()
+  await vi.waitFor(() => expect(host.querySelector('.delivery--failed')?.textContent).toContain(t.session.chat.delivery.returned.gone))
+  expect(host.querySelector('textarea')?.value).toBe(message + '\n\nNext')
+  expect([...host.querySelectorAll('.chat__unfile')].map(button => button.getAttribute('aria-label')))
+    .toEqual(['notes.txt', 'next.txt'].map(name => t.session.chat.removeFile(name)))
+  await type(host.querySelector('textarea')!, 'Edited')
+  await act(async () => root.render(null))
+  await rerender()
+  expect(host.querySelector('textarea')?.value).toBe('Edited')
 })
 
 it('shuts the field mid-turn for a session that takes no message then', async () => {
@@ -348,15 +399,15 @@ it("shows a mailed picture as the chosen file's thumbnail while it waits for the
   command.mockResolvedValueOnce(undefined)
   await act(async () => host.querySelector<HTMLButtonElement>('.chat__send')!.click())
   await vi.waitFor(() => expect(command).toHaveBeenCalledWith('chats/send', expect.objectContaining({ text: message })))
-  expect(bubbles(host)).toEqual(['Run the tests'])
+  expect(host.querySelector('.delivery--delivering')).toBeTruthy()
   const files = ['C:\\repos\\example\\.temp\\inbox\\one.png']
   mail.mail = [letter({ files })]
   await rerender()
-  const waiting = host.querySelector<HTMLImageElement>('.chat__letter--waiting .thumb img')
+  const waiting = host.querySelector<HTMLImageElement>('.transcript__entry:has(.delivery--delivering) .thumb img')
   const chosen = waiting?.getAttribute('src')
   expect(chosen).toMatch(/^blob:/)
-  expect(host.querySelector('.chat__letter .chat__file')).toBeNull()
-  await act(async () => host.querySelector<HTMLButtonElement>('.chat__letter .thumb')!.click())
+  expect(host.querySelector('.bubble .chat__file')).toBeNull()
+  await act(async () => host.querySelector<HTMLButtonElement>('.bubble .thumb')!.click())
   const viewer = () => host.querySelector<HTMLImageElement>('.viewer img:not(.viewer__next)')
   expect(viewer()?.getAttribute('src')).toBe(chosen)
   const observer = new MutationObserver(() => {})
@@ -366,7 +417,7 @@ it("shows a mailed picture as the chosen file's thumbnail while it waits for the
     transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at: card.lastAt, text: 'Run the tests' }, { kind: 'prompt', at: card.lastAt, text: message, files }], turn: null })
     await act(async () => changed())
     await rerender()
-    expect([...host.querySelectorAll('.bubble .thumb img')].map((img) => img.getAttribute('src'))).toEqual([chosen, chosen])
+    expect([...host.querySelectorAll('.bubble .thumb img')].map((img) => img.getAttribute('src'))).toEqual([chosen])
     expect(host.querySelectorAll('.viewer img')).toHaveLength(1)
     expect(viewer()?.getAttribute('src')).toBe(chosen)
     expect(drewChip(observer.takeRecords())).toBe(false)
@@ -378,7 +429,7 @@ it("shows a mailed picture as the chosen file's thumbnail while it waits for the
 it('opens the picture of a letter that came back, sent where the browser holds no copy (BTN-1431)', async () => {
   const files = ['C:\\repos\\example\\.temp\\inbox\\two.png']
   const { host } = await midTurn({ listens: true, steers: false, mail: [letter({ files, fate: 'returned', reason: 'asked', settledAt: new Date().toISOString() })] })
-  const picture = host.querySelector<HTMLButtonElement>('.chat__letter--returned button[aria-label]')!
+  const picture = host.querySelector<HTMLButtonElement>('.transcript__entry:has(.delivery--failed) button[aria-label]')!
   expect(picture.getAttribute('aria-label')).toBe(t.session.chat.openPicture('two.png'))
   await act(async () => picture.click())
   expect(host.querySelector('.viewer__name')?.textContent).toBe('two.png')

@@ -24,7 +24,6 @@ import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
-import { ChatMail, letterLine } from './ChatMail.js'
 import { useChatViewport } from './useChatViewport.js'
 import { useFeedPin } from './feedPin.js'
 import { ShutComposer } from './ComposerBox.js'
@@ -39,7 +38,7 @@ import { MessageMenu } from './MessageMenu.js'
 import { ShareCard } from './ShareCard.js'
 import { SentFiles, Thumbs } from './Thumbs.js'
 import { useLocalPictures } from './localPictures.js'
-import { isReply, sentFeed, type FeedMark, type SentLine } from './sentLines.js'
+import { isReply, observeMessages, sentFeed, type FeedMark, type SentLine } from './sentLines.js'
 import { ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
@@ -98,9 +97,7 @@ export interface WindowFoot {
   /** Questions the feed holds answers to: their panel is never offered again. */
   answered: ReadonlySet<string>
   /** Shows a sent message and its chosen `files` in the feed until the transcript has it; gives what takes it back. */
-  onSent: (line: FeedLine, files: File[]) => () => void
-  /** Keeps the pictures among `files` of a message that went into the mailbox, so its letter shows them at once; gives what drops them. */
-  onMailed: (files: File[]) => () => void
+  onSent: (line: FeedLine, files: File[], midTurn: boolean) => () => void
 }
 
 interface Props {
@@ -128,7 +125,7 @@ interface Props {
   initialPrompt?: FeedLine
   /** A line under the head, over the feed: a project chat's link to the chat it goes on from. */
   lead?: ReactNode
-  /** A project chat's mailbox: its letters show under the feed, as a task chat's do (BTN-1346). */
+  /** A project chat's mailbox. */
   mail?: SessionMail
   /** A project chat's session: its turn line shows over the foot, as a task chat's does (BTN-1427). */
   session?: SessionView
@@ -137,7 +134,7 @@ interface Props {
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
 export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt, mail: ownMail, session: ownSession }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
-  const mail = chat?.mail ?? ownMail
+  const mail = chat?.mail ?? ownMail ?? (task?.project && session ? state?.mailbox[session] : undefined)
   const sessionId = session ?? ''
   const [openedEmpty] = useState(session === null)
   const [openingTitle] = useState(task?.title)
@@ -155,33 +152,29 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const [readFor, setReadFor] = useState<string | null>(null)
   const [turn, setTurn] = useState<Turn | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [sent, setSent] = useState<SentLine[]>(() => initialPrompt === undefined ? [] : [{ id: 0, line: initialPrompt, after: 0, steered: false, first: true }])
+  const [sent, setSent] = useState<SentLine[]>(() => initialPrompt === undefined ? [] : [{ id: 0, line: initialPrompt, after: 0, midTurn: false, first: true }])
   const sentCount = useRef(sent.length)
   // The picture on view by its key in `media.keys`, not its place: the list is built again as the message is delivered.
   const [viewing, setViewing] = useState<string | null>(null)
   const localPictures = useLocalPictures(sessionId)
   const awaitingFirstPrompt = sent[0]?.first === true && sent[0].failed !== true && !recorded?.some(isReply)
   const starting = session === null || awaitingFirstPrompt
-  const lines = starting ? (recorded ?? []) : recorded
+  const lines = starting || (recorded == null && sent.length > 0) ? (recorded ?? []) : recorded
   const handing = useHandover(chat?.handover ?? null, sessionId, readFor === sessionId ? lines : undefined)
   const feed = lines == null ? null : sentFeed(lines, sent)
-  const unread = feed?.unread ?? []
   const all = feed?.all ?? null
   const marks = feed?.marks ?? new Map<FeedLine, FeedMark>()
   const delivered = sent.filter((each) => each.failed !== true)
-  // A message steered into a working session waits in the CLI's queue until its current tool call ends; the queue is
-  // read from the transcript, so it outlives closing the window, and this window's own send shows until it is there.
-  const inQueue = (chat?.session ?? ownSession)?.lamp === 'working' ? (turn?.queued ?? []) : []
-  const queued = [...inQueue, ...unread.filter((each) => each.steered && !inQueue.some((line) => line.text === each.line.text)).map((each) => each.line)]
+  useLayoutEffect(() => {
+    setSent(now => observeMessages(now, mail?.mail ?? [], []))
+  }, [mail?.mail, sessionId])
   const remoteUrl = chat?.session.remoteUrl
   // A reply sent from here counts after the transcript took over too: a late view of the session never brings its question back.
   const answered = answeredAsks([...(all ?? []), ...delivered.map((each) => each.line)])
   const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
   const shared = (tool: string, index: number) => sharedUrl(sessionId, tool, index)
-  const letters = [...queued, ...(mail?.mail ?? []).flatMap(letterLine)]
-  // The pictures of the messages not in the feed yet come after it, as their bubbles do; one the feed holds keeps its place.
   const media = transcriptMedia(
-    [...(all ?? []), ...letters],
+    all ?? [],
     { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name), shared, local: localPictures.get },
     t.session.chat.picture,
   )
@@ -243,7 +236,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
 
   // A handoff keeps the window open and swaps only its feed for the new session's. A project chat's first session keeps
   // the message that started it on view until its transcript has it.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const changedSession = shownSession.current !== '' && shownSession.current !== sessionId
     shownSession.current = sessionId
     count.current = 0
@@ -252,7 +245,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
     setReadFor(null)
     setTurn(null)
     if (changedSession) {
-      setSent([])
+      setSent(observeMessages([], mail?.mail ?? [], []))
       setViewing(null)
     }
   }, [sessionId])
@@ -286,6 +279,8 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
         if (!alive) return
         setError(null)
         setTurn(found?.turn ?? null)
+        const queued = found?.turn?.queued
+        if (queued?.length) setSent(now => observeMessages(now, [], queued))
         if (found === null) {
           if (from === 0) setLines(null)
         } else if (from === 0 || found.lines.length > 0) {
@@ -326,18 +321,16 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   }, [listed])
 
   // A new send takes the refused lines out of the feed: their text is back in the field, sent again or dropped.
-  // A refusal marks a line in the feed as not delivered; a steered one was never in the feed and just goes.
-  const addSent = (line: FeedLine, steered: boolean, files: File[], first: boolean): (() => void) => {
+  const addSent = (line: FeedLine, files: File[], midTurn: boolean, first = false): (() => void) => {
     pinned.current = true
-    for (const each of sent) if (each.failed === true) each.release?.()
-    const entry: SentLine = { id: sentCount.current++, line, after: lines?.length ?? 0, steered, first, release: localPictures.add(files) }
-    setSent((now) => [...now.filter((each) => each.failed !== true), entry])
-    return () => {
-      if (steered) {
-        entry.release?.()
-        setSent((now) => now.filter((each) => each !== entry))
-      } else setSent((now) => now.map((each) => (each === entry ? { ...each, failed: true } : each)))
+    for (const each of sent) if (each.failed && !each.hidden) each.release?.()
+    const entry: SentLine = {
+      id: sentCount.current++, line, after: count.current, midTurn, first,
+      afterMail: Math.max(0, ...(mail?.mail ?? []).map(letter => letter.id)),
+      release: localPictures.add(files),
     }
+    setSent(now => [...now.flatMap(each => !each.failed ? [each] : each.mailId === undefined ? [] : [{ ...each, hidden: true }]), entry])
+    return () => setSent(now => now.map(each => each.id === entry.id ? { ...each, failed: true } : each))
   }
 
   const turning = turnSession(chat?.session, ownSession, handing.shown !== null)
@@ -347,7 +340,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
         working: true,
         turn,
         lastReplyAt: lines?.findLast(isReply)?.at ?? null,
-        answers: [chat?.answeredAt ?? null, delivered.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
+        answers: [chat?.answeredAt ?? null, delivered.findLast((each) => !each.midTurn)?.line.at ?? null].filter((at) => at !== null),
         delivering: chat?.delivering ?? false,
         background: turning.background == null ? null : { command: turning.background.command, since: turning.lastActivityAt },
       }}
@@ -423,7 +416,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
           )}
           {loader !== 'done' && handing.phase === 'done' && <Loader phase={loader} label={t.common.reading} fit="fill" />}
           {loader === 'done' && lines === null && <p className="placeholder">{t.session.notFound}</p>}
-          {(listed || (mail?.mail.length && loader === 'done' && handing.phase === 'done')) ? (
+          {listed ? (
             <div ref={listRef} className="transcript__scroll" {...pinHandlers}>
               <ol className="transcript__lines">
                 {entries?.map((entry, index) => {
@@ -451,7 +444,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                         <LineTime at={entry.line.at} hover={!isReply(entry.line)} />
                       ) : (
                         <span className="transcript__stamp">
-                          <DeliveryMark delivery={mark.delivery} at={entry.line.at} />
+                          <DeliveryMark delivery={mark.delivery} reason={mark.reason} at={entry.line.at} />
                           <LineTime at={entry.line.at} />
                         </span>
                       )}
@@ -465,7 +458,6 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                     </li>
                   )
                 })}
-                {(chat || ownMail) && <ChatMail sessionId={sessionId} mail={mail?.mail ?? []} queued={queued} media={media} onOpen={view} onReply={(text) => composerRef.current?.replyToMail?.(text)} />}
               </ol>
             </div>
           ) : null}
@@ -478,8 +470,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 awaitingFirstPrompt,
                 handle: composerRef,
                 answered,
-                onSent: (line, files) => addSent(line, false, files, session === null),
-                onMailed: localPictures.add,
+                onSent: (line, files, midTurn) => addSent(line, files, midTurn, session === null),
               })}
             </div>
           ) : chat === undefined ? (
@@ -489,6 +480,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
               ) : (
                 <ShutComposer
                   owner={owner}
+                  mail={mail}
                   sessionId={sessionId}
                   reason={
                     task?.parent === true
@@ -527,8 +519,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 handing={handing.shown !== null}
                 onRenew={handing.press}
                 restore={handing.restore}
-                onSent={(line, steered, files) => addSent(line, steered, files, false)}
-                onMailed={localPictures.add}
+                onSent={addSent}
               />
             </div>
           )}
