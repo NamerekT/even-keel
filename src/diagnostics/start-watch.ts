@@ -1,12 +1,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { Session } from 'node:inspector/promises'
 import { join } from 'node:path'
-import { monitorEventLoopDelay } from 'node:perf_hooks'
+import { createHistogram } from 'node:perf_hooks'
+import { StallProfiler } from './stall-profile.js'
 
 /** The part of `perf_hooks`' histogram the watch reads; values are in nanoseconds. */
 export interface DelayHistogram {
-  enable(): void
-  disable(): void
+  record(value: number): void
   readonly max: number
   percentile(percentile: number): number
   reset(): void
@@ -32,6 +32,8 @@ export interface LoopWatch {
   thresholdMs: number
   log: (line: string) => void
   histogram?: DelayHistogram
+  onWindow?: (stallMs: number | undefined) => void
+  now?: () => number
 }
 
 /**
@@ -39,12 +41,20 @@ export interface LoopWatch {
  * in the log next to the calls that timed out. A watch with `forMs` stops then with a summary when any window was.
  */
 export function watchLoopDelay(watch: LoopWatch): void {
-  const histogram = watch.histogram ?? monitorEventLoopDelay({ resolution: 20 })
-  histogram.enable()
+  const histogram = watch.histogram ?? createHistogram()
+  const now = watch.now ?? (() => performance.now())
+  let previous = now()
+  let windowStart = previous
   let stalls = 0
   let longest = 0
   let elapsed = 0
   const timer = setInterval(() => {
+    // One clock samples and closes the window. A separate rotation timer can run before a late histogram tick.
+    const at = now()
+    histogram.record(Math.max(1, Math.round((at - previous) * 1e6)))
+    previous = at
+    if (at - windowStart < watch.everyMs) return
+    windowStart = at
     const window = { max: histogram.max / 1e6, p99: histogram.percentile(99) / 1e6 }
     histogram.reset()
     elapsed += watch.everyMs
@@ -54,12 +64,12 @@ export function watchLoopDelay(watch: LoopWatch): void {
       longest = Math.max(longest, window.max)
       watch.log(line)
     }
+    watch.onWindow?.(line === undefined ? undefined : window.max)
     if (watch.forMs === undefined || elapsed < watch.forMs) return
     clearInterval(timer)
-    histogram.disable()
     if (stalls > 0)
       watch.log(`event loop: the first ${watch.forMs / 1000} s had ${stalls} window${stalls === 1 ? '' : 's'} over ${watch.thresholdMs} ms, the longest ${Math.round(longest)} ms`)
-  }, watch.everyMs)
+  }, 20)
   timer.unref()
 }
 
@@ -76,12 +86,17 @@ export function profileSecondsOf(env: NodeJS.ProcessEnv): number | undefined {
  * Profiles the process's own CPU for the first seconds of the start, through an in-process inspector session (no port
  * opens), and writes `logs/start-<time>.cpuprofile` for Chrome DevTools or VS Code.
  */
-export async function profileStart(seconds: number, logsDir: string, log: (line: string) => void): Promise<void> {
+export async function profileStart(seconds: number, logsDir: string, log: (line: string) => void, finished?: () => void): Promise<void> {
   const session = new Session()
   session.connect()
-  await session.post('Profiler.enable')
-  await session.post('Profiler.setSamplingInterval', { interval: 1_000 })
-  await session.post('Profiler.start')
+  try {
+    await session.post('Profiler.enable')
+    await session.post('Profiler.setSamplingInterval', { interval: 1_000 })
+    await session.post('Profiler.start')
+  } catch (error) {
+    session.disconnect()
+    throw error
+  }
   log(`cpu profile: recording the first ${seconds} s of the start`)
   const timer = setTimeout(() => {
     void (async () => {
@@ -95,8 +110,25 @@ export async function profileStart(seconds: number, logsDir: string, log: (line:
         log(`cpu profile: not written: ${error instanceof Error ? error.message : String(error)}`)
       } finally {
         session.disconnect()
+        finished?.()
       }
     })()
   }, seconds * 1000)
   timer.unref()
+}
+
+export async function startDiagnostics(logsDir: string, log: (line: string) => void): Promise<void> {
+  const seconds = profileSecondsOf(process.env)
+  let starting = seconds !== undefined
+  if (seconds !== undefined) {
+    try {
+      await profileStart(seconds, logsDir, log, () => { starting = false })
+    } catch (error) {
+      starting = false
+      log(`cpu profile: not started: ${String(error)}`)
+    }
+  }
+  const profiler = new StallProfiler(logsDir, () => !starting && process.env.EVEN_KEEL_STALL_PROFILE === '1', log)
+  await profiler.rotate()
+  watchLoopDelay({ everyMs: 5_000, thresholdMs: 1_000, log, onWindow: stallMs => { void profiler.rotate(stallMs) } })
 }

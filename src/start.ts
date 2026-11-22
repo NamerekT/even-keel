@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { listenOf } from './config.js'
-import { profileSecondsOf, profileStart, watchLoopDelay } from './diagnostics/start-watch.js'
+import { startDiagnostics } from './diagnostics/start-watch.js'
 import { logFatalErrors } from './diagnostics/stop.js'
 import { fetchOverHttp1 } from './fetch-dispatcher.js'
 import { guardHosts, guardToken } from './guard.js'
@@ -23,9 +23,7 @@ import { compactDatabase } from './storage/vacuum.js'
 logFatalErrors()
 fetchOverHttp1()
 loadEnv()
-const profileSeconds = profileSecondsOf(process.env)
-if (profileSeconds !== undefined) await profileStart(profileSeconds, join(home, 'logs'), (line) => console.log(line)).catch((error: unknown) => console.error(`cpu profile: not started: ${String(error)}`))
-watchLoopDelay({ everyMs: 5_000, thresholdMs: 1_000, log: (line) => console.log(line) })
+await startDiagnostics(join(home, 'logs'), line => console.log(line))
 const modulesMs = performance.now()
 // A machine's container never starts as a hub before its join (BTN-1440).
 if (machineOnly(process.env)) await waitForJoin(stateDirOf(), { log: (line) => console.log(line) })

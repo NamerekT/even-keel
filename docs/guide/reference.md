@@ -45,6 +45,7 @@ A variable set in the service's own environment rather than in `.env` cannot be 
 | `EVEN_KEEL_STATE_DIR` | `state/` of the data folder | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database). Read at startup |
 | `EVEN_KEEL_CONFIG` | `even-keel.config.json` in the data folder | path to the config file of an older install, imported into the database at the first start. Read at startup |
 | `EVEN_KEEL_CPU_PROFILE` | — | seconds of the start to record a CPU profile of, at most 600: the file `logs/start-<time>.cpuprofile` opens in Chrome DevTools or VS Code. For a slow start; remove it afterwards. Read at startup |
+| `EVEN_KEEL_STALL_PROFILE` | off | Set to `1` to sample the service every 10 ms. A five-second window with an event-loop delay of at least one second can produce a `logs/stall-<time>.cpuprofile` file, at most once per hour per process. The service keeps the newest 20. Its log names the file and the functions with the most self time. Change this live in `.env`. |
 
 ### Agents and their accounts
 

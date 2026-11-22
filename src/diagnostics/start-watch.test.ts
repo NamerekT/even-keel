@@ -3,13 +3,11 @@ import { profileSecondsOf, stallLine, watchLoopDelay, type DelayHistogram } from
 
 const MS = 1e6
 
-function fakeHistogram(windows: Array<{ max: number; p99: number }>): DelayHistogram & { resets: number; disabled: boolean } {
+function fakeHistogram(windows: Array<{ max: number; p99: number }>): DelayHistogram & { resets: number } {
   let index = 0
   return {
     resets: 0,
-    disabled: false,
-    enable() { },
-    disable() { this.disabled = true },
+    record() { },
     get max() { return (windows[index]?.max ?? 0) * MS },
     percentile() { return (windows[index]?.p99 ?? 0) * MS },
     reset() {
@@ -43,10 +41,10 @@ describe('watchLoopDelay', () => {
       'event loop: blocked up to 4000 ms in the last 5 s (p99 3500 ms)',
       'event loop: the first 15 s had 1 window over 1000 ms, the longest 4000 ms',
     ])
-    expect(histogram.disabled).toBe(true)
 
     vi.advanceTimersByTime(30_000)
     expect(lines).toHaveLength(2)
+    expect(histogram.resets).toBe(3)
   })
 
   it('stays silent through a calm start', () => {
@@ -55,7 +53,6 @@ describe('watchLoopDelay', () => {
     watchLoopDelay({ forMs: 10_000, everyMs: 5_000, thresholdMs: 1_000, log: (line) => lines.push(line), histogram })
     vi.advanceTimersByTime(10_000)
     expect(lines).toEqual([])
-    expect(histogram.disabled).toBe(true)
   })
 
   it('watches for as long as the service runs without a time of its own', () => {
@@ -66,7 +63,17 @@ describe('watchLoopDelay', () => {
     watchLoopDelay({ everyMs: 5_000, thresholdMs: 1_000, log: (line) => lines.push(line), histogram })
     vi.advanceTimersByTime(95 * 5_000)
     expect(lines).toEqual(['event loop: blocked up to 2500 ms in the last 5 s (p99 2000 ms)'])
-    expect(histogram.disabled).toBe(false)
+  })
+
+  it('attributes a delay crossing the window boundary to the profile being closed', () => {
+    let now = 0
+    const windows: Array<number | undefined> = []
+    watchLoopDelay({ everyMs: 100, thresholdMs: 60, now: () => now, log() {}, onWindow: ms => windows.push(ms) })
+    for (const t of [20, 40, 60, 80, 175, 195, 215, 235, 255, 275]) {
+      now = t
+      vi.advanceTimersByTime(20)
+    }
+    expect(windows).toEqual([expect.closeTo(95, 0), undefined])
   })
 })
 
