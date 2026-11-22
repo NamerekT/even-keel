@@ -302,7 +302,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 271 | [The import plan's read stopped by its window's close](unverified/trackers.md#the-import-plans-read-stopped-by-its-windows-close-btn-1453) | projects importing from Huly, GitHub or Linear | the plan's reads go on in the log after the window closed, or a new window shows the old read; wait for the read's end in the log, then open the window again | — |
 | 272 | [Files of the phone's sheet without the camera in Chrome on Android](unverified/page.md#files-of-the-phones-sheet-without-the-camera-in-chrome-on-android-btn-1421) | anyone attaching a file in a chat from Chrome on Android | Files still shows the camera menu, or the file manager greys out some files; attach a picture through Photos | BTN-1487 |
 | 273 | [The tasks outside the chain read by status categories](unverified/trackers.md#the-tasks-outside-the-chain-read-by-status-categories-btn-1428) | anyone opening "Outside the chain" on the project page | a task the rules keep out is missing from the view, or its read is slow; open the task by its address | BTN-1488 |
-| 274 | [The Huly contract before a release](unverified/ci.md#the-huly-contract-before-a-release-btn-1489) | the maintainer's releases | a release is held by a Huly run that was green, or a night red on Huly holds one again; read the runs `sh scripts/nights-green.sh` names | — |
+| 274 | [The Huly contract before a release](unverified/ci.md#the-huly-contract-before-a-release-btn-1489) | the maintainer's releases | a night red on a stopped Huly holds a release again, or a release passes a red Huly run; read the runs `sh scripts/nights-green.sh` names | — |
 
 ### Waiting for the event / not checked by choice
 
