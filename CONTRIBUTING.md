@@ -28,6 +28,8 @@ npm run dev:fake    # the page on fake data
 npm run shot -- '?chain=ask' .cards   # a dark screenshot of an element on fake data, into .temp/shot/
 ```
 
+On Windows, Microsoft Defender checks every file the tests write and can take one or two cores on top of vitest. Excluding the clone and the tests' temp folder `%TEMP%\even-keel-tests` (every run writes only there) speeds a run up noticeably; `npm install` inside the excluded clone then goes unscanned, so weigh that before adding them. Process starts, mostly `git`, are still checked whatever the exclusions.
+
 ## Extending
 
 ### Your own tracker
