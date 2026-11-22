@@ -122,6 +122,16 @@ describe('hulyText', () => {
     expect(images).toEqual([{ ref: 'huly-image:blob-x', blob: 'blob-x', name: 'image-1' }])
   })
 
+  it('drops a colour mark without a colour and keeps its text and a real colour', () => {
+    const colored = (value: string, type: string, color: unknown) => ({ type: 'text', text: value, marks: [{ type, attrs: { color } }] })
+    const json = textCore.markupToJSON(
+      doc(paragraph(colored('plain', 'textStyle', null), text(' '), colored('blank', 'textColor', ''), text(' '), colored('red', 'textColor', 'red'))),
+    )
+    const { markdown } = hulyText(json, markup.markupToMarkdown)
+    expect(markdown).toContain('plain blank <span style="color: red" data-color="red">red</span>')
+    expect(markdown).not.toContain('null')
+  })
+
   it('keeps a picture of an outside address as it is', () => {
     const json = textCore.markupToJSON(doc({ type: 'image', attrs: { src: 'https://example.com/a.png', alt: 'a' } }))
     const { markdown, images } = hulyText(json, markup.markupToMarkdown)

@@ -3,6 +3,7 @@ import type { TaskStatus, TrackerTask } from '../tracker/model.js'
 import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { hulyClient, type HulyPackage } from './client.js'
 import { collabUpdater } from './collab.js'
+import { colorlessFetcher, withoutBlankColors } from './colors.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { hulyEditor, parentsUnder, type HulyFullIssue, type HulyNewIssue } from './editor.js'
 import { tracker } from './ids.js'
@@ -90,7 +91,7 @@ interface HulyModules {
   makeRank(prev: string | undefined, next: string | undefined): string
   markupToJSON(markup: string): unknown
   jsonToMarkup(json: unknown): string
-  markupToMarkdown(markup: unknown): string
+  markupToMarkdown(markup: unknown, options?: { refUrl: string; imageUrl: string }): string
   markdownToMarkup(markdown: string, options?: { refUrl: string; imageUrl: string }): unknown
 }
 
@@ -154,6 +155,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     socketFactory: api.NodeWebSocketFactory,
     connectionTimeout: timeoutMs,
   })
+  const fetchMarkup = colorlessFetcher(client, { markupToJSON, markupToMarkdown })
+  const messageText = (message: string) => markupToMarkdown(withoutBlankColors(markupToJSON(message)))
 
   const findStatuses = () => client.findAll<HulyStatusDoc>(tracker.class.IssueStatus, {})
   const findIssues = (query: Query) => client.findAll<HulyIssueDoc>(tracker.class.Issue, query, { projection: ISSUE_FIELDS })
@@ -352,7 +355,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     async brief(identifier) {
       const issue = await findIssue(identifier)
       const description = issue.description
-        ? await client.fetchMarkup(tracker.class.Issue, issue._id, 'description', issue.description, 'markdown')
+        ? await fetchMarkup(tracker.class.Issue, issue._id, 'description', issue.description, 'markdown')
         : ''
       return { title: issue.title, description }
     },
@@ -375,7 +378,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       const issue = await findIssue(identifier)
       const links = cardLinks(issue)
       const [description, statuses, linked, blocked, milestones, labels, messages] = await Promise.all([
-        issue.description ? client.fetchMarkup(tracker.class.Issue, issue._id, 'description', issue.description, 'markdown') : '',
+        issue.description ? fetchMarkup(tracker.class.Issue, issue._id, 'description', issue.description, 'markdown') : '',
         findStatuses(),
         links.length === 0 ? [] : client.findAll<HulyIssueDoc>(tracker.class.Issue, { _id: { $in: links } }, { projection: REF_FIELDS }),
         client.findAll<HulyIssueDoc>(tracker.class.Issue, { blockedBy: { _id: issue._id, _class: ISSUE_CLASS } }, { projection: REF_FIELDS }),
@@ -392,7 +395,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         // Huly counts an issue's sub-issues on it: a leaf costs no query.
         (issue.subIssues ?? 0) === 0 ? [] : findIssues({ attachedTo: issue._id }).then((docs) => resolve(docs, statuses)),
       ])
-      const markdownOf = (doc: ChatMessageDoc) => ({ ...doc, text: markupToMarkdown(markupToJSON(doc.message)) })
+      const markdownOf = (doc: ChatMessageDoc) => ({ ...doc, text: messageText(doc.message) })
       return toCard({
         issue,
         description,
@@ -431,7 +434,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       const attachments = messages.length === 0 ? [] : await findAttachments({ attachedTo: { $in: messages.map((doc) => doc._id) } })
       return messages.map((doc) => ({
         id: doc._id,
-        body: markupToMarkdown(markupToJSON(doc.message)),
+        body: messageText(doc.message),
         files: attachments.filter((each) => each.attachedTo === doc._id).map((each) => ({ name: each.name, file: each.file })),
       }))
     },
@@ -495,7 +498,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       const idOf = new Map(issues.map((issue) => [issue.identifier, issue._id]))
       return tasks.map((task) => {
         const markup = latest.get(idOf.get(task.id) ?? '')
-        return { ...task, lastComment: markup === undefined ? null : markupToMarkdown(markupToJSON(markup)) }
+        return { ...task, lastComment: markup === undefined ? null : messageText(markup) }
       })
     },
     async vocabulary(project) {
@@ -514,7 +517,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       }
     },
     editor: hulyEditor({
-      client: Object.assign(Object.create(client) as PlatformClient, { updateMarkup: collabUpdater(client, { markdownToMarkup, jsonToMarkup }) }),
+      client: Object.assign(Object.create(client) as PlatformClient, { fetchMarkup, updateMarkup: collabUpdater(client, { markdownToMarkup, jsonToMarkup }) }),
       markdown: { markdownToMarkup, markupToMarkdown },
       newId: generateId,
       findIssue,

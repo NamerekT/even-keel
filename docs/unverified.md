@@ -301,6 +301,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 266 | [Where a live import or copy stopped](unverified/trackers.md#where-a-live-import-or-copy-stopped-btn-1455) | projects importing into or copying out of the built-in tracker whose run fails | the stop names no task or a bare "Error", or the task's link opens nothing; the service log's line after it has the stack | — |
 | 268 | [The kept `claude agents` answer on a hand resume](unverified/sessions.md#the-kept-claude-agents-answer-on-a-hand-resume-btn-1478) | Claude `--bg` sessions resumed outside Even Keel, or whose state changes without a roster or steady-state change | the page shows the session's state up to 30 s late | — |
 | 269 | [An overloaded Huly asked again in the import](unverified/trackers.md#an-overloaded-huly-asked-again-in-the-import-btn-1460) | projects importing from a busy Huly server | the plan is refused with the raw error and no word of an overload, or a run stops at once on a refusal that passes by itself; press "Read again" or "Continue" after a couple of minutes | — |
+| 270 | [A colour mark without a colour in a Huly text](unverified/trackers.md#a-colour-mark-without-a-colour-in-a-huly-text-btn-1450) | projects on Huly or importing from it with text once coloured | `<span style="color: null">` stays in a text, or a card's mention or picture link leads elsewhere; remove the tag by hand | — |
 
 ### Waiting for the event / not checked by choice
 

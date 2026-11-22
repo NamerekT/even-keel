@@ -1,3 +1,5 @@
+import { withoutBlankColors } from './colors.js'
+
 /** A ProseMirror node of Huly's markup. */
 interface MarkupNode {
   type: string
@@ -28,7 +30,8 @@ export function imageRef(blob: string): string {
 /**
  * A text of Huly as the import takes it (BTN-1079): a picture of the workspace storage stands as `imageRef` of its blob,
  * to be rewritten to its new attachment; a reference — a mention of a person, a link to an issue — is its label as plain
- * text, since Huly's `ref://` links lead nowhere outside Huly and an issue's label is its number.
+ * text, since Huly's `ref://` links lead nowhere outside Huly and an issue's label is its number; a colour mark without a
+ * colour is dropped (`withoutBlankColors`).
  */
 export function hulyText(json: unknown, toMarkdown: (json: unknown) => string): HulyText {
   const images: HulyImage[] = []
@@ -46,6 +49,6 @@ export function hulyText(json: unknown, toMarkdown: (json: unknown) => string): 
     }
     return [node.content === undefined ? node : { ...node, content: node.content.flatMap(walk) }]
   }
-  const [root] = walk(json as MarkupNode)
+  const [root] = walk(withoutBlankColors(json as MarkupNode))
   return { markdown: root === undefined ? '' : toMarkdown(root), images }
 }
