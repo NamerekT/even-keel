@@ -90,6 +90,16 @@ describe('a machine elsewhere end to end', { timeout: 180_000 }, () => {
     expect(run.gitIn(elsewhere.checkout, 'log', '--format=%s', 'main').split('\n')).toContain('[ABC-1] Work')
   })
 
+  it('launches on the model the task was given right before the chain started, not on the brief the machine held (BTN-1514)', async () => {
+    await connected()
+    await run.post('task/run', { task: 'ABC-1', provider: 'claude', model: 'haiku' })
+    await run.startChain(PROJECT_ID)
+    await done()
+
+    const launches = run.agent.calls.filter((call) => call.kind === 'launch')
+    expect(launches.map(({ task, provider, model }) => ({ task, provider, model }))).toEqual([{ task: 'ABC-1', provider: 'claude', model: 'haiku' }])
+  })
+
   it("names the wait for the first limits poll of the machine's account in the chain, and launches once it answers (BTN-1521)", async () => {
     const gate = new Gate()
     // Every first poll is held, the hub's too, whose limits of the same account the machine would take: the account is

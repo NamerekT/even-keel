@@ -19,7 +19,7 @@ import type { BriefSender } from './hub-brief.js'
  */
 export interface NetworkPeers {
   /** The hub's port of the machine, but how it sends and whom it stands for. */
-  remote: (machine: string) => Omit<RemoteDeps, 'send' | 'machine' | 'catchUp' | 'changed'>
+  remote: (machine: string) => Omit<RemoteDeps, 'send' | 'machine' | 'catchUp' | 'changed' | 'briefNow'>
   /** The hub's brief for a machine whose projects are those of its pool, each in its folder there with its own values. */
   brief: (folders: Record<string, string>, settings: Record<string, MachineProjectSettings>) => HubBrief
   /** A machine's facts or connection changed: the limits are planned again. */
