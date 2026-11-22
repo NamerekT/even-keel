@@ -58,6 +58,12 @@ export interface RemoteDeps {
    * reads the machine as it is now. Absent for a machine elsewhere, whose mirror is as fresh as its last event.
    */
   catchUp?: (whole?: boolean) => Promise<void>
+  /**
+   * Hands the machine the hub's brief as it is now, if it changed, and waits until the machine took it: called before a
+   * command that starts a session or reads its model, so a task's run set just before reaches the launch (BTN-1514).
+   * It never throws: a brief not taken leaves the command to the brief the machine holds.
+   */
+  briefNow?: () => Promise<void>
   log: (line: string) => void
 }
 
@@ -66,6 +72,9 @@ interface Waiter {
   resolve: (value: unknown) => void
   reject: (error: Error) => void
 }
+
+/** The commands whose result rests on the task's run in the machine's brief (`RemoteDeps.briefNow`). */
+const ON_RUN = new Set<PortCommand>(['launch', 'launchFix', 'launchCarry', 'relay', 'resume', 'modelBlock'])
 
 /** The commands that run under the lock of main: they sync it with its remote. */
 const LOCKED = new Set([COMMAND_PREFIX + 'finish', COMMAND_PREFIX + 'sync'])
@@ -147,6 +156,7 @@ export class RemoteMachine {
           if (name !== 'guard') await deps.audit?.(move.project)
           const { task } = move
           const replyOnly = name === 'guard' || name === 'deliver' || name === 'deliverLoose'
+          if (!replyOnly) await deps.briefNow?.()
           const brief = replyOnly || isOwnName(task) ? undefined : await deps.brief?.(move.project, task, name === 'follow')
           const note = replyOnly ? undefined : await deps.note?.(move.project, task)
           const context = { ...move.context, ...(brief === undefined ? {} : { brief }), ...(note === undefined ? {} : { note }) }
@@ -250,6 +260,7 @@ export class RemoteMachine {
 
   private async call(name: PortCommand, place: Place, args: unknown[]): Promise<unknown> {
     if (place.project !== undefined && ['launch', 'launchFix', 'launchCarry', 'relay'].includes(name)) await this.deps.audit?.(place.project)
+    if (ON_RUN.has(name)) await this.deps.briefNow?.()
     return this.ask(COMMAND_PREFIX + name, place, args)
   }
 

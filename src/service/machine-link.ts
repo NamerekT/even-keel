@@ -267,6 +267,10 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     send: (machine, command) => hub.send(machine, command),
     machine: () => own,
     catchUp,
+    briefNow: async () => {
+      if (end.status().state !== 'online') return
+      await briefs.send().catch((error: unknown) => log(`machine: the brief before a launch was not taken: ${messageOf(error)}`))
+    },
     stopped: (session) => {
       const launch = ctx.launches.findLast((entry) => entry.sessionId === session.sessionId)
       if (launch !== undefined) ctx.eventLog.stopped(launch.project, launch.task)

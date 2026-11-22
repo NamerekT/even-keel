@@ -364,6 +364,7 @@ export class MachineNetwork {
       send: (to, command) => this.hub.send(to, command),
       machine: () => machine,
       changed: () => peers.changed(),
+      briefNow: () => this.brief(machine),
     })
     const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, settings: {}, name: machine, version: null, briefs: new BriefSender(() => peers.brief(made.folders, made.settings), (brief) => remote.tellBrief(brief)) }
     peer = made

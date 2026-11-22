@@ -21,6 +21,27 @@ describe('the machine port over the link', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
+  it("hands the machine the hub's brief before a command that reads the task's run, never before the rest (BTN-1514)", async () => {
+    const sent: string[] = []
+    const send = vi.fn(async (_machine: string, command: { type: string }) => sent.push(command.type))
+    let release = (): void => {}
+    const briefNow = vi.fn(() => new Promise<void>((resolve) => (release = () => { sent.push('brief'); resolve() })))
+    const remote = new RemoteMachine({ send, briefNow, machine: () => 'example', projectOf: () => PROJECT, projectOfSession: () => PROJECT, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} })
+    const port = remote.port()
+    const flush = async () => {
+      for (let i = 0; i < 10; i += 1) await Promise.resolve()
+    }
+    void port.launch(PROJECT, 'ABC-1', undefined, { prompt: 'already prepared' })
+    await flush()
+    expect(send).not.toHaveBeenCalled()
+    release()
+    await flush()
+    void port.head(PROJECT)
+    await flush()
+    expect(sent).toEqual(['brief', 'port.launch', 'port.head'])
+    expect(briefNow).toHaveBeenCalledTimes(1)
+  })
+
   it('lets go of a cleanup and a sync of main when the machine goes off the link, and keeps waiting for the rest (BTN-995)', async () => {
     let seq = 0
     const remote = new RemoteMachine({ send: async () => ++seq, machine: () => 'example', projectOf: () => PROJECT, projectOfSession: () => PROJECT, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} })
