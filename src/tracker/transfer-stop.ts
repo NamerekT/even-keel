@@ -1,5 +1,6 @@
 import { notice, type Notice } from '../notice/notice.js'
 import { errorText } from './error-text.js'
+import { sourceBusy } from './import-retry.js'
 
 /**
  * Where an import or a copy stopped (BTN-1455): each of its stages wraps what it reads and writes in `atStage`, and the
@@ -54,9 +55,13 @@ function stopOf(error: unknown): TransferStop | null {
  */
 export function stopExtras(error: unknown, url: (task: string) => string | null = () => null): { cause: Notice; detail: string } {
   const stop = stopOf(error)
-  if (stop === null) return { cause: notice('transfer.reason', {}), detail: errorText(error) }
+  // A source that refused every try (BTN-1460): the stop says it was overloaded, the detail is its last refusal.
+  const busy = sourceBusy(error)
+  const overloaded = busy === null ? undefined : notice('transfer.busy', { tries: busy.tries })
+  const detail = errorText(busy?.cause ?? stop?.cause ?? error)
+  if (stop === null) return { cause: overloaded ?? notice('transfer.reason', {}), detail }
   const { stage, task, item } = stop.place
-  return { cause: notice('transfer.stop', { stage, task, item: item ?? null, url: task === null ? null : url(task) }), detail: errorText(stop.cause) }
+  return { cause: notice('transfer.stop', { stage, task, item: item ?? null, url: task === null ? null : url(task) }, overloaded === undefined ? {} : { cause: overloaded }), detail }
 }
 
 /** The stack of the deepest error under `error`, for the service log. */

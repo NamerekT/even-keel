@@ -13,7 +13,8 @@ import type { TransferCheck, TransferReport } from '../../../src/tracker/transfe
  * `mismatch`: through, its check short of two attachments until "Repeat"; `switching`: through, and its switch goes on —
  * the last pass over three changed tasks, the check of every task, then the move, a task each `STEP_MS`; `reading`: the
  * plan's read stands at 40 % (BTN-1452); `gone`: through, its check matched with an attachment Huly has no file of;
- * `lost`: an import runs, and the state's reads after the first fail for a while, as a proxy's 502 (BTN-1456).
+ * `lost`: an import runs, and the state's reads after the first fail for a while, as a proxy's 502 (BTN-1456); `busy`:
+ * the plan's first read is refused as Huly overloaded past its retries, the next answers (BTN-1460).
  */
 const STEP_MS = 300
 const STEPS = 4
@@ -31,6 +32,8 @@ interface Run {
 let run: Run | null = null
 let authors: ImportAuthorChoice[] = []
 let seeded = false
+/** `?import=busy`: the plan's first read was refused; "Read again" answers. */
+let busyRefused = false
 
 type Answer = { state: EvenKeelState; result: unknown; refusal?: Error }
 
@@ -45,6 +48,10 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
   switch (name) {
     case 'builtin/import/plan': {
       if (mode === 'refused') throw fail('import.hadBuiltin', {})
+      if (mode === 'busy' && !busyRefused) {
+        busyRefused = true
+        throw fail('import.planBusy', { tracker: 'Huly', tries: 4 })
+      }
       // One read for the window: an ask while it goes waits for it, an ask after it answers at once.
       planRead ??= Date.now()
       const left = planRead + readMsOf(mode) * total - Date.now()

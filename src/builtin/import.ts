@@ -6,6 +6,7 @@ import type { Db } from '../storage/database.js'
 import type { ImportSource, ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
 import { importPlan, type ImportAuthorChoice, type ImportPlan, type ImportPlanning, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
+import { retryingSource } from '../tracker/import-retry.js'
 import { errorText } from '../tracker/link.js'
 import { checkImport, checkMatched, sourceCounts, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
 import { atStage, stackOf, stopExtras } from '../tracker/transfer-stop.js'
@@ -42,6 +43,8 @@ export interface BuiltinImportsDeps {
   now?: () => Date
   /** How long the plan's read of the source is kept (`PLAN_KEEP_MS` where absent). */
   planKeepMs?: number
+  /** The pauses before each new ask of a transient refusal of the source (`RETRY_PAUSES_MS` where absent). */
+  retryPausesMs?: readonly number[]
 }
 
 /**
@@ -62,13 +65,20 @@ export class BuiltinImports {
   private readonly plans: PlanReads
   private readonly say: (line: string) => void
   private readonly now: () => Date
+  /** The project's tracker with each transient refusal asked again (BTN-1460): every read of the import goes through it. */
+  private readonly open: (project: string) => Promise<OpenedImportSource>
 
   constructor(private readonly deps: BuiltinImportsDeps) {
     this.now = deps.now ?? (() => new Date())
     this.records = new ImportRecords(deps.db, this.now)
     this.reports = new TransferReports(deps.db)
     this.say = deps.say ?? ((line) => console.log(line))
-    this.plans = new PlanReads({ open: deps.open, say: this.say, now: () => this.now().getTime(), ...(deps.planKeepMs === undefined ? {} : { keepMs: deps.planKeepMs }) })
+    const retry = { say: this.say, ...(deps.retryPausesMs === undefined ? {} : { pauses: deps.retryPausesMs }) }
+    this.open = async (project) => {
+      const opened = await deps.open(project)
+      return { ...opened, source: retryingSource(opened.source, retry) }
+    }
+    this.plans = new PlanReads({ open: this.open, say: this.say, now: () => this.now().getTime(), ...(deps.planKeepMs === undefined ? {} : { keepMs: deps.planKeepMs }) })
   }
 
   /**
@@ -87,7 +97,7 @@ export class BuiltinImports {
     if (this.switches.has(project)) throw fail('import.running', {})
     await this.checkEmpty(project)
     const prepared = (async () => {
-      const opened = await this.deps.open(project)
+      const opened = await this.open(project)
       try {
         const header = await this.records.header(project)
         const same = header !== null && header.tracker === opened.tracker && header.place === opened.place && header.key === opened.key
@@ -257,7 +267,7 @@ export class BuiltinImports {
   }
 
   private async opened<T>(project: string, body: (opened: OpenedImportSource) => Promise<T>): Promise<T> {
-    const opened = await this.deps.open(project)
+    const opened = await this.open(project)
     try {
       return await body(opened)
     } finally {

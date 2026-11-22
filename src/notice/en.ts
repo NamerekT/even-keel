@@ -679,6 +679,9 @@ export const en = {
   'import.otherTracker': (p: { tracker: string }) => `Part of the tasks were already imported from another tracker. Finish that import before importing from ${p.tracker}.`,
   'import.none': (p: { tracker: string }) => `The import from ${p.tracker} is not built yet. It will come in a later version.`,
   'import.running': () => 'The import is still running. Wait until it ends.',
+  // The plan's read after every retry of a transient refusal (BTN-1460); the last refusal is in the log only.
+  'import.planBusy': (p: { tracker: string; tries: number }) =>
+    `${p.tracker} was overloaded and refused the plan's read on all ${p.tries} tries. Nothing is written; press “Read again” in a couple of minutes.`,
   'import.notFinished': () => 'The project can move to Even Keel\'s own tracker only after its import finished. Start the import, or let it finish.',
   // These three: the cause is where it stopped (`transfer.stop`), the detail the reason (BTN-1455).
   'import.failed': (p: { tracker: string }) => `The import from ${p.tracker} stopped. The project stays on ${p.tracker}; start the import again to go on from where it stopped.`,

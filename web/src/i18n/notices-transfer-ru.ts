@@ -26,4 +26,5 @@ export const TRANSFER_NOTICES_RU = {
     return p.task === null ? `${said[0]!.toUpperCase()}${said.slice(1)}` : `На ${p.task}, ${said}`
   },
   'transfer.reason': () => 'Причина',
+  'transfer.busy': (p) => `трекер был перегружен и отказал на всех ${p.tries} попытках; обычно через пару минут он отвечает снова`,
 } satisfies { [K in keyof typeof TRANSFER_NOTICES]: NoticeTexts[K] }

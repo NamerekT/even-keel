@@ -176,6 +176,7 @@ function imports(
     filesDir,
     refresh: async () => {},
     say: (line) => lines.push(line),
+    retryPausesMs: [0, 0],
     switching: {
       chain: () => chain,
       rename: (_project, names) => renames.push(names),
@@ -408,6 +409,43 @@ describe('the import into the built-in tracker', () => {
     expect(await store.comments(key(3))).toHaveLength(3)
     expect(await store.files(key(3))).toHaveLength(2)
     expect((await store.list([ABC])).map((each) => each.number)).toEqual([3, 5])
+  })
+
+  it('asks a refusal the source calls transient again, and the run goes on without a stop (BTN-1460)', async () => {
+    const fake = fakeSource()
+    const lines: string[] = []
+    Object.assign(fake.state, { failComments: 2, passComments: 2 })
+    const { service } = imports({ ...fake.source, transient: (error) => String(error).includes('down') }, undefined, lines)
+    await service.start(ABC)
+    await service.settled(ABC)
+    expect((await service.state(ABC)).failed).toBeNull()
+    expect(await store.comments(key(3))).toHaveLength(3)
+    expect(lines.filter((line) => line.includes('asking again'))).toHaveLength(2)
+  })
+
+  it('stops a run the source refused past its retries, saying it was overloaded', async () => {
+    const fake = fakeSource()
+    Object.assign(fake.state, { failComments: 3, passComments: 2 })
+    const { service } = imports({ ...fake.source, transient: (error) => String(error).includes('down') })
+    await service.start(ABC)
+    await service.settled(ABC)
+    const { failed } = await service.state(ABC)
+    expect(failed?.code).toBe('import.failed')
+    expect(failed?.cause).toMatchObject({ code: 'transfer.stop', params: { stage: 'journal', task: 'ABC-3' }, cause: { code: 'transfer.busy', params: { tries: 3 } } })
+    expect(failed?.detail).toBe('the tracker is down')
+  })
+
+  it("refuses a plan the source refused past its retries as overloaded, and the next ask reads again", async () => {
+    const fake = fakeSource()
+    // Both tasks are read at once: every journal read fails until the tracker is back.
+    Object.assign(fake.state, { failComments: 100, passComments: 0 })
+    const { service } = imports({ ...fake.source, transient: (error) => String(error).includes('down') })
+    const refused = await service.plan(ABC).catch((error: unknown) => error)
+    expect(refused).toBeInstanceOf(NoticeError)
+    expect((refused as NoticeError).notice).toEqual({ code: 'import.planBusy', params: { tracker: 'Huly', tries: 3 } })
+    expect((await service.state(ABC)).planning).toBeNull()
+    fake.state.failComments = 0
+    expect((await service.plan(ABC)).counts.comments).toBe(3)
   })
 
   it('plans what moves, what stays behind and the authors, writing nothing', async () => {

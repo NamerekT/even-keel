@@ -35,4 +35,6 @@ export const TRANSFER_NOTICES = {
     return p.task === null ? `${said[0]!.toUpperCase()}${said.slice(1)}` : `On ${p.task}, ${said}`
   },
   'transfer.reason': () => 'The reason',
+  // Under `transfer.stop`, or in its place: the source refused every try of a retry (BTN-1460).
+  'transfer.busy': (p: { tries: number }) => `the tracker was overloaded and refused all ${p.tries} tries; it usually answers again in a couple of minutes`,
 }

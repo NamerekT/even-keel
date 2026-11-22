@@ -1,6 +1,8 @@
 import type { ImportMilestone, ImportSource } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
 import { countTasks, type CountedTask, type ImportPlanning } from '../tracker/import-plan.js'
+import { notice, NoticeError } from '../notice/notice.js'
+import { sourceBusy } from '../tracker/import-retry.js'
 import { errorText } from '../tracker/link.js'
 
 /**
@@ -107,6 +109,12 @@ export class PlanReads {
         counted,
         milestones,
       }
+    } catch (error) {
+      const busy = sourceBusy(error)
+      if (busy === null) throw error
+      // The refusal itself goes only to the log: the person reads that the tracker was overloaded.
+      this.deps.say(`import: ${project}: the plan's read: ${errorText(busy)}`)
+      throw new NoticeError(notice('import.planBusy', { tracker: opened.title, tries: busy.tries }), { cause: error })
     } finally {
       if (given === null) await opened.close().catch(() => {})
     }

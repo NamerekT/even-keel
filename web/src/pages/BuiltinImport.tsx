@@ -48,7 +48,8 @@ export function BuiltinImportButton({ state, project, tracker }: { state: EvenKe
 /**
  * The window, the export's in the other direction (`BuiltinExport.tsx`): no fields — the source is the project's tracker,
  * the key and the numbers stay — so it opens on the plan, read from the source as a whole; then the import's meter while
- * it runs in the service, "Continue" after a stop, and the check with the switch at its end. Its state is the
+ * it runs in the service, "Continue" after a stop, "Read again" after a refused plan, and the check with the switch at
+ * its end. Its state is the
  * service's, so a window opened again comes back to the step the import is at.
  */
 function BuiltinImportDialog({ project, tracker, onClose }: { project: string; tracker: string; onClose: () => void }) {
@@ -59,6 +60,8 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
   const { query, read: quiet } = useLive()
   const [plan, setPlan] = useState<ImportPlan | null>(null)
   const [planRefusal, setPlanRefusal] = useState<Notice | null>(null)
+  // Each "Read again" after a refused plan asks the service anew (BTN-1460).
+  const [planAsks, setPlanAsks] = useState(0)
   const [refusal, setRefusal] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const picks = useRef(0)
@@ -95,7 +98,13 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
     return () => {
       live = false
     }
-  }, [phase, project])
+  }, [phase, project, planAsks])
+  // The service read nothing it keeps: the new ask reads the source again, its meter showing meanwhile.
+  const readPlanAgain = () => {
+    setPlanRefusal(null)
+    setPlanAsks((asks) => asks + 1)
+    setTimeout(() => void read(), POLL_MS / 3)
+  }
 
   const run = async (name: string, body: Record<string, unknown>) => {
     setBusy(true)
@@ -220,7 +229,12 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
           <button type="button" className="button" disabled={busy && phase !== 'switching'} onClick={onClose}>
             {phase === 'pick' ? t.common.cancel : t.common.close}
           </button>
-          {phase === 'pick' && (
+          {phase === 'pick' && planRefusal !== null && (
+            <button type="button" className="button button--primary" disabled={busy} onClick={readPlanAgain}>
+              {t.transfer.imports.readAgain}
+            </button>
+          )}
+          {phase === 'pick' && planRefusal === null && (
             <button type="button" className="button button--primary" disabled={busy || plan === null || plan.tasks.length === 0} onClick={() => void start()}>
               {t.transfer.start}
             </button>

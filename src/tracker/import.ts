@@ -178,4 +178,10 @@ export interface ImportSource {
    * asked for together, in one tick: a source caching the last task's thread serves both from one read.
    */
   parallel?: number
+  /**
+   * Whether a refusal of the tracker passes by itself — an overloaded server, a dropped connection, 429, 5xx — and is
+   * worth asking again (BTN-1460). The adapter decides, as `fileGone` for a file that is no more; absent — none is, and
+   * every refusal stops at once. `retryingSource` asks again.
+   */
+  transient?(error: unknown): boolean
 }

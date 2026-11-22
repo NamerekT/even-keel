@@ -2,6 +2,7 @@ import type { ImportAuthor, ImportChange, ImportComment, ImportFile, ImportLink,
 import { tracker } from './ids.js'
 import { hulyText, type HulyImage, type HulyText } from './import-text.js'
 import { HULY_PRIORITIES, personName, toStatus, type HulyAttachmentDoc, type HulyStatusDoc } from './model.js'
+import { hulyTransient } from './transient.js'
 
 type Query = Record<string, unknown>
 
@@ -284,6 +285,7 @@ export function hulyImport(deps: HulyImportDeps): ImportSource {
   return {
     timeReports: true,
     parallel: PARALLEL,
+    transient: hulyTransient,
     // Huly's milestone has no closing time: a closed one takes its tasks' last closing.
     milestoneGaps: ['closedAt'],
     tasks: async () => (await project()).tasks,
