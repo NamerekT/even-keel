@@ -132,4 +132,25 @@ describe('HookReceiver', () => {
     const receiver = new HookReceiver({ forward: async () => undefined, account: () => ({}), log: () => {} })
     expect(() => receiver.address).toThrow()
   })
+
+  // BTN-1506: the hub cannot know a machine's inboxes, so the machine says whether it wants a session's again.
+  it("asks a mail hook for its inbox by the machine's own inboxes, whatever the hub said", async () => {
+    const known = new Set(['known'])
+    const answers: Record<string, string> = { known: '{"message":null,"inbox":true}', lost: '{"message":"hi"}', gone: '' }
+    const receiver = new HookReceiver({
+      forward: async (request) => {
+        const id = /sessions\/([^/]+)\//.exec(request.path)![1]!
+        return id === 'gone' ? { status: 404, body: '' } : { status: 200, body: answers[id]! }
+      },
+      account: () => ({}),
+      inboxWanted: (id) => !known.has(id),
+      log: () => {},
+    })
+    receivers.push(receiver)
+    const { port } = await receiver.start(0)
+    const mail = (id: string) => ask(port, 'POST', `/api/sessions/${id}/mail`, { body: '{"event":"PreToolUse"}' })
+    expect(JSON.parse((await mail('known')).body)).toEqual({ message: null })
+    expect(JSON.parse((await mail('lost')).body)).toEqual({ message: 'hi', inbox: true })
+    expect((await mail('gone')).status).toBe(404)
+  })
 })

@@ -66,6 +66,22 @@ describe('the service\'s own note in the mailbox hook\'s answer (BTN-932)', { ti
     expect((await post('by-hand', 'PostToolUse')).status).toBe(404)
     expect(asked).toEqual(['chain-session PostToolUse', 'chain-session PreToolUse', 'chain-session Stop'])
   })
+
+  // BTN-1506: after a restart the service forgot the inbox until the session's next start.
+  it('asks a chain session for its inbox while none is known for it', async () => {
+    const known = new Set<string>()
+    const { server, base, publicDir, close } = await serverFixture({ inboxWanted: (id) => !known.has(id) })
+    onTestFinished(async () => {
+      server.closeAllConnections()
+      await close()
+      rmSync(publicDir, { recursive: true, force: true })
+    })
+    const post = (id: string) => fetch(`${base}/api/sessions/${id}/mail`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: 'PreToolUse' }) })
+    expect(await (await post('chain-session')).json()).toEqual({ message: null, inbox: true })
+    known.add('chain-session')
+    expect(await (await post('chain-session')).json()).toEqual({ message: null })
+    expect((await post('by-hand')).status).toBe(404)
+  })
 })
 
 describe('mail delivery over HTTP', { timeout: 30_000 }, () => {

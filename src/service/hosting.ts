@@ -583,6 +583,8 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     handoffNote: async (sessionId) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : transcripts.note(sessionId)),
     mail: (sessionId, event) => (handoffsOf(ctx.launches, sessionId) === undefined && !isChatSession(ctx.machineLink.sessions.sessions(), sessionId) ? undefined : mailFor(ctx.mailRelay, sessionId, event)),
     mailContext: (sessionId, event) => (event === 'PreToolUse' || event === 'PostToolUse' ? ctx.badges.statusAsk(sessionId) : null),
+    // The hub's own machine's inboxes: a machine elsewhere answers for its own on the way back (`HookReceiver`).
+    inboxWanted: (sessionId) => !ctx.inboxes.knows(sessionId),
     inbox: (sessionId, socket, token) => ctx.inboxes.remember(sessionId, socket, token),
     permission: (sessionId, tool, input, since) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : ctx.approvals.poll(sessionId, tool, input, since)),
     mergeCheck: (sessionId) => {

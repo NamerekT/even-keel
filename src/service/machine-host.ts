@@ -297,6 +297,7 @@ export async function assembleMachineHost(inputs: MachineHostInputs): Promise<As
   /** `project` — whose checkout a refusal of an untrusted folder names (BTN-429): its trust covers the task's worktree. */
   const launchIn = accounts.wireLaunchIn(machine)
   const resumeIn = accounts.wireResumeIn(machine)
+  mailbox.expectWith(accounts.wireStartedWithMail(machine))
   const stopIn = accounts.wireStopIn(machine)
   let sessions: SessionView[] = []
   let agents: AgentEntry[] = []

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import type { SessionPlugin } from '../agent/contract.js'
 import { fail } from '../notice/notice.js'
-import { wireLaunchIn, wireResumeIn } from './accounts.js'
+import { wireLaunchIn, wireResumeIn, wireStartedWithMail } from './accounts.js'
 
 const BRIDGE: SessionPlugin = { package: 'agent-bridge@even-keel', dir: 'D:/cache/bridge', name: 'agent-bridge', marketplace: 'ek-1', marketplaceFile: 'D:/cache/bridge/m.json', servers: [] }
 const OTHER: SessionPlugin = { ...BRIDGE, package: 'other@example', name: 'other' }
@@ -43,6 +43,21 @@ describe('the mailbox of a session the service starts', () => {
       else await wireResumeIn(ctx)(home, handle, start)
     }
     expect(expected).not.toHaveBeenCalled()
+  })
+
+  // BTN-1506: after a restart the chat stayed shut on a session sitting in one long command.
+  it('after a restart, counts the started sessions with the hooks as listening: by the task pin, or as a chat', () => {
+    const journal = [
+      { at: '2026-11-22T16:33:00.000Z', project: 'p', task: 'ABC-1', sessionId: 'with' },
+      { at: '2026-11-22T16:34:00.000Z', project: 'p', task: 'ABC-2', sessionId: 'without' },
+    ]
+    const sessions = [{ task: 'ABC-3', sessionId: 'hand' }, { task: 'chat-0123456789ab', sessionId: 'chat' }]
+    let chats = true
+    const packages = { pinsMail: (project: string, task: string) => project === 'p' && task === 'ABC-1', chatsMail: () => chats }
+    const started = wireStartedWithMail({ journal, sessions, packages } as unknown as Parameters<typeof wireStartedWithMail>[0])
+    expect(['with', 'without', 'hand', 'chat', 'unknown'].filter(started)).toEqual(['with', 'chat'])
+    chats = false
+    expect(started('chat')).toBe(false)
   })
 
   it('marks nothing when the resume fails', async () => {

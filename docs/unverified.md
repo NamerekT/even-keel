@@ -305,6 +305,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 274 | [The Huly contract before a release](unverified/ci.md#the-huly-contract-before-a-release-btn-1489) | the maintainer's releases | a night red on a stopped Huly holds a release again, or a release passes a red Huly run; read the runs `sh scripts/nights-green.sh` names | — |
 | 275 | [Tally's tasks after the move to the built-in tracker](unverified/trackers.md#tallys-tasks-after-the-move-to-the-built-in-tracker-btn-1497) | projects that moved from Huly to the built-in tracker | `/stats` opens the old Huly, the calibration counts no estimate, or time goes to an old Huly copy | — |
 | 276 | [A long `--bg` prompt through a file in a live chain](unverified/sessions.md#a-long---bg-prompt-through-a-file-in-a-live-chain-btn-1505) | Claude `--bg` sessions on Windows whose handoff or reply passes 32,767 characters with the flags | the chain pauses on `ENAMETOOLONG` again, or the chat shows the pointer instead of the prompt | — |
+| 277 | [The chat of a working session after a restart](unverified/sessions.md#the-chat-of-a-working-session-after-a-restart-btn-1506) | anyone writing to a chain session or a project chat right after Even Keel restarted | the chat field stays shut until the running command ends, or messages keep waiting for tool calls instead of going straight in | — |
 
 ### Waiting for the event / not checked by choice
 

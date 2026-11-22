@@ -102,6 +102,8 @@ A Claude session on the Agent SDK transport needs no plugin for it: the message 
 
 If the turn ends before the hook takes your message, Even Keel resumes the same session with it, including when the chain stops after that turn.
 
+A restart of Even Keel does not shut the box of a session it started: you can write to it at once, even while it sits in one long command. That message waits for the command to end; from the session's next tool call Claude Code takes your messages straight through its inbox again.
+
 The message stays waiting until the resume succeeds; if it fails or another session takes over, the message comes back to the chat.
 
 ## Commands

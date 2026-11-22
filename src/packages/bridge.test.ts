@@ -104,6 +104,23 @@ describe('the built-in bridge transition', () => {
     expect(packages.bringsMail(undefined)).toBe(false)
   })
 
+  // BTN-1506: after a restart the service knows from the pins which of its running sessions have the mail hooks.
+  it('tells from the pins which started tasks brought the mail hooks, a new service too', () => {
+    const saved = emptyPackages()
+    saved.packages[OLD] = record('checkpoint', 'old')
+    saved.packages[BRIDGE] = record('agent-bridge', 'new')
+    saved.pins.project = { 'ABC-1': { [OLD]: 'old' } }
+    const { packages, reload } = fixture(saved)
+    packages.startOf('project', 'ABC-2', 'claude')
+    const restarted = reload()
+    expect(restarted.pinsMail('project', 'ABC-2')).toBe(true)
+    expect(restarted.pinsMail('project', 'ABC-1')).toBe(false)
+    expect(restarted.pinsMail('project', 'ABC-3')).toBe(false)
+    expect(restarted.chatsMail()).toBe(true)
+    restarted.release('project', 'ABC-2')
+    expect(restarted.pinsMail('project', 'ABC-2')).toBe(false)
+  })
+
   it('prunes an empty retired record when its stale pin is released', () => {
     const saved = emptyPackages()
     saved.packages[OLD] = record('checkpoint')

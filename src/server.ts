@@ -526,11 +526,16 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   if (request.method === 'POST' && mail !== null) {
     let delivery: HookMail | null | undefined
     let context: string | null = null
+    let inboxWanted = false
     try {
       const body = await readJsonBody(request, MAX_BODY_BYTES)
       if (!HOOK_EVENTS.includes(body.event as MailEvent)) throw fail('request.required', { field: 'event' })
-      delivery = await deps.mail(decodeURIComponent(mail[1]!), body.event as MailEvent)
-      if (delivery !== undefined) context = deps.mailContext?.(decodeURIComponent(mail[1]!), body.event as MailEvent) ?? null
+      const sessionId = decodeURIComponent(mail[1]!)
+      delivery = await deps.mail(sessionId, body.event as MailEvent)
+      if (delivery !== undefined) {
+        context = deps.mailContext?.(sessionId, body.event as MailEvent) ?? null
+        inboxWanted = deps.inboxWanted?.(sessionId) === true
+      }
     } catch (error) {
       sendFailure(response, error)
       return
@@ -551,7 +556,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       if (response.destroyed) closed()
       else {
         try {
-          sendJson(response, 200, { message: delivery?.message ?? null, ...(context === null ? {} : { context }) })
+          sendJson(response, 200, { message: delivery?.message ?? null, ...(context === null ? {} : { context }), ...(inboxWanted ? { inbox: true } : {}) })
         } catch (error) {
           closed()
           throw error

@@ -86,6 +86,23 @@ describe('Mailbox', { timeout: 30_000 }, () => {
     expect(mailbox.listens(OTHER)).toBe(false)
   })
 
+  // BTN-1506: the service restarted while its session sat in one long command; the chat stayed shut until it ended.
+  it('after a restart, hears a session the service started with the hooks before they ask again', async () => {
+    const { mailbox, reopened } = await box()
+    mailbox.expect(SESSION)
+    const restarted = await reopened()
+    expect(restarted.listens(SESSION)).toBe(false)
+    let asked = 0
+    restarted.expectWith((sessionId) => {
+      asked++
+      return sessionId === SESSION
+    })
+    expect(restarted.listens(SESSION)).toBe(true)
+    expect(restarted.listens(SESSION)).toBe(true)
+    expect(restarted.listens(OTHER)).toBe(false)
+    expect(asked).toBe(2)
+  })
+
   it('settles only what still waits', async () => {
     const { mailbox } = await box()
     const first = mailbox.post('ABC-1', SESSION, 'one', [])

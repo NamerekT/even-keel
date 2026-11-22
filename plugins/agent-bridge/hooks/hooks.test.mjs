@@ -603,4 +603,19 @@ describe("the inbox hook", () => {
     expect(posted.get(`/api/sessions/${session}/inbox`)).toBeUndefined();
     expect(await run("inbox.mjs", start(session), "http://127.0.0.1:9", inbox)).toEqual({ code: 0, stdout: "" });
   });
+
+  // BTN-1506: a restarted Even Keel forgot the inbox; the mail hook tells it again when asked.
+  it("tells the inbox again from the mail hook when Even Keel asks for it, and only then", async () => {
+    const session = sessionOf();
+    const toolUse = agents.claude(session, "PostToolUse", { tool_name: "Bash", tool_input: {} });
+    answers.set(`/api/sessions/${session}/mail`, { message: null });
+    expect(await run("mailbox.mjs", toolUse, url, inbox)).toEqual({ code: 0, stdout: "" });
+    expect(posted.get(`/api/sessions/${session}/inbox`)).toBeUndefined();
+    answers.set(`/api/sessions/${session}/mail`, { message: "Use the other parser.", inbox: true });
+    const told = await run("mailbox.mjs", toolUse, url, inbox);
+    expect(JSON.parse(told.stdout)).toEqual({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "Use the other parser." } });
+    expect(posted.get(`/api/sessions/${session}/inbox`)).toEqual([{ socket: inbox.CLAUDE_CODE_MESSAGING_SOCKET, token: "token-123" }]);
+    expect(await run("mailbox.mjs", toolUse, url, { ...inbox, CLAUDE_CODE_MESSAGING_TOKEN: undefined })).toMatchObject({ code: 0 });
+    expect(posted.get(`/api/sessions/${session}/inbox`)).toHaveLength(1);
+  });
 });

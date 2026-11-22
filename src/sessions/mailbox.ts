@@ -31,13 +31,14 @@ interface Row {
 
 /**
  * The chat's messages to sessions in the middle of a turn, in the `mailbox` table: a hook of the `agent-bridge` plugin
- * takes them on the session's next tool call or stop (BTN-181). Which sessions' hooks ask is known only since the start.
- * The rows are kept in memory as well, read at the start: a message is settled once, by whoever comes first, without
+ * takes them on the session's next tool call or stop (BTN-181). Which sessions' hooks ask is known from the hooks, the
+ * service's own starts and, after a restart, `expectWith`. The rows are kept in memory as well, read at the start: a message is settled once, by whoever comes first, without
  * waiting on the database; each change is written behind (`Writes`).
  */
 export class Mailbox {
   private readonly heard = new Set<string>()
   private readonly claimed = new Set<number>()
+  private started: (sessionId: string) => boolean = () => false
   private persist: (change: MailboxChange) => Promise<void>
 
   private constructor(
@@ -71,9 +72,20 @@ export class Mailbox {
     this.mails = mails.map((mail) => ({ ...mail }))
   }
 
+  /**
+   * After a restart (BTN-1506): `started` tells a session the service started or resumed with the hooks that ask for
+   * mail, from what outlives the restart. The service keeps no mark of its own for that.
+   */
+  expectWith(started: (sessionId: string) => boolean): void {
+    this.started = started
+  }
+
   /** The session's hooks have asked for mail at least once since the service started, or it `expect`s them to. */
   listens(sessionId: string): boolean {
-    return this.heard.has(sessionId)
+    if (this.heard.has(sessionId)) return true
+    if (!this.started(sessionId)) return false
+    this.heard.add(sessionId)
+    return true
   }
 
   /**

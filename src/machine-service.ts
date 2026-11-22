@@ -66,6 +66,7 @@ const receiver = new HookReceiver({
   forward: async (request) => linked?.end.hook(request),
   account: () => accounts?.() ?? null,
   inbox: (sessionId, socket, token) => inboxes?.remember(sessionId, socket, token) ?? false,
+  inboxWanted: (sessionId) => inboxes !== undefined && !inboxes.knows(sessionId),
   log,
 })
 await receiver.start(listenOf(process.env).port)

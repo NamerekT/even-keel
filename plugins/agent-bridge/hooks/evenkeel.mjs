@@ -147,7 +147,8 @@ export async function noteAtEnd(sessionId) {
 /**
  * What Even Keel has for the session on `event`: `message` — the text of what waited in the chat, now delivered;
  * `context` — a note of Even Keel's own for the context at a tool call (the request for the README badge's status
- * line). Each null when there is none, both when Even Keel did not start the session.
+ * line). Each null when there is none, both when Even Keel did not start the session. `inbox` — Even Keel knows no
+ * inbox for the session (it restarted since the session's start) and asks for it again.
  */
 export async function hookMailOf(sessionId, event) {
   const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/mail`, {
@@ -156,10 +157,10 @@ export async function hookMailOf(sessionId, event) {
     body: JSON.stringify({ event }),
     signal: AbortSignal.timeout(5000),
   });
-  if (!response.ok) return { message: null, context: null };
+  if (!response.ok) return { message: null, context: null, inbox: false };
   const body = await response.json();
   const text = (value) => (typeof value === "string" && value !== "" ? value : null);
-  return { message: text(body?.message), context: text(body?.context) };
+  return { message: text(body?.message), context: text(body?.context), inbox: body?.inbox === true };
 }
 
 /**

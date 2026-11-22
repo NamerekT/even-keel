@@ -389,6 +389,11 @@ export interface ServerDeps {
    */
   mailContext?: (sessionId: string, event: MailEvent) => string | null
   /**
+   * The machine knows no inbox for a session `mail` knows (a restart forgot it, BTN-1506): the answer asks the hook to
+   * report it again.
+   */
+  inboxWanted?: (sessionId: string) => boolean
+  /**
    * For the inbox hook at a session's start (BTN-1322): remembers the session's inbox socket and its token in memory;
    * `false` — no socket's address or no token. Any session is taken: its start may come before the launch log has it.
    */

@@ -17,10 +17,16 @@ export interface HookReceiverOptions {
    * token never goes over the link. `false` — refused, or the machine is not up yet.
    */
   inbox?(sessionId: string, socket: string, token: string): boolean
+  /**
+   * This machine knows no inbox for the session (BTN-1506): the hub's answer to its mail hook asks for it, or stops
+   * asking, by this and not by the hub's own inboxes.
+   */
+  inboxWanted?(sessionId: string): boolean
   log(line: string): void
 }
 
 const INBOX_ROUTE = /^\/api\/sessions\/([^/]+)\/inbox$/
+const MAIL_ROUTE = /^\/api\/sessions\/([^/]+)\/mail$/
 
 /**
  * Where the hooks of a machine's sessions ask Even Keel on a machine with no page (BTN-1260, `docs/machines.md`,
@@ -91,7 +97,20 @@ export class HookReceiver {
     const answer = await this.options.forward({ method, path: route.path, ...(method === 'POST' ? { body } : {}) })
     if (answer === undefined) return json(response, 503, JSON.stringify({ error: 'the hub is not reachable' }))
     if (answer.body === '') return void response.writeHead(answer.status).end()
-    json(response, answer.status, answer.body)
+    json(response, answer.status, this.withInbox(route.path, answer))
+  }
+
+  private withInbox(path: string, answer: HookAnswer): string {
+    const mail = answer.status === 200 ? MAIL_ROUTE.exec(path.split('?')[0]!) : null
+    if (mail === null) return answer.body
+    let body: Record<string, unknown>
+    try {
+      body = JSON.parse(answer.body) as Record<string, unknown>
+    } catch {
+      return answer.body
+    }
+    const { inbox: _hub, ...rest } = body
+    return JSON.stringify(this.options.inboxWanted?.(decodeURIComponent(mail[1]!)) === true ? { ...rest, inbox: true } : rest)
   }
 
   private async inbox(request: IncomingMessage, response: ServerResponse, encoded: string): Promise<void> {

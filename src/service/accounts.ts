@@ -28,7 +28,9 @@ import { chainWindowOf, type WindowKey } from '../codex/window.js'
 import { OPENCODE } from '../opencode/name.js'
 import { folderVendor } from '../opencode/home.js'
 import { installForProfiles } from '../huly/client.js'
+import { handoffsOf } from '../chain/launches.js'
 import { withUnattended } from '../chain/relay.js'
+import { isChatSession } from '../chats/model.js'
 import { isPlain, localUrlOf, type EvenKeelConfig, ownerOf, poolEntries, projectLabel, projectsByAccount, providersInUse, readerIds, runSettings } from '../config.js'
 import { saveLimits } from '../limits/saved.js'
 import { runOf } from './demo.js'
@@ -257,6 +259,18 @@ export function wireResumeIn(ctx: MachineContext): (home: AccountHome, session: 
 function listening(ctx: MachineContext, start: SessionStart, sessionId: string): string {
   if (ctx.packages.bringsMail(start.plugins)) ctx.mailbox.expect(sessionId)
   return sessionId
+}
+
+/**
+ * `listening` again after a restart (BTN-1506), from what outlives it: a session the machine's launch journal names, by
+ * the pin its task's last start left; a project chat's, by the built-in plugin every chat starts with.
+ */
+export function wireStartedWithMail(ctx: Pick<MachineContext, 'journal' | 'sessions' | 'packages'>): (sessionId: string) => boolean {
+  return (sessionId) => {
+    const run = handoffsOf(ctx.journal, sessionId)
+    if (run !== undefined) return ctx.packages.pinsMail(run.project, run.task)
+    return isChatSession(ctx.sessions, sessionId) && ctx.packages.chatsMail()
+  }
 }
 
 function withTrust(ctx: MachineContext, start: SessionStart, project: string | undefined): SessionStart {

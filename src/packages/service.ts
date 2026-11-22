@@ -407,6 +407,16 @@ export class Packages {
     return this.builtIn !== undefined && plugins?.some((each) => each.package === this.builtIn) === true
   }
 
+  /** Whether the task's session started with the built-in plugin, by the pin its last start left (BTN-1506). */
+  pinsMail(project: string, task: string): boolean {
+    return this.builtIn !== undefined && this.file.pins[project]?.[task]?.[this.builtIn] !== undefined
+  }
+
+  /** Whether a project chat starts with the built-in plugin (`chatPlugins`). */
+  chatsMail(): boolean {
+    return this.bringsMail(bridgePlugins(this.file, this.builtIn, this.deps.cache))
+  }
+
   /**
    * A project chat's plugins (`bridgePlugins`, BTN-1346): the built-in one's current install, not pinned — a chat has no
    * end the pin would wait for, and its next turn takes the install current then. `withoutServers` — a copy of it without
