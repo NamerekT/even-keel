@@ -6,7 +6,8 @@ import type { TransferCheck, TransferReport } from '../../../src/tracker/transfe
 
 /**
  * `builtin/import/*` of the fake (BTN-1406), for a project on Huly (ABC): the import of its whole history, a task through
- * a step each `STEP_MS` while the page polls, as `runImport` goes. `?import=` — `refused`: the plan refuses a project
+ * a step each `STEP_MS` while the page polls, as `runImport` goes, then its check, a task a step. `?import=` —
+ * `checking`: the run is through and its check stands at 40 % (BTN-1461); `refused`: the plan refuses a project
  * that was on the built-in tracker; `running`: an import runs from the start; `failed`: it stopped at the attachments
  * step; `done`: it is through and the switch waits; `held`: through, the switch refused while the chain runs;
  * `mismatch`: through, its check short of two attachments until "Repeat"; `switching`: through, and its switch goes on —
@@ -23,6 +24,8 @@ interface Run {
   from: number
   failAt: number | null
   short: boolean
+  /** The step it stands at for a shot; absent — it goes on to the end. */
+  stand?: number
 }
 
 let run: Run | null = null
@@ -53,7 +56,7 @@ export function fakeImportQuery(state: EvenKeelState, name: string, body: Record
       if (run === null) authors = choicesOf(body)
       const ticks = run === null ? 0 : progressOf(run, total).ticks
       const failAt = FAIL_AT.step * total + FAIL_AT.done
-      // A finished import passes again from its last step: the repeat brings the two attachments over.
+      // A finished import passes again from its last step and is checked again: the repeat brings the two attachments over.
       const from = ticks >= STEPS * total ? (STEPS - 1) * total : ticks
       run = { startedAt: Date.now(), from, failAt: mode === 'failed' && ticks < failAt ? failAt : null, short: false }
       planRead = null
@@ -90,7 +93,11 @@ function seed(mode: string | null, total: number): void {
   const failAt = FAIL_AT.step * total + FAIL_AT.done
   if (mode === 'running' || mode === 'lost') run = { startedAt: now, from: 0, failAt: null, short: false }
   if (mode === 'failed') run = { startedAt: now, from: failAt, failAt, short: false }
-  if (mode === 'done' || mode === 'held' || mode === 'mismatch' || mode === 'switching' || mode === 'gone') run = { startedAt: now, from: STEPS * total, failAt: null, short: mode === 'mismatch' }
+  if (mode === 'done' || mode === 'held' || mode === 'mismatch' || mode === 'switching' || mode === 'gone') run = { startedAt: now, from: (STEPS + 1) * total, failAt: null, short: mode === 'mismatch' }
+  if (mode === 'checking') {
+    const stand = STEPS * total + Math.round(total * CHECK_STAND)
+    run = { startedAt: now, from: stand, failAt: null, short: false, stand }
+  }
   gone = mode === 'gone'
   switchStarted = mode === 'switching' ? now : null
 }
@@ -123,6 +130,9 @@ function planningOf(total: number, mode: string | null): ImportPlanning | null {
   return { done: mode === 'reading' ? Math.min(total - 1, Math.round(total * 0.4)) : done, total }
 }
 
+/** The check after a run, a task a step after the run's last step (BTN-1461); with `?import=checking` it stands at 40 %. */
+const CHECK_STAND = 0.4
+
 /** The fake's switch as the service reports it while it goes: it stays at the move once there. */
 function switchingOf(total: number): ImportSwitching | null {
   if (switchStarted === null) return null
@@ -132,17 +142,21 @@ function switchingOf(total: number): ImportSwitching | null {
   return { stage: 'switch', done: 0, total: 0 }
 }
 
+/** `ticks` — the run's steps through; `checked` — the check's tasks through after them; `finished` — the check is too. */
 function progressOf(current: Run, total: number) {
+  const moved = STEPS * total
+  const end = moved + total
   const reached = current.from + Math.floor((Date.now() - current.startedAt) / STEP_MS)
-  const ticks = Math.min(reached, current.failAt ?? STEPS * total, STEPS * total)
-  return { ticks, failed: current.failAt !== null && reached >= current.failAt, finished: ticks >= STEPS * total }
+  const all = Math.min(reached, current.failAt ?? end, current.stand ?? end, end)
+  const ticks = Math.min(all, moved)
+  return { ticks, checked: Math.max(0, all - moved), failed: current.failAt !== null && reached >= current.failAt, moved: ticks >= moved, finished: all >= end }
 }
 
 function stateOf(total: number, ids: string[], mode: string | null): ImportState {
   const none = { tasks: 0, created: 0, linked: 0, attached: 0, journaled: 0, done: 0 }
   const base = { authors, checkFailed: null, total, switching: switchingOf(total), planning: planningOf(total, mode) }
-  if (run === null) return { ...base, from: null, running: false, startedAt: null, finishedAt: null, progress: none, failed: null, check: null }
-  const { ticks, failed, finished } = progressOf(run, total)
+  if (run === null) return { ...base, from: null, running: false, startedAt: null, finishedAt: null, progress: none, failed: null, check: null, checking: null }
+  const { ticks, checked, failed, moved, finished } = progressOf(run, total)
   const through = (step: number) => Math.max(0, Math.min(total, ticks - step * total))
   const created = through(0)
   return {
@@ -150,10 +164,11 @@ function stateOf(total: number, ids: string[], mode: string | null): ImportState
     from: { tracker: 'huly', place: '', key: 'ABC' },
     running: !failed && !finished,
     startedAt: new Date(run.startedAt).toISOString(),
-    finishedAt: finished ? new Date().toISOString() : null,
-    progress: { tasks: Math.min(total, created + (failed || finished ? 0 : 1)), created, linked: through(1), attached: through(2), journaled: through(3), done: through(3) },
+    finishedAt: moved ? new Date().toISOString() : null,
+    progress: { tasks: Math.min(total, created + (failed || moved ? 0 : 1)), created, linked: through(1), attached: through(2), journaled: through(3), done: through(3) },
     failed: failed ? failedAt(ids[FAIL_AT.done] ?? 'ABC-1') : null,
     check: finished ? checkOf(total, ids, run.short) : null,
+    checking: moved && !finished ? { done: checked, total } : null,
   }
 }
 

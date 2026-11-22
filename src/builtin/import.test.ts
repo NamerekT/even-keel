@@ -573,6 +573,25 @@ describe('the import into the built-in tracker', () => {
     expect(report).toMatchObject({ matched: true })
   })
 
+  it("shows the check after the run while it goes, and leaves it once it is through", async () => {
+    const fake = fakeSource()
+    const { service } = imports(fake.source)
+    // The plan's read and the run read the milestones once each; the check's read of them, after its tasks, waits.
+    const milestones = fake.source.milestones
+    let calls = 0
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    fake.source.milestones = async () => ((calls += 1) === 3 ? gate.then(milestones) : milestones())
+    expect((await service.start(ABC)).checking).toBeNull()
+    for (let wait = 0; wait < 400 && calls < 3; wait += 1) await new Promise((resolve) => setTimeout(resolve, 5))
+    const during = await service.state(ABC)
+    expect(during).toMatchObject({ running: true, checking: { done: 2, total: 2 }, check: null })
+    expect(during.finishedAt).not.toBeNull()
+    release()
+    await service.settled(ABC)
+    expect(await service.state(ABC)).toMatchObject({ running: false, checking: null })
+  })
+
   it('shows the step of the switch while it goes, and refuses a start meanwhile', async () => {
     const fake = fakeSource()
     const { service } = imports(fake.source)

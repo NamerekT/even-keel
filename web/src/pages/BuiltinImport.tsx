@@ -139,6 +139,8 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
   }
 
   const planning = imported?.planning ?? null
+  // The check after the run (BTN-1461) takes the place of the run's meter, full by then.
+  const checking = phase === 'running' && planning === null ? (imported!.checking ?? null) : null
   const reading = stopped === null && planning === null && (phase === 'read' || planReading)
   const failed = phase === 'resume' ? imported!.failed : null
   const check = phase === 'finished' ? imported!.check : null
@@ -184,8 +186,14 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
                 <p className="add-package__note">{t.transfer.imports.planningNote}</p>
               </>
             )}
-            {planning === null && (phase === 'running' || phase === 'resume' || phase === 'finished') && <Progress exported={imported!} direction="import" />}
-            {planning === null && phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
+            {planning === null && checking === null && (phase === 'running' || phase === 'resume' || phase === 'finished') && <Progress exported={imported!} direction="import" />}
+            {planning === null && checking === null && phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
+            {checking !== null && (
+              <>
+                <Meter name={t.transfer.imports.checking} tip={t.transfer.imports.checkingTip(tracker)} done={checking.done} total={checking.total} />
+                <p className="add-package__note">{t.transfer.imports.checkingNote(imported!.progress.done, tracker)}</p>
+              </>
+            )}
             {phase === 'switching' && (
               <>
                 <SwitchMeter switching={imported!.switching!} tracker={tracker} />

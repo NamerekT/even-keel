@@ -2,6 +2,7 @@ import { sameName } from '../chain/rules.js'
 import type { TrackerCard } from './card.js'
 import { journalEntry, keptBy, runExport, takes, type ExportLog, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportTarget, type ExportTask, type Kept } from './export.js'
 import type { ImportLink, ImportMilestone, ImportSource, ImportTask } from './import.js'
+import { readTasks } from './import-plan.js'
 import { TrackerNotFound } from './source.js'
 
 /**
@@ -270,13 +271,10 @@ export interface ImportedMilestone {
   status: ImportMilestone['status']
 }
 
-/** A task's counts read from the source. */
+/** A task's counts read from the source, asked together as the plan asks them (`countTasks`). */
 export async function sourceCounts(source: ImportSource, task: ImportTask): Promise<SourceCounts> {
-  return {
-    comments: (await source.comments(task.ref)).length,
-    changes: source.changes === undefined ? 0 : (await source.changes(task.ref)).length,
-    files: (await source.files(task.ref)).length,
-  }
+  const [comments, changes, files] = await Promise.all([source.comments(task.ref), source.changes?.(task.ref) ?? [], source.files(task.ref)])
+  return { comments: comments.length, changes: changes.length, files: files.length }
 }
 
 /**
@@ -311,16 +309,16 @@ export async function checkImport(
     seen.set(key, (seen.get(key) ?? true) && has)
     if (!has) counts.get(kind)!.tasks.add(task.id)
   }
+  // Both sides of a task are asked together; the counts are added up in the source's order once all are read.
+  const both = await readTasks(source, tasks, options.progress, (task) => Promise.all([read(task), countOf(task)]))
   for (const [index, task] of tasks.entries()) {
-    const got = await read(task)
-    const want = await countOf(task)
+    const [got, want] = both[index]!
     add('tasks', task, 1, got === null ? 0 : 1)
     add('comments', task, want.comments, got?.comments ?? 0)
     if (source.changes !== undefined) add('history', task, want.changes, got?.changes ?? 0)
     const passed = got?.gone ?? []
     add('files', task, Math.max(0, want.files - passed.length), got?.files ?? 0)
     for (const name of passed) gone.push({ task: task.id, name })
-    options.progress?.(index + 1, tasks.length)
     const links = [
       ...task.blocks.filter(own).map((link) => got?.blocks.includes(link.ref) === true),
       ...task.related.filter((link) => own(link) && task.ref < link.ref).map((link) => got?.related.includes(link.ref) === true),

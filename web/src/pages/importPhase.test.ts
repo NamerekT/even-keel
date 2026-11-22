@@ -15,6 +15,7 @@ const state = (over: Partial<ImportState> = {}): ImportState => ({
   failed: null,
   check: null,
   checkFailed: null,
+  checking: null,
   switching: null,
   planning: null,
   ...over,

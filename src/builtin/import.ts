@@ -5,7 +5,7 @@ import { englishOf, fail, notice, NoticeError, type Notice } from '../notice/not
 import type { Db } from '../storage/database.js'
 import type { ImportSource, ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
-import { importPlan, type ImportAuthorChoice, type ImportPlan, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
+import { importPlan, type ImportAuthorChoice, type ImportPlan, type ImportPlanning, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
 import { errorText } from '../tracker/link.js'
 import { checkImport, checkMatched, sourceCounts, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
 import { atStage, stackOf, stopExtras } from '../tracker/transfer-stop.js'
@@ -55,6 +55,8 @@ export class BuiltinImports {
   private readonly runs = new Map<string, Promise<void>>()
   private readonly failures = new Map<string, Notice>()
   private readonly checkFailures = new Map<string, Notice>()
+  /** How far each check after a run is: the window's meter. */
+  private readonly checks = new Map<string, ImportPlanning>()
   /** The step of each switch going on: the window's meter. */
   private readonly switches = new Map<string, ImportSwitching>()
   private readonly plans: PlanReads
@@ -130,6 +132,7 @@ export class BuiltinImports {
       failed: this.failures.get(project) ?? null,
       check: header?.checked ?? null,
       checkFailed: this.checkFailures.get(project) ?? null,
+      checking: this.checks.get(project) ?? null,
       switching: this.switches.get(project) ?? null,
       planning: this.plans.planning(project),
     }
@@ -299,8 +302,10 @@ export class BuiltinImports {
 
   private async check(project: string, opened: OpenedImportSource): Promise<void> {
     this.checkFailures.delete(project)
+    this.checks.set(project, { done: 0, total: 0 })
+    this.say(`import: ${project}: the check of the import begins`)
     try {
-      const check = await this.count(project, opened.source)
+      const check = await this.count(project, opened.source, false, (done, total) => this.checks.set(project, { done, total }))
       await this.records.saveCheck(project, check)
       this.say(`import: ${project}: the check of the import ${checkMatched(check) ? 'matched' : 'did not match'}`)
     } catch (error) {
@@ -308,6 +313,8 @@ export class BuiltinImports {
       const failed = notice('import.checkFailed', { tracker: opened.title }, this.stopOf(error, opened))
       this.checkFailures.set(project, failed)
       this.sayStop(project, failed, error)
+    } finally {
+      this.checks.delete(project)
     }
   }
 

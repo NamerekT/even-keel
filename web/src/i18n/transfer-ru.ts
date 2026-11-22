@@ -164,6 +164,9 @@ export const transferRu = {
     planning: 'Прочитано',
     planningTip: (tracker: string) => `У каждой задачи из ${tracker} читаются комментарии, изменения и файлы, чтобы их посчитать. Пока ничего не пишется.`,
     planningNote: 'Окно можно закрыть: чтение идёт в сервисе, и при новом открытии окно покажет его же.',
+    checking: 'Сверка',
+    checkingTip: (tracker: string) => `Каждая задача заново читается из ${tracker} и сверяется со своей копией здесь: комментарии, изменения, файлы и связи.`,
+    checkingNote: (count: number, tracker: string) => `Все ${tasks(count)} уже здесь, сверка читает каждую заново из ${tracker}. Окно можно закрыть: сверка идёт в сервисе.`,
     counts: { changes: 'Изменения', components: 'Компоненты' },
     statusBecomes: 'Станет',
     /** Who the tracker's authors are written as (BTN-1416). */
