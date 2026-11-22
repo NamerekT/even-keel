@@ -197,6 +197,11 @@
   white-space: nowrap;
 }
 
+/* The stopped task's id in the failure band: never broken at its hyphen. */
+.transfer__task {
+  white-space: nowrap;
+}
+
 /* "N of M" as the download meter: the word, a full-height divider, the bar, a short divider, the figures. */
 .transfer__meter {
   display: flex;

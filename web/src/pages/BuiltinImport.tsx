@@ -14,7 +14,7 @@ import { ImportAuthors } from './ImportAuthors.js'
 import { importPhaseOf } from './importPhase.js'
 import { POLL_MS, usePolledState } from './polledState.js'
 import { HelpTip } from './settingsParts.js'
-import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferMoves, TransferStatuses } from './TransferPlan.js'
+import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferFailure, TransferMoves, TransferStatuses } from './TransferPlan.js'
 import '../tools/addPackage.css'
 import { CloseIcon } from '../ui/icons.js'
 import './builtinExport.css'
@@ -197,7 +197,7 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
         </div>
         {phase === 'resume' && stopped === null && (
           <p role="alert" className={`notice ${failed === null ? 'notice--warn' : 'notice--error'} add-package__failure`}>
-            {failed === null ? t.transfer.stopped : say(failed)}
+            {failed === null ? t.transfer.stopped : <TransferFailure failed={failed} />}
           </p>
         )}
         {checkNotice !== null && stopped === null && (

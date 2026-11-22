@@ -20,7 +20,7 @@ import { usePolledState } from './polledState.js'
 import { EMPTY_FIELDS, keyOfTyped, keyTyped, placeFields, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { ErrorStrip, FieldHead, HelpTip, SwitchField } from './settingsParts.js'
 import { TrackerFields } from './TrackerFields.js'
-import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferMoves, TransferStatuses } from './TransferPlan.js'
+import { checkMatched, Losses, shortKinds, TransferCheckTable, TransferFailure, TransferMoves, TransferStatuses } from './TransferPlan.js'
 import '../tools/addPackage.css'
 import { CloseIcon } from '../ui/icons.js'
 import './builtinExport.css'
@@ -231,7 +231,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
         </div>
         {phase === 'resume' && stopped === null && (
           <p role="alert" className={`notice ${failed === null ? 'notice--warn' : 'notice--error'} add-package__failure`}>
-            {failed === null ? t.transfer.stopped : say(failed)}
+            {failed === null ? t.transfer.stopped : <TransferFailure failed={failed} />}
           </p>
         )}
         {checkNotice !== null && stopped === null && (

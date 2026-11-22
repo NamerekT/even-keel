@@ -266,6 +266,14 @@ describe('TrackerLink', () => {
     expect(errorText(new Error('ABC-1: the attachment shot.png', { cause: missing }))).toBe('ABC-1: the attachment shot.png: NotFoundError')
   })
 
+  it('names an error without a message by its HTTP status or code too, and a blank one is never blank', () => {
+    expect(errorText(Object.assign(new Error(''), { name: 'StorageError', status: 503 }))).toBe('StorageError (HTTP 503)')
+    expect(errorText(Object.assign(new Error(' '), { name: 'PlatformError', status: { code: 'platform:status:Forbidden' } }))).toBe('PlatformError (platform:status:Forbidden)')
+    expect(errorText(Object.assign(new Error(''), { code: 'ECONNRESET' }))).toBe('Error (code ECONNRESET)')
+    expect(errorText(Object.assign(new Error(''), { name: '' }))).toBe('Error')
+    expect(errorText('')).toBe('an empty error')
+  })
+
   it('does not report a change when a failure repeats with the same error', async () => {
     const onHealth = vi.fn()
     const link = new TrackerLink({ name: 'huly',connect: async () => Promise.reject(new Error('refused')), timeoutMs: 1000, onHealth })

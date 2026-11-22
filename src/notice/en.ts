@@ -9,9 +9,11 @@ export { AGENT_NAMES, FORGES, MODELS_NAMED, PROVIDER_NAMES, megabytes, sizeShown
 
 // The English texts of the server's messages: the log and the English page both read them.
 import { REVIEW_NOTICES } from './en-review.js'
+import { TRANSFER_NOTICES } from './en-transfer.js'
 
 export const en = {
   ...REVIEW_NOTICES,
+  ...TRANSFER_NOTICES,
   'account.overageRisk': () => 'Paid usage may start before Even Keel detects it.',
   'account.overagePolicy': () => 'Even Keel stops on paid usage or, for Claude, a spent included allowance, and waits for its reset. Detection may lag five minutes: set a hard spending cap with the provider.',
   'account.overageAdvice': (p: { provider: 'claude' | 'chatgpt' | 'github' }) => p.provider === 'chatgpt'
@@ -662,9 +664,10 @@ export const en = {
   'export.otherTarget': () => 'Some tasks were already copied to another tracker project. Finish that copy with the same tracker, place and key.',
   'export.noTarget': () => 'Pick a profile of another tracker to copy the tasks into.',
   'export.noEditor': (p: { tracker: string }) => `Even Keel cannot create tasks in ${p.tracker}, so it cannot copy tasks there.`,
-  'export.failed': (p: { tracker: string }) => `The copy to ${p.tracker} stopped: the tracker refused a write. The project stays on Even Keel's own tracker; start the copy again to go on from where it stopped. Tracker response`,
+  // Its cause is where it stopped (`transfer.stop`) and its detail the reason (BTN-1455).
+  'export.failed': (p: { tracker: string }) => `The copy to ${p.tracker} stopped. The project stays on Even Keel's own tracker; start the copy again to go on from where it stopped.`,
   'export.checkFailed': (p: { tracker: string }) =>
-    `The tasks are copied to ${p.tracker}, but Even Keel could not read them back to check the copy. Press “Repeat” to check again. Tracker response`,
+    `The tasks are copied to ${p.tracker}, but Even Keel could not read them back to check the copy. Press “Repeat” to check again.`,
   'switch.noCheck': () => 'The copy has not been checked yet, so the project cannot switch. Press “Repeat” to check it.',
   'switch.mismatch': () => 'The check of the copy did not match. Press “Repeat” to bring over what is missing, or “Switch without them” to switch as it is.',
   'switch.noCopy': (p: { key: string }) => `${p.key} can move to another tracker only after its tasks are copied there. Copy them first, or let the copy finish.`,
@@ -677,8 +680,10 @@ export const en = {
   'import.none': (p: { tracker: string }) => `The import from ${p.tracker} is not built yet. It will come in a later version.`,
   'import.running': () => 'The import is still running. Wait until it ends.',
   'import.notFinished': () => 'The project can move to Even Keel\'s own tracker only after its import finished. Start the import, or let it finish.',
-  'import.failed': (p: { tracker: string }) => `The import from ${p.tracker} stopped: Even Keel could not read it or write a task. The project stays on ${p.tracker}; start the import again to go on from where it stopped. Response`,
-  'import.checkFailed': (p: { tracker: string }) => `The tasks are imported from ${p.tracker}, but Even Keel could not read them again to check the import. Start the import again to check it. Response`,
+  // These three: the cause is where it stopped (`transfer.stop`), the detail the reason (BTN-1455).
+  'import.failed': (p: { tracker: string }) => `The import from ${p.tracker} stopped. The project stays on ${p.tracker}; start the import again to go on from where it stopped.`,
+  'import.checkFailed': (p: { tracker: string }) => `The tasks are imported from ${p.tracker}, but Even Keel could not read them again to check the import. Start the import again to check it.`,
+  'import.passFailed': (p: { tracker: string }) => `The last pass over ${p.tracker} before the switch stopped. The project stays on ${p.tracker}; switch again to go on from where it stopped.`,
   'switch.chainRuns': () => 'its chain runs: pause or stop it',
   'switch.current': (p: { task: string }) => `the chain holds ${p.task}: skip it or let it finish`,
   'switch.released': (p: { tasks: string[] }) =>
@@ -922,7 +927,7 @@ export const en = {
     `the copy of ${p.total} ${p.total === 1 ? 'task' : 'tasks'} to ${p.tracker}${p.place === '' ? '' : ` (${p.place})`} started, under the key ${p.newKey}`,
   'eventLog.exportContinued': (p: { project: string; tracker: string; total: number }) =>
     `the copy to ${p.tracker} goes on, ${p.total} ${p.total === 1 ? 'task' : 'tasks'} in all`,
-  'eventLog.exportFailed': (p: { project: string; tracker: string }) => `the copy to ${p.tracker} stopped: the tracker refused a write. Tracker response`,
+  'eventLog.exportFailed': (p: { project: string; tracker: string }) => `the copy to ${p.tracker} stopped.`,
   'eventLog.exportFinished': (p: { project: string; tracker: string; copied: number }) =>
     `the copy to ${p.tracker} is finished: ${p.copied} ${p.copied === 1 ? 'task' : 'tasks'} copied`,
   'eventLog.trackerSwitched': (p: { project: string; tracker: string; from: string; to: string }) =>
@@ -935,7 +940,7 @@ export const en = {
   'eventLog.importStarted': (p: { project: string; tracker: string; total: number }) =>
     `the import of ${p.total} ${p.total === 1 ? 'task' : 'tasks'} from ${p.tracker} into Even Keel's own tracker started`,
   'eventLog.importContinued': (p: { project: string; tracker: string; total: number }) => `the import from ${p.tracker} goes on, ${p.total} ${p.total === 1 ? 'task' : 'tasks'} in all`,
-  'eventLog.importFailed': (p: { project: string; tracker: string }) => `the import from ${p.tracker} stopped. Response`,
+  'eventLog.importFailed': (p: { project: string; tracker: string }) => `the import from ${p.tracker} stopped.`,
   'eventLog.importFinished': (p: { project: string; tracker: string; imported: number }) =>
     `the import from ${p.tracker} is finished: ${p.imported} ${p.imported === 1 ? 'task' : 'tasks'} imported`,
   'eventLog.importMatched': (p: { project: string; tracker: string }) => `the import from ${p.tracker} is finished and its check matched: the project reads its tasks from Even Keel's own tracker now`,

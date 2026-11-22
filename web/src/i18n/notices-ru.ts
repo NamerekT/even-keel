@@ -48,9 +48,11 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
 
 // The server's messages in Russian; the keys and values come from src/notice/en.ts.
 import { REVIEW_NOTICES_RU } from './notices-review-ru.js'
+import { TRANSFER_NOTICES_RU } from './notices-transfer-ru.js'
 
 export const noticesRu: NoticeTexts = {
   ...REVIEW_NOTICES_RU,
+  ...TRANSFER_NOTICES_RU,
   'account.overageRisk': () => 'Расход сверх лимита возможен до его обнаружения Even Keel.',
   'account.overagePolicy': () => 'Even Keel останавливает сессию при платном расходе, а у Claude — и при исчерпанном запасе подписки, и ждёт его сброса. Сигнал может отставать на пять минут: задайте жёсткий денежный лимит у провайдера.',
   'account.overageAdvice': (p) => p.provider === 'chatgpt'
@@ -678,8 +680,8 @@ export const noticesRu: NoticeTexts = {
   'export.otherTarget': () => 'Часть задач уже скопирована в другой проект трекера. Закончите то копирование с тем же трекером, местом и ключом.',
   'export.noTarget': () => 'Выберите профиль другого трекера, куда копировать задачи.',
   'export.noEditor': (p) => `Even Keel не умеет создавать задачи в ${p.tracker}, поэтому не может их туда скопировать.`,
-  'export.failed': (p) => `Копирование в ${p.tracker} остановилось: трекер отказал в записи. Проект остаётся на собственном трекере Even Keel; запустите копирование снова — оно продолжится с места остановки. Ответ трекера`,
-  'export.checkFailed': (p) => `Задачи скопированы в ${p.tracker}, но Even Keel не смог прочитать их обратно, чтобы сверить. Нажмите «Повторить», чтобы сверить снова. Ответ трекера`,
+  'export.failed': (p) => `Копирование в ${p.tracker} остановилось. Проект остаётся на собственном трекере Even Keel; запустите копирование снова — оно продолжится с места остановки.`,
+  'export.checkFailed': (p) => `Задачи скопированы в ${p.tracker}, но Even Keel не смог прочитать их обратно, чтобы сверить. Нажмите «Повторить», чтобы сверить снова.`,
   'switch.noCheck': () => 'Перенос ещё не сверен, поэтому проект нельзя переключить. Нажмите «Повторить», чтобы сверить.',
   'switch.mismatch': () => 'Сверка переноса не сошлась. Нажмите «Повторить», чтобы докачать недостающее, или «Переключить без них», чтобы переключить как есть.',
   'switch.noCopy': (p) => `${p.key} можно перевести на другой трекер только после того, как задачи туда скопированы. Сначала скопируйте их или дождитесь конца копирования.`,
@@ -691,8 +693,9 @@ export const noticesRu: NoticeTexts = {
   'import.none': (p) => `Импорт из ${p.tracker} не реализован. Будет доступен в следующих релизах.`,
   'import.running': () => 'Импорт ещё идёт. Дождитесь его конца.',
   'import.notFinished': () => 'Перевести проект на собственный трекер Even Keel можно только после конца импорта. Запустите импорт или дождитесь его конца.',
-  'import.failed': (p) => `Импорт из ${p.tracker} остановился: Even Keel не смог его прочитать или записать задачу. Проект остаётся на ${p.tracker}; запустите импорт снова — он продолжится с места остановки. Ответ`,
-  'import.checkFailed': (p) => `Задачи импортированы из ${p.tracker}, но Even Keel не смог перечитать их для сверки. Запустите импорт снова, чтобы сверить. Ответ`,
+  'import.failed': (p) => `Импорт из ${p.tracker} остановился. Проект остаётся на ${p.tracker}; запустите импорт снова — он продолжится с места остановки.`,
+  'import.checkFailed': (p) => `Задачи импортированы из ${p.tracker}, но Even Keel не смог перечитать их для сверки. Запустите импорт снова, чтобы сверить.`,
+  'import.passFailed': (p) => `Последний проход по ${p.tracker} перед переключением остановился. Проект остаётся на ${p.tracker}; переключите снова — проход продолжится с места остановки.`,
   'switch.chainRuns': () => 'его цепь идёт: поставьте её на паузу или остановите',
   'switch.current': (p) => `цепь держит ${p.task}: пропустите задачу или дождитесь её конца`,
   'switch.released': (p) => `у отпущенных задач остаются сессии и worktree, пока задачи открыты: ${list(p.tasks)}; дайте сессии каждой довести её до конца или закройте задачу другим статусом`,
@@ -896,14 +899,14 @@ export const noticesRu: NoticeTexts = {
   'eventLog.projectRemoved': () => 'проект удалён',
   'eventLog.exportStarted': (p) => `начат перенос ${ofTasks(p.total)} в ${p.tracker}${p.place === '' ? '' : ` (${p.place})`} под ключом ${p.newKey}`,
   'eventLog.exportContinued': (p) => `перенос задач в ${p.tracker} продолжен, всего ${tasks(p.total)}`,
-  'eventLog.exportFailed': (p) => `перенос задач в ${p.tracker} остановился: трекер отказал в записи. Ответ трекера`,
+  'eventLog.exportFailed': (p) => `перенос задач в ${p.tracker} остановился.`,
   'eventLog.exportFinished': (p) => `перенос задач в ${p.tracker} закончен: ${plural('ru', p.copied, { one: 'перенесена', other: 'перенесено' })} ${tasks(p.copied)}`,
   'eventLog.trackerSwitched': (p) => `проект переключён на ${p.tracker}: задачи теперь берутся оттуда, ключ ${p.from} сменился на ${p.to}`,
   'eventLog.transferMatched': (p) => `перенос в ${p.tracker} завершён, сверка сошлась: ключ ${p.from} сменился на ${p.to}`,
   'eventLog.transferMismatched': (p) => `перенос в ${p.tracker} завершён, сверка не сошлась: проект переключён без недостающего, ключ ${p.from} сменился на ${p.to}`,
   'eventLog.importStarted': (p) => `начат импорт ${ofTasks(p.total)} из ${p.tracker} в собственный трекер Even Keel`,
   'eventLog.importContinued': (p) => `импорт из ${p.tracker} продолжен, всего ${tasks(p.total)}`,
-  'eventLog.importFailed': (p) => `импорт из ${p.tracker} остановился. Ответ`,
+  'eventLog.importFailed': (p) => `импорт из ${p.tracker} остановился.`,
   'eventLog.importFinished': (p) => `импорт из ${p.tracker} закончен: ${plural('ru', p.imported, { one: 'импортирована', other: 'импортировано' })} ${tasks(p.imported)}`,
   'eventLog.importMatched': (p) => `импорт из ${p.tracker} завершён, сверка сошлась: проект теперь читает задачи из собственного трекера Even Keel`,
   'eventLog.importMismatched': (p) => `импорт из ${p.tracker} завершён, сверка не сошлась: проект переключён на собственный трекер Even Keel без недостающего`,

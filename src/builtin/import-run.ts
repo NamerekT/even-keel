@@ -5,6 +5,7 @@ import { sameName } from '../chain/rules.js'
 import { withBefore, type ImportComment, type ImportGone, type ImportImage, type ImportLink, type ImportMilestone, type ImportSource, type ImportTask } from '../tracker/import.js'
 import { importedAuthor, importedStatus, importOrder, type ImportAuthorChoice } from '../tracker/import-plan.js'
 import { isOpen } from '../tracker/model.js'
+import { atStage } from '../tracker/transfer-stop.js'
 import { componentIdOf } from './components.js'
 import { BuiltinFiles, fileUrl } from './files.js'
 import { logTask, SERVICE_AUTHOR, writerOf } from './history-log.js'
@@ -82,7 +83,8 @@ export interface ImportRun {
 export const unchanged = (task: ImportTask, row: ImportRow | undefined): boolean => task.modifiedAt !== null && row?.seen != null && row.seen.at === task.modifiedAt
 
 /**
- * Imports every task of the source by stages; a failed write throws and stops it, and the repeat takes each task from
+ * Imports every task of the source by stages; a failed read or write throws a `TransferStop` naming the task, the stage
+ * and what it was on (BTN-1455) and stops it, and the repeat takes each task from
  * the stage it reached. With `sync` — the last pass before the switch — a task through already gets what changed in the
  * source since: its fields, new links, attachments, comments and changes; one whose time of change stayed as the last
  * check saw it is passed over (BTN-1432). Answers how many tasks the call took.
@@ -90,7 +92,8 @@ export const unchanged = (task: ImportTask, row: ImportRow | undefined): boolean
 export async function runImport(run: ImportRun, sync = false): Promise<number> {
   const { source, db, project, log, say = () => {} } = run
   const rows = new Map((await log.rows()).map((row) => [row.ref, row]))
-  const tasks = importOrder((await source.tasks()).map((task) => ({ task }))).map((each) => each.task)
+  const read = await atStage({ stage: 'read', task: null }, () => source.tasks())
+  const tasks = importOrder(read.map((task) => ({ task }))).map((each) => each.task)
   const refs = new Map(tasks.map((task) => [task.ref, task]))
   const throughBefore = new Set([...rows.values()].flatMap((row) => (row.stage === 'done' ? [row.ref] : [])))
   const taken = tasks.filter((task) => !throughBefore.has(task.ref) || (sync && !unchanged(task, rows.get(task.ref)))).length
@@ -112,40 +115,43 @@ export async function runImport(run: ImportRun, sync = false): Promise<number> {
   const at = (stage: ImportStage) => tasks.flatMap((task) => (rows.get(task.ref)?.stage === stage ? [{ task, row: rows.get(task.ref)! }] : []))
 
   for (const component of new Set(tasks.flatMap((task) => (task.component === null ? [] : [task.component.trim()])))) {
-    const known = (await storeAt(Date.now()).components(project)).some((each) => each.name.toLocaleLowerCase() === component.toLocaleLowerCase())
-    if (!known && component !== '') await storeAt(Date.now()).saveComponent(project, null, { name: component, description: '' })
+    await atStage({ stage: 'components', task: null, item: { kind: 'component', name: component } }, async () => {
+      const known = (await storeAt(Date.now()).components(project)).some((each) => each.name.toLocaleLowerCase() === component.toLocaleLowerCase())
+      if (!known && component !== '') await storeAt(Date.now()).saveComponent(project, null, { name: component, description: '' })
+    })
   }
-  await importMilestones(db, project, await source.milestones(), tasks, sync)
+  await importMilestones(db, project, await atStage({ stage: 'milestones', task: null }, () => source.milestones()), tasks, sync)
 
   for (const task of tasks) {
     if (rows.has(task.ref)) continue
-    // A create that stopped before its row was saved left the task: it is not made twice.
-    if ((await storeAt(task.createdAt).get(keyOf(task))) === undefined) {
-      await storeAt(task.createdAt, writer(task.createdBy)).create({
-        project,
-        number: task.number,
-        title: task.title.trim() === '' ? task.id : task.title,
-        description: task.description,
-        status: importedStatus(task.status).name,
-        priority: task.priority,
-        milestone: task.milestone,
-        component: task.component === null || task.component.trim() === '' ? null : task.component,
-        labels: task.labels,
-        estimate: task.estimate,
-      })
-    }
-    await setParent(db, project, task.number, own(task.parent)?.number ?? null)
-    await save({ ref: task.ref, number: task.number, stage: 'created', done: 0, files: {}, changes: 0, seen: null })
+    await atStage({ stage: 'create', task: task.id }, async () => {
+      // A create that stopped before its row was saved left the task: it is not made twice.
+      if ((await storeAt(task.createdAt).get(keyOf(task))) === undefined) {
+        await storeAt(task.createdAt, writer(task.createdBy)).create({
+          project,
+          number: task.number,
+          title: task.title.trim() === '' ? task.id : task.title,
+          description: task.description,
+          status: importedStatus(task.status).name,
+          priority: task.priority,
+          milestone: task.milestone,
+          component: task.component === null || task.component.trim() === '' ? null : task.component,
+          labels: task.labels,
+          estimate: task.estimate,
+        })
+      }
+      await setParent(db, project, task.number, own(task.parent)?.number ?? null)
+      await save({ ref: task.ref, number: task.number, stage: 'created', done: 0, files: {}, changes: 0, seen: null })
+    })
   }
 
   for (const { task, row } of at('created')) {
-    await linkTask(db, project, task, own)
+    await links(task)
     await save({ ...row, stage: 'linked', done: 0 })
   }
 
   for (const { task, row } of at('linked')) {
     await attach(task, row)
-    await rewriteDescription(db, project, task.number, pictured(task.description, task.images, rows.get(task.ref)!.files, nameOf(keyOf(task))))
     await save({ ...rows.get(task.ref)!, stage: 'attached', done: 0 })
   }
 
@@ -163,58 +169,74 @@ export async function runImport(run: ImportRun, sync = false): Promise<number> {
   for (const { task, row } of at('done')) {
     // A task the stages above took now has all the source gave.
     if (!throughBefore.has(task.ref) || unchanged(task, row)) continue
-    await setFields(db, project, task, own(task.parent)?.number ?? null, storeAt(Date.now()))
-    await linkTask(db, project, task, own)
+    await atStage({ stage: 'fields', task: task.id }, () => setFields(db, project, task, own(task.parent)?.number ?? null, storeAt(Date.now())))
+    await links(task)
     await attach(task, row)
-    const fresh = rows.get(task.ref)!
-    await rewriteDescription(db, project, task.number, pictured(task.description, task.images, fresh.files, nameOf(keyOf(task))))
-    await journal(task, fresh, (await storeAt(Date.now()).comments(keyOf(task))).length)
+    const posted = await atStage({ stage: 'journal', task: task.id }, async () => (await storeAt(Date.now()).comments(keyOf(task))).length)
+    await journal(task, rows.get(task.ref)!, posted)
     await history(task, rows.get(task.ref)!)
     await save({ ...rows.get(task.ref)!, stage: 'done', done: 0 })
     run.progress?.(++through, taken)
   }
   return taken
 
-  /** Attaches the files not attached yet, by their key; a repeat goes on after the last one saved. */
+  function links(task: ImportTask): Promise<void> {
+    return atStage({ stage: 'links', task: task.id }, () => linkTask(db, project, task, own))
+  }
+
+  /**
+   * Attaches the files not attached yet, by their key, then points the description's pictures at them; a repeat goes on
+   * after the last one saved.
+   */
   async function attach(task: ImportTask, row: ImportRow): Promise<void> {
-    if (run.filesDir === undefined) return
-    const files = new BuiltinFiles(storeAt(task.createdAt), run.filesDir, say)
+    await atStage({ stage: 'attach', task: task.id }, async () => {
+      if (run.filesDir !== undefined) await attachFiles(task, row, run.filesDir)
+      await rewriteDescription(db, project, task.number, pictured(task.description, task.images, rows.get(task.ref)!.files, nameOf(keyOf(task))))
+    })
+  }
+
+  async function attachFiles(task: ImportTask, row: ImportRow, filesDir: string): Promise<void> {
+    const files = new BuiltinFiles(storeAt(task.createdAt), filesDir, say)
     let current = row
     for (const file of await source.files(task.ref)) {
       if (Object.hasOwn(current.files, file.key)) continue
-      let bytes: Uint8Array | ImportGone
-      try {
-        bytes = await file.read()
-      } catch (error) {
-        throw new Error(`${task.id}: the attachment ${file.name}`, { cause: error })
-      }
-      if (!(bytes instanceof Uint8Array)) {
-        say(`import: ${task.id}: the attachment ${file.name} has no file and is not imported: ${bytes.gone}`)
-        current = { ...current, files: { ...current.files, [file.key]: GONE } }
+      await atStage({ stage: 'attach', task: task.id, item: { kind: 'file', name: file.name } }, async () => {
+        const bytes: Uint8Array | ImportGone = await file.read()
+        if (!(bytes instanceof Uint8Array)) {
+          say(`import: ${task.id}: the attachment ${file.name} has no file and is not imported: ${bytes.gone}`)
+          current = { ...current, files: { ...current.files, [file.key]: GONE } }
+        } else {
+          const made = await files.add(keyOf(task), { name: file.name, type: file.type, bytes })
+          current = { ...current, files: { ...current.files, [file.key]: made.sha256 } }
+        }
         await save(current)
-        continue
-      }
-      const made = await files.add(keyOf(task), { name: file.name, type: file.type, bytes })
-      current = { ...current, files: { ...current.files, [file.key]: made.sha256 } }
-      await save(current)
+      })
     }
   }
 
   /** Posts the comments from `from` on, or from the row's progress when it is further. */
   async function journal(task: ImportTask, row: ImportRow, from: number): Promise<void> {
-    const comments = await source.comments(task.ref)
-    const named = new Map((await source.files(task.ref)).map((file) => [file.key, file.name]))
-    for (let index = Math.max(from, row.done); index < comments.length; index += 1) {
-      const comment = comments[index]!
-      const { by, name } = importedAuthor(comment.author, run.authors)
-      const body = commentBody(comment, rows.get(task.ref)!.files, named, nameOf(keyOf(task)))
-      await storeAt(comment.at).comment(keyOf(task), by, body, null, name)
-      if (from === 0) await save({ ...rows.get(task.ref)!, done: index + 1 })
-    }
+    await atStage({ stage: 'journal', task: task.id }, async () => {
+      const comments = await source.comments(task.ref)
+      const named = new Map((await source.files(task.ref)).map((file) => [file.key, file.name]))
+      for (let index = Math.max(from, row.done); index < comments.length; index += 1) {
+        const comment = comments[index]!
+        await atStage({ stage: 'journal', task: task.id, item: { kind: 'comment', number: index + 1, of: comments.length } }, async () => {
+          const { by, name } = importedAuthor(comment.author, run.authors)
+          const body = commentBody(comment, rows.get(task.ref)!.files, named, nameOf(keyOf(task)))
+          await storeAt(comment.at).comment(keyOf(task), by, body, null, name)
+          if (from === 0) await save({ ...rows.get(task.ref)!, done: index + 1 })
+        })
+      }
+    })
   }
 
   /** Writes the change log after the entries written already; a tracker without one gives the closing time alone. */
-  async function history(task: ImportTask, row: ImportRow): Promise<void> {
+  function history(task: ImportTask, row: ImportRow): Promise<void> {
+    return atStage({ stage: 'history', task: task.id }, () => writeHistory(task, row))
+  }
+
+  async function writeHistory(task: ImportTask, row: ImportRow): Promise<void> {
     if (source.changes === undefined) {
       if (row.changes > 0 || task.closedAt === null || isOpen(task.status)) return
       await writeChanges(db, project, task.number, [{ at: task.closedAt, author: SERVICE_AUTHOR, field: 'status', from: null, to: importedStatus(task.status).name }])
@@ -260,7 +282,9 @@ async function importMilestones(db: Db, project: string, milestones: readonly Im
     const closings = tasks.flatMap((task) => (task.closedAt !== null && task.milestone !== null && sameName(task.milestone, milestone.name) ? [task.closedAt] : []))
     const closedAt = milestone.closedAt ?? (closings.length === 0 ? null : Math.max(...closings))
     const { name, date, status, description } = milestone
-    await inTransaction(db, (tx) => importMilestone(tx, stamp, project, { name, date, status, description, closedAt: closedAt === null ? null : new Date(closedAt).toISOString() }, update))
+    await atStage({ stage: 'milestones', task: null, item: { kind: 'milestone', name } }, () =>
+      inTransaction(db, (tx) => importMilestone(tx, stamp, project, { name, date, status, description, closedAt: closedAt === null ? null : new Date(closedAt).toISOString() }, update)),
+    )
   }
 }
 

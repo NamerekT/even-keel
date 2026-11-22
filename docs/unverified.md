@@ -299,6 +299,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 263 | [An attachment Huly has no file of in the import](unverified/trackers.md#an-attachment-huly-has-no-file-of-in-the-import-btn-1454) | projects importing from Huly with an attachment whose file is gone | the import still stops at the attachments, or the check does not match on it; switch past the check after a look at the task | — |
 | 264 | [The import's switch past released tasks](unverified/trackers.md#the-imports-switch-past-released-tasks-btn-1459) | projects switched onto the built-in tracker while the chain holds released tasks or open pull requests | a released task never cleaned up after its Done, or its session's tasks server still writing to the old tracker; remove its worktree by hand | — |
 | 265 | [A deleted upload of GitHub or Linear in the import](unverified/trackers.md#a-deleted-upload-of-github-or-linear-in-the-import-btn-1458) | projects importing from GitHub or Linear with a file whose upload is gone | the import stops at that attachment on every repeat; delete the link to the file in the tracker and repeat | — |
+| 266 | [Where a live import or copy stopped](unverified/trackers.md#where-a-live-import-or-copy-stopped-btn-1455) | projects importing into or copying out of the built-in tracker whose run fails | the stop names no task or a bare "Error", or the task's link opens nothing; the service log's line after it has the stack | — |
 
 ### Waiting for the event / not checked by choice
 

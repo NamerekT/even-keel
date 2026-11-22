@@ -8,6 +8,7 @@ import { rateLimitOf } from '../tracker/rate-limit.js'
 import type { TaskChange } from '../tracker/history.js'
 import type { OpenedExportTarget } from '../tracker/export-target.js'
 import { errorText } from '../tracker/link.js'
+import { atStage, stackOf, stopExtras } from '../tracker/transfer-stop.js'
 import type { TrackerPlace } from '../tracker/source.js'
 import { checkExport, checkMatched, repairExport, type TransferReport, type TransferSummary } from '../tracker/transfer-check.js'
 import { ExportRecords, type ExportHeader, type ExportTargetFields } from './export-store.js'
@@ -372,11 +373,11 @@ export class BuiltinExports {
         await this.check(project, source, target)
       })
     } catch (error) {
-      const detail = errorText(error)
-      const failed = notice('export.failed', { tracker: target.title }, { detail })
+      const stop = stopExtras(error)
+      const failed = notice('export.failed', { tracker: target.title }, stop)
       await this.records.saveFailed(project, failed).catch(() => {})
-      this.say(`export: ${project}: ${englishOf(failed)}`)
-      this.event('warning', notice('eventLog.exportFailed', { project, tracker: target.title }, { detail }), place)
+      this.sayStop(project, failed, error)
+      this.event('warning', notice('eventLog.exportFailed', { project, tracker: target.title }, stop), place)
     } finally {
       await target.close().catch(() => {})
       await this.deps.refresh(project).catch(() => {})
@@ -439,14 +440,22 @@ export class BuiltinExports {
     this.checkFailures.delete(project)
     try {
       if ((await this.records.header(project))?.plan === null) await this.records.savePlan(project, await exportPlan(source, target))
-      const check = await checkExport(source, target, await this.records.rows(project), this.now)
+      const rows = await this.records.rows(project)
+      const check = await atStage({ stage: 'check', task: null }, () => checkExport(source, target, rows, this.now))
       await this.records.saveCheck(project, check)
       this.say(`export: ${project}: the check of the copy ${checkMatched(check) ? 'matched' : 'did not match'}`)
     } catch (error) {
       await this.records.saveCheck(project, null).catch(() => {})
-      const failed = notice('export.checkFailed', { tracker: target.title }, { detail: errorText(error) })
+      const failed = notice('export.checkFailed', { tracker: target.title }, stopExtras(error))
       this.checkFailures.set(project, failed)
-      this.say(`export: ${project}: ${englishOf(failed)}`)
+      this.sayStop(project, failed, error)
     }
+  }
+
+  /** The stop in the service log: its message, then the stack of the error under it (BTN-1455). */
+  private sayStop(project: string, failed: Notice, error: unknown): void {
+    this.say(`export: ${project}: ${englishOf(failed)}`)
+    const stack = stackOf(error)
+    if (stack !== undefined) this.say(`export: ${project}: ${stack}`)
   }
 }

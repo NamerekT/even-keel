@@ -4,6 +4,7 @@ import type { TrackerCard } from './card.js'
 import type { TransferCheck } from './transfer-check.js'
 import { restoreFields, type TaskDraft, type TaskEditor } from './editor.js'
 import { isOpen, type StatusCategory, type TaskPriority, type TaskStatus } from './model.js'
+import { atStage } from './transfer-stop.js'
 import type { TrackerVocabulary } from './source.js'
 
 /**
@@ -286,7 +287,8 @@ export async function runExport({ source, target, log, say = () => {} }: ExportR
   const { editor, project } = target
   const kept = await keptBy(target)
   const rows = new Map((await log.rows()).map((row) => [row.ref, row]))
-  const moving = parentsFirst((await source.tasks()).filter((task) => rows.has(task.ref) || takes(source, task)))
+  const read = await atStage({ stage: 'read', task: null }, () => source.tasks())
+  const moving = parentsFirst(read.filter((task) => rows.has(task.ref) || takes(source, task)))
   const save = async (row: ExportRow) => {
     rows.set(row.ref, row)
     await log.save(row)
@@ -297,54 +299,68 @@ export async function runExport({ source, target, log, say = () => {} }: ExportR
   for (const task of moving) {
     const row = rows.get(task.ref)
     if (row !== undefined && row.key !== null) continue
-    const draft = draftOf(task, kept, task.parent === null ? null : keyOf(task.parent))
-    if (row?.marker != null && editor.markers !== undefined) {
-      const found = await editor.markers.find(project, row.marker)
-      if (found !== null) {
-        // The create may have stopped after the task itself, before its labels, priority, estimate or status.
-        await restoreFields(editor, found, draft)
-        await save({ ...row, key: found, url: target.url(found), stage: 'created', done: 0 })
-        continue
+    await atStage({ stage: 'create', task: task.id }, async () => {
+      const draft = draftOf(task, kept, task.parent === null ? null : keyOf(task.parent))
+      if (row?.marker != null && editor.markers !== undefined) {
+        const found = await editor.markers.find(project, row.marker)
+        if (found !== null) {
+          // The create may have stopped after the task itself, before its labels, priority, estimate or status.
+          await restoreFields(editor, found, draft)
+          await save({ ...row, key: found, url: target.url(found), stage: 'created', done: 0 })
+          return
+        }
       }
-    }
-    const marker = row?.marker ?? editor.markers?.make() ?? null
-    const pending: ExportRow = { ref: task.ref, number: task.number, key: null, url: null, stage: 'pending', marker, done: 0 }
-    await save(pending)
-    const key = await editor.create(project, draft, [], marker ?? undefined)
-    await save({ ...pending, key, url: target.url(key), stage: 'created' })
+      const marker = row?.marker ?? editor.markers?.make() ?? null
+      const pending: ExportRow = { ref: task.ref, number: task.number, key: null, url: null, stage: 'pending', marker, done: 0 }
+      await save(pending)
+      const key = await editor.create(project, draft, [], marker ?? undefined)
+      await save({ ...pending, key, url: target.url(key), stage: 'created' })
+    })
   }
 
   for (const { task, row } of at('created')) {
-    // A link is no error when it is there already: the repeat of a task's links writes them all again.
-    if (kept.blocks) for (const other of task.blocks) await linked(row.key!, keyOf(other), 'blocks')
-    if (kept.relates) for (const other of task.related) if (task.ref < other) await linked(row.key!, keyOf(other), 'relates')
-    await save({ ...row, stage: 'linked', done: 0 })
+    await atStage({ stage: 'links', task: task.id }, async () => {
+      // A link is no error when it is there already: the repeat of a task's links writes them all again.
+      if (kept.blocks) for (const other of task.blocks) await linked(row.key!, keyOf(other), 'blocks')
+      if (kept.relates) for (const other of task.related) if (task.ref < other) await linked(row.key!, keyOf(other), 'relates')
+      await save({ ...row, stage: 'linked', done: 0 })
+    })
   }
 
   for (const { task, row } of at('linked')) {
-    const files = editor.files === undefined ? [] : await source.files(task.ref)
-    for (let index = row.done; index < files.length; index += 1) {
-      const file = files[index]!
-      const bytes = await file.read()
-      if (bytes === null) say(`export: ${task.id}: the attachment ${file.name} has no file and is not copied`)
-      else await editor.files!.attach(row.key!, [{ name: file.name, type: file.type, bytes }])
-      await save({ ...row, done: index + 1 })
-    }
-    await save({ ...rows.get(task.ref)!, stage: 'attached', done: 0 })
+    await atStage({ stage: 'attach', task: task.id }, async () => {
+      const files = editor.files === undefined ? [] : await source.files(task.ref)
+      for (let index = row.done; index < files.length; index += 1) {
+        const file = files[index]!
+        await atStage({ stage: 'attach', task: task.id, item: { kind: 'file', name: file.name } }, async () => {
+          const bytes = await file.read()
+          if (bytes === null) say(`export: ${task.id}: the attachment ${file.name} has no file and is not copied`)
+          else await editor.files!.attach(row.key!, [{ name: file.name, type: file.type, bytes }])
+          await save({ ...row, done: index + 1 })
+        })
+      }
+      await save({ ...rows.get(task.ref)!, stage: 'attached', done: 0 })
+    })
   }
 
   for (const { task, row } of at('attached')) {
-    const comments = await source.comments(task.ref)
-    for (let index = row.done; index < comments.length; index += 1) {
-      await editor.comment(row.key!, journalEntry(comments[index]!), null)
-      await save({ ...row, done: index + 1 })
-    }
-    await save({ ...rows.get(task.ref)!, stage: 'journaled', done: 0 })
+    await atStage({ stage: 'journal', task: task.id }, async () => {
+      const comments = await source.comments(task.ref)
+      for (let index = row.done; index < comments.length; index += 1) {
+        await atStage({ stage: 'journal', task: task.id, item: { kind: 'comment', number: index + 1, of: comments.length } }, async () => {
+          await editor.comment(row.key!, journalEntry(comments[index]!), null)
+          await save({ ...row, done: index + 1 })
+        })
+      }
+      await save({ ...rows.get(task.ref)!, stage: 'journaled', done: 0 })
+    })
   }
 
   for (const { task, row } of at('journaled')) {
-    await source.mark(task.ref, row.key!, row.url)
-    await save({ ...row, stage: 'marked', done: 0 })
+    await atStage({ stage: 'mark', task: task.id }, async () => {
+      await source.mark(task.ref, row.key!, row.url)
+      await save({ ...row, stage: 'marked', done: 0 })
+    })
   }
 
   async function linked(key: string, other: string | null, link: 'blocks' | 'relates') {

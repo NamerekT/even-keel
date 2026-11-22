@@ -152,10 +152,21 @@ function stateOf(total: number, ids: string[], mode: string | null): ImportState
     startedAt: new Date(run.startedAt).toISOString(),
     finishedAt: finished ? new Date().toISOString() : null,
     progress: { tasks: Math.min(total, created + (failed || finished ? 0 : 1)), created, linked: through(1), attached: through(2), journaled: through(3), done: through(3) },
-    failed: failed ? notice('import.failed', { tracker: 'Huly' }, { detail: 'connection reset while reading a file' }) : null,
+    failed: failed ? failedAt(ids[FAIL_AT.done] ?? 'ABC-1') : null,
     check: finished ? checkOf(total, ids, run.short) : null,
   }
 }
+
+/** `?import=failed`: the stop on a task's attachment, the task a link to Huly, the reason a blank storage error's class and status (BTN-1455). */
+const failedAt = (task: string) =>
+  notice(
+    'import.failed',
+    { tracker: 'Huly' },
+    {
+      cause: notice('transfer.stop', { stage: 'attach', task, item: { kind: 'file', name: 'machines.png' }, url: `https://huly.example.com/browse/${task}` }),
+      detail: 'StorageError (HTTP 503)',
+    },
+  )
 
 /** `?import=gone`: the source has no file of one attachment, and the check names it under the table (BTN-1454). */
 let gone = false

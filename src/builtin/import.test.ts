@@ -141,13 +141,34 @@ function fakeSource() {
   return { source, tasks, milestones, comments, files, changes, state, reads }
 }
 
-function imports(source: ImportSource, filesDir = mkdtempSync(join(tmpdir(), 'import-')), lines: string[] = [], chain: ChainState = emptyChainState()) {
+/** The database with each query `refused` matches failing with `error`, in a transaction too. */
+function refusing(base: PGlite, refused: RegExp, error: Error): PGlite {
+  const wrap = <T extends object>(target: T): T =>
+    new Proxy(target, {
+      get(on, prop) {
+        const value = Reflect.get(on, prop, on) as unknown
+        if (prop === 'query') return (sql: string, ...rest: unknown[]) => (refused.test(sql) ? Promise.reject(error) : (value as (...args: unknown[]) => unknown).call(on, sql, ...rest))
+        if (prop === 'transaction') return (body: (tx: object) => Promise<unknown>) => (value as PGlite['transaction']).call(on, (tx) => body(wrap(tx)))
+        return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(on) : value
+      },
+    })
+  return wrap(base)
+}
+
+function imports(
+  source: ImportSource,
+  filesDir = mkdtempSync(join(tmpdir(), 'import-')),
+  lines: string[] = [],
+  chain: ChainState = emptyChainState(),
+  extra: Partial<OpenedImportSource> = {},
+  base: PGlite = db,
+) {
   const moves: TrackerMove[] = []
   const renames: ReadonlyMap<string, string>[] = []
-  const opened = (): OpenedImportSource => ({ tracker: 'huly', place: '', key: 'ABC', title: 'Huly', source, close: async () => {} })
+  const opened = (): OpenedImportSource => ({ tracker: 'huly', place: '', key: 'ABC', title: 'Huly', source, close: async () => {}, ...extra })
   const opens = { count: 0 }
   const service = new BuiltinImports({
-    db,
+    db: base,
     open: async () => {
       opens.count += 1
       return opened()
@@ -237,13 +258,93 @@ describe('the import into the built-in tracker', () => {
     expect(reads).toBe(1)
   })
 
-  it('stops on a failed read of an attachment, naming the task and the file', async () => {
+  it('stops on a failed read of an attachment, naming the task with its link, the stage and the file; the log has the stack', async () => {
     const fake = fakeSource()
     fake.files.r3![1] = { ...fake.files.r3![1]!, read: async () => Promise.reject(Object.assign(new Error(''), { name: 'NetworkError' })) }
-    const { service } = imports(fake.source)
+    const lines: string[] = []
+    const { service } = imports(fake.source, undefined, lines, undefined, { url: (task) => `https://tracker.example.com/${task}` })
     await service.start(ABC)
     await service.settled(ABC)
-    expect((await service.state(ABC)).failed?.detail).toBe('ABC-3: the attachment log.txt: NetworkError')
+    const { failed } = await service.state(ABC)
+    expect(failed).toMatchObject({
+      code: 'import.failed',
+      detail: 'NetworkError',
+      cause: { code: 'transfer.stop', params: { stage: 'attach', task: 'ABC-3', item: { kind: 'file', name: 'log.txt' }, url: 'https://tracker.example.com/ABC-3' } },
+    })
+    expect(lines).toContain(
+      'import: 11111111-1111-4111-8111-111111111111: The import from Huly stopped. The project stays on Huly; start the import again to go on from where it stopped. On ABC-3, while moving its attachments (the file log.txt): NetworkError',
+    )
+    expect(lines.some((line) => line.startsWith('import: 11111111-1111-4111-8111-111111111111: ') && line.includes('\n    at '))).toBe(true)
+  })
+
+  describe('a stop names its task and stage', () => {
+    /** The import's stop; `broken` breaks the source after the plan's read, which `start` takes. */
+    const stopOf = async (source: ImportSource, base = db, broken = () => {}) => {
+      const { service } = imports(source, undefined, [], undefined, {}, base)
+      await service.plan(ABC)
+      broken()
+      await service.start(ABC)
+      await service.settled(ABC)
+      return (await service.state(ABC)).failed
+    }
+    const blank = () => Object.assign(new Error(''), { name: 'StorageError', status: 503 })
+
+    it.each([
+      ['milestones', (fake: ReturnType<typeof fakeSource>) => void (fake.source.milestones = async () => Promise.reject(blank())), { stage: 'milestones', task: null, item: null }],
+      ['journal', (fake: ReturnType<typeof fakeSource>) => void Object.assign(fake.state, { failComments: 1 }), { stage: 'journal', task: 'ABC-3', item: null }],
+      ['history', (fake: ReturnType<typeof fakeSource>) => void (fake.source.changes = async (ref) => (ref === 'r5' ? Promise.reject(blank()) : [])), { stage: 'history', task: 'ABC-5', item: null }],
+    ] as const)('a failed read of the %s', async (_stage, broken, params) => {
+      const fake = fakeSource()
+      const failed = await stopOf(fake.source, db, () => broken(fake))
+      expect(failed?.cause).toEqual({ code: 'transfer.stop', params: { ...params, url: null } })
+      expect(failed?.detail).not.toBe('')
+    })
+
+    it.each([
+      ['create', /insert into builtin_tasks/, { stage: 'create', task: 'ABC-3', item: null }],
+      ['links', /insert into builtin_relations/, { stage: 'links', task: 'ABC-5', item: null }],
+      ['journal', /insert into builtin_comments/, { stage: 'journal', task: 'ABC-3', item: { kind: 'comment', number: 1, of: 3 } }],
+      ['milestones', /insert into builtin_milestones/, { stage: 'milestones', task: null, item: { kind: 'milestone', name: 'v1' } }],
+      ['components', /insert into builtin_components/, { stage: 'components', task: null, item: { kind: 'component', name: 'Server' } }],
+    ] as const)('a failed write of the %s', async (_stage, query, params) => {
+      const failed = await stopOf(fakeSource().source, refusing(db, query, blank()))
+      expect(failed).toMatchObject({ code: 'import.failed', detail: 'StorageError (HTTP 503)', cause: { code: 'transfer.stop', params: { ...params, url: null } } })
+    })
+
+    it('a failure outside the stages still gives its reason', async () => {
+      const fake = fakeSource()
+      const failed = await stopOf(fake.source, db, () => void (fake.source.tasks = async () => Promise.reject(new Error(''))))
+      expect(failed).toMatchObject({ code: 'import.failed', detail: 'Error', cause: { code: 'transfer.stop', params: { stage: 'read', task: null } } })
+    })
+
+    it('the check names the task it read', async () => {
+      const fake = fakeSource()
+      const { service } = imports(fake.source)
+      await service.plan(ABC)
+      // The import reads each task's journal once; the check's first read fails.
+      Object.assign(fake.state, { failComments: 1, passComments: 2 })
+      await service.start(ABC)
+      await service.settled(ABC)
+      const { failed, checkFailed } = await service.state(ABC)
+      expect(failed).toBeNull()
+      expect(checkFailed).toMatchObject({ code: 'import.checkFailed', detail: 'the tracker is down', cause: { code: 'transfer.stop', params: { stage: 'check', task: 'ABC-3' } } })
+    })
+
+    it('the last pass before the switch refuses it, naming the task', async () => {
+      const fake = fakeSource()
+      const { service } = imports(fake.source)
+      await service.start(ABC)
+      await service.settled(ABC)
+      fake.tasks[1]!.modifiedAt = T0 + 90_000
+      fake.source.changes = async (ref) => (ref === 'r5' ? Promise.reject(blank()) : [])
+      const error = await service.switch(ABC).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(NoticeError)
+      expect((error as NoticeError).notice).toMatchObject({
+        code: 'import.passFailed',
+        detail: 'StorageError (HTTP 503)',
+        cause: { code: 'transfer.stop', params: { stage: 'history', task: 'ABC-5' } },
+      })
+    })
   })
 
   it('writes the change log with its authors, and the check matches', async () => {

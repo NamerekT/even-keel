@@ -43,7 +43,11 @@ export function WaitLine({ wait, compact }: { wait: ChainWait; compact: boolean 
       return wait.passing ? t.banner.packagesHold(named) : t.banner.packagesSilentHold(named)
     }
     case 'slot':
-    case 'folder':
-      return <Said notice={compact ? { ...wait.notice, items: [] } : wait.notice} />
+    case 'folder': {
+      // A copy, not a spread: a spread over the `Notice` union is a union too large for the compiler.
+      const shown = structuredClone(wait.notice)
+      if (compact) shown.items = []
+      return <Said notice={shown} />
+    }
   }
 }

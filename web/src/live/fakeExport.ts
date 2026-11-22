@@ -154,7 +154,16 @@ function stateOf(total: number, ids: string[]): ExportState {
     finishedAt: finished ? new Date().toISOString() : null,
     progress: { tasks: taken, created, linked: through(1), attached: through(2), journaled: through(3), marked: through(4) },
     total,
-    failed: failed ? notice('export.failed', { tracker: 'GitHub' }, { detail: 'HTTP 502 Bad Gateway' }) : null,
+    failed: failed
+      ? notice(
+          'export.failed',
+          { tracker: 'GitHub' },
+          {
+            cause: notice('transfer.stop', { stage: 'attach', task: ids[FAIL_AT.done] ?? 'ABC-1', item: { kind: 'file', name: 'machines.png' }, url: null }),
+            detail: 'HTTP 502 Bad Gateway',
+          },
+        )
+      : null,
     waiting: waiting ? new Date(run.startedAt + WAIT_MS).toISOString() : null,
     check: finished ? checkOf(total, ids, run.short) : null,
     checkFailed: null,

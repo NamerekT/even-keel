@@ -2,6 +2,7 @@ import type { EvenKeelConfig } from '../config.js'
 import { fail } from '../notice/notice.js'
 import { profileFor, type ProfileSet } from '../profiles/model.js'
 import type { ImportSource } from './import.js'
+import { issueLink } from './model.js'
 import type { TrackerAdapter } from './source.js'
 
 /** The project's tracker opened for the import (BTN-1405): where it reads and what it gives. */
@@ -15,6 +16,8 @@ export interface OpenedImportSource {
   /** The tracker's name for the messages. */
   title: string
   source: ImportSource
+  /** A task's page in the tracker by its id, `null` where the tracker gives none: a stop links its task (BTN-1455). */
+  url?: (task: string) => string | null
   close(): Promise<void>
 }
 
@@ -43,7 +46,8 @@ export async function connectImportSource(
   try {
     if (connected.importSource === undefined) throw fail('import.none', { tracker: adapter.title })
     const source = await connected.importSource(project)
-    return { tracker: kind, place, key, title: adapter.title, source, close: () => connected.close() }
+    const template = setup.issueUrl(project)
+    return { tracker: kind, place, key, title: adapter.title, source, url: (task) => issueLink(template, task), close: () => connected.close() }
   } catch (error) {
     await connected.close().catch(() => {})
     throw error

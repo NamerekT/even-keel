@@ -272,6 +272,7 @@ describe('BuiltinExports', () => {
     await exports.settled(ABC)
     const stopped = await exports.state(ABC)
     expect(stopped).toMatchObject({ running: false, finishedAt: null, failed: { code: 'export.failed', params: { tracker: 'GitHub' }, detail: 'HTTP 502' } })
+    expect(stopped.failed?.cause).toMatchObject({ code: 'transfer.stop', params: { stage: 'journal', task: expect.stringMatching(/^ABC-\d+$/), item: { kind: 'comment', number: 1 } } })
     expect(await refusal(exports.start(ABC, { ...TARGET, key: 'OTHER' }))).toBe('export.otherTarget')
     await exports.start(ABC, TARGET)
     await exports.settled(ABC)
@@ -314,7 +315,11 @@ describe('BuiltinExports', () => {
     const tracker = { view: 'tracker', project: ABC }
     expect(events).toEqual([
       { level: 'info', notice: { code: 'eventLog.exportStarted', params: { project: ABC, tracker: 'GitHub', place: 'example/repo', newKey: 'GH', total: 2 } }, place: tracker },
-      { level: 'warning', notice: { code: 'eventLog.exportFailed', params: { project: ABC, tracker: 'GitHub' }, detail: 'HTTP 502' }, place: tracker },
+      {
+        level: 'warning',
+        notice: { code: 'eventLog.exportFailed', params: { project: ABC, tracker: 'GitHub' }, cause: expect.objectContaining({ code: 'transfer.stop' }), detail: 'HTTP 502' },
+        place: tracker,
+      },
     ])
     events.length = 0
     await exports.start(ABC, TARGET)

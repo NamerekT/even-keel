@@ -1,13 +1,14 @@
 import type { ChainState } from '../chain/model.js'
 import type { TrackerMove } from '../config-form.js'
 import type { EventDraft, EventLevel, EventPlace } from '../event-log/model.js'
-import { englishOf, fail, notice, type Notice } from '../notice/notice.js'
+import { englishOf, fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
 import type { ImportSource, ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
 import { importPlan, type ImportAuthorChoice, type ImportPlan, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
 import { errorText } from '../tracker/link.js'
 import { checkImport, checkMatched, sourceCounts, type ImportedTask, type TransferCheck } from '../tracker/transfer-check.js'
+import { atStage, stackOf, stopExtras } from '../tracker/transfer-stop.js'
 import { PlanReads } from './import-reading.js'
 import { ImportRecords, type ImportHeader } from './import-store.js'
 import { goneKeys, IMPORT_STAGES, runImport, unchanged, type ImportRow } from './import-run.js'
@@ -169,16 +170,14 @@ export class BuiltinImports {
   ): Promise<{ key: string; renamed: number }> {
     this.say(`import: ${project}: the switch begins with a last pass over what changed in the source`)
     const { check, names, title } = await this.opened(project, async (opened) => {
-      const tasks = await opened.source.tasks()
-      const taken = await runImport({ ...this.runOf(project, header, opened.source), progress: step('pass') }, true)
-      this.say(`import: ${project}: the last pass took ${taken} of ${tasks.length} tasks, new or changed in ${opened.title}`)
-      step('check')(0, tasks.length)
-      this.say(`import: ${project}: the check of the switch begins`)
-      const check = await this.count(project, opened.source, true, step('check'))
-      await this.records.saveCheck(project, check)
-      this.say(`import: ${project}: the check of the switch ${checkMatched(check) ? 'matched' : 'did not match'}`)
-      const names = new Map(tasks.flatMap((task) => (task.id === `${header.key}-${task.number}` ? [] : [[task.id, `${header.key}-${task.number}`] as const])))
-      return { check, names, title: opened.title }
+      try {
+        return await this.lastPass(project, header, opened, step)
+      } catch (error) {
+        if (error instanceof NoticeError) throw error
+        const failed = notice('import.passFailed', { tracker: opened.title }, this.stopOf(error, opened))
+        this.sayStop(project, failed, error)
+        throw new NoticeError(failed, { cause: error })
+      }
     })
     if (!checkMatched(check) && !anyway) throw fail('switch.mismatch', {})
     // Asked again at the move: the chain may have started during the pass.
@@ -194,6 +193,25 @@ export class BuiltinImports {
     this.event(matched ? 'info' : 'warning', notice(matched ? 'eventLog.importMatched' : 'eventLog.importMismatched', { project, tracker: title }), place)
     await this.deps.refresh(project).catch(() => {})
     return { key: header.key, renamed: names.size }
+  }
+
+  /** The switch's last pass over what changed in the source and its check. */
+  private async lastPass(
+    project: string,
+    header: ImportHeader,
+    opened: OpenedImportSource,
+    step: (stage: ImportSwitching['stage']) => (done: number, total: number) => void,
+  ): Promise<{ check: TransferCheck; names: Map<string, string>; title: string }> {
+    const tasks = await atStage({ stage: 'read', task: null }, () => opened.source.tasks())
+    const taken = await runImport({ ...this.runOf(project, header, opened.source), progress: step('pass') }, true)
+    this.say(`import: ${project}: the last pass took ${taken} of ${tasks.length} tasks, new or changed in ${opened.title}`)
+    step('check')(0, tasks.length)
+    this.say(`import: ${project}: the check of the switch begins`)
+    const check = await this.count(project, opened.source, true, step('check'))
+    await this.records.saveCheck(project, check)
+    this.say(`import: ${project}: the check of the switch ${checkMatched(check) ? 'matched' : 'did not match'}`)
+    const names = new Map(tasks.flatMap((task) => (task.id === `${header.key}-${task.number}` ? [] : [[task.id, `${header.key}-${task.number}`] as const])))
+    return { check, names, title: opened.title }
   }
 
   /** Refuses the switch while the chain works on the project; released tasks and pull requests whose ids it `kept` do not hold it. */
@@ -268,11 +286,11 @@ export class BuiltinImports {
       this.event('info', notice('eventLog.importFinished', { project, tracker: opened.title, imported }), place)
       await this.check(project, opened)
     } catch (error) {
-      const detail = errorText(error)
-      const failed = notice('import.failed', { tracker: opened.title }, { detail })
+      const stop = this.stopOf(error, opened)
+      const failed = notice('import.failed', { tracker: opened.title }, stop)
       this.failures.set(project, failed)
-      this.say(`import: ${project}: ${englishOf(failed)}`)
-      this.event('warning', notice('eventLog.importFailed', { project, tracker: opened.title }, { detail }), place)
+      this.sayStop(project, failed, error)
+      this.event('warning', notice('eventLog.importFailed', { project, tracker: opened.title }, stop), place)
     } finally {
       await opened.close().catch(() => {})
       await this.deps.refresh(project).catch(() => {})
@@ -287,10 +305,22 @@ export class BuiltinImports {
       this.say(`import: ${project}: the check of the import ${checkMatched(check) ? 'matched' : 'did not match'}`)
     } catch (error) {
       await this.records.saveCheck(project, null).catch(() => {})
-      const failed = notice('import.checkFailed', { tracker: opened.title }, { detail: errorText(error) })
+      const failed = notice('import.checkFailed', { tracker: opened.title }, this.stopOf(error, opened))
       this.checkFailures.set(project, failed)
-      this.say(`import: ${project}: ${englishOf(failed)}`)
+      this.sayStop(project, failed, error)
     }
+  }
+
+  /** Where the import stopped and why (BTN-1455), the task with its link in the source where the tracker has one. */
+  private stopOf(error: unknown, opened: OpenedImportSource) {
+    return stopExtras(error, opened.url)
+  }
+
+  /** The stop in the service log: its message, then the stack of the error under it. */
+  private sayStop(project: string, failed: Notice, error: unknown): void {
+    this.say(`import: ${project}: ${englishOf(failed)}`)
+    const stack = stackOf(error)
+    if (stack !== undefined) this.say(`import: ${project}: ${stack}`)
   }
 
   /**
@@ -300,7 +330,7 @@ export class BuiltinImports {
    */
   private async count(project: string, source: ImportSource, known = false, progress?: (done: number, total: number) => void): Promise<TransferCheck> {
     const store = new BuiltinStore(this.deps.db)
-    const tasks = await source.tasks()
+    const tasks = await atStage({ stage: 'check', task: null }, () => source.tasks())
     const log = this.records.log(project)
     const rows = new Map((await log.rows()).map((row) => [row.ref, row]))
     const seen = new Map<string, ImportRow>()
@@ -309,32 +339,34 @@ export class BuiltinImports {
     const counts = async (task: ImportTask) => {
       const row = rows.get(task.ref)
       if (known && unchanged(task, row)) return row!.seen!
-      const counted = await sourceCounts(source, task)
+      const counted = await atStage({ stage: 'check', task: task.id }, () => sourceCounts(source, task))
       if (row !== undefined && task.modifiedAt !== null) seen.set(task.ref, { ...row, seen: { at: task.modifiedAt, ...counted } })
       return counted
     }
-    const check = await checkImport(
-      source,
-      async (task): Promise<ImportedTask | null> => {
-        const key = { project, number: task.number }
-        const got = await store.get(key)
-        if (got === undefined) return null
-        const passed = new Set(rows.has(task.ref) ? goneKeys(rows.get(task.ref)!) : [])
-        return {
-          comments: (await store.comments(key)).length,
-          changes: (await store.history(key)).filter((each) => each.field !== 'created').length,
-          files: (await store.files(key)).length,
-          ...(passed.size === 0 ? {} : { gone: (await source.files(task.ref)).filter((file) => passed.has(file.key)).map((file) => file.name) }),
-          blocks: refs(got.blocks),
-          related: refs(got.related),
-          parent: got.parent === null ? null : (refOf.get(got.parent) ?? null),
-          milestone: got.milestone?.name ?? null,
-          labels: got.labels,
-          component: got.component,
-        }
-      },
-      this.now,
-      { counts, milestones: () => listMilestones(this.deps.db, project), ...(progress === undefined ? {} : { progress }) },
+    const imported = async (task: ImportTask): Promise<ImportedTask | null> => {
+      const key = { project, number: task.number }
+      const got = await store.get(key)
+      if (got === undefined) return null
+      const passed = new Set(rows.has(task.ref) ? goneKeys(rows.get(task.ref)!) : [])
+      return {
+        comments: (await store.comments(key)).length,
+        changes: (await store.history(key)).filter((each) => each.field !== 'created').length,
+        files: (await store.files(key)).length,
+        ...(passed.size === 0 ? {} : { gone: (await source.files(task.ref)).filter((file) => passed.has(file.key)).map((file) => file.name) }),
+        blocks: refs(got.blocks),
+        related: refs(got.related),
+        parent: got.parent === null ? null : (refOf.get(got.parent) ?? null),
+        milestone: got.milestone?.name ?? null,
+        labels: got.labels,
+        component: got.component,
+      }
+    }
+    const check = await atStage({ stage: 'check', task: null }, () =>
+      checkImport(source, (task) => atStage({ stage: 'check', task: task.id }, () => imported(task)), this.now, {
+        counts,
+        milestones: () => listMilestones(this.deps.db, project),
+        ...(progress === undefined ? {} : { progress }),
+      }),
     )
     for (const row of seen.values()) await log.save(row)
     return check

@@ -1,13 +1,31 @@
 import type { ReactNode } from 'react'
 import type { ExportCounts, ExportLossKind, ExportPlan, ExportStatusRow } from '../../../src/tracker/export.js'
 import type { CheckRow, TransferCheck, TransferDirection } from '../../../src/tracker/transfer-check.js'
-import { language, t } from '../i18n/index.js'
+import type { Notice } from '../../../src/notice/notice.js'
+import { language, say, t } from '../i18n/index.js'
 import { Tile, TileGrid } from '../ui/blocks.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
 import { StatusDot } from './StatusDot.js'
 
 const count = (value: number) => value.toLocaleString(language)
+
+/** A stopped import's or copy's message, its task a link to the tracker where the stop gives one (BTN-1455). */
+export function TransferFailure({ failed }: { failed: Notice }) {
+  const text = say(failed)
+  const stop = failed.cause?.code === 'transfer.stop' ? failed.cause.params : null
+  const at = stop === null || stop.task === null || stop.url === null ? -1 : text.indexOf(stop.task)
+  if (stop === null || stop.task === null || stop.url === null || at < 0) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, at)}
+      <a className="transfer__task" href={stop.url} target="_blank" rel="noreferrer">
+        {stop.task}
+      </a>
+      {text.slice(at + stop.task.length)}
+    </>
+  )
+}
 
 /** A block of the transfer window: its 14 px title, a help tip after it where it has one. */
 export function TransferBlock({ title, help, className, children }: { title: string; help?: string; className?: string; children: ReactNode }) {
