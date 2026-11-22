@@ -933,4 +933,10 @@ export const STEPS: readonly string[] = [
   `
   alter table tracker_import_tasks add column seen text;
   `,
+  // A task's subtask count and its relations are read by `parent_id` and `to_id` (BTN-1474, `docs/storage.md`): without
+  // these, every task of a list scans the whole table.
+  `
+  create index builtin_tasks_parent on builtin_tasks (parent_id);
+  create index builtin_relations_to on builtin_relations (to_id);
+  `,
 ]
