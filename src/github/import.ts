@@ -55,6 +55,8 @@ type EventNode = { __typename: string; createdAt: string; actor: { login: string
   milestoneTitle: string
   label: { name: string }
   parent: LinkNode | null
+  blockingIssue: LinkNode | null
+  blockedIssue: LinkNode | null
 }>
 
 const PAGE = 100
@@ -102,7 +104,7 @@ const COMMENTS = `query($id: ID!, $after: String) {
 const EVENTS = `query($id: ID!, $after: String) {
   node(id: $id) {
     ... on Issue {
-      timelineItems(first: ${PAGE}, after: $after, itemTypes: [CLOSED_EVENT, REOPENED_EVENT, RENAMED_TITLE_EVENT, MILESTONED_EVENT, DEMILESTONED_EVENT, LABELED_EVENT, UNLABELED_EVENT, PARENT_ISSUE_ADDED_EVENT, PARENT_ISSUE_REMOVED_EVENT]) {
+      timelineItems(first: ${PAGE}, after: $after, itemTypes: [CLOSED_EVENT, REOPENED_EVENT, RENAMED_TITLE_EVENT, MILESTONED_EVENT, DEMILESTONED_EVENT, LABELED_EVENT, UNLABELED_EVENT, PARENT_ISSUE_ADDED_EVENT, PARENT_ISSUE_REMOVED_EVENT, BLOCKED_BY_ADDED_EVENT, BLOCKED_BY_REMOVED_EVENT, BLOCKING_ADDED_EVENT, BLOCKING_REMOVED_EVENT]) {
         pageInfo { hasNextPage endCursor }
         nodes {
           __typename
@@ -115,6 +117,10 @@ const EVENTS = `query($id: ID!, $after: String) {
           ... on UnlabeledEvent { createdAt actor { login } label { name } }
           ... on ParentIssueAddedEvent { createdAt actor { login } parent { ${LINK} } }
           ... on ParentIssueRemovedEvent { createdAt actor { login } parent { ${LINK} } }
+          ... on BlockedByAddedEvent { createdAt actor { login } blockingIssue { ${LINK} } }
+          ... on BlockedByRemovedEvent { createdAt actor { login } blockingIssue { ${LINK} } }
+          ... on BlockingAddedEvent { createdAt actor { login } blockedIssue { ${LINK} } }
+          ... on BlockingRemovedEvent { createdAt actor { login } blockedIssue { ${LINK} } }
         }
       }
     }
@@ -295,7 +301,8 @@ type Change = Omit<ImportChange, 'author'> & { author: string | undefined }
 /**
  * The timeline's events as the change log, oldest first. The status, milestone and labels are replayed from an open
  * issue with none: GitHub records the labels and the milestone set at creation as events too. A priority label is a
- * change of the priority, not of the labels.
+ * change of the priority, not of the labels. A blocking link has an event on each issue, so each side logs it under
+ * its own name, as the built-in tracker does: `blockedBy` on the blocked one, `blocks` on its blocker.
  */
 function changesOf(events: readonly EventNode[], repos: RepoMap): Change[] {
   let status = githubStatus('OPEN', null).name
@@ -354,6 +361,19 @@ function changesOf(events: readonly EventNode[], repos: RepoMap): Change[] {
         break
       case 'ParentIssueRemovedEvent':
         if (event.parent != null) push('parent', repos.idOf(event.parent), null)
+        break
+      // An issue deleted or out of the token's reach since comes as null: there is no one to name.
+      case 'BlockedByAddedEvent':
+        if (event.blockingIssue != null) push('blockedBy', null, repos.idOf(event.blockingIssue))
+        break
+      case 'BlockedByRemovedEvent':
+        if (event.blockingIssue != null) push('blockedBy', repos.idOf(event.blockingIssue), null)
+        break
+      case 'BlockingAddedEvent':
+        if (event.blockedIssue != null) push('blocks', null, repos.idOf(event.blockedIssue))
+        break
+      case 'BlockingRemovedEvent':
+        if (event.blockedIssue != null) push('blocks', repos.idOf(event.blockedIssue), null)
         break
     }
   }

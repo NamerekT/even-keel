@@ -246,6 +246,35 @@ describe('github import', () => {
     ])
   })
 
+  it('reads the blocking events of the timeline as changes of blockedBy and blocks, each side under its own name', async () => {
+    const at = (minute: number) => `2026-11-01T11:${String(minute).padStart(2, '0')}:00Z`
+    const { importing, calls } = await connect({
+      issues: [page([issueNode(2)])],
+      events: [
+        page([
+          { __typename: 'BlockedByAddedEvent', createdAt: at(1), actor: login('jdoe'), blockingIssue: ref(1) },
+          { __typename: 'BlockingAddedEvent', createdAt: at(2), actor: login('jdoe'), blockedIssue: ref(3, 'octo-org/web') },
+          { __typename: 'BlockedByAddedEvent', createdAt: at(3), actor: login('octocat'), blockingIssue: ref(7, 'someone/else') },
+          { __typename: 'BlockingAddedEvent', createdAt: at(4), actor: login('octocat'), blockedIssue: null },
+          { __typename: 'BlockedByRemovedEvent', createdAt: at(5), actor: login('someone'), blockingIssue: ref(1) },
+          { __typename: 'BlockingRemovedEvent', createdAt: at(6), actor: login('someone'), blockedIssue: ref(3, 'octo-org/web') },
+        ]),
+      ],
+    })
+    const jdoe = { kind: 'user', name: 'jdoe' }
+    const agent = { kind: 'agent', name: 'octocat' }
+    const someone = { kind: 'person', name: 'someone' }
+    expect(await importing.changes!('I_octo-org/abc_2')).toEqual([
+      { at: Date.parse(at(1)), author: jdoe, field: 'blockedBy', from: null, to: 'ABC-1' },
+      { at: Date.parse(at(2)), author: jdoe, field: 'blocks', from: null, to: 'WEB-3' },
+      { at: Date.parse(at(3)), author: agent, field: 'blockedBy', from: null, to: 'someone/else#7' },
+      { at: Date.parse(at(5)), author: someone, field: 'blockedBy', from: 'ABC-1', to: null },
+      { at: Date.parse(at(6)), author: someone, field: 'blocks', from: 'WEB-3', to: null },
+    ])
+    const query = calls.find((call) => call.query.includes('timelineItems('))!.query
+    for (const type of ['BLOCKED_BY_ADDED_EVENT', 'BLOCKED_BY_REMOVED_EVENT', 'BLOCKING_ADDED_EVENT', 'BLOCKING_REMOVED_EVENT']) expect(query).toContain(type)
+  })
+
   it('fails a repository the token cannot see', async () => {
     const { importing } = await connect({ issues: [null] })
     await expect(importing.tasks()).rejects.toThrow(/octo-org\/abc not found/)
