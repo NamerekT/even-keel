@@ -3,6 +3,8 @@
 services:
   even-keel:
     image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:-latest}
+    # A machine joined without a name, the hub's own included, is named by its host: never the container's ID.
+    hostname: even-keel
     ports:
       - "127.0.0.1:4747:4747"
       - "${EVEN_KEEL_MACHINES_PUBLISH:-127.0.0.1}:4749:4749"
@@ -18,6 +20,8 @@ services:
 
   machine:
     image: ghcr.io/namerekt/even-keel:${EVEN_KEEL_IMAGE_TAG:-latest}
+    # Another machine copied from this one takes a host name of its own too.
+    hostname: even-keel-machine
     environment:
       EVEN_KEEL_MACHINE: "1"
     volumes:
