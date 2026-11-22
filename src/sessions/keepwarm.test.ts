@@ -92,9 +92,19 @@ describe('warmStep', () => {
     expect(warmStep(short, undefined, at('12:04'), 8 * HOUR)).toBe('ping')
   })
 
-  it('leaves a cold cache alone', () => {
-    expect(warmStep(facts(), undefined, at('13:00'), 8 * HOUR)).toBe('wait')
+  it('leaves a cold cache alone, and names one it would still have pinged (BTN-1527)', () => {
+    expect(warmStep(facts(), undefined, at('13:00'), 8 * HOUR)).toBe('cold')
+    expect(warmStep(facts({ busy: true }), undefined, at('13:00'), 8 * HOUR)).toBe('wait')
+    expect(warmStep(facts(), undefined, at('13:00'), HOUR)).toBe('wait')
     expect(warmStep(facts({ cache: null }), undefined, at('12:58'), 8 * HOUR)).toBe('wait')
+  })
+
+  it('pings ahead of a planned stop a cache that would go cold within it (BTN-1527)', () => {
+    const short = facts({ cache: { ttl: '5m', until: '2026-10-26T12:05:00.000Z' } })
+    expect(warmStep(short, undefined, new Date('2026-10-26T12:00:59.000Z'), 8 * HOUR, 4 * 60_000)).toBe('wait')
+    expect(warmStep(short, undefined, at('12:01'), 8 * HOUR, 4 * 60_000)).toBe('ping')
+    expect(warmStep(facts(), undefined, at('12:54'), 8 * HOUR, 4 * 60_000)).toBe('wait')
+    expect(warmStep({ ...short, held: true }, undefined, at('12:01'), 8 * HOUR, 4 * 60_000)).toBe('wait')
   })
 
   it('sends nothing mid-turn, held or on a limit', () => {
@@ -109,7 +119,7 @@ describe('warmStep', () => {
     expect(warmStep(short, undefined, at('12:04'), 8 * HOUR)).toBe('ping')
     expect(warmStep({ ...short, held: true }, undefined, at('12:04'), 8 * HOUR)).toBe('wait')
     expect(warmStep({ ...short, limited: true }, undefined, at('12:04'), 8 * HOUR)).toBe('wait')
-    expect(warmStep(short, undefined, at('12:05'), 8 * HOUR)).toBe('wait')
+    expect(warmStep(short, undefined, at('12:05'), 8 * HOUR)).toBe('cold')
   })
 
   it('pings a session whose turn ended while a background command or agent runs, unless held or limited (BTN-1507)', () => {
@@ -130,7 +140,7 @@ describe('warmStep', () => {
     const pinged = { stretch: '2026-10-26T12:00:00.000Z', pings: 1, warmedAt: '2026-10-26T12:56:00.000Z' }
     expect(warmStep(facts(), pinged, at('13:30'), 8 * HOUR)).toBe('wait')
     expect(warmStep(facts(), pinged, at('13:51'), 8 * HOUR)).toBe('ping')
-    expect(warmStep(facts(), pinged, at('13:56'), 8 * HOUR)).toBe('wait')
+    expect(warmStep(facts(), pinged, at('13:56'), 8 * HOUR)).toBe('cold')
   })
 
   it('forgets the pings of an earlier stretch once the session answered again', () => {
@@ -175,7 +185,7 @@ describe('KeepWarm', () => {
       log: (line) => lines.push(line),
       ...(transcript !== undefined && { transcript }),
     })
-    return { keep, clock, pinged, lines, woken }
+    return { keep, clock, sessions, pinged, lines, woken }
   }
 
   const decisions = (lines: string[]) => lines.filter((line) => line.includes(' starts at '))
@@ -312,6 +322,96 @@ describe('KeepWarm', () => {
       await keep.check()
       expect(pinged).toEqual([])
     })
+
+    describe('through a stop longer than the margin (BTN-1527)', () => {
+      const short = (): WarmFacts => facts({ cache: { ttl: '5m', until: '2026-10-26T12:05:00.000Z' } })
+      const time = (clock: string) => new Date(`2026-10-26T${clock}.000Z`)
+      const cut = (lines: string[]) => lines.filter((line) => line.includes('went cold'))
+
+      it('goes on when the ping ahead of the stop outlasts it', async () => {
+        const before = setup(async () => spend(30_000))
+        before.sessions[0] = short()
+        before.clock.now = time('12:02:00')
+        expect(await before.keep.ahead(4 * 60_000)).toBe(1)
+        // Down 130 s, the facts 40 s after `listening`: the new process knows the session at 12:04:50.
+        const after = setup(async () => spend(30_000))
+        after.sessions.length = 0
+        after.keep.restore([kept('12:02')])
+        after.clock.now = time('12:04:10')
+        await after.keep.check()
+        after.sessions.push(short())
+        after.clock.now = time('12:05:30')
+        await after.keep.check()
+        expect(after.pinged).toEqual(['session-1'])
+        expect(decisions(after.lines)[0]).toContain('the ping 2 of session-1')
+        expect(cut(after.lines)).toEqual([])
+      })
+
+      it('logs once that the series was cut when the cache went cold before the first check that knew the session', async () => {
+        const { keep, clock, sessions, pinged, lines } = setup(async () => spend(30_000))
+        sessions.length = 0
+        keep.restore([kept('12:03')])
+        clock.now = time('12:07:20')
+        await keep.check()
+        sessions.push(short())
+        clock.now = time('12:08:10')
+        await keep.check()
+        clock.now = time('12:08:15')
+        await keep.check()
+        expect(pinged).toEqual([])
+        expect(cut(lines)).toEqual([
+          'keepwarm: ABC-1: the cache of session-1 went cold at 2026-10-26T12:08:00.000Z unpinged: its ping was due from ' +
+            '2026-10-26T12:06:30.000Z, and the first check that knew the session came at 2026-10-26T12:08:10.000Z, ' +
+            'the checks having begun at 2026-10-26T12:07:20.000Z: the series ends',
+        ])
+      })
+
+      it('says nothing of a session a check knew while it could be pinged', async () => {
+        const { keep, clock, sessions, lines } = setup(async () => spend(30_000))
+        sessions[0] = facts({ held: true })
+        clock.now = at('12:54')
+        await keep.check()
+        sessions[0] = facts()
+        clock.now = at('13:01')
+        await keep.check()
+        expect(cut(lines)).toEqual([])
+      })
+
+      it('says nothing of a session that came long after the checks began, as a chain resumed', async () => {
+        const { keep, clock, sessions, lines } = setup(async () => spend(30_000))
+        sessions.length = 0
+        clock.now = at('10:00')
+        await keep.check()
+        sessions.push(facts())
+        clock.now = at('13:01')
+        await keep.check()
+        expect(cut(lines)).toEqual([])
+      })
+    })
+  })
+
+  it('waits ahead of a stop for the pings in flight too (BTN-1527)', async () => {
+    let finish: (value: TurnSpend) => void = () => {}
+    const { keep, pinged } = setup(() => new Promise((resolve) => (finish = resolve)))
+    const first = keep.check()
+    let done = false
+    const ahead = keep.ahead(4 * 60_000).then((count) => {
+      done = true
+      return count
+    })
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(done).toBe(false)
+    finish(spend(30_000))
+    expect(await ahead).toBe(0)
+    await first
+    expect(pinged).toHaveLength(1)
+    expect(keep.warmedAt('session-1')).toBe('2026-10-26T12:56:00.000Z')
+  })
+
+  it('pings nothing ahead of a stop while it is off', async () => {
+    const { keep, pinged } = setup(async () => spend(30_000), 0)
+    expect(await keep.ahead(4 * 60_000)).toBe(0)
+    expect(pinged).toEqual([])
   })
 
   it('skips an overloaded ping and can keep the cache warm when the provider recovers', async () => {

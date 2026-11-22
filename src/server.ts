@@ -97,6 +97,7 @@ const COMMANDS: Record<string, Command> = {
   'updates/install': ({ settings }) => settings.installUpdate(),
   'updates/revert': ({ settings }) => settings.revertUpdate(),
   'updates/seen': ({ settings }) => settings.closeUpdateResult(),
+  'updates/warm': ({ settings }, body) => settings.warmAhead(numberOf(body.ms, 'ms')),
   'account/add': ({ account }, body) =>
     account.add(body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'), body.method === undefined ? undefined : textOf(body.method, 'method')),
   'account/discover': ({ account }, body) => account.discoverGlobal(textOf(body.agent, 'agent')),

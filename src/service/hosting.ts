@@ -117,6 +117,7 @@ export type HostingContext = Pick<ServiceContext,
   | 'inHomes'
   | 'inboxes'
   | 'intake'
+  | 'keepWarm'
   | 'launches'
   | 'linkFor'
   | 'linkOf'
@@ -519,6 +520,10 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       installUpdate: () => ctx.updater.update(ctx.releasesView().available),
       revertUpdate: () => ctx.updater.revert(),
       closeUpdateResult: () => ctx.updater.seen(),
+      warmAhead: async (ms) => {
+        const pinged = await ctx.keepWarm.ahead(ms)
+        console.log(`updates: ahead of the stop keep-warm pinged ${pinged} session(s) whose cache would go cold within ${Math.round(ms / 1000)} s`)
+      },
     },
     packages: ctx.packages,
     secrets: {

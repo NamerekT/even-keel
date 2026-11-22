@@ -55,6 +55,14 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** How many more builds a rebuild runs after a chain moved its checkout on along the branch (BTN-1426). */
 export const CATCH_UP_BUILDS = 3
+/**
+ * How long a planned stop keeps the sessions' facts away, the restart and the read after it: keep-warm pings ahead
+ * of the stop every cache that would go cold within it (BTN-1527). Measured 20.11–22.11.2026: a stop with an install
+ * and a build under it 97–112 s down, and the facts 30–52 s after `listening`.
+ */
+export const WARM_AHEAD_MS = 4 * 60_000
+/** A keep-warm ping takes 3 minutes at most. */
+const WARM_WAIT_MS = 200_000
 
 class Runner {
   private readonly began = Date.now()
@@ -85,7 +93,7 @@ class Runner {
         if (plan.mode === 'rebuild' && !rollback) return this.stopRebuild()
         // A service that came up meanwhile may be launching a chain's next task, which a stop would cut (BTN-1479).
         if (rollback) await this.settle()
-        return this.run(plan.service.stop)
+        return this.stopService()
       case 'start':
         return this.run(plan.service.start)
       case 'fetch':
@@ -145,15 +153,48 @@ class Runner {
     else this.target = next
   }
 
-  /** The wait for chains can outlast the green commit this run was called for: a merge since is built, anything else stops it. */
+  /**
+   * The wait for chains can outlast the green commit this run was called for: a merge since is built, anything else
+   * stops it. With nothing to install the merge is built before the stop, the service still up: a build with it down
+   * kept it down 74–173 s, past the five-minute cache's keep-warm margin (BTN-1527).
+   */
   private async stopRebuild(): Promise<void> {
-    const drift = await this.drift()
+    let drift = await this.drift()
     if (drift === 'away') throw new CheckoutMoved('The checkout changed during the rebuild')
-    await this.run(this.plan.service.stop)
+    for (let builds = 0; this.built && drift !== 'same' && builds < CATCH_UP_BUILDS && !dependenciesChanged(this.plan.root); builds++) {
+      this.aimAt(drift, false, 'building it before the stop')
+      await this.run(this.buildCommand())
+      await this.settle()
+      drift = await this.drift()
+      if (drift === 'away') throw new CheckoutMoved('The checkout changed during the rebuild')
+    }
+    await this.stopService()
     this.stopped = true
     if (drift === 'same') return
     if (this.built) return this.catchUp(false)
     this.aimAt(drift, false, 'building it')
+  }
+
+  /** The service's keep-warm pings ahead of the stop, then the stop; a machine has no page to ask. */
+  private async stopService(): Promise<void> {
+    if (this.plan.machine === undefined) await this.warmAhead()
+    return this.run(this.plan.service.stop)
+  }
+
+  /** A service that cannot be asked, an older one too, is stopped all the same: its caches may go cold under the stop. */
+  private async warmAhead(): Promise<void> {
+    try {
+      const response = await fetch(new URL('/api/updates/warm', this.plan.state), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ms: WARM_AHEAD_MS }),
+        signal: AbortSignal.timeout(WARM_WAIT_MS),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      this.log(`keep-warm pinged the caches that would go cold within ${WARM_AHEAD_MS / 1000} s`)
+    } catch (error) {
+      this.log(`keep-warm did not ping ahead of the stop: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   /**

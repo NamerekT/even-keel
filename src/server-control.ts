@@ -224,6 +224,11 @@ export interface SettingsControl {
   revertUpdate(): Promise<void>
   /** "Close" on how the last update or revert ended. */
   closeUpdateResult(): void
+  /**
+   * The update process before it stops the service (BTN-1527): keep-warm pings every session whose cache would go cold
+   * within `ms`, and the answer comes once the pings are answered.
+   */
+  warmAhead(ms: number): Promise<void>
 }
 
 /** The page's commands on packages (`src/packages/service.ts`); a project is named by its key. */
