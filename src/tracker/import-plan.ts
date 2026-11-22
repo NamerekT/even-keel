@@ -2,7 +2,7 @@ import { BUILTIN_STATUSES } from '../builtin/model.js'
 import type { ExportCounts, ExportLoss, ExportLossKind, ExportPlan, ExportStatusRow } from './export.js'
 import { statusFor } from './export.js'
 import type { ChangeBy } from './history.js'
-import type { ImportAuthor, ImportAuthorKind, ImportMilestone, ImportSource, ImportTask } from './import.js'
+import { distinctFiles, type ImportAuthor, type ImportAuthorKind, type ImportMilestone, type ImportSource, type ImportTask } from './import.js'
 import type { StatusCategory, TaskStatus } from './model.js'
 import type { Notice } from '../notice/notice.js'
 import type { TransferCheck } from './transfer-check.js'
@@ -131,13 +131,13 @@ export function importOrder<T extends { task: ImportTask }>(tasks: readonly T[])
 }
 
 /**
- * Reads each task's journal, change log and files to count them, `source.parallel` tasks at once; `progress` hears the
+ * Reads each task's journal, change log and files (once per key) to count them, `source.parallel` tasks at once; `progress` hears the
  * tasks read so far of the list. The first failure stops the read.
  */
 export async function countTasks(source: ImportSource, progress?: (done: number, total: number) => void): Promise<CountedTask[]> {
   return readTasks(source, await source.tasks(), progress, async (task) => {
     const [comments, changes, files] = await Promise.all([source.comments(task.ref), source.changes?.(task.ref) ?? [], source.files(task.ref)])
-    return { task, comments: comments.map((each) => each.author), changes: changes.map((each) => each.author), files: files.length }
+    return { task, comments: comments.map((each) => each.author), changes: changes.map((each) => each.author), files: distinctFiles(files).length }
   })
 }
 

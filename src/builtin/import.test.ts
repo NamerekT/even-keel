@@ -259,6 +259,38 @@ describe('the import into the built-in tracker', () => {
     expect(reads).toBe(1)
   })
 
+  it('counts a file attached twice under one key once: the plan, the run and the check agree (BTN-1457)', async () => {
+    const fake = fakeSource()
+    fake.files.r3!.push(fileOf('f1', 'shot.png', 'png bytes'))
+    fake.files.r3!.push({ key: 'f3', name: 'gone.png', type: 'image/png', size: 4, read: async () => ({ gone: 'the tracker got HTTP 404' }) })
+    fake.files.r3!.push({ key: 'f3', name: 'gone.png', type: 'image/png', size: 4, read: async () => ({ gone: 'the tracker got HTTP 404' }) })
+    const { service } = imports(fake.source)
+    expect((await service.plan(ABC)).counts.files).toBe(3)
+    await service.start(ABC)
+    await service.settled(ABC)
+    expect((await store.files(key(3))).map((each) => each.name).sort()).toEqual(['log.txt', 'shot.png'])
+    const { check } = await service.state(ABC)
+    expect(check?.rows.find((row) => row.kind === 'files')).toEqual({ kind: 'files', source: 2, target: 2, tasks: [], gone: [{ task: 'ABC-3', name: 'gone.png' }] })
+    expect(check !== null && checkMatched(check)).toBe(true)
+  })
+
+  it('reads again at the switch a task whose last check counted its files by record, not by key (BTN-1457)', async () => {
+    const fake = fakeSource()
+    fake.tasks[0] = { ...fake.tasks[0]!, modifiedAt: T0 + 1 }
+    fake.tasks[1] = { ...fake.tasks[1]!, modifiedAt: T0 + 2 }
+    fake.files.r3!.push(fileOf('f1', 'shot.png', 'png bytes'))
+    const { service } = imports(fake.source)
+    await service.start(ABC)
+    await service.settled(ABC)
+    // A check before the files were counted by key saw three of them.
+    await db.query(`update tracker_import_tasks set seen = $1 where task_ref = 'r3'`, [JSON.stringify({ at: T0 + 1, comments: 3, changes: 0, files: 3 })])
+    fake.reads.length = 0
+    expect(await service.switch(ABC)).toEqual({ key: 'ABC', renamed: 0 })
+    expect([...new Set(fake.reads)]).toEqual(['r3'])
+    const [report] = await new TransferReports(db).list(ABC)
+    expect(report).toMatchObject({ matched: true })
+  })
+
   it('stops on a failed read of an attachment, naming the task with its link, the stage and the file; the log has the stack', async () => {
     const fake = fakeSource()
     fake.files.r3![1] = { ...fake.files.r3![1]!, read: async () => Promise.reject(Object.assign(new Error(''), { name: 'NetworkError' })) }

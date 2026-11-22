@@ -55,6 +55,8 @@ export interface ImportSeen {
   comments: number
   changes: number
   files: number
+  /** `files` counts one a key (BTN-1457); absent — an older check counted every record, and the switch reads it again. */
+  filesByKey?: true
 }
 
 export interface ImportLog {

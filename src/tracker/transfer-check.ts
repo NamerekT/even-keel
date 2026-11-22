@@ -1,7 +1,7 @@
 import { sameName } from '../chain/rules.js'
 import type { TrackerCard } from './card.js'
 import { journalEntry, keptBy, runExport, takes, type ExportLog, type ExportPlan, type ExportRow, type ExportRun, type ExportSource, type ExportTarget, type ExportTask, type Kept } from './export.js'
-import type { ImportLink, ImportMilestone, ImportSource, ImportTask } from './import.js'
+import { distinctFiles, type ImportLink, type ImportMilestone, type ImportSource, type ImportTask } from './import.js'
 import { readTasks } from './import-plan.js'
 import { TrackerNotFound } from './source.js'
 
@@ -271,10 +271,10 @@ export interface ImportedMilestone {
   status: ImportMilestone['status']
 }
 
-/** A task's counts read from the source, asked together as the plan asks them (`countTasks`). */
+/** A task's counts read from the source, asked together as the plan asks them (`countTasks`); a file once per key. */
 export async function sourceCounts(source: ImportSource, task: ImportTask): Promise<SourceCounts> {
   const [comments, changes, files] = await Promise.all([source.comments(task.ref), source.changes?.(task.ref) ?? [], source.files(task.ref)])
-  return { comments: comments.length, changes: changes.length, files: files.length }
+  return { comments: comments.length, changes: changes.length, files: distinctFiles(files).length }
 }
 
 /**

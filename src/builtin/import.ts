@@ -3,7 +3,7 @@ import type { TrackerMove } from '../config-form.js'
 import type { EventDraft, EventLevel, EventPlace } from '../event-log/model.js'
 import { englishOf, fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
-import type { ImportSource, ImportTask } from '../tracker/import.js'
+import { distinctFiles, type ImportSource, type ImportTask } from '../tracker/import.js'
 import type { OpenedImportSource } from '../tracker/import-source.js'
 import { importPlan, type ImportAuthorChoice, type ImportPlan, type ImportPlanning, type ImportState, type ImportSwitching } from '../tracker/import-plan.js'
 import { retryingSource } from '../tracker/import-retry.js'
@@ -355,9 +355,9 @@ export class BuiltinImports {
     const refs = (numbers: readonly { project: string; number: number }[]) => numbers.flatMap((each) => (each.project === project && refOf.has(each.number) ? [refOf.get(each.number)!] : []))
     const counts = async (task: ImportTask) => {
       const row = rows.get(task.ref)
-      if (known && unchanged(task, row)) return row!.seen!
+      if (known && unchanged(task, row) && row!.seen!.filesByKey === true) return row!.seen!
       const counted = await atStage({ stage: 'check', task: task.id }, () => sourceCounts(source, task))
-      if (row !== undefined && task.modifiedAt !== null) seen.set(task.ref, { ...row, seen: { at: task.modifiedAt, ...counted } })
+      if (row !== undefined && task.modifiedAt !== null) seen.set(task.ref, { ...row, seen: { at: task.modifiedAt, ...counted, filesByKey: true } })
       return counted
     }
     const imported = async (task: ImportTask): Promise<ImportedTask | null> => {
@@ -369,7 +369,7 @@ export class BuiltinImports {
         comments: (await store.comments(key)).length,
         changes: (await store.history(key)).filter((each) => each.field !== 'created').length,
         files: (await store.files(key)).length,
-        ...(passed.size === 0 ? {} : { gone: (await source.files(task.ref)).filter((file) => passed.has(file.key)).map((file) => file.name) }),
+        ...(passed.size === 0 ? {} : { gone: distinctFiles(await source.files(task.ref)).filter((file) => passed.has(file.key)).map((file) => file.name) }),
         blocks: refs(got.blocks),
         related: refs(got.related),
         parent: got.parent === null ? null : (refOf.get(got.parent) ?? null),

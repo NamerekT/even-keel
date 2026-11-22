@@ -33,7 +33,10 @@ export interface ImportImage {
 }
 
 export interface ImportFile {
-  /** Unique within the task: comments and images name the file by it. */
+  /**
+   * The file within the task: comments and images name it by it. Two attachments of one key are one file attached twice
+   * (Huly's same blob, BTN-1457): the import moves it once, and the plan and the check count it once (`distinctFiles`).
+   */
   key: string
   name: string
   /** MIME type; empty when the tracker does not say. */
@@ -48,6 +51,16 @@ export interface ImportFile {
    * adapter to this.
    */
   read(): Promise<Uint8Array | ImportGone>
+}
+
+/** The task's files with one of each key, the first of them: what the import moves and the plan and the check count. */
+export function distinctFiles<File extends Pick<ImportFile, 'key'>>(files: readonly File[]): File[] {
+  const seen = new Set<string>()
+  return files.filter((file) => {
+    if (seen.has(file.key)) return false
+    seen.add(file.key)
+    return true
+  })
 }
 
 /** An attachment the tracker has no file of: why, in English, for the log's line. */
