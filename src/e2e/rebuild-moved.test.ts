@@ -129,6 +129,35 @@ describe('a rebuild whose checkout a chain moves', () => {
     expect(readFileSync(join(root, 'built'), 'utf8')).toBe('onward')
   }, 60_000)
 
+  it('hands a merge between the stop and the start on to the rollback at once, which stops the service once the chains settle', async () => {
+    const running = commit('running')
+    commit('green')
+    arm('onward')
+    writeFileSync(join(root, 'build.cjs'), "require('node:fs').copyFileSync('marker', 'built')")
+    git('commit', '-qam', 'no hook in the build')
+    const target = git('rev-parse', 'HEAD')
+    const log = join(base, 'update.log')
+    // The live service took the merged task to Done and launches the next one until the rollback has waited for it.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string }
+      const head = git('rev-parse', 'HEAD')
+      const launching = head !== target && !readFileSync(log, 'utf8').includes('waiting for')
+      const active = launching ? [{ project: 'ABC', current: { task: 'ABC-2', sessionId: null }, paused: false, error: null }] : []
+      return Response.json({ startedAt: readFileSync(join(root, 'built'), 'utf8'), updates: { current: version }, hubCommit: head, chain: { active } })
+    })
+    const began = Date.now()
+    const record = await runPlan({ ...planOf(target, null, running, [process.execPath, join(base, 'hook.cjs')]), settleMs: 30_000, answerMs: 120_000 })
+    const head = git('rev-parse', 'HEAD')
+    expect(Date.now() - began).toBeLessThan(30_000)
+    expect(record).toMatchObject({ failed: { step: 'answer' }, rollback: { failed: null, to: { tag: head, version: '1.1.0' } } })
+    const lines = readFileSync(log, 'utf8').split('\n')
+    const stop = lines.findIndex((line) => line.endsWith(' rollback: stop'))
+    const waited = lines.findIndex((line) => line.endsWith(' waiting for ABC to settle'))
+    expect(stop).toBeGreaterThan(-1)
+    expect(waited).toBeGreaterThan(stop)
+    expect(lines.findIndex((line, at) => at > stop && line.includes('$ '))).toBeGreaterThan(waited)
+  }, 60_000)
+
   it('rolls nothing back when the checkout moved to another line after the new service failed', async () => {
     const running = commit('running')
     commit('green')

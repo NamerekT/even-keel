@@ -83,6 +83,8 @@ class Runner {
         return this.settle()
       case 'stop':
         if (plan.mode === 'rebuild' && !rollback) return this.stopRebuild()
+        // A service that came up meanwhile may be launching a chain's next task, which a stop would cut (BTN-1479).
+        if (rollback) await this.settle()
         return this.run(plan.service.stop)
       case 'start':
         return this.run(plan.service.start)
@@ -264,8 +266,19 @@ class Runner {
   }
 
   /**
+   * The service came up on the checkout's HEAD after a chain's merge between the stop and the start moved it on along
+   * the branch: it will never answer with the commit aimed at.
+   */
+  private async mergedSince(hubCommit: unknown): Promise<boolean> {
+    if (typeof hubCommit !== 'string') return false
+    const drift = await this.drift()
+    return drift !== 'same' && drift !== 'away' && drift.tag === hubCommit
+  }
+
+  /**
    * A later start of the expected version and, for a rebuild, commit, still answering after steadyMs. A rollback
-   * expects the version before, or the commit it went on to.
+   * expects the version before, or the commit it went on to. A rebuild's service up on a commit merged since gives up
+   * at once: the rollback stops it once the chains settle and builds that commit instead.
    */
   private async answer(rollback: boolean): Promise<void> {
     const { plan } = this
@@ -275,13 +288,17 @@ class Runner {
     const commit = plan.mode === 'rebuild' ? (back ? plan.from.commit : to?.tag) : undefined
     const deadline = Date.now() + plan.answerMs
     let last = 'no answer'
+    let moved: string | null = null
     while (Date.now() < deadline) {
       try {
         const state = await this.state()
         const current = (state.updates as { current?: unknown } | undefined)?.current
         const startedAt = state.startedAt
         if (typeof startedAt !== 'string' || startedAt === plan.startedAt) last = 'no new service start yet'
-        else if (version !== null && current !== version) last = `it answers with version ${String(current)}`
+        else if (!rollback && commit !== undefined && state.hubCommit !== commit && (await this.mergedSince(state.hubCommit))) {
+          moved = `the service started on ${String(state.hubCommit)}, which a chain merged into the checkout after ${commit}: the rollback builds it`
+          break
+        } else if (version !== null && current !== version) last = `it answers with version ${String(current)}`
         else if (commit !== undefined && state.hubCommit !== commit && !(back && plan.legacyRollback && state.hubCommit === undefined)) {
           last = `it answers with commit ${String(state.hubCommit)}, expected ${commit}`
         } else {
@@ -297,6 +314,7 @@ class Runner {
       }
       await sleep(POLL_MS)
     }
+    if (moved !== null) throw new StepError(moved)
     throw new StepError(`the service did not answer${version === null ? '' : ` with ${version}`} at ${plan.state} in ${plan.answerMs / 1000} s: ${last}`)
   }
 }
