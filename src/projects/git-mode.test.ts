@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runGit } from '../git/run.js'
+import { copyRepository } from '../git/template.fixture.js'
 import type { Git } from '../git/types.js'
 import { gitSwitchBlock, turnGitOn, uncommittedChanges } from './git-mode.js'
 
@@ -36,11 +37,13 @@ function codexRules(path: string): void {
  */
 async function repository(): Promise<string> {
   const path = folder()
-  await git(path, ['init', '-q', '-b', 'main'])
-  writeFileSync(join(path, 'kept.txt'), 'kept\n')
-  await git(path, ['add', '-A'])
-  await git(path, ['commit', '-q', '-m', 'first'])
-  await git(path, ['commit', '-q', '--allow-empty', '-m', 'second'])
+  await copyRepository('git-mode', path, async (made) => {
+    await git(made, ['init', '-q', '-b', 'main'])
+    writeFileSync(join(made, 'kept.txt'), 'kept\n')
+    await git(made, ['add', '-A'])
+    await git(made, ['commit', '-q', '-m', 'first'])
+    await git(made, ['commit', '-q', '--allow-empty', '-m', 'second'])
+  })
   return path
 }
 

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { noticeOf } from '../notice/notice.js'
 import { commitChangelog, type ChangelogCommit } from './changelog.js'
 import { runGit } from './run.js'
+import { copyRepository, gitSteps } from './template.fixture.js'
 
 let repo: string
 
@@ -27,14 +28,18 @@ const refusal = (promise: Promise<unknown>) => promise.then(() => null, (error: 
 describe('commitChangelog', { timeout: 60_000 }, () => {
   beforeEach(async () => {
     repo = mkdtempSync(join(tmpdir(), 'even-keel-changelog-'))
-    await git('init', '-q', '--template=', '-b', 'main')
-    await git('config', 'user.email', 'john.doe@example.com')
-    await git('config', 'user.name', 'John Doe')
-    await git('config', 'core.hooksPath', join(repo, 'no-hooks'))
-    await git('config', 'core.autocrlf', 'false')
-    writeFileSync(join(repo, 'README.md'), 'readme')
-    await git('add', 'README.md')
-    await git('commit', '-q', '-m', 'base')
+    await copyRepository('changelog', repo, (path) => {
+      writeFileSync(join(path, 'README.md'), 'readme')
+      gitSteps(path, [
+        ['init', '-q', '--template=', '-b', 'main'],
+        ['config', 'user.email', 'john.doe@example.com'],
+        ['config', 'user.name', 'John Doe'],
+        ['config', 'core.hooksPath', join(path, 'no-hooks')],
+        ['config', 'core.autocrlf', 'false'],
+        ['add', 'README.md'],
+        ['commit', '-q', '-m', 'base'],
+      ])
+    })
   })
   afterEach(() => rmSync(repo, { recursive: true, force: true }))
 

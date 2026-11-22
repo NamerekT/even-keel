@@ -4,6 +4,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { vi } from 'vitest'
+import { copyRepository } from '../git/template.fixture.js'
 import type { Notice } from '../notice/notice.js'
 import type { ServiceContext } from '../service.js'
 import { ScriptedAgent } from './agent.fixture.js'
@@ -41,6 +42,64 @@ const realTimeout = globalThis.setTimeout
 /** How long no git and no file read may run before a step of the clock counts its real work done. */
 const QUIET_MS = 2
 const realFetch = globalThis.fetch
+
+interface Checkouts {
+  forge: boolean
+  githubRemote: boolean
+  second: boolean
+  release: boolean
+}
+
+/**
+ * The git part of a harness's folder `dir`, as `Harness`'s fields name it: the project's checkout `repo` with its first
+ * commit and, as `checkouts` asks, the bare `remote.git` with the clones `repo2` and `release`, the bare `github.git`.
+ */
+function buildCheckouts(dir: string, checkouts: Checkouts): void {
+  const [repo, remote, githubBare] = [join(dir, 'repo'), join(dir, 'remote.git'), join(dir, 'github.git')]
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-C', cwd, ...args], { stdio: 'pipe' })
+  // A checkout's identity and line endings; with the forge, its remote's address leads git to the bare repository.
+  const configure = (path: string) => {
+    git(path, 'config', 'user.email', 'john@example.com')
+    git(path, 'config', 'user.name', 'John Doe')
+    git(path, 'config', 'commit.gpgsign', 'false')
+    git(path, 'config', 'core.autocrlf', 'false')
+    if (checkouts.forge) git(path, 'config', `url.${remote.replaceAll('\\', '/')}.insteadOf`, FORGE_URL)
+  }
+  // Another clone of the bare repository on `branch`, its remote at the forge's address as the first checkout's.
+  const clone = (path: string, branch: string) => {
+    // Checked out as committed: a machine's `core.autocrlf` would leave the clone with changes to every file.
+    execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', '-b', branch, remote, path], { stdio: 'pipe' })
+    configure(path)
+    git(path, 'remote', 'set-url', 'origin', FORGE_URL)
+    git(path, 'fetch', '-q', 'origin')
+  }
+  execFileSync('git', ['init', '-q', '-b', 'main', repo])
+  configure(repo)
+  writeFileSync(join(repo, 'README.md'), '# Example\n')
+  writeFileSync(join(repo, '.gitignore'), '.temp/\n')
+  if (checkouts.forge) {
+    mkdirSync(join(repo, '.forgejo', 'workflows'), { recursive: true })
+    writeFileSync(join(repo, '.forgejo', 'workflows', 'ci.yml'), 'on: push\n')
+  }
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'Initial commit')
+  if (checkouts.forge) {
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', remote])
+    git(repo, 'remote', 'add', 'origin', FORGE_URL)
+    git(repo, 'push', '-q', '-u', 'origin', 'main')
+  }
+  if (checkouts.githubRemote) {
+    execFileSync('git', ['init', '-q', '--bare', '-b', 'main', githubBare])
+    git(repo, 'config', `url.${githubBare.replaceAll('\\', '/')}.insteadOf`, GITHUB_URL)
+    git(repo, 'remote', 'add', 'github', GITHUB_URL)
+    git(repo, 'push', '-q', 'github', 'main')
+  }
+  if (checkouts.second) clone(join(dir, 'repo2'), 'main')
+  if (checkouts.release) {
+    git(repo, 'push', '-q', 'origin', `main:refs/heads/${RELEASE_BRANCH}`)
+    clone(join(dir, 'release'), RELEASE_BRANCH)
+  }
+}
 
 /**
  * The service as `src/main.ts` starts it, in a folder of its own: a git repository for the one project, the board
@@ -125,7 +184,7 @@ export class Harness {
   async start(prepared?: () => void): Promise<void> {
     const timers = ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] as const
     vi.useFakeTimers(this.pace > 0 ? { toFake: [...timers] } : { toFake: [...timers, 'Date'], now: new Date('2026-10-01T09:00:00Z') })
-    this.prepare()
+    await this.prepare()
     await this.environment()
     prepared?.()
     await this.boot()
@@ -234,69 +293,30 @@ export class Harness {
     return [...this.checkouts, this.repo2, this.releaseRepo, this.repo].find((repo) => cwd === repo || cwd.startsWith(repo + sep) || cwd.startsWith(`${repo}/`)) ?? this.repo
   }
 
-  private prepare(): void {
+  private async prepare(): Promise<void> {
     const codex = this.codex ? `codex-accounts/${CODEX_ACCOUNT}` : 'codex-accounts'
     const spare = this.spare ? [`accounts/${SPARE_ACCOUNT}`] : []
     for (const folder of ['data', `accounts/${ACCOUNT}`, ...spare, codex, 'opencode-accounts', 'copilot-accounts', 'claude', 'codex', 'repo']) mkdirSync(join(this.dir, folder), { recursive: true })
     if (this.forge || this.githubRemote) writeFileSync(join(this.dir, '.gitconfig'), '[core]\n\tlongpaths = true\n')
-    execFileSync('git', ['init', '-q', '-b', 'main', this.repo])
-    this.configure(this.repo)
-    writeFileSync(join(this.repo, 'README.md'), '# Example\n')
-    writeFileSync(join(this.repo, '.gitignore'), '.temp/\n')
-    if (this.forge) {
-      mkdirSync(join(this.repo, '.forgejo', 'workflows'), { recursive: true })
-      writeFileSync(join(this.repo, '.forgejo', 'workflows', 'ci.yml'), 'on: push\n')
-    }
-    this.git('add', '.')
-    this.git('commit', '-q', '-m', 'Initial commit')
+    if ((this.second !== null || this.release !== null) && !this.forge) throw new Error('e2e: a second or a release project needs the forge')
+    const checkouts = { forge: this.forge, githubRemote: this.githubRemote, second: this.second !== null, release: this.release !== null }
+    // The same checkouts for every scenario of the same kind: built once per run and copied (BTN-1483).
+    const kind = Object.entries(checkouts).filter(([, on]) => on).map(([name]) => name)
+    await copyRepository(['e2e', ...kind].join('-'), this.dir, (dir) => buildCheckouts(dir, checkouts))
     const feeds = this.feed ? { feeds: [{ id: FEED_ID, tracker: LANE_TRACKER, key: FEED_KEY }] } : {}
     const projects: Record<string, unknown>[] = [{ id: PROJECT_ID, key: KEY, tracker: BOARD_TRACKER, repo: this.repo, ...feeds, ...this.project }]
     this.board.keys.set(PROJECT_ID, KEY)
     this.lane.keys.set(FEED_ID, FEED_KEY)
-    if (this.forge) {
-      execFileSync('git', ['init', '-q', '--bare', '-b', 'main', this.remote])
-      this.git('remote', 'add', 'origin', FORGE_URL)
-      this.git('push', '-q', '-u', 'origin', 'main')
-    }
-    if (this.githubRemote) {
-      execFileSync('git', ['init', '-q', '--bare', '-b', 'main', this.githubBare])
-      this.git('config', `url.${this.githubBare.replaceAll('\\', '/')}.insteadOf`, GITHUB_URL)
-      this.git('remote', 'add', 'github', GITHUB_URL)
-      this.git('push', '-q', 'github', 'main')
-    }
     if (this.second !== null) {
-      if (!this.forge) throw new Error('e2e: a second project needs the forge')
-      this.clone(this.repo2, 'main')
       projects.push({ id: SECOND_ID, key: SECOND_KEY, tracker: BOARD_TRACKER, repo: this.repo2, ...this.second })
       this.board.keys.set(SECOND_ID, SECOND_KEY)
     }
     if (this.release !== null) {
-      if (!this.forge) throw new Error('e2e: a release project needs the forge')
-      this.git('push', '-q', 'origin', `main:refs/heads/${RELEASE_BRANCH}`)
-      this.clone(this.releaseRepo, RELEASE_BRANCH)
       projects.push({ id: RELEASE_ID, key: RELEASE_KEY, tracker: BOARD_TRACKER, repo: this.releaseRepo, branch: RELEASE_BRANCH, mergeInto: PROJECT_ID, ...this.release })
       this.board.keys.set(RELEASE_ID, RELEASE_KEY)
     }
     const config = { version: 19, language: 'en', accounts: { claude: ACCOUNT }, updates: { check: false }, projects, ...this.config }
     writeFileSync(join(this.dir, 'data', 'even-keel.config.json'), JSON.stringify(config, null, 2))
-  }
-
-  /** Another clone of the bare repository on `branch`, its remote at the forge's address as the first checkout's. */
-  private clone(path: string, branch: string): void {
-    // Checked out as committed: a machine's `core.autocrlf` would leave the clone with changes to every file.
-    execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', '-b', branch, this.remote, path])
-    this.configure(path)
-    this.gitIn(path, 'remote', 'set-url', 'origin', FORGE_URL)
-    this.gitIn(path, 'fetch', '-q', 'origin')
-  }
-
-  /** A checkout's identity and line endings; with the forge, its remote's address leads git to the bare repository. */
-  private configure(repo: string): void {
-    this.gitIn(repo, 'config', 'user.email', 'john@example.com')
-    this.gitIn(repo, 'config', 'user.name', 'John Doe')
-    this.gitIn(repo, 'config', 'commit.gpgsign', 'false')
-    this.gitIn(repo, 'config', 'core.autocrlf', 'false')
-    if (this.forge) this.gitIn(repo, 'config', `url.${this.remote.replaceAll('\\', '/')}.insteadOf`, FORGE_URL)
   }
 
   private async environment(): Promise<void> {

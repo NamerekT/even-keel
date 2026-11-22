@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { changesOf } from './changes.js'
 import { runGit } from './run.js'
+import { copyRepository, gitSteps } from './template.fixture.js'
 
 let repo: string
 
@@ -21,14 +22,18 @@ const commit = async (name: string) => {
 
 beforeEach(async () => {
   repo = mkdtempSync(join(tmpdir(), 'even-keel-changes-'))
-  await git('init', '-q', '--template=', '-b', 'main')
-  await git('config', 'user.email', 'john.doe@example.com')
-  await git('config', 'user.name', 'John Doe')
-  await git('config', 'core.hooksPath', join(repo, 'no-hooks'))
-  writeFileSync(join(repo, '.gitignore'), '.temp/\n')
-  await git('add', '.gitignore')
-  await git('commit', '-q', '-m', 'base')
-  await git('switch', '-q', '-c', 'abc-1/task')
+  await copyRepository('changes', repo, (path) => {
+    writeFileSync(join(path, '.gitignore'), '.temp/\n')
+    gitSteps(path, [
+      ['init', '-q', '--template=', '-b', 'main'],
+      ['config', 'user.email', 'john.doe@example.com'],
+      ['config', 'user.name', 'John Doe'],
+      ['config', 'core.hooksPath', join(path, 'no-hooks')],
+      ['add', '.gitignore'],
+      ['commit', '-q', '-m', 'base'],
+      ['switch', '-q', '-c', 'abc-1/task'],
+    ])
+  })
 })
 
 afterEach(() => {

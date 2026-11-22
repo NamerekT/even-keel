@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runGit } from './run.js'
 import { syncMain, type MergeCheck } from './sync.js'
+import { copyRepository } from './template.fixture.js'
 import type { GitResult } from './types.js'
 
 // The main branch is not called `main`: the user's global `git sync` alias, written for main, would take the sync.
@@ -26,13 +27,23 @@ const commit = async (repo: string, name: string) => {
   await git(repo, 'commit', '-q', '-m', name)
 }
 
-const clone = async (name: string) => {
+const clone = async (root: string, name: string) => {
   const path = join(root, name)
-  await git(root, 'clone', '-q', remote, path)
+  await git(root, 'clone', '-q', join(root, 'remote.git'), path)
   await git(path, 'config', 'user.email', 'john.doe@example.com')
   await git(path, 'config', 'user.name', 'John Doe')
   await git(path, 'config', 'core.hooksPath', join(root, 'no-hooks'))
   return path
+}
+
+/** A bare remote with a first commit on the main branch and two clones of it. */
+async function remoteAndClones(root: string): Promise<void> {
+  await git(root, 'init', '-q', '--bare', '-b', MAIN, join(root, 'remote.git'))
+  const path = await clone(root, 'first')
+  await git(path, 'checkout', '-q', '-b', MAIN)
+  await commit(path, 'base')
+  await git(path, 'push', '-q', 'origin', MAIN)
+  await clone(root, 'second')
 }
 
 const passing = (): MergeCheck & { runs: number } => {
@@ -40,22 +51,19 @@ const passing = (): MergeCheck & { runs: number } => {
   return check
 }
 
-beforeEach(async () => {
-  root = mkdtempSync(join(tmpdir(), 'even-keel-sync-check-'))
-  remote = join(root, 'remote.git')
-  await git(root, 'init', '-q', '--bare', '-b', MAIN, remote)
-  first = await clone('first')
-  await git(first, 'checkout', '-q', '-b', MAIN)
-  await commit(first, 'base')
-  await git(first, 'push', '-q', 'origin', MAIN)
-  second = await clone('second')
-})
-
-afterEach(() => {
-  rmSync(root, { recursive: true, force: true })
-})
-
 describe('syncMain with a merge check (BTN-995)', { timeout: 60_000 }, () => {
+  beforeEach(async () => {
+    root = mkdtempSync(join(tmpdir(), 'even-keel-sync-check-'))
+    await copyRepository('sync-check', root, remoteAndClones)
+    remote = join(root, 'remote.git')
+    first = join(root, 'first')
+    second = join(root, 'second')
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
   it('runs the check on a merge with commits another clone pushed, then pushes', async () => {
     await commit(first, 'one')
     await git(first, 'push', '-q', 'origin', MAIN)

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { TaskWork } from '../state.js'
 import { runGit } from './run.js'
 import { slotPaths } from './slot.js'
+import { copyRepository } from './template.fixture.js'
 import { taskPlace } from './worktree.js'
 import { TaskWorks, worksOf, type TaskFolders } from './work.js'
 
@@ -24,13 +25,15 @@ const commit = async (cwd: string, name: string) => {
 
 beforeEach(async () => {
   repo = mkdtempSync(join(tmpdir(), 'even-keel-work-'))
-  await git(repo, 'init', '-q', '--template=', '-b', 'trunk')
-  await git(repo, 'config', 'user.email', 'john.doe@example.com')
-  await git(repo, 'config', 'user.name', 'John Doe')
-  await git(repo, 'config', 'core.hooksPath', join(repo, 'no-hooks'))
-  writeFileSync(join(repo, '.gitignore'), '.claude/worktrees/\n.temp/\n')
-  await git(repo, 'add', '.gitignore')
-  await git(repo, 'commit', '-q', '-m', 'base')
+  await copyRepository('work', repo, async (path) => {
+    await git(path, 'init', '-q', '--template=', '-b', 'trunk')
+    await git(path, 'config', 'user.email', 'john.doe@example.com')
+    await git(path, 'config', 'user.name', 'John Doe')
+    await git(path, 'config', 'core.hooksPath', join(path, 'no-hooks'))
+    writeFileSync(join(path, '.gitignore'), '.claude/worktrees/\n.temp/\n')
+    await git(path, 'add', '.gitignore')
+    await git(path, 'commit', '-q', '-m', 'base')
+  })
 })
 
 afterEach(() => {

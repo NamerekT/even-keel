@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { branchDiffOf } from './diff.js'
 import { runGit } from './run.js'
+import { copyRepository } from './template.fixture.js'
 
 let repo: string
 
@@ -21,13 +22,18 @@ const commit = async (name: string, text: string) => {
 
 beforeEach(async () => {
   repo = mkdtempSync(join(tmpdir(), 'even-keel-diff-'))
-  await git(repo, 'init', '-q', '--template=', '-b', 'trunk')
-  await git(repo, 'config', 'user.email', 'john.doe@example.com')
-  await git(repo, 'config', 'user.name', 'John Doe')
-  await git(repo, 'config', 'core.autocrlf', 'false')
-  await git(repo, 'config', 'core.hooksPath', join(repo, 'no-hooks'))
-  await commit('.gitignore', '.temp/\n')
-  await commit('base.ts', 'one\ntwo\nthree\n')
+  await copyRepository('diff', repo, async (path) => {
+    await git(path, 'init', '-q', '--template=', '-b', 'trunk')
+    await git(path, 'config', 'user.email', 'john.doe@example.com')
+    await git(path, 'config', 'user.name', 'John Doe')
+    await git(path, 'config', 'core.autocrlf', 'false')
+    await git(path, 'config', 'core.hooksPath', join(path, 'no-hooks'))
+    for (const [name, text] of [['.gitignore', '.temp/\n'], ['base.ts', 'one\ntwo\nthree\n']] as const) {
+      writeFileSync(join(path, name), text)
+      await git(path, 'add', name)
+      await git(path, 'commit', '-q', '-m', name)
+    }
+  })
 })
 
 afterEach(() => {
