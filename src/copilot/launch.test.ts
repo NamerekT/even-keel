@@ -1,16 +1,17 @@
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, writeSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, writeSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TurnRegistry } from '../codex/turns.js'
 import { CopilotCli } from './cli.js'
 
-const cliOutput = vi.hoisted(() => ({ text: '' }))
+const cliOutput = vi.hoisted(() => ({ text: '', args: [] as string[] }))
 
 vi.mock('node:child_process', async (original) => ({
   ...await original<typeof import('node:child_process')>(),
-  spawn: (_bin: string, _args: string[], options: { stdio: [string, number, number] }) => {
+  spawn: (_bin: string, args: string[], options: { stdio: [string, number, number] }) => {
+    cliOutput.args = args
     writeSync(options.stdio[1], cliOutput.text)
     const stdin = Object.assign(new EventEmitter(), { end: () => {} })
     const child = Object.assign(new EventEmitter(), { pid: 2147483647, stdin, unref: () => {} })
@@ -58,5 +59,17 @@ describe('Copilot launch without a transcript', () => {
     const cli = new CopilotCli(() => 'copilot', 1000, () => ({}), new TurnRegistry(dir))
     const result = cli.launch({ key: 'copilot', dir, global: false, agent: 'copilot' }, { name: 'DEMO-1', cwd: dir, model: null, prompt: 'DEMO-1' })
     await expect(result).rejects.toMatchObject({ notice: { code: 'copilot.startFailed', detail: expect.stringMatching(/trustedFolders/) } })
+  })
+
+  it('lets the session read the folders Even Keel keeps its files in, only those that exist (BTN-1535)', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'copilot-launch-'))
+    const files = join(dir, 'files')
+    mkdirSync(files)
+    const cli = new CopilotCli(() => 'copilot', 1000, () => ({}), new TurnRegistry(dir), () => [files, join(dir, 'absent')])
+    cliOutput.text = 'Error: Model "missing-model" from --model flag is not available.\n'
+    await expect(cli.launch({ key: 'copilot', dir, global: false, agent: 'copilot' }, { name: 'DEMO-1', cwd: dir, model: null, prompt: 'DEMO-1' })).rejects.toBeDefined()
+    const added = cliOutput.args.flatMap((arg, at) => (cliOutput.args[at - 1] === '--add-dir' ? [arg] : []))
+    expect(added).toContain(files)
+    expect(added).not.toContain(join(dir, 'absent'))
   })
 })

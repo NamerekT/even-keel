@@ -176,6 +176,8 @@ export class CopilotCli {
     private readonly timeoutMs: number,
     private readonly envOf: (home: AccountHome) => NodeJS.ProcessEnv,
     private readonly registry: TurnRegistry,
+    /** Even Keel's own folders a session reads from, such as the built-in tracker's attachments (BTN-1535). */
+    private readonly readDirs: () => string[] = () => [],
   ) {}
 
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
@@ -257,9 +259,10 @@ export class CopilotCli {
    * it starts; the turn has started once the session's transcript has the turn's prompt or the process is over.
    */
   private async turn(home: AccountHome, start: SessionStart, cwd: string, session: { id: string; resume: boolean }, failure: Notice): Promise<{ pid: number; out: string; at: number }> {
-    const dirs = [await mainCheckout(cwd)].filter((dir): dir is string => dir !== null)
+    const main = await mainCheckout(cwd)
+    const dirs = [...(main === null ? [] : [main]), ...this.readDirs().filter((dir) => existsSync(dir))]
     try {
-      trustFolder(home.dir, dirs[0] ?? cwd)
+      trustFolder(home.dir, main ?? cwd)
     } catch (error) {
       throw new NoticeError({ ...failure, detail: (error as Error).message }, { cause: error })
     }

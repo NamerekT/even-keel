@@ -5,7 +5,9 @@ import type { AgentAdapter } from '../agent/contract.js'
 import { cliCopy } from '../agent/copy.js'
 import { isMuslLinux, npmLatest } from '../agent/npm.js'
 import { PinnedCli } from '../agent/pinned.js'
+import { attachmentsDirOf } from '../builtin/files.js'
 import { TurnRegistry } from '../codex/turns.js'
+import { stateDirOf } from '../locations.js'
 import { askCopilot, askCopilotToken } from '../limits/copilot.js'
 import { notice } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
@@ -53,7 +55,8 @@ export const copilot: AgentAdapter = {
     const system = () => resolveCopilotBinary(env())
     const onMachine = () => findBinary(system(), env())
     const registry = new TurnRegistry(join(workDir, COPILOT))
-    const cli = new CopilotCli(bin, timeoutMs, envOf, registry)
+    // The attachments' paths a brief and `task_read` give lie outside every project folder (BTN-1535).
+    const cli = new CopilotCli(bin, timeoutMs, envOf, registry, () => [attachmentsDirOf(stateDirOf())])
     const read = (home: AccountHome, sessionId: string) => readFile(eventsFile(home.dir, sessionId), 'utf8').catch(() => undefined)
     return {
       cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_COPILOT_BIN, 155 * 1_000_000),
