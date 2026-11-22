@@ -81,9 +81,11 @@ const LAUNCH_PATTERN: Record<string, number[]> = {
   XYZ: [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
 }
 
-function fakeLaunches(): LaunchEntry[] {
+/** `?launches=favorite` makes ABC hold most of the launches, so the home page may joke about a favourite (BTN-1463). */
+function fakeLaunches(favorite: boolean): LaunchEntry[] {
   return Object.entries(LAUNCH_PATTERN).flatMap(([project, counts]) =>
-    counts.flatMap((count, index) => {
+    counts.flatMap((base, index) => {
+      const count = favorite && project === 'ABC' ? base * 20 : base
       const at = new Date()
       at.setDate(at.getDate() - (counts.length - 1 - index))
       at.setHours(10, 0, 0, 0)
@@ -347,7 +349,7 @@ export function createFakeSource(search: string): LiveSource {
   const requestedHuly = params.get('huly')
   const huly: TrackerLinkState = isHulyState(requestedHuly) ? requestedHuly : 'live'
   const listeners = new Set<() => void>()
-  const launches = fakeLaunches()
+  const launches = fakeLaunches(params.get('launches') === 'favorite')
   const idle = params.get('chain') === 'idle'
   const contextTokens = Number(params.get('ctx') ?? 61_000)
   const delay = params.has('delay') ? Number(params.get('delay')) : null

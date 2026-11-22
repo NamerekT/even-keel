@@ -249,7 +249,7 @@ describe('punchline', () => {
 
 describe('harborMemes', () => {
   const day = (date: string, counts: Record<string, number>) => ({ day: date, counts })
-  const harbor = (extra: Partial<Harbor> = {}): Harbor => ({ projects: ['ABC', 'XYZ'], launches: [], questions: 0, fiveHour: null, ...extra })
+  const harbor = (extra: Partial<Harbor> = {}): Harbor => ({ projects: ['ABC', 'XYZ'], labels: {}, launches: [], questions: 0, fiveHour: null, ...extra })
 
   it('always has the line about itself', () => {
     expect(harborMemes(harbor())).toEqual([{ kind: 'self' }])
@@ -263,9 +263,17 @@ describe('harborMemes', () => {
 
   it('finds a favourite holding three quarters of at least fifty launches, among several projects', () => {
     const launches = [day('2026-10-08', { ABC: 45, XYZ: 15 })]
-    expect(harborMemes(harbor({ launches }))).toContainEqual({ kind: 'favorite', project: 'ABC', count: 45, total: 60 })
+    expect(harborMemes(harbor({ launches }))).toContainEqual({ kind: 'favorite', project: 'ABC', label: 'ABC', count: 45, total: 60 })
     expect(harborMemes(harbor({ launches: [day('2026-10-08', { ABC: 44, XYZ: 16 })] })).map((meme) => meme.kind)).not.toContain('favorite')
     expect(harborMemes(harbor({ projects: ['ABC'], launches: [day('2026-10-08', { ABC: 60 })] })).map((meme) => meme.kind)).not.toContain('favorite')
+  })
+
+  it('names the favourite by its label, not its id (BTN-1463)', () => {
+    const id = '7082528b-67e6-4c08-9480-ae1884e2c268'
+    const other = '1f0c2d3e-4b5a-6978-8a9b-0c1d2e3f4a5b'
+    const launches = [day('2026-10-08', { [id]: 45, [other]: 15 })]
+    const memes = harborMemes(harbor({ projects: [id, other], labels: { [id]: 'ABC Demo', [other]: 'XYZ' }, launches }))
+    expect(memes).toContainEqual({ kind: 'favorite', project: id, label: 'ABC Demo', count: 45, total: 60 })
   })
 
   it('counts waiting questions from three and the five-hour limit from half', () => {

@@ -30,6 +30,7 @@ export function Home({ state }: { state: EvenKeelState }) {
   const [draw] = useState(Math.random)
   const memes = harborMemes({
     projects: state.projects,
+    labels: state.projectLabels,
     launches: state.launches,
     questions: openQuestions(state.tasks),
     fiveHour: state.limits?.fiveHour?.usedPercentage ?? null,
@@ -207,7 +208,7 @@ function harborText(meme: HarborMeme): string[] {
     case 'peak':
       return memes.peak(PEAK_DAY().format(localDate(meme.day)), meme.count)
     case 'favorite':
-      return memes.favorite(meme.project, meme.count, meme.total)
+      return memes.favorite(meme.label, meme.count, meme.total)
     case 'questions':
       return memes.questions(meme.count)
     case 'limit':

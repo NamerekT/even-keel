@@ -178,7 +178,10 @@ export function punchline(variants: readonly string[], turn: number): string | n
 
 /** What the home page knows to joke about. */
 export interface Harbor {
+  /** Project ids, the keys of `launches`' counts. */
   projects: string[]
+  /** What a person reads a project by, per id (`projectLabels`); an id it lacks is read as is. */
+  labels: Readonly<Record<string, string>>
   launches: LaunchDay[]
   /** Open questions across all projects. */
   questions: number
@@ -189,7 +192,7 @@ export interface Harbor {
 export type HarborMeme =
   | { kind: 'self' }
   | { kind: 'peak'; day: string; count: number }
-  | { kind: 'favorite'; project: string; count: number; total: number }
+  | { kind: 'favorite'; project: string; label: string; count: number; total: number }
   | { kind: 'questions'; count: number }
   | { kind: 'limit'; percent: number }
 
@@ -208,7 +211,7 @@ export function harborMemes(harbor: Harbor): HarborMeme[] {
   if (harbor.projects.length > 1 && total >= FAVORITE.launches) {
     for (const project of harbor.projects) {
       const count = harbor.launches.reduce((sum, day) => sum + (day.counts[project] ?? 0), 0)
-      if (count >= total * FAVORITE.share) memes.push({ kind: 'favorite', project, count, total })
+      if (count >= total * FAVORITE.share) memes.push({ kind: 'favorite', project, label: harbor.labels[project] ?? project, count, total })
     }
   }
   if (harbor.questions >= QUESTIONS) memes.push({ kind: 'questions', count: harbor.questions })
