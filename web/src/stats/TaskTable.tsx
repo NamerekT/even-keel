@@ -23,11 +23,15 @@ function remarkText(remark: TasksRemark | null): string | null {
     : t.stats.remarks.stubborn(remark.task, remark.sessions)
 }
 
-/** The tip of a cost: the estimate by price where it was paid on a key, the keep-warm pings' part (BTN-1413). */
-function costTip(spend: Pick<StatsTaskRow, 'priceEstimate' | 'warmCost' | 'warmPings'>): ReactNode | null {
+/**
+ * The tip of a cost: the estimate by price where it was paid on a key, the keep-warm pings' part (BTN-1413) and the
+ * agents' requests that wrote their context again, which keep-warm does not warm (BTN-1530).
+ */
+function costTip(spend: Pick<StatsTaskRow, 'priceEstimate' | 'warmCost' | 'warmPings' | 'agentMisses' | 'agentMissCost'>): ReactNode | null {
   const lines = [
     spend.priceEstimate === null ? null : t.stats.tasks.priceEstimate(formatUsd(spend.priceEstimate)),
     spend.warmCost === null ? null : t.stats.tasks.warm(formatUsd(spend.warmCost), spend.warmPings),
+    spend.agentMisses === 0 ? null : t.stats.tasks.agentMisses(spend.agentMissCost === null ? null : formatUsd(spend.agentMissCost), spend.agentMisses),
   ].filter((line) => line !== null)
   if (lines.length === 0) return null
   return lines.map((line, index) => (

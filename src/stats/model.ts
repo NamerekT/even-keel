@@ -74,6 +74,10 @@ export interface StatsTaskRow {
   /** The part of `cost` the keep-warm pings took; `null` — no priced ping. */
   warmCost: number | null
   warmPings: number
+  /** The agents' requests of the period that wrote their context again after their cache's lifetime (`agentMisses`). */
+  agentMisses: number
+  /** What those requests cost, part of `cost`; `null` — none priced. */
+  agentMissCost: number | null
   /** The share of a weekly limit, the pings' with it. */
   limit: number | null
   sessions: number
@@ -154,6 +158,9 @@ export interface StatsTaskSession {
   /** The part of `cost` the keep-warm pings took; `null` — no priced ping. */
   warmCost: number | null
   warmPings: number
+  /** The session's agents' cold requests of all time, as `StatsTaskRow.agentMisses`. */
+  agentMisses: number
+  agentMissCost: number | null
   /** The account folder key the session's messages came from. */
   account: string | null
 }
