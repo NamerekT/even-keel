@@ -77,7 +77,7 @@ Branches (`docs/releases.md`): `main` is the latest release and gets no commits 
 
 ## Tasks
 
-Work is tracked in Even Keel's built-in tracker (Huly until 2026-11-22): `BTN` for the next version, `EKR` for fixes of the released one. Tasks go through the `tasks` plugin: read `tasks:task`.
+Work is tracked as tasks: `BTN` for the next version, `EKR` for fixes of the released one. Tasks go through the `tasks` plugin: read `tasks:task`.
 
 - A session started by hand talks things through and files tasks; the chain codes them. A talk that ends in "do it" becomes a task in `BTN` (Backlog) and the session stops: no worktree, no code. Code by hand only when the user says to do it here (this overrides the global "without a task — commit at once"); such work is a commit to the checkout's branch, `dev` or `release/v<x.y>`, never `main`.
 - A bug of the released version goes to `EKR` instead, in its version's milestone, Todo, unless the user says it can wait.
