@@ -242,6 +242,12 @@ export interface TaskLinks {
 
 const NO_LINKS: TaskLinks = { blockers: [], dependents: [] }
 
+/** `tasks` with the project's parents the read keeps apart (`EvenKeelState.parents`), so a parent in a chain relation is known. */
+export function withParents(tasks: Task[], parents: Task[]): Task[] {
+  const known = new Set(tasks.map((task) => task.id))
+  return [...tasks, ...parents.filter((parent) => !known.has(parent.id))]
+}
+
 /**
  * The open tasks an open task waits for and the open ones waiting for it; a closed task holds nothing.
  * A blocker missing from `tasks` stays, as it cannot be told closed.

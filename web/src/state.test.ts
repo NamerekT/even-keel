@@ -52,6 +52,7 @@ import {
   sessionCache,
   contextResets,
   taskLinks,
+  withParents,
   taskPrefix,
   taskProject,
   tokenTotal,
@@ -458,6 +459,15 @@ describe('taskLinks', () => {
     const links = taskLinks(tasks, [view('ABC-1', 'waiting', null)])
     expect(links('ABC-3').blockers.map((item) => item.lamp)).toEqual(['waiting', 'ahead'])
     expect(links('ABC-3').blockers[0]!.title).toBe(task('ABC-1').title)
+  })
+
+  it('gives a parent kept apart from the tasks the same keys as its blocked task shows', () => {
+    const parent = task('ABC-1', 'ToDo')
+    const tasks = [task('ABC-2', 'ToDo', ['ABC-1'])]
+    expect(ids(taskLinks(tasks, [])('ABC-1').dependents)).toEqual([])
+    const links = taskLinks(withParents(tasks, [parent, tasks[0]!]), [])
+    expect(ids(links('ABC-1').dependents)).toEqual(['ABC-2'])
+    expect(ids(links('ABC-2').blockers)).toEqual(['ABC-1'])
   })
 
   it('lights a backlog task apart from one ahead in the chain', () => {

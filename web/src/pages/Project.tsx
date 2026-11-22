@@ -31,6 +31,7 @@ import {
   readyButton,
   firstControl,
   taskLinks,
+  withParents,
   taskProject,
   trackerTitle,
   type ChainControl,
@@ -205,7 +206,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const feedSwitcher = narrow ? undefined : switcher
   const feedFocus = focus === BACKLOG_HASH || focus === SETTINGS_HASH || chatsOpen || helpOpen || ciAt.open ? '' : focus
   const tracker = state.trackers.find((view) => view.projects.includes(key))
-  const links = taskLinks(state.tasks, state.sessions)
+  const links = taskLinks(withParents(state.tasks, state.parents?.[key] ?? []), state.sessions)
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
   const openCard = (task: string) => {
     const search = new URLSearchParams(location.search)
