@@ -118,7 +118,8 @@ interface FieldProps {
 function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: FieldProps) {
   const command = useRef<CommandTextHandle>(null)
   const { state, query, deliver } = useLive()
-  const { text, files, setText, setFiles, sending, failure, dismissFailure, send } = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id)
+  const mail = chat.sessionId === null ? undefined : state?.mailbox[chat.sessionId]
+  const { text, files, setText, setFiles, sending, failure, dismissFailure, send } = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id, mail)
   const [renewal, setRenewal] = useState<ChatRenewal | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const ask = shownAsk(session?.ask ?? null, pending === null ? parts.answered : new Set([...parts.answered, pending]))
@@ -128,15 +129,13 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     setAsked(session?.ask?.id ?? null)
     setPicks(session?.ask?.questions.map(() => NO_PICK) ?? [])
   }
-  useImperativeHandle(parts.handle, () => ({ attach: (more: File[]) => setFiles((now) => [...now, ...more]), replyToMail: setText }))
+  useImperativeHandle(parts.handle, () => ({ attach: (more: File[]) => setFiles((now) => [...now, ...more]) }))
   // The server takes no message while the chat's session starts (BTN-1230). Mid-turn it takes one from a session that
   // steers or whose inbox or hooks listen, as the task chat does, and the turn goes on (BTN-1345).
   const starting = chat.state === 'starting' || (parts.awaitingFirstPrompt && chat.state !== 'error' && chat.state !== 'cold')
-  const mail = chat.sessionId === null ? undefined : state?.mailbox[chat.sessionId]
   const midTurn = chat.state === 'working' && mail?.listens === true
   const locked = chat.state === 'working' && !midTurn ? t.session.chat.working : starting ? t.chats.window.starting : null
   const sendTip = midTurn ? (mail.steers ? t.session.chat.steers : t.session.chat.mailbox) : undefined
-  // A message for the inbox or the hooks becomes the mailbox's letter under the feed, as in a task chat (BTN-1346).
   const mailing = midTurn && !mail.steers
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
@@ -144,9 +143,9 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
 
   const submit = async () => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
-    const retract = mailing ? parts.onMailed(files) : parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files)
+    const retract = parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files, midTurn)
     if (ask !== null) setPending(ask.id)
-    const ok = await send(async (message) => deliver('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }))
+    const ok = await send(async (message) => deliver('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }), mailing)
     if (ok) onChanged()
     else {
       retract()

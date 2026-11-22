@@ -92,9 +92,9 @@ A session whose chain has stopped offers only the reply.
 
 ## Writing while the session works
 
-You can also write to a session while it works ("not there", "mind X too"): a hook of the [agent-bridge](../../plugins/agent-bridge) plugin hands the message over at its next tool call or at the end of the turn, without stopping it, and the chat shows whether it waits, was delivered, or came back because the session asked a question meanwhile. A Claude Code session with the plugin from 1.6.0 takes the message at once instead, through its own inbox: mid-turn, while it waits on a background command, and between turns without a stop and a resume ("Delivered 09:14", with "Straight into the session" in its tip).
+You can write to a session while it works. Its hooks can pass the message at the next tool call or at the end of the turn. Claude Code can also receive it through its inbox. Your message appears immediately with a clock. The clock changes to two green checks on the same bubble once the transcript contains the message. A message sent from another window also shows a clock while it waits in the session’s queue.
 
-Once the task's branch is merged or the task is done, the session gets no more messages: the chat refuses them, and one already on its way comes back, since the work it asks for belongs in a new task. The same goes for an answer sent in the moment the task closes: it shows in the chat as come back, not sent.
+If the session asks a question, stops, or the task closes before delivery, the bubble shows a red mark. Point to it for the reason. The message and its attachments return ahead of whatever you have typed. On another device, the draft includes the saved file paths. A closed task keeps its draft available to copy.
 
 If the hook times out before the service sends its response, the message stays queued for the next hook or resume.
 
@@ -151,7 +151,7 @@ The chats are the **Chats** tab of the project page, between Backlog and Setting
 
 - You choose the account, the model and the effort when you create a chat, and they stay until the chat ends. Even Keel offers your last choice in that project for the next chat.
 - Your first message appears in the chat as soon as you send it and stays visible while the session starts. You can type and attach files for your next message while the previous one uploads. If the upload fails, the chat shows the reason and puts the original text and attachments before your new draft, even if you closed the chat.
-- While a chat is working you can still write to it, as in a task's chat: the message waits and the session reads it after its current tool call, without stopping its turn. On Claude it goes in through the session's inbox; on OpenCode, Copilot and Codex it shows under the feed as a letter that waits, is delivered or comes back, as in a task's chat. A session that cannot take a message mid-turn keeps the field shut until it answers, and the field says so.
+- You can also send a message while a project chat is working if its session accepts mid-turn messages. The bubble shows the same clock, checks or failure mark as a task chat. Otherwise the field tells you when you can send.
 - A chat goes to the archive a day after its last message or its session's last action, whatever it is doing then, and its session is stopped. Hiding a chat archives it too; nothing is deleted, and the transcript stays on disk.
 - An archived chat is only for reading. To go on, start a new chat.
 - A message to a chat whose cache went cold asks first: reply there anyway, which rereads the whole context, or **New session with this message**. When the chat's account is at its limit, only the new session is offered. The window says why, shows your message and lets you pick the account, the model and the effort; at a limit the next account with room is picked already. The new session gets your message, the last turns of the old chat and a link to its transcript; the old chat goes to the archive, its session stops, and the new chat opens with a "Continued from" link to it. Cancel keeps your text and files in the field.

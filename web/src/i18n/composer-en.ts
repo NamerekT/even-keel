@@ -34,28 +34,6 @@ export const composerEn = {
   working: 'You can send once the session stops.',
   mailbox: 'The session is working: the message reaches it mid-turn, at its next tool call or at the end of the turn.',
   steers: 'The session is working: the message goes straight in, and it reads it once its current tool call ends.',
-  mail: {
-    waiting: 'Waits for the hook',
-    queued: 'In the session',
-    queuedTip: 'It reads it once the current tool call ends',
-    delivered: (at: string) => `Delivered ${at}`,
-    /** How a delivered letter got in, the tip of "Delivered". */
-    events: {
-      PreToolUse: 'Before a tool call',
-      PostToolUse: 'After a tool call',
-      Stop: 'At the end of the turn',
-      AskUserQuestion: 'In place of a question',
-      resume: 'By resuming the session',
-      inbox: 'Straight into the session',
-    },
-    returned: {
-      asked: 'Came back: the session asked a question while the message was on its way. Send it as the answer or dismiss it.',
-      gone: 'Came back: the session stopped before it took the message. Send it again or dismiss it.',
-      closed: 'Came back: the task is already closed, so the session did not get it. Put what it asks into a new task, then dismiss it.',
-    },
-    reply: 'As the answer',
-    dismiss: 'Dismiss',
-  },
   commands: {
     menu: 'Commands',
     filter: 'Type to filter',
@@ -65,6 +43,11 @@ export const composerEn = {
   running: (tool: string) => `Running: ${tool}`,
   turnSince: (time: string) => `The turn has been going since ${time}`,
   delivery: {
+    returned: {
+      asked: 'The session asked a question.',
+      gone: 'The session stopped before receiving the message.',
+      closed: 'The task is already closed.',
+    },
     delivering: 'Delivering',
     delivered: (time: string | null) => (time === null ? 'Delivered' : `Delivered at ${time}`),
     failed: 'Not delivered',

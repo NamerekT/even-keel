@@ -2,12 +2,12 @@ import { formatLineTime } from '../format.js'
 import { t } from '../i18n/index.js'
 import { ClockIcon, DoubleCheckIcon, UnsentIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
-import type { Delivery } from './sentLines.js'
+import type { Delivery, FeedMark } from './sentLines.js'
 
 /** The mark left of the time under the user's message (BTN-1362): a clock, two green checks or a red sign, its words in a tip. */
-export function DeliveryMark({ delivery, at }: { delivery: Delivery; at: string }) {
+export function DeliveryMark({ delivery, at, reason }: { delivery: Delivery; at: string; reason?: FeedMark['reason'] }) {
   const words = t.session.chat.delivery
-  const tip = delivery === 'delivered' ? words.delivered(at === '' ? null : formatLineTime(at)) : words[delivery]
+  const tip = delivery === 'delivered' ? words.delivered(at === '' ? null : formatLineTime(at)) : reason === undefined ? words[delivery] : words.failed + '. ' + words.returned[reason]
   return (
     <Tipped inline focusable align="end" className={`delivery delivery--${delivery}`} tip={tip}>
       <span className="delivery__icon" role="img" aria-label={tip}>

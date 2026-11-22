@@ -1,4 +1,6 @@
-import { useMemo, useSyncExternalStore } from 'react'
+import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
+import { recoverMail, rememberUpload } from './mailRecovery.js'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { noticeOf } from '../../../src/notice/notice.js'
 import { draftKey, readDraft, writeDraft, type Draft } from './chatDraft.js'
 
@@ -70,11 +72,21 @@ class ChatDraft {
     if (failure !== undefined) this.edit(rest)
   }
 
-  send = async (post: (message: Draft) => Promise<unknown>): Promise<boolean> => {
+  settle = async (session: string, mail: Mail[]) => {
+    await this.loading
+    const draft = recoverMail(this.state.draft, session, mail)
+    if (draft !== this.state.draft) {
+      this.edit(draft)
+      this.flush()
+    }
+  }
+
+  send = async (post: (message: Draft) => Promise<unknown>, mailbox?: { session: string; mail: Mail[] }): Promise<boolean> => {
     if (this.state.sending) return false
     const message = this.state.draft
     this.dirty = true
-    this.update(empty, true)
+    const recovery = mailbox && message.files.length ? rememberUpload(message, mailbox.session, mailbox.mail) : message.recovery
+    this.update(recovery ? { ...empty, recovery } : empty, true)
     this.flush()
     try {
       await post(message)
@@ -86,6 +98,9 @@ class ChatDraft {
       this.update({
         text: [message.text, next.text].filter(Boolean).join('\n\n'),
         files: [...message.files, ...next.files],
+        ...(next.recovery && { recovery: {
+          ...next.recovery, uploads: next.recovery.uploads.filter(each => each.files !== message.files),
+        } }),
         failure: noticeOf(reason),
       }, false)
       this.flush()
@@ -96,10 +111,14 @@ class ChatDraft {
   }
 }
 
-export function useChatDraft({ project, task }: DraftOwner, session: string) {
+export function useChatDraft({ project, task }: DraftOwner, session: string, mailbox?: SessionMail) {
   const key = draftKey(project, task)
   // The session only locates a legacy draft on first open. A handoff keeps the same owner.
   const entry = useMemo(() => open.get(key) ?? new ChatDraft(key, task, session), [key])
   const { draft, sending } = useSyncExternalStore(entry.subscribe, entry.snapshot, entry.snapshot)
-  return { ...draft, sending, setText: entry.setText, setFiles: entry.setFiles, dismissFailure: entry.dismissFailure, send: entry.send }
+  useEffect(() => {
+    if (mailbox?.mail.length) void entry.settle(session, mailbox.mail)
+  }, [entry, session, mailbox?.mail])
+  return { ...draft, sending, setText: entry.setText, setFiles: entry.setFiles, dismissFailure: entry.dismissFailure, send: (post: (message: Draft) => Promise<unknown>, mailing = false) =>
+    entry.send(post, mailing && mailbox ? { session, mail: mailbox.mail } : undefined) }
 }

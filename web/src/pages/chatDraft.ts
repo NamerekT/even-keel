@@ -1,9 +1,11 @@
+import type { MailRecovery } from './mailRecovery.js'
 import type { Notice } from '../../../src/notice/notice.js'
 
 /** What the composer keeps of an unsent reply; the picks of an open question are not part of it. */
 export interface Draft {
   text: string
   files: File[]
+  recovery?: MailRecovery
   failure?: Notice
 }
 
@@ -89,7 +91,7 @@ async function within<T>(store: string, mode: IDBTransactionMode, work: (store: 
 export async function readDraft(key: string, task: string, sessionId: string): Promise<Draft | null> {
   try {
     const found = await within<TaskDraft | undefined>(TASK_STORE, 'readonly', (store) => store.get(key) as IDBRequest<TaskDraft | undefined>)
-    if (found !== undefined) return { text: found.text, files: found.files, failure: found.failure }
+    if (found !== undefined) return { text: found.text, files: found.files, failure: found.failure, recovery: found.recovery }
     const old = await within<SessionDraft | undefined>(SESSION_STORE, 'readonly', (store) => store.get(sessionId) as IDBRequest<SessionDraft | undefined>)
     if (old === undefined) return null
     const draft = { text: old.text, files: old.files }
@@ -104,7 +106,7 @@ export async function readDraft(key: string, task: string, sessionId: string): P
 /** Keeps the draft, or forgets it once it is blank — after a send too. */
 export async function writeDraft(key: string, task: string, draft: Draft): Promise<void> {
   try {
-    if (isBlank(draft) && !draft.failure) await within(TASK_STORE, 'readwrite', (store) => store.delete(key))
+    if (isBlank(draft) && !draft.failure && !draft.recovery) await within(TASK_STORE, 'readwrite', (store) => store.delete(key))
     else await within(TASK_STORE, 'readwrite', (store) => store.put({ key, task, ...draft, savedAt: Date.now() } satisfies TaskDraft))
   } catch {
     // Nowhere to keep it: the draft lives only while the window is open, as before.

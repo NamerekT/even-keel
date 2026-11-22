@@ -26,8 +26,6 @@ const SENT_HOLD_MS = 90_000
 /** What the chat window hands the composer: files dropped anywhere on it. */
 export interface ComposerHandle {
   attach: (files: File[]) => void
-  /** Put a returned letter back into the task session's draft. */
-  replyToMail?: (text: string) => void
   /** "Accept as answer" from the menu of the last message: sent as from the banner, its refusal shown over the field. */
   accept?: () => void
 }
@@ -49,10 +47,8 @@ interface Props {
   mail: SessionMail | undefined
   /** Questions the feed holds answers to: their panel is never offered again. */
   answered: ReadonlySet<string>
-  /** `steered` — the message goes straight into the working session; called before the server answers, it gives what takes the line back. `files` — the chosen ones, whose pictures the line shows at once. */
-  onSent: (line: FeedLine, steered: boolean, files: File[]) => () => void
-  /** A message went into the mailbox: keeps the pictures among `files` for its letter; gives what drops them. */
-  onMailed: (files: File[]) => () => void
+  /** Echo the send before the request starts. */
+  onSent: (line: FeedLine, files: File[], midTurn: boolean) => () => void
   /** A new session is taking the message over (BTN-1281): the field is shut until it is up. */
   handing: boolean
   /** "New session with this message" is pressed; called before the server answers, it gives what takes the press back. */
@@ -70,11 +66,11 @@ interface Props {
  * its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, answered, onSent, onMailed, handing, onRenew, restore, handle, status }: Props) {
+export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, answered, onSent, handing, onRenew, restore, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
   const accept = useCommand()
   const { deliver: post } = useLive()
-  const draft = useChatDraft(owner, session.sessionId)
+  const draft = useChatDraft(owner, session.sessionId, mail)
   const { text, files, setText, setFiles } = draft
   const sending = draft.sending || accept.sending
   // A refusal of "Accept as answer" lives in this composer only: its ✕ hides that one, a new press may bring another.
@@ -115,10 +111,8 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   const attach = (more: File[]) => {
     if (!accept.sending) setFiles((now) => [...now, ...more])
   }
-  useImperativeHandle(handle, () => ({ attach, replyToMail: setText, accept: acceptNow }))
+  useImperativeHandle(handle, () => ({ attach, accept: acceptNow }))
   const sent = useHold(holdKey(session), SENT_HOLD_MS)
-  // A message to a working session goes straight in when it steers, listed as queued and not held; otherwise it waits
-  // in the mailbox, whose list below tells its fate, so nothing is held or echoed.
   // A closed task takes nothing more: what a message asks would land in the worktree of a merged task (BTN-558).
   const midTurn = !closed && session.lamp === 'working' && mail?.listens === true
   const steering = midTurn && mail.steers
@@ -138,7 +132,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
     // in between; on `renew` the window shows the handover with the message instead (BTN-1281).
     const show = () => {
       if (ask !== null) setPending(ask.id)
-      const retract = renew ? onRenew(text.trim()) : mailing ? onMailed(files) : onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering, files)
+      const retract = renew ? onRenew(text.trim()) : onSent(sentLine(ask?.id ?? null, answers, text, files), files, midTurn)
       return () => {
         setPending(null)
         retract()
@@ -147,9 +141,9 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
     const ok = await sendAhead(show, () => draft.send(async (message) => post('session/answer', {
       project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, renew,
       text: message.text, files: await Promise.all(message.files.map(encoded)),
-    })))
+    }), mailing))
     if (!ok) return
-    if (!mailing && !renew && !steering) sent.begin()
+    if (!midTurn && !renew) sent.begin()
   }
 
   return (

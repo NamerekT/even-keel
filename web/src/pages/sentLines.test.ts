@@ -5,7 +5,7 @@ import { sentFeed, type SentLine } from './sentLines.js'
 
 const text = (at: string, words: string): FeedLine => ({ kind: 'text', at, text: words })
 const prompt = (at: string, words: string): FeedLine => ({ kind: 'prompt', at, text: words })
-const sent = (id: number, line: FeedLine, after: number, extra: Partial<SentLine> = {}): SentLine => ({ id, line, after, steered: false, ...extra })
+const sent = (id: number, line: FeedLine, after: number, extra: Partial<SentLine> = {}): SentLine => ({ id, line, after, midTurn: false, ...extra })
 
 describe('sentFeed', () => {
   it('shows a sent line after the transcript, delivering, until the transcript has a reply after it', () => {
@@ -31,14 +31,17 @@ describe('sentFeed', () => {
     const bare = { kind: 'answer' as const, at: '10:03', text: '', answers: { ask: 'toolu_2', answers: { Which: 'B' } } }
     const lines = [prompt('10:00', 'Start'), prompt('10:05', 'Later')]
     const feed = sentFeed(lines, [sent(1, words, 1, { failed: true }), sent(2, bare, 1, { failed: true })])
-    expect(feed.all.slice(2)).toEqual([{ ...words, answers: undefined }])
-    expect(feed.marks.get(feed.all[2]!)).toEqual({ key: 'sent-1', delivery: 'failed' })
+    expect(feed.all).toEqual([lines[0], { ...words, answers: undefined }, lines[1]])
+    expect(feed.marks.get(feed.all[1]!)).toEqual({ key: 'sent-1', delivery: 'failed' })
     expect(feed.unread.map((each) => each.id)).toEqual([1, 2])
   })
 
-  it('leaves a steered line out of the feed until the transcript has it', () => {
+  it('keeps a mid-turn send in place when a different user message lands', () => {
     const mine = prompt('10:02', 'Mind X')
-    expect(sentFeed([prompt('10:00', 'Start')], [sent(1, mine, 1, { steered: true })]).all).toEqual([prompt('10:00', 'Start')])
+    const other = prompt('10:03', 'From another window')
+    const feed = sentFeed([prompt('10:00', 'Start'), other], [sent(1, mine, 1, { midTurn: true })])
+    expect(feed.all).toEqual([prompt('10:00', 'Start'), mine, other])
+    expect(feed.marks.get(mine)?.delivery).toBe('delivering')
   })
 
   it('claims one transcript reply per sent line, in order', () => {

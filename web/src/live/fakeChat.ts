@@ -248,6 +248,7 @@ export function fakeAnswer(state: EvenKeelState, body: Record<string, unknown>):
   if (view.lamp === 'working' && box?.steers === true && body.ask === null) return state
   if (view.lamp === 'working' && box?.listens === true && body.ask === null) {
     const mail = fakeMail(task, view.sessionId, Date.now(), String(body.text), 'waiting')
+    mail.files = (body.files as { name: string }[] | undefined)?.map(file => file.name) ?? []
     return { ...state, mailbox: { ...state.mailbox, [view.sessionId]: { ...box, mail: [...box.mail, mail] } } }
   }
   if (view.lamp === 'working') throw fail('answer.busy', { task })
@@ -262,10 +263,13 @@ export function fakeAnswer(state: EvenKeelState, body: Record<string, unknown>):
 }
 
 /** The fake hook: every message that waits is taken after a tool call. */
-export function fakeDeliverMail(state: EvenKeelState): EvenKeelState {
+export function fakeDeliverMail(state: EvenKeelState, returned = false): EvenKeelState {
   const settledAt = new Date().toISOString()
   return Object.keys(state.mailbox).reduce(
-    (now, sessionId) => withMail(now, sessionId, (each) => (each.fate === 'waiting' ? { ...each, fate: 'delivered', event: 'PostToolUse', settledAt } : each)),
+    (now, sessionId) => withMail(now, sessionId, each => {
+      if (each.fate !== 'waiting') return each
+      return returned ? { ...each, fate: 'returned', reason: 'asked', settledAt } : { ...each, fate: 'delivered', event: 'PostToolUse', settledAt }
+    }),
     state,
   )
 }
@@ -279,8 +283,14 @@ export function fakeDismissMail(state: EvenKeelState, sessionId: string): EvenKe
  * `?chain=mail`: the working session of ABC-5 listens, one message was delivered, one waits for the hook with a picture, one came back
  * after a question and one after the task's branch landed in main (BTN-558).
  */
-export function fakeMailbox(task: string, sessionId: string, now: number): SessionMail {
+export function fakeMailbox(task: string, sessionId: string, now: number, phase: string | null = null): SessionMail {
   const minutes = (count: number) => now - count * 60_000
+  if (phase === 'waiting' || phase === 'delivered' || phase === 'returned') {
+    const letter = fakeMail(task, sessionId, now, 'Проверь порядок задач на узком экране.', phase)
+    if (phase === 'returned') letter.reason = 'asked'
+    if (phase === 'delivered') letter.event = 'PostToolUse'
+    return { listens: true, steers: false, mail: [letter] }
+  }
   return {
     listens: true,
     steers: false,
