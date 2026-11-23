@@ -115,5 +115,5 @@ export function MachineFolderField({ labels, root, pick, hubName, probe, disable
 
 function ProbeLine({ probe }: { probe: FolderProbe }) {
   if (probe.state === 'taken') return <Status>{say(probe.notice)}</Status>
-  return <Status ok>{t.pool.wizard.states[probe.state]}</Status>
+  return <Status ok>{probe.state === 'clone' && probe.notice !== undefined ? say(probe.notice) : t.pool.wizard.states[probe.state]}</Status>
 }

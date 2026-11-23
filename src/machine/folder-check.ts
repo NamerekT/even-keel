@@ -18,8 +18,11 @@ export type FolderStep = (typeof FOLDER_STEPS)[number]
 export interface FolderSpec {
   project: string
   folder: string
-  /** The addresses of the project's remotes in the hub's folder. */
-  remotes: string[]
+  /**
+   * The addresses of the project's remotes in the hub's folder; `null` — the hub has no repository of the project to
+   * read them from (BTN-1554), so the folder's own remote, `origin` first, is taken as the project's.
+   */
+  remotes: string[] | null
   /** The project's main branch (`branch`). */
   branch: string
   /** Claude Code runs the project's sessions: the folder has to be trusted. */
@@ -41,11 +44,27 @@ export interface FolderCheckDeps {
 const PACKAGES_POLL_MS = 1000
 const PACKAGES_WAIT_MS = 3 * 60_000
 
-/** The folder's remote that is the project's: one of the hub's addresses, the scheme and `.git` apart. */
+/** The remote a checkout works through when nothing else names one: `origin`, else the first. */
+export const mainRemote = (remotes: Remote[]): Remote | undefined => remotes.find((remote) => remote.name === 'origin') ?? remotes[0]
+
+/**
+ * The folder's remote that is the project's: one of the hub's addresses, the scheme and `.git` apart; with none known
+ * on the hub, the folder's `mainRemote`.
+ */
 async function projectRemote(git: Git, spec: Pick<FolderSpec, 'folder' | 'remotes'>): Promise<Remote | undefined> {
   const urls = await remoteUrls(git, spec.folder)
   if (urls.code !== 0) return undefined
-  return remotesOf(urls.out).find((remote) => spec.remotes.some((url) => sameRemote(url, remote.url)))
+  const own = remotesOf(urls.out)
+  const { remotes } = spec
+  return remotes === null ? mainRemote(own) : own.find((remote) => remotes.some((url) => sameRemote(url, remote.url)))
+}
+
+/** Why the folder has no remote of the project: the folder has none, the hub has none, or it is another one. */
+function noProjectRemote(spec: Pick<FolderSpec, 'folder' | 'remotes'>): Notice {
+  const { folder, remotes } = spec
+  if (remotes === null) return notice('pool.folderNoRemote', { folder })
+  const [remote] = remotes
+  return remote === undefined ? notice('pool.hubNoRemote', {}) : notice('pool.otherRemote', { folder, remote })
 }
 
 /** One check of the folder; `null` — it passed, else what the person does about it. */
@@ -58,8 +77,8 @@ export async function checkFolderStep(deps: FolderCheckDeps, step: FolderStep, s
     return top.code === 0 && top.out.trim() === 'true' ? null : notice('pool.notRepository', { folder })
   }
   if (step === 'remote') {
-    if (spec.remotes.length === 0) return notice('pool.hubNoRemote', {})
-    return (await projectRemote(git, spec)) === undefined ? notice('pool.otherRemote', { folder, remote: spec.remotes[0]! }) : null
+    if (spec.remotes?.length === 0) return notice('pool.hubNoRemote', {})
+    return (await projectRemote(git, spec)) === undefined ? noProjectRemote(spec) : null
   }
   if (step === 'branch') {
     const remote = await projectRemote(git, spec)
@@ -86,7 +105,7 @@ export async function checkFolderStep(deps: FolderCheckDeps, step: FolderStep, s
   }
   // A push of the main branch onto itself sends nothing, yet the remote checks the right to push before it answers.
   const remote = await projectRemote(git, spec)
-  if (remote === undefined) return notice('pool.otherRemote', { folder, remote: spec.remotes[0] ?? '' })
+  if (remote === undefined) return noProjectRemote(spec)
   const tracked = (await git(folder, ['rev-parse', '--verify', '--quiet', `refs/remotes/${remote.name}/${branch}`])).code === 0
   const source = tracked ? `refs/remotes/${remote.name}/${branch}` : `refs/heads/${branch}`
   const push = await git(folder, ['push', '--dry-run', '--porcelain', remote.name, `${source}:refs/heads/${branch}`])
@@ -115,14 +134,20 @@ function folderFree(folder: string): boolean {
   }
 }
 
-/** What the folder is to a project with these remotes (`FolderProbe`, BTN-1297). */
-export async function probeFolder(git: Git, folder: string, remotes: string[]): Promise<FolderProbe> {
+/**
+ * What the folder is to a project with these remotes (`FolderProbe`, BTN-1297); `null` — none known on the hub
+ * (BTN-1554): a repository with a remote is taken as the project's, with a note saying so.
+ */
+export async function probeFolder(git: Git, folder: string, remotes: string[] | null): Promise<FolderProbe> {
   if (folderFree(folder)) return { state: 'free' }
   const top = await git(folder, ['rev-parse', '--is-inside-work-tree'])
   if (top.missing === true) return { state: 'taken', notice: notice('pool.noGit', {}) }
   if (top.code !== 0 || top.out.trim() !== 'true') return { state: 'taken', notice: notice('pool.folderNotEmpty', { folder }) }
-  if ((await projectRemote(git, { folder, remotes })) !== undefined) return { state: 'clone' }
-  return { state: 'taken', notice: notice('pool.foreignRepo', { folder, remote: remotes[0] ?? '' }) }
+  if ((await projectRemote(git, { folder, remotes })) !== undefined) {
+    return remotes === null ? { state: 'clone', notice: notice('pool.hubNoRepositoryTaken', { folder }) } : { state: 'clone' }
+  }
+  const [remote] = remotes ?? []
+  return { state: 'taken', notice: remote === undefined ? noProjectRemote({ folder, remotes }) : notice('pool.foreignRepo', { folder, remote }) }
 }
 
 /** A check's refusal as the error a job's step fails with. */

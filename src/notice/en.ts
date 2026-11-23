@@ -179,6 +179,10 @@ export const en = {
   'pool.noGit': () => 'git is not installed on the machine: install it there, then Retry',
   'pool.notRepository': (p: { folder: string }) => `There is no git repository in ${p.folder} on the machine: name an empty folder, and the project is cloned into it, or the folder its clone is in`,
   'pool.hubNoRemote': () => 'The project\'s repository here has no remote: a machine elsewhere gets its work only through one, so add a remote first',
+  'pool.hubNoRepository': (p: { repo: string }) =>
+    `There is no repository of the project here in ${p.repo}, so there is nothing to clone onto the machine: name the folder of its clone on the machine, or set its folder on the Repository tab to a clone here`,
+  'pool.hubNoRepositoryTaken': (p: { folder: string }) => `The repository in ${p.folder} is taken as the project's as it is: there is no repository of the project here to compare its remotes with`,
+  'pool.folderNoRemote': (p: { folder: string }) => `The repository in ${p.folder} on the machine has no remote: a machine elsewhere gets its work only through one, so add one there, then Retry`,
   'pool.otherRemote': (p: { folder: string; remote: string }) => `The repository in ${p.folder} is not this project's: none of its remotes is ${p.remote}`,
   'pool.noBranch': (p: { folder: string; branch: string }) => `The repository in ${p.folder} has no branch ${p.branch}: fetch it there (git fetch), then Retry`,
   'pool.untrusted': (p: { folder: string }) => `Claude Code on the machine does not trust ${p.folder}: start claude in that folder there once, accept the dialog, then Retry`,

@@ -30,7 +30,7 @@ import { stepJobs } from '../jobs/runner.js'
 import { trustFolder } from '../claude/trust.js'
 import { gitSwitchBlock, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
 import { removalBlock } from '../projects/removal.js'
-import { remotesIn, sameRepository } from '../projects/remotes.js'
+import { remotesIn, repositoryRemotes, sameRepository } from '../projects/remotes.js'
 import { onMachines, poolControl } from './machine-pool.js'
 import { machinePageControl } from './machine-page.js'
 import { machineCards } from './machine-cards.js'
@@ -264,7 +264,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       const repo = ctx.configStore.current.projects[project]
       if (repo === undefined) throw fail('machines.unknownProject', {})
       const claude = runSettings(ctx.configStore.current, project).provider === CLAUDE
-      return { repo, remotes: await remotesIn(runGit, repo), branch: ctx.branchOf(project), claude }
+      return { repo, remotes: await repositoryRemotes(runGit, repo), branch: ctx.branchOf(project), claude }
     },
   })
   const network = ctx.machineLink.network

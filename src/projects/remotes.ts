@@ -46,6 +46,13 @@ export async function remotesIn(git: Git, repo: string): Promise<Remote[]> {
   return urls.code === 0 ? remotesOf(urls.out) : []
 }
 
+/** A checkout's remotes; `null` — `repo` is no repository at all (absent, or not a work tree), so none can be read (BTN-1554). */
+export async function repositoryRemotes(git: Git, repo: string): Promise<Remote[] | null> {
+  const top = await git(repo, ['rev-parse', '--is-inside-work-tree'])
+  if (top.code !== 0 || top.out.trim() !== 'true') return null
+  return remotesIn(git, repo)
+}
+
 /** The repositories a checkout's remotes point at, each once; none when git cannot read the folder. */
 export async function checkoutRemotes(git: Git, repo: string): Promise<RemoteRef[]> {
   return refsOf(await remotesIn(git, repo), repo)

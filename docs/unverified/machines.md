@@ -330,3 +330,11 @@ To check, on the benches (entry 181): connect a machine elsewhere to a project, 
 Assumed: Claude Code's `install.sh`/`install.ps1` and a global npm install finish without a terminal as the service's user — under the Windows service in session 0 too, into that user's profile — and put the binary where a launch finds it (`~/.local/bin`, npm's global folder). If not, the output under the button shows the installer's error and the CLI stays missing; run the command in a terminal as that user.
 
 To check, on the benches: on a hub on Yours without Codex, "Install" in the CLI's window; on a machine elsewhere, the tile of an agent with no CLI in "A new account on …", then "Install"; Claude Code installed by hand on a machine into `~/.local/bin` outside `PATH`; in a container, "Use the checked copy". After each, the machine's page shows the version within a minute, without a restart.
+
+## A machine connected to a project with no repository on the hub (BTN-1554)
+
+`docs/machines.md`, "The pool on the page" ("No repository of the project on the hub"). After a hub moved to another computer a project's `repo` can name a folder that is not there; the hub then knows no remotes of the project and takes the machine's folder by its own remote. Covered by `src/machine/folder-check.test.ts`, `src/service/machine-pool.test.ts` and `src/projects/remotes.test.ts` with scripted git.
+
+Assumed: the hub's `git rev-parse --is-inside-work-tree` in a missing folder fails rather than reading a parent repository, and the machine of an older version than the hub, handed `remotes: null`, refuses the folder rather than taking it. If not, a folder inside another repository on the hub counts as the project's repository with that repository's remotes, or an older machine stops the connection with an error; update the machine, or put a clone of the project on the hub and set it on the Repository tab.
+
+To check, on the benches (entry 181): set a project's Repository folder on the bench hub to a path that is not there, then in "Add a machine" or the project's "Machines" name on the machine a folder holding the project's clone and see the field say it is taken as it is, the connection pass every check and the machine turn on; name an empty folder and see `pool.hubNoRepository` with its button to the Repository tab. Put the folder back afterwards.

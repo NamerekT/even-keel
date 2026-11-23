@@ -2,7 +2,7 @@ import type { Remote } from '../ci/remote.js'
 import { JOIN_KIND, type JoinRequest } from '../jobs/model.js'
 import type { JobPlan, StepDef } from '../jobs/runner.js'
 import type { MachineProjectSettings } from '../link/view.js'
-import { FOLDER_STEPS, throwOf, type FolderProbe, type FolderSpec } from '../machine/folder-check.js'
+import { FOLDER_STEPS, mainRemote, throwOf, type FolderProbe, type FolderSpec } from '../machine/folder-check.js'
 import { DRAFT_PROJECT } from '../machine/services.js'
 import type { DraftMachine } from '../projects/state.js'
 import { fail, notice, NoticeError } from '../notice/notice.js'
@@ -16,7 +16,8 @@ export type PoolNetwork = Pick<MachineNetwork, 'target' | 'folders' | 'watchClon
 /** What the connection checks the machine's folder against: the project as the hub has it. */
 export interface ProjectFacts {
   repo: string
-  remotes: Remote[]
+  /** The remotes of the hub's folder; `null` — no repository there to read them from (BTN-1554). */
+  remotes: Remote[] | null
   /** The project's main branch (`branch`). */
   branch: string
   /** Claude Code runs the project's sessions. */
@@ -46,9 +47,6 @@ export interface ConnectRequest {
   copyFrom?: string
 }
 
-/** The remote a machine clones from: `origin`, else the first. */
-const cloneRemote = (remotes: Remote[]): Remote | undefined => remotes.find((remote) => remote.name === 'origin') ?? remotes[0]
-
 /**
  * The steps that connect a machine elsewhere to a project (BTN-1271, `docs/machines.md`, "The pool on the page"): the
  * clone, if asked, the folder put into the pool turned off, the checks of the folder on the machine, and the machine
@@ -65,21 +63,22 @@ export function connectSteps(deps: ConnectDeps, project: () => string, target: P
     facts = await deps.factsOf(project())
     const folder = request.folder?.trim() || folderUnder(target.root, facts.repo)
     if (!insideRoot(folder, target.root)) throw fail('pool.outside', { folder, root: target.root })
-    spec = { project: project(), folder, remotes: facts.remotes.map((remote) => remote.url), branch: facts.branch, claude: facts.claude }
+    spec = { project: project(), folder, remotes: urlsOf(facts), branch: facts.branch, claude: facts.claude }
     return spec
   }
   const clone: StepDef = {
     id: 'machine-clone',
     run: async ({ progress }) => {
       const each = await prepared()
-      const remote = cloneRemote(facts!.remotes)
-      if (remote === undefined) throw fail('pool.hubNoRemote', {})
       const folders = deps.network.folders(target)
       if (request.clone === 'auto') {
         const probe = await folders.probe({ project: each.project, folder: each.folder, remotes: each.remotes })
         if (probe.state === 'clone') return
         if (probe.state === 'taken') throw new NoticeError(probe.notice)
       }
+      if (facts!.remotes === null) throw fail('pool.hubNoRepository', { repo: facts!.repo })
+      const remote = mainRemote(facts!.remotes)
+      if (remote === undefined) throw fail('pool.hubNoRemote', {})
       const stop = deps.network.watchClone(target.id, each.project, progress)
       try {
         await folders.clone(each, remote.url)
@@ -183,17 +182,24 @@ export async function onMachines(deps: ConnectDeps, plan: JobPlan, machines: Dra
  * What a folder on a machine elsewhere is to a project with the remote `remote` (BTN-1297), for the wizard before the
  * project is made: outside the machine's folder of projects it is refused here, never asked there.
  */
-export async function probeOn(network: Pick<PoolNetwork, 'target' | 'folders'>, machine: string, folder: string, remote: string | string[], project = DRAFT_PROJECT): Promise<FolderProbe> {
+export async function probeOn(network: Pick<PoolNetwork, 'target' | 'folders'>, machine: string, folder: string, remote: string | string[] | null, project = DRAFT_PROJECT): Promise<FolderProbe> {
   const target = await network.target(machine)
   if (!insideRoot(folder, target.root)) return { state: 'taken', notice: notice('pool.outside', { folder, root: target.root }) }
   return network.folders(target).probe({ project, folder, remotes: typeof remote === 'string' ? [remote] : remote })
 }
 
-/** What a folder on a machine elsewhere is to a project already made (BTN-1298), against the remotes of its hub folder. */
+/**
+ * What a folder on a machine elsewhere is to a project already made (BTN-1298), against the remotes of its hub folder.
+ * With no repository there (BTN-1554) a clone already on the machine is taken, and a free folder is refused: nothing
+ * to clone from.
+ */
 export async function probeProject(deps: Pick<ConnectDeps, 'network' | 'factsOf'>, project: string, machine: string, folder: string): Promise<FolderProbe> {
   const facts = await deps.factsOf(project)
-  return probeOn(deps.network, machine, folder, facts.remotes.map((remote) => remote.url), project)
+  const probe = await probeOn(deps.network, machine, folder, urlsOf(facts), project)
+  return probe.state === 'free' && facts.remotes === null ? { state: 'taken', notice: notice('pool.hubNoRepository', { repo: facts.repo }) } : probe
 }
+
+const urlsOf = (facts: ProjectFacts): string[] | null => facts.remotes?.map((remote) => remote.url) ?? null
 
 /** What a probe of a folder is asked against: the remote of a project not made yet, or a project. */
 export type ProbeOf = { remote: string } | { project: string }

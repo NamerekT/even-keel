@@ -27,11 +27,11 @@ function fakeNetwork() {
     },
     folders: () => ({
       probe: async (spec) => {
-        calls.push(`probe ${spec.project} ${spec.folder} ${spec.remotes.join(' ')}`)
+        calls.push(`probe ${spec.project} ${spec.folder} ${spec.remotes?.join(' ') ?? 'unknown'}`)
         return probes[spec.folder] ?? { state: 'free' }
       },
       check: async (step: FolderStep, spec: FolderSpec) => {
-        calls.push(`check ${step} ${spec.folder}`)
+        calls.push(`check ${step} ${spec.folder}${spec.remotes === null ? ' unknown' : ''}`)
         return refusals[step] ?? null
       },
       clone: async (spec: FolderSpec, remote: string) => {
@@ -190,6 +190,37 @@ describe("the wizard's machines (BTN-1297)", () => {
     const { network, calls } = fakeNetwork()
     expect(await probeProject(depsOf(network), PROJECT, LAPTOP, '/home/example/projects/abc')).toEqual({ state: 'free' })
     expect(calls).toEqual([`probe ${PROJECT} /home/example/projects/abc https://forge.example.com/other/abc.git https://forge.example.com/team/abc.git`])
+  })
+})
+
+describe('a project with no repository of its own on the hub (BTN-1554)', () => {
+  const MOVED = 'D:\\repos\\moved'
+  const unknownOf = (network: PoolNetwork): ConnectDeps => ({ ...depsOf(network), factsOf: async () => ({ repo: MOVED, remotes: null, branch: 'trunk', claude: true }) })
+  const HAS_REPO = '/home/example/projects/abc'
+  const taken = { state: 'clone', notice: notice('pool.hubNoRepositoryTaken', { folder: HAS_REPO }) } as const
+
+  it('takes a clone already on the machine as it is, its own remotes checked', async () => {
+    const { network, calls, probes } = fakeNetwork()
+    probes[HAS_REPO] = taken
+    expect(await probeProject(unknownOf(network), PROJECT, LAPTOP, HAS_REPO)).toEqual(taken)
+    expect(calls).toEqual([`probe ${PROJECT} ${HAS_REPO} unknown`])
+
+    calls.length = 0
+    const { view } = await run(await connectPlan(unknownOf(network), PROJECT, { machine: LAPTOP, folder: HAS_REPO, clone: 'auto' }))
+    expect(view()).toMatchObject({ done: true, failure: null })
+    expect(calls).toContain(`check remote ${HAS_REPO} unknown`)
+    expect(calls.at(-1)).toBe(`enable ${PROJECT} ${LAPTOP} true`)
+  })
+
+  it('refuses a clone, with no remote to clone from, by its own code rather than another repository', async () => {
+    const { network, calls } = fakeNetwork()
+    const refusal = { state: 'taken', notice: notice('pool.hubNoRepository', { repo: MOVED }) }
+    expect(await probeProject(unknownOf(network), PROJECT, LAPTOP, '/home/example/projects/empty')).toEqual(refusal)
+    for (const clone of [true, 'auto'] as const) {
+      const { view } = await run(await connectPlan(unknownOf(network), PROJECT, { machine: LAPTOP, folder: '/home/example/projects/empty', clone }))
+      expect(view().failure).toMatchObject({ code: 'pool.hubNoRepository', params: { repo: MOVED } })
+    }
+    expect(calls.some((call) => call.startsWith('clone'))).toBe(false)
   })
 })
 

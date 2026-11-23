@@ -336,10 +336,13 @@ export const fakeMachineNames = (mode: string | null): Record<string, string> =>
 
 /**
  * The wizard's probe of a folder on a machine (BTN-1297): a name with `clone` holds the project's clone, one with `taken`
- * another repository, any other is free.
+ * another repository, any other is free. As if the hub had no repository of the project (BTN-1554): `moved-clone` a
+ * clone taken as it is, with its note, `moved` any other name, refused with nothing to clone from.
  */
 const folderProbe = (folder: string, remote: string): FolderProbe =>
-  folder.includes('clone') ? { state: 'clone' } : folder.includes('taken') ? { state: 'taken', notice: notice('pool.foreignRepo', { folder, remote }) } : { state: 'free' }
+  folder.includes('moved-clone') ? { state: 'clone', notice: notice('pool.hubNoRepositoryTaken', { folder }) }
+  : folder.includes('moved') ? { state: 'taken', notice: notice('pool.hubNoRepository', { repo: 'C:/Projects/abc' }) }
+  : folder.includes('clone') ? { state: 'clone' } : folder.includes('taken') ? { state: 'taken', notice: notice('pool.foreignRepo', { folder, remote }) } : { state: 'free' }
 
 /** The state's machine colours and own machine where `dev:fake` has several machines (BTN-1272): the palette's, `pc` own. */
 export const fakeMachineColors = (names: Record<string, string>): Pick<EvenKeelState, 'machineColors' | 'ownMachine'> => ({

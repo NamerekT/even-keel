@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { checkoutRemotes, ProjectRemotes, remotePeers, remoteRef, repositoryIds, sameRepository } from './remotes.js'
+import type { Git, GitResult } from '../git/types.js'
+import { checkoutRemotes, ProjectRemotes, remotePeers, remoteRef, repositoryIds, repositoryRemotes, sameRepository } from './remotes.js'
 
 describe('remotePeers', () => {
   const ref = (id: string) => ({ id, path: id.split('/').slice(-2).join('/') })
@@ -66,6 +67,18 @@ describe('checkoutRemotes', () => {
 
   it('has none when git cannot read the folder', async () => {
     expect(await checkoutRemotes(async () => ({ code: 1, out: '' }), 'D:\\gone')).toEqual([])
+  })
+})
+
+describe('repositoryRemotes', () => {
+  const repository = (remotes: GitResult): Git => async (_cwd, args) => (args[0] === 'rev-parse' ? { code: 0, out: 'true\n' } : remotes)
+
+  it('tells a repository with no remote from no repository at all (BTN-1554)', async () => {
+    expect(await repositoryRemotes(repository({ code: 0, out: 'remote.origin.url https://forge.example.com/team/app.git\n' }), 'D:\\work\\app')).toEqual([
+      { name: 'origin', url: 'https://forge.example.com/team/app.git' },
+    ])
+    expect(await repositoryRemotes(repository({ code: 1, out: '' }), 'D:\\work\\app')).toEqual([])
+    expect(await repositoryRemotes(async () => ({ code: 128, out: 'fatal: not a git repository' }), 'D:\\gone')).toBeNull()
   })
 })
 

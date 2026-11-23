@@ -47,6 +47,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'machines.copyMissing': { to: 'shared', tab: 'models' },
   'copilot.binaryMissing': { to: 'shared', tab: 'models' },
   'git.noBranch': { to: 'project', tab: 'repo' },
+  'pool.hubNoRepository': { to: 'project', tab: 'repo' },
   'git.wrongBranch': { to: 'project', tab: 'repo' },
   'project.gitDirty': { to: 'project', tab: 'repo' },
   'forward.foreign': { to: 'project', tab: 'repo' },

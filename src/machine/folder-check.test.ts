@@ -40,6 +40,20 @@ describe('checkFolderStep', () => {
     expect(await checkFolderStep(depsOf(same), 'remote', spec)).toBeNull()
   })
 
+  it('with no repository on the hub, the folder\'s own remote is the project\'s: origin first (BTN-1554)', async () => {
+    const unknown = { ...spec, remotes: null }
+    expect(await checkFolderStep(depsOf(gitOf({})), 'remote', unknown)).toMatchObject({ code: 'pool.folderNoRemote', params: { folder: '/work/abc' } })
+    const remotes = { [REMOTES]: ok('remote.backup.url https://forge.example.com/team/copy.git\nremote.origin.url https://forge.example.com/team/abc.git\n') }
+    expect(await checkFolderStep(depsOf(gitOf(remotes)), 'remote', unknown)).toBeNull()
+    const tracked = gitOf({ ...remotes, 'rev-parse --verify --quiet refs/remotes/origin/trunk': ok('abc\n') })
+    expect(await checkFolderStep(depsOf(tracked), 'branch', unknown)).toBeNull()
+    const calls: string[][] = []
+    const pushed = gitOf({ ...remotes, 'rev-parse --verify --quiet refs/remotes/origin/trunk': ok('abc\n'), 'push --dry-run --porcelain origin refs/remotes/origin/trunk:refs/heads/trunk': ok() }, calls)
+    expect(await checkFolderStep(depsOf(pushed), 'push', unknown)).toBeNull()
+    expect(await checkFolderStep(depsOf(gitOf({})), 'push', unknown)).toMatchObject({ code: 'pool.folderNoRemote' })
+    expect(await checkFolderStep(depsOf(gitOf({})), 'push', { ...spec, remotes: [] })).toMatchObject({ code: 'pool.hubNoRemote' })
+  })
+
   it('branch: a local or a remote-tracking branch of the project remote passes', async () => {
     const remotes = { [REMOTES]: ok('remote.up.url https://forge.example.com/team/abc\n') }
     expect(await checkFolderStep(depsOf(gitOf(remotes)), 'branch', spec)).toMatchObject({ code: 'pool.noBranch', params: { branch: 'trunk' } })
@@ -162,6 +176,23 @@ describe('probeFolder', () => {
       const other = gitOf({ ...repo, [REMOTES]: ok('remote.origin.url https://forge.example.com/team/other.git\n') })
       expect(await probeFolder(other, filled, remotes)).toEqual({ state: 'taken', notice: { code: 'pool.foreignRepo', params: { folder: filled, remote: remotes[0] } } })
       expect(await probeFolder(async () => ({ code: 1, out: '', missing: true }), filled, remotes)).toMatchObject({ state: 'taken', notice: { code: 'pool.noGit' } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('with no repository on the hub, a clone with a remote is taken as it is, with a note; no remote list is ever blank (BTN-1554)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'probe-folder-'))
+    try {
+      const filled = join(root, 'filled')
+      mkdirSync(filled)
+      writeFileSync(join(filled, 'file'), 'x')
+      const repo = { 'rev-parse --is-inside-work-tree': ok('true\n') }
+      const any = gitOf({ ...repo, [REMOTES]: ok('remote.origin.url https://forge.example.com/team/other.git\n') })
+      expect(await probeFolder(any, filled, null)).toEqual({ state: 'clone', notice: { code: 'pool.hubNoRepositoryTaken', params: { folder: filled } } })
+      expect(await probeFolder(gitOf(repo), filled, null)).toEqual({ state: 'taken', notice: { code: 'pool.folderNoRemote', params: { folder: filled } } })
+      expect(await probeFolder(gitOf({}), join(root, 'absent'), null)).toEqual({ state: 'free' })
+      expect(await probeFolder(any, filled, [])).toEqual({ state: 'taken', notice: { code: 'pool.hubNoRemote', params: {} } })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
