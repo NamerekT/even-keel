@@ -44,7 +44,7 @@ import { fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withPro
 import { fakeJob } from './fakeCreation.js'
 import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineLaneWait, fakeMachineNames, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
-import { fakeBranchCommand, fakeBranchDrift, fakeRepoBranches } from './fakeBranches.js'
+import { fakeBranchCommand, fakeBranchDrift, fakeMachineDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, failedRenew, fakeCommand, finishCurrent, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
 import { fakeCheckpoint, fakeHandedTranscript, fakeRecord, fakeTranscript } from './fakeTranscript.js'
@@ -217,7 +217,10 @@ export function createFakeSource(search: string): LiveSource {
       entry.key === account.active && entry.limits ? { ...entry, limits: { ...entry.limits, fiveHour: { usedPercentage: 96, resetsAt: new Date(Date.now() + 75 * 60_000).toISOString() } } } : entry)
   }
   if (params.get('limits') === 'none' && current.state !== null) current.state.limits = null
-  if (params.has('branch') && current.state !== null) current.state.branchDrift = fakeBranchDrift(params.get('branch'))
+  if (params.has('branch') && current.state !== null) {
+    current.state.branchDrift = fakeBranchDrift(params.get('branch'))
+    current.state.machineDrift = fakeMachineDrift(params.get('branch'))
+  }
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }

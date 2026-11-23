@@ -15,6 +15,11 @@ export function fakeBranchDrift(mode: string | null): Record<string, BranchDrift
   return mode === 'drift' || mode === 'busy' ? { ABC: { branch: 'main', current: 'feature/spike' } } : {}
 }
 
+/** `?branch=machine` — ABC's folder on the laptop (`?machines=…`) was switched by hand to `feature/spike` (BTN-1567). */
+export function fakeMachineDrift(mode: string | null): Record<string, Record<string, BranchDrift>> {
+  return mode === 'machine' ? { ABC: { 'machine-1': { branch: 'main', current: 'feature/spike' } } } : {}
+}
+
 /** The branches of a fake project's checkout: it stands on its drift's branch, else on the project's. */
 export function fakeRepoBranches(state: EvenKeelState, project: string): RepoBranches {
   const drift = state.branchDrift[project]
@@ -29,6 +34,10 @@ export function fakeBranchCommand(state: EvenKeelState, name: string, body: Reco
   if (name !== 'project/branch/adopt' && name !== 'project/branch/restore') return null
   const project = String(body.project)
   if (mode === 'busy') throw fail('branch.busy', { project })
+  if (typeof body.machine === 'string') {
+    const { [body.machine]: _moved, ...left } = state.machineDrift?.[project] ?? {}
+    return { ...state, machineDrift: { ...state.machineDrift, [project]: left } }
+  }
   const drift = state.branchDrift[project]
   const { [project]: _gone, ...branchDrift } = state.branchDrift
   if (drift === undefined || name === 'project/branch/restore' || drift.current === null) return { ...state, branchDrift }

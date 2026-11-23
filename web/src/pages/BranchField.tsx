@@ -117,7 +117,7 @@ export function BranchDriftBand({ project, drift, closable = false, machine, lea
           </>
         }
       >
-        {lead === undefined ? texts.drift(drift.current, drift.branch) : <span>{lead} — {texts.drift(drift.current, drift.branch)}. {texts.held}</span>}
+        {lead === undefined ? texts.drift(drift.current, drift.branch) : <span><strong>{lead}</strong>: {texts.drift(drift.current, drift.branch)}. {texts.held}</span>}
       </Band>
       {failure !== null && <Band tone="error">{say(failure)}</Band>}
     </>
