@@ -2,8 +2,9 @@ import { existsSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, Gate, lingers, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('the chain through a restart end to end', { timeout: 60_000 }, () => {
+describe('the chain through a restart end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

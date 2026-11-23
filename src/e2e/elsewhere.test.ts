@@ -5,6 +5,7 @@ import { BuiltinStore } from '../builtin/store.js'
 import { commitAndMerge, Gate } from './agent.fixture.js'
 import { Elsewhere } from './elsewhere.fixture.js'
 import { ACCOUNT, Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
 const TASKS = 'tasks@even-keel'
 
@@ -14,7 +15,7 @@ interface PoolRow {
   enabled: boolean
 }
 
-describe('a machine elsewhere end to end', { timeout: 180_000 }, () => {
+describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
   let run: Harness
   let elsewhere: Elsewhere
 

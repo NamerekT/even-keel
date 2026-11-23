@@ -2,8 +2,9 @@ import { expect, it } from 'vitest'
 import { PROMPTS } from '../chain/prompts.js'
 import { commitAndMerge, ends } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-it('adds session instructions on launch and relay, but not to a chat reply after a service restart', { timeout: 60_000 }, async () => {
+it('adds session instructions on launch and relay, but not to a chat reply after a service restart', { timeout: scaled(60_000) }, async () => {
   const run = new Harness()
   const instructions = 'Model-specific instructions.'
   run.config.modelPrompts = { 'Claude | *': instructions }

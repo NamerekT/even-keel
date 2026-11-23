@@ -3,8 +3,9 @@ import type { Agent } from '../agent/contract.js'
 import { TranscriptFold } from '../sessions/transcript.js'
 import { commitAndMerge, Gate } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('a finished session context window', { timeout: 60_000 }, () => {
+describe('a finished session context window', { timeout: scaled(60_000) }, () => {
   let run: Harness
   afterEach(async () => {
     await run.stop()

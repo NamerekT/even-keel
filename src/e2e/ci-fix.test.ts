@@ -6,8 +6,9 @@ import { commitAndMerge, ends, Gate, parked, type Turn } from './agent.fixture.j
 import type { Outcome } from './ci.fixture.js'
 import { callsOf, chainOf, FIX as fix, goOn, underTask as under } from './redmain.fixture.js'
 import { ACCOUNT, Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('the fix of a red main end to end', { timeout: 60_000 }, () => {
+describe('the fix of a red main end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
   /** The turn of the fix session; a scenario may set another before `underTask`. */
   let fixer: Turn

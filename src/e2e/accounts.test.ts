@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { LimitWindow } from '../limits/model.js'
 import { commitAndMerge, ends } from './agent.fixture.js'
 import { ACCOUNT, Harness, PROJECT_ID, SPARE_ACCOUNT } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
 const week = (usedPercentage: number): LimitWindow => ({ usedPercentage, resetsAt: '2026-10-05T09:00:00.000Z' })
 /** A refusal that names no reset, as Copilot's and OpenCode Zen's do. */
 const NO_RESET = "You've reached your usage limit. Please try again later."
 
-describe('accounts and limits end to end', { timeout: 60_000 }, () => {
+describe('accounts and limits end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {
@@ -64,7 +65,7 @@ describe('accounts and limits end to end', { timeout: 60_000 }, () => {
     ])
   })
 
-  it('waits out a limit that names no reset until the reset a later poll gives, the next task behind it', { timeout: 120_000 }, async () => {
+  it('waits out a limit that names no reset until the reset a later poll gives, the next task behind it', { timeout: scaled(120_000) }, async () => {
     const reset = '2026-10-01T11:00:00.000Z'
     let hit = false
     run.agent.windows = (_account, at) => (hit && at < reset ? { fiveHour: { usedPercentage: 100, resetsAt: reset }, sevenDay: week(40) } : { fiveHour: { usedPercentage: 60, resetsAt: reset }, sevenDay: week(40) })

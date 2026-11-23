@@ -4,8 +4,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('what a project leaves behind', { timeout: 60_000 }, () => {
+describe('what a project leaves behind', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

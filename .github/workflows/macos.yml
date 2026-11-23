@@ -76,7 +76,8 @@ jobs:
     needs: already-green
     if: needs.already-green.outputs.green != 'true'
     runs-on: macos-latest
-    timeout-minutes: 20
+    # Above the other jobs' 20: the doubled timeouts and a retry may take a slow shard past them.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -99,8 +100,13 @@ jobs:
       - if: steps.changes.outputs.code == 'true'
         run: npm ci
 
+      # A Mac runner is slow and its slow minutes come at random: every e2e timeout twice as long, and a test that timed
+      # out (itself or a hook) runs once more; an assertion or an exception fails at once. A test that passed only on the
+      # retry is a `RETRIED` line at the end of the step's log (docs/ci.md, "macOS").
       - if: steps.changes.outputs.code == 'true'
         run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
+        env:
+          E2E_SLOW_RUNNER: 2
 
   # install.sh as the runner's own user, the agent seen by launchctl, the page's API answering on EVEN_KEEL_PORT of
   # the checkout's .env, then uninstall.sh and the agent gone. If launchd does not start the agent on a runner, the

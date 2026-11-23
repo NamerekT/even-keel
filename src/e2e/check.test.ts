@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
 // The scripted agent hands the shell an empty environment: on macOS /bin/sh then finds no `node` on its default PATH.
 const nodeCommand = (script: string) => [process.execPath, script].map((path) => `"${path.replaceAll('\\', '/')}"`).join(' ')
@@ -24,7 +25,7 @@ const reportedMerge =
     return merge(hooked)
   }
 
-describe('the check of main without a CI end to end (EKR-103)', { timeout: 60_000 }, () => {
+describe('the check of main without a CI end to end (EKR-103)', { timeout: scaled(60_000) }, () => {
   let run: Harness
   let marks: string
 

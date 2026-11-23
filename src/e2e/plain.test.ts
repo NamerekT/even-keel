@@ -4,8 +4,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ends, Gate, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('a project without git', { timeout: 60_000 }, () => {
+describe('a project without git', { timeout: scaled(60_000) }, () => {
   let run: Harness
   let parent: string
   let folder: string

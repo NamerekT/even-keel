@@ -6,8 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { BOARD_SERVER } from './tracker.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('a chain that starts paused on what only the user can fix', { timeout: 60_000 }, () => {
+describe('a chain that starts paused on what only the user can fix', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {
