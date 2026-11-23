@@ -326,6 +326,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 295 | [Installing an agent's CLI from the page](unverified/machines.md#installing-an-agents-cli-from-the-page-btn-1502) | hubs and machines elsewhere with an agent on Yours and no CLI | "Install" ends in an error under the button, or a CLI installed by hand shows only after a restart; run the command in a terminal as the service's user | BTN-1549 |
 | 296 | [A bridged server through a service restart](unverified/packages.md#a-bridged-server-through-a-service-restart-btn-1544) | Claude chain sessions with a bridged stdio server, such as Playwright, alive through a service restart | the session's server stays `failed` after the restart; resume the session | — |
 | 297 | [A machine connected to a project with no repository on the hub](unverified/machines.md#a-machine-connected-to-a-project-with-no-repository-on-the-hub-btn-1554) | hubs moved to another computer whose project folder is not there | a clone on the machine is still refused, or an older machine stops the connection with an error; put a clone of the project on the hub and set it on the Repository tab | — |
+| 298 | [The hub's memory folder new to the mirror](unverified/sessions.md#the-hubs-memory-folder-new-to-the-mirror-btn-1556) | hubs moved to another computer, restored from a backup elsewhere, or with a project's repo changed | records get new versions after the upgrade, or a hand session lists the mark as memory; nothing to do, the records stay | — |
 
 ### Waiting for the event / not checked by choice
 

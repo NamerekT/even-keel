@@ -1,11 +1,14 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Db } from '../storage/database.js'
-import { fileHash, indexLine, memoryFile, parseMemoryFile, type MemoryRecord } from './record.js'
-import { dropMemoryFile, markMirrored, memoryRecords, takeMemoryFile } from './store.js'
+import { fileHash, indexLine, memoryFile, parseMemoryFile, type MemoryFact, type MemoryRecord } from './record.js'
+import { dropMemoryFile, forgetMemoryFiles, markMirrored, memoryRecords, takeMemoryFile } from './store.js'
 
 /** The index of the hub's memory folder that sessions started by hand read; never a record itself. */
 export const MEMORY_INDEX = 'MEMORY.md'
+
+/** The mark of a folder the mirror finished a pull in, holding the project's id (BTN-1556); not a `.md`, so no record. */
+export const MIRROR_MARK = '.even-keel-memory'
 
 export interface MirrorDeps {
   db: Db
@@ -50,6 +53,14 @@ export class MemoryMirror {
   private async pullNow(project: string): Promise<void> {
     const folder = this.deps.folderOf(project)
     if (folder === null || !existsSync(folder)) return
+    const mark = join(folder, MIRROR_MARK)
+    // A folder the mirror never finished a pull in (another host, a new repo, a cleaned folder) holds none of the
+    // records' files yet: a file missing there was never removed by a person.
+    const fresh = !isFile(mark) || readFileSync(mark, 'utf8').trim() !== project
+    if (fresh) {
+      await forgetMemoryFiles(this.deps.db, project)
+      this.deps.log(`memory: ${project} the hub's folder ${folder} is new to the mirror: every record is written into it`)
+    }
     const files = readdirSync(folder).filter((name) => name.endsWith('.md') && name !== MEMORY_INDEX && isFile(join(folder, name)))
     const records = await memoryRecords(this.deps.db, project, true)
     const byFile = new Map(records.flatMap((record) => (record.file === null ? [] : [[record.file, record] as const])))
@@ -64,14 +75,28 @@ export class MemoryMirror {
         continue
       }
       const fact = parseMemoryFile(text, file.slice(0, -'.md'.length))
+      const same = known === undefined ? records.find((each) => each.name === fact.name && !each.deleted && each.file === null) : undefined
+      if (same !== undefined && sameFact(same, fact)) {
+        // A record's file already there (copied by a person, or written before the folder was marked): no new version.
+        await markMirrored(this.deps.db, project, same.name, same.version, file, hash)
+        same.file = file
+        continue
+      }
       if (known !== undefined && !known.deleted && known.name !== fact.name) await dropMemoryFile(this.deps.db, project, known.name, at)
       const owner = records.find((each) => each.name === fact.name && !each.deleted && each.file !== null && each.file !== file && files.includes(each.file))
       const taken = await takeMemoryFile(this.deps.db, project, owner === undefined ? fact : { ...fact, name: file.slice(0, -'.md'.length) }, file, hash, at)
       this.deps.log(`memory: ${project} took ${file} from the hub's folder as ${taken.name} v${taken.version}`)
     }
-    for (const record of records) {
-      if (record.deleted || record.file === null || files.includes(record.file)) continue
-      if (record.fileHash !== null) {
+    const gone = records.filter((record) => !record.deleted && record.file !== null && record.fileHash !== null && !files.includes(record.file))
+    const mirrored = records.filter((record) => !record.deleted && record.file !== null).length
+    if (gone.length > 1 && gone.length * 2 > mirrored) {
+      this.deps.log(
+        `memory: ${project} ${gone.length} of ${mirrored} files left the hub's folder at once: kept, their files written back` +
+          ` (${gone.map((record) => record.file).join(', ')}); delete records through memory_delete or fewer files at a time`,
+      )
+      for (const record of gone) await this.pushNow(project, record)
+    } else {
+      for (const record of gone) {
         await dropMemoryFile(this.deps.db, project, record.name, at)
         this.deps.log(`memory: ${project} ${record.file} left the hub's folder: ${record.name} is deleted`)
       }
@@ -80,6 +105,7 @@ export class MemoryMirror {
     for (const record of await memoryRecords(this.deps.db, project)) {
       if (record.file === null) await this.pushNow(project, record)
     }
+    if (fresh) writeFileSync(mark, `${project}\n`)
   }
 
   private async pushNow(project: string, record: MemoryRecord, before?: MemoryRecord): Promise<void> {
@@ -105,6 +131,10 @@ export class MemoryMirror {
     const described = before === undefined || record.file === null || before.description !== record.description
     editIndex(folder, file, described ? record : undefined)
   }
+}
+
+function sameFact(record: MemoryFact, fact: MemoryFact): boolean {
+  return record.description === fact.description && record.type === fact.type && record.body === fact.body
 }
 
 function isFile(path: string): boolean {

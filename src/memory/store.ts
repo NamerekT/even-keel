@@ -134,6 +134,11 @@ export async function dropMemoryFile(db: Db, project: string, name: string, at: 
   )
 }
 
+/** Forgets every record's file: the project's folder is new to the mirror, so nothing was mirrored into it yet. */
+export async function forgetMemoryFiles(db: Db, project: string): Promise<void> {
+  await db.query('update memory_records set file = null, file_hash = null where project_id = $1', [project])
+}
+
 /** Notes the file that mirrors the record's version now; a record changed meanwhile keeps its own mark. */
 export async function markMirrored(db: Db, project: string, name: string, version: number, file: string | null, hash: string | null): Promise<void> {
   await db.query('update memory_records set file = $4, file_hash = $5 where project_id = $1 and name = $2 and version = $3', [project, name, version, file, hash])

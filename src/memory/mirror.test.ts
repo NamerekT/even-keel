@@ -125,3 +125,68 @@ describe("the hub's memory folder and the records (BTN-1029)", { timeout: 120_00
     await none.pull(PROJECT)
   })
 })
+
+describe("a folder new to the mirror and a mass deletion (BTN-1556)", { timeout: 120_000 }, () => {
+  const write = (name: string) => call('memory_write', { name, description: `about ${name}`, type: 'project', body: `${name} body` })
+  const live = async () => (await memoryRecords(db, PROJECT)).map((record) => `${record.name} v${record.version}`)
+  let lines: string[]
+
+  beforeAll(async () => {
+    db = await openDatabase(undefined)
+  })
+  afterAll(() => db.close())
+  beforeEach(async () => {
+    await db.exec('delete from memory_records')
+    const root = mkdtempSync(join(tmpdir(), 'memory-'))
+    folder = join(root, 'old')
+    mkdirSync(folder)
+    lines = []
+    mirror = new MemoryMirror({ db, folderOf: () => folder, now: () => new Date('2026-11-23T10:00:00.000Z'), log: (line) => lines.push(line) })
+    mcp = new MemoryMcp({ db, mirror, now: () => new Date('2026-11-23T10:00:00.000Z') }, '0.0.0-test')
+    for (const name of ['alpha', 'beta', 'gamma']) await write(name)
+    return () => rmSync(root, { recursive: true, force: true })
+  })
+
+  it("writes every record into a folder that is not there yet, a session's write first, and deletes none", async () => {
+    folder = join(folder, '..', 'moved')
+    await write('delta')
+    expect(existsSync(join(folder, 'delta.md'))).toBe(true)
+    await mirror.pull(PROJECT)
+    expect(await live()).toEqual(['alpha v1', 'beta v1', 'delta v1', 'gamma v1'])
+    for (const name of ['alpha', 'beta', 'gamma', 'delta']) expect(read(`${name}.md`)).toContain(`${name} body`)
+    expect(read('MEMORY.md').split('\n').filter(Boolean)).toHaveLength(4)
+    // Mirrored now: a file a person removes deletes its record again.
+    unlinkSync(join(folder, 'beta.md'))
+    await mirror.pull(PROJECT)
+    expect(await live()).toEqual(['alpha v1', 'delta v1', 'gamma v1'])
+  })
+
+  it("writes every record into the folder of a project's new repo, and keeps the versions of files copied there", async () => {
+    const copied = join(folder, '..', 'copied')
+    mkdirSync(copied)
+    writeFileSync(join(copied, 'alpha.md'), read('alpha.md'))
+    folder = copied
+    await mirror.pull(PROJECT)
+    expect(await live()).toEqual(['alpha v1', 'beta v1', 'gamma v1'])
+    expect(read('beta.md')).toContain('beta body')
+    expect(read('gamma.md')).toContain('gamma body')
+    folder = join(copied, '..', 'empty')
+    mkdirSync(folder)
+    await mirror.pull(PROJECT)
+    expect(await live()).toEqual(['alpha v1', 'beta v1', 'gamma v1'])
+    expect(read('alpha.md')).toContain('alpha body')
+  })
+
+  it('takes no more than half of the records away in one pull: it writes their files back and says so in the log', async () => {
+    unlinkSync(join(folder, 'alpha.md'))
+    unlinkSync(join(folder, 'beta.md'))
+    await mirror.pull(PROJECT)
+    expect(await live()).toEqual(['alpha v1', 'beta v1', 'gamma v1'])
+    expect(read('alpha.md')).toContain('alpha body')
+    expect(read('beta.md')).toContain('beta body')
+    expect(lines.join('\n')).toMatch(/2 of 3 files left the hub's folder at once: kept/)
+    unlinkSync(join(folder, 'alpha.md'))
+    await mirror.pull(PROJECT)
+    expect(await live()).toEqual(['beta v1', 'gamma v1'])
+  })
+})
