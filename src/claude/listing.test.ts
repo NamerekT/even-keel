@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -55,6 +55,40 @@ describe('FolderListings', () => {
     await rm(join(dir, 'jobs', 'bbbb2222'), { recursive: true })
     await list()
     expect(asked).toBe(4)
+  })
+
+  it('asks again when a fresh state.json is rewritten within one mtime tick at the same size', async () => {
+    const file = join(dir, 'jobs', 'aaaa1111', 'state.json')
+    const tick = new Date()
+    await utimes(file, tick, tick)
+    await list()
+    await job('aaaa1111', { state: 'blocked', detail: 'Running npm test', tokens: 10, sessionId: 'session-1' })
+    await utimes(file, tick, tick)
+    await list()
+    expect(asked).toBe(2)
+  })
+
+  it('asks again when a fresh roster is rewritten within one mtime tick at the same size', async () => {
+    const file = join(dir, 'daemon', 'roster.json')
+    const tick = new Date()
+    await roster(['aaaa1111'])
+    await utimes(file, tick, tick)
+    await list()
+    await roster(['bbbb2222'])
+    await utimes(file, tick, tick)
+    await list()
+    expect(asked).toBe(2)
+  })
+
+  it('trusts the stamp of a file written long before it was read', async () => {
+    const file = join(dir, 'jobs', 'aaaa1111', 'state.json')
+    const old = new Date(Date.now() - 60_000)
+    await utimes(file, old, old)
+    await list()
+    await job('aaaa1111', { state: 'blocked', detail: 'Running npm test', tokens: 10, sessionId: 'session-1' })
+    await utimes(file, old, old)
+    await list()
+    expect(asked).toBe(1)
   })
 
   it('asks again when a live session record changes or its process ends', async () => {

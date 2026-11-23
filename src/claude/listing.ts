@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { Stats } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { SessionRecord } from '../sessions/agents.js'
@@ -13,6 +14,13 @@ export const LISTING_MAX_AGE_MS = 30_000
 const VOLATILE = ['detail', 'tempo', 'inFlight', 'tokens', 'output', 'children', 'linkScanOffset', 'linkScanPath', 'updatedAt']
 const OVER = ['done', 'stopped', 'failed']
 
+/**
+ * How old a file's mtime must be for its inode, mtime and size to stand for its text (BTN-1526). Two writes within one
+ * tick of the file system's clock (~16 ms on NTFS, 2 s on FAT) share an mtime, and a state change such as `working` to
+ * `blocked` keeps the size: a file younger than this is read again on every look, as git treats a "racily clean" entry.
+ */
+export const FILE_SETTLE_MS = 2_000
+
 interface Listing {
   stamp: string
   at: number
@@ -20,13 +28,15 @@ interface Listing {
 }
 
 interface Job {
-  file: string
+  /** Null — written too recently for its stamp to be trusted, and read again next time. */
+  file: string | null
   key: string
   over: boolean
 }
 
 interface Roster {
-  file: string
+  file: string | null
+  key: string
   /** Null — the roster cannot be parsed, and every job is looked at. */
   workers: ReadonlySet<string> | null
 }
@@ -35,7 +45,8 @@ interface Roster {
  * `claude agents --json --all` of each account folder, asked again only when what it prints from changes (BTN-1478):
  * each spawn holds the event loop for tens of milliseconds on Windows, and the session monitor lists every folder each
  * few seconds. The stamp is the CLI binary, the live `sessions/<pid>.json` records, `daemon/roster.json` and each job's
- * `state.json` without its `VOLATILE` fields, a file read again only when its inode, mtime or size changes. A job that
+ * `state.json` without its `VOLATILE` fields, a file read again only when its inode, mtime or size changes or while it
+ * is younger than `FILE_SETTLE_MS`. A job that
  * is over and that the daemon does not hold is not looked at again: only a worker writes its state, and a resume makes
  * it a worker anew, which rewrites the roster. A folder whose jobs cannot be listed is asked every time, and any answer
  * is asked again after `LISTING_MAX_AGE_MS` for what the stamp does not see.
@@ -87,30 +98,36 @@ export class FolderListings {
       }),
     )
     this.jobs.set(dir, after)
-    return keys.includes(null) ? null : [roster.file, ...names.map((name, index) => `${name}|${keys[index]}`)]
+    return keys.includes(null) ? null : [roster.key, ...names.map((name, index) => `${name}|${keys[index]}`)]
   }
 
   private async roster(dir: string): Promise<Roster | null> {
     const path = join(dir, 'daemon', 'roster.json')
     const info = await stat(path).catch((error: unknown) => ((error as NodeJS.ErrnoException).code === 'ENOENT' ? undefined : null))
     if (info === null) return null
-    const file = info === undefined ? 'none' : [info.ino, info.mtimeMs, info.size].join('|')
+    const file = info === undefined ? 'none' : fileStamp(info)
     const known = this.rosters.get(dir)
-    if (known?.file === file) return known
+    if (file !== null && known?.file === file) return known
     const text = info === undefined ? '{"workers":{}}' : await readFile(path, 'utf8').catch(() => null)
     if (text === null) return null
-    const roster = { file, workers: workersOf(text) }
+    const roster = { file, key: info === undefined ? 'none' : digest(text), workers: workersOf(text) }
     this.rosters.set(dir, roster)
     return roster
   }
+}
+
+/** A file's inode, mtime and size; null while the file is younger than `FILE_SETTLE_MS` or its mtime is ahead. */
+function fileStamp(info: Stats): string | null {
+  const age = Date.now() - info.mtimeMs
+  return age >= FILE_SETTLE_MS ? [info.ino, info.mtimeMs, info.size].join('|') : null
 }
 
 /** The steady part of a job's `state.json`, read again only when the file changes; null when it cannot be read now. */
 async function jobKey(path: string, known: Job | undefined, keep: (job: Job) => void): Promise<string | null> {
   const info = await stat(path).catch(() => null)
   if (info === null) return 'none'
-  const file = [info.ino, info.mtimeMs, info.size].join('|')
-  if (known?.file === file) {
+  const file = fileStamp(info)
+  if (file !== null && known?.file === file) {
     keep(known)
     return known.key
   }
