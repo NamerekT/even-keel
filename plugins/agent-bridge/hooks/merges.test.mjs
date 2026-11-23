@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -128,19 +128,18 @@ describe("mergeRefusal", children, () => {
 
 describe("mergeRefusal of an outsider's task (BTN-1207)", children, () => {
   let repo;
+  // Two git children, not seven: under the full `npm test` seven in a row took over the hook's 10 s (BTN-1525).
+  // The check reads only commits and the current branch, so the commits go in through fast-import, with no working tree.
   beforeAll(() => {
-    repo = mkdtempSync(join(tmpdir(), "merge-outsider-"));
-    const git = (...args) => execFileSync("git", ["-c", "user.name=John Doe", "-c", "user.email=john@example.com", ...args], { cwd: repo });
-    git("init", "-q", "-b", "main");
-    writeFileSync(join(repo, "README.md"), "app\n");
-    git("add", ".");
-    git("commit", "-q", "-m", "base");
-    git("checkout", "-q", "-b", branch);
-    mkdirSync(join(repo, ".github", "workflows"), { recursive: true });
-    writeFileSync(join(repo, ".github", "workflows", "ci.yml"), "on: push\n");
-    writeFileSync(join(repo, "app.js"), "1\n");
-    git("add", ".");
-    git("commit", "-q", "-m", "task");
+    repo = taskRepo();
+    const data = (text) => `data ${Buffer.byteLength(text)}\n${text}\n`;
+    const commit = (ref, message, time, files, from = "") =>
+      `commit ${ref}\ncommitter John Doe <john@example.com> ${time} +0000\n${data(message)}${from}` +
+      Object.entries(files).map(([path, text]) => `M 100644 inline ${path}\n${data(text)}`).join("");
+    const stream =
+      commit("refs/heads/main", "base", 1700000000, { "README.md": "app\n" }) +
+      commit(`refs/heads/${branch}`, "task", 1700000001, { ".github/workflows/ci.yml": "on: push\n", "app.js": "1\n" }, "from refs/heads/main\n");
+    execFileSync("git", ["fast-import", "--quiet"], { cwd: repo, input: stream });
   });
   afterAll(() => rmSync(repo, { recursive: true, force: true }));
 
