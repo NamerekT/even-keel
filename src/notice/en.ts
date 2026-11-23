@@ -168,6 +168,7 @@ export const en = {
   'machines.folderTaken': (p: { name: string; owner: string }) => `The project's folder is already served by machine ${p.name}: if that machine is gone, take the folder over from it`,
   'machines.notTaken': () => 'No other machine holds this project\'s folder now: there is nothing to take over',
   'machines.offline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: sign in there once it is back`,
+  'machines.transcriptOffline': (p: { name: string }) => `The session runs on machine ${p.name}, which is not connected to the hub now: its transcript opens once the machine is back`,
   'machines.accountAbsent': (p: { account: string; machine: string; name: string }) =>
     `The project's account ${p.account} is not signed in on ${p.name === '' ? 'this machine' : `machine ${p.name}`}: add it there`,
   'machines.copyMissing': (p: { title: string; agent: string; machine: string; name: string; state: 'downloading' | 'consent' | 'failed' }) => {

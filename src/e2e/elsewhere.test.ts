@@ -100,6 +100,43 @@ describe('a machine elsewhere end to end', { timeout: 180_000 }, () => {
     expect(launches.map(({ task, provider, model }) => ({ task, provider, model }))).toEqual([{ task: 'ABC-1', provider: 'claude', model: 'haiku' }])
   })
 
+  it("reads the transcript and the checkpoint of a session elsewhere on that machine, not in the hub's own folders (BTN-1574)", async () => {
+    const gate = new Gate()
+    run.agent.script('ABC-1', async (turn) => {
+      turn.show({ text: 'Working', context: 120_000 })
+      await turn.park(gate)
+      return commitAndMerge('ABC-1.txt')(turn)
+    })
+    await connected()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.agent.sessionsOf('ABC-1').length > 0, 'the session launched', { limitMs: 10 * 60_000 })
+    const sessionId = run.agent.sessionsOf('ABC-1')[0]!.sessionId
+    await run.until(() => run.service.machineLink.network.holderOf(sessionId) === elsewhere.machine, 'the machine holds the session')
+
+    const homes: string[] = []
+    const record = run.agent.record.bind(run.agent)
+    run.agent.record = async (home, id) => {
+      if (id === sessionId) homes.push(home.dir)
+      return record(home, id)
+    }
+    const { host, port } = run.service.listen
+    const read = (path: string) => fetch(`http://${host}:${port}/api/sessions/${sessionId}${path}`)
+    const found = await read('')
+    expect(found.status).toBe(200)
+    expect(await found.json()).toMatchObject({ sessionId })
+    expect((await read('/transcript')).status).not.toBe(400)
+    let context: unknown
+    await run.until(() => {
+      void read('/checkpoint').then((response) => response.json()).then((body: { context: unknown }) => (context = body.context))
+      return context === 120_000
+    }, `the context of the machine's monitor: ${String(context)}`, { step: 500 })
+    expect(homes.length).toBeGreaterThan(0)
+    expect(homes.every((dir) => dir.startsWith(elsewhere.dir))).toBe(true)
+
+    gate.open()
+    await done()
+  })
+
   it("names the wait for the first limits poll of the machine's account in the chain, and launches once it answers (BTN-1521)", async () => {
     const gate = new Gate()
     // Every first poll is held, the hub's too, whose limits of the same account the machine would take: the account is

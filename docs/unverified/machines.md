@@ -386,3 +386,11 @@ To check, on the benches (entry 181): with a project whose pool has the bench hu
 Assumed: the hub's own machine and each machine elsewhere are told apart by `ActiveChain.machine` (none — the own one) in a state saved by an older version too, so a doubled lane is seen as such after the upgrade. If not, two tasks of a project still run in one folder of a machine, or the second lane never ends; stop the project's chain and start it again.
 
 To check, on the benches (entry 181): give a project the bench hub (capacity 3) and machine-1 in its pool, width 2, two ready tasks; start the chain and see the first task on the hub and the log line `chain: <project> takes another lane, on machine <machine-1's id>` with the second there; turn machine-1 off in the pool and see no second lane open on the hub.
+
+## A session's transcript read on its machine elsewhere (BTN-1574)
+
+`docs/machines.md`, "The seam". The hub read every transcript on its own machine: a session a machine elsewhere ran opened as "not found", and its checkpoint hook timed out while the hub's own machine searched all its account folders. Covered by `src/service/session-transcripts.test.ts` (each read routed, the own machine untouched, a machine off the link named) and the scenario of `src/e2e/elsewhere.test.ts` where the record and the checkpoint's context of a session elsewhere come from that machine's folders and monitor, both over the link in one process.
+
+Assumed: a machine elsewhere answers `transcript.*` over a real link within the checkpoint hook's timeout on a loaded hub, and a finished session's machine is still known from its mirror or its launch's task. If not, the transcript of an old session elsewhere opens as "not found" again, or the hook still times out; the log names the request.
+
+To check, on the benches (entry 181): run a task on a machine elsewhere of the bench hub, open its session's transcript (record, transcript, a picture) from the hub's page and see the hub's log free of `did not answer GET /api/sessions/…/checkpoint`; take the machine off the link and see the window name it instead of "not found".

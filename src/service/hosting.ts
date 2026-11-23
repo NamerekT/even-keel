@@ -190,7 +190,7 @@ const taskFileOf = (file: CarriedFile | undefined): TaskFile | undefined => {
 }
 
 export function wireServer(ctx: HostingContext): import("http").Server<typeof import("http").IncomingMessage, typeof import("http").ServerResponse> {
-  const transcripts = ctx.machineLink.services.transcript
+  const transcripts = ctx.machineLink.transcripts
   // The wizard reads and clones a new project's remote with the token of the host's default profile (BTN-1541).
   const wizardGit = credentialedRemote(runRemoteGit, async (urls) => projectGitCredentials(ctx, undefined, urls))
   const wizardRemote = { git: wizardGit, read: remoteReader(wizardGit) }
