@@ -26,6 +26,8 @@ export interface CiJob {
   steps: CiStep[] | null
   /** The CI gave the job up because no runner ever took it (GitHub Actions, BTN-761). */
   notTaken?: boolean
+  /** Since when the job waits for a runner (GitHub Actions, BTN-1576); absent — it does not, or the CI does not say. */
+  waitingSince?: string
 }
 
 /** What started a run (BTN-828): a push, a pull request, a hand, a schedule or anything else. */
@@ -245,6 +247,30 @@ export function stuckSince(view: Pick<CiView, 'current' | 'pushed' | 'busy'>, no
   if (stuck !== undefined) return stuck.createdAt
   if (view.pushed !== null && now.getTime() - Date.parse(view.pushed.at) >= STUCK_MS) return view.pushed.at
   return null
+}
+
+/** A runner took the job: it is at work or went to an end; a skipped job or one given up for want of a runner never had one. */
+const jobTaken = (job: CiJob): boolean =>
+  job.status === 'running' || job.status === 'success' || job.status === 'failure' || (job.status === 'cancelled' && job.startedAt !== null && job.notTaken !== true)
+
+/**
+ * The run as its jobs show it: one a CI still calls queued while a runner took any of its jobs is at work (BTN-1576).
+ * GitHub keeps a whole run `queued` while any one job waits for a runner, though the others run or are done.
+ */
+export function runOfJobs(run: CiRun, jobs: CiJob[]): CiRun {
+  if (run.status !== 'queued' || !jobs.some(jobTaken)) return run
+  const starts = jobs.flatMap((job) => (job.startedAt === null ? [] : [job.startedAt])).sort((a, b) => Date.parse(a) - Date.parse(b))
+  return { ...run, status: 'running', startedAt: run.startedAt ?? starts[0] ?? null }
+}
+
+/** The jobs of the push's runs at work that have waited for a runner `STUCK_MS` or longer, and since when (BTN-1576). */
+export function waitingJobs(current: CurrentRun | null, now: Date): { name: string; since: string }[] {
+  return (current?.runs ?? [])
+    .filter((each) => each.run.status === 'running')
+    .flatMap((each) => each.jobs)
+    .flatMap((job) =>
+      job.status === 'queued' && job.waitingSince !== undefined && now.getTime() - Date.parse(job.waitingSince) >= STUCK_MS ? [{ name: job.name, since: job.waitingSince }] : [],
+    )
 }
 
 const TASK_ID = /\[([A-Z][A-Z0-9]*-\d+)\]/g

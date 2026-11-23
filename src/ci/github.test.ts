@@ -118,6 +118,25 @@ describe('githubActionsSource', () => {
     ])
   })
 
+  it('tells since when a queued job waits for a runner, and nothing for a job a runner took (BTN-1576)', async () => {
+    const job = { name: 'test', conclusion: null, started_at: null, completed_at: null, created_at: '2026-11-23T20:43:00Z', steps: [] }
+    const { source } = fake({
+      '/actions/runs/7/jobs?per_page=100': {
+        jobs: [
+          { ...job, id: 11, status: 'queued' },
+          { ...job, id: 12, status: 'in_progress', started_at: '2026-11-23T20:43:05Z' },
+          { ...job, id: 13, status: 'waiting' },
+        ],
+      },
+    })
+    const jobs = await source.jobs({ id: 7 } as never)
+    expect(jobs.map((each) => [each.id, each.status, each.waitingSince])).toEqual([
+      [11, 'queued', '2026-11-23T20:43:00Z'],
+      [12, 'running', undefined],
+      [13, 'queued', undefined],
+    ])
+  })
+
   it('marks a job GitHub cancelled because no runner took it (BTN-761)', async () => {
     const job = { name: 'e2e', status: 'completed', started_at: '2026-11-05T19:26:39Z', completed_at: '2026-11-05T19:41:40Z' }
     const { source } = fake({

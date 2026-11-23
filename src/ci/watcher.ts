@@ -1,7 +1,7 @@
 import { remoteHead } from '../git/remote-head.js'
 import type { Git } from '../git/types.js'
 import { englishOf, fail, notice, noticeOf, sameNotice } from '../notice/notice.js'
-import { currentRunOf, failedKey, failedUntaken, isFinished, mediansOf, pushesOf, pushKey, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun, type WorkflowRun } from './model.js'
+import { currentRunOf, failedKey, failedUntaken, isFinished, mediansOf, pushesOf, pushKey, runOfJobs, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun, type WorkflowRun } from './model.js'
 import type { CiTarget } from './remote.js'
 import { readFailure, type FailedRun } from './report.js'
 import { CI_TITLES } from './verdict.js'
@@ -214,7 +214,9 @@ export class CiWatch {
       const read = await source.runs(HISTORY, branch)
       const run = currentRunOf(read)
       const current = run === null ? null : await this.currentOf(source, run, read)
-      const runs = await this.markUntaken(source, read, current)
+      // A run of the push its jobs showed at work (BTN-1576) is at work in the history too.
+      const taken = read.map((each) => current?.runs.find((other) => other.run.id === each.id)?.run ?? each)
+      const runs = await this.markUntaken(source, taken, current)
       const marked = (each: WorkflowRun) => ({ ...each, run: runs.find((other) => other.id === each.run.id) ?? each.run })
       this.view.current = current === null ? null : { ...current, runs: current.runs.map(marked) }
       this.view.history = runs
@@ -249,7 +251,8 @@ export class CiWatch {
     for (const each of push.runs) {
       const known = shown.get(each.id)
       const same = known !== undefined && known.run.status === each.status && known.run.stoppedAt === each.stoppedAt && isFinished(each.status)
-      workflows.push({ run: each, jobs: same ? known.jobs : await source.jobs(each) })
+      const jobs = same ? known.jobs : await source.jobs(each)
+      workflows.push({ run: runOfJobs(each, jobs), jobs })
     }
     if (this.tasksOf?.push !== push.key) this.tasksOf = { push: push.key, tasks: push.manual ? [] : await this.tasksFor(push.runs[0]!, runs) }
     return { commit: push.commit, title: push.title, manual: push.manual, tasks: this.tasksOf.tasks, runs: workflows }

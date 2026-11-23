@@ -20,6 +20,7 @@ export const ciEn = {
   openRun: 'Open the run',
   stuckRun: (span: string) => `The run has been queued for ${span}: no runner takes it`,
   stuckPush: (commit: string, span: string) => `The push ${commit} has had no run for ${span}: the CI did not pick it up`,
+  jobWaits: (job: string, span: string) => `${job} waits for a runner for ${span}`,
   pushed: (commit: string) => `Push ${commit}: waiting for a run`,
   usual: (median: string) => `usually ${median}`,
   took: (duration: string) => `took ${duration}`,

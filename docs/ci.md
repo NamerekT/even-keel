@@ -30,7 +30,7 @@ band of its own with no link and one "Don't show again" — a "Got it" mark per 
 
 | File | What is in it |
 | --- | --- |
-| `model.ts` | the neutral model (`CiRun`, `CiJob`, `CiStep`, `CiView`), the adapter contract `CiSource`, `STUCK_MS`, the run length, the medians per workflow, the current push and the history by push (`pushesOf`, `pushStatus`, `leadRun`), the run's event (`eventOf`: GitHub's and Forgejo's `event`, GitLab's `source`), `stuckSince`, `taskIdsOf` |
+| `model.ts` | the neutral model (`CiRun`, `CiJob`, `CiStep`, `CiView`), the adapter contract `CiSource`, `STUCK_MS`, the run length, the medians per workflow, the current push and the history by push (`pushesOf`, `pushStatus`, `leadRun`), the run's event (`eventOf`: GitHub's and Forgejo's `event`, GitLab's `source`), `stuckSince`, a run as its jobs show it and the jobs waiting for a runner (`runOfJobs`, `waitingJobs`), `taskIdsOf` |
 | `remote.ts` | `parseRemote` (https, ssh and scp forms), `ciTargets`: which remote gets which CI |
 | `forgejo.ts`, `github.ts`, `gitlab.ts` | the CI adapters |
 | `http.ts` | `getJson` and its notices `ci.denied`, `ci.http`, `ci.unreachable` |
@@ -189,6 +189,8 @@ Checked on Forgejo 16.0.3 (`+gitea-1.22.0`) and code.forgejo.org (17.0-dev):
 - A job's log is `GET /repos/<owner>/<repo>/actions/jobs/<job id>/logs` with the usual `token` header, plain text with a timestamp on each line, as GitHub's (checked on 16.0.3 on 2026-10-30, BTN-605); the job id comes from `GET /repos/<owner>/<repo>/actions/runs/<id>/jobs`. The web path `/<owner>/<repo>/actions/runs/<index>/jobs/<n>/logs` does not take a token (404), and the run number in the page's URL is not the run's id. The whole run's zip at `/actions/runs/<id>/logs` is not used.
 
 GitHub sets `run_started_at` when the run is created, before a runner takes it, so a queued GitHub run has no start.
+
+GitHub also keeps a whole run `queued` while any one of its jobs waits for a runner, though the others run or are done (seen live on 2026-11-23: macOS #987 with four jobs over and one at work, only `test` waiting, and the chain called the push unchecked, BTN-1576). The run's own status is not trusted alone: `CiWatch` reads the jobs of every run of the current push and `runOfJobs` (`model.ts`) makes a queued run with a job at work or over (not skipped, not given up for want of a runner) `running`, its start the first job's; the history takes the same run. The verdict then waits for it however long, and `ci.notTaken` and the panel's "no runner takes it" stay for a run none of whose jobs got a runner. The adapter gives a job GitHub calls `queued` its `created_at` as `CiJob.waitingSince` (`waiting` and `pending` wait for an approval or a concurrency group, not a runner), and the panel names each job of a run at work that has waited `STUCK_MS` or longer — "test waits for a runner for 8m" (`waitingJobs`), a quiet hint, not the stuck warning. Forgejo and GitLab are expected to sum a run's status from its jobs with one at work first, so the same mixed run should be `running` there already (read from their sources, not checked live); `runOfJobs` covers them all the same, and their adapters set no `waitingSince`.
 
 ## The page
 
