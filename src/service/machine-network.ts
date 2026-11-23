@@ -426,6 +426,7 @@ export class MachineNetwork {
       tally: (machine, rows) => peers.tally?.(machine, rows) ?? Promise.resolve({ taken: false }),
       credentials: (machine, project, urls) =>
         peers.credentials?.(machine, project, urls, this.clones.has(`${machine}\0${project}`)) ?? Promise.resolve({ credentials: [] }),
+      skills: (machine, install) => peers.skills?.(machine, install) ?? { skills: null },
       online: (machine) => changed(machine, true),
       offline: (machine) => {
         this.peers.get(machine)?.remote.lost()

@@ -354,3 +354,11 @@ To check, on the benches (entry 181): put a few hundred old transcripts of the p
 Assumed: a machine that has just joined comes online on the link before the page needs it counted, so the hub reads its machines anew then and the machines panel, the project's "Machines" and the capacity link show at once. If not, "+ Machine" stays under "Hub address for machines" with two live machines until the next pool change or a restart.
 
 To check, on the benches (entry 181): with the bench hub alone and a revoked machine in its list (revoke a joined one), open Settings → Interface and see "Machines" with "+ Machine" under "Hub address for machines" and no machines panel in the header; join a machine and see the panel come and the row go without a reload.
+
+## Your own skills on a machine elsewhere (BTN-1565)
+
+`docs/packages.md`, "The user's own skills". The marketplace of `my-skills@even-keel-skills` is the hub's `state/skills/`, which a machine elsewhere lacks; before installing the hub's install the machine asks `POST /link/skills` for its files and writes them into its own `state/skills/`. Covered by `src/packages/skills-follow.test.ts` (a hub's install taken by a machine with no `state/skills/`, the hub away, an install the hub lost), `src/packages/skills.test.ts` (`skillFilesOf`/`takeSkills` at the hub's version, a path out of its skill refused) and `src/link/link.test.ts` (the request over the link); no test runs a hub and a machine elsewhere together over HTTPS.
+
+Assumed: the brief reaches the machine while its link is online, so the request gets through at once; the answer, every file of the skills as base64 in one body, fits in the 2-minute timeout. If not, the machine shows `packages.skillsAway` for `my-skills` and tries again in 10 minutes.
+
+To check, on the benches (entry 181): wrap a skill or two into "My skills" on the bench hub, put `my-skills` into a project's set, connect machine-1 to the project and see `packages: my-skills@even-keel-skills: … files of the hub's 1.0.0+… written into its marketplace here` in its log, the package ready on the machine's page and a Codex or OpenCode session there listing the skill; then edit the skill on the hub, press Update and see the machine take the new version without a restart.
