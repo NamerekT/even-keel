@@ -137,6 +137,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     gitFound: machine.gitFound(),
     machineSignIns: ctx.machineLink.network.signIns(),
     machineNames: ctx.machineLink.network.names(),
+    liveMachines: ctx.machineLink.network.live(),
     machineColors: ctx.machineLink.network.colors(),
     ownMachine: ctx.machineLink.machines.own(),
     stranded: ctx.machineLink.reassigner.stranded(),

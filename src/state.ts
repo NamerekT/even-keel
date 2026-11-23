@@ -436,9 +436,14 @@ export interface EvenKeelState {
   machineSignIns?: import('./link/view.js').MachineSignIn[]
   /**
    * The hub's name of each machine it ever had, the own one too (BTN-993): what the page labels a lane and a session
-   * by. One machine or none — the page shows no machine at all; absent — an older service.
+   * by, the revoked ones too; absent — an older service.
    */
   machineNames?: Record<string, string>
+  /**
+   * The machines the hub has now (BTN-1552): the own one first, then the joined ones not revoked. More than one — the
+   * page shows machines (`severalMachines`); absent — an older service, counted by `machineNames`.
+   */
+  liveMachines?: string[]
   /** The colour of each machine of `machineNames`, its own or the palette's (BTN-1272); absent — an older service. */
   machineColors?: Record<string, string>
   /** The hub's own machine, whose page sets `parallel` as its capacity; absent — an older service. */

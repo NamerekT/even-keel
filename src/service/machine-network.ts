@@ -53,6 +53,8 @@ export class MachineNetwork {
   private revokedIds = new Set<string>()
   private pools = new Map<string, string[]>()
   private machineNames: Record<string, string> = {}
+  /** The own machine and the joined ones, in the hub's order, as `refresh` last read them; `live` drops the revoked. */
+  private joinedIds: string[] = []
   private colorsById: Record<string, string> = {}
   private paletteById: Record<string, string> = {}
   /** By machine and project, the connect job's step that shows a clone's progress there. */
@@ -125,6 +127,16 @@ export class MachineNetwork {
     return this.machineNames
   }
 
+  /**
+   * The machines the hub has now (BTN-1552): the own one first, then the joined ones not revoked, as the machines panel
+   * lists them. What decides "several machines"; `names` keeps the gone ones to label old sessions and lanes.
+   */
+  live(): string[] {
+    const own = this.options.own()
+    const ids = this.joinedIds.filter((id) => !this.revokedIds.has(id))
+    return [...ids.filter((id) => id === own), ...ids.filter((id) => id !== own)]
+  }
+
   /** The colour of each machine the hub ever had (BTN-1272), its own or the palette's, as `refresh` last read them. */
   colors(): Record<string, string> {
     return this.colorsById
@@ -160,6 +172,8 @@ export class MachineNetwork {
     const machines = await this.options.store.listMachines()
     this.revokedIds = new Set(machines.filter((record) => record.revokedAt !== null).map((record) => record.id))
     this.machineNames = Object.fromEntries(machines.map((record) => [record.id, record.name]))
+    const own = this.options.own()
+    this.joinedIds = machines.filter((record) => record.id === own || record.joinedAt !== null).map((record) => record.id)
     this.colorsById = machineColors(machines)
     this.paletteById = machineColors(machines.map(({ id }) => ({ id })))
     const { rows } = await this.options.db.query<{ project_id: string; machine_id: string }>('select project_id, machine_id from project_machines where enabled order by machine_id')
@@ -361,6 +375,10 @@ export class MachineNetwork {
     const changed = (machine: string, online: boolean) => {
       if (online) this.wentOff.delete(machine)
       else this.wentOff.set(machine, Date.now())
+      // A machine that has just joined is read anew, so the page counts it among the live ones at once.
+      if (online && !this.joinedIds.includes(machine)) {
+        void this.refresh().then(() => this.options.changed(), (error: unknown) => log(`machines: the machines could not be read anew: ${error instanceof Error ? error.message : String(error)}`))
+      }
       this.options.changed()
     }
     if (peers === undefined) {

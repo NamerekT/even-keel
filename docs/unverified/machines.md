@@ -346,3 +346,11 @@ To check, on the benches (entry 181): set a project's Repository folder on the b
 Assumed: nothing the hub reads of a machine elsewhere needs a task outside the scope — one the trackers no longer list, with only finished sessions older than a day — besides the history window of such a task, which no longer names its sessions; and a real machine's facts of the tasks left stay far under the limit. If not, a step or a chain on the hub waits for a fact the machine no longer tells, or the machine's page shows `link.tooLarge` and its log names the largest parts of the snapshot.
 
 To check, on the benches (entry 181): put a few hundred old transcripts of the project's tasks into a machine's account folder (copies of a real project's), connect the machine to that project and see "Repository" and the other steps pass, the machine stay online and its log show no `is not sent`; then open the history window of a task done more than a day ago on that machine.
+
+## "+ Machine" on a hub with a revoked machine (BTN-1552)
+
+`docs/machines.md`, "The pool on the page" ("More than one machine"). A hub restored on another computer keeps its old own machine, revoked; the page counted machines by every name the hub ever had and hid "+ Machine" everywhere with one live machine. Covered by `src/service/machine-network.test.ts` (the live machines after a join and a revoke) and `web/src/machineView.test.ts` (`severalMachines`) with machines made up in the test.
+
+Assumed: a machine that has just joined comes online on the link before the page needs it counted, so the hub reads its machines anew then and the machines panel, the project's "Machines" and the capacity link show at once. If not, "+ Machine" stays under "Hub address for machines" with two live machines until the next pool change or a restart.
+
+To check, on the benches (entry 181): with the bench hub alone and a revoked machine in its list (revoke a joined one), open Settings → Interface and see "Machines" with "+ Machine" under "Hub address for machines" and no machines panel in the header; join a machine and see the panel come and the row go without a reload.

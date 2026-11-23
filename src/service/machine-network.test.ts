@@ -159,6 +159,22 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect((await network.list()).find((machine) => machine.id === named.machine)?.name).toBe('Example desktop')
   })
 
+  it('tells the live machines apart from those it ever had: the own one and the joined ones not revoked (BTN-1552)', async () => {
+    const LAPTOP = '99999999-9999-4999-8999-999999999999'
+    const { db, network } = await started()
+    await network.refresh()
+    expect(Object.keys(network.names()).sort()).toEqual([OWN, LAPTOP].sort())
+    expect(network.live()).toEqual([OWN])
+
+    await db.query('update machines set joined_at = 1794653000000, invite_expires = null where id = $1', [LAPTOP])
+    await network.refresh()
+    expect(network.live()).toEqual([OWN, LAPTOP])
+
+    await network.revoke(LAPTOP)
+    expect(network.live()).toEqual([OWN])
+    expect(Object.keys(network.names())).toContain(LAPTOP)
+  })
+
   it('gives the machine the colour the window picked with its string', async () => {
     const { network } = await started()
     await expect(network.invite('Example desktop', '127.0.0.1', 'teal')).rejects.toThrow()

@@ -4,6 +4,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { ProtectionSettings } from './ProtectionSettings.js'
 import { Link, useSearchParams } from 'react-router'
 import { machinePath } from '../machineColor.js'
+import { severalMachines } from '../machineView.js'
 import { EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { CliSourceChoice } from '../layout/CliSource.js'
 import type { CliSource } from '../layout/cliLock.js'
@@ -275,7 +276,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           />
           {modesFailure}
           {/* With machines elsewhere `parallel` is this machine's capacity, set on its page (BTN-1272). */}
-          {Object.keys(state.machineNames ?? {}).length > 1 && state.ownMachine !== undefined ? (
+          {severalMachines(state) && state.ownMachine !== undefined ? (
             <Row
               className="settings__field"
               label={t.machinePage.capacityOwn}
@@ -291,7 +292,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             numberRow('parallel', t.shared.parallel, wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null, t.shared.parallelHint)
           )}
           {/* Machines only for now (BTN-996): a switch of accounts on one machine is BTN-125's. */}
-          {Object.keys(state.machineNames ?? {}).length > 1 && (
+          {severalMachines(state) && (
             <SwitchField
               className={marks.box('switchOnLimit')}
               label={t.shared.switchOnLimit}

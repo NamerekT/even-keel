@@ -25,6 +25,14 @@ export interface MachineState {
   since?: number | null
 }
 
+/**
+ * The hub has machines elsewhere now (BTN-1552): more than one live machine, the own one counted. Everything that shows
+ * machines or "+ Machine" in their stead asks this, never the size of `machineNames`, which keeps the revoked ones.
+ */
+export function severalMachines(state: Pick<EvenKeelState, 'machineNames' | 'liveMachines'> | null): boolean {
+  return (state?.liveMachines ?? Object.keys(state?.machineNames ?? {})).length > 1
+}
+
 type View = Pick<EvenKeelState, 'chain' | 'tasks' | 'runs' | 'config' | 'ownMachine' | 'taskSessions'>
 
 /** The machines that take a project's tasks: those with its row turned on; none — the own machine alone, as before pools. */

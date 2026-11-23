@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { matchPath, useLocation, useNavigate } from 'react-router'
 import type { MachineCard } from '../../../src/state.js'
 import { useLive } from '../live/context.js'
-import { MACHINE_PARAM } from '../machineView.js'
+import { MACHINE_PARAM, severalMachines } from '../machineView.js'
 
 const REREAD_MS = 30_000
 /** The pages with the machines panel; on the rest the choice is kept and comes back on return (BTN-1051). */
@@ -50,7 +50,7 @@ export function MachineFilterProvider({ children }: { children: ReactNode }) {
   const { state, read, onMachines } = useLive()
   const location = useLocation()
   const navigate = useNavigate()
-  const several = Object.keys(state?.machineNames ?? {}).length > 1
+  const several = severalMachines(state)
   const cards = useCards(several, read, onMachines)
   const [open, setOpen] = useState(false)
   const param = new URLSearchParams(location.search).get(MACHINE_PARAM)

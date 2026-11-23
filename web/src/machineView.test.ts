@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fakeTask } from '../../src/tracker/fixture.js'
 import type { EvenKeelState, MachineCard } from '../../src/state.js'
-import { machineBacklog, machineChain, machineCount, machineHeader,machineProjects, machineState, mergeQueue, poolOf } from './machineView.js'
+import { machineBacklog, machineChain, machineCount, machineHeader, machineProjects, machineState, mergeQueue, poolOf, severalMachines } from './machineView.js'
 import type { ChainBlock } from './state.js'
 
 const card = (id: string, patch: Partial<MachineCard> = {}): MachineCard => ({
@@ -161,5 +161,20 @@ describe('machineCount', () => {
   it('gives online/all and the names of the machines off the link', () => {
     const cards = [card('pc'), card('srv', { name: 'Server', online: false }), card('box', { name: 'Box', online: false })]
     expect(machineCount(cards)).toEqual({ text: '1/3', away: ['Server', 'Box'] })
+  })
+})
+
+describe('whether the hub has several machines (BTN-1552)', () => {
+  const names = { pc: 'Workstation', old: 'Old workstation', srv: 'Home server' }
+
+  it('counts the live ones, not every machine the hub ever had', () => {
+    expect(severalMachines({ machineNames: { pc: names.pc, old: names.old }, liveMachines: ['pc'] })).toBe(false)
+    expect(severalMachines({ machineNames: names, liveMachines: ['pc', 'srv'] })).toBe(true)
+  })
+
+  it('falls back to the names of an older service that tells no live ones', () => {
+    expect(severalMachines({ machineNames: { pc: names.pc } })).toBe(false)
+    expect(severalMachines({ machineNames: names })).toBe(true)
+    expect(severalMachines(null)).toBe(false)
   })
 })

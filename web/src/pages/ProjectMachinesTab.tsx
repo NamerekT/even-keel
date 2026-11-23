@@ -5,6 +5,7 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { machinePath } from '../machineColor.js'
+import { severalMachines } from '../machineView.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
@@ -15,7 +16,7 @@ import { useVocabularies } from './useVocabularies.js'
 import './projectMachines.css'
 
 /** The section "Machines" is shown only where the hub has a machine elsewhere: with one, there is nothing to pick. */
-export const poolShown = (state: EvenKeelState | null): boolean => Object.keys(state?.machineNames ?? {}).length > 1
+export const poolShown = (state: EvenKeelState | null): boolean => severalMachines(state)
 
 /** A machine's commands after a green main as tags after their caption; whose they are — the machine's or the project's — is the tip. */
 export function AfterGreen({ commands, own }: { commands: string[]; own: boolean }) {
