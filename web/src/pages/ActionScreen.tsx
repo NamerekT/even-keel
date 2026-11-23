@@ -7,13 +7,16 @@ const ACTION_PACE = { charMs: 12, pauseMs: 0 }
 
 /**
  * The current action of the lead block on a small screen: a new line types in while the previous one scrolls away.
- * `delay` holds the first line back, so a block being taken prints only once its frame is drawn.
+ * `delay` holds the first line back, so a block being taken prints only once its frame is drawn; `still` at mount
+ * shows the first line as it is, the later ones still type in.
  */
-export function ActionScreen({ line, delay = 0 }: { line: FeedLine; delay?: number }) {
+export function ActionScreen({ line, delay = 0, still = false }: { line: FeedLine; delay?: number; still?: boolean }) {
   const key = `${line.at} ${line.text}`
   const [shown, setShown] = useState<{ key: string; line: FeedLine; previous: FeedLine | null }>({ key, line, previous: null })
+  const [stillKey] = useState(still ? key : null)
   if (shown.key !== key) setShown({ key, line, previous: shown.line })
   const text = textOf(line)
+  const quiet = key === stillKey
 
   return (
     <div className={`block__action screen screen--${line.kind}`} title={text}>
@@ -22,7 +25,7 @@ export function ActionScreen({ line, delay = 0 }: { line: FeedLine; delay?: numb
           {textOf(shown.previous)}
         </p>
       )}
-      <Typed key={key} parts={[text]} pace={ACTION_PACE} className="screen__line" delay={shown.previous === null ? delay : 0} />
+      <Typed key={key} parts={[text]} pace={ACTION_PACE} className={quiet ? 'screen__line screen__line--still' : 'screen__line'} delay={shown.previous === null ? delay : 0} still={quiet} />
     </div>
   )
 }

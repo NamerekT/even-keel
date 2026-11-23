@@ -99,6 +99,12 @@
   animation: action-open 0.3s ease-out var(--beat-take, 0s) both;
 }
 
+/* A row that mounts on a switch of the chain's view stands as it is (BTN-1577). */
+.chain .block__now.block__now--still,
+.chain .screen__line.screen__line--still {
+  animation: none;
+}
+
 .chain .block__action {
   --screen-glyph: var(--lamp-working);
   position: relative;

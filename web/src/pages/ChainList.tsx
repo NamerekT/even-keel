@@ -37,7 +37,7 @@ import { Divider, HiddenCount, SubtasksChip } from './ChainDivider.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
 import { useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
-import { useChainMotion } from './useChainMotion.js'
+import { useChainMotion, useSwitched } from './useChainMotion.js'
 import { useArchivePages } from './useArchivePages.js'
 
 /** How long the ghost takes to grow open or fold shut. */
@@ -66,6 +66,8 @@ interface Props {
   switcher?: ReactNode
   /** The address search a row's link keeps, so a row of the parents view opens its panel there. */
   rowSearch?: string
+  /** The machine the chain is filtered to; `undefined` — all machines. A switch of it is no motion of the chain (BTN-1577). */
+  machine?: string
 }
 
 export interface Adding {
@@ -87,7 +89,7 @@ interface Relatives {
 type Relation = 'dragged' | 'blocker' | 'dependent'
 
 export function ChainList(props: Props) {
-  const { project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard, adding = null, switcher, rowSearch } = props
+  const { project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard, adding = null, switcher, rowSearch, machine } = props
   const { ghost, leaving } = useLingering(aimed, chain)
   const [archivePages, setArchivePages] = useState(0)
   const [revealed, setRevealed] = useState(0)
@@ -124,8 +126,10 @@ export function ChainList(props: Props) {
   const numbers = new Map(openIds(view.sections.flatMap((section) => section.blocks)).map((id, index) => [id, index + 1]))
   const [hovered, setHovered] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  // Each view of the feed keeps its own last frame: a switch of the view is no motion of the chain.
-  const motion = useChainMotion(rowSearch === undefined ? project : `${project}?${rowSearch}`, ordered, shown, incoming)
+  // Each view of the feed and each machine's keeps its own last frame: a switch of the view is no motion of the chain.
+  const chainView = `${project}${rowSearch === undefined ? '' : `?${rowSearch}`}${machine === undefined ? '' : `@${machine}`}`
+  const motion = useChainMotion(chainView, ordered, shown, incoming)
+  const switched = useSwitched(chainView)
   const real = blocks.filter((block) => block.id !== ghost?.id)
   const tiers = tiersOf(real.map((block) => ({ ...block, live: blockMetered(block) })))
   // The ghost takes the size the task will have where it lands, so the swap for the real block does not jump.
@@ -237,6 +241,7 @@ export function ChainList(props: Props) {
                     rails={rails.get(block.id) ?? []}
                     kin={kin !== null && block.parent === kin}
                     marks={motion.marks.get(block.id) ?? NO_MARKS}
+                    still={switched}
                     focused={block.id === focus}
                     movable={movable(block)}
                     relation={relationOf(block.id, drag, selected, pointed)}
@@ -428,6 +433,8 @@ interface BlockProps {
   kin: boolean
   /** The marks of running motions, each with the delay of its own beat. */
   marks: ReadonlyMap<Mark, number>
+  /** The render switches the chain's view: a row that mounts in it shows its action line as it is. */
+  still: boolean
   focused: boolean
   movable: boolean
   relation: Relation | null
@@ -445,7 +452,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onUnready, onCard } =
+  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, still, focused, movable, relation, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onUnready, onCard } =
     props
   const { state } = useLive()
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
@@ -568,11 +575,11 @@ function Block(props: BlockProps) {
         {fix && <Forge lamp={block.lamp} />}
       </p>
       {acting && (
-        <ActionMeter project={project} session={metered} sessions={block.sessions} scale={scale}>
+        <ActionMeter project={project} session={metered} sessions={block.sessions} scale={scale} still={still}>
           {action === null ? (
             <div className="block__action" />
           ) : (
-            <ActionScreen line={action} delay={marks.has('take') ? marks.get('take')! + FRAME_MS : 0} />
+            <ActionScreen line={action} delay={marks.has('take') ? marks.get('take')! + FRAME_MS : 0} still={still} />
           )}
         </ActionMeter>
       )}

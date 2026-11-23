@@ -19,7 +19,7 @@ export function Typists({ count, children }: { count: number; children: ReactNod
 /**
  * A line typed part by part with a hold between parts. Typing runs once per mount — key the component to type
  * a new line; a changed number in the same line is taken over as it is. With `to` the line is a link; `delay` holds
- * the first character back by that many ms.
+ * the first character back by that many ms; `still` at mount shows the line whole, untyped.
  */
 export function Typed({
   parts,
@@ -27,12 +27,14 @@ export function Typed({
   className,
   to,
   delay = 0,
+  still = false,
 }: {
   parts: string[]
   pace: Pace
   className: string
   to?: string | null
   delay?: number
+  still?: boolean
 }) {
   const queue = useContext(TypingQueue)
   const latest = useRef(parts)
@@ -42,10 +44,10 @@ export function Typed({
   latestDelay.current = delay
   const startAt = useRef<{ queued: number; mounted: number } | null>(null)
   // -1 — waiting for its turn in the queue.
-  const [shown, setShown] = useState(() => (stillMotion() ? Infinity : -1))
+  const [shown, setShown] = useState(() => (still || stillMotion() ? Infinity : -1))
 
   useEffect(() => {
-    if (stillMotion()) return
+    if (shown === Infinity) return
     startAt.current ??= { queued: queue?.(typingTime(latest.current, pace)) ?? 0, mounted: performance.now() }
     let frame = requestAnimationFrame(function step(now) {
       const { queued, mounted } = startAt.current!
