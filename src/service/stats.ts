@@ -1,9 +1,9 @@
 import { join } from 'node:path'
 import { accountsRoot, codexAccountsRoot, copilotAccountsRoot, openCodeAccountsRoot } from '../account/homes.js'
-import { firstByKey, idPrefixOf, localUrlOf } from '../config.js'
+import { firstByKey, localUrlOf } from '../config.js'
 import { envTargets } from '../env-file.js'
 import { home as dataHome, root } from '../locations.js'
-import { defaultProfile, profileFor } from '../profiles/model.js'
+import { hulyProfilesOf } from '../stats/huly-profiles.js'
 import { StatsReader } from '../stats/reader.js'
 import { tallyKey } from '../stats/mode.js'
 import { TallyService } from '../stats/tally.js'
@@ -50,19 +50,7 @@ export function wireNewTally(ctx: StatsContext): () => TallyService {
       intervalMs: ctx.TALLY_INTERVAL_MS,
       firstDelayMs: ctx.TALLY_FIRST_DELAY_MS,
       evenKeelUrl: () => localUrlOf(ctx.listen),
-      huly: () => {
-        const set = ctx.profiles.current()
-        const config = ctx.readers()
-        // By the Huly project, which Tally knows the tasks by; a feed is a reader of its own (BTN-66).
-        const projects = Object.entries(config.trackers).flatMap(([project, kind]) => {
-          const values = kind === 'huly' ? profileFor(set, project, kind)?.values : undefined
-          return values === undefined ? [] : [[idPrefixOf(config, project), values] as const]
-        })
-        const elsewhere = Object.entries(config.trackers).flatMap(([project, kind]) => (kind === 'huly' ? [] : [idPrefixOf(config, project)]))
-        const prefixes = Object.keys(config.trackers).map((project) => idPrefixOf(config, project))
-        const byId = Object.fromEntries(set.profiles.filter((profile) => profile.kind === 'huly').map((profile) => [profile.id, profile.values]))
-        return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere, prefixes, byId }
-      },
+      huly: () => hulyProfilesOf(ctx.readers(), ctx.profiles.current()),
       trackers: () => timeTrackers(ctx.readers(), ctx.profiles.current(), ADAPTERS),
       log: (message) => console.log(message),
       changed: () => ctx.hub.broadcastSoon('state', ctx.getState),

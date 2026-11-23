@@ -151,9 +151,16 @@ describe('the shipped tally.config.json', () => {
     }
   })
 
-  it("leaves Codex's hidden models unpriced without a log line", () => {
-    expect(shipped.unpriced).toEqual(['codex-auto-review', 'gpt-reserve'])
-    expect(unpricedToLog(['codex-auto-review', 'gpt-7', 'gpt-reserve'], shipped.unpriced)).toEqual(['gpt-7'])
+  it("leaves the models with no public price unpriced without a log line", () => {
+    expect(shipped.unpriced).toEqual(['codex-auto-review', 'gpt-reserve', 'mai-code-1.1-flash', 'mai-code-2-flash', 'probe'])
+    expect(unpricedToLog(['codex-auto-review', 'gpt-7', 'gpt-reserve', 'mai-code-2-flash', 'probe'], shipped.unpriced)).toEqual(['gpt-7'])
+  })
+
+  it("prices the classifier's Gemini at 0 under the names LiteLLM answers with", () => {
+    for (const model of ['google-gemini-3.1-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite']) {
+      expect(priceOf(model), model).toMatchObject({ input: 0, output: 0 })
+    }
+    expect(priceOf('gemini-3.6-flash'), 'a bare gemini- prefix would price paid Gemini at 0').toBeUndefined()
   })
 })
 

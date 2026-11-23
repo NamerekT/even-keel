@@ -3,7 +3,7 @@
   "signs": { "failureRun": 3, "deniedRun": 1, "repeatRun": 2, "rereadCount": 5, "noCommitReplies": 150 },
   "classify": { "perRun": 10, "idleMinutes": 60, "sinceDays": 14 },
   "reportsSince": "2026-10-03",
-  "unpriced": ["codex-auto-review", "gpt-reserve"],
+  "unpriced": ["codex-auto-review", "gpt-reserve", "mai-code-1.1-flash", "mai-code-2-flash", "probe"],
   "prices": {
     "claude-fable-5-2": { "input": 8, "output": 40, "cacheRead": 0.2, "cacheWrite5m": 10, "cacheWrite1h": 16 },
     "claude-fable-5-1": { "input": 10, "output": 50, "cacheRead": 0.25, "cacheWrite5m": 12.5, "cacheWrite1h": 20 },
@@ -64,6 +64,8 @@
     },
     "gpt-5.4-mini": { "input": 0.75, "output": 4.5, "cacheRead": 0.075, "cacheWrite5m": 0.75, "cacheWrite1h": 0 },
     "google-gemini": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite5m": 0, "cacheWrite1h": 0 },
-    "google-gemma": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite5m": 0, "cacheWrite1h": 0 }
+    "google-gemma": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite5m": 0, "cacheWrite1h": 0 },
+    "gemini-3.1-flash-lite": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite5m": 0, "cacheWrite1h": 0 },
+    "gemini-3.5-flash-lite": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite5m": 0, "cacheWrite1h": 0 }
   }
 }
