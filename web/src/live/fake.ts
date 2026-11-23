@@ -210,6 +210,12 @@ export function createFakeSource(search: string): LiveSource {
     const { fiveHour, sevenDay } = FAKE_LIMITS
     current.state.limits = { ...FAKE_LIMITS, fiveHour: { ...fiveHour!, usedPercentage: 86 }, sevenDay: { ...sevenDay!, usedPercentage: 100 } }
   }
+  // The header's account at 96% of its five hours, so the idle panel may draw its limits chat (BTN-1510).
+  if (params.get('limits') === 'full' && current.state !== null) {
+    const { account } = current.state
+    account.accounts = account.accounts.map((entry) =>
+      entry.key === account.active && entry.limits ? { ...entry, limits: { ...entry.limits, fiveHour: { usedPercentage: 96, resetsAt: new Date(Date.now() + 75 * 60_000).toISOString() } } } : entry)
+  }
   if (params.get('limits') === 'none' && current.state !== null) current.state.limits = null
   if (params.has('branch') && current.state !== null) current.state.branchDrift = fakeBranchDrift(params.get('branch'))
   if (params.get('config') === 'broken' && current.state !== null) {

@@ -10,6 +10,9 @@ import {
   emptyTurns,
   type Harbor,
   harborMemes,
+  limitsFixReset,
+  limitsFixStarts,
+  limitsGone,
   longestRun,
   momentsOf,
   pickMeme,
@@ -123,6 +126,61 @@ describe('pickMeme', () => {
     const draws = [0.2, 0]
     expect(pickMeme(['calm', 'spend'], 5, () => draws.shift()!, { moment: 'calm' })).toEqual({ moment: 'spend' })
     expect(pickMeme(['calm'], 5, () => 0, { moment: 'calm' })).toEqual({ line: 0 })
+  })
+
+  it('draws the limits chat, with its reset, only when it is given one', () => {
+    expect(pickMeme([], 5, () => 0.999)).toEqual({ chat: 'recommended' })
+    expect(pickMeme([], 5, () => 0.999, undefined, { limitsReset: null })).toEqual({ chat: 'recommended' })
+    expect(pickMeme([], 5, () => 0.999, undefined, { limitsReset: '2pm' })).toEqual({ chat: 'limits', reset: '2pm' })
+    expect(pickMeme([], 5, () => 0.9, undefined, { limitsReset: '2pm' })).toEqual({ chat: 'recommended' })
+  })
+
+  it('never draws the limits chat twice in a row, and forgets it once the chat is not offered', () => {
+    expect(pickMeme([], 5, () => 0.999, { chat: 'limits', reset: '2pm' }, { limitsReset: '2pm' })).toEqual({ chat: 'recommended' })
+    expect(pickMeme([], 5, () => 0.999, { chat: 'limits', reset: '2pm' })).toEqual({ chat: 'recommended' })
+    expect(pickMeme([], 5, () => 0, { chat: 'limits', reset: '2pm' })).toEqual({ line: 0 })
+  })
+})
+
+describe('limitsFixReset', () => {
+  const now = new Date(2026, 10, 23, 12, 0)
+  const window = (usedPercentage: number, resetsAt = new Date(2026, 10, 23, 14, 0)) => ({ usedPercentage, resetsAt: resetsAt.toISOString() })
+
+  it('offers the chat from 90% of the five-hour window, with the reset as the CLI says it', () => {
+    expect(limitsFixReset({ window: window(89.9), outdated: false }, now)).toBeNull()
+    expect(limitsFixReset({ window: window(90), outdated: false }, now)).toBe('2pm')
+    expect(limitsFixReset({ window: window(100, new Date(2026, 10, 23, 9, 30)), outdated: false }, new Date(2026, 10, 23, 8, 0))).toBe('9:30am')
+  })
+
+  it('keeps the chat away without a window, with outdated limits or a reset already past', () => {
+    expect(limitsFixReset(null, now)).toBeNull()
+    expect(limitsFixReset({ window: window(100), outdated: true }, now)).toBeNull()
+    expect(limitsFixReset({ window: window(100, new Date(2026, 10, 23, 11, 0)), outdated: false }, now)).toBeNull()
+  })
+})
+
+describe('the limits chat', () => {
+  const pace = { charMs: 10, pauseMs: 100 }
+  const chat = [{ agent: 'Fix.' }, { agent: 'Update' }, { agent: 'Great!' }, { human: 'where' }, { agent: 'Hit' }]
+  // 'Fix.' typed by 40, 'Update' from 140 to 200, 'Great!' from 2200, 'where' at 10200, 'Hit' from 12200 to 12230.
+  const starts = limitsFixStarts(chat, pace)
+
+  it('starts the third line two seconds after the second is typed, asks at eight and answers at ten', () => {
+    expect(starts).toEqual([0, 140, 2200, 10_200, 12_200])
+    expect(chatTime(chat, pace, starts)).toBe(12_230)
+    expect(chatAt(chat, 2199, pace, null, starts).said).toEqual([4, 6, -1, -1, -1])
+    expect(chatAt(chat, 2200, pace, null, starts).said).toEqual([4, 6, 0, -1, -1])
+    expect(chatAt(chat, 10_199, pace, null, starts).said).toEqual([4, 6, 6, -1, -1])
+    expect(chatAt(chat, 10_200, pace, null, starts).said).toEqual([4, 6, 6, 5, -1])
+    expect(chatAt(chat, 12_210, pace, null, starts).said).toEqual([4, 6, 6, 5, 1])
+  })
+
+  it('takes the limits away as the third line starts and gives them back ten seconds later', () => {
+    expect(limitsGone(starts, 2199)).toBe(false)
+    expect(limitsGone(starts, 2200)).toBe(true)
+    expect(limitsGone(starts, 12_199)).toBe(true)
+    expect(limitsGone(starts, 12_200)).toBe(false)
+    expect(limitsGone(starts, Infinity)).toBe(false)
   })
 })
 

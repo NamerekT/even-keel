@@ -190,6 +190,11 @@
   background: var(--fg-muted);
 }
 
+/* The idle panel's limits chat "fixed" them (BTN-1510): gone for a while, their place kept. */
+.limit--gone {
+  visibility: hidden;
+}
+
 /* The full numbers of the account block, on hover or keyboard focus; the click opens the drawer instead. */
 .account-card {
   position: absolute;

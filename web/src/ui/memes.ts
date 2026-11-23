@@ -1,4 +1,5 @@
 import type { LaunchDay } from '../../../src/chain/launches.js'
+import type { LimitWindow } from '../../../src/limits/model.js'
 import { type ChainBlock, type ChainStatus, checkpointHandoffs } from '../state.js'
 import { type Pace, typingTime } from './typing.js'
 
@@ -23,13 +24,16 @@ export interface Scene {
 export const PLAYS = ['picture', 'spoons', 'slip', 'reset'] as const
 export type Play = (typeof PLAYS)[number]
 
-/** Dialogues in the look of Claude Code: the human's lines appear whole, the agent's are typed, and they pile up. */
-export const CHATS = ['keepGoing', 'areYouSure', 'justAsking', 'fixTest', 'recommended'] as const
+/**
+ * Dialogues in the look of Claude Code: the human's lines appear whole, the agent's are typed, and they pile up. The
+ * `limits` chat is drawn only while the header's five-hour window is nearly spent (`limitsFixReset`).
+ */
+export const CHATS = ['keepGoing', 'areYouSure', 'justAsking', 'fixTest', 'recommended', 'limits'] as const
 export type Chat = (typeof CHATS)[number]
 export type ChatLine = { human: string } | { agent: string }
 
 /** A general line by its index, the line for the driving boat, an act of a play, a chat, or a moment's line. */
-export type Meme = { line: number } | { drive: true } | { play: Play; act: number } | { chat: Chat } | { moment: Moment }
+export type Meme = { line: number } | { drive: true } | { play: Play; act: number } | { chat: Chat; reset?: string } | { moment: Moment }
 
 const RERUN_SESSIONS = 3
 const SPEND_USD = 1000
@@ -61,11 +65,12 @@ const MOMENT_SHARE = 0.25
 
 /**
  * A quarter of the draws go to the moments, when there are any; the rest to the general lines, the drive, the plays and the
- * chats. Never `previous` again.
+ * chats, the limits chat only with `limitsReset`, which its last line names. Never `previous` again.
  */
-export function pickMeme(moments: Moment[], lines: number, random: () => number, previous?: Meme): Meme {
+export function pickMeme(moments: Moment[], lines: number, random: () => number, previous?: Meme, { limitsReset = null }: { limitsReset?: string | null } = {}): Meme {
   const fresh = moments.filter((moment) => !(previous && 'moment' in previous && previous.moment === moment))
   if (fresh.length > 0 && random() < MOMENT_SHARE) return { moment: fresh[Math.floor(random() * fresh.length)]! }
+  const offered: readonly Chat[] = limitsReset === null ? CHATS.filter((chat) => chat !== 'limits') : CHATS
   // The drive, the plays and then the chats are the general lines after the last one.
   const chats = lines + 1 + PLAYS.length
   const skip =
@@ -76,19 +81,70 @@ export function pickMeme(moments: Moment[], lines: number, random: () => number,
         : 'play' in previous
           ? lines + 1 + PLAYS.indexOf(previous.play)
           : 'chat' in previous
-            ? chats + CHATS.indexOf(previous.chat)
+            ? offered.includes(previous.chat) ? chats + offered.indexOf(previous.chat) : -1
             : previous.line
-  const count = chats + CHATS.length
+  const count = chats + offered.length
   let index = Math.floor(random() * (skip < 0 ? count : count - 1))
   if (skip >= 0 && index >= skip) index += 1
   if (index < lines) return { line: index }
   if (index === lines) return { drive: true }
-  return index < chats ? { play: PLAYS[index - lines - 1]!, act: 0 } : { chat: CHATS[index - chats]! }
+  if (index < chats) return { play: PLAYS[index - lines - 1]!, act: 0 }
+  const chat = offered[index - chats]!
+  return chat === 'limits' ? { chat, reset: limitsReset! } : { chat }
 }
 
-export function chatTime(chat: ChatLine[], { charMs, pauseMs }: Pace): number {
-  const typed = chat.reduce((sum, line) => sum + ('agent' in line ? line.agent.length : 0), 0)
-  return typed * charMs + Math.max(0, chat.length - 1) * pauseMs
+/** When each line of a chat starts, ms after the chat does: a pause after the line before it is typed. */
+export function chatStarts(chat: ChatLine[], { charMs, pauseMs }: Pace): number[] {
+  let next = 0
+  return chat.map((line) => {
+    const start = next
+    next = start + ('agent' in line ? line.agent.length : 0) * charMs + pauseMs
+    return start
+  })
+}
+
+/** When the last line of a chat is typed, ms after its start. */
+export function chatTime(chat: ChatLine[], pace: Pace, starts = chatStarts(chat, pace)): number {
+  const last = chat.at(-1)
+  if (last === undefined) return 0
+  return starts.at(-1)! + ('agent' in last ? last.agent.length : 0) * pace.charMs
+}
+
+/**
+ * The limits chat (BTN-1510): the agent "fixes" the limits and they really leave the header for `goneMs`. From `percent`
+ * of the five-hour window. Its third line starts `gapMs` after the second is typed and takes the limits away, the human
+ * asks `askMs` after that, and the last line brings them back.
+ */
+export const LIMITS_FIX = { percent: 90, gapMs: 2000, askMs: 8000, goneMs: 10_000 }
+
+/** The beats of the limits chat's five lines, in the shape of `chatStarts`. */
+export function limitsFixStarts(chat: ChatLine[], pace: Pace): number[] {
+  const starts = chatStarts(chat.slice(0, 2), pace)
+  const gone = chatTime(chat.slice(0, 2), pace, starts) + LIMITS_FIX.gapMs
+  return [...starts, gone, gone + LIMITS_FIX.askMs, gone + LIMITS_FIX.goneMs]
+}
+
+export function chatStartsOf(name: Chat, chat: ChatLine[], pace: Pace): number[] {
+  return name === 'limits' ? limitsFixStarts(chat, pace) : chatStarts(chat, pace)
+}
+
+/** Whether the header's limits are away `elapsed` ms into the limits chat timed by `starts`. */
+export function limitsGone(starts: number[], elapsed: number): boolean {
+  return elapsed >= starts[2]! && elapsed < starts[4]!
+}
+
+/**
+ * The reset the limits chat names, in the CLI's words ("2pm", "9:30am"), when the header's five-hour window is spent from
+ * `LIMITS_FIX.percent` on; `null` — no chat: no window, outdated limits or a reset already past.
+ */
+export function limitsFixReset(five: { window: LimitWindow | null; outdated: boolean } | null, now: Date): string | null {
+  const window = five?.window
+  if (!window || five.outdated || window.usedPercentage < LIMITS_FIX.percent) return null
+  const reset = new Date(window.resetsAt)
+  if (!(reset.getTime() > now.getTime())) return null
+  const hour = reset.getHours() % 12 || 12
+  const minutes = reset.getMinutes()
+  return `${hour}${minutes === 0 ? '' : `:${String(minutes).padStart(2, '0')}`}${reset.getHours() < 12 ? 'am' : 'pm'}`
 }
 
 /** How a chat is erased: selected a line per `lineMs` from the bottom, held selected `holdMs`, then deleted at once. */
@@ -96,21 +152,18 @@ export const CHAT_SELECT = { lineMs: 150, holdMs: 700 }
 
 /**
  * How many characters of each chat line show `elapsed` ms after the start (-1 — the line is not there) and how many of
- * the last lines are selected. From `eraseAt` ms on (`null` — never) the chat is selected and deleted.
+ * the last lines are selected, the lines starting at `starts`. From `eraseAt` ms on (`null` — never) the chat is selected
+ * and deleted.
  */
-export function chatAt(chat: ChatLine[], elapsed: number, pace: Pace, eraseAt: number | null): { said: number[]; selected: number } {
+export function chatAt(chat: ChatLine[], elapsed: number, pace: Pace, eraseAt: number | null, starts = chatStarts(chat, pace)): { said: number[]; selected: number } {
   const said = chat.map(() => -1)
   const selected = selectionAt(chat.length, elapsed, eraseAt)
   if (selected === null) return { said, selected: 0 }
-  let left = eraseAt === null ? elapsed : Math.min(elapsed, eraseAt)
+  const until = eraseAt === null ? elapsed : Math.min(elapsed, eraseAt)
   for (const [index, line] of chat.entries()) {
-    if ('human' in line) said[index] = line.human.length
-    else {
-      said[index] = Math.min(line.agent.length, Math.floor(left / pace.charMs))
-      left -= line.agent.length * pace.charMs
-    }
-    left -= pace.pauseMs
+    const left = until - starts[index]!
     if (left < 0) break
+    said[index] = 'human' in line ? line.human.length : Math.min(line.agent.length, Math.floor(left / pace.charMs))
   }
   return { said, selected }
 }

@@ -1,12 +1,17 @@
 import { type RefObject, useEffect, useRef, useState } from 'react'
 import { t } from '../i18n/index.js'
+import { setLimitsGone, useHeaderFiveHour } from '../layout/limitsFix.js'
 import { useVisible } from '../layout/useVisible.js'
 import { stillMotion } from '../ui/landing.js'
 import {
   actEnd,
+  type Chat,
   chatAt,
   type ChatLine,
+  chatStartsOf,
   chatTime,
+  limitsFixReset,
+  limitsGone,
   longestRun,
   type Meme,
   type Motion,
@@ -25,14 +30,21 @@ const IDLE_PACE = { charMs: 40, pauseMs: 1500 }
 const HOLD_MS = 7000
 const FORWARD: Motion = { sea: 1, cloud: 1 }
 
-/** Holds the side column while no panel is open, so the chain keeps its width. */
-export function IdlePanel({ scene }: { scene: Scene }) {
+/**
+ * Holds the side column while no panel is open, so the chain keeps its width. Its limits chat takes the header's limits
+ * away for a while; they come back as it says so or as the panel is unmounted (a side panel, below 1200 px, another page).
+ */
+export function IdlePanel({ project, scene }: { project: string; scene: Scene }) {
   const moments = momentsOf(scene)
   const cue = moments.join()
-  const draw = (previous?: Meme) => pickMeme(moments, t.project.idle.memes.length, Math.random, previous)
+  const five = useHeaderFiveHour(project)
+  // Shown whole at once with reduced motion, the chat would have nothing to take away.
+  const limitsReset = stillMotion() ? null : limitsFixReset(five, new Date())
+  const draw = (previous?: Meme) => pickMeme(moments, t.project.idle.memes.length, Math.random, previous, { limitsReset })
   const [meme, setMeme] = useState<Meme>(() => draw())
   const parts = memeParts(meme, scene)
-  const chat = 'chat' in meme ? t.project.idle.chats[meme.chat] : null
+  const chat = 'chat' in meme ? chatLines(meme.chat, meme.reset) : null
+  const starts = chat !== null && 'chat' in meme ? chatStartsOf(meme.chat, chat, IDLE_PACE) : []
   const play = 'play' in meme ? t.project.idle.plays[meme.play] : null
   const [shown, setShown] = useState(() => (stillMotion() ? Infinity : 0))
   const [said, setSaid] = useState<ReturnType<typeof chatAt>>({ said: [], selected: 0 })
@@ -44,8 +56,8 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   const columns = useColumns(room, picture)
   // When the line started, when it starts being erased (ms after the start), and the moments it was drawn on.
   const line = useRef({ start: performance.now(), eraseAt: null as number | null, cue })
-  const latest = useRef({ meme, parts, chat, cue, draw })
-  latest.current = { meme, parts, chat, cue, draw }
+  const latest = useRef({ meme, parts, chat, starts, cue, draw })
+  latest.current = { meme, parts, chat, starts, cue, draw }
 
   // A general line, a moment's line and a chat go on their own; the drive stays until the moments change, and so does a
   // moment's line with reduced motion. A play piles up act by act; the picture keeps the pile for good.
@@ -63,8 +75,9 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   useEffect(() => {
     if (stillMotion()) return
     let frame = requestAnimationFrame(function step(now) {
-      const { meme, parts, chat, cue, draw } = latest.current
+      const { meme, parts, chat, starts, cue, draw } = latest.current
       const elapsed = now - line.current.start
+      setLimitsGone('chat' in meme && meme.chat === 'limits' && limitsGone(starts, elapsed))
       const next = (meme: Meme) => {
         line.current = { start: now, eraseAt: null, cue }
         setMeme(meme)
@@ -82,11 +95,11 @@ export function IdlePanel({ scene }: { scene: Scene }) {
         if (!last && elapsed > end!) next({ play: meme.play, act: meme.act + 1 })
         else if (selected === null) next(draw(meme))
       } else {
-        const held = (chat ? chatTime(chat, IDLE_PACE) : typingTime(parts, IDLE_PACE)) + HOLD_MS
+        const held = (chat ? chatTime(chat, IDLE_PACE, starts) : typingTime(parts, IDLE_PACE)) + HOLD_MS
         const eraseAt = 'line' in meme || 'moment' in meme || chat ? held : line.current.eraseAt
         motion.current = FORWARD
         const count = shownAt(parts, elapsed, IDLE_PACE, eraseAt)
-        lines = chat ? chatAt(chat, elapsed, IDLE_PACE, eraseAt) : { said: [], selected: 0 }
+        lines = chat ? chatAt(chat, elapsed, IDLE_PACE, eraseAt, starts) : { said: [], selected: 0 }
         const gone = chat ? lines.said.every((shown) => shown < 0) : count === 0
         if (eraseAt !== null && elapsed > eraseAt && gone) next(draw(meme))
         setShown(count)
@@ -94,7 +107,10 @@ export function IdlePanel({ scene }: { scene: Scene }) {
       setSaid((current) => (current.said.join() === lines.said.join() && current.selected === lines.selected ? current : lines))
       frame = requestAnimationFrame(step)
     })
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      setLimitsGone(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -173,6 +189,12 @@ function PlayActs({ acts, said: { said, selected } }: { acts: readonly string[][
       })}
     </div>
   )
+}
+
+/** A chat's lines; the limits chat names its reset in the last one. */
+function chatLines(chat: Chat, reset = ''): ChatLine[] {
+  const lines = t.project.idle.chats[chat]
+  return typeof lines === 'function' ? lines(reset) : lines
 }
 
 function memeParts(meme: Meme, scene: Scene): string[] {

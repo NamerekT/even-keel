@@ -10,6 +10,7 @@ import { AccountPanel } from './Account.js'
 import { spendsByKey, spendText, useSpend, useTokens, type Spend, type Tokens } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
 import { FULL_PERCENT, WARM_PERCENT, windowValue } from './Limits.js'
+import { useLimitsGone } from './limitsFix.js'
 import { usePopover } from './usePopover.js'
 import { CompactLimit } from './accountRows.js'
 import { AccountLevels } from './AccountLevels.js'
@@ -71,10 +72,12 @@ function BlockLimits({ entry, now, spend, tokens }: { entry: AccountEntry | unde
   return text === null ? null : <span className="hblock__seg limit"><span className="limit__text"><span className="limit__value">{text}</span></span></span>
 }
 
+/** A limit in the header's toggle; the idle panel's limits chat takes it away for a while (`useLimitsGone`). */
 export function LimitSegment({ window, now, outdated }: { window: LimitWindow; now: Date; outdated: boolean }) {
+  const gone = useLimitsGone()
   const percent = Math.round(Math.min(Math.max(window.usedPercentage, 0), 100))
   const heat = outdated ? ' limit--outdated' : percent >= FULL_PERCENT ? ' limit--full' : percent >= WARM_PERCENT ? ' limit--warm' : ''
-  return <span className={`hblock__seg limit${heat}`}><Ring percent={percent} /><span className="limit__text">
+  return <span className={`hblock__seg limit${heat}${gone ? ' limit--gone' : ''}`}><Ring percent={percent} /><span className="limit__text">
     <span className="limit__value">{windowValue(window, percent)}</span><span className="limit__reset">{formatSpan(window.resetsAt, now)}</span></span></span>
 }
 

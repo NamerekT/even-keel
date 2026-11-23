@@ -297,6 +297,14 @@ export const projectRU = {
           { agent: 'Качка ушла: флажок упал с 8 окон до 2. Остаток — ~190 тиков рывками, 0.05 клетки вперёд, 0.07 назад с доворотом. Как поступить?' },
           { human: '1 (рекомендованный)' },
         ],
+        // The last line is the CLI's own message, in English in both languages.
+        limits: (reset: string) => [
+          { agent: 'Нужно срочно пофиксить лимиты. Они упёрлись в 100%.' },
+          { agent: 'Update(Limits.tsx)' },
+          { agent: 'Отлично! Теперь лимитов нет, можно работать дальше.' },
+          { human: 'где лимиты' },
+          { agent: `You've hit your limit, resets ${reset}` },
+        ],
       },
       moments: {
         calm: ['Штиль. Ни одной задачи…', ' Самому код писать, что ли?'],

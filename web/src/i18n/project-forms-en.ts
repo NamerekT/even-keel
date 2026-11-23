@@ -298,6 +298,13 @@ export const projectEN: Messages['project'] = {
           { agent: "The sway is gone: the flag dropped from 8 windows to 2. What's left is ~190 ticks of jerks, 0.05 cells forward, 0.07 back with a turn. How should I proceed?" },
           { human: '1 (recommended)' },
         ],
+        limits: (reset: string) => [
+          { agent: "I need to fix the limits urgently. They've hit 100%." },
+          { agent: 'Update(Limits.tsx)' },
+          { agent: 'Great! There are no limits anymore, we can keep working.' },
+          { human: 'where are the limits' },
+          { agent: `You've hit your limit, resets ${reset}` },
+        ],
       },
       moments: {
         calm: ['Dead calm. Not a single task…', " Guess I'll code myself?"],

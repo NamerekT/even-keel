@@ -362,6 +362,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           {!side && (
             <IdlePanel
               key={key}
+              project={key}
               scene={{
                 loaded: order !== undefined && order.error === null,
                 blocks,
