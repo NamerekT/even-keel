@@ -209,9 +209,16 @@ export function assembleSWITCHES(ctx: Pick<ServiceContext, 'configStore'>): Part
   }
 }
 
-export function assembleStartChain(ctx: Pick<ServiceContext, 'branches' | 'dispatcher'>) {
+/**
+ * Start and Resume admit a chain by the own machine's mirror at once: a change of its accounts told within the
+ * machine's settle window has not reached the mirror yet, so they catch up with the machine first (BTN-1550).
+ */
+const caughtUp = (ctx: Pick<ServiceContext, 'machineLink'>): Promise<void> => ctx.machineLink.port.catchUp?.() ?? Promise.resolve()
+
+export function assembleStartChain(ctx: Pick<ServiceContext, 'branches' | 'dispatcher' | 'machineLink'>) {
   return async (project: string) => {
     await ctx.branches.refresh(project)
+    await caughtUp(ctx)
     return ctx.dispatcher.start(project)
   }
 }
@@ -219,6 +226,10 @@ export function assembleStartChain(ctx: Pick<ServiceContext, 'branches' | 'dispa
 export function assembleChainControl(ctx: Pick<ServiceContext, 'dispatcher' | 'startChain' | 'SWITCHES' | 'machineLink'>): ChainControl {
   const own: Partial<ChainControl> = {
     start: ctx.startChain,
+    resume: async (project) => {
+      await caughtUp(ctx)
+      ctx.dispatcher.resume(project)
+    },
     reassign: (project, task) => ctx.machineLink.reassigner.reassign(project, task),
   }
   return new Proxy(ctx.dispatcher, {
