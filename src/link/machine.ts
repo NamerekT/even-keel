@@ -2,7 +2,7 @@ import { hostname } from 'node:os'
 import { isInside } from '../paths.js'
 import type { Consent, MachineStore } from './machine-store.js'
 import {
-  API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, TAKEN_EVENT, isRefusal,
+  API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, TAKEN_EVENT, TooLarge, isRefusal,
   type AssignPayload, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
   type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type VersionRefusal, type CredentialsAnswer, type CredentialsPost,
 } from './protocol.js'
@@ -28,8 +28,11 @@ export interface HubTransport {
 
 export type LinkState = 'offline' | 'connecting' | 'online'
 
-/** The message codes of the machine's page: the stream is held back by a proxy, the token is not taken, the versions differ. */
-export type LinkNotice = 'link.buffered' | 'link.token' | 'link.version'
+/**
+ * The message codes of the machine's page: the stream is held back by a proxy, the token is not taken, the versions
+ * differ, the machine's snapshot is over the hub's limit (BTN-1559).
+ */
+export type LinkNotice = 'link.buffered' | 'link.token' | 'link.version' | 'link.tooLarge'
 
 export interface LinkStatus {
   state: LinkState
@@ -306,10 +309,24 @@ export class MachineEnd {
     const { transport, store } = this.options
     if (this.connection === undefined) return Promise.resolve()
     return this.post(this.generation, async (live) => {
+      let batch = EVENT_BATCH
       for (let first = true; this.connection !== undefined; first = false) {
-        const events = await store.eventsAfter(0, EVENT_BATCH)
+        const events = await store.eventsAfter(0, batch)
         if (events.length === 0 && !(pulse && first)) return
-        const answer = await transport.events({ connection: this.connection, events, lastCommand: await store.lastCommand() })
+        let answer: EventsAnswer | Refusal
+        try {
+          answer = await transport.events({ connection: this.connection, events, lastCommand: await store.lastCommand() })
+        } catch (error) {
+          if (!(error instanceof TooLarge) || !live()) throw error
+          if (events.length > 1) {
+            batch = Math.ceil(events.length / 2)
+            continue
+          }
+          // One event the hub can never take would hold back every event after it; the next snapshot tells its state.
+          this.options.log(`link: event ${events[0]!.seq} (${events[0]!.type}) is not sent: ${error.message}; its largest parts: ${error.parts}`)
+          await store.dropEvents(events[0]!.seq)
+          continue
+        }
         if (!live()) return
         if (isRefusal(answer)) return this.lost(answer)
         this.contactAt = this.now()
@@ -329,6 +346,7 @@ export class MachineEnd {
         await body(live)
       } catch (error) {
         if (!live()) return
+        if (error instanceof TooLarge) return this.lost(undefined, error)
         this.options.log(`link: a post to the hub did not get through: ${messageOf(error)}`)
         this.lost()
       }
@@ -439,12 +457,19 @@ export class MachineEnd {
     }
   }
 
-  /** The connection is gone: the next attempt comes after the pause, at once the longest one when the hub refused. */
-  private lost(refusal?: Refusal): void {
+  /**
+   * The connection is gone: the next attempt comes after the pause, at once the longest one when the hub refused or
+   * the snapshot is over its limit (`tooLarge`) — trying again sooner would not make it smaller.
+   */
+  private lost(refusal?: Refusal, tooLarge?: TooLarge): void {
     this.release()
     let wait = this.pause
     let notice = this.notice
-    if (refusal?.refused === 'token') {
+    if (tooLarge !== undefined) {
+      if (notice !== 'link.tooLarge') this.options.log(`link: the machine's state is not sent: ${tooLarge.message}; its largest parts: ${tooLarge.parts}`)
+      notice = 'link.tooLarge'
+      wait = RECONNECT_MAX_MS
+    } else if (refusal?.refused === 'token') {
       if (notice !== 'link.token') {
         this.options.log('link: the hub does not take this machine\'s connection token: it is unknown to it or revoked')
         void this.unmark()

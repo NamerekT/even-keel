@@ -2,8 +2,9 @@ import { HubEnd, type Opened } from './hub.js'
 import type { HubStore, MachineRecord, NewMachine } from './hub-store.js'
 import { MachineEnd, type HubTransport, type MachineOptions, type StreamSink } from './machine.js'
 import type { Consent, MachineStore } from './machine-store.js'
+import { partsOf } from './body-size.js'
 import {
-  bearerOf, isRefusal, parseToken,
+  EVENTS_PATH, SNAPSHOT_PATH, TooLarge, bearerOf, isRefusal, parseToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand, type Refusal,
   type HookAnswer, type HookPost, type HookRequest, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost,
 } from './protocol.js'
@@ -163,6 +164,8 @@ export class Wire implements HubTransport {
   hang = false
   /** The hub takes a post and its answer is lost. */
   loseAnswers = false
+  /** The largest snapshot or events post that goes; `undefined` — any. */
+  bodyLimit: number | undefined
   readonly opens: Array<{ at: number; hello: MachineHello }> = []
   readonly posts: Array<{ kind: 'snapshot' | 'events'; post: EventsPost | SnapshotPost }> = []
   private current?: Stream
@@ -230,12 +233,20 @@ export class Wire implements HubTransport {
 
   async events(post: EventsPost): Promise<EventsAnswer | Refusal> {
     this.posts.push({ kind: 'events', post })
+    this.limited(EVENTS_PATH, post)
     return this.carry(() => this.hub.events(this.authorization, carried(post)))
   }
 
   async snapshot(post: SnapshotPost): Promise<EventsAnswer | Refusal> {
     this.posts.push({ kind: 'snapshot', post })
+    this.limited(SNAPSHOT_PATH, post)
     return this.carry(() => this.hub.snapshot(this.authorization, carried(post)))
+  }
+
+  /** As the transport: a post over `bodyLimit` bytes is not sent. */
+  private limited(path: string, post: unknown): void {
+    const bytes = Buffer.byteLength(JSON.stringify(post))
+    if (this.bodyLimit !== undefined && bytes > this.bodyLimit) throw new TooLarge(path, bytes, partsOf(post))
   }
 
   async mcp(post: McpPost): Promise<McpAnswer | Refusal> {

@@ -51,8 +51,23 @@ export interface FolderTaken {
   name: string
 }
 
-/** How many events one post carries. */
+/** How many events one post carries; fewer when they are over `MAX_BODY_BYTES` together. */
 export const EVENT_BATCH = 100
+
+/**
+ * The largest body of a machine's post, MCP calls aside: a snapshot names the sessions the hub asks about
+ * (`factsScope`), an events post is `EVENT_BATCH` events at most. The machine does not send a larger one (`TooLarge`).
+ */
+export const MAX_BODY_BYTES = 8 * 1024 * 1024
+
+/** A post over `MAX_BODY_BYTES`, not sent: `parts` names its largest parts with their sizes, for the log. */
+export class TooLarge extends Error {
+  constructor(readonly path: string, readonly bytes: number, readonly parts: string) {
+    super(`a post of ${megabytes(bytes)} to ${path} is over the hub's limit of ${megabytes(MAX_BODY_BYTES)}`)
+  }
+}
+
+export const megabytes = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 /** A hub's order to a machine. `project` and `folder` name what it touches: the machine runs it only for those it agreed to. */
 export interface Command {

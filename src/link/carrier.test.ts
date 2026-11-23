@@ -200,7 +200,8 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
     expect((await made.raw('/api/state', '{}')).status).toBe(404)
     expect((await made.raw(EVENTS_PATH, JSON.stringify({ connection: 'c', lastCommand: 0, events: [], filler: 'x'.repeat(5_000) }))).status).toBe(413)
     expect((await made.raw(JOIN_PATH, JSON.stringify({ api: API_VERSION }))).status).toBe(400)
-    expect(made.log).toEqual([])
+    // Only the body over the limit is a line in the hub's log (BTN-1559): the machine names its parts in its own.
+    expect(made.log).toEqual([expect.stringMatching(/^link: a machine's post to \/link\/events of 0\.0 MB was refused: over the limit of 0\.0 MB; /)])
   })
 
   it('exchanges a connection string for the machine its own secret, and the string works no more', async () => {

@@ -10,6 +10,9 @@ import { MachineMoves, type HeldMove } from '../machine/moves.js'
 import { machineValue, setMachineValue } from '../machine/state.js'
 import { MachineRecords } from '../machine/records.js'
 import { HANDOFF_EVENT, LEFTOVER_EVENT, MachineRunner, TRANSCRIPT_EVENT } from '../machine/runner.js'
+import { factsScope, scopedDeps, type FactsScope } from '../machine/scope.js'
+import { isCarryName, isFixName } from '../chain/fix.js'
+import { isChatName } from '../chats/model.js'
 import { byTrial } from '../sessions/cache.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { steers } from '../sessions/view-index.js'
@@ -75,6 +78,20 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     }
     return running
   }
+  /** A machine elsewhere tells its hub only what the hub asks about (BTN-1559); kept for one computation, as `pass`. */
+  let scoped: FactsScope | undefined
+  const scopeOf = (): FactsScope | undefined => {
+    if (options.alone !== true) return undefined
+    if (scoped !== undefined) return scoped
+    const { tasks, current, warm } = machine.brief.whole
+    const asked = new Set([...Object.values(tasks).flat(), ...Object.keys(current), ...warm.map((each) => each.task)])
+    return factsScope({
+      views: machine.sessions,
+      journal: machine.journal,
+      asked: (task) => asked.has(task) || isChatName(task) || isFixName(task) || isCarryName(task),
+      now: Date.now(),
+    })
+  }
   const moves = new MachineMoves({
     local,
     emit: (type, payload) => end.emit(type, payload),
@@ -99,7 +116,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
   })
   const identities = new AccountIdentities()
   const ownRun = (project: string, task: string): boolean => !sameJson(machine.choiceFor(project, task), machine.choiceFor(project))
-  const runner: MachineRunner = new MachineRunner({
+  const runner: MachineRunner = new MachineRunner(scopedDeps({
     local,
     emit: (type, payload) => end.emit(type, payload),
     boot: randomUUID(),
@@ -203,14 +220,16 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     }),
     scope: (body) => machine.account.batch(() => machine.packages.pass(() => machine.choiceFor.pass(() => {
       pass = passOf()
+      scoped = scopeOf()
       try {
         return body()
       } finally {
         pass = undefined
+        scoped = undefined
       }
     }))),
     log,
-  })
+  }, scopeOf))
 
   let wentOnline = (): void => {}
   const online = new Promise<void>((resolve) => (wentOnline = resolve))

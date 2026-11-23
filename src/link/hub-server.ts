@@ -3,12 +3,10 @@ import { createServer, type Server } from 'node:https'
 import type { HubCertificate } from './cert.js'
 import type { HubEnd } from './hub.js'
 import {
-  CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, isAbout, isRefusal,
+  CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, isAbout, isRefusal, megabytes,
   type CredentialsPost, type EventsPost, type Frame, type HookPost, type JoinPost, type MachineHello, type McpPost, type Refusal, type SnapshotPost, type TallyPost,
 } from './protocol.js'
 
-/** A snapshot names every session of the machine; an events post is `EVENT_BATCH` events at most. */
-const MAX_BODY_BYTES = 8 * 1024 * 1024
 /** An MCP call carries the files a session attaches, each up to the attachment limit, as base64. */
 const MAX_MCP_BYTES = 256 * 1024 * 1024
 
@@ -167,6 +165,12 @@ export function createHubServer(options: HubServerOptions): Server {
     handled.catch((error: unknown) => {
       const status = error instanceof BadRequest ? error.status : 500
       if (status === 500) options.log(`link: a machine's request to ${path} failed: ${error instanceof Error ? error.message : String(error)}`)
+      if (status === 413) {
+        const declared = Number(request.headers['content-length'])
+        const size = Number.isFinite(declared) ? megabytes(declared) : 'an unknown size'
+        const sizeLimit = megabytes(path === MCP_PATH ? mcpLimit : limit)
+        options.log(`link: a machine's post to ${path} of ${size} was refused: over the limit of ${sizeLimit}; the machine's log names its largest parts`)
+      }
       if (response.headersSent) response.destroy()
       else answer(response, status, { error: error instanceof BadRequest ? error.message : 'the hub failed' })
     })

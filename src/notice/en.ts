@@ -579,6 +579,7 @@ export const en = {
   'link.buffered': () => 'link: the connection to the hub opens and nothing comes over it: a proxy on the way seems to hold the stream back',
   'link.token': () => "link: the hub does not take this machine's connection token: it was revoked or belongs to another hub",
   'link.version': () => 'link: the hub and this machine run different versions of Even Keel and do not talk to each other',
+  'link.tooLarge': () => "link: this machine's state is over the hub's limit of 8 MB and does not reach the hub",
   'machine.commandFailed': (p: { command: string; error: string }) => `machine: the machine could not run ${p.command}: ${p.error}`,
   'machine.commandRefused': (p: { command: string; reason: 'project' | 'folder' }) =>
     `machine: the machine refused ${p.command}: ${p.reason === 'project' ? 'it did not agree to serve this project' : "the folder is outside the project's agreed ones"}`,

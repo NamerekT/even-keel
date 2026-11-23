@@ -255,6 +255,51 @@ describe('the hub ↔ machine link', () => {
     expect(wire.opens).toHaveLength(1)
   })
 
+  it('sends events over the body limit in smaller posts and gives up only an event over it alone (BTN-1559)', async () => {
+    const { wire, end, taken, machineStore, log } = await started()
+    wire.down = true
+    wire.cut()
+    await tick()
+    for (const name of ['one', 'two', 'three']) await end.emit(`example.${name}`, 'x'.repeat(600))
+    await end.emit('example.huge', 'x'.repeat(5_000))
+    await end.emit('example.after')
+    wire.bodyLimit = 1_500
+    wire.down = false
+    await tick(1_000)
+    expect(taken.map((event) => event.seq)).toEqual([1, 2, 3, 5])
+    expect(machineStore.outbox).toEqual([])
+    expect(end.status()).toEqual({ state: 'online' })
+    expect(log.filter((line) => line.includes('is not sent'))).toEqual([
+      expect.stringMatching(/^link: event 4 \(example\.huge\) is not sent: a post of 0\.0 MB to \/link\/events is over the hub's limit of 8\.0 MB; its largest parts: body \(3 parts\): events 5 KB/),
+    ])
+  })
+
+  it('tells a snapshot over the body limit once and tries it again only every 30 s (BTN-1559)', async () => {
+    const made = await bench()
+    stopHub = () => made.hub.stop()
+    const tasks = Object.fromEntries(Array.from({ length: 20 }, (_, index) => [`ABC-${index}`, 'x'.repeat(200)]))
+    let large = true
+    const end = made.machine({ snapshot: () => (large ? { facts: { tasks } } : { sessions: [] }) })
+    running.push(end)
+    made.wire.bodyLimit = 2_000
+    await end.start()
+    await tick()
+    expect(end.status()).toEqual({ state: 'offline', notice: 'link.tooLarge' })
+    const count = made.wire.opens.length
+    await tick(29_999)
+    expect(made.wire.opens).toHaveLength(count)
+    await tick(1)
+    expect(made.wire.opens).toHaveLength(count + 1)
+    expect(end.status().notice).toBe('link.tooLarge')
+    expect(made.log.filter((line) => line.startsWith("link: the machine's state is not sent"))).toEqual([
+      expect.stringContaining('/link/snapshot is over the hub\'s limit of 8.0 MB; its largest parts: body (3 parts): snapshot 5 KB, connection 1 KB, lastCommand 1 KB; snapshot (1 parts): facts 5 KB; snapshot.facts (1 parts): tasks 5 KB; snapshot.facts.tasks (20 parts): ABC-0 1 KB'),
+    ])
+    large = false
+    await tick(30_000)
+    expect(end.status()).toEqual({ state: 'online' })
+    expect(made.snapshots).toEqual([{ sessions: [] }])
+  })
+
   it('posts the snapshot first after every reconnect', async () => {
     const { wire, snapshots } = await started()
     for (const round of [2, 3]) {

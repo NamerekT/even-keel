@@ -1,9 +1,10 @@
 import { request, type IncomingMessage } from 'node:http'
 import { connect, type TLSSocket } from 'node:tls'
+import { partsOf } from './body-size.js'
 import { fingerprintOf } from './cert.js'
 import type { HubTransport, StreamSink } from './machine.js'
 import {
-  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, bearerOf, isRefusal,
+  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, TooLarge, bearerOf, isRefusal,
   type ConnectionToken, type CredentialsAnswer, type EventsAnswer, type Frame, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type TallyAnswer,
 } from './protocol.js'
 
@@ -81,9 +82,8 @@ export function frameReader(frame: (frame: Frame) => void): (chunk: string) => v
 }
 
 /** A POST of JSON to the token's hub over a socket already checked, under the token's `Authorization`. */
-function sendTo(token: ConnectionToken, socket: TLSSocket, path: string, body: unknown) {
+function sendTo(token: ConnectionToken, socket: TLSSocket, path: string, body: unknown, text = JSON.stringify(body)) {
   const url = new URL(token.hub)
-  const text = JSON.stringify(body)
   const sent = request({
     createConnection: () => socket,
     method: 'POST',
@@ -100,12 +100,18 @@ function sendTo(token: ConnectionToken, socket: TLSSocket, path: string, body: u
   return sent
 }
 
-/** One post on a connection of its own: the hub's answer when `whole` takes it, its refusal, or a throw. */
+/**
+ * One post on a connection of its own: the hub's answer when `whole` takes it, its refusal, or a throw — `TooLarge`
+ * for a body over the hub's limit, not sent at all (the hub would cut the connection mid-body), or one it answered 413.
+ */
 async function postTo<T>(token: ConnectionToken, path: string, body: unknown, whole: (value: object) => boolean, timeoutMs: number, answerMs = timeoutMs): Promise<T | Refusal> {
+  const text = JSON.stringify(body)
+  const bytes = Buffer.byteLength(text)
+  if (path !== MCP_PATH && bytes > MAX_BODY_BYTES) throw new TooLarge(path, bytes, partsOf(body))
   const socket = await connectPinned(token, timeoutMs)
   try {
     const response = await new Promise<IncomingMessage>((resolve, reject) => {
-      const sent = sendTo(token, socket, path, body)
+      const sent = sendTo(token, socket, path, body, text)
       sent.setTimeout(answerMs, () => sent.destroy(new Error(`no answer from the hub in ${answerMs} ms`)))
       sent.once('response', resolve)
       sent.once('error', reject)
@@ -113,6 +119,7 @@ async function postTo<T>(token: ConnectionToken, path: string, body: unknown, wh
     const value = parsed(await textOf(response))
     if (isRefusal(value)) return value
     if (response.statusCode === 200 && typeof value === 'object' && value !== null && whole(value)) return value as T
+    if (response.statusCode === 413) throw new TooLarge(path, bytes, partsOf(body))
     throw new Error(`the hub answered ${response.statusCode} to ${path}`)
   } finally {
     socket.destroy()
