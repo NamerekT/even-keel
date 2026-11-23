@@ -60,7 +60,7 @@ export class VsCodeAccount {
   point(home: AccountHome): void {
     const file = this.options.file
     if (file === null) throw fail('vscode.noFile', {})
-    const next = withConfigDir(readText(file), home.global ? null : home.dir)
+    const next = withConfigDir(readText(file) ?? '', home.global ? null : home.dir)
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, next)
   }
@@ -71,7 +71,9 @@ export class VsCodeAccount {
     const blank = { app: 'vscode' as const, account: null, dir: null, sessions }
     if (this.options.file === null) return { ...blank, error: notice('vscode.noFile', {}) }
     try {
-      const dir = configDirOf(readText(this.options.file))
+      const text = readText(this.options.file)
+      if (text === null) return { ...blank, error: null }
+      const dir = configDirOf(text)
       return { ...blank, account: this.options.ownerOf(dir) ?? null, dir, error: null }
     } catch (error) {
       return { ...blank, error: noticeOf(error) }
@@ -85,11 +87,12 @@ export class VsCodeAccount {
   }
 }
 
-function readText(file: string): string {
+/** The settings file's text, null where the file is not there: VS Code is not set up on this host. */
+function readText(file: string): string | null {
   try {
     return readFileSync(file, 'utf8').replace(/^﻿/, '')
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw error
   }
 }
