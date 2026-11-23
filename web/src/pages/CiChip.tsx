@@ -11,6 +11,7 @@ import {
   runDurationMs,
   runLook,
   stuckSince,
+  waitingJobs,
   type BusyRunner,
   type CiJob,
   type CiRun,
@@ -366,6 +367,11 @@ function CiBody({ view, now, urls, fixes, extras }: { view: CiView; now: Date; u
         </p>
       )}
       {stuck === null && view.pushed !== null && <p className="ci__hint">{t.ci.pushed(short(view.pushed.commit))}</p>}
+      {waitingJobs(view.current, now).map((job) => (
+        <p key={`${job.name}:${job.since}`} className="ci__hint">
+          {t.ci.jobWaits(job.name, formatAgoSpan(job.since, now))}
+        </p>
+      ))}
       {hold('pushed')}
       {view.current !== null && <Push current={view.current} medians={view.medians} busy={view.busy} now={now} urls={urls} fixes={fixes} hold={hold('push')} />}
       {extras.afterGreen !== null && <AfterGreen run={extras.afterGreen} held={extras.held} now={now} />}

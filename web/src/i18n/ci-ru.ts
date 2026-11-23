@@ -20,6 +20,7 @@ export const ciRu = {
   openRun: 'Открыть прогон',
   stuckRun: (span: string) => `Прогон стоит в очереди ${span}: раннер его не берёт`,
   stuckPush: (commit: string, span: string) => `Пуш ${commit} уже ${span} без прогона: CI его не подхватил`,
+  jobWaits: (job: string, span: string) => `${job} ждёт раннер уже ${span}`,
   pushed: (commit: string) => `Пуш ${commit}: ждём прогон`,
   usual: (median: string) => `обычно ${median}`,
   took: (duration: string) => `шёл ${duration}`,

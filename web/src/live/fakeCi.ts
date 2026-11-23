@@ -105,7 +105,7 @@ function forgejo(over: Partial<CiView> = {}): CiView {
 const github = (fake: Omit<Fake, 'url'>) => run(fake.workflow === 'macOS' ? fake.push + 186 : fake.workflow === 'Nightly' ? 88 + fake.push : fake.push + 743, { ...fake, url: GITHUB })
 
 /** GitHub runs two workflows on each push and a nightly one by hand; the project does not count it (only Forgejo). */
-function githubView(finished: boolean): CiView {
+function githubView(finished: boolean, partial = false): CiView {
   const tests = github({ push: 5, status: 'success', startedAgo: 170, length: 140, workflow: 'Tests' })
   const macos = github({ push: 5, status: finished ? 'success' : 'running', startedAgo: 150, length: finished ? 455 : null, workflow: 'macOS' })
   const past: CiRun[] = [
@@ -117,6 +117,16 @@ function githubView(finished: boolean): CiView {
     github({ push: 2, status: 'success', startedAgo: 20_000, length: 148, workflow: 'Tests' }),
     github({ push: 2, status: 'success', startedAgo: 19_990, length: 465, workflow: 'macOS' }),
   ]
+  if (partial) {
+    const going = { ...macos, startedAt: ago(500) }
+    const jobs: CiJob[] = [
+      job(5, 'already-green', 'success', 500, 20, false),
+      job(6, 'e2e (1/3)', 'running', 480, null, false),
+      job(7, 'service', 'success', 470, 200, false),
+      { ...job(8, 'test', 'queued', null, null, false), waitingSince: ago(480) },
+    ]
+    return { ...githubView(false), counted: true, current: current([[going, jobs]], ['ABC-5']), history: [going, ...past] }
+  }
   const latest = finished ? [past[1]!, past[2]!] : [tests, macos]
   return {
     kind: 'github',
@@ -138,8 +148,8 @@ function githubView(finished: boolean): CiView {
 }
 
 /**
- * `?ci=failure|stuck|busy|nottaken|push|fixed|mirror|error|off|none`, and the cases of `fakeMainCi`; without it ABC has a running Forgejo run and
- * an uncounted GitHub Actions whose push runs two workflows, one still going.
+ * `?ci=failure|stuck|busy|nottaken|push|fixed|mirror|partial|error|off|none`, and the cases of `fakeMainCi`; without it ABC has a running Forgejo run and
+ * an uncounted GitHub Actions whose push runs two workflows, one still going. `partial` — a counted GitHub run at work with one job waiting for a runner.
  */
 export function fakeCi(kind: string | null): Record<string, CiView[]> {
   if (kind?.startsWith('gitlab')) {
@@ -180,7 +190,7 @@ export function fakeCi(kind: string | null): Record<string, CiView[]> {
     afterskipped: finished,
     afterunseen: finished,
   }
-  return { ABC: [views[kind ?? ''] ?? forgejo(), githubView(kind === 'mirror')], DEMO: [finished] }
+  return { ABC: [views[kind ?? ''] ?? forgejo(), githubView(kind === 'mirror', kind === 'partial')], DEMO: [finished] }
 }
 
 const ahead = (seconds: number) => new Date(Date.now() + seconds * 1_000).toISOString()

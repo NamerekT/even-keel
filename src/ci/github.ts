@@ -32,9 +32,13 @@ interface GithubStep {
 
 interface GithubJob extends GithubStep {
   id: number
+  created_at?: string
   runner_name?: string | null
   steps?: GithubStep[]
 }
+
+// Only `queued` is a job waiting for a runner; `waiting` and `pending` wait for an approval or a concurrency group.
+const waitingOf = (job: GithubJob): Pick<CiJob, 'waitingSince'> => (job.status === 'queued' && job.created_at !== undefined ? { waitingSince: job.created_at } : {})
 
 // A job no hosted runner took for ~15 minutes GitHub cancels ("not acquired by Runner"), and then fails the whole run.
 const notTaken = (job: GithubJob): boolean => job.conclusion === 'cancelled' && !job.runner_name && (job.steps ?? []).length === 0
@@ -89,7 +93,7 @@ export function githubActionsSource(settings: GithubActionsSettings, timeoutMs: 
 
     async jobs(run) {
       const { jobs } = await get<{ jobs: GithubJob[] }>(`/actions/runs/${run.id}/jobs?per_page=100`)
-      return jobs.map((job): CiJob => ({ id: job.id, ...stepOf(job), steps: (job.steps ?? []).map(stepOf), ...(notTaken(job) ? { notTaken: true } : {}) }))
+      return jobs.map((job): CiJob => ({ id: job.id, ...stepOf(job), steps: (job.steps ?? []).map(stepOf), ...(notTaken(job) ? { notTaken: true } : {}), ...waitingOf(job) }))
     },
 
     log(job) {

@@ -4,6 +4,7 @@ import { fail } from '../notice/notice.js'
 import type { CiJob, CiRun, CiSource } from './model.js'
 import { CiWatch, ERROR_RETRY_MS, POLL_MS, PUSH_WINDOW_MS, WANT_MS } from './watcher.js'
 import type { CiTarget } from './remote.js'
+import { verdictOf } from './verdict.js'
 
 const TARGET = { kind: 'forgejo' as const, remote: 'origin', web: 'https://forgejo.example.com', owner: 'john', repo: 'app' }
 const GITHUB = { kind: 'github' as const, remote: 'github', web: 'https://github.com', owner: 'john', repo: 'app' }
@@ -376,6 +377,31 @@ describe('CiWatch and runs no runner took (BTN-761)', () => {
     t.watch.want()
     await t.watch.tick()
     expect(asked).toEqual([1, 2, 2])
+  })
+})
+
+describe('CiWatch and a run GitHub calls queued while its jobs run (BTN-1576)', () => {
+  const queued = run(3, { status: 'queued', startedAt: null, stoppedAt: null, createdAt: '2026-10-12T11:50:00Z' })
+  const job = (id: number, overrides: Partial<CiJob>): CiJob => ({ id, name: `job ${id}`, status: 'queued', startedAt: null, stoppedAt: null, steps: [], ...overrides })
+
+  it('takes the run for one at work once a job got a runner, in the push and the history, and the verdict waits for it', async () => {
+    const jobs = [
+      job(1, { status: 'success', startedAt: '2026-10-12T11:50:20Z', stoppedAt: '2026-10-12T11:55:00Z' }),
+      job(2, { status: 'running', startedAt: '2026-10-12T11:50:10Z' }),
+      job(3, { name: 'test', waitingSince: '2026-10-12T11:50:00Z' }),
+    ]
+    const t = setup({ target: GITHUB, runs: [queued, run(2)], jobs })
+    await t.watch.tick()
+    expect(t.watch.view.current?.runs[0]?.run).toMatchObject({ id: 3, status: 'running', startedAt: '2026-10-12T11:50:10Z' })
+    expect(t.watch.view.history[0]).toMatchObject({ id: 3, status: 'running' })
+    expect(verdictOf([t.watch.view], 'sha3', '2026-10-12T11:50:00Z', new Date('2026-10-12T12:00:00Z'))).toEqual({ state: 'pending' })
+  })
+
+  it('leaves a run queued while no job got a runner, and the commit goes unchecked after STUCK_MS', async () => {
+    const t = setup({ target: GITHUB, runs: [queued, run(2)], jobs: [job(1, { waitingSince: queued.createdAt }), job(2, { waitingSince: queued.createdAt })] })
+    await t.watch.tick()
+    expect(t.watch.view.history[0]?.status).toBe('queued')
+    expect(verdictOf([t.watch.view], 'sha3', queued.createdAt, new Date('2026-10-12T12:00:00Z'))).toMatchObject({ state: 'unavailable', reasons: [{ code: 'ci.notTaken' }] })
   })
 })
 

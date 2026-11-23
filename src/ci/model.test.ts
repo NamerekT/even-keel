@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { currentRunOf, leadRun, medianDuration, mediansOf, pushesOf, pushStatus, runDurationMs, STUCK_MS, stuckSince, taskIdsOf, type CiRun, type CurrentRun } from './model.js'
+import {
+  currentRunOf,
+  leadRun,
+  medianDuration,
+  mediansOf,
+  pushesOf,
+  pushStatus,
+  runDurationMs,
+  runOfJobs,
+  STUCK_MS,
+  stuckSince,
+  taskIdsOf,
+  waitingJobs,
+  type CiJob,
+  type CiRun,
+  type CurrentRun,
+} from './model.js'
 
 const NOW = new Date('2026-10-12T12:00:00Z')
 
@@ -170,6 +186,52 @@ describe('stuckSince', () => {
   it('flags a push no run has taken', () => {
     expect(stuckSince({ current: null, pushed: { commit: 'abc', at: at(STUCK_MS) } }, NOW)).toBe(at(STUCK_MS))
     expect(stuckSince({ current: null, pushed: { commit: 'abc', at: at(1_000) } }, NOW)).toBeNull()
+  })
+})
+
+describe('runOfJobs (BTN-1576)', () => {
+  const queued = run(1, { status: 'queued', startedAt: null, stoppedAt: null })
+  const job = (id: number, overrides: Partial<CiJob>): CiJob => ({ id, name: `job ${id}`, status: 'queued', startedAt: null, stoppedAt: null, steps: [], ...overrides })
+
+  it('is at work once a runner took one of its jobs, though the CI calls the run queued while another waits', () => {
+    const jobs = [
+      job(1, { status: 'success', startedAt: '2026-10-12T11:00:20Z', stoppedAt: '2026-10-12T11:02:00Z' }),
+      job(2, { status: 'running', startedAt: '2026-10-12T11:00:15Z' }),
+      job(3, { status: 'queued' }),
+    ]
+    expect(runOfJobs(queued, jobs)).toEqual({ ...queued, status: 'running', startedAt: '2026-10-12T11:00:15Z' })
+  })
+
+  it('stays queued while no job got a runner: a skipped one or one given up never had one', () => {
+    const jobs = [job(1, { status: 'skipped' }), job(2, { status: 'cancelled', notTaken: true }), job(3, { status: 'queued' })]
+    expect(runOfJobs(queued, jobs)).toBe(queued)
+    expect(runOfJobs(queued, [])).toBe(queued)
+  })
+
+  it('leaves a run the CI calls anything but queued as it is', () => {
+    const failed = run(2, { status: 'failure' })
+    expect(runOfJobs(failed, [job(1, { status: 'running' })])).toBe(failed)
+  })
+})
+
+describe('waitingJobs (BTN-1576)', () => {
+  const at = (ms: number) => new Date(NOW.getTime() - ms).toISOString()
+  const job = (id: number, overrides: Partial<CiJob>): CiJob => ({ id, name: `job ${id}`, status: 'queued', startedAt: null, stoppedAt: null, steps: [], ...overrides })
+  const push = (...runs: { run: CiRun; jobs: CiJob[] }[]): CurrentRun => ({ commit: 'sha1', title: 'run 1', manual: false, tasks: [], runs })
+
+  it('names the jobs of a run at work that wait for a runner too long, with since when', () => {
+    const running = run(1, { status: 'running', stoppedAt: null })
+    const current = push({
+      run: running,
+      jobs: [job(1, { status: 'running' }), job(2, { name: 'test', waitingSince: at(STUCK_MS * 4) }), job(3, { name: 'lint', waitingSince: at(STUCK_MS - 1_000) })],
+    })
+    expect(waitingJobs(current, NOW)).toEqual([{ name: 'test', since: at(STUCK_MS * 4) }])
+  })
+
+  it('says nothing of a run still queued as a whole: the panel flags that run itself', () => {
+    const queued = run(1, { status: 'queued', startedAt: null, stoppedAt: null })
+    expect(waitingJobs(push({ run: queued, jobs: [job(1, { waitingSince: at(STUCK_MS * 4) })] }), NOW)).toEqual([])
+    expect(waitingJobs(null, NOW)).toEqual([])
   })
 })
 
