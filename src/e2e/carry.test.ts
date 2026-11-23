@@ -3,8 +3,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CARRY, carryOf, FORWARD_REF, TICK } from './carry.fixture.js'
 import { Harness, PROJECT_ID, RELEASE_BRANCH, RELEASE_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('a release project carried forward end to end', { timeout: 90_000 }, () => {
+describe('a release project carried forward end to end', { timeout: scaled(90_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
 import { runPlan, type UpdatePlan } from '../updates/runner.js'
+import { scaled } from '../../test/slow-runner.js'
 
 it('restores and rebuilds the running commit when a same-version hub answers from the wrong commit, then takes the next green', async () => {
   const root = mkdtempSync(join(tmpdir(), 'hub-rebuild-'))
@@ -51,4 +52,4 @@ it('restores and rebuilds the running commit when a same-version hub answers fro
     vi.restoreAllMocks()
     rmSync(root, { recursive: true, force: true })
   }
-}, 60_000)
+}, scaled(60_000))

@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, Gate, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { BACKLOG, TODO } from './tracker.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('the statuses of the tracker', { timeout: 60_000 }, () => {
+describe('the statuses of the tracker', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

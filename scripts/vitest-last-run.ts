@@ -8,7 +8,8 @@ export const LAST_RUN_REPORT = '.temp/vitest-last.json'
 const MAX_TAIL_LINES = 20
 
 export interface RunError { name?: string, message: string, stack?: string, diff?: string }
-export interface RunTest { name: string, state: 'passed' | 'failed' | 'skipped' | 'pending', errors: RunError[] }
+/** `retries` — how many times the test ran again (`retry` of a slow runner, test/slow-runner.ts); a pass keeps the errors of the attempts before. */
+export interface RunTest { name: string, state: 'passed' | 'failed' | 'skipped' | 'pending', errors: RunError[], retries?: number }
 /** A test file: `errors` are its own, outside any test — an import that failed, a hook of a suite. */
 export interface RunFile { file: string, errors: RunError[], tests: RunTest[] }
 export interface LastRun { reason: TestRunEndReason, files: RunFile[], unhandled: RunError[] }
@@ -20,6 +21,13 @@ function failures(run: LastRun): Failure[] {
     ...(file.errors.length > 0 ? [{ file: file.file, errors: file.errors }] : []),
     ...file.tests.filter(test => test.state === 'failed').map(test => ({ file: file.file, test: test.name, errors: test.errors })),
   ])
+}
+
+/** The tests that passed only on a retry, with the errors of the attempts that failed: a flake seen, not hidden. */
+function passedOnRetry(run: LastRun): Required<Failure>[] {
+  return run.files.flatMap(file => file.tests
+    .filter(test => test.state === 'passed' && (test.retries ?? 0) > 0)
+    .map(test => ({ file: file.file, test: test.name, errors: test.errors })))
 }
 
 function totals(run: LastRun) {
@@ -38,38 +46,54 @@ function verdict(run: LastRun, report: string): string {
   const counts = ([['failed', sum.failed], ['passed', sum.passed], ['skipped', sum.skipped], ['unfinished', sum.pending]] as const)
     .filter(([, n]) => n > 0).map(([word, n]) => `${n} ${word}`)
   const brokenFiles = run.files.filter(file => file.errors.length > 0).length
+  const retried = passedOnRetry(run).length
   const extras = [
     ...(brokenFiles > 0 ? [`${plural(brokenFiles, 'file')} failed outside its tests`] : []),
     ...(run.unhandled.length > 0 ? [plural(run.unhandled.length, 'unhandled error')] : []),
+    ...(retried > 0 ? [`${retried} passed only on a retry`] : []),
   ]
   const tests = `${counts.length > 0 ? counts.join(', ') : '0'} of ${plural(sum.tests, 'test')} in ${plural(sum.files, 'file')}`
   return `${head}${[tests, ...extras].join(', ')}; report ${report}`
 }
 
+function cut(lines: string[], room: number, what: string, report: string): string[] {
+  if (lines.length <= room) return lines
+  if (room <= 0) return []
+  return [...lines.slice(0, room - 1), `… ${lines.length - room + 1} more ${what}: report ${report}`]
+}
+
 /**
  * The last lines of a run: a line for each failed test (`FAIL file > suite > test`), each file broken outside its tests
- * and each unhandled error, then the verdict — at most twenty lines, so `| tail -3` still names what failed.
+ * and each unhandled error, then each test that passed only on a retry with its first failure (`RETRIED file > test:
+ * Test timed out in …`), then the verdict — at most twenty lines, failures first, so `| tail -3` still names what failed.
  */
 export function lastRunTail(run: LastRun, report: string): string[] {
-  const lines = [
+  const failed = [
     ...failures(run).map(failure => failure.test === undefined
       ? `FAIL ${failure.file}: ${firstLine(failure.errors[0]?.message ?? '')}`
       : `FAIL ${failure.file} > ${failure.test}`),
     ...run.unhandled.map(error => `ERROR unhandled ${error.name === undefined ? '' : `${error.name}: `}${firstLine(error.message)}`),
   ]
+  const retried = passedOnRetry(run).map(test => `RETRIED ${test.file} > ${test.test}: ${firstLine(test.errors[0]?.message ?? '')}`)
   const room = MAX_TAIL_LINES - 1
-  const shown = lines.length <= room ? lines : [...lines.slice(0, room - 1), `… ${lines.length - room + 1} more failed: report ${report}`]
-  return [...shown, verdict(run, report)]
+  const shownFailed = cut(failed, room, 'failed', report)
+  const shownRetried = cut(retried, room - shownFailed.length, 'passed only on a retry', report)
+  return [...shownFailed, ...shownRetried, verdict(run, report)]
 }
 
-/** The run's report file: the totals and every failure with its errors, so a failure is read without a rerun. */
+/**
+ * The run's report file: the totals and every failure with its errors, so a failure is read without a rerun; `retried`,
+ * when any test passed only on a retry, with the errors of its failed attempts.
+ */
 export function lastRunReport(run: LastRun, finishedAt: string) {
   const { pending, ...sum } = totals(run)
+  const retried = passedOnRetry(run)
   return {
     reason: run.reason,
     finishedAt,
     totals: pending > 0 ? { ...sum, unfinished: pending } : sum,
     failed: failures(run),
+    ...(retried.length > 0 ? { retried } : {}),
     unhandled: run.unhandled,
   }
 }
@@ -91,7 +115,8 @@ function runFile(module: TestModule): RunFile {
     errors: [...module.errors(), ...suiteErrors].map(runError),
     tests: [...module.children.allTests()].map(test => {
       const result = test.result()
-      return { name: test.fullName, state: result.state, errors: (result.errors ?? []).map(runError) }
+      const retries = test.diagnostic()?.retryCount ?? 0
+      return { name: test.fullName, state: result.state, errors: (result.errors ?? []).map(runError), ...(retries > 0 ? { retries } : {}) }
     }),
   }
 }

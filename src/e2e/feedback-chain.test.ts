@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ends, forReview, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('PR mode end to end: feedback past its session and chain', { timeout: 60_000 }, () => {
+describe('PR mode end to end: feedback past its session and chain', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {
@@ -32,7 +33,7 @@ describe('PR mode end to end: feedback past its session and chain', { timeout: 6
   }
 
   // The hour past the warm cache fires some 6,000 of the service's timers: ~30 s alone, past 60 s in a loaded macOS shard.
-  it('hands a remark that comes once the session cache went cold to a new session', { timeout: 120_000 }, async () => {
+  it('hands a remark that comes once the session cache went cold to a new session', { timeout: scaled(120_000) }, async () => {
     const pull = await opened(forReview('one.txt', 'fixed\n', 'Fix review'))
 
     // Past `WARM_CACHE_MS`; nothing happens meanwhile, so the steps are long.

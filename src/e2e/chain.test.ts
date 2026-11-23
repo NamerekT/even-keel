@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AccountHome } from '../account/homes.js'
 import { checkpoint, commitAndMerge, ends, Gate, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('the chain end to end', { timeout: 60_000 }, () => {
+describe('the chain end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {
@@ -72,7 +73,7 @@ describe('the chain end to end', { timeout: 60_000 }, () => {
 
   // The reset comes an hour after the last reply, past the 55 minutes the cache counts as warm; the clock gets near it
   // in big steps, which keeps the scenario at ~15 s alone and well inside the timeout next to the rest of the suite.
-  it('hands a task over to a new session after a limit that resets once the session cache is cold', { timeout: 120_000 }, async () => {
+  it('hands a task over to a new session after a limit that resets once the session cache is cold', { timeout: scaled(120_000) }, async () => {
     run.board.add('ABC-1')
     run.agent.script('ABC-1', ends({ limit: "You've hit your session limit · resets 10:00am (UTC)" }), commitAndMerge())
     await run.start()

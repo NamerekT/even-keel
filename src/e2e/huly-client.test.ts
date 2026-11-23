@@ -1,13 +1,14 @@
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Harness } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
 const HULY_ENV = { HULY_URL: 'https://huly.example.com', HULY_WORKSPACE: 'example', HULY_TOKEN: 'token' }
 
 /** Where each start asked to install the Huly client. */
 const installs: string[] = []
 
-describe('a start with a Huly profile and no Huly client end to end', { timeout: 60_000 }, () => {
+describe('a start with a Huly profile and no Huly client end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

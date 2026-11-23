@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { checkpoint, commitAndMerge, ends, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { BACKLOG, TODO } from './tracker.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('a task that leaves the chain and comes back', { timeout: 60_000 }, () => {
+describe('a task that leaves the chain and comes back', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

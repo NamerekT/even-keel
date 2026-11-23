@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { TURN_HANG_MS, TURN_RESTART_MS } from '../sessions/silence.js'
 import { checkpoint, commitAndMerge, ends, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('a turn the chain cannot see the end of', { timeout: 60_000 }, () => {
+describe('a turn the chain cannot see the end of', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

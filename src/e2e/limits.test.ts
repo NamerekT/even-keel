@@ -3,12 +3,13 @@ import type { LimitWindow } from '../limits/model.js'
 import { busyChains } from '../updates/settle.js'
 import { commitAndMerge, Gate } from './agent.fixture.js'
 import { ACCOUNT, Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
 const WEEK_RESET = '2026-10-05T09:00:00.000Z'
 const week = (usedPercentage: number): LimitWindow => ({ usedPercentage, resetsAt: WEEK_RESET })
 const hours = (usedPercentage: number, resetsAt: string): LimitWindow => ({ usedPercentage, resetsAt })
 
-describe('limits end to end', { timeout: 60_000 }, () => {
+describe('limits end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

@@ -2,11 +2,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Harness } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
 const FOUNDRY = { cloud: 'foundry', way: 'apiKey', key: 'fake-foundry-key', resource: 'my-resource', models: { sonnet: 'my-sonnet' } }
 const spend = { tokens: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, cost: 0, durationMs: 1 }
 
-describe('cloud accounts end to end', { timeout: 60_000 }, () => {
+describe('cloud accounts end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

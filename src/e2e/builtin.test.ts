@@ -6,8 +6,9 @@ import { BuiltinStore } from '../builtin/store.js'
 import { commitAndMerge, ends } from './agent.fixture.js'
 import { FEED_ID, FEED_KEY, Harness, PROJECT_ID } from './service.fixture.js'
 import { BOARD_TRACKER } from './tracker.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('the built-in tracker end to end', { timeout: 120_000 }, () => {
+describe('the built-in tracker end to end', { timeout: scaled(120_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

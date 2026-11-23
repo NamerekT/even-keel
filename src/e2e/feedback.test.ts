@@ -6,8 +6,9 @@ import { SESSION_MARK } from '../review/model.js'
 import { ends, forReview, type Turn } from './agent.fixture.js'
 import { OWNER } from './forge.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('PR mode end to end: feedback', { timeout: 60_000 }, () => {
+describe('PR mode end to end: feedback', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {
@@ -103,7 +104,7 @@ describe('PR mode end to end: feedback', { timeout: 60_000 }, () => {
 
 })
 
-describe('PR mode end to end: feedback on GitHub', { timeout: 60_000 }, () => {
+describe('PR mode end to end: feedback on GitHub', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {
