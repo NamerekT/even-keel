@@ -308,6 +308,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
                 onCard={openCard}
                 adding={adding}
                 switcher={feedSwitcher}
+                machine={machine}
               />
             )}
           </Loading>

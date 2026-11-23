@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { CacheWindow } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
@@ -21,14 +21,18 @@ interface ActionMeterProps {
   scale: ContextScale
   /** The session's current action, or an empty line while it has none. */
   children: ReactNode
+  /** At mount: the line stands open at once instead of opening (a switch of the chain's view, BTN-1577). */
+  still?: boolean
 }
 
 /** The second line of a row whose session works: its current action on a field filled up to the context level, the percent at the end. */
-export function ActionMeter({ project, session, sessions, scale, children }: ActionMeterProps) {
+export function ActionMeter({ project, session, sessions, scale, children, still = false }: ActionMeterProps) {
   const { percent, level } = contextFill(session.contextTokens, scale, session.contextWindow)
+  // Taken once: a class taken off later would start the opening then.
+  const [quiet] = useState(still)
 
   return (
-    <div className={`block__now block__now--${percent === null ? 'unknown' : level}`} style={percent === null ? undefined : { '--fill': `${percent}%` } as CSSProperties}>
+    <div className={`block__now block__now--${percent === null ? 'unknown' : level}${quiet ? ' block__now--still' : ''}`} style={percent === null ? undefined : { '--fill': `${percent}%` } as CSSProperties}>
       {children}
       <div className="block__now-side">
         <Extras project={project} session={session} sessions={sessions} />
