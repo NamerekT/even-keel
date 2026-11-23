@@ -20,6 +20,17 @@
   list-style: none;
 }
 
+/*
+ * Words and files in one bubble: a line across the whole bubble parts the files from the words (BTN-1504). The bare
+ * border token is lost on the bubble's accent tint, so it leans toward the text colour.
+ */
+.bubble--split .bubble__files {
+  align-self: stretch;
+  margin: 2px -12px 0;
+  padding: 8px 12px 0;
+  border-top: 1px solid color-mix(in srgb, var(--border), var(--fg) 15%);
+}
+
 .bubble__more {
   padding: 2px 8px;
   border: 0;

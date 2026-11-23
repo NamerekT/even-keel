@@ -41,6 +41,18 @@ export function fakeTranscript(open: Ask | null, shots: string | null): FeedLine
     ...fakeShare(at),
     ...fakeFeed(),
     ...fakeOpenAsk(open),
+    ...(shots === 'sent' ? fakeSentBubbles(ago) : []),
+  ]
+}
+
+/** The user's messages with pictures at the chat's end (BTN-1504): a long text with four, a short one with one, a picture alone. */
+function fakeSentBubbles(at: (minutes: number) => string): FeedLine[] {
+  const inbox = (name: string) => `C:\\repos\\example-project\\.temp\\inbox\\${name}.png`
+  const long = 'Опять пакеты не готовы, но проблема только в гите.\nНа машине не хватает имени и почты гита с хаба.\n' + 'В настройках хаба оставь возможность указать своё имя и почту: кнопка и окно с формой. '.repeat(8)
+  return [
+    { at: at(0.3), kind: 'prompt', text: long, files: ['settings', 'machine', 'pool', 'terminal'].map(inbox) },
+    { at: at(0.2), kind: 'prompt', text: 'Вот так выглядит сейчас.', files: [inbox('now')] },
+    { at: at(0.1), kind: 'prompt', text: '', files: [inbox('after')] },
   ]
 }
 

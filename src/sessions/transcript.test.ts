@@ -1039,6 +1039,16 @@ describe('TranscriptFold', () => {
       expect(fold([notice]).summary().feed).toEqual([])
     })
 
+    it('leaves out the notice the CLI queues after a resume with no origin, only its command mode', () => {
+      const prompt = '<task-notification>\n<task-id>b1</task-id>\n<status>stopped</status>\n<summary>Background shell command didn\'t finish before the previous session ended</summary>\n</task-notification>'
+      const notice = JSON.stringify({ type: 'attachment', timestamp: at(), attachment: { type: 'queued_command', prompt, commandMode: 'task-notification', renderedRole: 'system' } })
+      const enqueue = JSON.stringify({ type: 'queue-operation', operation: 'enqueue', timestamp: at(), content: prompt })
+      const session = fold([JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'ABC-1' } }), enqueue, notice])
+      const summary = session.summary()
+      expect(summary.feed.map((line) => line.text)).toEqual(['ABC-1'])
+      expect(summary.turn?.queued).toBeUndefined()
+    })
+
     describe('through the inbox socket (BTN-1322)', () => {
       const mail = (id: number, text: string) => ({ id, task: 'ABC-1', session: 's1', text, files: [], sentAt: at(), fate: 'delivered' as const, event: null, settledAt: null })
       // The CLI wraps what another process writes into the inbox; Even Keel reads only its own mark inside.

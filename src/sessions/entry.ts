@@ -56,8 +56,11 @@ export interface Entry {
   content?: unknown
   /** Of a `queue-operation` line: `enqueue`, `dequeue` or `remove`. */
   operation?: string
-  /** `prompt` and `origin` — of a `queued_command`: a message the CLI took into a running turn. */
-  attachment?: { type?: string; url?: unknown; prompt?: unknown; origin?: { kind?: string } }
+  /**
+   * `prompt`, `origin` and `commandMode` — of a `queued_command`: a message the CLI took into a running turn. A notice
+   * the CLI queued itself after a resume has no `origin`, only `commandMode: 'task-notification'`.
+   */
+  attachment?: { type?: string; url?: unknown; prompt?: unknown; origin?: { kind?: string }; commandMode?: string }
   origin?: { kind?: string }
   toolUseResult?: unknown
   message?: { id?: string; model?: string; content?: unknown; usage?: Usage }

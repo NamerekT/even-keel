@@ -670,20 +670,23 @@ interface BubbleProps {
   onOpen: (place: number) => void
 }
 
-/** A message of the user on the right: their words and the files they sent, pictures as thumbnails; a long one folds. */
+/**
+ * A message of the user on the right: their words, a long one folding with its toggle right under them, then the files
+ * they sent, pictures as thumbnails, parted from the words by a line across the bubble (BTN-1504).
+ */
 function UserBubble({ text, files, media, onOpen }: BubbleProps) {
   const [open, setOpen] = useState(false)
   const bodyId = useId()
   const long = text.split('\n').length > FOLD_LINES || text.length > FOLD_CHARS
   return (
-    <div className="bubble">
+    <div className={`bubble${text !== '' && files.length > 0 ? ' bubble--split' : ''}`}>
       {text !== '' && <FoldBody id={bodyId} open={!long || open} preview={long}><span className="transcript__plain bubble__text">{text}</span></FoldBody>}
-      <SentFiles files={files} media={media} onOpen={onOpen} />
       {long && (
         <FoldToggle className="bubble__more" aria-controls={bodyId} aria-expanded={open} onClick={() => setOpen(!open)}>
           {open ? t.session.showLess : t.session.showMore}
         </FoldToggle>
       )}
+      <SentFiles files={files} media={media} onOpen={onOpen} />
     </div>
   )
 }

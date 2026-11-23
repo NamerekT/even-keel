@@ -527,6 +527,8 @@ export class TranscriptFold {
     if (this.pushMail(at, prompt)) return
     const kind = attachment.origin?.kind
     if (kind !== undefined && kind !== 'human') return
+    // The notice the CLI queues after a resume about the last process's background command has no origin (BTN-1504).
+    if (attachment.commandMode === 'task-notification') return
     const line = userLine(at, prompt, null, (text) => this.textOf(text))
     if (line !== null) this.addFeed(line)
   }
