@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLive } from '../live/context.js'
 import type { ProjectMilestone } from '../ui/addGhost.js'
+import { keepRows } from './keptRows.js'
 import { isClosedStatus, type MilestoneRow } from './MilestoneDialogs.js'
 
 /**
@@ -16,7 +17,8 @@ export function useProjectMilestones(project: string, on: boolean, stamp: string
   useEffect(() => {
     if (!on) return
     let live = true
-    query<MilestoneRow[]>('builtin/milestones', { project }).then(
+    // Kept for the source window's milestone table too, so it opens on these rows rather than "Loading…" (BTN-1499).
+    keepRows<MilestoneRow>(query, 'builtin/milestones', project).then(
       (rows) => {
         if (live) setFound({ project, milestones: rows.map((row) => ({ name: row.name, closed: isClosedStatus(row.status) })) })
       },

@@ -157,6 +157,12 @@
   scrollbar-gutter: stable;
 }
 
+/* The bottom edge reveals the content as the frame glides (useHeightGlide): no scrollbar in it for that moment; the
+   gutter stays, so the width does not change. */
+.add-package__frame[data-gliding] .add-package__body {
+  overflow-y: hidden;
+}
+
 .add-package__body > .notice {
   margin: 0;
 }

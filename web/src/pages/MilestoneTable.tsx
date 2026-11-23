@@ -1,14 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { milestoneSequence } from '../../../src/chain/milestone-sequence.js'
-import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { localized, say, t } from '../i18n/index.js'
-import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { Fold } from '../ui/Fold.js'
 import { PencilIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { useDragList } from '../ui/useDragList.js'
 import { closedDay, daysTo, isClosedStatus, MilestoneDot, MilestoneEditor, MilestoneRemoval, TARGET_DAY, type MilestoneRow } from './MilestoneDialogs.js'
+import { useKeptRows } from './keptRows.js'
 import { HelpTip, Section } from './settingsParts.js'
 import './milestoneOrder.css'
 import './milestoneTable.css'
@@ -23,22 +22,11 @@ type Open = { kind: 'edit'; row: MilestoneRow | null } | { kind: 'remove'; row: 
  * dragged as "Milestone order" is, the closed ones folded under them. A row opens its editor.
  */
 export function MilestoneTable({ project, saved }: { project: string; saved: readonly string[] }) {
-  const { query } = useLive()
   const { send, sending, failure: orderFailure } = useCommand()
-  const [rows, setRows] = useState<MilestoneRow[] | null>(null)
-  const [failure, setFailure] = useState<Notice | null>(null)
+  const { rows, failure, load } = useKeptRows<MilestoneRow>('builtin/milestones', project)
   const [open, setOpen] = useState<Open>(null)
   const [pending, setPending] = useState<string[] | null>(null)
 
-  const load = async () => {
-    try {
-      setRows(await query<MilestoneRow[]>('builtin/milestones', { project }))
-      setFailure(null)
-    } catch (reason) {
-      setFailure(noticeOf(reason))
-    }
-  }
-  useEffect(() => void load(), [project])
   const done = () => {
     setOpen(null)
     void load()

@@ -9,7 +9,7 @@ import { isOpenToAll } from '../openToAll.js'
 import { Band } from '../ui/blocks.js'
 import { BuiltinExportButton } from './BuiltinExport.js'
 import { BuiltinImportButton } from './BuiltinImport.js'
-import { ComponentList } from './ComponentList.js'
+import { ComponentList, useEarlyComponents } from './ComponentList.js'
 import { FeedList } from './FeedList.js'
 import { MilestoneOrder } from './MilestoneOrder.js'
 import { MilestoneTable } from './MilestoneTable.js'
@@ -83,6 +83,7 @@ export function ProjectTrackerTab({
   const onBuiltin = text('tracker') === BUILTIN
   // The built-in tracker's statuses are fixed (BTN-767), its labels are the project's own and the rules apply to them (BTN-1429).
   const ruleKeys: RuleKey[] = onBuiltin ? ['requiredLabels', 'excludedLabels'] : ['active', 'terminal', 'requiredLabels', 'excludedLabels']
+  useEarlyComponents(project, onBuiltin && (configuring || sourceTab !== ''))
   return (
     <>
       <Section

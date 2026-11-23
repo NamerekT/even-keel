@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { PencilIcon } from '../ui/icons.js'
 import { ComponentEditor, ComponentRemoval, type ComponentRow } from './ComponentDialogs.js'
+import { keepRows, useKeptRows } from './keptRows.js'
 import { Section } from './settingsParts.js'
 import './componentList.css'
 
@@ -15,25 +15,27 @@ export function firstLine(description: string): string {
 
 type Open = { kind: 'edit'; row: ComponentRow | null } | { kind: 'remove'; row: ComponentRow } | null
 
+const ROUTE = 'builtin/components'
+
+/**
+ * Asks for the project's components when its source window opens (`on`), off the page's loader, so the tab opened
+ * later finds its rows and the window does not shrink to "Loading…" on the switch (BTN-1499). A failure is the tab's.
+ */
+export function useEarlyComponents(project: string, on: boolean): void {
+  const { read } = useLive()
+  useEffect(() => {
+    if (on) keepRows(read, ROUTE, project).catch(() => {})
+  }, [project, on])
+}
+
 /**
  * "Components" of the built-in tracker's window (BTN-1288): the project's components by name with their task counts. A
  * row opens its editor; the chain does not read them, a person sorts tasks by them on the card.
  */
 export function ComponentList({ project }: { project: string }) {
-  const { query } = useLive()
-  const [rows, setRows] = useState<ComponentRow[] | null>(null)
-  const [failure, setFailure] = useState<Notice | null>(null)
+  const { rows, failure, load } = useKeptRows<ComponentRow>(ROUTE, project)
   const [open, setOpen] = useState<Open>(null)
 
-  const load = async () => {
-    try {
-      setRows(await query<ComponentRow[]>('builtin/components', { project }))
-      setFailure(null)
-    } catch (reason) {
-      setFailure(noticeOf(reason))
-    }
-  }
-  useEffect(() => void load(), [project])
   const done = () => {
     setOpen(null)
     void load()
