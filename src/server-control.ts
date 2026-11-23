@@ -57,7 +57,7 @@ export interface StatsSource {
 
 export interface ChainControl {
   start(project: string): Promise<void>
-  resume(project: string): void
+  resume(project: string): void | Promise<void>
   stop(project: string): void
   /** "Stop after this task": on — the chain stops once its current task is done and cleaned up instead of taking the next. */
   stopAfter(project: string, on: boolean): void

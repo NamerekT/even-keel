@@ -163,8 +163,8 @@ export class McpGateway {
     if (held !== undefined) {
       this.server = held
       this.port = port
-      // A turn of the event loop, as a fresh listen takes: ready within the start's own turn, the hub's mirror of the
-      // own machine is read before its accounts and the e2e chains find none (BTN-1544, the race filed apart).
+      // A turn of the event loop, as a fresh listen takes: ready within the start's own turn, the e2e chains start
+      // before the service has read the remotes and the CI (BTN-1551).
       await new Promise((resolve) => setImmediate(resolve))
       return
     }
