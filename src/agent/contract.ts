@@ -44,6 +44,11 @@ export interface AgentOptions {
   workDir: string
   /** Read at each call: whether sessions run on Even Keel's own copy of `checked` (the `cli` setting) rather than the installed CLI. */
   checkedCli: () => boolean
+  /**
+   * Optional. Read at each call, with `checkedCli`: whether that copy is Even Keel's copy of the newest release
+   * (`cli: latest`, BTN-1539) instead of `checked`'s. Without it the copy is always the checked one.
+   */
+  latestCli?: () => boolean
   /** Optional. The version Even Keel's own copy is of, `checked` by default; the CLI check runs a candidate this way (`scripts/cli-check.ts`). */
   version?: string
   log: (line: string) => void
@@ -293,7 +298,7 @@ export interface Agent {
   windowStamp?(home: AccountHome): Promise<string>
   /** Optional. Stops the account's daemon so that its sessions read the shared configuration anew. */
   stopDaemon?(home: AccountHome): Promise<void>
-  /** Optional. The version sessions run on while they run on Even Keel's own copy of `checked` (BTN-250); `null` — they don't. */
+  /** Optional. The version sessions run on while they run on one of Even Keel's own copies (BTN-250, BTN-1539); `null` — they don't. */
   pinned?(): string | null
   /**
    * Optional. The version of the account's daemon, `null` — none runs. A session runs on its daemon's version, not on

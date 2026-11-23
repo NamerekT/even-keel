@@ -194,7 +194,7 @@ describe('profileShortName', () => {
 
 describe('agentReady', () => {
   const copy = (source: CliCopyView['source'], status: CliCopyView['status'], system: boolean): CliCopyView =>
-    ({ version: '1.0.0', source, status, system, received: 0, total: 0, approximate: 0 })
+    ({ version: '1.0.0', source, status, checkedStatus: status, installable: true, system, received: 0, total: 0, approximate: 0 })
   const signedIn = { missing: [], accounts: [{ key: 'opencode', agent: 'opencode' }] }
 
   it('lets the setup on once the agent has a CLI to run and an account', () => {

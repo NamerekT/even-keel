@@ -1,7 +1,8 @@
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
-import { cliCopy } from '../agent/copy.js'
+import { cliCopy, ownCopyPath } from '../agent/copy.js'
+import { latestCopyOf } from '../agent/latest.js'
 import { isMuslLinux, npmLatest } from '../agent/npm.js'
 import { PinnedCli } from '../agent/pinned.js'
 import { TurnRegistry } from '../codex/turns.js'
@@ -32,9 +33,11 @@ export const opencode: AgentAdapter = {
   checked: CHECKED,
   // The platform packages are published with the same version as the package that lists them.
   latest: () => npmLatest('opencode-ai'),
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
+  setup(options) {
+    const { env, timeoutMs, workDir, checkedCli, latestCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress } = options
+    const supported = openCodePackage(process.platform, process.arch, isMuslLinux()) !== null
     const copy =
-      openCodePackage(process.platform, process.arch, isMuslLinux()) === null
+      !supported
         ? undefined
         : new PinnedCli({
             dir: join(workDir, 'cli', OPENCODE),
@@ -47,12 +50,13 @@ export const opencode: AgentAdapter = {
             onFailure: onCliFailure,
           })
     const envOf = (home: AccountHome) => openCodeEnv(env(), home.dir)
-    const bin = () => resolveOpenCodeBinary(env(), env().EVEN_KEEL_OPENCODE_BIN || !checkedCli() ? undefined : copy?.path())
+    const latest = supported ? latestCopyOf(options, OPENCODE, { latest: () => npmLatest('opencode-ai'), binary: (folder) => openCodeBinaryIn(folder), fetch: fetchOpenCode }) : undefined
+    const bin = () => resolveOpenCodeBinary(env(), ownCopyPath(copy, latest, { checkedCli, latestCli }, !!env().EVEN_KEEL_OPENCODE_BIN))
     const system = () => resolveOpenCodeBinary(env())
     const onMachine = () => findBinary(system(), env())
     const cli = new OpenCodeCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, OPENCODE)))
     return {
-      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_OPENCODE_BIN, 80 * 1_000_000),
+      cli: cliCopy(copy, { checkedCli, latestCli }, version, onMachine, () => !!env().EVEN_KEEL_OPENCODE_BIN, 80 * 1_000_000, undefined, latest),
       mode: SESSION_MODE,
       env: envOf,
       launch: (home, start) => cli.launch(home, start),

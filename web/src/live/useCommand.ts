@@ -31,12 +31,14 @@ export function useCommand() {
       if ((name === 'settings' || name === 'project/settings') && typeof body?.provider === 'string' && body.provider !== '' &&
           body.provider !== (body.base as { provider?: string } | undefined)?.provider) {
         const copy = state?.cliCopies?.[body.provider]
-        if (copy?.source === 'checked' && copy.status !== 'ready') window.dispatchEvent(new CustomEvent('even-keel:cli-consent', { detail: body.provider }))
+        if (copy !== undefined && copy.source !== 'system' && copy.status !== 'ready') window.dispatchEvent(new CustomEvent('even-keel:cli-consent', { detail: body.provider }))
       }
       if (name === 'settings' && body?.cli) {
         const before = (body.base as { cli?: Record<string, string> } | undefined)?.cli
         for (const [provider, source] of Object.entries(body.cli as Record<string, string>)) {
-          if (source === 'checked' && before?.[provider] !== source && state?.cliCopies?.[provider]?.status !== 'ready') {
+          const copy = state?.cliCopies?.[provider]
+          const missing = source === 'checked' ? copy?.checkedStatus !== 'ready' : source === 'latest' && copy?.latest == null
+          if (missing && before?.[provider] !== source) {
             window.dispatchEvent(new CustomEvent('even-keel:cli-consent', { detail: provider }))
           }
         }

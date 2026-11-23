@@ -1,3 +1,4 @@
+import type { CliCopyView, CliSourceName } from './cli-state.js'
 import type { Agent } from './contract.js'
 import { AGENTS } from './adapters.js'
 import { notice } from '../notice/notice.js'
@@ -17,11 +18,13 @@ export interface CopyConsent {
  */
 export function copies(
   runtimes: Map<string, Agent>,
-  save: (name: string, source: 'checked' | 'system') => void,
+  save: (name: string, source: CliSourceName) => void,
   fallBack: (name: string) => void,
   changed: () => void,
   check: () => Promise<void>,
   consent: CopyConsent,
+  /** Whether a person can install the provider's CLI here themselves (`installableClis`); `false` offers `latest`. */
+  installable: (name: string) => boolean = () => true,
 ) {
   const consented = new Set(consent.downloaded)
   const remember = (name: string) => {
@@ -50,34 +53,38 @@ export function copies(
   /** Missing, not failed: a failed download waits for the explicit retry. */
   const fetchesItself = (name: string) => {
     const view = runtimes.get(name)?.cli?.state()
-    return (consented.has(name) || (consent.hub?.().includes(name) ?? false)) && view?.source === 'checked' && view.status === 'missing'
+    return (consented.has(name) || (consent.hub?.().includes(name) ?? false)) && view !== undefined && view.source !== 'system' && view.status === 'missing'
   }
   const auto = (name: string) => {
     const whose = consented.has(name) ? 'its copy was downloaded with consent before' : 'the hub consented to its copy'
-    console.log(`agents: ${name} downloads the checked version ${runtimes.get(name)!.cli!.view().version} by itself, ${whose}`)
+    const view = runtimes.get(name)!.cli!.view()
+    console.log(`agents: ${name} downloads ${view.source === 'latest' ? 'the newest version' : `the checked version ${view.version}`} by itself, ${whose}`)
     fetch(name)
   }
   return {
-    view: () => Object.fromEntries([...runtimes].flatMap(([name, agent]) => agent.cli ? [[name, agent.cli.view()]] : [])),
+    view: (): Record<string, CliCopyView> =>
+      Object.fromEntries([...runtimes].flatMap(([name, agent]) => agent.cli ? [[name, { ...agent.cli.view(), installable: installable(name) }]] : [])),
     /** `downloading` — the copy is on its way, so the wait ends by itself; the hub tells a machine's pause by it. */
     blocked(name: string) {
       const view = runtimes.get(name)?.cli?.state()
-      if (view?.source !== 'checked' || view.status === 'ready') return undefined
+      if (view === undefined || view.source === 'system' || view.status === 'ready') return undefined
       const fetches = fetchesItself(name)
       if (fetches) auto(name)
-      return notice('agent.copyMissing', { title: AGENTS[name]!.title, agent: name, downloading: fetches || view.status === 'downloading' })
+      return notice('agent.copyMissing', { title: AGENTS[name]!.title, agent: name, downloading: fetches || view.status === 'downloading', ...(view.source === 'latest' ? { latest: true } : {}) })
     },
     /** The providers consented to here, for the hub's brief to its machines. */
     consented: (): string[] => [...consented].sort(),
-    /** At the start: the consented providers on Checked fetch a checked version they lack; gives their names. */
+    /** At the start: the consented providers on one of Even Keel's copies fetch the version they lack; gives their names. */
     resume(): string[] {
       const names = [...runtimes.keys()].filter(fetchesItself)
       for (const name of names) auto(name)
       return names
     },
-    download(name: string) {
-      controlOf(name)
-      save(name, 'checked')
+    /** Choosing a copy is consent to its download; on `latest` to each newer release's too. */
+    download(name: string, source: 'checked' | 'latest' = 'checked') {
+      const cli = controlOf(name)
+      if (source === 'latest' && cli.view().latest === undefined) throw new Error('No newest-version copy for this platform')
+      save(name, source)
       fetch(name)
     },
     system(name: string) {

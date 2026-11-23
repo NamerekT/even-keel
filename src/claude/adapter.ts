@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { Transport } from '../account/transport.js'
 import type { AgentAdapter } from '../agent/contract.js'
-import { cliCopy } from '../agent/copy.js'
+import { cliCopy, ownCopyPath } from '../agent/copy.js'
+import { latestCopyOf } from '../agent/latest.js'
 import { PinnedCli } from '../agent/pinned.js'
 import { cliVersionOf } from '../agent/versions.js'
 import { parseUsage } from '../limits/usage.js'
@@ -41,7 +42,8 @@ export const claude: AgentAdapter = {
   title: 'Claude Code',
   checked: CHECKED,
   latest: claudeLatest,
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress, transport, unattended, language, onLimits }) {
+  setup(options) {
+    const { env, timeoutMs, workDir, checkedCli, latestCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress, transport, unattended, language, onLimits } = options
     const copy = new PinnedCli({
       dir: join(workDir, 'cli', CLAUDE),
       version,
@@ -52,7 +54,9 @@ export const claude: AgentAdapter = {
       onChange: onCliProgress ?? onCliChange,
       onFailure: onCliFailure,
     })
-    const pinned = () => (env().EVEN_KEEL_CLAUDE_BIN || !checkedCli() ? undefined : copy.path())
+    const latest = latestCopyOf(options, CLAUDE, { latest: claudeLatest, binary: claudeBinaryIn, fetch: fetchClaude })
+    const onLatest = () => latestCli?.() === true
+    const pinned = () => ownCopyPath(copy, latest, { checkedCli, latestCli }, !!env().EVEN_KEEL_CLAUDE_BIN)
     const envOf = (home: AccountHome) => claudeEnv(env(), home, pinned() !== undefined)
     const bin = () => resolveClaudeBinary(env(), pinned())
     const system = () => resolveClaudeBinary(env())
@@ -107,7 +111,7 @@ export const claude: AgentAdapter = {
     })
     /** The SDK talks the protocol of its own CLI version, so a session goes through it only on Even Keel's copy of that version. */
     const viaSdk = (home: AccountHome) => {
-      if ((transport?.(home) ?? null) !== SDK_TRANSPORT || pinned() === undefined) return false
+      if ((transport?.(home) ?? null) !== SDK_TRANSPORT || pinned() === undefined || onLatest()) return false
       if (sdk.ready()) return true
       log(`sessions: the SDK ${sdkVersion ?? '(none for this CLI)'} is not downloaded yet, ${home.key} starts on --bg`)
       return false
@@ -115,7 +119,7 @@ export const claude: AgentAdapter = {
     return {
       updateMarketplace: (home, marketplace, timeout) => updateMarketplace(envOf(home), marketplace, timeout, bin()),
       addMarketplace: (home, dir, timeout) => addMarketplace(envOf(home), dir, timeout, bin()),
-      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CLAUDE_BIN, 340 * 1_000_000, sdkCopy),
+      cli: cliCopy(copy, { checkedCli, latestCli }, version, onMachine, () => !!env().EVEN_KEEL_CLAUDE_BIN, 340 * 1_000_000, sdkCopy, latest),
       mode: SESSION_MODE,
       env: envOf,
       launch: async (home, start) => {
@@ -163,7 +167,7 @@ export const claude: AgentAdapter = {
         return JSON.stringify([binary, await changed(binary), await changed(join(home.dir, 'settings.json'))])
       },
       stopDaemon: (home) => cli.stopDaemon(home),
-      pinned: () => (pinned() === undefined ? null : version),
+      pinned: () => (pinned() === undefined ? null : onLatest() ? latest.version() : version),
       daemonVersion: (home) => cli.daemonVersion(home),
       write: (home, turn) => cli.write(home, turn),
       warm: async (home, { sessionId }, start) => {

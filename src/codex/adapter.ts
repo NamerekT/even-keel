@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter, AgentOptions } from '../agent/contract.js'
 import type { RateLimits } from '../limits/model.js'
-import { cliCopy } from '../agent/copy.js'
+import { cliCopy, ownCopyPath } from '../agent/copy.js'
+import { latestCopyOf } from '../agent/latest.js'
 import { npmLatest } from '../agent/npm.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { PinnedCli } from '../agent/pinned.js'
@@ -31,7 +32,8 @@ export const codex: AgentAdapter = {
   title: 'Codex',
   checked: CHECKED,
   latest: () => npmLatest(CODEX_PACKAGE),
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress, onLimits }) {
+  setup(options) {
+    const { env, timeoutMs, workDir, checkedCli, latestCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress, onLimits } = options
     const target = codexTarget(process.platform, process.arch)
     const copy =
       target === null
@@ -47,7 +49,8 @@ export const codex: AgentAdapter = {
             onFailure: onCliFailure,
           })
     const envOf = (home: AccountHome) => codexEnv(env(), home)
-    const bin = () => resolveCodexBinary(env(), env().EVEN_KEEL_CODEX_BIN || !checkedCli() ? undefined : copy?.path())
+    const latest = target === null ? undefined : latestCopyOf(options, CODEX, { latest: () => npmLatest(CODEX_PACKAGE), binary: (folder) => codexBinaryIn(folder, target), fetch: fetchCodex })
+    const bin = () => resolveCodexBinary(env(), ownCopyPath(copy, latest, { checkedCli, latestCli }, !!env().EVEN_KEEL_CODEX_BIN))
     const system = () => resolveCodexBinary(env())
     const onMachine = () => findBinary(system(), env())
     const cli = new CodexCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')), new CodexPlugins(bin, envOf, log))
@@ -57,7 +60,7 @@ export const codex: AgentAdapter = {
       refresh: (home) => appServer(bin(), [], workDir, envOf(home), [['account/read', { refreshToken: true }]]),
     })
     return {
-      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_CODEX_BIN, 180 * 1_000_000),
+      cli: cliCopy(copy, { checkedCli, latestCli }, version, onMachine, () => !!env().EVEN_KEEL_CODEX_BIN, 180 * 1_000_000, undefined, latest),
       mode: SESSION_MODE,
       // GPT-5.6 and later keep a cache 30 minutes at least; the rollout does not say.
       warmMs: () => warmCacheMs(CODEX_TTL),

@@ -17,11 +17,13 @@ Each agent's sessions run either on the CLI you installed or on Even Keel's own 
 
 **Checked** runs sessions on Even Keel's own copy of the version it was checked against: choosing it in the setup or in settings (the log's entry of an unchecked version opens them) asks for consent with the version and approximate size, and the chain waits for the copy. Consent is asked once per provider: once a copy has been downloaded, a newer checked version (after an Even Keel update) downloads by itself while the provider stays on Checked, and the chain waits only for the download.
 
+**Latest** appears only where you cannot install the CLI yourself: in [Docker](docker.md#the-agents-clis), or when `npm install -g` cannot write npm's global folder (Claude Code installs into your home folder, so on a host it is always Yours or Checked). It runs sessions on Even Keel's own copy of the agent's newest release, downloaded from the same place as the checked one. Choosing it asks for consent once. After that, Even Keel looks for a newer release every 15 minutes and downloads it next to the current copy. Sessions keep running on the old copy until the new one is complete. A Claude account on Latest runs on `claude --bg`, since the Agent SDK needs the checked CLI.
+
 In settings the CLI version is saved with the rest of the form, Execution included, and the consent comes after the save.
 
 Blue progress bands under the header and on the agent card show downloaded bytes.
 
-A failed download switches that provider to Yours and offers a retry; without a CLI, the agent shows a copyable installation command and **Check again**.
+A failed download switches that provider to Yours and offers a retry; without a CLI, the agent shows a copyable installation command and **Check again**. Where installing is impossible, it offers **Switch to checked** and **Download the latest** instead.
 
 See [setup](setup.md#the-clis-it-depends-on).
 

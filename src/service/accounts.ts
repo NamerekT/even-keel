@@ -177,6 +177,7 @@ export function wireRuntimes(ctx: MachineContext): Map<string, Agent> {
         timeoutMs: ctx.AGENT_TIMEOUT_MS,
         workDir: ctx.stateDir,
         checkedCli: () => ctx.configStore.current.cli[name] !== 'system',
+        latestCli: () => ctx.configStore.current.cli[name] === 'latest',
         log: (line) => console.log(line),
         onCliChange: () => { void ctx.cliVersions.check(); ctx.machineChanged() },
         onCliFailure: () => { ctx.configStore.fallBackCli(name) },
@@ -360,7 +361,12 @@ export function wireCliVersions(ctx: MachineContext): VersionWatcher {
           const own = config.cli[name] === 'system' || Boolean(process.env[`EVEN_KEEL_${name.toUpperCase()}_BIN`])
           return own && providersInUse(config, Object.keys(config.projects)).has(name)
         }
-        return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed, version, prune: () => agent.cli?.prune() ?? Promise.resolve(), runsOnInstalled }]
+        const prune = () => {
+          // The sweep is also when a copy of the newest release looks for a newer one, in the background.
+          agent.cli?.update()
+          return agent.cli?.prune() ?? Promise.resolve()
+        }
+        return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed, version, prune, runsOnInstalled }]
       }),
     intervalMs: ctx.CLI_VERSION_POLL_MS,
     onChange: () => ctx.machineChanged(),

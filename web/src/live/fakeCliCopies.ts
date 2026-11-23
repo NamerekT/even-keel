@@ -12,12 +12,15 @@ export function withCliCopies(state: EvenKeelState, params: URLSearchParams): Ev
   if (!mode) return state
   if (mode === 'fresh') return freshInstall(state, params)
   const provider = params.get('copyAgent') ?? 'claude'
+  // `copyInstall=none` is a machine where nobody can install the CLI, a container (BTN-1539): Latest is offered there.
+  const installable = params.get('copyInstall') !== 'none'
   const copies = new Map(PROVIDERS.map((agent): [string, CliCopyView] => [agent, {
-    version: VERSIONS[agent]!, source: 'checked', status: 'ready', system: true, installed: INSTALLED[agent]!, received: 0, total: 0, approximate: SIZES[agent]! * 1_000_000,
+    version: VERSIONS[agent]!, source: 'checked', status: 'ready', checkedStatus: 'ready', latest: null, installable, system: true, installed: INSTALLED[agent]!, received: 0, total: 0, approximate: SIZES[agent]! * 1_000_000,
   }]))
   const copy = copies.get(provider)
   if (!copy) return state
   copy.status = mode === 'downloading' ? 'downloading' : mode === 'failed' ? 'failed' : mode === 'ready' ? 'ready' : 'missing'
+  copy.checkedStatus = copy.status
   copy.source = mode === 'failed' || mode === 'system-missing' ? 'system' : 'checked'
   copy.system = mode !== 'system-missing' && params.get('copySystem') !== 'missing'
   if (!copy.system) copy.installed = null
@@ -41,7 +44,7 @@ export function withCliCopies(state: EvenKeelState, params: URLSearchParams): Ev
 function freshInstall(state: EvenKeelState, params: URLSearchParams): EvenKeelState {
   const present = new Set(['claude', 'opencode'])
   const cliCopies = Object.fromEntries(PROVIDERS.map((agent): [string, CliCopyView] => [agent, {
-    version: VERSIONS[agent]!, source: 'system', status: 'missing', system: present.has(agent), installed: present.has(agent) ? INSTALLED[agent]! : null,
+    version: VERSIONS[agent]!, source: 'system', status: 'missing', checkedStatus: 'missing', latest: null, installable: params.get('copyInstall') !== 'none', system: present.has(agent), installed: present.has(agent) ? INSTALLED[agent]! : null,
     received: 0, total: 0, approximate: SIZES[agent]! * 1_000_000,
   }]))
   const shared = state.config.shared
@@ -59,8 +62,8 @@ export function fakeCliCommand(state: EvenKeelState, name: string, body: Record<
   if (!isProvider(agent)) throw new Error('Unknown agent')
   const copy = state.cliCopies?.[agent]
   if (!copy) throw new Error('Unknown agent')
-  const source = name === 'cli/system' ? 'system' : 'checked'
-  const status = name === 'cli/download' ? 'downloading' : copy.status
+  const source = name === 'cli/system' ? 'system' : name === 'cli/download' && body.source === 'latest' ? 'latest' : 'checked'
+  const status = name === 'cli/download' ? 'downloading' : source === 'checked' ? copy.checkedStatus : copy.status
   return { ...state,
     cliCopies: { ...state.cliCopies, [agent]: { ...copy, source, status, received: status === 'downloading' ? 24_000_000 : 0, total: status === 'downloading' ? copy.approximate : 0 } },
     config: { ...state.config, shared: { ...state.config.shared, cli: { ...state.config.shared.cli, [agent]: source } } },
@@ -69,7 +72,7 @@ export function fakeCliCommand(state: EvenKeelState, name: string, body: Record<
 
 export function syncFakeCliSources(state: EvenKeelState): EvenKeelState {
   if (!state.cliCopies) return state
-  return { ...state, cliCopies: Object.fromEntries(Object.entries(state.cliCopies).map(([agent, copy]): [string, CliCopyView] => [agent, { ...copy, source: state.config.shared.cli[agent] === 'system' ? 'system' : 'checked' }])) }
+  return { ...state, cliCopies: Object.fromEntries(Object.entries(state.cliCopies).map(([agent, copy]): [string, CliCopyView] => [agent, { ...copy, source: state.config.shared.cli[agent] === 'system' ? 'system' : state.config.shared.cli[agent] === 'latest' ? 'latest' : 'checked' }])) }
 }
 
 export function finishFakeCli(state: EvenKeelState, agent: string): EvenKeelState {
@@ -77,7 +80,7 @@ export function finishFakeCli(state: EvenKeelState, agent: string): EvenKeelStat
   const copy = state.cliCopies?.[agent]
   if (!copy || copy.status !== 'downloading') return state
   return { ...state,
-    cliCopies: { ...state.cliCopies, [agent]: { ...copy, status: 'ready', received: copy.total } },
+    cliCopies: { ...state.cliCopies, [agent]: { ...copy, status: 'ready', received: copy.total, ...(copy.source === 'latest' ? { latest: INSTALLED[agent]! } : { checkedStatus: 'ready' }) } },
     account: { ...state.account, missing: state.account.missing.filter((entry) => entry !== agent) },
     chain: { ...state.chain, active: state.chain.active.map((chain) => chain.error?.code === 'agent.copyMissing' && chain.error.params.agent === agent ? { ...chain, paused: false, error: null } : chain) },
   }

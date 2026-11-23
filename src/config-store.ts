@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { CliSourceName } from './agent/cli-state.js'
 import { needsCheckedCli } from './agent/providers.js'
 import type { BadgeSettings } from './badge/model.js'
 import type { StatusMoves } from './chain/moves.js'
@@ -186,7 +187,7 @@ export class ConfigStore {
     this.saveShared({ ...form, parallel }, form)
   }
 
-  saveCli(provider: string, source: 'checked' | 'system'): void {
+  saveCli(provider: string, source: CliSourceName): void {
     const form = this.view().shared
     this.saveShared({ ...form, cli: { ...form.cli, [provider]: source } }, form)
   }

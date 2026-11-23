@@ -1,5 +1,6 @@
 import { hostname } from 'node:os'
 import { chainOrder } from '../chain/order.js'
+import type { CliSourceName } from '../agent/cli-state.js'
 import type { LaunchEntry } from '../chain/dispatcher.js'
 import { launchLine } from '../chain/log.js'
 import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-notes.js'
@@ -322,7 +323,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
           void catchUp().then(() => settleMail(ctx.mailRelay)).catch((error: unknown) => log(`mail: ${messageOf(error)}`))
         } else if (event.type === SELECTION_EVENT) {
           const selection = event.payload as MachineSelection
-          if (selection.kind === 'cli') ctx.configStore.saveCli(selection.provider, selection.value as 'checked' | 'system')
+          if (selection.kind === 'cli') ctx.configStore.saveCli(selection.provider, selection.value as CliSourceName)
           else if (selection.kind === 'active') ctx.configStore.saveActive(selection.provider, selection.value)
           else ctx.configStore.saveSharedAccount(selection.provider, selection.value)
           await ctx.writes.settled()

@@ -437,7 +437,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
                 const options = accountOptions(state.account, provider, text(key))
                 return marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))
               }
-              if (column === 'cli') return marks.note(key, (value) => (value === 'system' ? cliText().yoursShort : cliText().checkedShort))
+              if (column === 'cli') return marks.note(key, (value) => (value === 'system' ? cliText().yoursShort : value === 'latest' ? cliText().latestShort : cliText().checkedShort))
               if (column === 'window') {
                 const window = WINDOW_KEYS[provider]
                 return window === undefined ? null : tokensNote(window, windowEmpty(provider))

@@ -396,7 +396,9 @@ describe('parseConfig', () => {
   it('runs every provider on the installed CLI unless the config says checked (BTN-603)', () => {
     expect(parse({ projects: {} }).cli).toEqual({ claude: 'system', codex: 'system', opencode: 'system', copilot: 'system' })
     expect(parse({ projects: {}, cli: { copilot: 'checked' } }).cli).toEqual({ claude: 'system', codex: 'system', opencode: 'system', copilot: 'checked' })
-    expect(() => parse({ projects: {}, cli: { claude: 'latest' } })).toThrow(/cli.claude.*latest.*system, checked/)
+    expect(parse({ projects: {}, cli: { codex: 'latest' } }).cli.codex).toBe('latest')
+    expect(() => parse({ projects: {}, cli: { claude: 'nightly' } })).toThrow(/cli.claude.*nightly.*system, checked, latest/)
+    expect(() => parse({ projects: {}, execution: { claude: 'sdk' }, cli: { claude: 'latest' } })).toThrow(/execution.claude: sdk/)
     expect(() => parse({ projects: {}, cli: { gemini: 'system' } })).toThrow(/cli.gemini is not a provider/)
   })
 

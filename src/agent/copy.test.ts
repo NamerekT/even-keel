@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CliCopyView } from './cli-state.js'
-import { cliCopy } from './copy.js'
+import { cliCopy, ownCopyPath } from './copy.js'
+import { LatestCli } from './latest.js'
 import { PinnedCli } from './pinned.js'
 
 let dir: string
@@ -56,6 +57,23 @@ function fixture(fail = false) {
   const copy = cliCopy(pinned('cli', changed, fail), { checkedCli: () => true }, '1.0.0', () => true, () => false, 100, pinned('sdk', changed))
   return { copy, seen }
 }
+
+describe('cliCopy on the newest release (BTN-1539)', () => {
+  it('runs the latest copy, keeps the checked one aside and looks for a newer release without leaving ready', async () => {
+    let newest = '2.0.0'
+    const fetch = vi.fn(async (_version: string, into: string) => { mkdirSync(join(into, 'bin'), { recursive: true }); writeFileSync(binary(into), 'binary') })
+    const latest = new LatestCli({ dir: join(dir, 'latest'), latest: async () => newest, binary, fetch, log: vi.fn(), onReady: vi.fn() })
+    const copy = cliCopy(pinned('cli', () => {}), { checkedCli: () => true, latestCli: () => true }, '1.0.0', () => false, () => false, 100, undefined, latest)
+    expect(copy.view()).toMatchObject({ source: 'latest', status: 'missing', checkedStatus: 'missing', latest: null })
+    await copy.download()
+    expect(copy.view()).toMatchObject({ status: 'ready', checkedStatus: 'missing', latest: '2.0.0' })
+    expect(ownCopyPath(undefined, latest, { checkedCli: () => true, latestCli: () => true }, false)).toBe(binary(join(dir, 'latest', '2.0.0')))
+    newest = '2.1.0'
+    copy.update()
+    expect(copy.state().status).toBe('ready')
+    await vi.waitFor(() => expect(copy.view().latest).toBe('2.1.0'))
+  })
+})
 
 describe('cliCopy', () => {
   it('stays downloading between the CLI and its second package', async () => {

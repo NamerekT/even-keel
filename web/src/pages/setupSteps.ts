@@ -56,7 +56,7 @@ export function agentReady(provider: string, copy: CliCopyView | undefined, acco
 /** The agent has a CLI to run: its installed one, or Even Keel's copy downloaded or on its way. */
 export function cliRunnable(provider: string, copy: CliCopyView | undefined, missing: readonly string[]): boolean {
   if (copy === undefined) return !missing.includes(provider)
-  return copy.source === 'checked' ? copy.status === 'ready' || copy.status === 'downloading' : copy.system
+  return copy.source !== 'system' ? copy.status === 'ready' || copy.status === 'downloading' : copy.system
 }
 
 interface AccountPool {

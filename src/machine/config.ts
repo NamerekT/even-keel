@@ -1,10 +1,11 @@
+import type { CliSourceName } from '../agent/cli-state.js'
 import { needsCheckedCli } from '../agent/providers.js'
 import type { EvenKeelConfig } from '../config.js'
 import type { BriefCopy } from './brief.js'
 
 export const SELECTION_EVENT = 'machine.selection'
 export type MachineSelection = { kind: 'cli' | 'active' | 'shared'; provider: string; value: string }
-export type CliChoices = Record<string, { before: string | undefined; value: 'checked' | 'system' }>
+export type CliChoices = Record<string, { before: string | undefined; value: CliSourceName }>
 
 /** Local CLI choices survive a restart; changes to the hub's desired choice supersede a local fallback. */
 export class MachineConfig {
@@ -29,7 +30,7 @@ export class MachineConfig {
     return { ...config, cli: { ...config.cli, ...Object.fromEntries(Object.entries(this.cli).map(([provider, choice]) => [provider, choice.value])) } }
   }
 
-  saveCli(provider: string, value: 'checked' | 'system'): void {
+  saveCli(provider: string, value: CliSourceName): void {
     this.cli[provider] = { before: this.brief.configStore.current.cli[provider], value }
     this.save({ ...this.cli })
     this.select({ kind: 'cli', provider, value })

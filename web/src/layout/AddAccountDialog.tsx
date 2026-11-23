@@ -106,7 +106,7 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
   const { state: live } = useLive()
   const copy = at.provider !== null ? live?.cliCopies?.[at.provider] : undefined
   // A provider with no CLI to run asks for one over the provider pick (BTN-599): closing that leaves the pick open.
-  const copyNeeded = copy !== undefined && (copy.source === 'checked' && copy.status !== 'ready' || copy.source === 'system' && !copy.system) ? at.provider : null
+  const copyNeeded = copy !== undefined && (copy.source !== 'system' && copy.status !== 'ready' || copy.source === 'system' && !copy.system) ? at.provider : null
   const provider = at.provider !== null && copyNeeded === null && !cliMissing(account, at.provider) ? at.provider : null
   const newAccount = wayGiven(new URLSearchParams(location.search))
   const [checked, setChecked] = useState<string | null>(null)

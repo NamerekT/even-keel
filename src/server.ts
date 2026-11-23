@@ -101,7 +101,7 @@ const COMMANDS: Record<string, Command> = {
   'account/add': ({ account }, body) =>
     account.add(body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'), body.method === undefined ? undefined : textOf(body.method, 'method')),
   'account/discover': ({ account }, body) => account.discoverGlobal(textOf(body.agent, 'agent')),
-  'cli/download': ({ cli }, body) => cli?.download(textOf(body.agent, 'agent')),
+  'cli/download': ({ cli }, body) => cli?.download(textOf(body.agent, 'agent'), body.source === 'latest' ? 'latest' : 'checked'),
   'cli/system': ({ cli }, body) => cli?.system(textOf(body.agent, 'agent')),
   'cli/checked': ({ cli }, body) => cli?.checked(textOf(body.agent, 'agent')),
   'cli/check': ({ cli }) => cli?.check(),

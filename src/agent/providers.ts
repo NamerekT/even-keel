@@ -53,9 +53,10 @@ export const EFFORTS: Readonly<Record<string, readonly string[]>> = {
  * Which CLI a provider's sessions run on (`cli`, BTN-250), the default first: `system` — the one installed on the
  * machine, on whatever version it updated to, `checked` — Even Keel's own copy of the version it was last checked
  * against, roughly 80–340 MB to download, depending on the provider and platform. The default was `checked` until
- * BTN-603; installs from before keep it written.
+ * BTN-603; installs from before keep it written. `latest` — Even Keel's own copy of the newest release, kept up to date
+ * by itself (BTN-1539), for a machine where a person cannot install the CLI: the page offers it only there.
  */
-export const CLI_SOURCES: readonly string[] = ['system', 'checked']
+export const CLI_SOURCES: readonly string[] = ['system', 'checked', 'latest']
 
 /** The execution modes that run only on the checked CLI, by provider (BTN-610): the Agent SDK is bound to its version. */
 const CHECKED_ONLY: Readonly<Record<string, readonly string[]>> = { [CLAUDE]: ['sdk'] }

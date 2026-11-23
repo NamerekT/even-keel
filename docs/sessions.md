@@ -22,4 +22,4 @@ The area is split by subtopic, a file each in `docs/sessions/`: read this table,
 | [`limits.md`](sessions/limits.md) | Limits; Limits of OpenCode and Copilot |
 | [`cache.md`](sessions/cache.md) | Prompt cache lifetime; Every agent's cache (research); Keep-warm |
 | [`sdk.md`](sessions/sdk.md) | The Agent SDK transport; Agent SDK and API keys (research); Agent SDK against `--bg` (research); Agent SDK against `--bg`, measured |
-| [`cli-versions.md`](sessions/cli-versions.md) | Pinning the CLI versions (research); The checked CLI |
+| [`cli-versions.md`](sessions/cli-versions.md) | Pinning the CLI versions (research); The checked CLI; The newest release (`cli: latest`) |

@@ -15,7 +15,7 @@ import { copilotNote } from '../../../src/opencode/support.js'
 /** The agent step's dot: green once the account is signed in and seen, red while it cannot run, empty while it is read. */
 export function agentCheck(state: EvenKeelState, provider: string): StepCheck {
   const copy = state.cliCopies?.[provider]
-  if (copy?.source === 'checked' && copy.status !== 'ready') return 'empty'
+  if (copy !== undefined && copy.source !== 'system' && copy.status !== 'ready') return 'empty'
   const ready = readinessOf(state.account, provider, state.config.shared.accounts[provider] ?? '')
   if (ready.state !== 'ready') return 'failed'
   return ready.entry.status === null ? 'empty' : 'passed'
@@ -30,7 +30,7 @@ export function AgentReady({ state, provider }: { state: EvenKeelState; provider
   const known = PROVIDERS.find((each) => each === provider)
   const copy = state.cliCopies?.[provider]
   const actions = <CliActions provider={provider} onDownload={() => { if (known) openAdd(known) }} />
-  if (copy && (copy.source === 'checked' && copy.status !== 'ready' || copy.source === 'system' && !copy.system)) return actions
+  if (copy && (copy.source !== 'system' && copy.status !== 'ready' || copy.source === 'system' && !copy.system)) return actions
   return <>{copy?.status === 'failed' && actions}<Ready state={state} provider={provider} /></>
 }
 

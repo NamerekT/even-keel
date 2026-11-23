@@ -251,7 +251,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                   onChange={(value) => {
                     set({ provider: value === shared ? '' : value })
                     const copy = state.cliCopies?.[value]
-                    if (copy?.source === 'checked' && copy.status !== 'ready') requestCli(value)
+                    if (copy !== undefined && copy.source !== 'system' && copy.status !== 'ready') requestCli(value)
                   }}
                 />
               }

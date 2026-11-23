@@ -7,6 +7,8 @@ import { KeySpend, readOpenRouterKey } from '../account/spend.js'
 import { SPEND_EVENT } from '../machine/records.js'
 import type { MachineContext } from './machine-context.js'
 import { copies } from '../agent/copies.js'
+import { installableClis, writableFolder } from '../agent/installable.js'
+import { inContainer } from '../locations.js'
 import { plainProjects, projectLabel, type EvenKeelConfig } from '../config.js'
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
@@ -45,6 +47,7 @@ export function assembleKeySpend(ctx: Pick<MachineContext, 'homes' | 'account' |
 }
 
 export async function assembleCliCopies(ctx: Pick<MachineContext, 'runtimes' | 'configStore' | 'machineChanged' | 'account' | 'cliVersions' | 'machineDb' | 'writes' | 'brief'>) {
+  const installable = installableClis([...ctx.runtimes.keys()], { container: inContainer, env: process.env, execPath: process.execPath, platform: process.platform, writable: writableFolder })
   return copies(ctx.runtimes, (name, source) => ctx.configStore.saveCli(name, source), (name) => ctx.configStore.fallBackCli(name),
     () => { ctx.machineChanged(); void ctx.account.refresh() },
     async () => { await ctx.cliVersions.check(); await ctx.account.refresh() },
@@ -52,7 +55,8 @@ export async function assembleCliCopies(ctx: Pick<MachineContext, 'runtimes' | '
       downloaded: ((await machineValue(ctx.machineDb, 'cli.downloaded')) as string[] | undefined) ?? [],
       remember: (downloaded) => ctx.writes.add('the providers with a downloaded CLI copy', setMachineValue(ctx.machineDb, 'cli.downloaded', downloaded)),
       hub: () => ctx.brief.cliConsent(),
-    })
+    },
+    (name) => installable.includes(name))
 }
 
 export function assembleGitFound(ctx: { configStore: { readonly current: EvenKeelConfig } }) {

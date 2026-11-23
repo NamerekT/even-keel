@@ -93,7 +93,7 @@ function ChosenAgent({ state, provider, save }: { state: EvenKeelState; provider
   const runnable = cliRunnable(provider, copy, state.account.missing)
   const usable = runnable && status !== 'downloading'
   const ready = readinessOf(state.account, provider, key)
-  const cli: StepCheck = copy?.status === 'failed' && copy.source === 'checked' ? 'failed' : runnable ? 'passed' : 'empty'
+  const cli: StepCheck = copy?.status === 'failed' && copy.source !== 'system' ? 'failed' : runnable ? 'passed' : 'empty'
   const account: StepCheck = ready.state === 'ready' ? 'passed' : ready.state === 'signIn' || ready.state === 'unsupported' ? 'failed' : 'empty'
   const name = t.account.agents[provider]
   const text = cliText()
@@ -110,7 +110,7 @@ function ChosenAgent({ state, provider, save }: { state: EvenKeelState; provider
         aside={usable ? <button type="button" className="button" disabled={state.account.login !== null} onClick={() => openAdd(provider)}>+ {t.account.addHere}</button> : undefined}
         className="project-add__step"
       >
-        {usable ? <AccountTable state={state} provider={provider} save={save} /> : <p className="setup-agent__who setup-account__note">{status === 'downloading' ? text.accountAfter : text.accountLater}</p>}
+        {usable ? <AccountTable state={state} provider={provider} save={save} /> : <p className="setup-agent__who setup-account__note">{status === 'downloading' ? text.accountAfter : copy?.installable === false ? text.accountLaterCopy : text.accountLater}</p>}
       </Section>
     </>
   )

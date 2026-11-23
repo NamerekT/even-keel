@@ -96,6 +96,8 @@ The setup's **Agent** step has three parts: the agent cards, each saying only wh
 
 Without your CLI, Yours shows the command that installs it and **Check again**.
 
+Where you cannot install the CLI yourself (in Docker, or when npm's global folder is not writable), there is no command. Instead, a third choice, **Latest**, runs Even Keel's own copy of the agent's newest release, which it keeps up to date by itself ([Agents](agents.md#cli-copies)).
+
 Choosing **Checked** there or in Settings → Providers and models asks before downloading: the dialog shows the version and approximate size, and Cancel keeps Yours.
 
 Blue bands under the header and in the agent's block show downloaded bytes while it runs; in the setup, adding an account opens by itself once the download ends, since the sign-in goes through the CLI.
@@ -104,7 +106,7 @@ Blue bands under the header and in the agent's block show downloaded bytes while
 
 A provider already on Checked whose copy is missing asks the same when you select it or add its account; closing the dialog keeps the choice and leaves the chain waiting.
 
-No startup, sign-in or version check downloads a copy by itself, with one exception: a provider on Checked whose copy you have downloaded before fetches each newer checked version without asking again.
+No startup, sign-in or version check downloads a copy by itself, with one exception: a provider on Checked whose copy you have downloaded before fetches each newer checked version without asking again, and one on Latest each newer release.
 
 If downloading fails, **CLI version** switches to **Yours** for that provider and offers **Try downloading again**.
 

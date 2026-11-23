@@ -2,7 +2,8 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
-import { cliCopy } from '../agent/copy.js'
+import { cliCopy, ownCopyPath } from '../agent/copy.js'
+import { latestCopyOf } from '../agent/latest.js'
 import { isMuslLinux, npmLatest } from '../agent/npm.js'
 import { PinnedCli } from '../agent/pinned.js'
 import { attachmentsDirOf } from '../builtin/files.js'
@@ -36,9 +37,11 @@ export const copilot: AgentAdapter = {
   title: 'GitHub Copilot',
   checked: CHECKED,
   latest: () => npmLatest('@github/copilot'),
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress }) {
+  setup(options) {
+    const { env, timeoutMs, workDir, checkedCli, latestCli, version = CHECKED, log, onCliChange, onCliFailure, onCliProgress } = options
+    const supported = copilotPackage(process.platform, process.arch, isMuslLinux()) !== null
     const copy =
-      copilotPackage(process.platform, process.arch, isMuslLinux()) === null
+      !supported
         ? undefined
         : new PinnedCli({
             dir: join(workDir, 'cli', COPILOT),
@@ -51,7 +54,8 @@ export const copilot: AgentAdapter = {
             onFailure: onCliFailure,
           })
     const envOf = (home: AccountHome) => copilotEnv(env(), home.dir)
-    const bin = () => resolveCopilotBinary(env(), env().EVEN_KEEL_COPILOT_BIN || !checkedCli() ? undefined : copy?.path())
+    const latest = supported ? latestCopyOf(options, COPILOT, { latest: () => npmLatest('@github/copilot'), binary: (folder) => copilotBinaryIn(folder), fetch: fetchCopilot }) : undefined
+    const bin = () => resolveCopilotBinary(env(), ownCopyPath(copy, latest, { checkedCli, latestCli }, !!env().EVEN_KEEL_COPILOT_BIN))
     const system = () => resolveCopilotBinary(env())
     const onMachine = () => findBinary(system(), env())
     const registry = new TurnRegistry(join(workDir, COPILOT))
@@ -59,7 +63,7 @@ export const copilot: AgentAdapter = {
     const cli = new CopilotCli(bin, timeoutMs, envOf, registry, () => [attachmentsDirOf(stateDirOf())])
     const read = (home: AccountHome, sessionId: string) => readFile(eventsFile(home.dir, sessionId), 'utf8').catch(() => undefined)
     return {
-      cli: cliCopy(copy, { checkedCli }, version, onMachine, () => !!env().EVEN_KEEL_COPILOT_BIN, 155 * 1_000_000),
+      cli: cliCopy(copy, { checkedCli, latestCli }, version, onMachine, () => !!env().EVEN_KEEL_COPILOT_BIN, 155 * 1_000_000, undefined, latest),
       mode: SESSION_MODE,
       env: envOf,
       launch: (home, start) => cli.launch(home, start),

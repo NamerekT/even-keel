@@ -39,22 +39,26 @@ export function CliActions({ provider, onDownload, onSystem, onChecked, primary 
   const copy = state?.cliCopies?.[provider]
   if (!copy) return null
   const text = cliText()
-  const waiting = copy.source === 'checked' && copy.status !== 'ready'
+  const waiting = copy.source !== 'system' && copy.status !== 'ready'
   const missingSystem = copy.source === 'system' && !copy.system
   if (!waiting && !missingSystem && copy.status !== 'failed') return null
   const line = bar && copy.status === 'missing' && waiting && !missingSystem
+  // Where nobody can install the CLI (BTN-1539) Even Keel's copies are the only way: no command, the checked copy first.
+  const noInstall = missingSystem && !copy.installable
+  const offersLatest = noInstall && copy.latest !== undefined
   return <div className={line ? 'banner__inner' : 'cli-copy'}>
     {copy.status === 'downloading' ? <CliProgress provider={provider} copy={copy} /> : <>
       {line ? <span>{text.missingNamed(titleOf(provider))}</span> : copy.status === 'failed' ? <p className="notice notice--error">{say({ code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</p> : waiting && !primary && <p>{text.missing}</p>}
-      {missingSystem && <><p>{text.installingCli}</p><CommandBlock command={installCommand(provider, state.platform)} /></>}
+      {missingSystem && (noInstall ? <p>{text.noInstall}</p> : <><p>{text.installingCli}</p><CommandBlock command={installCommand(provider, state.platform)} /></>)}
       <div className={line ? 'banner__actions' : 'cli-copy__actions'}>
-        {copy.source === 'checked' || copy.status === 'failed' ?
+        {copy.source !== 'system' || copy.status === 'failed' ?
           <button type="button" className={`button button--small${primary ? ' button--primary' : ''}`} disabled={sending} onClick={async () => {
-            if (await send('cli/download', { agent: provider })) onDownload?.()
+            if (await send('cli/download', { agent: provider, ...(copy.source === 'latest' ? { source: 'latest' } : {}) })) onDownload?.()
           }}>{copy.status === 'failed' ? text.retry : text.download(mb(copy.approximate))}</button> :
-          <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/checked', { agent: provider })) { if (onChecked) onChecked(); else requestCli(provider) } }}>{text.switch}</button>}
+          <button type="button" className={`button button--small${noInstall ? ' button--primary' : ''}`} disabled={sending} onClick={async () => { if (await send('cli/checked', { agent: provider })) { if (onChecked) onChecked(); else requestCli(provider) } }}>{text.switch}</button>}
+        {offersLatest && <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/download', { agent: provider, source: 'latest' })) onDownload?.() }}>{text.latestDownload(mb(copy.approximate))}</button>}
         {waiting && copy.system && !needsCheckedCli(provider, state?.config.shared.execution[provider]) && <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/system', { agent: provider })) onSystem?.() }}>{text.system}</button>}
-        {missingSystem && <button type="button" className="button button--small" disabled={sending} onClick={() => void send('cli/check')}>{text.again}</button>}
+        {missingSystem && !noInstall && <button type="button" className="button button--small" disabled={sending} onClick={() => void send('cli/check')}>{text.again}</button>}
       </div>
     </>}
     {failure && <p className="notice notice--error">{say(failure)}</p>}
@@ -72,11 +76,12 @@ export function CliDownloadDialog({ provider, onClose, stay = false }: { provide
   const text = cliText()
   return <dialog ref={dialog} className="add-package add-package--narrow" aria-labelledby={heading} onCancel={(event) => { event.preventDefault(); onClose() }} {...backdrop}>
     <div className="add-package__frame">
-      <header className="add-package__head"><h2 id={heading} className="add-package__title">{copy.source === 'system' ? titleOf(provider) : text.title}</h2>
+      <header className="add-package__head"><h2 id={heading} className="add-package__title">{copy.source === 'system' ? titleOf(provider) : copy.source === 'latest' ? text.latestTitle : text.title}</h2>
         <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}><CloseIcon /></button>
       </header>
       <div className="add-package__body">
         {copy.source === 'checked' && copy.status !== 'downloading' && <p>{text.about(titleOf(provider), copy.version, mb(copy.approximate))}</p>}
+        {copy.source === 'latest' && copy.status !== 'downloading' && <p>{text.aboutLatest(titleOf(provider), mb(copy.approximate))}</p>}
         <CliActions provider={provider} primary onDownload={stay ? undefined : onClose} onSystem={stay ? undefined : onClose} onChecked={() => {}} />
       </div>
     </div>
@@ -100,7 +105,7 @@ export function CliCopiesBanner() {
   const used = new Set([state?.config.shared.provider, ...Object.values(state?.config.projects ?? {}).map((project) => project.provider)])
   const copies = Object.entries(state?.cliCopies ?? {})
   const failed = copies.filter(([, copy]) => copy.status === 'failed')
-  const shown = copies.filter(([provider, copy]) => copy.status === 'downloading' || (copy.status !== 'failed' && ((used.has(provider) && copy.source === 'checked' && copy.status === 'missing') || state?.chain.active.some((chain) => chain.error?.code === 'agent.copyMissing' && chain.error.params.agent === provider))))
+  const shown = copies.filter(([provider, copy]) => copy.status === 'downloading' || (copy.status !== 'failed' && ((used.has(provider) && copy.source !== 'system' && copy.status === 'missing') || state?.chain.active.some((chain) => chain.error?.code === 'agent.copyMissing' && chain.error.params.agent === provider))))
   return <>
     <Banner tone="info" role="status">{shown.length > 0 ? <div className="banner__inner cli-copy__banner">{shown.map(([provider]) => <CliActions key={provider} provider={provider} bar />)}</div> : null}</Banner>
     <Banner tone="error">{failed.length > 0 ? <div className="cli-copy__failed">{failed.map(([provider]) => <CliRetry key={provider} provider={provider} />)}</div> : null}</Banner>

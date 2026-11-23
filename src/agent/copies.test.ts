@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { CliSourceName } from './cli-state.js'
 import type { Agent } from './contract.js'
 import { copies } from './copies.js'
 
-function fixture(system = true, { downloaded = [] as string[], hadCopy = false, fails = false, source: initial = 'checked' as 'checked' | 'system', hub = undefined as string[] | undefined } = {}) {
+function fixture(system = true, { downloaded = [] as string[], hadCopy = false, fails = false, source: initial = 'checked' as CliSourceName, hub = undefined as string[] | undefined, latest = undefined as string | null | undefined, installable = true } = {}) {
   let source = initial
   let status: 'ready' | 'missing' | 'downloading' | 'failed' = 'missing'
   let finish = () => {}
@@ -12,15 +13,15 @@ function fixture(system = true, { downloaded = [] as string[], hadCopy = false, 
     status = fails ? 'failed' : 'ready'
   })
   const changed = vi.fn()
-  const save = vi.fn((_name: string, next: 'checked' | 'system') => { source = next })
+  const save = vi.fn((_name: string, next: CliSourceName) => { source = next })
   const remember = vi.fn()
-  const view = vi.fn(() => ({ version: '1.0.0', source, status, system, received: 0, total: 0, approximate: 100 }))
+  const view = vi.fn(() => ({ version: '1.0.0', source, status, checkedStatus: status, ...(latest === undefined ? {} : { latest }), system, received: 0, total: 0, approximate: 100 }))
   const cli = {
     view,
     state: () => ({ source, status }),
     download, prune: async () => {}, hadCopy: () => hadCopy,
   }
-  const manager = copies(new Map([['codex', { cli } as unknown as Agent]]), save, (name) => save(name, 'system'), changed, async () => {}, { downloaded, remember, ...(hub === undefined ? {} : { hub: () => hub }) })
+  const manager = copies(new Map([['codex', { cli } as unknown as Agent]]), save, (name) => save(name, 'system'), changed, async () => {}, { downloaded, remember, ...(hub === undefined ? {} : { hub: () => hub }) }, () => installable)
   const done = async () => { await vi.waitFor(() => expect(download).toHaveBeenCalled()); finish() }
   return { manager, download, save, changed, remember, done, view }
 }
@@ -41,6 +42,22 @@ describe('CLI copy control', () => {
     await done()
     await vi.waitFor(() => expect(manager.blocked('codex')).toBeUndefined())
     expect(download).toHaveBeenCalledOnce()
+  })
+
+  it('switches to the copy of the newest release on its download, and its wait says so (BTN-1539)', async () => {
+    const { manager, save, done } = fixture(false, { source: 'system', latest: null, installable: false })
+    expect(manager.view().codex?.installable).toBe(false)
+    manager.download('codex', 'latest')
+    expect(save).toHaveBeenCalledWith('codex', 'latest')
+    expect(manager.blocked('codex')?.params).toMatchObject({ latest: true, downloading: true })
+    await done()
+    await vi.waitFor(() => expect(manager.blocked('codex')).toBeUndefined())
+  })
+
+  it('refuses the newest release where the agent has no copy of it on this platform', () => {
+    const { manager, save } = fixture(false, { source: 'system' })
+    expect(() => manager.download('codex', 'latest')).toThrow()
+    expect(save).not.toHaveBeenCalled()
   })
 
   it('remembers a consented download that finished, and only then', async () => {

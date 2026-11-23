@@ -264,7 +264,7 @@ export interface TallyControl {
 }
 
 export interface ServerDeps {
-  cli?: { download(agent: string): void; system(agent: string): void; checked(agent: string): void; check(): Promise<void> }
+  cli?: { download(agent: string, source: 'checked' | 'latest'): void; system(agent: string): void; checked(agent: string): void; check(): Promise<void> }
   /** The Huly client installed on demand (BTN-666): "Retry" after a failed install. */
   hulyClient?: { install(): void }
   /** "Make a copy now" of the backup's settings (BTN-1083): refused while a copy runs. */
