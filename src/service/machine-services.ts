@@ -141,7 +141,8 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
         await (deps.clone ?? cloner(credentialedRemote(runRemoteGit, (urls) => ctx.tell.credentials(spec.project, urls))))({
           remote,
           path: spec.folder,
-          branch: null,
+          // The project's main branch, not the remote's default one: sessions merge into the checkout's branch (BTN-1566).
+          branch: spec.branch,
           signal: new AbortController().signal,
           onProgress: (progress) => deps.cloneProgress(spec.project, spec.folder, progress),
         })

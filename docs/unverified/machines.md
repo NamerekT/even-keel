@@ -362,3 +362,11 @@ To check, on the benches (entry 181): with the bench hub alone and a revoked mac
 Assumed: the brief reaches the machine while its link is online, so the request gets through at once; the answer, every file of the skills as base64 in one body, fits in the 2-minute timeout. If not, the machine shows `packages.skillsAway` for `my-skills` and tries again in 10 minutes.
 
 To check, on the benches (entry 181): wrap a skill or two into "My skills" on the bench hub, put `my-skills` into a project's set, connect machine-1 to the project and see `packages: my-skills@even-keel-skills: … files of the hub's 1.0.0+… written into its marketplace here` in its log, the package ready on the machine's page and a Codex or OpenCode session there listing the skill; then edit the skill on the hub, press Update and see the machine take the new version without a restart.
+
+## A machine's folder on the project's main branch (BTN-1566)
+
+`docs/machines.md`, "Connect". `machine-clone` clones with `--branch <the project's branch>`, and `machine-branch` switches a clean folder standing elsewhere onto it (`git switch`, or `git switch --track <remote>/<branch>`), refusing one with uncommitted changes to tracked files (`pool.dirtyBranch`). Covered by `src/service/machine-services.test.ts` and `src/machine/folder-check.test.ts` with git itself on Linux.
+
+Assumed: git on Windows and macOS words a missing branch of the clone as `Remote branch … not found in upstream` (read as `git.noRemoteBranch`), and `git switch` there needs nothing more than on Linux. If not, a clone onto a branch the remote lacks names the remote as not found, or a clean folder fails the step with `pool.switchFailed`.
+
+To check, on the benches (entry 181): in a project whose main branch is `dev` on a remote whose default is `main`, connect machine-1 to a free folder and see the clone stand on `dev`; then put the folder on `main`, press Retry at "Main branch" and see the log line `machine folder: … switched from main to dev`; once more with a changed tracked file, and see the refusal.

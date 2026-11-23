@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -88,5 +89,40 @@ describe('inboxFile', () => {
     expect(await transcript.inboxFile('session-1', '..\\..\\secret.png')).toBeUndefined()
     expect(await transcript.inboxFile('session-1', 'other.png')).toBeUndefined()
     expect(await rig(null).inboxFile('session-1', 'order.png')).toBeUndefined()
+  })
+})
+
+describe('folders.clone (BTN-1566)', () => {
+  const sh = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, LANG: 'C', LC_ALL: 'C' } }).trim()
+
+  /** A repository whose default branch is main, with a dev branch beside it. */
+  function upstream(): { root: string; source: string } {
+    const root = mkdtempSync(join(tmpdir(), 'machine-clone-'))
+    dirs.push(root)
+    const source = join(root, 'source')
+    mkdirSync(source)
+    sh(source, 'init', '-q', '-b', 'main')
+    sh(source, '-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '-q', '--allow-empty', '-m', 'first')
+    sh(source, 'branch', 'dev')
+    return { root, source }
+  }
+
+  function folders() {
+    const ctx = { configStore: { current: {} }, tell: { credentials: async () => [] }, claudeConfigs: () => [] } as unknown as MachineServicesContext
+    return wireMachineServices(ctx, { steer: async () => false, restore: async () => {}, cloneProgress: () => {} }).folders
+  }
+
+  it("clones onto the project's main branch, not the remote's default one", async () => {
+    const { root, source } = upstream()
+    const folder = join(root, 'clone')
+    await folders().clone({ project: 'p1', folder, remotes: [source], branch: 'dev', claude: false }, source)
+    expect(sh(folder, 'symbolic-ref', '--short', 'HEAD')).toBe('dev')
+  })
+
+  it('refuses a main branch the remote has no copy of', async () => {
+    const { root, source } = upstream()
+    const folder = join(root, 'clone')
+    await expect(folders().clone({ project: 'p1', folder, remotes: [source], branch: 'trunk', claude: false }, source))
+      .rejects.toMatchObject({ notice: { code: 'git.noRemoteBranch', params: { branch: 'trunk', remote: source } } })
   })
 })

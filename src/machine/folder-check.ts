@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { remotesOf, type Remote } from '../ci/remote.js'
+import { currentBranch } from '../git/branches.js'
 import { sameRemote } from '../git/clone-progress.js'
 import { remoteUrls } from '../git/remote-urls.js'
 import type { Git } from '../git/types.js'
@@ -82,8 +83,8 @@ export async function checkFolderStep(deps: FolderCheckDeps, step: FolderStep, s
   }
   if (step === 'branch') {
     const remote = await projectRemote(git, spec)
-    const refs = [`refs/heads/${branch}`, ...(remote === undefined ? [] : [`refs/remotes/${remote.name}/${branch}`])]
-    for (const ref of refs) if ((await git(folder, ['rev-parse', '--verify', '--quiet', ref])).code === 0) return null
+    if (await hasRef(git, folder, `refs/heads/${branch}`)) return onBranch(git, folder, branch, null)
+    if (remote !== undefined && (await hasRef(git, folder, `refs/remotes/${remote.name}/${branch}`))) return onBranch(git, folder, branch, remote.name)
     return notice('pool.noBranch', { folder, branch })
   }
   if (step === 'trust') {
@@ -110,6 +111,29 @@ export async function checkFolderStep(deps: FolderCheckDeps, step: FolderStep, s
   const source = tracked ? `refs/remotes/${remote.name}/${branch}` : `refs/heads/${branch}`
   const push = await git(folder, ['push', '--dry-run', '--porcelain', remote.name, `${source}:refs/heads/${branch}`])
   return push.code === 0 || behindOnly(push.out) ? null : notice('pool.noPush', { remote: remote.url }, { detail: push.out.trim() })
+}
+
+const hasRef = async (git: Git, folder: string, ref: string): Promise<boolean> => (await git(folder, ['rev-parse', '--verify', '--quiet', ref])).code === 0
+
+/**
+ * Puts the checkout onto the main branch (BTN-1566): sessions merge their tasks into the branch the checkout stands on,
+ * and the cleanup pushes the main branch. A clean checkout elsewhere is switched — onto the local branch, or a new one
+ * tracking `track`'s copy; one with uncommitted changes to tracked files is left as it is and refused.
+ */
+async function onBranch(git: Git, folder: string, branch: string, track: string | null): Promise<Notice | null> {
+  const current = await currentBranch(git, folder)
+  if (current === branch) return null
+  const status = await git(folder, ['status', '--porcelain', '--untracked-files=no'])
+  if (status.code !== 0) return notice('pool.switchFailed', { folder, branch, current }, { detail: status.out.trim() })
+  if (status.out.trim() !== '') return notice('pool.dirtyBranch', { folder, branch, current })
+  const args = track === null ? ['switch', branch] : ['switch', '--track', `${track}/${branch}`]
+  const switched = await git(folder, args)
+  if (switched.code !== 0) {
+    console.warn(`machine folder: ${folder} did not switch from ${current ?? 'a detached HEAD'} to ${branch} (git ${args.join(' ')}): ${switched.out.trim()}`)
+    return notice('pool.switchFailed', { folder, branch, current }, { detail: switched.out.trim() })
+  }
+  console.log(`machine folder: ${folder} switched from ${current ?? 'a detached HEAD'} to ${branch}, the project's main branch (git ${args.join(' ')})`)
+  return null
 }
 
 /**
