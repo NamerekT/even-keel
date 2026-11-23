@@ -1,4 +1,7 @@
+import { isCarryName, isFixName } from '../chain/fix.js'
+import { isChatName } from '../chats/model.js'
 import type { SessionView } from '../state.js'
+import type { HubBrief } from './brief.js'
 import type { RunnerDeps } from './runner.js'
 
 /** How long a finished session's task stays in the facts after its last activity: the chain's cleanup after Done reads it. */
@@ -8,7 +11,7 @@ export interface ScopeInput {
   views: readonly SessionView[]
   /** The machine's launches: the older sessions of a task kept go with it. */
   journal: ReadonlyArray<{ sessionId: string; task: string }>
-  /** The hub asks about the task: its trackers list it, a chain has it current, it is a fix, a carry or a chat. */
+  /** The hub asks about the task (`briefAsks`). */
   asked: (task: string) => boolean
   now: number
 }
@@ -17,6 +20,17 @@ export interface ScopeInput {
 export interface FactsScope {
   task(task: string): boolean
   session(sessionId: string): boolean
+}
+
+/**
+ * Whether the hub asks about a task (`ScopeInput.asked`): its trackers list it open, a chain has it current, keep-warm
+ * pings it, or it is a fix, a carry or a chat. A closed task the lists still hold — the chain's archive — is not asked
+ * about: on the computer of a moved hub that archive is hundreds of tasks with all their sessions (BTN-1563).
+ */
+export function briefAsks({ tasks, closed = {}, current, warm }: Pick<HubBrief, 'tasks' | 'closed' | 'current' | 'warm'>): (task: string) => boolean {
+  const done = new Set(Object.values(closed).flat())
+  const asked = new Set([...Object.values(tasks).flat().filter((task) => !done.has(task)), ...Object.keys(current), ...warm.map((each) => each.task)])
+  return (task) => asked.has(task) || isChatName(task) || isFixName(task) || isCarryName(task)
 }
 
 const recent = (view: SessionView, now: number): boolean => view.lastActivityAt !== null && now - Date.parse(view.lastActivityAt) < RECENT_MS

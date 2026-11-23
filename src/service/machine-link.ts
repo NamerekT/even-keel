@@ -2,6 +2,7 @@ import { hostname } from 'node:os'
 import { heldLongToken } from '../account/longToken.js'
 import { CLAUDE } from '../claude/name.js'
 import { chainOrder } from '../chain/order.js'
+import { isOpen } from '../tracker/model.js'
 import type { CliSourceName } from '../agent/cli-state.js'
 import type { LaunchEntry } from '../chain/dispatcher.js'
 import { launchLine } from '../chain/log.js'
@@ -212,6 +213,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       machineSettings: () => settings,
       runsOf: ctx.runsOfProject,
       tasksOf: (project) => (ctx.tasksByProject.get(project) ?? []).map((task) => task.id),
+      closedOf: (project) => (ctx.tasksByProject.get(project) ?? []).filter((task) => !isOpen(task.status)).map((task) => task.id),
       state: () => ctx.dispatcher.state,
       demoOwns: (project) => ctx.demo.owns(project),
       reports: ctx.checkReports,

@@ -16,7 +16,19 @@ describe('partsOf', () => {
       { seq: 2, type: 'transcript', at: 0 },
       { seq: 3, type: 'handoff', at: 0, payload: 'x'.repeat(5000) },
     ]
-    expect(partsOf({ connection: 'c', events })).toMatch(/; events \(2 parts\): handoff ×2 10 KB, transcript ×1 1 KB$/)
+    expect(partsOf({ connection: 'c', events })).toMatch(/; events \(2 parts\): handoff ×2 10 KB, transcript ×1 1 KB; /)
+  })
+
+  it('goes on into the largest event of the largest type, down to the sections of its facts and their keys', () => {
+    const set = Object.fromEntries(Array.from({ length: 3 }, (_, index) => [`session-${index}`, { feed: 'x'.repeat(8192 * (index + 1)) }]))
+    const facts = (seq: number, sessions: object) => ({ seq, type: 'facts', at: 0, payload: { boot: 'b', rev: seq, patch: { sessions, tasks: { set: { 'ABC-1': {} } } } } })
+    const text = partsOf({ connection: 'c', events: [facts(1, { set: {} }), facts(2, { set, gone: ['session-9'] })] })
+    expect(text).toContain('events (1 parts): facts ×2 ')
+    expect(text).toContain('; facts (4 parts): payload ')
+    expect(text).toContain('; facts.payload (3 parts): patch ')
+    expect(text).toContain('; facts.payload.patch (2 parts): sessions ')
+    expect(text).toContain('; facts.payload.patch.sessions (2 parts): set ')
+    expect(text).toMatch(/; facts\.payload\.patch\.sessions\.set \(3 parts\): session-2 25 KB, session-1 17 KB, session-0 9 KB; .*session-2 \(1 parts\): feed 25 KB$/)
   })
 
   it('says nothing of a body without parts', () => {

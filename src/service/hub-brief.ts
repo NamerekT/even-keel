@@ -18,6 +18,8 @@ export interface BriefSources {
   machineSettings?: () => Record<string, MachineProjectSettings>
   runsOf: (project: string) => Record<string, TaskRun>
   tasksOf: (project: string) => string[]
+  /** The tasks of `tasksOf` already closed (BTN-1563). */
+  closedOf?: (project: string) => string[]
   state: () => ChainState
   demoOwns: (project: string) => boolean
   reports: Pick<CheckReports, 'ofProject'>
@@ -55,6 +57,7 @@ export function hubBrief(sources: BriefSources): HubBrief {
     servers,
     runs: byProject(sources.runsOf),
     tasks: byProject(sources.tasksOf),
+    ...(sources.closedOf === undefined ? {} : { closed: byProject(sources.closedOf) }),
     current,
     demo: projects.filter(sources.demoOwns),
     unattended: state.unattended,
