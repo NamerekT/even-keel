@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { launchBlock, type AccountEntry, type AccountView } from '../../../src/account/model.js'
 import { loginEndsFrom } from '../account-state.js'
 import { accountName, agentLabel } from '../accountName.js'
@@ -75,12 +75,18 @@ export function AccountProblems({ view, now, page = false }: { view: AccountView
   const words = t.account.problems(found.length)
   const link = (entry: AccountEntry) => {
     const name = summaryName(entry, view.accounts)
-    return page ? <Link className="account-problems__name" to={{ hash: accountAnchor(entry.key) }} onClick={() => goToAccount(entry.key)}>{name}</Link>
+    return page ? <AnchorLink anchor={accountAnchor(entry.key)} onClick={() => goToAccount(entry.key)}>{name}</AnchorLink>
       : <button type="button" className="account-problems__name" onClick={() => goToAccount(entry.key)}>{name}</button>
   }
   return <Band tone={found.some((each) => each.tone === 'error') ? 'error' : 'warn'} className="account-problems">
     <span>{words.before}{found.map(({ entry }, index) => <Fragment key={entry.key}>{index > 0 && ', '}{link(entry)}</Fragment>)}{words.after}</span>
   </Band>
+}
+
+/** A name leading to its account's row; the page's query, the machine of the view with it, stays (BTN-1575). */
+function AnchorLink({ anchor, onClick, children }: { anchor: string; onClick: () => void; children: string }) {
+  const { search } = useLocation()
+  return <Link className="account-problems__name" to={{ search, hash: anchor }} onClick={onClick}>{children}</Link>
 }
 
 interface ProblemProps {
