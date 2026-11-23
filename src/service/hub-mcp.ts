@@ -3,7 +3,7 @@ import { errorReason } from '../error-reason.js'
 import type { McpAnswer, McpRequest } from '../link/protocol.js'
 import type { MachineEnd } from '../link/machine.js'
 import { root } from '../locations.js'
-import { poolOf } from '../machine/assignments.js'
+import { placedIn } from '../machine/assignments.js'
 import { parseRoute } from '../packages/launch.js'
 import type { TasksScope } from '../taskmcp/calls.js'
 import { MACHINE_HEADER, type NoteWriter } from '../taskmcp/carried.js'
@@ -21,6 +21,8 @@ export interface HubMcpDeps {
   db: Queryable
   /** The hub's gateway; `undefined` — it does not listen (yet). */
   origin(): string | undefined
+  /** The hub's own machine. */
+  own(): string
   /** Every project of the hub, by id. */
   projects(): string[]
   log: (line: string) => void
@@ -30,12 +32,15 @@ const answerOf = (status: number): McpAnswer => ({ status, headers: {}, body: ''
 
 /**
  * The hub's side of the MCP servers a machine's gateway carries (BTN-990): a machine asks only the servers of the
- * projects in its pool, and `/tasks` with no project only when its pool holds every project.
+ * projects it is briefed, and `/tasks` with no project only when it is briefed every project. That is every project of
+ * the hub for the own machine and, for a machine elsewhere, each one with its row in the pool, turned on or off: a
+ * machine turned off keeps the project in its brief, installs and probes its packages and finishes the task it holds
+ * (BTN-1517).
  */
 export class HubMcp {
   /**
-   * Machine and project of each refusal already logged: the own machine is briefed every project and its probes go on
-   * asking the servers of one left out of its pool (BTN-1325). Forgotten once the machine is admitted there again.
+   * Machine and project of each refusal already logged: a machine taken out of a pool asks its servers until its next
+   * brief (BTN-1325). Forgotten once the machine is admitted there again.
    */
   private readonly refused = new Set<string>()
 
@@ -52,10 +57,13 @@ export class HubMcp {
     const tasks = tasksProjectOf(pathname)
     const project = tasks !== undefined ? tasks : parseRoute(pathname)?.project
     if (project === undefined) return { scope: pathname, admitted: false }
-    for (const each of project === null ? this.deps.projects() : [project]) {
-      if (!(await poolOf(this.deps.db, each)).includes(machine)) return { scope: project ?? '*', admitted: false }
+    const scope = project ?? '*'
+    const projects = this.deps.projects()
+    if (machine === this.deps.own()) return { scope, admitted: project === null || projects.includes(project) }
+    for (const each of project === null ? projects : [project]) {
+      if (!(await placedIn(this.deps.db, each, machine))) return { scope, admitted: false }
     }
-    return { scope: project ?? '*', admitted: true }
+    return { scope, admitted: true }
   }
 
   /** The hub's gateway's answer to the machine's request, read whole. */

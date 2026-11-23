@@ -300,7 +300,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       })
     }
   }
-  const hubMcp = new HubMcp({ db: ctx.db, origin: () => ctx.packageHub.hubOrigin, projects: () => Object.keys(ctx.configStore.current.projects), log })
+  const hubMcp = new HubMcp({ db: ctx.db, origin: () => ctx.packageHub.hubOrigin, own: () => own, projects:() => Object.keys(ctx.configStore.current.projects), log })
   const machineTally = new MachineTally({ writer: () => ctx.tally.writer(), log })
   const hubHooks = new HubHooks({
     origin: () => localUrlOf(machine.listen),

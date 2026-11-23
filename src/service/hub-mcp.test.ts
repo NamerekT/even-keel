@@ -12,8 +12,9 @@ let seen: { url: string; body: string }[]
 let reply: { status: number; body: string }
 let lines: string[]
 
-const hub = () => new HubMcp({ db, origin: () => origin, projects: () => ['p-1', 'p-2'], log: (line) => void lines.push(line) })
+const hub = () => new HubMcp({ db, origin: () => origin, own: () => 'm-own', projects: () => ['p-1', 'p-2'], log: (line) => void lines.push(line) })
 const pool = (project: string, machine: string) => db.query('insert into project_machines (project_id, machine_id) values ($1, $2)', [project, machine])
+const turnOff = (project: string, machine: string) => db.query('update project_machines set enabled = false where project_id = $1 and machine_id = $2', [project, machine])
 
 beforeEach(async () => {
   db = await memoryDatabase()
@@ -77,9 +78,32 @@ describe('the hub’s side of a machine’s MCP servers (BTN-990)', () => {
 
     await pool('p-1', 'm-a')
     expect((await ask('/tasks/p-1')).status).toBe(200)
-    await db.query('update project_machines set enabled = false where project_id = $1 and machine_id = $2', ['p-1', 'm-a'])
+    await db.query('delete from project_machines where project_id = $1 and machine_id = $2', ['p-1', 'm-a'])
     expect((await ask('/tasks/p-1')).status).toBe(403)
     expect(refusals()).toHaveLength(3)
+  })
+
+  it('admits a machine turned off in the pool: it is briefed the project, installs its packages and finishes its task there (BTN-1517)', async () => {
+    await pool('p-1', 'm-a')
+    await pool('p-2', 'm-a')
+    await turnOff('p-1', 'm-a')
+    const relay = hub()
+    expect(await relay.admits('m-a', routeOf('p-1', 'agent-bridge', 'i1', 'memory'))).toBe(true)
+    expect(await relay.admits('m-a', '/tasks/p-1?task=ABC-1')).toBe(true)
+    expect(await relay.admits('m-a', '/tasks')).toBe(true)
+    expect((await relay.relay('m-a', { path: '/tasks/p-1', method: 'POST', headers: {}, body: '{}' })).status).toBe(200)
+    expect(lines.filter((line) => line.includes('outside its pool'))).toEqual([])
+  })
+
+  it('admits the hub’s own machine to every project: it is briefed every one, in its pool or not (BTN-1517)', async () => {
+    await pool('p-1', 'm-own')
+    await turnOff('p-1', 'm-own')
+    const relay = hub()
+    expect(await relay.admits('m-own', routeOf('p-1', 'agent-bridge', 'i1', 'memory'))).toBe(true)
+    expect(await relay.admits('m-own', routeOf('p-2', 'agent-bridge', 'i1', 'memory'))).toBe(true)
+    expect(await relay.admits('m-own', '/tasks')).toBe(true)
+    expect(await relay.admits('m-own', routeOf('p-3', 'agent-bridge', 'i1', 'memory'))).toBe(false)
+    expect(await relay.admits('m-own', '/other')).toBe(false)
   })
 
   it('makes a kept write once it is back; throws while its gateway cannot, drops one the tasks server refused', async () => {

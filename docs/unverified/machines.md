@@ -314,3 +314,11 @@ To check, on the benches (entries 181 and 183): with a hub Claude account on a l
 Assumed: the state's `machineSignIns` carries the account signed in no later than the machine's next snapshot, and the page's read after it already has it, as both come from the same mirror. If not, the row says "checking the sign-in…" until the next 15 s read, never "no account"; nothing to do.
 
 To check, on the benches (entry 181): on the page of a machine elsewhere with no account, press "Add account" and sign in; see "Accounts" go from the hub's row with "Sign in" to the account "signed in" within a second or two of the window closing, with at most a moment of "checking the sign-in…" and never "has no accounts".
+
+## A machine turned off in a pool still reaches the project's hub servers (BTN-1517)
+
+`docs/machines.md`, "MCP through the hub" ("The pool"). The check of BTN-1441 on `0.4.0-rc.1` saw three times in the hub's log `link: machine … asked /mcp/<project>/agent-bridge@even-keel@…/memory, a server of a project outside its pool: refused`: from a machine whose connection stopped at the push check, from a machine seconds after `machines/enable false`, and from the hub's own machine just turned off in a pool. None had a session of the project. The hub admitted only a row turned on, while the brief gives a machine every row of its pool, turned off too (and the own machine every project), so the machine's package probes asked the memory server and were refused. The hub now admits the projects it briefs (`HubMcp`, `placedIn`). Covered by `src/service/hub-mcp.test.ts`; not seen on a live hub.
+
+Assumed: nothing else on a machine asks a hub server of a project outside its brief, and a machine taken out of a pool (its row deleted) stops asking with its next brief. If not, the log still has the line once per machine and project; it harms nothing.
+
+To check, on the benches (entry 181): connect a machine elsewhere to a project, then turn it off in the pool with the switch, and turn the hub's own machine off in another project's pool; for a few minutes after each, the hub's log has no `outside its pool: refused` and the machine's page reads the project's packages as on before.
