@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { HandoffSession } from '../chain/relay.js'
 import { MAX_BODY_BYTES } from '../link/protocol.js'
+import type { WarmTask } from '../sessions/keepwarm.js'
 import type { SessionView } from '../state.js'
+import type { FactsPatch } from './facts.js'
 import { machineOf, PROJECT } from './remote.fixture.js'
 import { MachineRunner, type RunnerDeps } from './runner.js'
-import { RECENT_MS, factsScope, scopedDeps, type FactsScope } from './scope.js'
+import { RECENT_MS, briefAsks, factsScope, scopedDeps, type FactsScope } from './scope.js'
 
 const NOW = Date.parse('2026-11-23T18:00:00Z')
 const feed = Array.from({ length: 30 }, (_, index) => ({ kind: 'tool', text: `Read src/example/file-${index}.ts and a line of what it found there`, at: '2026-01-01T00:00:00Z' }))
@@ -47,30 +49,33 @@ describe('a machine with a project of thousands of tasks', () => {
     lastMessage: 'Done: the change and its tests. '.repeat(40), checkpoint: null, pullRequest: null, noChanges: null, warmMs: 300_000,
   } as unknown as HandoffSession)
 
-  function runnerOf(scope: (views: SessionView[]) => FactsScope | undefined) {
+  /** `read` — the monitor has read the account folders' sessions; before, the machine holds none of them. */
+  function runnerOf(scope: (views: SessionView[]) => FactsScope | undefined, read = { sessions: true }, posts: unknown[] = []) {
     const { local } = machineOf()
     const old = Array.from({ length: OLD }, (_, index) => `ABC-${index + 1}`)
-    const views = old.map((task) => view(task, `session-${task}`, 'finished', '2026-01-01T00:00:00Z'))
-    Object.assign(local, { handoff: (task: string) => (old.includes(task) ? handoffOf(task) : undefined) })
+    const all = old.map((task) => view(task, `session-${task}`, 'finished', '2026-01-01T00:00:00Z'))
+    const views = () => (read.sessions ? all : [])
+    const known = () => (read.sessions ? old : [])
+    Object.assign(local, { handoff: (task: string) => (known().includes(task) ? handoffOf(task) : undefined) })
     const deps: RunnerDeps = {
       local,
-      emit: async () => {},
+      emit: async (type, payload) => void posts.push({ seq: posts.length + 1, type, at: 0, payload }),
       boot: 'boot',
       projects: () => [PROJECT],
-      tasks: () => old.map((task) => ({ task, sessions: [`session-${task}`] })),
+      tasks: () => known().map((task) => ({ task, sessions: [`session-${task}`] })),
       runs: () => [],
       reported: () => [],
       model: () => null,
       accounts: () => ['main'],
       limitsOf: () => null,
       ledger: () => ({}),
-      sessions: () => views,
+      sessions: views,
       mailbox: () => ({}),
-      owners: () => Object.fromEntries(old.map((task) => [`session-${task}`, 'main'])),
-      compactions: () => Object.fromEntries(old.map((task) => [`session-${task}`, 2])),
+      owners: () => Object.fromEntries(known().map((task) => [`session-${task}`, 'main'])),
+      compactions: () => Object.fromEntries(known().map((task) => [`session-${task}`, 2])),
       log: () => {},
     }
-    return new MachineRunner(scopedDeps(deps, () => scope(views)))
+    return new MachineRunner(scopedDeps(deps, () => scope(views())))
   }
 
   it('sends a snapshot under the hub\'s limit: only the tasks the hub lists and the sessions of lately', () => {
@@ -89,5 +94,58 @@ describe('a machine with a project of thousands of tasks', () => {
   it('the same machine unscoped, as the hub\'s own one, names them all', () => {
     const runner = runnerOf(() => undefined)
     expect(Buffer.byteLength(JSON.stringify(runner.snapshot()))).toBeGreaterThan(MAX_BODY_BYTES)
+  })
+
+  // The computer of a moved hub: the chain's archive of the last days is hundreds of tasks it did, which the hub's lists
+  // still hold. Its snapshot goes before the monitor has read their sessions; the facts event after that read is the one.
+  describe('after the first snapshot, once the sessions are read', () => {
+    const open = Array.from({ length: TASKS }, (_, index) => `ABC-${OLD + index + 1}`)
+    const archive = Array.from({ length: OLD }, (_, index) => `ABC-${index + 1}`)
+    const brief = (closed: boolean) => ({
+      tasks: { [PROJECT]: [...open, ...archive] },
+      ...(closed && { closed: { [PROJECT]: archive.filter((task) => task !== 'ABC-7') } }),
+      current: { 'ABC-9': PROJECT },
+      warm: [],
+    })
+
+    async function factsPost(closed: boolean): Promise<{ bytes: number; patch: FactsPatch }> {
+      const read = { sessions: false }
+      const posts: Array<{ payload: { patch: FactsPatch } }> = []
+      const asked = briefAsks(brief(closed))
+      const runner = runnerOf((views) => factsScope({ views, journal: [], asked, now: NOW }), read, posts)
+      expect(Object.keys(runner.snapshot().facts.sessions ?? {})).toEqual([])
+      read.sessions = true
+      await runner.publish()
+      expect(posts).toHaveLength(1)
+      return { bytes: Buffer.byteLength(JSON.stringify({ connection: 'c', events: posts })), patch: posts[0]!.payload.patch }
+    }
+
+    it('posts the change under the hub\'s limit: of the archive only an open task\'s and the current one\'s sessions', async () => {
+      const { bytes, patch } = await factsPost(true)
+      expect(bytes).toBeLessThan(MAX_BODY_BYTES / 8)
+      expect(Object.keys(patch.sessions?.set ?? {})).toEqual(['session-ABC-7', 'session-ABC-9'])
+      expect(Object.keys(patch.tasks?.set ?? {})).toEqual(['ABC-7', 'ABC-9'])
+    })
+
+    it('a brief that does not tell the closed tasks apart asks about the whole archive: over the limit', async () => {
+      expect((await factsPost(false)).bytes).toBeGreaterThan(MAX_BODY_BYTES)
+    })
+  })
+})
+
+describe('briefAsks', () => {
+  const asks = briefAsks({
+    tasks: { p1: ['ABC-1', 'ABC-2', 'ABC-3'], p2: ['DEF-1'] },
+    closed: { p1: ['ABC-2', 'ABC-3'] },
+    current: { 'ABC-3': 'p1' },
+    warm: [{ task: 'DEF-9' } as WarmTask],
+  })
+
+  it('asks about an open listed task, a current and a warm one, not about a closed one', () => {
+    expect(['ABC-1', 'ABC-2', 'ABC-3', 'DEF-1', 'DEF-9', 'XYZ-1'].filter(asks)).toEqual(['ABC-1', 'ABC-3', 'DEF-1', 'DEF-9'])
+  })
+
+  it('a brief of a hub before BTN-1563, without closed, asks about every listed task', () => {
+    expect(briefAsks({ tasks: { p1: ['ABC-1', 'ABC-2'] }, current: {}, warm: [] })('ABC-2')).toBe(true)
   })
 })

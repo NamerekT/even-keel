@@ -40,6 +40,11 @@ export interface HubBrief {
   runs: Record<string, Record<string, TaskRun>>
   /** By project, the ids of the tasks its trackers list, in no particular order. */
   tasks: Record<string, string[]>
+  /**
+   * By project, the tasks of `tasks` already closed — the chain's archive of the last days. A machine elsewhere tells of
+   * them only what it tells of a task not listed (BTN-1563); a hub before it sends none.
+   */
+  closed?: Record<string, string[]>
   /** The current task of each running chain, with its project: a task the lists no longer have. */
   current: Record<string, string>
   /** The projects of the demo (BTN-776), which run on its own model. */
