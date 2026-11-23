@@ -96,6 +96,8 @@ export interface LinkedMachine {
   mirror(machine: string): RemoteMachine | undefined
   /** The own machine's id; empty until `wireLinkedMachine` read its token. */
   own(): string
+  /** May the machine's call on `/tasks` without a project reach the project's tasks (`HubMcp.inPool`, BTN-1573)? */
+  inPool(machine: string, project: string): Promise<boolean>
   /**
    * The merge closer's question about a task a machine elsewhere runs (BTN-1313): the own commits of its branches that
    * machine's main has; none while it is off the link, so a tracker's read never waits for it. `undefined` — the task
@@ -506,6 +508,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     sessions: allSessions(() => [remote.page, ...network.pages()]),
     mirror: (machine) => (machine === own ? remote : network.remote(machine)),
     own: () => own,
+    inPool: (machine, project) => hubMcp.inPool(machine, project),
     mergedElsewhere: (project, task) => {
       const machine = assignments.machineOf(project, task)
       const at = machine === undefined || machine === own ? undefined : network.port(machine)

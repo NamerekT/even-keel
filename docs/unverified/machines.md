@@ -394,3 +394,11 @@ To check, on the benches (entry 181): give a project the bench hub (capacity 3) 
 Assumed: a machine elsewhere answers `transcript.*` over a real link within the checkpoint hook's timeout on a loaded hub, and a finished session's machine is still known from its mirror or its launch's task. If not, the transcript of an old session elsewhere opens as "not found" again, or the hook still times out; the log names the request.
 
 To check, on the benches (entry 181): run a task on a machine elsewhere of the bench hub, open its session's transcript (record, transcript, a picture) from the hub's page and see the hub's log free of `did not answer GET /api/sessions/…/checkpoint`; take the machine off the link and see the window name it instead of "not found".
+
+## A hand session's tasks calls on a machine elsewhere (BTN-1573)
+
+`docs/machines.md`, "MCP through the hub". `/tasks` with no project is admitted for every machine, and the tasks server refuses a call whose project is outside the machine's pool. Covered by `src/taskmcp/calls.test.ts` (calls on the pool's project and its feed pass, every tool on another project is refused, a batch refuses only that line) and `src/service/hub-mcp.test.ts` (the pool by GUID, the own machine, the log once). No hand session on a real machine has called it yet.
+
+Assumed: a hand session on a machine reaches the hub's `/tasks` through the machine's gateway with the machine's header set by the hub's link, and every tool that names a project goes through the key's or `project`'s lookup. If not, a call on a project outside the pool goes through, or one in the pool is still refused; the hub's log says `called the tasks server on project …, outside its pool: refused`.
+
+To check, on the benches: give machine-1 of the bench hub one project's pool and not another's; from a hand session on machine-1 call `task_read` on a task of each and see the first answered, the second refused with "is not on this machine", and the hub's log line once.

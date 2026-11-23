@@ -40,7 +40,7 @@ afterEach(async () => {
 const write = (path: string) => ({ path, message: { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'task_comment', arguments: { key: 'ABC-1', text: 'done' } } } })
 
 describe('the hub’s side of a machine’s MCP servers (BTN-990)', () => {
-  it('admits a machine only to the servers of the projects in its pool, and to /tasks alone only with every project', async () => {
+  it('admits a machine only to the servers of the projects in its pool, and to /tasks alone: its calls are checked one by one', async () => {
     await pool('p-1', 'm-a')
     await pool('p-2', 'm-b')
     await pool('p-1', 'm-b')
@@ -48,9 +48,28 @@ describe('the hub’s side of a machine’s MCP servers (BTN-990)', () => {
     expect(await relay.admits('m-a', '/tasks/p-1?task=ABC-1')).toBe(true)
     expect(await relay.admits('m-a', routeOf('p-1', 'huly', 'i1', 'huly'))).toBe(true)
     expect(await relay.admits('m-a', routeOf('p-2', 'huly', 'i1', 'huly'))).toBe(false)
-    expect(await relay.admits('m-a', '/tasks')).toBe(false)
-    expect(await relay.admits('m-b', '/tasks')).toBe(true)
+    expect(await relay.admits('m-a', '/tasks')).toBe(true)
+    expect(await relay.admits('m-z', '/tasks')).toBe(true)
     expect(await relay.admits('m-a', '/other')).toBe(false)
+  })
+
+  it("gives a call's project in the machine's pool, logging a refusal once until it is admitted there again (BTN-1573)", async () => {
+    await pool('p-1', 'm-a')
+    await turnOff('p-1', 'm-a')
+    const relay = hub()
+    const refusals = () => lines.filter((line) => line.includes('outside its pool'))
+    expect(await relay.inPool('m-a', 'p-1')).toBe(true)
+    expect(await relay.inPool('m-a', 'p-2')).toBe(false)
+    expect(await relay.inPool('m-a', 'p-2')).toBe(false)
+    expect((await relay.relay('m-a', { path: '/tasks/p-2', method: 'POST', headers: {}, body: '{}' })).status).toBe(403)
+    expect(refusals()).toEqual(['link: machine m-a called the tasks server on project p-2, outside its pool: refused'])
+    await pool('p-2', 'm-a')
+    expect(await relay.inPool('m-a', 'p-2')).toBe(true)
+    await db.query('delete from project_machines where project_id = $1 and machine_id = $2', ['p-2', 'm-a'])
+    expect(await relay.inPool('m-a', 'p-2')).toBe(false)
+    expect(refusals()).toHaveLength(2)
+    expect(await relay.inPool('m-own', 'p-2')).toBe(true)
+    expect(await relay.inPool('m-own', 'p-3')).toBe(false)
   })
 
   it('asks the hub’s gateway for an admitted machine and gives its answer back whole; refuses another one', async () => {

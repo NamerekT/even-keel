@@ -336,6 +336,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 305 | [The main branch on machines elsewhere](unverified/machines.md#the-main-branch-on-machines-elsewhere-btn-1567) | hubs with machines elsewhere changing a project's main branch | a machine's folder stays on the old branch, or a machine switched by hand still takes the project's tasks; put the folder back by hand and save the branch again | — |
 | 306 | [One lane of a project a machine](unverified/machines.md#one-lane-of-a-project-a-machine-btn-1569) | hubs whose project has a width above 1 and several machines in its pool | two tasks of the project still run on one machine, or a second lane left from an older version never ends; stop the project's chain and start it again | — |
 | 307 | [A session's transcript read on its machine elsewhere](unverified/machines.md#a-sessions-transcript-read-on-its-machine-elsewhere-btn-1574) | hubs with machines elsewhere: the transcript window and the checkpoint hook of their sessions | the transcript opens as "not found" or the checkpoint hook times out; the log names the request | — |
+| 308 | [A hand session's tasks calls on a machine elsewhere](unverified/machines.md#a-hand-sessions-tasks-calls-on-a-machine-elsewhere-btn-1573) | hubs with machines elsewhere: hand sessions there working tasks | a call on a project outside the machine's pool goes through, or one in it is refused; the hub's log names the machine and project | — |
 
 ### Waiting for the event / not checked by choice
 
