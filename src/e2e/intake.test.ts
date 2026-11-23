@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, ends, forReview } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { DONE } from './tracker.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
 /** How often the intake goes over the issues (`INTAKE_TICK_MS`). */
 const PASS_MS = 2 * 60_000
 
-describe('GitHub issues taken into the tracker end to end', { timeout: 60_000 }, () => {
+describe('GitHub issues taken into the tracker end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

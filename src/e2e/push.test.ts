@@ -3,8 +3,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { checkpoint, commitAndMerge, Gate, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('task branches on the remote end to end (BTN-1270)', { timeout: 60_000 }, () => {
+describe('task branches on the remote end to end (BTN-1270)', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

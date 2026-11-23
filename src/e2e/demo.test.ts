@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { BuiltinStore, type BuiltinTask } from '../builtin/store.js'
 import type { SessionRecord } from '../state.js'
 import { Harness } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('the demo on the first run end to end', { timeout: 240_000 }, () => {
+describe('the demo on the first run end to end', { timeout: scaled(240_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

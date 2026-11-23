@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runPlan, type UpdatePlan } from '../updates/runner.js'
+import { scaled } from '../../test/slow-runner.js'
 
 // A chain session merging into the checkout while the rebuild runs (BTN-1426): `hook.cjs` beside the checkout plays
 // the merge once, from the build or the service's start.
@@ -99,7 +100,7 @@ describe('a rebuild whose checkout a chain moves', () => {
     expect(builds).toHaveLength(2)
     expect(warm).toBeGreaterThan(builds[1]!)
     expect(lines[stopped]).toMatch(/ -e $/)
-  }, 60_000)
+  }, scaled(60_000))
 
   it('asks keep-warm ahead of the stop and stops all the same when the service cannot answer (BTN-1527)', async () => {
     const running = commit('running')
@@ -116,7 +117,7 @@ describe('a rebuild whose checkout a chain moves', () => {
     expect(record).toMatchObject({ failed: null, rollback: null, to: { tag: green } })
     expect(asked).toEqual(['http://localhost/api/updates/warm {"ms":240000}'])
     expect(readFileSync(join(base, 'update.log'), 'utf8')).toContain('keep-warm did not ping ahead of the stop: HTTP 404')
-  }, 60_000)
+  }, scaled(60_000))
 
   it('builds again when the checkout moved on during the build with the service down', async () => {
     const running = commit('running')
@@ -127,7 +128,7 @@ describe('a rebuild whose checkout a chain moves', () => {
     const head = git('rev-parse', 'HEAD')
     expect(record).toMatchObject({ failed: null, rollback: null, to: { tag: head, version: '1.1.0' } })
     expect(readFileSync(join(root, 'built'), 'utf8')).toBe('onward')
-  }, 60_000)
+  }, scaled(60_000))
 
   it('leaves a checkout moved to another line and starts the running service again', async () => {
     const running = commit('running')
@@ -137,7 +138,7 @@ describe('a rebuild whose checkout a chain moves', () => {
     const record = await runPlan(planOf(green, null, running))
     expect(record).toMatchObject({ failed: { step: 'stop', moved: true }, rollback: { failed: null }, to: { tag: green } })
     expect(git('log', '-1', '--format=%s')).toBe('away')
-  }, 60_000)
+  }, scaled(60_000))
 
   it('builds the commit a chain moved the checkout on to after the new service failed, not the one before', async () => {
     const running = commit('running')
@@ -152,7 +153,7 @@ describe('a rebuild whose checkout a chain moves', () => {
     expect(green).not.toBe(head)
     expect(record).toMatchObject({ failed: { step: 'answer' }, rollback: { failed: null, to: { tag: head, version: '1.1.0' } }, to: { tag: target } })
     expect(readFileSync(join(root, 'built'), 'utf8')).toBe('onward')
-  }, 60_000)
+  }, scaled(60_000))
 
   it('hands a merge between the stop and the start on to the rollback at once, which stops the service once the chains settle', async () => {
     const running = commit('running')
@@ -181,7 +182,7 @@ describe('a rebuild whose checkout a chain moves', () => {
     expect(stop).toBeGreaterThan(-1)
     expect(waited).toBeGreaterThan(stop)
     expect(lines.findIndex((line, at) => at > stop && line.includes('$ '))).toBeGreaterThan(waited)
-  }, 60_000)
+  }, scaled(60_000))
 
   it('rolls nothing back when the checkout moved to another line after the new service failed', async () => {
     const running = commit('running')
@@ -194,5 +195,5 @@ describe('a rebuild whose checkout a chain moves', () => {
     const record = await runPlan(planOf(target, null, running, [process.execPath, join(base, 'hook.cjs')]))
     expect(record).toMatchObject({ failed: { step: 'answer' }, rollback: { failed: { step: 'restore', moved: true } } })
     expect(git('log', '-1', '--format=%s')).toBe('away')
-  }, 60_000)
+  }, scaled(60_000))
 })

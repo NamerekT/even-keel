@@ -6,11 +6,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, Gate, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { STUCK_MS } from '../ci/model.js'
+import { scaled } from '../../test/slow-runner.js'
 
 // The scripted agent hands the shell an empty environment: on macOS /bin/sh then finds no `node` on its default PATH.
 const nodeCommand = (script: string) => [process.execPath, script].map((path) => `"${path.replaceAll('\\', '/')}"`).join(' ')
 
-describe('the CI of main end to end', { timeout: 60_000 }, () => {
+describe('the CI of main end to end', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

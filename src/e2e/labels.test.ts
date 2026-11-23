@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { checkpoint, commitAndMerge, Gate, parked } from './agent.fixture.js'
 import { CODEX_ACCOUNT, Harness, PROJECT_ID } from './service.fixture.js'
 import { BACKLOG } from './tracker.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('the labels of a task', { timeout: 60_000 }, () => {
+describe('the labels of a task', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

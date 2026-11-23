@@ -4,11 +4,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { forReview } from './agent.fixture.js'
 import { OWNER } from './forge.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
 /** The address of the bench's remote, as `service.fixture.ts` sets it up. */
 const FORGE_URL = 'http://127.0.0.1:9/john/example.git'
 
-describe('PR mode end to end: opening and closing', { timeout: 60_000 }, () => {
+describe('PR mode end to end: opening and closing', { timeout: scaled(60_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

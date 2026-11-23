@@ -3,8 +3,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, ends, Gate, parked, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID, SECOND_ID } from './service.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('two projects on one remote end to end', { timeout: 90_000 }, () => {
+describe('two projects on one remote end to end', { timeout: scaled(90_000) }, () => {
   let run: Harness
 
   beforeEach(() => {

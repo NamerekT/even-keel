@@ -6,8 +6,9 @@ import { commitAndMerge, ends, Gate, parked } from './agent.fixture.js'
 import type { TaskMilestone } from '../tracker/model.js'
 import { Harness, KEY, PROJECT_ID, SECOND_ID } from './service.fixture.js'
 import { DONE } from './tracker.fixture.js'
+import { scaled } from '../../test/slow-runner.js'
 
-describe('the tasks of two projects on one remote end to end', { timeout: 90_000 }, () => {
+describe('the tasks of two projects on one remote end to end', { timeout: scaled(90_000) }, () => {
   let run: Harness
 
   beforeEach(() => {
