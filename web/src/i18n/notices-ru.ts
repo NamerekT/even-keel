@@ -262,6 +262,9 @@ export const noticesRu: NoticeTexts = {
   'branch.switchFailed': (p) => `чекаут не перешёл ${p.current === null ? '' : `с ${p.current} `}на ${p.branch}; ничего не изменено`,
   'branch.busy': (p) => `главная ветка проекта ${p.project} не меняется, пока его задача в работе: дождитесь конца задачи`,
   'branch.noRepo': (p) => `папка проекта ${p.project} — не git-репозиторий с коммитом: её ветки не прочитать`,
+  'branch.machineOffline': (p) =>
+    `главная ветка проекта ${p.project} не меняется, пока машина ${p.name} из его пула не подключена: дождитесь её или выключите её в разделе «Машины» проекта`,
+  'branch.machineFailed': (p) => `папка проекта ${p.project} на машине ${p.name} не перешла на новую ветку; ничего не изменено`,
 
   'sync.alias': (p) => `git sync завершился с кодом ${p.exit}`,
   'sync.notMain': (p) => `${p.repo} стоит на ${p.branch || 'отцепленном HEAD'}, а не на ${p.main} — переключите его на ${p.main}`,

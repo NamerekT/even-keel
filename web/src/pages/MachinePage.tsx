@@ -28,6 +28,7 @@ import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
 import { IdentityButton } from './IdentityDialog.js'
+import { BranchDriftBand } from './BranchField.js'
 import { HelpTip } from './settingsParts.js'
 import { TakeOverButton } from './TakeOverButton.js'
 import './settings.css'
@@ -158,6 +159,10 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
           <span><ProjectLabel project={each.project} /> — {text.taken(each.name)}</span>
         </Band>
       ))}
+      {Object.entries(state.machineDrift ?? {}).flatMap(([project, machines]) => {
+        const drift = machines[page.id]
+        return drift === undefined ? [] : [<BranchDriftBand key={`drift:${project}`} project={project} drift={drift} machine={page.id} lead={<ProjectLabel project={project} />} />]
+      })}
       <div className="machine-page__grid">
         <div className="machine-page__column">
           <SettingsCard page={page} reload={reload} show={setPainting} />

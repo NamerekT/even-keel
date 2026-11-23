@@ -237,6 +237,9 @@ export const en = {
     `the main checkout could not go ${p.current === null ? '' : `from ${p.current} `}to ${p.branch}; nothing was changed`,
   'branch.busy': (p: { project: string }) => `the main branch of ${p.project} does not change while its task is in work: wait for the task to end`,
   'branch.noRepo': (p: { project: string }) => `the folder of ${p.project} is not a git repository with a commit: its branches cannot be read`,
+  'branch.machineOffline': (p: { project: string; name: string }) =>
+    `the main branch of ${p.project} does not change while machine ${p.name} of its pool is not connected: wait for it, or turn it off in the project's Machines`,
+  'branch.machineFailed': (p: { project: string; name: string }) => `the folder of ${p.project} on machine ${p.name} did not move to the new branch; nothing was changed`,
 
   'sync.alias': (p: { exit: number }) => `git sync exited with ${p.exit}`,
   'sync.notMain': (p: { repo: string; branch: string; main: string }) =>

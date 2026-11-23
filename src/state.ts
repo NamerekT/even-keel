@@ -328,6 +328,8 @@ export interface EvenKeelState {
   config: ConfigView
   /** The projects whose main checkout stood off their main branch when last read: the settings opened or the chain started (BTN-754). */
   branchDrift: Record<string, BranchDrift>
+  /** By project and machine elsewhere of its pool, the folders that stand off its main branch, as the machines' facts last said (BTN-1567). */
+  machineDrift?: Record<string, Record<string, BranchDrift>>
   chain: {
     active: ActiveChainView[]
     /** How many chains run at once (`parallel` in the config). */

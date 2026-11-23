@@ -75,6 +75,8 @@ export interface MachineFacts {
   diffs?: Record<string, Record<string, BranchDiff>>
   /** By project without git, the repository its folder has become (`GitFound.view`, BTN-1025). */
   gitFound?: Record<string, FoundRepository>
+  /** By project with git, the branch its folder stands on, `null` — detached (BTN-1567); a folder not read is absent. */
+  checkouts?: Record<string, { branch: string | null }>
   sessionsRead: boolean
   accountsRead: boolean
   tasks: Record<string, TaskFacts>
@@ -88,7 +90,7 @@ export interface MachineFacts {
 
 export const resetKey = (account: string, at: string, text?: string): string => `${account}\n${at}\n${text ?? ''}`
 
-const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox', 'usage', 'owners', 'compactions', 'identities', 'works', 'diffs', 'gitFound'] as const
+const SECTIONS = ['tasks', 'projects', 'ledger', 'limits', 'resets', 'sessions', 'mailbox', 'usage', 'owners', 'compactions', 'identities', 'works', 'diffs', 'gitFound', 'checkouts'] as const
 type Section = (typeof SECTIONS)[number]
 
 /** The entries of one section that changed since the last post: `set` — new or changed, `gone` — no longer there. */

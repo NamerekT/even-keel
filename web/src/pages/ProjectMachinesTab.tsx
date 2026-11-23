@@ -8,6 +8,7 @@ import { machinePath } from '../machineColor.js'
 import { severalMachines } from '../machineView.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
+import { BranchDriftBand } from './BranchField.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
 import { JobWindow } from './JobWindow.js'
 import type { PanelFields } from './projectSettingsFields.js'
@@ -78,6 +79,10 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
           {pool !== null && (
           <>
             {pool.machines.length === 0 && <p className="pool__empty">{t.pool.empty}</p>}
+            {pool.machines.flatMap((machine) => {
+              const drift = state?.machineDrift?.[project]?.[machine.id]
+              return drift === undefined ? [] : [<BranchDriftBand key={`drift:${machine.id}`} project={project} drift={drift} machine={machine.id} lead={machine.name} />]
+            })}
             {pool.machines.length > 0 && (
               <ul className="pool">
                 {pool.machines.map((machine) => (

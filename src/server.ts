@@ -62,8 +62,8 @@ const COMMANDS: Record<string, Command> = {
   'session/mail/dismiss': ({ sessions }, body) => sessions.dismissMail(textOf(body.sessionId, 'sessionId')),
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
   'project/add': ({ settings }, body) => settings.add(draftOf(body)),
-  'project/branch/adopt': ({ settings }, body) => settings.adoptBranch(projectOf(body)),
-  'project/branch/restore': ({ settings }, body) => settings.restoreBranch(projectOf(body)),
+  'project/branch/adopt': ({ settings }, body) => settings.adoptBranch(projectOf(body), typeof body.machine === 'string' ? body.machine : undefined),
+  'project/branch/restore': ({ settings }, body) => settings.restoreBranch(projectOf(body), typeof body.machine === 'string' ? body.machine : undefined),
   'project/remove': ({ settings }, body) => settings.remove(projectOf(body)),
   // Git is only turned on (BTN-1063): a tab open since before that, or a hand call, may still ask to turn it off.
   'project/git': ({ settings }, body) => {

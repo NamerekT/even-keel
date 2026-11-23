@@ -8,6 +8,8 @@ import { cloner, runRemoteGit, type Clone } from '../git/remote-run.js'
 import { runGit } from '../git/run.js'
 import { readGitSetup, saveIdentity } from '../git/setup.js'
 import type { Git } from '../git/types.js'
+import { isPlain } from '../config.js'
+import { branchHere } from '../machine/branch-here.js'
 import { checkFolderStep, cloneTarget, probeFolder } from '../machine/folder-check.js'
 import { fail } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
@@ -50,6 +52,8 @@ export interface MachineServicesDeps {
   clone?: Clone
   /** The home folder git's global config is read in; the process's by default (tests). */
   home?: string
+  /** A project's folder may stand on another branch now (`CheckoutWatch.check`). */
+  checkouts?: () => void
 }
 
 /** What a chat message into a session's inbox needs on the machine (`tellMail`, BTN-1322). */
@@ -160,6 +164,16 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
         return { name: read.name, email: read.email }
       },
     },
+    branch: branchHere({
+      git: deps.git ?? runGit,
+      folderOf: (project) => {
+        const config = ctx.configStore.current
+        const folder = config.projects[project]
+        return folder === undefined ? undefined : isPlain(config, project) ? null : folder
+      },
+      fetchGit: (project) => withCredentials(deps.git ?? runGit, (_folder, urls) => ctx.tell.credentials(project, urls)),
+      moved: () => deps.checkouts?.(),
+    }),
   }
 }
 

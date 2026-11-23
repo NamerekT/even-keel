@@ -126,6 +126,7 @@ setInterval(pollWorks, WORK_TICK_MS).unref()
 await side.end.settleMarks()
 // Before the link: a hub's move that comes at once must find the moves made without it read back.
 await side.moves.start()
+side.checkouts.start()
 await side.end.start()
 log(`machine: connecting to the hub ${token.hub} as machine ${token.machine}`)
 // The hub's servers are reached over the link once the first connection may have brought the brief that names them.
@@ -141,6 +142,7 @@ stopOnSignals(async () => {
   clearInterval(contact)
   tally?.stop()
   side.moves.stop()
+  side.checkouts.stop()
   host.cliChecks.stop()
   await Promise.allSettled([host.packages.close(), machine.writes.settled(), writes.settled()])
   await side.end.flushed().catch(() => {})

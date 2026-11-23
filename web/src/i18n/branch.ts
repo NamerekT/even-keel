@@ -11,6 +11,7 @@ export const branchTexts = localized((language) => language === 'ru' ? {
   drift: (current: string | null, branch: string) => `В папке сейчас ${current ?? 'отсоединённый HEAD'}, главная ветка проекта — ${branch}`,
   adopt: (current: string) => `Сделать ${current} главной`,
   restore: (branch: string) => `Вернуть папку на ${branch}`,
+  held: 'Задачи проекта на этой машине не запускаются, пока папка не на главной ветке',
   byDefault: 'по умолчанию',
   cloned: (to: string) => `Склонируется ветка ${to}`,
   clonedNew: (to: string, head: string | null) =>
@@ -26,6 +27,7 @@ export const branchTexts = localized((language) => language === 'ru' ? {
   drift: (current: string | null, branch: string) => `The folder is on ${current ?? 'a detached HEAD'} now, the project's main branch is ${branch}`,
   adopt: (current: string) => `Make ${current} the main branch`,
   restore: (branch: string) => `Put the folder back on ${branch}`,
+  held: 'Tasks of the project do not start on this machine until the folder is on the main branch',
   byDefault: 'default',
   cloned: (to: string) => `The branch ${to} will be cloned`,
   clonedNew: (to: string, head: string | null) =>

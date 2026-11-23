@@ -40,6 +40,12 @@ export function branchMove(repo: RepoBranches, target: string): BranchMove {
   return found.remote === null ? { kind: 'switch', from: repo.current } : { kind: 'track', remote: found.remote, from: repo.current }
 }
 
+/** A checkout's move onto a branch and where it stood before: what puts it back (`shiftBack`). */
+export interface BranchShift {
+  before: RepoBranches
+  move: BranchMove
+}
+
 /** Where the main checkout stands when it is not on the project's branch (`EvenKeelState.branchDrift`). */
 export interface BranchDrift {
   /** The project's main branch, the `branch` key. */

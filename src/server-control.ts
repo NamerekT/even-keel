@@ -172,10 +172,13 @@ export interface SettingsControl {
   trust(project: string, account: string | null): Promise<ProjectTrust>
   /** The main checkout's branches for the main branch field; reading them notes a checkout moved by hand (BTN-754). */
   branches(project: string): Promise<RepoBranches>
-  /** "Make it the main branch": the checkout's branch becomes the project's, git is not touched. */
-  adoptBranch(project: string): Promise<void>
-  /** "Put the folder back": the main checkout goes onto the project's branch. */
-  restoreBranch(project: string): Promise<void>
+  /**
+   * "Make it the main branch": the checkout's branch becomes the project's, git is not touched; of a `machine`
+   * elsewhere, the branch its folder stands on is saved as a new one (BTN-1567).
+   */
+  adoptBranch(project: string, machine?: string): Promise<void>
+  /** "Put the folder back": the main checkout, or the `machine` elsewhere's folder, goes onto the project's branch. */
+  restoreBranch(project: string, machine?: string): Promise<void>
   /**
    * Starts the job that creates the wizard's project (BTN-1048): the folder, the clone or the first commit, the entry on
    * its main branch, the trust and the packages; the page follows it in `state.jobs`. A draft the check refuses starts none.

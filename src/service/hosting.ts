@@ -393,8 +393,8 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         return { folder, trusted, platform: process.platform, user: userInfo().username, service: await runsAsService() }
       },
       branches: (project) => ctx.branches.branches(project),
-      adoptBranch: (project) => ctx.branches.adopt(project),
-      restoreBranch: (project) => ctx.branches.restore(project),
+      adoptBranch: (project, machine) => ctx.branches.adopt(project, machine),
+      restoreBranch: (project, machine) => ctx.branches.restore(project, machine),
       add: async ({ machines, here, ...draft }) => {
         const plan = await creationPlan(
           {

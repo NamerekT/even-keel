@@ -38,6 +38,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     demo: ctx.demo.view(),
     config: ctx.configStore.view(ctx.lockedReaders()),
     branchDrift: ctx.branches.view(),
+    machineDrift: ctx.branches.machineDrift(),
     chain: {
       // The page names each lane's machine: one on the own machine gets its id too.
       active: ctx.dispatcher.state.active.map((lane) => {

@@ -448,6 +448,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     componentLanes: (project) => ctx.configStore.current.settings[project]?.componentLanes === true,
     machineOf: (project, task) => assignments.machineOf(project, task),
     revoked: (machine) => network.revoked(machine),
+    // As `BranchControl.held`: the machine reads only its projects with git, so a project without one is never there.
+    held: (project, machine) => {
+      const current = machine === own ? undefined : network.remote(machine)?.facts()?.checkouts?.[project]?.branch
+      return current !== undefined && current !== ctx.branchOf(project)
+    },
     agentOf: (project, task) => ctx.runsOfProject(project)[task]?.provider ?? runSettings(ctx.configStore.current, project).provider,
     agents: (machine) => pageOf(machine)?.panel()?.accounts.map((entry) => entry.agent),
     lacks: (project, task, machine) => (machine === own ? ownPort : network.port(machine))?.launchBlock(project, task)?.code === 'machines.accountAbsent',

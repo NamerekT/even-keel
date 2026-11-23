@@ -70,6 +70,12 @@ describe('chainMachines', () => {
     expect(machines.runs('p', 'A-5', 'server')).toBe(true)
   })
 
+  it('serves a project on no machine whose folder stands off its main branch (BTN-1567)', () => {
+    const { machines } = machinesOf({ held: (project, machine) => project === 'p' && machine === 'server' })
+    expect(machines.serves('p', 'server')).toBe(false)
+    expect(machines.serves('p', 'pc')).toBe(true)
+  })
+
   it('takes a width below one for one', () => {
     expect(machinesOf({ width: () => 0 }).machines.width('p')).toBe(1)
   })

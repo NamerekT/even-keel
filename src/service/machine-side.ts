@@ -9,6 +9,8 @@ import { sameJson } from '../machine/facts.js'
 import { MachineMoves, type HeldMove } from '../machine/moves.js'
 import { machineValue, setMachineValue } from '../machine/state.js'
 import { MachineRecords } from '../machine/records.js'
+import { CheckoutWatch } from '../machine/branch-here.js'
+import { isPlain } from '../config.js'
 import { HANDOFF_EVENT, LEFTOVER_EVENT, MachineRunner, TRANSCRIPT_EVENT } from '../machine/runner.js'
 import { factsScope, scopedDeps, type FactsScope } from '../machine/scope.js'
 import { isCarryName, isFixName } from '../chain/fix.js'
@@ -51,6 +53,8 @@ export interface MachineSide {
   moves: MachineMoves
   /** Resolves once the link went online the first time. */
   online: Promise<void>
+  /** The branch of each project's folder; `start` on a machine of its own, whose folders the hub cannot read (BTN-1567). */
+  checkouts: CheckoutWatch
   /** From here the servers holding keys are reached over the link (BTN-990): once the first brief may have come. */
   throughHub(): void
 }
@@ -113,6 +117,15 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
         },
       },
     }),
+  })
+  const checkouts = new CheckoutWatch({
+    git: machine.git,
+    projects: () => {
+      const config = machine.configStore.current
+      return Object.fromEntries(Object.entries(config.projects).filter(([project]) => !isPlain(config, project)))
+    },
+    changed: () => runner.changed(),
+    log,
   })
   const identities = new AccountIdentities()
   const ownRun = (project: string, task: string): boolean => !sameJson(machine.choiceFor(project, task), machine.choiceFor(project))
@@ -202,9 +215,12 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       if (options.alone === true && changed) machine.writes.add('the hub brief', setMachineValue(machine.machineDb, 'brief.kept', brief))
       // The projects without git are known from the first brief on: what their folders have become is read then.
       if (first) void machine.gitFound.checkAll().catch((error: unknown) => log(`git: the projects without git were not read: ${messageOf(error)}`))
+      // A brief may name another folder or a project new to the machine: its branch is read with it.
+      if (changed && options.alone === true) void checkouts.check()
     },
     works: () => machine.works.view(),
     diffs: () => machine.works.diffs(),
+    ...(options.alone === true && { checkouts: () => checkouts.view() }),
     gitFound: () => machine.gitFound.view(),
     moves,
     services: wireMachineServices(machine, {
@@ -217,6 +233,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       },
       cloneProgress: cloneTold((payload) => void end.emit(CLONE_PROGRESS_EVENT, payload).catch(() => {})),
       chats: wireMachineChats(machine),
+      checkouts: () => void checkouts.check(),
     }),
     scope: (body) => machine.account.batch(() => machine.packages.pass(() => machine.choiceFor.pass(() => {
       pass = passOf()
@@ -268,6 +285,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     records,
     moves,
     online,
+    checkouts,
     throughHub: () => machine.packages.throughHub({ servers: () => machine.brief.hubServers(), relay: (request) => end.mcp(request), tasks: machineTasks(machine, end) }),
   }
 }

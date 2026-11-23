@@ -25,6 +25,8 @@ export interface ChainMachineDeps {
   switchOnLimit?: ChainMachines['switchOnLimit']
   hasLimit?: ChainMachines['hasLimit']
   limitMoved?: ChainMachines['limitMoved']
+  /** The machine's folder of the project stands off its main branch (BTN-1567): it takes none of the project's tasks. */
+  held?: (project: string, machine: string) => boolean
 }
 
 /**
@@ -33,11 +35,12 @@ export interface ChainMachineDeps {
  * account of the task's agent and a folder of the account the task runs on (BTN-1311), or when no machine of the
  * project's pool has: with one machine the chain falls back to another agent, or pauses, as before. A task stays with
  * its machine while that one is away or revoked (BTN-1270), and a task moved off a machine by hand never goes back to it.
+ * A machine whose folder of the project stands off the project's main branch does not serve it until it is back (BTN-1567).
  */
 export function chainMachines(deps: ChainMachineDeps): ChainMachines {
   const serves = (project: string, machine: string): boolean => {
     const pool = deps.pool(project)
-    return pool.length === 0 ? machine === deps.own() : pool.includes(machine)
+    return pool.length === 0 ? machine === deps.own() : pool.includes(machine) && deps.held?.(project, machine) !== true
   }
   const list = () => [{ id: deps.own(), capacity: deps.parallel() }, ...deps.peers()]
   return {

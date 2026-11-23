@@ -121,6 +121,7 @@ export class Elsewhere {
     setInterval(pollWorks, WORK_TICK_MS)
     await side.end.settleMarks()
     await side.moves.start()
+    side.checkouts.start()
     await side.end.start()
     const online = side.online.then(() => {
       side.throughHub()
@@ -136,6 +137,7 @@ export class Elsewhere {
     if (parts === undefined) return
     this.parts = undefined
     parts.side.moves.stop()
+    parts.side.checkouts.stop()
     parts.host.cliChecks.stop()
     parts.side.end.stop()
     await parts.host.monitor.stop()

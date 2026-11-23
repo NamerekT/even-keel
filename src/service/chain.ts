@@ -29,6 +29,7 @@ import type { ProjectForm } from '../state.js'
 import { readFresh } from '../tracker/health.js'
 import { issueLink } from '../tracker/model.js'
 import { disabledBlock } from './accounts.js'
+import { branchMachines } from './branch-machines.js'
 import { midTurn } from './cleanup.js'
 import { wireClosing } from './closing.js'
 export { wireBriefed, wireChangelogs, wireWithProject } from './chain-prompts.js'
@@ -346,7 +347,9 @@ export function removalFacts(ctx: ChainContext, project: string, repo: string): 
 export function branchBusy(ctx: ChainContext, project: string): boolean {
   if (ctx.dispatcher.state.active.some((chain) => chain.project === project && chain.current !== null)) return true
   const own = new Set(ctx.launches.filter((entry) => entry.project === project).map((entry) => entry.sessionId))
-  return ctx.agents.some((agent) => own.has(agent.sessionId) && isLive(agent) && midTurn(agent))
+  if (ctx.agents.some((agent) => own.has(agent.sessionId) && isLive(agent) && midTurn(agent))) return true
+  // A session of the project on a machine elsewhere merges into that machine's folder, moved with the checkout (BTN-1567).
+  return ctx.machineLink.network.pages().some((page) => page.sessions().some((view) => own.has(view.sessionId) && view.lamp === 'working'))
 }
 
 export function wireBranches(ctx: ChainContext): BranchControl {
@@ -362,6 +365,7 @@ export function wireBranches(ctx: ChainContext): BranchControl {
       ctx.configStore.saveProject(project, { ...base, branch }, base, profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules)
     },
     changed: () => ctx.hub.broadcastSoon('state', ctx.getState),
+    machines: branchMachines({ network: ctx.machineLink.network, own: () => ctx.machineLink.own() }),
   })
 }
 

@@ -96,6 +96,7 @@ export function fakeState(
       },
     },
     branchDrift: {},
+    machineDrift: {},
     chain: {
       active: idle
         ? []

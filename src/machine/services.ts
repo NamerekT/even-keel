@@ -4,6 +4,7 @@ import type { ChatPast } from '../chats/prompt.js'
 import type { CloneProgress } from '../git/clone-progress.js'
 import type { AccountControl } from '../server-control.js'
 import type { Notice } from '../notice/notice.js'
+import type { BranchShift } from '../projects/branch.js'
 import type { Mail, MailReason } from '../sessions/mail.js'
 import type { WarmPing } from '../sessions/warm-pings.js'
 import type { FolderProbe, FolderSpec, FolderStep } from './folder-check.js'
@@ -155,6 +156,14 @@ export interface MachineGit {
   identity(name: string, email: string): Promise<GitIdentity>
 }
 
+/** The project's folder on the machine and the project's main branch (BTN-1567): moved with the hub's checkout. */
+export interface MachineBranch {
+  /** Fetches, then puts the project's folder on `branch` by the hub's rules (`branchMove`); what undoes it. */
+  move(project: string, branch: string): Promise<BranchShift>
+  /** Undoes a `move`: the folder goes back where it stood, and a branch the move made is dropped. */
+  back(project: string, branch: string, shift: BranchShift): Promise<void>
+}
+
 /**
  * What the hub's page, hooks and chat ask of a machine besides the chain's port (`docs/machines.md`, "The seam"): each
  * member is the link's command `<group>.<member>` with `{args}`, its value in `command.done` as for `port.*`.
@@ -167,6 +176,7 @@ export interface MachineServices {
   folders: MachineFolders
   chats: MachineChats
   git: MachineGit
+  branch: MachineBranch
 }
 
 export const SERVICE_COMMANDS = {
@@ -181,6 +191,7 @@ export const SERVICE_COMMANDS = {
   folders: ['check', 'clone', 'probe'],
   chats: ['launch', 'send', 'stop', 'title', 'past'],
   git: ['identity'],
+  branch: ['move', 'back'],
 } as const satisfies { [G in keyof MachineServices]: ReadonlyArray<keyof MachineServices[G]> }
 
 type Group = keyof MachineServices

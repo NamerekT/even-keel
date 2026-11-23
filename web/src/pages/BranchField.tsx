@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { BranchDrift, RemoteBranchList, RepoBranches } from '../../../src/state.js'
 import { branchTexts } from '../i18n/branch.js'
 import { say } from '../i18n/index.js'
@@ -92,11 +92,13 @@ export function BranchMoveLine({ repo, remote, value }: { repo: RepoBranches | n
 
 /**
  * The checkout moved off the project's branch by hand, with the two ways to make them one again; over the chain it also
- * takes "Got it" and "Don't show again" (`closable`, BTN-759), under the branch field it stays.
+ * takes "Got it" and "Don't show again" (`closable`, BTN-759), under the branch field it stays. Of a `machine`
+ * elsewhere, its folder of the project (BTN-1567): the buttons go to that machine, `lead` says whose folder it is.
  */
-export function BranchDriftBand({ project, drift, closable = false }: { project: string; drift: BranchDrift; closable?: boolean }) {
+export function BranchDriftBand({ project, drift, closable = false, machine, lead }: { project: string; drift: BranchDrift; closable?: boolean; machine?: string; lead?: ReactNode }) {
   const { send, failure } = useCommand()
   const texts = branchTexts()
+  const target = machine === undefined ? { project } : { project, machine }
   return (
     <>
       <Band
@@ -104,18 +106,18 @@ export function BranchDriftBand({ project, drift, closable = false }: { project:
         action={
           <>
             {drift.current !== null && (
-              <button type="button" className="button button--small" onClick={() => void send('project/branch/adopt', { project })}>
+              <button type="button" className="button button--small" onClick={() => void send('project/branch/adopt', target)}>
                 {texts.adopt(drift.current)}
               </button>
             )}
-            <button type="button" className="button button--small" onClick={() => void send('project/branch/restore', { project })}>
+            <button type="button" className="button button--small" onClick={() => void send('project/branch/restore', target)}>
               {texts.restore(drift.branch)}
             </button>
             {closable && <NoticeButtons stamps={{ [noticeId('branch.drift', project)]: JSON.stringify(drift) }} kind="branch.drift" project={project} small />}
           </>
         }
       >
-        {texts.drift(drift.current, drift.branch)}
+        {lead === undefined ? texts.drift(drift.current, drift.branch) : <span>{lead} — {texts.drift(drift.current, drift.branch)}. {texts.held}</span>}
       </Band>
       {failure !== null && <Band tone="error">{say(failure)}</Band>}
     </>

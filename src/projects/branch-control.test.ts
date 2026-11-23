@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { readBranches } from '../git/branches.js'
 import { runGit } from '../git/run.js'
 import { notice } from '../notice/notice.js'
+import { branchHere } from '../machine/branch-here.js'
 import { BranchControl } from './branch-control.js'
 import { branchMove } from './branch.js'
 
@@ -249,5 +250,106 @@ describe('BranchControl drift', { timeout: 30_000 }, () => {
     await expect(branches.adopt('p1')).rejects.toMatchObject({ notice: notice('branch.busy', { project: 'p1' }) })
     await expect(branches.restore('p1')).rejects.toMatchObject({ notice: notice('branch.busy', { project: 'p1' }) })
     expect(await head()).toBe('local')
+  })
+})
+
+describe('BranchControl with machines elsewhere (BTN-1567)', { timeout: 60_000 }, () => {
+  /** Two machines of the pool, each with its clone of the project; their side of the link is `branchHere` called directly. */
+  async function pooled(online: Record<string, boolean> = {}) {
+    const folders: Record<string, string> = { m1: join(top, 'm1'), m2: join(top, 'm2') }
+    for (const folder of Object.values(folders)) {
+      await cp(repo, folder, { recursive: true })
+      await gitIn(folder, 'remote', 'set-url', 'origin', join(top, 'upstream'))
+    }
+    const here = (machine: string) => branchHere({ git: runGit, folderOf: () => folders[machine], moved: () => {} })
+    const checkouts: Record<string, string | null> = {}
+    let branch = 'main'
+    const writes: string[] = []
+    const branches = new BranchControl({
+      git: runGit,
+      repo: () => repo,
+      branch: () => branch,
+      key: () => 'ABC',
+      busy: () => false,
+      write: (_project, next) => {
+        writes.push(next)
+        branch = next
+      },
+      changed: () => {},
+      machines: {
+        pool: () => Object.keys(folders).map((id) => ({ id, name: id.toUpperCase(), online: online[id] ?? true })),
+        move: (machine, project, next) => here(machine).move(project, next),
+        back: (machine, project, next, shift) => here(machine).back(project, next, shift),
+        checkouts: () => ({ p1: checkouts }),
+      },
+    })
+    const save = (next: string) =>
+      branches.change('p1', repo, next, () => {
+        writes.push(next)
+        branch = next
+      })
+    const headOf = (machine: string) => gitIn(folders[machine]!, 'symbolic-ref', '--short', 'HEAD')
+    return { branches, folders, checkouts, writes, save, headOf }
+  }
+
+  it('moves the folder of every machine of the pool with the checkout, a branch only on the remote tracked there too', async () => {
+    const { save, headOf, folders, writes } = await pooled()
+    // The second machine has not fetched since `shared` came: the move fetches first and tracks it.
+    await gitIn(folders.m2!, 'update-ref', '-d', 'refs/remotes/origin/shared')
+    await save('shared')
+    expect(await head()).toBe('shared')
+    expect(await headOf('m1')).toBe('shared')
+    expect(await headOf('m2')).toBe('shared')
+    expect(await gitIn(folders.m2!, 'rev-parse', '--abbrev-ref', 'shared@{upstream}')).toBe('origin/shared')
+    expect(writes).toEqual(['shared'])
+  })
+
+  it('refuses with the machine named when its folder cannot move: the machines moved go back, the hub and the config stay', async () => {
+    const { save, headOf, folders, writes } = await pooled()
+    writeFileSync(join(folders.m2!, 'note'), 'mine')
+    const refused = await save('local').catch((error: unknown) => error)
+    expect(refused).toMatchObject({ notice: { code: 'branch.machineFailed', params: { project: 'p1', name: 'M2' }, cause: notice('branch.dirty', { branch: 'local', current: 'main' }) } })
+    expect(await headOf('m1')).toBe('main')
+    expect(await headOf('m2')).toBe('main')
+    expect(await head()).toBe('main')
+    expect(writes).toEqual([])
+  })
+
+  it('drops the branch a machine made when the hub then refuses', async () => {
+    const { save, headOf, folders } = await pooled()
+    writeFileSync(join(repo, 'note'), 'mine')
+    await gitIn(folders.m1!, 'branch', '-D', 'local')
+    await expect(save('local')).rejects.toMatchObject({ notice: notice('branch.dirty', { branch: 'local', current: 'main' }) })
+    expect(await headOf('m1')).toBe('main')
+    expect((await runGit(folders.m1!, ['rev-parse', '--verify', '--quiet', 'refs/heads/local'])).code).not.toBe(0)
+    expect(await headOf('m2')).toBe('main')
+  })
+
+  it('refuses while a machine of the pool is offline, naming it, and moves nothing', async () => {
+    const { save, headOf, writes } = await pooled({ m2: false })
+    await expect(save('local')).rejects.toMatchObject({ notice: notice('branch.machineOffline', { project: 'p1', name: 'M2' }) })
+    expect(await headOf('m1')).toBe('main')
+    expect(await head()).toBe('main')
+    expect(writes).toEqual([])
+  })
+
+  it("shows a machine's folder off the branch as its drift, puts it back there, or makes its branch the project's", async () => {
+    const { branches, checkouts, headOf, folders, writes } = await pooled()
+    await gitIn(folders.m2!, 'switch', '-q', 'local')
+    checkouts.m2 = 'local'
+    checkouts.m1 = 'main'
+    expect(branches.machineDrift()).toEqual({ p1: { m2: { branch: 'main', current: 'local' } } })
+    expect(branches.held('p1', 'm2')).toBe(true)
+    expect(branches.held('p1', 'm1')).toBe(false)
+
+    await branches.restore('p1', 'm2')
+    expect(await headOf('m2')).toBe('main')
+
+    await gitIn(folders.m2!, 'switch', '-q', 'local')
+    await branches.adopt('p1', 'm2')
+    expect(writes).toEqual(['local'])
+    expect(await head()).toBe('local')
+    expect(await headOf('m1')).toBe('local')
+    expect(await headOf('m2')).toBe('local')
   })
 })

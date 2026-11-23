@@ -99,6 +99,8 @@ export interface RunnerDeps {
   works?: () => Record<string, Record<string, TaskWork>>
   diffs?: () => Record<string, Record<string, BranchDiff>>
   gitFound?: () => Record<string, FoundRepository>
+  /** By project with git, the branch its folder stands on (`CheckoutWatch`, BTN-1567). */
+  checkouts?: () => Record<string, { branch: string | null }>
   /** Makes the moves of a task's session the hub asks for (`task.<move>`). */
   moves?: { run: (name: MoveName, call: MoveCall) => Promise<MoveDone> }
   /** Serves the page's, the hooks' and the chat's commands (`account.*`, `transcript.*`, `chat.*`, `records.*`). */
@@ -313,6 +315,7 @@ export class MachineRunner {
       ...(this.deps.works === undefined ? {} : { works: this.deps.works() }),
       ...(this.deps.diffs === undefined ? {} : { diffs: this.deps.diffs() }),
       ...(this.deps.gitFound === undefined ? {} : { gitFound: this.deps.gitFound() }),
+      ...(this.deps.checkouts === undefined ? {} : { checkouts: this.deps.checkouts() }),
       sessionsRead: local.sessionsRead(),
       accountsRead: local.accountsRead(),
       tasks,
