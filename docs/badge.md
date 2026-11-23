@@ -237,8 +237,8 @@ session or the numbers: a push then would show a stump of the state for the 2 mi
 not pushed until everything its state is built from was read once (`warmedUp` in `src/service/badge.ts`):
 
 - every tracker the project reads (its own and its feeds) and the sessions (`agentsRead`) — the `read` of `wireBadges`;
-- the stats, when a stats field is picked and the project has a key (only an `ok` answer counts as read; Tally not ready yet after
-  the start is retried every minute, BTN-1282);
+- the stats, when a stats field is picked and the project has a key (only an `ok` answer counts as read; the first read
+  goes 1 min after the start, BTN-1531; Tally not ready yet after the start is retried every minute, BTN-1282);
 - the git identity of the filter of private data.
 
 The wait ends after 2 min from the start at the latest (`BADGE_WARMUP_MS`): a tracker that is down or off, or a read
@@ -254,7 +254,11 @@ count, the median cost of done tasks at API list prices (`priceEstimate`, else `
 They are read in the background at most every 15 min, cached by the project's current key rather than its GUID.
 The key comes from the live config; projects sharing it use the same numbers and the stats reader's `firstByKey`
 repository mapping, just like `/stats`. A changed key never shows the previous key's cached numbers. Without a configured
-key the badge has no numbers; a successfully read empty period shows `0 sessions` without medians. An answer other than
+key the badge has no numbers; a successfully read empty period shows `0 sessions` without medians. The first read after
+a start waits 1 min (`BADGE_FIRST_STATS_MS`, BTN-1531): the start holds the event loop for its first half minute, and a
+read then missed the reader's 5 s connect timeout (`error: timeout expired` — 56 of 59 failures in the log of
+19–22.11 fell in the first minute), while the retry a minute later went through; until then the badge and the preview
+have no numbers, and the warm-up waits for them inside its 2 min. An answer other than
 `ok` is not cached for 15 min. `off` and `newer` (Tally not ready after a start) are retried every minute
 (`BADGE_STATS_RETRY_MS`); `error` and a thrown read (a statement timeout, a lost connection) after 1 min, then a pause
 that doubles to 2, 4, 8 and at most 15 min, back to 15 min after the next `ok` (BTN-1351): a read the database cancels

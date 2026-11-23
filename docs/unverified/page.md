@@ -21,6 +21,16 @@ Worker's picture does not turn stale meanwhile. **If it is wrong:** after a rest
 agent and an empty chain for two minutes, as before, or keeps the old picture for two minutes with a line `badge: … is
 pushed before the warm-up ended` in the log; nothing to do, the next push corrects it.
 
+## The badge's first stats read a minute after a start (BTN-1531)
+
+Unit tests cover the wait: no stats read and no numbers until `BADGE_FIRST_STATS_MS` (1 min) after the wiring, then one
+read and a push with the numbers, nothing logged. The minute comes from the log of 19–22.11: 56 of 59 `badge: the stats
+of BTN are not read (error: timeout expired)` lines fell in the first minute after a start, the event loop was blocked
+for up to 5 s in its first ~30 s, and the retry a minute later went through. Not checked live: a restart of the service
+with a badge published from an external Tally — that the log has no `badge: … not read` line for the first minute and the
+badge gets its numbers by itself. **If it is wrong:** the line still shows after a restart (the start held the loop past
+the minute) and the badge keeps its old numbers until the retry a minute later, as before; nothing to do.
+
 ## The badge's status line from the agent (BTN-932)
 
 Unit tests cover when the service asks (no badge, a badge without the action, no push yet, a failed push, a session the

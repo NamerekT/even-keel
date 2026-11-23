@@ -24,6 +24,11 @@ export const BADGE_STATS_MS = 15 * 60_000
  * read cancelled by the statement timeout must not load the database every minute.
  */
 export const BADGE_STATS_RETRY_MS = 60_000
+/**
+ * How long after the wiring the first stats read waits (BTN-1531): the start holds the event loop for its first half
+ * minute, and a read then missed its connect timeout and logged a failure, while the retry a minute later went through.
+ */
+export const BADGE_FIRST_STATS_MS = 60_000
 /** The kinds of a failed read that back off: the database answered with an error or did not answer. */
 const BACKING_OFF: ReadonlySet<string> = new Set(['error', 'failed'])
 /**
@@ -38,6 +43,8 @@ export interface BadgeWiringDeps {
   state: () => EvenKeelState
   /** The stats reader's period; an answer not `ok` or a failure keeps the last good numbers, none before the first. */
   period: (query: PeriodQuery) => Promise<StatsAnswer<StatsPeriod>>
+  /** How long after the wiring no stats are read; none — `BADGE_FIRST_STATS_MS`. */
+  statsAfter?: number
   /** Whether the project's trackers and the sessions were read once since the start; none — they always were. */
   read?: (project: string) => boolean
   /** The project's tasks the chain closed, from its archive (BTN-970); none — no close times and no forecast. */
@@ -104,6 +111,8 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
   /** `good` — a read was `ok` once since the start; `failed` — the last read was not; `pause` — until the next read. */
   const numbers = new Map<string, { at: number; stats: BadgeStats | null; failed: StatsFailure | null; good: boolean; pause: number }>()
   const reading = new Set<string>()
+  const startedAt = now()
+  const statsAfter = deps.statsAfter ?? BADGE_FIRST_STATS_MS
   const log = deps.log ?? ((line: string) => console.log(line))
   let translations = deps.translations
 
@@ -121,10 +130,13 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     return translations.title({ tracker, id, title: task.title }, config.settings[project]?.badge?.on === true)
   }
 
-  /** A failed read keeps the last good numbers, is retried after `BADGE_STATS_RETRY_MS` and logged once per change of its kind. */
+  /**
+   * Nothing is read until `statsAfter` passes since the wiring. A failed read keeps the last good numbers, is retried
+   * after `BADGE_STATS_RETRY_MS` and logged once per change of its kind.
+   */
   const statsOf = (project: string): BadgeStats | null => {
     const key = deps.config().keys[project]
-    if (key === undefined) return null
+    if (key === undefined || now() - startedAt < statsAfter) return null
     const known = numbers.get(key)
     const due = known === undefined || now() - known.at >= known.pause
     if (due && !reading.has(key)) {
@@ -202,7 +214,6 @@ export function wireBadges(deps: BadgeWiringDeps): BadgeWiring {
     return withoutPrivate(built, banned, (field, layer) => report(key, field, layer))
   }
 
-  const startedAt = now()
   const warm = new Set<string>()
   /**
    * Whether the project's badge may be pushed (BTN-973): everything its state is built from was read once since the

@@ -4,7 +4,7 @@ import type { EvenKeelConfig } from '../config.js'
 import type { EvenKeelState } from '../state.js'
 import type { PeriodQuery, StatsAnswer, StatsPeriod } from '../stats/model.js'
 import { BADGE_PULSE_MS } from '../badge/push.js'
-import { BADGE_STATS_MS, BADGE_STATS_RETRY_MS, BADGE_WARMUP_MS, wireBadges, type BadgeWiringDeps } from './badge.js'
+import { BADGE_FIRST_STATS_MS, BADGE_STATS_MS, BADGE_STATS_RETRY_MS, BADGE_WARMUP_MS, wireBadges, type BadgeWiringDeps } from './badge.js'
 import { BadgeTranslations } from '../badge/translate.js'
 import { memoryDatabase } from '../storage/memory.js'
 
@@ -21,7 +21,7 @@ const state = {
 const sessions = (count: number) => new RegExp(`>${count}</text>\\n<text[^>]*>sessions?</text>`)
 const period = { current: { sessions: 4 }, tasks: [{ done: true, cost: 2, priceEstimate: null, activeS: 600 }] } as unknown as StatsPeriod
 
-function rig(snapshot = state, translations?: BadgeTranslations, over: Partial<Pick<BadgeWiringDeps, 'read' | 'state' | 'closed'>> = {}) {
+function rig(snapshot = state, translations?: BadgeTranslations, over: Partial<Pick<BadgeWiringDeps, 'read' | 'state' | 'closed' | 'statsAfter'>> = {}) {
   let now = Date.parse('2026-11-09T12:00:00Z')
   let badge: BadgeSettings | null = null
   const posts: BadgeState[] = []
@@ -39,6 +39,7 @@ function rig(snapshot = state, translations?: BadgeTranslations, over: Partial<P
   const wiring = wireBadges({
     config: () => config,
     state: () => snapshot,
+    statsAfter: 0,
     ...over,
     translations,
     period: async (query) => {
@@ -235,6 +236,28 @@ describe('wireBadges', () => {
     await r.wiring.tick()
     expect(r.queries.length).toBeGreaterThanOrEqual(2)
     expect(r.posts.at(-1)?.stats).toEqual({ sessions: 4, medianCost: 2, medianMinutes: 10 })
+  })
+
+  it('reads the stats first a minute after the start, when the start no longer holds the event loop (BTN-1531)', async () => {
+    // Undefined: the service's own delay, as `assembleBadges` wires it.
+    const r = rig(state, undefined, { statsAfter: undefined })
+    r.set(on)
+    await r.wiring.tick()
+    await settle()
+    expect(r.queries).toHaveLength(0)
+    expect(r.wiring.svg(ABC, 'dark')).not.toMatch(sessions(4))
+    r.wait(BADGE_FIRST_STATS_MS - 1)
+    await r.wiring.tick()
+    await settle()
+    expect(r.queries).toHaveLength(0)
+    expect(r.posts).toHaveLength(0)
+    r.wait(1)
+    await r.wiring.tick()
+    await settle()
+    expect(r.queries).toHaveLength(1)
+    await r.wiring.tick()
+    expect(r.posts.at(-1)?.stats).toEqual({ sessions: 4, medianCost: 2 })
+    expect(r.lines.filter((line) => line.includes('stats of ABC'))).toEqual([])
   })
 
   describe('a failed stats read (BTN-1282)', () => {
