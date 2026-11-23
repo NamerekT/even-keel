@@ -318,7 +318,13 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   const checkpoint = /^\/api\/sessions\/([^/]+)\/checkpoint$/.exec(path)
   if (request.method === 'GET' && checkpoint !== null) {
-    const found = await deps.checkpoint(decodeURIComponent(checkpoint[1]!))
+    let found: Awaited<ReturnType<typeof deps.checkpoint>>
+    try {
+      found = await deps.checkpoint(decodeURIComponent(checkpoint[1]!))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
     if (found === undefined) response.writeHead(404).end()
     else sendJson(response, 200, found)
     return
@@ -326,7 +332,13 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   const handoffNote = /^\/api\/sessions\/([^/]+)\/note$/.exec(path)
   if (request.method === 'GET' && handoffNote !== null) {
-    const note = await deps.handoffNote(decodeURIComponent(handoffNote[1]!))
+    let note: string | null | undefined
+    try {
+      note = await deps.handoffNote(decodeURIComponent(handoffNote[1]!))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
     if (note === undefined) response.writeHead(404).end()
     else sendJson(response, 200, note === null ? { note: false } : { note: true, path: note })
     return
