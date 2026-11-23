@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
 import { HUB_PLACE } from './accountAdd.js'
-import { addMachineOf, defaultPlace, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, sharedTokens, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
+import { addMachineOf, defaultPlace, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsChecking, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, sharedTokens, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
 
 describe('the colours machines have', () => {
   it('are those of the own machine and every joined one not revoked', () => {
@@ -139,6 +139,17 @@ describe("a machine's accounts page (BTN-1302)", () => {
     expect(machineAccountsEmpty('machine-1', [])).toBe('waiting')
     expect(machineAccountsEmpty('machine-1', undefined)).toBe('waiting')
     expect(machineAccountsEmpty('machine-1', [machine()])).toBe('none')
+  })
+
+  it("checks a sign-in the hub's live state has and the page's last read lacks (BTN-1520)", () => {
+    const jane = { key: 'jane', agent: 'claude', email: 'jane.roe@example.com', signedIn: true }
+    const john = { key: 'john', agent: 'claude', email: 'john.doe@example.com', signedIn: true }
+    const live = machine({ accounts: [jane, { ...john, signedIn: false }] })
+    expect(machineAccountsChecking([], live)).toEqual([jane])
+    expect(machineAccountsChecking([{ ...jane, signedIn: false }], live)).toEqual([jane])
+    expect(machineAccountsChecking([jane], live)).toEqual([])
+    expect(machineAccountsChecking([], undefined)).toEqual([])
+    expect(machineAccountsChecking([john], machine({ accounts: [{ ...john, signedIn: false }] }))).toEqual([])
   })
 
   it('adds an account of each agent that signs in through a browser, one whose CLI is missing off', () => {

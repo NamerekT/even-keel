@@ -318,6 +318,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 287 | [A hub's long token reused on a machine elsewhere](unverified/machines.md#a-hubs-long-token-reused-on-a-machine-elsewhere-btn-1501) | hubs with a Claude account on a long token that sign a machine in with "The same token as" | the machine's check turn is refused, or one of the two folders gets refused later; issue a separate token for the machine | — |
 | 288 | [The badge's first stats read a minute after a start](unverified/page.md#the-badges-first-stats-read-a-minute-after-a-start-btn-1531) | projects that publish a badge with stats fields from an external Tally | after a restart the log still has `badge: … not read (error: timeout expired)` in the first minute; nothing to do, the retry a minute later reads the numbers | — |
 | 289 | [A bridge's GET stream kept alive by a comment](unverified/packages.md#a-bridges-get-stream-kept-alive-by-a-comment-btn-1543) | Claude chain sessions with a bridged stdio server, such as Playwright | the stream is still cut every ~6 minutes and the CLI starts a new bridge every ~18; nothing to do, the session reconnects | BTN-1545 |
+| 290 | [A machine's page after a sign-in there](unverified/machines.md#a-machines-page-after-a-sign-in-there-btn-1520) | hubs with a machine elsewhere | "Accounts" says "checking the sign-in…" up to 15 s after a sign-in on the machine; nothing to do | — |
 
 ### Waiting for the event / not checked by choice
 

@@ -13,7 +13,7 @@ import { usePaintMachineStrip } from '../layout/MachineFilter.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountColors, nearAccountColor } from '../machineColor.js'
-import { hubGapsOn, machineAccountsEmpty, machineAgents, machineChecks, osLabel } from '../machineAdd.js'
+import { hubGapsOn, machineAccountsChecking, machineAccountsEmpty, machineAgents, machineChecks, osLabel } from '../machineAdd.js'
 import { machineLogin } from '../machineSignIn.js'
 import { SignIn } from './MachineAccountsPage.js'
 import { projectPath } from '../state.js'
@@ -58,10 +58,10 @@ function ContainerSteps({ version }: { version: string }) {
 }
 
 /**
- * The machine's page, read again at each `machines` event, every `REREAD_MS` and at `reload`, whose promise ends
- * once that read has landed; `null` while read, `false` — none.
+ * The machine's page, read again at each `machines` event, every `REREAD_MS`, at each change of `snapshot` and at
+ * `reload`, whose promise ends once that read has landed; `null` while read, `false` — none.
  */
-function useMachinePage(machine: string): { page: MachinePageView | null | false; reload: () => Promise<void> } {
+function useMachinePage(machine: string, snapshot: string): { page: MachinePageView | null | false; reload: () => Promise<void> } {
   const { read, onMachines } = useLive()
   const [page, setPage] = useState<MachinePageView | null | false>(null)
   const loader = useRef<() => Promise<void>>(async () => {})
@@ -82,6 +82,13 @@ function useMachinePage(machine: string): { page: MachinePageView | null | false
       clearInterval(timer)
     }
   }, [machine])
+  // A machine's snapshot moves the live state, not a `machines` event (BTN-1520): its accounts are read again at once.
+  const seen = useRef(snapshot)
+  useEffect(() => {
+    if (seen.current === snapshot) return
+    seen.current = snapshot
+    void loader.current()
+  }, [snapshot])
   const reload = useCallback(() => loader.current(), [])
   return { page, reload }
 }
@@ -89,7 +96,8 @@ function useMachinePage(machine: string): { page: MachinePageView | null | false
 /** `/machines/<id>` (BTN-1272): one machine of the hub, the own one or one elsewhere — its report, settings, pool and work. */
 export function MachinePage({ state }: { state: EvenKeelState }) {
   const { id = '' } = useParams()
-  const { page, reload } = useMachinePage(id)
+  const live = state.machineSignIns?.find((each) => each.machine === id)
+  const { page, reload } = useMachinePage(id, JSON.stringify([live?.accounts, live?.login === null || live?.login === undefined]))
   return (
     <div className="page machine-page">
       <Loading busy={page === null} label={t.machinePage.reading} fit="block">
@@ -492,9 +500,19 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
     </Tipped>
   )
   const none = !page.own && machineAccountsEmpty(page.id, signIns) === 'waiting' ? view.accountsNone : view.accountsEmpty(page.name)
+  // Signed in by the machine's last snapshot, not yet by the page's read: "checking", never "no account" (BTN-1520).
+  const checking = page.own ? [] : machineAccountsChecking(page.accounts, machine)
+  const isChecking = (account: { agent: string; key: string }) => checking.some((each) => each.agent === account.agent && each.key === account.key)
+  const unread = checking.filter((each) => !page.accounts.some((account) => account.agent === each.agent && account.key === each.key))
+  const checkingNote = (
+    <span className="machine-page__checking" role="status">
+      <span className="machine-page__spinner" aria-hidden="true" />
+      {text.checkingSignIn}
+    </span>
+  )
   return (
     <Card title={text.accounts} titleId="machine-accounts">
-      {page.accounts.length === 0 && gaps.length === 0 ? (
+      {page.accounts.length === 0 && gaps.length === 0 && unread.length === 0 ? (
         <EmptyState action={add}>{none}</EmptyState>
       ) : (
         <ul className="machine-page__list">
@@ -504,7 +522,7 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
                 <span className="machine-page__name">
                   {/* A machine elsewhere names its own folders: the hub knows the account by its e-mail. */}
                   <AccountTag account={page.own ? account.key : (account.email ?? account.key)} agent={account.agent} />
-                  <span className={account.signedIn ? 'machine-page__muted' : 'machine-page__warn'}>{account.signedIn ? text.signedIn : text.signedOut}</span>
+                  {isChecking(account) ? checkingNote : <span className={account.signedIn ? 'machine-page__muted' : 'machine-page__warn'}>{account.signedIn ? text.signedIn : text.signedOut}</span>}
                   {account.longToken === true && <span className="tag">{text.longToken}</span>}
                 </span>
                 {account.signedIn && account.sessionsOnly === true && <span className="machine-page__note"><SessionsOnly email={account.email} send={send} sending={sending} /></span>}
@@ -515,7 +533,17 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
                   </span>
                 )}
               </span>
-              {account.signedIn ? <Limits limits={account.limits} now={now} /> : signIn(account.agent, account.key)}
+              {account.signedIn ? <Limits limits={account.limits} now={now} /> : !isChecking(account) && signIn(account.agent, account.key)}
+            </li>
+          ))}
+          {unread.map((account) => (
+            <li key={`checking:${account.agent}:${account.key}`} className="machine-page__row machine-page__row--account">
+              <span className="machine-page__main">
+                <span className="machine-page__name">
+                  <AccountTag account={account.email ?? account.key} agent={account.agent} />
+                  {checkingNote}
+                </span>
+              </span>
             </li>
           ))}
           {gaps.map(({ entry, gap }) => (

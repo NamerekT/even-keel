@@ -57,6 +57,7 @@ export const machinePageEn: Messages['machinePage'] = {
   signIn: 'Sign in',
   signedIn: 'signed in',
   signedOut: 'not signed in on the machine',
+  checkingSignIn: 'checking the sign-in…',
   longToken: 'long token',
   limitsDiffer: 'limits differ from the hub’s',
   projects: 'Projects',

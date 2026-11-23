@@ -56,6 +56,7 @@ export const machinePageRu = {
   signIn: 'Войти',
   signedIn: 'вход выполнен',
   signedOut: 'не вошли на машине',
+  checkingSignIn: 'проверяем вход…',
   longToken: 'долгий токен',
   limitsDiffer: 'лимиты расходятся с хабом',
   projects: 'Проекты',
