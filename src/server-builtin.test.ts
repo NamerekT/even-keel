@@ -126,6 +126,43 @@ describe('the built-in tracker over HTTP', () => {
     expect((await post('search', { text: 'root' })).body.map((task: { id: string }) => task.id)).toEqual(['ABC-1', 'XYZ-1'])
     expect((await post('search', { text: 'root', project: ABC })).body.map((task: { id: string }) => task.id)).toEqual(['ABC-1'])
     expect((await post('search', { text: 'abc-2' })).body).toEqual([{ id: 'ABC-2', title: 'Middle', status: { name: 'Todo', category: 'ToDo' } }])
+  })
+
+  it('leaves out of a link\'s search the task itself and the tasks it already links by that kind (BTN-1589)', async () => {
+    const { post } = await fixture()
+    for (const title of ['Task one', 'Task two', 'Task three', 'Task four']) await post('create', { project: ABC, title })
+    await post('create', { project: XYZ, title: 'Task elsewhere' })
+    await post('relate', { task: 'ABC-1', other: 'ABC-2', kind: 'blocks' })
+    await post('relate', { task: 'ABC-3', other: 'ABC-1', kind: 'blocks' })
+    await post('relate', { task: 'XYZ-1', other: 'ABC-1', kind: 'relates' })
+    const ids = async (field: string, text = 'task') =>
+      ((await post('search', { text, for: { task: 'ABC-1', field } })).body as { id: string }[]).map((task) => task.id).sort()
+    expect(await ids('blocks')).toEqual(['ABC-3', 'ABC-4', 'XYZ-1'])
+    expect(await ids('blockedBy')).toEqual(['ABC-2', 'ABC-4', 'XYZ-1'])
+    expect(await ids('relates')).toEqual(['ABC-2', 'ABC-3', 'ABC-4'])
+    expect(await ids('relates', 'abc-1')).toEqual([])
+    expect(await ids('blocks', '')).toEqual(['ABC-3', 'ABC-4', 'XYZ-1'])
+    expect((await post('search', { text: 'task', for: { task: 'ABC-1', field: 'owner' } })).body.notice.code).toBe('request.required')
+  })
+
+  it('leaves out of a parent\'s search the task itself, its parent and its subtasks at any depth (BTN-1589)', async () => {
+    const { post } = await fixture()
+    await post('create', { project: ABC, title: 'Root' })
+    await post('create', { project: ABC, title: 'Middle', parent: 'ABC-1' })
+    await post('create', { project: ABC, title: 'Child', parent: 'ABC-2' })
+    await post('create', { project: ABC, title: 'Grandchild', parent: 'ABC-3' })
+    await post('create', { project: ABC, title: 'Aside', parent: 'ABC-1' })
+    const ids = async (task: string) =>
+      ((await post('search', { text: '', project: ABC, for: { task, field: 'parent' } })).body as { id: string }[]).map((each) => each.id).sort()
+    expect(await ids('ABC-2')).toEqual(['ABC-5'])
+    expect(await ids('ABC-4')).toEqual(['ABC-1', 'ABC-2', 'ABC-5'])
+    expect(await ids('ABC-1')).toEqual([])
+  })
+
+  it('gives a task its ancestors, subtasks and labels', async () => {
+    const { post } = await fixture()
+    await post('create', { project: ABC, title: 'Root' })
+    await post('create', { project: ABC, title: 'Middle', parent: 'ABC-1', milestone: 'v0.3' })
     const source = (await import('./builtin/source.js')).builtinSource(db, builtinPlaces(CONFIG))
     await post('create', { project: ABC, title: 'Leaf', parent: 'ABC-2', labels: ['Claude | opus', 'Later'] })
     const leaf = await source.card!('ABC-3')

@@ -56,7 +56,7 @@ export function ParentField({ card, project, editor, onOpen }: ParentProps) {
     else setRefusal(answer)
   }
 
-  if (picking) return <TaskSearch project={project} label={t.card.edit.changeParent} refusal={refusal} onPick={(parent) => void pick(parent)} onClose={close} />
+  if (picking) return <TaskSearch project={project} purpose={{ task: card.id, field: 'parent' }} label={t.card.edit.changeParent} refusal={refusal} onPick={(parent) => void pick(parent)} onClose={close} />
   if (card.parent === null) {
     return (
       <button type="button" className="task-card__ghost task-card__ghost--inline" onClick={() => setPicking(true)}>

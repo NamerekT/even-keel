@@ -4,7 +4,7 @@ import type { ServerDeps } from '../server.js'
 import { labelList, numberOf, projectOf, taskOf, textOf } from '../server-request.js'
 import type { ImportAuthorChoice } from '../tracker/import-plan.js'
 import { PRIORITIES, type TaskPriority } from '../tracker/model.js'
-import type { BuiltinAttached, BuiltinControl, BuiltinDraft, BuiltinEdit } from './control.js'
+import { SEARCH_FIELDS, type BuiltinAttached, type BuiltinControl, type BuiltinDraft, type BuiltinEdit, type SearchPurpose } from './control.js'
 import type { ExportTargetFields } from './export-store.js'
 import { MILESTONE_STATUSES, type MilestoneStatus } from './milestones.js'
 import type { RelationKind } from './model.js'
@@ -35,7 +35,7 @@ export const BUILTIN_QUERIES: Record<string, Query> = {
     return {}
   },
   'builtin/search': (deps, body) =>
-    control(deps).search(textOf(body.text ?? '', 'text'), body.project === null || body.project === undefined ? null : projectOf(body)),
+    control(deps).search(textOf(body.text ?? '', 'text'), body.project === null || body.project === undefined ? null : projectOf(body), purposeOf(body.for)),
   'builtin/delete': async (deps, body) => {
     await control(deps).remove(taskOf(body))
     return {}
@@ -201,6 +201,15 @@ function dateOf(raw: unknown): number | null {
 function milestoneStatusOf(raw: unknown): MilestoneStatus {
   if (typeof raw !== 'string' || !(MILESTONE_STATUSES as readonly string[]).includes(raw)) throw fail('request.required', { field: 'status' })
   return raw as MilestoneStatus
+}
+
+/** A search's `for`: the task and the field it picks a task for; absent — a plain search. */
+function purposeOf(raw: unknown): SearchPurpose | undefined {
+  if (raw === undefined || raw === null) return undefined
+  const item = (typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const field = SEARCH_FIELDS.find((known) => known === item.field)
+  if (field === undefined) throw fail('request.required', { field: 'for' })
+  return { task: taskOf(item), field }
 }
 
 function kindOf(raw: unknown): RelationKind {
