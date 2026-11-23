@@ -27,6 +27,13 @@ export function parentsTo(search: string, parent = ''): { search: string; hash: 
   return { search: next.toString(), hash: parent }
 }
 
+/** The query of a chain row's link: the page's own (the machine of the view and the rest), the feed view's parameters on top. */
+export function rowLinkSearch(current: string, view?: string): string {
+  const next = new URLSearchParams(current)
+  for (const [name, value] of new URLSearchParams(view)) next.set(name, value)
+  return next.toString()
+}
+
 /** `?view=outside`: the open tasks the rules keep out of both the chain and the backlog (BTN-1428). */
 export const OUTSIDE_VIEW = 'outside'
 
