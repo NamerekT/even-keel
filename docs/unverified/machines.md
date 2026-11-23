@@ -402,3 +402,11 @@ To check, on the benches (entry 181): run a task on a machine elsewhere of the b
 Assumed: a hand session on a machine reaches the hub's `/tasks` through the machine's gateway with the machine's header set by the hub's link, and every tool that names a project goes through the key's or `project`'s lookup. If not, a call on a project outside the pool goes through, or one in the pool is still refused; the hub's log says `called the tasks server on project …, outside its pool: refused`.
 
 To check, on the benches: give machine-1 of the bench hub one project's pool and not another's; from a hand session on machine-1 call `task_read` on a task of each and see the first answered, the second refused with "is not on this machine", and the hub's log line once.
+
+## A machine elsewhere's accounts in the hub's blocks (BTN-1570)
+
+`docs/machines.md`, "The header in a machine's view" and "The machine's accounts page". The header's block, its levels, the drawer and `/accounts` with a machine elsewhere picked are the hub's blocks over `machineAccountView`. Covered by `web/src/machineAccountView.test.ts` (the view, the levels, "Used by") and `src/service/machine-cards.test.ts` (sessions and transport on a card), and by `dev:fake` shots (`machines=many&machine=machine-1|machine-2`, `header=two`). No real machine has shown it yet.
+
+Assumed: a machine's panel names each account's e-mail as the hub's does (`sameEmail`), so the machine's folder maps to the hub's, and its panel's `sessions` and `transport` are those of that machine. If not, an account signed in there shows as "signed in on the hub, not here" beside its own row, a header level drops or names another account, or the sessions and "Runs through" columns stay empty.
+
+To check, on the benches: pick machine-1 of the bench hub in the header on a project page and on `/accounts`; compare the rows, the limits, the sessions count and "Runs through" with machine-1's own `/accounts`, point at the header's block and see the project's levels, and sign machine-1 out of one account to see its info chip and "Sign in".

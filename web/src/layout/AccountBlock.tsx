@@ -2,7 +2,6 @@ import type { CSSProperties } from 'react'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import type { AccountLevel } from '../../../src/account/header-levels.js'
 import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limits/model.js'
-import { entrySlot } from '../accounts.js'
 import { formatSpan, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { accountBadge } from '../state.js'
@@ -16,27 +15,33 @@ import { CompactLimit } from './accountRows.js'
 import { AccountLevels } from './AccountLevels.js'
 import './accountLevels.css'
 import { OverageChip } from './Overage.js'
+import { rowSlot, type MachineRows } from './machineRows.js'
 
 interface BlockProps {
   account: AccountView
   limits: RateLimits | null
   now: Date
   levels?: AccountLevel[]
+  /** A machine elsewhere's view (BTN-1570): `account` is its accounts, the colours the hub's of the same e-mail. */
+  machine?: MachineRows
 }
 
 /** The server's launch choice in the header; pointing shows its inheritance and pressing opens the accounts drawer. */
-export function AccountBlock({ account, now, levels = [{ account: account.active, source: 'shared' }] }: BlockProps) {
+export function AccountBlock({ account, now, levels = [{ account: account.active, source: 'shared' }], machine }: BlockProps) {
   const { open, setOpen, rootRef } = usePopover()
-  const spend = useSpend(account)
-  const tokens = useTokens(account)
+  const hubSpend = useSpend(account)
+  const hubTokens = useTokens(account)
+  // Tally counts the hub's folders: a machine's view has no spend or tokens of its own.
+  const spend = machine === undefined ? hubSpend : null
+  const tokens = machine === undefined ? hubTokens : null
   const selected = { ...account, active: levels[0]?.account ?? account.active }
   const badge = accountBadge(selected)
   const active = account.accounts.find((entry) => entry.key === selected.active)
-  return <div className={`queue-menu account-block${levels.length > 1 ? ' account-block--cascade' : ''}`} ref={rootRef} style={activeStyle(selected)}>
+  return <div className={`queue-menu account-block${levels.length > 1 ? ' account-block--cascade' : ''}`} ref={rootRef} style={activeStyle(selected, machine)}>
     <button type="button" className="hblock account-block__toggle" aria-expanded={open} aria-controls="account-panel"
       aria-describedby={open || active === undefined ? undefined : 'account-card'} onClick={() => setOpen(!open)}>
       <span className={`account-block__group account-toggle--${badge.kind}`}>
-        <AccountName account={selected} />
+        <AccountName account={selected} machine={machine} />
         <OverageChip entry={active} now={now} plain />
         {levels.length > 1 && <span className="account-stack" aria-label={String(levels.length)}>
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m2 5 6-3 6 3-6 3Z M2 8l6 3 6-3 M2 11l6 3 6-3" /></svg>{levels.length}
@@ -44,20 +49,20 @@ export function AccountBlock({ account, now, levels = [{ account: account.active
         <BlockLimits entry={active} now={now} spend={spend} tokens={tokens} />
       </span>
     </button>
-    {!open && <AccountLevels account={account} levels={levels} now={now} spend={spend} tokens={tokens} />}
-    {open && <AccountPanel account={account} spend={spend} tokens={tokens} onClose={() => setOpen(false)} />}
+    {!open && <AccountLevels account={account} levels={levels} now={now} spend={spend} tokens={tokens} machine={machine} />}
+    {open && <AccountPanel account={account} spend={spend} tokens={tokens} onClose={() => setOpen(false)} machine={machine} />}
   </div>
 }
 
-export function activeStyle(view: AccountView): CSSProperties {
+export function activeStyle(view: AccountView, machine?: MachineRows): CSSProperties {
   const active = view.accounts.find((entry) => entry.key === view.active)
-  return seriesStyle(active === undefined ? null : entrySlot(view, active))
+  return seriesStyle(active === undefined ? null : rowSlot(view, active, machine))
 }
 
 /** The account name and its colour, shared by the header and legend. */
-export function AccountName({ account }: { account: AccountView }) {
+export function AccountName({ account, machine }: { account: AccountView; machine?: MachineRows }) {
   const badge = accountBadge(account)
-  return <span className={`hblock__seg account-toggle--${badge.kind}`} style={activeStyle(account)}>
+  return <span className={`hblock__seg account-toggle--${badge.kind}`} style={activeStyle(account, machine)}>
     <span className="queue-toggle__dot" aria-hidden="true" /><span className="account-toggle__label">{badge.label}</span>
   </span>
 }

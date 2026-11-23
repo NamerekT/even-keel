@@ -98,7 +98,8 @@ const COPIED_MS = 2000
  * in, and gives its quiet details: the sign-in left, the folder, a configuration still on its way. `dot` — the drawer's
  * way: the colour as a dot before a plain agent icon.
  */
-export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; now: Date; dot?: boolean }) {
+/** `folder` — the folder its tip names where it is not the entry's key (a machine's view, BTN-1570); `null` — none. */
+export function AccountMark({ entry, now, dot = false, folder }: { entry: AccountEntry; now: Date; dot?: boolean; folder?: string | null }) {
   const connection = connectionOf(entry)
   const left = loginLeft(entry.loginExpiresAt, now)
   const accounts = useLive().state?.account?.accounts ?? []
@@ -117,7 +118,7 @@ export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; 
       {entry.cloud?.cloud === 'bedrock' && <span>{t.account.cloudBedrockTip}</span>}
       {entry.cloud?.project !== undefined && <span>{t.account.cloudProject(entry.cloud.project)}</span>}
       {entry.cloud?.shortLived === true && <span>{t.account.cloudShortLived[entry.cloud.cloud]}</span>}
-      <span>{t.account.folder(entry.global ? globalFolder(entry.agent) : entry.key)}</span>
+      {folder !== null && <span>{t.account.folder(folder ?? (entry.global ? globalFolder(entry.agent) : entry.key))}</span>}
       {entry.configPending && <span className="tip__muted">{t.account.configPending}</span>}
     </>
   )

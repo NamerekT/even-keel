@@ -44,6 +44,8 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       ...machineAccountOf(entry),
       name: entry.name ?? null,
       limits: isOwn ? entry.limits : mirror!.page.limits(entry.key),
+      ...(entry.sessions !== undefined && entry.sessions.length > 0 && { sessions: entry.sessions }),
+      ...(entry.transport !== undefined && { transport: entry.transport }),
     }))
     const online = isOwn || deps.online(record.id)
     const ownGit = isOwn ? deps.ownGit() : null
