@@ -265,9 +265,3 @@ The profile needs permission to edit issues and labels.
 Saved labels, including their effect on model selection and chain rules, appear in service state immediately.
 
 If the tracker refuses, refresh the task and check its labels before retrying: a multi-request operation may have partly completed. See the [adapter reference](../trackers.md) for details.
-
-For a deterministic compaction/handoff experiment from a source checkout, `npm run break-labels -- <project key or GUID> ...` assigns explicit break labels to open tasks: even numbers get `Break | compaction`, odd numbers get `Break | handoff`.
-
-Existing break labels are preserved and logged, including conflicts; `--dry-run` previews assignments.
-
-The script reads the installation's state database and tracker profiles. It runs separately from the service; see the [protocol and optional schedule](../posts/compaction-ab.md).

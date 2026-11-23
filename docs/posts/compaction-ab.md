@@ -117,8 +117,8 @@ At the stop rule, `Unregister-ScheduledTask -TaskName 'EvenKeel-BreakLabels' -Co
 For a separate data folder, add `$env:EVEN_KEEL_DATA = 'C:\Data\even-keel';` to the command.
 No task is registered by the script. On other systems, run the same command every 15 minutes with
 the scheduler's overlap prevention and append stdout/stderr to a retained log. The Windows schedule is
-[checked live](../verified/sessions.md); other systems' schedulers are an open
-[live check](../unverified/sessions.md#scheduled-break-label-assignment).
+[checked live](../verified/sessions.md); other systems' schedulers were never checked. The script is
+removed since 2026-11-23 (see the amendment of that date): these commands stay as the record.
 
 ## First run record
 
@@ -228,3 +228,13 @@ their label only as `existing`, with no `assigned` line in either log.
 the version strata disagreeing in sign and the bigger ones on compaction's side. Compaction runs with a fatter context (+11–14k on average) and
 does not pay for it per output token at this sample; the summary call is still unpriced. Stuck spans are
 too rare (3–6 tasks an arm) to say anything. Phase 2 goes on under the five-minute cache.
+
+## Amendment of 2026-11-23
+
+**The assignment stopped early.** The plan kept the schedule until it expired on 2026-12-03; the user
+ended it on 2026-11-22, when the project left Huly. The last successful run was 2026-11-22 01:01 UTC;
+from 01:16 UTC every run failed, mostly with `No tracker profile for BTN`, so tasks created after
+01:01 UTC carry no break label. The scheduled task `EvenKeel-BreakLabels` was unregistered on 2026-11-22
+at about 14:10 UTC, and the script (`scripts/break-labels.ts`, `npm run break-labels`) was removed from
+the repository on 2026-11-23 (BTN-1495). The commands above stay as the history of the protocol; they
+run only from a commit before the removal.

@@ -80,10 +80,6 @@ The optional `TaskSource.relabel(id, { add, remove })` returns the saved label n
 
 Fixtures cover all six adapters, case matching, missing definitions, pagination, clearing labels, failures, service state and HTTP validation. Every provider but Forgejo, its refusals included, was checked live by 2026-11-01, Forgejo's on 2026-11-14 ([verified log](verified/trackers.md)).
 
-### Assigning experiment break labels (BTN-505)
-
-`npm run break-labels -- [--dry-run] <project key or GUID> ...` is a separate script, using the installation's database settings and profiles. A non-unique key is refused with the matching GUIDs. `src/stats/break-labels.ts` selects compaction for even task numbers and handoff for odd ones, including backlog and parents but excluding Won/Lost. It re-reads each task, preserves any existing break label (even both or a mismatch), and adds a missing label through `TaskSource.relabel`. JSON lines carry UTC time, project GUID, task ID/number, expected and actual labels and action. No page or service feature is added. The [preregistered protocol](posts/compaction-ab.md) defines analysis, deviations and an optional five-minute Windows schedule; the user registers it. The source checkout's dependencies are required.
-
 ### Moving a task to a chosen status (BTN-554)
 
 The optional pair `TaskSource.moveTo(id, name)` and `statuses()`, and the optional `name` of `complete(id, name)`. `moveTo` moves a task to the status of that name (compared as `sameName` does) and answers the status it is in, `null` when the tracker has no way there; `statuses()` lists every status the profile's tracker has, a name once (`uniqueStatuses`). Only Huly, Linear, Jira and the built-in tracker have them; a kind's view carries `moves: true` for the page.
