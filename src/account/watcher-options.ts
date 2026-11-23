@@ -1,4 +1,5 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { CliInstaller } from '../agent/cli-installer.js'
 import type { Agent } from '../agent/contract.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
@@ -48,6 +49,10 @@ export interface AccountWatcherOptions {
   makeShared: (agent: string, key: string) => void
   /** The agents whose CLI is not found, asked at each refresh. */
   missing: () => string[]
+  /** Optional. By agent, the version of the CLI its sessions run on (`cliReport`, BTN-1502), read at each view. */
+  clis?: () => Record<string, string | null>
+  /** Optional. Installs an agent's CLI with its official installer from the page (BTN-1502). */
+  installer?: Pick<CliInstaller, 'commands' | 'view' | 'start' | 'recheck'>
   /** Whether the account's provider answers: its sign-in is not asked before, as asking may renew it into the void (EKR-15). */
   online: (home: AccountHome) => Promise<boolean>
   sessionsKnown: () => boolean

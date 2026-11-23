@@ -1,3 +1,4 @@
+import type { CliInstallView } from '../agent/cli-installer.js'
 import type { ActiveChain } from '../chain/dispatcher.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
@@ -174,6 +175,12 @@ export interface AccountView {
   pool: PoolEntry[]
   /** The agents whose CLI is not found (`Agent.installed`): no account of theirs is added from the page. */
   missing: string[]
+  /** By agent, the version of the CLI its sessions run on, `null` — none found (`cliReport`, BTN-1502). */
+  clis?: Record<string, string | null>
+  /** By agent, the official installer's command for each CLI the service's user can install here (`CliInstaller.commands`). */
+  installs?: Record<string, string>
+  /** The install the page started, under way or the last one ended (`CliInstaller.view`). */
+  install?: CliInstallView | null
 }
 
 /** A pool entry naming an account folder for a provider: the shared pool's (`project` null) or a project's own. */

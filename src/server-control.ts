@@ -115,6 +115,10 @@ export interface AccountControl {
   enableRemote(account: string): Promise<void>
   code(code: string): void
   cancel(): void
+  /** The agent's official installer, run as the service's user (BTN-1502). */
+  installCli(agent: string): void
+  /** The CLIs looked for and asked their version anew, for "Check again" on a machine elsewhere. */
+  checkClis(): Promise<void>
 }
 
 export interface TaskControl {
@@ -286,6 +290,9 @@ export interface ServerDeps {
     login(machine: string, agent: string, account?: string, method?: string): Promise<void>
     code(machine: string, code: string): Promise<void>
     cancel(machine: string): Promise<void>
+    /** The agent's official installer on a machine elsewhere, run as its service's user (BTN-1502). */
+    installCli(machine: string, agent: string): Promise<void>
+    checkClis(machine: string): Promise<void>
     /** A long token on a machine elsewhere (BTN-1002), tied to the claude.ai account of the hub's folder `account`. */
     token(machine: string, account: string, token: string, name?: string): Promise<void>
     /** The long token the hub's folder `from` runs on, on a machine elsewhere (BTN-1501): the page never holds it. */

@@ -247,6 +247,8 @@ export class MachineNetwork {
           codeSent: login.codeSent,
         },
         missing: panel.missing,
+        ...(panel.installs !== undefined && { installs: panel.installs }),
+        ...(panel.install !== undefined && { install: panel.install }),
       }]
     })
   }
@@ -299,6 +301,16 @@ export class MachineNetwork {
 
   async cancel(machine: string): Promise<void> {
     await (await this.accountsOf(machine)).cancel()
+  }
+
+  /** The agent's official installer on the machine (BTN-1502); its output comes back in the machine's panel. */
+  async installCli(machine: string, agent: string): Promise<void> {
+    this.options.log(`machines: the CLI of ${agent} is installed on machine ${machine}`)
+    await (await this.accountsOf(machine)).installCli(agent)
+  }
+
+  async checkClis(machine: string): Promise<void> {
+    await (await this.accountsOf(machine)).checkClis()
   }
 
   /**

@@ -49,7 +49,7 @@ export const machinePageEn: Messages['machinePage'] = {
   agents: 'Agents',
   agentsNone: 'none found',
   noCli: (agent) => `${agent}: no CLI`,
-  noCliTip: (agent) => `The hub has a ${agent} account, but the machine has no ${agent} CLI: that agent's tasks do not come here. Install it on the machine.`,
+  noCliTip: (agent) => `The hub has a ${agent} account, but the machine has no ${agent} CLI: it can neither sign in to ${agent} nor run its sessions until the CLI is there. Install it from "Add account" on this machine.`,
   root: 'Projects folder',
   rootNone: 'none: reinstall Even Keel on the machine naming its projects folder',
   accounts: 'Accounts',

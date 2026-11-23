@@ -666,3 +666,74 @@ describe('AccountWatcher.batch', () => {
     expect(limits).toHaveBeenCalledTimes(2 * keys)
   })
 })
+
+describe('AccountWatcher CLIs (BTN-1502)', () => {
+  let root: string
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  function watcher(extra: Partial<AccountWatcherOptions>) {
+    root = mkdtempSync(join(tmpdir(), 'even-keel-watcher-'))
+    const homes = new AccountHomes({ CLAUDE_CONFIG_DIR: join(root, 'global'), CODEX_HOME: join(root, 'no-codex') }, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'), join(root, 'copilot'))
+    const onChange = vi.fn()
+    const options = {
+      homes,
+      agentOf: () => ({ authStatus: async () => API_STATUS }),
+      apps: { list: () => [] },
+      prepare: async () => {},
+      active: () => 'global',
+      nameOf: () => null,
+      transportOf: () => null,
+      loginBlock: () => null,
+      sessionsIn: () => [],
+      projectsOn: () => [],
+      pool: () => [],
+      missing: () => [],
+      online: async () => true,
+      sessionsKnown: () => true,
+      removing: () => false,
+      configPending: () => false,
+      limits: () => null,
+      usage: () => ({ state: 'ok' }),
+      checkKey: async () => ({ state: 'ok' }),
+      keyCheckMs: 60 * 60_000,
+      checkCredit: async () => ({ state: 'unknown', reason: 'none' }),
+      creditCheckMs: 60 * 60_000,
+      organizations: { of: () => undefined, note: () => {}, forget: () => {} },
+      now: () => new Date('2026-11-09T12:00:00.000Z'),
+      onChange,
+      onError: (error: unknown) => {
+        throw error
+      },
+      ...extra,
+    } as unknown as AccountWatcherOptions
+    return { accounts: new AccountWatcher(options), onChange }
+  }
+
+  it('carries the live CLI versions, the install commands and the install under way', () => {
+    const install = { agent: 'codex', command: 'npm install -g @openai/codex', startedAt: '2026-11-09T12:00:00.000Z', output: 'added 1 package', state: 'running' as const }
+    const installer = { commands: () => ({ codex: 'npm install -g @openai/codex' }), view: () => install, start: vi.fn(), recheck: vi.fn(async () => {}) }
+    const { accounts } = watcher({ clis: () => ({ claude: '2.1.330', codex: null }), installer })
+    expect(accounts.view).toMatchObject({ clis: { claude: '2.1.330', codex: null }, installs: { codex: 'npm install -g @openai/codex' }, install })
+    accounts.installCli('codex')
+    expect(installer.start).toHaveBeenCalledWith('codex')
+  })
+
+  it('has no CLI fields and refuses an install without an installer', () => {
+    const { accounts } = watcher({})
+    expect(accounts.view).not.toHaveProperty('clis')
+    expect(accounts.view).not.toHaveProperty('installs')
+    expect(() => accounts.installCli('codex')).toThrow(/codex cannot be installed here/)
+  })
+
+  it('tells the page when a CLI version changes between refreshes, and only then', async () => {
+    let clis: Record<string, string | null> = { claude: null }
+    const { accounts, onChange } = watcher({ clis: () => clis })
+    await accounts.refresh()
+    onChange.mockClear()
+    await accounts.refresh()
+    expect(onChange).not.toHaveBeenCalled()
+    clis = { claude: '2.1.330' }
+    await accounts.refresh()
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+})

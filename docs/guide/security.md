@@ -85,6 +85,10 @@ label you put on yourself ([the chain](chain.md#which-tasks-enter-the-chain)).
   page does. The Protection group **Requests to Even Keel's address** refuses a shell command that sends such a request
   (`curl`, `wget`, `Invoke-WebRequest`, `node` or `python` with the address). It is a pattern too: a script the session
   wrote or an address built in a string gets past it.
+- **The page can run an agent's installer.** Where an agent's CLI is missing, **Install** on the page runs the
+  command shown above it as the user Even Keel runs as, on the hub or on a machine: the agent's official script
+  downloaded from its site (Claude Code) or a global npm install of its package. Whoever can open the page, or a
+  session that reaches its address, can start it.
 - **Its work leaves the machine without a person looking.** Without PR mode a session merges its branch into the main
   branch itself and Even Keel pushes it to every remote. In PR mode Even Keel pushes the task's branch and opens a pull
   request, and CI runs on that branch. A change to CI workflows, hooks, `CLAUDE.md`, `AGENTS.md`, skills or package

@@ -83,6 +83,14 @@ export interface MachinePageDeps {
   log: (line: string) => void
 }
 
+/**
+ * The report with the CLIs the machine's panel names now (BTN-1502): the report goes only at a handshake, the panel
+ * follows a CLI installed or removed since. A machine older than the panel's `clis` keeps its report's.
+ */
+function withLiveClis(about: MachineAbout | null, clis: Record<string, string | null> | undefined): MachineAbout | null {
+  return about === null || clis === undefined ? about : { ...about, agents: { ...about.agents, ...clis } }
+}
+
 /** The page of one machine (`/machines/<id>`, BTN-1272): its query and its commands besides "Revoke". */
 export function machinePageControl(deps: MachinePageDeps) {
   const known = async (machine: string): Promise<MachineRecord> => {
@@ -106,7 +114,7 @@ export function machinePageControl(deps: MachinePageDeps) {
         own,
         online: own || deps.online(record.id),
         joinedAt: record.joinedAt,
-        about: own ? await deps.ownAbout() : record.about,
+        about: withLiveClis(own ? await deps.ownAbout() : record.about, panel?.clis),
         hubVersion: deps.version,
         color,
         picked: record.color !== undefined && record.color !== null,

@@ -9,6 +9,7 @@ import { CheckIcon, EvenKeelIcon, ServerIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AgentIcon } from './accountParts.js'
 import { MachineClaudeSign } from './MachineClaudeSign.js'
+import { MachineCliInstall } from './MachineCliInstall.js'
 import './machineAccounts.css'
 
 export interface Place {
@@ -85,14 +86,19 @@ interface AgentsProps {
 }
 
 /**
- * The agents of a new account on a machine elsewhere (BTN-1302): one whose CLI the machine lacks is off with why; the
- * pick signs in there and `MachineLoginDialog` follows it. Claude first asks how, as the hub does (BTN-1501): a full
+ * The agents of a new account on a machine elsewhere (BTN-1302): one whose CLI the machine lacks opens its install there
+ * (`MachineCliInstall`, BTN-1502); the pick signs in there and `MachineLoginDialog` follows it. Claude first asks how, as the hub does (BTN-1501): a full
  * sign-in or a long token (`MachineClaudeSign`).
  */
 export function MachineAgents({ machine, accounts, busy, failure, back, onPick, onAdded }: AgentsProps) {
   const view = t.machinePanel.view
   const [claude, setClaude] = useState<MachineAddChoice | null>(null)
+  const [installing, setInstalling] = useState<string | null>(null)
   const choices = machineAddChoices(machine)
+  // The step stays while the CLI is missing: once the machine finds it, its tile is there to pick.
+  if (installing !== null && choices.some((choice) => choice.agent === installing && choice.missing)) {
+    return <MachineCliInstall machine={machine} agent={installing} back={() => setInstalling(null)} />
+  }
   if (claude !== null) {
     return (
       <MachineClaudeSign machine={machine} accounts={accounts} busy={busy} failure={failure} back={() => setClaude(null)} onFull={() => onPick(claude)} onAdded={onAdded} />
@@ -109,7 +115,8 @@ export function MachineAgents({ machine, accounts, busy, failure, back, onPick, 
               <button
                 type="button"
                 className="add-package__kind"
-                {...(choice.missing ? { 'aria-disabled': 'true' as const } : { disabled: busy, onClick: () => pick(choice) })}
+                disabled={busy}
+                onClick={() => (choice.missing ? setInstalling(choice.agent) : pick(choice))}
               >
                 <span className="add-package__kind-icon">
                   <AgentIcon agent={choice.agent} />

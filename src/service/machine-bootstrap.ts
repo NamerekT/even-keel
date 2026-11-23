@@ -6,8 +6,11 @@ import { AccountSettings, loadAccountSettings, saveAccountSettings } from '../ac
 import { KeySpend, readOpenRouterKey } from '../account/spend.js'
 import { SPEND_EVENT } from '../machine/records.js'
 import type { MachineContext } from './machine-context.js'
+import { AGENTS } from '../agent/adapters.js'
+import { CLI_INSTALL_TIMEOUT_MS, CliInstaller } from '../agent/cli-installer.js'
 import { copies } from '../agent/copies.js'
 import { installableClis, writableFolder } from '../agent/installable.js'
+import { forgetNpmBinaries } from '../agent/npm-global.js'
 import { inContainer } from '../locations.js'
 import { plainProjects, projectLabel, type EvenKeelConfig } from '../config.js'
 import { runGit } from '../git/run.js'
@@ -46,8 +49,37 @@ export function assembleKeySpend(ctx: Pick<MachineContext, 'homes' | 'account' |
   })
 }
 
+/** The agents whose CLI the service's user can install on this machine: none in a container, whose CLIs come as copies. */
+function installableHere(ctx: Pick<MachineContext, 'runtimes'>): string[] {
+  return installableClis([...ctx.runtimes.keys()], { container: inContainer, env: process.env, execPath: process.execPath, platform: process.platform, writable: writableFolder })
+}
+
+/**
+ * The page's "Install" of an agent's CLI (BTN-1502): its official installer as the service's user, then the CLIs looked
+ * for again, so the panel's versions and the machine's report show it without a restart.
+ */
+export function assembleCliInstaller(ctx: Pick<MachineContext, 'runtimes' | 'machineChanged' | 'account' | 'cliVersions'>): CliInstaller {
+  let installable: string[] | undefined
+  return new CliInstaller({
+    platform: process.platform,
+    installable: () => (installable ??= installableHere(ctx)),
+    title: (agent) => AGENTS[agent]?.title ?? agent,
+    env: () => process.env,
+    execPath: process.execPath,
+    timeoutMs: CLI_INSTALL_TIMEOUT_MS,
+    onChange: () => ctx.machineChanged(),
+    onEnd: async () => {
+      forgetNpmBinaries()
+      await ctx.cliVersions.check()
+      await ctx.account.refresh()
+    },
+    log: (line) => console.log(line),
+    now: () => new Date(),
+  })
+}
+
 export async function assembleCliCopies(ctx: Pick<MachineContext, 'runtimes' | 'configStore' | 'machineChanged' | 'account' | 'cliVersions' | 'machineDb' | 'writes' | 'brief'>) {
-  const installable = installableClis([...ctx.runtimes.keys()], { container: inContainer, env: process.env, execPath: process.execPath, platform: process.platform, writable: writableFolder })
+  const installable = installableHere(ctx)
   return copies(ctx.runtimes, (name, source) => ctx.configStore.saveCli(name, source), (name) => ctx.configStore.fallBackCli(name),
     () => { ctx.machineChanged(); void ctx.account.refresh() },
     async () => { await ctx.cliVersions.check(); await ctx.account.refresh() },

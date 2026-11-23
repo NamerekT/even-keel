@@ -74,8 +74,8 @@ const NODE_MAJOR = 24
 
 /**
  * What the machine reported, as checks: Node, git with its user, and the CLI of each agent the hub has accounts of or
- * the machine has; a missing one is not ok — the hub sends that agent's tasks elsewhere. A report names every agent it
- * asked, `null` where the CLI is not there.
+ * the machine has; a missing one is not ok — the machine can neither sign in to that agent nor run its sessions. A
+ * report names every agent it asked, `null` where no CLI is found as a launch looks for one.
  */
 export function machineChecks(about: MachineAbout, hubAgents: string[]): MachineCheck[] {
   const major = Number(about.node.split('.')[0])
@@ -93,8 +93,9 @@ export function machineChecks(about: MachineAbout, hubAgents: string[]): Machine
 
 /**
  * The agents' CLIs of a machine's page (BTN-1307): those its report gives a version of and its panel does not miss,
- * and, of the agents the hub has accounts of, those it lacks. A report names every agent it asked, `null` where the
- * CLI is not on the PATH, so a name alone is no CLI.
+ * and, of the agents the hub has accounts of, those it lacks. A report names every agent it asked, `null` where no CLI
+ * is found as a launch looks for one (BTN-1502), so a name alone is no CLI; the page's `about` already carries the
+ * panel's live versions.
  */
 export function machineAgents(about: MachineAbout, missing: string[], hubAgents: string[]): { found: Array<{ agent: string; version: string }>; lacking: string[] } {
   const found = Object.entries(about.agents).flatMap(([agent, version]) => (version === null || missing.includes(agent) ? [] : [{ agent, version }]))

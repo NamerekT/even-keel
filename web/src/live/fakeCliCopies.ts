@@ -1,3 +1,4 @@
+import { installCommand } from '../../../src/agent/install-command.js'
 import { isProvider, PROVIDERS } from '../../../src/agent/providers.js'
 import type { CliCopyView } from '../../../src/agent/cli-state.js'
 import { notice } from '../../../src/notice/notice.js'
@@ -6,6 +7,8 @@ import type { EvenKeelState } from '../../../src/state.js'
 const VERSIONS: Record<string, string> = { claude: '2.1.310', codex: '0.164.0', opencode: '1.18.25', copilot: '1.0.98' }
 const SIZES: Record<string, number> = { claude: 280, codex: 175, opencode: 170, copilot: 155 }
 const INSTALLED: Record<string, string> = { claude: '2.1.312', codex: '0.165.0', opencode: '1.19.5', copilot: '1.0.99' }
+/** What an installer prints while it runs, for the page's output under "Install" (BTN-1502). */
+export const FAKE_INSTALL_OUTPUT = 'Setting up the agent CLI...\nDownloading the latest release (82 MB)\nVerifying the checksum\n'
 
 export function withCliCopies(state: EvenKeelState, params: URLSearchParams): EvenKeelState {
   const mode = params.get('copies')
@@ -30,9 +33,11 @@ export function withCliCopies(state: EvenKeelState, params: URLSearchParams): Ev
   if (other && other !== copy) Object.assign(other, { status: 'failed', source: 'system' })
   const next = { ...state, cliCopies: Object.fromEntries(copies), config: { ...state.config, shared: { ...state.config.shared, cli: { ...state.config.shared.cli, [provider]: copy.source } } } }
   const blocked = copy.source === 'checked' && copy.status !== 'ready'
+  // The page's "Install" (BTN-1502): the command a CLI missing on Yours would be installed with, where one can be.
+  const installs = mode === 'system-missing' && installable ? { installs: { [provider]: installCommand(provider, state.platform) } } : {}
   return {
     ...next,
-    account: { ...next.account, missing: copy.source === 'checked' && copy.status === 'ready' || copy.system ? next.account.missing.filter((agent) => agent !== provider) : [...new Set([...next.account.missing, provider])] },
+    account: { ...next.account, ...installs, missing: copy.source === 'checked' && copy.status === 'ready' || copy.system ? next.account.missing.filter((agent) => agent !== provider) : [...new Set([...next.account.missing, provider])] },
     chain: { ...next.chain, active: next.chain.active.map((chain, index) => index === 0 && blocked ? { ...chain, current: null, paused: true, error: notice('agent.copyMissing', { title: provider, agent: provider }) } : chain) },
   }
 }
@@ -51,11 +56,18 @@ function freshInstall(state: EvenKeelState, params: URLSearchParams): EvenKeelSt
   const provider = params.get('provider') ?? shared.provider
   return { ...state, cliCopies,
     config: { ...state.config, shared: { ...shared, provider, cli: Object.fromEntries(PROVIDERS.map((agent) => [agent, 'system'])) } },
-    account: { ...state.account, missing: PROVIDERS.filter((agent) => !present.has(agent)) },
+    account: { ...state.account, missing: PROVIDERS.filter((agent) => !present.has(agent)),
+      ...(params.get('copyInstall') !== 'none' && { installs: Object.fromEntries(PROVIDERS.filter((agent) => !present.has(agent)).map((agent) => [agent, installCommand(agent, state.platform)])) }) },
   }
 }
 
 export function fakeCliCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
+  if (name === 'account/installCli') {
+    const agent = String(body.agent)
+    const command = state.account.installs?.[agent]
+    if (command === undefined) throw new Error('Unknown agent')
+    return { ...state, account: { ...state.account, install: { agent, command, startedAt: new Date().toISOString(), output: FAKE_INSTALL_OUTPUT, state: 'running' } } }
+  }
   if (!name.startsWith('cli/')) return null
   if (name === 'cli/check') return state
   const agent = String(body.agent)

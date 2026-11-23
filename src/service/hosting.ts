@@ -35,6 +35,7 @@ import { onMachines, poolControl } from './machine-pool.js'
 import { machinePageControl } from './machine-page.js'
 import { machineCards } from './machine-cards.js'
 import { machineAbout } from '../machine/about.js'
+import { sweptClis } from '../machine/cli-report.js'
 import type { MachineAbout } from '../link/view.js'
 import { installed } from '../updates/watcher.js'
 import { createEvenKeelServer } from '../server.js'
@@ -100,6 +101,7 @@ export type HostingContext = Pick<ServiceContext,
   | 'cliCopies'
   | 'cliChecks'
   | 'cliVersions'
+  | 'runtimes'
   | 'configStore'
   | 'configuredProject'
   | 'machineLink'
@@ -273,7 +275,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     online: (machine) => network.connected(machine),
     mirror: (machine) => ctx.machineLink.mirror(machine),
     ownAbout: () => {
-      ownAbout ??= machineAbout({ evenKeel: installed(root).version, root: null, git: runGit, home: homedir() }).catch((error: unknown) => {
+      ownAbout ??= machineAbout({ evenKeel: installed(root).version, root: null, git: runGit, home: homedir(), clis: () => sweptClis(ctx.runtimes, ctx.cliVersions) }).catch((error: unknown) => {
         ownAbout = undefined
         throw error
       })

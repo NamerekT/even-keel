@@ -10,6 +10,7 @@ import { parseToken } from './link/protocol.js'
 import { HookReceiver } from './machine/hook-receiver.js'
 import { home, inContainer, loadEnv, root, source, stateDirOf } from './locations.js'
 import { machineAbout } from './machine/about.js'
+import { sweptClis } from './machine/cli-report.js'
 import type { HubBrief } from './machine/brief.js'
 import { folderMarks } from './machine/marks.js'
 import { machineValue } from './machine/state.js'
@@ -93,7 +94,8 @@ const side = wireMachineSide(machine, {
   // The hub names the machine at its invitation; the machine knows itself by its host, so a mark names that.
   marks: folderMarks(() => ({ machine: token.machine, name: hostname() }), process.env),
   about: async () => {
-    const about = await machineAbout({ evenKeel: version, root: projectsRoot, commit, container: inContainer, git: runGit, home: homedir() })
+    const clis = () => sweptClis(host.runtimes, host.cliVersions)
+    const about = await machineAbout({ evenKeel: version, root: projectsRoot, commit, container: inContainer, git: runGit, home: homedir(), clis })
     const follow = follower.view()
     return follow === undefined ? about : { ...about, follow }
   },

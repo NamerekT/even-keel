@@ -64,6 +64,18 @@ describe('the page of a machine (BTN-1272)', () => {
     expect(page).toMatchObject({ own: true, online: true, capacity: 3, color: '#6f8f7f', picked: false, paletteColor: '#6f8f7f', about: { host: 'own-host' } })
   })
 
+  it("takes the CLIs from the machine's live panel over its handshake's report: one installed after it connected shows (BTN-1502)", async () => {
+    const live = { ...facts, panel: { ...panel, clis: { claude: '2.1.330', codex: null } } } as unknown as MachineFacts
+    const page = await machinePageControl(deps({ mirror: () => ({ facts: () => live, page: pageReads(() => live) }) })).view('srv')
+    expect(page.about?.agents).toEqual({ claude: '2.1.330', codex: null })
+    expect(page.about?.host).toBe('example-host')
+  })
+
+  it('keeps the report when the panel names no CLIs, an older machine', async () => {
+    const page = await machinePageControl(deps()).view('srv')
+    expect(page.about?.agents).toEqual({ claude: '2.1.0' })
+  })
+
   it('refuses a revoked or unknown machine', async () => {
     const control = machinePageControl(deps())
     await expect(control.view('gone')).rejects.toMatchObject({ notice: { code: 'machines.unknown' } })

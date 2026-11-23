@@ -646,7 +646,7 @@ function DeviceCode({ code, onCopy }: { code: string; onCopy: () => void }) {
   )
 }
 
-function Output({ text, open = false, label = t.account.output }: { text: string; open?: boolean; label?: string }) {
+export function Output({ text, open = false, label = t.account.output }: { text: string; open?: boolean; label?: string }) {
   return (
     <Fold className="account__output" defaultOpen={open} summary={label}>
       {() => (

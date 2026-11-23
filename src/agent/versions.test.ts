@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { claude } from '../claude/adapter.js'
 import { codex } from '../codex/adapter.js'
 import { copilot } from '../copilot/adapter.js'
@@ -126,6 +126,43 @@ describe('VersionWatcher', () => {
     await watch.check()
     expect(watch.installedOf('claude')).toBe('2.1.301')
     expect(watch.installedOf('codex')).toBeNull()
+  })
+
+  it('reads the versions again when a CLI appears or goes between its sweeps, and asks nothing while none does', async () => {
+    let present = false
+    let asked = 0
+    const codex = { ...agent('codex', 'codex-cli 0.170.0'), installed: () => present, version: async () => { asked++; return 'codex-cli 0.170.0' } }
+    const { watch, changes } = watcher([codex])
+    await watch.check()
+    await watch.noticeInstalls()
+    expect(asked).toBe(0)
+
+    present = true
+    await watch.noticeInstalls()
+    expect(watch.installedOf('codex')).toBe('0.170.0')
+    expect(changes()).toBe(1)
+    await watch.noticeInstalls()
+    expect(asked).toBe(1)
+
+    present = false
+    await watch.noticeInstalls()
+    expect(watch.installedOf('codex')).toBeNull()
+  })
+
+  it('answers a check asked during a sweep only after a sweep that started after it', async () => {
+    let release = () => {}
+    const answers = ['codex-cli 0.170.0', 'codex-cli 0.171.0']
+    const codex = { ...agent('codex', ''), version: () => new Promise<string>((done) => { const answer = answers.shift()!; release = () => done(answer) }) }
+    const { watch } = watcher([codex])
+    const first = watch.check()
+    const second = watch.check()
+    await vi.waitFor(() => expect(answers).toHaveLength(1))
+    release()
+    await first
+    await vi.waitFor(() => expect(answers).toEqual([]))
+    release()
+    await second
+    expect(watch.installedOf('codex')).toBe('0.171.0')
   })
 })
 

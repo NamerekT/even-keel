@@ -1,4 +1,6 @@
 import { notice } from '../../../src/notice/notice.js'
+import { installCommand } from '../../../src/agent/install-command.js'
+import { FAKE_INSTALL_OUTPUT } from './fakeCliCopies.js'
 import { MACHINE_PALETTE, machineColors } from '../../../src/link/colors.js'
 import { JOIN_KIND, type JoinRequest } from '../../../src/jobs/model.js'
 import type { FolderProbe } from '../../../src/link/view.js'
@@ -453,6 +455,7 @@ export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): M
   }
   const laptop: MachineSignIn = {
     machine: 'machine-1', name: 'Example laptop', online: mode !== 'offline', login: null, missing: mode === 'nocli' ? ['claude'] : [],
+    ...(mode === 'nocli' && { installs: { claude: installCommand('claude', 'linux') } }),
     accounts: mode === 'checking' ? desktop.accounts.slice(0, 1) : [],
   }
   if (mode === 'many') return [...manyMachines(state, laptop), desktop]
@@ -494,6 +497,15 @@ export function fakeMachineCommand(state: EvenKeelState, name: string, body: Rec
   const machine = String(body.machine)
   if (name === 'machines/login') return change(machine, (each) => ({ ...each, login: loginOf(String(body.agent ?? 'claude'), typeof body.account === 'string' ? body.account : null) }))
   if (name === 'machines/cancel') return change(machine, (each) => ({ ...each, login: null }))
+  if (name === 'machines/checkClis') return state
+  if (name === 'machines/installCli') {
+    const agent = String(body.agent)
+    return change(machine, (each) => {
+      const command = each.installs?.[agent]
+      if (command === undefined) throw new Error('Unknown agent')
+      return { ...each, install: { agent, command, startedAt: new Date().toISOString(), output: FAKE_INSTALL_OUTPUT, state: 'running' } }
+    })
+  }
   if (name === 'machines/token') {
     const hub = state.account.accounts.find((entry) => entry.key === body.account)
     return change(machine, (each) => ({

@@ -173,6 +173,7 @@ export const SERVICE_COMMANDS = {
   account: [
     'discoverGlobal', 'useGlobal', 'add', 'addApiKey', 'addCloud', 'addLongToken', 'readAws', 'readGcloud', 'readAzure', 'replaceApiKey',
     'setManagementKey', 'renew', 'switchTo', 'switchApp', 'remove', 'keep', 'rename', 'resolveSettingsEdit', 'dropOwnSetting', 'enableRemote', 'code', 'cancel',
+    'installCli', 'checkClis',
   ],
   transcript: ['record', 'feed', 'image', 'inboxFile', 'sharedFile', 'note', 'context'],
   chat: ['post', 'giveBack', 'dismiss', 'steer', 'tell', 'saveInbox'],

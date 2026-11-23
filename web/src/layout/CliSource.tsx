@@ -8,6 +8,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { CliProgress, mb, titleOf } from './CliCopies.js'
 import { cliLockOf, type CliSource } from './cliLock.js'
 import { cliText, installCommand } from './cliText.js'
+import { InstallButton, InstallOutput, installOf } from './CliInstall.js'
 import './cliCopies.css'
 import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
@@ -97,6 +98,9 @@ export function CliSourceChoice({ provider, label, execution, picked, onPick }: 
   const text = cliText()
   const chosen = source === 'checked' || source === 'latest' ? source : copy.system ? 'system' : null
   const busy = sending || checked.sending
+  // The service runs the same command itself where it can (BTN-1502).
+  const runs = state.account.installs?.[provider]
+  const install = installOf(state.account.install, provider)
   const download = <button type="button" className="button button--small" disabled={busy} onClick={() => void send('cli/download', { agent: provider, ...(copy.source === 'latest' ? { source: 'latest' } : {}) })}>
     {copy.status === 'failed' ? text.retry : text.download(mb(copy.approximate))}
   </button>
@@ -120,10 +124,17 @@ export function CliSourceChoice({ provider, label, execution, picked, onPick }: 
         {latestReady !== null ? text.latestReady(latestReady) : text.latestOffer(mb(copy.approximate))}
       </label>}
     </div>
-    {chosen === null && copy.status !== 'downloading' && (copy.installable ? <div className="cli-source__install">
-      <CommandBlock command={installCommand(provider, state.platform)} />
-      <button type="button" className="button button--small" disabled={busy} onClick={() => void send('cli/check')}>{text.again}</button>
-    </div> : <p className="settings__hint">{text.noInstall}</p>)}
+    {chosen === null && copy.status !== 'downloading' && (copy.installable ? <>
+      {runs !== undefined && <p className="settings__hint">{text.installVia}</p>}
+      <div className="cli-source__install">
+        <CommandBlock command={runs ?? installCommand(provider, state.platform)} />
+        <div className="cli-source__buttons">
+          {runs !== undefined && <InstallButton install={install} busy={busy} onInstall={() => void send('account/installCli', { agent: provider })} />}
+          <button type="button" className="button button--small" disabled={busy} onClick={() => void send('cli/check')}>{text.again}</button>
+        </div>
+      </div>
+      {runs !== undefined && install !== null && <InstallOutput install={install} title={titleOf(provider)} />}
+    </> : <p className="settings__hint">{text.noInstall}</p>)}
     {copy.status === 'downloading' && <div className="cli-copy"><CliProgress provider={provider} copy={copy} /></div>}
     {copy.status === 'failed' && <div className="cli-source__problem">
       <p className="notice notice--error">{say({ code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</p>

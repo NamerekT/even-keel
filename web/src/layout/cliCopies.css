@@ -24,3 +24,14 @@
 .cli-source__install, .cli-source__problem { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); min-width: 0; }
 .cli-source__install > :first-child { flex: 1 1 16em; min-width: 0; }
 .cli-source__problem .notice { margin: 0; }
+/* "Install" and "Check again" wrap under the command together, never one by one (BTN-1502). */
+.cli-source__buttons { display: flex; gap: var(--space-8); }
+.cli-install__foot .button { white-space: nowrap; }
+
+@media (max-width: 760px) {
+  /* A machine's install step: its foot's buttons one under another across the width, the primary on top. */
+  .cli-install__foot { flex-direction: column-reverse; align-items: stretch; }
+  .cli-install__foot .add-package__spacer { display: none; }
+}
+.cli-install { display: grid; gap: var(--space-8); min-width: 0; }
+.cli-install p, .cli-install .notice { margin: 0; }

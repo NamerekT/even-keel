@@ -21,6 +21,8 @@ import type { Agent, SessionHandle, SessionStart } from '../agent/contract.js'
 import { sessionBase, sessionEnv, sessionSecrets, settingsSecrets } from '../agent/env.js'
 import { ModelCatalog } from '../agent/models.js'
 import { VersionWatcher } from '../agent/versions.js'
+import { cliReport } from '../machine/cli-report.js'
+import { assembleCliInstaller } from './machine-bootstrap.js'
 import { CLAUDE } from '../claude/name.js'
 import { untrustedStart } from '../claude/trust.js'
 import { CODEX } from '../codex/name.js'
@@ -492,6 +494,8 @@ export function wireAccount(ctx: MachineContext): AccountWatcher {
       ctx.machineChanged()
     },
     missing: () => [...ctx.runtimes].flatMap(([name, agent]) => (agent.installed?.() === false ? [name] : [])),
+    clis: () => cliReport(ctx.runtimes, (name) => ctx.cliVersions.installedOf(name)),
+    installer: assembleCliInstaller(ctx),
     online: ctx.online,
     sessionsKnown: () => ctx.agentsRead,
     removing: (key) => ctx.ledger.removing.includes(key),

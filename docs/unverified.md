@@ -323,6 +323,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 292 | [A Forgejo repository with Actions turned off](unverified/ci.md#a-forgejo-repository-with-actions-turned-off-btn-1500) | projects with a Forgejo remote whose repository has Actions off and a checkout with `.github/workflows` | the profile still shows "CI hidden" for those projects; nothing to do, the warning is harmless | — |
 | 293 | [A tracker profile hidden from sessions started by hand](unverified/trackers.md#a-tracker-profile-hidden-from-sessions-started-by-hand-btn-1498) | installations that hide a default tracker profile from sessions started by hand | its keys stay in an account folder's `settings.json` or come back after a restart; remove them there by hand | — |
 | 294 | [Report a problem's prefilled issue forms](unverified/page.md#report-a-problems-prefilled-issue-forms-btn-1494) | everyone who reports a problem from the gear menu | the form opens with the version or the CLI field empty, or GitHub could fill the OS and agent dropdowns too and they are left blank; type them in the form | — |
+| 295 | [Installing an agent's CLI from the page](unverified/machines.md#installing-an-agents-cli-from-the-page-btn-1502) | hubs and machines elsewhere with an agent on Yours and no CLI | "Install" ends in an error under the button, or a CLI installed by hand shows only after a restart; run the command in a terminal as the service's user | BTN-1549 |
 
 ### Waiting for the event / not checked by choice
 

@@ -23,6 +23,8 @@ export interface VersionWatcherOptions {
 }
 
 const VERSION = /\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/
+/** How often `noticeInstalls` looks whether a CLI appeared or went. */
+export const INSTALLS_POLL_MS = 60_000
 
 /** The version in the output of `claude --version` (`2.1.303 (Claude Code)`) or `codex --version` (`codex-cli 0.162.1`). */
 export function cliVersionOf(output: string): string | null {
@@ -36,34 +38,59 @@ export function cliVersionOf(output: string): string | null {
 export class VersionWatcher {
   private readonly installed = new Map<string, string>()
   private readonly failures = new Map<string, string>()
-  private running = false
+  /** By agent, whether its CLI was found at the last sweep: `noticeInstalls` compares with it. */
+  private readonly found = new Map<string, boolean>()
+  private running: Promise<void> | undefined
+  private queued: Promise<void> | undefined
 
   constructor(private readonly options: VersionWatcherOptions) {}
 
   start(): void {
     void this.check()
     setInterval(() => void this.check(), this.options.intervalMs).unref()
+    setInterval(() => void this.noticeInstalls(), INSTALLS_POLL_MS).unref()
   }
 
-  async check(): Promise<void> {
-    if (this.running) return
-    this.running = true
-    try {
-      let changed = false
-      for (const agent of this.options.agents()) {
-        await agent.prune?.()
-        const version = agent.installed() ? await this.ask(agent) : null
-        if (version === undefined || version === (this.installed.get(agent.name) ?? null)) continue
-        if (version === null) this.installed.delete(agent.name)
-        else this.installed.set(agent.name, version)
-        changed = true
-        const view = this.viewOf(agent)
-        if (view !== null) this.options.log(`agents: ${englishOf(view.notice)}`)
-      }
-      if (changed) this.options.onChange()
-    } finally {
-      this.running = false
+  /**
+   * A sweep. Asked during one, it waits for one more that starts after it: a CLI installed or downloaded meanwhile is
+   * read by the time it answers (BTN-1502).
+   */
+  check(): Promise<void> {
+    if (this.running === undefined) {
+      this.running = this.sweep().finally(() => { this.running = undefined })
+      return this.running
     }
+    this.queued ??= this.running.then(() => {
+      this.queued = undefined
+      return this.check()
+    })
+    return this.queued
+  }
+
+  /**
+   * A sweep when a CLI appeared or went since the last one (BTN-1502): one installed by hand or by the page's button
+   * shows its version within a minute, not at the next interval. Looking costs no call of a CLI.
+   */
+  noticeInstalls(): Promise<void> {
+    const moved = this.options.agents().some((agent) => this.found.has(agent.name) && this.found.get(agent.name) !== agent.installed())
+    return moved ? this.check() : Promise.resolve()
+  }
+
+  private async sweep(): Promise<void> {
+    let changed = false
+    for (const agent of this.options.agents()) {
+      await agent.prune?.()
+      const present = agent.installed()
+      this.found.set(agent.name, present)
+      const version = present ? await this.ask(agent) : null
+      if (version === undefined || version === (this.installed.get(agent.name) ?? null)) continue
+      if (version === null) this.installed.delete(agent.name)
+      else this.installed.set(agent.name, version)
+      changed = true
+      const view = this.viewOf(agent)
+      if (view !== null) this.options.log(`agents: ${englishOf(view.notice)}`)
+    }
+    if (changed) this.options.onChange()
   }
 
   view(): CliVersionView[] {

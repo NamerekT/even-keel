@@ -322,3 +322,11 @@ To check, on the benches (entry 181): on the page of a machine elsewhere with no
 Assumed: nothing else on a machine asks a hub server of a project outside its brief, and a machine taken out of a pool (its row deleted) stops asking with its next brief. If not, the log still has the line once per machine and project; it harms nothing.
 
 To check, on the benches (entry 181): connect a machine elsewhere to a project, then turn it off in the pool with the switch, and turn the hub's own machine off in another project's pool; for a few minutes after each, the hub's log has no `outside its pool: refused` and the machine's page reads the project's packages as on before.
+
+## Installing an agent's CLI from the page (BTN-1502)
+
+`docs/machines.md`, "On the machine" and "Installing a CLI from the page". "Install" runs the agent's official installer as the service's user, on the hub or over the link on a machine elsewhere, and the CLI's version reaches the machine's page without a restart or a new handshake: the panel carries it live, and `VersionWatcher.noticeInstalls` looks every minute whether a CLI appeared. Covered by `src/agent/cli-installer.test.ts`, `src/agent/versions.test.ts`, `src/machine/cli-report.test.ts`, `src/service/machine-page.test.ts` and `src/account/watcher.test.ts`, with a fake child process; no installer has run from the service.
+
+Assumed: Claude Code's `install.sh`/`install.ps1` and a global npm install finish without a terminal as the service's user — under the Windows service in session 0 too, into that user's profile — and put the binary where a launch finds it (`~/.local/bin`, npm's global folder). If not, the output under the button shows the installer's error and the CLI stays missing; run the command in a terminal as that user.
+
+To check, on the benches: on a hub on Yours without Codex, "Install" in the CLI's window; on a machine elsewhere, the tile of an agent with no CLI in "A new account on …", then "Install"; Claude Code installed by hand on a machine into `~/.local/bin` outside `PATH`; in a container, "Use the checked copy". After each, the machine's page shows the version within a minute, without a restart.

@@ -44,6 +44,10 @@ export const cliText = () => language === 'ru' ? {
   askLatest: (title: string, mb: number) => `Скачать последнюю версию ${title}, ≈${mb} МБ?`,
   askLatestNote: 'Even Keel сохранит свою копию, будет запускать сессии на ней и сам скачивать каждую новую версию.',
   latestShort: 'Последняя',
+  installVia: 'Even Keel запустит установщик агента от имени пользователя сервиса. Или выполните команду в терминале сами:',
+  install: 'Установить',
+  installRunning: 'Установка…',
+  installDone: 'Установщик закончил работу.',
 } : {
   title: 'Checked CLI copy',
   missing: 'The copy has not been downloaded. The chain will wait until it is ready.',
@@ -88,20 +92,10 @@ export const cliText = () => language === 'ru' ? {
   askLatest: (title: string, mb: number) => `Download the newest ${title}, ≈${mb} MB?`,
   askLatestNote: 'Even Keel keeps its own copy, runs sessions on it and downloads each new release by itself.',
   latestShort: 'Latest',
+  installVia: 'Even Keel runs the agent’s installer as the service’s user. Or run the command in a terminal yourself:',
+  install: 'Install',
+  installRunning: 'Installing…',
+  installDone: 'The installer finished.',
 }
 
-const NPM_INSTALL: Record<string, string> = {
-  codex: 'npm install -g @openai/codex',
-  opencode: 'npm install -g opencode-ai',
-  copilot: 'npm install -g @github/copilot',
-}
-
-/**
- * The command that installs a provider's CLI on the service's machine (`EvenKeelState.platform`). Claude Code takes its
- * native installer: it puts `claude` into `~/.local/bin`, which Even Keel looks into first, and runs from a terminal
- * too, while a newer npm skips the postinstall that puts the binary in place of npm's placeholder (BTN-1196).
- */
-export function installCommand(provider: string, platform: string): string {
-  if (provider === 'claude') return platform === 'win32' ? 'irm https://claude.ai/install.ps1 | iex' : 'curl -fsSL https://claude.ai/install.sh | bash'
-  return NPM_INSTALL[provider] ?? ''
-}
+export { installCommand } from '../../../src/agent/install-command.js'

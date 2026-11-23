@@ -58,6 +58,8 @@ export class AccountWatcher {
   private known: Known[] = []
   private read = false
   private absent: string[] = []
+  /** The CLI versions as of the last refresh, for it to tell the page when one changed (BTN-1502). */
+  private clis = 'null'
   private current: AccountLogin | null = null
   private globalCheck: AccountView['globalCheck']
   private running: Running | undefined
@@ -190,7 +192,20 @@ export class AccountWatcher {
       apps: this.options.apps.list(),
       pool: this.options.pool().filter((entry) => accounts.some((account) => account.key === entry.account && account.agent === entry.provider)),
       missing: this.absent,
+      ...(this.options.clis !== undefined && { clis: this.options.clis() }),
+      ...(this.options.installer !== undefined && { installs: this.options.installer.commands(), install: this.options.installer.view() }),
     }
+  }
+
+  /** Runs the agent's official installer as the service's user; its output follows in `view().install` (BTN-1502). */
+  installCli(agent: string): void {
+    if (this.options.installer === undefined) throw fail('agent.installNone', { title: agent })
+    this.options.installer.start(agent)
+  }
+
+  /** "Check again" on a machine elsewhere: its CLIs looked for anew, the panel's `clis` and `missing` with them. */
+  async checkClis(): Promise<void> {
+    await this.options.installer?.recheck()
   }
 
   /**
@@ -304,11 +319,13 @@ export class AccountWatcher {
     const keysChanged = await this.checkKeys(known)
     await this.checkCredit(homes)
     const absent = this.options.missing()
+    const clis = JSON.stringify(this.options.clis?.() ?? null)
     const first = !this.read
     this.read = true
-    if (!first && !keysChanged && JSON.stringify(known) === JSON.stringify(this.known) && absent.join() === this.absent.join()) return
+    if (!first && !keysChanged && JSON.stringify(known) === JSON.stringify(this.known) && absent.join() === this.absent.join() && clis === this.clis) return
     this.known = known
     this.absent = absent
+    this.clis = clis
     this.options.onChange()
   }
 

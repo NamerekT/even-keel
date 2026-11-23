@@ -133,6 +133,8 @@ const COMMANDS: Record<string, Command> = {
     machines?.token(textOf(body.machine, 'machine'), textOf(body.account, 'account'), textOf(body.token, 'token'), typeof body.name === 'string' ? body.name : ''),
   'machines/sharedToken': ({ machines }, body) => machines?.sharedToken(textOf(body.machine, 'machine'), textOf(body.from, 'from')),
   'machines/cancel': ({ machines }, body) => machines?.cancel(textOf(body.machine, 'machine')),
+  'machines/installCli': ({ machines }, body) => machines?.installCli(textOf(body.machine, 'machine'), textOf(body.agent, 'agent')),
+  'machines/checkClis': ({ machines }, body) => machines?.checkClis(textOf(body.machine, 'machine')),
   // The page sends its language: on the first run none is chosen yet, and the demo speaks the one the person reads.
   'demo/start': async ({ demo }, body) => void (await demo?.start(isLanguage(body.language) ? body.language : undefined)),
   'demo/again': async ({ demo }, body) => void (await demo?.again(isLanguage(body.language) ? body.language : undefined)),
@@ -174,6 +176,7 @@ const COMMANDS: Record<string, Command> = {
   'account/remote': ({ account }, body) => account.enableRemote(accountOf(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
+  'account/installCli': ({ account }, body) => account.installCli(textOf(body.agent, 'agent')),
   'packages/install': ({ packages }, body) => packages.install(nameOf(body)),
   'packages/update': ({ packages }, body) => packages.update(nameOf(body)),
   'packages/check': ({ packages }) => packages.checkAll(),

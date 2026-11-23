@@ -8,6 +8,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { Banner } from './Banner.js'
 import { cliText, installCommand } from './cliText.js'
+import { InstallButton, InstallOutput, installOf } from './CliInstall.js'
 import './cliCopies.css'
 import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
@@ -46,10 +47,14 @@ export function CliActions({ provider, onDownload, onSystem, onChecked, primary 
   // Where nobody can install the CLI (BTN-1539) Even Keel's copies are the only way: no command, the checked copy first.
   const noInstall = missingSystem && !copy.installable
   const offersLatest = noInstall && copy.latest !== undefined
+  // The service runs the same command itself where it can (BTN-1502).
+  const runs = missingSystem && !noInstall ? state.account.installs?.[provider] : undefined
+  const install = installOf(state.account.install, provider)
   return <div className={line ? 'banner__inner' : 'cli-copy'}>
     {copy.status === 'downloading' ? <CliProgress provider={provider} copy={copy} /> : <>
       {line ? <span>{text.missingNamed(titleOf(provider))}</span> : copy.status === 'failed' ? <p className="notice notice--error">{say({ code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</p> : waiting && !primary && <p>{text.missing}</p>}
-      {missingSystem && (noInstall ? <p>{text.noInstall}</p> : <><p>{text.installingCli}</p><CommandBlock command={installCommand(provider, state.platform)} /></>)}
+      {missingSystem && (noInstall ? <p>{text.noInstall}</p> : <><p>{runs === undefined ? text.installingCli : text.installVia}</p><CommandBlock command={runs ?? installCommand(provider, state.platform)} /></>)}
+      {runs !== undefined && install !== null && <InstallOutput install={install} title={titleOf(provider)} />}
       <div className={line ? 'banner__actions' : 'cli-copy__actions'}>
         {copy.source !== 'system' || copy.status === 'failed' ?
           <button type="button" className={`button button--small${primary ? ' button--primary' : ''}`} disabled={sending} onClick={async () => {
@@ -58,6 +63,7 @@ export function CliActions({ provider, onDownload, onSystem, onChecked, primary 
           <button type="button" className={`button button--small${noInstall ? ' button--primary' : ''}`} disabled={sending} onClick={async () => { if (await send('cli/checked', { agent: provider })) { if (onChecked) onChecked(); else requestCli(provider) } }}>{text.switch}</button>}
         {offersLatest && <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/download', { agent: provider, source: 'latest' })) onDownload?.() }}>{text.latestDownload(mb(copy.approximate))}</button>}
         {waiting && copy.system && !needsCheckedCli(provider, state?.config.shared.execution[provider]) && <button type="button" className="button button--small" disabled={sending} onClick={async () => { if (await send('cli/system', { agent: provider })) onSystem?.() }}>{text.system}</button>}
+        {runs !== undefined && <InstallButton primary install={install} busy={sending} onInstall={() => void send('account/installCli', { agent: provider })} />}
         {missingSystem && !noInstall && <button type="button" className="button button--small" disabled={sending} onClick={() => void send('cli/check')}>{text.again}</button>}
       </div>
     </>}
