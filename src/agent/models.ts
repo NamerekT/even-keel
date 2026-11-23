@@ -105,5 +105,5 @@ export function nearest(models: string[], wanted: string): string[] {
 }
 
 function lacks(list: ModelList | null, model: string): boolean {
-  return list !== null && list.complete && !list.models.includes(model)
+  return list !== null && list.complete && !list.models.includes(model) && !(list.unlisted ?? []).includes(model)
 }

@@ -109,6 +109,8 @@ If ChatGPT revokes the sign-in before it expires (for example after a plan chang
 
 This waits until the folder has no live Even Keel sessions, including those between turns. A failed renewal is not repeated on every poll; renew the account's sign-in if needed.
 
+A ChatGPT sign-in runs only the models of its plan, so a model it does not list (the free plan has fewer) is not launched: the chain pauses with a message and a button to the session settings, and goes on by itself once you pick a model the account has. If ChatGPT still refuses a model in a turn, the chain pauses the same way: choose another **Model** or **Account**, change the model on the task's card if it set one, use **New session**, then resume the chain. An API-key account is not checked: it reaches models its list does not name.
+
 Codex has no question tool, so a turn that ends without the task done waits for your reply in the chat window.
 
 Run it as a chain only on short test tasks. From the Windows service the Codex sandbox does not start (a Codex bug), so on Windows it needs `execution.codex` set to `bypass`, which runs Codex sessions with no sandbox at all ([What has not been verified](../unverified/codex.md)).

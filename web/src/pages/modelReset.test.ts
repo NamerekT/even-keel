@@ -10,6 +10,10 @@ describe('model after an account switch', () => {
     expect(modelAfterSwitch('anthropic/claude-sonnet-5-5', { models: ['anthropic/claude-sonnet-5-5'], complete: true })).toBe('anthropic/claude-sonnet-5-5')
   })
 
+  it('keeps a model the full list runs without offering it', () => {
+    expect(modelAfterSwitch('gpt-reserve', { models: ['gpt-6-luna'], unlisted: ['gpt-reserve'], complete: true })).toBe('gpt-reserve')
+  })
+
   it('keeps any model against a list of aliases', () => {
     expect(modelAfterSwitch('claude-opus-5-5', { models: ['sonnet', 'opus'], complete: false })).toBe('claude-opus-5-5')
   })

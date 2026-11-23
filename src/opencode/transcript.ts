@@ -278,7 +278,7 @@ class SessionFold {
     const full = JSON.stringify(error)
     const kind = MODEL_REFUSAL.test(full) ? 'model' : CREDIT_TEXT.test(brief) || CREDIT_TEXT.test(full) ? 'credit' : isSpendingLimit(brief) || isSpendingLimit(full) ? 'spend' : isTransientError(full) ? 'transient' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
     const refused = /The '([^']+)' model is not supported/i.exec(full)?.[1]
-    const diagnostic = kind === 'model' ? notice('chain.modelUnavailable', { model: this.model ?? (refused === undefined ? 'OpenAI' : `openai/${refused}`) }) : error.evenKeelStreamError === true && kind === 'error' ? notice('opencode.streamError', {}) : undefined
+    const diagnostic = kind === 'model' ? notice('chain.modelUnavailable', { model: this.model ?? (refused === undefined ? 'OpenAI' : `openai/${refused}`), agent: 'OpenCode' }) : error.evenKeelStreamError === true && kind === 'error' ? notice('opencode.streamError', {}) : undefined
     const text = diagnostic === undefined ? brief : englishOf(diagnostic)
     this.apiError = { kind, text, at, ...(diagnostic === undefined ? {} : { notice: diagnostic }) }
     this.addAction({ at, kind: 'error', text, ...(diagnostic === undefined ? {} : { notice: diagnostic }) })

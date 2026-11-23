@@ -8,7 +8,7 @@ import type { ModelAnswer } from './useModels.js'
  */
 export function modelAfterSwitch(model: string, answer: ModelAnswer): string {
   const named = model.trim()
-  return answer !== null && answer.complete && named !== '' && !answer.models.includes(named) ? '' : model
+  return answer !== null && answer.complete && named !== '' && !answer.models.includes(named) && !(answer.unlisted ?? []).includes(named) ? '' : model
 }
 
 /** A provider's row of a settings form: the account its field holds, the account it runs on, and its model field. */

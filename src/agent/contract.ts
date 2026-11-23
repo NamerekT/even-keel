@@ -130,6 +130,8 @@ export interface SessionStart {
 /** `Agent.models`' answer. */
 export interface ModelList {
   models: string[]
+  /** Models the agent runs but does not offer, such as Codex's hidden ones: a complete list does not refuse them. */
+  unlisted?: string[]
   /** Whether the agent runs on nothing else; a list of aliases leaves full model ids out, so it is not. */
   complete: boolean
 }

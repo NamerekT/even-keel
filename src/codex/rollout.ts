@@ -3,6 +3,7 @@ import { chatGptPool } from '../limits/chatgpt.js'
 import type { LimitWindow, RateLimits, SessionLimits } from '../limits/model.js'
 import { chatGptCredits } from '../limits/overage.js'
 import { describeTool, flatten, lineCount, type EditSize, type TranscriptImage } from '../sessions/entry.js'
+import { englishOf, notice } from '../notice/notice.js'
 import { mailIn } from '../sessions/mail.js'
 import { isTransientError } from '../sessions/transient.js'
 import {
@@ -36,6 +37,9 @@ const SHELL = 'Shell'
 const LIMIT_TEXT = /usage limit|rate limit|quota/i
 // An OpenAI key out of money: the API's 429 `insufficient_quota`, which codex-cli 0.162.1 words as its `QuotaExceeded`.
 const CREDIT_TEXT = /quota exceeded|exceeded your current quota|insufficient_quota/i
+// A ChatGPT sign-in on a model its plan's catalogue lacks: `codex_error_info` of the turn's error (codex-cli 0.169.0).
+const MODEL_REFUSAL = 'model_not_found'
+const MODEL_REFUSAL_TEXT = /is not supported when using Codex with a ChatGPT account/i
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 const FIVE_HOURS = 300
 const WEEK = 10_080
@@ -204,11 +208,19 @@ export class RolloutFold {
   }
 
   private pushError(at: string, message: unknown, code?: unknown): void {
-    const text = flatten(typeof message === 'string' ? message : 'error', TEXT_LIMIT)
+    const brief = flatten(typeof message === 'string' ? message : 'error', TEXT_LIMIT)
     this.touch(at)
-    const transient = isTransientError(text) || (typeof code === 'string' && isTransientError(code))
-    this.apiError = { kind: CREDIT_TEXT.test(text) ? 'credit' : transient ? 'transient' : LIMIT_TEXT.test(text) ? 'limit' : 'error', text, at }
-    this.addAction({ at, kind: 'error', text })
+    if (code === MODEL_REFUSAL || MODEL_REFUSAL_TEXT.test(brief)) {
+      const model = this.model ?? /The '([^']+)' model is not supported/i.exec(brief)?.[1] ?? 'the model'
+      const diagnostic = notice('chain.modelUnavailable', { model, agent: 'Codex' })
+      const text = englishOf(diagnostic)
+      this.apiError = { kind: 'model', text, at, notice: diagnostic }
+      this.addAction({ at, kind: 'error', text, notice: diagnostic })
+      return
+    }
+    const transient = isTransientError(brief) || (typeof code === 'string' && isTransientError(code))
+    this.apiError = { kind: CREDIT_TEXT.test(brief) ? 'credit' : transient ? 'transient' : LIMIT_TEXT.test(brief) ? 'limit' : 'error', text: brief, at }
+    this.addAction({ at, kind: 'error', text: brief })
   }
 
   /** `tail` marks an item of a turn that has already ended, such as a command its end killed: it keeps the turn's error and marks. */
