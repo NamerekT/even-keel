@@ -140,6 +140,28 @@
   outline: 2px solid var(--accent);
 }
 
+/* The "+" itself, in whatever field it stands (the chat, the description editor): its look comes from the field's class. */
+.chat__attach:hover {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.chat__attach input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.chat__attach:focus-within {
+  outline: 2px solid var(--accent);
+}
+
+.chat__attach.chat__attach--off {
+  opacity: 0.55;
+  cursor: default;
+}
+
 /* The touch screen's "+": a sheet from the bottom with Camera, Photos, Files and Paste. */
 .attach-sheet {
   position: fixed;

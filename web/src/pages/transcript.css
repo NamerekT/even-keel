@@ -579,23 +579,6 @@ button.tools__toggle:hover {
   stroke-width: 1.75;
 }
 
-.chat__attach:hover {
-  background: var(--surface-muted);
-  color: var(--fg);
-}
-
-.chat__attach input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.chat__attach:focus-within {
-  outline: 2px solid var(--accent);
-}
-
-.chat__attach--off,
 .chat__slash[aria-disabled='true'] {
   opacity: 0.55;
   cursor: default;

@@ -245,6 +245,39 @@
   flex: 1;
 }
 
+/* The editor's foot: the hint fills the line beside the "+"; on a narrow screen the buttons wrap to a line of their own, at the right. */
+.description__hint--grow {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.description__actions {
+  display: flex;
+  gap: var(--space-8);
+  margin-left: auto;
+}
+
+/* The "+" that picks a file (BTN-1533): on a phone it is the only way to attach one. As the toolbar's tools, a level higher. */
+.description__attach {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.description__attach .icon {
+  width: 18px;
+  height: 18px;
+}
+
 .description__kept {
   display: flex;
   flex-direction: column;
