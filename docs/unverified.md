@@ -331,6 +331,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 300 | ["+ Machine" on a hub with a revoked machine](unverified/machines.md#-machine-on-a-hub-with-a-revoked-machine-btn-1552) | hubs moved to another computer or with a revoked machine, adding one | "+ Machine" stays under "Hub address for machines" once a second machine has joined; give the machine a project or restart the service | — |
 | 301 | [Your own skills on a machine elsewhere](unverified/machines.md#your-own-skills-on-a-machine-elsewhere-btn-1565) | hubs with a machine elsewhere in a project whose set has `my-skills` | the machine stays "packages not ready" with `packages.skillsAway` or `packages.skillsNotOnHub`; press Update at `my-skills` in the hub's catalog, or wait 10 minutes for the next try | — |
 | 302 | [A machine's folder on the project's main branch](unverified/machines.md#a-machines-folder-on-the-projects-main-branch-btn-1566) | projects whose main branch is not the remote's default one, connected to a machine | the step "Main branch" refuses with `pool.switchFailed` though the folder is clean; switch the folder to the main branch there by hand and press Retry | — |
+| 303 | [The macOS night on dev](unverified/ci.md#the-macos-night-on-dev-2026-11-23) | the maintainer's releases | a red night holds nothing or tests `main`; run `gh workflow run macos.yml --ref dev` and read `sh scripts/nights-green.sh` | — |
 
 ### Waiting for the event / not checked by choice
 

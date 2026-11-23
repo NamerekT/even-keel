@@ -1,15 +1,18 @@
 name: macOS
 
 # Even Keel on a Mac before a live run on a rented one (BTN-730, BTN-312): the unit tests, the end-to-end scenarios
-# and a smoke of the launchd agent `service/install.sh` installs. The chain's verdict on dev counts every run of a
-# commit (`src/ci/verdict.ts`): a red job here makes the push red, like `test.yml` (docs/ci.md).
+# and a smoke of the launchd agent `service/install.sh` installs. Out of the push check of `dev`: GitHub's Mac runners
+# are scarce in the day (UTC 14–21 a quarter of the runs had a job no runner took), so `dev` gets a night at 02:10 UTC,
+# when one run in 369 had one (22–09 UTC). A schedule fires only on the default branch, so the night checks out `dev`; its run is listed
+# under `main`, which no project's watch reads, and a red night holds releases (scripts/nights-green.sh). Pushes of
+# `main` and `release/**` still run it, and the chain's verdict on them counts it like `test.yml` (docs/ci.md, "macOS").
 on:
   push:
     branches:
       - main
-      - dev
       - 'release/**'
-  # Registered by GitHub only once this file is in main (docs/releases.md): until a release the runs come from pushes.
+  schedule:
+    - cron: '10 2 * * *'
   workflow_dispatch:
     inputs:
       debug:
@@ -47,6 +50,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
 
       - id: changes
         run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
@@ -79,6 +84,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
 
       - id: changes
         run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
@@ -109,6 +116,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
 
       - id: changes
         run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
