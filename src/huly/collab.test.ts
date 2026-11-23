@@ -12,12 +12,14 @@ const modules: CollabModules = {
   ...hulyClient.require<Pick<CollabModules, 'markdownToMarkup'>>('@hcengineering/text-markdown'),
   ...hulyClient.require<Pick<CollabModules, 'jsonToMarkup'>>('@hcengineering/text-core'),
 }
+// Loaded while the file is collected, which has no timeout: inside the case, this cold require of the client's text
+// packages was its only slow step and could miss vitest's 5 s under the full run's load (BTN-1492).
+const { createMarkupOperations } = require(join(lib, 'markup', 'client.js')) as {
+  createMarkupOperations(url: string, workspace: string, token: string, config: Record<string, string>): { collaborator: { updateMarkup: () => Promise<void> } }
+}
 
 describe('collabUpdater', () => {
   it("writes Markdown through the pinned client's own collaborator, with its link addresses", async () => {
-    const { createMarkupOperations } = require(join(lib, 'markup', 'client.js')) as {
-      createMarkupOperations(url: string, workspace: string, token: string, config: Record<string, string>): { collaborator: { updateMarkup: () => Promise<void> } }
-    }
     const markup = createMarkupOperations('https://huly.example.com', 'ws-1', 'token', { COLLABORATOR_URL: 'https://huly.example.com/collaborator' })
     const update = vi.spyOn(markup.collaborator, 'updateMarkup').mockResolvedValue(undefined)
     await collabUpdater({ markup }, modules)('tracker:class:Issue', 'id-1', 'description', '# Goal\n\nOne **line**.', 'markdown')
