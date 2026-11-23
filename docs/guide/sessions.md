@@ -179,12 +179,12 @@ What a late answer to a question costs, at about 108k tokens of context on Opus.
 
 | You answer after | 5 minutes with keep-warm | 1 hour |
 | --- | --- | --- |
-| up to 5 minutes | nothing | nothing |
-| 5–48 minutes | the pings, up to about $0.26 | nothing |
-| 48–60 minutes | about $0.80: the 12 pings ran out and the cache is written again | nothing |
+| up to 3½ minutes | nothing | nothing |
+| 3½–47 minutes | the pings, up to about $0.26 | nothing |
+| 47–60 minutes | about $0.80: the 12 pings ran out and the cache is written again | nothing |
 | over an hour | about $0.80 | about $0.86: it went cold too |
 
-So five minutes loses only on an answer 48–60 minutes after the question; an answer the next morning costs about the same either way. Set `1h` when keep-warm is off, or when you usually answer the chain's questions 48–60 minutes later. The setting is for chain sessions only: a project chat always writes its cache for an hour, since nothing keeps a chat warm while you are away. Whether a subscription counts a five-minute and an hour-long cache differently against its usage limits is not published, so the saving above is in API prices, not a promise that a subscription's limit lasts longer.
+A ping goes out every 3½ minutes; the 12th leaves about 42 minutes after the question, and the cache it read lives 5 minutes more. So five minutes loses only on an answer 47–60 minutes after the question; an answer the next morning costs about the same either way. Set `1h` when keep-warm is off, or when you usually answer the chain's questions 47–60 minutes later. The setting is for chain sessions only: a project chat always writes its cache for an hour, since nothing keeps a chat warm while you are away. Whether a subscription counts a five-minute and an hour-long cache differently against its usage limits is not published, so the saving above is in API prices, not a promise that a subscription's limit lasts longer.
 
 ## Lean sessions
 

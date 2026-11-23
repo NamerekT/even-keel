@@ -13,8 +13,12 @@ const MARGIN_MS: Record<CacheTtl, number> = { '1h': 5 * 60_000, '30m': 5 * 60_00
 /** After the checks begin, the facts of every session are read well within this (52 s at most measured, BTN-1527). */
 const STARTUP_MS = 3 * 60_000
 /**
- * The pings a miss costs: a ping reads the context at ~0.1× the input price, a miss writes it again at 2× (an hour's
- * cache) or 1.25× (five minutes', and GPT's half hour).
+ * The pings a series ends at: what a miss costs when a ping reads the context at 0.1× the input price and a miss writes
+ * it again at 2× (an hour's cache) or 1.25× (five minutes', and GPT's half hour). Reads are cheaper on some models
+ * (`tally/tally.config.json`, `prices`): a rewrite pays for 25 reads of a five-minute cache on Opus 5.5 and 50 on
+ * Fable 5.2, 25 of GPT-6.2 Astra's half hour. The ceiling is kept anyway (BTN-1509): pinged every 3.5 minutes, 20 pings
+ * of five minutes' cache win only on an answer 47–75 minutes after the question and cost more on every later one, where
+ * five minutes would cost more than the hour (`docs/guide/sessions.md`, "Which cache lifetime").
  */
 const BREAK_EVEN: Record<CacheTtl, number> = { '1h': 20, '30m': 12, '5m': 12 }
 /** A ping that read less of its prompt from the cache missed it. */
