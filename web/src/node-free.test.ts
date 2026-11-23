@@ -15,7 +15,9 @@ const entries = walk(webRoot).filter((file) => /\.tsx?$/.test(file) && !isTest(f
 
 /** The specifiers a module loads at run time: type-only imports and re-exports are erased by the build. */
 export function valueImports(source: string, name = 'module.ts'): string[] {
-  const file = ts.createSourceFile(name, source, ts.ScriptTarget.Latest, false, name.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+  // JSDoc is not parsed: it holds no import, and skipping it takes about a sixth off the walk.
+  const options = { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone }
+  const file = ts.createSourceFile(name, source, options, false, name.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
   const found: string[] = []
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -68,10 +70,18 @@ function nodeImports(): string[] {
   return found
 }
 
+// The walk parses every module the page reaches (~800 files): about a second alone, past vitest's default 5 s
+// beside other test files on a loaded host (BTN-1528).
+const WALK_TIMEOUT_MS = 60_000
+
 describe('the page code', () => {
-  it('reaches no node:* module, through web/src or src/', () => {
-    expect(nodeImports()).toEqual([])
-  })
+  it(
+    'reaches no node:* module, through web/src or src/',
+    () => {
+      expect(nodeImports()).toEqual([])
+    },
+    WALK_TIMEOUT_MS,
+  )
 })
 
 describe('valueImports', () => {
