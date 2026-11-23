@@ -31,7 +31,8 @@ describe('PR mode end to end: feedback past its session and chain', { timeout: 6
     return run.pulls.of('ABC-1')!.number
   }
 
-  it('hands a remark that comes once the session cache went cold to a new session', async () => {
+  // The hour past the warm cache fires some 6,000 of the service's timers: ~30 s alone, past 60 s in a loaded macOS shard.
+  it('hands a remark that comes once the session cache went cold to a new session', { timeout: 120_000 }, async () => {
     const pull = await opened(forReview('one.txt', 'fixed\n', 'Fix review'))
 
     // Past `WARM_CACHE_MS`; nothing happens meanwhile, so the steps are long.
