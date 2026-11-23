@@ -1,5 +1,5 @@
 import type { Task } from '../tracker/model.js'
-import { heldFrom, laneMachine, lanesOf, widens } from './lanes.js'
+import { heldFrom, laneMachine, lanesOf, projectOn, widens } from './lanes.js'
 import type { TaskLists } from './lists.js'
 import type { MainCheck } from './maincheck.js'
 import { newChain, type ActiveChain, type ChainMachines, type ChainState, type DispatcherDeps } from './model.js'
@@ -40,8 +40,9 @@ export class LanePlacement {
 
   /**
    * The machine a new lane of the project goes to (BTN-993): the first listed one with a free place that serves the
-   * project and has a task of it to run — a project with lanes already only while they all go plainly and fewer than
-   * its width. A project whose tasks no machine can take now goes to none; `undefined` — no machine takes it now.
+   * project, runs no lane of it yet (BTN-1569: a machine holds one task of a project) and has a task of it to run — a
+   * project with lanes already only while they all go plainly and fewer than its width. A project whose tasks no
+   * machine can take now goes to none; `undefined` — no machine takes it now.
    */
   placeFor(project: string, only?: string): string | undefined {
     const machines = this.deps.machines!
@@ -49,6 +50,7 @@ export class LanePlacement {
     if (lanes.length > 0 && (lanes.length >= machines.width(project) || !widens(lanes))) return undefined
     for (const { id, capacity } of machines.list()) {
       if (only !== undefined && id !== only) continue
+      if (projectOn(this.state, machines, project, id)) continue
       if (this.state.active.filter((chain) => this.machineOf(chain) === id).length >= capacity || !machines.serves(project, id)) continue
       if (this.readyOn(project, id, lanes.length === 0)) return id
     }

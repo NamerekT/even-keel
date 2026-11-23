@@ -378,3 +378,11 @@ To check, on the benches (entry 181): in a project whose main branch is `dev` on
 Assumed: `git fetch --all` in a machine's folder with the project's credentials finds a branch only on the remote, so the move takes it with `--track`, and a machine's folder switched by hand is told within about 30 s and holds the project's launches there. If not, a save of a branch only on the remote creates it from the machine's old branch, or a machine off the branch still takes tasks and its sessions merge into the wrong branch; put the folder back by hand and save the branch again.
 
 To check, on the benches (entry 181): with a project whose pool has the bench hub and a machine elsewhere, save another branch (one only on the remote) and see both folders on it; leave a change uncommitted in the machine's folder, save another one and see the refusal name the machine and the hub's checkout stay; switch the machine's folder by hand and see the band on the machine's page and in the project's "Machines" within 30 s, no task of the project start there, and "Put the folder back" bring it back. Put the project's branch back afterwards.
+
+## One lane of a project a machine (BTN-1569)
+
+`docs/machines.md`, "The pool". A machine runs one task of a project at a time: `placeFor` opens no lane of a project on a machine that has one, `moveOffLimit` moves none there, and a lane an older version opened beside another of its project on one machine ends once it is between tasks (`doubledLane`). Covered by `src/chain/lanes.test.ts` and `src/chain/limit-moves.test.ts` with scripted machines.
+
+Assumed: the hub's own machine and each machine elsewhere are told apart by `ActiveChain.machine` (none — the own one) in a state saved by an older version too, so a doubled lane is seen as such after the upgrade. If not, two tasks of a project still run in one folder of a machine, or the second lane never ends; stop the project's chain and start it again.
+
+To check, on the benches (entry 181): give a project the bench hub (capacity 3) and machine-1 in its pool, width 2, two ready tasks; start the chain and see the first task on the hub and the log line `chain: <project> takes another lane, on machine <machine-1's id>` with the second there; turn machine-1 off in the pool and see no second lane open on the hub.

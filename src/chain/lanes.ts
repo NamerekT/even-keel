@@ -10,6 +10,21 @@ export function laneMachine(chain: ActiveChain, machines: ChainMachines): string
   return chain.machine ?? machines.own()
 }
 
+/**
+ * A lane of the project other than `except` is on the machine (BTN-1569): a machine runs one task of a project at a
+ * time, in its one folder of the project, so a project's width counts machines.
+ */
+export function projectOn(state: ChainState, machines: ChainMachines, project: string, machine: string, except?: ActiveChain): boolean {
+  return lanesOf(state, project).some((chain) => chain !== except && laneMachine(chain, machines) === machine)
+}
+
+/** The lane is not its project's first on its machine: one an older version opened beside another there (BTN-1569). */
+export function doubledLane(state: ChainState, machines: ChainMachines, chain: ActiveChain): boolean {
+  const lanes = lanesOf(state, chain.project)
+  const machine = laneMachine(chain, machines)
+  return lanes.slice(0, lanes.indexOf(chain)).some((each) => laneMachine(each, machines) === machine)
+}
+
 /** What a lane holds: its current task, the one it closes and the one a red main interrupted. */
 export function laneTasks(chain: ActiveChain): string[] {
   return [chain.current?.task, chain.closing, chain.interrupted?.task].filter((task): task is string => task !== undefined)

@@ -66,6 +66,12 @@ describe('The next task past a spent limit (BTN-996)', () => {
     expect(limitMoves).toEqual([])
   })
 
+  it('moves no lane onto a machine that runs another lane of the project, whatever its free places (BTN-1569)', async () => {
+    const { run, limitMoves } = await started({ switchOnLimit: true, width: 2, serverCapacity: 2 })
+    expect(lanesOf(run)).toEqual([['pc', null, RESET], ['server', 'ABC-2', null]])
+    expect(limitMoves).toEqual([])
+  })
+
   it('leaves the lanes of a wider project to the plain pull: the other machine takes the next task beside the waiting one', async () => {
     const { run, limitMoves } = await started({ switchOnLimit: false, width: 2 })
     expect(run.launched).toEqual(['ABC/ABC-2'])

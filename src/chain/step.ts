@@ -3,7 +3,7 @@ import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import type { MainCarry } from './carry.js'
 import { isCarryName, isFixName } from './fix.js'
-import { lanesOf } from './lanes.js'
+import { doubledLane, lanesOf } from './lanes.js'
 import { moveOffLimit } from './limit-moves.js'
 import type { TaskLists } from './lists.js'
 import type { MainCheck } from './maincheck.js'
@@ -166,8 +166,15 @@ export async function launchNext(host: StepHost, chain: ActiveChain, tasks: Task
     return 'end'
   }
 
-  let next: string | undefined
   const machine = placement.machineOf(chain)
+  if (own === undefined && machine !== undefined && doubledLane(state, deps.machines!, chain)) {
+    host.drop(chain)
+    deps.log(`chain: a second lane of ${chain.project} on machine ${machine} ends: a machine runs one task of a project at a time`)
+    deps.save(state)
+    return 'end'
+  }
+
+  let next: string | undefined
   try {
     next = placement.nextOf(chain.project, tasks, machine, chain)
   } catch (error) {

@@ -1,10 +1,10 @@
-import { laneMachine } from './lanes.js'
+import { laneMachine, projectOn } from './lanes.js'
 import type { ActiveChain, ChainState, DispatcherDeps } from './model.js'
 
 /**
  * With the switch "Go on where a limit is left" on (BTN-996, `docs/machines.md`, "Past a limit"), a lane whose next
- * task would wait out its machine's limit goes to another machine of the project's pool that has a free place, can
- * run the task and has limit left for it. Only a task never launched moves: one launched stays with its machine, its
+ * task would wait out its machine's limit goes to another machine of the project's pool that has a free place, runs no
+ * other lane of the project (BTN-1569), can run the task and has limit left for it. Only a task never launched moves: one launched stays with its machine, its
  * worktree and its sessions. The switch off, the lane waits on its machine, as does a project of width 1 with it.
  * `true` — the lane moved, its task bound to the new machine.
  */
@@ -18,7 +18,8 @@ export function moveOffLimit(state: ChainState, deps: DispatcherDeps, chain: Act
   const from = laneMachine(chain, machines)
   const taken = (machine: string) => state.active.filter((each) => laneMachine(each, machines) === machine).length
   const to = machines.list().find(({ id, capacity }) =>
-    id !== from && taken(id) < capacity && machines.serves(chain.project, id) && machines.runs(chain.project, task, id) && machines.hasLimit!(chain.project, task, id))
+    id !== from && taken(id) < capacity && !projectOn(state, machines, chain.project, id, chain) && machines.serves(chain.project, id) &&
+    machines.runs(chain.project, task, id) && machines.hasLimit!(chain.project, task, id))
   if (to === undefined) return false
   chain.machine = to.id
   machines.bind(chain.project, task, to.id)
