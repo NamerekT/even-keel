@@ -19,6 +19,7 @@ import { machinesPortOf } from '../link/address.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { hubIdentity } from '../link/identity.js'
 import { MachineNetwork } from './machine-network.js'
+import { sessionTranscripts } from './session-transcripts.js'
 import { folderGitCredentials, hubGitCredentials } from './git-credentials.js'
 import { withCredentials } from '../git/credentials.js'
 import { runGit } from '../git/run.js'
@@ -55,7 +56,7 @@ import { loadMail } from '../sessions/mailbox.js'
 import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
 import { readWarmPings } from '../sessions/warm-pings.js'
 import { adoptMail } from '../sessions/mailbox-store.js'
-import type { MachineServices } from '../machine/services.js'
+import type { MachineServices, TranscriptReads } from '../machine/services.js'
 import { BriefSender, hubBrief } from './hub-brief.js'
 import type { MachineContext } from './machine-context.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
@@ -103,6 +104,8 @@ export interface LinkedMachine {
   mergedElsewhere(project: string, task: string): Promise<string[]> | undefined
   /** What the page, the hooks and the chat ask of the machine besides the chain: commands over the link. */
   services: MachineServices
+  /** The page's and the hooks' reads of a session's transcript, on the machine of the session (BTN-1574). */
+  transcripts: TranscriptReads
   /** The door for machines elsewhere (BTN-1242): open while "Hub address for machines" is set. */
   network: MachineNetwork
   /** Whether a machine on the link polls `/usage` of the claude.ai account ("Account limits"). */
@@ -426,18 +429,26 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   const services = remote.services()
   const ownPort = remote.port()
   const pageOf = (machine: string): PageReads | undefined => (machine === own ? remote.page : network.remote(machine)?.page)
+  const sessionMachine = (sessionId: string): string | undefined => {
+    if (remote.page.sessions().some((view) => view.sessionId === sessionId)) return own
+    const holder = network.holderOf(sessionId)
+    if (holder !== undefined) return holder
+    const launch = ctx.launches.findLast((entry) => entry.sessionId === sessionId)
+    return launch === undefined ? undefined : assignments.machineOf(launch.project, launch.task)
+  }
+  const transcripts = sessionTranscripts({
+    own: () => own,
+    sessionMachine,
+    ownReads: services.transcript,
+    elsewhere: (machine) => (network.connected(machine) ? network.remote(machine)?.services().transcript : undefined),
+    nameOf: async (machine) => (await network.record(machine))?.name ?? machine,
+  })
   const port = machinePool({
     own: () => own,
     port: (machine) => (machine === own ? ownPort : network.port(machine)),
     machineOf: (project, task) => assignments.machineOf(project, task),
     projectOf: ctx.projectOf,
-    sessionMachine: (sessionId) => {
-      if (remote.page.sessions().some((view) => view.sessionId === sessionId)) return own
-      const holder = network.holderOf(sessionId)
-      if (holder !== undefined) return holder
-      const launch = ctx.launches.findLast((entry) => entry.sessionId === sessionId)
-      return launch === undefined ? undefined : assignments.machineOf(launch.project, launch.task)
-    },
+    sessionMachine,
     folderMachine: (folder) => (remote.page.sessions().some((view) => samePath(view.cwd, folder)) ? own : network.folderHolder(folder)),
   })
   const chain = chainMachines({
@@ -502,6 +513,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       return network.connected(machine!) ? at.merged(project, task) : Promise.resolve([])
     },
     services,
+    transcripts,
     network,
     polled: (account) => polls.poller(account) !== undefined,
     differs: (account) => polls.differs(account),
