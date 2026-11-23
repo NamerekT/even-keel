@@ -497,7 +497,8 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     })
     closing.push(async () => end.stop())
     await end.start()
-    await until(() => network.connected(joined.machine), 'the machine online')
+    // The stream counts as connected before the snapshot makes the machine's mirror, and its services need the mirror.
+    await until(() => network.connected(joined.machine) && network.remote(joined.machine) !== undefined, 'the machine online, its snapshot taken')
 
     const before = changes.length
     await network.gitIdentity(joined.machine, 'John Doe', 'john@example.com')
