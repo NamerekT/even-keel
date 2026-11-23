@@ -13,7 +13,6 @@ import { cutUserMessage } from '../chain/user-message.js'
 import { DEFAULT_CI, isPlain, projectLabel } from '../config.js'
 import { changesOf } from '../git/changes.js'
 import { pushTaskBranch, restoreBranch } from '../git/push.js'
-import { runGit } from '../git/run.js'
 import { guardedFiles } from '../review/outsider.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
 import { DEFAULT_SLOT_CLEANUP } from '../settings/defaults.js'
@@ -51,7 +50,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
       if (brief?.restore !== undefined) {
-        const error = await restoreBranch(runGit, ctx.configStore.current.projects[project]!, brief.restore.branch)
+        const error = await restoreBranch(ctx.git, ctx.configStore.current.projects[project]!, brief.restore.branch)
         if (error !== null) throw fail('reassign.notRestored', { task, branch: brief.restore.branch, error })
       }
       const place = await ctx.places.ready(project, task)
@@ -179,7 +178,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: await ctx.settingsFor(name, project), ...extras }, project)
     },
     carried: async (project, commit) =>
-      (await runGit(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
+      (await ctx.git(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
     stop: async (session) => {
       await ctx.stopIn(ctx.homeOf(session.account), session)
       const task = ctx.sessions.find((view) => view.sessionId === session.sessionId)?.task
@@ -205,7 +204,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
         const check = mergeCheck(ctx, project, repo)
         const drop = { ...(pull === undefined ? {} : { force: pull.force, remote: pull.remote }), ...(check === undefined ? {} : { check }) }
         const cleanup = ctx.configStore.current.settings[project]?.slotCleanup
-        finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main, drop, cleanup) : finishWorktree(runGit, repo, task, main, drop))
+        finished = await (span > 0 ? finishSlot(ctx.git, repo, task, span, main, drop, cleanup) : finishWorktree(ctx.git, repo, task, main, drop))
       } catch (error) {
         console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
         throw error
@@ -224,7 +223,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       return outcome
     },
     sync: ctx.syncProject,
-    changes: (project, workdir) => changesOf(runGit, workdir, ctx.branchOf(project)),
+    changes: (project, workdir) => changesOf(ctx.git, workdir, ctx.branchOf(project)),
     trackerMissing: (project) => ctx.packages.trackerMissing(project),
     launchBlock: (project, task) => {
       const choice = ctx.choiceFor(project, task)
@@ -236,7 +235,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       repo: (project) => ctx.configStore.current.projects[project]!,
       plain: (project) => isPlain(ctx.configStore.current, project),
       main: ctx.branchOf,
-      git: runGit,
+      git: ctx.git,
       settings: (project) => ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI,
       commands: (project) => ctx.configStore.current.settings[project]?.check ?? [],
       reported: (project, task) => ctx.brief.report(project, task),
@@ -244,14 +243,14 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       place: async (project, task) => (await ctx.places.readyAhead(project, task)).path,
       runCheck: (project, task, cwd) => runCheck(ctx.configStore.current.settings[project]?.check ?? [], ctx.taskRun(task, cwd, ctx.choiceFor(project, task).account)),
       runAfterGreen: (project, cwd) => runAfterGreen(ctx.configStore.current.settings[project]?.afterGreen ?? [], ctx.taskRun(project, cwd, ctx.choiceFor(project).account)),
-      forward: (project, commit) => fastForwardTo(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), commit),
+      forward: (project, commit) => fastForwardTo(ctx.git, ctx.configStore.current.projects[project]!, ctx.branchOf(project), commit),
     }),
   }
 }
 
 export function wirePlaces(ctx: MachineContext): TaskPlaces {
   return new TaskPlaces({
-    git: runGit,
+    git: ctx.git,
     main: ctx.branchOf,
     plain: (project) => isPlain(ctx.configStore.current, project),
     place: async (project, task, { ahead = false, at } = {}) => {
@@ -263,17 +262,17 @@ export function wirePlaces(ctx: MachineContext): TaskPlaces {
         return { path: repo, branch: null }
       }
       const main = ctx.branchOf(project)
-      await requireBranch(runGit, repo, project, main)
-      if (!ahead) await requireCheckedOut(runGit, repo, project, main)
-      await ensureIgnored(runGit, repo)
+      await requireBranch(ctx.git, repo, project, main)
+      if (!ahead) await requireCheckedOut(ctx.git, repo, project, main)
+      await ensureIgnored(ctx.git, repo)
       // Not ahead: while the chain waits for the CI or the commands after green, main must stay at the commit they judge.
-      if (!ahead) await fastForwardMain(runGit, repo, main)
+      if (!ahead) await fastForwardMain(ctx.git, repo, main)
       const count = ctx.configStore.current.slots[project]
       const span = ctx.slotSpan(project)
-      if (isOwnName(task)) return prepareWorktree(runGit, repo, task, main, ahead)
-      if (count === undefined) return (span > 0 ? await heldSlot(runGit, repo, task, span) : undefined) ?? prepareWorktree(runGit, repo, task, main, ahead)
+      if (isOwnName(task)) return prepareWorktree(ctx.git, repo, task, main, ahead)
+      if (count === undefined) return (span > 0 ? await heldSlot(ctx.git, repo, task, span) : undefined) ?? prepareWorktree(ctx.git, repo, task, main, ahead)
       const pool = { count, span, main, ahead, occupancy: (path: string) => ctx.slotUse(path, task), vacate: (path: string) => ctx.vacateSlot(path, task) }
-      return prepareSlot(runGit, repo, task, at === undefined ? pool : { ...pool, at })
+      return prepareSlot(ctx.git, repo, task, at === undefined ? pool : { ...pool, at })
     },
     setUp: (project, task, path) => runBeforeStart(ctx.configStore.current.settings[project]?.beforeStart ?? [], ctx.taskRun(task, path, ctx.choiceFor(project, task).account)),
   })
@@ -287,8 +286,8 @@ export function taskRun(ctx: MachineContext, task: string, cwd: string, account:
 export async function syncProject(ctx: MachineContext, project: string): Promise<Notice | null> {
   const repo = ctx.configStore.current.projects[project]!
   if (isPlain(ctx.configStore.current, project)) return null
-  const remotes = (await runGit(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
-  return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, ctx.branchOf(project), mergeCheck(ctx, project, repo))
+  const remotes = (await ctx.git(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
+  return remotes.length === 0 ? null : syncMain(ctx.git, repo, remotes, ctx.branchOf(project), mergeCheck(ctx, project, repo))
 }
 
 /**
@@ -354,7 +353,7 @@ export function wireWorks(ctx: MachineContext): TaskWorks {
     read: async (project) =>
       isPlain(ctx.configStore.current, project)
         ? { works: {}, diffs: {} }
-        : worksOf(runGit, ctx.configStore.current.projects[project]!, ctx.branchOf(project), ctx.brief.tasksOf(project)),
+        : worksOf(ctx.git, ctx.configStore.current.projects[project]!, ctx.branchOf(project), ctx.brief.tasksOf(project)),
     ttlMs: ctx.WORK_TTL_MS,
     now: () => Date.now(),
     activity: (task) => {
@@ -467,7 +466,7 @@ export async function pushOf(ctx: MachineContext, project: string | undefined, t
   if (project === undefined || isOwnName(task) || isPlain(ctx.configStore.current, project)) return
   try {
     const options = { main: ctx.branchOf(project), ...(onlyNew && { onlyNew }), ...(!ctx.briefed.own(task) && { held: guardedFiles }) }
-    const pushed = await pushTaskBranch(runGit, folder, task, options)
+    const pushed = await pushTaskBranch(ctx.git, folder, task, options)
     if ('skipped' in pushed && pushed.skipped === 'held') {
       console.log(`push: the branch of ${task} is not pushed: ${pushed.failure ?? `it changes ${pushed.files.join(', ')}`}`)
     } else if ('failed' in pushed && pushed.failed !== undefined) console.warn(`push: ${pushed.branch} of ${task} was not pushed to ${pushed.remote}: ${pushed.failed.trim()}`)

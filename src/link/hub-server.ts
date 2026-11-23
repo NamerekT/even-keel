@@ -3,8 +3,8 @@ import { createServer, type Server } from 'node:https'
 import type { HubCertificate } from './cert.js'
 import type { HubEnd } from './hub.js'
 import {
-  EVENTS_PATH, HOOK_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, isAbout, isRefusal,
-  type EventsPost, type Frame, type HookPost, type JoinPost, type MachineHello, type McpPost, type Refusal, type SnapshotPost, type TallyPost,
+  CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, isAbout, isRefusal,
+  type CredentialsPost, type EventsPost, type Frame, type HookPost, type JoinPost, type MachineHello, type McpPost, type Refusal, type SnapshotPost, type TallyPost,
 } from './protocol.js'
 
 /** A snapshot names every session of the machine; an events post is `EVENT_BATCH` events at most. */
@@ -89,6 +89,13 @@ function hookOf(body: unknown): HookPost {
   return { connection: body.connection, request: { path, method, ...(text === undefined ? {} : { body: text }) } }
 }
 
+function credentialsPostOf(body: unknown): CredentialsPost {
+  if (!isObject(body) || typeof body.connection !== 'string' || typeof body.project !== 'string' || !Array.isArray(body.urls) || !body.urls.every((url) => typeof url === 'string')) {
+    throw new BadRequest(400, 'not a credentials request of a machine')
+  }
+  return { connection: body.connection, project: body.project, urls: body.urls as string[] }
+}
+
 function tallyOf(body: unknown): TallyPost {
   if (!isObject(body) || typeof body.connection !== 'string' || !isObject(body.rows)) throw new BadRequest(400, 'not Tally rows of a machine')
   return { connection: body.connection, rows: body.rows }
@@ -142,7 +149,7 @@ export function createHubServer(options: HubServerOptions): Server {
   return createServer({ cert: options.certificate.cert, key: options.certificate.key }, (request, response) => {
     const path = new URL(request.url ?? '/', 'https://hub').pathname
     const handled = (async () => {
-      if (![STREAM_PATH, EVENTS_PATH, SNAPSHOT_PATH, MCP_PATH, HOOK_PATH, TALLY_PATH, JOIN_PATH].includes(path)) throw new BadRequest(404, 'no such path')
+      if (![STREAM_PATH, EVENTS_PATH, SNAPSHOT_PATH, MCP_PATH, HOOK_PATH, TALLY_PATH, CREDENTIALS_PATH, JOIN_PATH].includes(path)) throw new BadRequest(404, 'no such path')
       if (request.method !== 'POST') throw new BadRequest(405, 'POST only')
       if (path === STREAM_PATH) return stream(options, request, response, limit)
       const body = await bodyOf(request, path === MCP_PATH ? mcpLimit : limit)
@@ -151,6 +158,7 @@ export function createHubServer(options: HubServerOptions): Server {
       if (path === MCP_PATH) return answerOf(response, await options.hub.mcp(authorization, mcpOf(body)))
       if (path === HOOK_PATH) return answerOf(response, await options.hub.hook(authorization, hookOf(body)))
       if (path === TALLY_PATH) return answerOf(response, await options.hub.tally(authorization, tallyOf(body)))
+      if (path === CREDENTIALS_PATH) return answerOf(response, await options.hub.credentials(authorization, credentialsPostOf(body)))
       if (path === JOIN_PATH) return answerOf(response, await options.hub.join(authorization, joinOf(body)))
       const post = postOf(body)
       const snapshot: SnapshotPost = { connection: post.connection, lastCommand: post.lastCommand, snapshot: post.snapshot }

@@ -34,7 +34,11 @@ services:
 
 Mount the whole checkout, including its Git directory and worktrees. Give UID 1000 write access, then enter the container path (for example `/projects/demo`) when adding the project. Agents can modify the host files mounted there.
 
-Set the Git author in the setup wizard. For SSH remotes, provision a dedicated key and verified `known_hosts` in a private host directory and mount it read-only at `/home/node/.ssh` (for example `/srv/even-keel/ssh:/home/node/.ssh:ro`). The key must be readable by UID 1000 with mode 0600. For HTTPS, configure a Git credential helper in the container. For example, with a dedicated Git credential file mounted read-only at `/run/secrets/git-credentials`, run:
+Set the Git author in the setup wizard. For SSH remotes, provision a dedicated key and verified `known_hosts` in a private host directory and mount it read-only at `/home/node/.ssh` (for example `/srv/even-keel/ssh:/home/node/.ssh:ro`). The key must be readable by UID 1000 with mode 0600.
+
+For HTTPS remotes on GitHub, GitLab or Forgejo, no credential file is needed: enter the forge's token as a profile in **Settings → Trackers and CI**, and Even Keel gives it to its own git for each push, fetch and clone of that remote, the same profile its CI and pull requests use. The token never lands in git's config, a file or a session's environment. To push task branches it needs write access to the repository's contents (GitHub **Contents: Read and write**, GitLab `write_repository` or `api`, Forgejo `write:repository`); with a read-only token the push fails (unless a helper of your own can push), and the page names the profile with a button to it. This needs git 2.31 or newer, which the image has.
+
+A remote with no such profile (another host, or one you would rather keep apart) still works with a Git credential helper of your own in the container. For example, with a dedicated Git credential file mounted read-only at `/run/secrets/git-credentials`, run:
 
 ```sh
 docker compose exec even-keel git config --global credential.helper 'store --file=/run/secrets/git-credentials'

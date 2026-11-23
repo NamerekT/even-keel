@@ -1,6 +1,6 @@
 import type { HubEnd, Opened } from './hub.js'
 import type { HubTransport, StreamSink } from './machine.js'
-import { isRefusal, type EventsAnswer, type EventsPost, type HookAnswer, type HookPost, type MachineHello, type McpAnswer, type McpPost, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost } from './protocol.js'
+import { isRefusal, type CredentialsAnswer, type CredentialsPost, type EventsAnswer, type EventsPost, type HookAnswer, type HookPost, type MachineHello, type McpAnswer, type McpPost, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost } from './protocol.js'
 
 /**
  * The pulse of a link inside one process: there is no network to lose, and a timer of days never fires between two
@@ -68,6 +68,10 @@ export class LocalTransport implements HubTransport {
 
   async hook(post: HookPost): Promise<HookAnswer | Refusal> {
     return carried(await this.hub.hook(this.authorization, carried(post)))
+  }
+
+  async credentials(post: CredentialsPost): Promise<CredentialsAnswer | Refusal> {
+    return carried(await this.hub.credentials(this.authorization, carried(post)))
   }
 
   /** Never posted in practice: the hub's own machine is read by the hub's own collector. */

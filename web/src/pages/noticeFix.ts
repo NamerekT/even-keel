@@ -71,6 +71,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'ci.denied': PROFILES,
   'ci.rerunDenied': PROFILES,
   'review.denied': PROFILES,
+  'git.readOnly': PROFILES,
   'config.token': PAGE,
   'config.tokenShape': PAGE,
   'builtin.fileTooLarge': PAGE,

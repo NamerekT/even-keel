@@ -23,7 +23,9 @@ import { readJson } from '../packages/plugins.js'
 import { checkDraft, checkRepo, isTrusted, sourcedDraft } from '../projects/check.js'
 import { addProject } from '../projects/add.js'
 import { creationPlan } from '../projects/creation.js'
-import { cloner, restorer, sharedRemoteReader } from '../git/remote-run.js'
+import { credentialedRemote } from '../git/credentials.js'
+import { cloner, remoteReader, restorer, runRemoteGit } from '../git/remote-run.js'
+import { projectGitCredentials } from './git-credentials.js'
 import { stepJobs } from '../jobs/runner.js'
 import { trustFolder } from '../claude/trust.js'
 import { gitSwitchBlock, turnGitOn, uncommittedChanges } from '../projects/git-mode.js'
@@ -187,6 +189,9 @@ const taskFileOf = (file: CarriedFile | undefined): TaskFile | undefined => {
 
 export function wireServer(ctx: HostingContext): import("http").Server<typeof import("http").IncomingMessage, typeof import("http").ServerResponse> {
   const transcripts = ctx.machineLink.services.transcript
+  // The wizard reads and clones a new project's remote with the token of the host's default profile (BTN-1541).
+  const wizardGit = credentialedRemote(runRemoteGit, async (urls) => projectGitCredentials(ctx, undefined, urls))
+  const wizardRemote = { git: wizardGit, read: remoteReader(wizardGit) }
   const builtin = builtinControl({
     db: ctx.db,
     places: () => builtinPlaces(ctx.configStore.current),
@@ -370,6 +375,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
             // A new project has no accounts of its own: its chain runs on the shared Claude account.
             claudeConfigs: () => ctx.claudeConfigs().map(readJson),
             timeoutMs: ctx.TRACKER_CHECK_MS,
+            readRemote: wizardRemote.read,
             user: userInfo().username,
             service: await runsAsService(),
           },
@@ -390,9 +396,9 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         const plan = await creationPlan(
           {
             git: runGit,
-            clone: cloner(),
+            clone: cloner(wizardRemote.git),
             restore: restorer(),
-            readRemote: sharedRemoteReader,
+            readRemote: wizardRemote.read,
             check: (each) => checkRepo(runGit, each, ctx.configStore.raw(), process.platform),
             add: (each) => addProject({ configStore: ctx.configStore, profiles: ctx.profiles, git: runGit }, each),
             folderOf: (project) => ctx.configStore.current.projects[project]!,

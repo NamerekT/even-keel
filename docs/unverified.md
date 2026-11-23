@@ -313,6 +313,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 282 | [Agents gone cold on /stats, and no fork of an agent](unverified/sessions.md#agents-gone-cold-on-stats-and-no-fork-of-an-agent-btn-1530) | chain sessions whose agents wait longer than their cache's lifetime | the cost tip misses cold agents or counts warm ones; or an agent could be pinged after all | — |
 | 283 | [A machine's git author set from the hub's page](unverified/machines.md#a-machines-git-author-set-from-the-hubs-page-btn-1503) | machines elsewhere without a git name or e-mail, in Docker especially | the window saves and the facts stay "not set", or the name lands in another user's git config; set it by hand on the machine | — |
 | 284 | [A state database restored on another host](unverified/machines.md#a-state-database-restored-on-another-host-btn-1278) | an installation whose `state/` is moved to another host by hand | a project's chain waits on "no machine", or its sessions' servers exit at once, or a task pinned to a lost install does not start; fix the pools and press Install or Update by hand | BTN-1278 |
+| 285 | [Git over HTTPS with the profile's token](unverified/ci.md#git-over-https-with-the-profiles-token-btn-1541) | projects with an HTTPS remote on GitHub, GitLab or Forgejo and a profile for it | a push, fetch or clone fails as before on a host without a helper, or a read-only token's refusal shows as a plain push failure; set up a credential helper by hand | — |
 
 ### Waiting for the event / not checked by choice
 

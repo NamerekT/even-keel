@@ -10,8 +10,10 @@ import { loadChainState, saveChainState, saveClosedTask } from '../chain/store.j
 import { gitlabUrls } from '../ci/adapters.js'
 import { createCiWatches } from '../ci/wiring.js'
 import { DEFAULT_BRANCH, DEFAULT_CI, isPlain, mergeTargetOf, projectLabel, readerIds } from '../config.js'
+import { withCredentials } from '../git/credentials.js'
 import { runGit } from '../git/run.js'
 import { slotPaths } from '../git/slot.js'
+import { folderGitCredentials } from './git-credentials.js'
 import { namedBlock } from '../machine/block-names.js'
 import type { MachinePort } from '../machine/port.js'
 import { fail, notice } from '../notice/notice.js'
@@ -227,7 +229,8 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
     log: (message) => console.log(message),
     reviews: reviewDeps({
       gitlabUrls: () => gitlabUrls(ctx.profiles.current().profiles),
-      git: runGit,
+      // The branch is pushed with the profile's token, as the CI and the pull request (BTN-1541).
+      git: withCredentials(runGit, folderGitCredentials(ctx)),
       repo: (project) => ctx.configStore.current.projects[project]!,
       main: ctx.branchOf,
       on: ctx.pullRequestsOn,
@@ -290,7 +293,8 @@ export function wireForwards(ctx: ChainContext): ForwardMerger {
       const status = (task: string) => ctx.agentStatus(task)
       return chainQuiet(ctx.dispatcher.state.active.find((chain) => chain.project === project), (task) => status(task) === 'busy' || status(task) === 'waiting')
     },
-    git: runGit,
+    // Its fetch of the remote reads with the profile's token (BTN-1541).
+    git: withCredentials(runGit, folderGitCredentials(ctx)),
     read: (repo, path) => readFile(join(repo, path), 'utf8').catch(() => null),
     sync: ctx.syncProject,
     now: () => new Date(),

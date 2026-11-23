@@ -16,6 +16,9 @@ import { machinesPortOf } from '../link/address.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { hubIdentity } from '../link/identity.js'
 import { MachineNetwork } from './machine-network.js'
+import { folderGitCredentials, hubGitCredentials } from './git-credentials.js'
+import { withCredentials } from '../git/credentials.js'
+import { runGit } from '../git/run.js'
 import { MachineTally } from '../stats/machine-tally.js'
 import { HubEnd } from '../link/hub.js'
 import { LOCAL_HEARTBEAT_MS, LocalTransport } from '../link/local.js'
@@ -302,6 +305,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     log,
   })
   const handlers = remote.handlers()
+  const gitCredentialsOf = hubGitCredentials(ctx, log)
   const hub: HubEnd = new HubEnd({
     store: hubStore,
     handlers: {
@@ -326,6 +330,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         else await handlers.event(machine, event)
       },
       mcp: (machine, request) => hubMcp.relay(machine, request),
+      credentials: gitCredentialsOf,
     },
     log,
     heartbeatMs: LOCAL_HEARTBEAT_MS,
@@ -364,6 +369,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       mcp: (machine, request) => hubMcp.relay(machine, request),
       hook: (machine, request) => hubHooks.relay(machine, request),
       tally: (machine, rows) => machineTally.take(machine, rows),
+      credentials: gitCredentialsOf,
       write: (machine, write) => hubMcp.write(machine, write),
     },
     takeOverOwn: async (project, owner) => {
@@ -458,6 +464,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     connected: (machine) => network.connected(machine),
     names: () => network.names(),
     repoOf: (project) => ctx.configStore.current.projects[project],
+    git: withCredentials(runGit, folderGitCredentials(ctx)),
     moved: (project, task) => ctx.dispatcher.moved(project, task),
     changed: () => ctx.hub.broadcastSoon('state', () => ctx.getState()),
     log,

@@ -111,6 +111,16 @@ describe('syncMain', () => {
     expect(calls.filter((call) => call === 'push origin main')).toHaveLength(1)
   })
 
+  it('names the profile whose token may not write, for a push and for the alias (BTN-1541)', async () => {
+    const denied = { profile: 'p1', name: 'John GitHub', url: 'https://github.com/john/repo.git' }
+    const out = 'remote: Write access to repository not granted.'
+    const expected = notice('git.readOnly', { profile: 'John GitHub', url: denied.url }, { detail: out })
+    const pushed = fakeGit({ ...builtIn, 'push origin main': { code: 128, out, denied } })
+    expect(await syncMain(pushed.git, repo, ['origin'])).toEqual(expected)
+    const alias = fakeGit({ 'config --get alias.sync': { out: '!git fetch --all' }, sync: { code: 1, out, denied } })
+    expect(await syncMain(alias.git, repo, ['origin'])).toEqual(expected)
+  })
+
   // Another clone of the same remote pushed between this one's fetch and push (BTN-210).
   it('syncs once more when the remote moved between the fetch and the push', async () => {
     const { git, calls } = fakeGit({ ...builtIn, 'push origin main': [rejected, { code: 0 }] })

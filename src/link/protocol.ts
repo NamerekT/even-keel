@@ -2,10 +2,11 @@
  * The hub ↔ machine link (BTN-988, `docs/machines.md`): what goes over it, apart from how it is carried. The machine
  * opens the connection: the hub's commands come down one stream as frames, the machine's events go up as posts.
  */
+import type { GitCredential } from '../git/credentials.js'
 import type { MachineAbout } from './view.js'
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 16
+export const API_VERSION = 17
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -22,6 +23,7 @@ export const SNAPSHOT_PATH = '/link/snapshot'
 export const MCP_PATH = '/link/mcp'
 export const HOOK_PATH = '/link/hook'
 export const TALLY_PATH = '/link/tally'
+export const CREDENTIALS_PATH = '/link/credentials'
 /** The one post of a connection string: it is exchanged for the machine's own secret (BTN-1242). */
 export const JOIN_PATH = '/link/join'
 
@@ -204,6 +206,22 @@ export interface TallyPost {
 /** `taken: false` — the hub keeps no stats now: the machine keeps its marks and sends the rows again later. */
 export interface TallyAnswer {
   taken: boolean
+}
+
+/**
+ * The machine's git is about to reach the HTTPS remotes `urls` of a project's folder (BTN-1541): the hub answers with
+ * the token of each remote's profile, for that one call. Not an event, never kept: a lost answer is a call with what
+ * git has of its own.
+ */
+export interface CredentialsPost {
+  connection: string
+  project: string
+  urls: string[]
+}
+
+/** Only for a project in the machine's pool; a remote with no profile is left out. */
+export interface CredentialsAnswer {
+  credentials: GitCredential[]
 }
 
 /** The events a machine writes about the link itself. */

@@ -141,6 +141,7 @@ export async function openPull(
   if (outsider !== undefined) await holdOutsider(git, workdir, `refs/remotes/${remote}/${base}`, outsider)
 
   const pushed = await git(workdir, ['push', '--set-upstream', remote, `${branch}:refs/heads/${branch}`])
+  if (pushed.denied !== undefined) throw fail('git.readOnly', { profile: pushed.denied.name, url: pushed.denied.url }, { detail: pushed.out })
   if (pushed.code !== 0 && (BEHIND.test(pushed.out) || !(await remoteAtHead(git, workdir, remote, branch)))) {
     throw fail(BEHIND.test(pushed.out) ? 'review.pushBehind' : 'review.pushFailed', { branch, remote }, { detail: pushed.out })
   }

@@ -124,6 +124,14 @@ describe('openPull', () => {
     }
   })
 
+  it('names the profile whose token may not write when the push is refused with it (BTN-1541)', async () => {
+    const out = "remote: Permission to john/abc.git denied to doe.\nfatal: unable to access 'https://github.com/john/abc.git/': The requested URL returned error: 403\n"
+    const push = { code: 128, out, denied: { profile: 'p1', name: 'John GitHub', url: 'https://github.com/john/abc.git' } }
+    const { result, created } = await opening({ code: 0, out: '1\n' }, '', true, undefined, push)
+    await expect(result).rejects.toMatchObject({ notice: { code: 'git.readOnly', params: { profile: 'John GitHub', url: 'https://github.com/john/abc.git' } } })
+    expect(created).toEqual([])
+  })
+
   it('opens the pull request when the push lost a race to the end-of-turn push of the same commit (BTN-1419)', async () => {
     const raced = { code: 1, out: ' ! [remote rejected] abc-7/task -> abc-7/task (reference already exists)\n' }
     const same = await opening({ code: 0, out: '1\n' }, '', true, undefined, raced, { remoteAt: { code: 0, out: 'c0ffee1\trefs/heads/abc-7/task\n' } })

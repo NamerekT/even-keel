@@ -242,6 +242,8 @@ export const en = {
   'sync.push': (p: { remote: string; main: string }) => `sync: could not push ${p.main} to ${p.remote}`,
   'sync.checkRed': (p: { main: string; command: string; code: number }) =>
     `sync: ${p.main} merged with commits of another machine fails the project's check (${p.command} exited with ${p.code}); it is not pushed, merge it by hand`,
+  'git.readOnly': (p: { profile: string; url: string }) =>
+    `the token of the profile ${p.profile} may not push to ${p.url}: give the token write access to the repository's contents in Trackers and CI`,
 
   'forward.busy': (p: { into: string }) => `the chain of ${p.into} is working; the release branch goes in once it is quiet`,
   'forward.notOnBranch': (p: { repo: string; branch: string; current: string }) =>

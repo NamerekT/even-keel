@@ -2,7 +2,7 @@ import { basename, posix, win32 } from 'node:path'
 import type { TokenAccountOf } from '../account/model.js'
 import type { HubCertificate } from '../link/cert.js'
 import type { HubStore } from '../link/hub-store.js'
-import type { HookAnswer, HookRequest, McpAnswer, McpRequest, TallyAnswer } from '../link/protocol.js'
+import type { CredentialsAnswer, HookAnswer, HookRequest, McpAnswer, McpRequest, TallyAnswer } from '../link/protocol.js'
 import type { MachineProjectSettings, PoolServer } from '../link/view.js'
 import type { HubBrief } from '../machine/brief.js'
 import type { RemoteDeps, RemoteMachine } from '../machine/remote.js'
@@ -31,6 +31,8 @@ export interface NetworkPeers {
   hook: (machine: string, request: HookRequest) => Promise<HookAnswer>
   /** Rows of the machine's own Tally collector (BTN-1280); absent — none are taken. */
   tally?: (machine: string, rows: unknown) => Promise<TallyAnswer>
+  /** The tokens of a project's remotes for one git call of the machine (BTN-1541); `cloning` — a clone of the hub's in flight. Absent — none. */
+  credentials?: (machine: string, project: string, urls: string[], cloning: boolean) => Promise<CredentialsAnswer>
   write: (machine: string, write: KeptWrite) => Promise<void>
 }
 

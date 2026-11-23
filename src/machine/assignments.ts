@@ -137,3 +137,9 @@ export async function poolOf(db: Queryable, project: string): Promise<string[]> 
   const { rows } = await db.query<{ machine_id: string }>('select machine_id from project_machines where project_id = $1 and enabled order by machine_id', [project])
   return rows.map((row) => row.machine_id)
 }
+
+/** The machine has a folder of the project in its pool, turned on or off (a connect's checks run on one turned off). */
+export async function placedIn(db: Queryable, project: string, machine: string): Promise<boolean> {
+  const { rows } = await db.query('select 1 from project_machines where project_id = $1 and machine_id = $2', [project, machine])
+  return rows.length > 0
+}

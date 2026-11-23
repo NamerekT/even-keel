@@ -2,7 +2,10 @@ import type { AccountHome } from '../account/homes.js'
 import type { SessionStart } from '../agent/contract.js'
 import type { HandoffSession } from '../chain/relay.js'
 import { DEFAULT_BRANCH, idPrefixOf, isPlain, ownerOf, readersOf } from '../config.js'
+import { withCredentials, type GitCredential } from '../git/credentials.js'
 import { runGit } from '../git/run.js'
+import type { Git } from '../git/types.js'
+import { projectOfFolder } from './git-credentials.js'
 import type { SlotUse } from '../git/slot.js'
 import { AccountIdentities } from '../limits/identity.js'
 import { folderHere } from '../machine/account-here.js'
@@ -36,6 +39,8 @@ export interface MachineTell {
   transcript(sessionId: string): void
   /** Something the page shows of the machine changed: its facts go to the hub's mirror. */
   changed(): void
+  /** The tokens of a project's HTTPS remotes for one git call, asked of the hub (BTN-1541); `[]` — none or no link. */
+  credentials(project: string, urls: readonly string[]): Promise<GitCredential[]>
 }
 
 export type LaterTell = MachineTell & { connect(tell: MachineTell): void }
@@ -51,6 +56,8 @@ export interface MachineOwn {
   tell: LaterTell
   /** The machine's writes in flight, settled before it closes. */
   writes: Writes
+  /** Git whose calls to a project's HTTPS remotes take its profile's token from the hub (BTN-1541, `withCredentials`). */
+  git: Git
   briefed: ReturnType<typeof launchBriefs>
   branchOf: (project: string) => string
   pullRequestsOn: (project: string) => boolean
@@ -98,6 +105,7 @@ export function laterTell(): LaterTell {
     },
     transcript: (sessionId) => to?.transcript(sessionId),
     changed: () => to?.changed(),
+    credentials: async (project, urls) => (to === undefined ? [] : to.credentials(project, urls)),
   }
 }
 
@@ -120,6 +128,10 @@ export function machineContext(host: MachineHost, brief: BriefCopy, tell: LaterT
     readers,
     tell,
     writes,
+    git: withCredentials(runGit, async (folder, urls) => {
+      const project = projectOfFolder(config().projects, folder)
+      return project === undefined ? [] : tell.credentials(project, urls)
+    }),
     briefed: launchBriefs(),
     branchOf: (project) => config().settings[project]?.branch ?? DEFAULT_BRANCH,
     pullRequestsOn: (project) => config().settings[project]?.pullRequests ?? false,

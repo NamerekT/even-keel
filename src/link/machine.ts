@@ -4,8 +4,9 @@ import type { Consent, MachineStore } from './machine-store.js'
 import {
   API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, TAKEN_EVENT, isRefusal,
   type AssignPayload, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
-  type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type VersionRefusal,
+  type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type VersionRefusal, type CredentialsAnswer, type CredentialsPost,
 } from './protocol.js'
+import type { GitCredential } from '../git/credentials.js'
 
 /** What a stream tells the machine: it is connected, a frame came, it ended (with the hub's refusal, if it gave one). */
 export interface StreamSink {
@@ -22,6 +23,7 @@ export interface HubTransport {
   mcp(post: McpPost): Promise<McpAnswer | Refusal>
   hook(post: HookPost): Promise<HookAnswer | Refusal>
   tally(post: TallyPost): Promise<TallyAnswer | Refusal>
+  credentials(post: CredentialsPost): Promise<CredentialsAnswer | Refusal>
 }
 
 export type LinkState = 'offline' | 'connecting' | 'online'
@@ -192,6 +194,15 @@ export class MachineEnd {
   /** A session's hook asking the hub's page (BTN-1260); `undefined` — the hub is not reachable now, as for `mcp`. */
   hook(request: HookRequest): Promise<HookAnswer | undefined> {
     return this.ask(`a hook's request ${request.method} ${request.path.split('?')[0]}`, (connection) => this.options.transport.hook({ connection, request }))
+  }
+
+  /**
+   * The tokens of a project's HTTPS remotes for one git call (BTN-1541), kept only by that call; `[]` — the hub is not
+   * reachable now or has no profile for them, and git works with what it has of its own.
+   */
+  async credentials(project: string, urls: readonly string[]): Promise<GitCredential[]> {
+    const answer = await this.ask('a request for git credentials', (connection) => this.options.transport.credentials({ connection, project, urls: [...urls] }))
+    return answer?.credentials ?? []
   }
 
   /** Rows of the machine's Tally collector (BTN-1280); `false` — the hub did not take them now, as `undefined` of `mcp`. */

@@ -236,6 +236,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     leftover: (project, task, notice) => void end.emit(LEFTOVER_EVENT, { project, task, notice }).catch((error: unknown) => log(`machine: what the cleanup left on ${task} was not told: ${messageOf(error)}`)),
     transcript: (sessionId) => void end.emit(TRANSCRIPT_EVENT, { sessionId }).catch(() => {}),
     changed: () => runner.changed(),
+    credentials: (project, urls) => end.credentials(project, urls),
   })
   machine.mailbox.persistWith(async (change) => {
     await records.mailbox(change)

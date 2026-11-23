@@ -3,8 +3,8 @@ import { connect, type TLSSocket } from 'node:tls'
 import { fingerprintOf } from './cert.js'
 import type { HubTransport, StreamSink } from './machine.js'
 import {
-  API_VERSION, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, bearerOf, isRefusal,
-  type ConnectionToken, type EventsAnswer, type Frame, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type TallyAnswer,
+  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MCP_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, bearerOf, isRefusal,
+  type ConnectionToken, type CredentialsAnswer, type EventsAnswer, type Frame, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type TallyAnswer,
 } from './protocol.js'
 
 export interface TransportOptions {
@@ -187,6 +187,7 @@ export function httpsTransport(token: ConnectionToken, options: TransportOptions
     snapshot: (body) => post<EventsAnswer>(SNAPSHOT_PATH, body, counted),
     mcp: (body) => post<McpAnswer>(MCP_PATH, body, answered, MCP_TIMEOUT_MS),
     tally: (body) => post<TallyAnswer>(TALLY_PATH, body, (value) => typeof (value as TallyAnswer).taken === 'boolean', TALLY_TIMEOUT_MS),
+    credentials: (body) => post<CredentialsAnswer>(CREDENTIALS_PATH, body, (value) => Array.isArray((value as CredentialsAnswer).credentials)),
     hook: (body) => {
       const limit = Math.min(timeoutMs, HOOK_TIMEOUT_MS)
       return postTo<HookAnswer>(token, HOOK_PATH, body, (value) => typeof (value as HookAnswer).status === 'number' && typeof (value as HookAnswer).body === 'string', limit, limit)

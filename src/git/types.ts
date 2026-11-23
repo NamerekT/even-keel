@@ -5,9 +5,19 @@ export interface GitResult {
   out: string
   /** Git is not on the service's PATH, or is macOS's stub without Command Line Tools. */
   missing?: true
+  /** A push the remote refused for writing with a profile's token (BTN-1541, `withCredentials`). */
+  denied?: GitDenied
 }
 
-export type Git = (cwd: string, args: string[]) => Promise<GitResult>
+/** The profile (its id and name) whose token could not write to the remote at `url`. */
+export interface GitDenied {
+  profile: string
+  name: string
+  url: string
+}
+
+/** `env` — variables of this call over the service's own. */
+export type Git = (cwd: string, args: string[], env?: Readonly<Record<string, string>>) => Promise<GitResult>
 
 export interface TaskPlace {
   path: string

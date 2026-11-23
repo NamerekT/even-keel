@@ -3,7 +3,7 @@ import type { HubStore, MachineRecord } from './hub-store.js'
 import {
   API_VERSION, HEARTBEAT_MS, INVITE_MS, MISSED_PULSES, credentialsOf, encodeToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type JoinAnswer, type JoinPost, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
-  type McpRequest, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost,
+  type McpRequest, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost,
 } from './protocol.js'
 
 /** A connection string just issued: the line is shown once, the hub keeps only the hash of its secret. */
@@ -33,6 +33,8 @@ export interface HubHandlers {
   hook?(machine: string, request: HookRequest): Promise<HookAnswer>
   /** Rows of the machine's own Tally collector (BTN-1280); without a handler none are taken. */
   tally?(machine: string, rows: unknown): Promise<TallyAnswer>
+  /** The tokens of a project's remotes for one git call of the machine (BTN-1541); without a handler, none. */
+  credentials?(machine: string, project: string, urls: string[]): Promise<CredentialsAnswer> | CredentialsAnswer
 }
 
 export interface HubOptions {
@@ -227,6 +229,12 @@ export class HubEnd {
   async tally(authorization: string | undefined, post: TallyPost): Promise<TallyAnswer | Refusal> {
     const handler = this.options.handlers.tally
     return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.rows) ?? { taken: false })
+  }
+
+  /** The tokens of a project's remotes for one git call (BTN-1541): as `mcp`, not queued and counted as the pulse. */
+  async credentials(authorization: string | undefined, post: CredentialsPost): Promise<CredentialsAnswer | Refusal> {
+    const handler = this.options.handlers.credentials
+    return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.project, post.urls) ?? { credentials: [] })
   }
 
   private otherVersion(): Refusal {

@@ -94,6 +94,19 @@ describe('the hub ↔ machine link', () => {
     expect(tallied).toHaveLength(1)
   })
 
+  it('asks the hub for the tokens of a project’s remotes for one git call; none while the hub is away (BTN-1541)', async () => {
+    const { end, wire, credentialed, id } = await started()
+    const url = 'https://github.com/john/repo.git'
+    expect(await end.credentials(PROJECT, [url])).toEqual([{ url, username: 'x-access-token', password: 'ghp_example', profile: { id: 'p1', name: 'John GitHub' } }])
+    expect(credentialed).toEqual([{ machine: id, project: PROJECT, urls: [url] }])
+    wire.down = true
+    expect(await end.credentials(PROJECT, [url])).toEqual([])
+    wire.down = false
+    end.stop()
+    expect(await end.credentials(PROJECT, [url])).toEqual([])
+    expect(credentialed).toHaveLength(1)
+  })
+
   it('numbers the commands per machine and runs them in order', async () => {
     const { hub, id, ran, hubStore } = await started()
     expect(await hub.send(id, { type: 'example.first' })).toBe(1)

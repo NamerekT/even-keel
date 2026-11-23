@@ -26,6 +26,8 @@ interface RunOptions {
   timeoutMs?: number
   /** Each line of stderr, where git writes its progress with `\r` between the lines. */
   onLine?: (line: string) => void
+  /** Variables on top of `remoteEnv`: the call's credentials (`credentialedRemote`). */
+  env?: Readonly<Record<string, string>>
 }
 
 export type RemoteGit = (args: string[], options?: RunOptions) => Promise<RemoteRun>
@@ -43,10 +45,10 @@ export function remoteEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessE
  * Git on a remote: `ls-remote`, `clone`, and `-C <clone> restore` for its LFS files. Its answer on stdout is kept whole, up to a ceiling;
  * its words on stderr are cut to their end, where the reason of a failure is, and follow the answer.
  */
-export const runRemoteGit: RemoteGit = (args, { signal, timeoutMs, onLine } = {}) =>
+export const runRemoteGit: RemoteGit = (args, { signal, timeoutMs, onLine, env } = {}) =>
   new Promise<RemoteRun>((resolve) => {
     const child = spawn('git', [...(process.platform === 'win32' ? ['-c', 'core.longpaths=true'] : []), ...args], {
-      env: remoteEnv(),
+      env: { ...remoteEnv(), ...env },
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     })

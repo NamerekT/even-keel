@@ -1,5 +1,5 @@
 import { notice, type Notice } from '../notice/notice.js'
-import type { Git } from './types.js'
+import type { Git, GitResult } from './types.js'
 
 /**
  * A push refused because the remote got commits after the fetch: another clone of it pushed meanwhile. Git sees it
@@ -42,7 +42,7 @@ async function syncOnce(git: Git, repo: string, remotes: string[], main: string,
   const alias = main === 'main' ? ['config', '--get', 'alias.sync'] : ['config', '--local', '--get', 'alias.sync']
   if ((await git(repo, alias)).code === 0) {
     const synced = await git(repo, ['sync'])
-    return synced.code === 0 ? null : notice('sync.alias', { exit: synced.code }, { detail: synced.out })
+    return synced.code === 0 ? null : (readOnly(synced) ?? notice('sync.alias', { exit: synced.code }, { detail: synced.out }))
   }
 
   const branch = (await git(repo, ['branch', '--show-current'])).out.trim()
@@ -73,9 +73,14 @@ async function syncOnce(git: Git, repo: string, remotes: string[], main: string,
 
   for (const remote of remotes) {
     const pushed = await git(repo, ['push', remote, main])
-    if (pushed.code !== 0) return notice('sync.push', { remote, main }, { detail: pushed.out })
+    if (pushed.code !== 0) return readOnly(pushed) ?? notice('sync.push', { remote, main }, { detail: pushed.out })
   }
   return null
+}
+
+/** A push the remote refused for writing with a profile's token (BTN-1541): the profile is named, with git's words. */
+function readOnly(pushed: GitResult): Notice | null {
+  return pushed.denied === undefined ? null : notice('git.readOnly', { profile: pushed.denied.name, url: pushed.denied.url }, { detail: pushed.out })
 }
 
 /** Main and the remote's main each have commits the other lacks: merging them makes a commit nobody checked. */

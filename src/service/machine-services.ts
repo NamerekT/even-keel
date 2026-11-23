@@ -3,7 +3,8 @@ import { homedir } from 'node:os'
 import type { HandoffSession } from '../chain/relay.js'
 import { trustFolder } from '../claude/trust.js'
 import type { CloneProgress } from '../git/clone-progress.js'
-import { cloner, type Clone } from '../git/remote-run.js'
+import { credentialedRemote, withCredentials } from '../git/credentials.js'
+import { cloner, runRemoteGit, type Clone } from '../git/remote-run.js'
 import { runGit } from '../git/run.js'
 import { readGitSetup, saveIdentity } from '../git/setup.js'
 import type { Git } from '../git/types.js'
@@ -33,6 +34,7 @@ export type MachineServicesContext = Pick<MachineContext,
   | 'promptLanguage'
   | 'sessionAccount'
   | 'taskNote'
+  | 'tell'
   | 'transcriptWatch'
 >
 
@@ -129,11 +131,14 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
     },
     records: { restore: deps.restore },
     folders: {
-      check: (step, spec) =>
-        checkFolderStep({ git: deps.git ?? runGit, claudeConfigs: () => ctx.claudeConfigs().map(readJson), packages: ctx.packages }, step, spec),
+      check: (step, spec) => {
+        // The right to push is checked with the token the chain's pushes get (BTN-1541).
+        const git = withCredentials(deps.git ?? runGit, (_folder, urls) => ctx.tell.credentials(spec.project, urls))
+        return checkFolderStep({ git, claudeConfigs: () => ctx.claudeConfigs().map(readJson), packages: ctx.packages }, step, spec)
+      },
       clone: async (spec, remote) => {
         cloneTarget(spec.folder)
-        await (deps.clone ?? cloner())({
+        await (deps.clone ?? cloner(credentialedRemote(runRemoteGit, (urls) => ctx.tell.credentials(spec.project, urls))))({
           remote,
           path: spec.folder,
           branch: null,
