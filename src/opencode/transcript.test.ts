@@ -24,7 +24,7 @@ describe('foldSession', () => {
   it('classifies a ChatGPT model refusal in stored steps and terminal errors', () => {
     const error = { name: 'APIError', data: { message: 'Request failed', responseBody: JSON.stringify({ error: { message: "The 'denied' model is not supported when using Codex with a ChatGPT account." } }) } }
     const row = message('msg_02', 2, step({}, { providerID: 'openai', modelID: 'denied', error }))
-    expect(foldSession([prompt, row], [promptText]).apiError).toMatchObject({ kind: 'model', notice: { code: 'chain.modelUnavailable', params: { model: 'openai/denied' } } })
+    expect(foldSession([prompt, row], [promptText]).apiError).toMatchObject({ kind: 'model', notice: { code: 'chain.modelUnavailable', params: { model: 'openai/denied', agent: 'OpenCode' } } })
     expect(foldSession([prompt], [promptText], 30, false, [{ at: T0 + 2000, error }]).apiError).toMatchObject({ kind: 'model' })
   })
 

@@ -10,7 +10,7 @@ import { PinnedCli } from '../agent/pinned.js'
 import { findBinary } from '../paths.js'
 import { warmCacheMs } from '../sessions/cache.js'
 import { appServer } from './appserver.js'
-import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
+import { CodexCli, modelListOf, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
 import { CODEX } from './name.js'
 import { CodexPlugins } from './plugins.js'
 import { codexBinaryIn, codexTarget, fetchCodex, CODEX_PACKAGE } from './release.js'
@@ -109,8 +109,8 @@ export const codex: AgentAdapter = {
         return parseWriteAnswer(stdout, model, Date.now() - started)
       },
       models: async (home) => {
-        const [answer] = await appServer(bin(), [], workDir, envOf(home), [['model/list', {}]])
-        return { models: listedModels(answer), complete: false }
+        const [[answer], account] = await Promise.all([appServer(bin(), [], workDir, envOf(home), [['model/list', {}]]), chatGptAccountOf(home)])
+        return modelListOf(answer, account !== null)
       },
     }
   },

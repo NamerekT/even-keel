@@ -241,6 +241,19 @@ describe('RolloutFold', () => {
     expect(fold([plain]).summary().apiError?.text).toBe('plain text')
   })
 
+  // From a rollout of 2026-11-23 (codex-cli 0.169.0): a free ChatGPT sign-in launched on a model its plan lacks.
+  it("reads a ChatGPT account's model refusal as a model error with the Model/Account guidance", () => {
+    const context = line('turn_context', { cwd: CWD, model: 'gpt-6.2-astra' })
+    const error = { message: "The 'gpt-6.2-astra' model is not supported when using Codex with a ChatGPT account.", codex_error_info: 'model_not_found' }
+    const summary = fold([meta(), context, started(), user('TSK-1'), event({ type: 'task_complete', last_agent_message: null, error })]).summary()
+    const diagnostic = { code: 'chain.modelUnavailable', params: { model: 'gpt-6.2-astra', agent: 'Codex' } }
+    expect(summary.apiError).toMatchObject({ kind: 'model', notice: diagnostic })
+    expect(summary.apiError?.text).toContain('Codex')
+    expect(summary.feed.at(-1)).toMatchObject({ kind: 'error', notice: diagnostic })
+    const bare = fold([event({ type: 'error', message: 'Model not found', codex_error_info: 'model_not_found' })]).summary()
+    expect(bare.apiError).toMatchObject({ kind: 'model', notice: { params: { model: 'the model', agent: 'Codex' } } })
+  })
+
   it('reads the 429 body of a reached usage limit, written as the turn error, as a limit', () => {
     const answer = JSON.parse(readFileSync('test/fixtures/limits/codex-429-plus-premium.json', 'utf8')) as { body: unknown }
     const premium = event({ type: 'token_count', info: null, rate_limits: { limit_id: 'premium', primary: null, secondary: null } })

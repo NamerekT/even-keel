@@ -90,6 +90,13 @@ describe('ModelCatalog', () => {
     expect(await models.refusal(claude, 'NAM-65', 'claude-opus-5-5')).toBeUndefined()
   })
 
+  it("lets a complete list's unlisted models through but refuses one it has nowhere", async () => {
+    const codex = { key: 'codex-free', agent: 'codex', dir: 'D:/accounts/codex-free' } as AccountHome
+    const { models } = catalog([{ models: ['gpt-6-luna'], unlisted: ['gpt-reserve'], complete: true }, { models: ['gpt-6-luna'], unlisted: ['gpt-reserve'], complete: true }])
+    expect(await models.refusal(codex, 'ATC-4', 'gpt-reserve')).toBeUndefined()
+    expect(await models.refusal(codex, 'ATC-4', 'gpt-6.2-astra')).toMatchObject({ code: 'chain.unknownModel', params: { model: 'gpt-6.2-astra', known: ['gpt-6-luna'] } })
+  })
+
   it('keeps a list for a while and reads it anew once it is old', async () => {
     const { models, asked, now } = catalog([FREE, FREE])
     await models.of(home)

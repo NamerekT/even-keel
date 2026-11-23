@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
-import type { OneTurnAnswer, SessionStart } from '../agent/contract.js'
+import type { ModelList, OneTurnAnswer, SessionStart } from '../agent/contract.js'
 import { execFailure } from '../agent/exec-failure.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { isAlive, killTree, stopTree } from '../agent/process.js'
@@ -128,6 +128,18 @@ export function listedModels(answer: unknown): string[] {
   const data = (answer as { data?: unknown } | null)?.data
   if (!Array.isArray(data)) return []
   return data.flatMap((entry: { model?: unknown; hidden?: unknown }) => (typeof entry?.model === 'string' && entry.hidden !== true ? [entry.model] : []))
+}
+
+/**
+ * `Agent.models` of a Codex folder (BTN-1537): a ChatGPT sign-in runs only the models of its plan's catalogue, so a
+ * non-empty list of one is complete and its hidden models are runnable but not offered; an API key reaches models the
+ * list does not name.
+ */
+export function modelListOf(answer: unknown, chatGpt: boolean): ModelList {
+  const models = listedModels(answer)
+  const data = (answer as { data?: unknown } | null)?.data
+  const unlisted = Array.isArray(data) ? data.flatMap((entry: { model?: unknown; hidden?: unknown }) => (typeof entry?.model === 'string' && entry.hidden === true ? [entry.model] : [])) : []
+  return { models, unlisted, complete: chatGpt && models.length > 0 }
 }
 
 /**

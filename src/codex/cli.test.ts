@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { forkSpend, listedModels, parseLoginStatus, parseWriteAnswer, turnArgs, warmArgs, writeArgs } from './cli.js'
+import { forkSpend, listedModels, modelListOf, parseLoginStatus, parseWriteAnswer, turnArgs, warmArgs, writeArgs } from './cli.js'
 import { mcpArgs } from './mcp.js'
 
 describe('listedModels', () => {
@@ -14,6 +14,25 @@ describe('listedModels', () => {
     }
     expect(listedModels(answer)).toEqual(['gpt-6-luna', 'gpt-5.6-terra'])
     expect(listedModels(null)).toEqual([])
+  })
+})
+
+describe('modelListOf', () => {
+  const answer = {
+    data: [
+      { id: 'gpt-reserve', model: 'gpt-reserve', hidden: true },
+      { id: 'gpt-6-luna', model: 'gpt-6-luna', hidden: false },
+    ],
+  }
+
+  it('is complete for a ChatGPT sign-in, its hidden models runnable but not offered', () => {
+    expect(modelListOf(answer, true)).toEqual({ models: ['gpt-6-luna'], unlisted: ['gpt-reserve'], complete: true })
+  })
+
+  it('is not complete for an API key, which reaches models the list does not name, nor when the list is empty', () => {
+    expect(modelListOf(answer, false)).toMatchObject({ models: ['gpt-6-luna'], complete: false })
+    expect(modelListOf({ data: [] }, true)).toMatchObject({ models: [], complete: false })
+    expect(modelListOf(null, true).complete).toBe(false)
   })
 })
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLive } from '../live/context.js'
 
 /** The service's answer to `models/list` (`ModelList` of `src/agent/contract.ts`). */
-export type ModelAnswer = { models: string[]; complete: boolean } | null
+export type ModelAnswer = { models: string[]; unlisted?: string[]; complete: boolean } | null
 
 /**
  * The models of these account folders (by key) the model fields offer, asked as the panel opens and when an account
