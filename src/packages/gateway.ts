@@ -12,6 +12,7 @@ import { MACHINE_HEADER } from '../taskmcp/carried.js'
 import { AWAY_TEXT } from '../taskmcp/machine.js'
 import { isTasksUrl, tasksProjectOf } from '../taskmcp/server.js'
 import { isMemoryUrl } from '../memory/mcp.js'
+import { takeHeldPort } from './held-port.js'
 import { parseRoute } from './launch.js'
 import type { ServerEntry } from './model.js'
 
@@ -155,8 +156,19 @@ export class McpGateway {
     return this.server !== undefined
   }
 
+  /** Takes over the port `src/start.ts` held from the process's start (BTN-1544), else listens anew. */
   async listen(port: number): Promise<void> {
-    const server = createServer((req, res) => void this.handle(req, res))
+    const handler = (req: IncomingMessage, res: ServerResponse) => void this.handle(req, res)
+    const held = await takeHeldPort(port, handler)
+    if (held !== undefined) {
+      this.server = held
+      this.port = port
+      // A turn of the event loop, as a fresh listen takes: ready within the start's own turn, the hub's mirror of the
+      // own machine is read before its accounts and the e2e chains find none (BTN-1544, the race filed apart).
+      await new Promise((resolve) => setImmediate(resolve))
+      return
+    }
+    const server = createServer(handler)
     await new Promise<void>((resolve, reject) => {
       server.once('error', (error) => reject(fail('packages.port', { port }, {}, { cause: error })))
       server.listen(port, '127.0.0.1', () => resolve())

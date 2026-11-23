@@ -1,13 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { listenOf } from './config.js'
+import { listenOf, mcpPortOf } from './config.js'
 import { startDiagnostics } from './diagnostics/start-watch.js'
 import { logFatalErrors } from './diagnostics/stop.js'
 import { fetchOverHttp1 } from './fetch-dispatcher.js'
 import { guardHosts, guardToken } from './guard.js'
 import { configPath, home, loadEnv, root, stateDirOf } from './locations.js'
 import { causeLine, englishOf, noticeWithCause, sameNotice } from './notice/notice.js'
+import { holdGatewayPort, releaseHeldPort } from './packages/held-port.js'
 import { createBlockedServer } from './server.js'
 import { joinedHub, machineOnly, waitForJoin } from './service/machine-process.js'
 import { prepareSettings } from './settings/import.js'
@@ -27,6 +28,8 @@ await startDiagnostics(join(home, 'logs'), line => console.log(line))
 const modulesMs = performance.now()
 // A machine's container never starts as a hub before its join (BTN-1440).
 if (machineOnly(process.env)) await waitForJoin(stateDirOf(), { log: (line) => console.log(line) })
+// Sessions' CLIs reach the gateway again within seconds of a restart, not after the whole start (BTN-1544).
+holdGatewayPortOf(process.env)
 // A machine of a hub elsewhere has no state database and no page (BTN-1247): `join` made it one.
 const ready = joinedHub(stateDirOf()) ? (await import('./machine-service.js'), false) : await startWithStorageRetry({
   prepare: async () => {
@@ -47,8 +50,19 @@ if (ready) {
   const ms = (value: number) => `${(value / 1000).toFixed(1)} s`
   console.log(`start: modules ${ms(modulesMs)}, storage ${ms(storageMs - modulesMs)}, service ${ms(performance.now() - storageMs)}`)
 }
+// The gateway took the port as the service started; a hold still here (another port in `.env` by now) waits for nothing.
+await releaseHeldPort()
+
+function holdGatewayPortOf(env: NodeJS.ProcessEnv): void {
+  try {
+    holdGatewayPort(mcpPortOf(env))
+  } catch {
+    // A bad EVEN_KEEL_MCP_PORT is the service's to report as it starts.
+  }
+}
 
 async function serveBlocked(error: unknown): Promise<BlockedPage> {
+  await releaseHeldPort()
   const logBlocked = (error: unknown) => {
     console.error(`${englishOf(noticeWithCause(error))}. The service started nothing and wrote nothing; it serves the page only`)
     const cause = causeLine(error)
