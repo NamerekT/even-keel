@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { HubStore, MachineRecord } from './hub-store.js'
 import {
@@ -51,6 +52,12 @@ export interface HubOptions {
   commit?: string
 }
 
+/** One piece of a machine's queued work while it runs. */
+interface Turn {
+  machine: string
+  running: boolean
+}
+
 interface Live {
   connection: string
   sink: FrameSink
@@ -79,6 +86,7 @@ const sameHash = (secret: string, hash: string): boolean => {
 export class HubEnd {
   private readonly live = new Map<string, Live>()
   private readonly queues = new Map<string, Promise<unknown>>()
+  private readonly turn = new AsyncLocalStorage<Turn>()
   private readonly heartbeatMs: number
   private readonly now: () => number
 
@@ -145,13 +153,19 @@ export class HubEnd {
     return this.live.has(machine)
   }
 
-  /** Keeps the command and sends it if the machine is connected; otherwise it goes at the next connection. */
+  /**
+   * Keeps the command and sends it if the machine is connected; otherwise it goes at the next connection. A send made
+   * while the machine's own turn runs (a handler of its event or snapshot) is part of that turn: queued behind it, it
+   * would wait for the turn that waits for it, and the machine's queue would stand for good (BTN-1555).
+   */
   async send(machine: string, command: Command): Promise<number> {
-    return this.queued(machine, async () => {
+    const body = async () => {
       const seq = await this.options.store.addCommand(machine, command, this.now())
       this.live.get(machine)?.sink.send({ kind: 'command', command: { ...command, seq } })
       return seq
-    })
+    }
+    const turn = this.turn.getStore()
+    return turn?.machine === machine && turn.running ? body() : this.queued(machine, body)
   }
 
   /** A machine opens its stream: the handshake, then every command it has not taken yet. */
@@ -305,7 +319,17 @@ export class HubEnd {
   }
 
   private queued<T>(machine: string, body: () => Promise<T>): Promise<T> {
-    const run = (this.queues.get(machine) ?? Promise.resolve()).then(body, body)
+    // Work the turn starts and leaves running past its end keeps the context, but no longer counts as the turn.
+    const turn: Turn = { machine, running: false }
+    const step = async () => {
+      turn.running = true
+      try {
+        return await this.turn.run(turn, body)
+      } finally {
+        turn.running = false
+      }
+    }
+    const run = (this.queues.get(machine) ?? Promise.resolve()).then(step, step)
     const settled = run.catch(() => {})
     this.queues.set(machine, settled)
     void settled.then(() => {

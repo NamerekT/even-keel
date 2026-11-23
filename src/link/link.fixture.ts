@@ -273,6 +273,8 @@ export async function bench() {
   const presence: string[] = []
   const ran: NumberedCommand[] = []
   const refuseEvents = { on: false }
+  /** What the hub does with an event after it is taken, as a handler of the service would. */
+  const onEvent: { then?: (machine: string, event: MachineEvent) => Promise<void> } = {}
   const asked: { machine: string; request: McpRequest }[] = []
   const hooked: { machine: string; request: HookRequest }[] = []
   const tallied: { machine: string; rows: unknown }[] = []
@@ -284,9 +286,10 @@ export async function bench() {
     commit: 'c0ffee0000000000000000000000000000000000',
     log: (line) => log.push(line),
     handlers: {
-      event: (_machine, event) => {
+      event: async (machine, event) => {
         if (refuseEvents.on) throw new Error('the hub is busy')
         taken.push(event)
+        await onEvent.then?.(machine, event)
       },
       snapshot: (_machine, snapshot) => void snapshots.push(snapshot),
       online: () => void presence.push('online'),
@@ -321,5 +324,5 @@ export async function bench() {
     log: (line) => log.push(line),
     ...options,
   })
-  return { hub, hubStore, machineStore, wire, token, machine, log, taken, snapshots, presence, ran, refuseEvents, asked, hooked, tallied, tallyOn, credentialed }
+  return { hub, hubStore, machineStore, wire, token, machine, log, taken, snapshots, presence, ran, refuseEvents, onEvent, asked, hooked, tallied, tallyOn, credentialed }
 }

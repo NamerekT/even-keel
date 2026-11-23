@@ -214,6 +214,34 @@ describe('the hub ↔ machine link', () => {
     expect(made.taken.map((taken) => taken.seq)).toEqual([1, 2, 3])
   })
 
+  it('sends a command its handler of an event gives the same machine, and the machine’s next work does not wait for it (BTN-1555)', async () => {
+    const made = await bench()
+    stopHub = () => made.hub.stop()
+    const { hub, wire: { authorization }, token: { machine: id } } = made
+    const frames: string[] = []
+    const sink = (name: string) => ({ send: (frame: { kind: string; command?: { seq: number; type: string } }) => void (frame.command !== undefined && frames.push(`${name} ${frame.command.seq} ${frame.command.type}`)), close: () => {} })
+    const first = await hub.open(authorization, { api: API_VERSION, host: 'example-host', lastCommand: 0 }, sink('first'))
+    if ('refused' in first) throw new Error('refused')
+    made.onEvent.then = async (machine, event) => {
+      if (event.type === TAKEN_EVENT) await hub.send(machine, { type: ASSIGN_COMMAND, project: PROJECT, folder: '/home/example/projects/taken', payload: { takeOver: 'machine-revoked' } })
+    }
+    const settled: string[] = []
+    const posted = hub.events(authorization, { connection: first.connection, events: [{ seq: 1, type: TAKEN_EVENT, at: 1 }], lastCommand: 0 })
+    void posted.then(() => settled.push('post'))
+    const sent = hub.send(id, { type: 'example.after' })
+    void sent.then(() => settled.push('send'))
+    await tick()
+    expect(settled.sort()).toEqual(['post', 'send'])
+    await expect(posted).resolves.toEqual({ lastEvent: 1 })
+    // The post checks the token before it takes its turn, so the plain send goes first.
+    expect(frames).toEqual(['first 1 example.after', `first 2 ${ASSIGN_COMMAND}`])
+
+    const second = hub.open(authorization, { api: API_VERSION, host: 'example-host', lastCommand: 1 }, sink('second'))
+    await tick()
+    await expect(second).resolves.toMatchObject({ connection: expect.any(String) })
+    expect(frames.at(-1)).toBe(`second 2 ${ASSIGN_COMMAND}`)
+  })
+
   it('brings an event again when the hub could not take it', async () => {
     const { end, taken, refuseEvents, wire } = await started()
     refuseEvents.on = true

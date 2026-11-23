@@ -5,7 +5,7 @@ import { MACHINE_PALETTE } from '../link/colors.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { hubIdentity } from '../link/identity.js'
 import { MemoryMachineStore } from '../link/link.fixture.js'
-import { MachineEnd } from '../link/machine.js'
+import { MachineEnd, type FolderOwner } from '../link/machine.js'
 import { httpsTransport, joinHub } from '../link/machine-transport.js'
 import { ASSIGN_COMMAND, isRefusal, parseToken, type MachineAbout, type NumberedCommand } from '../link/protocol.js'
 import type { MachineProjectSettings } from '../link/view.js'
@@ -211,6 +211,62 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(await network.holds(OWN, ABC, { machine: laptop, name: 'laptop-host' })).toBe(false)
     await network.takeOver(OWN, ABC, laptop)
     expect(owned).toEqual([[ABC, laptop]])
+  })
+
+  it('tells a machine whose folder has the mark of a machine revoked here to take it over, and the machine goes on posting (BTN-1555)', async () => {
+    const lines: string[] = []
+    const peers: NetworkPeers = {
+      remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: (line) => lines.push(line) }),
+      brief: () => ({ config: { projects: {} } }) as unknown as HubBrief,
+      changed: () => {},
+      connected: () => {},
+      mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      hook: () => Promise.resolve({ status: 200, body: '' }),
+      write: async () => {},
+    }
+    const { network, settings } = await started(peers, (line) => lines.push(line))
+    settings.address = '127.0.0.1'
+    await network.apply()
+    const join = async (name: string) => {
+      const joined = await joinHub(parseToken((await network.invite(name)).line)!, ABOUT, 5_000)
+      if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+      return joined
+    }
+    const laptop = await join('Example laptop')
+    const moved = await join('Example old desktop')
+    await network.attach(laptop.machine, [ABC])
+    await network.revoke(moved.machine)
+
+    // The folder still has the mark the machine left before it moved and was revoked.
+    const folder = '/home/example/projects/example'
+    const held = new Map<string, FolderOwner>([[folder, { machine: moved.machine, name: 'old-desktop' }]])
+    const store = new MemoryMachineStore()
+    store.rootFolder = '/home/example/projects'
+    const end: MachineEnd = new MachineEnd({
+      transport: httpsTransport(laptop, { log: () => {}, timeoutMs: 5_000 }),
+      store,
+      marks: {
+        claim: async (path, takeOver) => {
+          const owner = held.get(path)
+          if (owner !== undefined && owner.machine !== laptop.machine && owner.machine !== takeOver) return owner
+          held.set(path, { machine: laptop.machine, name: 'example-laptop' })
+          return undefined
+        },
+        release: async () => {},
+      },
+      snapshot: () => ({ boot: 'boot-1', rev: 1, facts: { sessionsRead: false, tasks: {}, sessions: {} } }),
+      command: async (command) => void (await end.emit(DONE_EVENT, { seq: command.seq, value: null })),
+      log: () => {},
+    })
+    closing.push(async () => end.stop())
+    await end.start()
+
+    await until(() => held.get(folder)?.machine === laptop.machine, 'the folder taken over')
+    expect(lines.some((line) => line.includes('revoked here: it is taken over'))).toBe(true)
+    await end.flushed()
+    await end.emit(SELECTION_EVENT, { kind: 'cli', provider: 'claude', value: 'system' })
+    await end.flushed()
+    await until(() => lines.some((line) => line.includes('chose cli system for claude')), 'the next event taken')
   })
 
   it("keeps a machine elsewhere in its own mirror, briefs it on its pool's folders and carries its limits, writes and choices", async () => {
