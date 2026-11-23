@@ -6,7 +6,7 @@ import { CiWatches } from './watches.js'
 const target = (repo: string): CiTarget => ({ kind: 'forgejo', remote: 'origin', web: 'https://forgejo.example.com', owner: 'john', repo })
 
 function context() {
-  const made: { project: string; repo: string; hidden: boolean; sources: (CiSource | null)[] }[] = []
+  const made: { project: string; repo: string; hidden: boolean; off: boolean; sources: (CiSource | null)[] }[] = []
   let token: string | null = null
   const asked: string[] = []
   const watches = new CiWatches({
@@ -16,6 +16,7 @@ function context() {
         project,
         repo,
         hidden: false,
+        off: false,
         sources: [] as (CiSource | null)[],
         setSource: (source: CiSource | null) => watch.sources.push(source),
         tick: vi.fn(async () => {}),
@@ -59,7 +60,7 @@ describe('CiWatches', () => {
       targets: async (repo) => remotes[repo]!,
       watch: (_project, _repo, place) => {
         made.push(place)
-        return { hidden: false, place, setSource: () => {}, tick: vi.fn(async () => {}) }
+        return { hidden: false, off: false, place, setSource: () => {}, tick: vi.fn(async () => {}) }
       },
       source: () => null,
       log,
@@ -99,7 +100,7 @@ describe('CiWatches', () => {
         if (fail) throw new Error('git is gone')
         return [target(repo)]
       },
-      watch: () => ({ hidden: false, setSource: () => {}, tick: vi.fn(async () => {}) }),
+      watch: () => ({ hidden: false, off: false, setSource: () => {}, tick: vi.fn(async () => {}) }),
       source: () => null,
       log: () => {},
     })
@@ -126,6 +127,15 @@ describe('CiWatches', () => {
     expect(watches.shown('ABC')).toEqual([made[0]])
     expect(watches.shown('XYZ')).toEqual([])
     expect(watches.places(true)).toEqual([{ project: 'XYZ', target: target('D:/xyz') }])
+    expect(watches.places(false)).toEqual([{ project: 'ABC', target: target('D:/abc') }])
+  })
+
+  it('neither shows nor lists a watch whose CI the forge has turned off (BTN-1500)', async () => {
+    const { watches, made } = context()
+    await watches.apply({ ABC: 'D:/abc', XYZ: 'D:/xyz' })
+    made[1]!.off = true
+    expect(watches.shown('XYZ')).toEqual([])
+    expect(watches.places(true)).toEqual([])
     expect(watches.places(false)).toEqual([{ project: 'ABC', target: target('D:/abc') }])
   })
 })

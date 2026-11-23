@@ -267,6 +267,7 @@ export const en = {
   'ci.rerunUnsupported': (p: { ci: string }) => `${p.ci} cannot rerun jobs through its API`,
   'ci.http': (p: { ci: string; status: number }) => `${p.ci}: the API answered HTTP ${p.status}`,
   'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
+  'ci.actionsOff': (p: { ci: string }) => `${p.ci}: Actions are turned off in the repository's settings`,
   'intake.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to read and write the repository's issues`,
   'chain.noTrackerMcp': (p: { project: string; server: string }) =>
     `the chain of ${p.project} starts no task: "Task description in the prompt" is off and no package brings the tracker's MCP server ${p.server}`,

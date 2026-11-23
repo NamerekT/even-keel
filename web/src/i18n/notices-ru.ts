@@ -289,6 +289,7 @@ export const noticesRu: NoticeTexts = {
   'ci.rerunUnsupported': (p) => `${p.ci} не умеет перезапускать задания через API`,
   'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
+  'ci.actionsOff': (p) => `${p.ci}: Actions выключены в настройках репозитория`,
   'intake.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужны чтение и запись issue репозитория`,
   'chain.noTrackerMcp': (p) =>
     `цепочка ${p.project} не запускает задачи: «Описание задачи в промпте» выключено, а ни один пакет проекта не приносит MCP-сервер трекера ${p.server}`,

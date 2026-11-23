@@ -126,6 +126,39 @@ describe('forgejoSource', () => {
     expect((error as NoticeError).notice).toMatchObject({ code: 'ci.denied', params: { ci: 'Forgejo', status: 401 } })
   })
 
+  describe('runs that answer 404 (BTN-1500)', () => {
+    const runs = '/actions/runs?page=1&limit=10'
+    const repository = 'https://forgejo.example.com/api/v1/repos/john/app'
+    const noticeOfRuns = async (routes: Record<string, unknown>) => {
+      const { asked, source } = fake(routes)
+      const error = await source.runs(10).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(NoticeError)
+      return { notice: (error as NoticeError).notice, asked: asked.map((each) => each.url) }
+    }
+
+    it('names Actions turned off when the repository is seen with has_actions false', async () => {
+      const { notice, asked } = await noticeOfRuns({ '': { full_name: 'john/app', has_actions: false } })
+      expect(notice).toMatchObject({ code: 'ci.actionsOff', params: { ci: 'Forgejo' } })
+      expect(asked).toEqual([`${repository}${runs}`, repository])
+    })
+
+    it('keeps the 404 when the repository is not seen either', async () => {
+      const { notice } = await noticeOfRuns({})
+      expect(notice).toMatchObject({ code: 'ci.http', params: { ci: 'Forgejo', status: 404 } })
+    })
+
+    it('keeps the 404 when the repository has Actions on or does not say', async () => {
+      expect((await noticeOfRuns({ '': { full_name: 'john/app', has_actions: true } })).notice).toMatchObject({ code: 'ci.http', params: { status: 404 } })
+      expect((await noticeOfRuns({ '': { full_name: 'john/app' } })).notice).toMatchObject({ code: 'ci.http', params: { status: 404 } })
+    })
+
+    it('does not ask about the repository when the runs answer', async () => {
+      const { asked, source } = fake({ [runs]: { workflow_runs: [] } })
+      await source.runs(10)
+      expect(asked).toHaveLength(1)
+    })
+  })
+
   it('has no rerun: the API of Forgejo 16.0.3 gives none (BTN-846)', () => {
     expect(fake({}).source.rerun).toBeUndefined()
   })

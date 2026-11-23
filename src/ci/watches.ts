@@ -5,6 +5,8 @@ import type { CiTarget } from './remote.js'
 export interface Watch {
   /** Not shown and not judging a main: no token reaches the CI (`CiWatch.hidden`). */
   readonly hidden: boolean
+  /** Not shown, not judging a main and not counted against a token: the forge turned the CI off (`CiWatch.off`). */
+  readonly off: boolean
   setSource(source: CiSource | null): void
   tick(): Promise<void>
 }
@@ -47,12 +49,12 @@ export class CiWatches<W extends Watch> {
 
   /** The project's watches the page shows and the chain judges its main by. */
   shown(project: string): W[] {
-    return (this.byProject.get(project) ?? []).filter((watch) => !watch.hidden)
+    return (this.byProject.get(project) ?? []).filter((watch) => !watch.hidden && !watch.off)
   }
 
-  /** The CIs not shown (`hidden`: `true`) or those shown, each with its project. */
+  /** The CIs a token does not reach (`hidden`: `true`) or those shown, each with its project; a CI turned off is neither. */
   places(hidden: boolean): { project: string; target: CiTarget }[] {
-    return [...this.targets].flatMap(([watch, place]) => (watch.hidden === hidden ? [place] : []))
+    return [...this.targets].flatMap(([watch, place]) => (!watch.off && watch.hidden === hidden ? [place] : []))
   }
 
   /**

@@ -1,3 +1,4 @@
+import { fail, noticeOf } from '../notice/notice.js'
 import { getJson, getText } from './http.js'
 import { isFinished, withEvent, type CiJob, type CiRun, type CiSource, type RunStatus } from './model.js'
 
@@ -58,10 +59,27 @@ export function forgejoSource(settings: ForgejoSettings, timeoutMs: number, fetc
   const base = `${settings.web}/api/v1/repos/${encodeURIComponent(settings.owner)}/${encodeURIComponent(settings.repo)}`
   const get = <T>(path: string) => getJson<T>(TITLE, `${base}${path}`, `token ${settings.token}`, timeoutMs, fetchImpl)
 
+  /**
+   * A repository with Actions turned off answers its runs with 404, as one the token does not see: only a 404 asks the
+   * repository itself, and its `has_actions: false` makes it `ci.actionsOff` (BTN-1500). Anything else keeps the 404.
+   */
+  const whyMissing = async (error: unknown): Promise<unknown> => {
+    const told = noticeOf(error)
+    if (told.code !== 'ci.http' || (told.params as { status: number }).status !== 404) return error
+    try {
+      const repository = await get<{ has_actions?: boolean }>('')
+      return repository.has_actions === false ? fail('ci.actionsOff', { ci: TITLE }) : error
+    } catch {
+      return error
+    }
+  }
+
   return {
     async runs(limit, branch) {
       const filter = branch === undefined ? '' : `&ref=${encodeURIComponent(`refs/heads/${branch}`)}`
-      const { workflow_runs: runs } = await get<{ workflow_runs: ForgejoRun[] | null }>(`/actions/runs?page=1&limit=${limit}${filter}`)
+      const { workflow_runs: runs } = await get<{ workflow_runs: ForgejoRun[] | null }>(`/actions/runs?page=1&limit=${limit}${filter}`).catch(async (error: unknown) => {
+        throw await whyMissing(error)
+      })
       return (runs ?? []).map(
         (run): CiRun => ({
           id: run.id,

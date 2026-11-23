@@ -85,6 +85,14 @@ export class CiWatch {
     return error?.code === 'ci.denied' || (error?.code === 'ci.http' && (error.params as { status: number }).status === 404)
   }
 
+  /**
+   * The forge says the repository's CI is turned off (`ci.actionsOff`, BTN-1500): not shown, not judging a main and,
+   * unlike `hidden`, no fault of a token. It is polled again after `ERROR_RETRY_MS` and comes back once turned on.
+   */
+  get off(): boolean {
+    return this.source !== null && this.view.health === 'error' && this.view.error?.code === 'ci.actionsOff'
+  }
+
   /** The remote's main this watch last read; `null` — not read yet or missing. */
   get remoteHead(): string | null {
     return this.head ?? null
