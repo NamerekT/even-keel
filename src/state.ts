@@ -673,6 +673,11 @@ export type PackageProblem =
   | { kind: 'notInstalled' }
   | { kind: 'installing' }
   | { kind: 'installFailed'; notice: Notice }
+  /**
+   * The current install's files are gone on this host and nothing installs them (a state folder restored on another
+   * host, BTN-1542): Install brings them; `marketplace` — Claude Code here lacks the plugin's marketplace, add it first.
+   */
+  | { kind: 'lost'; marketplace?: string }
   | { kind: 'noKey'; variables: string[] }
   | { kind: 'noResponse'; servers: string[] }
   /** A server's first probe has not answered yet. */

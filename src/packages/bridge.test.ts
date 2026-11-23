@@ -34,6 +34,8 @@ function fixture(saved: PackagesFile) {
     updateMarketplace: async () => {}, addMarketplace: async () => {}, baseEnv: () => ({}), poolOf: () => ({}),
     port: 0, log: (line) => { lines.push(line) }, onChange: () => {},
   }
+  // Every saved install has its files: one without them is lost and starts no session (BTN-1542).
+  for (const [name, each] of Object.entries(saved.packages)) for (const { id } of each.installs) mkdirSync(join(deps.cache, name, id, 'plugin'), { recursive: true })
   const oldDir = join(deps.cache, OLD, 'old', 'plugin')
   mkdirSync(oldDir, { recursive: true })
   return { packages: new Packages(deps), file, oldDir, lines, reload: () => new Packages(deps) }

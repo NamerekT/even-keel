@@ -52,6 +52,9 @@ export class Installs {
     const record = this.host.recordOf(name)
     const id = Date.now().toString(36)
     const home = join(this.deps.cache, name, id)
+    const before = current(record)
+    // One whose files are gone here is installed anew at the same versions as well (BTN-1542).
+    const lost = before !== undefined && this.lostHere(name, before)
     this.installing.add(name)
     this.errors.delete(name)
     this.deps.onChange()
@@ -71,7 +74,7 @@ export class Installs {
       const scripts = record.scripts === true
       // The offer is read again from the folder just copied: one cached before it would show Update over the new install.
       this.host.forgetOffer(name)
-      if (last !== undefined && last.version === version && sameServers(last.servers, planned) && (last.scripts === true) === scripts) {
+      if (!lost && last !== undefined && last.version === version && sameServers(last.servers, planned) && (last.scripts === true) === scripts) {
         rmSync(home, { recursive: true, force: true })
         return null
       }
@@ -198,9 +201,28 @@ export class Installs {
     }
   }
 
-  private folderLost(name: string, record: PackageRecord, install: PackageInstall): boolean {
+  /**
+   * Why the install cannot serve the project's sessions here (BTN-1542): its files are gone and nothing installs them
+   * now — after a state folder restored on another host, one `restoreLost` left for Update or failed to install again.
+   * `marketplace` — Claude Code here has no such marketplace or no plugin in it, so Install fails until it is added.
+   * A server the hub runs for the project needs no folder here. `undefined` — the install is there.
+   */
+  lostIn(project: string, name: string, install: PackageInstall): { marketplace?: string } | undefined {
+    const record = this.host.file().packages[name]
+    if (record === undefined || this.installing.has(name)) return undefined
+    const hub = new Set(this.deps.hubServers?.() ?? [])
+    if (!this.folderLost(name, record, install, (server) => hub.has(routeOf(project, name, install.id, server)))) return undefined
+    return record.plugin !== undefined && this.pluginFound(record) === null ? { marketplace: record.plugin.marketplace } : {}
+  }
+
+  /** `lostIn` for any of the projects. */
+  lostHere(name: string, install: PackageInstall): boolean {
+    return Object.keys(this.deps.repos).some((project) => this.lostIn(project, name, install) !== undefined)
+  }
+
+  private folderLost(name: string, record: PackageRecord, install: PackageInstall, onHub: (server: string) => boolean = () => false): boolean {
     if (record.plugin !== undefined && !existsSync(pluginDir(this.deps.cache, name, install.id))) return true
-    return Object.entries(install.servers).some(([server, { npm }]) => npm !== null && !existsSync(join(this.deps.cache, name, install.id, 'servers', server)))
+    return Object.entries(install.servers).some(([server, { npm }]) => npm !== null && !onHub(server) && !existsSync(join(this.deps.cache, name, install.id, 'servers', server)))
   }
 
   /**

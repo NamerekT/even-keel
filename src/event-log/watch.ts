@@ -132,7 +132,7 @@ function packageDrafts(project: string, found: ProjectPackages): [string, EventD
   ]
   return named.flatMap(([name, problem]) => {
     if (UNLOGGED.has(problem.kind) || problem.kind === 'noResponse') return []
-    const detail = problem.kind === 'noKey' ? problem.variables.join(', ') : problem.kind === 'noTrackerMcp' ? problem.server : ''
+    const detail = problem.kind === 'noKey' ? problem.variables.join(', ') : problem.kind === 'noTrackerMcp' ? problem.server : problem.kind === 'lost' ? (problem.marketplace ?? '') : ''
     const params = { project, ...(name !== null && { package: name }), problem: problem.kind as LoggedPackageProblem, detail }
     const cause = problem.kind === 'installFailed' ? { cause: problem.notice } : {}
     return [[`packages|${project}|${name ?? ''}|${JSON.stringify(problem)}`, { level, notice: notice('eventLog.packages', params, cause), place: { view: 'packages', project } }]]

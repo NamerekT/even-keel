@@ -80,6 +80,8 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'git.noIdentity': { to: 'identity' },
   'git.found': { to: 'gitOn' },
   'chain.packagesNotReady': { to: 'packages' },
+  'packages.lost': { to: 'packages' },
+  'packages.lostMarketplace': { to: 'packages' },
   'order.later': { to: 'milestoneOrder' },
   'order.against': { to: 'milestoneOrder' },
 }

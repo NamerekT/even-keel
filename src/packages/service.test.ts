@@ -282,7 +282,7 @@ describe('a task pins versions, not the set (BTN-706)', () => {
       projects: {},
       pins: { project: { 'ABC-1': { 'tools@example': 'old' } } },
     })
-    mkdirSync(join(cache, 'tools@example', 'old'), { recursive: true })
+    for (const [name, id] of [['tools@example', 'old'], ['tools@example', 'new'], ['extra@example', 'e1']]) mkdirSync(join(cache, name!, id!, 'plugin'), { recursive: true })
     return { packages: reload(), file, cache }
   }
   const enabled = [{ enabledPlugins: { 'tools@example': true, 'extra@example': true } }]

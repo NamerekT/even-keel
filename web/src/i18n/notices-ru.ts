@@ -291,7 +291,7 @@ export const noticesRu: NoticeTexts = {
   'chain.noTrackerMcp': (p) =>
     `цепочка ${p.project} не запускает задачи: «Описание задачи в промпте» выключено, а ни один пакет проекта не приносит MCP-сервер трекера ${p.server}`,
   'chain.packagesNotReady': (p) =>
-    `цепочка ${p.project} не запускает задачи: ${p.packages.length === 1 ? 'пакет' : 'пакеты'} ${list(p.packages)} не установлен${p.packages.length === 1 ? '' : 'ы'}, не встал${p.packages.length === 1 ? '' : 'и'} или без ключа; исправьте это в пакетах проекта — цепочка пойдёт сама`,
+    `цепочка ${p.project} не запускает задачи: ${p.packages.length === 1 ? 'пакет' : 'пакеты'} ${list(p.packages)} не установлен${p.packages.length === 1 ? '' : 'ы'}, не встал${p.packages.length === 1 ? '' : 'и'}, потерял${p.packages.length === 1 ? '' : 'и'} файлы на этом хосте или без ключа; исправьте это в пакетах проекта — цепочка пойдёт сама`,
   'ci.notTaken': (p) => `${p.ci}: ни один раннер не взял ${p.commit}`,
   'ci.fixFailed': (p) => `CI красный на main в ${p.commit} — это пуш починки ${p.task}; цепочка ждёт вас`,
   'ci.cannotCreate': (p) => `CI красный на main в ${p.commit}, а трекер не умеет заводить задачу на починку`,
@@ -609,6 +609,9 @@ export const noticesRu: NoticeTexts = {
   'packages.installInClaude': (p) =>
     `${p.plugin} лежит вне папки своего маркетплейса — сначала установите его в Claude Code (claude plugin install ${p.plugin}), потом здесь`,
   'packages.copyFailed': (p) => `не удалось скопировать плагин ${p.name}`,
+  'packages.lost': (p) => `файлов ${p.name} ${p.version} на этом хосте нет; нажмите «Установить» у пакета в каталоге`,
+  'packages.lostMarketplace': (p) =>
+    `файлов ${p.name} ${p.version} на этом хосте нет, а Claude Code здесь не знает его маркетплейса ${p.marketplace}; добавьте его и нажмите «Установить» у пакета в каталоге`,
   'packages.noSkills': () => 'выберите хотя бы один навык',
   'packages.unknownSkill': (p) => `навыка ${p.name} нет ни в ~/.claude/skills, ни в папке навыков Codex`,
   'packages.npmFailed': (p) => `npm не смог установить ${p.spec}`,
@@ -928,6 +931,7 @@ export const noticesRu: NoticeTexts = {
 const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string> = {
   notInstalled: () => 'не установлен',
   installFailed: () => 'установка не удалась',
+  lost: (marketplace) => (marketplace === '' ? 'файлов нет на этом хосте' : `файлов нет на этом хосте, нет маркетплейса ${marketplace}`),
   noKey: (keys) => `не задан: ${keys}`,
   noResponse: (servers) => `${servers} не отвечает`,
   noTrackerMcp: (server) => `нет MCP трекера ${server}`,

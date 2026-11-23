@@ -56,6 +56,8 @@ export function problemText(problem: PackageProblem): string {
       return text.noTrackerMcp(problem.server)
     case 'unsupported':
       return problem.skills === true ? text.noHooks(problem.agent) : text.unsupported(problem.agent)
+    case 'lost':
+      return problem.marketplace === undefined ? text.lost : text.lostMarketplace(problem.marketplace)
     default:
       return text[problem.kind]
   }

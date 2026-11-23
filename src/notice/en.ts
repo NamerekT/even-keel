@@ -269,7 +269,7 @@ export const en = {
   'chain.noTrackerMcp': (p: { project: string; server: string }) =>
     `the chain of ${p.project} starts no task: "Task description in the prompt" is off and no package brings the tracker's MCP server ${p.server}`,
   'chain.packagesNotReady': (p: { project: string; packages: string[] }) =>
-    `the chain of ${p.project} starts no task: its package${p.packages.length === 1 ? '' : 's'} ${list(p.packages)} ${p.packages.length === 1 ? 'is' : 'are'} not installed, failed to install or lack${p.packages.length === 1 ? 's' : ''} a key; fix that in the project's packages, and the chain goes on by itself`,
+    `the chain of ${p.project} starts no task: its package${p.packages.length === 1 ? '' : 's'} ${list(p.packages)} ${p.packages.length === 1 ? 'is' : 'are'} not installed, failed to install, lost ${p.packages.length === 1 ? 'its' : 'their'} files on this host or lack${p.packages.length === 1 ? 's' : ''} a key; fix that in the project's packages, and the chain goes on by itself`,
   'ci.notTaken': (p: { ci: string; commit: string }) => `${p.ci}: no runner took ${p.commit}`,
   'ci.fixFailed': (p: { task: string; commit: string }) => `CI is red on main at ${p.commit}, the push of the fix ${p.task}; the chain waits for you`,
   'ci.cannotCreate': (p: { commit: string }) => `CI is red on main at ${p.commit}, and the tracker cannot create a task to fix it`,
@@ -591,6 +591,10 @@ export const en = {
   'packages.installInClaude': (p: { plugin: string }) =>
     `packages: ${p.plugin} comes from outside its marketplace's folder; install it in Claude Code first (claude plugin install ${p.plugin}), then here`,
   'packages.copyFailed': (p: { name: string }) => `packages: could not copy the plugin ${p.name}`,
+  'packages.lost': (p: { name: string; version: string }) =>
+    `packages: the files of ${p.name} ${p.version} are gone on this host; press Install at the package in the catalog`,
+  'packages.lostMarketplace': (p: { name: string; version: string; marketplace: string }) =>
+    `packages: the files of ${p.name} ${p.version} are gone on this host, and Claude Code here lacks its marketplace ${p.marketplace}; add it, then press Install at the package in the catalog`,
   'packages.noSkills': () => 'packages: choose at least one skill',
   'packages.unknownSkill': (p: { name: string }) => `packages: there is no skill ${p.name} in ~/.claude/skills or the Codex skills folder`,
   'packages.npmFailed': (p: { spec: string }) => `packages: npm could not install ${p.spec}`,
@@ -968,11 +972,12 @@ export const en = {
 }
 
 /** The package problems the event log writes (`watchedOf`): those that pass by themselves and `unsupported` write none. */
-export type LoggedPackageProblem = 'notInstalled' | 'installFailed' | 'noKey' | 'noResponse' | 'noTrackerMcp'
+export type LoggedPackageProblem = 'notInstalled' | 'installFailed' | 'lost' | 'noKey' | 'noResponse' | 'noTrackerMcp'
 
 const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string> = {
   notInstalled: () => 'not installed',
   installFailed: () => 'install failed',
+  lost: (marketplace) => (marketplace === '' ? 'files gone on this host' : `files gone on this host, no marketplace ${marketplace}`),
   noKey: (keys) => `not set: ${keys}`,
   noResponse: (servers) => `${servers} does not answer`,
   noTrackerMcp: (server) => `no tracker MCP ${server}`,

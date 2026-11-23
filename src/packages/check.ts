@@ -2,7 +2,7 @@ import { pluginReach } from '../agent/projectRules.js'
 import type { Notice } from '../notice/notice.js'
 import type { PackageCell, PackageProblem, ProjectPackages } from '../state.js'
 import type { ServerKeys } from './keys.js'
-import { current, enabledIn, type PackagesFile, type ServerEntry } from './model.js'
+import { current, enabledIn, type PackageInstall, type PackagesFile, type ServerEntry } from './model.js'
 import { pageSettings } from './settings.js'
 
 const PROBE_OK_MS = 5 * 60_000
@@ -15,7 +15,7 @@ const PROBE_TIMEOUT_MS = 30_000
 /** Does not hold the chain. */
 const NOTES = new Set<PackageProblem['kind']>(['unsupported'])
 /** Never passes by itself: the chain pauses on it rather than waits (BTN-657). */
-export const NEEDS_USER = new Set<PackageProblem['kind']>(['notInstalled', 'installFailed', 'noKey'])
+export const NEEDS_USER = new Set<PackageProblem['kind']>(['notInstalled', 'installFailed', 'lost', 'noKey'])
 
 export interface CheckInput {
   file: PackagesFile
@@ -27,6 +27,8 @@ export interface CheckInput {
   installing: ReadonlySet<string>
   /** The failure of each package's last install. */
   errors: ReadonlyMap<string, Notice>
+  /** Whether the install's files are gone here (`Installs.lostIn`); absent — none is. */
+  lost?: (name: string, install: PackageInstall) => { marketplace?: string } | undefined
   keys: (server: string, entry: ServerEntry, name: string, install: string) => ServerKeys
   /** Whether the server answered `initialize` through the gateway; `undefined` — not probed yet or still starting, held until it answers. */
   probe: (name: string, install: string, server: string) => boolean | undefined
@@ -62,6 +64,8 @@ export function projectPackages(input: CheckInput): ProjectPackages {
         const error = input.errors.get(name)
         problems.push(error === undefined ? { kind: 'notInstalled' } : { kind: 'installFailed', notice: error })
       }
+      const lost = install === undefined ? undefined : input.lost?.(name, install)
+      if (lost !== undefined) problems.push({ kind: 'lost', ...lost })
       if (install !== undefined) {
         const missing = new Set<string>()
         const silent: string[] = []
@@ -69,6 +73,8 @@ export function projectPackages(input: CheckInput): ProjectPackages {
         for (const [server, { entry }] of Object.entries(install.servers)) {
           if (server === input.tracker?.server) hasTracker = true
           if (server === input.tracker?.also) hasAlso = true
+          // Its servers cannot start without the files: only Install helps.
+          if (lost !== undefined) continue
           const keys = input.keys(server, entry, name, install.id)
           keys.missing.forEach((each) => missing.add(each))
           if (keys.missing.length > 0) continue

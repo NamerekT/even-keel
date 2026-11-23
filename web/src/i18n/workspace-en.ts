@@ -174,6 +174,8 @@ export const packagesEN: Messages['packages'] = {
       notInstalled: 'not installed',
       installing: 'installing',
       installFailed: 'install failed',
+      lost: 'files gone on this host',
+      lostMarketplace: (marketplace: string) => `files gone, no marketplace ${marketplace}`,
       noKey: (keys: string) => `not set: ${keys}`,
       noResponse: (servers: string) => `${servers} does not answer`,
       probing: 'starting',
@@ -185,6 +187,8 @@ export const packagesEN: Messages['packages'] = {
       notInstalled: 'Press Install at the package in the catalog: the chain waits until the package is installed.',
       installing: 'npm downloads the package’s servers (Huly’s is about 100 MB): usually half a minute to a couple of minutes, longer on a fresh machine. The chain waits until the install ends.',
       installFailed: (error: string) => `The chain waits. ${error}`,
+      lost:
+        'The files of the package’s current install are gone on this host, as after a state folder moved from another host. Press Install at the package in the catalog. Where the line names a marketplace, Claude Code here does not know it: add it first (claude plugin marketplace add <its source>). The chain waits, and no session starts without the package.',
       noKey: 'Enter the key in the package’s details in the catalog: the chain waits until it is set.',
       noResponse:
         'The server behind the gateway failed initialize, stopped answering it or exited: check its command and settings. A tracker’s server takes its credentials from the tracker profile in Settings, the package has no field for them. It is tried again every 30 seconds; the chain waits.',

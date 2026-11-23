@@ -230,7 +230,8 @@ export class Packages {
       return {
         name,
         kind: record.kind,
-        installed: install !== undefined,
+        // A current install whose files are gone here is installed anew by the row's Install (BTN-1542).
+        installed: install !== undefined && !this.installs.lostHere(name, install),
         version: install?.version ?? null,
         latest: install !== undefined && offer !== undefined && (name === SKILLS_PACKAGE ? skillsChanged : isNewer)(offer.version, install.version) ? offer.version : null,
         fetched: offer?.fetched ?? null,
@@ -395,20 +396,29 @@ export class Packages {
   /**
    * What a session of the task gets on the agent. The pin follows the set it starts with (BTN-706): a package the project
    * turned on since joins on its current install, one turned off leaves, and an install no pin holds any more goes.
-   * Claude Code goes without the user's wrapped skills: it reads them from its account folder.
+   * Claude Code goes without the user's wrapped skills: it reads them from its account folder. A pin on an install whose
+   * files are gone here moves to the current one; a session whose install is lost does not start (BTN-1542): Claude
+   * would run without the plugin and nobody would know, Codex fails on its missing `plugin.json`.
    */
   startOf(project: string, task: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
     const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project, builtIn: this.builtIn }
+    const moved = this.unpinLost(project, task)
     const found = sessionPackages(this.file, project, task, places)
-    if (!sameInstalls(this.file.pins[project]?.[task] ?? {}, found.installs)) {
+    if (moved || !sameInstalls(this.file.pins[project]?.[task] ?? {}, found.installs)) {
       if (Object.keys(found.installs).length > 0) (this.file.pins[project] ??= {})[task] = found.installs
       else this.unpin(project, task)
       this.prune()
       this.save()
     }
     for (const [name, id] of Object.entries(found.installs)) {
-      const plugin = this.file.packages[name]?.plugin
-      if (plugin !== undefined) ensureMarketplace(this.deps.cache, name, id, plugin.name)
+      const record = this.file.packages[name]!
+      const install = record.installs.find((each) => each.id === id)!
+      const lost = this.installs.lostIn(project, name, install)
+      if (lost !== undefined) {
+        const params = { name, version: install.version ?? id }
+        throw lost.marketplace === undefined ? fail('packages.lost', params) : fail('packages.lostMarketplace', { ...params, marketplace: lost.marketplace })
+      }
+      if (record.plugin !== undefined) ensureMarketplace(this.deps.cache, name, id, record.plugin.name)
     }
     const skip = readsOwnSkills(agent) ? pluginDir(this.deps.cache, SKILLS_PACKAGE, found.installs[SKILLS_PACKAGE] ?? '') : undefined
     return { mcp: found.mcp, plugins: found.plugins.filter((each) => each.dir !== skip) }
@@ -463,6 +473,22 @@ export class Packages {
     this.unpin(project, task)
     this.prune()
     this.save()
+  }
+
+  /** The task's pins on installs whose files are gone here and that are not current go: it takes the current ones. */
+  private unpinLost(project: string, task: string): boolean {
+    const pinned = this.file.pins[project]?.[task]
+    let moved = false
+    for (const [name, id] of Object.entries(pinned ?? {})) {
+      const record = this.file.packages[name]
+      const install = record?.installs.find((each) => each.id === id)
+      const now = record === undefined ? undefined : current(record)
+      if (install === undefined || now === undefined || now.id === id || this.installs.lostIn(project, name, install) === undefined) continue
+      delete pinned![name]
+      moved = true
+      this.deps.log(`packages: ${task} was pinned to ${name} ${id}, whose files are gone: moved to ${now.id}`)
+    }
+    return moved
   }
 
   private unpin(project: string, task: string): void {
@@ -667,6 +693,7 @@ export class Packages {
       agent: this.deps.agentOf(project),
       installing: this.installs.installing,
       errors: this.installs.errors,
+      lost: (name, install) => this.installs.lostIn(project, name, install),
       keys: (server, entry, name, install) => this.deps.hubServers?.().includes(routeOf(project, name, install, server))
         ? { values: {}, env: {}, missing: [], names: [] }
         : keysOf(server, this.deps.oauth?.(project, server, entry.url) ? withoutAuthorization(entry) : entry, this.deps.rules, (pool ??= this.deps.poolOf(project))),
