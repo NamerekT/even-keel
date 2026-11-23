@@ -1,6 +1,6 @@
 import { Fold } from '../ui/Fold.js'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { isOwnName } from '../../../src/chain/fix.js'
 import type { FixEpisode } from '../../../src/chain/launches.js'
 import type { ActiveChain, MainCiView, PushBy } from '../../../src/chain/model.js'
@@ -416,6 +416,7 @@ function Push({
   /** The chain's wait on this push, under its commit line. */
   hold: ReactNode
 }) {
+  const { search } = useLocation()
   const runs = runsOf(current)
   const lead = leadRun(runs, medians, now)
   const status = pushStatus(runs)
@@ -454,7 +455,7 @@ function Push({
             (fix === undefined ? (
               <span className="ci__fix">{t.ci.fixTask}</span>
             ) : (
-              <Link className="ci__fix" to={{ hash: fix.id }} title={t.ci.fixTaskTitle}>
+              <Link className="ci__fix" to={{ search, hash: fix.id }} title={t.ci.fixTaskTitle}>
                 {t.ci.fixTask}
               </Link>
             ))}

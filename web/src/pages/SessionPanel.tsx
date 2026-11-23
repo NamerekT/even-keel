@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { fixTaskOf, isCarryName, isFixName, isOwnName } from '../../../src/chain/fix.js'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
@@ -194,6 +194,7 @@ interface ActionsProps {
 }
 
 function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard, onFailure }: ActionsProps) {
+  const { search } = useLocation()
   const { send, sending, failure } = useCommand()
   const lastFailure = useRef(failure)
   useEffect(() => {
@@ -284,7 +285,7 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
         )}
         {block.review !== undefined && <PullButton review={block.review} />}
         {runs && (
-          <Link to={{ hash: ciHash(block.id) }} className="button pull-button__link" title={t.chain.fixRuns}>
+          <Link to={{ search, hash: ciHash(block.id) }} className="button pull-button__link" title={t.chain.fixRuns}>
             <PipelineIcon />
             {t.ci.chip}
           </Link>

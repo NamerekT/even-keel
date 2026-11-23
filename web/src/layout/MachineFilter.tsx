@@ -77,7 +77,9 @@ export function MachineFilterProvider({ children }: { children: ReactNode }) {
   )
 
   const shown = several && panelPage && cards.length > 1
-  const selected = shown ? (cards.find((card) => card.id === param) ?? null) : null
+  // Until the effect above puts the parameter back, the remembered choice stands: no frame of "All machines" (BTN-1575).
+  const chosen = param ?? remembered.current
+  const selected = shown ? (cards.find((card) => card.id === chosen) ?? null) : null
   const value = useMemo(() => ({ cards, shown, selected, open: open && shown, setOpen, select }), [cards, shown, selected, open, select])
   const [painted, paint] = useState<string | null>(null)
   const strip = useMemo(() => ({ color: painted, paint }), [painted])

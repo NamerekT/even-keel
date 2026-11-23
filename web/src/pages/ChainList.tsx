@@ -16,7 +16,7 @@ import { MachineTag } from '../ui/MachineTag.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
 import { isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
-import { parentsTo } from '../parents.js'
+import { parentsTo, rowLinkSearch } from '../parents.js'
 import { milestoneView, type EmptyMilestones, type Section } from '../ui/milestones.js'
 import { chainPlace, looseGhost, takesGhost, type MilestoneRules } from '../ui/addGhost.js'
 import { AddGhost } from './AddGhost.js'
@@ -98,6 +98,8 @@ export function ChainList(props: Props) {
   const { send, sending, failure } = useCommand()
   const location = useLocation()
   const navigate = useNavigate()
+  // A row's link keeps the page's query, the machine of the view with it (BTN-1575).
+  const linkSearch = rowLinkSearch(location.search, rowSearch)
   const [pending, setPending] = useState<string[] | null>(null)
   const served = openIds(chain).join(',')
   useEffect(() => setPending(null), [served])
@@ -188,7 +190,7 @@ export function ChainList(props: Props) {
         switcher={switcher}
         bump={motion.bump ?? undefined}
         focus={focus}
-        rowSearch={rowSearch}
+        rowSearch={linkSearch}
         busy={older.busy}
         onOpen={() => unfold(1, 'open')}
         onMore={() => unfold(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1, 'more')}
@@ -232,7 +234,7 @@ export function ChainList(props: Props) {
                     key={block.id}
                     project={project}
                     block={block}
-                    search={rowSearch}
+                    search={linkSearch}
                     number={numbers.get(block.id)}
                     waits={block.blockedBy.filter((id) => open.has(id))}
                     links={links(block.id)}

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { fakeTask } from '../../src/tracker/fixture.js'
 import type { ParentTask, TaskMilestone } from '../../src/tracker/model.js'
 import type { EvenKeelState, SessionView } from '../../src/state.js'
-import { chainCalls, chainTo, hasParents, parentBlocks, parentsTo, parentView } from './parents.js'
+import { chainCalls, chainTo, hasParents, parentBlocks, parentsTo, parentView, rowLinkSearch } from './parents.js'
 import type { ChainBlock } from './state.js'
 
 const done = { name: 'Done', category: 'Won' as const }
@@ -83,5 +83,14 @@ describe('parentsTo and chainTo', () => {
   it('keep the rest of the address and swap only the view', () => {
     expect(parentsTo('?card=ABC-1', 'ABC-3')).toEqual({ search: 'card=ABC-1&view=parents', hash: 'ABC-3' })
     expect(chainTo('?card=ABC-1&view=parents')).toEqual({ search: 'card=ABC-1', hash: '' })
+  })
+})
+
+describe('rowLinkSearch', () => {
+  it('keeps the machine of the view in a row link', () => {
+    expect(rowLinkSearch('?machine=laptop')).toBe('machine=laptop')
+    expect(rowLinkSearch('?machine=laptop', 'view=parents')).toBe('machine=laptop&view=parents')
+    expect(rowLinkSearch('?view=parents&machine=laptop', 'view=parents')).toBe('view=parents&machine=laptop')
+    expect(rowLinkSearch('')).toBe('')
   })
 })
