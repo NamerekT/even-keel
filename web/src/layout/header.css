@@ -349,6 +349,124 @@
   font-weight: 600;
 }
 
+/* "Report a problem" (BTN-1494): its list hangs to the left of the gear's menu, its first row level with the item.
+   The menu lets it out (no overflow), and a strip over the gap keeps the hover while the pointer crosses to it. */
+.queue.gear:has(> .report) {
+  overflow: visible;
+}
+
+.report {
+  position: relative;
+}
+
+.report > .gear__item[aria-expanded='true'] {
+  background: var(--surface-muted);
+}
+
+.report__arrow,
+.report__out,
+.report__caret {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.report__arrow {
+  font-size: var(--text-16);
+  line-height: 1;
+}
+
+.queue.report__flyout {
+  top: -7px;
+  right: calc(100% + 13px);
+  width: max-content;
+  max-width: 300px;
+  overflow: visible;
+}
+
+.queue.report__flyout::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 14px;
+}
+
+.report__link {
+  justify-content: flex-start;
+  gap: 0;
+  white-space: nowrap;
+}
+
+.report__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report__out {
+  margin-left: var(--space-8);
+}
+
+.report__private {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-8) 10px var(--space-2);
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  white-space: nowrap;
+}
+
+.report__private a {
+  color: inherit;
+}
+
+.report__caret {
+  margin-left: auto;
+  font-size: var(--text-15);
+  line-height: 1;
+  transition: transform var(--motion-fast) ease;
+}
+
+.report__caret--open {
+  transform: rotate(180deg);
+}
+
+/* The burger's list: down inside the sheet, indented behind a line at the left, rows as tall as the sheet's. */
+.report__rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 10px var(--space-4) 20px;
+  padding-left: var(--space-8);
+  border-left: 1px solid var(--border);
+}
+
+.report__row {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-control);
+  color: var(--fg);
+  font-size: var(--text-15);
+  text-decoration: none;
+}
+
+.report__row:hover {
+  background: var(--surface-muted);
+}
+
+.report__rows .report__private {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 44px;
+  margin: 0;
+  padding: 0 var(--space-8);
+  font-size: var(--text-13);
+}
+
 /* A row of the gear's menu that holds its own control, the theme switch: laid out as an item, with no hover of its own. */
 .gear__theme {
   display: flex;

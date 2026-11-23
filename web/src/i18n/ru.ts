@@ -94,6 +94,16 @@ export const ru = {
     hotkeys: 'Горячие клавиши',
     gear: (level: string) => `Настройки и состояние: ${level}`,
   },
+  report: {
+    row: 'Сообщить о проблеме',
+    bug: 'Ошибка',
+    cliUpdate: 'Сломалось после обновления CLI',
+    setup: 'Не получается установить',
+    question: 'Вопрос или идея',
+    vulnerability: 'Уязвимость —',
+    privately: 'только приватно',
+    external: 'Откроется GitHub в новой вкладке',
+  },
   hotkeys: hotkeysRu,
   updates: {
     version: (version: string) => `Even Keel ${version}`,

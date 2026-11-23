@@ -11,6 +11,7 @@ import { completionTasks } from '../completion.js'
 import { QuestionIcon } from '../ui/icons.js'
 import { ThemeSwitch } from '../ui/ThemeSwitch.js'
 import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
+import { ReportItem, ReportRows } from './Report.js'
 import { VersionRow } from './Updates.js'
 import { usePopover } from './usePopover.js'
 
@@ -114,6 +115,7 @@ export function GearRows({ now }: { now: Date }) {
         {t.header.tools}
       </NavLink>
       <ThemeRow />
+      <ReportRows />
       <VersionRow />
     </nav>
   )
@@ -156,6 +158,7 @@ export function GearMenu({ now }: { now: Date }) {
           </NavLink>
           <HotkeysRow onOpen={hotkeys.show} />
           <ThemeRow />
+          <ReportItem />
           <VersionRow />
         </nav>
       )}

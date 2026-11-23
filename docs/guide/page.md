@@ -8,6 +8,7 @@ Everything is driven from one web page: the chains, the sessions, the accounts a
 - [The event log](#the-event-log)
 - [Status](#status)
 - [Updating from the page](#updating-from-the-page)
+- [Reporting a problem](#reporting-a-problem)
 - [In the tray (Windows)](#in-the-tray-windows)
 - [Hotkeys](#hotkeys)
 - [Languages](#languages)
@@ -141,6 +142,19 @@ The button needs Even Keel running as a service from a clean clone; otherwise th
 Even Keel asks GitHub for releases only once you allow it: the first start's setup asks, and **Settings** → **Interface** changes it.
 
 In full — [Updating](setup.md#updating).
+
+## Reporting a problem
+
+**Report a problem** in the gear menu, above the version (on a phone, in the menu button's sheet), leads to Even Keel's repository on GitHub, in a new tab:
+
+- **Bug** — the bug form;
+- **Broke after a CLI update** — the form for a part an agent's CLI update broke;
+- **Can't get it installed** — the short form for a stuck setup or first run;
+- **Question or idea** — the repository's Discussions.
+
+The forms come with your Even Keel version and the version of each agent's CLI your sessions run on already filled in; the OS and the other choices are yours to pick. Nothing is sent by itself: you see the form, fill in the rest and decide. Even Keel collects no telemetry, so this is the only way it learns something broke.
+
+A vulnerability goes privately, not as an issue: the last line, **privately only**, opens a private security advisory ([SECURITY.md](../../SECURITY.md)).
 
 ## In the tray (Windows)
 

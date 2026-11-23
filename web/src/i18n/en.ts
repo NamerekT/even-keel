@@ -86,6 +86,16 @@ export const en: Messages = {
     hotkeys: 'Hotkeys',
     gear: (level: string) => `Settings and status: ${level}`,
   },
+  report: {
+    row: 'Report a problem',
+    bug: 'Bug',
+    cliUpdate: 'Broke after a CLI update',
+    setup: "Can't get it installed",
+    question: 'Question or idea',
+    vulnerability: 'A vulnerability —',
+    privately: 'privately only',
+    external: 'Opens GitHub in a new tab',
+  },
   hotkeys: hotkeysEn,
   updates: {
     version: (version: string) => `Even Keel ${version}`,
