@@ -333,6 +333,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 302 | [A machine's folder on the project's main branch](unverified/machines.md#a-machines-folder-on-the-projects-main-branch-btn-1566) | projects whose main branch is not the remote's default one, connected to a machine | the step "Main branch" refuses with `pool.switchFailed` though the folder is clean; switch the folder to the main branch there by hand and press Retry | — |
 | 303 | [The macOS night on dev](unverified/ci.md#the-macos-night-on-dev-2026-11-23) | the maintainer's releases | a red night holds nothing or tests `main`; run `gh workflow run macos.yml --ref dev` and read `sh scripts/nights-green.sh` | — |
 | 304 | [A GitHub run with one job waiting for a runner](unverified/ci.md#a-github-run-with-one-job-waiting-for-a-runner-btn-1576) | projects on GitHub Actions whose run has a job no runner takes for long | the push goes unchecked while its jobs run, or the panel names a job that waits for another job as waiting for a runner; the panel's job list shows what really runs | — |
+| 305 | [One lane of a project a machine](unverified/machines.md#one-lane-of-a-project-a-machine-btn-1569) | hubs whose project has a width above 1 and several machines in its pool | two tasks of the project still run on one machine, or a second lane left from an older version never ends; stop the project's chain and start it again | — |
 
 ### Waiting for the event / not checked by choice
 
