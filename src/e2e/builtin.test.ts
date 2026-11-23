@@ -1,4 +1,7 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { BuiltinFiles } from '../builtin/files.js'
 import { BuiltinStore } from '../builtin/store.js'
 import { commitAndMerge, ends } from './agent.fixture.js'
 import { FEED_ID, FEED_KEY, Harness, PROJECT_ID } from './service.fixture.js'
@@ -210,5 +213,24 @@ describe('the built-in tracker end to end', { timeout: 120_000 }, () => {
     await run.until(() => !released().includes('ABC-1'), 'ABC-1 cleaned up after on the built-in tracker')
     expect(run.git('worktree', 'list').split('\n')).toHaveLength(1)
     expect(run.board.status('ABC-1')).not.toBe('Done')
+  })
+
+  it("gives a session its task's attachment as a copy in its own folder, never the store's path (BTN-1538)", async () => {
+    run.project.tracker = 'builtin'
+    let copy: string | null = null
+    run.agent.script('ABC-1', async (step) => {
+      copy = await readFile(join(step.cwd, '.temp', 'task-files', 'ABC-1', 'shot.png'), 'utf8').catch(() => null)
+      return commitAndMerge('ABC-1.txt')(step)
+    })
+    await run.start()
+    await run.post('builtin/create', { project: PROJECT_ID, title: 'With a picture' })
+    const file = await new BuiltinFiles(new BuiltinStore(run.service.db), run.service.attachmentsDir).add({ project: PROJECT_ID, number: 1 }, { name: 'shot.png', type: 'image/png', bytes: Buffer.from('picture') })
+    await run.startChain(PROJECT_ID)
+    await run.until(() => copy !== null, 'ABC-1 read its copy')
+
+    const prompt = run.agent.calls.find((call) => call.kind === 'launch' && call.task === 'ABC-1')!.prompt
+    expect(copy).toBe('picture')
+    expect(prompt).toMatch(/shot\.png — .*[\\/]\.temp[\\/]task-files[\\/]ABC-1[\\/]shot\.png/)
+    expect(prompt).not.toContain(join(run.service.attachmentsDir, file.sha256))
   })
 })

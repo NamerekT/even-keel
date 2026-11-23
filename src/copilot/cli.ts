@@ -176,8 +176,6 @@ export class CopilotCli {
     private readonly timeoutMs: number,
     private readonly envOf: (home: AccountHome) => NodeJS.ProcessEnv,
     private readonly registry: TurnRegistry,
-    /** Even Keel's own folders a session reads from, such as the built-in tracker's attachments (BTN-1535). */
-    private readonly readDirs: () => string[] = () => [],
   ) {}
 
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
@@ -260,7 +258,8 @@ export class CopilotCli {
    */
   private async turn(home: AccountHome, start: SessionStart, cwd: string, session: { id: string; resume: boolean }, failure: Notice): Promise<{ pid: number; out: string; at: number }> {
     const main = await mainCheckout(cwd)
-    const dirs = [...(main === null ? [] : [main]), ...this.readDirs().filter((dir) => existsSync(dir))]
+    // Only the main checkout a merge goes into: a built-in task's attachments are copies in `cwd` (BTN-1538).
+    const dirs = main === null ? [] : [main]
     try {
       trustFolder(home.dir, main ?? cwd)
     } catch (error) {

@@ -798,15 +798,18 @@ describe('the rest', () => {
     expect(comment!.journal).toMatchObject({ by: 'agent', model: null })
   })
 
-  it('task_read lists the attachments by their absolute paths and marks a missing file', async () => {
+  it('task_read lists built-in attachments by copies in the working folder, by the store with none, and marks a missing file (BTN-1538)', async () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'ek-taskmcp-')), 'files')
     tracker = trackerOf(builtinSource(db, PLACES, dir))
     const files = new BuiltinFiles(store, dir, () => {})
     const picture = await files.add({ project: ABC, number: 1 }, { name: 'screen.png', type: 'image/png', bytes: Buffer.alloc(2048) })
     const gone = await files.add({ project: ABC, number: 1 }, { name: 'old.log', type: 'text/plain', bytes: Buffer.from('x') })
     rmSync(join(dir, gone.sha256))
-    const card = await call('task_read', { key: 'ABC-1' })
-    expect(card).toContain(`## Attachments\n\n- screen.png (2 KB) — ${join(dir, picture.sha256)}\n- old.log (1 B) — file missing`)
+    const copy = join(folder!, '.temp', 'task-files', 'ABC-1', 'screen.png')
+    expect(await call('task_read', { key: 'ABC-1' })).toContain(`## Attachments\n\n- screen.png (2 KB) — ${copy}\n- old.log (1 B) — file missing`)
+    expect(readFileSync(copy)).toEqual(Buffer.alloc(2048))
+    folder = null
+    expect(await call('task_read', { key: 'ABC-1' })).toContain(`## Attachments\n\n- screen.png (2 KB) — ${join(dir, picture.sha256)}`)
   })
 
   it('task_read downloads the files a tracker serves into the working folder (BTN-923)', async () => {

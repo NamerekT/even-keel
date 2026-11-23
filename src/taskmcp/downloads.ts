@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
-import { mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { basename, join } from 'node:path'
 import { megabytes } from '../notice/en.js'
 import type { TaskAttachment } from '../tracker/card.js'
-import type { TaskFile } from '../tracker/source.js'
+import type { TaskBrief, TaskFile } from '../tracker/source.js'
 
 /** Where `task_read` puts a task's files, inside the session's working folder (BTN-923). */
 export const DOWNLOADS = join('.temp', 'task-files')
@@ -28,24 +28,28 @@ export interface FileSink {
 class TooLarge extends Error {}
 
 /**
- * The `## Attachments` lines of `task_read` (BTN-923): a built-in file by its own path; a file the tracker serves
- * (`url: null`) downloaded into `<folder>/.temp/task-files/<KEY>/` and named by that copy's path; a public one by its
+ * The `## Attachments` lines of `task_read` (BTN-923): a file the tracker serves (`url: null`) downloaded into
+ * `<folder>/.temp/task-files/<KEY>/` and named by that copy's path; a built-in file copied there from the store, so a
+ * session never holds the store's own bytes (BTN-1538), by its store path only with no folder; a public one by its
  * `url`. A file over `limit` bytes, one with no folder to go to and one that failed to download get a line that says so,
  * never an error: the card is the answer. A file only outsiders' comments carry (BTN-1122) is left out altogether.
  */
 export async function attachmentLines(key: string, all: readonly TaskAttachment[], source: FileSource, sink: FileSink | null, limit: number): Promise<string[]> {
   const attachments = all.filter((each) => each.outsider !== true)
-  const counts = new Map<string, number>()
-  for (const each of attachments) counts.set(safeName(each.name), (counts.get(safeName(each.name)) ?? 0) + 1)
+  const named = copyNames(attachments.map((each) => ({ name: each.name, id: each.file })))
   return Promise.all(
-    attachments.map(async (each) => {
+    attachments.map(async (each, index) => {
       const line = (where: string) => `- ${each.name}${each.size > 0 ? ` (${sizeText(each.size)})` : ''} — ${where}`
-      if (each.path !== undefined) return line(each.missing ? 'file missing' : each.path)
+      const name = named[index]!
+      if (each.path !== undefined) {
+        if (each.missing) return line('file missing')
+        if (sink === null) return line(each.path)
+        // Past the limit too: the bytes are on this disk already, and the limit stands for a tracker's download.
+        return line(await storeCopy(key, name, each.path, sink).catch(() => 'file unavailable'))
+      }
       if (each.url !== null) return line(each.url)
       if (each.size > limit) return line('too large')
       if (source.file === undefined || sink === null) return line('not downloaded')
-      const prefix = /^https?:\/\//.test(each.file) ? createHash('sha256').update(each.file).digest('hex').slice(0, 8) : safeName(each.file).slice(0, 8)
-      const name = counts.get(safeName(each.name))! > 1 ? `${prefix}-${safeName(each.name)}` : safeName(each.name)
       try {
         const there = each.size > 0 ? await sink.existing(key, name, each.size) : null
         if (there !== null) return line(there)
@@ -62,6 +66,45 @@ export async function attachmentLines(key: string, all: readonly TaskAttachment[
       }
     }),
   )
+}
+
+/**
+ * The copies' names of a task's files: a file's safe name, or with the prefix of its id (a URL's hash, a built-in
+ * file's sha256) where two files share one.
+ */
+function copyNames(files: readonly { name: string; id: string }[]): string[] {
+  const counts = new Map<string, number>()
+  for (const each of files) counts.set(safeName(each.name), (counts.get(safeName(each.name)) ?? 0) + 1)
+  return files.map((each) => {
+    const prefix = /^https?:\/\//.test(each.id) ? createHash('sha256').update(each.id).digest('hex').slice(0, 8) : safeName(each.id).slice(0, 8)
+    return counts.get(safeName(each.name))! > 1 ? `${prefix}-${safeName(each.name)}` : safeName(each.name)
+  })
+}
+
+/** The copy of a built-in file's bytes `path` in the sink; a copy of the same size already there is taken as it is. */
+async function storeCopy(key: string, name: string, path: string, sink: FileSink): Promise<string> {
+  const size = (await stat(path)).size
+  return (await sink.existing(key, name, size)) ?? sink.put(key, name, await readFile(path))
+}
+
+/**
+ * The prompt with each of the brief's built-in files (the task's and its parents') named by its copy in the session's
+ * `folder` instead of its path in the store (BTN-1538): the copies are the files `task_read` gives too. A file that
+ * cannot be copied, such as one of a hub on another machine, keeps its line as it was.
+ */
+export async function withBriefCopies(prompt: string, task: string, brief: TaskBrief | undefined, folder: string): Promise<string> {
+  if (brief === undefined) return prompt
+  const sink = folderSink(folder)
+  const levels = [{ key: task, files: brief.files ?? [] }, ...(brief.ancestors ?? []).map((each) => ({ key: each.id, files: each.files ?? [] }))]
+  let copied = prompt
+  for (const { key, files } of levels) {
+    const names = copyNames(files.map((each) => ({ name: each.name, id: basename(each.path) })))
+    for (const [index, file] of files.entries()) {
+      const copy = await storeCopy(key, names[index]!, file.path, sink).catch(() => null)
+      if (copy !== null) copied = copied.split(file.path).join(copy)
+    }
+  }
+  return copied
 }
 
 /** A tracker answered with no bytes: Linear's storage does so for a while right after an upload (BTN-1201). */

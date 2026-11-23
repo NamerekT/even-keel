@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, writeSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, writeSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -61,15 +61,11 @@ describe('Copilot launch without a transcript', () => {
     await expect(result).rejects.toMatchObject({ notice: { code: 'copilot.startFailed', detail: expect.stringMatching(/trustedFolders/) } })
   })
 
-  it('lets the session read the folders Even Keel keeps its files in, only those that exist (BTN-1535)', async () => {
+  it('adds no folder of Even Keel’s own, such as the attachments’ store: a session reads copies in its folder (BTN-1538)', async () => {
     dir = mkdtempSync(join(tmpdir(), 'copilot-launch-'))
-    const files = join(dir, 'files')
-    mkdirSync(files)
-    const cli = new CopilotCli(() => 'copilot', 1000, () => ({}), new TurnRegistry(dir), () => [files, join(dir, 'absent')])
+    const cli = new CopilotCli(() => 'copilot', 1000, () => ({}), new TurnRegistry(dir))
     cliOutput.text = 'Error: Model "missing-model" from --model flag is not available.\n'
     await expect(cli.launch({ key: 'copilot', dir, global: false, agent: 'copilot' }, { name: 'DEMO-1', cwd: dir, model: null, prompt: 'DEMO-1' })).rejects.toBeDefined()
-    const added = cliOutput.args.flatMap((arg, at) => (cliOutput.args[at - 1] === '--add-dir' ? [arg] : []))
-    expect(added).toContain(files)
-    expect(added).not.toContain(join(dir, 'absent'))
+    expect(cliOutput.args).not.toContain('--add-dir')
   })
 })

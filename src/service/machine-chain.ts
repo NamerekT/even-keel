@@ -27,6 +27,7 @@ import type { MachinePort } from '../machine/port.js'
 import { megabytes } from '../notice/en-values.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { replyParts } from '../sessions/ask.js'
+import { withBriefCopies } from '../taskmcp/downloads.js'
 import { typedText } from '../sessions/commandPrompt.js'
 import { KEEP_WARM_PROMPT, KeepWarm, type WarmFacts } from '../sessions/keepwarm.js'
 import { warmPingOf } from '../sessions/warm-pings.js'
@@ -56,7 +57,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       const place = await ctx.places.ready(project, task)
       const git = !isPlain(ctx.configStore.current, project)
       const plain = startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), git, git ? slotCleanOf(ctx, project, place.path) : [])
-      const started = ctx.withProject(ctx.briefed.apply(task, plain + (brief?.restore?.text ?? ''), brief), project)
+      const briefed = ctx.briefed.apply(task, plain + (brief?.restore?.text ?? ''), brief)
+      const started = ctx.withProject(await withBriefCopies(briefed, task, ctx.briefed.kept(task), place.path), project)
       const { prompt, model, provider, fallback } = ctx.planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
       const extras = ctx.agentExtras(home, project, task)
       const sessionId = await ctx.launchIn(home, { name: task, cwd: place.path, prompt, model, settings: await ctx.settingsFor(task, project), ...extras }, project)
@@ -140,7 +142,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       // Before the stop: without a brief the handoff pauses, and the session it was to replace is left as it is.
       // The user's message goes last, after the brief and every setting's text: the agent and the page look for it there.
       const cut = reason === 'message' ? cutUserMessage(handoff) : null
-      const told = ctx.briefed.apply(task, cut?.rest ?? handoff, brief)
+      const told = await withBriefCopies(ctx.briefed.apply(task, cut?.rest ?? handoff, brief), task, ctx.briefed.kept(task), session.workdir)
       const previous = ctx.homes.find(session.account)
       if (previous !== undefined && !session.stopped) await ctx.stopIn(previous, session)
       const project = ctx.projectOf(task)

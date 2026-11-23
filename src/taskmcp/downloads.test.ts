@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { TaskAttachment } from '../tracker/card.js'
 import type { TaskFile } from '../tracker/source.js'
-import { attachmentLines, folderSink, type FileSource } from './downloads.js'
+import { attachmentLines, folderSink, withBriefCopies, type FileSource } from './downloads.js'
 
 let folder: string
 let served: string[]
@@ -126,19 +126,93 @@ describe('task_read files of a tracker that serves them (BTN-923)', () => {
     expect(paths.map((path) => readFileSync(path, 'utf8'))).toEqual(['first', 'second'])
   })
 
-  it('a public file goes by its url, a built-in one by its path; a tracker without file downloads nothing', async () => {
+  it('a public file goes by its url; a tracker without file downloads nothing', async () => {
     const lines = await attachmentLines(
       'ABC-1',
-      [
-        attachment('u', 'logo.png', 10, { url: 'https://example.com/logo.png' }),
-        attachment('p', 'screen.png', 10, { path: '/files/abc' }),
-        attachment('m', 'old.log', 1, { path: '/files/def', missing: true }),
-        attachment('s', 'served.png', 10),
-      ],
+      [attachment('u', 'logo.png', 10, { url: 'https://example.com/logo.png' }), attachment('m', 'old.log', 1, { path: '/files/def', missing: true }), attachment('s', 'served.png', 10)],
       {},
       folderSink(folder),
       1024,
     )
-    expect(lines).toEqual(['- logo.png (10 B) — https://example.com/logo.png', '- screen.png (10 B) — /files/abc', '- old.log (1 B) — file missing', '- served.png (10 B) — not downloaded'])
+    expect(lines).toEqual(['- logo.png (10 B) — https://example.com/logo.png', '- old.log (1 B) — file missing', '- served.png (10 B) — not downloaded'])
+  })
+})
+
+describe('task_read files of the built-in tracker (BTN-1538)', () => {
+  const store = () => {
+    const dir = join(folder, '..', 'store')
+    mkdirSync(dir, { recursive: true })
+    return dir
+  }
+  const sha = (letter: string) => letter.repeat(64)
+
+  it('copies a file of the store into .temp/task-files/<KEY>/ and never names the store', async () => {
+    const path = join(store(), sha('a'))
+    writeFileSync(path, 'picture')
+    const lines = await attachmentLines('ABC-1', [attachment(sha('a'), 'shot.png', 7, { path })], {}, folderSink(folder), 1024)
+    expect(lines).toEqual([`- shot.png (7 B) — ${join(dir(), 'shot.png')}`])
+    expect(readFileSync(join(dir(), 'shot.png'), 'utf8')).toBe('picture')
+    // A change to the copy stays in the copy, and the next read puts the store's bytes back.
+    writeFileSync(join(dir(), 'shot.png'), 'edit')
+    await attachmentLines('ABC-1', [attachment(sha('a'), 'shot.png', 7, { path })], {}, folderSink(folder), 1024)
+    expect(readFileSync(path, 'utf8')).toBe('picture')
+    expect(readFileSync(join(dir(), 'shot.png'), 'utf8')).toBe('picture')
+  })
+
+  it('copies a file past the limit too: the store has it already', async () => {
+    const path = join(store(), sha('b'))
+    writeFileSync(path, Buffer.alloc(4096))
+    const lines = await attachmentLines('ABC-1', [attachment(sha('b'), 'dump.bin', 4096, { path })], {}, folderSink(folder), 1024)
+    expect(lines).toEqual([`- dump.bin (4 KB) — ${join(dir(), 'dump.bin')}`])
+  })
+
+  it('two files of one name differ by the prefix of their hash', async () => {
+    writeFileSync(join(store(), sha('c')), 'first')
+    writeFileSync(join(store(), sha('d')), 'second')
+    const files = [attachment(sha('c'), 'image.png', 5, { path: join(store(), sha('c')) }), attachment(sha('d'), 'image.png', 6, { path: join(store(), sha('d')) })]
+    const lines = await attachmentLines('ABC-1', files, {}, folderSink(folder), 1024)
+    expect(lines).toEqual([`- image.png (5 B) — ${join(dir(), 'cccccccc-image.png')}`, `- image.png (6 B) — ${join(dir(), 'dddddddd-image.png')}`])
+  })
+
+  it('a file gone from the store since the card was read is "file unavailable"', async () => {
+    const lines = await attachmentLines('ABC-1', [attachment(sha('e'), 'gone.png', 3, { path: join(store(), sha('e')) })], {}, folderSink(folder), 1024)
+    expect(lines).toEqual(['- gone.png (3 B) — file unavailable'])
+  })
+
+  it('with no working folder a file goes by its path in the store', async () => {
+    const lines = await attachmentLines('ABC-1', [attachment(sha('f'), 'shot.png', 7, { path: '/files/fff' })], {}, null, 1024)
+    expect(lines).toEqual(['- shot.png (7 B) — /files/fff'])
+  })
+})
+
+describe('the brief of a built-in task (BTN-1538)', () => {
+  it('copies the task’s and its parents’ files into the folder and gives the copies’ paths in the prompt', async () => {
+    const store = join(folder, '..', 'store')
+    mkdirSync(store)
+    const own = join(store, 'a'.repeat(64))
+    const parents = join(store, 'b'.repeat(64))
+    const twin = join(store, 'c'.repeat(64))
+    writeFileSync(own, 'own')
+    writeFileSync(parents, 'parent')
+    writeFileSync(twin, 'twin')
+    const gone = join(store, 'd'.repeat(64))
+    const brief = {
+      title: 'Child',
+      description: '',
+      files: [{ name: 'shot.png', path: own }, { name: 'gone.txt', path: gone }],
+      ancestors: [{ id: 'ABC-0', title: 'Parent', description: '', files: [{ name: 'map.png', path: parents }, { name: 'map.png', path: twin }] }],
+    }
+    const prompt = `- shot.png — ${own}\n- gone.txt — ${gone}\n- map.png — ${parents}\n- map.png — ${twin}\n`
+    const copied = await withBriefCopies(prompt, 'ABC-1', brief, folder)
+    const parentDir = join(folder, '.temp', 'task-files', 'ABC-0')
+    expect(copied).toBe(`- shot.png — ${join(dir(), 'shot.png')}\n- gone.txt — ${gone}\n- map.png — ${join(parentDir, 'bbbbbbbb-map.png')}\n- map.png — ${join(parentDir, 'cccccccc-map.png')}\n`)
+    expect(readFileSync(join(dir(), 'shot.png'), 'utf8')).toBe('own')
+    expect(readFileSync(join(parentDir, 'cccccccc-map.png'), 'utf8')).toBe('twin')
+  })
+
+  it('leaves a prompt with no brief or no files as it is', async () => {
+    expect(await withBriefCopies('text', 'ABC-1', undefined, folder)).toBe('text')
+    expect(await withBriefCopies('text', 'ABC-1', { title: 'T', description: '' }, folder)).toBe('text')
+    expect(existsSync(join(folder, '.temp'))).toBe(false)
   })
 })
